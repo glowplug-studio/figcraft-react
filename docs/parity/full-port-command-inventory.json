@@ -604,35 +604,45 @@
       "label": "Flip horizontal",
       "source": "crates/engine/src/cmd/arrange.rs",
       "line": 44,
-      "status": "Not tested"
+      "status": "Partial",
+      "evidence": "../reports/26-11-07-rotation-parity.html",
+      "limitation": "Supported model verified; vector/text modes and other kinds remain required."
     },
     {
       "command": "object.flipV",
       "label": "Flip vertical",
       "source": "crates/engine/src/cmd/arrange.rs",
       "line": 45,
-      "status": "Not tested"
+      "status": "Partial",
+      "evidence": "../reports/26-11-07-rotation-parity.html",
+      "limitation": "Supported model verified; vector/text modes and other kinds remain required."
     },
     {
       "command": "object.rotate180",
       "label": "Rotate 180\u00b0",
       "source": "crates/engine/src/cmd/arrange.rs",
       "line": 46,
-      "status": "Not tested"
+      "status": "Partial",
+      "evidence": "../reports/26-11-07-rotation-parity.html",
+      "limitation": "Supported model verified; vector/text modes and other kinds remain required."
     },
     {
       "command": "object.rotateLeft",
       "label": "Rotate 90\u00b0 left",
       "source": "crates/engine/src/cmd/arrange.rs",
       "line": 49,
-      "status": "Not tested"
+      "status": "Partial",
+      "evidence": "../reports/26-11-07-rotation-parity.html",
+      "limitation": "Supported model verified; vector/text modes and other kinds remain required."
     },
     {
       "command": "object.rotateRight",
       "label": "Rotate 90\u00b0 right",
       "source": "crates/engine/src/cmd/arrange.rs",
       "line": 52,
-      "status": "Not tested"
+      "status": "Partial",
+      "evidence": "../reports/26-11-07-rotation-parity.html",
+      "limitation": "Supported model verified; vector/text modes and other kinds remain required."
     },
     {
       "command": "transform.move",
@@ -657,21 +667,27 @@
       "label": "Rotate",
       "source": "crates/engine/src/cmd/arrange.rs",
       "line": 75,
-      "status": "Not tested"
+      "status": "Partial",
+      "evidence": "../reports/26-11-07-rotation-parity.html",
+      "limitation": "Supported model verified; vector/text modes and other kinds remain required."
     },
     {
       "command": "transform.rotationOrigin",
       "label": "Move rotation origin",
       "source": "crates/engine/src/cmd/arrange.rs",
       "line": 92,
-      "status": "Not tested"
+      "status": "Partial",
+      "evidence": "../reports/26-11-07-rotation-parity.html",
+      "limitation": "Supported model verified; vector/text modes and other kinds remain required."
     },
     {
       "command": "transform.setRotationOrigin",
       "label": "Set rotation origin",
       "source": "crates/engine/src/cmd/arrange.rs",
       "line": 102,
-      "status": "Not tested"
+      "status": "Partial",
+      "evidence": "../reports/26-11-07-rotation-parity.html",
+      "limitation": "Supported model verified; vector/text modes and other kinds remain required."
     },
     {
       "command": "transform.scale",

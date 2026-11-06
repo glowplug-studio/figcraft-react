@@ -5,16 +5,16 @@
 | Field | Current value |
 |---|---|
 | Overall status | In progress; full parity is not implemented |
-| Active slice | Rotation origins, numeric rotations and flips |
-| Active phase | Phase 1–3: source mapping and rotation plan |
+| Active slice | Smart-selection spacing, reordering and gesture transactions |
+| Active phase | Phase 1–3: smart-selection source mapping and plan |
 | Upstream baseline | `0b97f3f1801a9b7b96fd7a4f3c0942a3f1a676f3`; prior parity baseline `8eb0b87646c5aef712326d6c431ccde5408630de` |
-| Branch and last verified commit | `prompt/full-figcraft-port`; verified sizing `c6b8c71`; verified arrangement `783a694`; verified viewport `d0fae6c`; verified frames `3e7943a`; verified nested groups `e81ba76`; verified colour `bfa5dd8`; affine `080fc27`, outline check `2404d6b`, reports `ff29f38`; pages `6c988a5`, persistence `41d467b`; integration `fc3b4a6` from updated dev plus rectangle branch |
+| Branch and last verified commit | `prompt/full-figcraft-port`; verified rotations `92062ca`; verified sizing `c6b8c71`; verified arrangement `783a694`; verified viewport `d0fae6c`; verified frames `3e7943a`; verified nested groups `e81ba76`; verified colour `bfa5dd8`; affine `080fc27`, outline check `2404d6b`, reports `ff29f38`; pages `6c988a5`, persistence `41d467b`; integration `fc3b4a6` from updated dev plus rectangle branch |
 | Completed slices | Rectangle/host-auth, bounded native persistence/recovery, supported-model pages, affine rectangle geometry/selection and solid appearance, plus nested group hierarchy and Frame containers verified locally |
 | Remaining slices | Every row below except the integrated foundation; static inventory entries remain unverified until mapped and tested |
-| Tests last passed | Strict TypeScript, 349 pure tests, 2 real local Auth tests, package/Next builds and32/32 production Chromium checks (43.6s); moving-frame p95 13.8ms |
-| Files currently in progress | Rotation plan; no rotation implementation yet |
+| Tests last passed | Strict TypeScript, 365 pure tests, 2 real local Auth tests, package/Next builds and34/34 production Chromium checks (52.4s); moving-frame p95 13.5ms |
+| Files currently in progress | Smart-selection plan; implementation not yet started |
 | Blockers | None |
-| Exact next action | Implement rotation-origin session state, numeric rotation/flip commands, inspector and canvas origin handle; verify and continue roadmap |
+| Exact next action | Port smart-selection tracks/reflow, transient document gestures, spacing fields and canvas gap/reorder handles; verify and continue |
 | Last updated | 2026-11-07 |
 
 ## Scope and continuation
@@ -226,3 +226,23 @@ Source/mapping: `canvas/rotation_origin.rs::{RotationOrigin,moved_origin,origin_
 Hazards: parent/world matrix conjugation, counter-clockwise angle convention, ordered selection equality, local-origin lifetime across undo, singular transforms and finite results, no root React rerenders while dragging. Multiple similarly rotated selections use a common oriented frame except axis-aligned angles; mirrored axes count modulo pi. No other pointer resize/rotate handle is implied by this slice. Pure fixtures cover exact native origin lifecycle, snapping, pinned rotations, flips, transformed parents and atomic failure; browser flows cover handle drag/reset, Alt+R/Escape, inspector transforms, undo/save/recovery and mobile. Existing large-document/input performance suite remains required.
 
 No schema/provider/identity or RLS changes; existing local Auth and recovery apply. Unsupported node kinds, text/vector editing and general transform gestures remain required later. Work sequentially; rollback c6b8c71. Files: new rotation/origin helpers and panel; EditorEngine, CanvasController and Editor key handling; pure/browser tests and version records. Implement pure geometry, transient lifecycle, command transactions, controls/input, then verify and report.
+
+Rotation integration checkpoint: transient origin lifecycle, oriented selection-box maths, eight commands, pinned rotation fields, canvas origin dragging/reset and inspector/keyboard controls implemented.365 pure tests,2 real local Auth tests, strict TypeScript and package/Next production builds pass. Scoped Supabase MCP read succeeds; public tables remain empty pending the online-file slice. Focused browser verification active; no external blocker or publication.
+
+## Verified rotation checkpoint
+
+Implementation92062ca, version0.12.0:365 pure,2 real local Auth, strict TypeScript/build and34/34 browser checks passed in52.4s. Scoped Supabase MCP read succeeded. [Report](../reports/26-11-07-rotation.md). No external blocker or publication.
+
+## Active smart-selection spacing and reordering plan
+
+Acceptance: native page-space track grouping for2–2000 movable visible siblings, with0.01 alignment tolerance and cross-span overlap; mixed gaps, negative fractional gaps and bounds-preserving track contents. `arrange.spacing` retains the first track and supports independent axes, range±1e6 and atomic validation. `arrange.reorder` accepts only regular non-overlapping rows/columns or complete top-left-aligned grids, ignores selection/stacking order, inserts or swaps one item, reflows unequal sizes with original gaps and never changes hierarchy. Include roundToPixels local translation/dimensions with Rust tie-away rounding, positive dimensions minimum1 and no constraint propagation.
+
+Source/mapping: `selection/selection_spacing.rs::{selection_spacing,axis,Axis::offsets}` → pure smart-selection tracks; `selection/selection_reorder.rs::{ReorderLayout::new,positions}` → row-major reflow; `cmd/arrange::{spacing,reorder,round_px}` → immutable reducer; `ui-egui/canvas/selection_spacing.rs::{handles,ring,input,draw,panel}` → browser controller/renderer and targeted inspector controls; `selection_spacing_tests.rs`, `selection_reorder_tests.rs` and UI tests → paired fixtures. Both Graphify repos queried: Rust exact definitions current; React still README-only. Source authority0b97f3f.
+
+Canvas: hover within selection bounds+12px displays pink gap handles and reorder rings. Rings require minimum side16screenpx; hit radius min(8,side/4), draw radius4.5. Gap hit areas10×24 (horizontal) or24×10 (vertical), overlap-sweep handles per shared cell. Pointer slop3px; spacing quantum1, Shift10, Alt0.1 with Alt priority; reorder uses nearest original slot, primary modifier swaps, outside release commits last valid slot. A plain ring click narrows selection; modified clicks retain it. Escape/pointer cancellation restore base without history; release commits exactly once; return to original arrangement adds no undo. Tool/page/selection/file/access changes cancel the owning gesture and later pointer events cannot resume it.
+
+Architecture: add an engine-owned transient interaction document and targeted subscription. Root snapshot/recovery observe only committed content; canvas and small spacing panel can observe previews without root React rerenders. `fromGesture` uses fixed original geometry while retaining earlier edits on an unrequested axis. Commit one history entry; cancel never loses intervening selection/navigation. Other commands retire active gestures before execution. Preserve existing viewport/origin lifetimes and export engine interaction methods for embedding. File replacement cancels pending gestures. Cache layout by immutable document and ordered selection to avoid repeated per-frame work.
+
+Hazards: deterministic u64-ID tie order, original track anchor versus expanding track bounds, diagonal rejection, mixed/negative gaps, unequal-size reflow, singular parents, complete-grid validation, finite/atomic updates, captured pointer release/cancellation and identity changes. Do not publish gesture frames to recovery or history. Tests cover source numeric cases, both axes, rotated parents, invalid/locked/hidden/duplicate IDs, no-op/undo and cross-context cancellation; browser tests cover fields/scrubs/handles, insertion/swap, outside release, Escape, no root rerenders, save/recovery/mobile and existing performance fixtures.
+
+No provider/schema/RLS/Storage/Realtime changes. Multi-file gesture isolation is completed when multi-file workspace lands; current owning-document/page/selection/access lifecycle must be correct. Auto-layout flow and instance rejection extend when those kinds land. No stubs or full-family completion claim. Work sequentially; rollback92062ca. Files: new pure smart-selection module and interaction helper/controller, engine and canvas integration, SmartSelectionPanel, pure/browser tests and version records. Implement geometry/reducer, then transaction boundary, UI/handles, full verification and report.

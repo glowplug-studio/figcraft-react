@@ -236,3 +236,5 @@ Do not invent hypothetical Figma features: AI product features, audio/huddles, H
 Frames/constraints: [property report](../reports/26-11-07-frames-parity.html). Viewport/presets: [property report](../reports/26-11-07-viewport-parity.html). Movement/alignment/distribution/stacking: [property report](../reports/26-11-07-arrangement-parity.html). No complete family is passed; advanced layout, all unsupported kinds and remaining interaction/UI properties are still required.
 
 Anchored resizing and uniform scaling: [property report](../reports/26-11-07-sizing-parity.html).
+
+Rotation origins and numeric transforms: [property report](../reports/26-11-07-rotation-parity.html).

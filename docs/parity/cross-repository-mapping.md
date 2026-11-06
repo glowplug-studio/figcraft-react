@@ -37,3 +37,7 @@ Add mappings only after inspecting behaviour, callers, data contracts and tests.
 ## Anchored resize and uniform scale — 7 November 2026
 
 `cmd/arrange::{resize_cmd,scale_cmd,scale_node}`, `cmd/edit/select::nudge_size` and `handles::anchor_of` → `engine/sizing.ts`, shared arrangement targets and constraints, EditorEngine/SizePanel. Upstream0b97f3f, Reactc6b8c71. Source-derived nine-anchor, ordered target, rotated subtree, finite/atomic and codec fixtures plus authenticated keyboard/pivot/recovery/browser checks pass. [Property evidence](../reports/26-11-07-sizing-parity.html). Other kinds, scaling properties, preferences, layout and pointer tools remain required.
+
+## Rotation origins and transforms — 7 November 2026
+
+`canvas/rotation_origin.rs` and `tools/handles::{selection_frame,shared_rotation}` → `rotation.ts` and independent origin subscriptions; `cmd/arrange::{flip,rotate_by,turn_pivot}` → pure rotation reducer; `cmd/edit/props::set` pinning → properties reducer; native pointer/overlays → CanvasController ring/cross and RotationPanel. Upstream0b97f3f, React92062ca.365 pure/34 browser passes include native pivot fixtures, lifecycle, real pointer/keyboard, no root rerender and persistence. [Property evidence](../reports/26-11-07-rotation-parity.html). Other kinds, vector/text mode and general transform gestures remain required.
