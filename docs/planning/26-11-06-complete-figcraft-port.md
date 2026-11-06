@@ -5,16 +5,16 @@
 | Field | Current value |
 |---|---|
 | Overall status | In progress; full parity is not implemented |
-| Active slice | Native colour, solid paints and basic appearance properties |
-| Active phase | Phase 5–7: final colour/appearance verification and reporting |
+| Active slice | Nested groups, hierarchy and world-preserving structure commands |
+| Active phase | Phase 1–3: hierarchy evidence, plan and bounded allocation |
 | Upstream baseline | `0b97f3f1801a9b7b96fd7a4f3c0942a3f1a676f3`; prior parity baseline `8eb0b87646c5aef712326d6c431ccde5408630de` |
-| Branch and last verified commit | `prompt/full-figcraft-port`; verified affine `080fc27`, outline check `2404d6b`, reports `ff29f38`; pages `6c988a5`, persistence `41d467b`; integration `fc3b4a6` from updated dev plus rectangle branch |
-| Completed slices | Rectangle/host-auth, bounded native persistence/recovery, supported-model pages and affine rectangle geometry/selection verified locally |
+| Branch and last verified commit | `prompt/full-figcraft-port`; verified colour `bfa5dd8`; affine `080fc27`, outline check `2404d6b`, reports `ff29f38`; pages `6c988a5`, persistence `41d467b`; integration `fc3b4a6` from updated dev plus rectangle branch |
+| Completed slices | Rectangle/host-auth, bounded native persistence/recovery, supported-model pages, affine rectangle geometry/selection and solid appearance verified locally |
 | Remaining slices | Every row below except the integrated foundation; static inventory entries remain unverified until mapped and tested |
 | Tests last passed | Colour: strict typecheck, 242 pure tests, 2 real local Auth integration tests, package/Next production build, 16/16 authenticated production-browser/performance checks; CSS follow-up 1/1 |
-| Files currently in progress | Colour primitives/conversions/CSS parsing, solid paint model and codec, appearance commands/UI and tests |
+| Files currently in progress | Colour reports; hierarchy evidence and model/command plan |
 | Blockers | None |
-| Exact next action | Implement native colour/solid-paint fidelity and basic appearance editing through native files, rendering and recovery; verify before expanding containers |
+| Exact next action | Implement common layer/group model and pure hierarchy operations, then integrate native files, structure commands, nested canvas/selection, page subtree operations and browser controls |
 | Last updated | 2026-11-06 |
 
 ## Scope and continuation
@@ -130,3 +130,15 @@ Colour integration review: paint rows now follow native top-first panel order wh
 Graphify access was renewed successfully. A real query now returns Rust `0b97f3f1`, including `paint_opacity_and_layer_opacity_differ` and group behaviour fixtures. The React graph remains stale at `b3b8a1b` with README-only nodes; current local files remain authoritative. No user action remains for authentication.
 
 Colour verification: 242 pure and two real local Auth integration tests, strict TypeScript and package/Next production builds passed. Final full production-browser suite passed 16/16 in 17.8 seconds, including typed-paint metadata save after RGB/opacity edits. The CSS-only hidden-input/checkbox correction passed a rebuilt focused browser check (1/1, 3.7 seconds); its screenshot was inspected. Plain/affine 10,000-node p95/max were 1.0/1.3 ms and 4.9/8.1 ms over 110 measured frames. No deployment or push. Next: nested group hierarchy with world-preserving group/ungroup/reparent and native/history/rendering integration.
+
+## Active nested group hierarchy plan
+
+The next complete workflow is nested Group/Rectangle trees. Evidence: `doc/node.rs` common fields and container/bounds-follow predicates; `doc/lib.rs:597–666,721–755,811–850` frame-relative/world transforms, reparenting and child-bound fitting; `cmd/structure.rs:182–243,347–375` grouping/ungrouping; `cmd/edit/props.rs:245–260` reparent final-index semantics; `cmd/create.rs:267–369` group-parent coordinate space; `frames_behaviour_tests.rs:202–280` group geometry, empty-group removal and group-opacity fixtures. Graphify independently returned those current-source behaviour tests. Frames follow separately: their clipping, default white fill and coordinate space add a distinct contract.
+
+Acceptance: normalised parent/ordered-child references with Group nodes, cycle/non-container/page guards, exact IDs and atomic immutable transactions; local affine storage with world-preserving group/ungroup/reparent and z-order; group bounds follow children and descendants remain fixed during refit; group resize scales descendants, while inspector X/Y remains in page/frame space rather than group-local space. Nested native JSON/ZIP/recovery retains structure and appearance. Page duplication/deletion traverses supported subtrees and allocates fresh IDs. Group opacity composites overlapping children once; groups paint children only. Selection/layer tree expose groups and descendants with inherited visibility/lock filtering. Group/ungroup, reparent and delete controls dispatch native commands with undo/redo, and failed operations preserve the prior snapshot/allocator.
+
+Architecture: introduce an evidenced common layer interface and `GroupNode` without speculative node kinds. Pure hierarchy helpers own ancestry, world/frame transforms, roots/order, reparent, refit and subtree traversal; coordinator owns transactions, codec validation, creation/property integration and canvas compositing. Retain public rectangle aliases during the transition. Bound traversal and fail singular inverse/overflow atomically; avoid recursive untrusted-file stack overflow. Page references, selection and content history must remain consistent. The rendering layer retains its dedicated loop and flat-rectangle fast path; React draws only the layer tree/chrome.
+
+Mapping: `Document::{world_transform,frame_relative,reparent,fit_to_children,fit_ancestors}` → `engine/hierarchy.ts`; `cmd::structure::{wrap,ungroup}` and `cmd/edit::reparent` → pure structure reducer integrated by EditorEngine; `NodeKind::Group` → typed GroupNode + native codec + recursive Canvas2D subtree; `frames_behaviour_tests` → hierarchy algebra/transaction fixtures and authenticated grouping/pixels/reload checks. Validate 10,000 flat nodes and representative nested groups. Canvas2D alpha isolation is the browser substitute for native pixmap layers; numerical fixtures use tolerances established by native tests (world matrices within 1e-9).
+
+No new provider table, membership or role is required by local grouping. Existing host identity/capabilities and principal-scoped recovery continue; online ownership/Storage/Realtime remain later required families. Allocation: coordinator owns common model, engine/properties/codec/canvas/selection and integration. A bounded hierarchy agent owns only `engine/hierarchy.ts` and `tests/parity/hierarchy.test.ts`; a subsequent structure agent may own the pure structure reducer once helper contracts are reviewed. UI/page subtree work is allocated only after shared model contracts are stable. Rollback point: verified colour `bfa5dd8`. Full publication remains forbidden until all roadmap families pass.
