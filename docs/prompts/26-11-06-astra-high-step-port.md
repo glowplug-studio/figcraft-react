@@ -1,6 +1,6 @@
 # Astra High step-based Figcraft port prompt
 
-Use this prompt for a substantial port or upstream-sync task. Replace the scope placeholder before starting.
+Use this prompt for the complete browser-relevant Figcraft port. The user should need to issue this prompt once; execution continues through resumable checkpoints until the full completion gate is satisfied.
 
 ---
 
@@ -8,15 +8,15 @@ You are ChatGPT Astra High acting as the coordinating engineer and final reviewe
 
 ## Objective
 
-Analyse, design, plan, implement and verify this porting scope:
+Analyse, design, plan, implement and verify the complete browser-relevant Figcraft port. Treat this value as an optional priority or constraint, not as permission to stop after one feature:
 
 `{PORT_SCOPE}`
 
-Before implementation, confirm that the scope is one bounded, independently testable vertical slice. If it spans multiple separately shippable behaviours or the whole application, create an ordered roadmap but implement only the first explicit slice in this run. Do not generate stubs for later slices merely to claim broad coverage.
+Before implementation, inventory the complete upstream product and create a dependency-ordered roadmap of bounded, independently testable vertical slices. Implement one complete slice at a time, then immediately select and implement the next. Do not stop, hand back or claim overall completion merely because one slice passes. Do not generate stubs for later slices merely to claim broad coverage.
 
 Port the observable behaviour from the Rust Figcraft reference into the independent browser-based React implementation. Preserve meaningful feature and UI parity while omitting native desktop host-shell behaviour that has no browser purpose. When an essential native feature has no direct browser API, use the closest standards-based JavaScript equivalent and document the difference.
 
-Complete the work end to end: evidence gathering, mapping, plan, implementation, evaluation, correction, provider-neutral backend setup with the Supabase adapter, Next.js preview integration and local verification.
+Complete the work end to end across every roadmap slice: evidence gathering, mapping, planning, implementation, evaluation, correction, provider-neutral backend setup with the Supabase adapter, Next.js integration, local verification and final publication. Context compaction or a completed slice is not a stopping condition; resume from the recorded checkpoint.
 
 ## Mandatory project rules
 
@@ -33,9 +33,9 @@ Complete the work end to end: evidence gathering, mapping, plan, implementation,
 2. Record the React HEAD, fork HEAD, original upstream HEAD and current parity baseline.
 3. Both `glowplug-studio/figcraft-react` and the Rust reference repository `glowplug-studio/figcraft` are already connected to Graphify. Call `list_repositories` and verify both are queryable before analysis. Query the Rust repository for upstream definitions and behaviour, and the React repository for existing targets, dependencies and impact. If an index is stale, use current local files as authority and report the limitation.
 4. Verify the global `supabase-figcraft` MCP connection is authenticated by making a real read-only project call. If authorisation is missing, start login with `--no-browser`, give the user the link and resume only after a successful MCP call. Do not create a project-local MCP definition.
-5. Locate the complete upstream implementation, tests, documentation, assets, commands and UI states relevant to `{PORT_SCOPE}`. Use Graphify for definitions, callers, dependencies, impact and tests; use text search for literals, configuration and unindexed files.
+5. For the initial inventory, locate every browser-relevant upstream feature area. For each active slice, locate its complete upstream implementation, tests, documentation, assets, commands and UI states. Use Graphify for definitions, callers, dependencies, impact and tests; use text search for literals, configuration and unindexed files.
 6. Run or inspect the upstream feature where practical. Capture observable behaviour, state transitions, error cases, keyboard/pointer behaviour and browser-relevant visual states.
-7. Identify only the porting hazards that affect `{PORT_SCOPE}`. Check Rust-to-TypeScript semantic differences such as ownership and shared mutation, exhaustive enums, numeric precision and overflow, deterministic ordering, concurrency, error handling and serialisation. Check native-to-browser differences such as threads and workers, filesystem access, fonts and text shaping, clipboard and drag-and-drop, pointer and keyboard input, window APIs and rendering. Do not perform broad generic research.
+7. Identify only the porting hazards that affect the active slice. Check Rust-to-TypeScript semantic differences such as ownership and shared mutation, exhaustive enums, numeric precision and overflow, deterministic ordering, concurrency, error handling and serialisation. Check native-to-browser differences such as threads and workers, filesystem access, fonts and text shaping, clipboard and drag-and-drop, pointer and keyboard input, window APIs and rendering. Do not perform broad generic research.
 8. Resolve hazards from upstream code, tests and project documentation first. When evidence remains insufficient, consult current authoritative documentation for the specific browser API, TypeScript runtime or dependency involved. Record the evidence and avoid adopting generic porting advice that changes observable Figcraft behaviour.
 
 Graphify does not create semantic links across repositories. Build the mapping explicitly:
@@ -72,7 +72,7 @@ For geometry, layout, commands, document serialisation and collaboration changes
 
 ## Phase 2 — analysis and port plan
 
-Create `docs/planning/YY-MM-DD-<scope>.md` containing only evidence-backed decisions needed for this port:
+Create one master `docs/planning/YY-MM-DD-complete-figcraft-port.md` containing the exhaustive feature inventory, dependency-ordered slice roadmap and overall execution checkpoint. Add or link a bounded section or dated plan for each active slice containing only evidence-backed decisions needed for that slice:
 
 - upstream behaviour and acceptance criteria;
 - Rust source-to-React target mapping;
@@ -95,7 +95,7 @@ Create `docs/planning/YY-MM-DD-<scope>.md` containing only evidence-backed decis
 
 Do not create speculative platform architecture or unrelated ADRs.
 
-At the top of the plan, maintain an `Execution checkpoint` table containing: overall status, active phase, upstream baseline, branch and last verified commit, completed work, tests last passed, files currently in progress, blockers, exact next action and last-updated time. Update it after every phase, after each significant integration commit and immediately before stopping. On resumption, verify the recorded repository state and continue from the next action instead of repeating completed work.
+At the top of the master plan, maintain an `Execution checkpoint` table containing: overall status, active slice, active phase, upstream baseline, branch and last verified commit, completed slices, remaining slices, tests last passed, files currently in progress, blockers, exact next action and last-updated time. Update it after every phase, after each significant integration commit and immediately before stopping. On resumption, verify the recorded repository state and continue from the next action instead of repeating completed work. `Complete` is forbidden while any browser-relevant feature is unmapped, unimplemented, unverified or awaiting a required slice.
 
 ## Phase 3 — decomposition and delegation
 
@@ -121,7 +121,7 @@ Within each agent, work in sequential micro-steps. Do not generate full-file rep
 
 ## Phase 4 — implementation
 
-1. Create the branch required by `AGENTS.md` for the size of the work.
+1. Create the long-running `prompt/<description>` branch required by `AGENTS.md` once, then retain it across all slices unless repository state requires an explicitly documented recovery branch.
 2. Implement the smallest complete vertical slice matching the plan: one user-visible behaviour carried through every required layer, including UI, state/domain logic, provider boundary, persistence or realtime behaviour where applicable, error handling and tests. Do not leave a layer mocked when that layer is required for the feature to work locally.
 3. Write authored application and test code in strict TypeScript or TSX wherever supported. Use JavaScript only when a required tool cannot consume TypeScript, document why, preserve compatibility identifiers where required, and avoid unbounded `any`.
 4. Keep canvas rendering and frame-frequency interaction outside React reconciliation. Verify that continuous pointer interaction does not cause application-wide React rerenders.
@@ -187,7 +187,7 @@ Then:
 6. Inspect browser errors and failed network requests; correct them and retest.
 7. Stop local processes cleanly when verification is complete.
 
-## Phase 7 — final evidence and hand-off
+## Phase 7 — slice evidence and continuation
 
 Update the upstream baseline and changelog only when the port genuinely supports the new commit. Write a concise report in `docs/reports/` containing:
 
@@ -218,11 +218,23 @@ Use `High` confidence only when relevant automated parity tests and browser veri
 
 Do not merge to `main` or open a pull request unless the user has separately authorised that action. Deployment and the branch push needed to publish its verified demo-link changes are authorised only under Phase 8.
 
-Before hand-off, update the plan's execution checkpoint to `Complete` only when every required acceptance criterion has evidence. Otherwise record the precise resumable next action and leave the status truthful.
+After each slice, update its status and the master parity matrix. If any roadmap slice or browser-relevant upstream feature remains, set the next slice as active and return immediately to Phase 1's slice-level evidence work. Do not deploy, hand back, wait for routine confirmation or describe the application as complete.
+
+After the final planned slice, perform a fresh full-product audit against the pinned upstream tree, commands, menus, file format, tests and browser-relevant UI. Add every discovered omission to the roadmap and continue the loop. Only set the master checkpoint to `Complete` when all of the following are true:
+
+- every browser-relevant upstream feature is mapped to an implementation and verification evidence;
+- every required parity property passes, with no required `Failed`, `Partial`, `Blocked` or `Not tested` row;
+- file persistence and supported `.figcraft` round trips survive reload;
+- applicable authenticated ownership, database, RLS, Storage and Realtime behaviour is implemented declaratively and verified through the provider-neutral Supabase adapter;
+- the reusable package and complete Next.js host pass unit, integration, parity, build, performance and Playwright suites;
+- every native-only omission and browser substitution is explicitly justified by upstream evidence;
+- no roadmap slice, placeholder implementation or known parity gap remains.
+
+A genuine external blocker or material product decision may pause execution, but the checkpoint must name the exact blocker and next action. Context length, elapsed time, a completed slice or a passing partial demo are never completion conditions.
 
 ## Phase 8 — gated Vercel demo publication
 
-Run this phase only when Phases 1–7 are complete, the execution checkpoint is `Complete`, all required automated parity and Playwright checks pass, and no required report row is `Failed`, `Partial`, `Blocked` or `Not tested`.
+Run this phase exactly once, only after the complete-port audit passes, the master execution checkpoint is `Complete`, all required automated parity and Playwright checks pass, and no required report row is `Failed`, `Partial`, `Blocked` or `Not tested`.
 
 1. Confirm the deployment source is the exact reviewed, committed revision. Do not deploy a dirty working tree or uncommitted source.
 2. Use the authenticated Vercel MCP connection to identify the exact account, team and project. Verify that the project is connected to `glowplug-studio/figcraft-react`, uses `examples/nextjs` as its root directory, and will deploy the intended branch and commit. If the project is absent, ambiguous or mismatched, stop and request the user's selection; do not create, link or retarget one by assumption.
@@ -250,6 +262,6 @@ On any pre-promotion failure, retain the existing production deployment and do n
 - Output focused patches rather than rewriting complete files.
 - Use concise final reporting with exact files, commands and unresolved blockers.
 
-Continue until the planned scope is implemented and locally verified, or until progress requires a material product decision, unavailable credential or external system change that the user must provide.
+Continue autonomously through every roadmap slice until the complete browser-relevant application is implemented, locally verified and published, or until progress requires a material product decision, unavailable credential or external system change that only the user can provide.
 
 ---
