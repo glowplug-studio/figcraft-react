@@ -69,3 +69,19 @@ Add mappings only after inspecting behaviour, callers, data contracts and tests.
 | canvas::shape_handles::{handles,hit,drag,value}; session::preview | corner-handles.ts, EditorEngine.previewProperties | Native48px/10px/6px thresholds, affine projection, immutable-base Alt preview and one undo; pure/browser/performance | High for Rectangle/Frame handles |
 | ui-egui::paints; shape_overlay | CornerPanel, CornerInteraction.draw | Mixed controls, individual order, smoothing and60% preset, circles/pill; authenticated desktop/mobile | High for tested controls; shared native field scrubbing/theme remain UI-family work |
 | cmd::arrange::scale_node | sizing.ts::scaleSubtree | Scale multiplies stored radii, ordinary resize retains them, overflow rejects atomically | High; pure and browser Scale checks |
+
+
+## Ellipse geometry and arc editing (0.18.0)
+
+Upstream0b97f3f → Reactf21fe2b;480 pure,2 local Auth and60 browser checks pass. [Property matrix](../reports/26-11-07-ellipse-arcs-parity.html).
+
+| Upstream symbol/source | React target | Behaviour and verification | Confidence / boundary |
+|---|---|---|---|
+| geom::ellipse/full_sweep; Kurbo0.13.1 Ellipse/Arc | ellipse.ts::ellipsePath; corners.ts contours | Native major-axis phase, full/partial signed paths and opposite-winding ring holes; area/winding fixtures and browser pixels | High for exercised geometry; extreme finite dimensions use documented bounded approximation |
+| doc::NodeKind::Ellipse; cmd::create::kind_for/create | EllipseNode; creation.ts; file-format.ts | Native defaults/aliases, raw wire radians, lenient optionals and archive/recovery | High for browser creation/archive; alias/raw malformed cases pure-tested |
+| cmd::props arc keys | ellipse.ts::setArc; properties.ts | Start/sweep degrees, fraction/percent ratio, clamps and wrong-kind atomicity | High for UI edits; detailed coercion pure-tested |
+| arc_handles::{handles,hit,drag,handle_at,Arc::label} | arc-handles.ts | Signed continuity, Shift steps, complement, affine/zoom guards, labels and one undo | High for browser sweep/ratio/cancel; remaining exact sequences Medium pure evidence |
+| tools::{draw_down,draw_drag}; session::preview | DrawInteraction; EditorEngine.previewDraw | Frame parent space, immutable IDs, modifiers, snapping and Move return | High for browser nesting/modifiers; click and endpoint details pure-tested |
+| ui::arc_section / arc_overlay | ArcPanel; controller overlay | Mixed signed fields, ring pixels, native save/recovery, mobile; root-free previews | High for tested UI; full shared numeric fields/preferences remain required |
+
+Hosted React Graphify tracks initial main. A local code-only CLI graph of the canonical port branch now supplies current React structure (1058 nodes,4284 edges). Query results were verified against current ArcInteraction, previewDraw and createLayer; excluded Rust reference/generated output. Some symbol-free test/config files and SQL grammar coverage remain outside that local graph; local files/tests remain authoritative.

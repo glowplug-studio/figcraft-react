@@ -5,16 +5,16 @@
 | Field | Current value |
 |---|---|
 | Overall status | In progress; full parity is not implemented |
-| Active slice | Ellipse, arc and ring geometry/handles |
-| Active phase | Phase 7: verified ellipse slice reports and continuation |
+| Active slice | Polygon and Star geometry, properties and handles |
+| Active phase | Phase 1: polygon/star source evidence |
 | Upstream baseline | `0b97f3f1801a9b7b96fd7a4f3c0942a3f1a676f3`; prior parity baseline `8eb0b87646c5aef712326d6c431ccde5408630de` |
-| Branch and last verified commit | `prompt/full-figcraft-port`; verified corners `37ad314`; verified transforms `cc26af1`; verified canvas move `0d34280`; verified duplication `f6dfc3f`; verified smart selection `3326d26`; verified rotations `92062ca`; verified sizing `c6b8c71`; verified arrangement `783a694`; verified viewport `d0fae6c`; verified frames `3e7943a`; verified nested groups `e81ba76`; verified colour `bfa5dd8`; affine `080fc27`, outline check `2404d6b`, reports `ff29f38`; pages `6c988a5`, persistence `41d467b`; integration `fc3b4a6` from updated dev plus rectangle branch |
-| Completed slices | Rectangle/host-auth, bounded native persistence/recovery, supported-model pages, affine rectangle geometry/selection and solid appearance, plus nested group hierarchy and Frame containers verified locally |
+| Branch and last verified commit | `prompt/full-figcraft-port`; verified ellipses `f21fe2b`; verified corners `37ad314`; verified transforms `cc26af1`; verified canvas move `0d34280`; verified duplication `f6dfc3f`; verified smart selection `3326d26`; verified rotations `92062ca`; verified sizing `c6b8c71`; verified arrangement `783a694`; verified viewport `d0fae6c`; verified frames `3e7943a`; verified nested groups `e81ba76`; verified colour `bfa5dd8`; affine `080fc27`, outline check `2404d6b`, reports `ff29f38`; pages `6c988a5`, persistence `41d467b`; integration `fc3b4a6` from updated dev plus rectangle branch |
+| Completed slices | Rectangle/host-auth, bounded native persistence/recovery, supported-model pages, affine rectangle geometry/selection and solid appearance, plus nested group hierarchy, Frame containers, movement/transform gestures, rounded corners and ellipse/arc/ring editing verified locally |
 | Remaining slices | Every row below except the integrated foundation; static inventory entries remain unverified until mapped and tested |
 | Tests last passed | Strict TypeScript,480 pure tests,2 local Auth tests, package/Next builds and60/60 Chromium checks (150.3s,1 worker); ellipse arc/draw p95 2.7/2.8ms |
-| Files currently in progress | Ellipse model/codec, multi-contour paths, shared creation/drawing, arc handles/panel and tests |
+| Files currently in progress | Ellipse reports complete; polygon/star evidence gathering only |
 | Blockers | None |
-| Exact next action | Commit verified ellipse implementation and property reports; finish local Graphify index, then select the next source-evidenced shape slice |
+| Exact next action | Finish polygon/star creation/UI/wire/test evidence, write bounded plan, then extend leaf geometry and shared controls |
 | Last updated | 2026-11-07 |
 
 ## Scope and continuation
@@ -42,7 +42,7 @@ The existing production rectangle demo is a previous release, not evidence of co
 | 2 | Complete typed document properties and kinds, hierarchy, pages, validation/repair, affine transforms; `crates/doc/src/{lib,node,props}.rs`, `crates/geom`, `crates/color` | 1 codec boundary; split into independently verifiable property families | Partial: pages, affine model, groups and frames verified; other kinds/properties remain |
 | 3 | Selection/hit testing, move/resize/rotate, arrange/align/distribute, duplicate/delete/reparent/group, clipboard; `engine/src/cmd/{edit,structure,arrange}.rs`, tools and document geometry | 2 | Partial: hierarchy and numeric movement/arrangement verified; gestures, transforms and clipboard remain |
 | 4 | Pan/zoom, rulers, guides/grids, snapping, measurement, layer panel, pages/tabs and navigation; `cmd/{view,page}.rs`, keymap/catalog and UI canvas/panels | 2–3 | Partial: pages, layer tree and viewport verified; grids/guides/snapping and remaining navigation UI remain |
-| 5 | Shapes, vectors, pen/pencil, booleans, shape builder, stroke geometry; `doc/src/vector.rs`, `geom`, `pathops`, engine tools | 2–4 | Not implemented |
+| 5 | Shapes, vectors, pen/pencil, booleans, shape builder, stroke geometry; `doc/src/vector.rs`, `geom`, `pathops`, engine tools | 2–4 | Partial: rounded Rectangle/Frame and Ellipse/arc/ring paths verified; other kinds/vector/stroke authoring remain |
 | 6 | Paints, gradients, images/crops/adjustments, masks, blending and effects; `color`, `render`, `cmd/{props,image}.rs` | 2–5 | Partial: solid colours/fills/opacity verified; remaining appearance families required |
 | 7 | Rich text editing/shaping, fonts, spans, typography, lists, bidi and outlines; `text`, `doc/src/text.rs`, `cmd/{text,lists}.rs` | 2, 4, 6 | Not implemented |
 | 8 | Auto layout horizontal/vertical/wrap/grid, hug/fill/min/max, constraints and resize propagation; `layout`, `cmd/layout.rs`, document props | 2–7 | Partial: Frame constraints verified; auto-layout still required |
@@ -384,3 +384,12 @@ Graphify branch coverage clarification: hosted Graphify tracks the repository's 
 
 
 Ellipse final verification:480 pure checks (21 ellipse cases),2 real local Auth checks, strict TypeScript and package/Next builds pass.60/60 Chromium checks pass in150.3s with1 worker; no skipped/flaky browser checks. Earlier5-worker regression passed59 checks but nested Frame pan/zoom measured17ms against16.7ms; isolated final run measures12.6ms with unchanged threshold. Ellipse9999-layer/10000-node fixture:110 measured frames after10 warm-ups, arc p952.7ms/max2.8ms/input2.1ms, draw p952.8ms, zero root notifications and cancel restores the committed document. Reviewed new ring screenshot and existing rectangle/corner baseline changes, restricted to Ellipse toolbar/O hint. Local Next stopped. No hosted changes/publication.
+
+Local Graphify branch index completed: code-only CLI0.9.100 scanned148 code files, producing1058 nodes/4284 edges. Queries identify current ArcInteraction, createLayer and previewDraw. Stored outside the checkout; no hooks, agent-rule edits, hosted MCP change or publication. Two SQL files lack the optional SQL grammar and11 test/config/data files yield no symbols; source remains authoritative. Refresh this local graph after implementation checkpoints.
+
+
+## Active polygon/star evidence
+
+Upstream sync remains0b97f3f; React implementationf21fe2b. Native kind_for defines Polygon/triangle count3 and Star count5/inner_ratio0.38. These are the next closed leaf kinds after Ellipse; they reuse independent path rendering, generic hierarchy and draw transactions. Graphify locates rounded_polygon, smoothed_polygon and polygon_and_star_handles source fixtures. Its tests_for and callers edges are empty despite explicit local tests/calls, so absence is not treated as evidence. Hosted React remains initial-main; local graph identifies current creation/shape/interaction targets.
+
+Evidence gathered: geom::{polygon_points,star_points,rounded_polygon,smoothed_polygon}, geom tests including square-versus-rounded-rectangle area and smooth tangent continuity; full shape_handles.rs and shape_handles_tests.rs; apply_shape pointCount/innerRadius/ratio. Geometry count3..120; star rendered ratio.001..1; command Star count3..60, Polygon3..120 with Rust rounding, ratio fraction0..1 and malformed fallback.38. Native shape handles add one top-point radius for Polygon/Star and first-inner-point ratio for Star, with bisector projection and transformed inset. Complete remaining create parameters, serde requirements, tool inputs, UI mixed states and behaviour fixtures before implementation. No new backend/schema requirement identified.

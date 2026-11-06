@@ -1020,8 +1020,12 @@
       "source": "crates/engine/src/cmd/create.rs",
       "line": 59,
       "status": "Partial",
-      "scope": "Verified supported page/rectangle subset; full command and dependent-model parity remain incomplete.",
-      "evidence": "docs/planning/26-11-06-complete-figcraft-port.md"
+      "scope": "Supported Rectangle/Ellipse/Group/Frame creation and shared drawing verified, including ellipse arcs and rings. Other kinds, remaining properties and shared tool preferences remain required.",
+      "evidence": [
+        "tests/parity/ellipse.test.ts",
+        "tests/e2e/preview.spec.ts",
+        "docs/reports/26-11-07-ellipse-arcs-parity.html"
+      ]
     },
     {
       "command": "frame.create",
@@ -1038,15 +1042,25 @@
       "source": "crates/engine/src/cmd/create.rs",
       "line": 73,
       "status": "Partial",
-      "scope": "Verified supported page/rectangle subset; full command and dependent-model parity remain incomplete.",
-      "evidence": "docs/planning/26-11-06-complete-figcraft-port.md"
+      "scope": "Supported Rectangle/Ellipse/Group/Frame creation and shared drawing verified, including ellipse arcs and rings. Other kinds, remaining properties and shared tool preferences remain required.",
+      "evidence": [
+        "tests/parity/ellipse.test.ts",
+        "tests/e2e/preview.spec.ts",
+        "docs/reports/26-11-07-ellipse-arcs-parity.html"
+      ]
     },
     {
       "command": "shape.ellipse",
       "label": "Ellipse",
       "source": "crates/engine/src/cmd/create.rs",
       "line": 76,
-      "status": "Not tested"
+      "status": "Partial",
+      "scope": "Supported Rectangle/Ellipse/Group/Frame creation and shared drawing verified, including ellipse arcs and rings. Other kinds, remaining properties and shared tool preferences remain required.",
+      "evidence": [
+        "tests/parity/ellipse.test.ts",
+        "tests/e2e/preview.spec.ts",
+        "docs/reports/26-11-07-ellipse-arcs-parity.html"
+      ]
     },
     {
       "command": "shape.polygon",
@@ -1477,12 +1491,13 @@
       "source": "crates/engine/src/cmd/edit.rs",
       "line": 307,
       "status": "Partial",
-      "scope": "Rectangle geometry, name, visibility, locking, opacity and solid fills; remaining native properties and node kinds required; constrainProportions linked numeric edits and native persistence verified; Rectangle/Frame corner radii, individual corners and smoothing plus Group metadata verified",
+      "scope": "Rectangle geometry, name, visibility, locking, opacity and solid fills; remaining native properties and node kinds required; constrainProportions linked numeric edits and native persistence verified; Rectangle/Frame corner radii, individual corners and smoothing plus Group metadata verified; Ellipse arcStart/arcSweep/arcInner degree/fraction commands and persistence verified",
       "evidence": [
         "tests/parity/rectangle-properties.test.ts",
         "tests/parity/appearance-properties.test.ts",
         "tests/e2e/preview.spec.ts",
-        "tests/parity/corners.test.ts"
+        "tests/parity/corners.test.ts",
+        "tests/parity/ellipse.test.ts"
       ]
     },
     {
@@ -3964,8 +3979,12 @@
       "source": "crates/engine/src/cmd/view.rs",
       "line": 582,
       "status": "Partial",
-      "scope": "Verified supported page/rectangle subset; full command and dependent-model parity remain incomplete.",
-      "evidence": "docs/planning/26-11-06-complete-figcraft-port.md"
+      "scope": "Supported Rectangle/Ellipse/Group/Frame creation and shared drawing verified, including ellipse arcs and rings. Other kinds, remaining properties and shared tool preferences remain required.",
+      "evidence": [
+        "tests/parity/ellipse.test.ts",
+        "tests/e2e/preview.spec.ts",
+        "docs/reports/26-11-07-ellipse-arcs-parity.html"
+      ]
     },
     {
       "command": "tool.line",
@@ -3986,7 +4005,13 @@
       "label": "Ellipse",
       "source": "crates/engine/src/cmd/view.rs",
       "line": 585,
-      "status": "Not tested"
+      "status": "Partial",
+      "scope": "Supported Rectangle/Ellipse/Group/Frame creation and shared drawing verified, including ellipse arcs and rings. Other kinds, remaining properties and shared tool preferences remain required.",
+      "evidence": [
+        "tests/parity/ellipse.test.ts",
+        "tests/e2e/preview.spec.ts",
+        "docs/reports/26-11-07-ellipse-arcs-parity.html"
+      ]
     },
     {
       "command": "tool.polygon",

@@ -45,7 +45,7 @@ Upstream test evidence: [`view_behaviour_tests`](../../original/figcraft/crates/
 
 ### 4. Vector authoring and geometry
 
-Status: **Not implemented / Not tested**.
+Status: **Partial**. Rounded Rectangle/Frame and Ellipse/arc/ring geometry are verified; [ellipse evidence](../reports/26-11-07-ellipse-arcs-parity.html). Vector authoring and other shapes below remain required.
 
 Pen/pencil; vertices/handles/mirroring/smoothing; region selection/painting, cuts/joins and deletion/healing; lasso/transforms; variable-width points; booleans/flatten/outline stroke/winding/offsets; shape-builder region merge/remove and paint preservation. Dependencies: geometry/path operations, renderer, selection and history.
 
