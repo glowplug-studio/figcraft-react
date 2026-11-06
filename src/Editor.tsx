@@ -1,4 +1,5 @@
 import { ViewControls } from "./ViewControls";
+import { ArrangePanel } from "./ArrangePanel";
 import { framePresets } from "./engine/frame-presets";
 import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type FormEvent, type KeyboardEvent } from "react";
 import type { DocumentCapability } from "./backends/access";
@@ -96,8 +97,8 @@ export function Editor({ identity, capabilities, engine: suppliedEngine, recover
       if (event.shiftKey && event.code === "Digit0") command = "view.zoom100";
       if (event.shiftKey && event.code === "Digit1") command = "view.zoomFit";
       if (event.shiftKey && event.code === "Digit2") command = "view.zoomSelection";
-      if (snapshot.selection.length === 0 && ["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(event.key)) {
-        event.preventDefault(); dispatch("view.pan", { dx: event.key === "ArrowRight" ? 1 : event.key === "ArrowLeft" ? -1 : 0, dy: event.key === "ArrowDown" ? 1 : event.key === "ArrowUp" ? -1 : 0, big: event.shiftKey }); return;
+      if (["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(event.key)) {
+        event.preventDefault(); dispatch(snapshot.selection.length ? "transform.nudge" : "view.pan", { dx: event.key === "ArrowRight" ? 1 : event.key === "ArrowLeft" ? -1 : 0, dy: event.key === "ArrowDown" ? 1 : event.key === "ArrowUp" ? -1 : 0, big: event.shiftKey }); return;
       }
       if (event.key === "Escape") { controller.current?.cancel(); return; }
     }
@@ -230,6 +231,7 @@ export function Editor({ identity, capabilities, engine: suppliedEngine, recover
               {["top", "bottom", "topBottom", "center", "scale"].map(value => <option key={value} value={value}>{({ top: "Top", bottom: "Bottom", topBottom: "Top and bottom", center: "Centre", scale: "Scale" })[value]}</option>)}
             </select></label><button type="submit">Apply constraints</button>
           </fieldset></form></section>}
+          <ArrangePanel document={snapshot.document} selection={snapshot.selection} editable={editable && !busy} dispatch={dispatch} />
           <AppearancePanel page={page} selected={selected && selected.kind !== "page" ? selected : undefined} editable={editable && !busy} dispatch={dispatch} />
         </aside>
       </div>

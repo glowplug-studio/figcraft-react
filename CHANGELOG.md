@@ -2,6 +2,14 @@
 
 All notable changes to the React port and its upstream compatibility baseline are recorded here.
 
+## [0.10.0] - 2026-11-07
+
+The reference baseline remains `8eb0b87646c5aef712326d6c431ccde5408630de`; full parity remains in progress.
+
+- Added atomic page-space movement, parent-space keyboard nudging, six alignments, distribution, packing, tidy-up and stacking commands for supported layers.
+- Added arrangement controls, source-derived nested/rotated/multi-parent fixtures and authenticated native/recovery browser checks.
+- Gesture movement/resizing, snapping, nudge preferences, auto-layout flow handling and remaining arrangement/product behaviour remain required.
+
 ## [0.9.0] - 2026-11-07
 
 The reference baseline remains `8eb0b87646c5aef712326d6c431ccde5408630de`; full parity remains in progress.

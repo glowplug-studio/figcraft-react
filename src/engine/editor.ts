@@ -9,8 +9,10 @@ import { executeStructure, nextLayerName, structureSpecs } from "./structure";
 import { defaultViewport, executeView, fitPage, viewSpecs, type Viewport } from "./viewport";
 import { framePresets, presetParameters } from "./frame-presets";
 import { parseNodeId } from "./parameters";
+import { arrangeSpecs, executeArrange } from "./arrange";
 
 export const commandSpecs = Object.freeze({
+  ...arrangeSpecs,
   ...pageSpecs,
   ...viewSpecs,
   "frame.presets": { label: "List frame presets", undo: false },
@@ -105,6 +107,14 @@ export class EditorEngine {
     if (!this.#snapshot.editable) throw new Error("Sign in to edit this document");
     const p = parameters(input);
     if (command === "frame.presets") return framePresets;
+    if (Object.hasOwn(arrangeSpecs, command)) {
+      const before = this.#snapshot, document = executeArrange(command, before.document, before.selection, p);
+      if (document !== before.document) {
+        this.#undo.push({ document: before.document, selection: before.selection }); this.#redo = [];
+        this.#publish({ document });
+      }
+      return { ok: true };
+    }
     if (Object.hasOwn(viewSpecs, command)) {
       const before = this.#snapshot, next = executeView(command, this.#view, before.document, before.selection, p);
       this.#viewConfigured = true; this.updateView(next.view);
