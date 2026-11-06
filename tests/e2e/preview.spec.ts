@@ -800,3 +800,55 @@ test("rotated frame child uses parent-space nudges and page-space numeric moveme
   await page.getByRole("button", { name: "Undo", exact: true }).click();
   await expect.poll(async () => Number(await page.getByLabel("Edit Y", { exact: true }).inputValue())).toBeCloseTo(40, 8);
 });
+
+test("anchored sizing, keyboard resize and uniform scale retain native recovery", async ({ page }) => {
+  await login(page); await createNamedRectangle(page, "Sized", 200, 200, 100, 50);
+  await page.getByText("Resize and scale", { exact: true }).click();
+  const sizing = page.locator(".figcraft-sizing"), canvas = page.getByLabel("Design canvas", { exact: true });
+  await sizing.getByLabel("Resize width", { exact: true }).fill("200");
+  await sizing.getByLabel("Resize height", { exact: true }).fill("100");
+  await sizing.getByLabel("Resize anchor", { exact: true }).selectOption("br");
+  await sizing.getByRole("button", { name: "Resize selection", exact: true }).click(); await geometry(page, [100, 150, 200, 100]);
+  await canvas.focus(); await page.keyboard.press("ControlOrMeta+ArrowRight"); await page.keyboard.press("ControlOrMeta+Shift+ArrowDown");
+  await geometry(page, [100, 150, 201, 110]);
+  await page.keyboard.press("ControlOrMeta+z"); await geometry(page, [100, 150, 201, 100]);
+  await sizing.getByLabel("Scale factor", { exact: true }).fill("0");
+  await sizing.getByRole("button", { name: "Scale selection", exact: true }).click();
+  await expect(page.locator("[data-figcraft-editor]").getByRole("alert")).toContainText("factor must be positive"); await geometry(page, [100, 150, 201, 100]);
+  await sizing.getByLabel("Scale factor", { exact: true }).fill("2");
+  await sizing.getByLabel("Scale pivot X", { exact: true }).fill("0"); await sizing.getByLabel("Scale pivot Y", { exact: true }).fill("0");
+  await sizing.getByRole("button", { name: "Scale selection", exact: true }).click(); await geometry(page, [200, 300, 402, 200]);
+  await expectCanvasPixel(page, 205, 305, [217, 217, 217, 255]);
+  const download = page.waitForEvent("download"); await page.getByRole("button", { name: "Save as", exact: true }).click();
+  const decoded = await decodeFigcraft(await readFile((await (await download).path())!));
+  expect(Object.values(decoded.document.nodes).find(node => node.name === "Sized")).toMatchObject({ x: 200, y: 300, width: 402, height: 200 });
+  await expect(page.getByText("Recovery saved on this device", { exact: true })).toBeVisible();
+  await page.reload(); await resetCanvasOrigin(page);
+  await page.getByRole("region", { name: "Layers" }).getByRole("button", { name: "Sized", exact: true }).click();
+  await geometry(page, [200, 300, 402, 200]);
+  await page.screenshot({ path: "test-results/sizing-desktop.png", fullPage: true });
+});
+
+test("uniform frame scale ignores child constraints while anchored resize honours them", async ({ page }) => {
+  await login(page);
+  const creation = page.getByRole("group", { name: "Create layer", exact: true });
+  await creation.getByRole("button", { name: "Create frame", exact: true }).click();
+  await creation.getByLabel("Create in", { exact: true }).selectOption({ label: "Frame 1" });
+  await createNamedRectangle(page, "Pinned", 10, 20, 20, 10);
+  await page.getByLabel("Horizontal constraint", { exact: true }).selectOption("right");
+  await page.getByRole("button", { name: "Apply constraints", exact: true }).click();
+  const layers = page.getByRole("region", { name: "Layers" }), sizing = page.locator(".figcraft-sizing");
+  await layers.getByRole("button", { name: "Frame 1", exact: true }).click();
+  await page.getByText("Resize and scale", { exact: true }).click();
+  await sizing.getByRole("button", { name: "Scale selection", exact: true }).click();
+  await layers.getByRole("button", { name: "Pinned", exact: true }).click(); await geometry(page, [20, 40, 40, 20]);
+  await layers.getByRole("button", { name: "Frame 1", exact: true }).click();
+  await sizing.getByLabel("Resize width", { exact: true }).fill("300");
+  await sizing.getByLabel("Resize anchor", { exact: true }).selectOption("br");
+  await sizing.getByRole("button", { name: "Resize selection", exact: true }).click();
+  await layers.getByRole("button", { name: "Pinned", exact: true }).click(); await geometry(page, [120, 40, 40, 20]);
+  await expectCanvasPixel(page, 65, 85, [217, 217, 217, 255]);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(sizing.getByRole("button", { name: "Scale selection", exact: true })).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+});

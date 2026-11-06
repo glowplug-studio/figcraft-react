@@ -2,6 +2,14 @@
 
 All notable changes to the React port and its upstream compatibility baseline are recorded here.
 
+## [0.11.0] - 2026-11-07
+
+The reference baseline remains `8eb0b87646c5aef712326d6c431ccde5408630de`; full parity remains in progress.
+
+- Added nine-anchor numeric resizing, uniform subtree scaling and keyboard size nudges, with atomic history and finite geometry checks.
+- Added sizing controls, rotated/reflected and nested source-derived fixtures, and native/recovery browser flows.
+- Scale effects on unsupported properties/kinds, layout sizing, preferences and pointer handles remain required later slices.
+
 ## [0.10.0] - 2026-11-07
 
 The reference baseline remains `8eb0b87646c5aef712326d6c431ccde5408630de`; full parity remains in progress.

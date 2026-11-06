@@ -1,5 +1,6 @@
 import { ViewControls } from "./ViewControls";
 import { ArrangePanel } from "./ArrangePanel";
+import { SizePanel } from "./SizePanel";
 import { framePresets } from "./engine/frame-presets";
 import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type FormEvent, type KeyboardEvent } from "react";
 import type { DocumentCapability } from "./backends/access";
@@ -101,6 +102,9 @@ export function Editor({ identity, capabilities, engine: suppliedEngine, recover
         event.preventDefault(); dispatch(snapshot.selection.length ? "transform.nudge" : "view.pan", { dx: event.key === "ArrowRight" ? 1 : event.key === "ArrowLeft" ? -1 : 0, dy: event.key === "ArrowDown" ? 1 : event.key === "ArrowUp" ? -1 : 0, big: event.shiftKey }); return;
       }
       if (event.key === "Escape") { controller.current?.cancel(); return; }
+    }
+    if (!event.altKey && (event.metaKey || event.ctrlKey) && snapshot.selection.length && ["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(event.key)) {
+      event.preventDefault(); dispatch("transform.nudgeSize", { dw: event.key === "ArrowRight" ? 1 : event.key === "ArrowLeft" ? -1 : 0, dh: event.key === "ArrowDown" ? 1 : event.key === "ArrowUp" ? -1 : 0, big: event.shiftKey }); return;
     }
     if (!event.altKey && ["+", "="].includes(event.key)) command = "view.zoomIn";
     if (!event.altKey && ["-", "_"].includes(event.key)) command = "view.zoomOut";
@@ -232,6 +236,7 @@ export function Editor({ identity, capabilities, engine: suppliedEngine, recover
             </select></label><button type="submit">Apply constraints</button>
           </fieldset></form></section>}
           <ArrangePanel document={snapshot.document} selection={snapshot.selection} editable={editable && !busy} dispatch={dispatch} />
+          <SizePanel enabled={editable && !busy && snapshot.selection.length > 0} dispatch={dispatch} />
           <AppearancePanel page={page} selected={selected && selected.kind !== "page" ? selected : undefined} editable={editable && !busy} dispatch={dispatch} />
         </aside>
       </div>

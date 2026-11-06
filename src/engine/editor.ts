@@ -10,9 +10,11 @@ import { defaultViewport, executeView, fitPage, viewSpecs, type Viewport } from 
 import { framePresets, presetParameters } from "./frame-presets";
 import { parseNodeId } from "./parameters";
 import { arrangeSpecs, executeArrange } from "./arrange";
+import { sizingSpecs, executeSizing } from "./sizing";
 
 export const commandSpecs = Object.freeze({
   ...arrangeSpecs,
+  ...sizingSpecs,
   ...pageSpecs,
   ...viewSpecs,
   "frame.presets": { label: "List frame presets", undo: false },
@@ -107,8 +109,8 @@ export class EditorEngine {
     if (!this.#snapshot.editable) throw new Error("Sign in to edit this document");
     const p = parameters(input);
     if (command === "frame.presets") return framePresets;
-    if (Object.hasOwn(arrangeSpecs, command)) {
-      const before = this.#snapshot, document = executeArrange(command, before.document, before.selection, p);
+    if (Object.hasOwn(arrangeSpecs, command) || Object.hasOwn(sizingSpecs, command)) {
+      const before = this.#snapshot, document = (Object.hasOwn(sizingSpecs, command) ? executeSizing : executeArrange)(command, before.document, before.selection, p);
       if (document !== before.document) {
         this.#undo.push({ document: before.document, selection: before.selection }); this.#redo = [];
         this.#publish({ document });

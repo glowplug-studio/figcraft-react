@@ -18,7 +18,7 @@ export const arrangeSpecs = Object.freeze({
 });
 
 /** Native req_targets: explicit malformed identifiers never silently disappear. */
-function targets(document: Document, selection: readonly NodeId[], params: Record<string, unknown>): NodeId[] {
+export function arrangementTargets(document: Document, selection: readonly NodeId[], params: Record<string, unknown>, rootsOnly = true): NodeId[] {
   if (params.ids != null && !Array.isArray(params.ids)) throw new Error("ids must be an array");
   const raw: unknown[] = Array.isArray(params.ids) ? params.ids : params.id != null ? [params.id] : [...selection];
   const ids = raw.map(value => {
@@ -30,12 +30,12 @@ function targets(document: Document, selection: readonly NodeId[], params: Recor
     return id;
   });
   if (!ids.length) throw new Error("Nothing selected");
-  return rootIds(document, ids);
+  return rootsOnly ? rootIds(document, ids) : ids;
 }
 function optionalNumber(value: unknown): number | undefined { try { return parseNumber(value); } catch { return undefined; } }
 
 /** Shift in page space; nudge deliberately uses the parent's axes instead. */
-function move(draft: HierarchyDraft, id: NodeId, dx: number, dy: number, local = false): void {
+export function moveWorld(draft: HierarchyDraft, id: NodeId, dx: number, dy: number, local = false): void {
   if (dx === 0 && dy === 0) return;
   const node = draft.nodes[id];
   if (node.kind === "page") throw new Error("Cannot move a page");
@@ -57,14 +57,14 @@ export function executeArrange(command: string, document: Document, selection: r
   if (!Object.hasOwn(arrangeSpecs, command)) throw new Error(`Unsupported arrangement: ${command}`);
   const allowed = ["id", "ids", ...(command === "transform.move" ? ["dx", "dy"] : command === "transform.moveTo" ? ["x", "y"] : command === "transform.nudge" ? ["dx", "dy", "big"] : command.startsWith("distribute.") || command === "arrange.tidy" ? ["spacing"] : [])];
   for (const key of Object.keys(params)) if (!allowed.includes(key)) throw new Error(`Unsupported ${command} parameter: ${key}`);
-  const ids = targets(document, selection, params), draft = new HierarchyDraft(document);
+  const ids = arrangementTargets(document, selection, params), draft = new HierarchyDraft(document);
   const number = (key: string, fallback: number) => optionalNumber(params[key]) ?? fallback;
   if (command === "transform.move" || command === "transform.moveTo" || command === "transform.nudge") {
     const box = boundsOf(document, ids)!;
     const k = command === "transform.nudge" && parseBoolean(params.big) === true ? 10 : 1;
     const dx = command === "transform.moveTo" ? number("x", box.x) - box.x : number("dx", 0) * k;
     const dy = command === "transform.moveTo" ? number("y", box.y) - box.y : number("dy", 0) * k;
-    for (const id of ids) move(draft, id, dx, dy, command === "transform.nudge");
+    for (const id of ids) moveWorld(draft, id, dx, dy, command === "transform.nudge");
   } else if (command.startsWith("align.")) {
     if (!canAlign(document, ids)) return document;
     const box = boundsOf(document, ids.length === 1 ? [document.nodes[ids[0]].parent!] : ids)!;
@@ -72,7 +72,7 @@ export function executeArrange(command: string, document: Document, selection: r
       const own = boundsOf(document, [id])!;
       const dx = command === "align.left" ? box.x - own.x : command === "align.right" ? box.x + box.width - own.x - own.width : command === "align.hcenter" ? box.x + box.width / 2 - own.x - own.width / 2 : 0;
       const dy = command === "align.top" ? box.y - own.y : command === "align.bottom" ? box.y + box.height - own.y - own.height : command === "align.vcenter" ? box.y + box.height / 2 - own.y - own.height / 2 : 0;
-      move(draft, id, dx, dy);
+      moveWorld(draft, id, dx, dy);
     }
   } else if (command.startsWith("distribute.") || command === "arrange.packH" || command === "arrange.packV") {
     const horizontal = command === "distribute.horizontal" || command === "arrange.packH";
@@ -85,7 +85,7 @@ export function executeArrange(command: string, document: Document, selection: r
     const gap = spacing ?? (end - start - total) / Math.max(1, items.length - 1);
     let at = start;
     for (const { id, box } of items) {
-      move(draft, id, horizontal ? at - box.x : 0, horizontal ? 0 : at - box.y);
+      moveWorld(draft, id, horizontal ? at - box.x : 0, horizontal ? 0 : at - box.y);
       at += (horizontal ? box.width : box.height) + gap;
     }
   } else if (command === "arrange.tidy") {
@@ -104,7 +104,7 @@ export function executeArrange(command: string, document: Document, selection: r
       return (right - left - row.reduce((sum, { box }) => sum + box.width, 0)) / (row.length - 1);
     }));
     for (const [y, row] of rows.entries()) for (const [x, { id, box }] of row.sort((a, b) => a.box.x - b.box.x).entries()) {
-      move(draft, id, origin.x + x * (maxWidth + gap) - box.x, origin.y + y * (maxHeight + gap) - box.y);
+      moveWorld(draft, id, origin.x + x * (maxWidth + gap) - box.x, origin.y + y * (maxHeight + gap) - box.y);
     }
   } else {
     const ordered = zSorted(document, ids), selected = new Set(ordered), parents = new Set(ordered.map(id => document.nodes[id].parent!));
