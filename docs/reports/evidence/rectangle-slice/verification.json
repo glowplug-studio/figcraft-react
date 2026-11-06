@@ -85,25 +85,38 @@
     "activePublishableKeyMatchesLocalConfiguredHostedKey": true,
     "authSettingsPublicConnectivity": 200,
     "managementAuthConfigRead": 200,
-    "siteUrlAndCallbacks": "Vercel-assigned domain selected; no matching Vercel project exists; awaiting project selection",
+    "siteUrlAndCallbacks": "Passed: https://figcraft-react.vercel.app and exact /auth/callback configured and read back; local callbacks preserved",
     "previousManagementAuthConfigRead": 403,
     "localCallbackUpdate": 200,
-    "localCallbacksReadBackVerified": true
+    "localCallbacksReadBackVerified": true,
+    "hostedCallbackUpdate": 200
   },
-  "publication": "Read-only Vercel account/team/project discovery completed; project absent; no creation or deployment",
+  "publication": "Authorised project created; repository link and production/preview environment metadata verified; CLI sign-in and build-setting read-back pending; no deployment",
   "propertyCoverage": {
-    "Passed": 39,
+    "Passed": 40,
     "Failed": 0,
     "Partial": 0,
-    "Blocked": 1,
+    "Blocked": 0,
     "Not tested": 1
   },
   "vercelDiscovery": {
     "authenticated": true,
-    "matchingProjectFound": false,
+    "matchingProjectFound": true,
     "requestedDomain": "stable Vercel-assigned domain",
     "proposedProjectName": "figcraft-react",
     "repository": "glowplug-studio/figcraft-react",
-    "rootDirectory": "examples/nextjs"
+    "rootDirectory": "examples/nextjs",
+    "assignedStableUrl": "https://figcraft-react.vercel.app",
+    "repositoryLinkVerified": true,
+    "buildSettingsReadBackVerified": false
+  },
+  "productionBuildFollowUp": {
+    "sourceCommit": "5314525b2f6ad9ef793091e082d7199a3537c07d",
+    "typecheck": "Passed",
+    "packageAndNextBuild": "Passed",
+    "unitContractParityIntegrationTests": 68,
+    "playwrightTests": 6,
+    "server": "next start on local Figcraft stack",
+    "renderCounter": "Active in production; unchanged across 40 pointer moves; increments after command commit"
   }
 }

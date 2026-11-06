@@ -4,16 +4,16 @@
 
 | Field | Current value |
 |---|---|
-| Overall status | Blocked — local slice verified; Vercel project selection required |
-| Active phase | Phase 7 — report complete; Phase 4.8 hosted prerequisite blocks Phase 8 |
+| Overall status | Complete — Phases 1–7; Phase 8 awaiting CLI authentication |
+| Active phase | Phase 8 — pre-deployment configuration verification |
 | Upstream baseline | `8eb0b87646c5aef712326d6c431ccde5408630de` (fork, original upstream and parity record agree) |
-| Branch and last verified commit | `prompt/rectangle-slice`; verified source `a84d7a5c3825e616cfadf62ec83ee7c3ded1be79`; core `d71b73d`; starting `f6450d5` preserved |
+| Branch and last verified commit | `prompt/rectangle-slice`; verified source `5314525b2f6ad9ef793091e082d7199a3537c07d`; core `d71b73d`; starting `f6450d5` preserved |
 | Completed work | Mandatory documents read; upstream sync passed; both Graphify repositories queried; Supabase MCP read succeeded, public schema empty; first slice selected; Phases 2–4 implemented and reviewed; local reset and advisers passed |
-| Tests last passed | 68 unit/contract/parity/local integration tests; 6 Playwright flows; package and Next.js build |
-| Files in progress | None; documentation/evidence finalised |
-| Blockers | User selected the stable Vercel-assigned URL. Authenticated Vercel inventory has no project named or linked to figcraft-react; the prompt forbids creating or linking one without user selection. |
-| Exact next action | Obtain selection to create figcraft-react in the authenticated team, linked to glowplug-studio/figcraft-react with root examples/nextjs; obtain its assigned domain, configure Auth and resume the publication gates. |
-| Last updated | 2026-11-06 21:45 +07 |
+| Tests last passed | 68 unit/contract/parity/local integration tests; 6 Playwright flows against the production build; strict typecheck, package and Next.js build |
+| Files in progress | None; source and publication checkpoint reviewed |
+| Blockers | Vercel CLI is unauthenticated; sign-in requested for omitted build-setting inspection and protected browser access. MCP confirms the authorised project and GitHub link. |
+| Exact next action | Complete pending Vercel CLI sign-in; verify the configured root/build settings; deploy this clean reviewed commit, test that deployment and promote without rebuilding. |
+| Last updated | 2026-11-06T21:54+07:00 |
 
 ## Scope and acceptance
 

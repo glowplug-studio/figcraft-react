@@ -4,14 +4,14 @@
 
 Implemented and locally verified the first browser-relevant slice: create a rectangle in a fresh local design document, display its selected geometry, and undo/redo creation. The dependency-ordered roadmap is in [the plan](../planning/26-11-06-rectangle-slice.md). The reusable editor receives host identity and capabilities; the Next.js example owns Supabase password login, verified route protection, session refresh, callback handling and logout.
 
-**Publication is blocked pending Vercel project selection.** The user selected Vercel’s stable assigned domain. Read-only authenticated Vercel discovery found no project named or linked to `glowplug-studio/figcraft-react`. Phase 8.2 forbids creating, linking or retargeting a project by assumption. Proposed target: `figcraft-react`, linked to the repository with root `examples/nextjs`. CLI Supabase Auth access and local callback configuration are verified. No project creation, deployment, branch push, merge, pull request or homepage change occurred.
+**Publication setup is in progress.** The user authorised creation of `figcraft-react` with root `examples/nextjs`. Vercel MCP confirms its link to `glowplug-studio/figcraft-react`. The assigned stable domain is `https://figcraft-react.vercel.app`; Supabase Site URL and its exact callback were configured and read back successfully, preserving local callbacks. Production and preview environment-variable names and targets were verified without exposing values. CLI sign-in is pending for omitted build-setting inspection and protected browser access. The production-compatible render counter passed all six browser flows against local `next start`. No deployment, push, promotion or homepage change has occurred.
 
 ## Reference and commits
 
 - Requested starting commit: `5cf5837372aaa27842311737441d77168c257ad9` on dev. Actual clean dev was `f6450d5cd2d07ab9f07f5cafb7eed93c99f38963`, one prompt-only delegation-guidance commit ahead; preserved. Remote dev matched it.
 - Upstream original, fork, submodule and parity reference: `8eb0b87646c5aef712326d6c431ccde5408630de`. `npm run upstream:sync` succeeded; fork push was already up to date.
 - Core engine commit: `d71b73d`.
-- Reviewed and tested React implementation: `a84d7a5c3825e616cfadf62ec83ee7c3ded1be79` on `prompt/rectangle-slice` (version 0.2.0).
+- Reviewed and tested React implementation: `5314525b2f6ad9ef793091e082d7199a3537c07d` on `prompt/rectangle-slice` (version 0.2.0).
 - The evidence commit follows that source revision and changes documentation only. The current branch remains local and unmerged.
 - Rust Graphify index matched the reference. React Graphify remained stale at `b3b8a1b`; current local files supplied its authority. Both explicitly authorised repositories were queryable.
 
@@ -42,8 +42,8 @@ Canvas 2D replaces native CPU rendering for flat rectangles. Browser pointer cap
 | Browser flows | Denied route, safe destination, bad password, invalid callback, login, creation, reverse/Shift/Alt/click/cancel, keyboard history, resize at 390/700/1440, forced refresh with token rotation, logout, unavailable Canvas 2D |
 | `npm run preview:dev` | Additional login/create/logout run passed; no page errors; reviewed desktop capture |
 | Local declarative sync/reset/advisers | Passed/no changes/zero findings |
-| Hosted Auth configuration | CLI read and local callback update verified HTTP 200; **awaiting Vercel project selection to obtain assigned Site URL** |
-| Phase 8 publication | **Not tested/not attempted** because the preceding gate fails |
+| Hosted Auth configuration | Passed — stable Site URL and exact callback configured; management read-back HTTP 200; local callbacks preserved |
+| Phase 8 publication | **Not tested** — authorised project created; CLI authentication and build-setting read-back pending |
 
 Test environment: Node 24.20.0, Next.js 16.4.5, Playwright 1.65.0 bundled Chromium, macOS; fixed scale 1 and browser sans-serif chrome. Counts are executed tests, not line/branch coverage percentages. Geometry fixture provenance distinguishes the existing Rust `create_select_undo_redo` test from inspection-derived expected values; no React test executes Rust.
 
@@ -55,7 +55,7 @@ Local preview and this project’s Supabase processes were stopped cleanly after
 
 ## Resume
 
-1. Select creation of the proposed Vercel project or identify another target. The stable Vercel-assigned domain is authorised; CLI access is verified.
-2. Configure and read-back verify the approved public Site URL and exact callback URL, preserving the already verified local callbacks. Add real hosted test credentials only to ignored environment variables.
-3. Update the blocked evidence row and checkpoint only after verification. Then, and only then, enter Phase 8 to inspect the authorised Vercel account/project, immutable deployment source, environment, staged tests, promotion/rollback and demo links.
-4. No merge to main or pull request is authorised. The branch push remains gated by Phase 8.
+1. Complete Vercel CLI sign-in and verify the selected account, project, root and build settings. MCP already confirms the repository link and both required environment variables.
+2. Reviewed source is committed; strict typecheck, production build, 68 tests and all six production-build browser flows passed. Confirm the deployment checkout remains clean.
+3. Follow Phase 8: deploy that clean revision, test the exact deployment, promote without rebuilding, verify the stable URL, then update demo links and push the current branch.
+4. No merge to main or pull request is authorised. No previous production deployment exists; record this before the first promotion.
