@@ -56,10 +56,10 @@ describe("node.set rectangle geometry parity", () => {
     }
   });
 
-  it("rejects unsupported effects and strokes without changing geometry", () => {
+  it("rejects unsupported effects and gradient strokes without changing geometry", () => {
     const doc = fixture();
     expect(() => setRectangleProperties(doc, ["2"], { props: { effects: [] } })).toThrow("unsupported properties");
-    expect(() => setRectangleProperties(doc, ["2"], { props: { strokes: [] } })).toThrow("unsupported properties");
+    expect(() => setRectangleProperties(doc, ["2"], { props: { strokes: [{ type: "linearGradient" }] } })).toThrow("not supported yet");
     expect(setRectangleProperties(doc, ["2"], { props: { x: 10 } })).toBe(doc);
   });
 });

@@ -2,7 +2,8 @@ import { isLeaf } from "./document";
 import { hitsPath } from "./corners";
 import { hasShapePath, shapePath } from "./shape-path";
 import { identity, inverse, multiply, transformPoint, type Affine } from "./affine";
-import { layerTransform, pageOf, type Document, type NodeId } from "./document";
+import { layerTransform, pageOf, rectanglePaints, type Document, type NodeId } from "./document";
+import { defaultStroke, hasVisibleStroke } from "./stroke";
 import { pageForNode } from "./hierarchy";
 import type { Point } from "./geometry";
 import { parseNodeId } from "./parameters";
@@ -129,10 +130,15 @@ export function hitRectangle(document: Document, point: Point, deep = false, sel
         const near = local.x >= -tolerance && local.x <= node.width + tolerance && local.y >= -tolerance && local.y <= node.height + tolerance;
         return hitGroup(node.children, id, transform, depth + 1) ?? (near ? id : undefined);
       }
-      if (hasShapePath(node)) {
+      if (node.kind === "line") {
+        const local = transformPoint(inverse(transform), point), half = Math.max((node.stroke ?? defaultStroke).weight / 2, tolerance * 2.5);
+        return local.x >= -half && local.x <= node.width + half && Math.abs(local.y) <= half ? id : undefined;
+      }
+      if (hasShapePath(node) || node.stroke || node.strokes) {
         const local = transformPoint(inverse(transform), point);
-        if (local.x < -tolerance || local.y < -tolerance || local.x > node.width + tolerance || local.y > node.height + tolerance) return;
-        return hitsPath(shapePath(node), local, tolerance) ? id : undefined;
+        const visible = hasVisibleStroke(node), filled = rectanglePaints(node).some(p => p.visible), reach = Math.max((node.stroke ?? defaultStroke).weight / 2, visible && !filled ? tolerance * 2.5 : tolerance);
+        if (local.x < -reach || local.y < -reach || local.x > node.width + reach || local.y > node.height + reach) return;
+        return hitsPath(shapePath(node), local, reach, filled || !visible) ? id : undefined;
       }
       if (world === identity && !node.transform) {
         return nearRectangle(point.x - node.x, point.y - node.y, node.width, node.height) ? id : undefined;

@@ -1,4 +1,5 @@
 import type { Corners } from "./corners";
+import type { StrokeProps } from "./stroke";
 import type { Affine } from "./affine";
 import { type Colour, fromRgba8, toRgba8, toCssHex } from "./colour";
 import { parseCssColour } from "./colour-css";
@@ -31,6 +32,8 @@ export interface LayerProperties {
   /** Native coefficients; omitted for legacy translated rectangles. x/y retain translation aliases. */
   readonly transform?: Affine;
   readonly fills?: readonly SolidPaint[];
+  readonly strokes?: readonly SolidPaint[];
+  readonly stroke?: StrokeProps;
   readonly visible?: boolean;
   readonly locked?: boolean;
   readonly opacity?: number;
@@ -40,11 +43,12 @@ export interface LayerProperties {
   readonly corners?: Corners;
 }
 export interface RectangleNode extends LayerProperties { readonly kind: "rectangle" }
+export interface LineNode extends LayerProperties { readonly kind: "line" }
 export interface EllipseNode extends LayerProperties { readonly kind: "ellipse"; readonly start: number; readonly sweep: number; readonly inner: number }
 export interface PolygonNode extends LayerProperties { readonly kind: "polygon"; readonly count: number }
 export interface StarNode extends LayerProperties { readonly kind: "star"; readonly count: number; readonly innerRatio: number }
-export type LeafNode = RectangleNode | EllipseNode | PolygonNode | StarNode;
-export type DrawShapeKind = LeafNode["kind"];
+export type LeafNode = RectangleNode | EllipseNode | PolygonNode | StarNode | LineNode;
+export type DrawShapeKind = LeafNode["kind"] | "arrow";
 export interface GroupNode extends LayerProperties {
   readonly kind: "group";
   readonly children: readonly NodeId[];
@@ -56,7 +60,8 @@ export interface FrameNode extends LayerProperties {
 }
 export type LayerNode = LeafNode | GroupNode | FrameNode;
 export type DocumentNode = PageNode | LayerNode;
-export const isLeafKind = (kind: unknown): kind is DrawShapeKind => kind === "rectangle" || kind === "ellipse" || kind === "polygon" || kind === "star";
+export const isLeafKind = (kind: unknown): kind is LeafNode["kind"] => kind === "rectangle" || kind === "ellipse" || kind === "polygon" || kind === "star" || kind === "line";
+export const isDrawTool = (kind: unknown): kind is DrawShapeKind => isLeafKind(kind) || kind === "arrow";
 export const isLeaf = (node: DocumentNode): node is LeafNode => isLeafKind(node.kind);
 export interface Document {
   readonly name: string;

@@ -1,4 +1,5 @@
 import { createLayer } from "./creation";
+import { executeStrokeList, strokeSpecs } from "./stroke-commands";
 import { isLeaf } from "./document";
 import { newDocument, type Document, type DrawShapeKind, type NodeId } from "./document";
 import { decodeFigcraft, encodeFigcraft } from "./file-format";
@@ -21,6 +22,7 @@ import { previewResize, type ResizeStart } from "./transform-preview";
 import type { ScaleAnchor } from "./transform-handles";
 
 export const commandSpecs = Object.freeze({
+  ...strokeSpecs,
   ...arrangeSpecs,
   ...sizingSpecs,
   ...rotationSpecs,
@@ -35,6 +37,10 @@ export const commandSpecs = Object.freeze({
   "frame.create": { label: "Frame", undo: true },
   "shape.polygon": { label: "Polygon", undo: true },
   "shape.star": { label: "Star", undo: true },
+  "shape.line": { label: "Line", undo: true },
+  "shape.arrow": { label: "Arrow", undo: true },
+  "tool.line": { label: "Line", undo: false },
+  "tool.arrow": { label: "Arrow", undo: false },
   "tool.polygon": { label: "Polygon", undo: false },
   "tool.star": { label: "Star", undo: false },
   "shape.ellipse": { label: "Ellipse", undo: true },
@@ -136,9 +142,10 @@ export class EditorEngine {
     interaction.document = document; interaction.selection = selection; interaction.nextId = nextId; interaction.duplicated = duplicated;
     this.#notifyCanvas();
   }
-  previewDraw(kind: DrawShapeKind, box: import("./geometry").Rectangle, parent: NodeId): void {
+  previewDraw(kind: DrawShapeKind, box: import("./geometry").Rectangle & { angle?: number }, parent: NodeId): void {
     const interaction = this.#interaction; if (!interaction) throw new Error("No active interaction");
-    const next = createLayer(interaction.base, this.#nextId, `shape.${kind}`, { ...box, parent }, this.#view, [1, 0, 0, 1, box.x, box.y]);
+    const { angle = 0, ...dimensions } = box, c = Math.cos(angle), s = Math.sin(angle);
+    const next = createLayer(interaction.base, this.#nextId, `shape.${kind}`, { ...dimensions, parent }, this.#view, [c, s, -s, c, box.x, box.y]);
     interaction.document = next.document; interaction.selection = next.selection; interaction.nextId = next.nextId; this.#notifyCanvas();
   }
   previewProperties(id: NodeId, props: Record<string, unknown>): void {
@@ -331,9 +338,9 @@ export class EditorEngine {
       this.#publish({ document: next.document, selection: next.selection });
       return next.result;
     }
-    if (command === "node.set") {
+    if (command === "node.set" || Object.hasOwn(strokeSpecs, command)) {
       const before = this.#snapshot;
-      const document = setRectangleProperties(before.document, before.selection, p, movedOrigin(before.document, before.selection, this.#origin));
+      const document = command === "node.set" ? setRectangleProperties(before.document, before.selection, p, movedOrigin(before.document, before.selection, this.#origin)) : executeStrokeList(command, before.document, before.selection, p);
       if (document !== before.document) {
         this.#undo.push({ document: before.document, selection: before.selection });
         this.#redo = [];
@@ -364,10 +371,10 @@ export class EditorEngine {
       return { saved: true };
     }
     if (command.startsWith("file.")) throw new Error(`${command} requires executeAsync`);
-    if (command === "shape.polygon" || command === "shape.star" || command === "shape.ellipse" || command === "shape.rectangle" || command === "frame.create" || command === "node.create") return this.#create(command, p);
+    if (command === "shape.line" || command === "shape.arrow" || command === "shape.polygon" || command === "shape.star" || command === "shape.ellipse" || command === "shape.rectangle" || command === "frame.create" || command === "node.create") return this.#create(command, p);
     if (Object.keys(p).length) throw new Error(`${command} takes no parameters`);
-    if (command === "tool.polygon" || command === "tool.star" || command === "tool.ellipse" || command === "tool.rectangle" || command === "tool.move" || command === "tool.scale") {
-      this.#publish({ tool: command === "tool.polygon" ? "polygon" : command === "tool.star" ? "star" : command === "tool.ellipse" ? "ellipse" : command === "tool.rectangle" ? "rectangle" : command === "tool.scale" ? "scale" : "move" });
+    if (command === "tool.line" || command === "tool.arrow" || command === "tool.polygon" || command === "tool.star" || command === "tool.ellipse" || command === "tool.rectangle" || command === "tool.move" || command === "tool.scale") {
+      this.#publish({ tool: command === "tool.line" ? "line" : command === "tool.arrow" ? "arrow" : command === "tool.polygon" ? "polygon" : command === "tool.star" ? "star" : command === "tool.ellipse" ? "ellipse" : command === "tool.rectangle" ? "rectangle" : command === "tool.scale" ? "scale" : "move" });
       return {};
     }
     const undo = command === "edit.undo";

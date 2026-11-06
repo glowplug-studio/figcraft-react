@@ -18,19 +18,19 @@ export function frameCorners(frame: HandleFrame): Point[] {
   return [0, 1, 2, 3].map(index => transformPoint(frame.matrix, handlePoint({ kind: "corner", index }, frame.width, frame.height)));
 }
 const distance = (a: Point, b: Point) => Math.hypot(a.x - b.x, a.y - b.y);
-export function handleAt(c: readonly Point[], p: Point, zoom: number): Handle | undefined {
+export function handleAt(c: readonly Point[], p: Point, zoom: number, line = false): Handle | undefined {
   const tol = 5 / Math.max(zoom, 1e-6);
   const sides = c.map((a, i) => { const b = c[(i + 1) % 4]; return (b.x - a.x) * (p.y - a.y) - (b.y - a.y) * (p.x - a.x); });
   if (sides.some(s => !Number.isFinite(s))) return;
   const inside = sides.some(s => s < 0) !== sides.some(s => s > 0);
-  const inner = inside ? Math.min(distance(c[0], c[1]), distance(c[0], c[3])) / 4 : Infinity;
+  const inner = inside && !line ? Math.min(distance(c[0], c[1]), distance(c[0], c[3])) / 4 : Infinity;
   let nearest: { distance: number; handle: Handle } | undefined;
-  for (let i = 0; i < 4; i++) {
+  for (let i = 0; i < (line ? 2 : 4); i++) {
     const d = distance(c[i], p);
     if (d <= Math.min(tol * 1.6, inner) && (!nearest || d < nearest.distance)) nearest = { distance: d, handle: { kind: "corner", index: i } };
   }
   if (nearest) return nearest.handle;
-  for (let i = 0; i < 4; i++) {
+  for (let i = 0; !line && i < 4; i++) {
     const a = c[i], b = c[(i + 1) % 4], dx = b.x - a.x, dy = b.y - a.y;
     const t = Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.y - a.y) * dy) / (dx * dx + dy * dy)));
     const d = distance(p, { x: a.x + t * dx, y: a.y + t * dy });

@@ -2,7 +2,7 @@ import { inverse, multiply, transformPoint, type Affine } from "./affine";
 import { axisFactors, resizeChildren } from "./constraints";
 import type { Document, NodeId } from "./document";
 import { withLayerTransform } from "./document";
-import type { Point } from "./geometry";
+import { drawnLine, type Point } from "./geometry";
 import { HierarchyDraft, rootIds, worldTransform } from "./hierarchy";
 import { validateChangedGeometry, selectionFrame } from "./rotation";
 import { scaleSubtree } from "./sizing";
@@ -35,6 +35,11 @@ export function previewResize(document: Document, start: ResizeStart, point: Poi
       scaleSubtree(draft, id, Math.abs(k));
     }
     hint = { factor: k, pivot: transformPoint(frame.matrix, pivot) };
+  } else if (ids.length === 1 && document.nodes[ids[0]].kind === "line") {
+    const a = handle.index === 0 ? point : transformPoint(frame.matrix, { x: 0, y: 0 });
+    const b = handle.index === 0 ? transformPoint(frame.matrix, { x: frame.width, y: 0 }) : point;
+    const line = drawnLine(a, b, keep, false, false), c = Math.cos(line.angle), s = Math.sin(line.angle);
+    setWorld(ids[0], [c, s, -s, c, line.x, line.y]); size(ids[0], line.width, 0, false);
   } else {
     const single = ids.length === 1, node = document.nodes[ids[0]];
     const [x0, y0, x1, y1] = resizedBox(handle, q, frame.width, frame.height, keep || single && node.kind !== "page" && node.constrainProportions === true, centre);

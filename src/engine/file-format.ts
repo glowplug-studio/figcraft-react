@@ -8,6 +8,7 @@ import { layerTransform, withLayerTransform, rectanglePaints, withRectanglePaint
 import { parseColour } from "./colour-css";
 import type { Colour } from "./colour";
 import { readSolidPaints } from "./solid-paint";
+import { isDefaultStroke, readStroke, wireStroke } from "./stroke";
 import { transformBounds, type Affine } from "./affine";
 
 /** A deliberately bounded adapter for native format v1, not full archive parity.
@@ -122,7 +123,7 @@ function decodeDocument(raw: unknown): DecodedFigcraft {
     const n = object(value, `node ${key}`), kind = n.type;
     if (id(n.id, "node ID") !== key) fail(`node ${key} has a mismatched ID`);
     if (kind !== "page" && kind !== "group" && kind !== "frame" && !isLeafKind(kind)) fail(`node type ${String(kind)} is not supported yet`);
-    fields(n, ["id", "name", "type", "parent", "children", "transform", "width", "height", "fills", "blend", ...(kind === "page" ? ["background", "flows", "prototype"] : [...(kind === "ellipse" ? ["start", "sweep", "inner"] : kind === "star" ? ["count", "inner_ratio"] : kind === "polygon" ? ["count"] : []), "visible", "locked", "opacity", "corners", "constraints", "constrain_proportions", ...(kind === "frame" ? ["clip"] : [])])], nodeDefaults, `node ${key}`);
+    fields(n, ["id", "name", "type", "parent", "children", "transform", "width", "height", "fills", "blend", ...(kind === "page" ? ["background", "flows", "prototype"] : [...(kind === "ellipse" ? ["start", "sweep", "inner"] : kind === "star" ? ["count", "inner_ratio"] : kind === "polygon" ? ["count"] : []), "stroke", "strokes", "visible", "locked", "opacity", "corners", "constraints", "constrain_proportions", ...(kind === "frame" ? ["clip"] : [])])], nodeDefaults, `node ${key}`);
     const name = text(n.name, "node name"), width = number(n.width, "width"), height = number(n.height, "height");
     if (width < 0 || height < 0) fail("negative dimensions are not supported yet");
     const transform = list(n.transform ?? [1, 0, 0, 1, 0, 0], "transform").map((entry) => number(entry, "transform"));
@@ -155,6 +156,13 @@ function decodeDocument(raw: unknown): DecodedFigcraft {
         try { return readSolidPaints(appearanceValue(n.fills ?? [])); }
         catch (error) { return fail(error instanceof Error ? error.message : "Invalid paints"); }
       })();
+      const strokeData = (() => {
+        try {
+          const stroke = readStroke(appearanceValue(n.stroke)), strokes = readSolidPaints(appearanceValue(n.strokes ?? []));
+          return { ...(isDefaultStroke(stroke) ? {} : { stroke }), ...(strokes.length ? { strokes } : {}) };
+        }
+        catch (error) { return fail(error instanceof Error ? error.message : "Invalid stroke"); }
+      })();
       let corners: Corners | undefined;
       if (n.corners !== undefined) {
         const value = object(n.corners, "corners");
@@ -167,7 +175,7 @@ function decodeDocument(raw: unknown): DecodedFigcraft {
       }
       const constraints = readConstraints(n.constraints === undefined ? {} : n.constraints);
       if (kind === "frame" && n.clip !== undefined && typeof n.clip !== "boolean") fail("frame clip must be boolean");
-      const layer = { id: key, kind, name, ...(corners ? { corners } : {}), parent: id(n.parent, `${kind} parent`), x: transform[4]!, y: transform[5]!, width, height, fill: "transparent", ...(constraints.horizontal !== "left" || constraints.vertical !== "top" ? { constraints } : {}),
+      const layer = { id: key, kind, name, ...strokeData, ...(corners ? { corners } : {}), parent: id(n.parent, `${kind} parent`), x: transform[4]!, y: transform[5]!, width, height, fill: "transparent", ...(constraints.horizontal !== "left" || constraints.vertical !== "top" ? { constraints } : {}),
         ...(n.constrain_proportions === true ? { constrainProportions: true } : {}), ...(n.visible === false ? { visible: false } : {}), ...(n.locked === true ? { locked: true } : {}), ...(opacity !== 1 ? { opacity } : {}),
         ...(n.blend !== undefined && n.blend !== (!isLeafKind(kind) ? "passThrough" : "normal") ? { blend: n.blend as "normal" | "passThrough" } : {}) };
       let count = 0;
@@ -275,7 +283,7 @@ export async function encodeFigcraft(document: Document, nextId?: string): Promi
     if (node.kind === "page") {
       nodes[key] = { ...common, width: 0, height: 0, children: node.children.map(wireId), background: pageColour(node) };
     } else {
-      nodes[key] = { ...common, parent: wireId(node.parent), ...(!isLeaf(node) ? { children: node.children.map(wireId) } : {}), transform: layerTransform(node), width: node.width, height: node.height,
+      nodes[key] = { ...common, parent: wireId(node.parent), ...(!isLeaf(node) ? { children: node.children.map(wireId) } : {}), transform: layerTransform(node), width: node.width, height: node.height, ...(node.stroke ? { stroke: wireStroke(node.stroke) } : {}), ...(node.strokes ? { strokes: node.strokes } : {}),
         ...(node.corners ? { corners: node.corners } : {}), ...(node.constraints ? { constraints: node.constraints } : {}), ...(node.constrainProportions ? { constrain_proportions: true } : {}), ...(node.kind === "frame" ? { clip: node.clip } : {}), blend: node.blend ?? (!isLeaf(node) ? "passThrough" : "normal"), visible: node.visible ?? true, locked: node.locked ?? false, opacity: node.opacity ?? 1, fills: rectanglePaints(node) };
     }
   }

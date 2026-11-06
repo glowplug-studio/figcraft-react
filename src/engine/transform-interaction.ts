@@ -1,4 +1,4 @@
-import { isLeafKind } from "./document";
+import { isDrawTool } from "./document";
 import { canvasAccent } from "./canvas-colours";
 import type { EditorEngine } from "./editor";
 import { lockedIn } from "./canvas-selection";
@@ -24,17 +24,17 @@ export class TransformInteraction {
   get scaleHint(): Readonly<{ factor: number; pivot: Point }> | undefined { return this.#hint; }
   #frame() {
     const s = this.engine.getSnapshot();
-    if (!s.editable || isLeafKind(s.tool) || s.selection.some(id => lockedIn(s.document, id))) return;
+    if (!s.editable || isDrawTool(s.tool) || s.selection.some(id => lockedIn(s.document, id))) return;
     return selectionFrame(s.document, s.selection);
   }
   hover(point: Point): string | undefined {
-    try { const frame = this.#frame(); if (!frame) return; const corners = frameCorners(frame), handle = handleAt(corners, point, this.engine.getView().zoom); return handle && handleCursor(corners, handle); }
+    try { const frame = this.#frame(); if (!frame) return; const corners = frameCorners(frame), handle = handleAt(corners, point, this.engine.getView().zoom, this.#isLine()); return handle && handleCursor(corners, handle); }
     catch { return; }
   }
   down(point: Point): boolean {
     try {
       const frame = this.#frame(); if (!frame) return false;
-      const handle = handleAt(frameCorners(frame), point, this.engine.getView().zoom); if (!handle) return false;
+      const handle = handleAt(frameCorners(frame), point, this.engine.getView().zoom, this.#isLine()); if (!handle) return false;
       const s = this.engine.getSnapshot(), resize = resizeStart(s.document, s.selection, handle); if (!resize) return false;
       const origin = this.engine.getRotationOrigin(), pivot = origin.moved && origin.point ? origin.point : transformPoint(frame.matrix, { x: frame.width / 2, y: frame.height / 2 });
       this.engine.beginInteraction();
@@ -69,18 +69,20 @@ export class TransformInteraction {
     try { this.engine.commitInteraction(); } catch (error) { this.#fail(error); }
   }
   #clear(): void { this.#gesture = undefined; this.#guides = []; this.#hint = undefined; }
+  #isLine(): boolean { const s = this.engine.getSnapshot(); return s.selection.length === 1 && s.document.nodes[s.selection[0]]?.kind === "line"; }
   cancel(): void { if (this.#gesture) { this.#clear(); this.engine.cancelInteraction(); } }
   #fail(error: unknown): void { this.#clear(); this.engine.cancelInteraction(); this.onError(error instanceof Error ? error.message : "Could not transform selection"); }
   draw(context: CanvasRenderingContext2D): void {
-    const s = this.engine.getSnapshot(); if (isLeafKind(s.tool)) return;
+    const s = this.engine.getSnapshot(); if (isDrawTool(s.tool)) return;
     const doc = this.engine.getRenderDocument(), ids = this.engine.getRenderSelection(), frame = selectionFrame(doc, ids); if (!frame) return;
     const view = this.engine.getView(), corners = frameCorners(frame).map(p => pageToScreen(view, p));
     const locked = ids.some(id => lockedIn(doc, id)), longest = Math.max(Math.hypot(corners[1].x - corners[0].x, corners[1].y - corners[0].y), Math.hypot(corners[3].x - corners[0].x, corners[3].y - corners[0].y));
     drawGuides(context, this.#guides, view);
     context.save(); context.strokeStyle = canvasAccent(doc); context.fillStyle = "white"; context.lineWidth = 1;
     if (ids.length > 1) { context.beginPath(); corners.forEach((p, i) => i ? context.lineTo(p.x, p.y) : context.moveTo(p.x, p.y)); context.closePath(); context.stroke(); }
-    if (!locked && longest >= 16 && s.editable) for (const p of corners) { context.beginPath(); context.roundRect(p.x - 4, p.y - 4, 8, 8, 1); context.fill(); context.stroke(); }
-    const label = `${distanceLabel(frame.width)} × ${distanceLabel(frame.height)}${this.#hint ? ` · ${distanceLabel(this.#hint.factor)}x` : ""}`;
+    const line = ids.length === 1 && doc.nodes[ids[0]]?.kind === "line";
+    if (!locked && (line || longest >= 16) && s.editable) for (const p of line ? corners.slice(0, 2) : corners) { context.beginPath(); context.roundRect(p.x - 4, p.y - 4, 8, 8, 1); context.fill(); context.stroke(); }
+    const label = `${distanceLabel(frame.width)}${line ? "" : ` × ${distanceLabel(frame.height)}`}${this.#hint ? ` · ${distanceLabel(this.#hint.factor)}x` : ""}`;
     context.font = "600 11px sans-serif"; const width = context.measureText(label).width + 8, height = 18;
     const x = corners.reduce((v, p) => v + p.x, 0) / 4 - width / 2, y = Math.max(...corners.map(p => p.y)) + 9;
     context.fillStyle = "#00875f"; context.beginPath(); context.roundRect(x, y, width, height, 3); context.fill(); context.fillStyle = "white"; context.textBaseline = "top"; context.fillText(label, x + 4, y + 2);

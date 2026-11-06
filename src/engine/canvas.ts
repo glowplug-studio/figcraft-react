@@ -15,13 +15,15 @@ import { pageToScreen, screenToPage, scrollView, viewOrigin, zoomAt, type Viewpo
 import { SmartHandles } from "./smart-handles";
 import { MoveInteraction } from "./move-interaction";
 import { TransformInteraction } from "./transform-interaction";
+import { paintStroke, strokeBounds } from "./stroke-renderer";
+import { hasVisibleStroke } from "./stroke";
 
 const compositeSurfaces = new WeakMap<CanvasRenderingContext2D, HTMLCanvasElement>();
 // Immutable document snapshots invalidate these derived bounds after any edit.
-const groupBounds = new WeakMap<Document, Map<string, { matrix: readonly number[]; bounds: Rectangle | undefined }>>();
+const groupBounds = new WeakMap<Document, Map<string, Rectangle | undefined>>();
 const opacity = (value: number) => Math.max(0, Math.min(1, value));
 
-function paintRectangle(context: CanvasRenderingContext2D, node: LayerNode, alpha = 1): void {
+function paintRectangle(context: CanvasRenderingContext2D, node: LayerNode, alpha = 1, strokes = true): void {
   context.save();
   if (node.transform) context.transform(...node.transform);
   else context.translate(node.x, node.y);
@@ -32,13 +34,17 @@ function paintRectangle(context: CanvasRenderingContext2D, node: LayerNode, alph
     if (hasShapePath(node)) { context.beginPath(); tracePath(context, shapePath(node)); context.fill(); }
     else context.fillRect(0, 0, node.width, node.height);
   }
+  if (strokes) paintStroke(context, node, alpha);
   context.restore();
+}
+function paintLayerStroke(context: CanvasRenderingContext2D, node: LayerNode): void {
+  context.save(); context.transform(...rectangleTransform(node)); paintStroke(context, node); context.restore();
 }
 
 /** Node opacity affects the finished stack, including antialiased edges, once. */
 function paintComposite(context: CanvasRenderingContext2D, node: LayerNode, draw: (target: CanvasRenderingContext2D) => void, painted?: Rectangle): void {
   const matrix = context.getTransform();
-  const bounds = painted ?? transformBounds(multiply([matrix.a, matrix.b, matrix.c, matrix.d, matrix.e, matrix.f], rectangleTransform(node)), node.width, node.height);
+  const bounds = painted ?? strokeBounds(node, multiply([matrix.a, matrix.b, matrix.c, matrix.d, matrix.e, matrix.f], rectangleTransform(node)));
   const left = Math.max(0, Math.floor(bounds.x)), top = Math.max(0, Math.floor(bounds.y));
   const width = Math.min(context.canvas.width, Math.ceil(bounds.x + bounds.width)) - left;
   const height = Math.min(context.canvas.height, Math.ceil(bounds.y + bounds.height)) - top;
@@ -61,12 +67,13 @@ function paintComposite(context: CanvasRenderingContext2D, node: LayerNode, draw
 
 function paintedGroupBounds(context: CanvasRenderingContext2D, document: Document, node: LayerNode): Rectangle | undefined {
   const m = context.getTransform();
-  const coefficients = [m.a, m.b, m.c, m.d, m.e, m.f];
+  const screenBounds = (bounds: Rectangle | undefined) => bounds && transformBounds(
+    multiply([m.a, m.b, m.c, m.d, m.e, m.f], [1, 0, 0, 1, bounds.x, bounds.y]), bounds.width, bounds.height);
   let cachedDocument = groupBounds.get(document);
   if (!cachedDocument) { cachedDocument = new Map(); groupBounds.set(document, cachedDocument); }
-  const cached = cachedDocument.get(node.id);
-  if (cached && coefficients.every((value, index) => value === cached.matrix[index])) return cached.bounds;
-  const pending: { node: LayerNode; parent: Affine; depth: number }[] = [{ node, parent: [m.a, m.b, m.c, m.d, m.e, m.f], depth: 0 }];
+  if (cachedDocument.has(node.id)) return screenBounds(cachedDocument.get(node.id));
+  // Cache in the parent's coordinates: pan/zoom changes the view, not descendant geometry.
+  const pending: { node: LayerNode; parent: Affine; depth: number }[] = [{ node, parent: [1, 0, 0, 1, 0, 0], depth: 0 }];
   let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
   while (pending.length) {
     const item = pending.pop()!, current = item.node;
@@ -79,21 +86,21 @@ function paintedGroupBounds(context: CanvasRenderingContext2D, document: Documen
       }
     }
     if (current.kind !== "group") {
-      const bounds = transformBounds(matrix, current.width, current.height);
+      const bounds = strokeBounds(current, matrix);
       x0 = Math.min(x0, bounds.x); y0 = Math.min(y0, bounds.y);
       x1 = Math.max(x1, bounds.x + bounds.width); y1 = Math.max(y1, bounds.y + bounds.height);
     }
   }
   const bounds = x0 === Infinity ? undefined : { x: x0, y: y0, width: x1 - x0, height: y1 - y0 };
-  cachedDocument.set(node.id, { matrix: coefficients, bounds });
-  return bounds;
+  cachedDocument.set(node.id, bounds);
+  return screenBounds(bounds);
 }
 
 function drawLayer(context: CanvasRenderingContext2D, document: Document, node: LayerNode, depth = 0): void {
   if (node.visible === false || (node.opacity ?? 1) <= 0 || depth > 256) return;
   if (!isLeaf(node)) {
     const draw = (target: CanvasRenderingContext2D) => {
-      if (node.kind === "frame") paintRectangle(target, node);
+      if (node.kind === "frame") paintRectangle(target, node, 1, false);
       target.save(); target.transform(...rectangleTransform(node));
       if (node.kind === "frame" && node.clip) { target.beginPath(); tracePath(target, shapePath(node)); target.clip(); }
       for (const id of node.children) {
@@ -101,13 +108,14 @@ function drawLayer(context: CanvasRenderingContext2D, document: Document, node: 
         if (child && child.kind !== "page") drawLayer(target, document, child, depth + 1);
       }
       target.restore();
+      if (node.kind === "frame" && hasVisibleStroke(node)) paintLayerStroke(target, node);
     };
     if (opacity(node.opacity ?? 1) < 1) {
       const bounds = paintedGroupBounds(context, document, node);
       if (bounds) paintComposite(context, node, draw, bounds);
     } else draw(context);
-  } else if (hasShapePath(node) || node.fills || node.opacity !== undefined && node.opacity !== 1) {
-    if (rectanglePaints(node).length > 1 && opacity(node.opacity ?? 1) < 1) paintComposite(context, node, target => paintRectangle(target, node));
+  } else if (hasShapePath(node) || hasVisibleStroke(node) || node.fills || node.opacity !== undefined && node.opacity !== 1) {
+    if (rectanglePaints(node).length + (node.strokes?.length ?? 0) > 1 && opacity(node.opacity ?? 1) < 1) paintComposite(context, node, target => paintRectangle(target, node));
     else paintRectangle(context, node, opacity(node.opacity ?? 1));
   } else {
     context.fillStyle = node.fill;
@@ -130,7 +138,7 @@ export function renderDocument(context: CanvasRenderingContext2D, document: Docu
     const node = document.nodes[id];
     if (!node || node.kind === "page") continue;
     if (isLeaf(node)) {
-      const bounds = node.transform ? transformBounds(node.transform, node.width, node.height) : node;
+      const bounds = hasVisibleStroke(node) ? strokeBounds(node, rectangleTransform(node)) : node.transform ? transformBounds(node.transform, node.width, node.height) : node;
       if (bounds.x > origin.x + width / zoom || bounds.y > origin.y + height / zoom || bounds.x + bounds.width < origin.x || bounds.y + bounds.height < origin.y) continue;
     }
     drawLayer(context, document, node);

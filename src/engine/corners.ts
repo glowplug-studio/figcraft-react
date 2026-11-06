@@ -109,7 +109,7 @@ export function flattenContours(path: readonly PathCommand[]): readonly (readonl
   flattened.set(path, contours); return contours;
 }
 export function flattenPath(path: readonly PathCommand[]): readonly Point[] { return flattenContours(path).flat(); }
-export function hitsPath(path: readonly PathCommand[], point: Point, tolerance: number): boolean {
+export function hitsPath(path: readonly PathCommand[], point: Point, tolerance: number, includeInterior = true): boolean {
   let winding = 0;
   for (const points of flattenContours(path)) for (let i = 0; i < points.length; i++) {
     const a = points[i], b = points[(i + 1) % points.length];
@@ -118,7 +118,7 @@ export function hitsPath(path: readonly PathCommand[], point: Point, tolerance: 
     if (a.y <= point.y && b.y > point.y && cross > 0) winding++;
     else if (a.y > point.y && b.y <= point.y && cross < 0) winding--;
   }
-  return winding !== 0;
+  return includeInterior && winding !== 0;
 }
 export function hitsCornerPath(node: LayerNode, point: Point, tolerance: number): boolean {
   if (point.x < -tolerance || point.y < -tolerance || point.x > node.width + tolerance || point.y > node.height + tolerance) return false;

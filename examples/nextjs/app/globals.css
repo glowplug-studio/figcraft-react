@@ -65,6 +65,8 @@ dd { margin: 0; }
   .figcraft-canvas-area { height: 55dvh; min-height: 300px; }
   .figcraft-properties { border-left: 0; border-top: 1px solid #ddd; }
   fieldset { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .figcraft-stroke > ol, .figcraft-stroke > details { grid-column: 1 / -1; }
+  .figcraft-stroke > button { align-self: start; }
 }
 
 .figcraft-view-controls { position: absolute; z-index: 1; right: 8px; top: 8px; display: flex; align-items: center; gap: 4px; background: #fff; padding: 4px; border: 1px solid #ddd; border-radius: 6px; }

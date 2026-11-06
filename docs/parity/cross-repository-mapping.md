@@ -100,3 +100,20 @@ Upstream0b97f3f → Reactf4db7fc;506 pure,2 real Auth and64 browser checks pass,
 | right::points_section; right::paints | PointsPanel; CornerPanel | Mixed counts, Star-only ratio, smoothing-only expansion and mobile controls |
 
 Local code-only graph refreshed to1097 nodes/4516 relationships and queried for PointsPanel, cornerDrag and smoothedPolygon. Hosted React remains initial-main; graph coverage is supplementary to local implementation/tests. Vector conversion, strokes and shared numeric/UI families remain required.
+
+## Line, Arrow and uniform strokes — 7 November 2026
+
+Upstream0b97f3f → React0.20.0 worktree after737aa16. [Property evidence](../reports/26-11-07-line-strokes-parity.html); full regression checkpoint is recorded in the linked report.
+
+| Upstream symbol/source | React target | Verified behaviour / boundary |
+|---|---|---|
+| NodeKind::Line; Node::new; kind_for/create_kind | LineNode; creation.ts; file-format.ts | Line/Arrow defaults, native height metadata, independent stroke fields and archive/recovery |
+| StrokeProps; props::apply_stroke; scale_node | stroke.ts; scaleSubtree | Native enums, alias ordering, miter conversion, raw wire values, scale versus resize and atomic validation |
+| pathops::dash_pattern/dashes_fit/stroke_center/arrowhead | line-stroke.ts; renderDashes | Source dash fit/areas, zero dots, work budget, eight caps and native reversed winding |
+| render::stroke_area/stroke_fill | closedStrokeRing; paintStroke | Rectangle/ellipse rings, generic Canvas substitution, alpha overlap and bounded mask cache |
+| geometry::shape_path/hits_node_itself/hits_path | shapePath; hitRectangle; strokeBounds | Horizontal Line path, native hit band/outline, stroke-aware culling and opacity bounds |
+| draw_drag/click_size; resize_drag; handle_at_corners | DrawInteraction; TransformInteraction; previewResize | Shift45°/Alt drawing, parent inverse, two endpoints, cancellation/undo and no root preview updates |
+| edit::props::paint_list/paint_set; lists::move_item | executeStrokeList | Native add/remove/set/move, per-target stacks, metadata precedence, atomic errors and one undo |
+| right::paints; right::stroke; keymap | StrokePanel; Editor | Mixed stacks, order, weight/alignment/dashes/caps/joins, L/Shift+L and mobile controls |
+
+Hosted React remains stale default-branch source; current local files and the refreshed local graph are authoritative. Per-side strokes, brushes, variable width, non-solid paints, blend modes, styles/variables and full shared numeric UI remain required; no claimed cross-repository equivalence for those features.

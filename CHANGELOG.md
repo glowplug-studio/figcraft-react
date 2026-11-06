@@ -2,6 +2,15 @@
 
 All notable changes to the React port and its upstream compatibility baseline are recorded here.
 
+## [0.20.0] - 2026-11-07
+
+The reference baseline remains `8eb0b87646c5aef712326d6c431ccde5408630de`; full parity remains in progress.
+
+- Added Line/Arrow creation, endpoint editing, native save/recovery, L/Shift+L tools and one-step history.
+- Added uniform solid stroke stacks, alignment, joins, eight endpoint caps, fitted dashes and native paint-list commands with mixed-selection controls.
+- Extended Canvas rendering, hit testing, scaling, Frame stroke ordering and opacity bounds. Stroke raster reuse is bounded; parent-local group bounds survive pan/zoom without descendant recomputation.
+- Per-side strokes, brushes, variable width, vector editing and the remaining product/backend families remain required.
+
 ## [0.19.0] - 2026-11-07
 
 The reference baseline remains `8eb0b87646c5aef712326d6c431ccde5408630de`; full parity remains in progress.

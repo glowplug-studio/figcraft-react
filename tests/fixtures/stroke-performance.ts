@@ -1,0 +1,44 @@
+import { newDocument, type DocumentNode } from "../../src/engine/document";
+import { EditorEngine } from "../../src/engine/editor";
+import { encodeFigcraft } from "../../src/engine/file-format";
+import { base64Bytes } from "../../src/engine/recovery";
+import { renderDocument } from "../../src/engine/canvas";
+import { TransformInteraction } from "../../src/engine/transform-interaction";
+import { DrawInteraction } from "../../src/engine/draw-interaction";
+import { defaultStroke } from "../../src/engine/stroke";
+import { solidPaint } from "../../src/engine/solid-paint";
+import { fromRgba8 } from "../../src/engine/colour";
+
+export async function measureStrokes(canvas: HTMLCanvasElement) {
+  const initial = newDocument(), nodes: Record<string, DocumentNode> = { ...initial.nodes }, children: string[] = [];
+  const paints = [solidPaint(fromRgba8(0, 0, 0))], stroke = { ...defaultStroke, weight: 3, align: "outside" as const, dashes: [8, 4], capStart: "round" as const, capEnd: "square" as const };
+  for (let i = 0; i < 9_999; i++) {
+    const id = String(i + 2); children.push(id);
+    const common = { id, parent: "1", name: `Layer ${i}`, x: i < 100 ? i % 10 * 80 : 10_000 + i, y: i < 100 ? 20 + Math.floor(i / 10) * 70 : 10_000, width: 60, fill: "transparent", strokes: paints, stroke };
+    nodes[id] = i % 2 ? { ...common, kind: "star", height: 50, count: 5, innerRatio: .38 } : { ...common, kind: "line", height: 0, stroke: { ...stroke, capEnd: "triangleArrow" } };
+  }
+  nodes["1"] = { ...initial.nodes["1"], kind: "page", parent: null, background: "#ffffff", children };
+  const engine = new EditorEngine(); await engine.executeAsync("file.open", { data: base64Bytes(await encodeFigcraft({ ...initial, nodes }, "10002")) });
+  engine.execute("select.set", { ids: ["2"] }); engine.execute("view.set", { cx: 600, cy: 400, vw: 1200, vh: 800, zoom: 1 });
+  canvas.width = 1200; canvas.height = 800; const context = canvas.getContext("2d")!;
+  const fail = (message: string) => { throw new Error(message); }, handle = new TransformInteraction(engine, fail);
+  if (!handle.down({ x: 60, y: 20 })) throw new Error("Line endpoint not found");
+  let notifications = 0; engine.subscribe(() => notifications++);
+  const frames: number[] = [], inputs: number[] = [], mods = { shiftKey: false, altKey: false, ctrlKey: true, metaKey: false };
+  for (let i = 0; i < 120; i++) {
+    await new Promise<void>(resolve => requestAnimationFrame(() => resolve())); const start = performance.now();
+    handle.move({ x: 70 + i / 5, y: 30 + i / 10 }, mods); const input = performance.now() - start;
+    renderDocument(context, engine.getRenderDocument(), 1200, 800, engine.getRenderSelection(), undefined, engine.getView()); handle.draw(context);
+    if (i >= 10) { inputs.push(input); frames.push(performance.now() - start); }
+  }
+  const rootNotifications = notifications; handle.cancel(); const restored = engine.getRenderDocument() === engine.getSnapshot().document;
+  engine.execute("tool.arrow"); const draw = new DrawInteraction(engine, fail), drawTimes: number[] = []; draw.down({ x: 850, y: 100 }); const before = notifications;
+  for (let i = 0; i < 120; i++) {
+    await new Promise<void>(resolve => requestAnimationFrame(() => resolve())); const start = performance.now();
+    draw.move({ x: 950 + i, y: 220 }, mods); renderDocument(context, engine.getRenderDocument(), 1200, 800, engine.getRenderSelection(), undefined, engine.getView());
+    if (i >= 10) drawTimes.push(performance.now() - start);
+  }
+  const drawRootNotifications = notifications - before; draw.cancel();
+  const p95 = (values: number[]) => values.sort((a, b) => a - b)[Math.floor(values.length * .95)];
+  return { nodes: Object.keys(engine.getRenderDocument().nodes).length, visible: 100, measuredFrames: frames.length, p95: p95(frames), max: frames.at(-1), inputP95: p95(inputs), rootNotifications, drawP95: p95(drawTimes), drawRootNotifications, restored: restored && engine.getRenderDocument() === engine.getSnapshot().document };
+}

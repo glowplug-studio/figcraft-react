@@ -4,7 +4,7 @@ import { cornerKeys, zeroCorners } from "./engine/corners";
 
 export function CornerPanel({ nodes, editable, dispatch }: { nodes: readonly LayerNode[]; editable: boolean; dispatch: (command: string, params?: unknown) => void }) {
   const [individual, setIndividual] = useState(false);
-  if (!nodes.length || nodes.some(n => n.kind === "group" || n.kind === "ellipse")) return null;
+  if (!nodes.length || nodes.some(n => n.kind === "group" || n.kind === "ellipse" || n.kind === "line")) return null;
   const corners = nodes.map(n => n.corners ?? zeroCorners), ids = nodes.map(n => n.id);
   const common = (values: readonly number[]): number | undefined => values.every(n => n === values[0]) ? values[0] : undefined;
   const uniform = common(corners.flatMap(c => [...c.radii]));

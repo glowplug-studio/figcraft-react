@@ -43,7 +43,9 @@ async function login(page: Page, normaliseView = true) {
   await expect(page).toHaveURL(/\/login\?next=/);
   await page.getByLabel("Email", { exact: true }).fill(email);
   await page.getByLabel("Password", { exact: true }).fill(password);
+  const signIn = page.waitForResponse(response => response.request().method() === "POST" && new URL(response.url()).pathname === "/login");
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
+  await (await signIn).finished();
   await expect(page.getByRole("heading", { name: "Untitled", exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "Create rectangle", exact: true })).toBeEnabled();
   if (normaliseView) await resetCanvasOrigin(page);
@@ -1404,4 +1406,100 @@ test("Polygon Star tools share constrained Frame drawing and shape-aware selecti
   const outside = await canvasPoint(page, 650, 500), empty = await canvasPoint(page, 391, 191), inside = await canvasPoint(page, 450, 250);
   await page.mouse.click(outside.x, outside.y); await page.keyboard.down("ControlOrMeta"); await page.mouse.click(empty.x, empty.y); await page.keyboard.up("ControlOrMeta"); await expect(page.getByLabel("Name", { exact: true })).toHaveValue("Frame 1");
   await page.keyboard.down("ControlOrMeta"); await page.mouse.click(inside.x, inside.y); await page.keyboard.up("ControlOrMeta"); await expect(page.getByLabel("Name", { exact: true })).toHaveValue("Star");
+});
+
+test("Line Arrow stroke controls preserve native save, recovery and mobile tools", async ({ page }) => {
+  await login(page); const creation = page.getByRole("group", { name: "Create layer", exact: true });
+  for (const [label, value] of [["X", 200], ["Y", 250], ["Width", 250], ["Height", 100]] as const) await creation.getByLabel(label, { exact: true }).fill(String(value));
+  await creation.getByRole("button", { name: "Create arrow", exact: true }).click();
+  await expect(page.getByRole("region", { name: "Selected line", exact: true }).locator("dd")).toHaveText(["200", "250", "250", "0"]);
+  await expect(page.getByLabel("Corner radius", { exact: true })).toHaveCount(0);
+  const stroke = page.getByRole("group", { name: "Stroke", exact: true });
+  await stroke.getByLabel("Stroke weight", { exact: true }).fill("12"); await stroke.getByRole("button", { name: "Apply stroke weight", exact: true }).click();
+  await stroke.getByText("Advanced stroke", { exact: true }).click();
+  for (const cap of ["none", "round", "square", "lineArrow", "triangleArrow", "reversedTriangle", "circleFilled", "diamondFilled"]) {
+    await stroke.getByLabel("End cap", { exact: true }).selectOption(cap); await expect(stroke.getByLabel("End cap", { exact: true })).toHaveValue(cap);
+  }
+  await stroke.getByLabel("Start cap", { exact: true }).selectOption("circleFilled"); await stroke.getByLabel("End cap", { exact: true }).selectOption("triangleArrow");
+  await stroke.getByLabel("Stroke style", { exact: true }).selectOption("custom");
+  await stroke.getByLabel("Dashes", { exact: true }).fill("-1,3"); await stroke.getByRole("button", { name: "Apply dashes", exact: true }).click(); await expect(stroke.getByRole("alert")).toContainText("non-negative");
+  await stroke.getByLabel("Dashes", { exact: true }).fill("8,4,2,4"); await stroke.getByRole("button", { name: "Apply dashes", exact: true }).click(); await expect(stroke.getByRole("alert")).toHaveCount(0);
+  await stroke.getByLabel("Dash cap", { exact: true }).selectOption("round");
+  await stroke.getByLabel("Stroke 1 CSS colour", { exact: true }).fill("#0088cc"); await stroke.getByLabel("Stroke 1 opacity", { exact: true }).fill("0.8"); await stroke.getByRole("button", { name: "Apply stroke 1", exact: true }).click();
+  await expect(page.getByLabel("Design canvas", { exact: true })).toHaveScreenshot("line-arrow-dashes.png", { animations: "disabled", maxDiffPixels: 0 });
+  const download = page.waitForEvent("download"); await page.getByRole("button", { name: "Save as", exact: true }).click();
+  const opened = await decodeFigcraft(await readFile((await (await download).path())!)), line = Object.values(opened.document.nodes).find(n => n.kind === "line")!;
+  expect(line).toMatchObject({ kind: "line", height: 0, stroke: { weight: 12, capStart: "circleFilled", capEnd: "triangleArrow", dashes: [8, 4, 2, 4], dashCap: "round" } });
+  await expect(page.locator(".figcraft-recovery")).toHaveText("Recovery saved on this device"); await page.reload(); await page.getByRole("region", { name: "Layers", exact: true }).getByRole("button", { name: "Arrow", exact: true }).click();
+  await expect(stroke.getByLabel("Stroke weight", { exact: true })).toHaveValue("12");
+  await page.setViewportSize({ width: 390, height: 844 });
+  const toolbar = page.getByRole("toolbar", { name: "Tools", exact: true });
+  for (const tool of ["Line", "Arrow"]) { await toolbar.getByRole("button", { name: tool, exact: true }).click(); await expect(toolbar.getByRole("button", { name: tool, exact: true })).toHaveAttribute("aria-pressed", "true"); }
+  const bounds = (await toolbar.boundingBox())!; expect(bounds.x).toBeGreaterThanOrEqual(0); expect(bounds.x + bounds.width).toBeLessThanOrEqual(390);
+  await page.screenshot({ path: "test-results/line-arrow-mobile.png", fullPage: true });
+});
+
+test("Line Arrow keyboard drawing and endpoint previews preserve Frame geometry and undo", async ({ page }) => {
+  await login(page); const creation = page.getByRole("group", { name: "Create layer", exact: true });
+  for (const [label, value] of [["X", 100], ["Y", 100], ["Width", 500], ["Height", 400]] as const) await creation.getByLabel(label, { exact: true }).fill(String(value));
+  await creation.getByRole("button", { name: "Create frame", exact: true }).click();
+  await expect(page.locator(".figcraft-recovery")).toHaveText("Recovery saved on this device");
+  const canvas = page.getByLabel("Design canvas", { exact: true }); await canvas.focus(); await page.keyboard.press("Shift+L");
+  await expect(page.getByRole("toolbar", { name: "Tools", exact: true }).getByRole("button", { name: "Arrow", exact: true })).toHaveAttribute("aria-pressed", "true");
+  const a = await canvasPoint(page, 300, 250), b = await canvasPoint(page, 360, 290);
+  await page.keyboard.down("Control"); await page.keyboard.down("Shift"); await page.keyboard.down("Alt");
+  await page.mouse.move(a.x, a.y); await page.mouse.down(); const root = page.locator("[data-figcraft-editor]"), commits = await root.getAttribute("data-commits");
+  await page.mouse.move(b.x, b.y, { steps: 8 }); await expect(root).toHaveAttribute("data-commits", commits!); await page.mouse.up();
+  await page.keyboard.up("Alt"); await page.keyboard.up("Shift"); await page.keyboard.up("Control");
+  await expect(page.getByRole("list", { name: "Children of Frame 1", exact: true }).getByRole("button", { name: "Arrow", exact: true })).toBeVisible();
+  const save = async () => { const download = page.waitForEvent("download"); await page.getByRole("button", { name: "Save as", exact: true }).click(); return decodeFigcraft(await readFile((await (await download).path())!)); };
+  const first = await save(), line = Object.values(first.document.nodes).find(n => n.kind === "line")!;
+  // Recovery writes debounce independently of pointer previews; settle that chrome update first.
+  await expect(page.locator(".figcraft-recovery")).toHaveText("Recovery saved on this device");
+  await expect(page.getByRole("button", { name: "Save as", exact: true })).toBeEnabled();
+  if (line.kind !== "line") throw new Error("Expected Line");
+  expect(line.width).toBeCloseTo(2 * Math.hypot(60, 40)); expect(line.height).toBe(0);
+  const matrix = worldTransform(first.document, line.id), end = transformPoint(matrix, { x: line.width, y: 0 });
+  const p = await canvasPoint(page, end.x, end.y), q = await canvasPoint(page, end.x + 50, end.y + 20);
+  await page.keyboard.down("Control"); await page.mouse.move(p.x, p.y); await page.mouse.down(); const before = await root.getAttribute("data-commits"); await page.mouse.move(q.x, q.y, { steps: 8 }); await expect(root).toHaveAttribute("data-commits", before!);
+  await page.keyboard.press("Escape"); await page.mouse.up(); await page.keyboard.up("Control");
+  const cancelled = await save(); expect(cancelled.document.nodes[line.id]).toEqual(line);
+  await page.keyboard.down("Control"); await page.mouse.move(p.x, p.y); await page.mouse.down(); await page.mouse.move(q.x, q.y, { steps: 8 }); await page.mouse.up(); await page.keyboard.up("Control");
+  const moved = await save(), movedLine = moved.document.nodes[line.id]; if (movedLine.kind !== "line") throw new Error("Expected Line");
+  const movedEnd = transformPoint(worldTransform(moved.document, line.id), { x: movedLine.width, y: 0 }); expect(movedEnd.x).toBeCloseTo(end.x + 50, 0); expect(movedEnd.y).toBeCloseTo(end.y + 20, 0);
+  await page.getByRole("button", { name: "Undo", exact: true }).click(); expect((await save()).document.nodes[line.id]).toEqual(line);
+});
+
+test("stroke stacks support mixed selection, ordering and one-step multi-layer undo", async ({ page }) => {
+  await login(page); const creation = page.getByRole("group", { name: "Create layer", exact: true });
+  await creation.getByRole("button", { name: "Create line", exact: true }).click();
+  await page.getByLabel("Name", { exact: true }).fill("First line"); await page.getByRole("button", { name: "Apply layer", exact: true }).click();
+  await creation.getByRole("button", { name: "Create rectangle", exact: true }).click();
+  await page.getByRole("button", { name: "First line", exact: true }).click({ modifiers: ["Shift"] });
+  const stroke = page.getByRole("group", { name: "Stroke", exact: true }); await expect(stroke.getByText("Mixed strokes", { exact: true })).toBeVisible();
+  await stroke.getByRole("button", { name: "Add stroke", exact: true }).click(); await expect(stroke.getByText("Mixed strokes", { exact: true })).toBeVisible();
+  const save = async () => { const download = page.waitForEvent("download"); await page.getByRole("button", { name: "Save as", exact: true }).click(); return decodeFigcraft(await readFile((await (await download).path())!)); };
+  const saved = await save(), layers = Object.values(saved.document.nodes).filter(n => n.kind !== "page"); expect(layers.map(n => n.strokes?.length).sort()).toEqual([1, 2]);
+  await page.getByRole("button", { name: "Undo", exact: true }).click(); const undone = await save(); expect(Object.values(undone.document.nodes).filter(n => n.kind !== "page").map(n => n.strokes?.length ?? 0).sort()).toEqual([0, 1]);
+  await page.getByRole("button", { name: "First line", exact: true }).click(); await stroke.getByRole("button", { name: "Add stroke", exact: true }).click();
+  await stroke.getByLabel("Stroke 1 CSS colour", { exact: true }).fill("red"); await stroke.getByRole("button", { name: "Apply stroke 1", exact: true }).click();
+  await stroke.getByRole("button", { name: "Move stroke 1 down", exact: true }).click(); await expect(stroke.getByLabel("Stroke 2 CSS colour", { exact: true })).toHaveValue("rgba(255,0,0,1)");
+  await stroke.getByRole("button", { name: "Remove stroke 1", exact: true }).click(); await expect(stroke.getByRole("button", { name: "Apply stroke 2", exact: true })).toHaveCount(0);
+});
+
+test("advanced stroke fields use the native whole-stroke mixed state", async ({ page }) => {
+  await login(page); const creation = page.getByRole("group", { name: "Create layer", exact: true }), stroke = page.getByRole("group", { name: "Stroke", exact: true });
+  await creation.getByRole("button", { name: "Create line", exact: true }).click();
+  await page.getByLabel("Name", { exact: true }).fill("Mixed first"); await page.getByRole("button", { name: "Apply layer", exact: true }).click();
+  await creation.getByRole("button", { name: "Create line", exact: true }).click();
+  await stroke.getByLabel("Stroke weight", { exact: true }).fill("2"); await stroke.getByRole("button", { name: "Apply stroke weight", exact: true }).click();
+  await page.getByRole("button", { name: "Mixed first", exact: true }).click({ modifiers: ["Shift"] });
+  await expect(stroke.getByLabel("Stroke weight", { exact: true })).toHaveAttribute("placeholder", "Mixed");
+  await expect(stroke.getByLabel("Stroke alignment", { exact: true })).toHaveValue("center");
+  await stroke.getByText("Advanced stroke", { exact: true }).click();
+  for (const label of ["Stroke join", "Start cap", "End cap"]) await expect(stroke.getByLabel(label, { exact: true })).toHaveValue("");
+  await expect(stroke.getByLabel("Miter angle", { exact: true })).toHaveCount(0);
+  await stroke.getByLabel("Stroke weight", { exact: true }).fill("2"); await stroke.getByRole("button", { name: "Apply stroke weight", exact: true }).click();
+  await expect(stroke.getByLabel("Stroke join", { exact: true })).toHaveValue("miter"); await expect(stroke.getByLabel("Start cap", { exact: true })).toHaveValue("none");
+  await expect(stroke.getByLabel("Miter angle", { exact: true })).toHaveValue("28.96");
 });

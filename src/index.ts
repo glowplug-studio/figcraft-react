@@ -38,4 +38,5 @@ export { roundedRect, type Corners, type Radii, type PathCommand } from "./engin
 export { ellipsePath, type Arc } from "./engine/ellipse";
 export type { EllipseNode } from "./engine/document";
 export { polygonPoints, starPoints, roundedPolygon, smoothedPolygon } from "./engine/polygon";
-export type { PolygonNode, StarNode, LeafNode, DrawShapeKind } from "./engine/document";
+export type { PolygonNode, StarNode, LineNode, LeafNode, DrawShapeKind } from "./engine/document";
+export { defaultStroke, strokeCaps, miterAngle, miterLimitFor, type StrokeProps, type StrokeCap, type StrokeAlign, type StrokeJoin } from "./engine/stroke";

@@ -1,5 +1,6 @@
 import { ArcPanel } from "./ArcPanel";
 import { PointsPanel } from "./PointsPanel";
+import { StrokePanel } from "./StrokePanel";
 import { isLeaf } from "./engine/document";
 import { CornerPanel } from "./CornerPanel";
 import { ViewControls } from "./ViewControls";
@@ -104,6 +105,7 @@ export function Editor({ identity, capabilities, engine: suppliedEngine, recover
     if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "z") command = event.shiftKey ? "edit.redo" : "edit.undo";
     else if (!event.metaKey && !event.ctrlKey && !event.altKey) {
       if (event.key.toLowerCase() === "o") command = "tool.ellipse";
+      if (event.key.toLowerCase() === "l") command = event.shiftKey ? "tool.arrow" : "tool.line";
       if (event.key.toLowerCase() === "r") command = "tool.rectangle";
       if (event.key.toLowerCase() === "v") command = "tool.move";
       if (event.key.toLowerCase() === "k") command = "tool.scale";
@@ -207,6 +209,8 @@ export function Editor({ identity, capabilities, engine: suppliedEngine, recover
             <button disabled={!editable} aria-pressed={snapshot.tool === "ellipse"} onClick={() => { dispatch("tool.ellipse"); canvas.current?.focus(); }}>Ellipse</button>
             <button disabled={!editable} aria-pressed={snapshot.tool === "polygon"} onClick={() => { dispatch("tool.polygon"); canvas.current?.focus(); }}>Polygon</button>
             <button disabled={!editable} aria-pressed={snapshot.tool === "star"} onClick={() => { dispatch("tool.star"); canvas.current?.focus(); }}>Star</button>
+            <button disabled={!editable} aria-pressed={snapshot.tool === "line"} onClick={() => { dispatch("tool.line"); canvas.current?.focus(); }}>Line</button>
+            <button disabled={!editable} aria-pressed={snapshot.tool === "arrow"} onClick={() => { dispatch("tool.arrow"); canvas.current?.focus(); }}>Arrow</button>
             <button disabled={!editable} aria-pressed={snapshot.tool === "rectangle"} onClick={() => { dispatch("tool.rectangle"); canvas.current?.focus(); }}>Rectangle</button>
           </div>
         </div>
@@ -220,6 +224,8 @@ export function Editor({ identity, capabilities, engine: suppliedEngine, recover
             <button type="submit" value="ellipse">Create ellipse</button>
             <button type="submit" value="polygon">Create polygon</button>
             <button type="submit" value="star">Create star</button>
+            <button type="submit" value="line">Create line</button>
+            <button type="submit" value="arrow">Create arrow</button>
             <button type="submit" value="frame">Create frame</button>
           </fieldset></form>
           <details><summary>Frame presets</summary><form onSubmit={event => {
@@ -267,6 +273,7 @@ export function Editor({ identity, capabilities, engine: suppliedEngine, recover
           <PointsPanel nodes={snapshot.selection.flatMap(id => { const n = snapshot.document.nodes[id]; return n && n.kind !== "page" ? [n] : []; })} editable={editable && !busy} dispatch={dispatch} />
           <CornerPanel nodes={snapshot.selection.flatMap(id => { const n = snapshot.document.nodes[id]; return n && n.kind !== "page" ? [n] : []; })} editable={editable && !busy} dispatch={dispatch} />
           <AppearancePanel page={page} selected={selected && selected.kind !== "page" ? selected : undefined} editable={editable && !busy} dispatch={dispatch} />
+          <StrokePanel nodes={snapshot.selection.flatMap(id => { const n = snapshot.document.nodes[id]; return n && n.kind !== "page" ? [n] : []; })} editable={editable && !busy} dispatch={dispatch} />
         </aside>
       </div>
     </div>;

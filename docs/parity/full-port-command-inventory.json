@@ -625,7 +625,7 @@
     },
     {
       "command": "object.rotate180",
-      "label": "Rotate 180°",
+      "label": "Rotate 180\u00b0",
       "source": "crates/engine/src/cmd/arrange.rs",
       "line": 46,
       "status": "Partial",
@@ -634,7 +634,7 @@
     },
     {
       "command": "object.rotateLeft",
-      "label": "Rotate 90° left",
+      "label": "Rotate 90\u00b0 left",
       "source": "crates/engine/src/cmd/arrange.rs",
       "line": 49,
       "status": "Partial",
@@ -643,7 +643,7 @@
     },
     {
       "command": "object.rotateRight",
-      "label": "Rotate 90° right",
+      "label": "Rotate 90\u00b0 right",
       "source": "crates/engine/src/cmd/arrange.rs",
       "line": 52,
       "status": "Partial",
@@ -1095,14 +1095,34 @@
       "label": "Line",
       "source": "crates/engine/src/cmd/create.rs",
       "line": 93,
-      "status": "Not tested"
+      "status": "Partial",
+      "scope": "Line/Arrow, uniform solid stroke properties, paint-list operations, native persistence, endpoint gestures and bounded browser controls implemented. Non-solid paints, styles/variables, advanced strokes and shared numeric/tool UI remain required.",
+      "evidence": [
+        "tests/parity/line.test.ts",
+        "tests/parity/stroke.test.ts",
+        "tests/parity/stroke-commands.test.ts",
+        "tests/e2e/preview.spec.ts",
+        "tests/e2e/stroke-rendering.spec.ts",
+        "tests/e2e/stroke-performance.spec.ts",
+        "docs/reports/26-11-07-line-strokes-parity.html"
+      ]
     },
     {
       "command": "shape.arrow",
       "label": "Arrow",
       "source": "crates/engine/src/cmd/create.rs",
       "line": 96,
-      "status": "Not tested"
+      "status": "Partial",
+      "scope": "Line/Arrow, uniform solid stroke properties, paint-list operations, native persistence, endpoint gestures and bounded browser controls implemented. Non-solid paints, styles/variables, advanced strokes and shared numeric/tool UI remain required.",
+      "evidence": [
+        "tests/parity/line.test.ts",
+        "tests/parity/stroke.test.ts",
+        "tests/parity/stroke-commands.test.ts",
+        "tests/e2e/preview.spec.ts",
+        "tests/e2e/stroke-rendering.spec.ts",
+        "tests/e2e/stroke-performance.spec.ts",
+        "docs/reports/26-11-07-line-strokes-parity.html"
+      ]
     },
     {
       "command": "text.create",
@@ -1556,7 +1576,17 @@
       "label": "Add stroke",
       "source": "crates/engine/src/cmd/edit.rs",
       "line": 334,
-      "status": "Not tested"
+      "status": "Partial",
+      "scope": "Line/Arrow, uniform solid stroke properties, paint-list operations, native persistence, endpoint gestures and bounded browser controls implemented. Non-solid paints, styles/variables, advanced strokes and shared numeric/tool UI remain required.",
+      "evidence": [
+        "tests/parity/line.test.ts",
+        "tests/parity/stroke.test.ts",
+        "tests/parity/stroke-commands.test.ts",
+        "tests/e2e/preview.spec.ts",
+        "tests/e2e/stroke-rendering.spec.ts",
+        "tests/e2e/stroke-performance.spec.ts",
+        "docs/reports/26-11-07-line-strokes-parity.html"
+      ]
     },
     {
       "command": "fill.remove",
@@ -1570,7 +1600,17 @@
       "label": "Remove stroke",
       "source": "crates/engine/src/cmd/edit.rs",
       "line": 336,
-      "status": "Not tested"
+      "status": "Partial",
+      "scope": "Line/Arrow, uniform solid stroke properties, paint-list operations, native persistence, endpoint gestures and bounded browser controls implemented. Non-solid paints, styles/variables, advanced strokes and shared numeric/tool UI remain required.",
+      "evidence": [
+        "tests/parity/line.test.ts",
+        "tests/parity/stroke.test.ts",
+        "tests/parity/stroke-commands.test.ts",
+        "tests/e2e/preview.spec.ts",
+        "tests/e2e/stroke-rendering.spec.ts",
+        "tests/e2e/stroke-performance.spec.ts",
+        "docs/reports/26-11-07-line-strokes-parity.html"
+      ]
     },
     {
       "command": "fill.set",
@@ -1584,7 +1624,17 @@
       "label": "Set stroke",
       "source": "crates/engine/src/cmd/edit.rs",
       "line": 338,
-      "status": "Not tested"
+      "status": "Partial",
+      "scope": "Line/Arrow, uniform solid stroke properties, paint-list operations, native persistence, endpoint gestures and bounded browser controls implemented. Non-solid paints, styles/variables, advanced strokes and shared numeric/tool UI remain required.",
+      "evidence": [
+        "tests/parity/line.test.ts",
+        "tests/parity/stroke.test.ts",
+        "tests/parity/stroke-commands.test.ts",
+        "tests/e2e/preview.spec.ts",
+        "tests/e2e/stroke-rendering.spec.ts",
+        "tests/e2e/stroke-performance.spec.ts",
+        "docs/reports/26-11-07-line-strokes-parity.html"
+      ]
     },
     {
       "command": "fill.copy",
@@ -2058,7 +2108,7 @@
     },
     {
       "command": "libraries.publish",
-      "label": "Publish library…",
+      "label": "Publish library\u2026",
       "source": "crates/engine/src/cmd/library.rs",
       "line": 28,
       "status": "Not tested"
@@ -2208,7 +2258,17 @@
       "label": "Move stroke",
       "source": "crates/engine/src/cmd/lists.rs",
       "line": 21,
-      "status": "Not tested"
+      "status": "Partial",
+      "scope": "Line/Arrow, uniform solid stroke properties, paint-list operations, native persistence, endpoint gestures and bounded browser controls implemented. Non-solid paints, styles/variables, advanced strokes and shared numeric/tool UI remain required.",
+      "evidence": [
+        "tests/parity/line.test.ts",
+        "tests/parity/stroke.test.ts",
+        "tests/parity/stroke-commands.test.ts",
+        "tests/e2e/preview.spec.ts",
+        "tests/e2e/stroke-rendering.spec.ts",
+        "tests/e2e/stroke-performance.spec.ts",
+        "docs/reports/26-11-07-line-strokes-parity.html"
+      ]
     },
     {
       "command": "effect.move",
@@ -4005,14 +4065,34 @@
       "label": "Line",
       "source": "crates/engine/src/cmd/view.rs",
       "line": 583,
-      "status": "Not tested"
+      "status": "Partial",
+      "scope": "Line/Arrow, uniform solid stroke properties, paint-list operations, native persistence, endpoint gestures and bounded browser controls implemented. Non-solid paints, styles/variables, advanced strokes and shared numeric/tool UI remain required.",
+      "evidence": [
+        "tests/parity/line.test.ts",
+        "tests/parity/stroke.test.ts",
+        "tests/parity/stroke-commands.test.ts",
+        "tests/e2e/preview.spec.ts",
+        "tests/e2e/stroke-rendering.spec.ts",
+        "tests/e2e/stroke-performance.spec.ts",
+        "docs/reports/26-11-07-line-strokes-parity.html"
+      ]
     },
     {
       "command": "tool.arrow",
       "label": "Arrow",
       "source": "crates/engine/src/cmd/view.rs",
       "line": 584,
-      "status": "Not tested"
+      "status": "Partial",
+      "scope": "Line/Arrow, uniform solid stroke properties, paint-list operations, native persistence, endpoint gestures and bounded browser controls implemented. Non-solid paints, styles/variables, advanced strokes and shared numeric/tool UI remain required.",
+      "evidence": [
+        "tests/parity/line.test.ts",
+        "tests/parity/stroke.test.ts",
+        "tests/parity/stroke-commands.test.ts",
+        "tests/e2e/preview.spec.ts",
+        "tests/e2e/stroke-rendering.spec.ts",
+        "tests/e2e/stroke-performance.spec.ts",
+        "docs/reports/26-11-07-line-strokes-parity.html"
+      ]
     },
     {
       "command": "tool.ellipse",
@@ -4337,7 +4417,7 @@
     },
     {
       "command": "plugin.import",
-      "label": "Import plugin from manifest…",
+      "label": "Import plugin from manifest\u2026",
       "source": "crates/engine/src/extensions/plugins.rs",
       "line": 666,
       "status": "Not tested"
@@ -4386,7 +4466,7 @@
     },
     {
       "command": "plugins.manage",
-      "label": "Manage plugins…",
+      "label": "Manage plugins\u2026",
       "source": "crates/engine/src/extensions/plugins.rs",
       "line": 697,
       "status": "Not tested"

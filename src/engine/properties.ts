@@ -1,4 +1,5 @@
 import { isShapeKey, setShapeProperties } from "./shape-properties";
+import { isStrokeKey, setStrokeProperties } from "./stroke";
 import { isArcKey, setArc } from "./ellipse";
 import { isLeaf } from "./document";
 import { isCornerKey, setCorners, zeroCorners } from "./corners";
@@ -48,7 +49,7 @@ export function setRectangleProperties(document: Document, selection: readonly N
     : rawProps as Record<string, unknown>;
   const keys = Object.keys(props);
   if (keys.length === 0) throw new Error("node.set requires properties");
-  const unsupported = keys.filter(key => !geometryKeys.has(key) && !appearanceKeys.has(key) && !isCornerKey(key) && !isArcKey(key) && !isShapeKey(key));
+  const unsupported = keys.filter(key => !geometryKeys.has(key) && !appearanceKeys.has(key) && !isCornerKey(key) && !isArcKey(key) && !isShapeKey(key) && !isStrokeKey(key));
   if (unsupported.length) throw new Error(`node.set unsupported properties: ${unsupported.join(", ")}`);
   const pivot = origin && "rotation" in props && !("x" in props) && !("y" in props) && sameIds(requestedIds, selection) ? origin : undefined;
   const pinned = pivot ? rootIds(document, ids).map(id => ({ id, point: localOrigin(document, id, pivot) })) : [];
@@ -86,7 +87,7 @@ export function setRectangleProperties(document: Document, selection: readonly N
     const node = draft.nodes[id];
     if (!node || node.kind === "page") throw new Error(`node.set target ${id} is not an editable layer`);
     if ("clip" in props && node.kind !== "frame") throw new Error("Clip content requires a frame");
-    const arcNode = setShapeProperties(setArc(node, props), props);
+    const arcNode = setStrokeProperties(setShapeProperties(setArc(node, props), props), props);
     const corners = setCorners(node.corners ?? zeroCorners, props);
     const cornersChanged = corners !== (node.corners ?? zeroCorners);
     const constraints = "constraints" in props ? readConstraints(props.constraints, node.constraints) : node.constraints;
