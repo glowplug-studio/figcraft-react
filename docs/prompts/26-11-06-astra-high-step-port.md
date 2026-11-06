@@ -108,6 +108,15 @@ Remain the single coordinator, architecture owner and final reviewer. Use real t
 - Require subagents to inspect current files before editing and to preserve unrelated work.
 - Review every returned change yourself; subagent completion is not evidence of correctness.
 
+Choose the lowest sufficient reasoning effort for each delegated task:
+
+- **Low:** searches, file inventories, formatting and simple mechanical edits.
+- **Medium:** routine TypeScript components, fixtures, unit tests and direct leaf-function ports.
+- **High:** cross-file implementation, Rust semantic translation and parity review.
+- **Extra High:** only for difficult algorithms, concurrency, collaboration ordering, rendering architecture or unresolved debugging.
+
+Keep the coordinating Astra agent on High. Do not use Extra High for the complete porting run; escalate only a bounded task whose evidence justifies it. Astra retains final review regardless of the delegated model or effort.
+
 Within each agent, work in sequential micro-steps. Do not generate full-file replacements when a focused patch is sufficient.
 
 ## Phase 4 — implementation
