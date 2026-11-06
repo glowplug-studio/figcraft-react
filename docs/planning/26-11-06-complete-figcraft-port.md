@@ -5,16 +5,16 @@
 | Field | Current value |
 |---|---|
 | Overall status | In progress; full parity is not implemented |
-| Active slice | Anchored numeric resize and uniform scale |
-| Active phase | Phase 2: resize/scale evidence and plan complete |
+| Active slice | Rotation origins, numeric rotations and flips |
+| Active phase | Phase 1–3: source mapping and rotation plan |
 | Upstream baseline | `0b97f3f1801a9b7b96fd7a4f3c0942a3f1a676f3`; prior parity baseline `8eb0b87646c5aef712326d6c431ccde5408630de` |
-| Branch and last verified commit | `prompt/full-figcraft-port`; verified arrangement `783a694`; verified viewport `d0fae6c`; verified frames `3e7943a`; verified nested groups `e81ba76`; verified colour `bfa5dd8`; affine `080fc27`, outline check `2404d6b`, reports `ff29f38`; pages `6c988a5`, persistence `41d467b`; integration `fc3b4a6` from updated dev plus rectangle branch |
+| Branch and last verified commit | `prompt/full-figcraft-port`; verified sizing `c6b8c71`; verified arrangement `783a694`; verified viewport `d0fae6c`; verified frames `3e7943a`; verified nested groups `e81ba76`; verified colour `bfa5dd8`; affine `080fc27`, outline check `2404d6b`, reports `ff29f38`; pages `6c988a5`, persistence `41d467b`; integration `fc3b4a6` from updated dev plus rectangle branch |
 | Completed slices | Rectangle/host-auth, bounded native persistence/recovery, supported-model pages, affine rectangle geometry/selection and solid appearance, plus nested group hierarchy and Frame containers verified locally |
 | Remaining slices | Every row below except the integrated foundation; static inventory entries remain unverified until mapped and tested |
-| Tests last passed | Strict TypeScript, 331 pure tests, 2 real local Auth tests, package/Next builds and30/30 production Chromium checks (39.8s); moving-frame p95 13.3ms |
-| Files currently in progress | Resize/scale plan; implementation begins next |
+| Tests last passed | Strict TypeScript, 349 pure tests, 2 real local Auth tests, package/Next builds and32/32 production Chromium checks (43.6s); moving-frame p95 13.8ms |
+| Files currently in progress | Rotation plan; no rotation implementation yet |
 | Blockers | None |
-| Exact next action | Implement anchored resize, uniform subtree scale and size nudging with commands/UI/tests; then continue remaining roadmap |
+| Exact next action | Implement rotation-origin session state, numeric rotation/flip commands, inspector and canvas origin handle; verify and continue roadmap |
 | Last updated | 2026-11-07 |
 
 ## Scope and continuation
@@ -208,3 +208,21 @@ Source/mapping: `cmd/arrange.rs::resize_cmd,scale_cmd,scale_node` → new pure s
 Hazards: fixed anchor is transformed into parent space before/after resize; scaled descendants ignore constraints and must not be resized twice during normalisation; scale differs from affine matrix scaling. Preserve caller target order for resize and deduplicate roots only for scale/nudgeSize. Validate all touched local/world bounds before publication and ensure failed factors/overflow leave history unchanged. Test all anchors, rotated/reflected parents, nested groups/frames, simultaneous ancestor/child resize, custom pivot, one-step undo, native round trips, real browser controls/keys and responsive layout. Representative canvas performance regression remains required.
 
 No database/provider schema or identity changes. Later kinds add stroke/effect/text/vector/layout/image/grid scaling; unsupported fields remain rejected by the codec until those slices. Scale tool pointer handles and general resize/rotate gestures, custom rotation origins and smart selection remain subsequent work; no full-family claim. Work sequentially; rollback783a694.
+
+Sizing integration checkpoint: nine-anchor resizing, uniform subtree scaling and size nudging implemented.349 pure tests and strict TypeScript/build passed before an additional overflow assertion. First browser flow exposed the select control accessible name; explicit Resize anchor aria-label added. Rebuild and browser/full regression next. No external blocker.
+
+Sizing browser correction: explicit anchor label fixed the select timeout; the invalid-factor assertion is scoped to the editor to exclude Next's route announcer. Both new browser flows pass.349 pure tests,2 local Auth tests, strict TypeScript and production build pass; final32-check browser run is active.
+
+## Verified sizing checkpoint
+
+Implementation c6b8c71, version0.11.0:349 pure tests,2 local Auth tests, strict TypeScript/build and32/32 browser checks passed in43.6s. Moving Frame p95 13.8ms. [Report](../reports/26-11-07-sizing.md). No external blocker or publication.
+
+## Active rotation origins and transforms plan
+
+Acceptance: session-only rotation origin stored in the first selected layer's local coordinates; origin follows document transforms and undo, clears on ordered selection change, and never dirties content/history. Toggle editing with command/Alt+R, set page coordinates/reset through inspector, show native ring/cross on canvas, drag with8-screen-pixel hit radius and5-screen-pixel snapping to selection corners/midpoints/centre; centre snapping and double-click reset. Escape hides editing first. Expose native rotate/left/right/180 and horizontal/vertical flip commands, with optional numeric pivot; rotation uses moved origin only for targets exactly matching current selection, otherwise combined bounds centre. Flips always use combined page bounds centre. Inspector node.set rotation honours moved origin only without explicit x/y. Save/recovery persist geometry, never origin state.
+
+Source/mapping: `canvas/rotation_origin.rs::{RotationOrigin,moved_origin,origin_point,set_rotation_origin,drag_origin_to}` → dedicated pure origin/selection-box helpers plus separate EditorEngine transient subscription; `canvas/tools/handles.rs::{selection_frame,shared_rotation}` → shared oriented selection frame; `cmd/arrange.rs::{flip,rotate_by,turn_pivot}` → immutable rotation reducer; `cmd/edit/props.rs` pinned rotation → node.set integration; `canvas/tools/pointer.rs` origin interception and `ui-egui/canvas/overlays.rs` ring/cross → CanvasController; `rotation_origin_tests.rs` → parity/browser fixtures. Graphify located exact Rust origin/selection definitions; React graph remains stale/README-only. Local source is authoritative.
+
+Hazards: parent/world matrix conjugation, counter-clockwise angle convention, ordered selection equality, local-origin lifetime across undo, singular transforms and finite results, no root React rerenders while dragging. Multiple similarly rotated selections use a common oriented frame except axis-aligned angles; mirrored axes count modulo pi. No other pointer resize/rotate handle is implied by this slice. Pure fixtures cover exact native origin lifecycle, snapping, pinned rotations, flips, transformed parents and atomic failure; browser flows cover handle drag/reset, Alt+R/Escape, inspector transforms, undo/save/recovery and mobile. Existing large-document/input performance suite remains required.
+
+No schema/provider/identity or RLS changes; existing local Auth and recovery apply. Unsupported node kinds, text/vector editing and general transform gestures remain required later. Work sequentially; rollback c6b8c71. Files: new rotation/origin helpers and panel; EditorEngine, CanvasController and Editor key handling; pure/browser tests and version records. Implement pure geometry, transient lifecycle, command transactions, controls/input, then verify and report.

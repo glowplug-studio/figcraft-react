@@ -678,14 +678,18 @@
       "label": "Scale",
       "source": "crates/engine/src/cmd/arrange.rs",
       "line": 117,
-      "status": "Not tested"
+      "status": "Partial",
+      "evidence": "../reports/26-11-07-sizing-parity.html",
+      "limitation": "Verified supported model; other kinds, preferences and layout remain required."
     },
     {
       "command": "transform.resize",
       "label": "Resize",
       "source": "crates/engine/src/cmd/arrange.rs",
       "line": 124,
-      "status": "Not tested"
+      "status": "Partial",
+      "evidence": "../reports/26-11-07-sizing-parity.html",
+      "limitation": "Verified supported model; other kinds, preferences and layout remain required."
     },
     {
       "command": "comment.add",
@@ -1369,7 +1373,9 @@
       "label": "Resize by nudge",
       "source": "crates/engine/src/cmd/edit.rs",
       "line": 247,
-      "status": "Not tested"
+      "status": "Partial",
+      "evidence": "../reports/26-11-07-sizing-parity.html",
+      "limitation": "Verified supported model; other kinds, preferences and layout remain required."
     },
     {
       "command": "object.rename",

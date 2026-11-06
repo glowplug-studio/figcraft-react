@@ -33,3 +33,7 @@ Add mappings only after inspecting behaviour, callers, data contracts and tests.
 ## Movement and arrangement — 7 November 2026
 
 `cmd/arrange::{move_world,align,distribute,pack,tidy,zorder}` and `cmd/edit/select::nudge` → `engine/arrange.ts` with immutable HierarchyDraft; native `req_targets` → strict arrangement target parsing; EditorEngine history and ArrangePanel dispatch preserve atomicity. Upstream0b97f3f, React783a694.331 pure/30 browser suite passes include source-derived outermost-edge and multi-parent cases. [Property evidence](../reports/26-11-07-arrangement-parity.html). Nudge local axes intentionally differ from page-space move. Auto-layout/preferences/other kinds remain incomplete.
+
+## Anchored resize and uniform scale — 7 November 2026
+
+`cmd/arrange::{resize_cmd,scale_cmd,scale_node}`, `cmd/edit/select::nudge_size` and `handles::anchor_of` → `engine/sizing.ts`, shared arrangement targets and constraints, EditorEngine/SizePanel. Upstream0b97f3f, Reactc6b8c71. Source-derived nine-anchor, ordered target, rotated subtree, finite/atomic and codec fixtures plus authenticated keyboard/pivot/recovery/browser checks pass. [Property evidence](../reports/26-11-07-sizing-parity.html). Other kinds, scaling properties, preferences, layout and pointer tools remain required.
