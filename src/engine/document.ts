@@ -40,6 +40,7 @@ export interface LayerProperties {
   readonly corners?: Corners;
 }
 export interface RectangleNode extends LayerProperties { readonly kind: "rectangle" }
+export interface EllipseNode extends LayerProperties { readonly kind: "ellipse"; readonly start: number; readonly sweep: number; readonly inner: number }
 export interface GroupNode extends LayerProperties {
   readonly kind: "group";
   readonly children: readonly NodeId[];
@@ -49,8 +50,10 @@ export interface FrameNode extends LayerProperties {
   readonly children: readonly NodeId[];
   readonly clip: boolean;
 }
-export type LayerNode = RectangleNode | GroupNode | FrameNode;
+export type LayerNode = RectangleNode | EllipseNode | GroupNode | FrameNode;
 export type DocumentNode = PageNode | LayerNode;
+export const isLeafKind = (kind: unknown): kind is "rectangle" | "ellipse" => kind === "rectangle" || kind === "ellipse";
+export const isLeaf = (node: DocumentNode): node is RectangleNode | EllipseNode => isLeafKind(node.kind);
 export interface Document {
   readonly name: string;
   readonly pages: readonly NodeId[];

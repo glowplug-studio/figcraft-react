@@ -12,7 +12,7 @@ import { selectionFrame } from "./rotation";
 export function cornerHandles(document: Document, ids: readonly NodeId[], zoom: number): readonly { index: number; point: Point }[] {
   if (ids.length !== 1 || !Number.isFinite(zoom) || zoom <= 0) return [];
   const n = document.nodes[ids[0]];
-  if (!n || n.kind === "page" || n.kind === "group" || n.visible === false || n.locked) return [];
+  if (!n || n.kind === "page" || n.kind === "group" || n.kind === "ellipse" || n.visible === false || n.locked) return [];
   const t = worldTransform(document, n.id), scale = Math.sqrt(Math.abs(t[0] * t[3] - t[1] * t[2]));
   if (!Number.isFinite(scale) || scale <= 1e-9 || Math.min(n.width, n.height) * scale * zoom < 48) return [];
   const radius = n.corners?.radii ?? zeroCorners.radii, max = Math.min(n.width, n.height) / 2;
@@ -23,7 +23,7 @@ export function cornerHandles(document: Document, ids: readonly NodeId[], zoom: 
 }
 export function cornerDrag(document: Document, id: NodeId, index: number, point: Point, alt: boolean): Record<string, number> | undefined {
   if (!Number.isFinite(point.x) || !Number.isFinite(point.y)) return;
-  const n = document.nodes[id]; if (!n || n.kind === "page" || n.kind === "group" || index < 0 || index > 3) return;
+  const n = document.nodes[id]; if (!n || n.kind === "page" || n.kind === "group" || n.kind === "ellipse" || index < 0 || index > 3) return;
   const q = transformPoint(inverse(worldTransform(document, id)), point); if (!Number.isFinite(q.x) || !Number.isFinite(q.y)) return;
   const dx = index === 0 || index === 3 ? q.x : n.width - q.x, dy = index < 2 ? q.y : n.height - q.y;
   return { [alt ? cornerKeys[index] : "cornerRadius"]: Math.max(0, Math.min(Math.min(n.width, n.height) / 2, (dx + dy) / 2)) };

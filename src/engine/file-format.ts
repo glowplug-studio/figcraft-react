@@ -1,3 +1,4 @@
+import { isLeaf, isLeafKind } from "./document";
 import { type Corners, type Radii } from "./corners";
 import { Unzip, UnzipInflate, ZipPassThrough, zipSync } from "fflate";
 import { Uint8ArrayReader, ZipReader } from "@zip.js/zip.js/lib/zip-core-native.js";
@@ -11,7 +12,7 @@ import { transformBounds, type Affine } from "./affine";
 
 /** A deliberately bounded adapter for native format v1, not full archive parity.
  * Source: original/figcraft/crates/{format/src/lib.rs,doc/src/{lib,node,props}.rs}.
- * Only pages, affine groups, frames and rectangles with solid paints are editable here.
+ * Only pages, affine groups, frames, rectangles and ellipses with solid paints are editable here.
  * Unsupported data is rejected, never opened and silently discarded on save.
  * Browser limits are intentionally below native's: 16 MiB and 10,000 nodes.
  * zip.js reads ZIP metadata; fflate bounds inflation and computes CRC32.
@@ -120,8 +121,8 @@ function decodeDocument(raw: unknown): DecodedFigcraft {
     maximum = BigInt(key) > maximum ? BigInt(key) : maximum;
     const n = object(value, `node ${key}`), kind = n.type;
     if (id(n.id, "node ID") !== key) fail(`node ${key} has a mismatched ID`);
-    if (kind !== "page" && kind !== "group" && kind !== "frame" && kind !== "rectangle") fail(`node type ${String(kind)} is not supported yet`);
-    fields(n, ["id", "name", "type", "parent", "children", "transform", "width", "height", "fills", "blend", ...(kind === "page" ? ["background", "flows", "prototype"] : ["visible", "locked", "opacity", "corners", "constraints", "constrain_proportions", ...(kind === "frame" ? ["clip"] : [])])], nodeDefaults, `node ${key}`);
+    if (kind !== "page" && kind !== "group" && kind !== "frame" && !isLeafKind(kind)) fail(`node type ${String(kind)} is not supported yet`);
+    fields(n, ["id", "name", "type", "parent", "children", "transform", "width", "height", "fills", "blend", ...(kind === "page" ? ["background", "flows", "prototype"] : [...(kind === "ellipse" ? ["start", "sweep", "inner"] : []), "visible", "locked", "opacity", "corners", "constraints", "constrain_proportions", ...(kind === "frame" ? ["clip"] : [])])], nodeDefaults, `node ${key}`);
     const name = text(n.name, "node name"), width = number(n.width, "width"), height = number(n.height, "height");
     if (width < 0 || height < 0) fail("negative dimensions are not supported yet");
     const transform = list(n.transform ?? [1, 0, 0, 1, 0, 0], "transform").map((entry) => number(entry, "transform"));
@@ -144,7 +145,7 @@ function decodeDocument(raw: unknown): DecodedFigcraft {
       }
       nodes[key] = withPageColour({ id: key, kind, name, parent: null, children: Object.freeze(children), background: "#f5f5f5" }, nativeColour(n.background ?? "#f5f5f5", "page background"));
     } else {
-      if (kind === "rectangle" && children.length) fail("rectangle children are not supported yet");
+      if (isLeafKind(kind) && children.length) fail("leaf children are not supported");
       if (n.blend !== undefined && n.blend !== "normal" && n.blend !== "passThrough") fail(`${kind} blend is not supported yet`);
       if (n.visible !== undefined && typeof n.visible !== "boolean" || n.locked !== undefined && typeof n.locked !== "boolean") fail("node visibility/lock must be boolean");
       if (n.constrain_proportions !== undefined && typeof n.constrain_proportions !== "boolean") fail("constrain_proportions must be boolean");
@@ -168,10 +169,10 @@ function decodeDocument(raw: unknown): DecodedFigcraft {
       if (kind === "frame" && n.clip !== undefined && typeof n.clip !== "boolean") fail("frame clip must be boolean");
       const layer = { id: key, kind, name, ...(corners ? { corners } : {}), parent: id(n.parent, `${kind} parent`), x: transform[4]!, y: transform[5]!, width, height, fill: "transparent", ...(constraints.horizontal !== "left" || constraints.vertical !== "top" ? { constraints } : {}),
         ...(n.constrain_proportions === true ? { constrainProportions: true } : {}), ...(n.visible === false ? { visible: false } : {}), ...(n.locked === true ? { locked: true } : {}), ...(opacity !== 1 ? { opacity } : {}),
-        ...(n.blend !== undefined && n.blend !== (kind !== "rectangle" ? "passThrough" : "normal") ? { blend: n.blend as "normal" | "passThrough" } : {}) };
-      nodes[key] = kind !== "rectangle"
+        ...(n.blend !== undefined && n.blend !== (!isLeafKind(kind) ? "passThrough" : "normal") ? { blend: n.blend as "normal" | "passThrough" } : {}) };
+      nodes[key] = !isLeafKind(kind)
         ? Object.freeze({ ...withRectanglePaints(withLayerTransform({ ...layer, ...(kind === "frame" ? { kind: "frame" as const, clip: n.clip === true } : { kind: "group" as const }), children: Object.freeze(children), blend: (n.blend ?? "passThrough") as "normal" | "passThrough" }, matrix), paints), fills: paints })
-        : withRectanglePaints(withLayerTransform({ ...layer, kind }, matrix), paints);
+        : withRectanglePaints(withLayerTransform(kind === "ellipse" ? { ...layer, kind, start: number(n.start === undefined ? 0 : n.start, "arc start"), sweep: number(n.sweep === undefined ? 2 * Math.PI : n.sweep, "arc sweep"), inner: number(n.inner === undefined ? 0 : n.inner, "arc inner") } : { ...layer, kind }, matrix), paints);
     }
   }
   const referenced = new Set<string>();
@@ -187,7 +188,7 @@ function decodeDocument(raw: unknown): DecodedFigcraft {
       const child = nodes[childId];
       if (!child || child.kind === "page" || child.parent !== parentId || referenced.has(childId)) fail("invalid, repeated or cyclic child relationship");
       referenced.add(childId);
-      if (child.kind !== "rectangle") for (const grandchild of child.children) pending.push({ childId: grandchild, parentId: childId, depth: depth + 1 });
+      if (!isLeaf(child)) for (const grandchild of child.children) pending.push({ childId: grandchild, parentId: childId, depth: depth + 1 });
     }
   }
   if (referenced.size !== entries.length) fail("unlisted pages or orphan nodes");
@@ -264,12 +265,12 @@ export async function encodeFigcraft(document: Document, nextId?: string): Promi
     const numericId = wireId(key);
     maximum = BigInt(key) > maximum ? BigInt(key) : maximum;
     if (node.id !== key) fail("node map key and ID differ");
-    const common = { id: numericId, name: node.name, type: node.kind };
+    const common = { id: numericId, name: node.name, type: node.kind, ...(node.kind === "ellipse" ? { start: node.start, sweep: node.sweep, inner: node.inner } : {}) };
     if (node.kind === "page") {
       nodes[key] = { ...common, width: 0, height: 0, children: node.children.map(wireId), background: pageColour(node) };
     } else {
-      nodes[key] = { ...common, parent: wireId(node.parent), ...(node.kind !== "rectangle" ? { children: node.children.map(wireId) } : {}), transform: layerTransform(node), width: node.width, height: node.height,
-        ...(node.corners ? { corners: node.corners } : {}), ...(node.constraints ? { constraints: node.constraints } : {}), ...(node.constrainProportions ? { constrain_proportions: true } : {}), ...(node.kind === "frame" ? { clip: node.clip } : {}), blend: node.blend ?? (node.kind !== "rectangle" ? "passThrough" : "normal"), visible: node.visible ?? true, locked: node.locked ?? false, opacity: node.opacity ?? 1, fills: rectanglePaints(node) };
+      nodes[key] = { ...common, parent: wireId(node.parent), ...(!isLeaf(node) ? { children: node.children.map(wireId) } : {}), transform: layerTransform(node), width: node.width, height: node.height,
+        ...(node.corners ? { corners: node.corners } : {}), ...(node.constraints ? { constraints: node.constraints } : {}), ...(node.constrainProportions ? { constrain_proportions: true } : {}), ...(node.kind === "frame" ? { clip: node.clip } : {}), blend: node.blend ?? (!isLeaf(node) ? "passThrough" : "normal"), visible: node.visible ?? true, locked: node.locked ?? false, opacity: node.opacity ?? 1, fills: rectanglePaints(node) };
     }
   }
   const minimum = maximum < U64_MAX ? maximum + 1n : U64_MAX;

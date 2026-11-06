@@ -1,3 +1,4 @@
+import { isLeaf } from "../../src/engine/document";
 import { describe, expect, it } from "vitest";
 import { EditorEngine } from "../../src/engine/editor";
 import { executeDuplicate } from "../../src/engine/duplicate";
@@ -54,7 +55,7 @@ describe("native duplicate maps and repeated spacing", () => {
       expect(fresh).not.toBe(old); expect(fresh.name).toBe(old.name); expect(fresh.kind).toBe(old.kind);
       expect(fresh.width).toBeCloseTo(old.width); expect(fresh.height).toBeCloseTo(old.height);
       expect(fresh.constraints).toEqual(old.constraints); expect(fresh.opacity).toBe(old.opacity); expect(fresh.fill).toBe(old.fill);
-      if (old.kind !== "rectangle" && fresh.kind !== "rectangle") expect(fresh.children).toEqual(old.children.map(id => map[id]));
+      if (!isLeaf(old) && !isLeaf(fresh)) expect(fresh.children).toEqual(old.children.map(id => map[id]));
       expect(fresh.parent).toBe(oldId === frame ? old.parent : map[old.parent]);
     }
     expect(node(e, map[frame])).toMatchObject({ clip: false });
@@ -65,7 +66,7 @@ describe("native duplicate maps and repeated spacing", () => {
     const e = new EditorEngine(), a = make(e), b = make(e), c = make(e);
     const ids = e.execute("edit.duplicate", { ids: [c, a] }).ids as string[];
     const page = e.getSnapshot().document.nodes["1"];
-    expect(page.kind !== "rectangle" && page.children).toEqual([a, ids[0], b, c, ids[1]]);
+    expect(!isLeaf(page) && page.children).toEqual([a, ids[0], b, c, ids[1]]);
     expect(Object.keys(e.execute("edit.duplicate", { map: false }))).toEqual(["ids"]);
   });
   it("distinguishes parent-space explicit offsets from page-space remembered offsets", () => {

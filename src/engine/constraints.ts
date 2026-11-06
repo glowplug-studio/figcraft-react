@@ -1,3 +1,4 @@
+import { isLeaf } from "./document";
 import { transformBounds, withTranslation, type Affine } from "./affine";
 import { defaultConstraints, layerTransform, withLayerTransform, type Constraints, type NodeId } from "./document";
 import { HierarchyDraft } from "./hierarchy";
@@ -27,7 +28,7 @@ export function resizeChildren(draft: HierarchyDraft, id: NodeId, oldWidth: numb
   const pending: Resize[] = [{ id, oldWidth, oldHeight }];
   while (pending.length) {
     const item = pending.pop()!, container = draft.nodes[item.id];
-    if (!container || container.kind === "rectangle" || container.kind === "page") continue;
+    if (!container || isLeaf(container) || container.kind === "page") continue;
     const nw = container.width, nh = container.height, ow = item.oldWidth, oh = item.oldHeight;
     const group = container.kind === "group";
     if (!group && Math.abs(nw - ow) < 1e-9 && Math.abs(nh - oh) < 1e-9) continue;
@@ -61,7 +62,7 @@ export function resizeChildren(draft: HierarchyDraft, id: NodeId, oldWidth: numb
       const transform = withTranslation(linear, { x: x - box.x, y: y - box.y });
       transformBounds(transform, width, height);
       draft.set({ ...withLayerTransform(child, transform), width, height });
-      if (child.kind !== "rectangle" && (group || resized)) pending.push({ id: childId, oldWidth: child.width, oldHeight: child.height,
+      if (!isLeaf(child) && (group || resized)) pending.push({ id: childId, oldWidth: child.width, oldHeight: child.height,
         ...(child.kind === "group" ? { groupScale: [kw, kh] as const } : {}) });
     }
   }

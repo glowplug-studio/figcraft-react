@@ -6,15 +6,15 @@
 |---|---|
 | Overall status | In progress; full parity is not implemented |
 | Active slice | Ellipse, arc and ring geometry/handles |
-| Active phase | Phase 1–3: ellipse evidence and plan |
+| Active phase | Phase 7: verified ellipse slice reports and continuation |
 | Upstream baseline | `0b97f3f1801a9b7b96fd7a4f3c0942a3f1a676f3`; prior parity baseline `8eb0b87646c5aef712326d6c431ccde5408630de` |
 | Branch and last verified commit | `prompt/full-figcraft-port`; verified corners `37ad314`; verified transforms `cc26af1`; verified canvas move `0d34280`; verified duplication `f6dfc3f`; verified smart selection `3326d26`; verified rotations `92062ca`; verified sizing `c6b8c71`; verified arrangement `783a694`; verified viewport `d0fae6c`; verified frames `3e7943a`; verified nested groups `e81ba76`; verified colour `bfa5dd8`; affine `080fc27`, outline check `2404d6b`, reports `ff29f38`; pages `6c988a5`, persistence `41d467b`; integration `fc3b4a6` from updated dev plus rectangle branch |
 | Completed slices | Rectangle/host-auth, bounded native persistence/recovery, supported-model pages, affine rectangle geometry/selection and solid appearance, plus nested group hierarchy and Frame containers verified locally |
 | Remaining slices | Every row below except the integrated foundation; static inventory entries remain unverified until mapped and tested |
-| Tests last passed | Strict TypeScript,460 pure tests,2 local Auth tests, package/Next builds and56/56 Chromium checks (104.2s); corner preview p95 4.6ms |
-| Files currently in progress | Corner reports/mapping and ellipse source evidence; product verified |
+| Tests last passed | Strict TypeScript,480 pure tests,2 local Auth tests, package/Next builds and60/60 Chromium checks (150.3s,1 worker); ellipse arc/draw p95 2.7/2.8ms |
+| Files currently in progress | Ellipse model/codec, multi-contour paths, shared creation/drawing, arc handles/panel and tests |
 | Blockers | None |
-| Exact next action | Complete ellipse/arc/ring source evidence, record acceptance/mapping, then implement the next complete slice |
+| Exact next action | Commit verified ellipse implementation and property reports; finish local Graphify index, then select the next source-evidenced shape slice |
 | Last updated | 2026-11-07 |
 
 ## Scope and continuation
@@ -341,3 +341,46 @@ Implementation37ad314, version0.17.0:460 pure,2 real Auth, strict TypeScript/bui
 ## Active ellipse evidence
 
 Next foundation: native ellipse paths, arcs/wedges/rings and start/end/inner handles. Graphify Rust current0b97f3f returns native arc UI fixtures: arcStart90 degrees, arcSweep270 degrees displayed75%, arcInner0.4 displayed40%; mixed ellipses show mixed sweep, ellipse+rectangle hides arc controls. Ring tests and rotated/flipped handle tests are source anchors. Complete exact geometry, command, wire, tool and hit semantics before edits. Existing rounded path support has a single-contour flattening helper: full rings require independent contours and winding, never a spurious connecting segment. Extend leaf-kind tests throughout hierarchy/render/selection/codec rather than treating ellipse as a container. React index remains README-only; current files are authoritative. Sequential execution; rollback37ad314.
+
+
+### Ellipse acceptance, mapping and implementation order
+
+Evidence complete for this slice: geom/lib.rs::ellipse/full_sweep and geom/tests.rs::ellipse_ring_area; doc/node.rs::Ellipse wire defaults; cmd/create.rs::{kind_for,create_kind,frame_at}, cmd/props.rs arc properties; canvas/arc_handles.rs and all8 arc_handles_tests.rs fixtures; tools/draw.rs creation and tools/drag.rs::arc_drag; UI right.rs::arc_section, overlays.rs::arc_overlay; keymap O. Graphify returns exact UI/handle fixtures, but tests_for resolves an unrelated name match and Arc neighbours include std::sync::Arc collisions. Only verified local callsites and tests count. React graph remains stale README-only.
+
+[Kurbo ellipse.rs](https://docs.rs/kurbo/0.13.1/src/kurbo/ellipse.rs.html) uses a full Arc with0.01 tolerance and SVD-derived major/minor axes; [affine.rs](https://docs.rs/kurbo/0.13.1/src/kurbo/affine.rs.html) establishes the major-axis phase (vertical when height exceeds width). Partial arcs use original local axes. Preserve full-ring opposite winding and separate subpaths; current single-contour flattening must become explicit contour flattening without joining holes. No native runtime or browser ellipse shortcut with different cubic approximation.
+
+Acceptance: Ellipse leaf stores radians start/sweep and inner fraction, defaults0/TAU/0; shape.ellipse, node.create ellipse/circle/oval aliases, tool.ellipse/O, numeric creation and captured-pointer creation. Commands arcStart degrees unbounded finite, arcSweep degrees clamped±360, arcInner fraction/percent clamped0..0.99, wrong-kind/invalid edits atomic. Native archive retains raw finite arc values and defaults omitted fields; render/handles sanitise/clamp as source. Hierarchy, page copy, duplicate, selection, constraints, arrange/resize/rotate/Scale and recovery must accept the leaf without children. Shared explicit leaf predicate replaces rectangle-only assumptions; no invented scene model.
+
+Geometry/hit/render: full ellipse, signed pie, ring and partial annular sector; full sweeps ignore start and sign in rendered shape, ring inner contour reversed. Source100×100 area errors<2 full/half and<5 ring. Canvas paints/affine outline use paths, holes remain empty and non-hittable, selected bounding-box movement fallback remains native. Cached paths/contours, screen-constant outlines and existing opacity stacks retained.
+
+Arc handles: one visible/unlocked ellipse≥40px measured by transformed side lengths, positive finite dimensions and determinant>1e-12. Sweep10px inside edge (at most halfway); Start only partial, Ratio partial or ring. Nearest7px, ties Sweep→Start→Ratio. Sweep chooses signed continuation on4π circle and snaps shut within6px near a full turn; Start rotates without changing sweep; Ratio≤0.99 flips to complement when dragged into gap beyond7px from centre. Shift snaps15°/5%; native signed rounding and Euclidean modulo. Stateful current arc feeds each event while document previews rebuild from immutable base; one commit, no-op click and Escape/capture/context cancellation. Circles4/5px, Start centre dot1.5px and source labels.
+
+Creation integration: source draw_down picks deepest containing Frame and gathers page-space snap targets; draw_drag snaps endpoint then whole pixels, Shift circle, Alt centred, parent inverse preserves page-axis shape even in rotated Frames. Click makes100×100 ignoring modifiers; release commits last preview and returns Move. Extend the shared Rectangle/Ellipse draw path and engine transaction allocator, not a separate React mutation. Preserve undo and IDs on cancellation; fix missing rectangle nesting/snapping only where shared source requires it. Host-specific native cursor artwork/preferences remain the required UI family.
+
+Controls: Arc section only when every selected node is ellipse; rounded two-decimal common values, wrapped start degrees, signed sweep percentage and ratio percentage. Mixed values editable, semantic keyboard controls and mobile access. Corner UI/handles remain restricted to Rectangle/Frame.
+
+Mapping: geom::ellipse→ellipse.ts/shared path helpers; doc::Ellipse→EllipseNode/native codec; apply_shape arc keys→properties reducer; arc_handles→arc-handles controller/math; draw_drag→shared DrawInteraction/engine preview creation; right.rs→ArcPanel. Scope-specific hazards: ring contour connectivity, axis-phase cubic fidelity, signed-zero/modulo/sweep continuation, fraction coercion, wrong leaf/container narrowing, immutable allocation/history, reentrant cancellation, parent affine geometry and page snap space. Paired pure fixtures cover all source cases, malformed data, degenerate sizes, aliases, full/partial negative sweeps, transformed handles and hierarchy operations. Browser checks cover O drawing/Shift/Alt/click/nesting, ring pixels/gap hits, signed gestures/snaps/cancel/undo, mixed controls/archive/recovery/mobile and fixed screenshot.10000-node arc/draw preview p95≤16.7ms and zero root notifications. Run all pure/Auth/typecheck/build/browser checks and review diffs before reporting.
+
+Order: explicit leaf model/codec and path contours; shared creation/command/property reducer; renderer/hit and canvas tool integration; arc controller and controls; fixtures/full verification; version/report/checkpoint. No provider/schema/identity/Storage/Realtime change; existing Supabase/Auth foundation remains tested. Latest scoped MCP read succeeds with no public application tables. Sequential execution under latest user instruction; rollback37ad314. Full-product gate remains closed.
+
+Ellipse creation audit: `automation/params.rs::{num_or,string,boolean,opt_index}` accepts numeric strings/booleans, defaults invalid optional geometry, stringifies names and parses selection leniently; extracted creation now follows these rules for supported kinds. Index remains a whole number below1e9. Explicit nonfinite JavaScript numbers are rejected because JSON cannot represent them. Unsupported parameters/kinds remain an explicit tracked model boundary. Native ellipse/arc fixtures cover signed winding/holes, major-axis full-ellipse phase, signed sweep continuity, modifier snapping, complementing arcs, transformed handles, finite guards, shared draw previews and Frame placement.
+
+Numeric resource boundary found during final review: native arc segment counts grow without a practical bound for astronomical finite dimensions (JavaScript count can overflow to Infinity). Browser curves cap at4096 cubic segments per arc, and adaptive hit flattening at65536 subdivisions per path; ordinary dimensions retain the native0.01/0.001 tolerances. Raw native dimensions remain unchanged. Midpoints avoid finite addition overflow. A1e308 fixture verifies finite bounded output; at this exceptional scale the geometric approximation is intentionally coarser to prevent blocking the browser.
+
+
+Ellipse symbol verification map:
+
+| Upstream symbol | TypeScript target | Evidence / verification |
+|---|---|---|
+| geom::ellipse/full_sweep; Kurbo::Ellipse::path_elements | ellipse.ts::ellipsePath | geom area fixtures, signed contour tests, ring browser pixels |
+| doc::NodeKind::Ellipse | document.ts::EllipseNode; file-format adapter | Native defaults/raw radians, malformed fields and archive round-trip |
+| cmd::create::{kind_for,create}; automation::params | creation.ts::createLayer | Aliases, defaults, lenient optionals, atomic failure fixtures |
+| cmd::props arcStart/arcSweep/arcInner | ellipse.ts::setArc; properties.ts | Degree/fraction coercion, clamps and wrong-kind atomicity |
+| canvas::arc_handles::{handles,hit,drag,handle_at,Arc::label} | arc-handles.ts | All8 source fixture behaviours; browser drag/undo/cancel and performance |
+| tools::{draw_down,draw_drag}; session::preview | DrawInteraction; EditorEngine.previewDraw | Parent inverse, snapping, modifiers, immutable allocator and browser frame isolation |
+| ui right::arc_section; overlays::arc_overlay | ArcPanel; ArcInteraction.draw | Mixed numeric controls, signed sweep %, fixed screenshot, mobile/recovery |
+
+Graphify branch coverage clarification: hosted Graphify tracks the repository's default branch, which remains main at the initial React commit. Reindexing that branch cannot see the local port branch. The user requested refresh help; a code-only local CLI graph of the canonical working tree is being prepared. Hosted MCP remains connected; no default-branch change or publication is authorised by that request.
+
+
+Ellipse final verification:480 pure checks (21 ellipse cases),2 real local Auth checks, strict TypeScript and package/Next builds pass.60/60 Chromium checks pass in150.3s with1 worker; no skipped/flaky browser checks. Earlier5-worker regression passed59 checks but nested Frame pan/zoom measured17ms against16.7ms; isolated final run measures12.6ms with unchanged threshold. Ellipse9999-layer/10000-node fixture:110 measured frames after10 warm-ups, arc p952.7ms/max2.8ms/input2.1ms, draw p952.8ms, zero root notifications and cancel restores the committed document. Reviewed new ring screenshot and existing rectangle/corner baseline changes, restricted to Ellipse toolbar/O hint. Local Next stopped. No hosted changes/publication.

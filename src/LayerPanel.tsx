@@ -1,3 +1,4 @@
+import { isLeaf } from "./engine/document";
 import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import type { Document, NodeId, PageNode } from "./engine/document";
 
@@ -22,7 +23,7 @@ export function LayerPanel({ document, selection, editable, dispatch }: LayerPan
       if (seen.has(id)) continue;
       seen.add(id);
       const node = document.nodes[id];
-      if (node && node.kind !== "rectangle" && node.kind !== "page") {
+      if (node && !isLeaf(node) && node.kind !== "page") {
         containers.push({ id, name: node.name, depth });
         collect(node.children, depth + 1);
       }
@@ -32,7 +33,7 @@ export function LayerPanel({ document, selection, editable, dispatch }: LayerPan
   const destination = containers.some(container => container.id === target) ? target : page.id;
   const active = selection.length === 1 ? document.nodes[selection[0]] : undefined;
   const parent = active && active.kind !== "page" ? document.nodes[active.parent] : undefined;
-  const siblings = parent && parent.kind !== "rectangle" ? parent.children : [];
+  const siblings = parent && !isLeaf(parent) ? parent.children : [];
   const position = active ? siblings.indexOf(active.id) : -1;
 
   const toggle = (id: NodeId): void => setCollapsed(previous => {
@@ -43,7 +44,7 @@ export function LayerPanel({ document, selection, editable, dispatch }: LayerPan
   const rows = (ids: readonly NodeId[], depth: number): ReactNode => [...ids].reverse().map(id => {
     const node = document.nodes[id];
     if (!node || node.kind === "page") return null;
-    const group = node.kind !== "rectangle" ? node : undefined;
+    const group = !isLeaf(node) ? node : undefined;
     const expanded = group !== undefined && !collapsed.has(id);
     return <li key={id} aria-current={selected.has(id) ? "true" : undefined} data-layer-id={id} style={{ paddingInlineStart: `${depth * 1.1}rem` }}>
       {group && <button type="button" aria-label={`${expanded ? "Collapse" : "Expand"} ${group.kind} ${group.name}`} aria-expanded={expanded}

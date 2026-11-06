@@ -2,6 +2,15 @@
 
 All notable changes to the React port and its upstream compatibility baseline are recorded here.
 
+## [0.18.0] - 2026-11-07
+
+The reference baseline remains `8eb0b87646c5aef712326d6c431ccde5408630de`; full parity remains in progress.
+
+- Added Ellipse leaves, native arc/ring paths, signed winding and hole hit-testing, command properties and native file/recovery support.
+- Added Move-tool sweep/start/ratio handles, signed continuity, Shift snapping, gap complement, one-gesture history and mixed-selection Arc controls.
+- Added Ellipse/O creation and shared captured drawing with Frame nesting, endpoint snapping, Shift circles and Alt centring; previews remain outside root React updates.
+- Corrected supported creation parameters to native lenient numeric/name/selection parsing. Remaining vector kinds, stroke rendering and complete UI/preferences remain required roadmap work.
+
 ## [0.17.0] - 2026-11-07
 
 The reference baseline remains `8eb0b87646c5aef712326d6c431ccde5408630de`; full parity remains in progress.

@@ -58,7 +58,7 @@ export function roundedRect(width: number, height: number, corners: Corners = ze
     while (sweep > Math.PI) sweep -= 2 * Math.PI;
     if (Math.abs(sweep) > 1e-9) {
       // Kurbo arc.rs append_iter: error-dependent segment count and tangent arms.
-      const n = Math.ceil(Math.max((1.1163 * r / .01) ** (1 / 6), 3.999999) * Math.abs(sweep) / (2 * Math.PI));
+      const n = Math.min(4096, Math.ceil(Math.max((1.1163 * r / .01) ** (1 / 6), 3.999999) * Math.abs(sweep) / (2 * Math.PI)));
       const step = sweep / n, arm = 4 / 3 * Math.tan(Math.abs(step / 4)) * Math.sign(sweep);
       for (let j = 0; j < n; j++) {
         const end = angle + step, x0 = r * Math.cos(angle), y0 = r * Math.sin(angle), x1 = r * Math.cos(end), y1 = r * Math.sin(end);
@@ -79,44 +79,48 @@ export function tracePath(sink: PathSink, path: readonly PathCommand[], map: (p:
   }
 }
 const paths = new WeakMap<Corners, Map<string, readonly PathCommand[]>>();
-export const hasRoundedCorners = (n: LayerNode): boolean => n.kind !== "group" && Boolean(n.corners?.radii.some(r => r > 0));
+export const hasRoundedCorners = (n: LayerNode): boolean => (n.kind === "rectangle" || n.kind === "frame") && Boolean(n.corners?.radii.some(r => r > 0));
 export function cornerPath(node: LayerNode): readonly PathCommand[] {
   const corners = node.corners ?? zeroCorners, key = `${node.width}:${node.height}`;
   let cache = paths.get(corners); if (!cache) { cache = new Map(); paths.set(corners, cache); }
   let path = cache.get(key); if (!path) { path = roundedRect(node.width, node.height, corners); if (cache.size >= 32) cache.clear(); cache.set(key, path); } return path;
 }
-const flattened = new WeakMap<readonly PathCommand[], readonly Point[]>();
-const midpoint = (a: Point, b: Point): Point => ({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 });
+const flattened = new WeakMap<readonly PathCommand[], readonly (readonly Point[])[]>();
+const midpoint = (a: Point, b: Point): Point => ({ x: a.x / 2 + b.x / 2, y: a.y / 2 + b.y / 2 });
 function distance(p: Point, a: Point, b: Point): number {
   const dx = b.x - a.x, dy = b.y - a.y, len = dx * dx + dy * dy;
   const t = len ? Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.y - a.y) * dy) / len)) : 0;
   return Math.hypot(p.x - a.x - t * dx, p.y - a.y - t * dy);
 }
 /** Adaptive cubic flattening; error is smaller than native nearest's 0.01 tolerance. */
-export function flattenPath(path: readonly PathCommand[]): readonly Point[] {
+export function flattenContours(path: readonly PathCommand[]): readonly (readonly Point[])[] {
   const cached = flattened.get(path); if (cached) return cached;
-  const out: Point[] = []; let previous = { x: 0, y: 0 };
+  const contours: Point[][] = []; let out: Point[] = []; let previous = { x: 0, y: 0 }, subdivisions = 0;
   const cubic = (a: Point, b: Point, c: Point, d: Point, depth: number) => {
-    if (depth >= 24 || Math.max(distance(b, a, d), distance(c, a, d)) <= .001) { out.push(d); return; }
+    if (depth >= 24 || subdivisions++ >= 65536 || Math.max(distance(b, a, d), distance(c, a, d)) <= .001) { out.push(d); return; }
     const ab = midpoint(a, b), bc = midpoint(b, c), cd = midpoint(c, d), abc = midpoint(ab, bc), bcd = midpoint(bc, cd), mid = midpoint(abc, bcd);
     cubic(a, ab, abc, mid, depth + 1); cubic(mid, bcd, cd, d, depth + 1);
   };
   for (const cmd of path) {
     if (cmd[0] === "Z") { if (out.length) out.push(out[0]); }
     else if (cmd[0] === "C") { const next = { x: cmd[5], y: cmd[6] }; cubic(previous, { x: cmd[1], y: cmd[2] }, { x: cmd[3], y: cmd[4] }, next, 0); previous = next; }
-    else { previous = { x: cmd[1], y: cmd[2] }; out.push(previous); }
+    else { if (cmd[0] === "M") { out = []; contours.push(out); } previous = { x: cmd[1], y: cmd[2] }; out.push(previous); }
   }
-  flattened.set(path, out); return out;
+  flattened.set(path, contours); return contours;
 }
-export function hitsCornerPath(node: LayerNode, point: Point, tolerance: number): boolean {
-  if (point.x < -tolerance || point.y < -tolerance || point.x > node.width + tolerance || point.y > node.height + tolerance) return false;
-  const points = flattenPath(cornerPath(node)); let winding = 0;
-  for (let i = 1; i < points.length; i++) {
-    const a = points[i - 1], b = points[i];
+export function flattenPath(path: readonly PathCommand[]): readonly Point[] { return flattenContours(path).flat(); }
+export function hitsPath(path: readonly PathCommand[], point: Point, tolerance: number): boolean {
+  let winding = 0;
+  for (const points of flattenContours(path)) for (let i = 0; i < points.length; i++) {
+    const a = points[i], b = points[(i + 1) % points.length];
     if (distance(point, a, b) <= tolerance) return true;
     const cross = (b.x - a.x) * (point.y - a.y) - (point.x - a.x) * (b.y - a.y);
     if (a.y <= point.y && b.y > point.y && cross > 0) winding++;
     else if (a.y > point.y && b.y <= point.y && cross < 0) winding--;
   }
   return winding !== 0;
+}
+export function hitsCornerPath(node: LayerNode, point: Point, tolerance: number): boolean {
+  if (point.x < -tolerance || point.y < -tolerance || point.x > node.width + tolerance || point.y > node.height + tolerance) return false;
+  return hitsPath(cornerPath(node), point, tolerance);
 }

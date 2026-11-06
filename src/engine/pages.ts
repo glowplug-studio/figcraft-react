@@ -1,3 +1,4 @@
+import { isLeaf } from "./document";
 import { withPageColour, type Document, type DocumentNode, type LayerNode, type NodeId, type PageNode } from "./document";
 import { parseColour } from "./colour-css";
 import { parseNodeId as parseId, parseString as stringValue, parseNumber as numeric } from "./parameters";
@@ -58,7 +59,7 @@ function cleanSelection(document: Document, selection: readonly NodeId[]): reado
       if (ancestry.has(parent)) return false;
       ancestry.add(parent);
       const ancestor = document.nodes[parent];
-      if (!ancestor || ancestor.kind === "rectangle" || ancestor.kind === "page") return false;
+      if (!ancestor || isLeaf(ancestor) || ancestor.kind === "page") return false;
       parent = ancestor.parent;
     }
     seen.add(id);
@@ -79,7 +80,7 @@ function pageSubtree(document: Document, source: PageNode): readonly LayerNode[]
     }
     seen.add(id);
     ordered.push(child);
-    if (child.kind !== "rectangle") {
+    if (!isLeaf(child)) {
       if (!Array.isArray(child.children)) throw new Error("Page has unsupported or invalid child content");
       for (let index = child.children.length - 1; index >= 0; index--) pending.push({ id: child.children[index]!, parent: id });
     } else if ("children" in child && (child as RectangleNodeWithChildren).children?.length) {
@@ -161,7 +162,7 @@ export function executePage(command: string, document: Document, selection: read
       for (const child of children) {
         const id = ids.get(child.id)!;
         const parent = ids.get(child.parent)!;
-        nodes[id] = child.kind !== "rectangle"
+        nodes[id] = !isLeaf(child)
           ? Object.freeze({ ...child, id, parent, children: Object.freeze(child.children.map(candidate => ids.get(candidate)!)) })
           : Object.freeze({ ...child, id, parent });
       }

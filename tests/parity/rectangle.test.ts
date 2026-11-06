@@ -116,18 +116,17 @@ describe("rectangle upstream parity", () => {
 
 describe("rectangle port boundary and transaction safety", () => {
   it.each([
-    ["shape.ellipse", {}],
+    ["shape.polygon", {}],
     ["shape.rectangle", { unknown: true }],
     ["shape.rectangle", { props: { effects: [] } }],
     ["shape.rectangle", { width: Number.NaN }],
     ["shape.rectangle", { x: Number.POSITIVE_INFINITY }],
-    ["shape.rectangle", { height: "40" }],
+    ["shape.rectangle", { index: "wrong" }],
     ["shape.rectangle", { parent: "missing" }],
     ["shape.rectangle", { index: -1 }],
     ["shape.rectangle", { index: 0.5 }],
-    ["shape.rectangle", { name: 17 }],
-    ["shape.rectangle", { select: "false" }],
-    ["node.create", { type: "ellipse" }],
+    ["shape.rectangle", { index: 1e9 }],
+    ["node.create", { type: "polygon" }],
     ["shape.rectangle", null],
     ["edit.undo", { extra: true }],
   ] as const)("rejects %s invalid input atomically (%j)", (command, params) => {

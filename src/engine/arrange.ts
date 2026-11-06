@@ -1,3 +1,4 @@
+import { isLeaf } from "./document";
 import { inverse, multiply, transformBounds, type Affine } from "./affine";
 import { layerTransform, withLayerTransform, type Document, type NodeId } from "./document";
 import { HierarchyDraft, rootIds, worldTransform, zSorted } from "./hierarchy";
@@ -110,7 +111,7 @@ export function executeArrange(command: string, document: Document, selection: r
     const ordered = zSorted(document, ids), selected = new Set(ordered), parents = new Set(ordered.map(id => document.nodes[id].parent!));
     for (const parentId of parents) {
       const parent = draft.nodes[parentId];
-      if (parent.kind === "rectangle") throw new Error("Invalid layer parent");
+      if (isLeaf(parent)) throw new Error("Invalid layer parent");
       const children = [...parent.children];
       let next: NodeId[];
       if (command === "arrange.front") next = [...children.filter(id => !selected.has(id)), ...children.filter(id => selected.has(id))];

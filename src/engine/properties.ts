@@ -1,3 +1,5 @@
+import { isArcKey, setArc } from "./ellipse";
+import { isLeaf } from "./document";
 import { isCornerKey, setCorners, zeroCorners } from "./corners";
 import { identity, inverse, multiply, setRotationAboutCenter, transformBounds, transformPoint, withTranslation } from "./affine";
 import { defaultConstraints, rectanglePaints, rectangleTransform, withRectanglePaints, withRectangleTransform, type Document, type NodeId, type LayerNode } from "./document";
@@ -45,7 +47,7 @@ export function setRectangleProperties(document: Document, selection: readonly N
     : rawProps as Record<string, unknown>;
   const keys = Object.keys(props);
   if (keys.length === 0) throw new Error("node.set requires properties");
-  const unsupported = keys.filter(key => !geometryKeys.has(key) && !appearanceKeys.has(key) && !isCornerKey(key));
+  const unsupported = keys.filter(key => !geometryKeys.has(key) && !appearanceKeys.has(key) && !isCornerKey(key) && !isArcKey(key));
   if (unsupported.length) throw new Error(`node.set unsupported properties: ${unsupported.join(", ")}`);
   const pivot = origin && "rotation" in props && !("x" in props) && !("y" in props) && sameIds(requestedIds, selection) ? origin : undefined;
   const pinned = pivot ? rootIds(document, ids).map(id => ({ id, point: localOrigin(document, id, pivot) })) : [];
@@ -83,6 +85,7 @@ export function setRectangleProperties(document: Document, selection: readonly N
     const node = draft.nodes[id];
     if (!node || node.kind === "page") throw new Error(`node.set target ${id} is not an editable layer`);
     if ("clip" in props && node.kind !== "frame") throw new Error("Clip content requires a frame");
+    const arcNode = setArc(node, props);
     const corners = setCorners(node.corners ?? zeroCorners, props);
     const cornersChanged = corners !== (node.corners ?? zeroCorners);
     const constraints = "constraints" in props ? readConstraints(props.constraints, node.constraints) : node.constraints;
@@ -99,7 +102,7 @@ export function setRectangleProperties(document: Document, selection: readonly N
         const derived = isWidth ? oldHeight * width / oldWidth : oldWidth * height / oldHeight;
         if (Number.isFinite(derived)) { if (isWidth) height = derived; else width = derived; }
       }
-      if (node.kind !== "rectangle" && (width !== oldWidth || height !== oldHeight)) {
+      if (!isLeaf(node) && (width !== oldWidth || height !== oldHeight)) {
         draft.set({ ...node, width, height });
         resizeChildren(draft, id, oldWidth, oldHeight);
       }
@@ -115,7 +118,7 @@ export function setRectangleProperties(document: Document, selection: readonly N
       }));
     }
     transformBounds(transform, width, height);
-    let updated: LayerNode = Object.freeze({ ...withRectangleTransform(node, transform), width, height });
+    let updated: LayerNode = Object.freeze({ ...withRectangleTransform(arcNode, transform), width, height });
     if (cornersChanged) updated = Object.freeze({ ...updated, corners });
     if (constraintsChanged) updated = Object.freeze({ ...updated, constraints });
     if ("clip" in props && updated.kind === "frame") updated = Object.freeze({ ...updated, clip: props.clip as boolean });
@@ -125,7 +128,7 @@ export function setRectangleProperties(document: Document, selection: readonly N
     if ("constrainProportions" in props) updated = Object.freeze({ ...updated, constrainProportions: props.constrainProportions as boolean });
     if (opacity !== undefined && opacity !== (node.opacity ?? 1)) updated = Object.freeze({ ...updated, opacity });
     if (paints && !samePaints(rectanglePaints(node), paints)) updated = withRectanglePaints(updated, paints);
-    if (cornersChanged || "constrainProportions" in props && props.constrainProportions !== (node.constrainProportions ?? false) || constraintsChanged || "clip" in props && node.kind === "frame" && props.clip !== node.clip || width !== node.width || height !== node.height || transform.some((value, index) => value !== rectangleTransform(node)[index])
+    if (arcNode !== node || cornersChanged || "constrainProportions" in props && props.constrainProportions !== (node.constrainProportions ?? false) || constraintsChanged || "clip" in props && node.kind === "frame" && props.clip !== node.clip || width !== node.width || height !== node.height || transform.some((value, index) => value !== rectangleTransform(node)[index])
       || name !== undefined && name !== node.name || "visible" in props && props.visible !== (node.visible ?? true)
       || "locked" in props && props.locked !== (node.locked ?? false) || opacity !== undefined && opacity !== (node.opacity ?? 1)
       || paints && !samePaints(rectanglePaints(node), paints)) {

@@ -1,3 +1,4 @@
+import { isLeaf } from "./document";
 import { identity, inverse, multiply, transformBounds, transformPoint, type Affine } from "./affine";
 import type { Document, NodeId } from "./document";
 import { pixelRound, type Point, type Rectangle } from "./geometry";
@@ -19,7 +20,7 @@ export class PointSnapCache {
     const parent = document.nodes[this.ids[0]]?.parent ?? document.currentPage, old = this.#cached;
     if (old && old.parent === parent && old.page === document.currentPage && old.dependencies.every(id => document.nodes[id] === old.document.nodes[id])) return old.targets;
     const container = document.nodes[parent], moving = new Set(this.ids);
-    const dependencies = [parent, ...ancestorIds(document, parent), ...(container && container.kind !== "rectangle" ? container.children.filter(id => !moving.has(id)) : [])];
+    const dependencies = [parent, ...ancestorIds(document, parent), ...(container && !isLeaf(container) ? container.children.filter(id => !moving.has(id)) : [])];
     const targets = new SnapTargets(document, this.ids); this.#cached = { parent, page: document.currentPage, dependencies, document, targets }; return targets;
   }
 }
@@ -51,7 +52,7 @@ export class SnapTargets {
     }
     this.moving = union;
     if (parentId !== document.currentPage) { const b = box(parentId); if (b) { const [xs, ys] = spans(b); this.xs.push(...xs); this.ys.push(...ys); } }
-    if (parent && parent.kind !== "rectangle") for (const id of parent.children) {
+    if (parent && !isLeaf(parent)) for (const id of parent.children) {
       const node = document.nodes[id];
       if (moving.includes(id) || !node || node.kind === "page" || node.visible === false) continue;
       const b = box(id); if (b) this.addBox(b);

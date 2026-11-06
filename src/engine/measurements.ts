@@ -1,3 +1,4 @@
+import { isLeaf } from "./document";
 import type { Document, NodeId } from "./document";
 import type { Point, Rectangle } from "./geometry";
 import { boundsOf, pageToScreen, type Viewport } from "./viewport";
@@ -7,7 +8,7 @@ import { distanceLabel, type Guide } from "./snapping";
 export function neighbourGuides(document: Document, moving: readonly NodeId[]): Guide[] {
   const a = boundsOf(document, moving); if (!a) return [];
   const parentId = document.nodes[moving[0]]?.parent ?? document.currentPage, parent = document.nodes[parentId];
-  if (!parent || parent.kind === "rectangle") return [];
+  if (!parent || isLeaf(parent)) return [];
   const boxes = parent.children.filter(id => { const n = document.nodes[id]; return !moving.includes(id) && n && n.kind !== "page" && n.visible !== false; })
     .slice(0, 512).map(id => boundsOf(document, [id])).filter((b): b is Rectangle => Boolean(b));
   const frame = parentId === document.currentPage ? undefined : boundsOf(document, [parentId]);

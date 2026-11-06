@@ -1,3 +1,4 @@
+import { isLeaf } from "./document";
 import type { Document, NodeId } from "./document";
 import { arrangementTargets, moveWorld } from "./arrange";
 import { HierarchyDraft, subtreeIds, zSorted } from "./hierarchy";
@@ -43,7 +44,7 @@ export function executeDuplicate(document: Document, selection: readonly NodeId[
     const source = document.nodes[sourceId];
     if (source.kind === "page") throw new Error("Pages are duplicated with page.duplicate");
     const parent = draft.nodes[source.parent];
-    if (parent.kind === "rectangle") throw new Error("Invalid layer parent");
+    if (isLeaf(parent)) throw new Error("Invalid layer parent");
     const index = parent.children.indexOf(sourceId) + 1;
     for (const oldId of subtreeIds(document, sourceId)) {
       const node = document.nodes[oldId];
@@ -51,7 +52,7 @@ export function executeDuplicate(document: Document, selection: readonly NodeId[
       const id = allocate(), parentId = oldId === sourceId ? node.parent : map[node.parent];
       if (!parentId) throw new Error("Invalid subtree parent");
       map[oldId] = id;
-      draft.insert(node.kind === "rectangle" ? { ...node, id } : { ...node, id, children: Object.freeze([]) }, parentId, oldId === sourceId ? index : undefined);
+      draft.insert(isLeaf(node) ? { ...node, id } : { ...node, id, children: Object.freeze([]) }, parentId, oldId === sourceId ? index : undefined);
     }
     const copyId = map[sourceId];
     // Explicit offsets are parent-space in native code; repeated steps are page-space.

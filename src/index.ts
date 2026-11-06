@@ -34,3 +34,6 @@ export { defaultViewport, viewOrigin, pageToScreen, screenToPage, zoomAt, fitVie
 export { framePresets, type FramePreset } from "./engine/frame-presets";
 
 export { roundedRect, type Corners, type Radii, type PathCommand } from "./engine/corners";
+
+export { ellipsePath, type Arc } from "./engine/ellipse";
+export type { EllipseNode } from "./engine/document";

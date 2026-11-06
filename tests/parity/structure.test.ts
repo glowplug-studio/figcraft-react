@@ -1,3 +1,4 @@
+import { isLeaf } from "../../src/engine/document";
 import { describe, expect, it } from "vitest";
 import { EditorEngine } from "../../src/engine/editor";
 import { HierarchyDraft, worldTransform } from "../../src/engine/hierarchy";
@@ -11,7 +12,7 @@ function layer(engine: EditorEngine, x: number, y = 0): NodeId {
 }
 function children(document: Document, id: NodeId): readonly NodeId[] {
   const node = document.nodes[id];
-  if (!node || node.kind === "rectangle") throw new Error("Expected container");
+  if (!node || isLeaf(node)) throw new Error("Expected container");
   return node.children;
 }
 function closeAffine(actual: readonly number[], expected: readonly number[]): void {

@@ -1,14 +1,15 @@
-import { newDocument, withLayerTransform, type Document, type LayerNode, type NodeId } from "./document";
+import { createLayer } from "./creation";
+import { isLeaf } from "./document";
+import { newDocument, type Document, type NodeId } from "./document";
 import { decodeFigcraft, encodeFigcraft } from "./file-format";
 import { executePage, listPages, pageSpecs } from "./pages";
 import { executeSelection, selectionSpecs } from "./selection";
 import { setRectangleProperties } from "./properties";
-import { inverse, multiply, transformBounds } from "./affine";
-import { HierarchyDraft, frameRelative, pageForNode } from "./hierarchy";
-import { executeStructure, nextLayerName, structureSpecs } from "./structure";
+import { HierarchyDraft, pageForNode } from "./hierarchy";
+import { executeStructure, structureSpecs } from "./structure";
 import { defaultViewport, executeView, fitPage, viewSpecs, type Viewport } from "./viewport";
-import { framePresets, presetParameters } from "./frame-presets";
-import { parseBoolean, parseNodeId, parseNumber } from "./parameters";
+import { framePresets } from "./frame-presets";
+import { parseBoolean, parseNumber } from "./parameters";
 import { arrangeSpecs, executeArrange } from "./arrange";
 import { anchors, sizingSpecs, executeSizing } from "./sizing";
 import { executeRotation, localOrigin, movedOrigin, originBoxPoints, originSpecs, rotationSpecs, sameIds, snappedOrigin, validateChangedGeometry, type OriginSnapshot, type RotationOrigin } from "./rotation";
@@ -32,8 +33,10 @@ export const commandSpecs = Object.freeze({
   ...structureSpecs,
   "node.set": { label: "Set properties", undo: true },
   "frame.create": { label: "Frame", undo: true },
+  "shape.ellipse": { label: "Ellipse", undo: true },
   "shape.rectangle": { label: "Rectangle", undo: true },
   "node.create": { label: "Create layer", undo: true },
+  "tool.ellipse": { label: "Ellipse", undo: false },
   "tool.rectangle": { label: "Rectangle", undo: false },
   "tool.move": { label: "Move", undo: false },
   "tool.scale": { label: "Scale", undo: false },
@@ -50,7 +53,7 @@ export type CommandId = keyof typeof commandSpecs;
 export interface EditorSnapshot {
   readonly document: Document;
   readonly selection: readonly NodeId[];
-  readonly tool: "move" | "rectangle" | "scale";
+  readonly tool: "move" | "rectangle" | "ellipse" | "scale";
   readonly scaleAnchor: ScaleAnchor;
   readonly canUndo: boolean;
   readonly canRedo: boolean;
@@ -66,11 +69,6 @@ function sameContent(a: Document, b: Document | null): boolean {
 function parameters(input: unknown): Record<string, unknown> {
   if (typeof input !== "object" || input === null || Array.isArray(input)) throw new Error("Command parameters must be an object");
   return input as Record<string, unknown>;
-}
-function number(p: Record<string, unknown>, key: string, fallback: number): number {
-  const value = p[key] ?? fallback;
-  if (typeof value !== "number" || !Number.isFinite(value)) throw new Error(`${key} must be a finite number`);
-  return value;
 }
 /** React-free command transactions. Snapshots share immutable nodes and document references. */
 export class EditorEngine {
@@ -133,6 +131,11 @@ export class EditorEngine {
     document = executeArrange("transform.move", document, selection, { ids: duplicated?.copies ?? ids, dx: delta.x, dy: delta.y });
     interaction.document = document; interaction.selection = selection; interaction.nextId = nextId; interaction.duplicated = duplicated;
     this.#notifyCanvas();
+  }
+  previewDraw(kind: "rectangle" | "ellipse", box: import("./geometry").Rectangle, parent: NodeId): void {
+    const interaction = this.#interaction; if (!interaction) throw new Error("No active interaction");
+    const next = createLayer(interaction.base, this.#nextId, `shape.${kind}`, { ...box, parent }, this.#view, [1, 0, 0, 1, box.x, box.y]);
+    interaction.document = next.document; interaction.selection = next.selection; interaction.nextId = next.nextId; this.#notifyCanvas();
   }
   previewProperties(id: NodeId, props: Record<string, unknown>): void {
     const interaction = this.#interaction; if (!interaction) throw new Error("No active interaction");
@@ -357,10 +360,10 @@ export class EditorEngine {
       return { saved: true };
     }
     if (command.startsWith("file.")) throw new Error(`${command} requires executeAsync`);
-    if (command === "shape.rectangle" || command === "frame.create" || command === "node.create") return this.#rectangle(command, p);
+    if (command === "shape.ellipse" || command === "shape.rectangle" || command === "frame.create" || command === "node.create") return this.#create(command, p);
     if (Object.keys(p).length) throw new Error(`${command} takes no parameters`);
-    if (command === "tool.rectangle" || command === "tool.move" || command === "tool.scale") {
-      this.#publish({ tool: command === "tool.rectangle" ? "rectangle" : command === "tool.scale" ? "scale" : "move" });
+    if (command === "tool.ellipse" || command === "tool.rectangle" || command === "tool.move" || command === "tool.scale") {
+      this.#publish({ tool: command === "tool.ellipse" ? "ellipse" : command === "tool.rectangle" ? "rectangle" : command === "tool.scale" ? "scale" : "move" });
       return {};
     }
     const undo = command === "edit.undo";
@@ -406,40 +409,9 @@ export class EditorEngine {
     this.updateView(fitPage(this.#view, decoded.document));
     return { summary: { name: decoded.document.name, pages: decoded.document.pages.length, layers: Object.keys(decoded.document.nodes).length - decoded.document.pages.length, images: 0 } };
   }
-  #rectangle(command: string, p: Record<string, unknown>): Record<string, unknown> {
-    if (command === "frame.create") p = presetParameters(this.#snapshot.document, this.#view, p);
-    const allowed = ["x", "y", "width", "height", "parent", "index", "name", "select", "props", ...(command === "node.create" ? ["type"] : [])];
-    for (const key of Object.keys(p)) if (!allowed.includes(key)) throw new Error(`Unsupported rectangle parameter: ${key}`);
-    if (command === "node.create" && (typeof p.type !== "string" || !["rectangle", "rect", "group", "frame"].includes(p.type.toLowerCase()))) throw new Error("Only rectangle, group and frame nodes are supported");
-    const kind = command === "frame.create" || command === "node.create" && String(p.type).toLowerCase() === "frame" ? "frame" : command === "node.create" && String(p.type).toLowerCase() === "group" ? "group" : "rectangle";
-    const before = this.#snapshot;
-    if (this.#nextId > 18446744073709551615n || before.document.nodes[String(this.#nextId)]) throw new Error("Document identifiers are exhausted");
-    const parentId = p.parent === undefined ? before.document.currentPage : parseNodeId(p.parent);
-    const parent = parentId === undefined ? undefined : before.document.nodes[parentId];
-    if (!parent || parent.kind === "rectangle") throw new Error("The parent must be a container");
-    if (p.name !== undefined && typeof p.name !== "string") throw new Error("name must be a string");
-    if (p.select !== undefined && typeof p.select !== "boolean") throw new Error("select must be a boolean");
-    const index = number(p, "index", parent.children.length);
-    if (!Number.isSafeInteger(index) || index < 0) throw new Error("index must be a non-negative safe integer");
-    const base = { id: String(this.#nextId), name: typeof p.name === "string" ? p.name : kind !== "rectangle" ? nextLayerName(before.document, kind === "frame" ? "Frame" : "Group") : "Rectangle", parent: parent.id,
-      x: number(p, "x", 0), y: number(p, "y", 0), width: Math.max(0, number(p, "width", 100)), height: Math.max(0, number(p, "height", 100)) };
-    let node: LayerNode = kind === "frame" ? Object.freeze({ ...base, kind, children: Object.freeze([]), fill: "#ffffff", blend: "passThrough", clip: true }) : kind === "group" ? Object.freeze({ ...base, kind, children: Object.freeze([]), fill: "transparent", blend: "passThrough" }) : Object.freeze({ ...base, kind, fill: "#d9d9d9" });
-    transformBounds([1, 0, 0, 1, node.x, node.y], node.width, node.height);
-    if (parent.kind === "group") node = withLayerTransform(node, multiply(inverse(frameRelative(before.document, parent.id)), [1, 0, 0, 1, node.x, node.y]));
-    const draft = new HierarchyDraft(before.document);
-    draft.insert(node, parent.id, index);
-    let document: Document;
-    if (p.props !== undefined) {
-      document = setRectangleProperties(draft.finish(), [node.id], { props: p.props });
-      const derived = new HierarchyDraft(document);
-      if (document.nodes[node.id]) derived.changedIds.add(node.id);
-      derived.normaliseGroups(); document = derived.finish();
-    }
-    else { draft.normaliseGroups(); document = draft.finish(); }
-    this.#undo.push({ document: before.document, selection: before.selection });
-    this.#redo = [];
-    if (this.#nextId < 18446744073709551615n) this.#nextId++;
-    this.#publish({ document, selection: Object.freeze((p.select === false ? before.selection : [node.id]).filter(id => document.nodes[id] && pageForNode(document, id) === document.currentPage)) });
-    return { id: node.id };
+  #create(command: string, p: Record<string, unknown>): Record<string, unknown> {
+    const before = this.#snapshot, next = createLayer(before, this.#nextId, command, p, this.#view);
+    this.#undo.push({ document: before.document, selection: before.selection }); this.#redo = []; this.#nextId = next.nextId;
+    this.#publish({ document: next.document, selection: next.selection }); return { id: next.id };
   }
 }

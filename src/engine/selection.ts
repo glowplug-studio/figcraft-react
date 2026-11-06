@@ -1,4 +1,6 @@
-import { hasRoundedCorners, hitsCornerPath } from "./corners";
+import { isLeaf } from "./document";
+import { hitsPath } from "./corners";
+import { hasShapePath, shapePath } from "./ellipse";
 import { identity, inverse, multiply, transformPoint, type Affine } from "./affine";
 import { layerTransform, pageOf, type Document, type NodeId } from "./document";
 import { pageForNode } from "./hierarchy";
@@ -48,7 +50,7 @@ export function executeSelection(command: string, document: Document, selection:
   let ids: readonly NodeId[];
   const first = document.nodes[selection[0]];
   const siblingParent = first?.kind !== "page" && first?.parent ? document.nodes[first.parent] : undefined;
-  const siblings = siblingParent && siblingParent.kind !== "rectangle" ? siblingParent.children : pageOf(document).children;
+  const siblings = siblingParent && !isLeaf(siblingParent) ? siblingParent.children : pageOf(document).children;
   if (command === "select.none") {
     ids = [];
   } else if (command === "select.all" || command === "select.inverse") {
@@ -60,7 +62,7 @@ export function executeSelection(command: string, document: Document, selection:
   } else if (command === "select.children") {
     const children = selection.flatMap(id => {
       const node = document.nodes[id];
-      return node && node.kind !== "page" && node.kind !== "rectangle" ? node.children : [];
+      return node && node.kind !== "page" && !isLeaf(node) ? node.children : [];
     });
     ids = children.length ? children : selection;
   } else if (command === "select.parent") {
@@ -127,7 +129,11 @@ export function hitRectangle(document: Document, point: Point, deep = false, sel
         const near = local.x >= -tolerance && local.x <= node.width + tolerance && local.y >= -tolerance && local.y <= node.height + tolerance;
         return hitGroup(node.children, id, transform, depth + 1) ?? (near ? id : undefined);
       }
-      if (hasRoundedCorners(node)) return hitsCornerPath(node, transformPoint(inverse(transform), point), tolerance) ? id : undefined;
+      if (hasShapePath(node)) {
+        const local = transformPoint(inverse(transform), point);
+        if (local.x < -tolerance || local.y < -tolerance || local.x > node.width + tolerance || local.y > node.height + tolerance) return;
+        return hitsPath(shapePath(node), local, tolerance) ? id : undefined;
+      }
       if (world === identity && !node.transform) {
         return nearRectangle(point.x - node.x, point.y - node.y, node.width, node.height) ? id : undefined;
       }

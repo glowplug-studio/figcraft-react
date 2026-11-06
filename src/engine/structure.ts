@@ -1,3 +1,4 @@
+import { isLeaf } from "./document";
 import { inverse, transformBounds } from "./affine";
 import { type Document, type GroupNode, type FrameNode, type NodeId } from "./document";
 import { HierarchyDraft, pageForNode, rootIds, worldTransform, zSorted } from "./hierarchy";
@@ -49,7 +50,7 @@ export function executeStructure(command: string, document: Document, selection:
     const top = document.nodes[ids.at(-1)!];
     if (!top.parent) throw new Error("Cannot group a page");
     const parent = draft.nodes[top.parent];
-    if (parent.kind === "rectangle") throw new Error("Parent cannot contain layers");
+    if (isLeaf(parent)) throw new Error("Parent cannot contain layers");
     const boxes = ids.map(id => {
       const node = document.nodes[id];
       if (node.kind === "page") throw new Error("Cannot group a page");
@@ -72,9 +73,9 @@ export function executeStructure(command: string, document: Document, selection:
     const out: NodeId[] = [];
     for (const id of targets) {
       const group = draft.nodes[id];
-      if (!group || group.kind === "rectangle" || group.kind === "page") continue;
+      if (!group || isLeaf(group) || group.kind === "page") continue;
       const parent = draft.nodes[group.parent];
-      if (parent.kind === "rectangle") throw new Error("Parent cannot contain layers");
+      if (isLeaf(parent)) throw new Error("Parent cannot contain layers");
       const index = parent.children.indexOf(id);
       for (const [offset, child] of group.children.entries()) {
         draft.reparent(child, parent.id, index + offset);
@@ -104,13 +105,13 @@ export function executeStructure(command: string, document: Document, selection:
     result = { ids: converted };
   } else if (command === "node.reparent") {
     const parentId = parseNodeId(params.parent), parent = parentId === undefined ? undefined : draft.nodes[parentId];
-    if (!parent || parent.kind === "rectangle") throw new Error("A container parent is required");
+    if (!parent || isLeaf(parent)) throw new Error("A container parent is required");
     const ids = zSorted(document, rootIds(document, targets));
     const index = params.index === undefined ? undefined : Math.max(0, Math.trunc(parseNumber(params.index, "index")));
     const above = index === undefined ? undefined : parent.children.filter(id => !ids.includes(id))[index];
     for (const id of ids) {
       const current = draft.nodes[parent.id];
-      if (current.kind === "rectangle") throw new Error("A container parent is required");
+      if (isLeaf(current)) throw new Error("A container parent is required");
       draft.reparent(id, parent.id, above === undefined ? undefined : current.children.indexOf(above));
     }
   } else {

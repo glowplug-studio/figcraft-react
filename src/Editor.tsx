@@ -1,3 +1,5 @@
+import { ArcPanel } from "./ArcPanel";
+import { isLeaf } from "./engine/document";
 import { CornerPanel } from "./CornerPanel";
 import { ViewControls } from "./ViewControls";
 import { ArrangePanel } from "./ArrangePanel";
@@ -100,6 +102,7 @@ export function Editor({ identity, capabilities, engine: suppliedEngine, recover
     if (event.key === "Delete" || event.key === "Backspace") command = "edit.delete";
     if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "z") command = event.shiftKey ? "edit.redo" : "edit.undo";
     else if (!event.metaKey && !event.ctrlKey && !event.altKey) {
+      if (event.key.toLowerCase() === "o") command = "tool.ellipse";
       if (event.key.toLowerCase() === "r") command = "tool.rectangle";
       if (event.key.toLowerCase() === "v") command = "tool.move";
       if (event.key.toLowerCase() === "k") command = "tool.scale";
@@ -132,7 +135,7 @@ export function Editor({ identity, capabilities, engine: suppliedEngine, recover
     event.preventDefault();
     const data = new FormData(event.currentTarget);
     const submitter = (event.nativeEvent as SubmitEvent).submitter as HTMLButtonElement | null;
-    dispatch(submitter?.value === "frame" ? "frame.create" : "shape.rectangle", { ...Object.fromEntries(["x", "y", "width", "height"].map(name => [name, Number(data.get(name))])), parent: String(data.get("parent")) });
+    dispatch(submitter?.value === "frame" ? "frame.create" : submitter?.value === "ellipse" ? "shape.ellipse" : "shape.rectangle", { ...Object.fromEntries(["x", "y", "width", "height"].map(name => [name, Number(data.get(name))])), parent: String(data.get("parent")) });
   }
   async function open(file: File) {
     controller.current?.cancel(); setPendingFile(null); setBusy(true); setError("");
@@ -195,10 +198,11 @@ export function Editor({ identity, capabilities, engine: suppliedEngine, recover
         <div className="figcraft-canvas-area">
           <canvas ref={canvas} aria-label="Design canvas" tabIndex={0} aria-describedby="canvas-instructions" />
           <ViewControls engine={engine} editable={editable && !busy} dispatch={dispatch} />
-          <p id="canvas-instructions" className="figcraft-instructions">R: rectangle · Space/middle drag: pan · Z: zoom · Ctrl/⌘ wheel: zoom · Escape: cancel</p>
+          <p id="canvas-instructions" className="figcraft-instructions">R: rectangle · O: ellipse · Space/middle drag: pan · Z: zoom · Ctrl/⌘ wheel: zoom · Escape: cancel</p>
           <div className="figcraft-toolbar" role="toolbar" aria-label="Tools">
             <button disabled={!editable} aria-pressed={snapshot.tool === "move"} onClick={() => { dispatch("tool.move"); canvas.current?.focus(); }}>Move</button>
             <button disabled={!editable} aria-pressed={snapshot.tool === "scale"} onClick={() => { dispatch("tool.scale"); canvas.current?.focus(); }}>Scale</button>
+            <button disabled={!editable} aria-pressed={snapshot.tool === "ellipse"} onClick={() => { dispatch("tool.ellipse"); canvas.current?.focus(); }}>Ellipse</button>
             <button disabled={!editable} aria-pressed={snapshot.tool === "rectangle"} onClick={() => { dispatch("tool.rectangle"); canvas.current?.focus(); }}>Rectangle</button>
           </div>
         </div>
@@ -206,9 +210,10 @@ export function Editor({ identity, capabilities, engine: suppliedEngine, recover
           <form key={page.id} onSubmit={create}><fieldset disabled={!editable}><legend>Create layer</legend>
             {(["x", "y", "width", "height"] as const).map(name => <label key={name}>{name === "width" ? "Width" : name === "height" ? "Height" : name.toUpperCase()}<input name={name} type="number" step="any" required defaultValue={name === "x" || name === "y" ? 40 : 100} /></label>)}
             <label>Create in<select aria-label="Create in" name="parent" defaultValue={page.id}>
-              {Object.values(snapshot.document.nodes).filter(node => node.kind !== "rectangle" && pageForNode(snapshot.document, node.id) === page.id).map(node => <option key={node.id} value={node.id}>{node.name}</option>)}
+              {Object.values(snapshot.document.nodes).filter(node => !isLeaf(node) && pageForNode(snapshot.document, node.id) === page.id).map(node => <option key={node.id} value={node.id}>{node.name}</option>)}
             </select></label>
             <button type="submit" value="rectangle">Create rectangle</button>
+            <button type="submit" value="ellipse">Create ellipse</button>
             <button type="submit" value="frame">Create frame</button>
           </fieldset></form>
           <details><summary>Frame presets</summary><form onSubmit={event => {
@@ -252,6 +257,7 @@ export function Editor({ identity, capabilities, engine: suppliedEngine, recover
           <SmartSelectionPanel engine={engine} enabled={editable && !busy} dispatch={dispatch} onError={setError} />
           {snapshot.tool === "scale" ? <ScalePanel engine={engine} enabled={editable && !busy} dispatch={dispatch} onError={setError} /> : <SizePanel enabled={editable && !busy && snapshot.selection.length > 0} dispatch={dispatch} />}
           <RotationPanel engine={engine} enabled={editable && !busy && snapshot.selection.length > 0} dispatch={dispatch} />
+          <ArcPanel nodes={snapshot.selection.flatMap(id => { const n = snapshot.document.nodes[id]; return n && n.kind !== "page" ? [n] : []; })} editable={editable && !busy} dispatch={dispatch} />
           <CornerPanel nodes={snapshot.selection.flatMap(id => { const n = snapshot.document.nodes[id]; return n && n.kind !== "page" ? [n] : []; })} editable={editable && !busy} dispatch={dispatch} />
           <AppearancePanel page={page} selected={selected && selected.kind !== "page" ? selected : undefined} editable={editable && !busy} dispatch={dispatch} />
         </aside>

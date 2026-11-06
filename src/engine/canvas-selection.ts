@@ -1,3 +1,4 @@
+import { isLeaf } from "./document";
 import type { Document, NodeId } from "./document";
 import { inverse, transformPoint } from "./affine";
 import type { Point, Rectangle } from "./geometry";
@@ -27,7 +28,7 @@ export function paintsBelow(document: Document, below: NodeId, above: NodeId): b
   while (shared < a.length && a[shared] === b[shared]) shared++;
   if (shared === a.length) return shared < b.length;
   const parent = document.nodes[a[shared - 1]];
-  return Boolean(parent && parent.kind !== "rectangle" && shared < b.length && parent.children.indexOf(a[shared]) < parent.children.indexOf(b[shared]));
+  return Boolean(parent && !isLeaf(parent) && shared < b.length && parent.children.indexOf(a[shared]) < parent.children.indexOf(b[shared]));
 }
 export function selectionContains(document: Document, ids: readonly NodeId[], point: Point): boolean {
   try {
@@ -47,7 +48,7 @@ export function dropParent(document: Document, point: Point, exclude: readonly N
   const visit = (id: NodeId, depth: number): NodeId | undefined => {
     const node = document.nodes[id];
     if (!node || node.kind === "page" || depth > 128 || omitted.has(id) || node.visible === false || node.locked) return;
-    if (node.kind === "rectangle") return;
+    if (isLeaf(node)) return;
     if (node.kind === "frame") {
       try {
         if (!containsPoint({ x: 0, y: 0, width: node.width, height: node.height }, transformPoint(inverse(worldTransform(document, id)), point))) return;
@@ -79,7 +80,7 @@ export function marqueeSelection(document: Document, box: Rectangle, within: Nod
   const hits: NodeId[] = [];
   const walk = (parent: NodeId, depth: number): void => {
     const node = document.nodes[parent];
-    if (!node || node.kind === "rectangle") return;
+    if (!node || isLeaf(node)) return;
     for (const id of node.children) {
       const child = document.nodes[id];
       if (!child || child.kind === "page" || child.visible === false || child.locked) continue;
@@ -87,7 +88,7 @@ export function marqueeSelection(document: Document, box: Rectangle, within: Nod
       if (!bounds || !touches(box, bounds)) continue;
       if (!deep && !within && child.kind === "frame" && !containsBox(box, bounds)) continue;
       const count = hits.length;
-      if (deep && child.kind !== "rectangle" && depth < 256) walk(id, depth + 1);
+      if (deep && !isLeaf(child) && depth < 256) walk(id, depth + 1);
       if (count === hits.length) hits.push(id);
     }
   };

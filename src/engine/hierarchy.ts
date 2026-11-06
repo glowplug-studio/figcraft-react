@@ -1,3 +1,4 @@
+import { isLeaf } from "./document";
 import { identity, inverse, multiply, transformBounds, type Affine } from "./affine";
 import { layerTransform, withLayerTransform, type Document, type DocumentNode, type LayerNode, type NodeId } from "./document";
 
@@ -8,7 +9,7 @@ function nodeOf(document: Document, id: NodeId): DocumentNode {
 }
 
 function childrenOf(node: DocumentNode): readonly NodeId[] {
-  return node.kind === "rectangle" ? [] : node.children;
+  return isLeaf(node) ? [] : node.children;
 }
 
 function ancestors(document: Document, id: NodeId): NodeId[] {
@@ -117,9 +118,9 @@ export class HierarchyDraft {
   insert(node: LayerNode, parent: NodeId, index?: number): void {
     if (this.nodes[node.id]) throw new Error(`Node ${node.id} already exists`);
     const target = nodeOf(this.document, parent);
-    if (target.kind === "rectangle") throw new Error(`${parent} is not a container`);
+    if (isLeaf(target)) throw new Error(`${parent} is not a container`);
     if (index !== undefined && (!Number.isSafeInteger(index) || index < 0)) throw new Error("Invalid child index");
-    if (node.kind !== "rectangle" && node.children.length) throw new Error("Inserted containers must start empty");
+    if (!isLeaf(node) && node.children.length) throw new Error("Inserted containers must start empty");
     const children = [...target.children];
     children.splice(Math.min(index ?? children.length, children.length), 0, node.id);
     this.nodes[node.id] = Object.freeze({ ...node, parent });
@@ -130,11 +131,11 @@ export class HierarchyDraft {
   reparent(id: NodeId, parent: NodeId, index?: number): void {
     const document = this.document, node = nodeOf(document, id), destination = nodeOf(document, parent);
     if (node.kind === "page") throw new Error("Pages cannot be reparented");
-    if (destination.kind === "rectangle") throw new Error(`${parent} is not a container`);
+    if (isLeaf(destination)) throw new Error(`${parent} is not a container`);
     if (id === parent || ancestors(document, parent).includes(id)) throw new Error("Cyclic node hierarchy");
     if (index !== undefined && (!Number.isSafeInteger(index) || index < 0)) throw new Error("Invalid child index");
     const oldParent = nodeOf(document, node.parent);
-    if (oldParent.kind === "rectangle") throw new Error("Invalid parent");
+    if (isLeaf(oldParent)) throw new Error("Invalid parent");
     const oldIndex = oldParent.children.indexOf(id);
     if (oldIndex < 0) throw new Error("Missing parent-child link");
     const world = worldTransform(document, id), local = multiply(inverse(worldTransform(document, parent)), world);
@@ -184,7 +185,7 @@ export class HierarchyDraft {
     const document = this.document, node = nodeOf(document, id);
     if (node.kind === "page") throw new Error("Use page commands to remove pages");
     const parent = nodeOf(document, node.parent);
-    if (parent.kind === "rectangle" || !parent.children.includes(id)) throw new Error("Missing parent-child link");
+    if (isLeaf(parent) || !parent.children.includes(id)) throw new Error("Missing parent-child link");
     const descendants = subtreeIds(document, id);
     this.set(Object.freeze({ ...parent, children: Object.freeze(parent.children.filter(child => child !== id)) }));
     for (const descendant of descendants) delete this.nodes[descendant];

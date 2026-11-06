@@ -1276,3 +1276,68 @@ test("corner controls edit mixed selections, preserve resize radii and scale the
   await page.mouse.move(from.x, from.y); await page.mouse.down(); await page.mouse.move(to.x, to.y, { steps: 6 }); await page.keyboard.press("Escape"); await page.mouse.up();
   await expect(page.getByLabel("Corner radius", { exact: true })).toHaveValue("60");
 });
+
+async function createEllipse(page: Page, name: string, x = 200, y = 200, width = 200, height = 200) {
+  const creation = page.getByRole("group", { name: "Create layer", exact: true });
+  for (const [label, value] of [["X", x], ["Y", y], ["Width", width], ["Height", height]] as const) await creation.getByLabel(label, { exact: true }).fill(String(value));
+  await creation.getByRole("button", { name: "Create ellipse", exact: true }).click();
+  await page.getByLabel("Name", { exact: true }).fill(name); await page.getByRole("button", { name: "Apply layer", exact: true }).click();
+}
+
+test("ellipse arc handles preview signed sweep, ratio and cancel with one undo", async ({ page }) => {
+  await login(page); await createEllipse(page, "Arc");
+  const canvas = page.getByLabel("Design canvas", { exact: true }), root = page.locator("[data-figcraft-editor]");
+  await expect(page.getByLabel("Corner radius", { exact: true })).toHaveCount(0);
+  await expect(page.locator(".figcraft-recovery")).toHaveText("Recovery saved on this device");
+  const start = await canvasPoint(page, 390, 300); await page.mouse.move(start.x, start.y); await page.mouse.down(); const commits = await root.getAttribute("data-commits");
+  for (const deg of [-20, -60, -90]) { const p = await canvasPoint(page, 300 + 100 * Math.cos(deg * Math.PI / 180), 300 + 100 * Math.sin(deg * Math.PI / 180)); await page.mouse.move(p.x, p.y, { steps: 4 }); }
+  await expect(root).toHaveAttribute("data-commits", commits!); await expect(page.getByLabel("Arc sweep", { exact: true })).toHaveValue("100");
+  await page.screenshot({ path: "test-results/ellipse-sweep-preview.png", fullPage: true }); await page.mouse.up();
+  await expect(page.getByLabel("Arc sweep", { exact: true })).toHaveValue("75");
+  const centre = await canvasPoint(page, 300, 300), inner = await canvasPoint(page, 300 - Math.SQRT1_2 * 50, 300 + Math.SQRT1_2 * 50);
+  await page.mouse.move(centre.x, centre.y); await page.mouse.down(); await page.mouse.move(inner.x, inner.y, { steps: 8 }); await page.mouse.up();
+  await expect(page.getByLabel("Arc ratio", { exact: true })).toHaveValue("50"); await expectCanvasPixel(page, 300, 300, [245, 245, 245, 255]);
+  await expectCanvasPixel(page, 370, 330, [217, 217, 217, 255]); await expectCanvasPixel(page, 365, 235, [245, 245, 245, 255]);
+  await expect(canvas).toHaveScreenshot("ellipse-arc-ring.png", { animations: "disabled", maxDiffPixels: 0 });
+  await page.getByRole("button", { name: "Undo", exact: true }).click(); await expect(page.getByLabel("Arc ratio", { exact: true })).toHaveValue("0");
+  const sweep = await canvasPoint(page, 300, 210), end = await canvasPoint(page, 200, 300);
+  await page.mouse.move(sweep.x, sweep.y); await page.mouse.down(); await page.mouse.move(end.x, end.y, { steps: 8 }); await page.keyboard.press("Escape"); await page.mouse.up();
+  await expect(page.getByLabel("Arc sweep", { exact: true })).toHaveValue("75");
+  await page.getByRole("button", { name: "Undo", exact: true }).click(); await expect(page.getByLabel("Arc sweep", { exact: true })).toHaveValue("100");
+});
+
+test("ellipse controls support mixed arcs, native save/recovery, ring hits and mobile editing", async ({ page }) => {
+  await login(page); await createEllipse(page, "Ring");
+  await page.getByLabel("Arc ratio", { exact: true }).fill("50"); await page.getByRole("button", { name: "Apply arc ratio", exact: true }).click();
+  const outside = await canvasPoint(page, 650, 500), hole = await canvasPoint(page, 300, 300), body = await canvasPoint(page, 370, 330);
+  await page.mouse.click(outside.x, outside.y); await page.mouse.click(hole.x, hole.y); await expect(page.getByRole("group", { name: "Arc", exact: true })).toHaveCount(0);
+  await page.mouse.click(body.x, body.y); await expect(page.getByLabel("Name", { exact: true })).toHaveValue("Ring");
+  await createEllipse(page, "Other", 450); await page.getByRole("button", { name: "Ring", exact: true }).click({ modifiers: ["Shift"] });
+  await expect(page.getByLabel("Arc ratio", { exact: true })).toHaveAttribute("placeholder", "Mixed");
+  await page.getByLabel("Arc sweep", { exact: true }).fill("-50"); await page.getByRole("button", { name: "Apply arc sweep", exact: true }).click();
+  const download = page.waitForEvent("download"); await page.getByRole("button", { name: "Save as", exact: true }).click();
+  const decoded = await decodeFigcraft(await readFile((await (await download).path())!)); const ellipses = Object.values(decoded.document.nodes).filter(n => n.kind === "ellipse");
+  expect(ellipses).toHaveLength(2); expect(ellipses.every(n => Math.abs(n.sweep + Math.PI) < 1e-9)).toBe(true);
+  await expect(page.locator(".figcraft-recovery")).toHaveText("Recovery saved on this device"); await page.reload();
+  await page.getByRole("button", { name: "Ring", exact: true }).click(); await expect(page.getByLabel("Arc sweep", { exact: true })).toHaveValue("-50");
+  await page.setViewportSize({ width: 390, height: 844 }); await page.getByLabel("Arc start", { exact: true }).fill("45"); await page.getByRole("button", { name: "Apply arc start", exact: true }).click();
+  await expect(page.getByLabel("Arc start", { exact: true })).toHaveValue("45"); await expect(page.getByLabel("Arc ratio", { exact: true })).toHaveValue("50");
+  await page.screenshot({ path: "test-results/ellipse-mobile-controls.png", fullPage: true });
+});
+
+test("Ellipse shortcut draws inside Frames, previews outside React and preserves Shift Alt drawing", async ({ page }) => {
+  await login(page); const creation = page.getByRole("group", { name: "Create layer", exact: true });
+  for (const [label, value] of [["X", 100], ["Y", 100], ["Width", 400], ["Height", 400]] as const) await creation.getByLabel(label, { exact: true }).fill(String(value));
+  await creation.getByRole("button", { name: "Create frame", exact: true }).click();
+  const canvas = page.getByLabel("Design canvas", { exact: true }); await canvas.focus(); await page.keyboard.press("o");
+  await expect(page.getByRole("button", { name: "Ellipse", exact: true })).toHaveAttribute("aria-pressed", "true");
+  await expect(page.locator(".figcraft-recovery")).toHaveText("Recovery saved on this device");
+  const start = await canvasPoint(page, 250, 250), end = await canvasPoint(page, 310, 290);
+  await page.keyboard.down("Shift"); await page.keyboard.down("Alt"); await page.mouse.move(start.x, start.y); await page.mouse.down();
+  const root = page.locator("[data-figcraft-editor]"), commits = await root.getAttribute("data-commits"); await page.mouse.move(end.x, end.y, { steps: 12 });
+  await expect(root).toHaveAttribute("data-commits", commits!); await page.mouse.up(); await page.keyboard.up("Alt"); await page.keyboard.up("Shift");
+  await expect(page.getByRole("button", { name: "Move", exact: true })).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByRole("region", { name: "Selected ellipse", exact: true }).locator("dd")).toHaveText(["90", "90", "120", "120"]);
+  await expect(page.getByRole("list", { name: "Children of Frame 1", exact: true }).getByRole("button", { name: "Ellipse", exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Undo", exact: true }).click(); await expect(page.getByText("1 layer", { exact: true })).toBeVisible();
+});

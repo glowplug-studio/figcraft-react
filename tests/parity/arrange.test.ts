@@ -1,3 +1,4 @@
+import { isLeaf } from "../../src/engine/document";
 import { describe, expect, it } from "vitest";
 import { EditorEngine } from "../../src/engine/editor";
 import { canAlign } from "../../src/engine/arrange";
@@ -12,7 +13,7 @@ function rectangle(engine: EditorEngine, x = 0, y = 0, width = 10, height = 10, 
 function box(engine: EditorEngine, id: string) { return boundsOf(engine.getSnapshot().document, [id])!; }
 function children(engine: EditorEngine, id: string) {
   const node = engine.getSnapshot().document.nodes[id];
-  if (node.kind === "rectangle") throw new Error("Container required");
+  if (isLeaf(node)) throw new Error("Container required");
   return node.children;
 }
 

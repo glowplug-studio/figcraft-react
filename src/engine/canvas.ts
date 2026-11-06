@@ -1,10 +1,14 @@
+import { ArcInteraction } from "./arc-handles";
+import { DrawInteraction } from "./draw-interaction";
+import { isLeaf } from "./document";
 import { CornerInteraction } from "./corner-handles";
-import { cornerPath, hasRoundedCorners, tracePath } from "./corners";
+import { tracePath } from "./corners";
+import { shapePath, hasShapePath } from "./ellipse";
 import { canvasAccent } from "./canvas-colours";
 import { pageOf, pageColour, rectanglePaints, rectangleTransform, type Document, type LayerNode } from "./document";
 import { renderColour } from "./colour";
 import { EditorEngine } from "./editor";
-import { drawnRectangle, type Point, type Rectangle } from "./geometry";
+import { type Point, type Rectangle } from "./geometry";
 import { multiply, transformBounds, transformPoint, type Affine } from "./affine";
 import { worldTransform } from "./hierarchy";
 import { pageToScreen, screenToPage, scrollView, viewOrigin, zoomAt, type Viewport } from "./viewport";
@@ -25,7 +29,7 @@ function paintRectangle(context: CanvasRenderingContext2D, node: LayerNode, alph
     if (!paint.visible || paint.opacity <= 0) continue;
     context.globalAlpha = opacity(paint.opacity) * alpha;
     context.fillStyle = renderColour(paint.color);
-    if (hasRoundedCorners(node)) { context.beginPath(); tracePath(context, cornerPath(node)); context.fill(); }
+    if (hasShapePath(node)) { context.beginPath(); tracePath(context, shapePath(node)); context.fill(); }
     else context.fillRect(0, 0, node.width, node.height);
   }
   context.restore();
@@ -68,7 +72,7 @@ function paintedGroupBounds(context: CanvasRenderingContext2D, document: Documen
     const item = pending.pop()!, current = item.node;
     if (current.visible === false || (current.opacity ?? 1) <= 0 || item.depth > 256) continue;
     const matrix = multiply(item.parent, rectangleTransform(current));
-    if (current.kind !== "rectangle") {
+    if (!isLeaf(current)) {
       for (const id of current.children) {
         const child = document.nodes[id];
         if (child && child.kind !== "page") pending.push({ node: child, parent: matrix, depth: item.depth + 1 });
@@ -87,11 +91,11 @@ function paintedGroupBounds(context: CanvasRenderingContext2D, document: Documen
 
 function drawLayer(context: CanvasRenderingContext2D, document: Document, node: LayerNode, depth = 0): void {
   if (node.visible === false || (node.opacity ?? 1) <= 0 || depth > 256) return;
-  if (node.kind !== "rectangle") {
+  if (!isLeaf(node)) {
     const draw = (target: CanvasRenderingContext2D) => {
       if (node.kind === "frame") paintRectangle(target, node);
       target.save(); target.transform(...rectangleTransform(node));
-      if (node.kind === "frame" && node.clip) { target.beginPath(); tracePath(target, cornerPath(node)); target.clip(); }
+      if (node.kind === "frame" && node.clip) { target.beginPath(); tracePath(target, shapePath(node)); target.clip(); }
       for (const id of node.children) {
         const child = document.nodes[id];
         if (child && child.kind !== "page") drawLayer(target, document, child, depth + 1);
@@ -102,7 +106,7 @@ function drawLayer(context: CanvasRenderingContext2D, document: Document, node: 
       const bounds = paintedGroupBounds(context, document, node);
       if (bounds) paintComposite(context, node, draw, bounds);
     } else draw(context);
-  } else if (hasRoundedCorners(node) || node.fills || node.opacity !== undefined && node.opacity !== 1) {
+  } else if (hasShapePath(node) || node.fills || node.opacity !== undefined && node.opacity !== 1) {
     if (rectanglePaints(node).length > 1 && opacity(node.opacity ?? 1) < 1) paintComposite(context, node, target => paintRectangle(target, node));
     else paintRectangle(context, node, opacity(node.opacity ?? 1));
   } else {
@@ -125,7 +129,7 @@ export function renderDocument(context: CanvasRenderingContext2D, document: Docu
   for (const id of page.children) {
     const node = document.nodes[id];
     if (!node || node.kind === "page") continue;
-    if (node.kind === "rectangle") {
+    if (isLeaf(node)) {
       const bounds = node.transform ? transformBounds(node.transform, node.width, node.height) : node;
       if (bounds.x > origin.x + width / zoom || bounds.y > origin.y + height / zoom || bounds.x + bounds.width < origin.x || bounds.y + bounds.height < origin.y) continue;
     }
@@ -136,8 +140,8 @@ export function renderDocument(context: CanvasRenderingContext2D, document: Docu
   for (const id of selection) {
     const node = document.nodes[id];
     if (node && node.kind !== "page") {
-      if (hasRoundedCorners(node)) {
-        context.beginPath(); const matrix = worldTransform(document, id); tracePath(context, cornerPath(node), point => transformPoint(matrix, point)); context.stroke();
+      if (hasShapePath(node)) {
+        context.beginPath(); const matrix = worldTransform(document, id); tracePath(context, shapePath(node), point => transformPoint(matrix, point)); context.stroke();
       } else if (node.transform || node.parent !== document.currentPage) {
         // Map the outline points so stroke width remains in screen pixels under scale/skew.
         const [a, b, c, d, e, f] = worldTransform(document, id);
@@ -161,9 +165,6 @@ export function renderDocument(context: CanvasRenderingContext2D, document: Docu
 export class CanvasController {
   #frame = 0;
   #disposed = false;
-  #start: Point | null = null;
-  #last: Point | null = null;
-  #preview?: Rectangle;
   #pointer: number | null = null;
   #observer: ResizeObserver;
   #unsubscribe: () => void;
@@ -174,6 +175,8 @@ export class CanvasController {
   #moving: MoveInteraction;
   #transforming: TransformInteraction;
   #rounding: CornerInteraction;
+  #drawing: DrawInteraction;
+  #arcs: ArcInteraction;
   #dragOrigin = false;
   #space = false;
   #zoomHeld = false;
@@ -189,10 +192,12 @@ export class CanvasController {
     this.#moving = new MoveInteraction(engine, onError);
     this.#transforming = new TransformInteraction(engine, onError);
     this.#rounding = new CornerInteraction(engine, onError);
+    this.#drawing = new DrawInteraction(engine, onError);
+    this.#arcs = new ArcInteraction(engine, onError);
     const options = { signal: this.#abort.signal };
     canvas.addEventListener("pointerdown", this.#down, options);
     canvas.addEventListener("pointermove", this.#move, options);
-    canvas.addEventListener("pointerleave", event => { if (this.#pointer === null) { this.#smart.hover(undefined, event); this.#rounding.hover(undefined); this.invalidate(); } }, options);
+    canvas.addEventListener("pointerleave", event => { if (this.#pointer === null) { this.#smart.hover(undefined, event); this.#rounding.hover(undefined); this.#arcs.hover(undefined); this.invalidate(); } }, options);
     canvas.addEventListener("pointerup", this.#up, options);
     canvas.addEventListener("dblclick", this.#doubleClick, options);
     canvas.addEventListener("pointercancel", this.#cancelEvent, options);
@@ -205,7 +210,7 @@ export class CanvasController {
     this.#observer = new ResizeObserver(this.#resize);
     this.#observer.observe(canvas);
     this.#unsubscribe = engine.subscribe(() => {
-      if (engine.getSnapshot().tool !== "rectangle" || !engine.getSnapshot().editable) this.cancel();
+      this.cancel();
       this.invalidate();
     });
     this.#unsubscribeView = engine.subscribeView(() => this.invalidate());
@@ -237,28 +242,25 @@ export class CanvasController {
     if (this.#smart.down(this.#screenPoint(event), event)) {
       event.preventDefault(); this.#pointer = event.pointerId; this.canvas.setPointerCapture(event.pointerId); this.invalidate(); return;
     }
-    if (this.#rounding.down(this.#point(event))) {
+    if (this.#arcs.down(this.#point(event)) || this.#rounding.down(this.#point(event))) {
       event.preventDefault(); this.#pointer = event.pointerId; this.canvas.setPointerCapture(event.pointerId); this.invalidate(); return;
     }
     if (this.#transforming.down(this.#point(event))) {
       event.preventDefault(); this.#pointer = event.pointerId; this.canvas.setPointerCapture(event.pointerId); this.invalidate(); return;
     }
-    if (this.engine.getSnapshot().tool !== "rectangle") {
-      if (this.#moving.down(this.#point(event), event)) {
-        event.preventDefault(); this.#pointer = event.pointerId; this.canvas.setPointerCapture(event.pointerId); this.invalidate();
-      }
-      return;
+    if (this.#drawing.down(this.#point(event)) || this.#moving.down(this.#point(event), event)) {
+      event.preventDefault(); this.#pointer = event.pointerId; this.canvas.setPointerCapture(event.pointerId); this.invalidate();
     }
-    event.preventDefault();
-    this.#pointer = event.pointerId;
-    this.#start = this.#point(event);
-    this.#last = this.#start;
-    this.canvas.setPointerCapture(event.pointerId);
   };
+
   #move = (event: PointerEvent): void => {
     if (this.#pointer === null) {
-      this.canvas.style.cursor = this.#onOrigin(this.#point(event)) ? "move" : this.#rounding.hover(this.#point(event)) ?? this.#transforming.hover(this.#point(event)) ?? this.#smart.hover(this.#screenPoint(event), event);
+      this.canvas.style.cursor = this.#onOrigin(this.#point(event)) ? "move" : this.#arcs.hover(this.#point(event)) ?? this.#rounding.hover(this.#point(event)) ?? this.#transforming.hover(this.#point(event)) ?? this.#smart.hover(this.#screenPoint(event), event);
       this.invalidate();
+    }
+    if (event.pointerId === this.#pointer && this.#arcs.active) {
+      const started = performance.now(); this.#arcs.move(this.#point(event), event.shiftKey); this.invalidate();
+      performance.measure("figcraft:pointer", { start: started, end: performance.now() }); return;
     }
     if (event.pointerId === this.#pointer && this.#rounding.active) {
       const started = performance.now(); this.#rounding.move(this.#point(event), event.altKey); this.invalidate();
@@ -293,14 +295,15 @@ export class CanvasController {
       this.#zoomArea = { x: Math.min(start.x, point.x), y: Math.min(start.y, point.y), width: Math.abs(point.x - start.x), height: Math.abs(point.y - start.y) };
       this.invalidate(); return;
     }
-    if (event.pointerId !== this.#pointer || !this.#start) return;
-    const started = performance.now();
-    this.#last = this.#point(event);
-    this.#preview = drawnRectangle(this.#start, this.#last, event.shiftKey, event.altKey);
-    this.invalidate();
-    performance.measure("figcraft:pointer", { start: started, end: performance.now() });
+    if (event.pointerId === this.#pointer && this.#drawing.active) {
+      const started = performance.now(); this.#drawing.move(this.#point(event), event); this.invalidate();
+      performance.measure("figcraft:pointer", { start: started, end: performance.now() });
+    }
   };
+
   #up = (event: PointerEvent): void => {
+    if (event.pointerId === this.#pointer && this.#arcs.active) { this.#arcs.up(); this.cancel(); return; }
+    if (event.pointerId === this.#pointer && this.#drawing.active) { this.#drawing.up(this.#point(event)); this.cancel(); return; }
     if (event.pointerId === this.#pointer && this.#rounding.active) { this.#rounding.up(); this.cancel(); return; }
     if (event.pointerId === this.#pointer && this.#transforming.active) { this.#transforming.up(); this.cancel(); return; }
     if (event.pointerId === this.#pointer && this.#moving.active) { this.#moving.up(this.#point(event), event); this.cancel(); return; }
@@ -318,19 +321,8 @@ export class CanvasController {
       catch (error) { this.onError(error instanceof Error ? error.message : "Could not zoom"); }
       return;
     }
-    if (event.pointerId !== this.#pointer || !this.#start) return;
-    const start = this.#start;
-    const end = this.#point(event);
-    const tiny = Math.hypot(end.x - start.x, end.y - start.y) * this.engine.getView().zoom < 3;
-    const rectangle = tiny || !this.#preview
-      ? drawnRectangle(start, { x: start.x + 100, y: start.y + 100 })
-      : drawnRectangle(start, end, event.shiftKey, event.altKey);
-    this.cancel();
-    try {
-      this.engine.execute("shape.rectangle", rectangle);
-      this.engine.execute("tool.move");
-    } catch (error) { this.onError(error instanceof Error ? error.message : "Could not create rectangle"); }
   };
+
   #wheel = (event: WheelEvent): void => {
     if (!this.engine.getSnapshot().editable) return;
     event.preventDefault();
@@ -366,14 +358,14 @@ export class CanvasController {
     if (event.key.toLowerCase() === "z") this.#zoomHeld = false;
   };
   cancel(): void {
+    this.#arcs.cancel();
+    this.#drawing.cancel();
     this.#rounding.cancel();
     this.#transforming.cancel();
     this.#moving.cancel();
     this.#smart.cancel();
     const pointer = this.#pointer;
     this.#pointer = null;
-    this.#start = this.#last = null;
-    this.#preview = undefined;
     this.#dragOrigin = false;
     this.canvas.style.cursor = "";
     this.#pan = undefined; this.#zoomStart = undefined; this.#zoomArea = undefined;
@@ -402,11 +394,11 @@ export class CanvasController {
       context.setTransform(this.#dpr, 0, 0, this.#dpr, 0, 0);
       const snapshot = this.engine.getSnapshot();
       const view = this.engine.getView(), origin = viewOrigin(view);
-      renderDocument(context, this.engine.getRenderDocument(), this.#width, this.#height, this.engine.getRenderSelection(), this.#preview, view);
-      if (!this.#moving.active && !this.#transforming.active && !this.#rounding.active) this.#smart.draw(context);
-      if (!this.#moving.active && !this.#transforming.active && !this.#smart.active) this.#rounding.draw(context);
+      renderDocument(context, this.engine.getRenderDocument(), this.#width, this.#height, this.engine.getRenderSelection(), undefined, view);
+      if (!this.#moving.active && !this.#transforming.active && !this.#rounding.active && !this.#arcs.active && !this.#drawing.active) this.#smart.draw(context);
+      if (!this.#moving.active && !this.#transforming.active && !this.#smart.active && !this.#drawing.active) { this.#rounding.draw(context); this.#arcs.draw(context); }
       if (!this.#moving.active && !this.#smart.active) this.#transforming.draw(context);
-      this.#moving.draw(context);
+      this.#moving.draw(context); this.#drawing.draw(context);
       const rotationOrigin = this.engine.getRotationOrigin();
       if (rotationOrigin.editing && rotationOrigin.point) {
         const point = pageToScreen(view, rotationOrigin.point);
