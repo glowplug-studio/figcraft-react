@@ -3,7 +3,7 @@ import type { LayerNode } from "./engine/document";
 import { parseCssColour } from "./engine/colour-css";
 import { renderColour } from "./engine/colour";
 import { paintColour } from "./engine/solid-paint";
-import { bandCaps, capShape, defaultStroke, miterAngle, strokeCaps, type StrokeProps } from "./engine/stroke";
+import { bandCaps, capShape, defaultStroke, miterAngle, strokeCaps, strokeSideKeys, type StrokeProps } from "./engine/stroke";
 
 interface Props { nodes: readonly LayerNode[]; editable: boolean; dispatch: (command: string, params?: unknown) => void }
 const capLabels = ["None", "Round", "Square", "Line arrow", "Triangle arrow", "Reversed triangle", "Circle", "Diamond"];
@@ -24,6 +24,7 @@ function StrokeControls({ nodes, editable, dispatch }: Props) {
     {shown === undefined && <option value="" disabled>Mixed</option>}{options.map((option, i) => <option key={option} value={option}>{labels[i]}</option>)}
   </select></label>;
   const dashCaps = current ? bandCaps(current).map(capShape) : undefined;
+  const sides = value("sides");
   return <fieldset className="figcraft-stroke" disabled={!editable} aria-label="Stroke"><legend>Stroke</legend>
     {error && <p role="alert">{error}</p>}
     {stack === undefined ? <p>Mixed strokes</p> : <ol>{[...stack].map((paint, index) => ({ paint, index })).reverse().map(({ paint, index }, row) => <li key={`${index}:${JSON.stringify(paint)}`}>
@@ -47,6 +48,11 @@ function StrokeControls({ nodes, editable, dispatch }: Props) {
     {stack && stack.length > 0 && <>
       {field("Stroke weight", "strokeWeight", value("weight"))}
       {select("Stroke alignment", "strokeAlign", value("align"), ["inside", "center", "outside"], ["Inside", "Centre", "Outside"])}
+      {nodes.every(n => n.kind === "rectangle" || n.kind === "frame") && <label>Individual strokes<select aria-label="Individual strokes" value="" onChange={event => {
+        const choice = event.currentTarget.value, weight = value("weight") ?? 1;
+        set({ strokeSides: choice === "all" ? null : [0, 1, 2, 3].map(i => choice === "custom" || i === Number(choice) ? weight : 0) });
+      }}><option value="" disabled>Choose sides</option><option value="all">All</option><option value="0">Top</option><option value="1">Right</option><option value="2">Bottom</option><option value="3">Left</option><option value="custom">Custom</option></select></label>}
+      {sides && strokeSideKeys.map((key, i) => field(`${["Top", "Right", "Bottom", "Left"][i]} stroke weight`, key, sides[i]))}
       <details><summary>Advanced stroke</summary>
         <label>Stroke style<select aria-label="Stroke style" value={!pattern ? "solid" : customStyle ? "custom" : "dash"} onChange={event => {
           const style = event.currentTarget.value;

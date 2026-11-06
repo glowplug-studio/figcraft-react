@@ -6,9 +6,11 @@ import type { Point, Rectangle } from "./geometry";
 import { lineStrokePath } from "./line-stroke";
 import { shapePath } from "./shape-path";
 import { closedStrokeRing } from "./stroke-geometry";
+import { clippedSideStrokePath, sideStrokeGeometry } from "./side-stroke";
 import { bandCaps, capShape, defaultStroke, hasVisibleStroke, MAX_STROKE_WIDTH, renderDashes } from "./stroke";
 
-const paths = new WeakMap<LayerNode, { path: Path2D; rule: CanvasFillRule } | null>();
+interface FilledStroke { readonly path: Path2D; readonly rule: CanvasFillRule }
+const paths = new WeakMap<LayerNode, FilledStroke | null>();
 const shapes = new WeakMap<readonly PathCommand[], Path2D>();
 const surfaces = new WeakMap<CanvasRenderingContext2D, HTMLCanvasElement>();
 const boundsCache = new WeakMap<LayerNode, { matrix: Affine; bounds: Rectangle }>();
@@ -26,10 +28,16 @@ function closedPath(commands: readonly PathCommand[]): Path2D {
   }
   cached.closePath(); shapes.set(commands, cached); return cached;
 }
-function filledStroke(node: LayerNode): { path: Path2D; rule: CanvasFillRule } | null {
+function filledStroke(node: LayerNode): FilledStroke | null {
   const previous = paths.get(node); if (previous !== undefined) return previous;
+  const sides = sideStrokeGeometry(node);
+  if (sides) {
+    const path = new Path2D(); tracePath(path, clippedSideStrokePath(sides));
+    const result: FilledStroke = { path, rule: "evenodd" };
+    paths.set(node, result); return result;
+  }
   const commands = node.kind === "line" ? lineStrokePath(node.width, node.stroke ?? defaultStroke) : closedStrokeRing(node);
-  const result = commands === undefined ? null : { path: new Path2D(), rule: node.kind === "line" ? "nonzero" as const : "evenodd" as const };
+  const result = commands === undefined ? null : { path: new Path2D(), rule: node.kind === "line" && !node.stroke?.sides ? "nonzero" as const : "evenodd" as const };
   if (result && commands) tracePath(result.path, commands);
   paths.set(node, result); return result;
 }
@@ -38,6 +46,10 @@ function filledStroke(node: LayerNode): { path: Path2D; rule: CanvasFillRule } |
 export function strokeReach(node: LayerNode): number {
   if (!hasVisibleStroke(node) || node.kind === "group") return 0;
   const props = node.stroke ?? defaultStroke, w = Math.min(props.weight, MAX_STROKE_WIDTH);
+  if (props.sides && (node.kind === "rectangle" || node.kind === "frame")) {
+    const side = Math.max(0, ...props.sides.filter(Number.isFinite));
+    return side * (props.align === "inside" ? 0 : props.align === "center" ? .5 : 1);
+  }
   if (node.kind === "line") return Math.max(w, Math.max(3 * w, 6));
   if (props.align === "inside") return 0;
   const spread = props.align === "outside" ? w : w / 2;

@@ -117,3 +117,19 @@ Upstream0b97f3f → React0.20.0 implementation0ca7c35. [Property evidence](../re
 | right::paints; right::stroke; keymap | StrokePanel; Editor | Mixed stacks, order, weight/alignment/dashes/caps/joins, L/Shift+L and mobile controls |
 
 Hosted React remains stale default-branch source; current local files and the refreshed local graph are authoritative. Per-side strokes, brushes, variable width, non-solid paints, blend modes, styles/variables and full shared numeric UI remain required; no claimed cross-repository equivalence for those features.
+
+## Per-side Rectangle/Frame strokes — 7 November 2026
+
+Upstream0b97f3f → React0.21.0; [property evidence](../reports/26-11-07-per-side-strokes-parity.html). Reviewed base2b1aece; implementation commit follows final regression.
+
+| Upstream symbol/source | React target | Verified behaviour / boundary |
+|---|---|---|
+| StrokeProps::sides; cmd::props::four/strokeSides/STROKE_SIDES | stroke.ts; codec adapter | Native tuple/default/raw finite values, numeric expansion, individual aliases, sorted precedence and atomic history |
+| cmd::arrange::scale_node | scaleSubtree | Scale all sides, retain on resize and reject overflow without partial mutation |
+| pathops::rect_side_strokes | rectSideStrokes | Native bar ordering, inverted oversized bars and three alignments |
+| pathops::rounded_side_strokes/fit_corners/corner_rect | roundedSideStrokes; clippedSideStrokePath | Elliptical inner corners, radius fit, smoothing, collapsed holes; independent bounded convex clipping replaces native general subtraction |
+| render::side_strokes/stroke_area/stroke_rule | filledStroke/paintStroke | Rectangle/Frame side precedence; native24-case pixel matrix; imported Line sides preserve even-odd overlap |
+| node::outline_reach; render::lod::stroke_box | strokeReach/strokeBounds | Side-aware conservative Rectangle/Frame bounds and Frame child ordering |
+| right::paints individual chooser/fields | StrokePanel | Presets, common tuples, mixed selection, undo, save/recovery and mobile controls |
+
+Current local graph1204 nodes/5100 edges resolves these targets. Metadata on other kinds is retained, but general self-intersecting outline/even-odd combinations require the later vector/stroke geometry audit. Component/Instance behaviour extends when those kinds land. Full-product parity remains incomplete.

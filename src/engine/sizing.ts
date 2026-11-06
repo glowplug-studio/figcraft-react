@@ -1,5 +1,5 @@
 import type { Radii } from "./corners";
-import { defaultStroke } from "./stroke";
+import { defaultStroke, type StrokeSides } from "./stroke";
 import { multiply, transformBounds, transformPoint, type Affine } from "./affine";
 import { arrangementTargets, moveWorld } from "./arrange";
 import { resizeChildren } from "./constraints";
@@ -42,8 +42,9 @@ export function scaleSubtree(draft: HierarchyDraft, root: NodeId, factor: number
     const radii = node.corners?.radii.map(r => r * factor);
     if (radii?.some(r => !Number.isFinite(r))) throw new Error("Scaled corner radii must be finite");
     const stroke = node.stroke ?? defaultStroke, weight = stroke.weight * factor, dashes = stroke.dashes.map(d => d * factor);
-    if (![weight, ...dashes].every(Number.isFinite)) throw new Error("Scaled stroke values must be finite");
-    draft.set({ ...withLayerTransform(node, matrix), width, height, stroke: Object.freeze({ ...stroke, weight, dashes: Object.freeze(dashes) }), ...(node.corners && radii ? { corners: Object.freeze({ ...node.corners, radii: Object.freeze(radii) as unknown as Radii }) } : {}) });
+    const sides = stroke.sides?.map(side => side * factor);
+    if (![weight, ...dashes, ...(sides ?? [])].every(Number.isFinite)) throw new Error("Scaled stroke values must be finite");
+    draft.set({ ...withLayerTransform(node, matrix), width, height, stroke: Object.freeze({ ...stroke, weight, dashes: Object.freeze(dashes), ...(sides ? { sides: Object.freeze(sides) as unknown as StrokeSides } : {}) }), ...(node.corners && radii ? { corners: Object.freeze({ ...node.corners, radii: Object.freeze(radii) as unknown as Radii }) } : {}) });
   }
 }
 

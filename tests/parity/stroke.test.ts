@@ -40,7 +40,7 @@ describe("native uniform stroke contracts (doc/props.rs and cmd/props.rs)", () =
     expect(wireStroke(defaultStroke)).not.toHaveProperty("dash_cap");
     expect(Object.isFrozen(stroke.dashes)).toBe(true);
   });
-  it.each([null, [], { weight: "4" }, { weight: Infinity }, { dashes: null }, { dashes: [true] }, { align: "INSIDE" }, { cap_end: "triangle_arrow" }, { sides: [1, 2, 3, 4] }, { width_profile: {} }, { brush: {} }])("refuses unsupported or malformed wire data: %j", value => {
+  it.each([null, [], { weight: "4" }, { weight: Infinity }, { dashes: null }, { dashes: [true] }, { align: "INSIDE" }, { cap_end: "triangle_arrow" }, { sides: [1, 2, 3] }, { width_profile: {} }, { brush: {} }])("refuses unsupported or malformed wire data: %j", value => {
     expect(() => readStroke(value)).toThrow();
   });
   it("normalises command enums exactly, while retaining camel-case spellings", () => {

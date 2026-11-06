@@ -7,8 +7,10 @@ export const strokeCaps = ["none", "round", "square", "lineArrow", "triangleArro
 export type StrokeCap = typeof strokeCaps[number];
 export type StrokeAlign = "inside" | "center" | "outside";
 export type StrokeJoin = "miter" | "bevel" | "round";
+export type StrokeSides = readonly [number, number, number, number];
 export interface StrokeProps {
   readonly weight: number;
+  readonly sides?: StrokeSides;
   readonly align: StrokeAlign;
   readonly capStart: StrokeCap;
   readonly capEnd: StrokeCap;
@@ -18,7 +20,7 @@ export interface StrokeProps {
   readonly dashCap: StrokeCap | null;
 }
 export const defaultStroke: StrokeProps = Object.freeze({ weight: 1, align: "inside", capStart: "none", capEnd: "none", join: "miter", miterLimit: 4, dashes: Object.freeze([]), dashCap: null });
-export const isDefaultStroke = (p: StrokeProps): boolean => p.weight === 1 && p.align === "inside" && p.capStart === "none" && p.capEnd === "none" && p.join === "miter" && p.miterLimit === 4 && p.dashes.length === 0 && p.dashCap === null;
+export const isDefaultStroke = (p: StrokeProps): boolean => p.sides === undefined && p.weight === 1 && p.align === "inside" && p.capStart === "none" && p.capEnd === "none" && p.join === "miter" && p.miterLimit === 4 && p.dashes.length === 0 && p.dashCap === null;
 export const MAX_STROKE_WIDTH = 1e6;
 export const hasVisibleStroke = (node: LayerNode): boolean => (node.stroke ?? defaultStroke).weight > 0 && Boolean(node.strokes?.some(p => p.visible));
 const aligns = ["inside", "center", "outside"] as const, joins = ["miter", "bevel", "round"] as const;
@@ -52,7 +54,12 @@ export function readStroke(value: unknown): StrokeProps {
   const raw = value as Record<string, unknown>;
   const keys = ["weight", "align", "sides", "cap_start", "cap_end", "join", "miter_limit", "dashes", "dash_cap", "width_profile", "brush"];
   if (Object.keys(raw).some(key => !keys.includes(key))) throw new Error("Unsupported stroke property");
-  for (const key of ["sides", "width_profile", "brush"]) if (raw[key] !== undefined && raw[key] !== null) throw new Error(`${key} strokes are not supported yet`);
+  for (const key of ["width_profile", "brush"]) if (raw[key] !== undefined && raw[key] !== null) throw new Error(`${key} strokes are not supported yet`);
+  let sides: StrokeSides | undefined;
+  if (raw.sides != null) {
+    if (!Array.isArray(raw.sides) || raw.sides.length !== 4 || !Array.from(raw.sides).every(item => typeof item === "number" && Number.isFinite(item))) throw new Error("Stroke sides must contain four finite numbers");
+    sides = Object.freeze([raw.sides[0], raw.sides[1], raw.sides[2], raw.sides[3]]);
+  }
   const number = (value: unknown, fallback: number): number => {
     if (value === undefined) return fallback;
     if (typeof value !== "number" || !Number.isFinite(value)) throw new Error("Stroke numbers must be finite");
@@ -61,6 +68,7 @@ export function readStroke(value: unknown): StrokeProps {
   if (raw.dashes !== undefined && !Array.isArray(raw.dashes)) throw new Error("Stroke dashes must be an array");
   return Object.freeze({
     weight: number(raw.weight, 1), align: raw.align === undefined ? "inside" : strokeEnum(raw.align, aligns, false),
+    ...(sides === undefined ? {} : { sides }),
     capStart: raw.cap_start === undefined ? "none" : strokeEnum(raw.cap_start, strokeCaps, false),
     capEnd: raw.cap_end === undefined ? "none" : strokeEnum(raw.cap_end, strokeCaps, false),
     join: raw.join === undefined ? "miter" : strokeEnum(raw.join, joins, false), miterLimit: number(raw.miter_limit, 4),
@@ -72,11 +80,12 @@ export function readStroke(value: unknown): StrokeProps {
   });
 }
 export function wireStroke(props: StrokeProps): Record<string, unknown> {
-  return { weight: props.weight, align: props.align, sides: null, cap_start: props.capStart, cap_end: props.capEnd,
+  return { weight: props.weight, align: props.align, sides: props.sides ? [...props.sides] : null, cap_start: props.capStart, cap_end: props.capEnd,
     join: props.join, miter_limit: props.miterLimit, dashes: [...props.dashes], ...(props.dashCap === null ? {} : { dash_cap: props.dashCap }) };
 }
 
-const strokeKeys = new Set(["stroke", "strokes", "strokeWeight", "strokeAlign", "strokeCap", "startCap", "endCap", "strokeJoin", "miterLimit", "miterAngle", "dashes", "dashCap"]);
+export const strokeSideKeys = ["strokeTopWeight", "strokeRightWeight", "strokeBottomWeight", "strokeLeftWeight"] as const;
+const strokeKeys = new Set(["stroke", "strokes", "strokeWeight", "strokeSides", ...strokeSideKeys, "strokeAlign", "strokeCap", "startCap", "endCap", "strokeJoin", "miterLimit", "miterAngle", "dashes", "dashCap"]);
 export const isStrokeKey = (key: string): boolean => strokeKeys.has(key);
 export function setStrokeProperties(node: LayerNode, props: Record<string, unknown>): LayerNode {
   const keys = Object.keys(props).filter(isStrokeKey).sort();
@@ -92,6 +101,18 @@ export function setStrokeProperties(node: LayerNode, props: Record<string, unkno
       }
       case "strokes": strokes = readSolidPaints(value, true); break;
       case "strokeWeight": stroke.weight = Math.max(0, parseNumber(value, key)); break;
+      case "strokeSides": {
+        if (value === null) { delete stroke.sides; break; }
+        const values = Array.from(Array.isArray(value) ? value : [value], item => parseNumber(item, key));
+        if (![1, 2, 4].includes(values.length)) throw new Error("strokeSides requires one, two or four values");
+        stroke.sides = Object.freeze([values[0], values[1] ?? values[0], values[2] ?? values[0], values[3] ?? values[1] ?? values[0]]);
+        break;
+      }
+      case "strokeTopWeight": case "strokeRightWeight": case "strokeBottomWeight": case "strokeLeftWeight": {
+        const sides: [number, number, number, number] = [...(stroke.sides ?? [stroke.weight, stroke.weight, stroke.weight, stroke.weight])];
+        sides[strokeSideKeys.indexOf(key)] = Math.max(0, parseNumber(value, key));
+        stroke.sides = Object.freeze(sides); break;
+      }
       case "strokeAlign": stroke.align = strokeEnum(value, aligns); break;
       case "strokeJoin": stroke.join = strokeEnum(value, joins); break;
       case "strokeCap": stroke.capStart = stroke.capEnd = strokeEnum(value, strokeCaps); break;

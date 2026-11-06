@@ -1503,3 +1503,59 @@ test("advanced stroke fields use the native whole-stroke mixed state", async ({ 
   await expect(stroke.getByLabel("Stroke join", { exact: true })).toHaveValue("miter"); await expect(stroke.getByLabel("Start cap", { exact: true })).toHaveValue("none");
   await expect(stroke.getByLabel("Miter angle", { exact: true })).toHaveValue("28.96");
 });
+
+test("individual stroke presets and fields survive undo, native files, recovery and mobile layout", async ({ page }) => {
+  await login(page); const creation = page.getByRole("group", { name: "Create layer", exact: true });
+  for (const [label, value] of [["X", 100], ["Y", 100], ["Width", 240], ["Height", 160]] as const) await creation.getByLabel(label, { exact: true }).fill(String(value));
+  await creation.getByRole("button", { name: "Create rectangle", exact: true }).click();
+  const stroke = page.getByRole("group", { name: "Stroke", exact: true }); await stroke.getByRole("button", { name: "Add stroke", exact: true }).click();
+  await stroke.getByLabel("Stroke weight", { exact: true }).fill("8"); await stroke.getByRole("button", { name: "Apply stroke weight", exact: true }).click();
+  const labels = ["Top", "Right", "Bottom", "Left"];
+  for (let side = 0; side < 4; side++) {
+    await stroke.getByLabel("Individual strokes", { exact: true }).selectOption(String(side));
+    for (let i = 0; i < 4; i++) await expect(stroke.getByLabel(`${labels[i]} stroke weight`, { exact: true })).toHaveValue(i === side ? "8" : "0");
+  }
+  await stroke.getByLabel("Individual strokes", { exact: true }).selectOption("custom");
+  await stroke.getByLabel("Bottom stroke weight", { exact: true }).fill("12"); await stroke.getByRole("button", { name: "Apply bottom stroke weight", exact: true }).click();
+  await page.getByRole("button", { name: "Undo", exact: true }).click(); await expect(stroke.getByLabel("Bottom stroke weight", { exact: true })).toHaveValue("8");
+  await page.getByRole("button", { name: "Redo", exact: true }).click(); await expect(stroke.getByLabel("Bottom stroke weight", { exact: true })).toHaveValue("12");
+  await stroke.getByLabel("Top stroke weight", { exact: true }).fill("-1"); await stroke.getByRole("button", { name: "Apply top stroke weight", exact: true }).click();
+  expect(await stroke.getByLabel("Top stroke weight", { exact: true }).evaluate((input: HTMLInputElement) => input.validity.rangeUnderflow)).toBe(true);
+  await stroke.getByLabel("Top stroke weight", { exact: true }).fill("0"); await stroke.getByRole("button", { name: "Apply top stroke weight", exact: true }).click();
+  await page.getByLabel("Corner radius", { exact: true }).fill("32"); await page.getByRole("button", { name: "Apply corner radius", exact: true }).click();
+  await page.getByRole("button", { name: "Individual corners", exact: true }).click();
+  await page.getByRole("button", { name: "iOS", exact: true }).click();
+  await expect(page.getByLabel("Design canvas", { exact: true })).toHaveScreenshot("individual-strokes.png", { animations: "disabled", maxDiffPixels: 0 });
+  const download = page.waitForEvent("download"); await page.getByRole("button", { name: "Save as", exact: true }).click();
+  const path = (await (await download).path())!, opened = await decodeFigcraft(await readFile(path));
+  expect(Object.values(opened.document.nodes).find(n => n.kind === "rectangle")).toMatchObject({ stroke: { sides: [0, 8, 12, 8] } });
+  await expect(page.locator(".figcraft-recovery")).toHaveText("Recovery saved on this device"); await page.reload();
+  await page.getByRole("region", { name: "Layers", exact: true }).getByRole("button", { name: "Rectangle", exact: true }).click();
+  await expect(stroke.getByLabel("Bottom stroke weight", { exact: true })).toHaveValue("12");
+  await page.setViewportSize({ width: 390, height: 844 });
+  for (const label of labels) {
+    const field = stroke.getByLabel(`${label} stroke weight`, { exact: true }); await field.scrollIntoViewIfNeeded();
+    const bounds = (await field.boundingBox())!; expect(bounds.x).toBeGreaterThanOrEqual(0); expect(bounds.x + bounds.width).toBeLessThanOrEqual(390);
+  }
+  await page.screenshot({ path: "test-results/individual-strokes-mobile.png", fullPage: true });
+  await stroke.getByLabel("Individual strokes", { exact: true }).selectOption("all");
+  await expect(stroke.getByLabel("Top stroke weight", { exact: true })).toHaveCount(0);
+});
+
+test("individual strokes preserve mixed selection and one-step multi-layer undo", async ({ page }) => {
+  await login(page); const creation = page.getByRole("group", { name: "Create layer", exact: true }), stroke = page.getByRole("group", { name: "Stroke", exact: true });
+  await creation.getByRole("button", { name: "Create rectangle", exact: true }).click();
+  await page.getByLabel("Name", { exact: true }).fill("Side first"); await page.getByRole("button", { name: "Apply layer", exact: true }).click();
+  await stroke.getByRole("button", { name: "Add stroke", exact: true }).click(); await stroke.getByLabel("Individual strokes", { exact: true }).selectOption("0");
+  await creation.getByRole("button", { name: "Create rectangle", exact: true }).click();
+  await stroke.getByRole("button", { name: "Add stroke", exact: true }).click(); await stroke.getByLabel("Individual strokes", { exact: true }).selectOption("1");
+  await page.getByRole("button", { name: "Side first", exact: true }).click({ modifiers: ["Shift"] });
+  await expect(stroke.getByLabel("Top stroke weight", { exact: true })).toHaveCount(0);
+  await stroke.getByLabel("Individual strokes", { exact: true }).selectOption("custom");
+  await expect(stroke.getByLabel("Top stroke weight", { exact: true })).toHaveValue("1");
+  await page.getByRole("button", { name: "Undo", exact: true }).click();
+  await expect(stroke.getByLabel("Top stroke weight", { exact: true })).toHaveCount(0);
+  const download = page.waitForEvent("download"); await page.getByRole("button", { name: "Save as", exact: true }).click();
+  const opened = await decodeFigcraft(await readFile((await (await download).path())!));
+  expect(Object.values(opened.document.nodes).filter(n => n.kind === "rectangle").map(n => n.stroke?.sides)).toEqual([[1, 0, 0, 0], [0, 1, 0, 0]]);
+});

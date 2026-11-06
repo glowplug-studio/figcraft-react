@@ -2,6 +2,15 @@
 
 All notable changes to the React port and its upstream compatibility baseline are recorded here.
 
+## [0.21.0] - 2026-11-07
+
+The reference baseline remains `8eb0b87646c5aef712326d6c431ccde5408630de`; full parity remains in progress.
+
+- Added per-side Rectangle/Frame strokes, sharp and rounded borders, elliptical inner corners, smoothing and native alignment rules.
+- Added individual-stroke presets and fields, native side-weight commands, file/recovery support, scaling and atomic history.
+- Replaced antialiased clipping seams with bounded independent convex boundary clipping for fitted/smoothed borders; rendering remains outside React.
+- Brushes, variable width, vector editing, other paints and the remaining product/backend families remain required.
+
 ## [0.20.0] - 2026-11-07
 
 The reference baseline remains `8eb0b87646c5aef712326d6c431ccde5408630de`; full parity remains in progress.
