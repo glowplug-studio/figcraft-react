@@ -9,7 +9,11 @@ button[aria-pressed=true] { background: #e5f4ff; color: #0677c8; border-color: #
 :focus-visible { outline: 2px solid #0d99ff; outline-offset: 2px; }
 .host-bar { display: flex; align-items: center; justify-content: space-between; padding: 8px 16px; border-bottom: 1px solid #ddd; font-size: 12px; height: 48px; }
 .host-bar p { margin: 0; }
-.figcraft-editor { font-size: 12px; }
+.figcraft-editor { font-size: 12px; position: relative; }
+.figcraft-recovery { color: #666; }
+dialog { max-width: min(480px, 90vw); border: 1px solid #ddd; border-radius: 8px; padding: 24px; }
+dialog::backdrop { background: #0006; }
+dialog button + button { margin-left: 12px; }
 .figcraft-document-bar { display: flex; gap: 12px; align-items: center; padding: 8px 16px; border-bottom: 1px solid #ddd; height: 48px; }
 .figcraft-document-bar h1 { font-size: 14px; margin: 0; }
 .figcraft-document-bar span { color: #666; margin-right: auto; }
@@ -40,6 +44,8 @@ dd { margin: 0; }
   .figcraft-document-bar h1 { margin-right: auto; }
 }
 @media (max-width: 480px) {
+  .figcraft-document-bar { gap: 6px; padding: 8px; flex-wrap: wrap; height: auto; }
+  .figcraft-document-bar button { padding: 6px; }
   .figcraft-workspace { grid-template-columns: minmax(0, 1fr); height: auto; }
   .figcraft-canvas-area { height: 55dvh; min-height: 300px; }
   .figcraft-properties { border-left: 0; border-top: 1px solid #ddd; }

@@ -1,0 +1,4458 @@
+{
+  "upstream": "0b97f3f1801a9b7b96fd7a4f3c0942a3f1a676f3",
+  "method": "Static literal spec! extraction; dynamic registrations and UI-only behaviour require independent audit. Not a completeness claim.",
+  "commands": [
+    {
+      "command": "component.playground",
+      "label": "Component playground",
+      "source": "crates/engine/src/assets/playground.rs",
+      "line": 52,
+      "status": "Not tested"
+    },
+    {
+      "command": "board.sticky",
+      "label": "Sticky note",
+      "source": "crates/engine/src/boards/board.rs",
+      "line": 100,
+      "status": "Not tested"
+    },
+    {
+      "command": "board.nextSticky",
+      "label": "Next sticky note",
+      "source": "crates/engine/src/boards/board.rs",
+      "line": 107,
+      "status": "Not tested"
+    },
+    {
+      "command": "board.addConnected",
+      "label": "Add connected shape",
+      "source": "crates/engine/src/boards/board.rs",
+      "line": 114,
+      "status": "Not tested"
+    },
+    {
+      "command": "board.shape",
+      "label": "Shape with text",
+      "source": "crates/engine/src/boards/board.rs",
+      "line": 121,
+      "status": "Not tested"
+    },
+    {
+      "command": "board.connector",
+      "label": "Connector",
+      "source": "crates/engine/src/boards/board.rs",
+      "line": 128,
+      "status": "Not tested"
+    },
+    {
+      "command": "board.reattach",
+      "label": "Reattach connector",
+      "source": "crates/engine/src/boards/board.rs",
+      "line": 135,
+      "status": "Not tested"
+    },
+    {
+      "command": "board.reshape",
+      "label": "Reshape connector",
+      "source": "crates/engine/src/boards/board.rs",
+      "line": 142,
+      "status": "Not tested"
+    },
+    {
+      "command": "board.label",
+      "label": "Connector label",
+      "source": "crates/engine/src/boards/board.rs",
+      "line": 149,
+      "status": "Not tested"
+    },
+    {
+      "command": "board.stamp",
+      "label": "Stamp",
+      "source": "crates/engine/src/boards/board.rs",
+      "line": 150,
+      "status": "Not tested"
+    },
+    {
+      "command": "board.ink",
+      "label": "Marker stroke",
+      "source": "crates/engine/src/boards/board.rs",
+      "line": 157,
+      "status": "Not tested"
+    },
+    {
+      "command": "board.setColor",
+      "label": "Board color",
+      "source": "crates/engine/src/boards/board.rs",
+      "line": 164,
+      "status": "Not tested"
+    },
+    {
+      "command": "board.setStyle",
+      "label": "Board style",
+      "source": "crates/engine/src/boards/board.rs",
+      "line": 171,
+      "status": "Not tested"
+    },
+    {
+      "command": "tool.sticky",
+      "label": "Sticky note",
+      "source": "crates/engine/src/boards/board.rs",
+      "line": 178,
+      "status": "Not tested"
+    },
+    {
+      "command": "tool.shape",
+      "label": "Shapes",
+      "source": "crates/engine/src/boards/board.rs",
+      "line": 184,
+      "status": "Not tested"
+    },
+    {
+      "command": "tool.connector",
+      "label": "Connector",
+      "source": "crates/engine/src/boards/board.rs",
+      "line": 190,
+      "status": "Not tested"
+    },
+    {
+      "command": "tool.marker",
+      "label": "Marker",
+      "source": "crates/engine/src/boards/board.rs",
+      "line": 196,
+      "status": "Not tested"
+    },
+    {
+      "command": "tool.highlighter",
+      "label": "Highlighter",
+      "source": "crates/engine/src/boards/board.rs",
+      "line": 202,
+      "status": "Not tested"
+    },
+    {
+      "command": "tool.eraser",
+      "label": "Eraser",
+      "source": "crates/engine/src/boards/board.rs",
+      "line": 208,
+      "status": "Not tested"
+    },
+    {
+      "command": "tool.stamp",
+      "label": "Stamp",
+      "source": "crates/engine/src/boards/board.rs",
+      "line": 209,
+      "status": "Not tested"
+    },
+    {
+      "command": "board.grid",
+      "label": "Board grid",
+      "source": "crates/engine/src/boards/board_grid.rs",
+      "line": 131,
+      "status": "Not tested"
+    },
+    {
+      "command": "board.table",
+      "label": "Table",
+      "source": "crates/engine/src/boards/board_table.rs",
+      "line": 34,
+      "status": "Not tested"
+    },
+    {
+      "command": "board.tableEdit",
+      "label": "Edit table",
+      "source": "crates/engine/src/boards/board_table.rs",
+      "line": 41,
+      "status": "Not tested"
+    },
+    {
+      "command": "board.template",
+      "label": "Board template",
+      "source": "crates/engine/src/boards/board_templates.rs",
+      "line": 67,
+      "status": "Not tested"
+    },
+    {
+      "command": "board.templates",
+      "label": "List board templates",
+      "source": "crates/engine/src/boards/board_templates.rs",
+      "line": 74,
+      "status": "Not tested"
+    },
+    {
+      "command": "measure.distances",
+      "label": "Measure distances",
+      "source": "crates/engine/src/canvas/distance.rs",
+      "line": 393,
+      "status": "Not tested"
+    },
+    {
+      "command": "measure.padding",
+      "label": "Measure auto layout padding",
+      "source": "crates/engine/src/canvas/distance.rs",
+      "line": 400,
+      "status": "Not tested"
+    },
+    {
+      "command": "shapeBuilder.regions",
+      "label": "Shape builder regions",
+      "source": "crates/engine/src/canvas/shapebuilder.rs",
+      "line": 519,
+      "status": "Not tested"
+    },
+    {
+      "command": "shapeBuilder.merge",
+      "label": "Merge regions",
+      "source": "crates/engine/src/canvas/shapebuilder.rs",
+      "line": 545,
+      "status": "Not tested"
+    },
+    {
+      "command": "shapeBuilder.remove",
+      "label": "Remove regions",
+      "source": "crates/engine/src/canvas/shapebuilder.rs",
+      "line": 552,
+      "status": "Not tested"
+    },
+    {
+      "command": "shapeBuilder.mode",
+      "label": "Shape builder mode",
+      "source": "crates/engine/src/canvas/shapebuilder.rs",
+      "line": 559,
+      "status": "Not tested"
+    },
+    {
+      "command": "vector.edit.bounds",
+      "label": "Selected points' bounds",
+      "source": "crates/engine/src/canvas/vectoredit/transform.rs",
+      "line": 196,
+      "status": "Not tested"
+    },
+    {
+      "command": "vector.edit.resize",
+      "label": "Resize points",
+      "source": "crates/engine/src/canvas/vectoredit/transform.rs",
+      "line": 210,
+      "status": "Not tested"
+    },
+    {
+      "command": "vector.edit.rotate",
+      "label": "Rotate points",
+      "source": "crates/engine/src/canvas/vectoredit/transform.rs",
+      "line": 224,
+      "status": "Not tested"
+    },
+    {
+      "command": "vector.edit.transform",
+      "label": "Transform points",
+      "source": "crates/engine/src/canvas/vectoredit/transform.rs",
+      "line": 238,
+      "status": "Not tested"
+    },
+    {
+      "command": "vector.edit.widthPoint",
+      "label": "Width point",
+      "source": "crates/engine/src/canvas/vectoredit/width.rs",
+      "line": 244,
+      "status": "Not tested"
+    },
+    {
+      "command": "vector.edit.begin",
+      "label": "Edit vector",
+      "source": "crates/engine/src/canvas/vectoredit.rs",
+      "line": 816,
+      "status": "Not tested"
+    },
+    {
+      "command": "vector.edit.end",
+      "label": "Done editing",
+      "source": "crates/engine/src/canvas/vectoredit.rs",
+      "line": 828,
+      "status": "Not tested"
+    },
+    {
+      "command": "vector.edit.state",
+      "label": "Vector edit state",
+      "source": "crates/engine/src/canvas/vectoredit.rs",
+      "line": 832,
+      "status": "Not tested"
+    },
+    {
+      "command": "vector.edit.tool",
+      "label": "Vector edit tool",
+      "source": "crates/engine/src/canvas/vectoredit.rs",
+      "line": 844,
+      "status": "Not tested"
+    },
+    {
+      "command": "vector.edit.select",
+      "label": "Select points",
+      "source": "crates/engine/src/canvas/vectoredit.rs",
+      "line": 850,
+      "status": "Not tested"
+    },
+    {
+      "command": "vector.edit.selectAll",
+      "label": "Select all points",
+      "source": "crates/engine/src/canvas/vectoredit.rs",
+      "line": 907,
+      "status": "Not tested"
+    },
+    {
+      "command": "vector.edit.moveVertices",
+      "label": "Move points",
+      "source": "crates/engine/src/canvas/vectoredit.rs",
+      "line": 920,
+      "status": "Not tested"
+    },
+    {
+      "command": "vector.edit.nudge",
+      "label": "Nudge points",
+      "source": "crates/engine/src/canvas/vectoredit.rs",
+      "line": 932,
+      "status": "Not tested"
+    },
+    {
+      "command": "vector.edit.position",
+      "label": "Point position",
+      "source": "crates/engine/src/canvas/vectoredit.rs",
+      "line": 938,
+      "status": "Not tested"
+    },
+    {
+      "command": "vector.edit.setHandle",
+      "label": "Set handle",
+      "source": "crates/engine/src/canvas/vectoredit.rs",
+      "line": 950,
+      "status": "Not tested"
+    },
+    {
+      "command": "vector.edit.moveHandles",
+      "label": "Move handles",
+      "source": "crates/engine/src/canvas/vectoredit.rs",
+      "line": 963,
+      "status": "Not tested"
+    },
+    {
+      "command": "vector.edit.mirroring",
+      "label": "Handle mirroring",
+      "source": "crates/engine/src/canvas/vectoredit.rs",
+      "line": 981,
+      "status": "Not tested"
+    },
+    {
+      "command": "vector.edit.smooth",
+      "label": "Smooth or sharpen points",
+      "source": "crates/engine/src/canvas/vectoredit.rs",
+      "line": 989,
+      "status": "Not tested"
+    },
+    {
+      "command": "vector.edit.bend",
+      "label": "Bend segment",
+      "source": "crates/engine/src/canvas/vectoredit.rs",
+      "line": 1003,
+      "status": "Not tested"
+    },
+    {
+      "command": "vector.edit.addVertex",
+      "label": "Add point",
+      "source": "crates/engine/src/canvas/vectoredit.rs",
+      "line": 1011,
+      "status": "Not tested"
+    },
+    {
+      "command": "vector.deleteHeal",
+      "label": "Delete and heal selection",
+      "source": "crates/engine/src/canvas/vectoredit.rs",
+      "line": 1023,
+      "status": "Not tested"
+    },
+    {
+      "command": "vector.edit.delete",
+      "label": "Delete points",
+      "source": "crates/engine/src/canvas/vectoredit.rs",
+      "line": 1028,
+      "status": "Not tested"
+    },
+    {
+      "command": "vector.edit.cornerRadius",
+      "label": "Point corner radius",
+      "source": "crates/engine/src/canvas/vectoredit.rs",
+      "line": 1037,
+      "status": "Not tested"
+    },
+    {
+      "command": "vector.edit.strokeCap",
+      "label": "Point stroke cap",
+      "source": "crates/engine/src/canvas/vectoredit.rs",
+      "line": 1043,
+      "status": "Not tested"
+    },
+    {
+      "command": "vector.edit.strokeJoin",
+      "label": "Point stroke join",
+      "source": "crates/engine/src/canvas/vectoredit.rs",
+      "line": 1055,
+      "status": "Not tested"
+    },
+    {
+      "command": "vector.edit.paint",
+      "label": "Paint bucket",
+      "source": "crates/engine/src/canvas/vectoredit.rs",
+      "line": 1067,
+      "status": "Not tested"
+    },
+    {
+      "command": "vector.edit.cut",
+      "label": "Cut path",
+      "source": "crates/engine/src/canvas/vectoredit.rs",
+      "line": 1084,
+      "status": "Not tested"
+    },
+    {
+      "command": "vector.edit.erase",
+      "label": "Erase",
+      "source": "crates/engine/src/canvas/vectoredit.rs",
+      "line": 1114,
+      "status": "Not tested"
+    },
+    {
+      "command": "vector.edit.connect",
+      "label": "Connect points",
+      "source": "crates/engine/src/canvas/vectoredit.rs",
+      "line": 1139,
+      "status": "Not tested"
+    },
+    {
+      "command": "vector.edit.lasso",
+      "label": "Lasso select",
+      "source": "crates/engine/src/canvas/vectoredit.rs",
+      "line": 1146,
+      "status": "Not tested"
+    },
+    {
+      "command": "vector.edit.pen",
+      "label": "Pen point",
+      "source": "crates/engine/src/canvas/vectoredit.rs",
+      "line": 1168,
+      "status": "Not tested"
+    },
+    {
+      "command": "vector.edit.penEnd",
+      "label": "End pen path",
+      "source": "crates/engine/src/canvas/vectoredit.rs",
+      "line": 1181,
+      "status": "Not tested"
+    },
+    {
+      "command": "align.left",
+      "label": "Align left",
+      "source": "crates/engine/src/cmd/arrange.rs",
+      "line": 14,
+      "status": "Not tested"
+    },
+    {
+      "command": "align.hcenter",
+      "label": "Align horizontal centers",
+      "source": "crates/engine/src/cmd/arrange.rs",
+      "line": 15,
+      "status": "Not tested"
+    },
+    {
+      "command": "align.right",
+      "label": "Align right",
+      "source": "crates/engine/src/cmd/arrange.rs",
+      "line": 16,
+      "status": "Not tested"
+    },
+    {
+      "command": "align.top",
+      "label": "Align top",
+      "source": "crates/engine/src/cmd/arrange.rs",
+      "line": 17,
+      "status": "Not tested"
+    },
+    {
+      "command": "align.vcenter",
+      "label": "Align vertical centers",
+      "source": "crates/engine/src/cmd/arrange.rs",
+      "line": 18,
+      "status": "Not tested"
+    },
+    {
+      "command": "align.bottom",
+      "label": "Align bottom",
+      "source": "crates/engine/src/cmd/arrange.rs",
+      "line": 19,
+      "status": "Not tested"
+    },
+    {
+      "command": "distribute.horizontal",
+      "label": "Distribute horizontal spacing",
+      "source": "crates/engine/src/cmd/arrange.rs",
+      "line": 20,
+      "status": "Not tested"
+    },
+    {
+      "command": "distribute.vertical",
+      "label": "Distribute vertical spacing",
+      "source": "crates/engine/src/cmd/arrange.rs",
+      "line": 21,
+      "status": "Not tested"
+    },
+    {
+      "command": "arrange.spacing",
+      "label": "Spacing",
+      "source": "crates/engine/src/cmd/arrange.rs",
+      "line": 22,
+      "status": "Not tested"
+    },
+    {
+      "command": "arrange.tidy",
+      "label": "Tidy up",
+      "source": "crates/engine/src/cmd/arrange.rs",
+      "line": 29,
+      "status": "Not tested"
+    },
+    {
+      "command": "arrange.reorder",
+      "label": "Reorder selection",
+      "source": "crates/engine/src/cmd/arrange.rs",
+      "line": 30,
+      "status": "Not tested"
+    },
+    {
+      "command": "arrange.packH",
+      "label": "Pack horizontal",
+      "source": "crates/engine/src/cmd/arrange.rs",
+      "line": 37,
+      "status": "Not tested"
+    },
+    {
+      "command": "arrange.packV",
+      "label": "Pack vertical",
+      "source": "crates/engine/src/cmd/arrange.rs",
+      "line": 38,
+      "status": "Not tested"
+    },
+    {
+      "command": "arrange.roundToPixels",
+      "label": "Round to pixels",
+      "source": "crates/engine/src/cmd/arrange.rs",
+      "line": 39,
+      "status": "Not tested"
+    },
+    {
+      "command": "arrange.front",
+      "label": "Bring to front",
+      "source": "crates/engine/src/cmd/arrange.rs",
+      "line": 40,
+      "status": "Not tested"
+    },
+    {
+      "command": "arrange.forward",
+      "label": "Bring forward",
+      "source": "crates/engine/src/cmd/arrange.rs",
+      "line": 41,
+      "status": "Not tested"
+    },
+    {
+      "command": "arrange.backward",
+      "label": "Send backward",
+      "source": "crates/engine/src/cmd/arrange.rs",
+      "line": 42,
+      "status": "Not tested"
+    },
+    {
+      "command": "arrange.back",
+      "label": "Send to back",
+      "source": "crates/engine/src/cmd/arrange.rs",
+      "line": 43,
+      "status": "Not tested"
+    },
+    {
+      "command": "object.flipH",
+      "label": "Flip horizontal",
+      "source": "crates/engine/src/cmd/arrange.rs",
+      "line": 44,
+      "status": "Not tested"
+    },
+    {
+      "command": "object.flipV",
+      "label": "Flip vertical",
+      "source": "crates/engine/src/cmd/arrange.rs",
+      "line": 45,
+      "status": "Not tested"
+    },
+    {
+      "command": "object.rotate180",
+      "label": "Rotate 180\u00b0",
+      "source": "crates/engine/src/cmd/arrange.rs",
+      "line": 46,
+      "status": "Not tested"
+    },
+    {
+      "command": "object.rotateLeft",
+      "label": "Rotate 90\u00b0 left",
+      "source": "crates/engine/src/cmd/arrange.rs",
+      "line": 49,
+      "status": "Not tested"
+    },
+    {
+      "command": "object.rotateRight",
+      "label": "Rotate 90\u00b0 right",
+      "source": "crates/engine/src/cmd/arrange.rs",
+      "line": 52,
+      "status": "Not tested"
+    },
+    {
+      "command": "transform.move",
+      "label": "Move",
+      "source": "crates/engine/src/cmd/arrange.rs",
+      "line": 55,
+      "status": "Not tested"
+    },
+    {
+      "command": "transform.moveTo",
+      "label": "Move to",
+      "source": "crates/engine/src/cmd/arrange.rs",
+      "line": 64,
+      "status": "Not tested"
+    },
+    {
+      "command": "transform.rotate",
+      "label": "Rotate",
+      "source": "crates/engine/src/cmd/arrange.rs",
+      "line": 75,
+      "status": "Not tested"
+    },
+    {
+      "command": "transform.rotationOrigin",
+      "label": "Move rotation origin",
+      "source": "crates/engine/src/cmd/arrange.rs",
+      "line": 92,
+      "status": "Not tested"
+    },
+    {
+      "command": "transform.setRotationOrigin",
+      "label": "Set rotation origin",
+      "source": "crates/engine/src/cmd/arrange.rs",
+      "line": 102,
+      "status": "Not tested"
+    },
+    {
+      "command": "transform.scale",
+      "label": "Scale",
+      "source": "crates/engine/src/cmd/arrange.rs",
+      "line": 117,
+      "status": "Not tested"
+    },
+    {
+      "command": "transform.resize",
+      "label": "Resize",
+      "source": "crates/engine/src/cmd/arrange.rs",
+      "line": 124,
+      "status": "Not tested"
+    },
+    {
+      "command": "comment.add",
+      "label": "Add comment",
+      "source": "crates/engine/src/cmd/comment.rs",
+      "line": 670,
+      "status": "Not tested"
+    },
+    {
+      "command": "comment.reply",
+      "label": "Reply to comment",
+      "source": "crates/engine/src/cmd/comment.rs",
+      "line": 704,
+      "status": "Not tested"
+    },
+    {
+      "command": "comment.edit",
+      "label": "Edit comment",
+      "source": "crates/engine/src/cmd/comment.rs",
+      "line": 714,
+      "status": "Not tested"
+    },
+    {
+      "command": "comment.react",
+      "label": "React to comment",
+      "source": "crates/engine/src/cmd/comment.rs",
+      "line": 732,
+      "status": "Not tested"
+    },
+    {
+      "command": "comment.resolve",
+      "label": "Resolve comment",
+      "source": "crates/engine/src/cmd/comment.rs",
+      "line": 757,
+      "status": "Not tested"
+    },
+    {
+      "command": "comment.move",
+      "label": "Move comment",
+      "source": "crates/engine/src/cmd/comment.rs",
+      "line": 765,
+      "status": "Not tested"
+    },
+    {
+      "command": "comment.delete",
+      "label": "Delete comment",
+      "source": "crates/engine/src/cmd/comment.rs",
+      "line": 783,
+      "status": "Not tested"
+    },
+    {
+      "command": "comment.markRead",
+      "label": "Mark comment as read",
+      "source": "crates/engine/src/cmd/comment.rs",
+      "line": 807,
+      "status": "Not tested"
+    },
+    {
+      "command": "comment.open",
+      "label": "Open comment",
+      "source": "crates/engine/src/cmd/comment.rs",
+      "line": 828,
+      "status": "Not tested"
+    },
+    {
+      "command": "comment.next",
+      "label": "Next comment",
+      "source": "crates/engine/src/cmd/comment.rs",
+      "line": 842,
+      "status": "Not tested"
+    },
+    {
+      "command": "comment.zoom",
+      "label": "Zoom to comments",
+      "source": "crates/engine/src/cmd/comment.rs",
+      "line": 863,
+      "status": "Not tested"
+    },
+    {
+      "command": "comment.link",
+      "label": "Copy link to comment",
+      "source": "crates/engine/src/cmd/comment.rs",
+      "line": 880,
+      "status": "Not tested"
+    },
+    {
+      "command": "comment.people",
+      "label": "People in comments",
+      "source": "crates/engine/src/cmd/comment.rs",
+      "line": 884,
+      "status": "Not tested"
+    },
+    {
+      "command": "comment.list",
+      "label": "List comments",
+      "source": "crates/engine/src/cmd/comment.rs",
+      "line": 894,
+      "status": "Not tested"
+    },
+    {
+      "command": "comment.prompt",
+      "label": "Copy comments for AI",
+      "source": "crates/engine/src/cmd/comment.rs",
+      "line": 909,
+      "status": "Not tested"
+    },
+    {
+      "command": "component.create",
+      "label": "Create component",
+      "source": "crates/engine/src/cmd/component.rs",
+      "line": 58,
+      "status": "Not tested"
+    },
+    {
+      "command": "component.createMultiple",
+      "label": "Create multiple components",
+      "source": "crates/engine/src/cmd/component.rs",
+      "line": 65,
+      "status": "Not tested"
+    },
+    {
+      "command": "component.combineVariants",
+      "label": "Combine as variants",
+      "source": "crates/engine/src/cmd/component.rs",
+      "line": 75,
+      "status": "Not tested"
+    },
+    {
+      "command": "component.addVariant",
+      "label": "Add variant",
+      "source": "crates/engine/src/cmd/component.rs",
+      "line": 82,
+      "status": "Not tested"
+    },
+    {
+      "command": "instance.create",
+      "label": "Create instance",
+      "source": "crates/engine/src/cmd/component.rs",
+      "line": 89,
+      "status": "Not tested"
+    },
+    {
+      "command": "instance.place",
+      "label": "Place instance",
+      "source": "crates/engine/src/cmd/component.rs",
+      "line": 105,
+      "status": "Not tested"
+    },
+    {
+      "command": "component.exposeInstance",
+      "label": "Expose nested instance",
+      "source": "crates/engine/src/cmd/component.rs",
+      "line": 112,
+      "status": "Not tested"
+    },
+    {
+      "command": "instance.exposed",
+      "label": "Exposed nested instances",
+      "source": "crates/engine/src/cmd/component.rs",
+      "line": 132,
+      "status": "Not tested"
+    },
+    {
+      "command": "component.makeSlot",
+      "label": "Make slot",
+      "source": "crates/engine/src/cmd/component.rs",
+      "line": 145,
+      "status": "Not tested"
+    },
+    {
+      "command": "component.removeSlot",
+      "label": "Remove slot",
+      "source": "crates/engine/src/cmd/component.rs",
+      "line": 152,
+      "status": "Not tested"
+    },
+    {
+      "command": "instance.slotInsert",
+      "label": "Insert into slot",
+      "source": "crates/engine/src/cmd/component.rs",
+      "line": 159,
+      "status": "Not tested"
+    },
+    {
+      "command": "instance.resetSlot",
+      "label": "Reset slot",
+      "source": "crates/engine/src/cmd/component.rs",
+      "line": 166,
+      "status": "Not tested"
+    },
+    {
+      "command": "component.hideWhenPublishing",
+      "label": "Hide when publishing",
+      "source": "crates/engine/src/cmd/component.rs",
+      "line": 173,
+      "status": "Not tested"
+    },
+    {
+      "command": "component.detach",
+      "label": "Detach instance",
+      "source": "crates/engine/src/cmd/component.rs",
+      "line": 180,
+      "status": "Not tested"
+    },
+    {
+      "command": "component.resetInstance",
+      "label": "Reset all changes",
+      "source": "crates/engine/src/cmd/component.rs",
+      "line": 181,
+      "status": "Not tested"
+    },
+    {
+      "command": "component.resetOverride",
+      "label": "Reset override",
+      "source": "crates/engine/src/cmd/component.rs",
+      "line": 182,
+      "status": "Not tested"
+    },
+    {
+      "command": "component.goToMain",
+      "label": "Go to main component",
+      "source": "crates/engine/src/cmd/component.rs",
+      "line": 189,
+      "status": "Not tested"
+    },
+    {
+      "command": "component.pushChanges",
+      "label": "Push changes to main component",
+      "source": "crates/engine/src/cmd/component.rs",
+      "line": 211,
+      "status": "Not tested"
+    },
+    {
+      "command": "component.restoreMain",
+      "label": "Restore main component",
+      "source": "crates/engine/src/cmd/component.rs",
+      "line": 212,
+      "status": "Not tested"
+    },
+    {
+      "command": "instance.swap",
+      "label": "Swap instance",
+      "source": "crates/engine/src/cmd/component.rs",
+      "line": 219,
+      "status": "Not tested"
+    },
+    {
+      "command": "instance.swapAt",
+      "label": "Swap instance at point",
+      "source": "crates/engine/src/cmd/component.rs",
+      "line": 220,
+      "status": "Not tested"
+    },
+    {
+      "command": "instance.setProperties",
+      "label": "Set instance properties",
+      "source": "crates/engine/src/cmd/component.rs",
+      "line": 227,
+      "status": "Not tested"
+    },
+    {
+      "command": "component.addProperty",
+      "label": "Add component property",
+      "source": "crates/engine/src/cmd/component.rs",
+      "line": 234,
+      "status": "Not tested"
+    },
+    {
+      "command": "component.editProperty",
+      "label": "Edit component property",
+      "source": "crates/engine/src/cmd/component.rs",
+      "line": 241,
+      "status": "Not tested"
+    },
+    {
+      "command": "component.deleteProperty",
+      "label": "Delete component property",
+      "source": "crates/engine/src/cmd/component.rs",
+      "line": 248,
+      "status": "Not tested"
+    },
+    {
+      "command": "component.bindProperty",
+      "label": "Bind layer to property",
+      "source": "crates/engine/src/cmd/component.rs",
+      "line": 249,
+      "status": "Not tested"
+    },
+    {
+      "command": "component.properties",
+      "label": "Component properties",
+      "source": "crates/engine/src/cmd/component.rs",
+      "line": 256,
+      "status": "Not tested"
+    },
+    {
+      "command": "component.list",
+      "label": "List components",
+      "source": "crates/engine/src/cmd/component.rs",
+      "line": 260,
+      "status": "Not tested"
+    },
+    {
+      "command": "node.create",
+      "label": "Create layer",
+      "source": "crates/engine/src/cmd/create.rs",
+      "line": 59,
+      "status": "Not tested"
+    },
+    {
+      "command": "frame.create",
+      "label": "Create frame",
+      "source": "crates/engine/src/cmd/create.rs",
+      "line": 66,
+      "status": "Not tested"
+    },
+    {
+      "command": "shape.rectangle",
+      "label": "Rectangle",
+      "source": "crates/engine/src/cmd/create.rs",
+      "line": 73,
+      "status": "Not tested"
+    },
+    {
+      "command": "shape.ellipse",
+      "label": "Ellipse",
+      "source": "crates/engine/src/cmd/create.rs",
+      "line": 76,
+      "status": "Not tested"
+    },
+    {
+      "command": "shape.polygon",
+      "label": "Polygon",
+      "source": "crates/engine/src/cmd/create.rs",
+      "line": 79,
+      "status": "Not tested"
+    },
+    {
+      "command": "shape.star",
+      "label": "Star",
+      "source": "crates/engine/src/cmd/create.rs",
+      "line": 86,
+      "status": "Not tested"
+    },
+    {
+      "command": "shape.line",
+      "label": "Line",
+      "source": "crates/engine/src/cmd/create.rs",
+      "line": 93,
+      "status": "Not tested"
+    },
+    {
+      "command": "shape.arrow",
+      "label": "Arrow",
+      "source": "crates/engine/src/cmd/create.rs",
+      "line": 96,
+      "status": "Not tested"
+    },
+    {
+      "command": "text.create",
+      "label": "Text",
+      "source": "crates/engine/src/cmd/create.rs",
+      "line": 99,
+      "status": "Not tested"
+    },
+    {
+      "command": "vector.create",
+      "label": "Vector",
+      "source": "crates/engine/src/cmd/create.rs",
+      "line": 106,
+      "status": "Not tested"
+    },
+    {
+      "command": "image.place",
+      "label": "Place image",
+      "source": "crates/engine/src/cmd/create.rs",
+      "line": 113,
+      "status": "Not tested"
+    },
+    {
+      "command": "frame.swapOrientation",
+      "label": "Swap orientation",
+      "source": "crates/engine/src/cmd/create.rs",
+      "line": 120,
+      "status": "Not tested"
+    },
+    {
+      "command": "frame.presets",
+      "label": "List frame presets",
+      "source": "crates/engine/src/cmd/create.rs",
+      "line": 129,
+      "status": "Not tested"
+    },
+    {
+      "command": "edit.undo",
+      "label": "Undo",
+      "source": "crates/engine/src/cmd/edit.rs",
+      "line": 108,
+      "status": "Not tested"
+    },
+    {
+      "command": "edit.redo",
+      "label": "Redo",
+      "source": "crates/engine/src/cmd/edit.rs",
+      "line": 109,
+      "status": "Not tested"
+    },
+    {
+      "command": "edit.delete",
+      "label": "Delete",
+      "source": "crates/engine/src/cmd/edit.rs",
+      "line": 110,
+      "status": "Not tested"
+    },
+    {
+      "command": "edit.duplicate",
+      "label": "Duplicate",
+      "source": "crates/engine/src/cmd/edit.rs",
+      "line": 111,
+      "status": "Not tested"
+    },
+    {
+      "command": "edit.copy",
+      "label": "Copy",
+      "source": "crates/engine/src/cmd/edit.rs",
+      "line": 118,
+      "status": "Not tested"
+    },
+    {
+      "command": "edit.cut",
+      "label": "Cut",
+      "source": "crates/engine/src/cmd/edit.rs",
+      "line": 119,
+      "status": "Not tested"
+    },
+    {
+      "command": "edit.paste",
+      "label": "Paste",
+      "source": "crates/engine/src/cmd/edit.rs",
+      "line": 120,
+      "status": "Not tested"
+    },
+    {
+      "command": "edit.pasteDesignLayers",
+      "label": "Paste design layers",
+      "source": "crates/engine/src/cmd/edit.rs",
+      "line": 127,
+      "status": "Not tested"
+    },
+    {
+      "command": "edit.pasteOver",
+      "label": "Paste over selection",
+      "source": "crates/engine/src/cmd/edit.rs",
+      "line": 134,
+      "status": "Not tested"
+    },
+    {
+      "command": "edit.pasteReplace",
+      "label": "Paste to replace",
+      "source": "crates/engine/src/cmd/edit.rs",
+      "line": 135,
+      "status": "Not tested"
+    },
+    {
+      "command": "edit.copyProperties",
+      "label": "Copy properties",
+      "source": "crates/engine/src/cmd/edit.rs",
+      "line": 136,
+      "status": "Not tested"
+    },
+    {
+      "command": "edit.pasteProperties",
+      "label": "Paste properties",
+      "source": "crates/engine/src/cmd/edit.rs",
+      "line": 137,
+      "status": "Not tested"
+    },
+    {
+      "command": "edit.findReplace",
+      "label": "Find and replace",
+      "source": "crates/engine/src/cmd/edit.rs",
+      "line": 138,
+      "status": "Not tested"
+    },
+    {
+      "command": "edit.setDefaultProperties",
+      "label": "Set default properties",
+      "source": "crates/engine/src/cmd/edit.rs",
+      "line": 145,
+      "status": "Not tested"
+    },
+    {
+      "command": "select.set",
+      "label": "Select",
+      "source": "crates/engine/src/cmd/edit.rs",
+      "line": 151,
+      "status": "Not tested"
+    },
+    {
+      "command": "select.add",
+      "label": "Add to selection",
+      "source": "crates/engine/src/cmd/edit.rs",
+      "line": 159,
+      "status": "Not tested"
+    },
+    {
+      "command": "select.remove",
+      "label": "Remove from selection",
+      "source": "crates/engine/src/cmd/edit.rs",
+      "line": 169,
+      "status": "Not tested"
+    },
+    {
+      "command": "select.layersAt",
+      "label": "Layers at a point",
+      "source": "crates/engine/src/cmd/edit.rs",
+      "line": 175,
+      "status": "Not tested"
+    },
+    {
+      "command": "select.all",
+      "label": "Select all",
+      "source": "crates/engine/src/cmd/edit.rs",
+      "line": 182,
+      "status": "Not tested"
+    },
+    {
+      "command": "select.none",
+      "label": "Select none",
+      "source": "crates/engine/src/cmd/edit.rs",
+      "line": 183,
+      "status": "Not tested"
+    },
+    {
+      "command": "select.inverse",
+      "label": "Select inverse",
+      "source": "crates/engine/src/cmd/edit.rs",
+      "line": 191,
+      "status": "Not tested"
+    },
+    {
+      "command": "select.area",
+      "label": "Select area",
+      "source": "crates/engine/src/cmd/edit.rs",
+      "line": 192,
+      "status": "Not tested"
+    },
+    {
+      "command": "select.children",
+      "label": "Select children",
+      "source": "crates/engine/src/cmd/edit.rs",
+      "line": 199,
+      "status": "Not tested"
+    },
+    {
+      "command": "select.parent",
+      "label": "Select parent",
+      "source": "crates/engine/src/cmd/edit.rs",
+      "line": 200,
+      "status": "Not tested"
+    },
+    {
+      "command": "select.next",
+      "label": "Select next sibling",
+      "source": "crates/engine/src/cmd/edit.rs",
+      "line": 201,
+      "status": "Not tested"
+    },
+    {
+      "command": "select.previous",
+      "label": "Select previous sibling",
+      "source": "crates/engine/src/cmd/edit.rs",
+      "line": 202,
+      "status": "Not tested"
+    },
+    {
+      "command": "select.matching",
+      "label": "Select matching layers",
+      "source": "crates/engine/src/cmd/edit.rs",
+      "line": 203,
+      "status": "Not tested"
+    },
+    {
+      "command": "select.sameFill",
+      "label": "Select same fill",
+      "source": "crates/engine/src/cmd/edit.rs",
+      "line": 204,
+      "status": "Not tested"
+    },
+    {
+      "command": "select.sameStroke",
+      "label": "Select same stroke",
+      "source": "crates/engine/src/cmd/edit.rs",
+      "line": 205,
+      "status": "Not tested"
+    },
+    {
+      "command": "select.sameEffect",
+      "label": "Select same effect",
+      "source": "crates/engine/src/cmd/edit.rs",
+      "line": 208,
+      "status": "Not tested"
+    },
+    {
+      "command": "select.sameText",
+      "label": "Select same text properties",
+      "source": "crates/engine/src/cmd/edit.rs",
+      "line": 209,
+      "status": "Not tested"
+    },
+    {
+      "command": "select.sameFont",
+      "label": "Select same font",
+      "source": "crates/engine/src/cmd/edit.rs",
+      "line": 212,
+      "status": "Not tested"
+    },
+    {
+      "command": "select.sameInstance",
+      "label": "Select same instance",
+      "source": "crates/engine/src/cmd/edit.rs",
+      "line": 218,
+      "status": "Not tested"
+    },
+    {
+      "command": "select.sameProperties",
+      "label": "Select same properties",
+      "source": "crates/engine/src/cmd/edit.rs",
+      "line": 224,
+      "status": "Not tested"
+    },
+    {
+      "command": "select.byName",
+      "label": "Select layers by name",
+      "source": "crates/engine/src/cmd/edit.rs",
+      "line": 233,
+      "status": "Not tested"
+    },
+    {
+      "command": "transform.nudge",
+      "label": "Nudge",
+      "source": "crates/engine/src/cmd/edit.rs",
+      "line": 240,
+      "status": "Not tested"
+    },
+    {
+      "command": "transform.nudgeSize",
+      "label": "Resize by nudge",
+      "source": "crates/engine/src/cmd/edit.rs",
+      "line": 247,
+      "status": "Not tested"
+    },
+    {
+      "command": "object.rename",
+      "label": "Rename",
+      "source": "crates/engine/src/cmd/edit.rs",
+      "line": 254,
+      "status": "Not tested"
+    },
+    {
+      "command": "object.batchRename",
+      "label": "Batch rename",
+      "source": "crates/engine/src/cmd/edit.rs",
+      "line": 267,
+      "status": "Not tested"
+    },
+    {
+      "command": "object.toggleVisible",
+      "label": "Show/Hide selection",
+      "source": "crates/engine/src/cmd/edit.rs",
+      "line": 274,
+      "status": "Not tested"
+    },
+    {
+      "command": "object.toggleLock",
+      "label": "Lock/Unlock selection",
+      "source": "crates/engine/src/cmd/edit.rs",
+      "line": 275,
+      "status": "Not tested"
+    },
+    {
+      "command": "object.hideOthers",
+      "label": "Hide other layers",
+      "source": "crates/engine/src/cmd/edit.rs",
+      "line": 276,
+      "status": "Not tested"
+    },
+    {
+      "command": "object.opacityKeys",
+      "label": "Opacity from number keys",
+      "source": "crates/engine/src/cmd/edit.rs",
+      "line": 277,
+      "status": "Not tested"
+    },
+    {
+      "command": "object.removeFill",
+      "label": "Remove fill",
+      "source": "crates/engine/src/cmd/edit.rs",
+      "line": 284,
+      "status": "Not tested"
+    },
+    {
+      "command": "object.removeStroke",
+      "label": "Remove stroke",
+      "source": "crates/engine/src/cmd/edit.rs",
+      "line": 290,
+      "status": "Not tested"
+    },
+    {
+      "command": "object.swapFillStroke",
+      "label": "Swap fill and stroke",
+      "source": "crates/engine/src/cmd/edit.rs",
+      "line": 296,
+      "status": "Not tested"
+    },
+    {
+      "command": "layers.collapseAll",
+      "label": "Collapse layers",
+      "source": "crates/engine/src/cmd/edit.rs",
+      "line": 303,
+      "status": "Not tested"
+    },
+    {
+      "command": "node.set",
+      "label": "Set properties",
+      "source": "crates/engine/src/cmd/edit.rs",
+      "line": 307,
+      "status": "Not tested"
+    },
+    {
+      "command": "node.get",
+      "label": "Get layer",
+      "source": "crates/engine/src/cmd/edit.rs",
+      "line": 308,
+      "status": "Not tested"
+    },
+    {
+      "command": "node.find",
+      "label": "Find layers",
+      "source": "crates/engine/src/cmd/edit.rs",
+      "line": 313,
+      "status": "Not tested"
+    },
+    {
+      "command": "node.reparent",
+      "label": "Move layer into",
+      "source": "crates/engine/src/cmd/edit.rs",
+      "line": 320,
+      "status": "Not tested"
+    },
+    {
+      "command": "node.reorder",
+      "label": "Reorder layer",
+      "source": "crates/engine/src/cmd/edit.rs",
+      "line": 327,
+      "status": "Not tested"
+    },
+    {
+      "command": "fill.add",
+      "label": "Add fill",
+      "source": "crates/engine/src/cmd/edit.rs",
+      "line": 333,
+      "status": "Not tested"
+    },
+    {
+      "command": "stroke.add",
+      "label": "Add stroke",
+      "source": "crates/engine/src/cmd/edit.rs",
+      "line": 334,
+      "status": "Not tested"
+    },
+    {
+      "command": "fill.remove",
+      "label": "Remove fill",
+      "source": "crates/engine/src/cmd/edit.rs",
+      "line": 335,
+      "status": "Not tested"
+    },
+    {
+      "command": "stroke.remove",
+      "label": "Remove stroke",
+      "source": "crates/engine/src/cmd/edit.rs",
+      "line": 336,
+      "status": "Not tested"
+    },
+    {
+      "command": "fill.set",
+      "label": "Set fill",
+      "source": "crates/engine/src/cmd/edit.rs",
+      "line": 337,
+      "status": "Not tested"
+    },
+    {
+      "command": "stroke.set",
+      "label": "Set stroke",
+      "source": "crates/engine/src/cmd/edit.rs",
+      "line": 338,
+      "status": "Not tested"
+    },
+    {
+      "command": "fill.copy",
+      "label": "Copy fill",
+      "source": "crates/engine/src/cmd/edit.rs",
+      "line": 339,
+      "status": "Not tested"
+    },
+    {
+      "command": "fill.paste",
+      "label": "Paste fill",
+      "source": "crates/engine/src/cmd/edit.rs",
+      "line": 340,
+      "status": "Not tested"
+    },
+    {
+      "command": "stroke.copy",
+      "label": "Copy stroke",
+      "source": "crates/engine/src/cmd/edit.rs",
+      "line": 341,
+      "status": "Not tested"
+    },
+    {
+      "command": "stroke.paste",
+      "label": "Paste stroke",
+      "source": "crates/engine/src/cmd/edit.rs",
+      "line": 348,
+      "status": "Not tested"
+    },
+    {
+      "command": "fill.pattern",
+      "label": "Pattern fill",
+      "source": "crates/engine/src/cmd/edit.rs",
+      "line": 355,
+      "status": "Not tested"
+    },
+    {
+      "command": "stroke.widthProfile",
+      "label": "Width profile",
+      "source": "crates/engine/src/cmd/edit.rs",
+      "line": 362,
+      "status": "Not tested"
+    },
+    {
+      "command": "stroke.brush",
+      "label": "Brush",
+      "source": "crates/engine/src/cmd/edit.rs",
+      "line": 369,
+      "status": "Not tested"
+    },
+    {
+      "command": "effect.add",
+      "label": "Add effect",
+      "source": "crates/engine/src/cmd/edit.rs",
+      "line": 376,
+      "status": "Not tested"
+    },
+    {
+      "command": "effect.remove",
+      "label": "Remove effect",
+      "source": "crates/engine/src/cmd/edit.rs",
+      "line": 383,
+      "status": "Not tested"
+    },
+    {
+      "command": "effect.set",
+      "label": "Set effect",
+      "source": "crates/engine/src/cmd/edit.rs",
+      "line": 391,
+      "status": "Not tested"
+    },
+    {
+      "command": "effect.copy",
+      "label": "Copy effect",
+      "source": "crates/engine/src/cmd/edit.rs",
+      "line": 402,
+      "status": "Not tested"
+    },
+    {
+      "command": "effect.paste",
+      "label": "Paste effect",
+      "source": "crates/engine/src/cmd/edit.rs",
+      "line": 403,
+      "status": "Not tested"
+    },
+    {
+      "command": "grid.add",
+      "label": "Add layout grid",
+      "source": "crates/engine/src/cmd/edit.rs",
+      "line": 404,
+      "status": "Not tested"
+    },
+    {
+      "command": "grid.remove",
+      "label": "Remove layout grid",
+      "source": "crates/engine/src/cmd/edit.rs",
+      "line": 411,
+      "status": "Not tested"
+    },
+    {
+      "command": "export.add",
+      "label": "Add export setting",
+      "source": "crates/engine/src/cmd/edit.rs",
+      "line": 418,
+      "status": "Not tested"
+    },
+    {
+      "command": "export.update",
+      "label": "Edit export setting",
+      "source": "crates/engine/src/cmd/edit.rs",
+      "line": 436,
+      "status": "Not tested"
+    },
+    {
+      "command": "export.remove",
+      "label": "Remove export setting",
+      "source": "crates/engine/src/cmd/edit.rs",
+      "line": 454,
+      "status": "Not tested"
+    },
+    {
+      "command": "command.batch",
+      "label": "Run several commands",
+      "source": "crates/engine/src/cmd/edit.rs",
+      "line": 464,
+      "status": "Not tested"
+    },
+    {
+      "command": "edit.repeat",
+      "label": "Repeat last command",
+      "source": "crates/engine/src/cmd/edit.rs",
+      "line": 489,
+      "status": "Not tested"
+    },
+    {
+      "command": "board.timer",
+      "label": "Timer",
+      "source": "crates/engine/src/cmd/facilitate.rs",
+      "line": 31,
+      "status": "Not tested"
+    },
+    {
+      "command": "board.timerState",
+      "label": "Timer state",
+      "source": "crates/engine/src/cmd/facilitate.rs",
+      "line": 38,
+      "status": "Not tested"
+    },
+    {
+      "command": "board.vote",
+      "label": "Voting session",
+      "source": "crates/engine/src/cmd/facilitate.rs",
+      "line": 48,
+      "status": "Not tested"
+    },
+    {
+      "command": "board.voteResults",
+      "label": "Voting results",
+      "source": "crates/engine/src/cmd/facilitate.rs",
+      "line": 55,
+      "status": "Not tested"
+    },
+    {
+      "command": "file.new",
+      "label": "New design file",
+      "source": "crates/engine/src/cmd/file.rs",
+      "line": 68,
+      "status": "Not tested"
+    },
+    {
+      "command": "file.newBoard",
+      "label": "New board",
+      "source": "crates/engine/src/cmd/file.rs",
+      "line": 69,
+      "status": "Not tested"
+    },
+    {
+      "command": "file.open",
+      "label": "Open",
+      "source": "crates/engine/src/cmd/file.rs",
+      "line": 76,
+      "status": "Not tested"
+    },
+    {
+      "command": "file.openRecent",
+      "label": "Open recent",
+      "source": "crates/engine/src/cmd/file.rs",
+      "line": 83,
+      "status": "Not tested"
+    },
+    {
+      "command": "file.fontReport",
+      "label": "Inspect document fonts",
+      "source": "crates/engine/src/cmd/file.rs",
+      "line": 90,
+      "status": "Not tested"
+    },
+    {
+      "command": "file.save",
+      "label": "Save",
+      "source": "crates/engine/src/cmd/file.rs",
+      "line": 97,
+      "status": "Not tested"
+    },
+    {
+      "command": "file.saveAs",
+      "label": "Save as",
+      "source": "crates/engine/src/cmd/file.rs",
+      "line": 104,
+      "status": "Not tested"
+    },
+    {
+      "command": "file.markSaved",
+      "label": "Mark saved",
+      "source": "crates/engine/src/cmd/file.rs",
+      "line": 111,
+      "status": "Not tested"
+    },
+    {
+      "command": "file.export",
+      "label": "Export",
+      "source": "crates/engine/src/cmd/file.rs",
+      "line": 118,
+      "status": "Not tested"
+    },
+    {
+      "command": "file.exportLayers",
+      "label": "Export layers",
+      "source": "crates/engine/src/cmd/file.rs",
+      "line": 125,
+      "status": "Not tested"
+    },
+    {
+      "command": "file.exportSvg",
+      "label": "Export selection as SVG",
+      "source": "crates/engine/src/cmd/file.rs",
+      "line": 132,
+      "status": "Not tested"
+    },
+    {
+      "command": "file.exportFramesPdf",
+      "label": "Export frames to PDF",
+      "source": "crates/engine/src/cmd/file.rs",
+      "line": 145,
+      "status": "Not tested"
+    },
+    {
+      "command": "file.import",
+      "label": "Import",
+      "source": "crates/engine/src/cmd/file.rs",
+      "line": 152,
+      "status": "Not tested"
+    },
+    {
+      "command": "file.placeImage",
+      "label": "Place image",
+      "source": "crates/engine/src/cmd/file.rs",
+      "line": 159,
+      "status": "Not tested"
+    },
+    {
+      "command": "file.close",
+      "label": "Close tab",
+      "source": "crates/engine/src/cmd/file.rs",
+      "line": 166,
+      "status": "Not tested"
+    },
+    {
+      "command": "file.moveTab",
+      "label": "Move tab",
+      "source": "crates/engine/src/cmd/file.rs",
+      "line": 167,
+      "status": "Not tested"
+    },
+    {
+      "command": "file.recover",
+      "label": "Recover file",
+      "source": "crates/engine/src/cmd/file.rs",
+      "line": 181,
+      "status": "Not tested"
+    },
+    {
+      "command": "file.rename",
+      "label": "Rename file",
+      "source": "crates/engine/src/cmd/file.rs",
+      "line": 198,
+      "status": "Not tested"
+    },
+    {
+      "command": "file.colorProfile",
+      "label": "Color profile",
+      "source": "crates/engine/src/cmd/file.rs",
+      "line": 203,
+      "status": "Not tested"
+    },
+    {
+      "command": "file.duplicate",
+      "label": "Duplicate file",
+      "source": "crates/engine/src/cmd/file.rs",
+      "line": 210,
+      "status": "Not tested"
+    },
+    {
+      "command": "file.revert",
+      "label": "Revert to saved",
+      "source": "crates/engine/src/cmd/file.rs",
+      "line": 218,
+      "status": "Not tested"
+    },
+    {
+      "command": "file.saveVersion",
+      "label": "Save to version history",
+      "source": "crates/engine/src/cmd/file.rs",
+      "line": 222,
+      "status": "Not tested"
+    },
+    {
+      "command": "file.versionHistory",
+      "label": "Show version history",
+      "source": "crates/engine/src/cmd/file.rs",
+      "line": 229,
+      "status": "Not tested"
+    },
+    {
+      "command": "version.list",
+      "label": "List versions",
+      "source": "crates/engine/src/cmd/file.rs",
+      "line": 234,
+      "status": "Not tested"
+    },
+    {
+      "command": "version.restore",
+      "label": "Restore version",
+      "source": "crates/engine/src/cmd/file.rs",
+      "line": 241,
+      "status": "Not tested"
+    },
+    {
+      "command": "version.rename",
+      "label": "Rename version",
+      "source": "crates/engine/src/cmd/file.rs",
+      "line": 248,
+      "status": "Not tested"
+    },
+    {
+      "command": "version.delete",
+      "label": "Delete version",
+      "source": "crates/engine/src/cmd/file.rs",
+      "line": 266,
+      "status": "Not tested"
+    },
+    {
+      "command": "version.preview",
+      "label": "View version",
+      "source": "crates/engine/src/cmd/file.rs",
+      "line": 275,
+      "status": "Not tested"
+    },
+    {
+      "command": "version.autosave",
+      "label": "Autosave version",
+      "source": "crates/engine/src/cmd/file.rs",
+      "line": 290,
+      "status": "Not tested"
+    },
+    {
+      "command": "version.exitPreview",
+      "label": "Back to current version",
+      "source": "crates/engine/src/cmd/file.rs",
+      "line": 297,
+      "status": "Not tested"
+    },
+    {
+      "command": "version.duplicate",
+      "label": "Duplicate version",
+      "source": "crates/engine/src/cmd/file.rs",
+      "line": 300,
+      "status": "Not tested"
+    },
+    {
+      "command": "doc.switch",
+      "label": "Switch document",
+      "source": "crates/engine/src/cmd/file.rs",
+      "line": 316,
+      "status": "Not tested"
+    },
+    {
+      "command": "doc.nextTab",
+      "label": "Next tab",
+      "source": "crates/engine/src/cmd/file.rs",
+      "line": 324,
+      "status": "Not tested"
+    },
+    {
+      "command": "doc.previousTab",
+      "label": "Previous tab",
+      "source": "crates/engine/src/cmd/file.rs",
+      "line": 325,
+      "status": "Not tested"
+    },
+    {
+      "command": "doc.list",
+      "label": "List documents",
+      "source": "crates/engine/src/cmd/file.rs",
+      "line": 326,
+      "status": "Not tested"
+    },
+    {
+      "command": "doc.home",
+      "label": "Home",
+      "source": "crates/engine/src/cmd/file.rs",
+      "line": 349,
+      "status": "Not tested"
+    },
+    {
+      "command": "image.adjust",
+      "label": "Adjust image",
+      "source": "crates/engine/src/cmd/image.rs",
+      "line": 13,
+      "status": "Not tested"
+    },
+    {
+      "command": "image.replace",
+      "label": "Replace image",
+      "source": "crates/engine/src/cmd/image.rs",
+      "line": 20,
+      "status": "Not tested"
+    },
+    {
+      "command": "image.savePreset",
+      "label": "Save image preset",
+      "source": "crates/engine/src/cmd/image.rs",
+      "line": 27,
+      "status": "Not tested"
+    },
+    {
+      "command": "image.deletePreset",
+      "label": "Delete image preset",
+      "source": "crates/engine/src/cmd/image.rs",
+      "line": 34,
+      "status": "Not tested"
+    },
+    {
+      "command": "image.crop",
+      "label": "Crop image",
+      "source": "crates/engine/src/cmd/image.rs",
+      "line": 44,
+      "status": "Not tested"
+    },
+    {
+      "command": "image.presets",
+      "label": "Image presets",
+      "source": "crates/engine/src/cmd/image.rs",
+      "line": 51,
+      "status": "Not tested"
+    },
+    {
+      "command": "layout.setTrack",
+      "label": "Set grid track size",
+      "source": "crates/engine/src/cmd/layout.rs",
+      "line": 13,
+      "status": "Not tested"
+    },
+    {
+      "command": "libraries.publish",
+      "label": "Publish library\u2026",
+      "source": "crates/engine/src/cmd/library.rs",
+      "line": 28,
+      "status": "Not tested"
+    },
+    {
+      "command": "library.publish",
+      "label": "Publish library",
+      "source": "crates/engine/src/cmd/library.rs",
+      "line": 32,
+      "status": "Not tested"
+    },
+    {
+      "command": "library.list",
+      "label": "List libraries",
+      "source": "crates/engine/src/cmd/library.rs",
+      "line": 39,
+      "status": "Not tested"
+    },
+    {
+      "command": "library.publishToServer",
+      "label": "Publish library to server",
+      "source": "crates/engine/src/cmd/library.rs",
+      "line": 46,
+      "status": "Not tested"
+    },
+    {
+      "command": "library.add",
+      "label": "Add library",
+      "source": "crates/engine/src/cmd/library.rs",
+      "line": 53,
+      "status": "Not tested"
+    },
+    {
+      "command": "library.usage",
+      "label": "Library usage",
+      "source": "crates/engine/src/cmd/library.rs",
+      "line": 60,
+      "status": "Not tested"
+    },
+    {
+      "command": "library.swap",
+      "label": "Swap library",
+      "source": "crates/engine/src/cmd/library.rs",
+      "line": 67,
+      "status": "Not tested"
+    },
+    {
+      "command": "library.remove",
+      "label": "Remove library",
+      "source": "crates/engine/src/cmd/library.rs",
+      "line": 74,
+      "status": "Not tested"
+    },
+    {
+      "command": "library.updates",
+      "label": "Library updates",
+      "source": "crates/engine/src/cmd/library.rs",
+      "line": 81,
+      "status": "Not tested"
+    },
+    {
+      "command": "library.check",
+      "label": "Check team libraries for updates",
+      "source": "crates/engine/src/cmd/library.rs",
+      "line": 88,
+      "status": "Not tested"
+    },
+    {
+      "command": "library.acceptUpdates",
+      "label": "Accept library updates",
+      "source": "crates/engine/src/cmd/library.rs",
+      "line": 95,
+      "status": "Not tested"
+    },
+    {
+      "command": "library.place",
+      "label": "Place library component",
+      "source": "crates/engine/src/cmd/library.rs",
+      "line": 102,
+      "status": "Not tested"
+    },
+    {
+      "command": "library.swapAt",
+      "label": "Swap instance to library component",
+      "source": "crates/engine/src/cmd/library.rs",
+      "line": 109,
+      "status": "Not tested"
+    },
+    {
+      "command": "library.import",
+      "label": "Import library component",
+      "source": "crates/engine/src/cmd/library.rs",
+      "line": 121,
+      "status": "Not tested"
+    },
+    {
+      "command": "library.applyStyle",
+      "label": "Apply library style",
+      "source": "crates/engine/src/cmd/library.rs",
+      "line": 133,
+      "status": "Not tested"
+    },
+    {
+      "command": "library.importVariable",
+      "label": "Import library variable",
+      "source": "crates/engine/src/cmd/library.rs",
+      "line": 140,
+      "status": "Not tested"
+    },
+    {
+      "command": "library.bindVariable",
+      "label": "Bind library variable",
+      "source": "crates/engine/src/cmd/library.rs",
+      "line": 150,
+      "status": "Not tested"
+    },
+    {
+      "command": "library.aliasVariable",
+      "label": "Alias library variable",
+      "source": "crates/engine/src/cmd/library.rs",
+      "line": 162,
+      "status": "Not tested"
+    },
+    {
+      "command": "library.setVariableMode",
+      "label": "Set library variable mode",
+      "source": "crates/engine/src/cmd/library.rs",
+      "line": 169,
+      "status": "Not tested"
+    },
+    {
+      "command": "library.extendCollection",
+      "label": "Extend library collection",
+      "source": "crates/engine/src/cmd/library.rs",
+      "line": 176,
+      "status": "Not tested"
+    },
+    {
+      "command": "fill.move",
+      "label": "Move fill",
+      "source": "crates/engine/src/cmd/lists.rs",
+      "line": 18,
+      "status": "Not tested"
+    },
+    {
+      "command": "stroke.move",
+      "label": "Move stroke",
+      "source": "crates/engine/src/cmd/lists.rs",
+      "line": 21,
+      "status": "Not tested"
+    },
+    {
+      "command": "effect.move",
+      "label": "Move effect",
+      "source": "crates/engine/src/cmd/lists.rs",
+      "line": 24,
+      "status": "Not tested"
+    },
+    {
+      "command": "grid.move",
+      "label": "Move layout grid",
+      "source": "crates/engine/src/cmd/lists.rs",
+      "line": 27,
+      "status": "Not tested"
+    },
+    {
+      "command": "page.add",
+      "label": "Add page",
+      "source": "crates/engine/src/cmd/page.rs",
+      "line": 39,
+      "status": "Not tested"
+    },
+    {
+      "command": "page.select",
+      "label": "Go to page",
+      "source": "crates/engine/src/cmd/page.rs",
+      "line": 61,
+      "status": "Not tested"
+    },
+    {
+      "command": "page.rename",
+      "label": "Rename page",
+      "source": "crates/engine/src/cmd/page.rs",
+      "line": 83,
+      "status": "Not tested"
+    },
+    {
+      "command": "page.delete",
+      "label": "Delete page",
+      "source": "crates/engine/src/cmd/page.rs",
+      "line": 90,
+      "status": "Not tested"
+    },
+    {
+      "command": "page.duplicate",
+      "label": "Duplicate page",
+      "source": "crates/engine/src/cmd/page.rs",
+      "line": 96,
+      "status": "Not tested"
+    },
+    {
+      "command": "page.move",
+      "label": "Move page",
+      "source": "crates/engine/src/cmd/page.rs",
+      "line": 130,
+      "status": "Not tested"
+    },
+    {
+      "command": "page.setBackground",
+      "label": "Page background",
+      "source": "crates/engine/src/cmd/page.rs",
+      "line": 142,
+      "status": "Not tested"
+    },
+    {
+      "command": "page.list",
+      "label": "List pages",
+      "source": "crates/engine/src/cmd/page.rs",
+      "line": 150,
+      "status": "Not tested"
+    },
+    {
+      "command": "guide.add",
+      "label": "Add guide",
+      "source": "crates/engine/src/cmd/page.rs",
+      "line": 161,
+      "status": "Not tested"
+    },
+    {
+      "command": "guide.move",
+      "label": "Move guide",
+      "source": "crates/engine/src/cmd/page.rs",
+      "line": 172,
+      "status": "Not tested"
+    },
+    {
+      "command": "guide.remove",
+      "label": "Remove guide",
+      "source": "crates/engine/src/cmd/page.rs",
+      "line": 179,
+      "status": "Not tested"
+    },
+    {
+      "command": "guide.select",
+      "label": "Select guide",
+      "source": "crates/engine/src/cmd/page.rs",
+      "line": 198,
+      "status": "Not tested"
+    },
+    {
+      "command": "guide.clear",
+      "label": "Remove all guides",
+      "source": "crates/engine/src/cmd/page.rs",
+      "line": 227,
+      "status": "Not tested"
+    },
+    {
+      "command": "proto.interaction.add",
+      "label": "Add interaction",
+      "source": "crates/engine/src/cmd/proto.rs",
+      "line": 16,
+      "status": "Not tested"
+    },
+    {
+      "command": "proto.interaction.clear",
+      "label": "Remove all interactions",
+      "source": "crates/engine/src/cmd/proto.rs",
+      "line": 23,
+      "status": "Not tested"
+    },
+    {
+      "command": "proto.interaction.remove",
+      "label": "Remove interaction",
+      "source": "crates/engine/src/cmd/proto.rs",
+      "line": 31,
+      "status": "Not tested"
+    },
+    {
+      "command": "proto.interaction.set",
+      "label": "Edit interaction",
+      "source": "crates/engine/src/cmd/proto.rs",
+      "line": 51,
+      "status": "Not tested"
+    },
+    {
+      "command": "proto.flow.add",
+      "label": "Add flow starting point",
+      "source": "crates/engine/src/cmd/proto.rs",
+      "line": 58,
+      "status": "Not tested"
+    },
+    {
+      "command": "proto.flow.rename",
+      "label": "Rename flow",
+      "source": "crates/engine/src/cmd/proto.rs",
+      "line": 85,
+      "status": "Not tested"
+    },
+    {
+      "command": "proto.flow.remove",
+      "label": "Remove flow",
+      "source": "crates/engine/src/cmd/proto.rs",
+      "line": 104,
+      "status": "Not tested"
+    },
+    {
+      "command": "proto.settings",
+      "label": "Prototype settings",
+      "source": "crates/engine/src/cmd/proto.rs",
+      "line": 112,
+      "status": "Not tested"
+    },
+    {
+      "command": "proto.present",
+      "label": "Present",
+      "source": "crates/engine/src/cmd/proto.rs",
+      "line": 119,
+      "status": "Not tested"
+    },
+    {
+      "command": "proto.preview",
+      "label": "Open prototype preview",
+      "source": "crates/engine/src/cmd/proto.rs",
+      "line": 126,
+      "status": "Not tested"
+    },
+    {
+      "command": "proto.closePreview",
+      "label": "Close prototype preview",
+      "source": "crates/engine/src/cmd/proto.rs",
+      "line": 133,
+      "status": "Not tested"
+    },
+    {
+      "command": "proto.presentOptions",
+      "label": "Presentation options",
+      "source": "crates/engine/src/cmd/proto.rs",
+      "line": 137,
+      "status": "Not tested"
+    },
+    {
+      "command": "proto.linkNotice",
+      "label": "Notice before leaving for a link",
+      "source": "crates/engine/src/cmd/proto.rs",
+      "line": 161,
+      "status": "Not tested"
+    },
+    {
+      "command": "proto.action.add",
+      "label": "Add prototype action",
+      "source": "crates/engine/src/cmd/proto_actions.rs",
+      "line": 28,
+      "status": "Not tested"
+    },
+    {
+      "command": "proto.action.set",
+      "label": "Edit prototype action",
+      "source": "crates/engine/src/cmd/proto_actions.rs",
+      "line": 35,
+      "status": "Not tested"
+    },
+    {
+      "command": "proto.action.remove",
+      "label": "Remove prototype action",
+      "source": "crates/engine/src/cmd/proto_actions.rs",
+      "line": 42,
+      "status": "Not tested"
+    },
+    {
+      "command": "proto.action.move",
+      "label": "Reorder prototype action",
+      "source": "crates/engine/src/cmd/proto_actions.rs",
+      "line": 49,
+      "status": "Not tested"
+    },
+    {
+      "command": "proto.conditional.addBlock",
+      "label": "Add else if / else",
+      "source": "crates/engine/src/cmd/proto_actions.rs",
+      "line": 50,
+      "status": "Not tested"
+    },
+    {
+      "command": "proto.conditional.setCondition",
+      "label": "Edit condition",
+      "source": "crates/engine/src/cmd/proto_actions.rs",
+      "line": 57,
+      "status": "Not tested"
+    },
+    {
+      "command": "proto.conditional.removeBlock",
+      "label": "Remove if / else if / else",
+      "source": "crates/engine/src/cmd/proto_actions.rs",
+      "line": 64,
+      "status": "Not tested"
+    },
+    {
+      "command": "proto.evaluate",
+      "label": "Evaluate prototype expression",
+      "source": "crates/engine/src/cmd/proto_actions.rs",
+      "line": 71,
+      "status": "Not tested"
+    },
+    {
+      "command": "section.toggleContents",
+      "label": "Hide/Show section contents",
+      "source": "crates/engine/src/cmd/section.rs",
+      "line": 20,
+      "status": "Not tested"
+    },
+    {
+      "command": "dev.resolveChange",
+      "label": "Resolve change",
+      "source": "crates/engine/src/cmd/section.rs",
+      "line": 27,
+      "status": "Not tested"
+    },
+    {
+      "command": "dev.compare",
+      "label": "Compare changes",
+      "source": "crates/engine/src/cmd/section.rs",
+      "line": 34,
+      "status": "Not tested"
+    },
+    {
+      "command": "dev.focus",
+      "label": "Focus view",
+      "source": "crates/engine/src/cmd/section.rs",
+      "line": 41,
+      "status": "Not tested"
+    },
+    {
+      "command": "dev.unfocus",
+      "label": "Exit focus view",
+      "source": "crates/engine/src/cmd/section.rs",
+      "line": 48,
+      "status": "Not tested"
+    },
+    {
+      "command": "object.group",
+      "label": "Group selection",
+      "source": "crates/engine/src/cmd/structure.rs",
+      "line": 20,
+      "status": "Not tested"
+    },
+    {
+      "command": "object.ungroup",
+      "label": "Ungroup selection",
+      "source": "crates/engine/src/cmd/structure.rs",
+      "line": 21,
+      "status": "Not tested"
+    },
+    {
+      "command": "object.frameSelection",
+      "label": "Frame selection",
+      "source": "crates/engine/src/cmd/structure.rs",
+      "line": 22,
+      "status": "Not tested"
+    },
+    {
+      "command": "object.removeFrame",
+      "label": "Remove frame",
+      "source": "crates/engine/src/cmd/structure.rs",
+      "line": 23,
+      "status": "Not tested"
+    },
+    {
+      "command": "object.convertToGroup",
+      "label": "Convert to group",
+      "source": "crates/engine/src/cmd/structure.rs",
+      "line": 24,
+      "status": "Not tested"
+    },
+    {
+      "command": "object.convertToFrame",
+      "label": "Convert to frame",
+      "source": "crates/engine/src/cmd/structure.rs",
+      "line": 31,
+      "status": "Not tested"
+    },
+    {
+      "command": "object.convertToSection",
+      "label": "Convert to section",
+      "source": "crates/engine/src/cmd/structure.rs",
+      "line": 38,
+      "status": "Not tested"
+    },
+    {
+      "command": "object.wrapInSection",
+      "label": "Wrap in new section",
+      "source": "crates/engine/src/cmd/structure.rs",
+      "line": 45,
+      "status": "Not tested"
+    },
+    {
+      "command": "object.resizeToFit",
+      "label": "Resize to fit",
+      "source": "crates/engine/src/cmd/structure.rs",
+      "line": 52,
+      "status": "Not tested"
+    },
+    {
+      "command": "object.mask",
+      "label": "Use as mask",
+      "source": "crates/engine/src/cmd/structure.rs",
+      "line": 59,
+      "status": "Not tested"
+    },
+    {
+      "command": "object.releaseMask",
+      "label": "Release mask",
+      "source": "crates/engine/src/cmd/structure.rs",
+      "line": 60,
+      "status": "Not tested"
+    },
+    {
+      "command": "bool.union",
+      "label": "Union selection",
+      "source": "crates/engine/src/cmd/structure.rs",
+      "line": 66,
+      "status": "Not tested"
+    },
+    {
+      "command": "bool.subtract",
+      "label": "Subtract selection",
+      "source": "crates/engine/src/cmd/structure.rs",
+      "line": 67,
+      "status": "Not tested"
+    },
+    {
+      "command": "bool.intersect",
+      "label": "Intersect selection",
+      "source": "crates/engine/src/cmd/structure.rs",
+      "line": 68,
+      "status": "Not tested"
+    },
+    {
+      "command": "bool.exclude",
+      "label": "Exclude selection",
+      "source": "crates/engine/src/cmd/structure.rs",
+      "line": 69,
+      "status": "Not tested"
+    },
+    {
+      "command": "bool.flatten",
+      "label": "Flatten boolean",
+      "source": "crates/engine/src/cmd/structure.rs",
+      "line": 70,
+      "status": "Not tested"
+    },
+    {
+      "command": "vector.flatten",
+      "label": "Flatten",
+      "source": "crates/engine/src/cmd/structure.rs",
+      "line": 71,
+      "status": "Not tested"
+    },
+    {
+      "command": "vector.outlineStroke",
+      "label": "Outline stroke",
+      "source": "crates/engine/src/cmd/structure.rs",
+      "line": 72,
+      "status": "Not tested"
+    },
+    {
+      "command": "layout.add",
+      "label": "Add auto layout",
+      "source": "crates/engine/src/cmd/structure.rs",
+      "line": 73,
+      "status": "Not tested"
+    },
+    {
+      "command": "layout.remove",
+      "label": "Remove auto layout",
+      "source": "crates/engine/src/cmd/structure.rs",
+      "line": 74,
+      "status": "Not tested"
+    },
+    {
+      "command": "layout.removeAll",
+      "label": "Remove all auto layout",
+      "source": "crates/engine/src/cmd/structure.rs",
+      "line": 86,
+      "status": "Not tested"
+    },
+    {
+      "command": "layout.suggest",
+      "label": "Suggest auto layout",
+      "source": "crates/engine/src/cmd/structure.rs",
+      "line": 112,
+      "status": "Not tested"
+    },
+    {
+      "command": "object.moveToPage",
+      "label": "Move to page",
+      "source": "crates/engine/src/cmd/structure.rs",
+      "line": 113,
+      "status": "Not tested"
+    },
+    {
+      "command": "object.setThumbnail",
+      "label": "Set as thumbnail",
+      "source": "crates/engine/src/cmd/structure.rs",
+      "line": 114,
+      "status": "Not tested"
+    },
+    {
+      "command": "object.rasterize",
+      "label": "Rasterize selection",
+      "source": "crates/engine/src/cmd/structure.rs",
+      "line": 127,
+      "status": "Not tested"
+    },
+    {
+      "command": "vector.reverse",
+      "label": "Reverse path direction",
+      "source": "crates/engine/src/cmd/structure.rs",
+      "line": 128,
+      "status": "Not tested"
+    },
+    {
+      "command": "vector.fillRule",
+      "label": "Set fill rule",
+      "source": "crates/engine/src/cmd/structure.rs",
+      "line": 139,
+      "status": "Not tested"
+    },
+    {
+      "command": "vector.reverseLoop",
+      "label": "Reverse loop",
+      "source": "crates/engine/src/cmd/structure.rs",
+      "line": 146,
+      "status": "Not tested"
+    },
+    {
+      "command": "vector.simplify",
+      "label": "Simplify vector",
+      "source": "crates/engine/src/cmd/structure.rs",
+      "line": 153,
+      "status": "Not tested"
+    },
+    {
+      "command": "vector.offset",
+      "label": "Offset path",
+      "source": "crates/engine/src/cmd/structure.rs",
+      "line": 154,
+      "status": "Not tested"
+    },
+    {
+      "command": "vector.join",
+      "label": "Join selection",
+      "source": "crates/engine/src/cmd/structure.rs",
+      "line": 155,
+      "status": "Not tested"
+    },
+    {
+      "command": "vector.smoothJoin",
+      "label": "Smooth join selection",
+      "source": "crates/engine/src/cmd/structure.rs",
+      "line": 158,
+      "status": "Not tested"
+    },
+    {
+      "command": "paint.documentColors",
+      "label": "Document colours",
+      "source": "crates/engine/src/cmd/styles.rs",
+      "line": 18,
+      "status": "Not tested"
+    },
+    {
+      "command": "style.create",
+      "label": "Create style",
+      "source": "crates/engine/src/cmd/styles.rs",
+      "line": 31,
+      "status": "Not tested"
+    },
+    {
+      "command": "style.apply",
+      "label": "Apply style",
+      "source": "crates/engine/src/cmd/styles.rs",
+      "line": 38,
+      "status": "Not tested"
+    },
+    {
+      "command": "style.detach",
+      "label": "Detach style",
+      "source": "crates/engine/src/cmd/styles.rs",
+      "line": 45,
+      "status": "Not tested"
+    },
+    {
+      "command": "style.update",
+      "label": "Edit style",
+      "source": "crates/engine/src/cmd/styles.rs",
+      "line": 52,
+      "status": "Not tested"
+    },
+    {
+      "command": "style.bind",
+      "label": "Bind variable in style",
+      "source": "crates/engine/src/cmd/styles.rs",
+      "line": 53,
+      "status": "Not tested"
+    },
+    {
+      "command": "style.duplicate",
+      "label": "Duplicate style",
+      "source": "crates/engine/src/cmd/styles.rs",
+      "line": 60,
+      "status": "Not tested"
+    },
+    {
+      "command": "style.move",
+      "label": "Move styles",
+      "source": "crates/engine/src/cmd/styles.rs",
+      "line": 61,
+      "status": "Not tested"
+    },
+    {
+      "command": "style.renameFolder",
+      "label": "Rename style folder",
+      "source": "crates/engine/src/cmd/styles.rs",
+      "line": 68,
+      "status": "Not tested"
+    },
+    {
+      "command": "style.delete",
+      "label": "Delete style",
+      "source": "crates/engine/src/cmd/styles.rs",
+      "line": 75,
+      "status": "Not tested"
+    },
+    {
+      "command": "style.list",
+      "label": "List styles",
+      "source": "crates/engine/src/cmd/styles.rs",
+      "line": 104,
+      "status": "Not tested"
+    },
+    {
+      "command": "variable.createCollection",
+      "label": "Create variable collection",
+      "source": "crates/engine/src/cmd/styles.rs",
+      "line": 115,
+      "status": "Not tested"
+    },
+    {
+      "command": "variable.addMode",
+      "label": "Add mode",
+      "source": "crates/engine/src/cmd/styles.rs",
+      "line": 140,
+      "status": "Not tested"
+    },
+    {
+      "command": "variable.create",
+      "label": "Create variable",
+      "source": "crates/engine/src/cmd/styles.rs",
+      "line": 164,
+      "status": "Not tested"
+    },
+    {
+      "command": "variable.set",
+      "label": "Set variable value",
+      "source": "crates/engine/src/cmd/styles.rs",
+      "line": 171,
+      "status": "Not tested"
+    },
+    {
+      "command": "variable.delete",
+      "label": "Delete variable",
+      "source": "crates/engine/src/cmd/styles.rs",
+      "line": 178,
+      "status": "Not tested"
+    },
+    {
+      "command": "variable.bind",
+      "label": "Bind variable",
+      "source": "crates/engine/src/cmd/styles.rs",
+      "line": 196,
+      "status": "Not tested"
+    },
+    {
+      "command": "variable.setMode",
+      "label": "Set variable mode",
+      "source": "crates/engine/src/cmd/styles.rs",
+      "line": 203,
+      "status": "Not tested"
+    },
+    {
+      "command": "variable.list",
+      "label": "List variables",
+      "source": "crates/engine/src/cmd/styles.rs",
+      "line": 210,
+      "status": "Not tested"
+    },
+    {
+      "command": "text.onPath",
+      "label": "Text on path",
+      "source": "crates/engine/src/cmd/text.rs",
+      "line": 188,
+      "status": "Not tested"
+    },
+    {
+      "command": "text.pathOptions",
+      "label": "Text path options",
+      "source": "crates/engine/src/cmd/text.rs",
+      "line": 195,
+      "status": "Not tested"
+    },
+    {
+      "command": "text.removeFromPath",
+      "label": "Remove text from path",
+      "source": "crates/engine/src/cmd/text.rs",
+      "line": 205,
+      "status": "Not tested"
+    },
+    {
+      "command": "text.bold",
+      "label": "Bold",
+      "source": "crates/engine/src/cmd/text.rs",
+      "line": 212,
+      "status": "Not tested"
+    },
+    {
+      "command": "text.italic",
+      "label": "Italic",
+      "source": "crates/engine/src/cmd/text.rs",
+      "line": 213,
+      "status": "Not tested"
+    },
+    {
+      "command": "text.underline",
+      "label": "Underline",
+      "source": "crates/engine/src/cmd/text.rs",
+      "line": 214,
+      "status": "Not tested"
+    },
+    {
+      "command": "text.strikethrough",
+      "label": "Strikethrough",
+      "source": "crates/engine/src/cmd/text.rs",
+      "line": 218,
+      "status": "Not tested"
+    },
+    {
+      "command": "text.link",
+      "label": "Create link",
+      "source": "crates/engine/src/cmd/text.rs",
+      "line": 222,
+      "status": "Not tested"
+    },
+    {
+      "command": "text.bulletList",
+      "label": "Bulleted list",
+      "source": "crates/engine/src/cmd/text.rs",
+      "line": 240,
+      "status": "Not tested"
+    },
+    {
+      "command": "text.numberList",
+      "label": "Numbered list",
+      "source": "crates/engine/src/cmd/text.rs",
+      "line": 246,
+      "status": "Not tested"
+    },
+    {
+      "command": "text.alignLeft",
+      "label": "Align left",
+      "source": "crates/engine/src/cmd/text.rs",
+      "line": 252,
+      "status": "Not tested"
+    },
+    {
+      "command": "text.alignCenter",
+      "label": "Align center",
+      "source": "crates/engine/src/cmd/text.rs",
+      "line": 253,
+      "status": "Not tested"
+    },
+    {
+      "command": "text.alignRight",
+      "label": "Align right",
+      "source": "crates/engine/src/cmd/text.rs",
+      "line": 254,
+      "status": "Not tested"
+    },
+    {
+      "command": "text.alignJustify",
+      "label": "Justify",
+      "source": "crates/engine/src/cmd/text.rs",
+      "line": 255,
+      "status": "Not tested"
+    },
+    {
+      "command": "text.sizeUp",
+      "label": "Increase font size",
+      "source": "crates/engine/src/cmd/text.rs",
+      "line": 256,
+      "status": "Not tested"
+    },
+    {
+      "command": "text.sizeDown",
+      "label": "Decrease font size",
+      "source": "crates/engine/src/cmd/text.rs",
+      "line": 257,
+      "status": "Not tested"
+    },
+    {
+      "command": "text.weightUp",
+      "label": "Increase font weight",
+      "source": "crates/engine/src/cmd/text.rs",
+      "line": 258,
+      "status": "Not tested"
+    },
+    {
+      "command": "text.weightDown",
+      "label": "Decrease font weight",
+      "source": "crates/engine/src/cmd/text.rs",
+      "line": 259,
+      "status": "Not tested"
+    },
+    {
+      "command": "text.lineHeightUp",
+      "label": "Increase line height",
+      "source": "crates/engine/src/cmd/text.rs",
+      "line": 260,
+      "status": "Not tested"
+    },
+    {
+      "command": "text.lineHeightDown",
+      "label": "Decrease line height",
+      "source": "crates/engine/src/cmd/text.rs",
+      "line": 263,
+      "status": "Not tested"
+    },
+    {
+      "command": "text.trackingUp",
+      "label": "Increase letter spacing",
+      "source": "crates/engine/src/cmd/text.rs",
+      "line": 266,
+      "status": "Not tested"
+    },
+    {
+      "command": "text.trackingDown",
+      "label": "Decrease letter spacing",
+      "source": "crates/engine/src/cmd/text.rs",
+      "line": 274,
+      "status": "Not tested"
+    },
+    {
+      "command": "text.caseOriginal",
+      "label": "Original case",
+      "source": "crates/engine/src/cmd/text.rs",
+      "line": 282,
+      "status": "Not tested"
+    },
+    {
+      "command": "text.caseUpper",
+      "label": "Uppercase",
+      "source": "crates/engine/src/cmd/text.rs",
+      "line": 283,
+      "status": "Not tested"
+    },
+    {
+      "command": "text.caseLower",
+      "label": "Lowercase",
+      "source": "crates/engine/src/cmd/text.rs",
+      "line": 284,
+      "status": "Not tested"
+    },
+    {
+      "command": "text.caseTitle",
+      "label": "Title case",
+      "source": "crates/engine/src/cmd/text.rs",
+      "line": 285,
+      "status": "Not tested"
+    },
+    {
+      "command": "text.caseSmallCaps",
+      "label": "Small caps",
+      "source": "crates/engine/src/cmd/text.rs",
+      "line": 286,
+      "status": "Not tested"
+    },
+    {
+      "command": "text.case",
+      "label": "Letter case",
+      "source": "crates/engine/src/cmd/text.rs",
+      "line": 287,
+      "status": "Not tested"
+    },
+    {
+      "command": "text.decoration",
+      "label": "Decoration",
+      "source": "crates/engine/src/cmd/text.rs",
+      "line": 292,
+      "status": "Not tested"
+    },
+    {
+      "command": "text.listStyle",
+      "label": "List style",
+      "source": "crates/engine/src/cmd/text.rs",
+      "line": 298,
+      "status": "Not tested"
+    },
+    {
+      "command": "text.wrapStyle",
+      "label": "Wrap style",
+      "source": "crates/engine/src/cmd/text.rs",
+      "line": 311,
+      "status": "Not tested"
+    },
+    {
+      "command": "text.paragraphIndent",
+      "label": "Paragraph indent",
+      "source": "crates/engine/src/cmd/text.rs",
+      "line": 322,
+      "status": "Not tested"
+    },
+    {
+      "command": "text.paragraphSpacing",
+      "label": "Paragraph spacing",
+      "source": "crates/engine/src/cmd/text.rs",
+      "line": 326,
+      "status": "Not tested"
+    },
+    {
+      "command": "text.maxLines",
+      "label": "Max lines",
+      "source": "crates/engine/src/cmd/text.rs",
+      "line": 330,
+      "status": "Not tested"
+    },
+    {
+      "command": "text.setFeatures",
+      "label": "OpenType features",
+      "source": "crates/engine/src/cmd/text.rs",
+      "line": 363,
+      "status": "Not tested"
+    },
+    {
+      "command": "text.setVariations",
+      "label": "Variable font axes",
+      "source": "crates/engine/src/cmd/text.rs",
+      "line": 388,
+      "status": "Not tested"
+    },
+    {
+      "command": "text.preview",
+      "label": "Preview a change",
+      "source": "crates/engine/src/cmd/text.rs",
+      "line": 413,
+      "status": "Not tested"
+    },
+    {
+      "command": "text.endPreview",
+      "label": "End text preview",
+      "source": "crates/engine/src/cmd/text.rs",
+      "line": 425,
+      "status": "Not tested"
+    },
+    {
+      "command": "text.set",
+      "label": "Set text",
+      "source": "crates/engine/src/cmd/text.rs",
+      "line": 428,
+      "status": "Not tested"
+    },
+    {
+      "command": "text.style",
+      "label": "Style text range",
+      "source": "crates/engine/src/cmd/text.rs",
+      "line": 441,
+      "status": "Not tested"
+    },
+    {
+      "command": "text.edit.begin",
+      "label": "Edit text",
+      "source": "crates/engine/src/cmd/text.rs",
+      "line": 468,
+      "status": "Not tested"
+    },
+    {
+      "command": "text.edit.insert",
+      "label": "Type text",
+      "source": "crates/engine/src/cmd/text.rs",
+      "line": 474,
+      "status": "Not tested"
+    },
+    {
+      "command": "text.edit.key",
+      "label": "Text key",
+      "source": "crates/engine/src/cmd/text.rs",
+      "line": 479,
+      "status": "Not tested"
+    },
+    {
+      "command": "text.listIndent",
+      "label": "Indent list",
+      "source": "crates/engine/src/cmd/text.rs",
+      "line": 490,
+      "status": "Not tested"
+    },
+    {
+      "command": "text.listOutdent",
+      "label": "Outdent list",
+      "source": "crates/engine/src/cmd/text.rs",
+      "line": 493,
+      "status": "Not tested"
+    },
+    {
+      "command": "text.edit.caret",
+      "label": "Set caret",
+      "source": "crates/engine/src/cmd/text.rs",
+      "line": 496,
+      "status": "Not tested"
+    },
+    {
+      "command": "text.edit.selectWord",
+      "label": "Select word",
+      "source": "crates/engine/src/cmd/text.rs",
+      "line": 501,
+      "status": "Not tested"
+    },
+    {
+      "command": "text.edit.selectLine",
+      "label": "Select line",
+      "source": "crates/engine/src/cmd/text.rs",
+      "line": 506,
+      "status": "Not tested"
+    },
+    {
+      "command": "text.edit.preedit",
+      "label": "Compose text (IME)",
+      "source": "crates/engine/src/cmd/text.rs",
+      "line": 511,
+      "status": "Not tested"
+    },
+    {
+      "command": "text.edit.selection",
+      "label": "Text selection",
+      "source": "crates/engine/src/cmd/text.rs",
+      "line": 522,
+      "status": "Not tested"
+    },
+    {
+      "command": "text.edit.end",
+      "label": "Stop editing text",
+      "source": "crates/engine/src/cmd/text.rs",
+      "line": 531,
+      "status": "Not tested"
+    },
+    {
+      "command": "text.openLink",
+      "label": "Open link",
+      "source": "crates/engine/src/cmd/text.rs",
+      "line": 535,
+      "status": "Not tested"
+    },
+    {
+      "command": "text.fonts",
+      "label": "List fonts",
+      "source": "crates/engine/src/cmd/text.rs",
+      "line": 561,
+      "status": "Not tested"
+    },
+    {
+      "command": "text.rescanFonts",
+      "label": "Rescan installed fonts",
+      "source": "crates/engine/src/cmd/text.rs",
+      "line": 588,
+      "status": "Not tested"
+    },
+    {
+      "command": "text.loadFont",
+      "label": "Load font file",
+      "source": "crates/engine/src/cmd/text.rs",
+      "line": 599,
+      "status": "Not tested"
+    },
+    {
+      "command": "variable.update",
+      "label": "Edit variable",
+      "source": "crates/engine/src/cmd/variables.rs",
+      "line": 20,
+      "status": "Not tested"
+    },
+    {
+      "command": "variable.duplicate",
+      "label": "Duplicate variable",
+      "source": "crates/engine/src/cmd/variables.rs",
+      "line": 27,
+      "status": "Not tested"
+    },
+    {
+      "command": "variable.renameMode",
+      "label": "Rename mode",
+      "source": "crates/engine/src/cmd/variables.rs",
+      "line": 28,
+      "status": "Not tested"
+    },
+    {
+      "command": "variable.removeMode",
+      "label": "Delete mode",
+      "source": "crates/engine/src/cmd/variables.rs",
+      "line": 29,
+      "status": "Not tested"
+    },
+    {
+      "command": "variable.moveMode",
+      "label": "Move mode",
+      "source": "crates/engine/src/cmd/variables.rs",
+      "line": 30,
+      "status": "Not tested"
+    },
+    {
+      "command": "variable.renameCollection",
+      "label": "Rename collection",
+      "source": "crates/engine/src/cmd/variables.rs",
+      "line": 31,
+      "status": "Not tested"
+    },
+    {
+      "command": "variable.deleteCollection",
+      "label": "Delete collection",
+      "source": "crates/engine/src/cmd/variables.rs",
+      "line": 32,
+      "status": "Not tested"
+    },
+    {
+      "command": "variable.resetOverride",
+      "label": "Reset variable override",
+      "source": "crates/engine/src/cmd/variables.rs",
+      "line": 39,
+      "status": "Not tested"
+    },
+    {
+      "command": "variable.extendCollection",
+      "label": "Extend collection",
+      "source": "crates/engine/src/cmd/variables.rs",
+      "line": 46,
+      "status": "Not tested"
+    },
+    {
+      "command": "variable.export",
+      "label": "Export variables",
+      "source": "crates/engine/src/cmd/variables_io.rs",
+      "line": 18,
+      "status": "Not tested"
+    },
+    {
+      "command": "variable.import",
+      "label": "Import variables",
+      "source": "crates/engine/src/cmd/variables_io.rs",
+      "line": 25,
+      "status": "Not tested"
+    },
+    {
+      "command": "view.zoomIn",
+      "label": "Zoom in",
+      "source": "crates/engine/src/cmd/view.rs",
+      "line": 231,
+      "status": "Not tested"
+    },
+    {
+      "command": "view.zoomOut",
+      "label": "Zoom out",
+      "source": "crates/engine/src/cmd/view.rs",
+      "line": 235,
+      "status": "Not tested"
+    },
+    {
+      "command": "view.zoom100",
+      "label": "Zoom to 100%",
+      "source": "crates/engine/src/cmd/view.rs",
+      "line": 239,
+      "status": "Not tested"
+    },
+    {
+      "command": "view.zoom50",
+      "label": "Zoom to 50%",
+      "source": "crates/engine/src/cmd/view.rs",
+      "line": 240,
+      "status": "Not tested"
+    },
+    {
+      "command": "view.zoom200",
+      "label": "Zoom to 200%",
+      "source": "crates/engine/src/cmd/view.rs",
+      "line": 241,
+      "status": "Not tested"
+    },
+    {
+      "command": "view.zoomFit",
+      "label": "Zoom to fit",
+      "source": "crates/engine/src/cmd/view.rs",
+      "line": 242,
+      "status": "Not tested"
+    },
+    {
+      "command": "view.zoomSelection",
+      "label": "Zoom to selection",
+      "source": "crates/engine/src/cmd/view.rs",
+      "line": 249,
+      "status": "Not tested"
+    },
+    {
+      "command": "view.set",
+      "label": "Set view",
+      "source": "crates/engine/src/cmd/view.rs",
+      "line": 256,
+      "status": "Not tested"
+    },
+    {
+      "command": "view.zoomAt",
+      "label": "Zoom tool",
+      "source": "crates/engine/src/cmd/view.rs",
+      "line": 271,
+      "status": "Not tested"
+    },
+    {
+      "command": "view.get",
+      "label": "Get view",
+      "source": "crates/engine/src/cmd/view.rs",
+      "line": 278,
+      "status": "Not tested"
+    },
+    {
+      "command": "view.prevFrame",
+      "label": "Zoom to previous frame",
+      "source": "crates/engine/src/cmd/view.rs",
+      "line": 279,
+      "status": "Not tested"
+    },
+    {
+      "command": "view.nextFrame",
+      "label": "Zoom to next frame",
+      "source": "crates/engine/src/cmd/view.rs",
+      "line": 280,
+      "status": "Not tested"
+    },
+    {
+      "command": "view.prevPage",
+      "label": "Previous page",
+      "source": "crates/engine/src/cmd/view.rs",
+      "line": 281,
+      "status": "Not tested"
+    },
+    {
+      "command": "view.nextPage",
+      "label": "Next page",
+      "source": "crates/engine/src/cmd/view.rs",
+      "line": 282,
+      "status": "Not tested"
+    },
+    {
+      "command": "view.pixelGrid",
+      "label": "Pixel grid",
+      "source": "crates/engine/src/cmd/view.rs",
+      "line": 283,
+      "status": "Not tested"
+    },
+    {
+      "command": "view.layoutGrids",
+      "label": "Layout grids",
+      "source": "crates/engine/src/cmd/view.rs",
+      "line": 284,
+      "status": "Not tested"
+    },
+    {
+      "command": "view.rulers",
+      "label": "Rulers",
+      "source": "crates/engine/src/cmd/view.rs",
+      "line": 285,
+      "status": "Not tested"
+    },
+    {
+      "command": "view.slices",
+      "label": "Slices",
+      "source": "crates/engine/src/cmd/view.rs",
+      "line": 286,
+      "status": "Not tested"
+    },
+    {
+      "command": "view.comments",
+      "label": "Comments",
+      "source": "crates/engine/src/cmd/view.rs",
+      "line": 287,
+      "status": "Not tested"
+    },
+    {
+      "command": "view.multiplayerCursors",
+      "label": "Multiplayer cursors",
+      "source": "crates/engine/src/cmd/view.rs",
+      "line": 288,
+      "status": "Not tested"
+    },
+    {
+      "command": "view.pan",
+      "label": "Pan the view",
+      "source": "crates/engine/src/cmd/view.rs",
+      "line": 291,
+      "status": "Not tested"
+    },
+    {
+      "command": "view.outlines",
+      "label": "Outlines",
+      "source": "crates/engine/src/cmd/view.rs",
+      "line": 292,
+      "status": "Not tested"
+    },
+    {
+      "command": "view.outlinesSelection",
+      "label": "Outlines for selection",
+      "source": "crates/engine/src/cmd/view.rs",
+      "line": 293,
+      "status": "Not tested"
+    },
+    {
+      "command": "view.outlinesHiddenLayers",
+      "label": "Include hidden layers in outlines",
+      "source": "crates/engine/src/cmd/view.rs",
+      "line": 296,
+      "status": "Not tested"
+    },
+    {
+      "command": "view.outlinesObjectBounds",
+      "label": "Include object bounds in outlines",
+      "source": "crates/engine/src/cmd/view.rs",
+      "line": 303,
+      "status": "Not tested"
+    },
+    {
+      "command": "view.maskOutlines",
+      "label": "Mask outlines",
+      "source": "crates/engine/src/cmd/view.rs",
+      "line": 310,
+      "status": "Not tested"
+    },
+    {
+      "command": "view.pixelPreview",
+      "label": "Pixel preview",
+      "source": "crates/engine/src/cmd/view.rs",
+      "line": 311,
+      "status": "Not tested"
+    },
+    {
+      "command": "view.frameOutlines",
+      "label": "Frame outlines",
+      "source": "crates/engine/src/cmd/view.rs",
+      "line": 312,
+      "status": "Not tested"
+    },
+    {
+      "command": "view.proofSrgb",
+      "label": "Soft-proof sRGB",
+      "source": "crates/engine/src/cmd/view.rs",
+      "line": 313,
+      "status": "Not tested"
+    },
+    {
+      "command": "view.snapGeometry",
+      "label": "Snap to geometry",
+      "source": "crates/engine/src/cmd/view.rs",
+      "line": 320,
+      "status": "Not tested"
+    },
+    {
+      "command": "view.snapObjects",
+      "label": "Snap to objects",
+      "source": "crates/engine/src/cmd/view.rs",
+      "line": 321,
+      "status": "Not tested"
+    },
+    {
+      "command": "view.snapPixel",
+      "label": "Snap to pixel grid",
+      "source": "crates/engine/src/cmd/view.rs",
+      "line": 322,
+      "status": "Not tested"
+    },
+    {
+      "command": "view.toggleUi",
+      "label": "Show/Hide UI",
+      "source": "crates/engine/src/cmd/view.rs",
+      "line": 323,
+      "status": "Not tested"
+    },
+    {
+      "command": "view.minimize",
+      "label": "Minimize the interface",
+      "source": "crates/engine/src/cmd/view.rs",
+      "line": 324,
+      "status": "Not tested"
+    },
+    {
+      "command": "view.fullscreen",
+      "label": "Full screen",
+      "source": "crates/engine/src/cmd/view.rs",
+      "line": 331,
+      "status": "Not tested"
+    },
+    {
+      "command": "view.layers",
+      "label": "Layers panel",
+      "source": "crates/engine/src/cmd/view.rs",
+      "line": 335,
+      "status": "Not tested"
+    },
+    {
+      "command": "view.assets",
+      "label": "Assets panel",
+      "source": "crates/engine/src/cmd/view.rs",
+      "line": 336,
+      "status": "Not tested"
+    },
+    {
+      "command": "view.design",
+      "label": "Design panel",
+      "source": "crates/engine/src/cmd/view.rs",
+      "line": 337,
+      "status": "Not tested"
+    },
+    {
+      "command": "view.prototype",
+      "label": "Prototype panel",
+      "source": "crates/engine/src/cmd/view.rs",
+      "line": 338,
+      "status": "Not tested"
+    },
+    {
+      "command": "view.designPrototype",
+      "label": "Switch between Design and Prototype",
+      "source": "crates/engine/src/cmd/view.rs",
+      "line": 339,
+      "status": "Not tested"
+    },
+    {
+      "command": "view.devMode",
+      "label": "Dev Mode",
+      "source": "crates/engine/src/cmd/view.rs",
+      "line": 340,
+      "status": "Not tested"
+    },
+    {
+      "command": "view.leftSidebar",
+      "label": "Show/Hide left sidebar",
+      "source": "crates/engine/src/cmd/view.rs",
+      "line": 341,
+      "status": "Not tested"
+    },
+    {
+      "command": "view.panelWidths",
+      "label": "Reset panel widths",
+      "source": "crates/engine/src/cmd/view.rs",
+      "line": 342,
+      "status": "Not tested"
+    },
+    {
+      "command": "window.new",
+      "label": "New window",
+      "source": "crates/engine/src/cmd/view.rs",
+      "line": 354,
+      "status": "Not tested"
+    },
+    {
+      "command": "window.focus",
+      "label": "Bring window to front",
+      "source": "crates/engine/src/cmd/view.rs",
+      "line": 365,
+      "status": "Not tested"
+    },
+    {
+      "command": "view.nextRegion",
+      "label": "Focus next region",
+      "source": "crates/engine/src/cmd/view.rs",
+      "line": 370,
+      "status": "Not tested"
+    },
+    {
+      "command": "view.previousRegion",
+      "label": "Focus previous region",
+      "source": "crates/engine/src/cmd/view.rs",
+      "line": 371,
+      "status": "Not tested"
+    },
+    {
+      "command": "view.contextMenu",
+      "label": "Show context menu",
+      "source": "crates/engine/src/cmd/view.rs",
+      "line": 372,
+      "status": "Not tested"
+    },
+    {
+      "command": "view.themeLight",
+      "label": "Light theme",
+      "source": "crates/engine/src/cmd/view.rs",
+      "line": 379,
+      "status": "Not tested"
+    },
+    {
+      "command": "view.themeDark",
+      "label": "Dark theme",
+      "source": "crates/engine/src/cmd/view.rs",
+      "line": 383,
+      "status": "Not tested"
+    },
+    {
+      "command": "view.themeSystem",
+      "label": "Follow system theme",
+      "source": "crates/engine/src/cmd/view.rs",
+      "line": 387,
+      "status": "Not tested"
+    },
+    {
+      "command": "pref.keepTool",
+      "label": "Keep tool selected after use",
+      "source": "crates/engine/src/cmd/view.rs",
+      "line": 391,
+      "status": "Not tested"
+    },
+    {
+      "command": "pref.highlightHover",
+      "label": "Highlight layers on hover",
+      "source": "crates/engine/src/cmd/view.rs",
+      "line": 392,
+      "status": "Not tested"
+    },
+    {
+      "command": "pref.renameDuplicates",
+      "label": "Rename duplicated layers",
+      "source": "crates/engine/src/cmd/view.rs",
+      "line": 393,
+      "status": "Not tested"
+    },
+    {
+      "command": "pref.showDimensions",
+      "label": "Show dimensions on objects",
+      "source": "crates/engine/src/cmd/view.rs",
+      "line": 394,
+      "status": "Not tested"
+    },
+    {
+      "command": "pref.numberKeysOpacity",
+      "label": "Use number keys for opacity",
+      "source": "crates/engine/src/cmd/view.rs",
+      "line": 395,
+      "status": "Not tested"
+    },
+    {
+      "command": "pref.scrollWheelZoom",
+      "label": "Scroll wheel zoom",
+      "source": "crates/engine/src/cmd/view.rs",
+      "line": 396,
+      "status": "Not tested"
+    },
+    {
+      "command": "pref.reduceMotion",
+      "label": "Reduce motion",
+      "source": "crates/engine/src/cmd/view.rs",
+      "line": 403,
+      "status": "Not tested"
+    },
+    {
+      "command": "pref.uiScale",
+      "label": "Interface size",
+      "source": "crates/engine/src/cmd/view.rs",
+      "line": 404,
+      "status": "Not tested"
+    },
+    {
+      "command": "pref.uiScaleUp",
+      "label": "Larger interface",
+      "source": "crates/engine/src/cmd/view.rs",
+      "line": 421,
+      "status": "Not tested"
+    },
+    {
+      "command": "pref.uiScaleDown",
+      "label": "Smaller interface",
+      "source": "crates/engine/src/cmd/view.rs",
+      "line": 428,
+      "status": "Not tested"
+    },
+    {
+      "command": "pref.uiScaleReset",
+      "label": "Default interface size",
+      "source": "crates/engine/src/cmd/view.rs",
+      "line": 435,
+      "status": "Not tested"
+    },
+    {
+      "command": "pref.autoSave",
+      "label": "Save files automatically",
+      "source": "crates/engine/src/cmd/view.rs",
+      "line": 436,
+      "status": "Not tested"
+    },
+    {
+      "command": "pref.startOnHome",
+      "label": "Start on the Home screen",
+      "source": "crates/engine/src/cmd/view.rs",
+      "line": 437,
+      "status": "Not tested"
+    },
+    {
+      "command": "pref.nudge",
+      "label": "Nudge amount",
+      "source": "crates/engine/src/cmd/view.rs",
+      "line": 438,
+      "status": "Not tested"
+    },
+    {
+      "command": "pref.userName",
+      "label": "Your name",
+      "source": "crates/engine/src/cmd/view.rs",
+      "line": 443,
+      "status": "Not tested"
+    },
+    {
+      "command": "pref.publishServer",
+      "label": "Server for online sharing",
+      "source": "crates/engine/src/cmd/view.rs",
+      "line": 456,
+      "status": "Not tested"
+    },
+    {
+      "command": "pref.language",
+      "label": "Interface language",
+      "source": "crates/engine/src/cmd/view.rs",
+      "line": 480,
+      "status": "Not tested"
+    },
+    {
+      "command": "app.preferences",
+      "label": "Preferences",
+      "source": "crates/engine/src/cmd/view.rs",
+      "line": 498,
+      "status": "Not tested"
+    },
+    {
+      "command": "app.actions",
+      "label": "Actions",
+      "source": "crates/engine/src/cmd/view.rs",
+      "line": 499,
+      "status": "Not tested"
+    },
+    {
+      "command": "help.shortcuts",
+      "label": "Keyboard shortcuts",
+      "source": "crates/engine/src/cmd/view.rs",
+      "line": 500,
+      "status": "Not tested"
+    },
+    {
+      "command": "help.about",
+      "label": "About FigCraft",
+      "source": "crates/engine/src/cmd/view.rs",
+      "line": 501,
+      "status": "Not tested"
+    },
+    {
+      "command": "help.page",
+      "label": "Help page",
+      "source": "crates/engine/src/cmd/view.rs",
+      "line": 502,
+      "status": "Not tested"
+    },
+    {
+      "command": "help.gettingStarted",
+      "label": "Getting started",
+      "source": "crates/engine/src/cmd/view.rs",
+      "line": 503,
+      "status": "Not tested"
+    },
+    {
+      "command": "libraries.open",
+      "label": "Libraries",
+      "source": "crates/engine/src/cmd/view.rs",
+      "line": 517,
+      "status": "Not tested"
+    },
+    {
+      "command": "tool.set",
+      "label": "Choose tool",
+      "source": "crates/engine/src/cmd/view.rs",
+      "line": 518,
+      "status": "Not tested"
+    },
+    {
+      "command": "tool.place",
+      "label": "Place with the tool",
+      "source": "crates/engine/src/cmd/view.rs",
+      "line": 532,
+      "status": "Not tested"
+    },
+    {
+      "command": "tool.pencilBrush",
+      "label": "Pencil brush",
+      "source": "crates/engine/src/cmd/view.rs",
+      "line": 547,
+      "status": "Not tested"
+    },
+    {
+      "command": "tool.scaleAnchor",
+      "label": "Scale anchor",
+      "source": "crates/engine/src/cmd/view.rs",
+      "line": 561,
+      "status": "Not tested"
+    },
+    {
+      "command": "tool.move",
+      "label": "Move",
+      "source": "crates/engine/src/cmd/view.rs",
+      "line": 576,
+      "status": "Not tested"
+    },
+    {
+      "command": "tool.scale",
+      "label": "Scale",
+      "source": "crates/engine/src/cmd/view.rs",
+      "line": 577,
+      "status": "Not tested"
+    },
+    {
+      "command": "tool.hand",
+      "label": "Hand",
+      "source": "crates/engine/src/cmd/view.rs",
+      "line": 578,
+      "status": "Not tested"
+    },
+    {
+      "command": "tool.frame",
+      "label": "Frame",
+      "source": "crates/engine/src/cmd/view.rs",
+      "line": 579,
+      "status": "Not tested"
+    },
+    {
+      "command": "tool.section",
+      "label": "Section",
+      "source": "crates/engine/src/cmd/view.rs",
+      "line": 580,
+      "status": "Not tested"
+    },
+    {
+      "command": "tool.slice",
+      "label": "Slice",
+      "source": "crates/engine/src/cmd/view.rs",
+      "line": 581,
+      "status": "Not tested"
+    },
+    {
+      "command": "tool.rectangle",
+      "label": "Rectangle",
+      "source": "crates/engine/src/cmd/view.rs",
+      "line": 582,
+      "status": "Not tested"
+    },
+    {
+      "command": "tool.line",
+      "label": "Line",
+      "source": "crates/engine/src/cmd/view.rs",
+      "line": 583,
+      "status": "Not tested"
+    },
+    {
+      "command": "tool.arrow",
+      "label": "Arrow",
+      "source": "crates/engine/src/cmd/view.rs",
+      "line": 584,
+      "status": "Not tested"
+    },
+    {
+      "command": "tool.ellipse",
+      "label": "Ellipse",
+      "source": "crates/engine/src/cmd/view.rs",
+      "line": 585,
+      "status": "Not tested"
+    },
+    {
+      "command": "tool.polygon",
+      "label": "Polygon",
+      "source": "crates/engine/src/cmd/view.rs",
+      "line": 586,
+      "status": "Not tested"
+    },
+    {
+      "command": "tool.star",
+      "label": "Star",
+      "source": "crates/engine/src/cmd/view.rs",
+      "line": 587,
+      "status": "Not tested"
+    },
+    {
+      "command": "tool.pen",
+      "label": "Pen",
+      "source": "crates/engine/src/cmd/view.rs",
+      "line": 588,
+      "status": "Not tested"
+    },
+    {
+      "command": "tool.pencil",
+      "label": "Pencil",
+      "source": "crates/engine/src/cmd/view.rs",
+      "line": 589,
+      "status": "Not tested"
+    },
+    {
+      "command": "tool.text",
+      "label": "Text",
+      "source": "crates/engine/src/cmd/view.rs",
+      "line": 590,
+      "status": "Not tested"
+    },
+    {
+      "command": "tool.textOnPath",
+      "label": "Text on a path",
+      "source": "crates/engine/src/cmd/view.rs",
+      "line": 591,
+      "status": "Not tested"
+    },
+    {
+      "command": "tool.comment",
+      "label": "Comment",
+      "source": "crates/engine/src/cmd/view.rs",
+      "line": 594,
+      "status": "Not tested"
+    },
+    {
+      "command": "tool.shapeBuilder",
+      "label": "Shape builder",
+      "source": "crates/engine/src/cmd/view.rs",
+      "line": 595,
+      "status": "Not tested"
+    },
+    {
+      "command": "edit.pickColor",
+      "label": "Pick color",
+      "source": "crates/engine/src/cmd/view.rs",
+      "line": 598,
+      "status": "Not tested"
+    },
+    {
+      "command": "data.fill",
+      "label": "Fill copies with data",
+      "source": "crates/engine/src/content/datafill.rs",
+      "line": 17,
+      "status": "Not tested"
+    },
+    {
+      "command": "template.list",
+      "label": "List templates",
+      "source": "crates/engine/src/content/templates.rs",
+      "line": 182,
+      "status": "Not tested"
+    },
+    {
+      "command": "file.newFromTemplate",
+      "label": "New from template",
+      "source": "crates/engine/src/content/templates.rs",
+      "line": 189,
+      "status": "Not tested"
+    },
+    {
+      "command": "text.fit",
+      "label": "Fit text to its box",
+      "source": "crates/engine/src/content/textfit.rs",
+      "line": 18,
+      "status": "Not tested"
+    },
+    {
+      "command": "annotation.add",
+      "label": "Add annotation",
+      "source": "crates/engine/src/dev/annotations.rs",
+      "line": 247,
+      "status": "Not tested"
+    },
+    {
+      "command": "annotation.edit",
+      "label": "Edit annotation",
+      "source": "crates/engine/src/dev/annotations.rs",
+      "line": 270,
+      "status": "Not tested"
+    },
+    {
+      "command": "annotation.remove",
+      "label": "Remove annotation",
+      "source": "crates/engine/src/dev/annotations.rs",
+      "line": 298,
+      "status": "Not tested"
+    },
+    {
+      "command": "annotation.list",
+      "label": "List annotations",
+      "source": "crates/engine/src/dev/annotations.rs",
+      "line": 318,
+      "status": "Not tested"
+    },
+    {
+      "command": "annotation.categories",
+      "label": "Annotation categories",
+      "source": "crates/engine/src/dev/annotations.rs",
+      "line": 355,
+      "status": "Not tested"
+    },
+    {
+      "command": "annotation.addCategory",
+      "label": "Add annotation category",
+      "source": "crates/engine/src/dev/annotations.rs",
+      "line": 377,
+      "status": "Not tested"
+    },
+    {
+      "command": "annotation.editCategory",
+      "label": "Edit annotation category",
+      "source": "crates/engine/src/dev/annotations.rs",
+      "line": 400,
+      "status": "Not tested"
+    },
+    {
+      "command": "annotation.removeCategory",
+      "label": "Delete annotation category",
+      "source": "crates/engine/src/dev/annotations.rs",
+      "line": 422,
+      "status": "Not tested"
+    },
+    {
+      "command": "codeConnect.set",
+      "label": "Connect to code",
+      "source": "crates/engine/src/dev/code_connect.rs",
+      "line": 558,
+      "status": "Not tested"
+    },
+    {
+      "command": "codeConnect.remove",
+      "label": "Disconnect from code",
+      "source": "crates/engine/src/dev/code_connect.rs",
+      "line": 584,
+      "status": "Not tested"
+    },
+    {
+      "command": "codeConnect.export",
+      "label": "Export code connections",
+      "source": "crates/engine/src/dev/code_connect.rs",
+      "line": 606,
+      "status": "Not tested"
+    },
+    {
+      "command": "codeConnect.import",
+      "label": "Import code connections",
+      "source": "crates/engine/src/dev/code_connect.rs",
+      "line": 639,
+      "status": "Not tested"
+    },
+    {
+      "command": "inspect.code",
+      "label": "Code for layer",
+      "source": "crates/engine/src/dev/codegen.rs",
+      "line": 41,
+      "status": "Not tested"
+    },
+    {
+      "command": "inspect.componentCode",
+      "label": "Component code",
+      "source": "crates/engine/src/dev/component_codegen.rs",
+      "line": 70,
+      "status": "Not tested"
+    },
+    {
+      "command": "devMode.addMeasurement",
+      "label": "Add measurement",
+      "source": "crates/engine/src/dev/dev_measurements.rs",
+      "line": 200,
+      "status": "Not tested"
+    },
+    {
+      "command": "devMode.removeMeasurement",
+      "label": "Remove measurement",
+      "source": "crates/engine/src/dev/dev_measurements.rs",
+      "line": 207,
+      "status": "Not tested"
+    },
+    {
+      "command": "devMode.measurements",
+      "label": "List measurements",
+      "source": "crates/engine/src/dev/dev_measurements.rs",
+      "line": 214,
+      "status": "Not tested"
+    },
+    {
+      "command": "devResource.add",
+      "label": "Add dev resource",
+      "source": "crates/engine/src/dev/dev_resources.rs",
+      "line": 144,
+      "status": "Not tested"
+    },
+    {
+      "command": "devResource.edit",
+      "label": "Edit dev resource",
+      "source": "crates/engine/src/dev/dev_resources.rs",
+      "line": 162,
+      "status": "Not tested"
+    },
+    {
+      "command": "devResource.remove",
+      "label": "Remove dev resource",
+      "source": "crates/engine/src/dev/dev_resources.rs",
+      "line": 180,
+      "status": "Not tested"
+    },
+    {
+      "command": "devResource.list",
+      "label": "List dev resources",
+      "source": "crates/engine/src/dev/dev_resources.rs",
+      "line": 207,
+      "status": "Not tested"
+    },
+    {
+      "command": "inspect.readyForDev",
+      "label": "Ready for dev",
+      "source": "crates/engine/src/dev/devinspect.rs",
+      "line": 278,
+      "status": "Not tested"
+    },
+    {
+      "command": "inspect.assets",
+      "label": "Inspect assets",
+      "source": "crates/engine/src/dev/devinspect.rs",
+      "line": 308,
+      "status": "Not tested"
+    },
+    {
+      "command": "inspect.properties",
+      "label": "Inspect properties",
+      "source": "crates/engine/src/dev/devinspect.rs",
+      "line": 318,
+      "status": "Not tested"
+    },
+    {
+      "command": "plugin.directory.list",
+      "label": "Browse plugin directory",
+      "source": "crates/engine/src/extensions/plugin_directory.rs",
+      "line": 288,
+      "status": "Not tested"
+    },
+    {
+      "command": "plugin.directory.install",
+      "label": "Install plugin from directory",
+      "source": "crates/engine/src/extensions/plugin_directory.rs",
+      "line": 295,
+      "status": "Not tested"
+    },
+    {
+      "command": "plugin.directory.publish",
+      "label": "Publish plugin to directory",
+      "source": "crates/engine/src/extensions/plugin_directory.rs",
+      "line": 302,
+      "status": "Not tested"
+    },
+    {
+      "command": "plugin.directory.unpublish",
+      "label": "Unpublish plugin from directory",
+      "source": "crates/engine/src/extensions/plugin_directory.rs",
+      "line": 309,
+      "status": "Not tested"
+    },
+    {
+      "command": "plugin.list",
+      "label": "List plugins",
+      "source": "crates/engine/src/extensions/plugins.rs",
+      "line": 665,
+      "status": "Not tested"
+    },
+    {
+      "command": "plugin.import",
+      "label": "Import plugin from manifest\u2026",
+      "source": "crates/engine/src/extensions/plugins.rs",
+      "line": 666,
+      "status": "Not tested"
+    },
+    {
+      "command": "plugin.remove",
+      "label": "Remove plugin",
+      "source": "crates/engine/src/extensions/plugins.rs",
+      "line": 673,
+      "status": "Not tested"
+    },
+    {
+      "command": "plugin.run",
+      "label": "Run plugin",
+      "source": "crates/engine/src/extensions/plugins.rs",
+      "line": 674,
+      "status": "Not tested"
+    },
+    {
+      "command": "plugin.ui",
+      "label": "Plugin panel",
+      "source": "crates/engine/src/extensions/plugins.rs",
+      "line": 681,
+      "status": "Not tested"
+    },
+    {
+      "command": "plugin.event",
+      "label": "Use plugin panel control",
+      "source": "crates/engine/src/extensions/plugins.rs",
+      "line": 688,
+      "status": "Not tested"
+    },
+    {
+      "command": "plugin.close",
+      "label": "Close plugin panel",
+      "source": "crates/engine/src/extensions/plugins.rs",
+      "line": 695,
+      "status": "Not tested"
+    },
+    {
+      "command": "plugins.runLast",
+      "label": "Run last plugin",
+      "source": "crates/engine/src/extensions/plugins.rs",
+      "line": 696,
+      "status": "Not tested"
+    },
+    {
+      "command": "plugins.manage",
+      "label": "Manage plugins\u2026",
+      "source": "crates/engine/src/extensions/plugins.rs",
+      "line": 697,
+      "status": "Not tested"
+    },
+    {
+      "command": "widget.insert",
+      "label": "Insert widget",
+      "source": "crates/engine/src/extensions/widgets.rs",
+      "line": 565,
+      "status": "Not tested"
+    },
+    {
+      "command": "widget.click",
+      "label": "Click widget",
+      "source": "crates/engine/src/extensions/widgets.rs",
+      "line": 572,
+      "status": "Not tested"
+    },
+    {
+      "command": "widget.setText",
+      "label": "Edit widget field",
+      "source": "crates/engine/src/extensions/widgets.rs",
+      "line": 579,
+      "status": "Not tested"
+    },
+    {
+      "command": "widget.menu",
+      "label": "Widget menu",
+      "source": "crates/engine/src/extensions/widgets.rs",
+      "line": 586,
+      "status": "Not tested"
+    },
+    {
+      "command": "widget.hover",
+      "label": "Hover widget",
+      "source": "crates/engine/src/extensions/widgets.rs",
+      "line": 593,
+      "status": "Not tested"
+    },
+    {
+      "command": "widget.list",
+      "label": "List widgets",
+      "source": "crates/engine/src/extensions/widgets.rs",
+      "line": 604,
+      "status": "Not tested"
+    },
+    {
+      "command": "font.download",
+      "label": "Download font",
+      "source": "crates/engine/src/fonts/download.rs",
+      "line": 146,
+      "status": "Not tested"
+    },
+    {
+      "command": "font.downloads",
+      "label": "Font downloads",
+      "source": "crates/engine/src/fonts/download.rs",
+      "line": 153,
+      "status": "Not tested"
+    },
+    {
+      "command": "text.missingFonts",
+      "label": "Missing fonts",
+      "source": "crates/engine/src/fonts.rs",
+      "line": 184,
+      "status": "Not tested"
+    },
+    {
+      "command": "text.refit",
+      "label": "Fit text to fonts",
+      "source": "crates/engine/src/fonts.rs",
+      "line": 191,
+      "status": "Not tested"
+    },
+    {
+      "command": "selection.colors",
+      "label": "Selection colors",
+      "source": "crates/engine/src/selection/selection_colors.rs",
+      "line": 119,
+      "status": "Not tested"
+    },
+    {
+      "command": "selection.setPaint",
+      "label": "Change selection color",
+      "source": "crates/engine/src/selection/selection_colors.rs",
+      "line": 126,
+      "status": "Not tested"
+    },
+    {
+      "command": "selection.applyColorStyle",
+      "label": "Apply selection color style",
+      "source": "crates/engine/src/selection/selection_colors.rs",
+      "line": 127,
+      "status": "Not tested"
+    },
+    {
+      "command": "selection.bindColorVariable",
+      "label": "Apply selection color variable",
+      "source": "crates/engine/src/selection/selection_colors.rs",
+      "line": 134,
+      "status": "Not tested"
+    },
+    {
+      "command": "selection.detachColor",
+      "label": "Detach selection color",
+      "source": "crates/engine/src/selection/selection_colors.rs",
+      "line": 141,
+      "status": "Not tested"
+    },
+    {
+      "command": "selection.selectColor",
+      "label": "Select layers with color",
+      "source": "crates/engine/src/selection/selection_colors.rs",
+      "line": 148,
+      "status": "Not tested"
+    },
+    {
+      "command": "branch.create",
+      "label": "Create branch",
+      "source": "crates/engine/src/sharing/branches.rs",
+      "line": 35,
+      "status": "Not tested"
+    },
+    {
+      "command": "branch.list",
+      "label": "List branches",
+      "source": "crates/engine/src/sharing/branches.rs",
+      "line": 42,
+      "status": "Not tested"
+    },
+    {
+      "command": "branch.open",
+      "label": "Open branch",
+      "source": "crates/engine/src/sharing/branches.rs",
+      "line": 49,
+      "status": "Not tested"
+    },
+    {
+      "command": "branch.review",
+      "label": "Review branch",
+      "source": "crates/engine/src/sharing/branches.rs",
+      "line": 54,
+      "status": "Not tested"
+    },
+    {
+      "command": "branch.updateFromMain",
+      "label": "Update from main",
+      "source": "crates/engine/src/sharing/branches.rs",
+      "line": 61,
+      "status": "Not tested"
+    },
+    {
+      "command": "branch.merge",
+      "label": "Merge branch",
+      "source": "crates/engine/src/sharing/branches.rs",
+      "line": 68,
+      "status": "Not tested"
+    },
+    {
+      "command": "branch.archive",
+      "label": "Archive branch",
+      "source": "crates/engine/src/sharing/branches.rs",
+      "line": 75,
+      "status": "Not tested"
+    },
+    {
+      "command": "collab.diff",
+      "label": "Show sync changes",
+      "source": "crates/engine/src/sharing/collab.rs",
+      "line": 27,
+      "status": "Not tested"
+    },
+    {
+      "command": "collab.registerLinks",
+      "label": "Open invite links in FigCraft",
+      "source": "crates/engine/src/sharing/invite_links.rs",
+      "line": 73,
+      "status": "Not tested"
+    },
+    {
+      "command": "collab.host",
+      "label": "Start live session",
+      "source": "crates/engine/src/sharing/live/join.rs",
+      "line": 167,
+      "status": "Not tested"
+    },
+    {
+      "command": "collab.share",
+      "label": "Share with a join code",
+      "source": "crates/engine/src/sharing/live/join.rs",
+      "line": 174,
+      "status": "Not tested"
+    },
+    {
+      "command": "collab.stop",
+      "label": "Stop live session",
+      "source": "crates/engine/src/sharing/live/join.rs",
+      "line": 181,
+      "status": "Not tested"
+    },
+    {
+      "command": "collab.join",
+      "label": "Join live session",
+      "source": "crates/engine/src/sharing/live/join.rs",
+      "line": 188,
+      "status": "Not tested"
+    },
+    {
+      "command": "collab.leave",
+      "label": "Leave live session",
+      "source": "crates/engine/src/sharing/live/join.rs",
+      "line": 195,
+      "status": "Not tested"
+    },
+    {
+      "command": "collab.publish",
+      "label": "Publish to server",
+      "source": "crates/engine/src/sharing/live/join.rs",
+      "line": 202,
+      "status": "Not tested"
+    },
+    {
+      "command": "collab.serverInfo",
+      "label": "Server info",
+      "source": "crates/engine/src/sharing/live/join.rs",
+      "line": 209,
+      "status": "Not tested"
+    },
+    {
+      "command": "collab.manageFile",
+      "label": "Manage published file",
+      "source": "crates/engine/src/sharing/live/join.rs",
+      "line": 216,
+      "status": "Not tested"
+    },
+    {
+      "command": "collab.report",
+      "label": "Report file to server operator",
+      "source": "crates/engine/src/sharing/live/join.rs",
+      "line": 223,
+      "status": "Not tested"
+    },
+    {
+      "command": "collab.peers",
+      "label": "People in this file",
+      "source": "crates/engine/src/sharing/live/join.rs",
+      "line": 230,
+      "status": "Not tested"
+    },
+    {
+      "command": "collab.follow",
+      "label": "Follow",
+      "source": "crates/engine/src/sharing/live/join.rs",
+      "line": 237,
+      "status": "Not tested"
+    },
+    {
+      "command": "collab.removePerson",
+      "label": "Remove from session",
+      "source": "crates/engine/src/sharing/live/join.rs",
+      "line": 238,
+      "status": "Not tested"
+    },
+    {
+      "command": "collab.cursor",
+      "label": "Show cursor at",
+      "source": "crates/engine/src/sharing/live/join.rs",
+      "line": 245,
+      "status": "Not tested"
+    },
+    {
+      "command": "collab.cursorChat",
+      "label": "Cursor chat",
+      "source": "crates/engine/src/sharing/live/join.rs",
+      "line": 252,
+      "status": "Not tested"
+    },
+    {
+      "command": "collab.spotlight",
+      "label": "Spotlight me",
+      "source": "crates/engine/src/sharing/live/join.rs",
+      "line": 259,
+      "status": "Not tested"
+    },
+    {
+      "command": "collab.files",
+      "label": "Your online files",
+      "source": "crates/engine/src/sharing/online.rs",
+      "line": 627,
+      "status": "Not tested"
+    },
+    {
+      "command": "collab.openFile",
+      "label": "Open online file",
+      "source": "crates/engine/src/sharing/online.rs",
+      "line": 634,
+      "status": "Not tested"
+    },
+    {
+      "command": "collab.forgetFile",
+      "label": "Forget online file",
+      "source": "crates/engine/src/sharing/online.rs",
+      "line": 641,
+      "status": "Not tested"
+    },
+    {
+      "command": "collab.recoverFile",
+      "label": "Recover online file",
+      "source": "crates/engine/src/sharing/online.rs",
+      "line": 648,
+      "status": "Not tested"
+    }
+  ]
+}

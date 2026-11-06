@@ -1,6 +1,6 @@
 {
   "name": "@glowplug-studio/figcraft-react",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": true,
   "type": "module",
   "workspaces": [
@@ -56,10 +56,16 @@
     "@types/react": "19.2.2",
     "@types/react-dom": "19.2.2",
     "@vitejs/plugin-react": "6.2.1",
+    "fake-indexeddb": "6.2.7",
     "react": "19.3.1",
     "react-dom": "19.3.1",
     "typescript": "7.0.2",
     "vite": "8.3.6",
     "vitest": "5.1.0"
+  },
+  "dependencies": {
+    "@zip.js/zip.js": "2.24.0",
+    "fflate": "0.8.3",
+    "lossless-json": "4.3.3"
   }
 }

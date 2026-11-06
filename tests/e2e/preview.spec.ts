@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { readFile } from "node:fs/promises";
 import { expect, test, type Page } from "@playwright/test";
 import { localSupabase } from "../support/localSupabase";
 
@@ -158,4 +159,52 @@ test("unavailable Canvas 2D reports an accessible error", async ({ page }) => {
   });
   await login(page);
   await expect(page.locator("main [role=alert]")).toContainText("Canvas 2D is unavailable");
+});
+
+test("native download, cancelled replacement, reopen and recovery after reload", async ({ page }) => {
+  const errors: string[] = [];
+  page.on("pageerror", error => errors.push(error.message));
+  page.on("requestfailed", request => { if (!request.failure()?.errorText.includes("ERR_ABORTED")) errors.push(request.failure()?.errorText ?? "Request failed"); });
+  await login(page);
+  await page.getByRole("button", { name: "Create rectangle", exact: true }).click();
+  await expect(page.getByText("Recovery saved on this device", { exact: true })).toBeVisible();
+  const downloadEvent = page.waitForEvent("download");
+  await page.getByRole("button", { name: "Save as", exact: true }).click();
+  const download = await downloadEvent;
+  expect(download.suggestedFilename()).toBe("Untitled.figcraft");
+  expect(await download.failure()).toBeNull();
+  const bytes = await readFile((await download.path())!);
+  expect(bytes.subarray(0, 2).toString()).toBe("PK");
+  await expect(page.getByText("Downloaded · Local document", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Create rectangle", exact: true }).click();
+  const input = page.getByLabel("Open Figcraft file", { exact: true });
+  const file = { name: "roundtrip.figcraft", mimeType: "application/octet-stream", buffer: bytes };
+  await input.setInputFiles(file);
+  await expect(page.getByRole("dialog", { name: "Replace unsaved document" })).toBeVisible();
+  await page.getByRole("button", { name: "Cancel", exact: true }).click();
+  await expect(page.getByText("2 layers", { exact: true })).toBeVisible();
+  await input.setInputFiles(file);
+  await page.getByRole("button", { name: "Replace document", exact: true }).click();
+  await expect(page.getByText("1 layer", { exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Undo", exact: true })).toBeDisabled();
+  await expect(page.getByText("Recovery saved on this device", { exact: true })).toBeVisible();
+  await page.reload();
+  await expect(page.getByText("1 layer", { exact: true })).toBeVisible();
+  await expect(page.getByText("Unsaved · Local document", { exact: true })).toBeVisible();
+  await input.setInputFiles({ name: "invalid.figcraft", mimeType: "application/octet-stream", buffer: Buffer.from("broken") });
+  await page.getByRole("button", { name: "Replace document", exact: true }).click();
+  await expect(page.locator("main [role=alert]")).toContainText("Cannot open Figcraft file");
+  await expect(page.getByText("1 layer", { exact: true })).toBeVisible();
+  expect(errors).toEqual([]);
+});
+
+test("unavailable recovery storage reports the failure without blocking editing or download", async ({ page }) => {
+  await page.addInitScript(() => { Object.defineProperty(window, "indexedDB", { get() { throw new Error("Storage access denied"); } }); });
+  await login(page);
+  await expect(page.locator("main [role=alert]")).toContainText("Recovery unavailable: Storage access denied");
+  await page.getByRole("button", { name: "Create rectangle", exact: true }).click();
+  await expect(page.getByText("1 layer", { exact: true })).toBeVisible();
+  const download = page.waitForEvent("download");
+  await page.getByRole("button", { name: "Save as", exact: true }).click();
+  expect(await (await download).failure()).toBeNull();
 });

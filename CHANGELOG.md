@@ -2,6 +2,15 @@
 
 All notable changes to the React port and its upstream compatibility baseline are recorded here.
 
+## [0.3.0] - 2026-11-06
+
+The reference baseline remains `8eb0b87646c5aef712326d6c431ccde5408630de`; the full port is in progress. The synchronised `0b97f3f1` reference changes house rules only.
+
+- Added native version-1 page/rectangle JSON and ZIP opening and download, exact u64 identifiers, bounded decompression, CRC32 integrity and atomic failure handling.
+- Added captured-revision save acknowledgement and principal-scoped IndexedDB recovery across reloads, with explicit storage failures.
+- Added full-product source/command inventories and a continuing dependency roadmap. Non-rectangle document properties, resources, history and branches remain unsupported by this bounded codec and are rejected explicitly.
+- Browser downloads acknowledge hand-off to the browser; the browser does not report whether the user retained the file. Recovery is local device storage, not online file persistence.
+
 ## [0.2.0] - 2026-11-06
 
 Reference upstream remains Figcraft `8eb0b87646c5aef712326d6c431ccde5408630de`.
