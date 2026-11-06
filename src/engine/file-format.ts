@@ -1,7 +1,7 @@
 import { Unzip, UnzipInflate, ZipPassThrough, zipSync } from "fflate";
 import { Uint8ArrayReader, ZipReader } from "@zip.js/zip.js/lib/zip-core-native.js";
 import { isLosslessNumber, LosslessNumber, parse, stringify } from "lossless-json";
-import { rectangleTransform, withRectangleTransform, rectanglePaints, withRectanglePaints, pageColour, withPageColour, type Document, type DocumentNode } from "./document";
+import { layerTransform, withLayerTransform, rectanglePaints, withRectanglePaints, pageColour, withPageColour, type Document, type DocumentNode } from "./document";
 import { parseColour } from "./colour-css";
 import type { Colour } from "./colour";
 import { readSolidPaints } from "./solid-paint";
@@ -9,7 +9,7 @@ import { transformBounds, type Affine } from "./affine";
 
 /** A deliberately bounded adapter for native format v1, not full archive parity.
  * Source: original/figcraft/crates/{format/src/lib.rs,doc/src/{lib,node,props}.rs}.
- * Only pages and affine rectangles with solid paints are editable here.
+ * Only pages, affine groups and rectangles with solid paints are editable here.
  * Unsupported data is rejected, never opened and silently discarded on save.
  * Browser limits are intentionally below native's: 16 MiB and 10,000 nodes.
  * zip.js reads ZIP metadata; fflate bounds inflation and computes CRC32.
@@ -17,6 +17,7 @@ import { transformBounds, type Affine } from "./affine";
 export const FIGCRAFT_FILE_LIMIT = 16 * 1024 * 1024;
 export const MAX_FILE_BYTES = FIGCRAFT_FILE_LIMIT;
 export const FIGCRAFT_NODE_LIMIT = 10_000;
+export const FIGCRAFT_TREE_DEPTH_LIMIT = 256;
 const U64_MAX = 18_446_744_073_709_551_615n;
 type ObjectValue = Record<string, unknown>;
 export interface DecodedFigcraft { document: Document; nextId: string }
@@ -117,7 +118,7 @@ function decodeDocument(raw: unknown): DecodedFigcraft {
     maximum = BigInt(key) > maximum ? BigInt(key) : maximum;
     const n = object(value, `node ${key}`), kind = n.type;
     if (id(n.id, "node ID") !== key) fail(`node ${key} has a mismatched ID`);
-    if (kind !== "page" && kind !== "rectangle") fail(`node type ${String(kind)} is not supported yet`);
+    if (kind !== "page" && kind !== "group" && kind !== "rectangle") fail(`node type ${String(kind)} is not supported yet`);
     fields(n, ["id", "name", "type", "parent", "children", "transform", "width", "height", "fills", "blend", ...(kind === "page" ? ["background", "flows", "prototype"] : ["visible", "locked", "opacity"])], nodeDefaults, `node ${key}`);
     const name = text(n.name, "node name"), width = number(n.width, "width"), height = number(n.height, "height");
     if (width < 0 || height < 0) fail("negative dimensions are not supported yet");
@@ -141,8 +142,8 @@ function decodeDocument(raw: unknown): DecodedFigcraft {
       }
       nodes[key] = withPageColour({ id: key, kind, name, parent: null, children: Object.freeze(children), background: "#f5f5f5" }, nativeColour(n.background ?? "#f5f5f5", "page background"));
     } else {
-      if (children.length) fail("rectangle children are not supported yet");
-      if (n.blend !== undefined && n.blend !== "normal" && n.blend !== "passThrough") fail("rectangle blend is not supported yet");
+      if (kind === "rectangle" && children.length) fail("rectangle children are not supported yet");
+      if (n.blend !== undefined && n.blend !== "normal" && n.blend !== "passThrough") fail(`${kind} blend is not supported yet`);
       if (n.visible !== undefined && typeof n.visible !== "boolean" || n.locked !== undefined && typeof n.locked !== "boolean") fail("node visibility/lock must be boolean");
       const opacity = Math.fround(number(n.opacity ?? 1, "node opacity"));
       if (!Number.isFinite(opacity)) fail("node opacity is outside the native finite range");
@@ -150,19 +151,28 @@ function decodeDocument(raw: unknown): DecodedFigcraft {
         try { return readSolidPaints(appearanceValue(n.fills ?? [])); }
         catch (error) { return fail(error instanceof Error ? error.message : "Invalid paints"); }
       })();
-      nodes[key] = withRectanglePaints(withRectangleTransform({ id: key, kind, name, parent: id(n.parent, "rectangle parent"), x: transform[4]!, y: transform[5]!, width, height, fill: "transparent",
-        ...(n.visible === false ? { visible: false } : {}), ...(n.locked === true ? { locked: true } : {}), ...(opacity !== 1 ? { opacity } : {}) }, matrix), paints);
+      const layer = { id: key, kind, name, parent: id(n.parent, `${kind} parent`), x: transform[4]!, y: transform[5]!, width, height, fill: "transparent",
+        ...(n.visible === false ? { visible: false } : {}), ...(n.locked === true ? { locked: true } : {}), ...(opacity !== 1 ? { opacity } : {}),
+        ...(n.blend !== undefined && n.blend !== (kind === "group" ? "passThrough" : "normal") ? { blend: n.blend as "normal" | "passThrough" } : {}) };
+      nodes[key] = kind === "group"
+        ? Object.freeze({ ...withRectanglePaints(withLayerTransform({ ...layer, kind, children: Object.freeze(children), blend: (n.blend ?? "passThrough") as "normal" | "passThrough" }, matrix), paints), fills: paints })
+        : withRectanglePaints(withLayerTransform({ ...layer, kind }, matrix), paints);
     }
   }
   const referenced = new Set<string>();
   for (const pageId of pages) {
     const page = nodes[pageId];
     if (!page || page.kind !== "page") fail("page list refers to a missing or non-page node");
+    if (referenced.has(pageId)) fail("duplicate page root");
     referenced.add(pageId);
-    for (const childId of page.children) {
+    const pending = page.children.map(childId => ({ childId, parentId: pageId, depth: 1 }));
+    while (pending.length) {
+      const { childId, parentId, depth } = pending.pop()!;
+      if (depth > FIGCRAFT_TREE_DEPTH_LIMIT) fail(`layer tree exceeds the maximum depth of ${FIGCRAFT_TREE_DEPTH_LIMIT}`);
       const child = nodes[childId];
-      if (!child || child.kind !== "rectangle" || child.parent !== pageId || referenced.has(childId)) fail("invalid, repeated or cyclic child relationship");
+      if (!child || child.kind === "page" || child.parent !== parentId || referenced.has(childId)) fail("invalid, repeated or cyclic child relationship");
       referenced.add(childId);
+      if (child.kind === "group") for (const grandchild of child.children) pending.push({ childId: grandchild, parentId: childId, depth: depth + 1 });
     }
   }
   if (referenced.size !== entries.length) fail("unlisted pages or orphan nodes");
@@ -243,7 +253,8 @@ export async function encodeFigcraft(document: Document, nextId?: string): Promi
     if (node.kind === "page") {
       nodes[key] = { ...common, width: 0, height: 0, children: node.children.map(wireId), background: pageColour(node) };
     } else {
-      nodes[key] = { ...common, parent: wireId(node.parent), transform: rectangleTransform(node), width: node.width, height: node.height, blend: "normal", visible: node.visible ?? true, locked: node.locked ?? false, opacity: node.opacity ?? 1, fills: rectanglePaints(node) };
+      nodes[key] = { ...common, parent: wireId(node.parent), ...(node.kind === "group" ? { children: node.children.map(wireId) } : {}), transform: layerTransform(node), width: node.width, height: node.height,
+        blend: node.blend ?? (node.kind === "group" ? "passThrough" : "normal"), visible: node.visible ?? true, locked: node.locked ?? false, opacity: node.opacity ?? 1, fills: rectanglePaints(node) };
     }
   }
   const minimum = maximum < U64_MAX ? maximum + 1n : U64_MAX;

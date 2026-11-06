@@ -10,6 +10,16 @@ let email: string;
 let password: string;
 let userId: string | undefined;
 let backend: ReturnType<typeof localSupabase> | undefined;
+const browserFailures = new WeakMap<Page, string[]>();
+test.beforeEach(({ page }) => {
+  const failures: string[] = []; browserFailures.set(page, failures);
+  page.on("pageerror", error => failures.push(error.message));
+  page.on("requestfailed", request => {
+    const reason = request.failure()?.errorText;
+    if (reason && !reason.includes("ERR_ABORTED")) failures.push(reason);
+  });
+});
+test.afterEach(({ page }) => { expect(browserFailures.get(page)).toEqual([]); });
 test.beforeAll(async () => {
   if (process.env.PLAYWRIGHT_BASE_URL) {
     email = process.env.FIGCRAFT_E2E_EMAIL ?? "";
@@ -387,7 +397,7 @@ test("transparent page redraw and hidden or locked layers bypass pointer and sel
   const canvas = page.getByLabel("Design canvas", { exact: true });
   const bounds = (await canvas.boundingBox())!;
   await page.mouse.click(bounds.x + 80, bounds.y + 80);
-  await expect(layers.nth(0)).toHaveAttribute("aria-current", "true");
+  await expect(layers.nth(1)).toHaveAttribute("aria-current", "true");
   await appearance.getByLabel("Visible", { exact: true }).uncheck();
   await page.mouse.click(bounds.x + 80, bounds.y + 80);
   await expect(page.getByRole("region", { name: "Selected rectangle" })).toHaveCount(0);
@@ -433,4 +443,112 @@ test("rotation edits preserve centre, pixels, undo and native recovery with poin
   await canvas.focus(); await page.keyboard.press("ControlOrMeta+a");
   await expect(page.getByRole("region", { name: "Selected rectangle" })).toBeVisible();
   expect(errors).toEqual([]);
+});
+
+async function createNamedRectangle(page: Page, name: string, x: number, y: number, width = 60, height = 40) {
+  const creation = page.getByRole("group", { name: "Create rectangle", exact: true });
+  for (const [label, value] of [["X", x], ["Y", y], ["Width", width], ["Height", height]] as const) {
+    await creation.getByLabel(label, { exact: true }).fill(String(value));
+  }
+  await page.getByRole("button", { name: "Create rectangle", exact: true }).click();
+  const appearance = page.getByRole("region", { name: "Appearance" });
+  await appearance.getByLabel("Name", { exact: true }).fill(name);
+  await appearance.getByRole("button", { name: "Apply layer" }).click();
+}
+
+test("layer tree groups named rectangles, composites opacity once, and survives undo, native save and recovery", async ({ page }) => {
+  await login(page);
+  await createNamedRectangle(page, "Back", 40, 40);
+  await createNamedRectangle(page, "Front", 70, 40);
+  const layers = page.getByRole("region", { name: "Layers" });
+  await expect(layers.getByRole("button", { name: "Front", exact: true })).toBeVisible();
+  await page.getByLabel("Design canvas", { exact: true }).focus();
+  await page.keyboard.press("ControlOrMeta+a");
+  await layers.getByRole("button", { name: "Group", exact: true }).click();
+  const group = layers.locator('li[data-layer-id]').filter({ has: page.getByRole("button", { name: "Group 1", exact: true }) }).first();
+  await expect(group).toHaveAttribute("aria-current", "true");
+  await expect(group.getByRole("list", { name: "Children of Group 1" }).locator('li[data-layer-id] button:not([aria-label])')).toHaveText(["Front", "Back"]);
+  const appearance = page.getByRole("region", { name: "Appearance" });
+  await appearance.getByLabel("Node opacity").fill("0.5");
+  await appearance.getByRole("button", { name: "Apply layer" }).click();
+  await expectCanvasPixel(page, 80, 60, [231, 231, 231, 255]);
+  await page.getByRole("button", { name: "Undo", exact: true }).click();
+  await expectCanvasPixel(page, 80, 60, [217, 217, 217, 255]);
+  await page.getByRole("button", { name: "Redo", exact: true }).click();
+  await expectCanvasPixel(page, 80, 60, [231, 231, 231, 255]);
+  const downloadEvent = page.waitForEvent("download");
+  await page.getByRole("button", { name: "Save as", exact: true }).click();
+  const bytes = await readFile((await (await downloadEvent).path())!);
+  const native = await decodeFigcraft(bytes);
+  const root = native.document.nodes[native.document.currentPage];
+  if (root.kind !== "page") throw new Error("Expected page");
+  expect(root.children).toHaveLength(1);
+  const savedGroup = native.document.nodes[root.children[0]];
+  expect(savedGroup.kind).toBe("group");
+  await expect(page.getByText("Recovery saved on this device", { exact: true })).toBeVisible();
+  await page.reload();
+  await expect(layers.getByRole("button", { name: "Group 1", exact: true })).toBeVisible();
+  await expectCanvasPixel(page, 80, 60, [231, 231, 231, 255]);
+  await page.screenshot({ path: "test-results/nested-groups-desktop.png", fullPage: true });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.locator(".figcraft-mobile-layers > summary").click();
+  await expect(page.locator(".figcraft-mobile-layers").getByRole("button", { name: "Group 1", exact: true })).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+});
+
+test("nested group editing, ungrouping and move validation preserve the layer tree", async ({ page }) => {
+  await login(page);
+  await createNamedRectangle(page, "Inner", 40, 40, 50, 30);
+  const layers = page.getByRole("region", { name: "Layers" });
+  await layers.getByRole("button", { name: "Group", exact: true }).click();
+  await layers.getByRole("button", { name: "Group", exact: true }).click();
+  await expect(layers.getByRole("list", { name: "Children of Group 2" }).getByRole("button", { name: "Group 1", exact: true })).toBeVisible();
+  await layers.getByRole("button", { name: "Group 2", exact: true }).click();
+  await page.getByLabel("Rotation", { exact: true }).fill("30");
+  await page.getByRole("button", { name: "Apply geometry", exact: true }).click();
+  await layers.getByRole("button", { name: "Inner", exact: true }).click();
+  const x = Number(await page.getByLabel("Edit X", { exact: true }).inputValue());
+  await page.getByLabel("Edit X", { exact: true }).fill(String(x + 20));
+  await page.getByRole("button", { name: "Apply geometry", exact: true }).click();
+  await expect.poll(async () => Number(await page.getByLabel("Edit X", { exact: true }).inputValue())).toBeCloseTo(x + 20, 9);
+  const canvas = page.getByLabel("Design canvas", { exact: true });
+  const bounds = (await canvas.boundingBox())!;
+  await page.mouse.click(bounds.x + 300, bounds.y + 300);
+  const pixels = await canvas.evaluate((node: HTMLCanvasElement) => [[70, 55], [80, 65], [100, 75]].map(([x, y]) => Array.from(node.getContext("2d")!.getImageData(x, y, 1, 1).data)));
+  await layers.getByRole("button", { name: "Group 2", exact: true }).click();
+  await layers.getByRole("button", { name: "Ungroup", exact: true }).click();
+  await expect(layers.getByRole("button", { name: "Group 2", exact: true })).toHaveCount(0);
+  await page.mouse.click(bounds.x + 300, bounds.y + 300);
+  const after = await canvas.evaluate((node: HTMLCanvasElement) => [[70, 55], [80, 65], [100, 75]].map(([x, y]) => Array.from(node.getContext("2d")!.getImageData(x, y, 1, 1).data)));
+  expect(after).toEqual(pixels);
+  await layers.getByRole("button", { name: "Group 1", exact: true }).click();
+  const groupId = await layers.locator('li[data-layer-id]').filter({ has: page.getByRole("button", { name: "Group 1", exact: true }) }).first().getAttribute("data-layer-id");
+  await layers.getByLabel("Move selection into").selectOption(groupId!);
+  await layers.getByRole("button", { name: "Move selection", exact: true }).click();
+  await expect(page.locator("main [role=alert]")).toContainText("Cyclic node hierarchy");
+  await expect(layers.getByRole("button", { name: "Inner", exact: true })).toBeVisible();
+  await layers.getByRole("button", { name: "Inner", exact: true }).click();
+  await layers.getByLabel("Move selection into").selectOption("1");
+  await layers.getByRole("button", { name: "Move selection", exact: true }).click();
+  await expect(layers.getByRole("button", { name: "Group 1", exact: true })).toHaveCount(0);
+  await expect(layers.getByRole("button", { name: "Inner", exact: true })).toBeVisible();
+});
+
+test("duplicating and deleting a page copies and removes the full group subtree", async ({ page }) => {
+  await login(page);
+  await createNamedRectangle(page, "Nested", 40, 40);
+  const layers = page.getByRole("region", { name: "Layers" });
+  await layers.getByRole("button", { name: "Group", exact: true }).click();
+  const pages = page.getByRole("region", { name: "Pages", exact: true });
+  await pages.getByLabel("Actions for page Page 1").click();
+  await pages.getByRole("button", { name: "Duplicate", exact: true }).click();
+  await expect(pages.getByRole("button", { name: "Copy of Page 1", exact: true })).toHaveAttribute("aria-current", "page");
+  await expect(layers.getByRole("button", { name: "Group 1", exact: true })).toBeVisible();
+  await expect(layers.getByRole("button", { name: "Nested", exact: true })).toBeVisible();
+  await pages.getByLabel("Actions for page Copy of Page 1").click();
+  await pages.locator("li[data-page-id]").filter({ has: page.getByRole("button", { name: "Copy of Page 1", exact: true }) }).getByRole("button", { name: "Delete", exact: true }).click();
+  await expect(pages.getByRole("button", { name: "Copy of Page 1", exact: true })).toHaveCount(0);
+  await expect(pages.getByRole("button", { name: "Page 1", exact: true })).toHaveAttribute("aria-current", "page");
+  await expect(layers.getByRole("button", { name: "Group 1", exact: true })).toBeVisible();
+  await expect(layers.getByRole("button", { name: "Nested", exact: true })).toBeVisible();
 });

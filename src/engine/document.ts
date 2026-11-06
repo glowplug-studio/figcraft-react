@@ -13,9 +13,8 @@ export interface PageNode {
   readonly background: string;
   readonly backgroundColor?: Colour;
 }
-export interface RectangleNode {
+export interface LayerProperties {
   readonly id: NodeId;
-  readonly kind: "rectangle";
   readonly name: string;
   readonly parent: NodeId;
   readonly x: number;
@@ -29,8 +28,15 @@ export interface RectangleNode {
   readonly visible?: boolean;
   readonly locked?: boolean;
   readonly opacity?: number;
+  readonly blend?: "normal" | "passThrough";
 }
-export type DocumentNode = PageNode | RectangleNode;
+export interface RectangleNode extends LayerProperties { readonly kind: "rectangle" }
+export interface GroupNode extends LayerProperties {
+  readonly kind: "group";
+  readonly children: readonly NodeId[];
+}
+export type LayerNode = RectangleNode | GroupNode;
+export type DocumentNode = PageNode | LayerNode;
 export interface Document {
   readonly name: string;
   readonly pages: readonly NodeId[];
@@ -47,20 +53,22 @@ export function pageOf(document: Document): PageNode {
   return page;
 }
 
-export function rectangleTransform(node: RectangleNode): Affine {
+export function rectangleTransform(node: LayerNode): Affine {
   return node.transform ?? [1, 0, 0, 1, node.x, node.y];
 }
 
 /** Single canonical update path for native coefficients and legacy translation aliases. */
-export function withRectangleTransform(node: RectangleNode, matrix: Affine): RectangleNode {
+export function withRectangleTransform<T extends LayerNode>(node: T, matrix: Affine): T {
   if (matrix.length !== 6 || matrix.some(value => !Number.isFinite(value))) throw new Error("Transform must contain six finite coefficients");
   const { transform: previous, ...rest } = node;
   const translated = matrix[0] === 1 && matrix[1] === 0 && matrix[2] === 0 && matrix[3] === 1;
-  return Object.freeze({ ...rest, x: matrix[4], y: matrix[5], ...(translated ? {} : { transform: Object.freeze([...matrix]) as Affine }) });
+  return Object.freeze({ ...rest, x: matrix[4], y: matrix[5], ...(translated ? {} : { transform: Object.freeze([...matrix]) as Affine }) }) as T;
 }
+export const layerTransform = rectangleTransform;
+export const withLayerTransform = withRectangleTransform;
 
 const legacyPaintCache = new Map<string, readonly SolidPaint[]>();
-export function rectanglePaints(node: RectangleNode): readonly SolidPaint[] {
+export function rectanglePaints(node: LayerNode): readonly SolidPaint[] {
   if (node.fills) return node.fills;
   let paints = legacyPaintCache.get(node.fill);
   if (!paints) {
@@ -72,11 +80,11 @@ export function rectanglePaints(node: RectangleNode): readonly SolidPaint[] {
   }
   return paints;
 }
-export function withRectanglePaints(node: RectangleNode, paints: readonly SolidPaint[]): RectangleNode {
+export function withRectanglePaints<T extends LayerNode>(node: T, paints: readonly SolidPaint[]): T {
   const { fills: previous, ...rest } = node;
   const simple = paints.length === 0 || paints.length === 1 && isLegacyPaint(paints[0]);
   const fill = paints.length ? toCssHex(paintColour(paints[0])).toLowerCase() : "transparent";
-  return Object.freeze({ ...rest, fill, ...(simple ? {} : { fills: Object.freeze([...paints]) }) });
+  return Object.freeze({ ...rest, fill, ...(simple ? {} : { fills: Object.freeze([...paints]) }) }) as T;
 }
 export function pageColour(page: PageNode): Colour {
   const value = page.backgroundColor ?? parseCssColour(page.background);

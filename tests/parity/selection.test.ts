@@ -56,7 +56,7 @@ describe("selection command parity", () => {
 
   it("selects all current-page children and clears selection", () => {
     const document = fixture();
-    expect(run("select.all", document, ["5"]).selection).toEqual(["3", "4"]);
+    expect(run("select.all", document, ["3"]).selection).toEqual(["3", "4"]);
     const cleared = run("select.none", document, ["3"]);
     expect(cleared.selection).toEqual([]);
     expect(cleared.result).toEqual({ ok: true });

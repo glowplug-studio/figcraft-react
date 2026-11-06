@@ -21,6 +21,8 @@ export {
 export { Editor, type EditorProps } from "./Editor";
 export { EditorEngine, commandSpecs, type EditorSnapshot, type CommandId } from "./engine/editor";
 export { newDocument, pageOf, type Document, type DocumentNode, type RectangleNode, type PageNode, type NodeId } from "./engine/document";
+export { layerTransform, withLayerTransform, type LayerNode, type GroupNode } from "./engine/document";
+export { worldTransform, frameRelative, pageForNode, subtreeIds } from "./engine/hierarchy";
 export { renderDocument, CanvasController } from "./engine/canvas";
 export { colour, fromRgba8, toRgba8, toCssHex, renderColour, type Colour } from "./engine/colour";
 export { parseColour, parseCssColour, parseHexColour } from "./engine/colour-css";

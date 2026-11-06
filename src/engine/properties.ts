@@ -1,5 +1,6 @@
-import { setRotationAboutCenter, transformBounds, withTranslation } from "./affine";
-import { rectanglePaints, rectangleTransform, withRectanglePaints, withRectangleTransform, type Document, type NodeId, type RectangleNode } from "./document";
+import { identity, inverse, multiply, setRotationAboutCenter, transformBounds, withTranslation, type Affine } from "./affine";
+import { rectanglePaints, rectangleTransform, withRectanglePaints, withRectangleTransform, type Document, type NodeId, type LayerNode } from "./document";
+import { HierarchyDraft, frameRelative } from "./hierarchy";
 import { parseNodeId, parseNumber } from "./parameters";
 import { parseColour } from "./colour-css";
 import { readSolidPaints, solidPaint, type SolidPaint } from "./solid-paint";
@@ -67,38 +68,73 @@ export function setRectangleProperties(document: Document, selection: readonly N
     }
   }
   if ("fills" in props) paints = readSolidPaints(props.fills, true);
-  const nextNodes: Record<NodeId, RectangleNode> = {};
-  let changed = false;
+  const draft = new HierarchyDraft(document);
   for (const id of ids) {
-    const node = document.nodes[id];
-    if (!node || node.kind !== "rectangle") throw new Error(`node.set target ${id} is not a rectangle`);
+    const node = draft.nodes[id];
+    if (!node || node.kind === "page") throw new Error(`node.set target ${id} is not an editable layer`);
     let width = node.width;
     let height = node.height;
     // Upstream sorts equal-priority geometry keys by name; aliases may coexist.
     for (const key of keys.filter(key => key === "width" || key === "height" || key === "w" || key === "h").sort()) {
+      const oldWidth = width, oldHeight = height;
       if (key === "width" || key === "w") width = Math.max(0, values[key]);
       else height = Math.max(0, values[key]);
+      if (node.kind === "group" && (width !== oldWidth || height !== oldHeight)) {
+        draft.set({ ...node, width, height });
+        scaleGroupChildren(draft, id, oldWidth > 1e-9 ? width / oldWidth : 1, oldHeight > 1e-9 ? height / oldHeight : 1);
+      }
     }
     let transform = rectangleTransform(node);
     if ("rotation" in values) transform = setRotationAboutCenter(transform, width, height, values.rotation);
     if ("x" in values || "y" in values) {
-      transform = withTranslation(transform, {
-        x: "x" in values ? values.x : transform[4],
-        y: "y" in values ? values.y : transform[5],
-      });
+      const space = draft.nodes[node.parent]?.kind === "group" ? frameRelative(draft.document, node.parent) : identity;
+      const relative = multiply(space, transform);
+      transform = multiply(inverse(space), withTranslation(relative, {
+        x: "x" in values ? values.x : relative[4],
+        y: "y" in values ? values.y : relative[5],
+      }));
     }
     transformBounds(transform, width, height);
-    let updated: RectangleNode = Object.freeze({ ...withRectangleTransform(node, transform), width, height });
+    let updated: LayerNode = Object.freeze({ ...withRectangleTransform(node, transform), width, height });
     if (name !== undefined && name !== node.name) updated = Object.freeze({ ...updated, name });
     if ("visible" in props && props.visible !== (node.visible ?? true)) updated = Object.freeze({ ...updated, visible: props.visible as boolean });
     if ("locked" in props && props.locked !== (node.locked ?? false)) updated = Object.freeze({ ...updated, locked: props.locked as boolean });
     if (opacity !== undefined && opacity !== (node.opacity ?? 1)) updated = Object.freeze({ ...updated, opacity });
     if (paints && !samePaints(rectanglePaints(node), paints)) updated = withRectanglePaints(updated, paints);
-    nextNodes[id] = updated;
     if (width !== node.width || height !== node.height || transform.some((value, index) => value !== rectangleTransform(node)[index])
       || name !== undefined && name !== node.name || "visible" in props && props.visible !== (node.visible ?? true)
       || "locked" in props && props.locked !== (node.locked ?? false) || opacity !== undefined && opacity !== (node.opacity ?? 1)
-      || paints && !samePaints(rectanglePaints(node), paints)) changed = true;
+      || paints && !samePaints(rectanglePaints(node), paints)) {
+      draft.set(updated);
+    }
   }
-  return changed ? Object.freeze({ ...document, nodes: Object.freeze({ ...document.nodes, ...nextNodes }) }) : document;
+  draft.normaliseGroups();
+  return draft.finish();
+}
+
+/** Native layout::scale_group_children: scale local axes, retaining rotation/flip. */
+function scaleGroupChildren(draft: HierarchyDraft, id: NodeId, kx: number, ky: number): void {
+  const pending = [{ id, kx, ky }];
+  while (pending.length) {
+    const item = pending.pop()!, group = draft.nodes[item.id];
+    if (group.kind !== "group") continue;
+    for (const childId of group.children) {
+      const child = draft.nodes[childId];
+      if (child.kind === "page") throw new Error("Invalid group child");
+      const matrix = rectangleTransform(child), oldBounds = transformBounds(matrix, child.width, child.height);
+      const along = (x: number, y: number, fallback: number) => {
+        const length = Math.hypot(x, y), factor = Math.hypot(item.kx * x, item.ky * y) / length;
+        return length > 1e-12 && Number.isFinite(factor) ? factor : fallback;
+      };
+      const kw = along(matrix[0], matrix[1], item.kx), kh = along(matrix[2], matrix[3], item.ky);
+      const width = child.width * kw, height = child.height * kh;
+      const linear: Affine = [matrix[0], matrix[1], matrix[2], matrix[3], 0, 0];
+      const box = transformBounds(linear, width, height);
+      const transform = withTranslation(linear, { x: (oldBounds.x + oldBounds.width / 2) * item.kx - box.width / 2 - box.x,
+        y: (oldBounds.y + oldBounds.height / 2) * item.ky - box.height / 2 - box.y });
+      transformBounds(transform, width, height);
+      draft.set({ ...withRectangleTransform(child, transform), width, height });
+      if (child.kind === "group") pending.push({ id: childId, kx: kw, ky: kh });
+    }
+  }
 }

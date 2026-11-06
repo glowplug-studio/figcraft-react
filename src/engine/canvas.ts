@@ -1,11 +1,14 @@
-import { pageOf, pageColour, rectanglePaints, rectangleTransform, type Document, type RectangleNode } from "./document";
+import { pageOf, pageColour, rectanglePaints, rectangleTransform, type Document, type RectangleNode, type LayerNode } from "./document";
 import { renderColour } from "./colour";
 import { EditorEngine } from "./editor";
 import { drawnRectangle, type Point, type Rectangle } from "./geometry";
-import { multiply, transformBounds } from "./affine";
+import { multiply, transformBounds, type Affine } from "./affine";
 import { hitRectangle } from "./selection";
+import { worldTransform } from "./hierarchy";
 
 const compositeSurfaces = new WeakMap<CanvasRenderingContext2D, HTMLCanvasElement>();
+// Immutable document snapshots invalidate these derived bounds after any edit.
+const groupBounds = new WeakMap<Document, Map<string, { matrix: readonly number[]; bounds: Rectangle | undefined }>>();
 const opacity = (value: number) => Math.max(0, Math.min(1, value));
 
 function paintRectangle(context: CanvasRenderingContext2D, node: RectangleNode, alpha = 1): void {
@@ -22,9 +25,9 @@ function paintRectangle(context: CanvasRenderingContext2D, node: RectangleNode, 
 }
 
 /** Node opacity affects the finished stack, including antialiased edges, once. */
-function paintComposite(context: CanvasRenderingContext2D, node: RectangleNode): void {
+function paintComposite(context: CanvasRenderingContext2D, node: LayerNode, draw: (target: CanvasRenderingContext2D) => void, painted?: Rectangle): void {
   const matrix = context.getTransform();
-  const bounds = transformBounds(multiply([matrix.a, matrix.b, matrix.c, matrix.d, matrix.e, matrix.f], rectangleTransform(node)), node.width, node.height);
+  const bounds = painted ?? transformBounds(multiply([matrix.a, matrix.b, matrix.c, matrix.d, matrix.e, matrix.f], rectangleTransform(node)), node.width, node.height);
   const left = Math.max(0, Math.floor(bounds.x)), top = Math.max(0, Math.floor(bounds.y));
   const width = Math.min(context.canvas.width, Math.ceil(bounds.x + bounds.width)) - left;
   const height = Math.min(context.canvas.height, Math.ceil(bounds.y + bounds.height)) - top;
@@ -40,9 +43,64 @@ function paintComposite(context: CanvasRenderingContext2D, node: RectangleNode):
   if (!scratch) throw new Error("Canvas compositing is unavailable");
   scratch.resetTransform(); scratch.clearRect(0, 0, width, height);
   scratch.setTransform(matrix.a, matrix.b, matrix.c, matrix.d, matrix.e - left, matrix.f - top);
-  paintRectangle(scratch, node);
+  draw(scratch);
   context.save(); context.resetTransform(); context.globalAlpha = opacity(node.opacity ?? 1);
   context.drawImage(surface, 0, 0, width, height, left, top, width, height); context.restore();
+}
+
+function paintedGroupBounds(context: CanvasRenderingContext2D, document: Document, node: LayerNode): Rectangle | undefined {
+  const m = context.getTransform();
+  const coefficients = [m.a, m.b, m.c, m.d, m.e, m.f];
+  let cachedDocument = groupBounds.get(document);
+  if (!cachedDocument) { cachedDocument = new Map(); groupBounds.set(document, cachedDocument); }
+  const cached = cachedDocument.get(node.id);
+  if (cached && coefficients.every((value, index) => value === cached.matrix[index])) return cached.bounds;
+  const pending: { node: LayerNode; parent: Affine; depth: number }[] = [{ node, parent: [m.a, m.b, m.c, m.d, m.e, m.f], depth: 0 }];
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  while (pending.length) {
+    const item = pending.pop()!, current = item.node;
+    if (current.visible === false || (current.opacity ?? 1) <= 0 || item.depth > 256) continue;
+    const matrix = multiply(item.parent, rectangleTransform(current));
+    if (current.kind === "group") {
+      for (const id of current.children) {
+        const child = document.nodes[id];
+        if (child && child.kind !== "page") pending.push({ node: child, parent: matrix, depth: item.depth + 1 });
+      }
+    } else {
+      const bounds = transformBounds(matrix, current.width, current.height);
+      x0 = Math.min(x0, bounds.x); y0 = Math.min(y0, bounds.y);
+      x1 = Math.max(x1, bounds.x + bounds.width); y1 = Math.max(y1, bounds.y + bounds.height);
+    }
+  }
+  const bounds = x0 === Infinity ? undefined : { x: x0, y: y0, width: x1 - x0, height: y1 - y0 };
+  cachedDocument.set(node.id, { matrix: coefficients, bounds });
+  return bounds;
+}
+
+function drawLayer(context: CanvasRenderingContext2D, document: Document, node: LayerNode, depth = 0): void {
+  if (node.visible === false || (node.opacity ?? 1) <= 0 || depth > 256) return;
+  if (node.kind === "group") {
+    const draw = (target: CanvasRenderingContext2D) => {
+      target.save(); target.transform(...rectangleTransform(node));
+      for (const id of node.children) {
+        const child = document.nodes[id];
+        if (child && child.kind !== "page") drawLayer(target, document, child, depth + 1);
+      }
+      target.restore();
+    };
+    if (opacity(node.opacity ?? 1) < 1) {
+      const bounds = paintedGroupBounds(context, document, node);
+      if (bounds) paintComposite(context, node, draw, bounds);
+    } else draw(context);
+  } else if (node.fills || node.opacity !== undefined && node.opacity !== 1) {
+    if (rectanglePaints(node).length > 1 && opacity(node.opacity ?? 1) < 1) paintComposite(context, node, target => paintRectangle(target, node));
+    else paintRectangle(context, node, opacity(node.opacity ?? 1));
+  } else {
+    context.fillStyle = node.fill;
+    if (node.transform) {
+      context.save(); context.transform(...node.transform); context.fillRect(0, 0, node.width, node.height); context.restore();
+    } else context.fillRect(node.x, node.y, node.width, node.height);
+  }
 }
 
 /** Only this module paints editable geometry; React never renders canvas layers. */
@@ -53,27 +111,21 @@ export function renderDocument(context: CanvasRenderingContext2D, document: Docu
   context.fillRect(0, 0, width, height);
   for (const id of page.children) {
     const node = document.nodes[id];
-    if (!node || node.kind !== "rectangle" || node.visible === false || (node.opacity ?? 1) <= 0) continue;
-    const bounds = node.transform ? transformBounds(node.transform, node.width, node.height) : node;
-    if (bounds.x > width || bounds.y > height || bounds.x + bounds.width < 0 || bounds.y + bounds.height < 0) continue;
-    if (node.fills || node.opacity !== undefined && node.opacity !== 1) {
-      if (rectanglePaints(node).length > 1 && opacity(node.opacity ?? 1) < 1) paintComposite(context, node);
-      else paintRectangle(context, node, opacity(node.opacity ?? 1));
-    } else {
-      context.fillStyle = node.fill;
-      if (node.transform) {
-        context.save(); context.transform(...node.transform); context.fillRect(0, 0, node.width, node.height); context.restore();
-      } else context.fillRect(node.x, node.y, node.width, node.height);
+    if (!node || node.kind === "page") continue;
+    if (node.kind === "rectangle") {
+      const bounds = node.transform ? transformBounds(node.transform, node.width, node.height) : node;
+      if (bounds.x > width || bounds.y > height || bounds.x + bounds.width < 0 || bounds.y + bounds.height < 0) continue;
     }
+    drawLayer(context, document, node);
   }
   context.strokeStyle = "#0d99ff";
   context.lineWidth = 1;
   for (const id of selection) {
     const node = document.nodes[id];
-    if (node?.kind === "rectangle") {
-      if (node.transform) {
+    if (node && node.kind !== "page") {
+      if (node.transform || node.parent !== document.currentPage) {
         // Map the outline points so stroke width remains in screen pixels under scale/skew.
-        const [a, b, c, d, e, f] = node.transform;
+        const [a, b, c, d, e, f] = worldTransform(document, id);
         context.beginPath(); context.moveTo(e, f);
         context.lineTo(a * node.width + e, b * node.width + f);
         context.lineTo(a * node.width + c * node.height + e, b * node.width + d * node.height + f);
@@ -130,7 +182,7 @@ export class CanvasController {
     this.canvas.focus();
     if (this.engine.getSnapshot().tool !== "rectangle") {
       const snapshot = this.engine.getSnapshot();
-      const hit = hitRectangle(snapshot.document, this.#point(event));
+      const hit = hitRectangle(snapshot.document, this.#point(event), event.metaKey || event.ctrlKey, snapshot.selection);
       const ids = event.shiftKey ? hit === undefined ? snapshot.selection : snapshot.selection.includes(hit) ? snapshot.selection.filter(id => id !== hit) : [...snapshot.selection, hit] : hit === undefined ? [] : [hit];
       try { this.engine.execute("select.set", { ids }); }
       catch (error) { this.onError(error instanceof Error ? error.message : "Could not select layer"); }

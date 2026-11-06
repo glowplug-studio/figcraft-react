@@ -2,6 +2,15 @@
 
 All notable changes to the React port and its upstream compatibility baseline are recorded here.
 
+## [0.7.0] - 2026-11-07
+
+The reference baseline remains `8eb0b87646c5aef712326d6c431ccde5408630de`; full parity remains in progress.
+
+- Added nested groups, world-preserving grouping, ungrouping and reparenting, deep deletion, group fitting and resize propagation with atomic history.
+- Added nested selection, group opacity compositing, layer-tree controls and mobile layer navigation.
+- Extended native files, recovery and page duplication/deletion to supported group subtrees, with explicit depth and hierarchy validation.
+- Frames, sections, other node kinds and the remaining product workflows are still required.
+
 ## [0.6.0] - 2026-11-06
 
 The reference baseline remains `8eb0b87646c5aef712326d6c431ccde5408630de`; full parity remains in progress.

@@ -1,4 +1,4 @@
-import { withPageColour, type Document, type DocumentNode, type NodeId, type PageNode } from "./document";
+import { withPageColour, type Document, type DocumentNode, type LayerNode, type NodeId, type PageNode } from "./document";
 import { parseColour } from "./colour-css";
 import { parseNodeId as parseId, parseString as stringValue, parseNumber as numeric } from "./parameters";
 
@@ -51,22 +51,44 @@ function cleanSelection(document: Document, selection: readonly NodeId[]): reado
   const seen = new Set<NodeId>();
   const cleaned = selection.filter(id => {
     const node = document.nodes[id];
-    if (!node || node.kind !== "rectangle" || node.parent !== document.currentPage || seen.has(id)) return false;
+    if (!node || node.kind === "page" || seen.has(id)) return false;
+    const ancestry = new Set<NodeId>([id]);
+    let parent = node.parent;
+    while (parent !== document.currentPage) {
+      if (ancestry.has(parent)) return false;
+      ancestry.add(parent);
+      const ancestor = document.nodes[parent];
+      if (!ancestor || ancestor.kind !== "group") return false;
+      parent = ancestor.parent;
+    }
     seen.add(id);
     return true;
   });
   return cleaned.length === selection.length ? selection : Object.freeze(cleaned);
 }
-/** Restrict copying/removal to supported children; never silently flatten future node kinds. */
-function rectangleChildren(document: Document, source: PageNode): readonly DocumentNode[] {
+/** Validate a complete supported subtree before any deletion or allocation. */
+function pageSubtree(document: Document, source: PageNode): readonly LayerNode[] {
   const seen = new Set<NodeId>();
-  return source.children.map(id => {
+  const ordered: LayerNode[] = [];
+  const pending = [...source.children].reverse().map(id => ({ id, parent: source.id }));
+  while (pending.length) {
+    const { id, parent } = pending.pop()!;
     const child = document.nodes[id];
-    if (!child || child.kind !== "rectangle" || child.parent !== source.id || seen.has(id)) throw new Error("Page has unsupported or invalid child content");
+    if (!child || (child.kind !== "rectangle" && child.kind !== "group") || child.parent !== parent || seen.has(id)) {
+      throw new Error("Page has unsupported or invalid child content");
+    }
     seen.add(id);
-    return child;
-  });
+    ordered.push(child);
+    if (child.kind === "group") {
+      if (!Array.isArray(child.children)) throw new Error("Page has unsupported or invalid child content");
+      for (let index = child.children.length - 1; index >= 0; index--) pending.push({ id: child.children[index]!, parent: id });
+    } else if ("children" in child && (child as RectangleNodeWithChildren).children?.length) {
+      throw new Error("Page has unsupported or invalid child content");
+    }
+  }
+  return ordered;
 }
+type RectangleNodeWithChildren = { readonly children?: readonly NodeId[] };
 export function executePage(command: string, document: Document, selection: readonly NodeId[], nextId: bigint, params: Record<string, unknown>): PageExecution {
   const keys = Object.hasOwn(allowed, command) ? allowed[command]! : undefined;
   if (!keys) throw new Error(`Unsupported page command: ${command}`);
@@ -125,21 +147,25 @@ export function executePage(command: string, document: Document, selection: read
       if (name === undefined) throw new Error("name must be a string");
       if (name !== source.name) replacePage({ ...source, name });
     } else if (command === "page.delete") {
-      const children = rectangleChildren(document, source);
+      const children = pageSubtree(document, source);
       const nodes = { ...document.nodes };
       delete nodes[id];
       for (const child of children) delete nodes[child.id];
       updated = Object.freeze({ ...document, pages: Object.freeze(document.pages.filter(candidate => candidate !== id)), nodes: Object.freeze(nodes) });
     } else if (command === "page.duplicate") {
-      const children = rectangleChildren(document, source);
+      const children = pageSubtree(document, source);
       const copyId = allocate();
       const nodes: Record<NodeId, DocumentNode> = { ...document.nodes };
-      const copied = children.map(child => {
-        const childId = allocate();
-        if (child.kind !== "rectangle") throw new Error("Unsupported page child kind");
-        nodes[childId] = Object.freeze({ ...child, id: childId, parent: copyId });
-        return childId;
-      });
+      const ids = new Map<NodeId, NodeId>([[source.id, copyId]]);
+      for (const child of children) ids.set(child.id, allocate());
+      for (const child of children) {
+        const id = ids.get(child.id)!;
+        const parent = ids.get(child.parent)!;
+        nodes[id] = child.kind === "group"
+          ? Object.freeze({ ...child, id, parent, children: Object.freeze(child.children.map(candidate => ids.get(candidate)!)) })
+          : Object.freeze({ ...child, id, parent });
+      }
+      const copied = source.children.map(child => ids.get(child)!);
       nodes[copyId] = Object.freeze({ ...source, id: copyId, name: `Copy of ${source.name}`, children: Object.freeze(copied) });
       const pages = [...document.pages];
       pages.splice(pages.indexOf(id) + 1, 0, copyId);

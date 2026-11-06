@@ -1,12 +1,12 @@
 import { useState, type FormEvent } from "react";
 import { parseCssColour } from "./engine/colour-css";
 import { fromRgba8, renderColour, withAlpha } from "./engine/colour";
-import { pageColour, rectanglePaints, type PageNode, type RectangleNode } from "./engine/document";
+import { pageColour, rectanglePaints, type PageNode, type LayerNode } from "./engine/document";
 import { paintColour, solidPaint, type SolidPaint } from "./engine/solid-paint";
 
 interface AppearancePanelProps {
   page: PageNode;
-  selected?: RectangleNode;
+  selected?: LayerNode;
   editable: boolean;
   dispatch: (command: string, params?: unknown) => void;
 }
@@ -59,7 +59,7 @@ function AppearanceControls({ page, selected, editable, dispatch }: AppearancePa
           <button type="submit">Apply layer</button>
         </fieldset>
       </form>
-      <fieldset disabled={!editable}><legend>Fills</legend>
+      {selected.kind === "rectangle" && <fieldset disabled={!editable}><legend>Fills</legend>
         <ol>{paints.map((paint, index) => ({ paint, index })).reverse().map(({ paint, index }, row) => <li key={`${selected.id}:${index}`}>
           <form key={`paint:${selected.id}:${index}:${JSON.stringify(paint)}`} onSubmit={event => {
             event.preventDefault();
@@ -87,7 +87,7 @@ function AppearanceControls({ page, selected, editable, dispatch }: AppearancePa
           </form>
         </li>)}</ol>
         <button type="button" onClick={() => updatePaints([...paints, solidPaint(fromRgba8(128, 128, 128))])}>Add fill</button>
-      </fieldset>
+      </fieldset>}
     </>}
   </section>;
 }

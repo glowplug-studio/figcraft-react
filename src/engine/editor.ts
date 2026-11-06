@@ -1,13 +1,17 @@
-import { newDocument, pageOf, type Document, type RectangleNode, type NodeId } from "./document";
+import { newDocument, withLayerTransform, type Document, type LayerNode, type NodeId } from "./document";
 import { decodeFigcraft, encodeFigcraft } from "./file-format";
 import { executePage, listPages, pageSpecs } from "./pages";
 import { executeSelection, selectionSpecs } from "./selection";
 import { setRectangleProperties } from "./properties";
-import { transformBounds } from "./affine";
+import { inverse, multiply, transformBounds } from "./affine";
+import { HierarchyDraft, frameRelative, pageForNode } from "./hierarchy";
+import { executeStructure, nextLayerName, structureSpecs } from "./structure";
+import { parseNodeId } from "./parameters";
 
 export const commandSpecs = Object.freeze({
   ...pageSpecs,
   ...selectionSpecs,
+  ...structureSpecs,
   "node.set": { label: "Set properties", undo: true },
   "shape.rectangle": { label: "Rectangle", undo: true },
   "node.create": { label: "Create layer", undo: true },
@@ -78,6 +82,16 @@ export class EditorEngine {
     if (!Object.hasOwn(commandSpecs, command)) throw new Error(`Unsupported command: ${command}`);
     if (!this.#snapshot.editable) throw new Error("Sign in to edit this document");
     const p = parameters(input);
+    if (Object.hasOwn(structureSpecs, command)) {
+      const before = this.#snapshot;
+      const next = executeStructure(command, before.document, before.selection, this.#nextId, p);
+      if (!sameContent(before.document, next.document)) {
+        this.#undo.push({ document: before.document, selection: before.selection }); this.#redo = [];
+      }
+      this.#nextId = next.nextId;
+      this.#publish({ document: next.document, selection: next.selection });
+      return next.result;
+    }
     if (Object.hasOwn(selectionSpecs, command)) {
       const next = executeSelection(command, this.#snapshot.document, this.#snapshot.selection, p);
       this.#publish({ document: next.document, selection: next.selection });
@@ -89,7 +103,7 @@ export class EditorEngine {
       if (document !== before.document) {
         this.#undo.push({ document: before.document, selection: before.selection });
         this.#redo = [];
-        this.#publish({ document });
+        this.#publish({ document, selection: Object.freeze(before.selection.filter(id => document.nodes[id] && pageForNode(document, id) === document.currentPage)) });
       }
       return { ok: true };
     }
@@ -162,27 +176,38 @@ export class EditorEngine {
     return { summary: { name: decoded.document.name, pages: decoded.document.pages.length, layers: Object.keys(decoded.document.nodes).length - decoded.document.pages.length, images: 0 } };
   }
   #rectangle(command: string, p: Record<string, unknown>): Record<string, unknown> {
-    const allowed = ["x", "y", "width", "height", "parent", "index", "name", "select", ...(command === "node.create" ? ["type"] : [])];
+    const allowed = ["x", "y", "width", "height", "parent", "index", "name", "select", "props", ...(command === "node.create" ? ["type"] : [])];
     for (const key of Object.keys(p)) if (!allowed.includes(key)) throw new Error(`Unsupported rectangle parameter: ${key}`);
-    if (command === "node.create" && (typeof p.type !== "string" || !["rectangle", "rect"].includes(p.type.toLowerCase()))) throw new Error("This slice supports rectangle nodes only");
+    if (command === "node.create" && (typeof p.type !== "string" || !["rectangle", "rect", "group"].includes(p.type.toLowerCase()))) throw new Error("Only rectangle and group nodes are supported");
+    const kind = command === "node.create" && String(p.type).toLowerCase() === "group" ? "group" : "rectangle";
     const before = this.#snapshot;
     if (this.#nextId > 18446744073709551615n || before.document.nodes[String(this.#nextId)]) throw new Error("Document identifiers are exhausted");
-    const page = pageOf(before.document);
-    if (p.parent !== undefined && String(p.parent) !== page.id) throw new Error("The parent must be the current page");
+    const parentId = p.parent === undefined ? before.document.currentPage : parseNodeId(p.parent);
+    const parent = parentId === undefined ? undefined : before.document.nodes[parentId];
+    if (!parent || parent.kind === "rectangle") throw new Error("The parent must be a page or group");
     if (p.name !== undefined && typeof p.name !== "string") throw new Error("name must be a string");
     if (p.select !== undefined && typeof p.select !== "boolean") throw new Error("select must be a boolean");
-    const index = number(p, "index", page.children.length);
+    const index = number(p, "index", parent.children.length);
     if (!Number.isSafeInteger(index) || index < 0) throw new Error("index must be a non-negative safe integer");
-    const node: RectangleNode = Object.freeze({ id: String(this.#nextId), kind: "rectangle", name: typeof p.name === "string" ? p.name : "Rectangle", parent: page.id,
-      x: number(p, "x", 0), y: number(p, "y", 0), width: Math.max(0, number(p, "width", 100)), height: Math.max(0, number(p, "height", 100)), fill: "#d9d9d9" });
+    const base = { id: String(this.#nextId), name: typeof p.name === "string" ? p.name : kind === "group" ? nextLayerName(before.document, "Group") : "Rectangle", parent: parent.id,
+      x: number(p, "x", 0), y: number(p, "y", 0), width: Math.max(0, number(p, "width", 100)), height: Math.max(0, number(p, "height", 100)) };
+    let node: LayerNode = kind === "group" ? Object.freeze({ ...base, kind, children: Object.freeze([]), fill: "transparent", blend: "passThrough" }) : Object.freeze({ ...base, kind, fill: "#d9d9d9" });
     transformBounds([1, 0, 0, 1, node.x, node.y], node.width, node.height);
-    const children = [...page.children];
-    children.splice(Math.min(index, children.length), 0, node.id);
-    const document: Document = Object.freeze({ ...before.document, nodes: Object.freeze({ ...before.document.nodes, [page.id]: Object.freeze({ ...page, children: Object.freeze(children) }), [node.id]: node }) });
+    if (parent.kind === "group") node = withLayerTransform(node, multiply(inverse(frameRelative(before.document, parent.id)), [1, 0, 0, 1, node.x, node.y]));
+    const draft = new HierarchyDraft(before.document);
+    draft.insert(node, parent.id, index);
+    let document: Document;
+    if (p.props !== undefined) {
+      document = setRectangleProperties(draft.finish(), [node.id], { props: p.props });
+      const derived = new HierarchyDraft(document);
+      if (document.nodes[node.id]) derived.changedIds.add(node.id);
+      derived.normaliseGroups(); document = derived.finish();
+    }
+    else { draft.normaliseGroups(); document = draft.finish(); }
     this.#undo.push({ document: before.document, selection: before.selection });
     this.#redo = [];
     if (this.#nextId < 18446744073709551615n) this.#nextId++;
-    this.#publish({ document, selection: p.select === false ? before.selection : Object.freeze([node.id]) });
+    this.#publish({ document, selection: Object.freeze((p.select === false ? before.selection : [node.id]).filter(id => document.nodes[id] && pageForNode(document, id) === document.currentPage)) });
     return { id: node.id };
   }
 }

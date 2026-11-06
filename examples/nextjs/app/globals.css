@@ -1,7 +1,8 @@
 * { box-sizing: border-box; }
 :root { color-scheme: light; font-family: Arial, Helvetica, sans-serif; color: #222; background: #fff; }
 body { margin: 0; }
-button, input { font: inherit; }
+button, input, select { font: inherit; }
+select { max-width: 100%; }
 button { border: 1px solid #d5d5d5; border-radius: 5px; background: #fff; color: inherit; padding: 7px 11px; cursor: pointer; }
 button:hover:not(:disabled) { background: #f0f0f0; }
 button:disabled { opacity: .45; cursor: default; }
@@ -33,7 +34,7 @@ h2, h3 { font-size: 12px; }
 .figcraft-add-page { padding-bottom: 16px; border-bottom: 1px solid #ddd; }
 .figcraft-add-page p { color: #666; line-height: 1.4; }
 .figcraft-page-row hr { border: 0; border-top: 1px solid #bbb; }
-.figcraft-mobile-pages { display: none; }
+.figcraft-mobile-pages, .figcraft-mobile-layers { display: none; }
 .figcraft-canvas-area { position: relative; min-width: 0; min-height: 0; overflow: hidden; }
 .figcraft-canvas-area canvas { display: block; width: 100%; height: 100%; touch-action: none; }
 .figcraft-toolbar { position: absolute; bottom: 24px; left: 50%; transform: translateX(-50%); display: flex; gap: 8px; padding: 8px; background: #fff; border: 1px solid #ddd; border-radius: 12px; box-shadow: 0 2px 8px #0001; }
@@ -49,9 +50,9 @@ dd { margin: 0; }
 [role=alert] { color: #a21818; padding: 8px 16px; }
 .auth-page { max-width: 360px; margin: 12vh auto; padding: 24px; }
 @media (max-width: 800px) {
-  .figcraft-mobile-pages { display: block; }
-  .figcraft-mobile-pages > summary { cursor: pointer; }
-  .figcraft-mobile-pages > .figcraft-pages { position: absolute; z-index: 2; top: 48px; left: 8px; width: min(300px, calc(100vw - 16px)); max-height: 70dvh; overflow: auto; background: #fff; border: 1px solid #ddd; padding: 16px; }
+  .figcraft-mobile-pages, .figcraft-mobile-layers { display: block; }
+  :is(.figcraft-mobile-pages, .figcraft-mobile-layers) > summary { cursor: pointer; }
+  :is(.figcraft-mobile-pages, .figcraft-mobile-layers) > section { position: absolute; z-index: 2; top: 48px; left: 8px; width: min(300px, calc(100vw - 16px)); max-height: 70dvh; overflow: auto; background: #fff; border: 1px solid #ddd; padding: 16px; }
   .figcraft-workspace { grid-template-columns: minmax(200px, 1fr) 190px; }
   .figcraft-layers { display: none; }
   .figcraft-document-bar span { display: none; }

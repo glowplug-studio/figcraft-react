@@ -10,6 +10,8 @@ import { RecoveryController, base64Bytes } from "./engine/recovery";
 import { MAX_FILE_BYTES } from "./engine/file-format";
 import { PagePanel } from "./PagePanel";
 import { AppearancePanel } from "./AppearancePanel";
+import { LayerPanel } from "./LayerPanel";
+import { frameRelative } from "./engine/hierarchy";
 
 export interface EditorProps {
   identity: IdentityAdapter;
@@ -27,6 +29,7 @@ export function Editor({ identity, capabilities, engine: suppliedEngine, recover
   const [recoveryStatus, setRecoveryStatus] = useState(recoveryStore ? "loading" : "ready");
   const [recoveryError, setRecoveryError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [mobileLayersOpen, setMobileLayersOpen] = useState(false);
   const [pendingFile, setPendingFile] = useState<File | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
   const replaceDialog = useRef<HTMLDialogElement>(null);
@@ -81,6 +84,8 @@ export function Editor({ identity, capabilities, engine: suppliedEngine, recover
     if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "s") { event.preventDefault(); void save(); return; }
     if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "o") { event.preventDefault(); fileInput.current?.click(); return; }
     if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "a") command = "select.all";
+    if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "g") command = event.shiftKey ? "object.ungroup" : "object.group";
+    if (event.key === "Delete" || event.key === "Backspace") command = "edit.delete";
     if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "z") command = event.shiftKey ? "edit.redo" : "edit.undo";
     else if (!event.metaKey && !event.ctrlKey && !event.altKey) {
       if (event.key.toLowerCase() === "r") command = "tool.rectangle";
@@ -119,6 +124,7 @@ export function Editor({ identity, capabilities, engine: suppliedEngine, recover
   const editable = signedIn && snapshot.editable && recoveryStatus !== "loading" && capabilities.includes("document.edit");
   const page = pageOf(snapshot.document);
   const selected = snapshot.document.nodes[snapshot.selection[0]];
+  const relative = selected && selected.kind !== "page" ? frameRelative(snapshot.document, selected.id) : undefined;
   return <div ref={root} className="figcraft-editor" onKeyDown={key} data-figcraft-editor="">
       <header className="figcraft-document-bar"><h1>{snapshot.document.name}</h1><span>{snapshot.dirty ? "Unsaved" : "Downloaded"} · Local document</span>
         <button disabled={!editable || busy} onClick={() => fileInput.current?.click()}>Open</button>
@@ -134,6 +140,9 @@ export function Editor({ identity, capabilities, engine: suppliedEngine, recover
         <details className="figcraft-mobile-pages"><summary>Pages</summary>
           <PagePanel document={snapshot.document} editable={editable && !busy} dispatch={dispatch} />
         </details>
+        <details className="figcraft-mobile-layers" onToggle={event => setMobileLayersOpen(event.currentTarget.open)}><summary>Layers</summary>
+          {mobileLayersOpen && <LayerPanel document={snapshot.document} selection={snapshot.selection} editable={editable && !busy} dispatch={dispatch} />}
+        </details>
       </header>
       {!signedIn && <p role="status">Sign in to edit this document.</p>}
       {error && <p role="alert">{error}</p>}
@@ -146,10 +155,7 @@ export function Editor({ identity, capabilities, engine: suppliedEngine, recover
       <div className="figcraft-workspace">
         <aside className="figcraft-layers" aria-label="Layers">
           <PagePanel document={snapshot.document} editable={editable && !busy} dispatch={dispatch} />
-          <h2>{page.name}</h2><p>{page.children.length} {page.children.length === 1 ? "layer" : "layers"}</p>
-          <ul aria-label="Page layers">{page.children.map(id => <li key={id} aria-current={snapshot.selection.includes(id) ? "true" : undefined}>
-            <button disabled={!editable} onClick={event => dispatch("select.set", { ids: event.shiftKey ? snapshot.selection.includes(id) ? snapshot.selection.filter(item => item !== id) : [...snapshot.selection, id] : [id] })}>{snapshot.document.nodes[id].name}</button>
-          </li>)}</ul>
+          <LayerPanel document={snapshot.document} selection={snapshot.selection} editable={editable && !busy} dispatch={dispatch} />
         </aside>
         <div className="figcraft-canvas-area">
           <canvas ref={canvas} aria-label="Design canvas" tabIndex={0} aria-describedby="canvas-instructions" />
@@ -165,24 +171,24 @@ export function Editor({ identity, capabilities, engine: suppliedEngine, recover
             <button type="submit">Create rectangle</button>
           </fieldset></form>
           {recoveryStore && <p className="figcraft-recovery" role="status">{recoveryStatus === "loading" ? "Restoring local recovery…" : recoveryStatus === "stored" ? "Recovery saved on this device" : recoveryStatus === "pending" ? "Saving recovery…" : recoveryStatus === "error" ? "Recovery failed" : "Local recovery ready"}</p>}
-          {selected?.kind === "rectangle" && <section aria-label="Selected rectangle"><h3>{selected.name}</h3><dl>
-            <dt>X</dt><dd>{selected.x}</dd><dt>Y</dt><dd>{selected.y}</dd><dt>Width</dt><dd>{selected.width}</dd><dt>Height</dt><dd>{selected.height}</dd>
+          {selected && selected.kind !== "page" && relative && <section aria-label={`Selected ${selected.kind}`}><h3>{selected.name}</h3><dl>
+            <dt>X</dt><dd>{relative[4]}</dd><dt>Y</dt><dd>{relative[5]}</dd><dt>Width</dt><dd>{selected.width}</dd><dt>Height</dt><dd>{selected.height}</dd>
           </dl>
-          <form key={[selected.id, selected.x, selected.y, selected.width, selected.height, ...(selected.transform ?? [])].join(",")} onSubmit={event => {
+          <form key={[selected.id, relative[4], relative[5], selected.width, selected.height, ...(selected.transform ?? [])].join(",")} onSubmit={event => {
             event.preventDefault();
             const data = new FormData(event.currentTarget);
-            const previous = { x: selected.x, y: selected.y, width: selected.width, height: selected.height, rotation: rotationDegrees(rectangleTransform(selected)) };
+            const previous = { x: relative[4], y: relative[5], width: selected.width, height: selected.height, rotation: rotationDegrees(rectangleTransform(selected)) };
             const props = Object.fromEntries(Object.entries(previous).map(([name, value]) => [name, Number(data.get(name)), value]).filter(([, value, old]) => value !== old).map(([name, value]) => [name, value]));
             if (Object.keys(props).length) dispatch("node.set", { props });
           }}>
             <fieldset disabled={!editable}><legend>Geometry</legend>
               {(["x", "y", "width", "height", "rotation"] as const).map(name => <label key={name}>{name === "rotation" ? "Rotation" : `Edit ${name === "x" || name === "y" ? name.toUpperCase() : name[0].toUpperCase() + name.slice(1)}`}
-                <input name={name} type="number" step="any" required defaultValue={name === "rotation" ? rotationDegrees(rectangleTransform(selected)) : selected[name]} />
+                <input name={name} type="number" step="any" required defaultValue={name === "rotation" ? rotationDegrees(rectangleTransform(selected)) : name === "x" ? relative[4] : name === "y" ? relative[5] : selected[name]} />
               </label>)}
               <button type="submit">Apply geometry</button>
             </fieldset>
           </form></section>}
-          <AppearancePanel page={page} selected={selected?.kind === "rectangle" ? selected : undefined} editable={editable && !busy} dispatch={dispatch} />
+          <AppearancePanel page={page} selected={selected && selected.kind !== "page" ? selected : undefined} editable={editable && !busy} dispatch={dispatch} />
         </aside>
       </div>
     </div>;
