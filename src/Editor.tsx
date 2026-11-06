@@ -7,6 +7,7 @@ import { pageOf } from "./engine/document";
 import type { RecoveryStore } from "./backends/recovery";
 import { RecoveryController, base64Bytes } from "./engine/recovery";
 import { MAX_FILE_BYTES } from "./engine/file-format";
+import { PagePanel } from "./PagePanel";
 
 export interface EditorProps {
   identity: IdentityAdapter;
@@ -73,7 +74,7 @@ export function Editor({ identity, capabilities, engine: suppliedEngine, recover
   }
   function key(event: KeyboardEvent) {
     if (!editable || busy) return;
-    if (event.target instanceof HTMLElement && event.target.closest("input,textarea,select,[contenteditable=true]")) return;
+    if (event.target instanceof HTMLElement && event.target.closest("input,textarea,select,dialog,[contenteditable=true]")) return;
     let command: string | undefined;
     if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "s") { event.preventDefault(); void save(); return; }
     if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "o") { event.preventDefault(); fileInput.current?.click(); return; }
@@ -127,6 +128,9 @@ export function Editor({ identity, capabilities, engine: suppliedEngine, recover
         }} />
         <button disabled={!editable || !snapshot.canUndo} onClick={() => dispatch("edit.undo")}>Undo</button>
         <button disabled={!editable || !snapshot.canRedo} onClick={() => dispatch("edit.redo")}>Redo</button>
+        <details className="figcraft-mobile-pages"><summary>Pages</summary>
+          <PagePanel document={snapshot.document} editable={editable && !busy} dispatch={dispatch} />
+        </details>
       </header>
       {!signedIn && <p role="status">Sign in to edit this document.</p>}
       {error && <p role="alert">{error}</p>}
@@ -137,7 +141,9 @@ export function Editor({ identity, capabilities, engine: suppliedEngine, recover
         <button onClick={() => { if (pendingFile) void open(pendingFile); }}>Replace document</button>
       </dialog>
       <div className="figcraft-workspace">
-        <aside className="figcraft-layers" aria-label="Layers"><h2>{page.name}</h2><p>{page.children.length} {page.children.length === 1 ? "layer" : "layers"}</p>
+        <aside className="figcraft-layers" aria-label="Layers">
+          <PagePanel document={snapshot.document} editable={editable && !busy} dispatch={dispatch} />
+          <h2>{page.name}</h2><p>{page.children.length} {page.children.length === 1 ? "layer" : "layers"}</p>
           <ul>{page.children.map(id => <li key={id} aria-current={snapshot.selection.includes(id) ? "true" : undefined}>{snapshot.document.nodes[id].name}</li>)}</ul>
         </aside>
         <div className="figcraft-canvas-area">

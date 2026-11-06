@@ -2,6 +2,15 @@
 
 All notable changes to the React port and its upstream compatibility baseline are recorded here.
 
+## [0.4.0] - 2026-11-06
+
+The reference baseline remains `8eb0b87646c5aef712326d6c431ccde5408630de`; the full port remains in progress.
+
+- Added page creation, navigation, renaming, deletion, duplication, ordering and listing for supported page/rectangle documents, including divider and last-ordinary-page rules.
+- Added desktop and narrow-screen page controls, native/recovery page round trips and page-aware undo/redo. Navigation preserves the saved content state.
+- Kept maximum u64 allocations serialisable while refusing subsequent exhausted allocations.
+- Page backgrounds, guides/prototypes, full hierarchy and all remaining product families remain tracked dependencies.
+
 ## [0.3.0] - 2026-11-06
 
 The reference baseline remains `8eb0b87646c5aef712326d6c431ccde5408630de`; the full port is in progress. The synchronised `0b97f3f1` reference changes house rules only.

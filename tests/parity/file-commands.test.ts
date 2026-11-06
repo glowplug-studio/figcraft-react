@@ -70,4 +70,14 @@ describe("native file command transactions", () => {
     await engine.executeAsync("file.open", { data: saved.data });
     expect(engine.execute("shape.rectangle").id).toBe("4");
   });
+  it("can save the last u64 allocation and rejects the next creation atomically", async () => {
+    const engine = new EditorEngine();
+    const source = native.toString().replace('"next_id": 3', '"next_id": 18446744073709551615');
+    await engine.executeAsync("file.open", { data: base64Bytes(new TextEncoder().encode(source)) });
+    expect(engine.execute("shape.rectangle").id).toBe("18446744073709551615");
+    await expect(engine.nativeSnapshot()).resolves.toBeInstanceOf(Uint8Array);
+    const before = engine.getSnapshot();
+    expect(() => engine.execute("shape.rectangle")).toThrow("exhausted");
+    expect(engine.getSnapshot()).toBe(before);
+  });
 });

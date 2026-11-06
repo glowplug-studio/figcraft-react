@@ -5,16 +5,16 @@
 | Field | Current value |
 |---|---|
 | Overall status | In progress; full parity is not implemented |
-| Active slice | Native file persistence and browser recovery: verification |
-| Active phase | Phase 7: bounded persistence evidence and checkpoint commit |
+| Active slice | Page lifecycle and document navigation |
+| Active phase | Phase 7: verified page checkpoint |
 | Upstream baseline | `0b97f3f1801a9b7b96fd7a4f3c0942a3f1a676f3`; prior parity baseline `8eb0b87646c5aef712326d6c431ccde5408630de` |
-| Branch and last verified commit | `prompt/full-figcraft-port`; integration `fc3b4a6b1440c03961915580c881eb602565d10a` from `origin/dev` `44efef9` plus `origin/prompt/rectangle-slice` `18422b6` |
-| Completed slices | Prior rectangle/host-auth integrated; bounded native page/rectangle persistence and recovery verified locally |
+| Branch and last verified commit | `prompt/full-figcraft-port`; verified persistence `41d467b`; integration `fc3b4a6` from updated dev plus rectangle branch |
+| Completed slices | Rectangle/host-auth, bounded native persistence/recovery and supported-model page lifecycle verified locally |
 | Remaining slices | Every row below except the integrated foundation; static inventory entries remain unverified until mapped and tested |
-| Tests last passed | Persistence: strict typecheck, 135 pure tests, 2 real local Auth integration tests, package/Next production build, 8/8 authenticated production-browser checks |
-| Files currently in progress | Native codec, file commands, recovery contracts/controller/IndexedDB, editor and host controls, parity/browser tests, dependencies and inventory |
+| Tests last passed | Pages: strict typecheck, 190 pure tests, 2 real local Auth integration tests, package/Next production build, 10/10 authenticated production-browser checks |
+| Files currently in progress | Persistence reports; page command reducer, engine history integration, page controls and tests |
 | Blockers | None |
-| Exact next action | Commit verified persistence and reports; immediately activate page lifecycle and its history/selection/divider rules |
+| Exact next action | Finish final page checks and reports, commit verified page workflow, then continue affine scene geometry and containers |
 | Last updated | 2026-11-06 |
 
 ## Scope and continuation
@@ -86,3 +86,15 @@ For each slice: focused paired fixtures, negative/atomicity checks, shared contr
 Strict TypeScript, 135 pure tests, two local Auth integration tests and package/Next production builds passed. Eight authenticated Playwright checks passed against local `next start`, including native download/reopen, cancellation, reload recovery, invalid-file atomicity and storage denial; existing canvas screenshot, responsive layouts, pointer render counts and 10,000-rectangle performance passed unchanged. The initial status overlay was moved out of the canvas; a test selector was narrowed to avoid the framework route announcer. No hosted service changes or deployment occurred. No public schema is needed for local browser recovery; online storage remains required later.
 
 The next bounded model slice is page lifecycle: add/select/rename/delete/duplicate/reorder/list and divider invariants, with explicit current-page/history handling and page controls. Full hierarchy waits for affine transforms and container rendering; adding parent identifiers alone would not meet upstream semantics. Source evidence: `cmd/page.rs:13–160`, `doc/src/lib.rs:438–473`, `panels_behaviour_tests.rs:327–393`, `page_target_tests.rs`, `theme_pages_tests.rs`, and `page_copy_navigation_tests.rs`. Page duplication must eventually remap all navigation/resources; current supported documents contain rectangles only, and that limitation remains visible until the model expands.
+
+## Active page lifecycle plan
+
+Acceptance: add, select by ID/index, rename, delete, duplicate, reorder and list pages preserve upstream defaults, ordering, current-page and selection rules. Empty ASCII-hyphen-prefixed pages are dividers; populated hyphen pages are ordinary; mutations may never remove the last ordinary page. Page selection is navigation, not an undo entry or a dirty content change. Content operations are atomic and undoable with their previous page/selection; identifiers never rewind. Duplication uses fresh identifiers and retains background and the currently supported ordered child data. Resource/navigation remapping expands with the typed model and remains a tracked parity dependency.
+
+Mapping: `cmd/page.rs:13–160` → isolated pure `src/engine/pages.ts`, coordinator engine transaction integration and `src/PagePanel.tsx`; `doc::is_divider` → shared predicate; `session/undo.rs` → restored page/selection snapshots. Parameter parsing mirrors upstream lenient number/string/ID handling, including string IDs and strict select versus clamped/truncated move indices. Invalid targets and deletion/rename of the last ordinary page fail before publication. Colour-background editing belongs to the forthcoming colour-model family; it is not falsely marked implemented here.
+
+State: retain cheap immutable page/node maps. Navigation changes the serialised current-page projection and recovery snapshot but dirty detection compares content references, not navigation alone. The saved document content remains an immutable reference. No database or Realtime changes apply. Host identity/capability checks gate commands; the reusable core remains provider-neutral. IndexedDB and native files must round-trip added/reordered/duplicated pages. Page controls provide explicit target names, selectable pages, accessible add/rename/delete/reorder actions; divider buttons cannot open. Tests translate `panels_behaviour_tests`, `page_target_tests`, and supported `theme_pages_tests`, add identity/atomicity/undo/reload checks, and retain canvas screenshot/performance baselines.
+
+Allocation: page reducer agent owns only `src/engine/pages.ts` and `tests/parity/pages.test.ts`; coordinator owns engine/document integration, `PagePanel.tsx`, editor integration and browser tests. Persistence reporting agent owns only the two persistence reports. No overlapping edits. Rollback point: verified `41d467b`. Full hierarchy and affine transforms follow this bounded page workflow.
+
+Page verification: 49 reducer cases and five page/history cases passed; full suite has 190 pure tests plus two separately run local Auth integration tests. Final typecheck, package/Next production build and 10/10 authenticated local production Playwright checks passed (13.4 seconds). New browser flows cover page add/dividers/duplicate/reorder/rename/undo/redo/reload and narrow-screen navigation; last-page delete/rename failures preserve content. Maximum-u64 allocation remains serialisable and the next allocation fails atomically. Persistence report is committed as `ceb9602`; page implementation and its reports follow. No deployment or branch push.

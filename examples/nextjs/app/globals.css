@@ -25,6 +25,15 @@ h2, h3 { font-size: 12px; }
 .figcraft-layers ul { padding: 0; list-style: none; }
 .figcraft-layers li { padding: 8px; }
 .figcraft-layers li[aria-current] { background: #e5f4ff; }
+.figcraft-page-select { width: 100%; text-align: left; overflow-wrap: anywhere; }
+.figcraft-page-select[aria-current] { background: #e5f4ff; }
+.figcraft-page-actions { margin: 6px 0; }
+.figcraft-page-actions summary { cursor: pointer; }
+.figcraft-page-actions button { display: block; width: 100%; margin-top: 4px; text-align: left; }
+.figcraft-add-page { padding-bottom: 16px; border-bottom: 1px solid #ddd; }
+.figcraft-add-page p { color: #666; line-height: 1.4; }
+.figcraft-page-row hr { border: 0; border-top: 1px solid #bbb; }
+.figcraft-mobile-pages { display: none; }
 .figcraft-canvas-area { position: relative; min-width: 0; min-height: 0; overflow: hidden; }
 .figcraft-canvas-area canvas { display: block; width: 100%; height: 100%; touch-action: none; }
 .figcraft-toolbar { position: absolute; bottom: 24px; left: 50%; transform: translateX(-50%); display: flex; gap: 8px; padding: 8px; background: #fff; border: 1px solid #ddd; border-radius: 12px; box-shadow: 0 2px 8px #0001; }
@@ -38,6 +47,9 @@ dd { margin: 0; }
 [role=alert] { color: #a21818; padding: 8px 16px; }
 .auth-page { max-width: 360px; margin: 12vh auto; padding: 24px; }
 @media (max-width: 800px) {
+  .figcraft-mobile-pages { display: block; }
+  .figcraft-mobile-pages > summary { cursor: pointer; }
+  .figcraft-mobile-pages > .figcraft-pages { position: absolute; z-index: 2; top: 48px; left: 8px; width: min(300px, calc(100vw - 16px)); max-height: 70dvh; overflow: auto; background: #fff; border: 1px solid #ddd; padding: 16px; }
   .figcraft-workspace { grid-template-columns: minmax(200px, 1fr) 190px; }
   .figcraft-layers { display: none; }
   .figcraft-document-bar span { display: none; }

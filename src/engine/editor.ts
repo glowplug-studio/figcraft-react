@@ -1,7 +1,9 @@
 import { newDocument, pageOf, type Document, type RectangleNode, type NodeId } from "./document";
 import { decodeFigcraft, encodeFigcraft } from "./file-format";
+import { executePage, listPages, pageSpecs } from "./pages";
 
 export const commandSpecs = Object.freeze({
+  ...pageSpecs,
   "shape.rectangle": { label: "Rectangle", undo: true },
   "node.create": { label: "Create layer", undo: true },
   "tool.rectangle": { label: "Rectangle", undo: false },
@@ -25,6 +27,10 @@ export interface EditorSnapshot {
   readonly hasSaved: boolean;
 }
 interface HistoryEntry { document: Document; selection: readonly NodeId[] }
+// Current page is navigation state. It is persisted, but does not dirty document content.
+function sameContent(a: Document, b: Document | null): boolean {
+  return b !== null && a.name === b.name && a.pages === b.pages && a.nodes === b.nodes;
+}
 function parameters(input: unknown): Record<string, unknown> {
   if (typeof input !== "object" || input === null || Array.isArray(input)) throw new Error("Command parameters must be an object");
   return input as Record<string, unknown>;
@@ -54,17 +60,31 @@ export class EditorEngine {
   cancelPendingFiles(): void { this.#openSequence++; this.#pendingSaves.clear(); }
   #publish(patch: Partial<EditorSnapshot>): void {
     const document = patch.document ?? this.#snapshot.document;
-    this.#snapshot = Object.freeze({ ...this.#snapshot, ...patch, canUndo: this.#undo.length > 0, canRedo: this.#redo.length > 0, dirty: document !== this.#saved, hasSaved: this.#saved !== null });
+    this.#snapshot = Object.freeze({ ...this.#snapshot, ...patch, canUndo: this.#undo.length > 0, canRedo: this.#redo.length > 0, dirty: !sameContent(document, this.#saved), hasSaved: this.#saved !== null });
     this.#listeners.forEach(listener => listener());
   }
   setEditable(editable: boolean): void {
     if (!editable) this.cancelPendingFiles();
     if (editable !== this.#snapshot.editable) this.#publish({ editable, tool: "move" });
   }
-  execute(command: string, input: unknown = {}): Record<string, unknown> {
+  execute(command: "page.list", input?: unknown): ReturnType<typeof listPages>;
+  execute(command: string, input?: unknown): Record<string, unknown>;
+  execute(command: string, input: unknown = {}): Record<string, unknown> | ReturnType<typeof listPages> {
     if (!Object.hasOwn(commandSpecs, command)) throw new Error(`Unsupported command: ${command}`);
     if (!this.#snapshot.editable) throw new Error("Sign in to edit this document");
     const p = parameters(input);
+    if (command === "page.list") return listPages(this.#snapshot.document);
+    if (Object.hasOwn(pageSpecs, command)) {
+      const before = this.#snapshot;
+      const changed = executePage(command, before.document, before.selection, this.#nextId, p);
+      if (command !== "page.select" && !sameContent(before.document, changed.document)) {
+        this.#undo.push({ document: before.document, selection: before.selection });
+        this.#redo = [];
+      }
+      this.#nextId = changed.nextId;
+      if (changed.document !== before.document || changed.selection !== before.selection) this.#publish({ document: changed.document, selection: changed.selection });
+      return changed.result;
+    }
     if (command === "file.markSaved") {
       if (Object.keys(p).some(key => key !== "revision")) throw new Error("Unsupported save acknowledgement parameter");
       const document = p.revision === undefined ? this.#snapshot.document : typeof p.revision === "number" ? this.#pendingSaves.get(p.revision) : undefined;
@@ -140,7 +160,7 @@ export class EditorEngine {
     const document: Document = Object.freeze({ ...before.document, nodes: Object.freeze({ ...before.document.nodes, [page.id]: Object.freeze({ ...page, children: Object.freeze(children) }), [node.id]: node }) });
     this.#undo.push({ document: before.document, selection: before.selection });
     this.#redo = [];
-    this.#nextId++;
+    if (this.#nextId < 18446744073709551615n) this.#nextId++;
     this.#publish({ document, selection: p.select === false ? before.selection : Object.freeze([node.id]) });
     return { id: node.id };
   }
