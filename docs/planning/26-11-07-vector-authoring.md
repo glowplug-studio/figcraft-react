@@ -7,9 +7,9 @@
 | Scope | Next required vertical slice in the autonomous full-port run |
 | Phase | Phase 4: pure network operations and session primitives implemented; command/pointer/UI integration remains |
 | Reference | `0b97f3f1801a9b7b96fd7a4f3c0942a3f1a676f3`; upstream sync unchanged |
-| React | `prompt/full-figcraft-port`; vector foundation verified from mathematics `cb5417d`, commit `154f5a7` |
+| React | `prompt/full-figcraft-port`; verified internal primitives `74fbbb0`; last complete browser slice `154f5a7` |
 | Verification | 696 pure tests (25 new authoring fixtures), strict TypeScript and package build pass; foundation2 Auth/86 browser checks remain the last browser baseline |
-| Files in progress | New vector-edit-ops.ts, vector-edit.ts and two parity fixture files; no editor/UI integration yet |
+| Files in progress | Internal primitives committed as74fbbb0; command/pointer/UI integration not yet started |
 | Blockers | Hosted Graphify authentication expired; local source and local React graph available |
 | Next action | Integrate native edit commands and lifecycle into EditorEngine, then pointer geometry/gestures and React controls |
 
