@@ -6,10 +6,14 @@ import { setRectangleProperties } from "./properties";
 import { inverse, multiply, transformBounds } from "./affine";
 import { HierarchyDraft, frameRelative, pageForNode } from "./hierarchy";
 import { executeStructure, nextLayerName, structureSpecs } from "./structure";
+import { defaultViewport, executeView, fitPage, viewSpecs, type Viewport } from "./viewport";
+import { framePresets, presetParameters } from "./frame-presets";
 import { parseNodeId } from "./parameters";
 
 export const commandSpecs = Object.freeze({
   ...pageSpecs,
+  ...viewSpecs,
+  "frame.presets": { label: "List frame presets", undo: false },
   ...selectionSpecs,
   ...structureSpecs,
   "node.set": { label: "Set properties", undo: true },
@@ -57,6 +61,10 @@ export class EditorEngine {
   #redo: HistoryEntry[] = [];
   #nextId = 2n;
   #listeners = new Set<() => void>();
+  #view: Viewport = fitPage(defaultViewport, newDocument());
+  #viewListeners = new Set<() => void>();
+  #viewportAttached = false;
+  #viewConfigured = false;
   #saved: Document | null = null;
   #saveSequence = 0;
   #pendingSaves = new Map<number, Document>();
@@ -65,6 +73,18 @@ export class EditorEngine {
     this.#snapshot = Object.freeze({ document: newDocument(), selection: Object.freeze([]), tool: "move", canUndo: false, canRedo: false, editable: true, dirty: true, hasSaved: false });
   }
   getSnapshot = (): EditorSnapshot => this.#snapshot;
+  getView = (): Viewport => this.#view;
+  subscribeView = (listener: () => void): (() => void) => { this.#viewListeners.add(listener); return () => { this.#viewListeners.delete(listener); }; };
+  updateView(view: Viewport): void {
+    if (Object.values(view).some(value => !Number.isFinite(value)) || view.zoom < 0.02 || view.zoom > 256 || view.vw <= 0 || view.vh <= 0) throw new Error("Invalid viewport");
+    if ((Object.keys(view) as (keyof Viewport)[]).every(key => view[key] === this.#view[key])) return;
+    this.#view = Object.freeze({ ...view }); this.#viewListeners.forEach(listener => listener());
+  }
+  resizeViewport(width: number, height: number): void {
+    const next = { ...this.#view, vw: Math.max(1, width), vh: Math.max(1, height) };
+    this.updateView(!this.#viewportAttached && !this.#viewConfigured ? fitPage(next, this.#snapshot.document) : next);
+    this.#viewportAttached = true;
+  }
   subscribe = (listener: () => void): (() => void) => { this.#listeners.add(listener); return () => { this.#listeners.delete(listener); }; };
   nativeSnapshot = (): Promise<Uint8Array> => encodeFigcraft(this.#snapshot.document, String(this.#nextId));
   cancelPendingFiles(): void { this.#openSequence++; this.#pendingSaves.clear(); }
@@ -77,12 +97,20 @@ export class EditorEngine {
     if (!editable) this.cancelPendingFiles();
     if (editable !== this.#snapshot.editable) this.#publish({ editable, tool: "move" });
   }
+  execute(command: "frame.presets", input?: unknown): typeof framePresets;
   execute(command: "page.list", input?: unknown): ReturnType<typeof listPages>;
   execute(command: string, input?: unknown): Record<string, unknown>;
-  execute(command: string, input: unknown = {}): Record<string, unknown> | ReturnType<typeof listPages> {
+  execute(command: string, input: unknown = {}): Record<string, unknown> | ReturnType<typeof listPages> | typeof framePresets {
     if (!Object.hasOwn(commandSpecs, command)) throw new Error(`Unsupported command: ${command}`);
     if (!this.#snapshot.editable) throw new Error("Sign in to edit this document");
     const p = parameters(input);
+    if (command === "frame.presets") return framePresets;
+    if (Object.hasOwn(viewSpecs, command)) {
+      const before = this.#snapshot, next = executeView(command, this.#view, before.document, before.selection, p);
+      this.#viewConfigured = true; this.updateView(next.view);
+      if (next.document !== before.document || next.selection !== before.selection) this.#publish({ document: next.document, selection: next.selection });
+      return next.result;
+    }
     if (Object.hasOwn(structureSpecs, command)) {
       const before = this.#snapshot;
       const next = executeStructure(command, before.document, before.selection, this.#nextId, p);
@@ -118,6 +146,7 @@ export class EditorEngine {
       }
       this.#nextId = changed.nextId;
       if (changed.document !== before.document || changed.selection !== before.selection) this.#publish({ document: changed.document, selection: changed.selection });
+      if (command === "page.select" || command !== "page.duplicate" && changed.document.currentPage !== before.document.currentPage) this.updateView(fitPage(this.#view, changed.document));
       return changed.result;
     }
     if (command === "file.markSaved") {
@@ -174,9 +203,11 @@ export class EditorEngine {
     this.#nextId = BigInt(decoded.nextId);
     this.#undo = []; this.#redo = []; this.#saved = null; this.#pendingSaves.clear();
     this.#publish({ document: decoded.document, selection: Object.freeze([]), tool: "move" });
+    this.updateView(fitPage(this.#view, decoded.document));
     return { summary: { name: decoded.document.name, pages: decoded.document.pages.length, layers: Object.keys(decoded.document.nodes).length - decoded.document.pages.length, images: 0 } };
   }
   #rectangle(command: string, p: Record<string, unknown>): Record<string, unknown> {
+    if (command === "frame.create") p = presetParameters(this.#snapshot.document, this.#view, p);
     const allowed = ["x", "y", "width", "height", "parent", "index", "name", "select", "props", ...(command === "node.create" ? ["type"] : [])];
     for (const key of Object.keys(p)) if (!allowed.includes(key)) throw new Error(`Unsupported rectangle parameter: ${key}`);
     if (command === "node.create" && (typeof p.type !== "string" || !["rectangle", "rect", "group", "frame"].includes(p.type.toLowerCase()))) throw new Error("Only rectangle, group and frame nodes are supported");

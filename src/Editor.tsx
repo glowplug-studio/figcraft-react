@@ -1,3 +1,5 @@
+import { ViewControls } from "./ViewControls";
+import { framePresets } from "./engine/frame-presets";
 import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type FormEvent, type KeyboardEvent } from "react";
 import type { DocumentCapability } from "./backends/access";
 import type { IdentityAdapter } from "./backends/identity";
@@ -90,7 +92,23 @@ export function Editor({ identity, capabilities, engine: suppliedEngine, recover
     else if (!event.metaKey && !event.ctrlKey && !event.altKey) {
       if (event.key.toLowerCase() === "r") command = "tool.rectangle";
       if (event.key.toLowerCase() === "v") command = "tool.move";
+      if (event.key.toLowerCase() === "n") command = event.shiftKey ? "view.prevFrame" : "view.nextFrame";
+      if (event.shiftKey && event.code === "Digit0") command = "view.zoom100";
+      if (event.shiftKey && event.code === "Digit1") command = "view.zoomFit";
+      if (event.shiftKey && event.code === "Digit2") command = "view.zoomSelection";
+      if (snapshot.selection.length === 0 && ["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(event.key)) {
+        event.preventDefault(); dispatch("view.pan", { dx: event.key === "ArrowRight" ? 1 : event.key === "ArrowLeft" ? -1 : 0, dy: event.key === "ArrowDown" ? 1 : event.key === "ArrowUp" ? -1 : 0, big: event.shiftKey }); return;
+      }
       if (event.key === "Escape") { controller.current?.cancel(); return; }
+    }
+    if (!event.altKey && ["+", "="].includes(event.key)) command = "view.zoomIn";
+    if (!event.altKey && ["-", "_"].includes(event.key)) command = "view.zoomOut";
+    if (!event.altKey && (event.metaKey || event.ctrlKey) && event.code === "Digit0") command = "view.zoom100";
+    if (!event.altKey && !event.metaKey && !event.ctrlKey && !event.shiftKey) {
+      if (event.key === "PageUp") command = "view.prevPage";
+      if (event.key === "PageDown") command = "view.nextPage";
+      if (event.key === "Home") command = "view.prevFrame";
+      if (event.key === "End") command = "view.nextFrame";
     }
     if (command) { event.preventDefault(); dispatch(command); }
   }
@@ -160,7 +178,8 @@ export function Editor({ identity, capabilities, engine: suppliedEngine, recover
         </aside>
         <div className="figcraft-canvas-area">
           <canvas ref={canvas} aria-label="Design canvas" tabIndex={0} aria-describedby="canvas-instructions" />
-          <p id="canvas-instructions" className="figcraft-instructions">R: rectangle · Drag to draw · Shift: square · Alt: centre · Escape: cancel</p>
+          <ViewControls engine={engine} editable={editable && !busy} dispatch={dispatch} />
+          <p id="canvas-instructions" className="figcraft-instructions">R: rectangle · Space/middle drag: pan · Z: zoom · Ctrl/⌘ wheel: zoom · Escape: cancel</p>
           <div className="figcraft-toolbar" role="toolbar" aria-label="Tools">
             <button disabled={!editable} aria-pressed={snapshot.tool === "move"} onClick={() => { dispatch("tool.move"); canvas.current?.focus(); }}>Move</button>
             <button disabled={!editable} aria-pressed={snapshot.tool === "rectangle"} onClick={() => { dispatch("tool.rectangle"); canvas.current?.focus(); }}>Rectangle</button>
@@ -175,6 +194,12 @@ export function Editor({ identity, capabilities, engine: suppliedEngine, recover
             <button type="submit" value="rectangle">Create rectangle</button>
             <button type="submit" value="frame">Create frame</button>
           </fieldset></form>
+          <details><summary>Frame presets</summary><form onSubmit={event => {
+            event.preventDefault(); const data = new FormData(event.currentTarget);
+            dispatch("frame.create", { preset: data.get("preset") });
+          }}><label>Preset<select aria-label="Frame preset" name="preset" disabled={!editable}>
+            {framePresets.map(preset => <option key={preset.name} value={preset.name}>{preset.category}: {preset.name}</option>)}
+          </select></label><button type="submit" disabled={!editable}>Create preset frame</button></form></details>
           {recoveryStore && <p className="figcraft-recovery" role="status">{recoveryStatus === "loading" ? "Restoring local recovery…" : recoveryStatus === "stored" ? "Recovery saved on this device" : recoveryStatus === "pending" ? "Saving recovery…" : recoveryStatus === "error" ? "Recovery failed" : "Local recovery ready"}</p>}
           {selected && selected.kind !== "page" && relative && <section aria-label={`Selected ${selected.kind}`}><h3>{selected.name}</h3><dl>
             <dt>X</dt><dd>{relative[4]}</dd><dt>Y</dt><dd>{relative[5]}</dd><dt>Width</dt><dd>{selected.width}</dd><dt>Height</dt><dd>{selected.height}</dd>

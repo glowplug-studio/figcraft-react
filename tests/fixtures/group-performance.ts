@@ -2,7 +2,7 @@ import { renderDocument } from "../../src/engine/canvas";
 import { newDocument, pageOf, type Document, type DocumentNode, type GroupNode, type FrameNode, type RectangleNode } from "../../src/engine/document";
 
 /** In-memory browser rendering fixture; native file node limits do not apply. */
-export async function measureGroupedDocument(canvas: HTMLCanvasElement, frames = false) {
+export async function measureGroupedDocument(canvas: HTMLCanvasElement, frames = false, navigating = false) {
   const empty = newDocument();
   const page = pageOf(empty);
   const nodes: Record<string, DocumentNode> = {};
@@ -36,9 +36,10 @@ export async function measureGroupedDocument(canvas: HTMLCanvasElement, frames =
   for (let frame = 0; frame < 120; frame++) {
     await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
     const start = performance.now();
-    renderDocument(context, document, 1000, 1000, [], { x: frame, y: frame, width: 80, height: 40 });
+    renderDocument(context, document, 1000, 1000, [], { x: frame, y: frame, width: 80, height: 40 }, navigating ? { cx: 500 + frame, cy: 500 - frame, zoom: 1 + frame / 120, vw: 1000, vh: 1000 } : undefined);
     durations.push(performance.now() - start);
   }
+  if (navigating) renderDocument(context, document, 1000, 1000);
   const sorted = durations.slice(10).sort((a, b) => a - b);
   const pixel = Array.from(context.getImageData(2, 2, 1, 1).data);
   const moved = { ...document, nodes: { ...document.nodes, "4": { ...document.nodes["4"], x: 80 } } } as Document;

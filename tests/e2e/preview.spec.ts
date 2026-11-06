@@ -35,7 +35,7 @@ test.beforeAll(async () => {
   }
 });
 test.afterAll(async () => { if (backend && userId) await backend.admin.auth.admin.deleteUser(userId); });
-async function login(page: Page) {
+async function login(page: Page, normaliseView = true) {
   await page.goto("/");
   await expect(page).toHaveURL(/\/login\?next=/);
   await page.getByLabel("Email", { exact: true }).fill(email);
@@ -43,6 +43,22 @@ async function login(page: Page) {
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Untitled", exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "Create rectangle", exact: true })).toBeEnabled();
+  if (normaliseView) await resetCanvasOrigin(page);
+}
+/** Legacy pixel fixtures use origin0; reach it through real viewport controls and captured pan. */
+async function resetCanvasOrigin(page: Page) {
+  const canvas = page.getByLabel("Design canvas", { exact: true });
+  await expect(canvas).toHaveAttribute("data-view-zoom", /.+/);
+  await expect(page.locator(".figcraft-recovery")).not.toHaveText("Restoring local recovery…");
+  await page.getByRole("button", { name: "Zoom to 100%", exact: true }).click();
+  await expect(canvas).toHaveAttribute("data-view-zoom", "1");
+  const origin = await canvas.evaluate((node: HTMLCanvasElement) => ({ x: Number(node.dataset.viewOriginX), y: Number(node.dataset.viewOriginY) }));
+  const bounds = (await canvas.boundingBox())!;
+  await page.mouse.move(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2);
+  await page.mouse.down({ button: "middle" });
+  await page.mouse.move(bounds.x + bounds.width / 2 + origin.x, bounds.y + bounds.height / 2 + origin.y, { steps: 2 });
+  await page.mouse.up({ button: "middle" });
+  await expect.poll(async () => canvas.evaluate((node: HTMLCanvasElement) => Math.abs(Number(node.dataset.viewOriginX)) + Math.abs(Number(node.dataset.viewOriginY)))).toBeLessThan(0.01);
 }
 async function geometry(page: Page, expected: number[]) {
   await expect(page.getByRole("region", { name: "Selected rectangle" }).locator("dd")).toHaveText(expected.map(String));
@@ -51,7 +67,7 @@ async function expectCanvasPixel(page: Page, x: number, y: number, rgba: readonl
   const canvas = page.getByLabel("Design canvas", { exact: true });
   await expect.poll(async () => canvas.evaluate((node: HTMLCanvasElement, point) => {
     const scale = window.devicePixelRatio || 1;
-    const actual = node.getContext("2d")!.getImageData(Math.round(point.x * scale), Math.round(point.y * scale), 1, 1).data;
+    const actual = node.getContext("2d")!.getImageData(Math.round((point.x - Number(node.dataset.viewOriginX)) * Number(node.dataset.viewZoom) * scale), Math.round((point.y - Number(node.dataset.viewOriginY)) * Number(node.dataset.viewZoom) * scale), 1, 1).data;
     return point.rgba.every((channel, index) => Math.abs(actual[index] - channel) <= 2);
   }, { x, y, rgba })).toBe(true);
 }
@@ -142,7 +158,7 @@ test("pointer reverse drag, square and centre modifiers, click, cancellation and
 
 test("session persists across reload, refreshes and logout protects the editor", async ({ page }) => {
   await login(page);
-  await page.reload();
+  await page.reload(); await resetCanvasOrigin(page);
   await expect(page.getByRole("heading", { name: "Untitled", exact: true })).toBeVisible();
   // Force the browser's SSR cookie expiry metadata; proxy must refresh using its refresh token.
   const cookies = await page.context().cookies();
@@ -155,7 +171,7 @@ test("session persists across reload, refreshes and logout protects the editor",
     const value = `base64-${Buffer.from(JSON.stringify(session)).toString("base64url")}`;
     await page.context().clearCookies({ name: /^sb-.*-auth-token/ });
     await page.context().addCookies([{ ...auth[0], name: auth[0].name.replace(/\.\d+$/, ""), value }]);
-    await page.reload();
+    await page.reload(); await resetCanvasOrigin(page);
     await expect(page.getByRole("heading", { name: "Untitled", exact: true })).toBeVisible();
     const renewedCookies = (await page.context().cookies()).filter(cookie => /^sb-.*-auth-token(?:\.\d+)?$/.test(cookie.name)).sort((a,b) => a.name.localeCompare(b.name));
     const renewed = JSON.parse(Buffer.from(renewedCookies.map(cookie => cookie.value).join("").replace(/^base64-/, ""), "base64url").toString());
@@ -177,7 +193,7 @@ test("unavailable Canvas 2D reports an accessible error", async ({ page }) => {
       return getContext.apply(this, args);
     } as typeof getContext;
   });
-  await login(page);
+  await login(page, false);
   await expect(page.locator("main [role=alert]")).toContainText("Canvas 2D is unavailable");
 });
 
@@ -208,7 +224,7 @@ test("native download, cancelled replacement, reopen and recovery after reload",
   await expect(page.getByText("1 layer", { exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "Undo", exact: true })).toBeDisabled();
   await expect(page.getByText("Recovery saved on this device", { exact: true })).toBeVisible();
-  await page.reload();
+  await page.reload(); await resetCanvasOrigin(page);
   await expect(page.getByText("1 layer", { exact: true })).toBeVisible();
   await expect(page.getByText("Unsaved · Local document", { exact: true })).toBeVisible();
   await input.setInputFiles({ name: "invalid.figcraft", mimeType: "application/octet-stream", buffer: Buffer.from("broken") });
@@ -260,7 +276,7 @@ test("page lifecycle, dividers, undo, native recovery and narrow-screen access",
   await expect(pages.getByRole("button", { name: "Copy of Page 1", exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Redo", exact: true }).click();
   await expect(page.getByText("Recovery saved on this device", { exact: true })).toBeVisible();
-  await page.reload();
+  await page.reload(); await resetCanvasOrigin(page);
   await expect(pages.getByRole("button", { name: "Review", exact: true })).toHaveAttribute("aria-current", "page");
   await expect(page.getByText("1 layer", { exact: true })).toBeVisible();
   await page.setViewportSize({ width: 390, height: 844 });
@@ -305,7 +321,7 @@ test("CSS fill alpha, invalid input, undo and recovery retain the visible colour
   await page.getByRole("button", { name: "Redo", exact: true }).click();
   await expectCanvasPixel(page, 80, 80, [255, 127, 127, 255]);
   await expect(page.getByText("Recovery saved on this device", { exact: true })).toBeVisible();
-  await page.reload();
+  await page.reload(); await resetCanvasOrigin(page);
   await expectCanvasPixel(page, 80, 80, [255, 127, 127, 255]);
 });
 
@@ -434,7 +450,7 @@ test("rotation edits preserve centre, pixels, undo and native recovery with poin
   await geometry(page, [100, 100, 100, 50]);
   await page.getByRole("button", { name: "Redo", exact: true }).click();
   await expect(page.getByText("Recovery saved on this device", { exact: true })).toBeVisible();
-  await page.reload();
+  await page.reload(); await resetCanvasOrigin(page);
   await expect(page.getByRole("button", { name: "Create rectangle", exact: true })).toBeEnabled();
   const bounds = (await canvas.boundingBox())!;
   await page.mouse.click(bounds.x + 150, bounds.y + 90);
@@ -486,7 +502,7 @@ test("layer tree groups named rectangles, composites opacity once, and survives 
   const savedGroup = native.document.nodes[root.children[0]];
   expect(savedGroup.kind).toBe("group");
   await expect(page.getByText("Recovery saved on this device", { exact: true })).toBeVisible();
-  await page.reload();
+  await page.reload(); await resetCanvasOrigin(page);
   await expect(layers.getByRole("button", { name: "Group 1", exact: true })).toBeVisible();
   await expectCanvasPixel(page, 80, 60, [231, 231, 231, 255]);
   await page.screenshot({ path: "test-results/nested-groups-desktop.png", fullPage: true });
@@ -601,7 +617,7 @@ test("frames clip children, resize with constraints, isolate opacity and retain 
   expect(frame).toMatchObject({ clip: false, width: 100, opacity: 0.5 });
   expect(Object.values(native.document.nodes).find(node => node.name === "Overflow")).toMatchObject({ constraints: { horizontal: "right", vertical: "top" } });
   await expect(page.getByText("Recovery saved on this device", { exact: true })).toBeVisible();
-  await page.reload();
+  await page.reload(); await resetCanvasOrigin(page);
   await expect(layers.getByRole("button", { name: "Frame 1", exact: true })).toBeVisible();
   await expectCanvasPixel(page, 150, 60, [250, 122, 122, 255]);
   await page.screenshot({ path: "test-results/frame-constraints-desktop.png", fullPage: true });
@@ -629,5 +645,91 @@ test("frame conversion preserves children and refuses an empty frame atomically"
   await page.setViewportSize({ width: 390, height: 844 });
   await page.locator(".figcraft-mobile-layers > summary").click();
   await expect(page.locator(".figcraft-mobile-layers").getByRole("button", { name: "Inside", exact: true })).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+});
+
+test("viewport pan, wheel and anchored zoom preserve document state without root React updates", async ({ page }) => {
+  await login(page, false);
+  const canvas = page.getByLabel("Design canvas", { exact: true });
+  await expect(canvas).toHaveAttribute("data-view-origin-x", "-100");
+  await expect(canvas).toHaveAttribute("data-view-origin-y", "-100");
+  await page.getByRole("button", { name: "Create rectangle", exact: true }).click();
+  const bounds = (await canvas.boundingBox())!;
+  await expect(page.getByText("Recovery saved on this device", { exact: true })).toBeVisible();
+  const root = page.locator("[data-figcraft-editor]"), commits = (await root.getAttribute("data-commits"))!;
+  await canvas.focus(); await page.keyboard.down("Space");
+  await page.mouse.move(bounds.x + 300, bounds.y + 300); await page.mouse.down();
+  await page.mouse.move(bounds.x + 380, bounds.y + 340, { steps: 30 }); await page.mouse.up(); await page.keyboard.up("Space");
+  await expect(canvas).toHaveAttribute("data-view-origin-x", "-180");
+  await expect(canvas).toHaveAttribute("data-view-origin-y", "-140");
+  await expect(root).toHaveAttribute("data-commits", commits);
+  await page.mouse.move(bounds.x + 260, bounds.y + 220);
+  await page.mouse.wheel(0, 60);
+  await expect(canvas).toHaveAttribute("data-view-origin-y", "-80");
+  const before = await canvas.evaluate((node: HTMLCanvasElement) => ({ x: Number(node.dataset.viewOriginX), y: Number(node.dataset.viewOriginY), zoom: Number(node.dataset.viewZoom) }));
+  await page.keyboard.down("Control"); await page.mouse.wheel(0, -120); await page.keyboard.up("Control");
+  await expect.poll(async () => Number(await canvas.getAttribute("data-view-zoom"))).toBeGreaterThan(1);
+  const after = await canvas.evaluate((node: HTMLCanvasElement) => ({ x: Number(node.dataset.viewOriginX), y: Number(node.dataset.viewOriginY), zoom: Number(node.dataset.viewZoom) }));
+  expect(after.x + 260 / after.zoom).toBeCloseTo(before.x + 260 / before.zoom, 6);
+  expect(after.y + 220 / after.zoom).toBeCloseTo(before.y + 220 / before.zoom, 6);
+  await expect(root).toHaveAttribute("data-commits", commits);
+  await expect(page.getByText("1 layer", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Undo", exact: true }).click();
+  await expect(page.getByText("0 layers", { exact: true })).toBeVisible();
+});
+
+test("zoom tool and view shortcuts map drawing coordinates and keep the selection outline thin", async ({ page }) => {
+  await login(page);
+  const canvas = page.getByLabel("Design canvas", { exact: true }), bounds = (await canvas.boundingBox())!;
+  await canvas.focus(); await page.keyboard.down("z");
+  await page.mouse.click(bounds.x + 200, bounds.y + 200);
+  await expect(canvas).toHaveAttribute("data-view-zoom", "2");
+  await page.keyboard.down("Alt"); await page.mouse.click(bounds.x + 200, bounds.y + 200); await page.keyboard.up("Alt");
+  await expect(canvas).toHaveAttribute("data-view-zoom", "1");
+  await page.mouse.move(bounds.x + 100, bounds.y + 100); await page.mouse.down();
+  await page.mouse.move(bounds.x + 400, bounds.y + 300, { steps: 10 }); await page.mouse.up(); await page.keyboard.up("z");
+  await expect.poll(async () => Number(await canvas.getAttribute("data-view-zoom"))).toBeCloseTo(Math.min((bounds.width - 128) / 300, (bounds.height - 128) / 200), 6);
+  await page.keyboard.press("Shift+Digit0"); await expect(canvas).toHaveAttribute("data-view-zoom", "1");
+  await page.keyboard.press("="); await expect(canvas).toHaveAttribute("data-view-zoom", "2");
+  await page.keyboard.press("-"); await expect(canvas).toHaveAttribute("data-view-zoom", "1");
+  await page.keyboard.press("ControlOrMeta+="); await expect(canvas).toHaveAttribute("data-view-zoom", "2");
+  await page.keyboard.press("ControlOrMeta+Digit0"); await expect(canvas).toHaveAttribute("data-view-zoom", "1");
+  await page.getByRole("button", { name: "Zoom in", exact: true }).click();
+  await expect(canvas).toHaveAttribute("data-view-zoom", "2");
+  const view = await canvas.evaluate((node: HTMLCanvasElement) => ({ x: Number(node.dataset.viewOriginX), y: Number(node.dataset.viewOriginY), zoom: Number(node.dataset.viewZoom) }));
+  await canvas.focus(); await page.keyboard.press("r");
+  await page.mouse.move(bounds.x + 100, bounds.y + 100); await page.mouse.down();
+  await page.mouse.move(bounds.x + 180, bounds.y + 160, { steps: 8 }); await page.mouse.up();
+  await geometry(page, [Math.sign(view.x + 50) * Math.floor(Math.abs(view.x + 50) + 0.5), Math.sign(view.y + 50) * Math.floor(Math.abs(view.y + 50) + 0.5), 40, 30]);
+  await page.keyboard.press("Shift+Digit2");
+  await expect.poll(async () => Number(await canvas.getAttribute("data-view-zoom"))).toBeGreaterThan(2);
+  await expect.poll(async () => canvas.evaluate((node: HTMLCanvasElement) => {
+    const context = node.getContext("2d")!, y = Math.floor(node.height / 2);
+    const edge = context.getImageData(64, y, 1, 1).data, inside = context.getImageData(66, y, 1, 1).data;
+    return edge[2] > edge[0] && inside[0] === 217 && inside[1] === 217 && inside[2] === 217;
+  })).toBe(true);
+  await page.getByRole("button", { name: "Zoom to 100%", exact: true }).click();
+  await page.screenshot({ path: "test-results/viewport-desktop.png", fullPage: true });
+});
+
+test("frame presets place beside content and keyboard navigation follows reading order", async ({ page }) => {
+  await login(page);
+  const canvas = page.getByLabel("Design canvas", { exact: true });
+  const bounds = (await canvas.boundingBox())!;
+  const x = Math.round((bounds.width - 297) / 2), y = Math.round((bounds.height - 420) / 2);
+  await page.getByText("Frame presets", { exact: true }).click();
+  await page.getByLabel("Frame preset", { exact: true }).selectOption("A6");
+  await page.getByRole("button", { name: "Create preset frame", exact: true }).click();
+  await expect(page.getByRole("region", { name: "Selected frame" }).locator("dd")).toHaveText([String(x), String(y), "297", "420"]);
+  await page.getByLabel("Frame preset", { exact: true }).selectOption("A5");
+  await page.getByRole("button", { name: "Create preset frame", exact: true }).click();
+  await expect(page.getByRole("region", { name: "Selected frame" }).locator("dd")).toHaveText([String(x + 397), String(y), "420", "595"]);
+  await canvas.focus();
+  await page.keyboard.press("n");
+  await expect(page.getByRole("region", { name: "Selected frame" }).getByRole("heading", { name: "A6", exact: true })).toBeVisible();
+  await page.keyboard.press("Shift+n");
+  await expect(page.getByRole("region", { name: "Selected frame" }).getByRole("heading", { name: "A5", exact: true })).toBeVisible();
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(page.getByRole("group", { name: "Canvas view", exact: true })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });

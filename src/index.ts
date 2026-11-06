@@ -30,3 +30,5 @@ export { solidPaint, type SolidPaint } from "./engine/solid-paint";
 export { rectanglePaints, withRectanglePaints, pageColour, withPageColour } from "./engine/document";
 export type { RecoveryStore } from "./backends/recovery";
 export { IndexedDbRecoveryStore } from "./backends/browser/recovery";
+export { defaultViewport, viewOrigin, pageToScreen, screenToPage, zoomAt, fitView, scrollView, type Viewport } from "./engine/viewport";
+export { framePresets, type FramePreset } from "./engine/frame-presets";

@@ -25,3 +25,14 @@ export function parseNumber(value: unknown, key = "value"): number {
   if (!Number.isFinite(result)) throw new Error(`${key} must be a finite number`);
   return result;
 }
+
+/** Native lenient bool_of; whitespace is deliberately not trimmed. */
+export function parseBoolean(value: unknown): boolean | undefined {
+  if (typeof value === "boolean") return value;
+  if (typeof value === "number" && Number.isFinite(value)) return value !== 0;
+  if (typeof value !== "string") return undefined;
+  const text = value.toLowerCase();
+  if (["true", "yes", "on", "1"].includes(text)) return true;
+  if (["false", "no", "off", "0"].includes(text)) return false;
+  return undefined;
+}

@@ -66,3 +66,9 @@ dd { margin: 0; }
   .figcraft-properties { border-left: 0; border-top: 1px solid #ddd; }
   fieldset { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 }
+
+.figcraft-view-controls { position: absolute; z-index: 1; right: 8px; top: 8px; display: flex; align-items: center; gap: 4px; background: #fff; padding: 4px; border: 1px solid #ddd; border-radius: 6px; }
+.figcraft-view-controls output { min-width: 3.5em; text-align: center; }
+@media (max-width: 800px) { .figcraft-view-controls { top: auto; bottom: 68px; flex-wrap: wrap; max-width: calc(100% - 16px); } }
+
+@media (min-width: 801px) and (max-width: 1280px) { .figcraft-instructions { top: 56px; } }

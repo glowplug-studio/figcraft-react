@@ -2,7 +2,7 @@ import { renderDocument } from "../../src/engine/canvas";
 import { newDocument, pageOf, type Document, type DocumentNode } from "../../src/engine/document";
 
 /** Browser-only representative fixture, not shipped or imported by product code. */
-export async function measureLargeDocument(canvas: HTMLCanvasElement, transformed = false) {
+export async function measureLargeDocument(canvas: HTMLCanvasElement, transformed = false, navigating = false) {
   const empty = newDocument();
   const page = pageOf(empty);
   const nodes: Record<string, DocumentNode> = {};
@@ -19,9 +19,10 @@ export async function measureLargeDocument(canvas: HTMLCanvasElement, transforme
   for (let frame = 0; frame < 120; frame++) {
     await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
     const start = performance.now();
-    renderDocument(context, document, 1100, 700, [], { x: frame, y: frame, width: 80, height: 40 });
+    renderDocument(context, document, 1100, 700, [], { x: frame, y: frame, width: 80, height: 40 }, navigating ? { cx: 550 + frame, cy: 350 - frame, zoom: 1 + frame / 120, vw: 1100, vh: 700 } : undefined);
     durations.push(performance.now() - start);
   }
+  if (navigating) renderDocument(context, document, 1100, 700);
   const sorted = durations.slice(10).sort((a,b) => a-b);
   return { rectangles: ids.length, measuredFrames: sorted.length, p95: sorted[Math.floor(sorted.length * .95)], max: sorted.at(-1), pixel: Array.from(context.getImageData(2, 2, 1, 1).data) };
 }

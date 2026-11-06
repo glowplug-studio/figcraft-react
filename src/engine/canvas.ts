@@ -5,6 +5,7 @@ import { drawnRectangle, type Point, type Rectangle } from "./geometry";
 import { multiply, transformBounds, type Affine } from "./affine";
 import { hitRectangle } from "./selection";
 import { worldTransform } from "./hierarchy";
+import { screenToPage, scrollView, viewOrigin, zoomAt, type Viewport } from "./viewport";
 
 const compositeSurfaces = new WeakMap<CanvasRenderingContext2D, HTMLCanvasElement>();
 // Immutable document snapshots invalidate these derived bounds after any edit.
@@ -107,22 +108,25 @@ function drawLayer(context: CanvasRenderingContext2D, document: Document, node: 
 }
 
 /** Only this module paints editable geometry; React never renders canvas layers. */
-export function renderDocument(context: CanvasRenderingContext2D, document: Document, width: number, height: number, selection: readonly string[] = [], preview?: Rectangle): void {
+export function renderDocument(context: CanvasRenderingContext2D, document: Document, width: number, height: number, selection: readonly string[] = [], preview?: Rectangle, view?: Viewport): void {
   const page = pageOf(document);
   context.clearRect(0, 0, width, height);
   context.fillStyle = page.backgroundColor ? renderColour(pageColour(page)) : page.background;
   context.fillRect(0, 0, width, height);
+  context.save();
+  const origin = view ? viewOrigin(view) : { x: 0, y: 0 }, zoom = view?.zoom ?? 1;
+  context.scale(zoom, zoom); context.translate(-origin.x, -origin.y);
   for (const id of page.children) {
     const node = document.nodes[id];
     if (!node || node.kind === "page") continue;
     if (node.kind === "rectangle") {
       const bounds = node.transform ? transformBounds(node.transform, node.width, node.height) : node;
-      if (bounds.x > width || bounds.y > height || bounds.x + bounds.width < 0 || bounds.y + bounds.height < 0) continue;
+      if (bounds.x > origin.x + width / zoom || bounds.y > origin.y + height / zoom || bounds.x + bounds.width < origin.x || bounds.y + bounds.height < origin.y) continue;
     }
     drawLayer(context, document, node);
   }
   context.strokeStyle = "#0d99ff";
-  context.lineWidth = 1;
+  context.lineWidth = 1 / zoom;
   for (const id of selection) {
     const node = document.nodes[id];
     if (node && node.kind !== "page") {
@@ -142,6 +146,7 @@ export function renderDocument(context: CanvasRenderingContext2D, document: Docu
     context.fillRect(preview.x, preview.y, preview.width, preview.height);
     context.strokeRect(preview.x, preview.y, preview.width, preview.height);
   }
+  context.restore();
 }
 
 /** Owns transient gesture state and a demand-driven render loop, outside React. */
@@ -154,6 +159,12 @@ export class CanvasController {
   #pointer: number | null = null;
   #observer: ResizeObserver;
   #unsubscribe: () => void;
+  #unsubscribeView: () => void;
+  #space = false;
+  #zoomHeld = false;
+  #pan?: { screen: Point; view: Viewport };
+  #zoomStart?: Point;
+  #zoomArea?: Rectangle;
   #abort = new AbortController();
   #width = 0;
   #height = 0;
@@ -166,7 +177,9 @@ export class CanvasController {
     canvas.addEventListener("pointercancel", this.#cancelEvent, options);
     canvas.addEventListener("lostpointercapture", this.#cancelEvent, options);
     canvas.addEventListener("keydown", this.#key, options);
-    window.addEventListener("blur", this.#cancelEvent, options);
+    window.addEventListener("keyup", this.#keyUp, options);
+    canvas.addEventListener("wheel", this.#wheel, { ...options, passive: false });
+    window.addEventListener("blur", this.#blur, options);
     window.addEventListener("resize", this.#resize, options);
     this.#observer = new ResizeObserver(this.#resize);
     this.#observer.observe(canvas);
@@ -174,14 +187,25 @@ export class CanvasController {
       if (engine.getSnapshot().tool !== "rectangle" || !engine.getSnapshot().editable) this.cancel();
       this.invalidate();
     });
+    this.#unsubscribeView = engine.subscribeView(() => this.invalidate());
     this.#resize();
   }
   #point(event: PointerEvent): Point {
+    return screenToPage(this.engine.getView(), this.#screenPoint(event));
+  }
+  #screenPoint(event: { clientX: number; clientY: number }): Point {
     const bounds = this.canvas.getBoundingClientRect();
     return { x: event.clientX - bounds.left, y: event.clientY - bounds.top };
   }
   #down = (event: PointerEvent): void => {
-    if (event.button !== 0 || this.#pointer !== null || !this.engine.getSnapshot().editable) return;
+    if (this.#pointer !== null || !this.engine.getSnapshot().editable) return;
+    if (event.button === 1 || event.button === 0 && (this.#space || this.#zoomHeld)) {
+      event.preventDefault(); this.canvas.focus(); this.#pointer = event.pointerId;
+      if (event.button === 1 || this.#space) this.#pan = { screen: this.#screenPoint(event), view: this.engine.getView() };
+      else this.#zoomStart = this.#screenPoint(event);
+      this.canvas.setPointerCapture(event.pointerId); return;
+    }
+    if (event.button !== 0) return;
     this.canvas.focus();
     if (this.engine.getSnapshot().tool !== "rectangle") {
       const snapshot = this.engine.getSnapshot();
@@ -198,6 +222,15 @@ export class CanvasController {
     this.canvas.setPointerCapture(event.pointerId);
   };
   #move = (event: PointerEvent): void => {
+    if (event.pointerId === this.#pointer && this.#pan) {
+      const point = this.#screenPoint(event);
+      this.engine.updateView(scrollView(this.#pan.view, point.x - this.#pan.screen.x, point.y - this.#pan.screen.y)); return;
+    }
+    if (event.pointerId === this.#pointer && this.#zoomStart) {
+      const point = this.#screenPoint(event), start = this.#zoomStart;
+      this.#zoomArea = { x: Math.min(start.x, point.x), y: Math.min(start.y, point.y), width: Math.abs(point.x - start.x), height: Math.abs(point.y - start.y) };
+      this.invalidate(); return;
+    }
     if (event.pointerId !== this.#pointer || !this.#start) return;
     const started = performance.now();
     this.#last = this.#point(event);
@@ -206,10 +239,20 @@ export class CanvasController {
     performance.measure("figcraft:pointer", { start: started, end: performance.now() });
   };
   #up = (event: PointerEvent): void => {
+    if (event.pointerId === this.#pointer && this.#pan) { this.#move(event); this.cancel(); return; }
+    if (event.pointerId === this.#pointer && this.#zoomStart) {
+      const start = this.#zoomStart, end = this.#screenPoint(event), view = this.engine.getView();
+      const a = screenToPage(view, { x: Math.min(start.x, end.x), y: Math.min(start.y, end.y) });
+      const width = Math.abs(end.x - start.x), height = Math.abs(end.y - start.y);
+      this.cancel();
+      try { this.engine.execute("view.zoomAt", width > 4 && height > 4 ? { ...a, width: width / view.zoom, height: height / view.zoom } : { ...screenToPage(view, end), out: event.altKey }); }
+      catch (error) { this.onError(error instanceof Error ? error.message : "Could not zoom"); }
+      return;
+    }
     if (event.pointerId !== this.#pointer || !this.#start) return;
     const start = this.#start;
     const end = this.#point(event);
-    const tiny = Math.hypot(end.x - start.x, end.y - start.y) < 3;
+    const tiny = Math.hypot(end.x - start.x, end.y - start.y) * this.engine.getView().zoom < 3;
     const rectangle = tiny || !this.#preview
       ? drawnRectangle(start, { x: start.x + 100, y: start.y + 100 })
       : drawnRectangle(start, end, event.shiftKey, event.altKey);
@@ -219,15 +262,34 @@ export class CanvasController {
       this.engine.execute("tool.move");
     } catch (error) { this.onError(error instanceof Error ? error.message : "Could not create rectangle"); }
   };
+  #wheel = (event: WheelEvent): void => {
+    if (!this.engine.getSnapshot().editable) return;
+    event.preventDefault();
+    const view = this.engine.getView(), unit = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? view.vh : 1;
+    const dx = event.deltaX * unit, dy = event.deltaY * unit;
+    this.engine.updateView(event.ctrlKey || event.metaKey
+      ? zoomAt(view, view.zoom * Math.exp(Math.max(-50, Math.min(50, -dy * 0.005))), screenToPage(view, this.#screenPoint(event)))
+      : scrollView(view, -dx, -dy, event.shiftKey));
+  };
+  #blur = (): void => { this.#space = false; this.#zoomHeld = false; this.cancel(); };
   #cancelEvent = (): void => this.cancel();
   #key = (event: KeyboardEvent): void => {
+    if (!event.ctrlKey && !event.metaKey && (event.code === "Space" || event.key.toLowerCase() === "z")) {
+      event.preventDefault();
+      if (event.code === "Space") this.#space = true; else this.#zoomHeld = true;
+    }
     if (event.key === "Escape") { event.preventDefault(); this.cancel(); }
+  };
+  #keyUp = (event: KeyboardEvent): void => {
+    if (event.code === "Space") this.#space = false;
+    if (event.key.toLowerCase() === "z") this.#zoomHeld = false;
   };
   cancel(): void {
     const pointer = this.#pointer;
     this.#pointer = null;
     this.#start = this.#last = null;
     this.#preview = undefined;
+    this.#pan = undefined; this.#zoomStart = undefined; this.#zoomArea = undefined;
     if (pointer !== null && this.canvas.hasPointerCapture(pointer)) this.canvas.releasePointerCapture(pointer);
     this.invalidate();
   }
@@ -240,6 +302,7 @@ export class CanvasController {
     const height = Math.max(1, Math.round(bounds.height * this.#dpr));
     if (this.canvas.width !== width) this.canvas.width = width;
     if (this.canvas.height !== height) this.canvas.height = height;
+    this.engine.resizeViewport(this.#width, this.#height);
     this.invalidate();
   };
   invalidate(): void {
@@ -251,7 +314,13 @@ export class CanvasController {
       const started = performance.now();
       context.setTransform(this.#dpr, 0, 0, this.#dpr, 0, 0);
       const snapshot = this.engine.getSnapshot();
-      renderDocument(context, snapshot.document, this.#width, this.#height, snapshot.selection, this.#preview);
+      const view = this.engine.getView(), origin = viewOrigin(view);
+      renderDocument(context, snapshot.document, this.#width, this.#height, snapshot.selection, this.#preview, view);
+      if (this.#zoomArea) {
+        context.strokeStyle = "#0d99ff"; context.lineWidth = 1;
+        context.strokeRect(this.#zoomArea.x, this.#zoomArea.y, this.#zoomArea.width, this.#zoomArea.height);
+      }
+      this.canvas.dataset.viewOriginX = String(origin.x); this.canvas.dataset.viewOriginY = String(origin.y); this.canvas.dataset.viewZoom = String(view.zoom);
       performance.measure("figcraft:render", { start: started, end: performance.now() });
       // Keep diagnostics bounded during long editing sessions.
       if (performance.getEntriesByName("figcraft:render").length > 600) performance.clearMeasures("figcraft:render");
@@ -265,6 +334,7 @@ export class CanvasController {
     this.#frame = 0;
     this.#observer.disconnect();
     this.#unsubscribe();
+    this.#unsubscribeView();
     this.#abort.abort();
   }
 }

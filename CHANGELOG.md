@@ -2,6 +2,15 @@
 
 All notable changes to the React port and its upstream compatibility baseline are recorded here.
 
+## [0.9.0] - 2026-11-07
+
+The reference baseline remains `8eb0b87646c5aef712326d6c431ccde5408630de`; full parity remains in progress.
+
+- Added independent viewport state, native zoom steps/fit/anchor maths, frame/page navigation and keyboard shortcuts.
+- Added wheel, Space/middle-button pan and held-Z zoom gestures with transformed rendering, selection and drawing outside root React updates.
+- Added all 39 native frame presets and evidence-backed free placement, plus browser and moving-view performance fixtures.
+- View preferences, grids/guides/snapping, other editing gestures and remaining product families remain required.
+
 ## [0.8.0] - 2026-11-07
 
 The reference baseline remains `8eb0b87646c5aef712326d6c431ccde5408630de`; full parity remains in progress.
