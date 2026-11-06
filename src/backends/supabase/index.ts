@@ -12,3 +12,4 @@ export function createSupabaseBackend({
 }: SupabaseBackendOptions): SupabaseClient {
   return createClient(url, publishableKey);
 }
+export { SupabaseIdentityAdapter } from "./identity";

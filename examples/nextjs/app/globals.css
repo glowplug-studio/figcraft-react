@@ -1,31 +1,47 @@
-:root {
-  color-scheme: light dark;
-  font-family: system-ui, sans-serif;
+* { box-sizing: border-box; }
+:root { color-scheme: light; font-family: Arial, Helvetica, sans-serif; color: #222; background: #fff; }
+body { margin: 0; }
+button, input { font: inherit; }
+button { border: 1px solid #d5d5d5; border-radius: 5px; background: #fff; color: inherit; padding: 7px 11px; cursor: pointer; }
+button:hover:not(:disabled) { background: #f0f0f0; }
+button:disabled { opacity: .45; cursor: default; }
+button[aria-pressed=true] { background: #e5f4ff; color: #0677c8; border-color: #0d99ff; }
+:focus-visible { outline: 2px solid #0d99ff; outline-offset: 2px; }
+.host-bar { display: flex; align-items: center; justify-content: space-between; padding: 8px 16px; border-bottom: 1px solid #ddd; font-size: 12px; height: 48px; }
+.host-bar p { margin: 0; }
+.figcraft-editor { font-size: 12px; }
+.figcraft-document-bar { display: flex; gap: 12px; align-items: center; padding: 8px 16px; border-bottom: 1px solid #ddd; height: 48px; }
+.figcraft-document-bar h1 { font-size: 14px; margin: 0; }
+.figcraft-document-bar span { color: #666; margin-right: auto; }
+.figcraft-workspace { display: grid; grid-template-columns: 200px minmax(200px, 1fr) 240px; height: calc(100dvh - 96px); min-height: 400px; }
+.figcraft-layers, .figcraft-properties { padding: 16px; overflow: auto; }
+.figcraft-layers { border-right: 1px solid #ddd; }
+.figcraft-properties { border-left: 1px solid #ddd; }
+h2, h3 { font-size: 12px; }
+.figcraft-layers ul { padding: 0; list-style: none; }
+.figcraft-layers li { padding: 8px; }
+.figcraft-layers li[aria-current] { background: #e5f4ff; }
+.figcraft-canvas-area { position: relative; min-width: 0; min-height: 0; overflow: hidden; }
+.figcraft-canvas-area canvas { display: block; width: 100%; height: 100%; touch-action: none; }
+.figcraft-toolbar { position: absolute; bottom: 24px; left: 50%; transform: translateX(-50%); display: flex; gap: 8px; padding: 8px; background: #fff; border: 1px solid #ddd; border-radius: 12px; box-shadow: 0 2px 8px #0001; }
+.figcraft-instructions { position: absolute; top: 8px; left: 12px; right: 12px; color: #666; pointer-events: none; margin: 0; }
+fieldset { border: 0; padding: 0; margin: 20px 0; }
+legend { font-weight: 600; margin-bottom: 12px; }
+label { display: block; margin: 10px 0; }
+input { display: block; width: 100%; margin-top: 5px; border: 1px solid #ccc; border-radius: 4px; padding: 7px; }
+dl { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+dd { margin: 0; }
+[role=alert] { color: #a21818; padding: 8px 16px; }
+.auth-page { max-width: 360px; margin: 12vh auto; padding: 24px; }
+@media (max-width: 800px) {
+  .figcraft-workspace { grid-template-columns: minmax(200px, 1fr) 190px; }
+  .figcraft-layers { display: none; }
+  .figcraft-document-bar span { display: none; }
+  .figcraft-document-bar h1 { margin-right: auto; }
 }
-
-* {
-  box-sizing: border-box;
-}
-
-body {
-  margin: 0;
-}
-
-main {
-  display: grid;
-  gap: 2rem;
-  min-height: 100vh;
-  padding: 3rem;
-}
-
-header p,
-header h1,
-.figcraft-preview p {
-  margin: 0;
-}
-
-.figcraft-preview {
-  min-height: 60vh;
-  border: 1px solid currentColor;
-  padding: 2rem;
+@media (max-width: 480px) {
+  .figcraft-workspace { grid-template-columns: minmax(0, 1fr); height: auto; }
+  .figcraft-canvas-area { height: 55dvh; min-height: 300px; }
+  .figcraft-properties { border-left: 0; border-top: 1px solid #ddd; }
+  fieldset { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 }
