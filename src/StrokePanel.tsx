@@ -1,10 +1,12 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import type { LayerNode } from "./engine/document";
 import { parseCssColour } from "./engine/colour-css";
 import { renderColour } from "./engine/colour";
 import { paintColour } from "./engine/solid-paint";
 import { bandCaps, capShape, defaultStroke, miterAngle, strokeCaps, strokeSideKeys, type StrokeProps } from "./engine/stroke";
 import { sanitiseWidthProfile, widthPresetIds, widthPresetLabels, widthProfileMaxScale, widthProfilePoints, widthProfilePreset, widthProfileSidesAt, type WidthProfile } from "./engine/width-profile";
+import { brushPreset, brushPresets, defaultBrush, type Brush } from "./engine/brush";
+import { brushOutline } from "./engine/brush-geometry";
 
 interface Props { nodes: readonly LayerNode[]; editable: boolean; dispatch: (command: string, params?: unknown) => void }
 const capLabels = ["None", "Round", "Square", "Line arrow", "Triangle arrow", "Reversed triangle", "Circle", "Diamond"];
@@ -17,6 +19,10 @@ function ProfileArt({ profile }: { profile?: WidthProfile }) {
   });
   const points = [...samples.map(p => `${p.x},${p.top}`), ...[...samples].reverse().map(p => `${p.x},${p.bottom}`)].join(" ");
   return <svg width="84" height="24" viewBox="0 0 84 24" aria-hidden="true"><polygon points={points} fill="currentColor" /></svg>;
+}
+function BrushArt({ preset }: { preset: string }) {
+  const path = useMemo(() => brushOutline([["M", 0, 0], ["L", 84, 0]], 10, defaultStroke, { ...defaultBrush, preset })?.map(c => c.join(" ")).join(" ") ?? "", [preset]);
+  return <svg width="84" height="24" viewBox="0 -6 84 12" aria-hidden="true"><path d={path} fill="none" stroke="currentColor" strokeWidth=".4" /></svg>;
 }
 function StrokeControls({ nodes, editable, dispatch }: Props) {
   const [custom, setCustom] = useState(false), [error, setError] = useState("");
@@ -37,6 +43,11 @@ function StrokeControls({ nodes, editable, dispatch }: Props) {
   const sides = value("sides");
   const profile = current?.widthProfile?.points.length ? current.widthProfile : undefined;
   const preset = current ? profile ? widthProfilePreset(profile) ?? "custom" : "uniform" : "mixed";
+  const brush = current?.brush, brushId = current ? brush && brushPreset(brush.preset) ? brush.preset : "none" : "mixed";
+  const brushField = (label: string, key: keyof Pick<Brush, "spacing" | "scatter" | "sizeJitter" | "rotationJitter">, min: number, max: number, factor = 1) => brush && <form key={`${key}:${brush[key]}`} onSubmit={event => {
+    event.preventDefault(); const input = event.currentTarget.elements.namedItem(key) as HTMLInputElement;
+    if (input.value !== "" && Number.isFinite(Number(input.value))) set({ brush: { ...brush, [key]: Number(input.value) / factor } });
+  }}><label>{label}<input name={key} type="number" required min={min} max={max} step="any" defaultValue={brush[key] * factor} /></label><button type="submit">Apply {label.toLowerCase()}</button></form>;
   return <fieldset className="figcraft-stroke" disabled={!editable} aria-label="Stroke"><legend>Stroke</legend>
     {error && <p role="alert">{error}</p>}
     {stack === undefined ? <p>Mixed strokes</p> : <ol>{[...stack].map((paint, index) => ({ paint, index })).reverse().map(({ paint, index }, row) => <li key={`${index}:${JSON.stringify(paint)}`}>
@@ -75,6 +86,15 @@ function StrokeControls({ nodes, editable, dispatch }: Props) {
         <button type="button" onClick={() => {
           if (profile) dispatch("stroke.widthProfile", { ids, points: widthProfilePoints({ points: [...profile.points].reverse().map(p => ({ ...p, t: 1 - p.t })) }) });
         }}>Flip width profile</button>
+        <label>Brush<select aria-label="Brush" value={brushId} onChange={event => dispatch("stroke.brush", { ids, preset: event.currentTarget.value === "none" ? null : event.currentTarget.value })}>
+          {brushId === "mixed" && <option value="mixed" disabled>Mixed</option>}<option value="none">None</option>
+          {brushPresets.map(p => <option key={p.id} value={p.id}>{p.label}</option>)}
+        </select></label>
+        {brush && <BrushArt preset={brush.preset} />}
+        {brush && brushPreset(brush.preset)?.kind === "scatter" && <>
+          {brushField("Brush spacing", "spacing", .1, 100)}{brushField("Brush scatter", "scatter", 0, 4)}
+          {brushField("Brush size jitter (%)", "sizeJitter", 0, 100, 100)}{brushField("Brush rotation jitter (%)", "rotationJitter", 0, 100, 100)}
+        </>}
         <label>Stroke style<select aria-label="Stroke style" value={!pattern ? "solid" : customStyle ? "custom" : "dash"} onChange={event => {
           const style = event.currentTarget.value;
           if (style === "solid") set({ dashes: [] });

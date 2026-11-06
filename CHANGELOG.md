@@ -2,6 +2,14 @@
 
 All notable changes to the React port and its upstream compatibility baseline are recorded here.
 
+## [0.23.0] - 2026-11-07
+
+The reference baseline remains `8eb0b87646c5aef712326d6c431ccde5408630de`; full parity remains in progress.
+
+- Added eight procedural stretch/scatter brushes with native seeded jitter, spacing, width-profile scaling and conservative rendered bounds.
+- Added brush presets and scatter fields, native command/property/file contracts, conditional black paint and atomic history.
+- Pencil pressure, vector authoring and outline/export operations remain required dependent work; this release does not claim their completion.
+
 ## [0.22.0] - 2026-11-07
 
 The reference baseline remains `8eb0b87646c5aef712326d6c431ccde5408630de`; full parity remains in progress.

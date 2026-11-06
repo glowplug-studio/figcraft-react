@@ -11,7 +11,8 @@ function chordDistance(p: Point, a: Point, b: Point): number {
   return Math.hypot(p.x - a.x - x * t, p.y - a.y - y * t);
 }
 /** Independent bounded adaptive flattening; native measure.rs uses Kurbo at the same tolerance. */
-export function measurePath(path: readonly PathCommand[], limit = MAX_PATH_SAMPLES): readonly MeasuredPolyline[] | undefined {
+export function measurePath(path: readonly PathCommand[], limit = MAX_PATH_SAMPLES, tolerance = PATH_FLATTEN_TOLERANCE): readonly MeasuredPolyline[] | undefined {
+  if (!(Number.isFinite(tolerance) && tolerance > 0)) return undefined;
   if (path.length > limit || path.some(c => c.slice(1).some(n => typeof n !== "number" || !Number.isFinite(n) || Math.abs(n) >= 1e9))) return undefined;
   const out: MeasuredPolyline[] = []; let points: Point[] = [], lengths: number[] = [], count = 0, closed = false;
   let start: Point = { x: 0, y: 0 }, pen = start;
@@ -24,7 +25,7 @@ export function measurePath(path: readonly PathCommand[], limit = MAX_PATH_SAMPL
     const stack: [Point, Point, Point, Point, number][] = [[a, b, c, d, 0]];
     while (stack.length) {
       const [p0, p1, p2, p3, depth] = stack.pop()!;
-      if (depth >= 24 || Math.max(chordDistance(p1, p0, p3), chordDistance(p2, p0, p3)) <= PATH_FLATTEN_TOLERANCE) {
+      if (depth >= 24 || Math.max(chordDistance(p1, p0, p3), chordDistance(p2, p0, p3)) <= tolerance) {
         if (++count > limit) return false;
         if (!points.length) push(a); push(p3); continue;
       }

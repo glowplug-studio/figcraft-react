@@ -1608,3 +1608,53 @@ test("width profiles preserve whole-stroke mixed selection and atomic undo", asy
   const lines = Object.values(opened.document.nodes).filter(n => n.kind === "line");
   expect(lines[0].stroke?.widthProfile?.points.map(p => p.scale)).toEqual([1, 0]); expect(lines[1].stroke?.widthProfile).toBeUndefined();
 });
+
+test("brush presets and scatter controls preserve profiles, files, recovery and mobile access", async ({ page }) => {
+  await login(page); const creation = page.getByRole("group", { name: "Create layer", exact: true });
+  for (const [label, value] of [["X", 200], ["Y", 250], ["Width", 300]] as const) await creation.getByLabel(label, { exact: true }).fill(String(value));
+  await creation.getByRole("button", { name: "Create line", exact: true }).click();
+  const stroke = page.getByRole("group", { name: "Stroke", exact: true }), brush = stroke.getByLabel("Brush", { exact: true });
+  await stroke.getByLabel("Stroke weight", { exact: true }).fill("20"); await stroke.getByRole("button", { name: "Apply stroke weight", exact: true }).click();
+  await stroke.getByText("Advanced stroke", { exact: true }).click();
+  for (const preset of ["taper", "ink", "ribbon", "bristle", "dots", "stars", "confetti", "leaves"]) {
+    await brush.selectOption(preset); await expect(brush).toHaveValue(preset);
+    await expect(stroke.getByLabel("Brush spacing", { exact: true })).toHaveCount(["dots", "stars", "confetti", "leaves"].includes(preset) ? 1 : 0);
+  }
+  await brush.selectOption("dots");
+  const fields = [["Brush spacing", "2"], ["Brush scatter", "0.5"], ["Brush size jitter (%)", "25"], ["Brush rotation jitter (%)", "40"]] as const;
+  for (const [label, value] of fields) { await stroke.getByLabel(label, { exact: true }).fill(value); await stroke.getByRole("button", { name: `Apply ${label.toLowerCase()}`, exact: true }).click(); }
+  await stroke.getByLabel("Width profile", { exact: true }).selectOption("eye");
+  await brush.selectOption("none"); await expect(stroke.getByLabel("Width profile", { exact: true })).toHaveValue("eye");
+  await page.getByLabel("Design canvas", { exact: true }).focus(); await page.keyboard.press("ControlOrMeta+z"); await expect(brush).toHaveValue("dots");
+  await expect(page.getByLabel("Design canvas", { exact: true })).toHaveScreenshot("brush-scatter-profile.png", { animations: "disabled", maxDiffPixels: 0 });
+  await stroke.getByLabel("Brush spacing", { exact: true }).fill("0"); await stroke.getByRole("button", { name: "Apply brush spacing", exact: true }).click();
+  expect(await stroke.getByLabel("Brush spacing", { exact: true }).evaluate((input: HTMLInputElement) => input.validity.rangeUnderflow)).toBe(true);
+  const download = page.waitForEvent("download"); await page.getByRole("button", { name: "Save as", exact: true }).click();
+  const bytes = await readFile((await (await download).path())!), opened = await decodeFigcraft(bytes);
+  expect(Object.values(opened.document.nodes).find(n => n.kind === "line")).toMatchObject({ stroke: { brush: { preset: "dots", spacing: 2, scatter: .5, sizeJitter: .25, rotationJitter: .4, seed: 0 }, widthProfile: { points: [{ t: 0, scale: 0, bias: 0 }, { t: .5, scale: 1, bias: 0 }, { t: 1, scale: 0, bias: 0 }] } } });
+  await expect(page.locator(".figcraft-recovery")).toHaveText("Recovery saved on this device"); await page.reload();
+  await page.getByRole("region", { name: "Layers", exact: true }).getByRole("button", { name: "Line", exact: true }).click(); await stroke.getByText("Advanced stroke", { exact: true }).click();
+  await expect(brush).toHaveValue("dots"); for (const [label, value] of fields) await expect(stroke.getByLabel(label, { exact: true })).toHaveValue(value);
+  const malformed = JSON.parse(strFromU8(unzipSync(bytes)["document.json"]), (key, value: unknown) => key === "brush" ? { preset: "dots", seed: -1 } : value) as unknown;
+  await page.getByLabel("Open Figcraft file", { exact: true }).setInputFiles({ name: "invalid-brush.figcraft", mimeType: "application/json", buffer: Buffer.from(JSON.stringify(malformed)) });
+  await page.getByRole("button", { name: "Replace document", exact: true }).click(); await expect(page.locator("main [role=alert]")).toContainText("Brush seed"); await expect(brush).toHaveValue("dots");
+  await page.setViewportSize({ width: 390, height: 844 });
+  for (const [label] of fields) { const input = stroke.getByLabel(label, { exact: true }); await input.scrollIntoViewIfNeeded(); const bounds = (await input.boundingBox())!; expect(bounds.x).toBeGreaterThanOrEqual(0); expect(bounds.x + bounds.width).toBeLessThanOrEqual(390); }
+  await brush.selectOption("taper"); await expect(stroke.getByLabel("Brush spacing", { exact: true })).toHaveCount(0);
+  await page.screenshot({ path: "test-results/brush-mobile.png", fullPage: true });
+});
+
+test("brush controls preserve Mixed and multi-layer undo", async ({ page }) => {
+  await login(page); const creation = page.getByRole("group", { name: "Create layer", exact: true }), stroke = page.getByRole("group", { name: "Stroke", exact: true });
+  await creation.getByRole("button", { name: "Create line", exact: true }).click();
+  await page.getByLabel("Name", { exact: true }).fill("Brush first"); await page.getByRole("button", { name: "Apply layer", exact: true }).click();
+  await stroke.getByText("Advanced stroke", { exact: true }).click(); await stroke.getByLabel("Brush", { exact: true }).selectOption("dots");
+  await creation.getByRole("button", { name: "Create line", exact: true }).click(); await stroke.getByText("Advanced stroke", { exact: true }).click(); await stroke.getByLabel("Brush", { exact: true }).selectOption("ink");
+  await page.getByRole("button", { name: "Brush first", exact: true }).click({ modifiers: ["Shift"] }); await stroke.getByText("Advanced stroke", { exact: true }).click();
+  const brush = stroke.getByLabel("Brush", { exact: true }); await expect(brush).toHaveValue("mixed"); await expect(stroke.getByLabel("Brush spacing", { exact: true })).toHaveCount(0);
+  await brush.selectOption("stars"); await expect(brush).toHaveValue("stars"); await expect(stroke.getByLabel("Brush spacing", { exact: true })).toHaveValue("1.5");
+  await page.getByRole("button", { name: "Undo", exact: true }).click(); await expect(brush).toHaveValue("mixed");
+  const download = page.waitForEvent("download"); await page.getByRole("button", { name: "Save as", exact: true }).click();
+  const opened = await decodeFigcraft(await readFile((await (await download).path())!));
+  expect(Object.values(opened.document.nodes).filter(n => n.kind === "line").map(n => n.stroke?.brush?.preset)).toEqual(["dots", "ink"]);
+});

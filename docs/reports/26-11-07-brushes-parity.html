@@ -1,0 +1,190 @@
+<!doctype html><html lang="en-GB"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Brush parity</title><style>body{font:14px system-ui;margin:24px;color:#202020}table{border-collapse:collapse;min-width:1400px}th,td{padding:10px;border:1px solid #aaa;text-align:left;vertical-align:top}th{background:#eee}.scroll{overflow:auto}a{color:#075a9c}@media print{body{margin:0;font-size:9px}.scroll{overflow:visible}table{min-width:0}thead{display:table-header-group}tr{break-inside:avoid}}</style></head><body><h1>Procedural brushes — 7 November 2026</h1><p>React0.23.0; reviewed basee13f8da; branch prompt/full-figcraft-port. Upstream0b97f3f1801a9b7b96fd7a4f3c0942a3f1a676f3; global baseline8eb0b876.</p><p>Local Supabase2.116.0, Next16.4.5 production, Playwright1.65.0 Chromium;1440×900/scale1 and390×844.622 pure tests,2 real Auth tests, strict TypeScript/package/Next builds and focused browser checks pass. First full regression81/82 failed profile pan17.5ms. Bounded mask reuse correction passes whole-image equivalence and the full82/82 rerun in330.4s, with no skips/flakes/unexpected results.</p><p>25 bounded properties Passed; full product Partial. <a href="26-11-07-brushes.md">Report and limits</a>. No Rust execution or publication.</p><div class="scroll" tabindex="0" role="region" aria-label="Brush evidence"><table><caption>Independent property evidence</caption><thead><tr>
+<th scope="col">Feature</th>
+<th scope="col">Sub-feature</th>
+<th scope="col">Expected upstream behaviour</th>
+<th scope="col">React target</th>
+<th scope="col">Test method / identifier</th>
+<th scope="col">Expected and actual result</th>
+<th scope="col">Status</th>
+<th scope="col">Evidence</th>
+<th scope="col">Manual prerequisites and actions</th>
+<th scope="col">Human-observed result</th>
+<th scope="col">Confidence</th>
+<th scope="col">Remaining limitation</th>
+</tr></thead><tbody>
+<tr><td>Model</td><td>Raw serde</td><td>Keep defaults, unknown ids and finite metadata.</td><td>readBrush/wireBrush</td><td>retains raw serde defaults</td><td>Raw wire/codec assertions pass.</td><td>Passed</td>
+<td><a href="../../tests/parity/brush.test.ts">Test evidence</a></td>
+<td>Prerequisite: configured local Supabase/Next; authenticate for inspector checks. 1. Run the named test fixture. 2. Compare its stated result.</td>
+<td>Raw wire/codec assertions pass.</td>
+<td>Medium</td>
+<td>Raw metadata is sanitised only for commands/rendering.</td>
+</tr>
+<tr><td>Model</td><td>Sanitisation and reach</td><td>Clamp spacing/jitter/scatter; nonfinite internal values use defaults.</td><td>sanitiseBrush/brushReachFactor</td><td>sanitises native ranges</td><td>Native bounds and reach factor10 pass.</td><td>Passed</td>
+<td><a href="../../tests/parity/brush.test.ts">Test evidence</a></td>
+<td>Prerequisite: configured local Supabase/Next; authenticate for inspector checks. 1. Run the named test fixture. 2. Compare its stated result.</td>
+<td>Native bounds and reach factor10 pass.</td>
+<td>Medium</td>
+<td>Files reject nonfinite JSON values.</td>
+</tr>
+<tr><td>Commands</td><td>Strict parsing and aliases</td><td>Exact ids, serde numbers, unsigned32-bit seed, sorted snake precedence.</td><td>parseBrush</td><td>uses exact preset ids</td><td>Valid forms and invalid number/seed/id cases pass.</td><td>Passed</td>
+<td><a href="../../tests/parity/brush.test.ts">Test evidence</a></td>
+<td>Prerequisite: configured local Supabase/Next; authenticate for inspector checks. 1. Run the named test fixture. 2. Compare its stated result.</td>
+<td>Valid forms and invalid number/seed/id cases pass.</td>
+<td>Medium</td>
+<td>No lenient string-number coercion.</td>
+</tr>
+<tr><td>Commands</td><td>Conditional black paint</td><td>stroke.brush adds black only to empty stacks; node.set does not.</td><td>executeStrokeList</td><td>adds black only for the brush command</td><td>Paint creation, reset and undo/redo pass.</td><td>Passed</td>
+<td><a href="../../tests/parity/brush.test.ts">Test evidence</a></td>
+<td>Prerequisite: configured local Supabase/Next; authenticate for inspector checks. 1. Run the named test fixture. 2. Compare its stated result.</td>
+<td>Paint creation, reset and undo/redo pass.</td>
+<td>Medium</td>
+<td>Other future node kinds remain dependent work.</td>
+</tr>
+<tr><td>Commands</td><td>Atomic errors</td><td>Bad target/preset must not partially mutate document.</td><td>executeStrokeList</td><td>rejects invalid presets and targets atomically</td><td>Snapshot identity retained on all failures.</td><td>Passed</td>
+<td><a href="../../tests/parity/brush.test.ts">Test evidence</a></td>
+<td>Prerequisite: configured local Supabase/Next; authenticate for inspector checks. 1. Run the named test fixture. 2. Compare its stated result.</td>
+<td>Snapshot identity retained on all failures.</td>
+<td>Medium</td>
+<td>General automation inspection remains later work.</td>
+</tr>
+<tr><td>Transforms</td><td>Dimensionless brush</td><td>Scale weight; retain spacing/jitter/scatter/seed and profile.</td><td>scaleSubtree</td><td>preserves existing paint, dimensions, profile</td><td>Brush/profile reference retention and native round trip pass.</td><td>Passed</td>
+<td><a href="../../tests/parity/brush.test.ts">Test evidence</a></td>
+<td>Prerequisite: configured local Supabase/Next; authenticate for inspector checks. 1. Run the named test fixture. 2. Compare its stated result.</td>
+<td>Brush/profile reference retention and native round trip pass.</td>
+<td>Medium</td>
+<td>Pencil pressure capture is not included.</td>
+</tr>
+<tr><td>Geometry</td><td>All eight presets</td><td>Native procedural shapes remain inside source reach.</td><td>brushShape/brushOutline</td><td>draws every preset inside the native reach bounds</td><td>All eight source bounds and browser visible-ink checks pass.</td><td>Passed</td>
+<td><a href="../../tests/parity/brush-geometry.test.ts">Test evidence</a></td>
+<td>Prerequisite: configured local Supabase/Next; authenticate for inspector checks. 1. Run the named test fixture. 2. Compare its stated result.</td>
+<td>All eight source bounds and browser visible-ink checks pass.</td>
+<td>High</td>
+<td>Independent curve approximation.</td>
+</tr>
+<tr><td>Geometry</td><td>Stretch bending</td><td>Map unit x by path length and y across the normal.</td><td>stretch</td><td>bends a stretched shape</td><td>Vertical height100/width15 and pointed-end membership pass.</td><td>Passed</td>
+<td><a href="../../tests/parity/brush-geometry.test.ts">Test evidence</a></td>
+<td>Prerequisite: configured local Supabase/Next; authenticate for inspector checks. 1. Run the named test fixture. 2. Compare its stated result.</td>
+<td>Vertical height100/width15 and pointed-end membership pass.</td>
+<td>Medium</td>
+<td>General editable vector network remains required.</td>
+</tr>
+<tr><td>Geometry</td><td>Seed arithmetic</td><td>Native wrapping splitmix64, upper53 bits as a fraction.</td><td>brushRandom</td><td>matches independent unsigned64-bit arithmetic</td><td>Six independent masked-integer fixtures pass.</td><td>Passed</td>
+<td><a href="../../tests/parity/brush-geometry.test.ts">Test evidence</a></td>
+<td>Prerequisite: configured local Supabase/Next; authenticate for inspector checks. 1. Run the named test fixture. 2. Compare its stated result.</td>
+<td>Six independent masked-integer fixtures pass.</td>
+<td>High</td>
+<td>Browser repeat/change is separately asserted.</td>
+</tr>
+<tr><td>Geometry</td><td>Spacing and jitter</td><td>Copies restart half-step into each subpath; sequence index spans paths.</td><td>brushOutline scatter</td><td>spaces scatter copies</td><td>Ten copies on200 units at spacing2/weight10; seed repeat/change passes.</td><td>Passed</td>
+<td><a href="../../tests/e2e/brush-rendering.spec.ts">Test evidence</a></td>
+<td>Prerequisite: configured local Supabase/Next; authenticate for inspector checks. 1. Run the named test fixture. 2. Compare its stated result.</td>
+<td>Ten copies on200 units at spacing2/weight10; seed repeat/change passes.</td>
+<td>High</td>
+<td>No invented random source.</td>
+</tr>
+<tr><td>Geometry</td><td>Profile scaling</td><td>Mean of profile sides scales copy size.</td><td>widthProfileSidesAt/brushOutline</td><td>scales brush size by profile mean</td><td>Last copy exceeds first by3×; asymmetric mean agrees.</td><td>Passed</td>
+<td><a href="../../tests/parity/brush-geometry.test.ts">Test evidence</a></td>
+<td>Prerequisite: configured local Supabase/Next; authenticate for inspector checks. 1. Run the named test fixture. 2. Compare its stated result.</td>
+<td>Last copy exceeds first by3×; asymmetric mean agrees.</td>
+<td>High</td>
+<td>Stray displacement uses global weight.</td>
+</tr>
+<tr><td>Geometry</td><td>Large raw profiles</td><td>Sanitise before sampling to at most64 points.</td><td>sanitiseWidthProfile</td><td>sanitises a100000-point raw profile</td><td>Output height remains below2000.</td><td>Passed</td>
+<td><a href="../../tests/parity/brush-geometry.test.ts">Test evidence</a></td>
+<td>Prerequisite: configured local Supabase/Next; authenticate for inspector checks. 1. Run the named test fixture. 2. Compare its stated result.</td>
+<td>Output height remains below2000.</td>
+<td>Medium</td>
+<td>Input file resource limits remain independent.</td>
+</tr>
+<tr><td>Geometry</td><td>Nominal copy budget</td><td>Native spacing budget is not a hard output truncation.</td><td>brushOutline scatter</td><td>preserves native per-subpath copy counting</td><td>3000 unit subpaths produce6000 copies; dense single path bounded.</td><td>Passed</td>
+<td><a href="../../tests/parity/brush-geometry.test.ts">Test evidence</a></td>
+<td>Prerequisite: configured local Supabase/Next; authenticate for inspector checks. 1. Run the named test fixture. 2. Compare its stated result.</td>
+<td>3000 unit subpaths produce6000 copies; dense single path bounded.</td>
+<td>Medium</td>
+<td>5000 must not be described as a hard RAM/output cap.</td>
+</tr>
+<tr><td>Geometry</td><td>Failure and zero width</td><td>Refuse unmeasurable paths; retain bounded empty cases.</td><td>brushOutline</td><td>rejects invalid measured paths</td><td>Invalid coordinates/elements refuse; empty/zero-width paths empty.</td><td>Passed</td>
+<td><a href="../../tests/parity/brush-geometry.test.ts">Test evidence</a></td>
+<td>Prerequisite: configured local Supabase/Next; authenticate for inspector checks. 1. Run the named test fixture. 2. Compare its stated result.</td>
+<td>Invalid coordinates/elements refuse; empty/zero-width paths empty.</td>
+<td>Medium</td>
+<td>Uniform fallback is verified in the browser.</td>
+</tr>
+<tr><td>Rendering</td><td>Native dots and taper</td><td>Dots at10,30…; taper broad in middle, pointed at ends.</td><td>profilePath/paintStroke</td><td>brushes preserve native dots, taper</td><td>Source-derived opaque/gap pixels pass.</td><td>Passed</td>
+<td><a href="../../tests/e2e/brush-rendering.spec.ts">Test evidence</a></td>
+<td>Prerequisite: configured local Supabase/Next; authenticate for inspector checks. 1. Run the named test fixture. 2. Compare its stated result.</td>
+<td>Source-derived opaque/gap pixels pass.</td>
+<td>High</td>
+<td>Currently supported shapes only.</td>
+</tr>
+<tr><td>Rendering</td><td>Closed alignment</td><td>Double width then clip for inside/outside; centre fills directly.</td><td>paintStroke masks</td><td>alignment, precedence and fallback</td><td>Inside/outside ink and empty pixels; centre ink/gap pass.</td><td>Passed</td>
+<td><a href="../../tests/e2e/brush-rendering.spec.ts">Test evidence</a></td>
+<td>Prerequisite: configured local Supabase/Next; authenticate for inspector checks. 1. Run the named test fixture. 2. Compare its stated result.</td>
+<td>Inside/outside ink and empty pixels; centre ink/gap pass.</td>
+<td>High</td>
+<td>Canvas masks replace native boolean contours.</td>
+</tr>
+<tr><td>Rendering</td><td>Alpha and arrows</td><td>Apply paint once; arrowhead size follows global weight.</td><td>profilePath/paintMask</td><td>alignment, precedence and fallback</td><td>Half-opacity mask and overlapping arrow/dot samples pass.</td><td>Passed</td>
+<td><a href="../../tests/e2e/brush-rendering.spec.ts">Test evidence</a></td>
+<td>Prerequisite: configured local Supabase/Next; authenticate for inspector checks. 1. Run the named test fixture. 2. Compare its stated result.</td>
+<td>Half-opacity mask and overlapping arrow/dot samples pass.</td>
+<td>High</td>
+<td>One8-bit mask/image rounding level permitted.</td>
+</tr>
+<tr><td>Rendering</td><td>Precedence and fallback</td><td>Individual sides win; unknown raw brush falls back uniformly before profile.</td><td>filledStroke/profilePath</td><td>precedence and fallback</td><td>Top-only border and unknown-brush uniform line pass.</td><td>Passed</td>
+<td><a href="../../tests/e2e/brush-rendering.spec.ts">Test evidence</a></td>
+<td>Prerequisite: configured local Supabase/Next; authenticate for inspector checks. 1. Run the named test fixture. 2. Compare its stated result.</td>
+<td>Top-only border and unknown-brush uniform line pass.</td>
+<td>High</td>
+<td>Component/Instance and vector-styled points remain later work.</td>
+</tr>
+<tr><td>Rendering</td><td>Culling</td><td>Conservative brush/profile reach must retain visible offscreen marks.</td><td>strokeReach/strokeBounds</td><td>precedence and fallback</td><td>Wide offscreen dots remain visible.</td><td>Passed</td>
+<td><a href="../../tests/e2e/brush-rendering.spec.ts">Test evidence</a></td>
+<td>Prerequisite: configured local Supabase/Next; authenticate for inspector checks. 1. Run the named test fixture. 2. Compare its stated result.</td>
+<td>Wide offscreen dots remain visible.</td>
+<td>High</td>
+<td>Conservative bound may exceed native allocation.</td>
+</tr>
+<tr><td>Inspector</td><td>Preset and scatter controls</td><td>None/eight presets; scatter-only fields; percentage jitter.</td><td>StrokePanel</td><td>brush presets and scatter controls</td><td>All presets, field values and valid HTML range handling pass.</td><td>Passed</td>
+<td><a href="../../tests/e2e/preview.spec.ts">Test evidence</a></td>
+<td>Prerequisite: authenticated local host with two Lines. 1. Open Advanced stroke and choose the stated brushes. 2. Edit scatter values or select both and undo.</td>
+<td>All presets, field values and valid HTML range handling pass.</td>
+<td>High</td>
+<td>Native popup artwork and numeric scrubbing remain final UI work.</td>
+</tr>
+<tr><td>Inspector</td><td>Mixed and undo</td><td>Whole-stroke Mixed; one undo restores every original brush.</td><td>StrokePanel/commands</td><td>brush controls preserve Mixed</td><td>Different Dots/Ink selection restores after Stars update/undo.</td><td>Passed</td>
+<td><a href="../../tests/e2e/preview.spec.ts">Test evidence</a></td>
+<td>Prerequisite: authenticated local host with two Lines. 1. Open Advanced stroke and choose the stated brushes. 2. Edit scatter values or select both and undo.</td>
+<td>Different Dots/Ink selection restores after Stars update/undo.</td>
+<td>High</td>
+<td>No separate ad-hoc state path.</td>
+</tr>
+<tr><td>Persistence</td><td>Native file/recovery</td><td>Retain brush/profile fields; malformed input preserves current document.</td><td>codec/recovery</td><td>brush presets and scatter controls</td><td>Native download/codec, reload and malformed seed rejection pass.</td><td>Passed</td>
+<td><a href="../../tests/e2e/preview.spec.ts">Test evidence</a></td>
+<td>Prerequisite: authenticated host with a profiled Dots Line. 1. Save, then reload. 2. Run the malformed-seed input case.</td>
+<td>Native download/codec, reload and malformed seed rejection pass.</td>
+<td>High</td>
+<td>Full archive fidelity remains required later.</td>
+</tr>
+<tr><td>Browser</td><td>Fixed/mobile appearance</td><td>Brush artwork and fields remain usable at390px.</td><td>StrokePanel/Canvas</td><td>brush presets and scatter controls</td><td>Fixed screenshot and mobile field bounds pass; images inspected.</td><td>Passed</td>
+<td><a href="../../tests/e2e/preview.spec.ts-snapshots/brush-scatter-profile.png">Test evidence</a></td>
+<td>Prerequisite: configured local Supabase/Next; authenticate for inspector checks. 1. Run the named test fixture. 2. Compare its stated result.</td>
+<td>Fixed screenshot and mobile field bounds pass; images inspected.</td>
+<td>High</td>
+<td>Complete product chrome remains in roadmap.</td>
+</tr>
+<tr><td>Performance</td><td>Continuous previews</td><td>10000 total/100 visible, p95 below16.7ms, zero root updates.</td><td>engine interaction/rendering</td><td>Brush stroke previews retain the10000-node frame budget</td><td>Brush resize/draw/pan9.0/7.1/13.0ms and profile8.1/7.4/10.3ms pass; zero root updates and cancellation restored.</td><td>Passed</td>
+<td><a href="../../tests/e2e/stroke-performance.spec.ts">Test evidence</a></td>
+<td>Prerequisite: configured local Supabase/Next; authenticate for inspector checks. 1. Run the named test fixture. 2. Compare its stated result.</td>
+<td>Brush resize/draw/pan9.0/7.1/13.0ms and profile8.1/7.4/10.3ms pass; zero root updates and cancellation restored.</td>
+<td>High</td>
+<td>No claim of total RAM or unrestricted visible size.</td>
+</tr>
+<tr><td>Backend</td><td>Existing Auth</td><td>Host owns identity and enforces protected routes.</td><td>host adapters/Next</td><td>local Auth integration and authenticated brush flows</td><td>Two local Auth tests and two brush browser flows pass.</td><td>Passed</td>
+<td><a href="../../tests/integration">Test evidence</a></td>
+<td>Prerequisite: configured local Supabase/Next; authenticate for inspector checks. 1. Run the named test fixture. 2. Compare its stated result.</td>
+<td>Two local Auth tests and two brush browser flows pass.</td>
+<td>High</td>
+<td>No new database schema is needed for geometry.</td>
+</tr>
+<tr><td>Complete product</td><td>Remaining roadmap</td><td>All browser-relevant parity must pass.</td><td>Master roadmap</td><td>Fresh full-product audit</td><td>Pencil/vector authoring/export and other families remain required.</td><td>Partial</td><td><a href="../planning/26-11-06-complete-figcraft-port.md">Checkpoint</a></td><td>1. Read each roadmap row. 2. Inspect its evidence.</td><td>No full-parity claim.</td><td>High</td><td>Publication remains gated.</td></tr></tbody></table></div></body></html>

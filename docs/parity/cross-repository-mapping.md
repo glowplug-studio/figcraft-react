@@ -150,3 +150,19 @@ Upstream0b97f3f → React0.22.0; verified implementation5f035a2, reviewed base47
 | right::stroke::width_profile_row/profile_art | StrokePanel/ProfileArt | Presets/Custom/Mixed/flip, command-driven history, file/recovery and mobile controls |
 
 Local graph1268 nodes/5392 edges resolves the current target chain; hosted React is still stale. Canvas masks substitute native boolean contour clipping; native-select controls substitute the custom popup. General vector booleans/export contours, vector width-point gestures, complete inspector styling and unsupported node kinds remain required. No full-product equivalence is claimed.
+
+## Procedural brushes — 7 November 2026
+
+Upstream0b97f3f → React0.23.0; reviewed basee13f8da. [Property evidence](../reports/26-11-07-brushes-parity.html); 622 pure tests,2 real Auth tests, strict TypeScript/package/Next builds and82/82 Chromium pass.
+
+| Upstream symbol/source | React target | Behaviour and boundary |
+|---|---|---|
+| doc::Brush/default/sanitized/reach_factor | brush.ts | Raw serde metadata, strict seeds, command clamps and conservative reach |
+| props::snake/brush_of/apply_look; edit::stroke_brush | parseBrush; setStrokeProperties; executeStrokeList | Sorted aliases, exact ids, conditional paint, null reset and atomic history |
+| pathops::brush::PRESETS/shape/band | brushShape | Eight independent procedural shapes with native bounds |
+| pathops::brush::rand | brushRandom | Exact wrapping splitmix64 using BigInt; independent integer fixture values |
+| pathops::brush::outline/stretch/scatter | brushOutline; measurePath | Native subpath sampling,0.002 unit flattening, profile mean, seeded jitter and actual multi-subpath spacing semantics |
+| render::stroke_area; stroke_outline_of; StrokeProps::max_weight | profilePath/paintStroke; strokeMaxWeight/strokeReach | Side/brush/profile precedence, uniform fallback, alignment, alpha, arrows and culling |
+| right::stroke::brush_row/brush_art | StrokePanel/BrushArt | Presets/Mixed/scatter fields, percentage jitter, memoised outline preview and authenticated recovery/mobile |
+
+Local graph1298 nodes/5558 edges resolves these targets. Pencil pressure, vector authoring, vector.outlineStroke and export remain required dependencies. Canvas masks and native HTML selects substitute native boolean contours/custom popup UI for this bounded workflow. Full browser parity remains incomplete.

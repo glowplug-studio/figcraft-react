@@ -3,6 +3,7 @@ import { parseColour } from "./colour-css";
 import { parseNumber } from "./parameters";
 import { readSolidPaints, solidPaint } from "./solid-paint";
 import { parseWidthProfile, readWidthProfile, wireWidthProfile, widthProfileMaxScale, type WidthProfile } from "./width-profile";
+import { brushReachFactor, parseBrush, readBrush, wireBrush, type Brush } from "./brush";
 
 export const strokeCaps = ["none", "round", "square", "lineArrow", "triangleArrow", "reversedTriangle", "circleFilled", "diamondFilled"] as const;
 export type StrokeCap = typeof strokeCaps[number];
@@ -13,6 +14,7 @@ export interface StrokeProps {
   readonly weight: number;
   readonly sides?: StrokeSides;
   readonly widthProfile?: WidthProfile;
+  readonly brush?: Brush;
   readonly align: StrokeAlign;
   readonly capStart: StrokeCap;
   readonly capEnd: StrokeCap;
@@ -22,10 +24,10 @@ export interface StrokeProps {
   readonly dashCap: StrokeCap | null;
 }
 export const defaultStroke: StrokeProps = Object.freeze({ weight: 1, align: "inside", capStart: "none", capEnd: "none", join: "miter", miterLimit: 4, dashes: Object.freeze([]), dashCap: null });
-export const isDefaultStroke = (p: StrokeProps): boolean => p.sides === undefined && p.widthProfile === undefined && p.weight === 1 && p.align === "inside" && p.capStart === "none" && p.capEnd === "none" && p.join === "miter" && p.miterLimit === 4 && p.dashes.length === 0 && p.dashCap === null;
+export const isDefaultStroke = (p: StrokeProps): boolean => p.sides === undefined && p.widthProfile === undefined && p.brush === undefined && p.weight === 1 && p.align === "inside" && p.capStart === "none" && p.capEnd === "none" && p.join === "miter" && p.miterLimit === 4 && p.dashes.length === 0 && p.dashCap === null;
 export const MAX_STROKE_WIDTH = 1e6;
 export const hasVisibleStroke = (node: LayerNode): boolean => (node.stroke ?? defaultStroke).weight > 0 && Boolean(node.strokes?.some(p => p.visible));
-export const strokeMaxWeight = (props: StrokeProps): number => props.weight * (props.widthProfile?.points.length ? widthProfileMaxScale(props.widthProfile) : 1);
+export const strokeMaxWeight = (props: StrokeProps): number => props.weight * (props.widthProfile?.points.length ? widthProfileMaxScale(props.widthProfile) : 1) * (props.brush ? brushReachFactor(props.brush) : 1);
 const aligns = ["inside", "center", "outside"] as const, joins = ["miter", "bevel", "round"] as const;
 const clamp = (n: number, lo: number, hi: number): number => Math.max(lo, Math.min(hi, n));
 export const miterAngle = (limit: number): number => 2 * Math.asin(1 / clamp(limit, 1, 100)) * 180 / Math.PI;
@@ -57,7 +59,7 @@ export function readStroke(value: unknown): StrokeProps {
   const raw = value as Record<string, unknown>;
   const keys = ["weight", "align", "sides", "cap_start", "cap_end", "join", "miter_limit", "dashes", "dash_cap", "width_profile", "brush"];
   if (Object.keys(raw).some(key => !keys.includes(key))) throw new Error("Unsupported stroke property");
-  if (raw.brush !== undefined && raw.brush !== null) throw new Error("brush strokes are not supported yet");
+  const brush = readBrush(raw.brush);
   const widthProfile = readWidthProfile(raw.width_profile);
   let sides: StrokeSides | undefined;
   if (raw.sides != null) {
@@ -74,6 +76,7 @@ export function readStroke(value: unknown): StrokeProps {
     weight: number(raw.weight, 1), align: raw.align === undefined ? "inside" : strokeEnum(raw.align, aligns, false),
     ...(sides === undefined ? {} : { sides }),
     ...(widthProfile === undefined ? {} : { widthProfile }),
+    ...(brush === undefined ? {} : { brush }),
     capStart: raw.cap_start === undefined ? "none" : strokeEnum(raw.cap_start, strokeCaps, false),
     capEnd: raw.cap_end === undefined ? "none" : strokeEnum(raw.cap_end, strokeCaps, false),
     join: raw.join === undefined ? "miter" : strokeEnum(raw.join, joins, false), miterLimit: number(raw.miter_limit, 4),
@@ -86,11 +89,11 @@ export function readStroke(value: unknown): StrokeProps {
 }
 export function wireStroke(props: StrokeProps): Record<string, unknown> {
   return { weight: props.weight, align: props.align, sides: props.sides ? [...props.sides] : null, cap_start: props.capStart, cap_end: props.capEnd,
-    join: props.join, miter_limit: props.miterLimit, dashes: [...props.dashes], ...(props.dashCap === null ? {} : { dash_cap: props.dashCap }), ...(props.widthProfile === undefined ? {} : { width_profile: wireWidthProfile(props.widthProfile) }) };
+    join: props.join, miter_limit: props.miterLimit, dashes: [...props.dashes], ...(props.dashCap === null ? {} : { dash_cap: props.dashCap }), ...(props.widthProfile === undefined ? {} : { width_profile: wireWidthProfile(props.widthProfile) }), ...(props.brush === undefined ? {} : { brush: wireBrush(props.brush) }) };
 }
 
 export const strokeSideKeys = ["strokeTopWeight", "strokeRightWeight", "strokeBottomWeight", "strokeLeftWeight"] as const;
-const strokeKeys = new Set(["stroke", "strokes", "strokeWeight", "strokeSides", ...strokeSideKeys, "widthProfile", "strokeAlign", "strokeCap", "startCap", "endCap", "strokeJoin", "miterLimit", "miterAngle", "dashes", "dashCap"]);
+const strokeKeys = new Set(["stroke", "strokes", "strokeWeight", "strokeSides", ...strokeSideKeys, "widthProfile", "brush", "strokeBrush", "strokeAlign", "strokeCap", "startCap", "endCap", "strokeJoin", "miterLimit", "miterAngle", "dashes", "dashCap"]);
 export const isStrokeKey = (key: string): boolean => strokeKeys.has(key);
 export function setStrokeProperties(node: LayerNode, props: Record<string, unknown>): LayerNode {
   const keys = Object.keys(props).filter(isStrokeKey).sort();
@@ -108,6 +111,9 @@ export function setStrokeProperties(node: LayerNode, props: Record<string, unkno
       case "strokeWeight": stroke.weight = Math.max(0, parseNumber(value, key)); break;
       case "widthProfile": {
         const profile = parseWidthProfile(value); if (profile) stroke.widthProfile = profile; else delete stroke.widthProfile; break;
+      }
+      case "brush": case "strokeBrush": {
+        const brush = parseBrush(value); if (brush) stroke.brush = brush; else delete stroke.brush; break;
       }
       case "strokeSides": {
         if (value === null) { delete stroke.sides; break; }

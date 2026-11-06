@@ -9,13 +9,14 @@ import { defaultStroke } from "../../src/engine/stroke";
 import { solidPaint } from "../../src/engine/solid-paint";
 import { fromRgba8 } from "../../src/engine/colour";
 import { parseWidthProfile, widthPresetProfile } from "../../src/engine/width-profile";
+import { brushPresets, defaultBrush } from "../../src/engine/brush";
 
-export async function measureStrokes(canvas: HTMLCanvasElement, individual = false, profiles = false) {
+export async function measureStrokes(canvas: HTMLCanvasElement, individual = false, profiles = false, brushes = false) {
   const initial = newDocument(), nodes: Record<string, DocumentNode> = { ...initial.nodes }, children: string[] = [];
   const paints = [solidPaint(fromRgba8(0, 0, 0))], stroke = { ...defaultStroke, weight: 3, align: "outside" as const, dashes: [8, 4], capStart: "round" as const, capEnd: "square" as const };
   for (let i = 0; i < 9_999; i++) {
     const id = String(i + 2); children.push(id);
-    const currentStroke = profiles ? { ...stroke, widthProfile: i % 2 ? widthPresetProfile("eye") : parseWidthProfile([[0, 0, 2], [.5, 2, 1], [1, 0, 1]]) } : stroke;
+    const currentStroke = { ...stroke, ...(profiles ? { widthProfile: i % 2 ? widthPresetProfile("eye") : parseWidthProfile([[0, 0, 2], [.5, 2, 1], [1, 0, 1]]) } : {}), ...(brushes ? { brush: { ...defaultBrush, preset: brushPresets[i % brushPresets.length].id, spacing: 2, sizeJitter: .25, rotationJitter: .25, scatter: .25, seed: 7 } } : {}) };
     const common = { id, parent: "1", name: `Layer ${i}`, x: i < 100 ? i % 10 * 80 : 10_000 + i, y: i < 100 ? 20 + Math.floor(i / 10) * 70 : 10_000, width: 60, fill: "transparent", strokes: paints, stroke: currentStroke };
     nodes[id] = individual ? { ...common, kind: "rectangle", height: 50, corners: { radii: [12, 12, 12, 12], smoothing: .6 }, stroke: { ...stroke, sides: [0, 0, 3, 2] } }
       : i % 2 ? { ...common, kind: "star", height: 50, count: 5, innerRatio: .38 } : { ...common, kind: "line", height: 0, stroke: { ...currentStroke, capEnd: "triangleArrow" } };

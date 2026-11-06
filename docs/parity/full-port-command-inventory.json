@@ -1687,7 +1687,9 @@
       "label": "Brush",
       "source": "crates/engine/src/cmd/edit.rs",
       "line": 369,
-      "status": "Not tested"
+      "status": "Partial",
+      "evidence": "../reports/26-11-07-brushes-parity.html",
+      "scope": "Verified on current supported kinds; vector/Pencil authoring, outline/export and future kinds remain required."
     },
     {
       "command": "effect.add",

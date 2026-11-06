@@ -10,6 +10,8 @@ import { clippedSideStrokePath, sideStrokeGeometry } from "./side-stroke";
 import { bandCaps, capShape, defaultStroke, hasVisibleStroke, MAX_STROKE_WIDTH, renderDashes } from "./stroke";
 import { variableStrokeOutline } from "./variable-stroke";
 import { sanitiseWidthProfile, widthProfileMaxScale } from "./width-profile";
+import { brushOutline } from "./brush-geometry";
+import { brushReachFactor } from "./brush";
 
 interface FilledStroke { readonly path: Path2D; readonly rule: CanvasFillRule }
 const paths = new WeakMap<LayerNode, FilledStroke | null>();
@@ -34,9 +36,11 @@ function closedPath(commands: readonly PathCommand[]): Path2D {
 function profilePath(node: LayerNode): Path2D | null {
   const previous = profiles.get(node); if (previous !== undefined) return previous;
   const props = node.stroke ?? defaultStroke;
-  if (!props.widthProfile?.points.length) { profiles.set(node, null); return null; }
+  if (!props.brush && !props.widthProfile?.points.length) { profiles.set(node, null); return null; }
   const weight = Math.min(props.weight, MAX_STROKE_WIDTH);
-  const commands = variableStrokeOutline(shapePath(node), weight * (node.kind === "line" || props.align === "center" ? 1 : 2), props, props.widthProfile);
+  const width = weight * (node.kind === "line" || props.align === "center" ? 1 : 2);
+  const commands = props.brush ? brushOutline(shapePath(node), width, props, props.brush)
+    : variableStrokeOutline(shapePath(node), width, props, props.widthProfile!);
   if (commands === undefined) { profiles.set(node, null); return null; }
   const path = new Path2D(); tracePath(path, commands);
   if (node.kind === "line") {
@@ -70,7 +74,7 @@ export function strokeReach(node: LayerNode): number {
   if (!hasVisibleStroke(node) || node.kind === "group") return 0;
   const props = node.stroke ?? defaultStroke, base = Math.min(props.weight, MAX_STROKE_WIDTH);
   // Rendering sanitises raw file profiles; use the same finite envelope for allocation/culling.
-  const w = base * (props.widthProfile?.points.length ? Math.max(1, widthProfileMaxScale(sanitiseWidthProfile(props.widthProfile))) : 1);
+  const w = base * (props.widthProfile?.points.length ? Math.max(1, widthProfileMaxScale(sanitiseWidthProfile(props.widthProfile))) : 1) * (props.brush ? brushReachFactor(props.brush) : 1);
   if (props.sides && (node.kind === "rectangle" || node.kind === "frame")) {
     const side = Math.max(0, ...props.sides.filter(Number.isFinite));
     return side * (props.align === "inside" ? 0 : props.align === "center" ? .5 : 1);
@@ -167,13 +171,18 @@ export function paintStroke(context: CanvasRenderingContext2D, node: LayerNode, 
   if (previous && cacheKey.every((v, i) => v === previous.matrix[i])) {
     cache.entries.delete(node); cache.entries.set(node, previous); paintMask(context, node, previous, alpha); return;
   }
-  if (previous) { cache.entries.delete(node); cache.bytes -= previous.bytes; previous.surface.width = previous.surface.height = 0; }
+  if (previous) { cache.entries.delete(node); cache.bytes -= previous.bytes; }
   const bounds = strokeBounds(node, coefficients);
   const left = Math.max(0, Math.floor(bounds.x) - 1), top = Math.max(0, Math.floor(bounds.y) - 1);
   const width = Math.min(context.canvas.width, Math.ceil(bounds.x + bounds.width) + 1) - left, height = Math.min(context.canvas.height, Math.ceil(bounds.y + bounds.height) + 1) - top;
-  if (width <= 0 || height <= 0) return;
-  let surface = surfaces.get(context); if (!surface) { surface = context.canvas.ownerDocument.createElement("canvas"); surfaces.set(context, surface); }
-  if (surface.width < width) surface.width = width; if (surface.height < height) surface.height = height;
+  if (width <= 0 || height <= 0) { if (previous) previous.surface.width = previous.surface.height = 0; return; }
+  const bytes = width * height * 4, reuse = previous && bytes <= MASK_BUDGET;
+  if (previous && !reuse) previous.surface.width = previous.surface.height = 0;
+  let surface = reuse ? previous.surface : surfaces.get(context);
+  if (!surface) { surface = context.canvas.ownerDocument.createElement("canvas"); surfaces.set(context, surface); }
+  // A pan changes raster phase, so redraw it, but retain the node's bounded surface.
+  if (reuse ? surface.width !== width : surface.width < width) surface.width = width;
+  if (reuse ? surface.height !== height : surface.height < height) surface.height = height;
   const scratch = surface.getContext("2d"); if (!scratch) throw new Error("Stroke rendering is unavailable");
   scratch.resetTransform(); scratch.globalCompositeOperation = "source-over"; scratch.globalAlpha = 1; scratch.clearRect(0, 0, surface.width, surface.height);
   scratch.setTransform(matrix.a, matrix.b, matrix.c, matrix.d, matrix.e - left, matrix.f - top);
@@ -191,18 +200,20 @@ export function paintStroke(context: CanvasRenderingContext2D, node: LayerNode, 
     if (dashes && !symmetric) for (const line of lines) dashCaps(scratch, line, dashes.pattern, scratch.lineWidth, caps[0], caps[1]);
   }
   if (props.align !== "center") { scratch.globalCompositeOperation = props.align === "inside" ? "destination-in" : "destination-out"; scratch.fill(path); }
-  const bytes = width * height * 4;
   let mask: Mask = { surface, context: scratch, matrix: cacheKey, left, top, width, height, bytes };
   if (bytes <= MASK_BUDGET) {
     while (cache.entries.size && (cache.entries.size >= MASK_COUNT || cache.bytes + bytes > MASK_BUDGET)) {
       const oldest = cache.entries.keys().next().value!, evicted = cache.entries.get(oldest)!;
       cache.bytes -= evicted.bytes; cache.entries.delete(oldest); evicted.surface.width = evicted.surface.height = 0;
     }
-    const stored = context.canvas.ownerDocument.createElement("canvas"); stored.width = width; stored.height = height;
-    const target = stored.getContext("2d");
-    if (target) {
-      target.drawImage(surface, 0, 0, width, height, 0, 0, width, height);
-      mask = { ...mask, surface: stored, context: target }; cache.entries.set(node, mask); cache.bytes += bytes;
+    if (reuse) { cache.entries.set(node, mask); cache.bytes += bytes; }
+    else {
+      const stored = context.canvas.ownerDocument.createElement("canvas"); stored.width = width; stored.height = height;
+      const target = stored.getContext("2d");
+      if (target) {
+        target.drawImage(surface, 0, 0, width, height, 0, 0, width, height);
+        mask = { ...mask, surface: stored, context: target }; cache.entries.set(node, mask); cache.bytes += bytes;
+      }
     }
   }
   paintMask(context, node, mask, alpha);
