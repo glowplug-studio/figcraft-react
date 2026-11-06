@@ -5,16 +5,16 @@
 | Field | Current value |
 |---|---|
 | Overall status | In progress; full parity is not implemented |
-| Active slice | Smart-selection spacing, reordering and gesture transactions |
-| Active phase | Phase 1–3: smart-selection source mapping and plan |
+| Active slice | Layer subtree duplication and repeat offsets |
+| Active phase | Phase 1–3: duplicate source mapping and plan |
 | Upstream baseline | `0b97f3f1801a9b7b96fd7a4f3c0942a3f1a676f3`; prior parity baseline `8eb0b87646c5aef712326d6c431ccde5408630de` |
-| Branch and last verified commit | `prompt/full-figcraft-port`; verified rotations `92062ca`; verified sizing `c6b8c71`; verified arrangement `783a694`; verified viewport `d0fae6c`; verified frames `3e7943a`; verified nested groups `e81ba76`; verified colour `bfa5dd8`; affine `080fc27`, outline check `2404d6b`, reports `ff29f38`; pages `6c988a5`, persistence `41d467b`; integration `fc3b4a6` from updated dev plus rectangle branch |
+| Branch and last verified commit | `prompt/full-figcraft-port`; verified smart selection `3326d26`; verified rotations `92062ca`; verified sizing `c6b8c71`; verified arrangement `783a694`; verified viewport `d0fae6c`; verified frames `3e7943a`; verified nested groups `e81ba76`; verified colour `bfa5dd8`; affine `080fc27`, outline check `2404d6b`, reports `ff29f38`; pages `6c988a5`, persistence `41d467b`; integration `fc3b4a6` from updated dev plus rectangle branch |
 | Completed slices | Rectangle/host-auth, bounded native persistence/recovery, supported-model pages, affine rectangle geometry/selection and solid appearance, plus nested group hierarchy and Frame containers verified locally |
 | Remaining slices | Every row below except the integrated foundation; static inventory entries remain unverified until mapped and tested |
-| Tests last passed | Strict TypeScript, 365 pure tests, 2 real local Auth tests, package/Next builds and34/34 production Chromium checks (52.4s); moving-frame p95 13.5ms |
-| Files currently in progress | Smart-selection plan; implementation not yet started |
+| Tests last passed | Strict TypeScript, 379 pure tests, 2 real local Auth tests, package/Next builds and38/38 production Chromium checks (54.4s); smart-preview p95 3.5ms, moving-frame p95 14ms |
+| Files currently in progress | Duplication plan; implementation not started |
 | Blockers | None |
-| Exact next action | Port smart-selection tracks/reflow, transient document gestures, spacing fields and canvas gap/reorder handles; verify and continue |
+| Exact next action | Implement supported subtree duplication, returned ID maps and repeated offsets with Ctrl/Meta+D and controls; verify before general Alt-drag |
 | Last updated | 2026-11-07 |
 
 ## Scope and continuation
@@ -246,3 +246,21 @@ Architecture: add an engine-owned transient interaction document and targeted su
 Hazards: deterministic u64-ID tie order, original track anchor versus expanding track bounds, diagonal rejection, mixed/negative gaps, unequal-size reflow, singular parents, complete-grid validation, finite/atomic updates, captured pointer release/cancellation and identity changes. Do not publish gesture frames to recovery or history. Tests cover source numeric cases, both axes, rotated parents, invalid/locked/hidden/duplicate IDs, no-op/undo and cross-context cancellation; browser tests cover fields/scrubs/handles, insertion/swap, outside release, Escape, no root rerenders, save/recovery/mobile and existing performance fixtures.
 
 No provider/schema/RLS/Storage/Realtime changes. Multi-file gesture isolation is completed when multi-file workspace lands; current owning-document/page/selection/access lifecycle must be correct. Auto-layout flow and instance rejection extend when those kinds land. No stubs or full-family completion claim. Work sequentially; rollback92062ca. Files: new pure smart-selection module and interaction helper/controller, engine and canvas integration, SmartSelectionPanel, pure/browser tests and version records. Implement geometry/reducer, then transaction boundary, UI/handles, full verification and report.
+
+Smart-selection integration checkpoint: track geometry/reflow, three commands, transient interaction document with single commit/cancellation, inspector fields/scrubs and canvas handles implemented.379 pure tests,2 real local Auth tests, strict TypeScript and production builds pass. Browser workflows for spacing/scrubs, canvas cancellation/reorder/outside release/native recovery are ready to run. No external blocker or publication.
+
+## Verified smart-selection checkpoint
+
+Implementation3326d26, version0.13.0:379 pure,2 real local Auth, strict TypeScript/build and38/38 browser checks passed in54.4s.100-selected/10000-node preview p953.5ms, zero root notifications. [Report](../reports/26-11-07-smart-selection.md). No external blocker/publication.
+
+## Active subtree duplication and repeat-offset plan
+
+Selection/move source inspection (`tools/drag.rs` and `draw.rs::up`) shows Alt-drag depends on deep copying and last-duplicate state. Complete that foundation before the general move gesture; existing smart transactions supply preview/commit/cancel boundaries.
+
+Acceptance: `edit.duplicate` strict targets root-filtered and paint-order sorted; clone supported subtree with fresh exact u64 IDs and corresponding hierarchy, insert each copy immediately after its source, preserve all supported properties and child order. Default top-level Frame moves right by its local width+100; other roots remain in place. Explicit dx/dy override remembered step; implementation translates in parent coordinates despite registry wording saying page offset. Repeated duplication measures combined source/copy world-bounds offset while the last copy set remains selected, even after numeric movement/nudging; set equality ignores selection order. Selection away clears repeat permanently, missing source/copy or undo clears stale repeat. `map:true` returns every original/descendant→copy ID; otherwise result only ids. Copy selects roots and records one undo; allocation/overflow failure is atomic. Current rename-duplicates defaultfalse retained; preference UI later.
+
+Source/mapping: `cmd/edit.rs::{Duplicated,duplicate,bump_name}` → pure duplicate reducer and engine session state; `assets/components/instances.rs::copy_in_file`, `Document::duplicate_into` → supported deep-copy helper; `doc_state::clean_selection` → repeat lifecycle; `duplicate_spacing_tests.rs`, `duplicate_map_tests.rs` → source-derived tests; native primary+D shortcut → Editor and LayerPanel controls. Rust Graphify supplied repeat test evidence; exact local definitions authoritative. React index stale/README-only; existing page-subtree cloning and hierarchy allocator logic supply reusable contracts.
+
+Hazards: u64 allocation near exhaustion, root deduplication before paint order, insertion shifts, local explicit offset versus world repeated offset under rotated parent, immutable property sharing, no mutations before allocation/validation completes, changed selection must invalidate ephemeral state without losing valid repeated copy order. Test nested Frame/Group copies/maps, root+descendant input, all paint/constraints/clip metadata, same-position default, top Frame gap, explicit/remembered offsets, rotated parents, selection/undo invalidation, no source mutation, native/recovery and browser shortcuts/mobile. Existing large-document performance remains guard.
+
+No database/provider/identity changes. Component-to-instance copy, variants, connector remapping, library analytics, auto-layout flow and rename preferences extend with their required families; unsupported fields remain refused. Alt-drag will reuse the verified helper and extend interaction allocation/selection snapshots in the following gesture slice. No speculative kinds or full-family claim. Work sequentially; rollback3326d26. Files: duplication helper, EditorEngine, LayerPanel/Editor, pure/browser tests and version records.

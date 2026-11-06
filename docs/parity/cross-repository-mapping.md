@@ -41,3 +41,7 @@ Add mappings only after inspecting behaviour, callers, data contracts and tests.
 ## Rotation origins and transforms — 7 November 2026
 
 `canvas/rotation_origin.rs` and `tools/handles::{selection_frame,shared_rotation}` → `rotation.ts` and independent origin subscriptions; `cmd/arrange::{flip,rotate_by,turn_pivot}` → pure rotation reducer; `cmd/edit/props::set` pinning → properties reducer; native pointer/overlays → CanvasController ring/cross and RotationPanel. Upstream0b97f3f, React92062ca.365 pure/34 browser passes include native pivot fixtures, lifecycle, real pointer/keyboard, no root rerender and persistence. [Property evidence](../reports/26-11-07-rotation-parity.html). Other kinds, vector/text mode and general transform gestures remain required.
+
+## Smart selection — 7 November 2026
+
+`selection_spacing::{selection_spacing,axis,Axis::offsets}` and `selection_reorder::ReorderLayout` → `smart-selection.ts`; `cmd/arrange::{spacing,reorder,round_px}` → immutable smart reducer; native interaction snapshots → EditorEngine transient render document; `ui-egui/canvas/selection_spacing` and numeric label scrubs → SmartHandles/SmartSelectionPanel. Upstream0b97f3f, React3326d26.379 pure/38 browser checks pass, including source grids/reflow/cancellation and10000-node preview benchmark. [Property evidence](../reports/26-11-07-smart-selection-parity.html). Auto-layout/instances, field arithmetic/preferences and multi-file ownership remain required.

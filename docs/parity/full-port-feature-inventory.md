@@ -238,3 +238,5 @@ Frames/constraints: [property report](../reports/26-11-07-frames-parity.html). V
 Anchored resizing and uniform scaling: [property report](../reports/26-11-07-sizing-parity.html).
 
 Rotation origins and numeric transforms: [property report](../reports/26-11-07-rotation-parity.html).
+
+Smart-selection tracks, reordering and transient gestures: [property report](../reports/26-11-07-smart-selection-parity.html).

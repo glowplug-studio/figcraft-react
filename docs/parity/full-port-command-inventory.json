@@ -520,7 +520,9 @@
       "label": "Spacing",
       "source": "crates/engine/src/cmd/arrange.rs",
       "line": 22,
-      "status": "Not tested"
+      "status": "Partial",
+      "evidence": "../reports/26-11-07-smart-selection-parity.html",
+      "limitation": "Supported model/gestures verified; other kinds, auto-layout/instances and multi-file workspace remain required."
     },
     {
       "command": "arrange.tidy",
@@ -536,7 +538,9 @@
       "label": "Reorder selection",
       "source": "crates/engine/src/cmd/arrange.rs",
       "line": 30,
-      "status": "Not tested"
+      "status": "Partial",
+      "evidence": "../reports/26-11-07-smart-selection-parity.html",
+      "limitation": "Supported model/gestures verified; other kinds, auto-layout/instances and multi-file workspace remain required."
     },
     {
       "command": "arrange.packH",
@@ -561,7 +565,9 @@
       "label": "Round to pixels",
       "source": "crates/engine/src/cmd/arrange.rs",
       "line": 39,
-      "status": "Not tested"
+      "status": "Partial",
+      "evidence": "../reports/26-11-07-smart-selection-parity.html",
+      "limitation": "Supported model/gestures verified; other kinds, auto-layout/instances and multi-file workspace remain required."
     },
     {
       "command": "arrange.front",
