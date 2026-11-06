@@ -92,7 +92,7 @@
     "hostedCallbackUpdate": 200
   },
   "publication": {
-    "status": "Production verified; GitHub homepage metadata pending",
+    "status": "Complete: production and GitHub homepage verified",
     "account": "glowplug-studio",
     "team": "glowplug",
     "project": "figcraft-react",
@@ -126,13 +126,18 @@
     "deploymentProtectionUnchanged": true,
     "stableAccess": "HTTP 200 login without Vercel bypass; full stable browser run without bypass cookie",
     "githubMcpRepositoryVerified": true,
-    "githubHomepage": "Pending: MCP has no metadata-write operation; browser control timed out; no CLI credential available"
+    "githubHomepage": "https://figcraft-react.vercel.app",
+    "githubHomepageVerification": {
+      "method": "User update followed by GET /repos/glowplug-studio/figcraft-react",
+      "httpStatus": 200,
+      "verifiedAt": "2026-11-06T22:17+07:00"
+    }
   },
   "propertyCoverage": {
-    "Passed": 41,
+    "Passed": 42,
     "Failed": 0,
     "Partial": 0,
-    "Blocked": 1,
+    "Blocked": 0,
     "Not tested": 0
   },
   "vercelDiscovery": {

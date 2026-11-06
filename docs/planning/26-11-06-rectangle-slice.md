@@ -4,16 +4,16 @@
 
 | Field | Current value |
 |---|---|
-| Overall status | Blocked — production verified; GitHub homepage metadata remains |
-| Active phase | Phase 8.10–11 — homepage metadata and final reporting |
+| Overall status | Complete — selected slice and all publication gates verified |
+| Active phase | Phase 8 complete |
 | Upstream baseline | `8eb0b87646c5aef712326d6c431ccde5408630de` (fork, original upstream and parity record agree) |
 | Branch and last verified commit | `prompt/rectangle-slice`; verified application `5314525b2f6ad9ef793091e082d7199a3537c07d`; deployment exclusions and browser configuration `f5ed4bd`; exact deployed source `f64d9c7`; core `d71b73d`; starting `f6450d5` preserved |
-| Completed work | Mandatory documents read; upstream sync passed; both Graphify repositories queried; Supabase MCP read succeeded, public schema empty; first slice selected; Phases 2–4 implemented and reviewed; local reset and advisers passed |
+| Completed work | Mandatory documents read; upstream sync passed; both Graphify repositories queried; Supabase MCP read succeeded, public schema empty; first slice selected; Phases 1–8 complete; implementation and release reviewed; local reset/advisers, staged/stable tests, branch publication and GitHub homepage read-back passed |
 | Tests last passed | 68 unit/contract/parity/local integration tests; 6 Playwright flows against the production build; strict typecheck, package and Next.js build; staged and stable hosted Playwright each 6/6; runtime-error scan clean |
 | Files in progress | None; README and release evidence finalised; deployed source is unchanged |
-| Blockers | GitHub MCP verified the repository but cannot edit its homepage; browser control timed out; no CLI credential. Manual Website update requested. |
-| Exact next action | Verify repository Website equals https://figcraft-react.vercel.app; complete metadata evidence and checkpoint. The tested production deployment is already live. |
-| Last updated | 2026-11-06T22:06+07:00 |
+| Blockers | None. User updated GitHub Website; repository API read-back confirms the stable demo URL. |
+| Exact next action | None for this scope. Review/merge into dev or main requires separate authorisation. |
+| Last updated | 2026-11-06T22:17+07:00 |
 
 ## Scope and acceptance
 

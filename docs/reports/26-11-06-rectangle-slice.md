@@ -4,7 +4,7 @@
 
 Implemented and locally verified the first browser-relevant slice: create a rectangle in a fresh local design document, display its selected geometry, and undo/redo creation. The dependency-ordered roadmap is in [the plan](../planning/26-11-06-rectangle-slice.md). The reusable editor receives host identity and capabilities; the Next.js example owns Supabase password login, verified route protection, session refresh, callback handling and logout.
 
-**Production is verified at [figcraft-react.vercel.app](https://figcraft-react.vercel.app).** Six Playwright tests passed on the staged deployment and again on the stable URL. The same production build was promoted without rebuilding. Supabase Site URL and exact callback are configured, local callbacks retained, and temporary Auth fixture/automation bypass removed. GitHub homepage metadata is the only outstanding publication item; the connector lacks that write operation, browser control repeatedly timed out, and no CLI credential is available.
+**Production is verified at [figcraft-react.vercel.app](https://figcraft-react.vercel.app).** Six Playwright tests passed on the staged deployment and again on the stable URL. The same production build was promoted without rebuilding. Supabase Site URL and exact callback are configured, local callbacks retained, and temporary Auth fixture/automation bypass removed. The user updated GitHub’s Website field; repository API read-back confirms the same stable demo URL. All publication gates are complete.
 
 ## Reference and commits
 
@@ -44,7 +44,7 @@ Canvas 2D replaces native CPU rendering for flat rectangles. Browser pointer cap
 | Local declarative sync/reset/advisers | Passed/no changes/zero findings |
 | Hosted Auth configuration | Passed — stable Site URL and exact callback configured; management read-back HTTP 200; local callbacks preserved |
 | Phase 8 deployment | Passed — staged 6/6; stable 6/6; same build promoted; runtime-error scan clean |
-| GitHub homepage metadata | Blocked — authenticated MCP verified the repository; manual Website update requested |
+| GitHub homepage metadata | Passed — user updated Website; GitHub repository API read-back confirms the stable URL |
 
 Test environment: Node 24.20.0, Next.js 16.4.5, Playwright 1.65.0 bundled Chromium, macOS; fixed scale 1 and browser sans-serif chrome. Counts are executed tests, not line/branch coverage percentages. Geometry fixture provenance distinguishes the existing Rust `create_select_undo_redo` test from inspection-derived expected values; no React test executes Rust.
 
@@ -71,10 +71,10 @@ Local preview and this project’s Supabase processes were stopped cleanly after
 | Runtime check | MCP: zero runtime errors and no error/fatal logs in the deployment's 30-minute window |
 | Rollback target | None: first deployment. Pre-recorded first-release fallback was to pause the project and withdraw a failed release. Stable verification passed, so no rollback was needed. |
 | Cleanup | Temporary hosted Auth fixture deleted and absence verified; CLI-created automation bypass revoked and read-back verified; protection policy unchanged |
-| GitHub metadata | MCP verified `glowplug-studio/figcraft-react`; homepage update pending manual action |
+| GitHub metadata | MCP verified `glowplug-studio/figcraft-react`; user updated Website; API read-back returned `https://figcraft-react.vercel.app` |
 
 The README demo link is committed on the working branch. It will not appear in the default-branch README until reviewed and merged. No main merge or pull request is authorised.
 
-## Resume
+## Completion
 
-Verify that the repository Website field is `https://figcraft-react.vercel.app`, then update the remaining metadata evidence row and checkpoint. The deployed application is already verified; no rebuild is needed for this metadata change.
+All selected-scope acceptance and publication gates are verified. Final evidence is published on `prompt/rectangle-slice`. The deployed source remains unchanged; metadata and report completion required no rebuild. Review or merge requires separate authorisation.
