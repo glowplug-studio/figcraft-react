@@ -1,6 +1,6 @@
 # Line, Arrow and uniform solid strokes — 7 November 2026
 
-React 0.20.0, working tree after `737aa16`, branch `prompt/full-figcraft-port`; upstream `0b97f3f1801a9b7b96fd7a4f3c0942a3f1a676f3`. The global parity baseline remains `8eb0b876`; the full port is incomplete.
+React 0.20.0, implementation `0ca7c35`, branch `prompt/full-figcraft-port`; upstream `0b97f3f1801a9b7b96fd7a4f3c0942a3f1a676f3`. The global parity baseline remains `8eb0b876`; the full port is incomplete.
 
 Implemented native Line leaves and Arrow aliases, zero-height creation, black centred strokes, L/Shift+L tools, Frame-aware Shift/Alt drawing, two endpoint handles, length labels, cancellation and one-step history. The codec preserves raw finite stroke fields and independent solid stroke stacks, including nonzero native Line height while its path remains horizontal. Unsupported per-side, brush and width-profile data still rejects explicitly.
 

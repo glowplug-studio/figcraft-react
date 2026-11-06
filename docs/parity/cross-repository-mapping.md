@@ -103,7 +103,7 @@ Local code-only graph refreshed to1097 nodes/4516 relationships and queried for 
 
 ## Line, Arrow and uniform strokes — 7 November 2026
 
-Upstream0b97f3f → React0.20.0 worktree after737aa16. [Property evidence](../reports/26-11-07-line-strokes-parity.html); full regression checkpoint is recorded in the linked report.
+Upstream0b97f3f → React0.20.0 implementation0ca7c35. [Property evidence](../reports/26-11-07-line-strokes-parity.html); full regression checkpoint is recorded in the linked report.
 
 | Upstream symbol/source | React target | Verified behaviour / boundary |
 |---|---|---|

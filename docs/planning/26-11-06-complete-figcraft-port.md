@@ -5,16 +5,16 @@
 | Field | Current value |
 |---|---|
 | Overall status | In progress; full parity is not implemented |
-| Active slice | Line/Arrow and their foundational solid strokes |
-| Active phase | Phase 7: Line/Arrow verified; reports and integration commit |
+| Active slice | Per-side Rectangle/Frame strokes |
+| Active phase | Phase 1: per-side stroke source and dependency evidence |
 | Upstream baseline | `0b97f3f1801a9b7b96fd7a4f3c0942a3f1a676f3`; prior parity baseline `8eb0b87646c5aef712326d6c431ccde5408630de` |
-| Branch and last verified commit | `prompt/full-figcraft-port`; verified Polygon/Star `f4db7fc`; verified ellipses `f21fe2b`; verified corners `37ad314`; verified transforms `cc26af1`; verified canvas move `0d34280`; verified duplication `f6dfc3f`; verified smart selection `3326d26`; verified rotations `92062ca`; verified sizing `c6b8c71`; verified arrangement `783a694`; verified viewport `d0fae6c`; verified frames `3e7943a`; verified nested groups `e81ba76`; verified colour `bfa5dd8`; affine `080fc27`, outline check `2404d6b`, reports `ff29f38`; pages `6c988a5`, persistence `41d467b`; integration `fc3b4a6` from updated dev plus rectangle branch |
-| Completed slices | Rectangle/host-auth, bounded native persistence/recovery, supported-model pages, affine rectangle geometry/selection and solid appearance, plus nested group hierarchy, Frame containers, movement/transform gestures, rounded corners, ellipse/arc/ring and Polygon/Star editing verified locally; latest implementationf4db7fc |
+| Branch and last verified commit | `prompt/full-figcraft-port`; verified Line/strokes `0ca7c35`; verified Polygon/Star `f4db7fc`; verified ellipses `f21fe2b`; verified corners `37ad314`; verified transforms `cc26af1`; verified canvas move `0d34280`; verified duplication `f6dfc3f`; verified smart selection `3326d26`; verified rotations `92062ca`; verified sizing `c6b8c71`; verified arrangement `783a694`; verified viewport `d0fae6c`; verified frames `3e7943a`; verified nested groups `e81ba76`; verified colour `bfa5dd8`; affine `080fc27`, outline check `2404d6b`, reports `ff29f38`; pages `6c988a5`, persistence `41d467b`; integration `fc3b4a6` from updated dev plus rectangle branch |
+| Completed slices | Rectangle/host-auth, bounded native persistence/recovery, supported-model pages, affine rectangle geometry/selection and solid appearance, plus nested group hierarchy, Frame containers, movement/transform gestures, rounded corners, ellipse/arc/ring and Polygon/Star editing verified locally; Line/Arrow and uniform solid strokes also verified; latest implementation0ca7c35 |
 | Remaining slices | Every row below except the integrated foundation; static inventory entries remain unverified until mapped and tested |
 | Tests last passed | Line/stroke:558 pure,2 real Auth, strict TypeScript, package/Next builds and70/70 Chromium checks in184.0s, no skipped/flaky browser checks. Stroke endpoint/draw p9510.7/12.3ms, max15.3ms,input2.2ms; nested-frame navigation p957.3ms; zero root preview notifications |
-| Files currently in progress | Line/stroke engine, codec, drawing/transform/hit integration, Canvas stroke rendering and bounded raster cache; stroke list commands, StrokePanel, Line/Arrow toolbar/shortcuts and mobile layout; parity/browser fixtures and reports |
+| Files currently in progress | Reports/checkpoint only; no per-side implementation yet |
 | Blockers | None |
-| Exact next action | Commit the verified Line/Arrow slice and reports, then synchronise upstream and establish the next foundational per-side stroke scope from source/Graphify; continue without publication |
+| Exact next action | Inspect complete native per-side geometry, properties, bounds/hits/scaling, tests and UI; establish the bounded plan/mappings, then implement and verify it without publication |
 | Last updated | 2026-11-07 |
 
 ## Scope and continuation
@@ -473,3 +473,7 @@ Verification environment incident: a later full run passed42 checks but failed b
 ### Line/Arrow verified checkpoint
 
 Version0.20.0:558 pure,2 real local Auth, strict TypeScript/package/Next builds and70/70 full Chromium checks pass in184.0s, no skipped/flaky checks. Four authenticated stroke workflows include the corrected whole-stroke mixed state. Final endpoint/draw p9510.7/12.3ms, max15.3ms,input2.2ms; nested-frame navigation p957.3ms/max10.8ms. Root preview notifications remain zero. Reviewed mobile layout and artwork-identical toolbar baseline changes. Scoped Supabase read still succeeds with no public tables. Local Next stopped; hosted production untouched. [Report](../reports/26-11-07-line-strokes.md) and [35-row matrix](../reports/26-11-07-line-strokes-parity.html) retain earlier failures and remaining full-product gaps. Commit next, then establish per-side stroke evidence before vectors/brushes.
+
+## Active per-side stroke evidence
+
+Line/uniform strokes committed0ca7c35. Upstream sync completed again with fork/original/local all0b97f3f; global baseline remains8eb0b876. Both authorised hosted Graphify repositories are queryable; React still initial-main, so local1180-node graph/current source supplies targets. Scoped Supabase read succeeds with no public tables. Rust query resolves StrokeProps::sides and render::side_strokes/stroke_area: per-side geometry takes precedence for Rectangle/Frame/Component/Instance, selects sharp versus rounded paths, and uses even-odd fill. This is a direct extension of the landed stroke dependency before vector networks and brushes. The broad query also returned unrelated Penpot/vector/width-profile definitions; confirm exact local per-side symbols/tests next. No implementation has begun.
