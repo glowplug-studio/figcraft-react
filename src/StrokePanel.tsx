@@ -4,10 +4,20 @@ import { parseCssColour } from "./engine/colour-css";
 import { renderColour } from "./engine/colour";
 import { paintColour } from "./engine/solid-paint";
 import { bandCaps, capShape, defaultStroke, miterAngle, strokeCaps, strokeSideKeys, type StrokeProps } from "./engine/stroke";
+import { sanitiseWidthProfile, widthPresetIds, widthPresetLabels, widthProfileMaxScale, widthProfilePoints, widthProfilePreset, widthProfileSidesAt, type WidthProfile } from "./engine/width-profile";
 
 interface Props { nodes: readonly LayerNode[]; editable: boolean; dispatch: (command: string, params?: unknown) => void }
 const capLabels = ["None", "Round", "Square", "Line arrow", "Triangle arrow", "Reversed triangle", "Circle", "Diamond"];
 function common<T>(values: readonly T[]): T | undefined { return values.length && values.every(v => JSON.stringify(v) === JSON.stringify(values[0])) ? values[0] : undefined; }
+function ProfileArt({ profile }: { profile?: WidthProfile }) {
+  const clean = profile && sanitiseWidthProfile(profile), maximum = Math.max(1e-6, clean ? widthProfileMaxScale(clean) : 1);
+  const samples = Array.from({ length: 41 }, (_, i) => {
+    const [left, right] = clean ? widthProfileSidesAt(clean, i / 40) : [.5, .5];
+    return { x: 2 + i * 2, top: 12 - Math.max(.5, left / maximum * 10), bottom: 12 + Math.max(.5, right / maximum * 10) };
+  });
+  const points = [...samples.map(p => `${p.x},${p.top}`), ...[...samples].reverse().map(p => `${p.x},${p.bottom}`)].join(" ");
+  return <svg width="84" height="24" viewBox="0 0 84 24" aria-hidden="true"><polygon points={points} fill="currentColor" /></svg>;
+}
 function StrokeControls({ nodes, editable, dispatch }: Props) {
   const [custom, setCustom] = useState(false), [error, setError] = useState("");
   if (!nodes.length) return null;
@@ -25,6 +35,8 @@ function StrokeControls({ nodes, editable, dispatch }: Props) {
   </select></label>;
   const dashCaps = current ? bandCaps(current).map(capShape) : undefined;
   const sides = value("sides");
+  const profile = current?.widthProfile?.points.length ? current.widthProfile : undefined;
+  const preset = current ? profile ? widthProfilePreset(profile) ?? "custom" : "uniform" : "mixed";
   return <fieldset className="figcraft-stroke" disabled={!editable} aria-label="Stroke"><legend>Stroke</legend>
     {error && <p role="alert">{error}</p>}
     {stack === undefined ? <p>Mixed strokes</p> : <ol>{[...stack].map((paint, index) => ({ paint, index })).reverse().map(({ paint, index }, row) => <li key={`${index}:${JSON.stringify(paint)}`}>
@@ -54,6 +66,15 @@ function StrokeControls({ nodes, editable, dispatch }: Props) {
       }}><option value="" disabled>Choose sides</option><option value="all">All</option><option value="0">Top</option><option value="1">Right</option><option value="2">Bottom</option><option value="3">Left</option><option value="custom">Custom</option></select></label>}
       {sides && strokeSideKeys.map((key, i) => field(`${["Top", "Right", "Bottom", "Left"][i]} stroke weight`, key, sides[i]))}
       <details><summary>Advanced stroke</summary>
+        <label>Width profile<select aria-label="Width profile" value={preset} onChange={event => dispatch("stroke.widthProfile", { ids, preset: event.currentTarget.value })}>
+          {preset === "mixed" && <option value="mixed" disabled>Mixed</option>}
+          {preset === "custom" && <option value="custom" disabled>Custom</option>}
+          {widthPresetIds.map((id, i) => <option key={id} value={id}>{widthPresetLabels[i]}</option>)}
+        </select></label>
+        {current && <ProfileArt profile={profile} />}
+        <button type="button" onClick={() => {
+          if (profile) dispatch("stroke.widthProfile", { ids, points: widthProfilePoints({ points: [...profile.points].reverse().map(p => ({ ...p, t: 1 - p.t })) }) });
+        }}>Flip width profile</button>
         <label>Stroke style<select aria-label="Stroke style" value={!pattern ? "solid" : customStyle ? "custom" : "dash"} onChange={event => {
           const style = event.currentTarget.value;
           if (style === "solid") set({ dashes: [] });

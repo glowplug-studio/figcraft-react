@@ -8,15 +8,17 @@ import { DrawInteraction } from "../../src/engine/draw-interaction";
 import { defaultStroke } from "../../src/engine/stroke";
 import { solidPaint } from "../../src/engine/solid-paint";
 import { fromRgba8 } from "../../src/engine/colour";
+import { parseWidthProfile, widthPresetProfile } from "../../src/engine/width-profile";
 
-export async function measureStrokes(canvas: HTMLCanvasElement, individual = false) {
+export async function measureStrokes(canvas: HTMLCanvasElement, individual = false, profiles = false) {
   const initial = newDocument(), nodes: Record<string, DocumentNode> = { ...initial.nodes }, children: string[] = [];
   const paints = [solidPaint(fromRgba8(0, 0, 0))], stroke = { ...defaultStroke, weight: 3, align: "outside" as const, dashes: [8, 4], capStart: "round" as const, capEnd: "square" as const };
   for (let i = 0; i < 9_999; i++) {
     const id = String(i + 2); children.push(id);
-    const common = { id, parent: "1", name: `Layer ${i}`, x: i < 100 ? i % 10 * 80 : 10_000 + i, y: i < 100 ? 20 + Math.floor(i / 10) * 70 : 10_000, width: 60, fill: "transparent", strokes: paints, stroke };
+    const currentStroke = profiles ? { ...stroke, widthProfile: i % 2 ? widthPresetProfile("eye") : parseWidthProfile([[0, 0, 2], [.5, 2, 1], [1, 0, 1]]) } : stroke;
+    const common = { id, parent: "1", name: `Layer ${i}`, x: i < 100 ? i % 10 * 80 : 10_000 + i, y: i < 100 ? 20 + Math.floor(i / 10) * 70 : 10_000, width: 60, fill: "transparent", strokes: paints, stroke: currentStroke };
     nodes[id] = individual ? { ...common, kind: "rectangle", height: 50, corners: { radii: [12, 12, 12, 12], smoothing: .6 }, stroke: { ...stroke, sides: [0, 0, 3, 2] } }
-      : i % 2 ? { ...common, kind: "star", height: 50, count: 5, innerRatio: .38 } : { ...common, kind: "line", height: 0, stroke: { ...stroke, capEnd: "triangleArrow" } };
+      : i % 2 ? { ...common, kind: "star", height: 50, count: 5, innerRatio: .38 } : { ...common, kind: "line", height: 0, stroke: { ...currentStroke, capEnd: "triangleArrow" } };
   }
   nodes["1"] = { ...initial.nodes["1"], kind: "page", parent: null, background: "#ffffff", children };
   const engine = new EditorEngine(); await engine.executeAsync("file.open", { data: base64Bytes(await encodeFigcraft({ ...initial, nodes }, "10002")) });
@@ -40,6 +42,12 @@ export async function measureStrokes(canvas: HTMLCanvasElement, individual = fal
     if (i >= 10) drawTimes.push(performance.now() - start);
   }
   const drawRootNotifications = notifications - before; draw.cancel();
+  const panTimes: number[] = [];
+  if (profiles) for (let i = 0; i < 120; i++) {
+    await new Promise<void>(resolve => requestAnimationFrame(() => resolve())); const start = performance.now();
+    renderDocument(context, engine.getRenderDocument(), 1200, 800, engine.getRenderSelection(), undefined, { ...engine.getView(), cx: 600 + i / 3, cy: 400 + i / 5 });
+    if (i >= 10) panTimes.push(performance.now() - start);
+  }
   const p95 = (values: number[]) => values.sort((a, b) => a - b)[Math.floor(values.length * .95)];
-  return { nodes: Object.keys(engine.getRenderDocument().nodes).length, visible: 100, measuredFrames: frames.length, p95: p95(frames), max: frames.at(-1), inputP95: p95(inputs), rootNotifications, drawP95: p95(drawTimes), drawRootNotifications, restored: restored && engine.getRenderDocument() === engine.getSnapshot().document };
+  return { nodes: Object.keys(engine.getRenderDocument().nodes).length, visible: 100, measuredFrames: frames.length, p95: p95(frames), max: frames.at(-1), inputP95: p95(inputs), rootNotifications, drawP95: p95(drawTimes), drawRootNotifications, ...(profiles ? { panP95: p95(panTimes) } : {}), restored: restored && engine.getRenderDocument() === engine.getSnapshot().document };
 }

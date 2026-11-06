@@ -1678,7 +1678,9 @@
       "label": "Width profile",
       "source": "crates/engine/src/cmd/edit.rs",
       "line": 362,
-      "status": "Not tested"
+      "status": "Partial",
+      "evidence": "../reports/26-11-07-width-profiles-parity.html",
+      "scope": "Verified on currently supported kinds; remaining node kinds and vector width-point editing require their later dependencies."
     },
     {
       "command": "stroke.brush",

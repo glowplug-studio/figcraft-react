@@ -9,7 +9,7 @@ import { defaultStroke } from "./stroke";
  */
 export function closedStrokeRing(node: LayerNode): readonly PathCommand[] | undefined {
   const props = node.stroke ?? defaultStroke, corners = node.corners ?? zeroCorners;
-  if (node.kind === "line" || node.kind === "group" || props.align === "center" || props.dashes.length) return undefined;
+  if (node.kind === "line" || node.kind === "group" || props.align === "center" || props.dashes.length || props.widthProfile?.points.length) return undefined;
   if (!(props.weight > 0 && Number.isFinite(props.weight))) return [];
   if (props.align === "outside" && props.join !== "miter" && corners.radii.includes(0)) return undefined;
   const rectangle = (node.kind === "rectangle" || node.kind === "frame") && corners.smoothing === 0;

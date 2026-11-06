@@ -3,14 +3,17 @@ import { renderColour, withAlpha } from "./colour";
 import { flattenContours, tracePath, type PathCommand } from "./corners";
 import type { LayerNode } from "./document";
 import type { Point, Rectangle } from "./geometry";
-import { lineStrokePath } from "./line-stroke";
+import { lineArrowhead, lineStrokePath } from "./line-stroke";
 import { shapePath } from "./shape-path";
 import { closedStrokeRing } from "./stroke-geometry";
 import { clippedSideStrokePath, sideStrokeGeometry } from "./side-stroke";
 import { bandCaps, capShape, defaultStroke, hasVisibleStroke, MAX_STROKE_WIDTH, renderDashes } from "./stroke";
+import { variableStrokeOutline } from "./variable-stroke";
+import { sanitiseWidthProfile, widthProfileMaxScale } from "./width-profile";
 
 interface FilledStroke { readonly path: Path2D; readonly rule: CanvasFillRule }
 const paths = new WeakMap<LayerNode, FilledStroke | null>();
+const profiles = new WeakMap<LayerNode, Path2D | null>();
 const shapes = new WeakMap<readonly PathCommand[], Path2D>();
 const surfaces = new WeakMap<CanvasRenderingContext2D, HTMLCanvasElement>();
 const boundsCache = new WeakMap<LayerNode, { matrix: Affine; bounds: Rectangle }>();
@@ -28,12 +31,32 @@ function closedPath(commands: readonly PathCommand[]): Path2D {
   }
   cached.closePath(); shapes.set(commands, cached); return cached;
 }
+function profilePath(node: LayerNode): Path2D | null {
+  const previous = profiles.get(node); if (previous !== undefined) return previous;
+  const props = node.stroke ?? defaultStroke;
+  if (!props.widthProfile?.points.length) { profiles.set(node, null); return null; }
+  const weight = Math.min(props.weight, MAX_STROKE_WIDTH);
+  const commands = variableStrokeOutline(shapePath(node), weight * (node.kind === "line" || props.align === "center" ? 1 : 2), props, props.widthProfile);
+  if (commands === undefined) { profiles.set(node, null); return null; }
+  const path = new Path2D(); tracePath(path, commands);
+  if (node.kind === "line") {
+    tracePath(path, lineArrowhead(node.width, weight, props.capStart, false));
+    tracePath(path, lineArrowhead(node.width, weight, props.capEnd, true));
+  }
+  profiles.set(node, path); return path;
+}
 function filledStroke(node: LayerNode): FilledStroke | null {
   const previous = paths.get(node); if (previous !== undefined) return previous;
   const sides = sideStrokeGeometry(node);
   if (sides) {
     const path = new Path2D(); tracePath(path, clippedSideStrokePath(sides));
     const result: FilledStroke = { path, rule: "evenodd" };
+    paths.set(node, result); return result;
+  }
+  const profile = profilePath(node);
+  if (profile) {
+    const result: FilledStroke | null = node.kind === "line" || node.stroke?.align === "center"
+      ? { path: profile, rule: node.stroke?.sides ? "evenodd" : "nonzero" } : null;
     paths.set(node, result); return result;
   }
   const commands = node.kind === "line" ? lineStrokePath(node.width, node.stroke ?? defaultStroke) : closedStrokeRing(node);
@@ -45,12 +68,14 @@ function filledStroke(node: LayerNode): FilledStroke | null {
 /** Conservative local stroke reach also protects offscreen alpha surfaces and viewport culling. */
 export function strokeReach(node: LayerNode): number {
   if (!hasVisibleStroke(node) || node.kind === "group") return 0;
-  const props = node.stroke ?? defaultStroke, w = Math.min(props.weight, MAX_STROKE_WIDTH);
+  const props = node.stroke ?? defaultStroke, base = Math.min(props.weight, MAX_STROKE_WIDTH);
+  // Rendering sanitises raw file profiles; use the same finite envelope for allocation/culling.
+  const w = base * (props.widthProfile?.points.length ? Math.max(1, widthProfileMaxScale(sanitiseWidthProfile(props.widthProfile))) : 1);
   if (props.sides && (node.kind === "rectangle" || node.kind === "frame")) {
     const side = Math.max(0, ...props.sides.filter(Number.isFinite));
     return side * (props.align === "inside" ? 0 : props.align === "center" ? .5 : 1);
   }
-  if (node.kind === "line") return Math.max(w, Math.max(3 * w, 6));
+  if (node.kind === "line") return Math.max(w, 3 * base, 6);
   if (props.align === "inside") return 0;
   const spread = props.align === "outside" ? w : w / 2;
   return spread * (props.join === "miter" ? Math.max(1, Math.min(100, props.miterLimit)) : 1);
@@ -152,13 +177,19 @@ export function paintStroke(context: CanvasRenderingContext2D, node: LayerNode, 
   const scratch = surface.getContext("2d"); if (!scratch) throw new Error("Stroke rendering is unavailable");
   scratch.resetTransform(); scratch.globalCompositeOperation = "source-over"; scratch.globalAlpha = 1; scratch.clearRect(0, 0, surface.width, surface.height);
   scratch.setTransform(matrix.a, matrix.b, matrix.c, matrix.d, matrix.e - left, matrix.f - top);
-  const props = node.stroke ?? defaultStroke, commands = shapePath(node), path = closedPath(commands), lines = contours(commands);
-  const dashes = renderDashes(lines.reduce((sum, line) => sum + line.length, 0), true, props, lines.length);
-  const caps = bandCaps(props).map(capShape), symmetric = caps[0] === caps[1];
-  scratch.lineWidth = Math.min(props.weight * (props.align === "center" ? 1 : 2), MAX_STROKE_WIDTH);
-  scratch.lineJoin = props.join; scratch.miterLimit = Math.max(1, Math.min(100, props.miterLimit)); scratch.lineCap = symmetric && caps[0] !== "none" ? caps[0] : "butt";
-  scratch.setLineDash(dashes?.pattern ?? []); scratch.lineDashOffset = 0; scratch.strokeStyle = "black"; scratch.fillStyle = "black"; scratch.stroke(path);
-  if (dashes && !symmetric) for (const line of lines) dashCaps(scratch, line, dashes.pattern, scratch.lineWidth, caps[0], caps[1]);
+  const props = node.stroke ?? defaultStroke, commands = shapePath(node), path = closedPath(commands);
+  const profile = profilePath(node);
+  scratch.fillStyle = "black";
+  if (profile) scratch.fill(profile, "nonzero");
+  else {
+    const lines = contours(commands);
+    const dashes = renderDashes(lines.reduce((sum, line) => sum + line.length, 0), true, props, lines.length);
+    const caps = bandCaps(props).map(capShape), symmetric = caps[0] === caps[1];
+    scratch.lineWidth = Math.min(props.weight * (props.align === "center" ? 1 : 2), MAX_STROKE_WIDTH);
+    scratch.lineJoin = props.join; scratch.miterLimit = Math.max(1, Math.min(100, props.miterLimit)); scratch.lineCap = symmetric && caps[0] !== "none" ? caps[0] : "butt";
+    scratch.setLineDash(dashes?.pattern ?? []); scratch.lineDashOffset = 0; scratch.strokeStyle = "black"; scratch.stroke(path);
+    if (dashes && !symmetric) for (const line of lines) dashCaps(scratch, line, dashes.pattern, scratch.lineWidth, caps[0], caps[1]);
+  }
   if (props.align !== "center") { scratch.globalCompositeOperation = props.align === "inside" ? "destination-in" : "destination-out"; scratch.fill(path); }
   const bytes = width * height * 4;
   let mask: Mask = { surface, context: scratch, matrix: cacheKey, left, top, width, height, bytes };

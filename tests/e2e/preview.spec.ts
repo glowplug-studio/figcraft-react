@@ -7,6 +7,7 @@ import { rectanglePaints, type RectangleNode } from "../../src/engine/document";
 import { transformPoint } from "../../src/engine/affine";
 import { worldTransform } from "../../src/engine/hierarchy";
 import { starPoints } from "../../src/engine/polygon";
+import { strFromU8, unzipSync } from "fflate";
 
 test.describe.configure({ mode: "serial" });
 let email: string;
@@ -1558,4 +1559,52 @@ test("individual strokes preserve mixed selection and one-step multi-layer undo"
   const download = page.waitForEvent("download"); await page.getByRole("button", { name: "Save as", exact: true }).click();
   const opened = await decodeFigcraft(await readFile((await (await download).path())!));
   expect(Object.values(opened.document.nodes).filter(n => n.kind === "rectangle").map(n => n.stroke?.sides)).toEqual([[1, 0, 0, 0], [0, 1, 0, 0]]);
+});
+
+test("width profile presets and flip survive native files, recovery, invalid input and mobile", async ({ page }) => {
+  await login(page); const creation = page.getByRole("group", { name: "Create layer", exact: true });
+  for (const [label, value] of [["X", 200], ["Y", 250], ["Width", 300]] as const) await creation.getByLabel(label, { exact: true }).fill(String(value));
+  await creation.getByRole("button", { name: "Create line", exact: true }).click();
+  const stroke = page.getByRole("group", { name: "Stroke", exact: true }), profile = stroke.getByLabel("Width profile", { exact: true });
+  await stroke.getByLabel("Stroke weight", { exact: true }).fill("40"); await stroke.getByRole("button", { name: "Apply stroke weight", exact: true }).click();
+  await stroke.getByText("Advanced stroke", { exact: true }).click();
+  for (const preset of ["uniform", "wedge", "taper", "eye", "rounded", "pinch"]) { await profile.selectOption(preset); await expect(profile).toHaveValue(preset); }
+  await profile.selectOption("wedge"); await stroke.getByRole("button", { name: "Flip width profile", exact: true }).click(); await expect(profile).toHaveValue("custom");
+  await page.getByLabel("Design canvas", { exact: true }).focus(); await page.keyboard.press("ControlOrMeta+z"); await expect(profile).toHaveValue("wedge");
+  await page.getByRole("button", { name: "Redo", exact: true }).click(); await expect(profile).toHaveValue("custom");
+  await expect(page.getByLabel("Design canvas", { exact: true })).toHaveScreenshot("width-profile-flipped.png", { animations: "disabled", maxDiffPixels: 0 });
+  const download = page.waitForEvent("download"); await page.getByRole("button", { name: "Save as", exact: true }).click();
+  const bytes = await readFile((await (await download).path())!), opened = await decodeFigcraft(bytes);
+  expect(Object.values(opened.document.nodes).find(n => n.kind === "line")).toMatchObject({ stroke: { widthProfile: { points: [{ t: 0, scale: 0, bias: 0 }, { t: 1, scale: 1, bias: 0 }] } } });
+  await profile.selectOption("uniform"); await expect(profile).toHaveValue("uniform");
+  await page.getByLabel("Open Figcraft file", { exact: true }).setInputFiles({ name: "profile.figcraft", mimeType: "application/octet-stream", buffer: bytes });
+  await page.getByRole("button", { name: "Replace document", exact: true }).click();
+  await expect(page.locator(".figcraft-recovery")).toHaveText("Recovery saved on this device"); await page.reload();
+  await page.getByRole("region", { name: "Layers", exact: true }).getByRole("button", { name: "Line", exact: true }).click();
+  await stroke.getByText("Advanced stroke", { exact: true }).click(); await expect(profile).toHaveValue("custom");
+  const malformed = JSON.parse(strFromU8(unzipSync(bytes)["document.json"]), (key, value: unknown) => key === "width_profile" ? { points: null } : value) as unknown;
+  await page.getByLabel("Open Figcraft file", { exact: true }).setInputFiles({ name: "invalid-profile.figcraft", mimeType: "application/json", buffer: Buffer.from(JSON.stringify(malformed)) });
+  await page.getByRole("button", { name: "Replace document", exact: true }).click();
+  await expect(page.locator("main [role=alert]")).toContainText("Width profile points must be an array"); await expect(profile).toHaveValue("custom");
+  await page.setViewportSize({ width: 390, height: 844 });
+  await profile.scrollIntoViewIfNeeded(); const bounds = (await profile.boundingBox())!; expect(bounds.x).toBeGreaterThanOrEqual(0); expect(bounds.x + bounds.width).toBeLessThanOrEqual(390);
+  await profile.selectOption("eye"); await expect(profile).toHaveValue("eye");
+  await page.screenshot({ path: "test-results/width-profile-mobile.png", fullPage: true });
+});
+
+test("width profiles preserve whole-stroke mixed selection and atomic undo", async ({ page }) => {
+  await login(page); const creation = page.getByRole("group", { name: "Create layer", exact: true }), stroke = page.getByRole("group", { name: "Stroke", exact: true });
+  await creation.getByRole("button", { name: "Create line", exact: true }).click();
+  await page.getByLabel("Name", { exact: true }).fill("Profile first"); await page.getByRole("button", { name: "Apply layer", exact: true }).click();
+  await stroke.getByText("Advanced stroke", { exact: true }).click(); await stroke.getByLabel("Width profile", { exact: true }).selectOption("wedge");
+  await creation.getByRole("button", { name: "Create line", exact: true }).click();
+  await page.getByRole("button", { name: "Profile first", exact: true }).click({ modifiers: ["Shift"] });
+  await stroke.getByText("Advanced stroke", { exact: true }).click(); const profile = stroke.getByLabel("Width profile", { exact: true });
+  await expect(profile).toHaveValue("mixed"); await stroke.getByRole("button", { name: "Flip width profile", exact: true }).click(); await expect(profile).toHaveValue("mixed");
+  await profile.selectOption("eye"); await expect(profile).toHaveValue("eye");
+  await page.getByRole("button", { name: "Undo", exact: true }).click(); await expect(profile).toHaveValue("mixed");
+  const download = page.waitForEvent("download"); await page.getByRole("button", { name: "Save as", exact: true }).click();
+  const opened = await decodeFigcraft(await readFile((await (await download).path())!));
+  const lines = Object.values(opened.document.nodes).filter(n => n.kind === "line");
+  expect(lines[0].stroke?.widthProfile?.points.map(p => p.scale)).toEqual([1, 0]); expect(lines[1].stroke?.widthProfile).toBeUndefined();
 });

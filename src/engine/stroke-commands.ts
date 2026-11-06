@@ -4,12 +4,14 @@ import { parseColour } from "./colour-css";
 import { HierarchyDraft } from "./hierarchy";
 import { parseBoolean, parseNodeId, parseNumber, parseString } from "./parameters";
 import { readSolidPaint, solidPaint, type SolidPaint } from "./solid-paint";
+import { setStrokeProperties } from "./stroke";
 
 export const strokeSpecs = Object.freeze({
   "stroke.add": { label: "Add stroke", undo: true },
   "stroke.remove": { label: "Remove stroke", undo: true },
   "stroke.set": { label: "Set stroke", undo: true },
   "stroke.move": { label: "Move stroke", undo: true },
+  "stroke.widthProfile": { label: "Width profile", undo: true },
 });
 const indexOf = (value: unknown, key: string): number => {
   const result = parseNumber(value, key);
@@ -30,6 +32,14 @@ export function executeStrokeList(command: string, document: Document, selection
   const raw = params.ids ?? (params.id == null ? selection : [params.id]);
   const ids = (raw as readonly unknown[]).map(value => { const id = parseNodeId(value); if (id === undefined || !document.nodes[id] || document.nodes[id].kind === "page") throw new Error("A stroke target must be an editable layer"); return id; });
   if (!ids.length) throw new Error("Nothing selected");
+  if (command === "stroke.widthProfile") {
+    const draft = new HierarchyDraft(document), value = params.preset ?? params.points ?? null;
+    for (const id of ids) {
+      const node = draft.nodes[id]; if (node.kind === "page") throw new Error("Cannot stroke a page");
+      draft.set(setStrokeProperties(node, { widthProfile: value }));
+    }
+    return draft.finish();
+  }
   const index = (command === "stroke.remove" || command === "stroke.set") && params.index != null ? indexOf(params.index, "index") : undefined;
   const from = command === "stroke.move" ? indexOf(params.from, "from") : 0, to = command === "stroke.move" ? indexOf(params.to, "to") : 0;
   const draft = new HierarchyDraft(document);

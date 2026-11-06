@@ -2,6 +2,15 @@
 
 All notable changes to the React port and its upstream compatibility baseline are recorded here.
 
+## [0.22.0] - 2026-11-07
+
+The reference baseline remains `8eb0b87646c5aef712326d6c431ccde5408630de`; full parity remains in progress.
+
+- Added variable-width stroke profiles, six native presets, asymmetric sides, flip and mixed-selection controls.
+- Added bounded independent path measurement and variable outlines with joins, caps, fitted dashes, closed alignment and native arrow winding.
+- Preserved profile commands, atomic history, file/recovery round trips, dimensionless scaling and widest-side hit/culling bounds.
+- Vector width-point gestures, brushes, general vector editing and the remaining product/backend families remain required.
+
 ## [0.21.0] - 2026-11-07
 
 The reference baseline remains `8eb0b87646c5aef712326d6c431ccde5408630de`; full parity remains in progress.

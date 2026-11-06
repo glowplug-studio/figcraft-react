@@ -3,7 +3,7 @@ import { hitsPath } from "./corners";
 import { hasShapePath, shapePath } from "./shape-path";
 import { identity, inverse, multiply, transformPoint, type Affine } from "./affine";
 import { layerTransform, pageOf, rectanglePaints, type Document, type NodeId } from "./document";
-import { defaultStroke, hasVisibleStroke } from "./stroke";
+import { defaultStroke, hasVisibleStroke, strokeMaxWeight } from "./stroke";
 import { pageForNode } from "./hierarchy";
 import type { Point } from "./geometry";
 import { parseNodeId } from "./parameters";
@@ -131,12 +131,12 @@ export function hitRectangle(document: Document, point: Point, deep = false, sel
         return hitGroup(node.children, id, transform, depth + 1) ?? (near ? id : undefined);
       }
       if (node.kind === "line") {
-        const local = transformPoint(inverse(transform), point), half = Math.max((node.stroke ?? defaultStroke).weight / 2, tolerance * 2.5);
+        const local = transformPoint(inverse(transform), point), half = Math.max(strokeMaxWeight(node.stroke ?? defaultStroke) / 2, tolerance * 2.5);
         return local.x >= -half && local.x <= node.width + half && Math.abs(local.y) <= half ? id : undefined;
       }
       if (hasShapePath(node) || node.stroke || node.strokes) {
         const local = transformPoint(inverse(transform), point);
-        const visible = hasVisibleStroke(node), filled = rectanglePaints(node).some(p => p.visible), reach = Math.max((node.stroke ?? defaultStroke).weight / 2, visible && !filled ? tolerance * 2.5 : tolerance);
+        const visible = hasVisibleStroke(node), filled = rectanglePaints(node).some(p => p.visible), reach = Math.max(strokeMaxWeight(node.stroke ?? defaultStroke) / 2, visible && !filled ? tolerance * 2.5 : tolerance);
         if (local.x < -reach || local.y < -reach || local.x > node.width + reach || local.y > node.height + reach) return;
         return hitsPath(shapePath(node), local, reach, filled || !visible) ? id : undefined;
       }

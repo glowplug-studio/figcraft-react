@@ -133,3 +133,20 @@ Upstream0b97f3f → React0.21.0; [property evidence](../reports/26-11-07-per-sid
 | right::paints individual chooser/fields | StrokePanel | Presets, common tuples, mixed selection, undo, save/recovery and mobile controls |
 
 Current local graph1204 nodes/5100 edges resolves these targets. Metadata on other kinds is retained, but general self-intersecting outline/even-odd combinations require the later vector/stroke geometry audit. Component/Instance behaviour extends when those kinds land. Full-product parity remains incomplete.
+
+## Variable-width profiles — 7 November 2026
+
+Upstream0b97f3f → React0.22.0; reviewed base47c91d2. [Property evidence](../reports/26-11-07-width-profiles-parity.html).
+
+| Upstream symbol/source | React target | Verified behaviour / boundary |
+|---|---|---|
+| doc::WidthPoint/WidthProfile/WidthPreset | width-profile.ts | Native sides, presets, sanitisation, monotone interpolation and raw wire values |
+| cmd::props::width_profile_of; cmd::edit::width_profile | parseWidthProfile; executeStrokeList | Native forms/aliases/null, atomic targets/history and no implicit paint |
+| geom::measure::Polyline/polylines | path-measure.ts | Length/normal/nearest, closed/open paths, finite coordinate and40000-sample guards; independent0.05 flattening |
+| pathops::width::variable_outline/resample/outline_piece/dashes | variable-stroke.ts | Source wedge areas, caps/joins, asymmetric widths, holes, native dash fitting, dots and uniform fallback |
+| pathops::stroke_outline_of; render::stroke_area/stroke_rule | profilePath/filledStroke/paintStroke | Profile ring bypass, per-side precedence, alignment masks, global-weight arrows and native winding cancellation |
+| StrokeProps::max_weight; geometry hits; node::outline_reach | strokeMaxWeight; hitRectangle; strokeReach | Widest-side hit bands and finite conservative rendered bounds |
+| cmd::arrange::scale_node | existing scaleSubtree | Scale weight while retaining dimensionless profile points |
+| right::stroke::width_profile_row/profile_art | StrokePanel/ProfileArt | Presets/Custom/Mixed/flip, command-driven history, file/recovery and mobile controls |
+
+Local graph1268 nodes/5392 edges resolves the current target chain; hosted React is still stale. Canvas masks substitute native boolean contour clipping; native-select controls substitute the custom popup. General vector booleans/export contours, vector width-point gestures, complete inspector styling and unsupported node kinds remain required. No full-product equivalence is claimed.

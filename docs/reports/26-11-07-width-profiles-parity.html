@@ -1,0 +1,190 @@
+<!doctype html><html lang="en-GB"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Width profile parity</title><style>body{font:14px system-ui;margin:24px;color:#202020}table{border-collapse:collapse;min-width:1400px}th,td{padding:10px;border:1px solid #aaa;text-align:left;vertical-align:top}th{background:#eee}.scroll{overflow:auto}a{color:#075a9c}@media print{body{margin:0;font-size:9px}.scroll{overflow:visible}table{min-width:0}thead{display:table-header-group}tr{break-inside:avoid}}</style></head><body><h1>Variable-width profiles — 7 November 2026</h1><p>React0.22.0; reviewed base47c91d2; branch prompt/full-figcraft-port. Upstream0b97f3f1801a9b7b96fd7a4f3c0942a3f1a676f3; global parity baseline8eb0b876.</p><p>Local Supabase2.116.0, Next16.4.5 production, Playwright1.65.0 Chromium;1440×900/scale1 and390×844.608 pure tests,2 real Auth tests, strict TypeScript/package/Next builds pass. Complete Chromium regression78/78 in203.4s; no skipped/flaky/unexpected checks.</p><p>25 bounded properties Passed from focused verification; full product Partial. <a href="26-11-07-width-profiles.md">Report and limitations</a>. No Rust execution or publication.</p><div class="scroll" tabindex="0" role="region" aria-label="Width profile evidence"><table><caption>Independent property evidence</caption><thead><tr>
+<th scope="col">Feature</th>
+<th scope="col">Sub-feature</th>
+<th scope="col">Expected upstream behaviour</th>
+<th scope="col">React target</th>
+<th scope="col">Test method / identifier</th>
+<th scope="col">Expected and actual result</th>
+<th scope="col">Status</th>
+<th scope="col">Evidence</th>
+<th scope="col">Manual prerequisites and actions</th>
+<th scope="col">Human-observed result</th>
+<th scope="col">Confidence</th>
+<th scope="col">Remaining limitation</th>
+</tr></thead><tbody>
+<tr><td>Model</td><td>Raw wire profiles</td><td>Preserve finite ordering, empty objects and optional bias.</td><td>readWidthProfile/wireWidthProfile</td><td>keeps native raw wire profiles</td><td>Raw round trips and absent-bias omission pass.</td><td>Passed</td>
+<td><a href="../../tests/parity/width-profile.test.ts">Test evidence</a></td>
+<td>Prerequisite: configured local Supabase/Next and authenticated host for UI checks; named fixtures otherwise. 1. Run the raw wire fixture. 2. Compare the stated result.</td>
+<td>Values and ordering survive.</td>
+<td>Medium</td>
+<td>Rendering sanitisation is separate.</td>
+</tr>
+<tr><td>Model</td><td>Sanitisation</td><td>First64 finite points before stable sorting; native clamps.</td><td>sanitiseWidthProfile</td><td>sanitises before sorting</td><td>Limits, duplicate positions and signed zero pass.</td><td>Passed</td>
+<td><a href="../../tests/parity/width-profile.test.ts">Test evidence</a></td>
+<td>Prerequisite: configured local Supabase/Next and authenticated host for UI checks; named fixtures otherwise. 1. Run sanitisation and signed-zero fixtures. 2. Compare the stated result.</td>
+<td>First finite values are retained deterministically.</td>
+<td>Medium</td>
+<td>Raw file values remain unchanged.</td>
+</tr>
+<tr><td>Profiles</td><td>Monotone interpolation</td><td>Held ends; native harmonic tangents; no overshoot.</td><td>widthProfileSidesAt</td><td>interpolates native presets monotonically</td><td>Eye quarter-point0.625 and source monotonic samples pass.</td><td>Passed</td>
+<td><a href="../../tests/parity/width-profile.test.ts">Test evidence</a></td>
+<td>Prerequisite: configured local Supabase/Next and authenticated host for UI checks; named fixtures otherwise. 1. Run interpolation fixtures. 2. Compare the stated result.</td>
+<td>Expected native samples match.</td>
+<td>Medium</td>
+<td>Independent numerical implementation.</td>
+</tr>
+<tr><td>Profiles</td><td>Asymmetric sides</td><td>Interpolate left/right independently using scale and bias.</td><td>widthPointFromSides/widthProfileSidesAt</td><td>constructs and independently interpolates</td><td>Native sided scales and one-sided browser pixels pass.</td><td>Passed</td>
+<td><a href="../../tests/e2e/width-profile-rendering.spec.ts">Test evidence</a></td>
+<td>Prerequisite: configured local Supabase/Next and authenticated host for UI checks; named fixtures otherwise. 1. Run sided profile fixtures. 2. Compare the stated result.</td>
+<td>Ink appears only on the specified side.</td>
+<td>High</td>
+<td>Vector point dragging remains later work.</td>
+</tr>
+<tr><td>Commands</td><td>Preset and point forms</td><td>Preset aliases, nested objects, null reset and optional-number fallback.</td><td>parseWidthProfile/executeStrokeList</td><td>accepts native shapes</td><td>Native coercion and invalid inputs pass.</td><td>Passed</td>
+<td><a href="../../tests/parity/width-profile.test.ts">Test evidence</a></td>
+<td>Prerequisite: configured local Supabase/Next and authenticated host for UI checks; named fixtures otherwise. 1. Run command parsing fixtures. 2. Compare the stated result.</td>
+<td>Valid forms agree; malformed forms fail.</td>
+<td>Medium</td>
+<td>Nesting is bounded at128 for the browser.</td>
+</tr>
+<tr><td>Commands</td><td>Atomic targets and history</td><td>Validate targets before commit; undo/redo as one operation.</td><td>stroke.widthProfile</td><td>applies presets and point arrays atomically</td><td>Invalid multi-target and mixed-selection undo pass.</td><td>Passed</td>
+<td><a href="../../tests/e2e/preview.spec.ts">Test evidence</a></td>
+<td>Prerequisite: configured local Supabase/Next and authenticated host for UI checks; named fixtures otherwise. 1. Select two differently profiled Lines; choose Eye; undo. 2. Compare the stated result.</td>
+<td>Both original profiles return together.</td>
+<td>High</td>
+<td>Other node kinds require their own later mappings.</td>
+</tr>
+<tr><td>Commands</td><td>No implicit paint</td><td>Width-profile changes do not create a paint.</td><td>setStrokeProperties</td><td>preserves paint stacks</td><td>Unstroked rectangle remains without stroke paints.</td><td>Passed</td>
+<td><a href="../../tests/parity/width-profile.test.ts">Test evidence</a></td>
+<td>Prerequisite: configured local Supabase/Next and authenticated host for UI checks; named fixtures otherwise. 1. Run preset command fixture on an unstroked node. 2. Compare the stated result.</td>
+<td>Metadata changes without visible paint.</td>
+<td>Medium</td>
+<td>Brush paint creation is a separate command.</td>
+</tr>
+<tr><td>Transforms</td><td>Dimensionless scaling</td><td>Scale weight, retain profile points.</td><td>scaleSubtree</td><td>applies presets and point arrays atomically</td><td>Weight doubles while profile reference/values remain.</td><td>Passed</td>
+<td><a href="../../tests/parity/width-profile.test.ts">Test evidence</a></td>
+<td>Prerequisite: configured local Supabase/Next and authenticated host for UI checks; named fixtures otherwise. 1. Apply a profile; scale by2 in the fixture. 2. Compare the stated result.</td>
+<td>Profile scales stay unchanged.</td>
+<td>Medium</td>
+<td>Width-point gestures still required.</td>
+</tr>
+<tr><td>Measurement</td><td>Subpaths and length</td><td>Native length, closure, normal and nearest tie order.</td><td>measurePath/polylineAt/nearestOnPolylines</td><td>measures open subpaths</td><td>Open/square/circle/curve fixtures pass.</td><td>Passed</td>
+<td><a href="../../tests/parity/path-measure.test.ts">Test evidence</a></td>
+<td>Prerequisite: configured local Supabase/Next and authenticated host for UI checks; named fixtures otherwise. 1. Run measurement fixtures. 2. Compare the stated result.</td>
+<td>Lengths, endpoints and normals match.</td>
+<td>Medium</td>
+<td>Independent0.05 cubic flattening.</td>
+</tr>
+<tr><td>Measurement</td><td>Early resource bounds</td><td>Reject invalid coordinates and stop while flattening above40000.</td><td>measurePath</td><td>refuses over-budget curves</td><td>Tiny budget, excessive elements and invalid coordinates refuse.</td><td>Passed</td>
+<td><a href="../../tests/parity/path-measure.test.ts">Test evidence</a></td>
+<td>Prerequisite: configured local Supabase/Next and authenticated host for UI checks; named fixtures otherwise. 1. Run budget and invalid-coordinate fixtures. 2. Compare the stated result.</td>
+<td>No complete oversized flattened path is constructed.</td>
+<td>Medium</td>
+<td>Browser finite-path limit matches native1e9.</td>
+</tr>
+<tr><td>Outlines</td><td>Wedge area and broad points</td><td>100×10 wedge area500; middle scale3 reaches15.</td><td>variableStrokeOutline</td><td>draws the native wedge area</td><td>Source area/bounds and wedge browser pixels pass.</td><td>Passed</td>
+<td><a href="../../tests/parity/variable-stroke.test.ts">Test evidence</a></td>
+<td>Prerequisite: configured local Supabase/Next and authenticated host for UI checks; named fixtures otherwise. 1. Run wedge fixture and inspect browser taper. 2. Compare the stated result.</td>
+<td>Start is broad; end tapers to zero.</td>
+<td>High</td>
+<td>Area tolerance remains native2 units.</td>
+</tr>
+<tr><td>Outlines</td><td>Endpoint caps</td><td>Butt/round/square areas and lopsided cap centre.</td><td>outlinePiece/cap</td><td>matches plain uniform band areas</td><td>Area tolerance below1 and asymmetric round pixels pass.</td><td>Passed</td>
+<td><a href="../../tests/parity/variable-stroke.test.ts">Test evidence</a></td>
+<td>Prerequisite: configured local Supabase/Next and authenticated host for UI checks; named fixtures otherwise. 1. Run caps fixtures and sided browser pixels. 2. Compare the stated result.</td>
+<td>Caps extend by the native half-width.</td>
+<td>High</td>
+<td>Arrowheads use separate global weight.</td>
+</tr>
+<tr><td>Outlines</td><td>Joins and inner winding</td><td>Native miter limit, bevel and round outer/inner points.</td><td>join/side</td><td>preserves miter, bevel and round corners</td><td>Source L-corner point fixtures pass.</td><td>Passed</td>
+<td><a href="../../tests/parity/variable-stroke.test.ts">Test evidence</a></td>
+<td>Prerequisite: configured local Supabase/Next and authenticated host for UI checks; named fixtures otherwise. 1. Run L-corner fixture. 2. Compare the stated result.</td>
+<td>Miter/bevel/round membership matches.</td>
+<td>Medium</td>
+<td>General editable vector networks remain later work.</td>
+</tr>
+<tr><td>Outlines</td><td>Closed holes</td><td>Opposite contour directions retain holes and per-subpath restart.</td><td>outlinePiece</td><td>keeps closed ring holes</td><td>Circle source points and rendered Eye hole pass.</td><td>Passed</td>
+<td><a href="../../tests/e2e/width-profile-rendering.spec.ts">Test evidence</a></td>
+<td>Prerequisite: configured local Supabase/Next and authenticated host for UI checks; named fixtures otherwise. 1. Run closed ring pixels. 2. Compare the stated result.</td>
+<td>Wide side paints; centre and tapered side remain empty.</td>
+<td>High</td>
+<td>General even-odd vector regions remain required.</td>
+</tr>
+<tr><td>Outlines</td><td>Dashes and zero dots</td><td>Open half-dash fit; width samples retained; round zero-length dots.</td><td>dashedPieces</td><td>fits open dashes</td><td>Native area/point assertions and pixel samples pass.</td><td>Passed</td>
+<td><a href="../../tests/e2e/width-profile-rendering.spec.ts">Test evidence</a></td>
+<td>Prerequisite: configured local Supabase/Next and authenticated host for UI checks; named fixtures otherwise. 1. Run dash/dot fixtures. 2. Compare the stated result.</td>
+<td>Intervals and dots occur at native positions.</td>
+<td>High</td>
+<td>Square zero-length profile dots retain native omission.</td>
+</tr>
+<tr><td>Outlines</td><td>Fallback and large paths</td><td>Invalid/over-budget measurement falls back uniformly; bounded dash work.</td><td>variableStrokeOutline/profilePath</td><td>bounds invalid geometry</td><td>40000 samples and20000 dash guards pass; browser fallback remains visible.</td><td>Passed</td>
+<td><a href="../../tests/parity/variable-stroke.test.ts">Test evidence</a></td>
+<td>Prerequisite: configured local Supabase/Next and authenticated host for UI checks; named fixtures otherwise. 1. Run guard and large joined-path fixtures. 2. Compare the stated result.</td>
+<td>Refusal is bounded; accepted paths avoid argument-stack overflow.</td>
+<td>High</td>
+<td>Output complexity is still proportional to joins/caps.</td>
+</tr>
+<tr><td>Rendering</td><td>Three alignments</td><td>Closed inside/outside clip doubled centred width.</td><td>profilePath/paintStroke</td><td>width profiles preserve sided bands</td><td>Inside/centre/outside pixels and empty centres pass.</td><td>Passed</td>
+<td><a href="../../tests/e2e/width-profile-rendering.spec.ts">Test evidence</a></td>
+<td>Prerequisite: configured local Supabase/Next and authenticated host for UI checks; named fixtures otherwise. 1. Run alignment pixel fixture. 2. Compare the stated result.</td>
+<td>Stroke appears on the correct side of the shape.</td>
+<td>High</td>
+<td>Canvas alpha masks replace native boolean contours.</td>
+</tr>
+<tr><td>Rendering</td><td>Individual-side precedence</td><td>Rectangle/Frame sides override profile geometry.</td><td>filledStroke</td><td>precedence and culling</td><td>Top-only side remains top-only with Eye metadata.</td><td>Passed</td>
+<td><a href="../../tests/e2e/width-profile-rendering.spec.ts">Test evidence</a></td>
+<td>Prerequisite: configured local Supabase/Next and authenticated host for UI checks; named fixtures otherwise. 1. Run individual-side/profile fixture. 2. Compare the stated result.</td>
+<td>No unintended right or bottom stroke.</td>
+<td>High</td>
+<td>Component/Instance kinds remain dependent work.</td>
+</tr>
+<tr><td>Rendering</td><td>Arrow winding and alpha</td><td>Native band and TriangleArrow cancel in shared opposite winding.</td><td>profilePath/lineArrowhead</td><td>alpha, precedence and culling</td><td>Half-opacity band/head and empty overlap pass.</td><td>Passed</td>
+<td><a href="../../tests/e2e/width-profile-rendering.spec.ts">Test evidence</a></td>
+<td>Prerequisite: configured local Supabase/Next and authenticated host for UI checks; named fixtures otherwise. 1. Run arrow alpha pixels. 2. Compare the stated result.</td>
+<td>Paint alpha is applied once; overlap matches native winding.</td>
+<td>High</td>
+<td>This is native behaviour, not a union operation.</td>
+</tr>
+<tr><td>Selection</td><td>Widest-side hit and culling</td><td>Use profile envelope; retain global-weight visibility.</td><td>strokeMaxWeight/strokeReach</td><td>uses the widest side for native hit bands</td><td>Hit bounds, offscreen pixels and finite extreme reach pass.</td><td>Passed</td>
+<td><a href="../../tests/parity/width-profile.test.ts">Test evidence</a></td>
+<td>Prerequisite: configured local Supabase/Next and authenticated host for UI checks; named fixtures otherwise. 1. Run hit fixture and offscreen pixel fixture. 2. Compare the stated result.</td>
+<td>Wide strokes remain selectable and visible.</td>
+<td>High</td>
+<td>Bounds conservatively use sanitised rendering scales.</td>
+</tr>
+<tr><td>Inspector</td><td>Presets, flip and Mixed</td><td>Six presets; native reverse-position flip; whole-stroke Mixed.</td><td>StrokePanel</td><td>width profile presets and flip</td><td>Authenticated presets/Custom/Mixed/undo checks pass.</td><td>Passed</td>
+<td><a href="../../tests/e2e/preview.spec.ts">Test evidence</a></td>
+<td>Prerequisite: configured local Supabase/Next and authenticated host for UI checks; named fixtures otherwise. 1. Create Line; open Advanced stroke; choose Wedge; flip; undo. 2. Compare the stated result.</td>
+<td>Custom reversed wedge returns to Wedge on undo.</td>
+<td>High</td>
+<td>HTML select substitutes native popup artwork; final UI audit remains.</td>
+</tr>
+<tr><td>Persistence</td><td>Files, recovery and invalid input</td><td>Save/reopen/reload retain profile; invalid open preserves document.</td><td>codec/recovery</td><td>width profile presets and flip survive native files</td><td>Authenticated native ZIP, recovery and malformed-profile rejection pass.</td><td>Passed</td>
+<td><a href="../../tests/e2e/preview.spec.ts">Test evidence</a></td>
+<td>Prerequisite: configured local Supabase/Next and authenticated host for UI checks; named fixtures otherwise. 1. Save profiled Line; reopen; reload; run malformed-file case. 2. Compare the stated result.</td>
+<td>Profile persists and failed open leaves current drawing intact.</td>
+<td>High</td>
+<td>Full archive fidelity remains a separate roadmap obligation.</td>
+</tr>
+<tr><td>Browser</td><td>Fixed and mobile appearance</td><td>Responsive controls and visible profile preview.</td><td>StrokePanel/Canvas</td><td>width profile presets and flip survive native files</td><td>Fixed screenshot and390px bounds pass; screenshots inspected.</td><td>Passed</td>
+<td><a href="../../tests/e2e/preview.spec.ts-snapshots/width-profile-flipped.png">Test evidence</a></td>
+<td>Prerequisite: configured local Supabase/Next and authenticated host for UI checks; named fixtures otherwise. 1. Run browser profile workflow at1440px and390px. 2. Compare the stated result.</td>
+<td>Canvas wedge and controls remain visible.</td>
+<td>High</td>
+<td>Complete native chrome styling remains later work.</td>
+</tr>
+<tr><td>Performance</td><td>Continuous previews</td><td>10000 total/100 visible; p95 below16.7ms; zero root notifications.</td><td>engine render and interaction</td><td>Variable-width stroke previews retain the10000-node frame budget</td><td>Final resize10.8/draw10.9/pan8.7ms p95; resize max27.3ms; root notifications0.</td><td>Passed</td>
+<td><a href="../../tests/e2e/stroke-performance.spec.ts">Test evidence</a></td>
+<td>Prerequisite: configured local Supabase/Next and authenticated host for UI checks; named fixtures otherwise. 1. Run the named performance fixture. 2. Compare the stated result.</td>
+<td>Timing assertions pass and cancelled preview restores.</td>
+<td>High</td>
+<td>Does not establish total RAM or large visible-document stability.</td>
+</tr>
+<tr><td>Backend</td><td>Existing Auth boundary</td><td>Provider-neutral host identity and protected access remain intact.</td><td>host adapters/Next</td><td>local Auth integration and authenticated profile flows</td><td>Two real local Auth checks and profile browser flows pass.</td><td>Passed</td>
+<td><a href="../../tests/integration">Test evidence</a></td>
+<td>Prerequisite: configured local Supabase/Next and authenticated host for UI checks; named fixtures otherwise. 1. Run npm run test:integration and authenticated profile workflows. 2. Compare the stated result.</td>
+<td>Allowed access works; unauthorised access fails.</td>
+<td>High</td>
+<td>No geometry-specific database schema is warranted.</td>
+</tr>
+<tr><td>Complete product</td><td>Remaining roadmap</td><td>Every browser-relevant upstream feature must pass.</td><td>Master roadmap</td><td>Fresh whole-product audit</td><td>Required vector gestures, brushes and other families remain unimplemented.</td><td>Partial</td><td><a href="../planning/26-11-06-complete-figcraft-port.md">Checkpoint</a></td><td>1. Review all roadmap rows. 2. Follow their evidence.</td><td>No full-parity claim.</td><td>High</td><td>Publication remains gated.</td></tr></tbody></table></div></body></html>

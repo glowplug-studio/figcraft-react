@@ -40,3 +40,4 @@ export type { EllipseNode } from "./engine/document";
 export { polygonPoints, starPoints, roundedPolygon, smoothedPolygon } from "./engine/polygon";
 export type { PolygonNode, StarNode, LineNode, LeafNode, DrawShapeKind } from "./engine/document";
 export { defaultStroke, strokeCaps, miterAngle, miterLimitFor, type StrokeProps, type StrokeSides, type StrokeCap, type StrokeAlign, type StrokeJoin } from "./engine/stroke";
+export { widthPresetIds, widthPresetLabels, widthPresetProfile, type WidthPoint, type WidthProfile, type WidthPreset } from "./engine/width-profile";
