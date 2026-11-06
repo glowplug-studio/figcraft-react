@@ -1,0 +1,98 @@
+{
+  "date": "2026-11-06",
+  "timezone": "Asia/Bangkok",
+  "upstreamCommit": "8eb0b87646c5aef712326d6c431ccde5408630de",
+  "reactSourceCommit": "a84d7a5c3825e616cfadf62ec83ee7c3ded1be79",
+  "branch": "prompt/rectangle-slice",
+  "environment": {
+    "node": "24.20.0",
+    "next": "16.4.5",
+    "playwright": "1.65.0",
+    "browser": "bundled Chromium",
+    "os": "macOS",
+    "viewport": [
+      1440,
+      900
+    ],
+    "deviceScaleFactor": 1,
+    "chromeFont": "Arial/Helvetica/sans-serif"
+  },
+  "tests": {
+    "unitContractParityIntegrationPassed": 68,
+    "parityAndTransactionTests": 35,
+    "browserPassed": 6,
+    "browserFailed": 0,
+    "codeCoveragePercentage": "Not instrumented; counts are executed tests and feature properties, not line coverage"
+  },
+  "browserTests": [
+    {
+      "name": "Canvas 2D renders 10000 rectangles within the frame budget",
+      "status": "expected"
+    },
+    {
+      "name": "protected host, failed login, callback failure and safe redirects",
+      "status": "expected"
+    },
+    {
+      "name": "authenticated rectangle command, pixels, keyboard undo/redo and resize",
+      "status": "expected"
+    },
+    {
+      "name": "pointer reverse drag, square and centre modifiers, click, cancellation and no React frame updates",
+      "status": "expected"
+    },
+    {
+      "name": "session persists across reload, refreshes and logout protects the editor",
+      "status": "expected"
+    },
+    {
+      "name": "unavailable Canvas 2D reports an accessible error",
+      "status": "expected"
+    }
+  ],
+  "measurements": {
+    "large-document-performance": {
+      "rectangles": 10000,
+      "measuredFrames": 110,
+      "p95": 1,
+      "max": 1.300000011920929,
+      "pixel": [
+        217,
+        217,
+        217,
+        255
+      ]
+    },
+    "interaction-performance": {
+      "figcraft:pointer": {
+        "count": 49,
+        "p95": 0.10000002384185791
+      },
+      "figcraft:render": {
+        "count": 57,
+        "p95": 0.10000002384185791
+      }
+    }
+  },
+  "database": {
+    "applicationTables": 0,
+    "declarativeSync": "No schema changes found",
+    "localReset": "Passed",
+    "advisers": []
+  },
+  "hosted": {
+    "scopedMcpRead": "Passed",
+    "activePublishableKeyMatchesLocalConfiguredHostedKey": true,
+    "authSettingsPublicConnectivity": 200,
+    "managementAuthConfigRead": 403,
+    "siteUrlAndCallbacks": "Blocked: CLI credential lacks project privileges"
+  },
+  "publication": "Not attempted: preceding hosted Auth gate incomplete",
+  "propertyCoverage": {
+    "Passed": 39,
+    "Failed": 0,
+    "Partial": 0,
+    "Blocked": 1,
+    "Not tested": 1
+  }
+}
