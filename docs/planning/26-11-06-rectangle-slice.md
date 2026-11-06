@@ -4,16 +4,16 @@
 
 | Field | Current value |
 |---|---|
-| Overall status | Blocked — local slice verified; hosted Auth permission required |
+| Overall status | Blocked — local slice verified; public Site URL required |
 | Active phase | Phase 7 — report complete; Phase 4.8 hosted prerequisite blocks Phase 8 |
 | Upstream baseline | `8eb0b87646c5aef712326d6c431ccde5408630de` (fork, original upstream and parity record agree) |
 | Branch and last verified commit | `prompt/rectangle-slice`; verified source `a84d7a5c3825e616cfadf62ec83ee7c3ded1be79`; core `d71b73d`; starting `f6450d5` preserved |
 | Completed work | Mandatory documents read; upstream sync passed; both Graphify repositories queried; Supabase MCP read succeeded, public schema empty; first slice selected; Phases 2–4 implemented and reviewed; local reset and advisers passed |
 | Tests last passed | 68 unit/contract/parity/local integration tests; 6 Playwright flows; package and Next.js build |
 | Files in progress | None; documentation/evidence finalised |
-| Blockers | Hosted Auth config GET returns HTTP 403 for the CLI credential; MCP database access works. Phase 4.8 hosted Site URL/callback verification remains blocked. |
-| Exact next action | Obtain a CLI session authorised for Figcraft Auth settings and the intended Site URL; retry read, configure/verify callbacks, then reassess the Phase 8 gates. Do not deploy or push before they pass. |
-| Last updated | 2026-11-06 21:24 +07 |
+| Blockers | CLI Auth access now returns HTTP 200; local callback allow-list updated and verified. Public Site URL is still unspecified (current value: http://localhost:3000). |
+| Exact next action | Obtain the intended public Site URL, set it and its exact callback URL, verify by reading back, then reassess Phase 8 gates. CLI access is restored; do not ask for another login. |
+| Last updated | 2026-11-06 21:33 +07 |
 
 ## Scope and acceptance
 
@@ -93,3 +93,7 @@ Expected files: `src/engine/*`, `src/Editor.tsx`, package exports, Supabase iden
 - Performance: 10,000 rectangles / 110 measured frames: p95 1.0 ms, max 1.3 ms. Continuous drawing: pointer p95 0.1 ms, render p95 0.1 ms, no React commits during 40 pointer moves. These are measurements on the recorded test environment, not guarantees for every device.
 
 - Host integration committed as `a84d7a5c3825e616cfadf62ec83ee7c3ded1be79`. Phase 7 reports are `docs/reports/26-11-06-rectangle-slice.md` and `docs/reports/26-11-06-rectangle-slice-parity.html`. Checkpoint intentionally remains Blocked, not Complete: Phase 4.8 hosted Auth configuration is unverified after an explicit 403. Phase 8, branch push, homepage change and deployment were not attempted. No merge or pull request is authorised.
+
+## Resumption — CLI access restored
+
+The renewed CLI credential read the intended Figcraft project’s Auth configuration successfully (HTTP 200), and the scoped MCP project call still succeeded. Hosted Auth had Site URL `http://localhost:3000` and an empty callback allow-list. Added and read-back verified the three repository-configured local callback URLs, preserving Site URL and all other settings. The earlier 403 is resolved. The public Site URL remains a required user decision; no Vercel action or publication has been attempted.

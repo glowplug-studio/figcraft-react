@@ -4,7 +4,7 @@
 
 Implemented and locally verified the first browser-relevant slice: create a rectangle in a fresh local design document, display its selected geometry, and undo/redo creation. The dependency-ordered roadmap is in [the plan](../planning/26-11-06-rectangle-slice.md). The reusable editor receives host identity and capabilities; the Next.js example owns Supabase password login, verified route protection, session refresh, callback handling and logout.
 
-**Publication is blocked.** The current Supabase CLI credential receives HTTP **403** for the selected Figcraft project's Management API Auth configuration endpoint. Scoped MCP database access and the same project's active publishable-key connectivity succeed. Hosted Site URL/callback configuration cannot be verified or changed with that credential. The execution checkpoint is **Blocked**, and Phase 8 has not begun. No Vercel calls, deployment, branch push, merge, pull request or GitHub homepage change were made.
+**Publication is blocked pending the intended public Site URL.** The renewed CLI credential now reads hosted Auth settings successfully (HTTP 200), resolving the earlier 403. The project currently uses `http://localhost:3000`; its three repository-configured local callback URLs have been added and read-back verified. The production Site URL and callback cannot be inferred. The checkpoint remains **Blocked** and Phase 8 has not begun. No Vercel calls, deployment, branch push, merge, pull request or GitHub homepage change were made.
 
 ## Reference and commits
 
@@ -42,7 +42,7 @@ Canvas 2D replaces native CPU rendering for flat rectangles. Browser pointer cap
 | Browser flows | Denied route, safe destination, bad password, invalid callback, login, creation, reverse/Shift/Alt/click/cancel, keyboard history, resize at 390/700/1440, forced refresh with token rotation, logout, unavailable Canvas 2D |
 | `npm run preview:dev` | Additional login/create/logout run passed; no page errors; reviewed desktop capture |
 | Local declarative sync/reset/advisers | Passed/no changes/zero findings |
-| Hosted Auth configuration | **Blocked — HTTP 403**, not counted as a pass |
+| Hosted Auth configuration | CLI read and local callback update verified HTTP 200; **public Site URL still required** |
 | Phase 8 publication | **Not tested/not attempted** because the preceding gate fails |
 
 Test environment: Node 24.20.0, Next.js 16.4.5, Playwright 1.65.0 bundled Chromium, macOS; fixed scale 1 and browser sans-serif chrome. Counts are executed tests, not line/branch coverage percentages. Geometry fixture provenance distinguishes the existing Rust `create_select_undo_redo` test from inspection-derived expected values; no React test executes Rust.
@@ -55,7 +55,7 @@ Local preview and this project’s Supabase processes were stopped cleanly after
 
 ## Resume
 
-1. Supply a local Supabase CLI session with privileges for the Figcraft project's Auth configuration and identify the intended hosted Site URL. Do not put tokens or passwords in chat or committed files. Existing scoped MCP login does not need replacement.
-2. Retry the exact hosted Auth settings read; configure and verify the approved Site URL/callback allow-list. Add real hosted test credentials only to ignored environment variables.
+1. Identify the intended public Site URL. CLI access is now verified; another login is not required. Do not put tokens or passwords in chat or committed files.
+2. Configure and read-back verify the approved public Site URL and exact callback URL, preserving the already verified local callbacks. Add real hosted test credentials only to ignored environment variables.
 3. Update the blocked evidence row and checkpoint only after verification. Then, and only then, enter Phase 8 to inspect the authorised Vercel account/project, immutable deployment source, environment, staged tests, promotion/rollback and demo links.
 4. No merge to main or pull request is authorised. The branch push remains gated by Phase 8.

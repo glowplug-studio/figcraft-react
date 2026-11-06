@@ -84,10 +84,13 @@
     "scopedMcpRead": "Passed",
     "activePublishableKeyMatchesLocalConfiguredHostedKey": true,
     "authSettingsPublicConnectivity": 200,
-    "managementAuthConfigRead": 403,
-    "siteUrlAndCallbacks": "Blocked: CLI credential lacks project privileges"
+    "managementAuthConfigRead": 200,
+    "siteUrlAndCallbacks": "Blocked: intended public Site URL not supplied; current Site URL http://localhost:3000; local callbacks verified",
+    "previousManagementAuthConfigRead": 403,
+    "localCallbackUpdate": 200,
+    "localCallbacksReadBackVerified": true
   },
-  "publication": "Not attempted: preceding hosted Auth gate incomplete",
+  "publication": "Not attempted: public Site URL prerequisite incomplete",
   "propertyCoverage": {
     "Passed": 39,
     "Failed": 0,
