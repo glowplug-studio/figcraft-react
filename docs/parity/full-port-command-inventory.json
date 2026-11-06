@@ -1145,7 +1145,9 @@
       "label": "Duplicate",
       "source": "crates/engine/src/cmd/edit.rs",
       "line": 111,
-      "status": "Not tested"
+      "status": "Partial",
+      "evidence": "docs/reports/26-11-07-duplication-parity.html",
+      "remaining": "Components/instances, connector and other reference remapping, auto-layout and rename preferences."
     },
     {
       "command": "edit.copy",

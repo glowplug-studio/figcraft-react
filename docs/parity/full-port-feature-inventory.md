@@ -240,3 +240,5 @@ Anchored resizing and uniform scaling: [property report](../reports/26-11-07-siz
 Rotation origins and numeric transforms: [property report](../reports/26-11-07-rotation-parity.html).
 
 Smart-selection tracks, reordering and transient gestures: [property report](../reports/26-11-07-smart-selection-parity.html).
+
+Supported subtree duplication and repeated offsets: [property report](../reports/26-11-07-duplication-parity.html).

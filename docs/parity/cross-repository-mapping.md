@@ -45,3 +45,7 @@ Add mappings only after inspecting behaviour, callers, data contracts and tests.
 ## Smart selection — 7 November 2026
 
 `selection_spacing::{selection_spacing,axis,Axis::offsets}` and `selection_reorder::ReorderLayout` → `smart-selection.ts`; `cmd/arrange::{spacing,reorder,round_px}` → immutable smart reducer; native interaction snapshots → EditorEngine transient render document; `ui-egui/canvas/selection_spacing` and numeric label scrubs → SmartHandles/SmartSelectionPanel. Upstream0b97f3f, React3326d26.379 pure/38 browser checks pass, including source grids/reflow/cancellation and10000-node preview benchmark. [Property evidence](../reports/26-11-07-smart-selection-parity.html). Auto-layout/instances, field arithmetic/preferences and multi-file ownership remain required.
+
+## Layer duplication — 7 November 2026
+
+`cmd/edit::{Duplicated,duplicate}`, `doc::Document::{duplicate_into,paste_nodes}`, `components::copy_in_file` and selection cleanup → `engine/duplicate.ts`, EditorEngine session state and immutable hierarchy copying; primary+D → Editor/LayerPanel. Upstream0b97f3f, Reactf6dfc3f.391 pure/40 browser checks include exact maps, offsets, atomic allocation, source preservation, keyboard/mobile/native recovery. [Property evidence](../reports/26-11-07-duplication-parity.html). Explicit offsets follow parent-space native implementation. Other kinds/reference remapping, preferences and Alt-drag remain required.

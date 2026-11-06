@@ -5,16 +5,16 @@
 | Field | Current value |
 |---|---|
 | Overall status | In progress; full parity is not implemented |
-| Active slice | Layer subtree duplication and repeat offsets |
-| Active phase | Phase 4–6: duplication implementation and verification |
+| Active slice | Canvas selection, move gestures, snapping and Alt-drag |
+| Active phase | Phase 1–3: move/selection evidence and plan |
 | Upstream baseline | `0b97f3f1801a9b7b96fd7a4f3c0942a3f1a676f3`; prior parity baseline `8eb0b87646c5aef712326d6c431ccde5408630de` |
-| Branch and last verified commit | `prompt/full-figcraft-port`; verified smart selection `3326d26`; verified rotations `92062ca`; verified sizing `c6b8c71`; verified arrangement `783a694`; verified viewport `d0fae6c`; verified frames `3e7943a`; verified nested groups `e81ba76`; verified colour `bfa5dd8`; affine `080fc27`, outline check `2404d6b`, reports `ff29f38`; pages `6c988a5`, persistence `41d467b`; integration `fc3b4a6` from updated dev plus rectangle branch |
+| Branch and last verified commit | `prompt/full-figcraft-port`; verified duplication `f6dfc3f`; verified smart selection `3326d26`; verified rotations `92062ca`; verified sizing `c6b8c71`; verified arrangement `783a694`; verified viewport `d0fae6c`; verified frames `3e7943a`; verified nested groups `e81ba76`; verified colour `bfa5dd8`; affine `080fc27`, outline check `2404d6b`, reports `ff29f38`; pages `6c988a5`, persistence `41d467b`; integration `fc3b4a6` from updated dev plus rectangle branch |
 | Completed slices | Rectangle/host-auth, bounded native persistence/recovery, supported-model pages, affine rectangle geometry/selection and solid appearance, plus nested group hierarchy and Frame containers verified locally |
 | Remaining slices | Every row below except the integrated foundation; static inventory entries remain unverified until mapped and tested |
-| Tests last passed | Strict TypeScript, 379 pure tests, 2 real local Auth tests, package/Next builds and38/38 production Chromium checks (54.4s); smart-preview p95 3.5ms, moving-frame p95 14ms |
-| Files currently in progress | Duplicate reducer, engine lifecycle, keyboard/layer controls, pure/browser fixtures and version records |
+| Tests last passed | Strict TypeScript,391 pure tests,2 local Auth tests, package/Next builds and40/40 production Chromium checks (53.4s); smart-preview p95 3.9ms, moving-frame p95 13.8ms |
+| Files currently in progress | Duplication reports; move/selection plan; no active product edits |
 | Blockers | None |
-| Exact next action | Implement supported subtree duplication, returned ID maps and repeated offsets with Ctrl/Meta+D and controls; verify before general Alt-drag |
+| Exact next action | Implement native canvas selection/marquee and move snapping/drop/Alt-drag using transient selection/allocation; verify and continue |
 | Last updated | 2026-11-07 |
 
 ## Scope and continuation
@@ -266,3 +266,21 @@ Hazards: u64 allocation near exhaustion, root deduplication before paint order, 
 No database/provider/identity changes. Component-to-instance copy, variants, connector remapping, library analytics, auto-layout flow and rename preferences extend with their required families; unsupported fields remain refused. Alt-drag will reuse the verified helper and extend interaction allocation/selection snapshots in the following gesture slice. No speculative kinds or full-family claim. Work sequentially; rollback3326d26. Files: duplication helper, EditorEngine, LayerPanel/Editor, pure/browser tests and version records.
 
 Duplication integration checkpoint: pure subtree copying/maps and repeat lifecycle implemented;391 pure checks and strict TypeScript pass. Browser shortcut, subtree/native recovery and mobile flows added; production build and full verification next. No external blocker/publication.
+
+## Verified duplication checkpoint
+
+Implementationf6dfc3f, version0.14.0:391 pure,2 local Auth, strict TypeScript/build and40/40 browser checks passed in53.4s. [Report](../reports/26-11-07-duplication.md). No external blocker/publication.
+
+## Active canvas selection and move-gesture plan
+
+Acceptance: native press/release selection semantics, preserving multi-selection until an undragged click narrows it; Shift-click removal deferred until release, Shift-drag retains/moves selection; primary-click enters the deepest layer, double-click enters one container level. Selected own boxes can drag when a hit is behind them, but a layer in the gap between selected layers still wins. An unselected top-level populated Frame background starts a marquee inside it. Marquee touches visible/unlocked sibling bounds; outside marquee requires full top-level Frame enclosure; primary-marquee descends to innermost touched layers, Shift toggles the original selection. Selection previews must not trigger root React frame updates or document/history writes.
+
+Move after3-screen-pixel slop; Shift locks dominant page axis (tie vertical), primary/Ctrl suspends object snapping, default pixel snapping rounds the moving union origin in native snap space. Gather sibling edges/centres and parent bounds once, excluding moving roots; rotated non-axis-aligned parent uses its own space. Nearest correction within5/zoom wins; equal-spacing candidate wins only if nearer than a line. Render native red guides and distance labels. Alt can toggle before/during/on release, switches between moving originals and copies without allocator/history leakage, adds source bounds as snap targets, and records repeat displacement on successful commit. One release commits one history entry; Escape/pointer cancellation/context/access/file change restores base and forbids stale events. Return-to-origin adds no history.
+
+Drop chooses deepest visible/unlocked Frame beneath pointer, excluding moving roots/descendants; group children stay in their group; home Frame retains contents while within its bounds with no deeper target. Free preview preserves parent until release, then reparents while preserving world geometry and normalises groups. Alt distances use nearest facing siblings with parent-edge fallback and512-box cap. Existing smart/origin/pan/zoom precedence remains; resizing/rotation handles follow as their own slice.
+
+Evidence/mapping: `tools/drag::{move_down,drag}` and `draw::up` → MoveInteraction controller plus EditorEngine transient document/selection/allocation snapshots; `tools/pointer::{marquee_within,marquee_selection}`, `doc/geometry::{select_target,enter_target,marquee_deep,marquee_children}` → pure canvas selection helpers; `canvas/snap::Targets` → independent snap maths; `canvas/drop::{drop_parent,drag_parent,keeps_layers}` → pure destination reducer; `canvas/distance::{label,neighbours}` → measured guides. Graphify Rust exact definitions and selection/duplicate tests verified at0b97f3f; React stale README-only, current files authoritative. Current selection, hierarchy, viewport and duplication reducers are reusable dependencies.
+
+Hazards: page/parent coordinate conversion, deterministic nearest/tie order, negative half-pixel Rust rounding, IDs allocated only at commit, transient selection separate from root snapshots/recovery, capture cancellation and reentrant subscriptions, group refitting versus committed parenting, missing/singular targets and finite failures. Preserve source immutability; cancel entire invalid preview; no provider tokens or speculative node fields. Supported model includes Rectangle/Group/Frame only; layout grids/guides preferences, instance restrictions, other kinds, focus view and native labels extend with their required families.
+
+Files: pure canvas selection/snapping/drop/measurement helpers, move controller, engine interaction and canvas integration, focused source-derived pure tests, authenticated keyboard/pointer/native-recovery/mobile tests and10000-node moving-preview benchmark. Verify slop, modifier transitions including release-only Alt, sibling/rotated/equal-gap snaps, locked ancestors, frame entry/exit/group retention, selection/history cancellation and no React frame notifications. Run full tests/typecheck/build/Auth/browser/performance and inspect fixed screenshots. No database/schema/provider/identity change. Sequential implementation under latest user instruction; rollbackf6dfc3f.
