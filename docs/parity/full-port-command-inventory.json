@@ -1049,7 +1049,9 @@
       "label": "List frame presets",
       "source": "crates/engine/src/cmd/create.rs",
       "line": 129,
-      "status": "Not tested"
+      "status": "Partial",
+      "evidence": "../reports/26-11-07-viewport-parity.html",
+      "limitation": "Verified bounded viewport/preset behaviour; complete view state, preferences and all document kinds remain required."
     },
     {
       "command": "edit.undo",
@@ -3255,98 +3257,126 @@
       "label": "Zoom in",
       "source": "crates/engine/src/cmd/view.rs",
       "line": 231,
-      "status": "Not tested"
+      "status": "Partial",
+      "evidence": "../reports/26-11-07-viewport-parity.html",
+      "limitation": "Verified bounded viewport/preset behaviour; complete view state, preferences and all document kinds remain required."
     },
     {
       "command": "view.zoomOut",
       "label": "Zoom out",
       "source": "crates/engine/src/cmd/view.rs",
       "line": 235,
-      "status": "Not tested"
+      "status": "Partial",
+      "evidence": "../reports/26-11-07-viewport-parity.html",
+      "limitation": "Verified bounded viewport/preset behaviour; complete view state, preferences and all document kinds remain required."
     },
     {
       "command": "view.zoom100",
       "label": "Zoom to 100%",
       "source": "crates/engine/src/cmd/view.rs",
       "line": 239,
-      "status": "Not tested"
+      "status": "Partial",
+      "evidence": "../reports/26-11-07-viewport-parity.html",
+      "limitation": "Verified bounded viewport/preset behaviour; complete view state, preferences and all document kinds remain required."
     },
     {
       "command": "view.zoom50",
       "label": "Zoom to 50%",
       "source": "crates/engine/src/cmd/view.rs",
       "line": 240,
-      "status": "Not tested"
+      "status": "Partial",
+      "evidence": "../reports/26-11-07-viewport-parity.html",
+      "limitation": "Verified bounded viewport/preset behaviour; complete view state, preferences and all document kinds remain required."
     },
     {
       "command": "view.zoom200",
       "label": "Zoom to 200%",
       "source": "crates/engine/src/cmd/view.rs",
       "line": 241,
-      "status": "Not tested"
+      "status": "Partial",
+      "evidence": "../reports/26-11-07-viewport-parity.html",
+      "limitation": "Verified bounded viewport/preset behaviour; complete view state, preferences and all document kinds remain required."
     },
     {
       "command": "view.zoomFit",
       "label": "Zoom to fit",
       "source": "crates/engine/src/cmd/view.rs",
       "line": 242,
-      "status": "Not tested"
+      "status": "Partial",
+      "evidence": "../reports/26-11-07-viewport-parity.html",
+      "limitation": "Verified bounded viewport/preset behaviour; complete view state, preferences and all document kinds remain required."
     },
     {
       "command": "view.zoomSelection",
       "label": "Zoom to selection",
       "source": "crates/engine/src/cmd/view.rs",
       "line": 249,
-      "status": "Not tested"
+      "status": "Partial",
+      "evidence": "../reports/26-11-07-viewport-parity.html",
+      "limitation": "Verified bounded viewport/preset behaviour; complete view state, preferences and all document kinds remain required."
     },
     {
       "command": "view.set",
       "label": "Set view",
       "source": "crates/engine/src/cmd/view.rs",
       "line": 256,
-      "status": "Not tested"
+      "status": "Partial",
+      "evidence": "../reports/26-11-07-viewport-parity.html",
+      "limitation": "Verified bounded viewport/preset behaviour; complete view state, preferences and all document kinds remain required."
     },
     {
       "command": "view.zoomAt",
       "label": "Zoom tool",
       "source": "crates/engine/src/cmd/view.rs",
       "line": 271,
-      "status": "Not tested"
+      "status": "Partial",
+      "evidence": "../reports/26-11-07-viewport-parity.html",
+      "limitation": "Verified bounded viewport/preset behaviour; complete view state, preferences and all document kinds remain required."
     },
     {
       "command": "view.get",
       "label": "Get view",
       "source": "crates/engine/src/cmd/view.rs",
       "line": 278,
-      "status": "Not tested"
+      "status": "Partial",
+      "evidence": "../reports/26-11-07-viewport-parity.html",
+      "limitation": "Verified bounded viewport/preset behaviour; complete view state, preferences and all document kinds remain required."
     },
     {
       "command": "view.prevFrame",
       "label": "Zoom to previous frame",
       "source": "crates/engine/src/cmd/view.rs",
       "line": 279,
-      "status": "Not tested"
+      "status": "Partial",
+      "evidence": "../reports/26-11-07-viewport-parity.html",
+      "limitation": "Verified bounded viewport/preset behaviour; complete view state, preferences and all document kinds remain required."
     },
     {
       "command": "view.nextFrame",
       "label": "Zoom to next frame",
       "source": "crates/engine/src/cmd/view.rs",
       "line": 280,
-      "status": "Not tested"
+      "status": "Partial",
+      "evidence": "../reports/26-11-07-viewport-parity.html",
+      "limitation": "Verified bounded viewport/preset behaviour; complete view state, preferences and all document kinds remain required."
     },
     {
       "command": "view.prevPage",
       "label": "Previous page",
       "source": "crates/engine/src/cmd/view.rs",
       "line": 281,
-      "status": "Not tested"
+      "status": "Partial",
+      "evidence": "../reports/26-11-07-viewport-parity.html",
+      "limitation": "Verified bounded viewport/preset behaviour; complete view state, preferences and all document kinds remain required."
     },
     {
       "command": "view.nextPage",
       "label": "Next page",
       "source": "crates/engine/src/cmd/view.rs",
       "line": 282,
-      "status": "Not tested"
+      "status": "Partial",
+      "evidence": "../reports/26-11-07-viewport-parity.html",
+      "limitation": "Verified bounded viewport/preset behaviour; complete view state, preferences and all document kinds remain required."
     },
     {
       "command": "view.pixelGrid",
@@ -3395,7 +3425,9 @@
       "label": "Pan the view",
       "source": "crates/engine/src/cmd/view.rs",
       "line": 291,
-      "status": "Not tested"
+      "status": "Partial",
+      "evidence": "../reports/26-11-07-viewport-parity.html",
+      "limitation": "Verified bounded viewport/preset behaviour; complete view state, preferences and all document kinds remain required."
     },
     {
       "command": "view.outlines",

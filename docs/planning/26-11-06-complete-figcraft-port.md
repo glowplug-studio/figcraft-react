@@ -5,16 +5,16 @@
 | Field | Current value |
 |---|---|
 | Overall status | In progress; full parity is not implemented |
-| Active slice | Viewport navigation and frame preset placement |
-| Active phase | Phase 1–2: viewport evidence and bounded plan |
+| Active slice | Numeric movement, alignment, distribution and stacking |
+| Active phase | Phase 2: arrangement evidence and plan complete |
 | Upstream baseline | `0b97f3f1801a9b7b96fd7a4f3c0942a3f1a676f3`; prior parity baseline `8eb0b87646c5aef712326d6c431ccde5408630de` |
-| Branch and last verified commit | `prompt/full-figcraft-port`; verified frames `3e7943a`; verified nested groups `e81ba76`; verified colour `bfa5dd8`; affine `080fc27`, outline check `2404d6b`, reports `ff29f38`; pages `6c988a5`, persistence `41d467b`; integration `fc3b4a6` from updated dev plus rectangle branch |
+| Branch and last verified commit | `prompt/full-figcraft-port`; verified viewport `d0fae6c`; verified frames `3e7943a`; verified nested groups `e81ba76`; verified colour `bfa5dd8`; affine `080fc27`, outline check `2404d6b`, reports `ff29f38`; pages `6c988a5`, persistence `41d467b`; integration `fc3b4a6` from updated dev plus rectangle branch |
 | Completed slices | Rectangle/host-auth, bounded native persistence/recovery, supported-model pages, affine rectangle geometry/selection and solid appearance, plus nested group hierarchy and Frame containers verified locally |
 | Remaining slices | Every row below except the integrated foundation; static inventory entries remain unverified until mapped and tested |
-| Tests last passed | Strict TypeScript, 292 pure tests, 2 real local Auth tests, package/Next builds and23/23 production Chromium checks (33.8s); frame p95 11.3ms |
-| Files currently in progress | Frame reports/mappings; viewport plan |
+| Tests last passed | Strict TypeScript, 311 pure tests, 2 real local Auth tests, package/Next builds and28/28 production Chromium checks (38.6s); moving-frame p95 12.9ms |
+| Files currently in progress | Arrangement plan; implementation begins next |
 | Blockers | None |
-| Exact next action | Implement viewport state/commands and canvas navigation, then frame preset placement; verify and continue remaining roadmap |
+| Exact next action | Implement arrangement reducer, inspector controls and source-derived fixtures; verify, then continue gestures and remaining roadmap |
 | Last updated | 2026-11-07 |
 
 ## Scope and continuation
@@ -176,3 +176,19 @@ Evidence/mapping: `engine/src/view_state.rs` → `viewport.ts` pure state/maths;
 Keep initial native page fitting (empty pages show origin with a100px inset), and fit loaded content at at most100%. Browser regression fixtures can explicitly pan to their historical origin through real input. No hidden test-only engine bridge. Native egui scroll deltas use content direction; browser WheelEvent deltas require sign conversion. Normalise line/page deltas to screen units, keep pinch/Ctrl-wheel anchor fixed, clamp finite zoom to0.02–256. DPR remains independent of logical zoom; outlines retain a screen-pixel width. Fit and navigation use supported world bounds, not CSS layout. View state is session state; document codec and recovery retain document data only.
 
 Files: new viewport reducer, typed frame presets, small view controls; engine/controller/renderer and host key routing; focused unit and browser/performance fixtures. No new backend schema, identity capability or provider behaviour. Rulers/grids/snapping/preferences, frame labels, move/resize gestures and other node kinds remain required later slices. Tests: native paired numeric fixtures, no document/history mutation, anchor/DPR/pointer transforms, real input pan/zoom and creation at transformed coordinates, resized browser, no root React per-frame rerender, full regression/performance/build. Rollback is verified Frame commit3e7943a. Work sequentially.
+
+Viewport checkpoint: native pure state/commands, separate view subscription, wheel/Space/middle pan, held-Z zoom tool, world/screen rendering and pointer mapping, frame preset listing/placement, zoom controls and shortcuts implemented. 310 pure checks, strict TypeScript and package/Next production builds passed. Existing browser pixel fixtures now explicitly pan to their historical origin through real controls; native initial inset and loaded-page fit remain product behaviour. Full26-check browser run is in progress. No external blocker.
+
+## Verified viewport checkpoint
+
+Implementation d0fae6c, version0.9.0:311 pure,2 local Auth, strict TypeScript/build and28 browser checks pass. [Report](../reports/26-11-07-viewport.md). No publication. View-only interactions remain separate from document/root subscriptions. Remaining view flags/preferences/grid/touch and other roadmap work stay required.
+
+## Active numeric movement and arrangement plan — 7 November
+
+Acceptance: page-space transform.move/moveTo; parent-space default1/10-unit keyboard nudge; six alignments to parent bounds for one child or combined bounds for multiple roots; horizontal/vertical distribution with explicit or inferred gaps using outermost edges; zero-gap packing; source-defined tidy row grouping; four stacking operations preserving selected order per parent. Invalid/missing targets and non-finite resulting geometry fail atomically. No-op commands add no undo. Group refitting preserves child world geometry, ancestor/descendant targets move once, native/recovery persist changes. No per-frame React state is introduced.
+
+Evidence: `cmd/arrange.rs:13–340`, `cmd/edit/select.rs::nudge`, `automation/params.rs::req_targets`, `tests.rs::{align_distribute_zorder,distribute_spans_the_outermost_edge,a_layer_alone_on_the_page_has_nothing_to_align_to,send_to_back_across_frames_counts_per_parent}`, `finite_geometry_tests.rs`, affine and hierarchy modules. Rust Graphify query located arrange dependency evidence but broad movement query was noisy; exact local source is authoritative. React Graphify still exposes only stale README. Mapping: native move_world/align/distribute/tidy/zorder → new pure `engine/arrange.ts`; immutable HierarchyDraft and EditorEngine transaction integration; new `ArrangePanel.tsx` commands and keyboard arrow routing; tests/parity/arrange.test.ts and authenticated browser flows. No Rust execution.
+
+Hazards: matrix multiplication order and transformed parent coordinates; nudge intentionally differs from transform.move; stable floating-point sort ties; outermost extent is not necessarily the last item's edge; roots must deduplicate ancestors; stacking must count separately per parent. Port native lenient parameter parsing while rejecting invalid IDs; finite geometry checks precede commit. Use source-derived numeric fixtures, all six alignment cases, nested/rotated parents, inferred/explicit/negative spacing, multi-parent stacking, invalid target/overflow atomicity and undo/native recovery. UI disables actions that cannot operate, labels all numeric fields and works at narrow widths.
+
+No provider, schema, RLS or Realtime change applies to local arrangement. Existing Auth/recovery boundaries remain. User-adjustable nudge preferences and auto-layout flow movement are required later, alongside pointer drag/resize/snapping, rotations/custom origins, scale and other node kinds; do not mark the whole arrangement family complete. Existing canvas performance suite remains the rendering guard. Rollback is d0fae6c; work sequentially under the latest user instruction.
