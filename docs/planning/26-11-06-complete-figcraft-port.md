@@ -5,16 +5,16 @@
 | Field | Current value |
 |---|---|
 | Overall status | In progress; full parity is not implemented |
-| Active slice | Frame containers, clipping and child constraints |
-| Active phase | Phase 1–2: Frame source evidence and bounded implementation plan |
+| Active slice | Viewport navigation and frame preset placement |
+| Active phase | Phase 1–2: viewport evidence and bounded plan |
 | Upstream baseline | `0b97f3f1801a9b7b96fd7a4f3c0942a3f1a676f3`; prior parity baseline `8eb0b87646c5aef712326d6c431ccde5408630de` |
-| Branch and last verified commit | `prompt/full-figcraft-port`; verified nested groups `e81ba76`; verified colour `bfa5dd8`; affine `080fc27`, outline check `2404d6b`, reports `ff29f38`; pages `6c988a5`, persistence `41d467b`; integration `fc3b4a6` from updated dev plus rectangle branch |
-| Completed slices | Rectangle/host-auth, bounded native persistence/recovery, supported-model pages, affine rectangle geometry/selection and solid appearance, plus nested group hierarchy verified locally |
+| Branch and last verified commit | `prompt/full-figcraft-port`; verified frames `3e7943a`; verified nested groups `e81ba76`; verified colour `bfa5dd8`; affine `080fc27`, outline check `2404d6b`, reports `ff29f38`; pages `6c988a5`, persistence `41d467b`; integration `fc3b4a6` from updated dev plus rectangle branch |
+| Completed slices | Rectangle/host-auth, bounded native persistence/recovery, supported-model pages, affine rectangle geometry/selection and solid appearance, plus nested group hierarchy and Frame containers verified locally |
 | Remaining slices | Every row below except the integrated foundation; static inventory entries remain unverified until mapped and tested |
-| Tests last passed | Strict typecheck, 273 pure tests, 2 real local Auth tests, package/Next production builds, 20/20 production Chromium checks (27.6 s); nested p95 8.9 ms |
-| Files currently in progress | Frame plan/evidence; hierarchy reports and mappings |
+| Tests last passed | Strict TypeScript, 292 pure tests, 2 real local Auth tests, package/Next builds and23/23 production Chromium checks (33.8s); frame p95 11.3ms |
+| Files currently in progress | Frame reports/mappings; viewport plan |
 | Blockers | None |
-| Exact next action | Implement Frame model/codec, clipping, native structure operations and constraints from the bounded plan below; verify and continue remaining roadmap |
+| Exact next action | Implement viewport state/commands and canvas navigation, then frame preset placement; verify and continue remaining roadmap |
 | Last updated | 2026-11-07 |
 
 ## Scope and continuation
@@ -160,3 +160,19 @@ Mapping: native Frame/common constraints → `document.ts` and bounded `file-for
 Hazards: retain f64 matrices, f32 opacity and exact IDs; sequential width/height application; rotated child constraints change local dimensions along their own axes rather than introducing skew; apply iteratively across nested containers; reject invalid values atomically. Immutable snapshot bounds caches must include frame fill and unclipped descendants; clipping must apply after the frame's transform and before child painting. Native codec keeps bounded depth/node/resource limits and refuses unsupported frame layout/guides/prototype fields until their slices.
 
 Verification: pure defaults/constraints/rotated nested propagation/conversion/atomicity/codec fixtures; authenticated browser creation, clipping pixels, child selection, resize/undo, save/recovery and mobile controls; full regression/performance checks. No backend contract or schema changes are needed for local document containers. Existing host Auth and recovery boundaries continue; cloud persistence remains required later. Rollback is the previous verified hierarchy commit. Work sequentially under the latest user instruction; no new agent delegation for this slice.
+
+Frame integration checkpoint: model/codec, constructor, wrap/remove/conversion, iterative constraints, canvas clipping/isolation, artboard targeting and inspector controls implemented. 291 pure checks and production build passed before an additional native-invalid-input fixture; browser verification is running. The first browser flow found an unstable select label, corrected with explicit labels. Rotated clipping and 10,000-rectangle frame measurements are included in the final run. No external blocker.
+
+## Verified Frame checkpoint
+
+Implementation `3e7943a`, version0.8.0: 292 pure checks, two real local Auth checks, strict TypeScript/build and23 browser/performance checks passed. [Frame property report](../reports/26-11-07-frames-parity.html) records bounded passes and remaining Frame workflow. Native paint fixture and accessible select labels were corrected during verification. No hosted changes/publication.
+
+## Active viewport and preset plan — 7 November
+
+Acceptance: independent centre/zoom/viewport state; native zoom steps, presets, fit/selection/anchor zoom and keyboard pan; wheel/trackpad, middle-button/Space pan and zoom-tool interaction; next/previous frames in native reading order; next/previous pages skip dividers without wrapping; native frame preset list and free placement. Rendering, hit testing and drawing map through the same viewport. View-only changes neither dirty document content nor enter undo. Continuous input uses a separate engine view subscription so the root React editor does not rerender per frame; only a small zoom control subscribes.
+
+Evidence/mapping: `engine/src/view_state.rs` → `viewport.ts` pure state/maths; `cmd/view.rs:93–186,231–291` → isolated view reducer and engine integration; `view_behaviour_tests.rs:95–230` → source-derived zoom/fit/anchor/frame fixtures; `ui-egui/src/canvas/input.rs:155–236` → browser wheel and captured-pointer input; `doc/src/lib.rs:975–1018` → frame reading order; `cmd/create.rs:15–54,375–421` → typed preset data and placement. Graphify independently returns ViewState/anchor tests for Rust and an ungrounded stale README for React; current local files remain authority.
+
+Keep initial native page fitting (empty pages show origin with a100px inset), and fit loaded content at at most100%. Browser regression fixtures can explicitly pan to their historical origin through real input. No hidden test-only engine bridge. Native egui scroll deltas use content direction; browser WheelEvent deltas require sign conversion. Normalise line/page deltas to screen units, keep pinch/Ctrl-wheel anchor fixed, clamp finite zoom to0.02–256. DPR remains independent of logical zoom; outlines retain a screen-pixel width. Fit and navigation use supported world bounds, not CSS layout. View state is session state; document codec and recovery retain document data only.
+
+Files: new viewport reducer, typed frame presets, small view controls; engine/controller/renderer and host key routing; focused unit and browser/performance fixtures. No new backend schema, identity capability or provider behaviour. Rulers/grids/snapping/preferences, frame labels, move/resize gestures and other node kinds remain required later slices. Tests: native paired numeric fixtures, no document/history mutation, anchor/DPR/pointer transforms, real input pan/zoom and creation at transformed coordinates, resized browser, no root React per-frame rerender, full regression/performance/build. Rollback is verified Frame commit3e7943a. Work sequentially.
