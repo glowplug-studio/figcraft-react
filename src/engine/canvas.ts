@@ -3,10 +3,10 @@ import { renderColour } from "./colour";
 import { EditorEngine } from "./editor";
 import { drawnRectangle, type Point, type Rectangle } from "./geometry";
 import { multiply, transformBounds, type Affine } from "./affine";
-import { hitRectangle } from "./selection";
 import { worldTransform } from "./hierarchy";
 import { pageToScreen, screenToPage, scrollView, viewOrigin, zoomAt, type Viewport } from "./viewport";
 import { SmartHandles } from "./smart-handles";
+import { MoveInteraction } from "./move-interaction";
 
 const compositeSurfaces = new WeakMap<CanvasRenderingContext2D, HTMLCanvasElement>();
 // Immutable document snapshots invalidate these derived bounds after any edit.
@@ -164,6 +164,7 @@ export class CanvasController {
   #unsubscribeOrigin: () => void;
   #unsubscribeCanvas: () => void;
   #smart: SmartHandles;
+  #moving: MoveInteraction;
   #dragOrigin = false;
   #space = false;
   #zoomHeld = false;
@@ -176,6 +177,7 @@ export class CanvasController {
   #dpr = 1;
   constructor(private canvas: HTMLCanvasElement, private engine: EditorEngine, private onError: (message: string) => void) {
     this.#smart = new SmartHandles(engine, onError);
+    this.#moving = new MoveInteraction(engine, onError);
     const options = { signal: this.#abort.signal };
     canvas.addEventListener("pointerdown", this.#down, options);
     canvas.addEventListener("pointermove", this.#move, options);
@@ -225,11 +227,9 @@ export class CanvasController {
       event.preventDefault(); this.#pointer = event.pointerId; this.canvas.setPointerCapture(event.pointerId); this.invalidate(); return;
     }
     if (this.engine.getSnapshot().tool !== "rectangle") {
-      const snapshot = this.engine.getSnapshot();
-      const hit = hitRectangle(snapshot.document, this.#point(event), event.metaKey || event.ctrlKey, snapshot.selection);
-      const ids = event.shiftKey ? hit === undefined ? snapshot.selection : snapshot.selection.includes(hit) ? snapshot.selection.filter(id => id !== hit) : [...snapshot.selection, hit] : hit === undefined ? [] : [hit];
-      try { this.engine.execute("select.set", { ids }); }
-      catch (error) { this.onError(error instanceof Error ? error.message : "Could not select layer"); }
+      if (this.#moving.down(this.#point(event), event)) {
+        event.preventDefault(); this.#pointer = event.pointerId; this.canvas.setPointerCapture(event.pointerId); this.invalidate();
+      }
       return;
     }
     event.preventDefault();
@@ -242,6 +242,11 @@ export class CanvasController {
     if (this.#pointer === null) {
       this.canvas.style.cursor = this.#onOrigin(this.#point(event)) ? "move" : this.#smart.hover(this.#screenPoint(event), event);
       this.invalidate();
+    }
+    if (event.pointerId === this.#pointer && this.#moving.active) {
+      const started = performance.now(); this.#moving.move(this.#point(event), event);
+      this.canvas.style.cursor = this.#moving.copying ? "copy" : "default"; this.invalidate();
+      performance.measure("figcraft:pointer", { start: started, end: performance.now() }); return;
     }
     if (event.pointerId === this.#pointer && this.#smart.active) {
       const started = performance.now();
@@ -271,6 +276,7 @@ export class CanvasController {
     performance.measure("figcraft:pointer", { start: started, end: performance.now() });
   };
   #up = (event: PointerEvent): void => {
+    if (event.pointerId === this.#pointer && this.#moving.active) { this.#moving.up(this.#point(event), event); this.cancel(); return; }
     if (event.pointerId === this.#pointer && this.#smart.active) {
       this.#smart.up(this.#screenPoint(event), event, this.#width, this.#height); this.cancel(); return;
     }
@@ -312,8 +318,12 @@ export class CanvasController {
     return Boolean(origin.editing && origin.point && Math.hypot(point.x - origin.point.x, point.y - origin.point.y) * this.engine.getView().zoom <= 8);
   }
   #doubleClick = (event: MouseEvent): void => {
-    if (!this.engine.getSnapshot().editable || !this.#onOrigin(this.#point(event))) return;
-    event.preventDefault(); this.engine.execute("transform.setRotationOrigin", { reset: true });
+    if (!this.engine.getSnapshot().editable) return;
+    event.preventDefault();
+    try {
+      if (this.#onOrigin(this.#point(event))) this.engine.execute("transform.setRotationOrigin", { reset: true });
+      else this.#moving.doubleClick(this.#point(event));
+    } catch (error) { this.onError(error instanceof Error ? error.message : "Could not enter layer"); }
   };
   #blur = (): void => { this.#space = false; this.#zoomHeld = false; this.cancel(); };
   #cancelEvent = (): void => this.cancel();
@@ -329,6 +339,7 @@ export class CanvasController {
     if (event.key.toLowerCase() === "z") this.#zoomHeld = false;
   };
   cancel(): void {
+    this.#moving.cancel();
     this.#smart.cancel();
     const pointer = this.#pointer;
     this.#pointer = null;
@@ -362,8 +373,9 @@ export class CanvasController {
       context.setTransform(this.#dpr, 0, 0, this.#dpr, 0, 0);
       const snapshot = this.engine.getSnapshot();
       const view = this.engine.getView(), origin = viewOrigin(view);
-      renderDocument(context, this.engine.getRenderDocument(), this.#width, this.#height, snapshot.selection, this.#preview, view);
-      this.#smart.draw(context);
+      renderDocument(context, this.engine.getRenderDocument(), this.#width, this.#height, this.engine.getRenderSelection(), this.#preview, view);
+      if (!this.#moving.active) this.#smart.draw(context);
+      this.#moving.draw(context);
       const rotationOrigin = this.engine.getRotationOrigin();
       if (rotationOrigin.editing && rotationOrigin.point) {
         const point = pageToScreen(view, rotationOrigin.point);

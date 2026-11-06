@@ -66,7 +66,9 @@ async function geometry(page: Page, expected: number[]) {
   await expect(page.getByRole("region", { name: "Selected rectangle" }).locator("dd")).toHaveText(expected.map(String));
 }
 async function canvasPoint(page: Page, x: number, y: number) {
-  return page.getByLabel("Design canvas", { exact: true }).evaluate((node: HTMLCanvasElement, point) => {
+  return page.getByLabel("Design canvas", { exact: true }).evaluate(async (node: HTMLCanvasElement, point) => {
+    // View diagnostics are published by the canvas frame, including after responsive resize/fit.
+    await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
     const bounds = node.getBoundingClientRect(), zoom = Number(node.dataset.viewZoom);
     return { x: bounds.x + (point.x - Number(node.dataset.viewOriginX)) * zoom, y: bounds.y + (point.y - Number(node.dataset.viewOriginY)) * zoom };
   }, { x, y });
@@ -423,6 +425,10 @@ test("transparent page redraw and hidden or locked layers bypass pointer and sel
   await page.mouse.click(bounds.x + 80, bounds.y + 80);
   await expect(layers.nth(1)).toHaveAttribute("aria-current", "true");
   await appearance.getByLabel("Visible", { exact: true }).uncheck();
+  await page.mouse.click(bounds.x + 80, bounds.y + 80);
+  // Native move_down retains an already-selected hidden layer through its own-box fallback.
+  await expect(page.getByRole("region", { name: "Selected rectangle" })).toHaveCount(1);
+  await page.mouse.click(bounds.x + 300, bounds.y + 300);
   await page.mouse.click(bounds.x + 80, bounds.y + 80);
   await expect(page.getByRole("region", { name: "Selected rectangle" })).toHaveCount(0);
   await canvas.focus(); await page.keyboard.press("ControlOrMeta+a");
@@ -1060,4 +1066,84 @@ test("duplicate frame retains its subtree, clipping and100-unit gap", async ({ p
   }
   await page.getByRole("button", { name: "Undo", exact: true }).click();
   await expect(layers.getByRole("button", { name: "Contained", exact: true })).toHaveCount(1);
+});
+
+test("canvas move previews cancel without root updates and release-only Alt copies repeat", async ({ page }) => {
+  await login(page); await createNamedRectangle(page, "Dragged", 200, 200, 50, 40);
+  const canvas = page.getByLabel("Design canvas", { exact: true }), root = page.locator("[data-figcraft-editor]");
+  await expect(page.getByText("Recovery saved on this device", { exact: true })).toBeVisible();
+  const start = await canvasPoint(page, 210, 210), end = await canvasPoint(page, 280, 230);
+  await page.mouse.move(start.x, start.y); await page.mouse.down();
+  const commits = await root.getAttribute("data-commits");
+  await page.mouse.move(end.x, end.y, { steps: 15 });
+  expect(await root.getAttribute("data-commits")).toBe(commits); await expectCanvasPixel(page, 280, 230, [217, 217, 217, 255]);
+  await page.keyboard.press("Escape"); await page.mouse.up(); await expect(page.getByLabel("Edit X", { exact: true })).toHaveValue("200");
+  await expectCanvasPixel(page, 210, 210, [217, 217, 217, 255]);
+  await page.mouse.move(start.x, start.y); await page.mouse.down(); await page.keyboard.down("Shift");
+  await page.mouse.move(end.x, end.y, { steps: 8 }); await page.mouse.up(); await page.keyboard.up("Shift");
+  await expect(page.getByLabel("Edit X", { exact: true })).toHaveValue("270"); await expect(page.getByLabel("Edit Y", { exact: true })).toHaveValue("200");
+  await page.getByRole("button", { name: "Undo", exact: true }).click();
+  const copyEnd = await canvasPoint(page, 340, 210);
+  await page.mouse.move(start.x, start.y); await page.mouse.down(); await page.mouse.move(copyEnd.x, copyEnd.y, { steps: 10 });
+  await page.keyboard.down("Alt"); await page.mouse.up(); await page.keyboard.up("Alt");
+  await expect(page.getByLabel("Edit X", { exact: true })).toHaveValue("330");
+  await expect(page.getByRole("region", { name: "Layers" }).getByRole("button", { name: "Dragged", exact: true })).toHaveCount(2);
+  await canvas.focus(); await page.keyboard.press("ControlOrMeta+d"); await expect(page.getByLabel("Edit X", { exact: true })).toHaveValue("460");
+  const download = page.waitForEvent("download"); await page.getByRole("button", { name: "Save as", exact: true }).click();
+  const decoded = await decodeFigcraft(await readFile((await (await download).path())!));
+  expect(Object.values(decoded.document.nodes).filter(n => n.kind === "rectangle").map(n => n.x)).toEqual([200, 330, 460]);
+  await expect(page.getByText("Recovery saved on this device", { exact: true })).toBeVisible(); await page.reload(); await resetCanvasOrigin(page);
+  await expect(page.getByRole("region", { name: "Layers" }).getByRole("button", { name: "Dragged", exact: true })).toHaveCount(3);
+});
+
+test("canvas marquee selects and toggles layers without root frame updates", async ({ page }) => {
+  await login(page); await createNamedRectangle(page, "Marquee A", 200, 200, 50, 40); await createNamedRectangle(page, "Marquee B", 300, 200, 50, 40);
+  const root = page.locator("[data-figcraft-editor]"), layers = page.getByRole("region", { name: "Layers" });
+  await expect(page.getByText("Recovery saved on this device", { exact: true })).toBeVisible();
+  const start = await canvasPoint(page, 180, 180), end = await canvasPoint(page, 360, 250);
+  await page.mouse.move(start.x, start.y); await page.mouse.down(); const commits = await root.getAttribute("data-commits");
+  await page.mouse.move(end.x, end.y, { steps: 12 }); expect(await root.getAttribute("data-commits")).toBe(commits);
+  await page.screenshot({ path: "test-results/marquee-preview-desktop.png", fullPage: true }); await page.mouse.up();
+  await expect(layers.locator('li[aria-current="true"]')).toHaveCount(2);
+  await page.keyboard.down("Shift"); await page.mouse.move(start.x, start.y); await page.mouse.down();
+  const toggleEnd = await canvasPoint(page, 260, 250); await page.mouse.move(toggleEnd.x, toggleEnd.y, { steps: 8 }); await page.mouse.up(); await page.keyboard.up("Shift");
+  await expect(layers.locator('li[aria-current="true"]')).toHaveCount(1);
+  await expect(layers.locator('li[aria-current="true"]')).toContainText("Marquee B");
+  await page.setViewportSize({ width: 390, height: 844 }); await page.getByRole("button", { name: "Fit page", exact: true }).click();
+  const mobileStart = await canvasPoint(page, 180, 180), mobileEnd = await canvasPoint(page, 360, 250);
+  await page.mouse.move(mobileStart.x, mobileStart.y); await page.mouse.down(); await page.mouse.move(mobileEnd.x, mobileEnd.y, { steps: 8 }); await page.mouse.up();
+  await page.locator(".figcraft-mobile-layers > summary").click(); await expect(layers.locator('li[aria-current="true"]')).toHaveCount(2);
+});
+
+test("canvas drops enter and leave Frames while preserving world geometry", async ({ page }) => {
+  await login(page); const creation = page.getByRole("group", { name: "Create layer", exact: true });
+  for (const [label, value] of [["X", 400], ["Y", 100], ["Width", 250], ["Height", 250]] as const) await creation.getByLabel(label, { exact: true }).fill(String(value));
+  await creation.getByRole("button", { name: "Create frame", exact: true }).click(); await createNamedRectangle(page, "Traveller", 200, 200, 40, 30);
+  const start = await canvasPoint(page, 210, 210), inside = await canvasPoint(page, 450, 170);
+  await page.mouse.move(start.x, start.y); await page.mouse.down(); await page.keyboard.down("ControlOrMeta");
+  await page.mouse.move(inside.x, inside.y, { steps: 10 }); await page.mouse.up(); await page.keyboard.up("ControlOrMeta");
+  await expect(page.getByLabel("Edit X", { exact: true })).toHaveValue("40"); await expect(page.getByLabel("Edit Y", { exact: true })).toHaveValue("60");
+  const children = page.getByRole("list", { name: "Children of Frame 1", exact: true }); await expect(children.getByRole("button", { name: "Traveller", exact: true })).toBeVisible();
+  await expectCanvasPixel(page, 450, 170, [217, 217, 217, 255]);
+  const outside = await canvasPoint(page, 750, 400);
+  await page.mouse.move(inside.x, inside.y); await page.mouse.down(); await page.keyboard.down("ControlOrMeta");
+  await page.mouse.move(outside.x, outside.y, { steps: 10 }); await page.mouse.up(); await page.keyboard.up("ControlOrMeta");
+  await expect(page.getByLabel("Edit X", { exact: true })).toHaveValue("740"); await expect(page.getByLabel("Edit Y", { exact: true })).toHaveValue("390");
+  await expect(children.getByRole("button", { name: "Traveller", exact: true })).toHaveCount(0);
+  await page.getByRole("button", { name: "Undo", exact: true }).click(); await expect(children.getByRole("button", { name: "Traveller", exact: true })).toBeVisible();
+});
+
+test("Alt-drag snaps equal gaps to its source and draws native measurement guides", async ({ page }) => {
+  await login(page); await createNamedRectangle(page, "Gap A", 200, 200, 100, 100); await createNamedRectangle(page, "Gap B", 400, 200, 100, 100);
+  const start = await canvasPoint(page, 450, 250), end = await canvasPoint(page, 648, 252);
+  await page.keyboard.down("Alt"); await page.mouse.move(start.x, start.y); await page.mouse.down(); await page.mouse.move(end.x, end.y, { steps: 12 });
+  const canvas = page.getByLabel("Design canvas", { exact: true });
+  await expect.poll(() => canvas.evaluate((node: HTMLCanvasElement) => {
+    const pixel = node.getContext("2d")!.getImageData(520, 250, 1, 1).data;
+    return pixel[0] > 200 && pixel[1] < 180 && pixel[2] < 180;
+  })).toBe(true);
+  await page.screenshot({ path: "test-results/alt-drag-guides-desktop.png", fullPage: true });
+  await page.mouse.up(); await page.keyboard.up("Alt");
+  await expect(page.getByLabel("Edit X", { exact: true })).toHaveValue("600"); await expect(page.getByLabel("Edit Y", { exact: true })).toHaveValue("200");
+  await canvas.focus(); await page.keyboard.press("ControlOrMeta+d"); await expect(page.getByLabel("Edit X", { exact: true })).toHaveValue("800");
 });

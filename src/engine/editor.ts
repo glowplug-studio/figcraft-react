@@ -11,10 +11,11 @@ import { framePresets, presetParameters } from "./frame-presets";
 import { parseBoolean, parseNodeId, parseNumber } from "./parameters";
 import { arrangeSpecs, executeArrange } from "./arrange";
 import { sizingSpecs, executeSizing } from "./sizing";
-import { executeRotation, localOrigin, movedOrigin, originBoxPoints, originSpecs, rotationSpecs, sameIds, snappedOrigin, type OriginSnapshot, type RotationOrigin } from "./rotation";
+import { executeRotation, localOrigin, movedOrigin, originBoxPoints, originSpecs, rotationSpecs, sameIds, snappedOrigin, validateChangedGeometry, type OriginSnapshot, type RotationOrigin } from "./rotation";
 import type { Point } from "./geometry";
 import { executeSmartSelection, smartSpecs } from "./smart-selection";
 import { duplicateSelection, executeDuplicate, type Duplicated } from "./duplicate";
+import { ancestorIds } from "./canvas-selection";
 
 export const commandSpecs = Object.freeze({
   ...arrangeSpecs,
@@ -79,7 +80,10 @@ export class EditorEngine {
   #origin?: RotationOrigin;
   #originSnapshot: OriginSnapshot = Object.freeze({ editing: false, moved: false });
   #originListeners = new Set<() => void>();
-  #interaction?: { base: EditorSnapshot; document: Document };
+  #interaction?: {
+    base: EditorSnapshot; document: Document; selection: readonly NodeId[]; nextId: bigint; duplicated?: Duplicated;
+    preparedCopy?: { ids: readonly NodeId[]; result: ReturnType<typeof executeDuplicate> };
+  };
   #canvasListeners = new Set<() => void>();
   #viewportAttached = false;
   #viewConfigured = false;
@@ -92,13 +96,50 @@ export class EditorEngine {
   }
   getSnapshot = (): EditorSnapshot => this.#snapshot;
   getRenderDocument = (): Document => this.#interaction?.document ?? this.#snapshot.document;
+  getRenderSelection = (): readonly NodeId[] => this.#interaction?.selection ?? this.#snapshot.selection;
   getInteractionBase = (): Document => this.#interaction?.base.document ?? this.#snapshot.document;
   subscribeCanvas = (listener: () => void): (() => void) => { this.#canvasListeners.add(listener); return () => { this.#canvasListeners.delete(listener); }; };
   get interacting(): boolean { return this.#interaction !== undefined; }
   beginInteraction(): void {
     if (!this.#snapshot.editable) throw new Error("Sign in to edit this document");
     if (this.#interaction) throw new Error("An interaction is already active");
-    this.#interaction = { base: this.#snapshot, document: this.#snapshot.document };
+    this.#interaction = { base: this.#snapshot, document: this.#snapshot.document, selection: this.#snapshot.selection, nextId: this.#nextId };
+  }
+  previewSelection(ids: readonly NodeId[]): void {
+    const interaction = this.#interaction;
+    if (!interaction) throw new Error("No active interaction");
+    interaction.selection = executeSelection("select.set", interaction.base.document, interaction.base.selection, { ids }).selection;
+    this.#notifyCanvas();
+  }
+  /** Absolute move preview always derives from the captured source and allocator. */
+  previewMove(ids: readonly NodeId[], delta: Point, duplicate: boolean): void {
+    const interaction = this.#interaction;
+    if (!interaction) throw new Error("No active interaction");
+    if (!Number.isFinite(delta.x) || !Number.isFinite(delta.y)) throw new Error("Move delta must be finite");
+    let document = interaction.base.document, selection = interaction.base.selection, nextId = this.#nextId;
+    let duplicated: Duplicated | undefined;
+    if (duplicate) {
+      if (!interaction.preparedCopy || !sameIds(interaction.preparedCopy.ids, ids)) {
+        interaction.preparedCopy = { ids: Object.freeze([...ids]), result: executeDuplicate(document, ids, nextId, { ids, dx: 0, dy: 0 }) };
+      }
+      const copy = interaction.preparedCopy.result;
+      document = copy.document; duplicated = copy.duplicated; selection = duplicated.copies; nextId = copy.nextId;
+    }
+    document = executeArrange("transform.move", document, selection, { ids: duplicated?.copies ?? ids, dx: delta.x, dy: delta.y });
+    interaction.document = document; interaction.selection = selection; interaction.nextId = nextId; interaction.duplicated = duplicated;
+    this.#notifyCanvas();
+  }
+  finishMove(ids: readonly NodeId[], target: NodeId): void {
+    const interaction = this.#interaction;
+    if (!interaction) return;
+    const moving = interaction.duplicated?.copies ?? ids, draft = new HierarchyDraft(interaction.document);
+    if (draft.nodes[moving[0]]?.parent !== target) for (const id of moving) {
+      const node = draft.nodes[id];
+      if (!node || node.kind === "page" || draft.nodes[node.parent]?.kind === "group" || id === target || ancestorIds(draft.document, target).includes(id)) continue;
+      draft.reparent(id, target);
+    }
+    draft.normaliseGroups(); interaction.document = validateChangedGeometry(draft);
+    this.commitInteraction();
   }
   #notifyCanvas(): void { this.#refreshOrigin(); this.#canvasListeners.forEach(listener => listener()); }
   cancelInteraction(): boolean {
@@ -109,29 +150,32 @@ export class EditorEngine {
     const interaction = this.#interaction;
     if (!interaction) return false;
     this.#interaction = undefined;
-    const { base, document } = interaction;
-    // These gestures change geometry only. Returning to the base must not add history.
-    const changed = document !== base.document && Object.keys(document.nodes).some(id => {
+    const { base, document, selection } = interaction;
+    // Moving back to the source adds no history; copies and parenting are content changes.
+    const changed = document !== base.document && (Object.keys(document.nodes).length !== Object.keys(base.document.nodes).length || Object.keys(document.nodes).some(id => {
       const node = document.nodes[id], old = base.document.nodes[id];
       return node !== old && JSON.stringify(node) !== JSON.stringify(old);
-    });
+    }));
     if (changed) {
       this.#undo.push({ document: base.document, selection: base.selection }); this.#redo = [];
-      this.#publish({ document });
-    } else this.#notifyCanvas();
+      this.#nextId = interaction.nextId;
+      if (interaction.duplicated) this.#lastDuplicate = interaction.duplicated;
+      this.#publish({ document, selection });
+    } else if (!sameIds(base.selection, selection)) this.#publish({ selection });
+    else this.#notifyCanvas();
     return changed;
   }
   getView = (): Viewport => this.#view;
   getRotationOrigin = (): OriginSnapshot => this.#originSnapshot;
   subscribeOrigin = (listener: () => void): (() => void) => { this.#originListeners.add(listener); return () => { this.#originListeners.delete(listener); }; };
   #refreshOrigin(): void {
-    const { selection, editable } = this.#snapshot, document = this.getRenderDocument();
-    if (this.#origin && (!editable || !sameIds(selection, this.#origin.ids))) this.#origin = undefined;
+    const { selection: committedSelection, editable } = this.#snapshot, document = this.getRenderDocument(), selection = this.getRenderSelection();
+    if (this.#origin && (!editable || !sameIds(committedSelection, this.#origin.ids))) this.#origin = undefined;
     const moved = movedOrigin(document, selection, this.#origin);
     let point = moved;
     // Derived overlays must not interrupt publication of an already validated transaction.
     if (!point) try { point = originBoxPoints(document, selection)?.[8]; } catch { point = undefined; }
-    const next = { editing: this.#origin?.editing ?? false, moved: Boolean(moved), ...(point ? { point: Object.freeze(point) } : {}) };
+    const next = { editing: Boolean(this.#origin?.editing && sameIds(selection, this.#origin.ids)), moved: Boolean(moved), ...(point ? { point: Object.freeze(point) } : {}) };
     const old = this.#originSnapshot;
     if (old.editing === next.editing && old.moved === next.moved && old.point?.x === point?.x && old.point?.y === point?.y) return;
     this.#originSnapshot = Object.freeze(next); this.#originListeners.forEach(listener => listener());

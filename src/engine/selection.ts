@@ -89,7 +89,7 @@ export function executeSelection(command: string, document: Document, selection:
 }
 
 /** Match native level_target for supported containers, using the current selection as context. */
-function targetForLeaf(document: Document, leaf: NodeId, selection: readonly NodeId[]): NodeId {
+export function targetForLeaf(document: Document, leaf: NodeId, selection: readonly NodeId[]): NodeId {
   const chain: NodeId[] = [];
   let id: NodeId | null = leaf;
   while (id !== null && document.nodes[id]?.kind !== "page") {
@@ -109,8 +109,9 @@ function targetForLeaf(document: Document, leaf: NodeId, selection: readonly Nod
 }
 
 /** Hit frontmost visible layer; container selection follows native level_target. */
-export function hitRectangle(document: Document, point: Point, deep = false, selection: readonly NodeId[] = []): NodeId | undefined {
+export function hitRectangle(document: Document, point: Point, deep = false, selection: readonly NodeId[] = [], tolerance = 0): NodeId | undefined {
   if (!Number.isFinite(point.x) || !Number.isFinite(point.y)) return undefined;
+  const nearRectangle = (x: number, y: number, width: number, height: number): boolean => Math.hypot(Math.max(0, -x, x - width), Math.max(0, -y, y - height)) <= tolerance;
   const page = pageOf(document);
   const hit = (id: NodeId, parent: NodeId, world: Affine, depth: number): NodeId | undefined => {
     const node = document.nodes[id];
@@ -122,13 +123,14 @@ export function hitRectangle(document: Document, point: Point, deep = false, sel
         const local = transformPoint(inverse(transform), point);
         const inside = local.x >= 0 && local.x <= node.width && local.y >= 0 && local.y <= node.height;
         if (node.clip && !inside) return undefined;
-        return hitGroup(node.children, id, transform, depth + 1) ?? (inside ? id : undefined);
+        const near = local.x >= -tolerance && local.x <= node.width + tolerance && local.y >= -tolerance && local.y <= node.height + tolerance;
+        return hitGroup(node.children, id, transform, depth + 1) ?? (near ? id : undefined);
       }
       if (world === identity && !node.transform) {
-        return point.x >= node.x && point.x <= node.x + node.width && point.y >= node.y && point.y <= node.y + node.height ? id : undefined;
+        return nearRectangle(point.x - node.x, point.y - node.y, node.width, node.height) ? id : undefined;
       }
       const local = transformPoint(inverse(transform), point);
-      return local.x >= 0 && local.x <= node.width && local.y >= 0 && local.y <= node.height ? id : undefined;
+      return nearRectangle(local.x, local.y, node.width, node.height) ? id : undefined;
     } catch {
       return undefined;
     }

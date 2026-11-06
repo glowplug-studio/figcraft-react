@@ -2,6 +2,15 @@
 
 All notable changes to the React port and its upstream compatibility baseline are recorded here.
 
+## [0.15.0] - 2026-11-07
+
+The reference baseline remains `8eb0b87646c5aef712326d6c431ccde5408630de`; full parity remains in progress.
+
+- Added canvas move/marquee selection, deferred multi-selection clicks, deep selection and group entry for supported layers.
+- Added parent-space object/equal-gap/pixel snapping, guide labels, Frame drops and Alt-copy modifier transitions with repeated offsets.
+- Extended engine previews to selection and cached subtree allocation without root React frame updates; commit/cancel retains native history and persistence boundaries.
+- Resize/rotate/scale handles, other node kinds, auto-layout, rulers/grid/preferences and remaining workflows are required later slices.
+
 ## [0.14.0] - 2026-11-07
 
 The reference baseline remains `8eb0b87646c5aef712326d6c431ccde5408630de`; full parity remains in progress.
