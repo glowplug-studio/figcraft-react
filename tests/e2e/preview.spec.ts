@@ -280,6 +280,12 @@ test("rotation edits preserve centre, pixels, undo and native recovery with poin
   const canvas = page.getByLabel("Design canvas", { exact: true });
   await expect.poll(async () => canvas.evaluate((node: HTMLCanvasElement) => Array.from(node.getContext("2d")!.getImageData(150, 90, 1, 1).data))).toEqual([217, 217, 217, 255]);
   await expect.poll(async () => canvas.evaluate((node: HTMLCanvasElement) => Array.from(node.getContext("2d")!.getImageData(110, 110, 1, 1).data))).toEqual([245, 245, 245, 255]);
+  await expect.poll(async () => canvas.evaluate((node: HTMLCanvasElement) => {
+    const context = node.getContext("2d")!;
+    const edge = context.getImageData(125, 120, 1, 1).data;
+    const inside = context.getImageData(126, 120, 1, 1).data;
+    return { blueEdge: edge[2] - edge[0] > 80, halfPixelCoverage: edge[0] > 60 && edge[0] < 180, unexpandedInterior: Array.from(inside) };
+  })).toEqual({ blueEdge: true, halfPixelCoverage: true, unexpandedInterior: [217, 217, 217, 255] });
   await page.getByRole("button", { name: "Undo", exact: true }).click();
   await geometry(page, [100, 100, 100, 50]);
   await page.getByRole("button", { name: "Redo", exact: true }).click();
