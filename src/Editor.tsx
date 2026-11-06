@@ -94,6 +94,7 @@ export function Editor({ identity, capabilities, engine: suppliedEngine, recover
     if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "o") { event.preventDefault(); fileInput.current?.click(); return; }
     if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "a") command = "select.all";
     if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "g") command = event.shiftKey ? "object.ungroup" : "object.group";
+    if ((event.metaKey || event.ctrlKey) && !event.shiftKey && !event.altKey && event.key.toLowerCase() === "d") command = "edit.duplicate";
     if (event.key === "Delete" || event.key === "Backspace") command = "edit.delete";
     if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "z") command = event.shiftKey ? "edit.redo" : "edit.undo";
     else if (!event.metaKey && !event.ctrlKey && !event.altKey) {

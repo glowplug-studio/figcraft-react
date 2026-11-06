@@ -66,6 +66,7 @@ export function LayerPanel({ document, selection, editable, dispatch }: LayerPan
     <h2>{page.name}</h2><p>{page.children.length} {page.children.length === 1 ? "layer" : "layers"}</p>
     <ul aria-label="Page layers">{rows(page.children, 0)}</ul>
     <div role="group" aria-label="Layer actions">
+      <button type="button" disabled={!editable || selection.length === 0} onClick={() => dispatch("edit.duplicate")}>Duplicate layers</button>
       <button type="button" disabled={!editable || selection.length === 0} onClick={() => dispatch("object.group", { ids: selection })}>Group</button>
       <button type="button" disabled={!editable || !selection.some(id => document.nodes[id]?.kind === "group")} onClick={() => dispatch("object.ungroup", { ids: selection })}>Ungroup</button>
       <button type="button" disabled={!editable || !selection.some(id => ["group", "frame"].includes(document.nodes[id]?.kind))} onClick={() => dispatch("select.children")}>Select children</button>

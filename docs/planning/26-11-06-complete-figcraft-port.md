@@ -6,13 +6,13 @@
 |---|---|
 | Overall status | In progress; full parity is not implemented |
 | Active slice | Layer subtree duplication and repeat offsets |
-| Active phase | Phase 1–3: duplicate source mapping and plan |
+| Active phase | Phase 4–6: duplication implementation and verification |
 | Upstream baseline | `0b97f3f1801a9b7b96fd7a4f3c0942a3f1a676f3`; prior parity baseline `8eb0b87646c5aef712326d6c431ccde5408630de` |
 | Branch and last verified commit | `prompt/full-figcraft-port`; verified smart selection `3326d26`; verified rotations `92062ca`; verified sizing `c6b8c71`; verified arrangement `783a694`; verified viewport `d0fae6c`; verified frames `3e7943a`; verified nested groups `e81ba76`; verified colour `bfa5dd8`; affine `080fc27`, outline check `2404d6b`, reports `ff29f38`; pages `6c988a5`, persistence `41d467b`; integration `fc3b4a6` from updated dev plus rectangle branch |
 | Completed slices | Rectangle/host-auth, bounded native persistence/recovery, supported-model pages, affine rectangle geometry/selection and solid appearance, plus nested group hierarchy and Frame containers verified locally |
 | Remaining slices | Every row below except the integrated foundation; static inventory entries remain unverified until mapped and tested |
 | Tests last passed | Strict TypeScript, 379 pure tests, 2 real local Auth tests, package/Next builds and38/38 production Chromium checks (54.4s); smart-preview p95 3.5ms, moving-frame p95 14ms |
-| Files currently in progress | Duplication plan; implementation not started |
+| Files currently in progress | Duplicate reducer, engine lifecycle, keyboard/layer controls, pure/browser fixtures and version records |
 | Blockers | None |
 | Exact next action | Implement supported subtree duplication, returned ID maps and repeated offsets with Ctrl/Meta+D and controls; verify before general Alt-drag |
 | Last updated | 2026-11-07 |
@@ -264,3 +264,5 @@ Source/mapping: `cmd/edit.rs::{Duplicated,duplicate,bump_name}` → pure duplica
 Hazards: u64 allocation near exhaustion, root deduplication before paint order, insertion shifts, local explicit offset versus world repeated offset under rotated parent, immutable property sharing, no mutations before allocation/validation completes, changed selection must invalidate ephemeral state without losing valid repeated copy order. Test nested Frame/Group copies/maps, root+descendant input, all paint/constraints/clip metadata, same-position default, top Frame gap, explicit/remembered offsets, rotated parents, selection/undo invalidation, no source mutation, native/recovery and browser shortcuts/mobile. Existing large-document performance remains guard.
 
 No database/provider/identity changes. Component-to-instance copy, variants, connector remapping, library analytics, auto-layout flow and rename preferences extend with their required families; unsupported fields remain refused. Alt-drag will reuse the verified helper and extend interaction allocation/selection snapshots in the following gesture slice. No speculative kinds or full-family claim. Work sequentially; rollback3326d26. Files: duplication helper, EditorEngine, LayerPanel/Editor, pure/browser tests and version records.
+
+Duplication integration checkpoint: pure subtree copying/maps and repeat lifecycle implemented;391 pure checks and strict TypeScript pass. Browser shortcut, subtree/native recovery and mobile flows added; production build and full verification next. No external blocker/publication.

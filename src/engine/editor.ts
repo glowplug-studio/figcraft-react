@@ -14,6 +14,7 @@ import { sizingSpecs, executeSizing } from "./sizing";
 import { executeRotation, localOrigin, movedOrigin, originBoxPoints, originSpecs, rotationSpecs, sameIds, snappedOrigin, type OriginSnapshot, type RotationOrigin } from "./rotation";
 import type { Point } from "./geometry";
 import { executeSmartSelection, smartSpecs } from "./smart-selection";
+import { duplicateSelection, executeDuplicate, type Duplicated } from "./duplicate";
 
 export const commandSpecs = Object.freeze({
   ...arrangeSpecs,
@@ -34,6 +35,7 @@ export const commandSpecs = Object.freeze({
   "tool.move": { label: "Move", undo: false },
   "edit.undo": { label: "Undo", undo: false },
   "edit.redo": { label: "Redo", undo: false },
+  "edit.duplicate": { label: "Duplicate", undo: true },
   "file.open": { label: "Open", undo: false },
   "file.recover": { label: "Recover file", undo: false },
   "file.saveAs": { label: "Save as", undo: false },
@@ -70,6 +72,7 @@ export class EditorEngine {
   #undo: HistoryEntry[] = [];
   #redo: HistoryEntry[] = [];
   #nextId = 2n;
+  #lastDuplicate?: Duplicated;
   #listeners = new Set<() => void>();
   #view: Viewport = fitPage(defaultViewport, newDocument());
   #viewListeners = new Set<() => void>();
@@ -160,6 +163,7 @@ export class EditorEngine {
   #publish(patch: Partial<EditorSnapshot>): void {
     const document = patch.document ?? this.#snapshot.document;
     this.#snapshot = Object.freeze({ ...this.#snapshot, ...patch, canUndo: this.#undo.length > 0, canRedo: this.#redo.length > 0, dirty: !sameContent(document, this.#saved), hasSaved: this.#saved !== null });
+    if (this.#lastDuplicate && !duplicateSelection(this.#lastDuplicate, this.#snapshot.selection)) this.#lastDuplicate = undefined;
     this.#refreshOrigin();
     this.#canvasListeners.forEach(listener => listener());
     this.#listeners.forEach(listener => listener());
@@ -179,6 +183,15 @@ export class EditorEngine {
     const gesture = Object.hasOwn(smartSpecs, command) && command !== "arrange.roundToPixels" && parseBoolean(p.fromGesture) === true;
     if (!gesture && this.cancelInteraction() && command === "edit.undo") return { undone: true };
     if (command === "frame.presets") return framePresets;
+    if (command === "edit.duplicate") {
+      const before = this.#snapshot;
+      const next = executeDuplicate(before.document, before.selection, this.#nextId, p, this.#lastDuplicate);
+      this.#undo.push({ document: before.document, selection: before.selection }); this.#redo = [];
+      this.#nextId = next.nextId;
+      this.#lastDuplicate = next.duplicated;
+      this.#publish({ document: next.document, selection: next.duplicated.copies });
+      return next.result;
+    }
     if (Object.hasOwn(smartSpecs, command)) {
       const before = this.#snapshot, current = this.#interaction?.document ?? before.document;
       const document = executeSmartSelection(command, current, before.selection, p, this.#interaction?.base.document ?? current);
@@ -280,6 +293,7 @@ export class EditorEngine {
     const target = undo ? this.#redo : this.#undo;
     const entry = source.pop();
     if (entry) {
+      this.#lastDuplicate = undefined;
       target.push({ document: this.#snapshot.document, selection: this.#snapshot.selection });
       this.#publish(entry);
     }

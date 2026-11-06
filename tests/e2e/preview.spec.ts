@@ -1006,3 +1006,58 @@ test("smart reorder rings insert, swap, cancel undo and commit outside the canva
   await page.getByLabel("Edit X", { exact: true }).fill("200.5"); await page.getByRole("button", { name: "Apply geometry", exact: true }).click();
   await panel.getByRole("button", { name: "Round to pixels", exact: true }).click(); await expect(page.getByLabel("Edit X", { exact: true })).toHaveValue("201");
 });
+
+test("duplicate shortcut repeats movement, forgets changed selection and survives native recovery", async ({ page }) => {
+  await login(page); await createNamedRectangle(page, "Repeated", 200, 200, 50, 40);
+  const canvas = page.getByLabel("Design canvas", { exact: true }), layers = page.getByRole("region", { name: "Layers" });
+  await canvas.focus(); await page.keyboard.press("ControlOrMeta+d");
+  await expect(layers.getByRole("button", { name: "Repeated", exact: true })).toHaveCount(2);
+  await page.keyboard.press("Shift+ArrowRight"); await page.keyboard.press("ControlOrMeta+d");
+  await expect(page.getByLabel("Edit X", { exact: true })).toHaveValue("220");
+  await page.keyboard.press("ControlOrMeta+d"); await expect(page.getByLabel("Edit X", { exact: true })).toHaveValue("230");
+  await page.getByRole("button", { name: "Undo", exact: true }).click();
+  await expect(layers.getByRole("button", { name: "Repeated", exact: true })).toHaveCount(3);
+  await page.getByRole("button", { name: "Redo", exact: true }).click();
+  await layers.getByRole("button", { name: "Repeated", exact: true }).last().click();
+  await layers.getByRole("button", { name: "Repeated", exact: true }).first().click();
+  await layers.getByRole("button", { name: "Duplicate layers", exact: true }).click();
+  await expect(page.getByLabel("Edit X", { exact: true })).toHaveValue("230");
+  const download = page.waitForEvent("download"); await page.getByRole("button", { name: "Save as", exact: true }).click();
+  const decoded = await decodeFigcraft(await readFile((await (await download).path())!));
+  expect(Object.values(decoded.document.nodes).filter(node => node.kind === "rectangle").map(node => node.x)).toEqual([200, 210, 220, 230, 230]);
+  await expect(page.getByText("Recovery saved on this device", { exact: true })).toBeVisible(); await page.reload(); await resetCanvasOrigin(page);
+  await expect(layers.getByRole("button", { name: "Repeated", exact: true })).toHaveCount(5);
+  await expect(layers.getByRole("button", { name: "Duplicate layers", exact: true })).toBeDisabled();
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.locator(".figcraft-mobile-layers > summary").click();
+  await layers.getByRole("button", { name: "Repeated", exact: true }).first().click();
+  await layers.getByRole("button", { name: "Duplicate layers", exact: true }).click();
+  await expect(layers.getByRole("button", { name: "Repeated", exact: true })).toHaveCount(6);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+});
+
+test("duplicate frame retains its subtree, clipping and100-unit gap", async ({ page }) => {
+  await login(page);
+  const creation = page.getByRole("group", { name: "Create layer", exact: true });
+  await creation.getByRole("button", { name: "Create frame", exact: true }).click();
+  await creation.getByLabel("Create in", { exact: true }).selectOption({ label: "Frame 1" });
+  await createNamedRectangle(page, "Contained", 10, 20, 40, 30);
+  const layers = page.getByRole("region", { name: "Layers" });
+  await layers.getByRole("button", { name: "Frame 1", exact: true }).click();
+  await layers.getByRole("button", { name: "Duplicate layers", exact: true }).click();
+  await expect(layers.getByRole("button", { name: "Contained", exact: true })).toHaveCount(2);
+  await expect(page.getByLabel("Edit X", { exact: true })).toHaveValue("240");
+  await expect(page.getByLabel("Clip content", { exact: true })).toBeChecked();
+  await expectCanvasPixel(page, 255, 65, [217, 217, 217, 255]);
+  await page.screenshot({ path: "test-results/duplicate-frame-desktop.png", fullPage: true });
+  const download = page.waitForEvent("download"); await page.getByRole("button", { name: "Save as", exact: true }).click();
+  const decoded = await decodeFigcraft(await readFile((await (await download).path())!));
+  const copies = Object.values(decoded.document.nodes).filter(node => node.kind === "frame");
+  expect(copies).toHaveLength(2);
+  for (const frame of copies) {
+    expect(frame.kind === "frame" && frame.children).toHaveLength(1);
+    if (frame.kind === "frame") expect(decoded.document.nodes[frame.children[0]]).toMatchObject({ parent: frame.id, name: "Contained", x: 10, y: 20 });
+  }
+  await page.getByRole("button", { name: "Undo", exact: true }).click();
+  await expect(layers.getByRole("button", { name: "Contained", exact: true })).toHaveCount(1);
+});

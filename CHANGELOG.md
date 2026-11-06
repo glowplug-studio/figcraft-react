@@ -2,6 +2,14 @@
 
 All notable changes to the React port and its upstream compatibility baseline are recorded here.
 
+## [0.14.0] - 2026-11-07
+
+The reference baseline remains `8eb0b87646c5aef712326d6c431ccde5408630de`; full parity remains in progress.
+
+- Added supported layer subtree duplication, exact ID maps, top-level Frame spacing and repeated page-space offsets.
+- Added Ctrl/Meta+D and layer controls with atomic allocation, selection/history lifecycle and native persistence.
+- Component/instance copying, connector remapping, rename preferences and Alt-drag extend in their remaining slices.
+
 ## [0.13.0] - 2026-11-07
 
 The reference baseline remains `8eb0b87646c5aef712326d6c431ccde5408630de`; full parity remains in progress.
