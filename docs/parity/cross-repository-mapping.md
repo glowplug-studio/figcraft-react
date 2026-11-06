@@ -53,3 +53,7 @@ Add mappings only after inspecting behaviour, callers, data contracts and tests.
 ## Canvas selection and movement — 7 November 2026
 
 `tools/drag::{move_down,drag}`, `draw::up`, pointer marquee and document hit selection → `MoveInteraction`, `canvas-selection.ts` and extended EditorEngine transient selection/allocation. `canvas/snap::Targets`, drop and distance helpers → `snapping.ts`, `measurements.ts`. Upstream0b97f3f, React0d34280.418 pure/46 browser checks verify contextual selection, move/modifiers, Alt-copy repeat, Frame parenting, guide geometry, native recovery and10000-node preview performance. [Property evidence](../reports/26-11-07-canvas-move-parity.html). Other kinds/layout/preferences/labels and remaining transforms continue on the roadmap.
+
+## Pointer transforms and Scale tool — 7 November 2026
+
+`tools/handles::{handle_at_corners,resized_box,scale_factor}` → `transform-handles.ts`; `tools/drag::{resize_drag,scale_drag}` and Rotate → `transform-preview.ts` / `TransformInteraction`; native scale panel → `ScalePanel`; source proportions property → properties/codec. `theme::{set_canvas_page,under_white}` → canvas-colours and shared overlays, correcting prior blue outlines. Upstream0b97f3f, Reactcc26af1.440 pure/52 browser checks pass, including source multi-rotation/anchor fixtures, Frame/keyboard/persistence/mobile and10000-node previews. [Property evidence](../reports/26-11-07-transform-handles-parity.html). Other kinds/scaled properties/layout/preferences and custom cursor artwork remain required.

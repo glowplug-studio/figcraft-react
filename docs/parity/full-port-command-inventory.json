@@ -1477,7 +1477,7 @@
       "source": "crates/engine/src/cmd/edit.rs",
       "line": 307,
       "status": "Partial",
-      "scope": "Rectangle geometry, name, visibility, locking, opacity and solid fills; remaining native properties and node kinds required",
+      "scope": "Rectangle geometry, name, visibility, locking, opacity and solid fills; remaining native properties and node kinds required; constrainProportions linked numeric edits and native persistence verified",
       "evidence": [
         "tests/parity/rectangle-properties.test.ts",
         "tests/parity/appearance-properties.test.ts",
@@ -3899,7 +3899,13 @@
       "label": "Scale anchor",
       "source": "crates/engine/src/cmd/view.rs",
       "line": 561,
-      "status": "Not tested"
+      "status": "Passed",
+      "scope": "Nine session anchors, normalised names, read/write and rejection, shared canvas/panel pivot",
+      "evidence": [
+        "tests/parity/transform-handles.test.ts",
+        "tests/e2e/preview.spec.ts",
+        "docs/reports/26-11-07-transform-handles.md"
+      ]
     },
     {
       "command": "tool.move",
@@ -3915,7 +3921,13 @@
       "label": "Scale",
       "source": "crates/engine/src/cmd/view.rs",
       "line": 577,
-      "status": "Not tested"
+      "status": "Partial",
+      "scope": "Verified supported Rectangle/Group/Frame Scale gestures; other kinds and size-like properties remain required",
+      "evidence": [
+        "tests/parity/transform-handles.test.ts",
+        "tests/e2e/preview.spec.ts",
+        "docs/reports/26-11-07-transform-handles.md"
+      ]
     },
     {
       "command": "tool.hand",

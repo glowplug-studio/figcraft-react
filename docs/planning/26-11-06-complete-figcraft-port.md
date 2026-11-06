@@ -5,16 +5,16 @@
 | Field | Current value |
 |---|---|
 | Overall status | In progress; full parity is not implemented |
-| Active slice | Pointer resize/rotate handles and Scale tool |
-| Active phase | Phase 1–3: transform-handle evidence and plan |
+| Active slice | Rounded/smoothed corners and radius handles |
+| Active phase | Phase 1–3: corner geometry evidence and plan |
 | Upstream baseline | `0b97f3f1801a9b7b96fd7a4f3c0942a3f1a676f3`; prior parity baseline `8eb0b87646c5aef712326d6c431ccde5408630de` |
-| Branch and last verified commit | `prompt/full-figcraft-port`; verified canvas move `0d34280`; verified duplication `f6dfc3f`; verified smart selection `3326d26`; verified rotations `92062ca`; verified sizing `c6b8c71`; verified arrangement `783a694`; verified viewport `d0fae6c`; verified frames `3e7943a`; verified nested groups `e81ba76`; verified colour `bfa5dd8`; affine `080fc27`, outline check `2404d6b`, reports `ff29f38`; pages `6c988a5`, persistence `41d467b`; integration `fc3b4a6` from updated dev plus rectangle branch |
+| Branch and last verified commit | `prompt/full-figcraft-port`; verified transforms `cc26af1`; verified canvas move `0d34280`; verified duplication `f6dfc3f`; verified smart selection `3326d26`; verified rotations `92062ca`; verified sizing `c6b8c71`; verified arrangement `783a694`; verified viewport `d0fae6c`; verified frames `3e7943a`; verified nested groups `e81ba76`; verified colour `bfa5dd8`; affine `080fc27`, outline check `2404d6b`, reports `ff29f38`; pages `6c988a5`, persistence `41d467b`; integration `fc3b4a6` from updated dev plus rectangle branch |
 | Completed slices | Rectangle/host-auth, bounded native persistence/recovery, supported-model pages, affine rectangle geometry/selection and solid appearance, plus nested group hierarchy and Frame containers verified locally |
 | Remaining slices | Every row below except the integrated foundation; static inventory entries remain unverified until mapped and tested |
-| Tests last passed | Strict TypeScript,418 pure tests,2 local Auth tests, package/Next builds and46/46 Chromium checks (81.6s); move/Alt-copy p95 13.2/7.9ms |
-| Files currently in progress | Move reports and transform-handle plan; no unverified product changes |
+| Tests last passed | Strict TypeScript,440 pure tests,2 local Auth tests, package/Next builds and52/52 Chromium checks (72.6s); resize/Scale p95 8.2/6.3ms |
+| Files currently in progress | Transform reports and corner evidence; no unverified product changes |
 | Blockers | None |
-| Exact next action | Implement source-derived handle maths, resize/rotate preview reducers and Scale tool, then browser verification |
+| Exact next action | Resolve native arc approximation and corner hit/render semantics; plan and implement corner properties/paths/handles |
 | Last updated | 2026-11-07 |
 
 ## Scope and continuation
@@ -302,3 +302,15 @@ Source/mapping: `tools/handles::{handle_at_corners,resized_box,scale_factor,sele
 Hazards: signed-zero Rust signum, affine inverse/conjugation, dimension clamp versus multi-selection zero dimensions, scaled descendants must not receive constraints, object point snapping versus pixel rounding only on upright resize, hit tolerance under zoom, root subscriptions cancelling the owner reentrantly, custom origin, no premature allocator/history writes. Test all handles/anchors, crossings/degenerate boxes, rotated/mixed parents, proportion locks, locked ancestors, constraints/Ctrl preservation, cancellation/no-op history, numeric panel scrubs, keyboard/mobile/native recovery and10000-node continuous preview performance. Extend other kinds (line/text/vector/image/layout), scaled properties and preferences in their own required families; no invented fields/stubs or full-family claim.
 
 Sequential implementation: geometry and reducers, engine transaction boundary, input/overlays, Scale controls, source-derived tests, full local Auth/build/browser/performance, reports and next slice. No provider/schema/identity changes. Rollback0d34280. Expected files: transform handles/controller, sizing helper exports, EditorEngine/CanvasController/Editor toolbar, ScalePanel, tests and version records.
+
+Transform integration checkpoint:437 pure tests,2 real Auth checks, strict TypeScript and production builds pass. Initial resize/Scale10000-node performance checks pass. First browser root-render assertion included pending recovery completion; fixture now waits for recovery before measuring, matching existing move tests. Exact native property priority shows sizes apply before constrainProportions, now preserved/tested. Scoped Supabase MCP public-table read succeeds. Review also found inherited blue canvas overlays differ from pinned native theme: theme.rs defines contrasting greens (#00875f on light pages, #02da96 on dark pages). Correct shared overlay palette now, including transform labels, and update the old colour-specific fixture from source evidence before final verification. No external blocker or publication.
+
+## Verified transform checkpoint
+
+Implementationcc26af1, version0.16.0:440 pure,2 real Auth, strict TypeScript/build and52/52 browser checks passed in72.6s. Resize/Scale10000-node p958.2/6.3ms, zero root notifications. Target dependency cache fixes per-frame gathering cost; source palette corrected and exact visual baseline reviewed. [Report](../reports/26-11-07-transform-handles.md). Local preview stopped. No external blocker/publication.
+
+## Active corner geometry evidence
+
+Next dependency: rounded/smoothed rectangle and Frame geometry supplies path rendering/hit-testing before further shapes and strokes. Exact `geom::rounded_rect,corner_profile,append_corner` defines4 clockwise radii, half-short-side clamp, smoothing reduction before radius and cubic/arc profile; `doc::geometry::node_path` consumes it. `cmd::props::apply_corners` supplies numeric/array/per-corner names and smoothing defaults; `canvas::shape_handles` supplies single visible unlocked≥48px target,10px inset, per-corner radius projection, Alt single-corner edits, locked/ancestor interactions and transform-handle precedence. `geom/src/tests.rs` and `shape_handles_tests.rs` supply area/bounds/modifier fixtures. Native Scale must multiply radii; ordinary resize retains stored radii and reclamps only paths/handles.
+
+Graphify Rust exact handle test and file dependencies verified; resolved rounded_rect callers and transform-handle test links empty despite local references, so local source wins. React remains stale/README-only. Upstream Cargo.lock pins kurbo0.13.1; its arc-to-cubic0.01 tolerance algorithm must be inspected before deciding the browser path equivalent. No Rust execution or dependency allowed. Complete source tests/UI/hit semantics and write final acceptance/hazards before editing. Supported scope Rectangle/Frame; Group metadata, other shape kinds and vector point radii extend with their families. Work sequentially; rollbackcc26af1.
