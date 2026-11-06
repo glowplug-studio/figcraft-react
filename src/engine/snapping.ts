@@ -2,6 +2,7 @@ import { identity, inverse, multiply, transformBounds, transformPoint, type Affi
 import type { Document, NodeId } from "./document";
 import { pixelRound, type Point, type Rectangle } from "./geometry";
 import { worldTransform } from "./hierarchy";
+import { ancestorIds } from "./canvas-selection";
 
 export interface Guide { x0: number; y0: number; x1: number; y1: number; label?: string; dashed?: boolean }
 type Span = readonly [number, number, number];
@@ -10,6 +11,18 @@ const right = (b: Rectangle) => b.x + b.width, bottom = (b: Rectangle) => b.y + 
 const shifted = (b: Rectangle, d: Point): Rectangle => ({ ...b, x: b.x + d.x, y: b.y + d.y });
 const linear = (m: Affine, p: Point): Point => ({ x: m[0] * p.x + m[2] * p.y, y: m[1] * p.x + m[3] * p.y });
 export const distanceLabel = (distance: number): string => String(pixelRound(Math.abs(distance) * 100) / 100);
+/** Point snapping ignores moving bounds. Reuse only while every target and ancestor is unchanged. */
+export class PointSnapCache {
+  #cached?: { parent: NodeId; page: NodeId; dependencies: readonly NodeId[]; document: Document; targets: SnapTargets };
+  constructor(private ids: readonly NodeId[]) {}
+  get(document: Document): SnapTargets {
+    const parent = document.nodes[this.ids[0]]?.parent ?? document.currentPage, old = this.#cached;
+    if (old && old.parent === parent && old.page === document.currentPage && old.dependencies.every(id => document.nodes[id] === old.document.nodes[id])) return old.targets;
+    const container = document.nodes[parent], moving = new Set(this.ids);
+    const dependencies = [parent, ...ancestorIds(document, parent), ...(container && container.kind !== "rectangle" ? container.children.filter(id => !moving.has(id)) : [])];
+    const targets = new SnapTargets(document, this.ids); this.#cached = { parent, page: document.currentPage, dependencies, document, targets }; return targets;
+  }
+}
 function spans(b: Rectangle): [Span[], Span[]] {
   return [[b.x, b.x + b.width / 2, right(b)].map(x => [x, b.y, bottom(b)]), [b.y, b.y + b.height / 2, bottom(b)].map(y => [y, b.x, right(b)])];
 }
@@ -76,7 +89,7 @@ export class SnapTargets {
     }
     return out.filter(v => Number.isFinite(v.delta));
   }
-  #guides(box: Rectangle): Guide[] {
+  #guides(box: Rectangle, spacing = true): Guide[] {
     const guides: Guide[] = [], [xs, ys] = spans(box);
     for (const [targets, values, vertical] of [[this.xs, xs, true], [this.ys, ys, false]] as const) for (const [v, a, b] of values) {
       const hits = targets.filter(([line]) => Math.abs(line - v) < 1e-6);
@@ -86,7 +99,7 @@ export class SnapTargets {
       lo = Math.max(-1e6, lo); hi = Math.min(1e6, hi);
       guides.push(vertical ? { x0: v, y0: lo, x1: v, y1: hi } : { x0: lo, y0: v, x1: hi, y1: v });
     }
-    for (const horizontal of [true, false]) for (const { delta, gaps } of this.#spacings(box, horizontal)) {
+    for (const horizontal of spacing ? [true, false] : []) for (const { delta, gaps } of this.#spacings(box, horizontal)) {
       if (Math.abs(delta) >= 1e-6) continue;
       for (const [from, to, across] of gaps) {
         const g = horizontal ? { x0: from, y0: across, x1: to, y1: across, label: distanceLabel(to - from) } : { x0: across, y0: from, x1: across, y1: to, label: distanceLabel(to - from) };
@@ -94,6 +107,18 @@ export class SnapTargets {
       }
     }
     return guides.map(g => { const a = transformPoint(this.space, { x: g.x0, y: g.y0 }), b = transformPoint(this.space, { x: g.x1, y: g.y1 }); return { ...g, x0: a.x, y0: a.y, x1: b.x, y1: b.y }; });
+  }
+  snapPoint(point: Point, threshold: number): { point: Point; guides: Guide[] } {
+    const q = transformPoint(this.toSpace, point);
+    const nearest = (lines: Span[], value: number): number => {
+      let delta: number | undefined;
+      for (const [line] of lines) { const d = line - value; if (Math.abs(d) <= threshold && (delta === undefined || Math.abs(d) < Math.abs(delta))) delta = d; }
+      return value + (delta ?? 0);
+    };
+    const x = nearest(this.xs, q.x), y = nearest(this.ys, q.y);
+    // A point supplies one span per axis, so coincident generated guides are deduplicated.
+    const guides = this.#guides({ x, y, width: 0, height: 0 }, false).filter((g, i, all) => all.findIndex(other => JSON.stringify(other) === JSON.stringify(g)) === i);
+    return { point: transformPoint(this.space, { x, y }), guides };
   }
   snapMove(delta: Point, threshold: number): { correction: Point; guides: Guide[] } {
     if (!this.moving) return { correction: { x: 0, y: 0 }, guides: [] };

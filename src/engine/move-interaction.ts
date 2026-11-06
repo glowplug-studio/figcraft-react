@@ -1,3 +1,4 @@
+import { canvasAccent } from "./canvas-colours";
 import type { EditorEngine } from "./editor";
 import type { Document, NodeId } from "./document";
 import type { Point, Rectangle } from "./geometry";
@@ -24,7 +25,7 @@ export class MoveInteraction {
   #fail(error: unknown): void { this.cancel(); this.engine.cancelInteraction(); this.onError(error instanceof Error ? error.message : "Could not move selection"); }
   down(point: Point, modifiers: MoveModifiers): boolean {
     const { document, selection, editable, tool } = this.engine.getSnapshot();
-    if (!editable || tool !== "move") return false;
+    if (!editable || tool !== "move" && tool !== "scale") return false;
     try {
       const deep = modifiers.metaKey || modifiers.ctrlKey;
       const leaf = hitRectangle(document, point, true, [], 2 / this.engine.getView().zoom);
@@ -112,7 +113,7 @@ export class MoveInteraction {
   doubleClick(point: Point): void {
     this.cancel();
     const { document, selection, tool, editable } = this.engine.getSnapshot();
-    if (!editable || tool !== "move") return;
+    if (!editable || tool !== "move" && tool !== "scale") return;
     const leaf = hitRectangle(document, point, true, [], 2 / this.engine.getView().zoom);
     if (leaf) this.engine.execute("select.set", { ids: [enterTarget(document, leaf, selection)] });
   }
@@ -123,9 +124,9 @@ export class MoveInteraction {
   draw(context: CanvasRenderingContext2D): void {
     const view = this.engine.getView(), gesture = this.#gesture;
     drawGuides(context, this.#guides, view);
-    context.save(); context.strokeStyle = "#0d99ff"; context.lineWidth = 1;
+    context.save(); context.strokeStyle = canvasAccent(this.engine.getRenderDocument()); context.lineWidth = 1;
     if (this.#marquee) {
-      const b = this.#marquee, p = pageToScreen(view, b); context.fillStyle = "rgba(13,153,255,0.1)";
+      const b = this.#marquee, p = pageToScreen(view, b); context.fillStyle = `${canvasAccent(this.engine.getRenderDocument())}1a`;
       context.fillRect(p.x, p.y, b.width * view.zoom, b.height * view.zoom); context.strokeRect(p.x, p.y, b.width * view.zoom, b.height * view.zoom);
     }
     if (gesture?.kind === "move" && gesture.moved && gesture.drop && gesture.drop !== this.engine.getSnapshot().document.currentPage) {

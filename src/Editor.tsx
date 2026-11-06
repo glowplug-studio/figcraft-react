@@ -1,5 +1,6 @@
 import { ViewControls } from "./ViewControls";
 import { ArrangePanel } from "./ArrangePanel";
+import { ScalePanel } from "./ScalePanel";
 import { SizePanel } from "./SizePanel";
 import { RotationPanel } from "./RotationPanel";
 import { SmartSelectionPanel } from "./SmartSelectionPanel";
@@ -100,6 +101,7 @@ export function Editor({ identity, capabilities, engine: suppliedEngine, recover
     else if (!event.metaKey && !event.ctrlKey && !event.altKey) {
       if (event.key.toLowerCase() === "r") command = "tool.rectangle";
       if (event.key.toLowerCase() === "v") command = "tool.move";
+      if (event.key.toLowerCase() === "k") command = "tool.scale";
       if (event.shiftKey && event.key.toLowerCase() === "h") command = "object.flipH";
       if (event.shiftKey && event.key.toLowerCase() === "v") command = "object.flipV";
       if (event.key.toLowerCase() === "n") command = event.shiftKey ? "view.prevFrame" : "view.nextFrame";
@@ -195,6 +197,7 @@ export function Editor({ identity, capabilities, engine: suppliedEngine, recover
           <p id="canvas-instructions" className="figcraft-instructions">R: rectangle · Space/middle drag: pan · Z: zoom · Ctrl/⌘ wheel: zoom · Escape: cancel</p>
           <div className="figcraft-toolbar" role="toolbar" aria-label="Tools">
             <button disabled={!editable} aria-pressed={snapshot.tool === "move"} onClick={() => { dispatch("tool.move"); canvas.current?.focus(); }}>Move</button>
+            <button disabled={!editable} aria-pressed={snapshot.tool === "scale"} onClick={() => { dispatch("tool.scale"); canvas.current?.focus(); }}>Scale</button>
             <button disabled={!editable} aria-pressed={snapshot.tool === "rectangle"} onClick={() => { dispatch("tool.rectangle"); canvas.current?.focus(); }}>Rectangle</button>
           </div>
         </div>
@@ -231,6 +234,7 @@ export function Editor({ identity, capabilities, engine: suppliedEngine, recover
               <button type="submit">Apply geometry</button>
             </fieldset>
           </form>
+          <label><input type="checkbox" checked={selected.constrainProportions ?? false} disabled={!editable} onChange={event => dispatch("node.set", { props: { constrainProportions: event.currentTarget.checked } })} />Constrain proportions</label>
           {selected.kind === "frame" && <label><input type="checkbox" checked={selected.clip} disabled={!editable} onChange={event => dispatch("node.set", { id: selected.id, props: { clip: event.currentTarget.checked } })} />Clip content</label>}
           <form key={`${selected.id}:${selected.constraints?.horizontal}:${selected.constraints?.vertical}`} onSubmit={event => {
             event.preventDefault(); const data = new FormData(event.currentTarget);
@@ -245,7 +249,7 @@ export function Editor({ identity, capabilities, engine: suppliedEngine, recover
           </fieldset></form></section>}
           <ArrangePanel document={snapshot.document} selection={snapshot.selection} editable={editable && !busy} dispatch={dispatch} />
           <SmartSelectionPanel engine={engine} enabled={editable && !busy} dispatch={dispatch} onError={setError} />
-          <SizePanel enabled={editable && !busy && snapshot.selection.length > 0} dispatch={dispatch} />
+          {snapshot.tool === "scale" ? <ScalePanel engine={engine} enabled={editable && !busy} dispatch={dispatch} onError={setError} /> : <SizePanel enabled={editable && !busy && snapshot.selection.length > 0} dispatch={dispatch} />}
           <RotationPanel engine={engine} enabled={editable && !busy && snapshot.selection.length > 0} dispatch={dispatch} />
           <AppearancePanel page={page} selected={selected && selected.kind !== "page" ? selected : undefined} editable={editable && !busy} dispatch={dispatch} />
         </aside>

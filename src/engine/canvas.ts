@@ -1,3 +1,4 @@
+import { canvasAccent } from "./canvas-colours";
 import { pageOf, pageColour, rectanglePaints, rectangleTransform, type Document, type LayerNode } from "./document";
 import { renderColour } from "./colour";
 import { EditorEngine } from "./editor";
@@ -7,6 +8,7 @@ import { worldTransform } from "./hierarchy";
 import { pageToScreen, screenToPage, scrollView, viewOrigin, zoomAt, type Viewport } from "./viewport";
 import { SmartHandles } from "./smart-handles";
 import { MoveInteraction } from "./move-interaction";
+import { TransformInteraction } from "./transform-interaction";
 
 const compositeSurfaces = new WeakMap<CanvasRenderingContext2D, HTMLCanvasElement>();
 // Immutable document snapshots invalidate these derived bounds after any edit.
@@ -126,7 +128,7 @@ export function renderDocument(context: CanvasRenderingContext2D, document: Docu
     }
     drawLayer(context, document, node);
   }
-  context.strokeStyle = "#0d99ff";
+  context.strokeStyle = canvasAccent(document);
   context.lineWidth = 1 / zoom;
   for (const id of selection) {
     const node = document.nodes[id];
@@ -165,6 +167,7 @@ export class CanvasController {
   #unsubscribeCanvas: () => void;
   #smart: SmartHandles;
   #moving: MoveInteraction;
+  #transforming: TransformInteraction;
   #dragOrigin = false;
   #space = false;
   #zoomHeld = false;
@@ -178,6 +181,7 @@ export class CanvasController {
   constructor(private canvas: HTMLCanvasElement, private engine: EditorEngine, private onError: (message: string) => void) {
     this.#smart = new SmartHandles(engine, onError);
     this.#moving = new MoveInteraction(engine, onError);
+    this.#transforming = new TransformInteraction(engine, onError);
     const options = { signal: this.#abort.signal };
     canvas.addEventListener("pointerdown", this.#down, options);
     canvas.addEventListener("pointermove", this.#move, options);
@@ -226,6 +230,9 @@ export class CanvasController {
     if (this.#smart.down(this.#screenPoint(event), event)) {
       event.preventDefault(); this.#pointer = event.pointerId; this.canvas.setPointerCapture(event.pointerId); this.invalidate(); return;
     }
+    if (this.#transforming.down(this.#point(event))) {
+      event.preventDefault(); this.#pointer = event.pointerId; this.canvas.setPointerCapture(event.pointerId); this.invalidate(); return;
+    }
     if (this.engine.getSnapshot().tool !== "rectangle") {
       if (this.#moving.down(this.#point(event), event)) {
         event.preventDefault(); this.#pointer = event.pointerId; this.canvas.setPointerCapture(event.pointerId); this.invalidate();
@@ -240,8 +247,12 @@ export class CanvasController {
   };
   #move = (event: PointerEvent): void => {
     if (this.#pointer === null) {
-      this.canvas.style.cursor = this.#onOrigin(this.#point(event)) ? "move" : this.#smart.hover(this.#screenPoint(event), event);
+      this.canvas.style.cursor = this.#onOrigin(this.#point(event)) ? "move" : this.#transforming.hover(this.#point(event)) ?? this.#smart.hover(this.#screenPoint(event), event);
       this.invalidate();
+    }
+    if (event.pointerId === this.#pointer && this.#transforming.active) {
+      const started = performance.now(); this.#transforming.move(this.#point(event), event); this.invalidate();
+      performance.measure("figcraft:pointer", { start: started, end: performance.now() }); return;
     }
     if (event.pointerId === this.#pointer && this.#moving.active) {
       const started = performance.now(); this.#moving.move(this.#point(event), event);
@@ -276,6 +287,7 @@ export class CanvasController {
     performance.measure("figcraft:pointer", { start: started, end: performance.now() });
   };
   #up = (event: PointerEvent): void => {
+    if (event.pointerId === this.#pointer && this.#transforming.active) { this.#transforming.up(); this.cancel(); return; }
     if (event.pointerId === this.#pointer && this.#moving.active) { this.#moving.up(this.#point(event), event); this.cancel(); return; }
     if (event.pointerId === this.#pointer && this.#smart.active) {
       this.#smart.up(this.#screenPoint(event), event, this.#width, this.#height); this.cancel(); return;
@@ -339,6 +351,7 @@ export class CanvasController {
     if (event.key.toLowerCase() === "z") this.#zoomHeld = false;
   };
   cancel(): void {
+    this.#transforming.cancel();
     this.#moving.cancel();
     this.#smart.cancel();
     const pointer = this.#pointer;
@@ -374,22 +387,23 @@ export class CanvasController {
       const snapshot = this.engine.getSnapshot();
       const view = this.engine.getView(), origin = viewOrigin(view);
       renderDocument(context, this.engine.getRenderDocument(), this.#width, this.#height, this.engine.getRenderSelection(), this.#preview, view);
-      if (!this.#moving.active) this.#smart.draw(context);
+      if (!this.#moving.active && !this.#transforming.active) this.#smart.draw(context);
+      if (!this.#moving.active && !this.#smart.active) this.#transforming.draw(context);
       this.#moving.draw(context);
       const rotationOrigin = this.engine.getRotationOrigin();
       if (rotationOrigin.editing && rotationOrigin.point) {
         const point = pageToScreen(view, rotationOrigin.point);
-        context.strokeStyle = "#0d99ff"; context.fillStyle = "#ffffff"; context.lineWidth = 1.5;
+        context.strokeStyle = canvasAccent(this.engine.getRenderDocument()); context.fillStyle = "#ffffff"; context.lineWidth = 1.5;
         context.beginPath(); context.arc(point.x, point.y, 5, 0, Math.PI * 2); context.fill(); context.stroke();
         context.beginPath();
         for (const [x, y] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
           context.moveTo(point.x + x * 5, point.y + y * 5); context.lineTo(point.x + x * 10, point.y + y * 10);
         }
-        context.stroke(); context.fillStyle = "#0d99ff";
+        context.stroke(); context.fillStyle = canvasAccent(this.engine.getRenderDocument());
         context.beginPath(); context.arc(point.x, point.y, 1.5, 0, Math.PI * 2); context.fill();
       }
       if (this.#zoomArea) {
-        context.strokeStyle = "#0d99ff"; context.lineWidth = 1;
+        context.strokeStyle = canvasAccent(this.engine.getRenderDocument()); context.lineWidth = 1;
         context.strokeRect(this.#zoomArea.x, this.#zoomArea.y, this.#zoomArea.width, this.#zoomArea.height);
       }
       this.canvas.dataset.viewOriginX = String(origin.x); this.canvas.dataset.viewOriginY = String(origin.y); this.canvas.dataset.viewZoom = String(view.zoom);

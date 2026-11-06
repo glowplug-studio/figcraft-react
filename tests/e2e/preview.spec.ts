@@ -458,8 +458,8 @@ test("rotation edits preserve centre, pixels, undo and native recovery with poin
     const context = node.getContext("2d")!;
     const edge = context.getImageData(125, 120, 1, 1).data;
     const inside = context.getImageData(126, 120, 1, 1).data;
-    return { blueEdge: edge[2] - edge[0] > 80, halfPixelCoverage: edge[0] > 60 && edge[0] < 180, unexpandedInterior: Array.from(inside) };
-  })).toEqual({ blueEdge: true, halfPixelCoverage: true, unexpandedInterior: [217, 217, 217, 255] });
+    return { greenEdge: edge[1] - edge[0] > 60, halfPixelCoverage: edge[0] > 60 && edge[0] < 180, unexpandedInterior: Array.from(inside) };
+  })).toEqual({ greenEdge: true, halfPixelCoverage: true, unexpandedInterior: [217, 217, 217, 255] });
   await page.getByRole("button", { name: "Undo", exact: true }).click();
   await geometry(page, [100, 100, 100, 50]);
   await page.getByRole("button", { name: "Redo", exact: true }).click();
@@ -1146,4 +1146,71 @@ test("Alt-drag snaps equal gaps to its source and draws native measurement guide
   await page.mouse.up(); await page.keyboard.up("Alt");
   await expect(page.getByLabel("Edit X", { exact: true })).toHaveValue("600"); await expect(page.getByLabel("Edit Y", { exact: true })).toHaveValue("200");
   await canvas.focus(); await page.keyboard.press("ControlOrMeta+d"); await expect(page.getByLabel("Edit X", { exact: true })).toHaveValue("800");
+});
+
+test("transform handles resize, flip and cancel without root frame updates", async ({ page }) => {
+  await login(page); await createNamedRectangle(page, "Resize me", 200, 200, 100, 50);
+  const canvas = page.getByLabel("Design canvas", { exact: true }), root = page.locator("[data-figcraft-editor]");
+  await expect(page.locator(".figcraft-recovery")).toHaveText("Recovery saved on this device");
+  const from = await canvasPoint(page, 300, 250), to = await canvasPoint(page, 350, 280);
+  await page.mouse.move(from.x, from.y); await expect(canvas).toHaveCSS("cursor", "nwse-resize"); await page.mouse.down();
+  const commits = await root.getAttribute("data-commits"); await page.mouse.move(to.x, to.y, { steps: 12 }); await expect(root).toHaveAttribute("data-commits", commits!);
+  await expect(page.getByLabel("Edit Width", { exact: true })).toHaveValue("100");
+  await page.keyboard.press("Escape"); await page.mouse.up(); await expect(page.getByLabel("Edit Width", { exact: true })).toHaveValue("100");
+  await page.mouse.move(from.x, from.y); await page.mouse.down(); await page.mouse.move(to.x, to.y, { steps: 5 }); await page.mouse.up();
+  await geometry(page, [200, 200, 150, 80]);
+  await page.screenshot({ path: "test-results/resize-handles-desktop.png", fullPage: true });
+  await page.getByRole("button", { name: "Undo", exact: true }).click(); await geometry(page, [200, 200, 100, 50]);
+  const right = await canvasPoint(page, 300, 225), left = await canvasPoint(page, 160, 225);
+  await page.keyboard.down("ControlOrMeta"); await page.mouse.move(right.x, right.y); await page.mouse.down(); await page.mouse.move(left.x, left.y, { steps: 8 }); await page.mouse.up(); await page.keyboard.up("ControlOrMeta");
+  await expect(page.getByLabel("Edit Width", { exact: true })).toHaveValue("40");
+  const download = page.waitForEvent("download"); await page.getByRole("button", { name: "Save as", exact: true }).click(); const file = await download;
+  const decoded = await decodeFigcraft(new Uint8Array(await readFile((await file.path())!))); const node = Object.values(decoded.document.nodes).find(n => n.name === "Resize me")!;
+  expect(node.kind !== "page" && node.transform?.[0]).toBe(-1);
+  await page.reload(); await expect(page.getByText("1 layer", { exact: true })).toBeVisible();
+});
+
+test("rotation handles respect Shift steps and proportion locks survive recovery", async ({ page }) => {
+  await login(page); await createNamedRectangle(page, "Turn me", 200, 200, 100, 100);
+  const from = await canvasPoint(page, 310, 190), angle = -Math.PI / 4 + 37 * Math.PI / 180, to = await canvasPoint(page, 250 + Math.cos(angle) * 80, 250 + Math.sin(angle) * 80);
+  await page.keyboard.down("Shift"); await page.mouse.move(from.x, from.y); await page.mouse.down(); await page.mouse.move(to.x, to.y, { steps: 8 }); await page.mouse.up(); await page.keyboard.up("Shift");
+  await expect.poll(async () => Number(await page.getByLabel("Rotation", { exact: true }).inputValue())).toBeCloseTo(-30, 6);
+  await page.getByRole("button", { name: "Undo", exact: true }).click(); await page.getByLabel("Constrain proportions", { exact: true }).check();
+  const corner = await canvasPoint(page, 300, 300), end = await canvasPoint(page, 350, 320);
+  await page.mouse.move(corner.x, corner.y); await page.mouse.down(); await page.mouse.move(end.x, end.y, { steps: 8 }); await page.mouse.up(); await geometry(page, [200, 200, 150, 150]);
+  await page.getByLabel("Edit Width", { exact: true }).fill("200"); await page.getByRole("button", { name: "Apply geometry", exact: true }).click(); await geometry(page, [200, 200, 200, 200]);
+  await expect(page.locator(".figcraft-recovery")).toHaveText("Recovery saved on this device"); await page.reload(); await page.getByRole("button", { name: "Turn me", exact: true }).click();
+  await expect(page.getByLabel("Constrain proportions", { exact: true })).toBeChecked(); await geometry(page, [200, 200, 200, 200]);
+});
+
+test("Scale tool keyboard, anchors, dimension scrubs and mobile controls preserve one-step undo", async ({ page }) => {
+  await login(page); await createNamedRectangle(page, "Scale me", 200, 200, 100, 50);
+  const canvas = page.getByLabel("Design canvas", { exact: true }); await canvas.focus(); await page.keyboard.press("k"); await expect(page.getByRole("button", { name: "Scale", exact: true })).toHaveAttribute("aria-pressed", "true");
+  const from = await canvasPoint(page, 300, 250), to = await canvasPoint(page, 400, 300);
+  await page.mouse.move(from.x, from.y); await page.mouse.down(); await page.mouse.move(to.x, to.y, { steps: 8 });
+  await page.screenshot({ path: "test-results/scale-tool-preview-desktop.png", fullPage: true }); await page.mouse.up(); await geometry(page, [200, 200, 200, 100]);
+  await page.getByRole("button", { name: "Undo", exact: true }).click(); await geometry(page, [200, 200, 100, 50]);
+  await page.getByRole("button", { name: "Centre scale anchor", exact: true }).click();
+  await page.getByLabel("Tool scale factor", { exact: true }).fill("2"); await page.getByRole("button", { name: "Apply scale factor", exact: true }).click(); await geometry(page, [150, 175, 200, 100]);
+  const scrub = page.getByRole("button", { name: "Scrub scale width", exact: true }); await scrub.scrollIntoViewIfNeeded(); const rect = (await scrub.boundingBox())!;
+  await page.mouse.move(rect.x + 5, rect.y + 5); await page.mouse.down(); await page.mouse.move(rect.x + 45, rect.y + 5, { steps: 8 }); await page.mouse.up(); await geometry(page, [130, 165, 240, 120]);
+  await page.getByRole("button", { name: "Undo", exact: true }).click(); await geometry(page, [150, 175, 200, 100]);
+  await page.setViewportSize({ width: 390, height: 844 }); await page.getByLabel("Scale width", { exact: true }).fill("100"); await page.getByRole("button", { name: "Set scale width", exact: true }).click(); await geometry(page, [200, 200, 100, 50]);
+  await expect(page.locator(".figcraft-recovery")).toHaveText("Recovery saved on this device"); await page.reload(); await page.locator(".figcraft-mobile-layers > summary").click(); await page.locator(".figcraft-mobile-layers").getByRole("button", { name: "Scale me", exact: true }).click(); await geometry(page, [200, 200, 100, 50]);
+});
+
+test("Frame handles distinguish constraints, primary preservation and uniform subtree scaling", async ({ page }) => {
+  await login(page); const creation = page.getByRole("group", { name: "Create layer", exact: true });
+  for (const [label, value] of [["X", "200"], ["Y", "200"], ["Width", "200"], ["Height", "100"]]) await creation.getByLabel(label, { exact: true }).fill(value);
+  await creation.getByRole("button", { name: "Create frame", exact: true }).click(); await creation.getByLabel("Create in", { exact: true }).selectOption({ label: "Frame 1" });
+  await createNamedRectangle(page, "Pinned child", 150, 60, 40, 30); await page.getByLabel("Horizontal constraint").selectOption("right"); await page.getByLabel("Vertical constraint").selectOption("bottom"); await page.getByRole("button", { name: "Apply constraints", exact: true }).click();
+  const layers = page.getByRole("region", { name: "Layers" });
+  const selectFrame = () => layers.getByRole("button", { name: "Frame 1", exact: true }).click();
+  const drag = async (x: number, y: number, dx: number, dy: number) => { const a = await canvasPoint(page, x, y), b = await canvasPoint(page, dx, dy); await page.mouse.move(a.x, a.y); await page.mouse.down(); await page.mouse.move(b.x, b.y, { steps: 8 }); await page.mouse.up(); };
+  await selectFrame(); await drag(400, 300, 500, 350); await layers.getByRole("button", { name: "Pinned child", exact: true }).click(); await geometry(page, [250, 110, 40, 30]);
+  await page.getByRole("button", { name: "Undo", exact: true }).click(); await selectFrame();
+  await page.keyboard.down("ControlOrMeta"); await drag(200, 250, 150, 250); await page.keyboard.up("ControlOrMeta");
+  await layers.getByRole("button", { name: "Pinned child", exact: true }).click(); await geometry(page, [200, 60, 40, 30]); await expectCanvasPixel(page, 360, 270, [217, 217, 217, 255]);
+  await page.getByRole("button", { name: "Undo", exact: true }).click(); await selectFrame(); await page.getByRole("button", { name: "Scale", exact: true }).click();
+  await drag(400, 300, 500, 350); await layers.getByRole("button", { name: "Pinned child", exact: true }).click(); await geometry(page, [225, 90, 60, 45]);
 });

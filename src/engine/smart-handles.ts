@@ -1,3 +1,4 @@
+import { canvasAccent } from "./canvas-colours";
 import type { EditorEngine } from "./editor";
 import type { Document, NodeId } from "./document";
 import { pixelRound, type Point, type Rectangle } from "./geometry";
@@ -132,7 +133,7 @@ export class SmartHandles {
     if (drag?.action.kind === "reorder" && drag.moved) {
       const target = drag.action.layout.slots.find(slot => slot.id === (drag.action as Extract<Action, { kind: "reorder" }>).target)!;
       const start = pageToScreen(view, { x: target.box.x, y: target.box.y });
-      context.strokeStyle = "#0d99ff"; context.lineWidth = 2; context.strokeRect(start.x - 3, start.y - 3, target.box.width * view.zoom + 6, target.box.height * view.zoom + 6);
+      context.strokeStyle = canvasAccent(this.engine.getRenderDocument()); context.lineWidth = 2; context.strokeRect(start.x - 3, start.y - 3, target.box.width * view.zoom + 6, target.box.height * view.zoom + 6);
     } else for (const axis of drag?.action.kind === "spacing" ? [drag.action.axis] : [layout.spacing.horizontal, layout.spacing.vertical]) if (axis) {
       for (const handle of gapHandles(document, axis, view)) {
         const hot = Boolean(drag || this.#hover && onGap(this.#hover, handle));

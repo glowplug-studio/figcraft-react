@@ -35,6 +35,7 @@ export interface LayerProperties {
   readonly opacity?: number;
   readonly blend?: "normal" | "passThrough";
   readonly constraints?: Constraints;
+  readonly constrainProportions?: boolean;
 }
 export interface RectangleNode extends LayerProperties { readonly kind: "rectangle" }
 export interface GroupNode extends LayerProperties {

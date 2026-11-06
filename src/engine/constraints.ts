@@ -13,7 +13,7 @@ export function readConstraints(value: unknown, previous: Constraints = defaultC
 }
 
 /** Native layout axis factors retain a child's own rotation and reflection. */
-function axisFactors(matrix: Affine, kx: number, ky: number): readonly [number, number] {
+export function axisFactors(matrix: Affine, kx: number, ky: number): readonly [number, number] {
   const along = (x: number, y: number, fallback: number) => {
     const length = Math.hypot(x, y), factor = Math.hypot(kx * x, ky * y) / length;
     return length > 1e-12 && Number.isFinite(factor) ? factor : fallback;

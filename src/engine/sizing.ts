@@ -28,6 +28,19 @@ function resize(draft: HierarchyDraft, id: NodeId, width: number, height: number
   draft.set(withLayerTransform(updated, multiply([1, 0, 0, 1, before.x - after.x, before.y - after.y], layerTransform(updated))));
 }
 
+/** Uniformly scale supported subtree dimensions and child translations, ignoring constraints. */
+export function scaleSubtree(draft: HierarchyDraft, root: NodeId, factor: number): void {
+  for (const id of subtreeIds(draft.document, root)) {
+    const node = draft.nodes[id];
+    if (node.kind === "page") throw new Error("Cannot scale a page");
+    const original = layerTransform(node);
+    const matrix: Affine = id === root ? original : [original[0], original[1], original[2], original[3], original[4] * factor, original[5] * factor];
+    const width = node.width * factor, height = node.height * factor;
+    transformBounds(matrix, width, height);
+    draft.set({ ...withLayerTransform(node, matrix), width, height });
+  }
+}
+
 export function executeSizing(command: string, document: Document, selection: readonly NodeId[], params: Record<string, unknown>): Document {
   if (!Object.hasOwn(sizingSpecs, command)) throw new Error(`Unsupported sizing command: ${command}`);
   const allowed = ["id", "ids", ...(command === "transform.resize" ? ["width", "height", "anchor"] : command === "transform.scale" ? ["factor", "cx", "cy"] : ["dw", "dh", "big"])];
@@ -55,15 +68,7 @@ export function executeSizing(command: string, document: Document, selection: re
     const cx = optionalNumber(params.cx) ?? combined.x, cy = optionalNumber(params.cy) ?? combined.y;
     for (const root of ids) {
       const before = boundsOf(draft.document, [root])!;
-      for (const id of subtreeIds(draft.document, root)) {
-        const node = draft.nodes[id];
-        if (node.kind === "page") throw new Error("Cannot scale a page");
-        const original = layerTransform(node);
-        const matrix: Affine = id === root ? original : [original[0], original[1], original[2], original[3], original[4] * factor, original[5] * factor];
-        const width = node.width * factor, height = node.height * factor;
-        transformBounds(matrix, width, height);
-        draft.set({ ...withLayerTransform(node, matrix), width, height });
-      }
+      scaleSubtree(draft, root, factor);
       const after = boundsOf(draft.document, [root])!;
       moveWorld(draft, root, cx + (before.x - cx) * factor - after.x, cy + (before.y - cy) * factor - after.y);
     }

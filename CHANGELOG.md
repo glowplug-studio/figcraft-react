@@ -2,6 +2,16 @@
 
 All notable changes to the React port and its upstream compatibility baseline are recorded here.
 
+## [0.16.0] - 2026-11-07
+
+The reference baseline remains `8eb0b87646c5aef712326d6c431ccde5408630de`; full parity remains in progress.
+
+- Added oriented pointer resize/rotation handles, snapping, crossed-side flips, child constraint preservation and single-gesture history.
+- Added Scale tool K, signed uniform subtree scaling, nine session anchors, factor/dimension controls and live dimension scrubs.
+- Corrected inherited canvas overlay colours to the source-evidenced light/dark contrasting greens.
+- Added constrain-proportions properties, linked numeric edits and native round trips; handle previews remain outside root React updates.
+- Other kinds, strokes/effects/text/image/layout scaling and complete UI/preferences remain required roadmap work.
+
 ## [0.15.0] - 2026-11-07
 
 The reference baseline remains `8eb0b87646c5aef712326d6c431ccde5408630de`; full parity remains in progress.

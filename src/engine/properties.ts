@@ -11,7 +11,7 @@ import { moveWorld } from "./arrange";
 import type { Point } from "./geometry";
 
 const geometryKeys = new Set(["x", "y", "width", "height", "w", "h", "rotation"]);
-const appearanceKeys = new Set(["name", "visible", "locked", "opacity", "fill", "fills", "clip", "constraints"]);
+const appearanceKeys = new Set(["name", "visible", "locked", "opacity", "fill", "fills", "clip", "constraints", "constrainProportions"]);
 
 function samePaints(left: readonly SolidPaint[], right: readonly SolidPaint[]): boolean {
   return left.length === right.length && left.every((paint, index) => {
@@ -55,7 +55,7 @@ export function setRectangleProperties(document: Document, selection: readonly N
     ? typeof props.name === "string" || typeof props.name === "number" && Number.isFinite(props.name)
       ? String(props.name) : (() => { throw new Error("name must be a string"); })()
     : undefined;
-  for (const key of ["visible", "locked", "clip"] as const) {
+  for (const key of ["visible", "locked", "clip", "constrainProportions"] as const) {
     if (key in props && typeof props[key] !== "boolean") throw new Error(`${key} must be a boolean`);
   }
   const opacity = "opacity" in props ? (() => {
@@ -91,6 +91,11 @@ export function setRectangleProperties(document: Document, selection: readonly N
       const oldWidth = width, oldHeight = height;
       if (key === "width" || key === "w") width = Math.max(0, values[key]);
       else height = Math.max(0, values[key]);
+      const isWidth = key === "width" || key === "w", linked = node.constrainProportions === true;
+      if (linked && oldWidth > 1e-9 && oldHeight > 1e-9 && (isWidth ? !("height" in props) && !("h" in props) : !("width" in props) && !("w" in props))) {
+        const derived = isWidth ? oldHeight * width / oldWidth : oldWidth * height / oldHeight;
+        if (Number.isFinite(derived)) { if (isWidth) height = derived; else width = derived; }
+      }
       if (node.kind !== "rectangle" && (width !== oldWidth || height !== oldHeight)) {
         draft.set({ ...node, width, height });
         resizeChildren(draft, id, oldWidth, oldHeight);
@@ -113,9 +118,10 @@ export function setRectangleProperties(document: Document, selection: readonly N
     if (name !== undefined && name !== node.name) updated = Object.freeze({ ...updated, name });
     if ("visible" in props && props.visible !== (node.visible ?? true)) updated = Object.freeze({ ...updated, visible: props.visible as boolean });
     if ("locked" in props && props.locked !== (node.locked ?? false)) updated = Object.freeze({ ...updated, locked: props.locked as boolean });
+    if ("constrainProportions" in props) updated = Object.freeze({ ...updated, constrainProportions: props.constrainProportions as boolean });
     if (opacity !== undefined && opacity !== (node.opacity ?? 1)) updated = Object.freeze({ ...updated, opacity });
     if (paints && !samePaints(rectanglePaints(node), paints)) updated = withRectanglePaints(updated, paints);
-    if (constraintsChanged || "clip" in props && node.kind === "frame" && props.clip !== node.clip || width !== node.width || height !== node.height || transform.some((value, index) => value !== rectangleTransform(node)[index])
+    if ("constrainProportions" in props && props.constrainProportions !== (node.constrainProportions ?? false) || constraintsChanged || "clip" in props && node.kind === "frame" && props.clip !== node.clip || width !== node.width || height !== node.height || transform.some((value, index) => value !== rectangleTransform(node)[index])
       || name !== undefined && name !== node.name || "visible" in props && props.visible !== (node.visible ?? true)
       || "locked" in props && props.locked !== (node.locked ?? false) || opacity !== undefined && opacity !== (node.opacity ?? 1)
       || paints && !samePaints(rectanglePaints(node), paints)) {

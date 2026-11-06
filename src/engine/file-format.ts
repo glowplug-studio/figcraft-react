@@ -120,7 +120,7 @@ function decodeDocument(raw: unknown): DecodedFigcraft {
     const n = object(value, `node ${key}`), kind = n.type;
     if (id(n.id, "node ID") !== key) fail(`node ${key} has a mismatched ID`);
     if (kind !== "page" && kind !== "group" && kind !== "frame" && kind !== "rectangle") fail(`node type ${String(kind)} is not supported yet`);
-    fields(n, ["id", "name", "type", "parent", "children", "transform", "width", "height", "fills", "blend", ...(kind === "page" ? ["background", "flows", "prototype"] : ["visible", "locked", "opacity", "constraints", ...(kind === "frame" ? ["clip"] : [])])], nodeDefaults, `node ${key}`);
+    fields(n, ["id", "name", "type", "parent", "children", "transform", "width", "height", "fills", "blend", ...(kind === "page" ? ["background", "flows", "prototype"] : ["visible", "locked", "opacity", "constraints", "constrain_proportions", ...(kind === "frame" ? ["clip"] : [])])], nodeDefaults, `node ${key}`);
     const name = text(n.name, "node name"), width = number(n.width, "width"), height = number(n.height, "height");
     if (width < 0 || height < 0) fail("negative dimensions are not supported yet");
     const transform = list(n.transform ?? [1, 0, 0, 1, 0, 0], "transform").map((entry) => number(entry, "transform"));
@@ -146,6 +146,7 @@ function decodeDocument(raw: unknown): DecodedFigcraft {
       if (kind === "rectangle" && children.length) fail("rectangle children are not supported yet");
       if (n.blend !== undefined && n.blend !== "normal" && n.blend !== "passThrough") fail(`${kind} blend is not supported yet`);
       if (n.visible !== undefined && typeof n.visible !== "boolean" || n.locked !== undefined && typeof n.locked !== "boolean") fail("node visibility/lock must be boolean");
+      if (n.constrain_proportions !== undefined && typeof n.constrain_proportions !== "boolean") fail("constrain_proportions must be boolean");
       const opacity = Math.fround(number(n.opacity ?? 1, "node opacity"));
       if (!Number.isFinite(opacity)) fail("node opacity is outside the native finite range");
       const paints = (() => {
@@ -155,7 +156,7 @@ function decodeDocument(raw: unknown): DecodedFigcraft {
       const constraints = readConstraints(n.constraints === undefined ? {} : n.constraints);
       if (kind === "frame" && n.clip !== undefined && typeof n.clip !== "boolean") fail("frame clip must be boolean");
       const layer = { id: key, kind, name, parent: id(n.parent, `${kind} parent`), x: transform[4]!, y: transform[5]!, width, height, fill: "transparent", ...(constraints.horizontal !== "left" || constraints.vertical !== "top" ? { constraints } : {}),
-        ...(n.visible === false ? { visible: false } : {}), ...(n.locked === true ? { locked: true } : {}), ...(opacity !== 1 ? { opacity } : {}),
+        ...(n.constrain_proportions === true ? { constrainProportions: true } : {}), ...(n.visible === false ? { visible: false } : {}), ...(n.locked === true ? { locked: true } : {}), ...(opacity !== 1 ? { opacity } : {}),
         ...(n.blend !== undefined && n.blend !== (kind !== "rectangle" ? "passThrough" : "normal") ? { blend: n.blend as "normal" | "passThrough" } : {}) };
       nodes[key] = kind !== "rectangle"
         ? Object.freeze({ ...withRectanglePaints(withLayerTransform({ ...layer, ...(kind === "frame" ? { kind: "frame" as const, clip: n.clip === true } : { kind: "group" as const }), children: Object.freeze(children), blend: (n.blend ?? "passThrough") as "normal" | "passThrough" }, matrix), paints), fills: paints })
@@ -257,7 +258,7 @@ export async function encodeFigcraft(document: Document, nextId?: string): Promi
       nodes[key] = { ...common, width: 0, height: 0, children: node.children.map(wireId), background: pageColour(node) };
     } else {
       nodes[key] = { ...common, parent: wireId(node.parent), ...(node.kind !== "rectangle" ? { children: node.children.map(wireId) } : {}), transform: layerTransform(node), width: node.width, height: node.height,
-        ...(node.constraints ? { constraints: node.constraints } : {}), ...(node.kind === "frame" ? { clip: node.clip } : {}), blend: node.blend ?? (node.kind !== "rectangle" ? "passThrough" : "normal"), visible: node.visible ?? true, locked: node.locked ?? false, opacity: node.opacity ?? 1, fills: rectanglePaints(node) };
+        ...(node.constraints ? { constraints: node.constraints } : {}), ...(node.constrainProportions ? { constrain_proportions: true } : {}), ...(node.kind === "frame" ? { clip: node.clip } : {}), blend: node.blend ?? (node.kind !== "rectangle" ? "passThrough" : "normal"), visible: node.visible ?? true, locked: node.locked ?? false, opacity: node.opacity ?? 1, fills: rectanglePaints(node) };
     }
   }
   const minimum = maximum < U64_MAX ? maximum + 1n : U64_MAX;

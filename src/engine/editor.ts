@@ -10,12 +10,14 @@ import { defaultViewport, executeView, fitPage, viewSpecs, type Viewport } from 
 import { framePresets, presetParameters } from "./frame-presets";
 import { parseBoolean, parseNodeId, parseNumber } from "./parameters";
 import { arrangeSpecs, executeArrange } from "./arrange";
-import { sizingSpecs, executeSizing } from "./sizing";
+import { anchors, sizingSpecs, executeSizing } from "./sizing";
 import { executeRotation, localOrigin, movedOrigin, originBoxPoints, originSpecs, rotationSpecs, sameIds, snappedOrigin, validateChangedGeometry, type OriginSnapshot, type RotationOrigin } from "./rotation";
 import type { Point } from "./geometry";
 import { executeSmartSelection, smartSpecs } from "./smart-selection";
 import { duplicateSelection, executeDuplicate, type Duplicated } from "./duplicate";
 import { ancestorIds } from "./canvas-selection";
+import { previewResize, type ResizeStart } from "./transform-preview";
+import type { ScaleAnchor } from "./transform-handles";
 
 export const commandSpecs = Object.freeze({
   ...arrangeSpecs,
@@ -34,6 +36,8 @@ export const commandSpecs = Object.freeze({
   "node.create": { label: "Create layer", undo: true },
   "tool.rectangle": { label: "Rectangle", undo: false },
   "tool.move": { label: "Move", undo: false },
+  "tool.scale": { label: "Scale", undo: false },
+  "tool.scaleAnchor": { label: "Scale anchor", undo: false },
   "edit.undo": { label: "Undo", undo: false },
   "edit.redo": { label: "Redo", undo: false },
   "edit.duplicate": { label: "Duplicate", undo: true },
@@ -46,7 +50,8 @@ export type CommandId = keyof typeof commandSpecs;
 export interface EditorSnapshot {
   readonly document: Document;
   readonly selection: readonly NodeId[];
-  readonly tool: "move" | "rectangle";
+  readonly tool: "move" | "rectangle" | "scale";
+  readonly scaleAnchor: ScaleAnchor;
   readonly canUndo: boolean;
   readonly canRedo: boolean;
   readonly editable: boolean;
@@ -92,7 +97,7 @@ export class EditorEngine {
   #pendingSaves = new Map<number, Document>();
   #openSequence = 0;
   constructor() {
-    this.#snapshot = Object.freeze({ document: newDocument(), selection: Object.freeze([]), tool: "move", canUndo: false, canRedo: false, editable: true, dirty: true, hasSaved: false });
+    this.#snapshot = Object.freeze({ document: newDocument(), selection: Object.freeze([]), tool: "move", scaleAnchor: "tl", canUndo: false, canRedo: false, editable: true, dirty: true, hasSaved: false });
   }
   getSnapshot = (): EditorSnapshot => this.#snapshot;
   getRenderDocument = (): Document => this.#interaction?.document ?? this.#snapshot.document;
@@ -128,6 +133,19 @@ export class EditorEngine {
     document = executeArrange("transform.move", document, selection, { ids: duplicated?.copies ?? ids, dx: delta.x, dy: delta.y });
     interaction.document = document; interaction.selection = selection; interaction.nextId = nextId; interaction.duplicated = duplicated;
     this.#notifyCanvas();
+  }
+  previewResize(start: ResizeStart, point: Point, keep: boolean, centre: boolean, keepChildren: boolean, scale?: ScaleAnchor): ReturnType<typeof previewResize>["hint"] {
+    const interaction = this.#interaction; if (!interaction) throw new Error("No active interaction");
+    const next = previewResize(interaction.base.document, start, point, keep, centre, keepChildren, scale);
+    interaction.document = next.document; this.#notifyCanvas(); return next.hint;
+  }
+  previewRotate(ids: readonly NodeId[], degrees: number, pivot: Point): void {
+    const interaction = this.#interaction; if (!interaction) throw new Error("No active interaction");
+    interaction.document = executeRotation("transform.rotate", interaction.base.document, ids, { ids, degrees, cx: pivot.x, cy: pivot.y }); this.#notifyCanvas();
+  }
+  previewScale(factor: number, pivot: Point): void {
+    const interaction = this.#interaction; if (!interaction) throw new Error("No active interaction");
+    interaction.document = executeSizing("transform.scale", interaction.base.document, interaction.base.selection, { factor, cx: pivot.x, cy: pivot.y }); this.#notifyCanvas();
   }
   finishMove(ids: readonly NodeId[], target: NodeId): void {
     const interaction = this.#interaction;
@@ -226,6 +244,15 @@ export class EditorEngine {
     const p = parameters(input);
     const gesture = Object.hasOwn(smartSpecs, command) && command !== "arrange.roundToPixels" && parseBoolean(p.fromGesture) === true;
     if (!gesture && this.cancelInteraction() && command === "edit.undo") return { undone: true };
+    if (command === "tool.scaleAnchor") {
+      for (const key of Object.keys(p)) if (key !== "anchor") throw new Error(`Unsupported scale anchor parameter: ${key}`);
+      if (p.anchor !== undefined) {
+        const anchor = typeof p.anchor === "string" ? p.anchor.trim().toLowerCase() : "";
+        if (!anchors.includes(anchor as ScaleAnchor)) throw new Error("Unknown scale anchor");
+        this.#publish({ scaleAnchor: anchor as ScaleAnchor });
+      }
+      return { anchor: this.#snapshot.scaleAnchor };
+    }
     if (command === "frame.presets") return framePresets;
     if (command === "edit.duplicate") {
       const before = this.#snapshot;
@@ -328,8 +355,8 @@ export class EditorEngine {
     if (command.startsWith("file.")) throw new Error(`${command} requires executeAsync`);
     if (command === "shape.rectangle" || command === "frame.create" || command === "node.create") return this.#rectangle(command, p);
     if (Object.keys(p).length) throw new Error(`${command} takes no parameters`);
-    if (command === "tool.rectangle" || command === "tool.move") {
-      this.#publish({ tool: command === "tool.rectangle" ? "rectangle" : "move" });
+    if (command === "tool.rectangle" || command === "tool.move" || command === "tool.scale") {
+      this.#publish({ tool: command === "tool.rectangle" ? "rectangle" : command === "tool.scale" ? "scale" : "move" });
       return {};
     }
     const undo = command === "edit.undo";
