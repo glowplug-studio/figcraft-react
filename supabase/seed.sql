@@ -1,0 +1,1 @@
+-- Foundation setup has no application data to seed.

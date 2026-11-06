@@ -1,0 +1,64 @@
+{
+  "name": "@glowplug-studio/figcraft-react",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "examples/nextjs"
+  ],
+  "files": [
+    "dist"
+  ],
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./backends/supabase": {
+      "types": "./dist/backends/supabase/index.d.ts",
+      "import": "./dist/backends/supabase/index.js"
+    },
+    "./backends/memory": {
+      "types": "./dist/backends/memory/index.d.ts",
+      "import": "./dist/backends/memory/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -b --force && vite build",
+    "playwright:install": "playwright install chromium",
+    "preview:build": "npm run build && npm run build --workspace @glowplug-studio/figcraft-react-preview",
+    "preview:dev": "npm run build && npm run dev --workspace @glowplug-studio/figcraft-react-preview",
+    "preview:test": "npm run build && npm run dev --workspace @glowplug-studio/figcraft-react-preview -- --hostname 127.0.0.1 --port 3100",
+    "typecheck": "tsc -b --force --pretty false && npm run typecheck --workspace @glowplug-studio/figcraft-react-preview",
+    "test": "vitest run",
+    "test:e2e": "playwright test",
+    "upstream:check": "bash scripts/sync-upstream.sh --check",
+    "upstream:sync": "bash scripts/sync-upstream.sh --push"
+  },
+  "peerDependencies": {
+    "@supabase/supabase-js": ">=2.119.0 <3",
+    "react": ">=18.2.0 <20",
+    "react-dom": ">=18.2.0 <20"
+  },
+  "peerDependenciesMeta": {
+    "@supabase/supabase-js": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@playwright/test": "1.65.0",
+    "@supabase/supabase-js": "2.119.0",
+    "@types/node": "26.6.6",
+    "@types/react": "19.2.2",
+    "@types/react-dom": "19.2.2",
+    "@vitejs/plugin-react": "6.2.1",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
+    "typescript": "7.0.2",
+    "vite": "8.3.6",
+    "vitest": "5.1.0"
+  }
+}

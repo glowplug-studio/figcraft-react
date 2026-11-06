@@ -1,0 +1,31 @@
+:root {
+  color-scheme: light dark;
+  font-family: system-ui, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+}
+
+main {
+  display: grid;
+  gap: 2rem;
+  min-height: 100vh;
+  padding: 3rem;
+}
+
+header p,
+header h1,
+.figcraft-preview p {
+  margin: 0;
+}
+
+.figcraft-preview {
+  min-height: 60vh;
+  border: 1px solid currentColor;
+  padding: 2rem;
+}

@@ -1,0 +1,3 @@
+[submodule "original/figcraft"]
+	path = original/figcraft
+	url = git@github.com:glowplug-studio/figcraft.git

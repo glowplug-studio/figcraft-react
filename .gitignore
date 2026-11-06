@@ -1,0 +1,32 @@
+# Dependencies and build output
+node_modules/
+dist/
+coverage/
+playwright-report/
+test-results/
+.vite/
+.next/
+.vercel/
+*.tsbuildinfo
+
+# Local environment and credentials
+.env
+.env.*
+!.env.local.example
+
+# Supabase local state
+supabase/.branches/
+supabase/.temp/
+
+# Editors and operating systems
+.DS_Store
+.idea/
+.vscode/*
+!.vscode/extensions.json
+*.swp
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*

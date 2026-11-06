@@ -1,0 +1,22 @@
+{
+  "name": "@glowplug-studio/figcraft-react-preview",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "build": "next build",
+    "dev": "next dev",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@glowplug-studio/figcraft-react": "file:../..",
+    "next": "16.4.5",
+    "react": "19.3.1",
+    "react-dom": "19.3.1"
+  },
+  "devDependencies": {
+    "@types/node": "26.6.6",
+    "@types/react": "19.2.2",
+    "@types/react-dom": "19.2.2",
+    "typescript": "7.0.2"
+  }
+}
