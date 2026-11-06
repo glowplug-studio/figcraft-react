@@ -1,0 +1,17 @@
+# Affine rectangle geometry — 2026-11-06
+
+## Scope and baseline
+
+The branch `prompt/full-figcraft-port` adds a bounded rectangle workflow: native six-coefficient affine geometry; transformed canvas painting, outline and frontmost hit testing; geometry-only `node.set`; flat selection commands; inspector controls for X, Y, width, height and rotation; history; and native file/recovery round-trips. The reference tree is upstream `0b97f3f1801a9b7b96fd7a4f3c0942a3f1a676f3`. The affine implementation is commit `080fc2748cd63eb77d61b7c40d6bec88e4b59714`, following verified page commit `6c988a5`. Neither the upstream parity baseline nor the changelog claims full support for that upstream commit.
+
+The public `x`, `y` and byte-colour `fill` rectangle fields remain a compatibility bridge. Optional `[a,b,c,d,e,f]` coefficients preserve native transformed rectangles; plain translated rectangles remain valid. Geometry-only `node.set` accepts selected or explicit rectangle IDs, dimension aliases and finite numeric inputs. It applies dimensions, then centre-preserving rotation, then X/Y, with atomic rejection of unsupported properties or invalid geometry. Selection is ephemeral and does not dirty content or enter history. It covers `select.set/add/remove/all/none`, current-page layer actions, and inverse-transform pointer hits for flat rectangles.
+
+Canvas 2D substitutes for native rendering. Browser pointer input, local download/open and principal-scoped device recovery substitute for desktop input and local file storage. Native ZIP/JSON fixtures are inspection-derived; no test executes Rust. The browser codec remains limited to pages and opaque solid-colour rectangles, with 16 MiB and 10,000-node import limits. It rejects unsupported editable content rather than dropping it.
+
+## Verification and boundaries
+
+At the final checkpoint, 217 pure tests, two separately run local Auth integration tests, strict TypeScript and the package/Next production build passed. All 12 local production Playwright checks passed in 15.1 seconds, including rotation, pixels, undo/redo, recovery, pointer reselection and the transformed 10,000-rectangle fixture. A follow-up outline pixel assertion in test commit `2404d6b` passed a focused local production browser run (1/1, 4.6 seconds); the product source remains `080fc27`. Over 110 measured frames, the affine fixture had p95 5.7 ms and maximum 12.5 ms; the plain fixture had p95 and maximum 1 ms. Both sampled the expected pixel. These are local fixture measurements, not general performance guarantees. See the [property-level report](26-11-06-affine-rectangles-parity.html) for each check and its evidence.
+
+No Supabase schema, role, Realtime, hosted configuration or adapter change belongs to this slice. Existing identity gates and principal-scoped local recovery remain in use. The earlier [scoped Supabase MCP read](26-11-06-rectangle-slice.md) verified the project; no new MCP check was run for this unchanged boundary. No hosted verification, Vercel work, deployment or publication occurred in this slice.
+
+The shared typed node model, hierarchy, layout, complete `node.set` property set, paint and float-colour fidelity, native archive breadth, viewport fit, marquee/nested selection, locked/hidden handling and move/resize gestures remain unimplemented. This is not a whole-product parity claim. No user action is needed for this local slice; the branch has not been pushed, merged or deployed.
