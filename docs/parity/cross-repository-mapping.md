@@ -29,3 +29,7 @@ Add mappings only after inspecting behaviour, callers, data contracts and tests.
 ## Viewport and presets — 7 November 2026
 
 `view_state.rs::{origin,set_zoom_at,fit,scroll,page_to_screen,screen_to_page}` → `engine/viewport.ts`; `cmd/view.rs` zoom/navigation specs → `executeView` and separate EditorEngine view subscriptions; egui canvas input → captured CanvasController pan/wheel/Z input; `cmd/create.rs::FRAME_PRESETS` and free placement → `frame-presets.ts`. Source0b97f3f, Reactd0fae6c. Pure numeric fixtures plus authenticated Chromium verify supported behaviour; full state flags/preferences/direct touch/other kinds remain required. [Property evidence](../reports/26-11-07-viewport-parity.html).
+
+## Movement and arrangement — 7 November 2026
+
+`cmd/arrange::{move_world,align,distribute,pack,tidy,zorder}` and `cmd/edit/select::nudge` → `engine/arrange.ts` with immutable HierarchyDraft; native `req_targets` → strict arrangement target parsing; EditorEngine history and ArrangePanel dispatch preserve atomicity. Upstream0b97f3f, React783a694.331 pure/30 browser suite passes include source-derived outermost-edge and multi-parent cases. [Property evidence](../reports/26-11-07-arrangement-parity.html). Nudge local axes intentionally differ from page-space move. Auto-layout/preferences/other kinds remain incomplete.

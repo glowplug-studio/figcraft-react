@@ -448,56 +448,72 @@
       "label": "Align left",
       "source": "crates/engine/src/cmd/arrange.rs",
       "line": 14,
-      "status": "Not tested"
+      "status": "Partial",
+      "evidence": "../reports/26-11-07-arrangement-parity.html",
+      "limitation": "Verified supported layer model; complete nudge preferences/auto-layout and remaining node kinds still required."
     },
     {
       "command": "align.hcenter",
       "label": "Align horizontal centers",
       "source": "crates/engine/src/cmd/arrange.rs",
       "line": 15,
-      "status": "Not tested"
+      "status": "Partial",
+      "evidence": "../reports/26-11-07-arrangement-parity.html",
+      "limitation": "Verified supported layer model; complete nudge preferences/auto-layout and remaining node kinds still required."
     },
     {
       "command": "align.right",
       "label": "Align right",
       "source": "crates/engine/src/cmd/arrange.rs",
       "line": 16,
-      "status": "Not tested"
+      "status": "Partial",
+      "evidence": "../reports/26-11-07-arrangement-parity.html",
+      "limitation": "Verified supported layer model; complete nudge preferences/auto-layout and remaining node kinds still required."
     },
     {
       "command": "align.top",
       "label": "Align top",
       "source": "crates/engine/src/cmd/arrange.rs",
       "line": 17,
-      "status": "Not tested"
+      "status": "Partial",
+      "evidence": "../reports/26-11-07-arrangement-parity.html",
+      "limitation": "Verified supported layer model; complete nudge preferences/auto-layout and remaining node kinds still required."
     },
     {
       "command": "align.vcenter",
       "label": "Align vertical centers",
       "source": "crates/engine/src/cmd/arrange.rs",
       "line": 18,
-      "status": "Not tested"
+      "status": "Partial",
+      "evidence": "../reports/26-11-07-arrangement-parity.html",
+      "limitation": "Verified supported layer model; complete nudge preferences/auto-layout and remaining node kinds still required."
     },
     {
       "command": "align.bottom",
       "label": "Align bottom",
       "source": "crates/engine/src/cmd/arrange.rs",
       "line": 19,
-      "status": "Not tested"
+      "status": "Partial",
+      "evidence": "../reports/26-11-07-arrangement-parity.html",
+      "limitation": "Verified supported layer model; complete nudge preferences/auto-layout and remaining node kinds still required."
     },
     {
       "command": "distribute.horizontal",
       "label": "Distribute horizontal spacing",
       "source": "crates/engine/src/cmd/arrange.rs",
       "line": 20,
-      "status": "Not tested"
+      "status": "Partial",
+      "evidence": "../reports/26-11-07-arrangement-parity.html",
+      "limitation": "Verified supported layer model; complete nudge preferences/auto-layout and remaining node kinds still required."
     },
     {
       "command": "distribute.vertical",
       "label": "Distribute vertical spacing",
       "source": "crates/engine/src/cmd/arrange.rs",
       "line": 21,
-      "status": "Not tested"
+      "status": "Partial",
+      "evidence": "../reports/26-11-07-arrangement-parity.html",
+      "limitation": "Verified supported layer model; complete nudge preferences/auto-layout and remaining node kinds still required."
     },
     {
       "command": "arrange.spacing",
@@ -511,7 +527,9 @@
       "label": "Tidy up",
       "source": "crates/engine/src/cmd/arrange.rs",
       "line": 29,
-      "status": "Not tested"
+      "status": "Partial",
+      "evidence": "../reports/26-11-07-arrangement-parity.html",
+      "limitation": "Verified supported layer model; complete nudge preferences/auto-layout and remaining node kinds still required."
     },
     {
       "command": "arrange.reorder",
@@ -525,14 +543,18 @@
       "label": "Pack horizontal",
       "source": "crates/engine/src/cmd/arrange.rs",
       "line": 37,
-      "status": "Not tested"
+      "status": "Partial",
+      "evidence": "../reports/26-11-07-arrangement-parity.html",
+      "limitation": "Verified supported layer model; complete nudge preferences/auto-layout and remaining node kinds still required."
     },
     {
       "command": "arrange.packV",
       "label": "Pack vertical",
       "source": "crates/engine/src/cmd/arrange.rs",
       "line": 38,
-      "status": "Not tested"
+      "status": "Partial",
+      "evidence": "../reports/26-11-07-arrangement-parity.html",
+      "limitation": "Verified supported layer model; complete nudge preferences/auto-layout and remaining node kinds still required."
     },
     {
       "command": "arrange.roundToPixels",
@@ -546,28 +568,36 @@
       "label": "Bring to front",
       "source": "crates/engine/src/cmd/arrange.rs",
       "line": 40,
-      "status": "Not tested"
+      "status": "Partial",
+      "evidence": "../reports/26-11-07-arrangement-parity.html",
+      "limitation": "Verified supported layer model; complete nudge preferences/auto-layout and remaining node kinds still required."
     },
     {
       "command": "arrange.forward",
       "label": "Bring forward",
       "source": "crates/engine/src/cmd/arrange.rs",
       "line": 41,
-      "status": "Not tested"
+      "status": "Partial",
+      "evidence": "../reports/26-11-07-arrangement-parity.html",
+      "limitation": "Verified supported layer model; complete nudge preferences/auto-layout and remaining node kinds still required."
     },
     {
       "command": "arrange.backward",
       "label": "Send backward",
       "source": "crates/engine/src/cmd/arrange.rs",
       "line": 42,
-      "status": "Not tested"
+      "status": "Partial",
+      "evidence": "../reports/26-11-07-arrangement-parity.html",
+      "limitation": "Verified supported layer model; complete nudge preferences/auto-layout and remaining node kinds still required."
     },
     {
       "command": "arrange.back",
       "label": "Send to back",
       "source": "crates/engine/src/cmd/arrange.rs",
       "line": 43,
-      "status": "Not tested"
+      "status": "Partial",
+      "evidence": "../reports/26-11-07-arrangement-parity.html",
+      "limitation": "Verified supported layer model; complete nudge preferences/auto-layout and remaining node kinds still required."
     },
     {
       "command": "object.flipH",
@@ -609,14 +639,18 @@
       "label": "Move",
       "source": "crates/engine/src/cmd/arrange.rs",
       "line": 55,
-      "status": "Not tested"
+      "status": "Partial",
+      "evidence": "../reports/26-11-07-arrangement-parity.html",
+      "limitation": "Verified supported layer model; complete nudge preferences/auto-layout and remaining node kinds still required."
     },
     {
       "command": "transform.moveTo",
       "label": "Move to",
       "source": "crates/engine/src/cmd/arrange.rs",
       "line": 64,
-      "status": "Not tested"
+      "status": "Partial",
+      "evidence": "../reports/26-11-07-arrangement-parity.html",
+      "limitation": "Verified supported layer model; complete nudge preferences/auto-layout and remaining node kinds still required."
     },
     {
       "command": "transform.rotate",
@@ -1326,7 +1360,9 @@
       "label": "Nudge",
       "source": "crates/engine/src/cmd/edit.rs",
       "line": 240,
-      "status": "Not tested"
+      "status": "Partial",
+      "evidence": "../reports/26-11-07-arrangement-parity.html",
+      "limitation": "Verified supported layer model; complete nudge preferences/auto-layout and remaining node kinds still required."
     },
     {
       "command": "transform.nudgeSize",

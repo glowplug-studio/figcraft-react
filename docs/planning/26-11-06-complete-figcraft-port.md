@@ -5,16 +5,16 @@
 | Field | Current value |
 |---|---|
 | Overall status | In progress; full parity is not implemented |
-| Active slice | Numeric movement, alignment, distribution and stacking |
-| Active phase | Phase 2: arrangement evidence and plan complete |
+| Active slice | Anchored numeric resize and uniform scale |
+| Active phase | Phase 2: resize/scale evidence and plan complete |
 | Upstream baseline | `0b97f3f1801a9b7b96fd7a4f3c0942a3f1a676f3`; prior parity baseline `8eb0b87646c5aef712326d6c431ccde5408630de` |
-| Branch and last verified commit | `prompt/full-figcraft-port`; verified viewport `d0fae6c`; verified frames `3e7943a`; verified nested groups `e81ba76`; verified colour `bfa5dd8`; affine `080fc27`, outline check `2404d6b`, reports `ff29f38`; pages `6c988a5`, persistence `41d467b`; integration `fc3b4a6` from updated dev plus rectangle branch |
+| Branch and last verified commit | `prompt/full-figcraft-port`; verified arrangement `783a694`; verified viewport `d0fae6c`; verified frames `3e7943a`; verified nested groups `e81ba76`; verified colour `bfa5dd8`; affine `080fc27`, outline check `2404d6b`, reports `ff29f38`; pages `6c988a5`, persistence `41d467b`; integration `fc3b4a6` from updated dev plus rectangle branch |
 | Completed slices | Rectangle/host-auth, bounded native persistence/recovery, supported-model pages, affine rectangle geometry/selection and solid appearance, plus nested group hierarchy and Frame containers verified locally |
 | Remaining slices | Every row below except the integrated foundation; static inventory entries remain unverified until mapped and tested |
-| Tests last passed | Strict TypeScript, 311 pure tests, 2 real local Auth tests, package/Next builds and28/28 production Chromium checks (38.6s); moving-frame p95 12.9ms |
-| Files currently in progress | Arrangement plan; implementation begins next |
+| Tests last passed | Strict TypeScript, 331 pure tests, 2 real local Auth tests, package/Next builds and30/30 production Chromium checks (39.8s); moving-frame p95 13.3ms |
+| Files currently in progress | Resize/scale plan; implementation begins next |
 | Blockers | None |
-| Exact next action | Implement arrangement reducer, inspector controls and source-derived fixtures; verify, then continue gestures and remaining roadmap |
+| Exact next action | Implement anchored resize, uniform subtree scale and size nudging with commands/UI/tests; then continue remaining roadmap |
 | Last updated | 2026-11-07 |
 
 ## Scope and continuation
@@ -39,13 +39,13 @@ The existing production rectangle demo is a previous release, not evidence of co
 |---|---|---|---|
 | 0 | Rectangle transactions, pointer creation, host Auth; existing rectangle plan/report | Existing foundation | Integrated; bounded scope only |
 | 1 | Native save/open, exact numeric ids, dirty state, browser recovery; `crates/format/src/lib.rs`, `cmd/file/{save,load,open}.rs`, `apps/figcraft-web/src/{recovery,web}.rs` | 0; explicit wire adapter | Verified bounded page/rectangle codec and local recovery; full archive fidelity remains required |
-| 2 | Complete typed document properties and kinds, hierarchy, pages, validation/repair, affine transforms; `crates/doc/src/{lib,node,props}.rs`, `crates/geom`, `crates/color` | 1 codec boundary; split into independently verifiable property families | Not implemented |
-| 3 | Selection/hit testing, move/resize/rotate, arrange/align/distribute, duplicate/delete/reparent/group, clipboard; `engine/src/cmd/{edit,structure,arrange}.rs`, tools and document geometry | 2 | Not implemented |
-| 4 | Pan/zoom, rulers, guides/grids, snapping, measurement, layer panel, pages/tabs and navigation; `cmd/{view,page}.rs`, keymap/catalog and UI canvas/panels | 2–3 | Not implemented |
+| 2 | Complete typed document properties and kinds, hierarchy, pages, validation/repair, affine transforms; `crates/doc/src/{lib,node,props}.rs`, `crates/geom`, `crates/color` | 1 codec boundary; split into independently verifiable property families | Partial: pages, affine model, groups and frames verified; other kinds/properties remain |
+| 3 | Selection/hit testing, move/resize/rotate, arrange/align/distribute, duplicate/delete/reparent/group, clipboard; `engine/src/cmd/{edit,structure,arrange}.rs`, tools and document geometry | 2 | Partial: hierarchy and numeric movement/arrangement verified; gestures, transforms and clipboard remain |
+| 4 | Pan/zoom, rulers, guides/grids, snapping, measurement, layer panel, pages/tabs and navigation; `cmd/{view,page}.rs`, keymap/catalog and UI canvas/panels | 2–3 | Partial: pages, layer tree and viewport verified; grids/guides/snapping and remaining navigation UI remain |
 | 5 | Shapes, vectors, pen/pencil, booleans, shape builder, stroke geometry; `doc/src/vector.rs`, `geom`, `pathops`, engine tools | 2–4 | Not implemented |
-| 6 | Paints, gradients, images/crops/adjustments, masks, blending and effects; `color`, `render`, `cmd/{props,image}.rs` | 2–5 | Not implemented |
+| 6 | Paints, gradients, images/crops/adjustments, masks, blending and effects; `color`, `render`, `cmd/{props,image}.rs` | 2–5 | Partial: solid colours/fills/opacity verified; remaining appearance families required |
 | 7 | Rich text editing/shaping, fonts, spans, typography, lists, bidi and outlines; `text`, `doc/src/text.rs`, `cmd/{text,lists}.rs` | 2, 4, 6 | Not implemented |
-| 8 | Auto layout horizontal/vertical/wrap/grid, hug/fill/min/max, constraints and resize propagation; `layout`, `cmd/layout.rs`, document props | 2–7 | Not implemented |
+| 8 | Auto layout horizontal/vertical/wrap/grid, hug/fill/min/max, constraints and resize propagation; `layout`, `cmd/layout.rs`, document props | 2–7 | Partial: Frame constraints verified; auto-layout still required |
 | 9 | Components, instances/overrides, variants/properties/slots and sync; `engine/src/assets/components`, `cmd/component/` | 2–8 | Not implemented |
 | 10 | Styles, variables/collections/modes/expressions and IO, libraries/assets and updates; `doc/src/{styles,library}.rs`, `cmd/{styles,variables,variables_io,library}.rs` | 2–9 | Not implemented |
 | 11 | File workspace, thumbnails, history/checkpoints, branches and conflict review; `cmd/file`, engine branches and library | 1–10 | Not implemented |
@@ -192,3 +192,19 @@ Evidence: `cmd/arrange.rs:13–340`, `cmd/edit/select.rs::nudge`, `automation/pa
 Hazards: matrix multiplication order and transformed parent coordinates; nudge intentionally differs from transform.move; stable floating-point sort ties; outermost extent is not necessarily the last item's edge; roots must deduplicate ancestors; stacking must count separately per parent. Port native lenient parameter parsing while rejecting invalid IDs; finite geometry checks precede commit. Use source-derived numeric fixtures, all six alignment cases, nested/rotated parents, inferred/explicit/negative spacing, multi-parent stacking, invalid target/overflow atomicity and undo/native recovery. UI disables actions that cannot operate, labels all numeric fields and works at narrow widths.
 
 No provider, schema, RLS or Realtime change applies to local arrangement. Existing Auth/recovery boundaries remain. User-adjustable nudge preferences and auto-layout flow movement are required later, alongside pointer drag/resize/snapping, rotations/custom origins, scale and other node kinds; do not mark the whole arrangement family complete. Existing canvas performance suite remains the rendering guard. Rollback is d0fae6c; work sequentially under the latest user instruction.
+
+Arrangement integration checkpoint: eighteen commands, inspector controls and keyboard nudging implemented.331 pure tests, strict TypeScript/build and two focused authenticated browser workflows pass. Browser checks cover top alignment, distribution, numeric movement, default/big nudge, stacking/native recovery, rotated-parent semantics and mobile controls; screenshot inspected. Full regression and final evidence next. No external blocker.
+
+## Verified arrangement checkpoint
+
+Implementation783a694, version0.10.0:331 pure,2 real local Auth, strict TypeScript/build and30 browser checks pass. [Report](../reports/26-11-07-arrangement.md). No publication or external blocker.
+
+## Active anchored resize and uniform scale plan
+
+Acceptance: `transform.resize` independently resizes each explicitly targeted layer around one of nine local anchors; children follow existing Frame constraints/Group own-axis scaling. Targets are not root-filtered for resize: explicit parent and child both apply in caller order. `transform.scale` uniformly scales each root subtree regardless of constraints, retains linear affine coefficients and multiplies descendant translation/dimensions; root world bounds move relative to explicit pivot or combined top-left. `transform.nudgeSize` uses default1/10, filters roots and changes only supplied axes with top-left fixed. All commands are atomic, finite, undoable and native/recovery-persistent; factor must be positive. Inspector fields and primary-modifier arrow shortcuts expose these behaviours.
+
+Source/mapping: `cmd/arrange.rs::resize_cmd,scale_cmd,scale_node` → new pure sizing reducer, shared target/move helpers and existing constraints; `cmd/props.rs::resize_node` → same resizeChildren semantics; `cmd/edit/select.rs::nudge_size` → size nudging; `canvas/tools/handles.rs::anchor_of` → trimmed case-insensitive9-anchor parser. Graphify returned exact resize_cmd/scale_node definitions; local current source and `scale_tool_tests.rs`, `finite_geometry_tests.rs`, `transform_behaviour_tests.rs` supply acceptance fixtures. React graph remains stale; local engine authority.
+
+Hazards: fixed anchor is transformed into parent space before/after resize; scaled descendants ignore constraints and must not be resized twice during normalisation; scale differs from affine matrix scaling. Preserve caller target order for resize and deduplicate roots only for scale/nudgeSize. Validate all touched local/world bounds before publication and ensure failed factors/overflow leave history unchanged. Test all anchors, rotated/reflected parents, nested groups/frames, simultaneous ancestor/child resize, custom pivot, one-step undo, native round trips, real browser controls/keys and responsive layout. Representative canvas performance regression remains required.
+
+No database/provider schema or identity changes. Later kinds add stroke/effect/text/vector/layout/image/grid scaling; unsupported fields remain rejected by the codec until those slices. Scale tool pointer handles and general resize/rotate gestures, custom rotation origins and smart selection remain subsequent work; no full-family claim. Work sequentially; rollback783a694.

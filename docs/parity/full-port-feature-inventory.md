@@ -36,7 +36,7 @@ Upstream test evidence: [`transform_behaviour_tests`](../../original/figcraft/cr
 
 ### 3. Canvas navigation and guides
 
-Status: **Not implemented / Not tested**.
+Status: **Partial**. Viewport/preset evidence: [report](../reports/26-11-07-viewport-parity.html). Remaining grids/guides/preferences/gestures are required.
 
 Pan/zoom, fit/selection/page/frame navigation; rulers/guides/layout and pixel grids; snapping, distance/padding measurement and selection overlays. Dependencies: viewport, geometry, hierarchy, hit testing.
 
@@ -230,3 +230,7 @@ Slices are resumable execution units, not completion boundaries. Add newly disco
 ## Upstream gaps are not speculative port requirements
 
 Do not invent hypothetical Figma features: AI product features, audio/huddles, HEIC/video/deck support, Figma JavaScript plugin compatibility and true P3 canvas output are not claimed as landed requirements here. Each exclusion still needs current-source checking if implementation evidence emerges. In particular, old Boards and import gap rows must not hide newer implemented features.
+
+## Verified bounded additions — 7 November 2026
+
+Frames/constraints: [property report](../reports/26-11-07-frames-parity.html). Viewport/presets: [property report](../reports/26-11-07-viewport-parity.html). Movement/alignment/distribution/stacking: [property report](../reports/26-11-07-arrangement-parity.html). No complete family is passed; advanced layout, all unsupported kinds and remaining interaction/UI properties are still required.
