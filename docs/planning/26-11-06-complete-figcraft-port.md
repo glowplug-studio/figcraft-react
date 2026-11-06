@@ -5,17 +5,17 @@
 | Field | Current value |
 |---|---|
 | Overall status | In progress; full parity is not implemented |
-| Active slice | Nested groups, hierarchy and world-preserving structure commands |
-| Active phase | Phase 1–3: hierarchy evidence, plan and bounded allocation |
+| Active slice | Frame containers, clipping and child constraints |
+| Active phase | Phase 1–2: Frame source evidence and bounded implementation plan |
 | Upstream baseline | `0b97f3f1801a9b7b96fd7a4f3c0942a3f1a676f3`; prior parity baseline `8eb0b87646c5aef712326d6c431ccde5408630de` |
-| Branch and last verified commit | `prompt/full-figcraft-port`; verified colour `bfa5dd8`; affine `080fc27`, outline check `2404d6b`, reports `ff29f38`; pages `6c988a5`, persistence `41d467b`; integration `fc3b4a6` from updated dev plus rectangle branch |
-| Completed slices | Rectangle/host-auth, bounded native persistence/recovery, supported-model pages, affine rectangle geometry/selection and solid appearance verified locally |
+| Branch and last verified commit | `prompt/full-figcraft-port`; verified nested groups `e81ba76`; verified colour `bfa5dd8`; affine `080fc27`, outline check `2404d6b`, reports `ff29f38`; pages `6c988a5`, persistence `41d467b`; integration `fc3b4a6` from updated dev plus rectangle branch |
+| Completed slices | Rectangle/host-auth, bounded native persistence/recovery, supported-model pages, affine rectangle geometry/selection and solid appearance, plus nested group hierarchy verified locally |
 | Remaining slices | Every row below except the integrated foundation; static inventory entries remain unverified until mapped and tested |
-| Tests last passed | Colour: strict typecheck, 242 pure tests, 2 real local Auth integration tests, package/Next production build, 16/16 authenticated production-browser/performance checks; CSS follow-up 1/1 |
-| Files currently in progress | Colour reports; hierarchy evidence and model/command plan |
+| Tests last passed | Strict typecheck, 273 pure tests, 2 real local Auth tests, package/Next production builds, 20/20 production Chromium checks (27.6 s); nested p95 8.9 ms |
+| Files currently in progress | Frame plan/evidence; hierarchy reports and mappings |
 | Blockers | None |
-| Exact next action | Implement common layer/group model and pure hierarchy operations, then integrate native files, structure commands, nested canvas/selection, page subtree operations and browser controls |
-| Last updated | 2026-11-06 |
+| Exact next action | Implement Frame model/codec, clipping, native structure operations and constraints from the bounded plan below; verify and continue remaining roadmap |
+| Last updated | 2026-11-07 |
 
 ## Scope and continuation
 
@@ -142,3 +142,21 @@ Architecture: introduce an evidenced common layer interface and `GroupNode` with
 Mapping: `Document::{world_transform,frame_relative,reparent,fit_to_children,fit_ancestors}` → `engine/hierarchy.ts`; `cmd::structure::{wrap,ungroup}` and `cmd/edit::reparent` → pure structure reducer integrated by EditorEngine; `NodeKind::Group` → typed GroupNode + native codec + recursive Canvas2D subtree; `frames_behaviour_tests` → hierarchy algebra/transaction fixtures and authenticated grouping/pixels/reload checks. Validate 10,000 flat nodes and representative nested groups. Canvas2D alpha isolation is the browser substitute for native pixmap layers; numerical fixtures use tolerances established by native tests (world matrices within 1e-9).
 
 No new provider table, membership or role is required by local grouping. Existing host identity/capabilities and principal-scoped recovery continue; online ownership/Storage/Realtime remain later required families. Allocation: coordinator owns common model, engine/properties/codec/canvas/selection and integration. A bounded hierarchy agent owns only `engine/hierarchy.ts` and `tests/parity/hierarchy.test.ts`; a subsequent structure agent may own the pure structure reducer once helper contracts are reviewed. UI/page subtree work is allocated only after shared model contracts are stable. Rollback point: verified colour `bfa5dd8`. Full publication remains forbidden until all roadmap families pass.
+
+Hierarchy integration checkpoint (7 November): 273 pure tests and two real local Auth integration tests passed, as did strict TypeScript and production builds. The first integrated browser run passed all three performance fixtures but failed an old layer-count selector because the closed mobile tree was also mounted; the mobile tree now mounts only while open. The full browser suite is being rerun. Native selection context was incorporated: Select all selects siblings, and normal clicks enter the parent context of selected descendants; explicit deep clicks return leaves. Added parent/children/inverse selection commands. A no-op initial property object no longer prevents native empty-group cleanup after creation. No external blocker or publication.
+
+## Verified nested-group checkpoint
+
+Implementation `e81ba76`, version 0.7.0: 273 pure tests, two local Auth tests, strict typecheck, package/Next builds and 20/20 Chromium checks passed. Initial mobile duplicate DOM/test-locator failures were corrected. A nested performance p95 failure (17 ms) led to immutable-snapshot bounds caching with a moved-child cache-invalidation pixel test; final nested p95/max 8.9/17.9 ms. Plain/affine p95 1.1/5.8 ms. [Property report](../reports/26-11-06-nested-groups-parity.html) records 21 bounded Passed properties and the remaining Partial full-hierarchy scope. No publication or hosted changes.
+
+## Active Frame container plan — 7 November
+
+Acceptance: create empty/nested Frames with native white fill, pass-through blend and clipping; edit clipping and child horizontal/vertical constraints; resize frames with native axis-factor propagation; wrap/remove and convert Frame/Group atomically while preserving world positions; frame-relative inspector values, top-level artboard selection, native save/recovery and page subtree operations. Frame presets and viewport placement are recorded separately until the viewport exists; no unsupported preset is silently accepted. Sections remain separate because their parent restrictions, padding, border/corners and resize rules differ.
+
+Evidence: `doc/src/node.rs:667–717` constructor defaults; `doc/src/geometry.rs:62–76,282–334` frame hits and artboard target; `cmd/create.rs:272–390` parent-space creation; `cmd/structure.rs:184–308,354–384` wrapping/conversion/release; `cmd/props.rs:875–883,1455–1473` constraints and resize; `layout/src/lib.rs:981–1085` constraint propagation/group scaling. Paired source-derived cases: `frames_behaviour_tests.rs:79–112` left/right/stretch/centre/scale (100→200 gives x/w 10/20, 110/20, 10/120, 60/20, 20/40). Use current local source for exact behaviour; Graphify Rust query resolves guides/labels and confirms additional later dependencies, while React remains README-only and ungrounded.
+
+Mapping: native Frame/common constraints → `document.ts` and bounded `file-format.ts`; constraint propagation → dedicated framework-independent `constraints.ts`; structure conversion → `structure.ts`; frame paints/clip/isolation → `canvas.ts`; frame hit/selection → `selection.ts`; frame creation/constraints/clip controls → React chrome dispatching engine commands. Existing groups/pages helpers extend to frame containers without fitting frames to children. Keep per-frame state outside React.
+
+Hazards: retain f64 matrices, f32 opacity and exact IDs; sequential width/height application; rotated child constraints change local dimensions along their own axes rather than introducing skew; apply iteratively across nested containers; reject invalid values atomically. Immutable snapshot bounds caches must include frame fill and unclipped descendants; clipping must apply after the frame's transform and before child painting. Native codec keeps bounded depth/node/resource limits and refuses unsupported frame layout/guides/prototype fields until their slices.
+
+Verification: pure defaults/constraints/rotated nested propagation/conversion/atomicity/codec fixtures; authenticated browser creation, clipping pixels, child selection, resize/undo, save/recovery and mobile controls; full regression/performance checks. No backend contract or schema changes are needed for local document containers. Existing host Auth and recovery boundaries continue; cloud persistence remains required later. Rollback is the previous verified hierarchy commit. Work sequentially under the latest user instruction; no new agent delegation for this slice.

@@ -1072,7 +1072,9 @@
       "label": "Delete",
       "source": "crates/engine/src/cmd/edit.rs",
       "line": 110,
-      "status": "Not tested"
+      "status": "Partial",
+      "evidence": "docs/reports/26-11-06-nested-groups-parity.html",
+      "limitation": "Verified supported Group/Rectangle trees only; other kinds and related full-product behaviours remain required."
     },
     {
       "command": "edit.duplicate",
@@ -1192,7 +1194,8 @@
       "line": 182,
       "status": "Partial",
       "scope": "Verified supported page/rectangle subset; full command and dependent-model parity remain incomplete.",
-      "evidence": "docs/planning/26-11-06-complete-figcraft-port.md"
+      "evidence": "docs/reports/26-11-06-nested-groups-parity.html",
+      "limitation": "Verified supported Group/Rectangle trees only; other kinds and related full-product behaviours remain required."
     },
     {
       "command": "select.none",
@@ -1208,7 +1211,9 @@
       "label": "Select inverse",
       "source": "crates/engine/src/cmd/edit.rs",
       "line": 191,
-      "status": "Not tested"
+      "status": "Partial",
+      "evidence": "docs/reports/26-11-06-nested-groups-parity.html",
+      "limitation": "Verified supported Group/Rectangle trees only; other kinds and related full-product behaviours remain required."
     },
     {
       "command": "select.area",
@@ -1222,14 +1227,18 @@
       "label": "Select children",
       "source": "crates/engine/src/cmd/edit.rs",
       "line": 199,
-      "status": "Not tested"
+      "status": "Partial",
+      "evidence": "docs/reports/26-11-06-nested-groups-parity.html",
+      "limitation": "Verified supported Group/Rectangle trees only; other kinds and related full-product behaviours remain required."
     },
     {
       "command": "select.parent",
       "label": "Select parent",
       "source": "crates/engine/src/cmd/edit.rs",
       "line": 200,
-      "status": "Not tested"
+      "status": "Partial",
+      "evidence": "docs/reports/26-11-06-nested-groups-parity.html",
+      "limitation": "Verified supported Group/Rectangle trees only; other kinds and related full-product behaviours remain required."
     },
     {
       "command": "select.next",
@@ -1424,7 +1433,9 @@
       "label": "Move layer into",
       "source": "crates/engine/src/cmd/edit.rs",
       "line": 320,
-      "status": "Not tested"
+      "status": "Partial",
+      "evidence": "docs/reports/26-11-06-nested-groups-parity.html",
+      "limitation": "Verified supported Group/Rectangle trees only; other kinds and related full-product behaviours remain required."
     },
     {
       "command": "node.reorder",
@@ -2411,14 +2422,18 @@
       "label": "Group selection",
       "source": "crates/engine/src/cmd/structure.rs",
       "line": 20,
-      "status": "Not tested"
+      "status": "Partial",
+      "evidence": "docs/reports/26-11-06-nested-groups-parity.html",
+      "limitation": "Verified supported Group/Rectangle trees only; other kinds and related full-product behaviours remain required."
     },
     {
       "command": "object.ungroup",
       "label": "Ungroup selection",
       "source": "crates/engine/src/cmd/structure.rs",
       "line": 21,
-      "status": "Not tested"
+      "status": "Partial",
+      "evidence": "docs/reports/26-11-06-nested-groups-parity.html",
+      "limitation": "Verified supported Group/Rectangle trees only; other kinds and related full-product behaviours remain required."
     },
     {
       "command": "object.frameSelection",

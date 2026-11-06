@@ -18,7 +18,7 @@ The upstream advance from `8eb0b876` changed house rules/workflows, not runtime 
 
 ### 1. Documents and native persistence
 
-Status: **Partial**. Bounded persistence, page and affine/selection evidence is linked from the master plan; the remaining properties below are required.
+Status: **Partial**. Bounded persistence, pages, affine/selection and nested-group evidence is linked from the master plan; the remaining properties below are required.
 
 Native archive fidelity, numeric identifiers, embedded images, pages/tabs, home/recent files and thumbnails; dirty state, rename/duplicate/revert; autosave/recovery; version preview/restore/rename/delete/duplicate and branch/version payloads. Preserve older-file compatibility and resource limits. Dependencies: typed document codec, stable identity, browser storage/file adapters and command history.
 
@@ -27,7 +27,7 @@ Upstream test evidence: [`save_format_tests`](../../original/figcraft/crates/eng
 
 ### 2. Hierarchy, selection and transforms
 
-Status: **Partial**. Bounded persistence, page and affine/selection evidence is linked from the master plan; the remaining properties below are required.
+Status: **Partial**. Bounded persistence, pages, affine/selection and nested-group evidence is linked from the master plan; the remaining properties below are required.
 
 Shapes/frames/sections/groups/masks; nested hit testing and selection; layer reparenting/order, batch rename; move/resize/rotate/origin/flip; duplicate/repeat; align/distribute/tidy/spacing. Preserve clipping, rotated bounds and nested selection semantics. Dependencies: document model, geometry, command transactions.
 
@@ -200,7 +200,7 @@ Also audit `crates/ui-egui/src/{app,state,toolbar,menus,dialogs,panels,widgets,a
 
 ### 21. Command transactions and validation
 
-Status: **Partial**. Bounded persistence, page and affine/selection evidence is linked from the master plan; the remaining properties below are required.
+Status: **Partial**. Bounded persistence, pages, affine/selection and nested-group evidence is linked from the master plan; the remaining properties below are required.
 
 Query versus history mutations; document routing; deterministic IDs/order; unknown-parameter rejection. Batch grouped undo, step references, error continuation and atomic/panic rollback. Clipboard/import must use the same transaction/identity boundaries. Dependencies: foundational document/history/identity contracts, before composing the other families.
 
