@@ -6,6 +6,7 @@ import { multiply, transformBounds, type Affine } from "./affine";
 import { hitRectangle } from "./selection";
 import { worldTransform } from "./hierarchy";
 import { pageToScreen, screenToPage, scrollView, viewOrigin, zoomAt, type Viewport } from "./viewport";
+import { SmartHandles } from "./smart-handles";
 
 const compositeSurfaces = new WeakMap<CanvasRenderingContext2D, HTMLCanvasElement>();
 // Immutable document snapshots invalidate these derived bounds after any edit.
@@ -161,6 +162,8 @@ export class CanvasController {
   #unsubscribe: () => void;
   #unsubscribeView: () => void;
   #unsubscribeOrigin: () => void;
+  #unsubscribeCanvas: () => void;
+  #smart: SmartHandles;
   #dragOrigin = false;
   #space = false;
   #zoomHeld = false;
@@ -172,9 +175,11 @@ export class CanvasController {
   #height = 0;
   #dpr = 1;
   constructor(private canvas: HTMLCanvasElement, private engine: EditorEngine, private onError: (message: string) => void) {
+    this.#smart = new SmartHandles(engine, onError);
     const options = { signal: this.#abort.signal };
     canvas.addEventListener("pointerdown", this.#down, options);
     canvas.addEventListener("pointermove", this.#move, options);
+    canvas.addEventListener("pointerleave", event => { if (this.#pointer === null) { this.#smart.hover(undefined, event); this.invalidate(); } }, options);
     canvas.addEventListener("pointerup", this.#up, options);
     canvas.addEventListener("dblclick", this.#doubleClick, options);
     canvas.addEventListener("pointercancel", this.#cancelEvent, options);
@@ -192,6 +197,7 @@ export class CanvasController {
     });
     this.#unsubscribeView = engine.subscribeView(() => this.invalidate());
     this.#unsubscribeOrigin = engine.subscribeOrigin(() => this.invalidate());
+    this.#unsubscribeCanvas = engine.subscribeCanvas(() => this.invalidate());
     this.#resize();
   }
   #point(event: { clientX: number; clientY: number }): Point {
@@ -215,6 +221,9 @@ export class CanvasController {
       event.preventDefault(); this.#dragOrigin = true; this.#pointer = event.pointerId;
       this.canvas.setPointerCapture(event.pointerId); return;
     }
+    if (this.#smart.down(this.#screenPoint(event), event)) {
+      event.preventDefault(); this.#pointer = event.pointerId; this.canvas.setPointerCapture(event.pointerId); this.invalidate(); return;
+    }
     if (this.engine.getSnapshot().tool !== "rectangle") {
       const snapshot = this.engine.getSnapshot();
       const hit = hitRectangle(snapshot.document, this.#point(event), event.metaKey || event.ctrlKey, snapshot.selection);
@@ -230,7 +239,15 @@ export class CanvasController {
     this.canvas.setPointerCapture(event.pointerId);
   };
   #move = (event: PointerEvent): void => {
-    if (this.#pointer === null) this.canvas.style.cursor = this.#onOrigin(this.#point(event)) ? "move" : "";
+    if (this.#pointer === null) {
+      this.canvas.style.cursor = this.#onOrigin(this.#point(event)) ? "move" : this.#smart.hover(this.#screenPoint(event), event);
+      this.invalidate();
+    }
+    if (event.pointerId === this.#pointer && this.#smart.active) {
+      const started = performance.now();
+      this.#smart.move(this.#screenPoint(event), event, this.#width, this.#height); this.invalidate();
+      performance.measure("figcraft:pointer", { start: started, end: performance.now() }); return;
+    }
     if (event.pointerId === this.#pointer && this.#dragOrigin) {
       const started = performance.now();
       try { this.engine.dragRotationOrigin(this.#point(event), this.engine.getView().zoom); }
@@ -254,6 +271,9 @@ export class CanvasController {
     performance.measure("figcraft:pointer", { start: started, end: performance.now() });
   };
   #up = (event: PointerEvent): void => {
+    if (event.pointerId === this.#pointer && this.#smart.active) {
+      this.#smart.up(this.#screenPoint(event), event, this.#width, this.#height); this.cancel(); return;
+    }
     if (event.pointerId === this.#pointer && this.#dragOrigin) { this.cancel(); return; }
     if (event.pointerId === this.#pointer && this.#pan) { this.#move(event); this.cancel(); return; }
     if (event.pointerId === this.#pointer && this.#zoomStart) {
@@ -309,6 +329,7 @@ export class CanvasController {
     if (event.key.toLowerCase() === "z") this.#zoomHeld = false;
   };
   cancel(): void {
+    this.#smart.cancel();
     const pointer = this.#pointer;
     this.#pointer = null;
     this.#start = this.#last = null;
@@ -341,7 +362,8 @@ export class CanvasController {
       context.setTransform(this.#dpr, 0, 0, this.#dpr, 0, 0);
       const snapshot = this.engine.getSnapshot();
       const view = this.engine.getView(), origin = viewOrigin(view);
-      renderDocument(context, snapshot.document, this.#width, this.#height, snapshot.selection, this.#preview, view);
+      renderDocument(context, this.engine.getRenderDocument(), this.#width, this.#height, snapshot.selection, this.#preview, view);
+      this.#smart.draw(context);
       const rotationOrigin = this.engine.getRotationOrigin();
       if (rotationOrigin.editing && rotationOrigin.point) {
         const point = pageToScreen(view, rotationOrigin.point);
@@ -374,6 +396,7 @@ export class CanvasController {
     this.#unsubscribe();
     this.#unsubscribeView();
     this.#unsubscribeOrigin();
+    this.#unsubscribeCanvas();
     this.#abort.abort();
   }
 }

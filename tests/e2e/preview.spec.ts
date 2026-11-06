@@ -65,6 +65,12 @@ async function resetCanvasOrigin(page: Page) {
 async function geometry(page: Page, expected: number[]) {
   await expect(page.getByRole("region", { name: "Selected rectangle" }).locator("dd")).toHaveText(expected.map(String));
 }
+async function canvasPoint(page: Page, x: number, y: number) {
+  return page.getByLabel("Design canvas", { exact: true }).evaluate((node: HTMLCanvasElement, point) => {
+    const bounds = node.getBoundingClientRect(), zoom = Number(node.dataset.viewZoom);
+    return { x: bounds.x + (point.x - Number(node.dataset.viewOriginX)) * zoom, y: bounds.y + (point.y - Number(node.dataset.viewOriginY)) * zoom };
+  }, { x, y });
+}
 async function expectCanvasPixel(page: Page, x: number, y: number, rgba: readonly number[]) {
   const canvas = page.getByLabel("Design canvas", { exact: true });
   await expect.poll(async () => canvas.evaluate((node: HTMLCanvasElement, point) => {
@@ -919,4 +925,84 @@ test("numeric origins pin rotation fields, flips and native recovery", async ({ 
   await panel.getByRole("button", { name: "Reset rotation origin", exact: true }).click();
   await expect(panel.getByRole("button", { name: "Flip horizontal", exact: true })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+});
+
+async function smartRow(page: Page) {
+  await login(page);
+  for (const [name, x] of [["A", 200], ["B", 280], ["C", 360]] as const) await createNamedRectangle(page, name, x, 200, 50, 60);
+  await page.getByLabel("Design canvas", { exact: true }).focus(); await page.keyboard.press("ControlOrMeta+a");
+  await page.getByText("Smart selection", { exact: true }).click();
+  await expect(page.getByText("Recovery saved on this device", { exact: true })).toBeVisible();
+}
+
+test("smart spacing fields and scrubs retain tracks, one undo and native recovery", async ({ page }) => {
+  await smartRow(page);
+  const panel = page.locator(".figcraft-smart-selection"), gap = panel.getByLabel("Horizontal spacing", { exact: true });
+  await expect(gap).toHaveValue("30"); await gap.fill("45.5");
+  await panel.getByRole("button", { name: "Set horizontal spacing", exact: true }).click();
+  await expectCanvasPixel(page, 297, 220, [217, 217, 217, 255]);
+  await page.getByRole("button", { name: "Undo", exact: true }).click(); await expect(gap).toHaveValue("30");
+  await expect(page.getByText("Recovery saved on this device", { exact: true })).toBeVisible();
+  const scrub = panel.getByRole("button", { name: "Scrub horizontal spacing", exact: true });
+  await scrub.scrollIntoViewIfNeeded(); const area = (await scrub.boundingBox())!, root = page.locator("[data-figcraft-editor]");
+  const commits = await root.getAttribute("data-commits");
+  await page.mouse.move(area.x + area.width / 2, area.y + area.height / 2); await page.mouse.down();
+  await page.mouse.move(area.x + area.width / 2 + 16, area.y + area.height / 2, { steps: 8 });
+  await expect(gap).toHaveValue("46"); expect(await root.getAttribute("data-commits")).toBe(commits);
+  await page.mouse.up();
+  const download = page.waitForEvent("download"); await page.getByRole("button", { name: "Save as", exact: true }).click();
+  const decoded = await decodeFigcraft(await readFile((await (await download).path())!));
+  expect(Object.values(decoded.document.nodes).find(node => node.name === "B")).toMatchObject({ x: 296, y: 200, width: 50 });
+  expect(Object.values(decoded.document.nodes).find(node => node.name === "C")).toMatchObject({ x: 392 });
+  await page.getByRole("button", { name: "Undo", exact: true }).click(); await expect(gap).toHaveValue("30");
+  await page.getByRole("button", { name: "Redo", exact: true }).click(); await expect(gap).toHaveValue("46");
+  await expect(page.getByText("Recovery saved on this device", { exact: true })).toBeVisible(); await page.reload(); await resetCanvasOrigin(page);
+  await page.getByLabel("Design canvas", { exact: true }).focus(); await page.keyboard.press("ControlOrMeta+a");
+  await page.getByText("Smart selection", { exact: true }).click(); await expect(gap).toHaveValue("46");
+  await page.setViewportSize({ width: 390, height: 844 }); await expect(panel.getByRole("button", { name: "Reorder selection", exact: true })).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+});
+
+test("smart canvas gaps preview without root renders and cancel on Escape", async ({ page }) => {
+  await smartRow(page);
+  const root = page.locator("[data-figcraft-editor]"), gap = page.getByLabel("Horizontal spacing", { exact: true });
+  const start = await canvasPoint(page, 265, 230), end = await canvasPoint(page, 285, 230), commits = await root.getAttribute("data-commits");
+  await page.mouse.move(start.x, start.y); await page.mouse.down(); await page.mouse.move(end.x, end.y, { steps: 12 });
+  await expect(gap).toHaveValue("50"); expect(await root.getAttribute("data-commits")).toBe(commits);
+  await expectCanvasPixel(page, 301, 220, [217, 217, 217, 255]);
+  await page.keyboard.press("Escape"); await page.mouse.up(); await expect(gap).toHaveValue("30");
+  await page.mouse.move(start.x, start.y); await page.mouse.down(); await page.keyboard.down("Shift");
+  await page.mouse.move(start.x + 14, start.y, { steps: 4 }); await page.mouse.up(); await page.keyboard.up("Shift");
+  await expect(gap).toHaveValue("40");
+  await page.getByRole("button", { name: "Undo", exact: true }).click(); await expect(gap).toHaveValue("30");
+  await page.mouse.move(start.x, start.y); await page.mouse.down(); await page.keyboard.down("Alt");
+  await page.mouse.move(start.x + 3.5, start.y, { steps: 3 }); await page.mouse.up(); await page.keyboard.up("Alt");
+  await expect(gap).toHaveValue("33.5");
+  await page.screenshot({ path: "test-results/smart-spacing-desktop.png", fullPage: true });
+});
+
+test("smart reorder rings insert, swap, cancel undo and commit outside the canvas", async ({ page }) => {
+  await smartRow(page);
+  const panel = page.locator(".figcraft-smart-selection"), canvas = page.getByLabel("Design canvas", { exact: true });
+  const a = await canvasPoint(page, 225, 230), c = await canvasPoint(page, 385, 230);
+  const root = page.locator("[data-figcraft-editor]"), commits = await root.getAttribute("data-commits");
+  await page.mouse.move(a.x, a.y); await page.mouse.down(); await page.mouse.move(c.x, c.y, { steps: 12 });
+  expect(await root.getAttribute("data-commits")).toBe(commits);
+  await page.keyboard.press("ControlOrMeta+z"); await page.mouse.up();
+  await expect(page.getByLabel("Edit X", { exact: true })).toHaveValue("200");
+  await page.mouse.move(a.x, a.y); await page.mouse.down(); await page.mouse.move(c.x, c.y, { steps: 12 });
+  const bounds = (await canvas.boundingBox())!; await page.mouse.move(bounds.x + bounds.width + 20, c.y); await page.mouse.up();
+  await expect(page.getByLabel("Edit X", { exact: true })).toHaveValue("360");
+  await page.getByRole("button", { name: "Undo", exact: true }).click();
+  await page.mouse.move(a.x, a.y); await page.mouse.down(); await page.keyboard.down("ControlOrMeta"); await page.mouse.move(c.x, c.y, { steps: 10 });
+  await page.mouse.up(); await page.keyboard.up("ControlOrMeta");
+  await expect(page.getByLabel("Edit X", { exact: true })).toHaveValue("360");
+  await page.getByRole("button", { name: "Undo", exact: true }).click();
+  await panel.getByLabel("Source layer", { exact: true }).selectOption({ label: "A" }); await panel.getByLabel("Target slot", { exact: true }).selectOption({ label: "C" });
+  await panel.getByLabel("Swap only these two", { exact: true }).check(); await panel.getByRole("button", { name: "Reorder selection", exact: true }).click();
+  await expect(page.getByLabel("Edit X", { exact: true })).toHaveValue("360");
+  await page.getByRole("button", { name: "Undo", exact: true }).click();
+  await page.mouse.click(a.x, a.y); await expect(panel.getByLabel("Horizontal spacing", { exact: true })).toHaveCount(0);
+  await page.getByLabel("Edit X", { exact: true }).fill("200.5"); await page.getByRole("button", { name: "Apply geometry", exact: true }).click();
+  await panel.getByRole("button", { name: "Round to pixels", exact: true }).click(); await expect(page.getByLabel("Edit X", { exact: true })).toHaveValue("201");
 });

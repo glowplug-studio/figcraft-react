@@ -13,12 +13,14 @@ import { arrangeSpecs, executeArrange } from "./arrange";
 import { sizingSpecs, executeSizing } from "./sizing";
 import { executeRotation, localOrigin, movedOrigin, originBoxPoints, originSpecs, rotationSpecs, sameIds, snappedOrigin, type OriginSnapshot, type RotationOrigin } from "./rotation";
 import type { Point } from "./geometry";
+import { executeSmartSelection, smartSpecs } from "./smart-selection";
 
 export const commandSpecs = Object.freeze({
   ...arrangeSpecs,
   ...sizingSpecs,
   ...rotationSpecs,
   ...originSpecs,
+  ...smartSpecs,
   ...pageSpecs,
   ...viewSpecs,
   "frame.presets": { label: "List frame presets", undo: false },
@@ -74,6 +76,8 @@ export class EditorEngine {
   #origin?: RotationOrigin;
   #originSnapshot: OriginSnapshot = Object.freeze({ editing: false, moved: false });
   #originListeners = new Set<() => void>();
+  #interaction?: { base: EditorSnapshot; document: Document };
+  #canvasListeners = new Set<() => void>();
   #viewportAttached = false;
   #viewConfigured = false;
   #saved: Document | null = null;
@@ -84,11 +88,41 @@ export class EditorEngine {
     this.#snapshot = Object.freeze({ document: newDocument(), selection: Object.freeze([]), tool: "move", canUndo: false, canRedo: false, editable: true, dirty: true, hasSaved: false });
   }
   getSnapshot = (): EditorSnapshot => this.#snapshot;
+  getRenderDocument = (): Document => this.#interaction?.document ?? this.#snapshot.document;
+  getInteractionBase = (): Document => this.#interaction?.base.document ?? this.#snapshot.document;
+  subscribeCanvas = (listener: () => void): (() => void) => { this.#canvasListeners.add(listener); return () => { this.#canvasListeners.delete(listener); }; };
+  get interacting(): boolean { return this.#interaction !== undefined; }
+  beginInteraction(): void {
+    if (!this.#snapshot.editable) throw new Error("Sign in to edit this document");
+    if (this.#interaction) throw new Error("An interaction is already active");
+    this.#interaction = { base: this.#snapshot, document: this.#snapshot.document };
+  }
+  #notifyCanvas(): void { this.#refreshOrigin(); this.#canvasListeners.forEach(listener => listener()); }
+  cancelInteraction(): boolean {
+    if (!this.#interaction) return false;
+    this.#interaction = undefined; this.#notifyCanvas(); return true;
+  }
+  commitInteraction(): boolean {
+    const interaction = this.#interaction;
+    if (!interaction) return false;
+    this.#interaction = undefined;
+    const { base, document } = interaction;
+    // These gestures change geometry only. Returning to the base must not add history.
+    const changed = document !== base.document && Object.keys(document.nodes).some(id => {
+      const node = document.nodes[id], old = base.document.nodes[id];
+      return node !== old && JSON.stringify(node) !== JSON.stringify(old);
+    });
+    if (changed) {
+      this.#undo.push({ document: base.document, selection: base.selection }); this.#redo = [];
+      this.#publish({ document });
+    } else this.#notifyCanvas();
+    return changed;
+  }
   getView = (): Viewport => this.#view;
   getRotationOrigin = (): OriginSnapshot => this.#originSnapshot;
   subscribeOrigin = (listener: () => void): (() => void) => { this.#originListeners.add(listener); return () => { this.#originListeners.delete(listener); }; };
   #refreshOrigin(): void {
-    const { document, selection, editable } = this.#snapshot;
+    const { selection, editable } = this.#snapshot, document = this.getRenderDocument();
     if (this.#origin && (!editable || !sameIds(selection, this.#origin.ids))) this.#origin = undefined;
     const moved = movedOrigin(document, selection, this.#origin);
     let point = moved;
@@ -127,9 +161,11 @@ export class EditorEngine {
     const document = patch.document ?? this.#snapshot.document;
     this.#snapshot = Object.freeze({ ...this.#snapshot, ...patch, canUndo: this.#undo.length > 0, canRedo: this.#redo.length > 0, dirty: !sameContent(document, this.#saved), hasSaved: this.#saved !== null });
     this.#refreshOrigin();
+    this.#canvasListeners.forEach(listener => listener());
     this.#listeners.forEach(listener => listener());
   }
   setEditable(editable: boolean): void {
+    if (!editable) this.cancelInteraction();
     if (!editable) this.cancelPendingFiles();
     if (editable !== this.#snapshot.editable) this.#publish({ editable, tool: "move" });
   }
@@ -140,7 +176,19 @@ export class EditorEngine {
     if (!Object.hasOwn(commandSpecs, command)) throw new Error(`Unsupported command: ${command}`);
     if (!this.#snapshot.editable) throw new Error("Sign in to edit this document");
     const p = parameters(input);
+    const gesture = Object.hasOwn(smartSpecs, command) && command !== "arrange.roundToPixels" && parseBoolean(p.fromGesture) === true;
+    if (!gesture && this.cancelInteraction() && command === "edit.undo") return { undone: true };
     if (command === "frame.presets") return framePresets;
+    if (Object.hasOwn(smartSpecs, command)) {
+      const before = this.#snapshot, current = this.#interaction?.document ?? before.document;
+      const document = executeSmartSelection(command, current, before.selection, p, this.#interaction?.base.document ?? current);
+      if (this.#interaction) { this.#interaction.document = document; this.#notifyCanvas(); }
+      else if (document !== before.document) {
+        this.#undo.push({ document: before.document, selection: before.selection }); this.#redo = [];
+        this.#publish({ document });
+      }
+      return { ok: true };
+    }
     if (Object.hasOwn(originSpecs, command)) {
       const allowed = command === "transform.rotationOrigin" ? ["on"] : ["x", "y", "reset"];
       for (const key of Object.keys(p)) if (!allowed.includes(key)) throw new Error(`Unsupported ${command} parameter: ${key}`);
@@ -241,6 +289,7 @@ export class EditorEngine {
   async executeAsync(command: string, input: unknown = {}): Promise<Record<string, unknown>> {
     if (!["file.open", "file.recover", "file.saveAs"].includes(command)) return this.execute(command, input);
     if (!this.#snapshot.editable) throw new Error("Sign in to edit this document");
+    this.cancelInteraction();
     const p = parameters(input);
     if (command === "file.saveAs") {
       if (Object.keys(p).some(key => key !== "data") || (p.data !== undefined && p.data !== true)) throw new Error("Browser save requires data: true");

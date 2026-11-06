@@ -2,6 +2,7 @@ import { ViewControls } from "./ViewControls";
 import { ArrangePanel } from "./ArrangePanel";
 import { SizePanel } from "./SizePanel";
 import { RotationPanel } from "./RotationPanel";
+import { SmartSelectionPanel } from "./SmartSelectionPanel";
 import { framePresets } from "./engine/frame-presets";
 import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type FormEvent, type KeyboardEvent } from "react";
 import type { DocumentCapability } from "./backends/access";
@@ -77,8 +78,10 @@ export function Editor({ identity, capabilities, engine: suppliedEngine, recover
     return () => { controller.current = null; instance.dispose(); };
   }, [engine, recoveryStatus === "loading"]);
   function dispatch(command: string, params: unknown = {}) {
+    const cancellingUndo = command === "edit.undo" && engine.interacting;
     controller.current?.cancel();
     setError("");
+    if (cancellingUndo) return;
     try { engine.execute(command, params); }
     catch (caught) { setError(caught instanceof Error ? caught.message : "Command failed"); }
   }
@@ -240,6 +243,7 @@ export function Editor({ identity, capabilities, engine: suppliedEngine, recover
             </select></label><button type="submit">Apply constraints</button>
           </fieldset></form></section>}
           <ArrangePanel document={snapshot.document} selection={snapshot.selection} editable={editable && !busy} dispatch={dispatch} />
+          <SmartSelectionPanel engine={engine} enabled={editable && !busy} dispatch={dispatch} onError={setError} />
           <SizePanel enabled={editable && !busy && snapshot.selection.length > 0} dispatch={dispatch} />
           <RotationPanel engine={engine} enabled={editable && !busy && snapshot.selection.length > 0} dispatch={dispatch} />
           <AppearancePanel page={page} selected={selected && selected.kind !== "page" ? selected : undefined} editable={editable && !busy} dispatch={dispatch} />

@@ -2,6 +2,14 @@
 
 All notable changes to the React port and its upstream compatibility baseline are recorded here.
 
+## [0.13.0] - 2026-11-07
+
+The reference baseline remains `8eb0b87646c5aef712326d6c431ccde5408630de`; full parity remains in progress.
+
+- Added smart-selection track spacing, visual slot insertion/swapping and pixel rounding for supported layers.
+- Added engine-owned transient document interactions, single-step commit/cancellation, inspector spacing scrubs and canvas gap/reorder handles without root React frame updates.
+- Auto-layout/instance restrictions and multi-file gesture isolation extend with those remaining families; general pointer transforms remain required.
+
 ## [0.12.0] - 2026-11-07
 
 The reference baseline remains `8eb0b87646c5aef712326d6c431ccde5408630de`; full parity remains in progress.
