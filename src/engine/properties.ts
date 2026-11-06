@@ -1,7 +1,9 @@
+import { pathNetwork } from "./svg-path";
+import { freezeNetwork } from "./vector-network";
 import { isShapeKey, setShapeProperties } from "./shape-properties";
 import { isStrokeKey, setStrokeProperties } from "./stroke";
 import { isArcKey, setArc } from "./ellipse";
-import { isLeaf } from "./document";
+import { isLeaf, withLayerSize } from "./document";
 import { isCornerKey, setCorners, zeroCorners } from "./corners";
 import { identity, inverse, multiply, setRotationAboutCenter, transformBounds, transformPoint, withTranslation } from "./affine";
 import { defaultConstraints, rectanglePaints, rectangleTransform, withRectanglePaints, withRectangleTransform, type Document, type NodeId, type LayerNode } from "./document";
@@ -29,7 +31,7 @@ function samePaints(left: readonly SolidPaint[], right: readonly SolidPaint[]): 
 }
 
 /** The supported layer geometry and appearance subset of upstream `node.set`. No history is recorded here. */
-export function setRectangleProperties(document: Document, selection: readonly NodeId[], params: Record<string, unknown>, origin?: Point): Document {
+export function setRectangleProperties(document: Document, selection: readonly NodeId[], params: Record<string, unknown>, origin?: Point, warnings: string[] = []): Document {
   if (params.ids != null && !Array.isArray(params.ids)) throw new Error("node.set ids must be an array");
   const rawTargets = params.ids ?? params.id;
   const suppliedTargets = rawTargets == null ? selection : Array.isArray(rawTargets) ? rawTargets : [rawTargets];
@@ -49,13 +51,22 @@ export function setRectangleProperties(document: Document, selection: readonly N
     : rawProps as Record<string, unknown>;
   const keys = Object.keys(props);
   if (keys.length === 0) throw new Error("node.set requires properties");
-  const unsupported = keys.filter(key => !geometryKeys.has(key) && !appearanceKeys.has(key) && !isCornerKey(key) && !isArcKey(key) && !isShapeKey(key) && !isStrokeKey(key));
+  const unsupported = keys.filter(key => key !== "path" && !geometryKeys.has(key) && !appearanceKeys.has(key) && !isCornerKey(key) && !isArcKey(key) && !isShapeKey(key) && !isStrokeKey(key));
   if (unsupported.length) throw new Error(`node.set unsupported properties: ${unsupported.join(", ")}`);
+  const hasPath = Object.hasOwn(props, "path"), vectors = ids.filter(id => document.nodes[id]?.kind === "vector");
+  if (hasPath && !vectors.length) { const node = document.nodes[ids[0]]; throw new Error(`path applies to vector layers; ${node?.name ?? ids[0]} is not a vector`); }
+  const skipped = hasPath ? ids.filter(id => document.nodes[id]?.kind !== "vector") : [];
+  if (skipped.length) warnings.push(`\`path\` skipped on ${skipped.slice(0, 10).map(id => `${id} “${document.nodes[id]?.name ?? id}” (${document.nodes[id]?.kind ?? "missing"})`).join(", ")}${skipped.length > 10 ? ` and ${skipped.length - 10} more` : ""}: only vector layers have a path`);
+  const shape = hasPath ? (() => {
+    if (typeof props.path !== "string") throw new Error("path must be SVG path data (a string)");
+    const size = (long: string, short: string) => Object.hasOwn(props, long) ? parseNumber(props[long], long) : Object.hasOwn(props, short) ? parseNumber(props[short], long) : undefined;
+    return pathNetwork(props.path, size("width", "w"), size("height", "h"));
+  })() : undefined;
   const pivot = origin && "rotation" in props && !("x" in props) && !("y" in props) && sameIds(requestedIds, selection) ? origin : undefined;
   const pinned = pivot ? rootIds(document, ids).map(id => ({ id, point: localOrigin(document, id, pivot) })) : [];
 
   // Parse before changing any node, so one invalid value refuses the entire selection.
-  const values = Object.fromEntries(keys.filter(key => geometryKeys.has(key)).map(key => [key, parseNumber(props[key], key)])) as Record<string, number>;
+  const values = Object.fromEntries(keys.filter(key => geometryKeys.has(key) && !(hasPath && !skipped.length && ["width", "height", "w", "h"].includes(key))).map(key => [key, parseNumber(props[key], key)])) as Record<string, number>;
   const name = "name" in props
     ? typeof props.name === "string" || typeof props.name === "number" && Number.isFinite(props.name)
       ? String(props.name) : (() => { throw new Error("name must be a string"); })()
@@ -87,15 +98,17 @@ export function setRectangleProperties(document: Document, selection: readonly N
     const node = draft.nodes[id];
     if (!node || node.kind === "page") throw new Error(`node.set target ${id} is not an editable layer`);
     if ("clip" in props && node.kind !== "frame") throw new Error("Clip content requires a frame");
-    const arcNode = setStrokeProperties(setShapeProperties(setArc(node, props), props), props);
+    let arcNode = setStrokeProperties(setShapeProperties(setArc(node, props), props), props);
     const corners = setCorners(node.corners ?? zeroCorners, props);
     const cornersChanged = corners !== (node.corners ?? zeroCorners);
     const constraints = "constraints" in props ? readConstraints(props.constraints, node.constraints) : node.constraints;
     const constraintsChanged = constraints && (constraints.horizontal !== (node.constraints ?? defaultConstraints).horizontal || constraints.vertical !== (node.constraints ?? defaultConstraints).vertical);
-    let width = node.width;
-    let height = node.height;
+    const replacement = node.kind === "vector" ? shape : undefined;
+    if (replacement && arcNode.kind === "vector") arcNode = { ...arcNode, network: replacement.network, width: replacement.width, height: replacement.height };
+    let width = replacement?.width ?? node.width;
+    let height = replacement?.height ?? node.height;
     // Upstream sorts equal-priority geometry keys by name; aliases may coexist.
-    for (const key of keys.filter(key => key === "width" || key === "height" || key === "w" || key === "h").sort()) {
+    for (const key of keys.filter(key => !replacement && (key === "width" || key === "height" || key === "w" || key === "h")).sort()) {
       const oldWidth = width, oldHeight = height;
       if (key === "width" || key === "w") width = Math.max(0, values[key]);
       else height = Math.max(0, values[key]);
@@ -108,6 +121,7 @@ export function setRectangleProperties(document: Document, selection: readonly N
         draft.set({ ...node, width, height });
         resizeChildren(draft, id, oldWidth, oldHeight);
       }
+      if (arcNode.kind === "vector" && (width !== oldWidth || height !== oldHeight)) arcNode = withLayerSize(arcNode, width, height);
     }
     let transform = rectangleTransform(node);
     if ("rotation" in values) transform = setRotationAboutCenter(transform, width, height, values.rotation);
@@ -115,13 +129,14 @@ export function setRectangleProperties(document: Document, selection: readonly N
       const space = draft.nodes[node.parent]?.kind === "group" ? frameRelative(draft.document, node.parent) : identity;
       const relative = multiply(space, transform);
       transform = multiply(inverse(space), withTranslation(relative, {
-        x: "x" in values ? values.x : relative[4],
-        y: "y" in values ? values.y : relative[5],
+        x: "x" in values ? values.x + (replacement?.offset.x ?? 0) : relative[4],
+        y: "y" in values ? values.y + (replacement?.offset.y ?? 0) : relative[5],
       }));
     }
     transformBounds(transform, width, height);
-    let updated: LayerNode = Object.freeze({ ...withRectangleTransform(arcNode, transform), width, height });
+    let updated: LayerNode = withLayerSize(withRectangleTransform(arcNode, transform), width, height);
     if (cornersChanged) updated = Object.freeze({ ...updated, corners });
+    if (updated.kind === "vector" && "cornerRadius" in props) updated = Object.freeze({ ...updated, network: freezeNetwork({ ...updated.network, vertices: updated.network.vertices.map(v => ({ ...v, radius: corners.radii[0] })) }) });
     if (constraintsChanged) updated = Object.freeze({ ...updated, constraints });
     if ("clip" in props && updated.kind === "frame") updated = Object.freeze({ ...updated, clip: props.clip as boolean });
     if (name !== undefined && name !== node.name) updated = Object.freeze({ ...updated, name });
@@ -130,7 +145,7 @@ export function setRectangleProperties(document: Document, selection: readonly N
     if ("constrainProportions" in props) updated = Object.freeze({ ...updated, constrainProportions: props.constrainProportions as boolean });
     if (opacity !== undefined && opacity !== (node.opacity ?? 1)) updated = Object.freeze({ ...updated, opacity });
     if (paints && !samePaints(rectanglePaints(node), paints)) updated = withRectanglePaints(updated, paints);
-    if (arcNode !== node || cornersChanged || "constrainProportions" in props && props.constrainProportions !== (node.constrainProportions ?? false) || constraintsChanged || "clip" in props && node.kind === "frame" && props.clip !== node.clip || width !== node.width || height !== node.height || transform.some((value, index) => value !== rectangleTransform(node)[index])
+    if (arcNode !== node || updated.kind === "vector" && "cornerRadius" in props || cornersChanged || "constrainProportions" in props && props.constrainProportions !== (node.constrainProportions ?? false) || constraintsChanged || "clip" in props && node.kind === "frame" && props.clip !== node.clip || width !== node.width || height !== node.height || transform.some((value, index) => value !== rectangleTransform(node)[index])
       || name !== undefined && name !== node.name || "visible" in props && props.visible !== (node.visible ?? true)
       || "locked" in props && props.locked !== (node.locked ?? false) || opacity !== undefined && opacity !== (node.opacity ?? 1)
       || paints && !samePaints(rectanglePaints(node), paints)) {

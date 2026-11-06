@@ -12,6 +12,7 @@ import { variableStrokeOutline } from "./variable-stroke";
 import { sanitiseWidthProfile, widthProfileMaxScale } from "./width-profile";
 import { brushOutline } from "./brush-geometry";
 import { brushReachFactor } from "./brush";
+import { paintVectorStrokeMask } from "./vector-stroke";
 
 interface FilledStroke { readonly path: Path2D; readonly rule: CanvasFillRule }
 const paths = new WeakMap<LayerNode, FilledStroke | null>();
@@ -50,6 +51,7 @@ function profilePath(node: LayerNode): Path2D | null {
   profiles.set(node, path); return path;
 }
 function filledStroke(node: LayerNode): FilledStroke | null {
+  if (node.kind === "vector") return null;
   const previous = paths.get(node); if (previous !== undefined) return previous;
   const sides = sideStrokeGeometry(node);
   if (sides) {
@@ -80,6 +82,7 @@ export function strokeReach(node: LayerNode): number {
     return side * (props.align === "inside" ? 0 : props.align === "center" ? .5 : 1);
   }
   if (node.kind === "line") return Math.max(w, 3 * base, 6);
+  if (node.kind === "vector") return Math.max(w * Math.max(1, Math.min(100, props.miterLimit)), 3 * base, 6);
   if (props.align === "inside") return 0;
   const spread = props.align === "outside" ? w : w / 2;
   return spread * (props.join === "miter" ? Math.max(1, Math.min(100, props.miterLimit)) : 1);
@@ -186,6 +189,8 @@ export function paintStroke(context: CanvasRenderingContext2D, node: LayerNode, 
   const scratch = surface.getContext("2d"); if (!scratch) throw new Error("Stroke rendering is unavailable");
   scratch.resetTransform(); scratch.globalCompositeOperation = "source-over"; scratch.globalAlpha = 1; scratch.clearRect(0, 0, surface.width, surface.height);
   scratch.setTransform(matrix.a, matrix.b, matrix.c, matrix.d, matrix.e - left, matrix.f - top);
+  if (node.kind === "vector") paintVectorStrokeMask(scratch, node);
+  else {
   const props = node.stroke ?? defaultStroke, commands = shapePath(node), path = closedPath(commands);
   const profile = profilePath(node);
   scratch.fillStyle = "black";
@@ -200,6 +205,7 @@ export function paintStroke(context: CanvasRenderingContext2D, node: LayerNode, 
     if (dashes && !symmetric) for (const line of lines) dashCaps(scratch, line, dashes.pattern, scratch.lineWidth, caps[0], caps[1]);
   }
   if (props.align !== "center") { scratch.globalCompositeOperation = props.align === "inside" ? "destination-in" : "destination-out"; scratch.fill(path); }
+  }
   let mask: Mask = { surface, context: scratch, matrix: cacheKey, left, top, width, height, bytes };
   if (bytes <= MASK_BUDGET) {
     while (cache.entries.size && (cache.entries.size >= MASK_COUNT || cache.bytes + bytes > MASK_BUDGET)) {

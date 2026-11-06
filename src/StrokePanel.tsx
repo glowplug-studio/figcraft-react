@@ -112,7 +112,7 @@ function StrokeControls({ nodes, editable, dispatch }: Props) {
         {pattern && select("Dash cap", "dashCap", dashCaps && dashCaps[0] === dashCaps[1] ? dashCaps[0] : undefined, strokeCaps.slice(0, 3), capLabels.slice(0, 3))}
         {select("Stroke join", "strokeJoin", current?.join, ["miter", "bevel", "round"], ["Miter", "Bevel", "Round"])}
         {current?.join === "miter" && field("Miter angle", "miterAngle", Math.round(miterAngle(current.miterLimit) * 100) / 100, 1, 180)}
-        {nodes.every(n => n.kind === "line") && <>{select("Start cap", "startCap", current?.capStart, strokeCaps, capLabels)}{select("End cap", "endCap", current?.capEnd, strokeCaps, capLabels)}</>}
+        {nodes.every(n => n.kind === "line" || n.kind === "vector") && <>{select("Start cap", "startCap", current?.capStart, strokeCaps, capLabels)}{select("End cap", "endCap", current?.capEnd, strokeCaps, capLabels)}</>}
       </details>
     </>}
   </fieldset>;

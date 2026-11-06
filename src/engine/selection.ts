@@ -7,6 +7,7 @@ import { defaultStroke, hasVisibleStroke, strokeMaxWeight } from "./stroke";
 import { pageForNode } from "./hierarchy";
 import type { Point } from "./geometry";
 import { parseNodeId } from "./parameters";
+import { hitsVector } from "./vector-presentation";
 
 /** Upstream cmd/edit.rs selection commands; selection does not enter document history. */
 export const selectionSpecs = Object.freeze({
@@ -134,6 +135,7 @@ export function hitRectangle(document: Document, point: Point, deep = false, sel
         const local = transformPoint(inverse(transform), point), half = Math.max(strokeMaxWeight(node.stroke ?? defaultStroke) / 2, tolerance * 2.5);
         return local.x >= -half && local.x <= node.width + half && Math.abs(local.y) <= half ? id : undefined;
       }
+      if (node.kind === "vector") return hitsVector(node, transformPoint(inverse(transform), point), tolerance) ? id : undefined;
       if (hasShapePath(node) || node.stroke || node.strokes) {
         const local = transformPoint(inverse(transform), point);
         const visible = hasVisibleStroke(node), filled = rectanglePaints(node).some(p => p.visible), reach = Math.max(strokeMaxWeight(node.stroke ?? defaultStroke) / 2, visible && !filled ? tolerance * 2.5 : tolerance);

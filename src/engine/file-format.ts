@@ -1,3 +1,4 @@
+import { readVectorNetwork, wireVectorNetwork } from "./vector-codec";
 import { isLeaf, isLeafKind } from "./document";
 import { type Corners, type Radii } from "./corners";
 import { Unzip, UnzipInflate, ZipPassThrough, zipSync } from "fflate";
@@ -13,7 +14,7 @@ import { transformBounds, type Affine } from "./affine";
 
 /** A deliberately bounded adapter for native format v1, not full archive parity.
  * Source: original/figcraft/crates/{format/src/lib.rs,doc/src/{lib,node,props}.rs}.
- * Only pages, affine groups, frames, rectangles, ellipses, polygons and stars with solid paints are editable here.
+ * Only pages, affine groups, frames, rectangles, ellipses, polygons, stars, lines and vectors with solid paints are editable here.
  * Unsupported data is rejected, never opened and silently discarded on save.
  * Browser limits are intentionally below native's: 16 MiB and 10,000 nodes.
  * zip.js reads ZIP metadata; fflate bounds inflation and computes CRC32.
@@ -27,6 +28,10 @@ type ObjectValue = Record<string, unknown>;
 export interface DecodedFigcraft { document: Document; nextId: string }
 
 function fail(message: string): never { throw new Error(`Cannot open Figcraft file: ${message}`); }
+function nativeNetwork(value: unknown): ReturnType<typeof readVectorNetwork> {
+  try { return readVectorNetwork(appearanceValue(value)); }
+  catch (error) { return fail(error instanceof Error ? error.message : "Invalid vector network"); }
+}
 function object(value: unknown, path: string): ObjectValue {
   if (!value || typeof value !== "object" || Array.isArray(value) || isLosslessNumber(value)) fail(`${path} must be an object`);
   return value as ObjectValue;
@@ -123,7 +128,7 @@ function decodeDocument(raw: unknown): DecodedFigcraft {
     const n = object(value, `node ${key}`), kind = n.type;
     if (id(n.id, "node ID") !== key) fail(`node ${key} has a mismatched ID`);
     if (kind !== "page" && kind !== "group" && kind !== "frame" && !isLeafKind(kind)) fail(`node type ${String(kind)} is not supported yet`);
-    fields(n, ["id", "name", "type", "parent", "children", "transform", "width", "height", "fills", "blend", ...(kind === "page" ? ["background", "flows", "prototype"] : [...(kind === "ellipse" ? ["start", "sweep", "inner"] : kind === "star" ? ["count", "inner_ratio"] : kind === "polygon" ? ["count"] : []), "stroke", "strokes", "visible", "locked", "opacity", "corners", "constraints", "constrain_proportions", ...(kind === "frame" ? ["clip"] : [])])], nodeDefaults, `node ${key}`);
+    fields(n, ["id", "name", "type", "parent", "children", "transform", "width", "height", "fills", "blend", ...(kind === "page" ? ["background", "flows", "prototype"] : [...(kind === "ellipse" ? ["start", "sweep", "inner"] : kind === "star" ? ["count", "inner_ratio"] : kind === "polygon" ? ["count"] : kind === "vector" ? ["network"] : []), "stroke", "strokes", "visible", "locked", "opacity", "corners", "constraints", "constrain_proportions", ...(kind === "frame" ? ["clip"] : [])])], nodeDefaults, `node ${key}`);
     const name = text(n.name, "node name"), width = number(n.width, "width"), height = number(n.height, "height");
     if (width < 0 || height < 0) fail("negative dimensions are not supported yet");
     const transform = list(n.transform ?? [1, 0, 0, 1, 0, 0], "transform").map((entry) => number(entry, "transform"));
@@ -186,7 +191,7 @@ function decodeDocument(raw: unknown): DecodedFigcraft {
       }
       nodes[key] = !isLeafKind(kind)
         ? Object.freeze({ ...withRectanglePaints(withLayerTransform({ ...layer, ...(kind === "frame" ? { kind: "frame" as const, clip: n.clip === true } : { kind: "group" as const }), children: Object.freeze(children), blend: (n.blend ?? "passThrough") as "normal" | "passThrough" }, matrix), paints), fills: paints })
-        : withRectanglePaints(withLayerTransform(kind === "ellipse" ? { ...layer, kind, start: number(n.start === undefined ? 0 : n.start, "arc start"), sweep: number(n.sweep === undefined ? 2 * Math.PI : n.sweep, "arc sweep"), inner: number(n.inner === undefined ? 0 : n.inner, "arc inner") } : kind === "polygon" ? { ...layer, kind, count } : kind === "star" ? { ...layer, kind, count, innerRatio: number(n.inner_ratio, "inner ratio") } : { ...layer, kind }, matrix), paints);
+        : withRectanglePaints(withLayerTransform(kind === "ellipse" ? { ...layer, kind, start: number(n.start === undefined ? 0 : n.start, "arc start"), sweep: number(n.sweep === undefined ? 2 * Math.PI : n.sweep, "arc sweep"), inner: number(n.inner === undefined ? 0 : n.inner, "arc inner") } : kind === "polygon" ? { ...layer, kind, count } : kind === "star" ? { ...layer, kind, count, innerRatio: number(n.inner_ratio, "inner ratio") } : kind === "vector" ? { ...layer, kind, network: nativeNetwork(n.network) } : { ...layer, kind }, matrix), paints);
     }
   }
   const referenced = new Set<string>();
@@ -279,7 +284,7 @@ export async function encodeFigcraft(document: Document, nextId?: string): Promi
     const numericId = wireId(key);
     maximum = BigInt(key) > maximum ? BigInt(key) : maximum;
     if (node.id !== key) fail("node map key and ID differ");
-    const common = { id: numericId, name: node.name, type: node.kind, ...(node.kind === "ellipse" ? { start: node.start, sweep: node.sweep, inner: node.inner } : node.kind === "star" ? { count: node.count, inner_ratio: node.innerRatio } : node.kind === "polygon" ? { count: node.count } : {}) };
+    const common = { id: numericId, name: node.name, type: node.kind, ...(node.kind === "ellipse" ? { start: node.start, sweep: node.sweep, inner: node.inner } : node.kind === "star" ? { count: node.count, inner_ratio: node.innerRatio } : node.kind === "polygon" ? { count: node.count } : node.kind === "vector" ? { network: wireVectorNetwork(node.network) } : {}) };
     if (node.kind === "page") {
       nodes[key] = { ...common, width: 0, height: 0, children: node.children.map(wireId), background: pageColour(node) };
     } else {

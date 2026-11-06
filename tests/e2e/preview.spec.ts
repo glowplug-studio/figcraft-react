@@ -2,8 +2,10 @@ import { randomUUID } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { expect, test, type Page } from "@playwright/test";
 import { localSupabase } from "../support/localSupabase";
-import { decodeFigcraft } from "../../src/engine/file-format";
-import { rectanglePaints, type RectangleNode } from "../../src/engine/document";
+import { decodeFigcraft, encodeFigcraft } from "../../src/engine/file-format";
+import { rectanglePaints, type RectangleNode, type VectorNode } from "../../src/engine/document";
+import { EditorEngine } from "../../src/engine/editor";
+import { freezeNetwork } from "../../src/engine/vector-network";
 import { transformPoint } from "../../src/engine/affine";
 import { worldTransform } from "../../src/engine/hierarchy";
 import { starPoints } from "../../src/engine/polygon";
@@ -30,6 +32,8 @@ test.beforeAll(async () => {
     password = process.env.FIGCRAFT_E2E_PASSWORD ?? "";
     if (!email || !password) throw new Error("Hosted verification requires FIGCRAFT_E2E_EMAIL and FIGCRAFT_E2E_PASSWORD in the environment");
   } else {
+    // Local Docker/CLI discovery is infrastructure setup, outside interaction timeouts.
+    test.setTimeout(60_000);
     backend = localSupabase();
     email = `figcraft-browser-${randomUUID()}@example.test`;
     password = `Figcraft-${randomUUID()}!`;
@@ -1657,4 +1661,63 @@ test("brush controls preserve Mixed and multi-layer undo", async ({ page }) => {
   const download = page.waitForEvent("download"); await page.getByRole("button", { name: "Save as", exact: true }).click();
   const opened = await decodeFigcraft(await readFile((await (await download).path())!));
   expect(Object.values(opened.document.nodes).filter(n => n.kind === "line").map(n => n.stroke?.brush?.preset)).toEqual(["dots", "ink"]);
+});
+
+test("Flatten and Reverse preserve geometry, shortcuts, undo, native files and recovery", async ({ page }) => {
+  await login(page); const creation = page.getByRole("group", { name: "Create layer", exact: true }), layers = page.getByRole("region", { name: "Layers", exact: true });
+  for (const [label, value] of [["X", 200], ["Y", 200], ["Width", 160], ["Height", 100]] as const) await creation.getByLabel(label, { exact: true }).fill(String(value));
+  await creation.getByRole("button", { name: "Create rectangle", exact: true }).click();
+  await page.getByLabel("Name", { exact: true }).fill("Vector source"); await page.getByRole("button", { name: "Apply layer", exact: true }).click();
+  await creation.getByLabel("X", { exact: true }).fill("320"); await creation.getByLabel("Y", { exact: true }).fill("240"); await creation.getByRole("button", { name: "Create ellipse", exact: true }).click();
+  await layers.getByRole("button", { name: "Vector source", exact: true }).click({ modifiers: ["Shift"] });
+  await layers.getByRole("button", { name: "Flatten", exact: true }).click();
+  const selected = page.getByRole("region", { name: "Selected vector", exact: true }); await expect(selected).toBeVisible();
+  await expect(selected.getByLabel("Edit Width", { exact: true })).toHaveValue("280");
+  // Flatten bounds the native0.01-tolerance ellipse cubics, not the original rectangular frame.
+  expect(Number(await selected.getByLabel("Edit Height", { exact: true }).inputValue())).toBeCloseTo(140, 2);
+  const canvas = page.getByLabel("Design canvas", { exact: true }); await canvas.focus(); await page.keyboard.press("ControlOrMeta+z");
+  await expect(layers.getByRole("button", { name: "Ellipse", exact: true })).toBeVisible();
+  await page.keyboard.press("Alt+Shift+f"); await expect(selected).toBeVisible(); await expect(layers.getByRole("button", { name: "Ellipse", exact: true })).toHaveCount(0);
+  await expect(canvas).toHaveScreenshot("vector-flatten.png", { animations: "disabled", maxDiffPixels: 0 });
+  await selected.getByLabel("Edit Width", { exact: true }).fill("350"); await selected.getByRole("button", { name: "Apply geometry", exact: true }).click();
+  await expect(selected.getByLabel("Edit Width", { exact: true })).toHaveValue("350");
+  const save = async () => { const download = page.waitForEvent("download"); await page.getByRole("button", { name: "Save as", exact: true }).click(); return decodeFigcraft(await readFile((await (await download).path())!)); };
+  const before = await save(), original = Object.values(before.document.nodes).find(n => n.kind === "vector") as VectorNode;
+  expect(original.network.regions).toHaveLength(2); expect(original.network.regions.every(r => r.paintSpace)).toBe(true);
+  await layers.getByRole("button", { name: "Reverse path direction", exact: true }).click();
+  const after = await save(), reversed = Object.values(after.document.nodes).find(n => n.kind === "vector") as VectorNode;
+  expect(reversed.network.segments).toEqual(original.network.segments.map(s => ({ a: s.b, b: s.a, ta: s.tb, tb: s.ta })));
+  await canvas.focus(); await page.keyboard.press("ControlOrMeta+e"); await expect(selected).toBeVisible();
+  await expect(page.locator(".figcraft-recovery")).toHaveText("Recovery saved on this device"); await page.reload();
+  await layers.getByRole("button", { name: "Vector source", exact: true }).click(); await expect(selected.getByLabel("Edit Width", { exact: true })).toHaveValue("350");
+  await expect(page.getByRole("button", { name: "Corner smoothing", exact: true })).toHaveCount(0);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.locator(".figcraft-mobile-layers > summary").click();
+  const mobile = page.locator(".figcraft-mobile-layers");
+  for (const label of ["Flatten", "Reverse path direction"]) { const button = mobile.getByRole("button", { name: label, exact: true }); await button.scrollIntoViewIfNeeded(); const box = (await button.boundingBox())!; expect(box.x).toBeGreaterThanOrEqual(0); expect(box.x + box.width).toBeLessThanOrEqual(390); }
+  await page.screenshot({ path: "test-results/vector-mobile.png", fullPage: true });
+});
+
+test("native open vectors and even-odd regions support canvas selection, caps and atomic file errors", async ({ page }) => {
+  const engine = new EditorEngine();
+  engine.execute("vector.create", { name: "Open curve", x: 200, y: 200, path: "M0 0C60 0 100 100 160 100", props: { fill: null, stroke: "black", strokeWeight: 8 } });
+  const id = String(engine.execute("vector.create", { name: "Ring", x: 450, y: 200, path: "M0 0H160V160H0Z M40 40H120V120H40Z", props: { fill: "red" } }).id);
+  const doc = engine.getSnapshot().document, ring = doc.nodes[id] as VectorNode;
+  const bytes = Buffer.from(await encodeFigcraft({ ...doc, nodes: { ...doc.nodes, [id]: { ...ring, network: freezeNetwork({ ...ring.network, regions: ring.network.regions.map(r => ({ ...r, winding: "evenOdd" })) }) } } }));
+  await login(page); await page.getByLabel("Open Figcraft file", { exact: true }).setInputFiles({ name: "vector.figcraft", mimeType: "application/octet-stream", buffer: bytes });
+  const layers = page.getByRole("region", { name: "Layers", exact: true }); await expect(layers.getByRole("button", { name: "Ring", exact: true })).toBeVisible(); await resetCanvasOrigin(page);
+  const canvas = page.getByLabel("Design canvas", { exact: true }), bounds = (await canvas.boundingBox())!;
+  await page.mouse.click(bounds.x + 530, bounds.y + 280); await expect(page.getByRole("region", { name: "Selected vector", exact: true })).toHaveCount(0);
+  await page.mouse.click(bounds.x + 465, bounds.y + 215); await expect(page.getByLabel("Name", { exact: true })).toHaveValue("Ring");
+  await page.mouse.click(bounds.x + 280, bounds.y + 250); await expect(page.getByLabel("Name", { exact: true })).toHaveValue("Open curve");
+  const stroke = page.getByRole("group", { name: "Stroke", exact: true }); await stroke.getByText("Advanced stroke", { exact: true }).click();
+  await stroke.getByLabel("End cap", { exact: true }).selectOption("diamondFilled"); await expect(stroke.getByLabel("End cap", { exact: true })).toHaveValue("diamondFilled");
+  const download = page.waitForEvent("download"); await page.getByRole("button", { name: "Save as", exact: true }).click();
+  const saved = await readFile((await (await download).path())!); const parsed = await decodeFigcraft(saved);
+  expect(Object.values(parsed.document.nodes).find(n => n.name === "Open curve")).toMatchObject({ stroke: { capEnd: "diamondFilled" } });
+  const malformed = JSON.parse(strFromU8(unzipSync(saved)["document.json"])) as { nodes: Record<string, { type: string; network?: { vertices: unknown } }> };
+  const vector = Object.values(malformed.nodes).find(n => n.type === "vector")!; vector.network!.vertices = null;
+  await page.getByLabel("Open Figcraft file", { exact: true }).setInputFiles({ name: "invalid-vector.figcraft", mimeType: "application/json", buffer: Buffer.from(JSON.stringify(malformed)) });
+  await expect(page.locator("main [role=alert]")).toContainText("Vector metadata must be an array");
+  await expect(page.getByLabel("Name", { exact: true })).toHaveValue("Open curve"); await expect(stroke.getByLabel("End cap", { exact: true })).toHaveValue("diamondFilled");
 });

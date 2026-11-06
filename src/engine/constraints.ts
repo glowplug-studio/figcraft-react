@@ -1,3 +1,4 @@
+import { withLayerSize } from "./document";
 import { isLeaf } from "./document";
 import { transformBounds, withTranslation, type Affine } from "./affine";
 import { defaultConstraints, layerTransform, withLayerTransform, type Constraints, type NodeId } from "./document";
@@ -61,7 +62,7 @@ export function resizeChildren(draft: HierarchyDraft, id: NodeId, oldWidth: numb
       if (group) { x = (b.x + b.width / 2) * sx - box.width / 2; y = (b.y + b.height / 2) * sy - box.height / 2; }
       const transform = withTranslation(linear, { x: x - box.x, y: y - box.y });
       transformBounds(transform, width, height);
-      draft.set({ ...withLayerTransform(child, transform), width, height });
+      draft.set(withLayerSize(withLayerTransform(child, transform), width, height));
       if (!isLeaf(child) && (group || resized)) pending.push({ id: childId, oldWidth: child.width, oldHeight: child.height,
         ...(child.kind === "group" ? { groupScale: [kw, kh] as const } : {}) });
     }

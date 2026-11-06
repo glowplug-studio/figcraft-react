@@ -1,5 +1,6 @@
 import type { Corners } from "./corners";
 import type { StrokeProps } from "./stroke";
+import { transformNetwork, type VectorNetwork } from "./vector-network";
 import type { Affine } from "./affine";
 import { type Colour, fromRgba8, toRgba8, toCssHex } from "./colour";
 import { parseCssColour } from "./colour-css";
@@ -47,8 +48,9 @@ export interface LineNode extends LayerProperties { readonly kind: "line" }
 export interface EllipseNode extends LayerProperties { readonly kind: "ellipse"; readonly start: number; readonly sweep: number; readonly inner: number }
 export interface PolygonNode extends LayerProperties { readonly kind: "polygon"; readonly count: number }
 export interface StarNode extends LayerProperties { readonly kind: "star"; readonly count: number; readonly innerRatio: number }
-export type LeafNode = RectangleNode | EllipseNode | PolygonNode | StarNode | LineNode;
-export type DrawShapeKind = LeafNode["kind"] | "arrow";
+export interface VectorNode extends LayerProperties { readonly kind: "vector"; readonly network: VectorNetwork }
+export type LeafNode = RectangleNode | EllipseNode | PolygonNode | StarNode | LineNode | VectorNode;
+export type DrawShapeKind = Exclude<LeafNode["kind"], "vector"> | "arrow";
 export interface GroupNode extends LayerProperties {
   readonly kind: "group";
   readonly children: readonly NodeId[];
@@ -60,8 +62,8 @@ export interface FrameNode extends LayerProperties {
 }
 export type LayerNode = LeafNode | GroupNode | FrameNode;
 export type DocumentNode = PageNode | LayerNode;
-export const isLeafKind = (kind: unknown): kind is LeafNode["kind"] => kind === "rectangle" || kind === "ellipse" || kind === "polygon" || kind === "star" || kind === "line";
-export const isDrawTool = (kind: unknown): kind is DrawShapeKind => isLeafKind(kind) || kind === "arrow";
+export const isLeafKind = (kind: unknown): kind is LeafNode["kind"] => kind === "rectangle" || kind === "ellipse" || kind === "polygon" || kind === "star" || kind === "line" || kind === "vector";
+export const isDrawTool = (kind: unknown): kind is DrawShapeKind => isLeafKind(kind) && kind !== "vector" || kind === "arrow";
 export const isLeaf = (node: DocumentNode): node is LeafNode => isLeafKind(node.kind);
 export interface Document {
   readonly name: string;
@@ -92,6 +94,16 @@ export function withRectangleTransform<T extends LayerNode>(node: T, matrix: Aff
 }
 export const layerTransform = rectangleTransform;
 export const withLayerTransform = withRectangleTransform;
+
+/** Native layout::set_size changes network coordinates while ordinary resize retains point radii. */
+export function withLayerSize<T extends LayerNode>(node: T, width: number, height: number): T;
+export function withLayerSize(node: LayerNode, width: number, height: number): LayerNode {
+  if (node.kind === "vector" && (Math.abs(width - node.width) >= 1e-9 || Math.abs(height - node.height) >= 1e-9)) {
+    const network = transformNetwork(node.network, [node.width > 1e-9 ? width / node.width : 1, 0, 0, node.height > 1e-9 ? height / node.height : 1, 0, 0]);
+    return Object.freeze({ ...node, width, height, network });
+  }
+  return Object.freeze({ ...node, width, height });
+}
 
 const legacyPaintCache = new Map<string, readonly SolidPaint[]>();
 export function rectanglePaints(node: LayerNode): readonly SolidPaint[] {

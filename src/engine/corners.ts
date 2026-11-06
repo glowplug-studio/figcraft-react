@@ -109,6 +109,11 @@ export function flattenContours(path: readonly PathCommand[]): readonly (readonl
   flattened.set(path, contours); return contours;
 }
 export function flattenPath(path: readonly PathCommand[]): readonly Point[] { return flattenContours(path).flat(); }
+/** Open subpaths have no implicit closing edge when measuring stroke proximity. */
+export function nearPath(path: readonly PathCommand[], point: Point, tolerance: number): boolean {
+  for (const points of flattenContours(path)) for (let i = 1; i < points.length; i++) if (distance(point, points[i - 1], points[i]) <= tolerance) return true;
+  return false;
+}
 export function hitsPath(path: readonly PathCommand[], point: Point, tolerance: number, includeInterior = true): boolean {
   let winding = 0;
   for (const points of flattenContours(path)) for (let i = 0; i < points.length; i++) {

@@ -1,3 +1,5 @@
+import { freezeNetwork, transformNetwork } from "./vector-network";
+import { withLayerSize } from "./document";
 import type { Radii } from "./corners";
 import { defaultStroke, type StrokeSides } from "./stroke";
 import { multiply, transformBounds, transformPoint, type Affine } from "./affine";
@@ -22,7 +24,7 @@ function resize(draft: HierarchyDraft, id: NodeId, width: number, height: number
   if (width === node.width && height === node.height) return;
   const before = transformPoint(layerTransform(node), { x: node.width * ax, y: node.height * ay });
   transformBounds(layerTransform(node), width, height);
-  draft.set({ ...node, width, height });
+  draft.set(withLayerSize(node, width, height));
   resizeChildren(draft, id, node.width, node.height);
   const updated = draft.nodes[id];
   if (updated.kind === "page") throw new Error("Cannot resize a page");
@@ -44,7 +46,9 @@ export function scaleSubtree(draft: HierarchyDraft, root: NodeId, factor: number
     const stroke = node.stroke ?? defaultStroke, weight = stroke.weight * factor, dashes = stroke.dashes.map(d => d * factor);
     const sides = stroke.sides?.map(side => side * factor);
     if (![weight, ...dashes, ...(sides ?? [])].every(Number.isFinite)) throw new Error("Scaled stroke values must be finite");
-    draft.set({ ...withLayerTransform(node, matrix), width, height, stroke: Object.freeze({ ...stroke, weight, dashes: Object.freeze(dashes), ...(sides ? { sides: Object.freeze(sides) as unknown as StrokeSides } : {}) }), ...(node.corners && radii ? { corners: Object.freeze({ ...node.corners, radii: Object.freeze(radii) as unknown as Radii }) } : {}) });
+    const network = node.kind === "vector" ? freezeNetwork({ ...transformNetwork(node.network, [factor, 0, 0, factor, 0, 0]), vertices: node.network.vertices.map(v => ({ ...v, x: v.x * factor, y: v.y * factor, radius: v.radius * factor })) }) : undefined;
+    if (network?.vertices.some(v => ![v.x, v.y, v.radius].every(Number.isFinite))) throw new Error("Scaled vector values must be finite");
+    draft.set({ ...withLayerTransform(node, matrix), width, height, ...(network ? { network } : {}), stroke: Object.freeze({ ...stroke, weight, dashes: Object.freeze(dashes), ...(sides ? { sides: Object.freeze(sides) as unknown as StrokeSides } : {}) }), ...(node.corners && radii ? { corners: Object.freeze({ ...node.corners, radii: Object.freeze(radii) as unknown as Radii }) } : {}) });
   }
 }
 

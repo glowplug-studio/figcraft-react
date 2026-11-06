@@ -1,0 +1,484 @@
+<!doctype html><html lang="en-GB"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Vector foundation parity</title><style>body{font:14px system-ui;margin:24px;color:#202020}table{border-collapse:collapse;min-width:1600px}th,td{padding:10px;border:1px solid #aaa;text-align:left;vertical-align:top}th{background:#eee}.scroll{overflow:auto}a{color:#075a9c}@media print{body{margin:0;font-size:9px}.scroll{overflow:visible}table{min-width:0}thead{display:table-header-group}tr{break-inside:avoid}}</style></head><body><h1>Vector networks and Flatten — 7 November 2026</h1>
+<p>React 0.24.0; reviewed mathematics cb5417d; integration verified, commit being recorded; branch prompt/full-figcraft-port. Upstream 0b97f3f1801a9b7b96fd7a4f3c0942a3f1a676f3; global baseline 8eb0b876.</p>
+<p>Local Supabase2.116.0; Next16.4.5 production; Playwright1.65.0 Chromium,1440×900/scale1 and390×844.671 pure tests,2 real Auth checks, strict TypeScript and package/Next builds pass. Four focused pixel suites, two authenticated workflows and the vector performance fixture pass. First full regression:23 passed,2 failed,61 skipped in155.6s; local Auth setup timeout and per-side resize17.3ms. Both full reruns pass:86/86 in201.1s; rebuilt final86/86 in200.9s, none skipped/flaky. No Rust execution, hosted changes or publication.</p>
+<p><a href="26-11-07-vector-foundation.md">Report, corrections and limits</a>.30 bounded rows Passed; full product Partial.</p><div class="scroll" tabindex="0" role="region" aria-label="Vector parity evidence"><table><caption>Independent property evidence and manual checks</caption><thead><tr>
+<th scope="col">Feature</th>
+<th scope="col">Sub-feature</th>
+<th scope="col">Expected upstream behaviour</th>
+<th scope="col">React target</th>
+<th scope="col">Automated test method / identifier</th>
+<th scope="col">Expected result</th>
+<th scope="col">Actual result</th>
+<th scope="col">Status</th>
+<th scope="col">Evidence</th>
+<th scope="col">Human prerequisites and numbered actions</th>
+<th scope="col">Human observation</th>
+<th scope="col">Confidence</th>
+<th scope="col">Remaining gap / limitation</th>
+</tr></thead><tbody>
+<tr>
+<td>Network</td>
+<td>Metadata</td>
+<td>Preserve relative handles, optional styles, raw references and region paint frames.</td>
+<td>vector-network.ts; vector-codec.ts</td>
+<td>vector-commands.test.ts: raw native VectorNetwork metadata</td>
+<td>Raw values retained; malformed types refused.</td>
+<td>Raw values retained; malformed types refused.</td>
+<td>Passed</td>
+<td><a href="../../tests/parity/vector-commands.test.ts">Repository evidence</a></td>
+<td>1. Run npm test. 2. Inspect the named parity fixture result.</td>
+<td>Raw values retained; malformed types refused.</td>
+<td>Medium</td>
+<td>None within this bounded property.</td>
+</tr>
+<tr>
+<td>Network</td>
+<td>Topology and work</td>
+<td>Stable maximal runs, self-loops, duplicate endpoint merging and linear traversal.</td>
+<td>vector-network.ts; vector-path.ts</td>
+<td>vector-network.test.ts: source-derived topology and large fixtures</td>
+<td>20,000-point chain, 3,000 subpaths and 4,000 corners pass.</td>
+<td>20,000-point chain, 3,000 subpaths and 4,000 corners pass.</td>
+<td>Passed</td>
+<td><a href="../../tests/parity/vector-network.test.ts">Repository evidence</a></td>
+<td>1. Run npm test. 2. Inspect the named parity fixture result.</td>
+<td>20,000-point chain, 3,000 subpaths and 4,000 corners pass.</td>
+<td>Medium</td>
+<td>Does not prove unrestricted visible complexity.</td>
+</tr>
+<tr>
+<td>Geometry</td>
+<td>Cubic mathematics</td>
+<td>Exact extrema/winding; adaptive length and de Casteljau portions.</td>
+<td>cubic.ts; vector-path.ts</td>
+<td>vector-network.test.ts: cubic and winding fixtures</td>
+<td>Independent paired numerical invariants pass.</td>
+<td>Independent paired numerical invariants pass.</td>
+<td>Passed</td>
+<td><a href="../../tests/parity/vector-network.test.ts">Repository evidence</a></td>
+<td>1. Run npm test. 2. Inspect the named parity fixture result.</td>
+<td>Independent paired numerical invariants pass.</td>
+<td>Medium</td>
+<td>Floating-point tolerance, not bit identity.</td>
+</tr>
+<tr>
+<td>Geometry</td>
+<td>Rounded vertices</td>
+<td>Trim degree-two nonsmooth corners, retaining curved remainders.</td>
+<td>vector-rounded.ts</td>
+<td>vector-network.test.ts; vector-presentation.test.ts</td>
+<td>Rounded boundaries and source two-segment corner cases pass.</td>
+<td>Rounded boundaries and source two-segment corner cases pass.</td>
+<td>Passed</td>
+<td><a href="../../tests/parity/vector-network.test.ts">Repository evidence</a></td>
+<td>1. Run npm test. 2. Inspect the named parity fixture result.</td>
+<td>Rounded boundaries and source two-segment corner cases pass.</td>
+<td>Medium</td>
+<td>None within this bounded property.</td>
+</tr>
+<tr>
+<td>SVG</td>
+<td>Commands and lexer</td>
+<td>All native SVG commands, smooth controls, compact flags and trailing-byte behaviour.</td>
+<td>svg-path.ts</td>
+<td>svg-path.test.ts</td>
+<td>Source-derived SVG fixtures pass.</td>
+<td>Source-derived SVG fixtures pass.</td>
+<td>Passed</td>
+<td><a href="../../tests/parity/svg-path.test.ts">Repository evidence</a></td>
+<td>1. Run npm test. 2. Inspect the named parity fixture result.</td>
+<td>Source-derived SVG fixtures pass.</td>
+<td>Medium</td>
+<td>No SVG-path form is invented; engine command API is embeddable.</td>
+</tr>
+<tr>
+<td>SVG</td>
+<td>Normalisation</td>
+<td>Bound segments, scale before endpoint merge, preserve unscaled placement offset.</td>
+<td>svg-path.ts</td>
+<td>svg-path.test.ts; vector-commands.test.ts</td>
+<td>Proportions, zero-axis errors and endpoint thresholds pass.</td>
+<td>Proportions, zero-axis errors and endpoint thresholds pass.</td>
+<td>Passed</td>
+<td><a href="../../tests/parity/svg-path.test.ts">Repository evidence</a></td>
+<td>1. Run npm test. 2. Inspect the named parity fixture result.</td>
+<td>Proportions, zero-axis errors and endpoint thresholds pass.</td>
+<td>Medium</td>
+<td>Astronomical arcs retain the 4,096-subdivision guard.</td>
+</tr>
+<tr>
+<td>Commands</td>
+<td>Creation</td>
+<td>vector.create and vector/path aliases accept SVG, filtered points or empty networks.</td>
+<td>creation.ts; editor.ts</td>
+<td>vector-commands.test.ts: creates SVG, point and empty networks</td>
+<td>Native defaults, names, offsets and selection retained.</td>
+<td>Native defaults, names, offsets and selection retained.</td>
+<td>Passed</td>
+<td><a href="../../tests/parity/vector-commands.test.ts">Repository evidence</a></td>
+<td>1. Run npm test. 2. Inspect the named parity fixture result.</td>
+<td>Native defaults, names, offsets and selection retained.</td>
+<td>Medium</td>
+<td>None within this bounded property.</td>
+</tr>
+<tr>
+<td>Commands</td>
+<td>Path replacement</td>
+<td>Keep identity, appearance, order and rotation; explicit x/y includes new offset.</td>
+<td>properties.ts</td>
+<td>vector-commands.test.ts: all six upstream replacement frame rows</td>
+<td>All six frames and atomic undo/redo pass.</td>
+<td>All six frames and atomic undo/redo pass.</td>
+<td>Passed</td>
+<td><a href="../../tests/parity/vector-commands.test.ts">Repository evidence</a></td>
+<td>1. Run npm test. 2. Inspect the named parity fixture result.</td>
+<td>All six frames and atomic undo/redo pass.</td>
+<td>Medium</td>
+<td>None within this bounded property.</td>
+</tr>
+<tr>
+<td>Commands</td>
+<td>Errors and mixed targets</td>
+<td>Invalid paths are atomic; mixed non-vectors warn; long size aliases take precedence.</td>
+<td>properties.ts</td>
+<td>vector-commands.test.ts: rejects invalid data</td>
+<td>No partial mutation; warning names/counts retained.</td>
+<td>No partial mutation; warning names/counts retained.</td>
+<td>Passed</td>
+<td><a href="../../tests/parity/vector-commands.test.ts">Repository evidence</a></td>
+<td>1. Run npm test. 2. Inspect the named parity fixture result.</td>
+<td>No partial mutation; warning names/counts retained.</td>
+<td>Medium</td>
+<td>None within this bounded property.</td>
+</tr>
+<tr>
+<td>Transforms</td>
+<td>Resize and Scale</td>
+<td>Resize networks, handles and paint frames; only Scale also scales radii.</td>
+<td>sizing.ts; constraints.ts; transform-preview.ts</td>
+<td>vector-commands.test.ts; authenticated Flatten workflow</td>
+<td>Properties, Frame constraints, Scale and browser resize pass.</td>
+<td>Properties, Frame constraints, Scale and browser resize pass.</td>
+<td>Passed</td>
+<td><a href="../../tests/parity/vector-commands.test.ts">Repository evidence</a></td>
+<td>Local Supabase and configured Next.js host. 1. Sign in. 2. Follow the named browser workflow.</td>
+<td>Properties, Frame constraints, Scale and browser resize pass.</td>
+<td>High</td>
+<td>None within this bounded property.</td>
+</tr>
+<tr>
+<td>Transforms</td>
+<td>Sequential aliases</td>
+<td>Apply each native dimension alias, including a zero intermediate width.</td>
+<td>properties.ts; document.ts</td>
+<td>vector-commands.test.ts: applies dimension aliases sequentially</td>
+<td>Collapsed coordinates remain collapsed when zero width expands.</td>
+<td>Collapsed coordinates remain collapsed when zero width expands.</td>
+<td>Passed</td>
+<td><a href="../../tests/parity/vector-commands.test.ts">Repository evidence</a></td>
+<td>1. Run npm test. 2. Inspect the named parity fixture result.</td>
+<td>Collapsed coordinates remain collapsed when zero width expands.</td>
+<td>Medium</td>
+<td>None within this bounded property.</td>
+</tr>
+<tr>
+<td>Files</td>
+<td>Native archive</td>
+<td>Encode/decode vector geometry and metadata without silently repairing native references.</td>
+<td>file-format.ts; vector-codec.ts</td>
+<td>vector-commands.test.ts; native open vectors browser workflow</td>
+<td>Archive round trip and malformed-network refusal pass.</td>
+<td>Archive round trip and malformed-network refusal pass.</td>
+<td>Passed</td>
+<td><a href="../../tests/e2e/preview.spec.ts">Repository evidence</a></td>
+<td>Local Supabase and configured Next.js host. 1. Sign in. 2. Follow the named browser workflow.</td>
+<td>Archive round trip and malformed-network refusal pass.</td>
+<td>High</td>
+<td>None within this bounded property.</td>
+</tr>
+<tr>
+<td>Fills</td>
+<td>Legacy winding</td>
+<td>Any even-odd legacy region sets the combined rule; open paths do not fill.</td>
+<td>vector-presentation.ts; canvas.ts</td>
+<td>vector-presentation.test.ts; vector-rendering.spec.ts</td>
+<td>Ring hole stays empty; open curve interior stays empty.</td>
+<td>Ring hole stays empty; open curve interior stays empty.</td>
+<td>Passed</td>
+<td><a href="../../tests/e2e/vector-rendering.spec.ts">Repository evidence</a></td>
+<td>Local Supabase and configured Next.js host. 1. Sign in. 2. Follow the named browser workflow.</td>
+<td>Ring hole stays empty; open curve interior stays empty.</td>
+<td>High</td>
+<td>None within this bounded property.</td>
+</tr>
+<tr>
+<td>Fills</td>
+<td>Region stacks and opacity</td>
+<td>Explicit empty differs from inherited; own rules and ordered paints; layer opacity once.</td>
+<td>vector-presentation.ts; canvas.ts</td>
+<td>vector-rendering.spec.ts: regions and overlap pixels</td>
+<td>Inherited/explicit stacks and half-opacity overlap pixels match.</td>
+<td>Inherited/explicit stacks and half-opacity overlap pixels match.</td>
+<td>Passed</td>
+<td><a href="../../tests/e2e/vector-rendering.spec.ts">Repository evidence</a></td>
+<td>Local Supabase and configured Next.js host. 1. Sign in. 2. Follow the named browser workflow.</td>
+<td>Inherited/explicit stacks and half-opacity overlap pixels match.</td>
+<td>Only existing solid paint families are rendered.</td>
+<td>None within this bounded property.</td>
+</tr>
+<tr>
+<td>Selection</td>
+<td>Open and styled geometry</td>
+<td>No phantom closing stroke; native legacy/styled fill and tolerance rules.</td>
+<td>selection.ts; vector-presentation.ts</td>
+<td>vector-presentation.test.ts; native open vectors browser workflow</td>
+<td>Open curve selectable; ring hole passes through; rounded corners respected.</td>
+<td>Open curve selectable; ring hole passes through; rounded corners respected.</td>
+<td>Passed</td>
+<td><a href="../../tests/e2e/preview.spec.ts">Repository evidence</a></td>
+<td>Local Supabase and configured Next.js host. 1. Sign in. 2. Follow the named browser workflow.</td>
+<td>Open curve selectable; ring hole passes through; rounded corners respected.</td>
+<td>High</td>
+<td>None within this bounded property.</td>
+</tr>
+<tr>
+<td>Strokes</td>
+<td>Alignment and curves</td>
+<td>Open networks centre; closed inside/outside uses the network winding rule.</td>
+<td>vector-stroke.ts; stroke-renderer.ts</td>
+<td>vector-rendering.spec.ts: curve and alignment pixels</td>
+<td>Curve ink, empty interior, outer edges and hole edges match.</td>
+<td>Curve ink, empty interior, outer edges and hole edges match.</td>
+<td>Passed</td>
+<td><a href="../../tests/e2e/vector-rendering.spec.ts">Repository evidence</a></td>
+<td>Local Supabase and configured Next.js host. 1. Sign in. 2. Follow the named browser workflow.</td>
+<td>Curve ink, empty interior, outer edges and hole edges match.</td>
+<td>High</td>
+<td>None within this bounded property.</td>
+</tr>
+<tr>
+<td>Strokes</td>
+<td>Dashes and ordinary caps</td>
+<td>Fit each open run with native half-dash ends; preserve asymmetric caps.</td>
+<td>vector-stroke.ts; line-stroke.ts</td>
+<td>vector-presentation.test.ts; vector-rendering.spec.ts: comparisons</td>
+<td>Dash plans match; straight vector/Line images differ by at most two levels.</td>
+<td>Dash plans match; straight vector/Line images differ by at most two levels.</td>
+<td>Passed</td>
+<td><a href="../../tests/e2e/vector-rendering.spec.ts">Repository evidence</a></td>
+<td>Local Supabase and configured Next.js host. 1. Sign in. 2. Follow the named browser workflow.</td>
+<td>Dash plans match; straight vector/Line images differ by at most two levels.</td>
+<td>Canvas antialiasing permits two 8-bit coverage levels.</td>
+<td>None within this bounded property.</td>
+</tr>
+<tr>
+<td>Strokes</td>
+<td>Point styles</td>
+<td>Break differing joins, apply endpoint overrides and short native corner patches.</td>
+<td>vector-stroke.ts</td>
+<td>vector-presentation.test.ts; vector-rendering.spec.ts: pointStyles</td>
+<td>Own round join/start cap and unextended end pass.</td>
+<td>Own round join/start cap and unextended end pass.</td>
+<td>Passed</td>
+<td><a href="../../tests/e2e/vector-rendering.spec.ts">Repository evidence</a></td>
+<td>Local Supabase and configured Next.js host. 1. Sign in. 2. Follow the named browser workflow.</td>
+<td>Own round join/start cap and unextended end pass.</td>
+<td>High</td>
+<td>None within this bounded property.</td>
+</tr>
+<tr>
+<td>Strokes</td>
+<td>Arrows</td>
+<td>Use first/last layer endpoints and eligible styled-run point arrows; closed shapes suppress heads.</td>
+<td>vector-stroke.ts</td>
+<td>vector-presentation.test.ts; vector-rendering.spec.ts: arrows</td>
+<td>Rotated head vertices, endpoint derivative rules and browser arrow placement pass.</td>
+<td>Rotated head vertices, endpoint derivative rules and browser arrow placement pass.</td>
+<td>Passed</td>
+<td><a href="../../tests/parity/vector-presentation.test.ts">Repository evidence</a></td>
+<td>Local Supabase and configured Next.js host. 1. Sign in. 2. Follow the named browser workflow.</td>
+<td>Rotated head vertices, endpoint derivative rules and browser arrow placement pass.</td>
+<td>High</td>
+<td>None within this bounded property.</td>
+</tr>
+<tr>
+<td>Strokes</td>
+<td>Brush/profile precedence</td>
+<td>Dashes, profiles and brushes ignore point overrides; unknown brushes fall back uniformly.</td>
+<td>vector-stroke.ts</td>
+<td>vector-presentation.test.ts; vector-rendering.spec.ts; brush-rendering.spec.ts</td>
+<td>Profile/brush Line equivalence and existing fallback regression pass.</td>
+<td>Profile/brush Line equivalence and existing fallback regression pass.</td>
+<td>Passed</td>
+<td><a href="../../tests/e2e/vector-rendering.spec.ts">Repository evidence</a></td>
+<td>Local Supabase and configured Next.js host. 1. Sign in. 2. Follow the named browser workflow.</td>
+<td>Profile/brush Line equivalence and existing fallback regression pass.</td>
+<td>High</td>
+<td>None within this bounded property.</td>
+</tr>
+<tr>
+<td>Flatten</td>
+<td>Open paths</td>
+<td>Keep both source open networks and closed geometry.</td>
+<td>vector-commands.ts</td>
+<td>vector-flatten.test.ts: upstream two-open-paths-and-triangle fixture</td>
+<td>9 vertices, 7 segments, 1 region, 400×150 frame and one-step undo.</td>
+<td>9 vertices, 7 segments, 1 region, 400×150 frame and one-step undo.</td>
+<td>Passed</td>
+<td><a href="../../tests/parity/vector-flatten.test.ts">Repository evidence</a></td>
+<td>1. Run npm test. 2. Inspect the named parity fixture result.</td>
+<td>9 vertices, 7 segments, 1 region, 400×150 frame and one-step undo.</td>
+<td>Medium</td>
+<td>None within this bounded property.</td>
+</tr>
+<tr>
+<td>Flatten</td>
+<td>Hierarchy and appearance</td>
+<td>Root/z ordering; top parent/index; first appearance; visible Frame descendants.</td>
+<td>vector-commands.ts</td>
+<td>vector-flatten.test.ts; authenticated Flatten workflow</td>
+<td>No duplicate descendants; hidden children omitted; first appearance retained.</td>
+<td>No duplicate descendants; hidden children omitted; first appearance retained.</td>
+<td>Passed</td>
+<td><a href="../../tests/parity/vector-flatten.test.ts">Repository evidence</a></td>
+<td>Local Supabase and configured Next.js host. 1. Sign in. 2. Follow the named browser workflow.</td>
+<td>No duplicate descendants; hidden children omitted; first appearance retained.</td>
+<td>High</td>
+<td>None within this bounded property.</td>
+</tr>
+<tr>
+<td>Flatten</td>
+<td>Paint frames and inheritance</td>
+<td>Retain explicit paints and source frame; merge unstyled legacy loops.</td>
+<td>vector-commands.ts</td>
+<td>vector-flatten.test.ts: inherited paints, regrouping and legacy holes</td>
+<td>World paint frame unchanged after regroup/reflatten; inherited paint remains editable.</td>
+<td>World paint frame unchanged after regroup/reflatten; inherited paint remains editable.</td>
+<td>Passed</td>
+<td><a href="../../tests/parity/vector-flatten.test.ts">Repository evidence</a></td>
+<td>1. Run npm test. 2. Inspect the named parity fixture result.</td>
+<td>World paint frame unchanged after regroup/reflatten; inherited paint remains editable.</td>
+<td>Medium</td>
+<td>Gradient/image rendering remains in its own required slice.</td>
+</tr>
+<tr>
+<td>Reverse</td>
+<td>Direction only</td>
+<td>Swap segment endpoints and relative handles; preserve vertices/regions.</td>
+<td>vector-commands.ts</td>
+<td>vector-flatten.test.ts; authenticated Flatten and Reverse workflow</td>
+<td>Native download contains swapped endpoints/handles; undo restores source.</td>
+<td>Native download contains swapped endpoints/handles; undo restores source.</td>
+<td>Passed</td>
+<td><a href="../../tests/e2e/preview.spec.ts">Repository evidence</a></td>
+<td>Local Supabase and configured Next.js host. 1. Sign in. 2. Follow the named browser workflow.</td>
+<td>Native download contains swapped endpoints/handles; undo restores source.</td>
+<td>High</td>
+<td>None within this bounded property.</td>
+</tr>
+<tr>
+<td>UI</td>
+<td>Actions and shortcuts</td>
+<td>Flatten/Reverse dispatch commands; Alt+Shift+F and Cmd/Ctrl+E; vector cap controls.</td>
+<td>Editor.tsx; LayerPanel.tsx; StrokePanel.tsx; CornerPanel.tsx</td>
+<td>Both new authenticated preview.spec.ts workflows</td>
+<td>Actions, shortcuts, caps and absence of unsupported smoothing verified.</td>
+<td>Actions, shortcuts, caps and absence of unsupported smoothing verified.</td>
+<td>Passed</td>
+<td><a href="../../tests/e2e/preview.spec.ts">Repository evidence</a></td>
+<td>1. Create two shapes. 2. Select both and Flatten. 3. Undo, then use Alt+Shift+F. 4. Reverse and save.</td>
+<td>Actions, shortcuts, caps and absence of unsupported smoothing verified.</td>
+<td>High</td>
+<td>None within this bounded property.</td>
+</tr>
+<tr>
+<td>Host</td>
+<td>Auth boundary</td>
+<td>Host validates identity; vector editing introduces no backend authority.</td>
+<td>Next.js host; provider-neutral engine</td>
+<td>tests/integration; both authenticated vector workflows</td>
+<td>2 real Auth checks and authenticated editing pass.</td>
+<td>2 real Auth checks and authenticated editing pass.</td>
+<td>Passed</td>
+<td><a href="../../tests/integration">Repository evidence</a></td>
+<td>Local Supabase and configured Next.js host. 1. Sign in. 2. Follow the named browser workflow.</td>
+<td>2 real Auth checks and authenticated editing pass.</td>
+<td>No schema change; no permanent test account.</td>
+<td>None within this bounded property.</td>
+</tr>
+<tr>
+<td>Recovery</td>
+<td>Native save and reload</td>
+<td>Preserve vector geometry/frames/caps after download and local reload.</td>
+<td>file-format.ts; recovery adapter</td>
+<td>Flatten and Reverse workflow; native open vectors workflow</td>
+<td>Saved vectors and principal-scoped reload retain data; failed opens leave current document intact.</td>
+<td>Saved vectors and principal-scoped reload retain data; failed opens leave current document intact.</td>
+<td>Passed</td>
+<td><a href="../../tests/e2e/preview.spec.ts">Repository evidence</a></td>
+<td>1. Flatten shapes. 2. Save as. 3. Wait for recovery acknowledgement. 4. Reload and select the vector.</td>
+<td>Saved vectors and principal-scoped reload retain data; failed opens leave current document intact.</td>
+<td>High</td>
+<td>None within this bounded property.</td>
+</tr>
+<tr>
+<td>UI</td>
+<td>Fixed canvas and mobile</td>
+<td>Stable canvas screenshot and controls within a 390px viewport.</td>
+<td>Editor and layer actions</td>
+<td>preview.spec.ts: vector-flatten.png and mobile checks</td>
+<td>Screenshot inspected; Flatten/Reverse controls stay within viewport.</td>
+<td>Screenshot inspected; Flatten/Reverse controls stay within viewport.</td>
+<td>Passed</td>
+<td><a href="../../tests/e2e/preview.spec.ts-snapshots/vector-flatten.png">Repository evidence</a></td>
+<td>1. Create overlapping rectangle/ellipse and Flatten. 2. Resize browser to390px. 3. Open Layers.</td>
+<td>Screenshot inspected; Flatten/Reverse controls stay within viewport.</td>
+<td>High</td>
+<td>None within this bounded property.</td>
+</tr>
+<tr>
+<td>Performance</td>
+<td>10,000-node fixture</td>
+<td>110 measured resize/draw/pan frames below16.7ms; no root preview updates.</td>
+<td>vector stroke caches; transient engine</td>
+<td>stroke-performance.spec.ts: Vector network</td>
+<td>Final p95 resize/draw/pan8.3/9.1/13.1ms;0 root notifications; cancellation restored.</td>
+<td>Final p95 resize/draw/pan8.3/9.1/13.1ms;0 root notifications; cancellation restored.</td>
+<td>Passed</td>
+<td><a href="../../tests/e2e/stroke-performance.spec.ts">Repository evidence</a></td>
+<td>1. Run the Vector network performance test. 2. Inspect its JSON attachment.</td>
+<td>Final p95 resize/draw/pan8.3/9.1/13.1ms;0 root notifications; cancellation restored.</td>
+<td>High</td>
+<td>100 visible nodes; not a total RAM or long-session claim.</td>
+</tr>
+<tr>
+<td>Regression</td>
+<td>Full Chromium suite</td>
+<td>All prior and current browser checks must pass against the production build.</td>
+<td>Complete Next.js host</td>
+<td>npm run test:e2e -- --workers=1</td>
+<td>All required browser checks pass.</td>
+<td>First run:23 passed/2 failed/61 skipped. Corrected final run:86/86 passed in200.9s, none skipped/flaky.</td>
+<td>Passed</td>
+<td><a href="../../tests/e2e">Repository evidence</a></td>
+<td>1. Build the Next.js host. 2. Run the full Playwright suite.</td>
+<td>All required browser checks pass.</td>
+<td>High</td>
+<td>16.7ms gate unchanged. Only local infrastructure setup receives a separate60-second allowance. Complete-product coverage remains separate.</td>
+</tr>
+<tr>
+<td>Full product</td>
+<td>Remaining roadmap</td>
+<td>Complete every browser-relevant upstream family and final audit before publication.</td>
+<td>Master plan</td>
+<td>Final full-product audit</td>
+<td>Full parity and final publication.</td>
+<td>Bounded vector foundation only; no publication.</td>
+<td>Partial</td>
+<td><a href="../planning/26-11-06-complete-figcraft-port.md">Repository evidence</a></td>
+<td>Read the master checkpoint and remaining roadmap.</td>
+<td>Full parity and final publication.</td>
+<td>Low</td>
+<td>Vector authoring, other paint families and many product/backend families remain.</td>
+</tr>
+</tbody></table></div></body></html>

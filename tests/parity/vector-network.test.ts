@@ -15,6 +15,12 @@ function area(path: readonly PathCommand[]): number {
   return sum / 2;
 }
 describe("doc::VectorNetwork construction and linear traversal", () => {
+  it("distinguishes empty networks from move-only runs with missing endpoints", () => {
+    const net = freezeNetwork({ vertices: [vectorVertex(40, 60)], segments: [vectorLine(0, 4)], regions: [] });
+    expect(vectorStrokePath(net)).toEqual([["M", 40, 60]]);
+    expect(networkBounds(net)).toEqual({ x: 0, y: 0, width: 0, height: 0 });
+    expect(networkBounds(freezeNetwork({ ...net, segments: [] }))).toBeUndefined();
+  });
   it("retains native triangle area50 and unfilled open chains", () => {
     const closed = networkFromPoints(triangle, true), open = networkFromPoints(triangle, false);
     expect(area(vectorFillPath(closed))).toBe(50); expect(vectorFillPath(open)).toEqual([]);

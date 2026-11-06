@@ -127,4 +127,8 @@ export function pathBounds(path: readonly PathCommand[]): Rectangle | undefined 
   }
   return x0 === Infinity ? undefined : { x: x0, y: y0, width: x1 - x0, height: y1 - y0 };
 }
-export const networkBounds = (net: VectorNetwork): Rectangle | undefined => pathBounds(vectorStrokePath(net));
+export function networkBounds(net: VectorNetwork): Rectangle | undefined {
+  const path = vectorStrokePath(net);
+  // Native network bounds distinguish an empty path from move-only damaged runs.
+  return path.length ? pathBounds(path) ?? { x: 0, y: 0, width: 0, height: 0 } : undefined;
+}

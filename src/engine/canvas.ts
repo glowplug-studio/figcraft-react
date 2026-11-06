@@ -17,6 +17,7 @@ import { MoveInteraction } from "./move-interaction";
 import { TransformInteraction } from "./transform-interaction";
 import { paintStroke, strokeBounds } from "./stroke-renderer";
 import { hasVisibleStroke } from "./stroke";
+import { vectorPaintRegions } from "./vector-presentation";
 
 const compositeSurfaces = new WeakMap<CanvasRenderingContext2D, HTMLCanvasElement>();
 // Immutable document snapshots invalidate these derived bounds after any edit.
@@ -27,11 +28,12 @@ function paintRectangle(context: CanvasRenderingContext2D, node: LayerNode, alph
   context.save();
   if (node.transform) context.transform(...node.transform);
   else context.translate(node.x, node.y);
-  for (const paint of rectanglePaints(node)) {
+  const regions = node.kind === "vector" ? vectorPaintRegions(node) : [{ paints: rectanglePaints(node), path: hasShapePath(node) ? shapePath(node) : undefined, rule: "nonzero" as const }];
+  for (const region of regions) for (const paint of region.paints) {
     if (!paint.visible || paint.opacity <= 0) continue;
     context.globalAlpha = opacity(paint.opacity) * alpha;
     context.fillStyle = renderColour(paint.color);
-    if (hasShapePath(node)) { context.beginPath(); tracePath(context, shapePath(node)); context.fill(); }
+    if (region.path) { context.beginPath(); tracePath(context, region.path); context.fill(region.rule); }
     else context.fillRect(0, 0, node.width, node.height);
   }
   if (strokes) paintStroke(context, node, alpha);
@@ -115,7 +117,8 @@ function drawLayer(context: CanvasRenderingContext2D, document: Document, node: 
       if (bounds) paintComposite(context, node, draw, bounds);
     } else draw(context);
   } else if (hasShapePath(node) || hasVisibleStroke(node) || node.fills || node.opacity !== undefined && node.opacity !== 1) {
-    if (rectanglePaints(node).length + (node.strokes?.length ?? 0) > 1 && opacity(node.opacity ?? 1) < 1) paintComposite(context, node, target => paintRectangle(target, node));
+    const fillCount = node.kind === "vector" ? vectorPaintRegions(node).reduce((sum, region) => sum + region.paints.length, 0) : rectanglePaints(node).length;
+    if (fillCount + (node.strokes?.length ?? 0) > 1 && opacity(node.opacity ?? 1) < 1) paintComposite(context, node, target => paintRectangle(target, node));
     else paintRectangle(context, node, opacity(node.opacity ?? 1));
   } else {
     context.fillStyle = node.fill;

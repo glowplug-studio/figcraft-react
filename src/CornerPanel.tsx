@@ -9,6 +9,7 @@ export function CornerPanel({ nodes, editable, dispatch }: { nodes: readonly Lay
   const common = (values: readonly number[]): number | undefined => values.every(n => n === values[0]) ? values[0] : undefined;
   const uniform = common(corners.flatMap(c => [...c.radii]));
   const independent = nodes.every(n => n.kind === "rectangle" || n.kind === "frame");
+  const smoothing = nodes.every(n => n.kind !== "vector");
   const field = (label: string, key: string, value: number | undefined, percent = false) => <form style={{ minWidth: 0 }} key={`${key}:${ids.join()}:${value}`} onSubmit={event => {
     event.preventDefault(); const input = event.currentTarget.elements.namedItem(key) as HTMLInputElement;
     if (!input.value) return;
@@ -19,8 +20,8 @@ export function CornerPanel({ nodes, editable, dispatch }: { nodes: readonly Lay
   </form>;
   return <fieldset disabled={!editable} aria-label="Corners"><legend>Corners</legend>
     {field("Corner radius", "cornerRadius", uniform)}
-    <button type="button" aria-expanded={individual} onClick={() => setIndividual(!individual)}>{independent ? "Individual corners" : "Corner smoothing"}</button>
-    {individual && <>
+    {smoothing && <button type="button" aria-expanded={individual} onClick={() => setIndividual(!individual)}>{independent ? "Individual corners" : "Corner smoothing"}</button>}
+    {individual && smoothing && <>
       {independent && <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
         {[0, 1, 3, 2].map(i => field(["Top left radius", "Top right radius", "Bottom right radius", "Bottom left radius"][i], cornerKeys[i], common(corners.map(c => c.radii[i]))))}
       </div>}

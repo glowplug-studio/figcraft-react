@@ -8,6 +8,7 @@ import { executeSelection, selectionSpecs } from "./selection";
 import { setRectangleProperties } from "./properties";
 import { HierarchyDraft, pageForNode } from "./hierarchy";
 import { executeStructure, structureSpecs } from "./structure";
+import { executeVector, vectorSpecs } from "./vector-commands";
 import { defaultViewport, executeView, fitPage, viewSpecs, type Viewport } from "./viewport";
 import { framePresets } from "./frame-presets";
 import { parseBoolean, parseNumber } from "./parameters";
@@ -33,6 +34,7 @@ export const commandSpecs = Object.freeze({
   "frame.presets": { label: "List frame presets", undo: false },
   ...selectionSpecs,
   ...structureSpecs,
+  ...vectorSpecs,
   "node.set": { label: "Set properties", undo: true },
   "frame.create": { label: "Frame", undo: true },
   "shape.polygon": { label: "Polygon", undo: true },
@@ -46,6 +48,7 @@ export const commandSpecs = Object.freeze({
   "shape.ellipse": { label: "Ellipse", undo: true },
   "shape.rectangle": { label: "Rectangle", undo: true },
   "node.create": { label: "Create layer", undo: true },
+  "vector.create": { label: "Vector", undo: true },
   "tool.ellipse": { label: "Ellipse", undo: false },
   "tool.rectangle": { label: "Rectangle", undo: false },
   "tool.move": { label: "Move", undo: false },
@@ -323,9 +326,9 @@ export class EditorEngine {
       if (next.document !== before.document || next.selection !== before.selection) this.#publish({ document: next.document, selection: next.selection });
       return next.result;
     }
-    if (Object.hasOwn(structureSpecs, command)) {
+    if (Object.hasOwn(structureSpecs, command) || Object.hasOwn(vectorSpecs, command)) {
       const before = this.#snapshot;
-      const next = executeStructure(command, before.document, before.selection, this.#nextId, p);
+      const next = (Object.hasOwn(vectorSpecs, command) ? executeVector : executeStructure)(command, before.document, before.selection, this.#nextId, p);
       if (!sameContent(before.document, next.document)) {
         this.#undo.push({ document: before.document, selection: before.selection }); this.#redo = [];
       }
@@ -340,13 +343,14 @@ export class EditorEngine {
     }
     if (command === "node.set" || Object.hasOwn(strokeSpecs, command)) {
       const before = this.#snapshot;
-      const document = command === "node.set" ? setRectangleProperties(before.document, before.selection, p, movedOrigin(before.document, before.selection, this.#origin)) : executeStrokeList(command, before.document, before.selection, p);
+      const warnings: string[] = [];
+      const document = command === "node.set" ? setRectangleProperties(before.document, before.selection, p, movedOrigin(before.document, before.selection, this.#origin), warnings) : executeStrokeList(command, before.document, before.selection, p);
       if (document !== before.document) {
         this.#undo.push({ document: before.document, selection: before.selection });
         this.#redo = [];
         this.#publish({ document, selection: Object.freeze(before.selection.filter(id => document.nodes[id] && pageForNode(document, id) === document.currentPage)) });
       }
-      return { ok: true };
+      return { ok: true, ...(warnings.length ? { warnings } : {}) };
     }
     if (command === "page.list") return listPages(this.#snapshot.document);
     if (Object.hasOwn(pageSpecs, command)) {
@@ -371,7 +375,7 @@ export class EditorEngine {
       return { saved: true };
     }
     if (command.startsWith("file.")) throw new Error(`${command} requires executeAsync`);
-    if (command === "shape.line" || command === "shape.arrow" || command === "shape.polygon" || command === "shape.star" || command === "shape.ellipse" || command === "shape.rectangle" || command === "frame.create" || command === "node.create") return this.#create(command, p);
+    if (command === "vector.create" || command === "shape.line" || command === "shape.arrow" || command === "shape.polygon" || command === "shape.star" || command === "shape.ellipse" || command === "shape.rectangle" || command === "frame.create" || command === "node.create") return this.#create(command, p);
     if (Object.keys(p).length) throw new Error(`${command} takes no parameters`);
     if (command === "tool.line" || command === "tool.arrow" || command === "tool.polygon" || command === "tool.star" || command === "tool.ellipse" || command === "tool.rectangle" || command === "tool.move" || command === "tool.scale") {
       this.#publish({ tool: command === "tool.line" ? "line" : command === "tool.arrow" ? "arrow" : command === "tool.polygon" ? "polygon" : command === "tool.star" ? "star" : command === "tool.ellipse" ? "ellipse" : command === "tool.rectangle" ? "rectangle" : command === "tool.scale" ? "scale" : "move" });

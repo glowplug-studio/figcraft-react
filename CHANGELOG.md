@@ -2,6 +2,15 @@
 
 All notable changes to the React port and its upstream compatibility baseline are recorded here.
 
+## [0.24.0] - 2026-11-07
+
+The reference baseline remains `8eb0b87646c5aef712326d6c431ccde5408630de`; full parity remains in progress.
+
+- Added independent vector networks, native SVG/point creation, atomic path replacement, network resizing and native file/recovery support.
+- Added rounded vector fills, per-region solid paints, winding rules, open/closed strokes, point caps/joins and native profile/brush precedence.
+- Added Flatten and Reverse path direction, source paint-frame preservation, keyboard actions and existing inspector integration.
+- Point/handle editing, Pen/Pencil, booleans, outlines, other paint families and the remaining product/backend roadmap remain required.
+
 ## [0.23.0] - 2026-11-07
 
 The reference baseline remains `8eb0b87646c5aef712326d6c431ccde5408630de`; full parity remains in progress.

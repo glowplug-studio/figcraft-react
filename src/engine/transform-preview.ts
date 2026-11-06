@@ -1,3 +1,4 @@
+import { withLayerSize } from "./document";
 import { inverse, multiply, transformPoint, type Affine } from "./affine";
 import { axisFactors, resizeChildren } from "./constraints";
 import type { Document, NodeId } from "./document";
@@ -22,7 +23,7 @@ export function previewResize(document: Document, start: ResizeStart, point: Poi
   };
   const size = (id: NodeId, width: number, height: number, preserve: boolean) => {
     const node = draft.nodes[id]; if (node.kind === "page") throw new Error("Cannot resize a page");
-    draft.set({ ...node, width, height }); if (!preserve) resizeChildren(draft, id, node.width, node.height);
+    draft.set(withLayerSize(node, width, height)); if (!preserve) resizeChildren(draft, id, node.width, node.height);
   };
   let hint: { factor: number; pivot: Point } | undefined;
   if (scale) {
