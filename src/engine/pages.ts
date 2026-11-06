@@ -1,4 +1,5 @@
 import type { Document, DocumentNode, NodeId, PageNode } from "./document";
+import { parseNodeId as parseId, parseString as stringValue, parseNumber as numeric } from "./parameters";
 
 /** Source: upstream engine/cmd/page.rs; viewport and history belong to the caller. */
 export const pageSpecs = Object.freeze({
@@ -28,31 +29,6 @@ const allowed: Readonly<Record<string, readonly string[]>> = {
   "page.add": ["name"], "page.select": ["id", "index"], "page.rename": ["id", "name"],
   "page.delete": ["id"], "page.duplicate": ["id"], "page.move": ["id", "index"], "page.list": [],
 };
-function parseId(value: unknown): NodeId | undefined {
-  if (typeof value === "number") return Number.isSafeInteger(value) && value >= 0 ? String(value) : undefined;
-  if (typeof value !== "string") return undefined;
-  const suffix = value.trim().split(":").at(-1)!;
-  if (!/^\d+$/.test(suffix)) return undefined;
-  const id = BigInt(suffix);
-  return id <= U64_MAX ? String(id) : undefined;
-}
-function stringValue(value: unknown): string | undefined {
-  if (typeof value === "string" || typeof value === "boolean") return String(value);
-  return typeof value === "number" && Number.isFinite(value) ? String(value) : undefined;
-}
-function numeric(value: unknown): number {
-  let number: number;
-  if (typeof value === "number") number = value;
-  else if (typeof value === "boolean") number = value ? 1 : 0;
-  else if (typeof value === "string") {
-    // The upstream numeric parser trims px/% suffixes and accepts decimal/exponent notation.
-    const text = value.trim().replace(/(?:px)+$/, "").replace(/%+$/, "").trim();
-    if (!/^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?$/.test(text)) throw new Error("index must be a number");
-    number = Number(text);
-  } else throw new Error("index must be a number");
-  if (!Number.isFinite(number)) throw new Error("index must be a finite number");
-  return number;
-}
 function page(document: Document, id: NodeId): PageNode {
   const node = document.nodes[id];
   if (!document.pages.includes(id) || !node || node.kind !== "page") throw new Error(`${id} is not a page`);

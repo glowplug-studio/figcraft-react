@@ -1,6 +1,8 @@
 import { pageOf, type Document } from "./document";
 import { EditorEngine } from "./editor";
 import { drawnRectangle, type Point, type Rectangle } from "./geometry";
+import { transformBounds } from "./affine";
+import { hitRectangle } from "./selection";
 
 /** Only this module paints editable geometry; React never renders canvas layers. */
 export function renderDocument(context: CanvasRenderingContext2D, document: Document, width: number, height: number, selection: readonly string[] = [], preview?: Rectangle): void {
@@ -10,15 +12,28 @@ export function renderDocument(context: CanvasRenderingContext2D, document: Docu
   for (const id of page.children) {
     const node = document.nodes[id];
     if (!node || node.kind !== "rectangle") continue;
-    if (node.x > width || node.y > height || node.x + node.width < 0 || node.y + node.height < 0) continue;
+    const bounds = node.transform ? transformBounds(node.transform, node.width, node.height) : node;
+    if (bounds.x > width || bounds.y > height || bounds.x + bounds.width < 0 || bounds.y + bounds.height < 0) continue;
     context.fillStyle = node.fill;
-    context.fillRect(node.x, node.y, node.width, node.height);
+    if (node.transform) {
+      context.save(); context.transform(...node.transform); context.fillRect(0, 0, node.width, node.height); context.restore();
+    } else context.fillRect(node.x, node.y, node.width, node.height);
   }
   context.strokeStyle = "#0d99ff";
   context.lineWidth = 1;
   for (const id of selection) {
     const node = document.nodes[id];
-    if (node?.kind === "rectangle") context.strokeRect(node.x, node.y, node.width, node.height);
+    if (node?.kind === "rectangle") {
+      if (node.transform) {
+        // Map the outline points so stroke width remains in screen pixels under scale/skew.
+        const [a, b, c, d, e, f] = node.transform;
+        context.beginPath(); context.moveTo(e, f);
+        context.lineTo(a * node.width + e, b * node.width + f);
+        context.lineTo(a * node.width + c * node.height + e, b * node.width + d * node.height + f);
+        context.lineTo(c * node.height + e, d * node.height + f);
+        context.closePath(); context.stroke();
+      } else context.strokeRect(node.x, node.y, node.width, node.height);
+    }
   }
   if (preview) {
     context.fillStyle = "#d9d9d9";
@@ -66,7 +81,14 @@ export class CanvasController {
   #down = (event: PointerEvent): void => {
     if (event.button !== 0 || this.#pointer !== null || !this.engine.getSnapshot().editable) return;
     this.canvas.focus();
-    if (this.engine.getSnapshot().tool !== "rectangle") return;
+    if (this.engine.getSnapshot().tool !== "rectangle") {
+      const snapshot = this.engine.getSnapshot();
+      const hit = hitRectangle(snapshot.document, this.#point(event));
+      const ids = event.shiftKey ? hit === undefined ? snapshot.selection : snapshot.selection.includes(hit) ? snapshot.selection.filter(id => id !== hit) : [...snapshot.selection, hit] : hit === undefined ? [] : [hit];
+      try { this.engine.execute("select.set", { ids }); }
+      catch (error) { this.onError(error instanceof Error ? error.message : "Could not select layer"); }
+      return;
+    }
     event.preventDefault();
     this.#pointer = event.pointerId;
     this.#start = this.#point(event);

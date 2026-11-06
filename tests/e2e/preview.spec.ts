@@ -266,3 +266,31 @@ test("last-page deletion and divider rename fail without losing the page", async
   await expect(pages.getByRole("button", { name: "Page 1", exact: true })).toHaveAttribute("aria-current", "page");
   await expect(page.getByRole("button", { name: "Undo", exact: true })).toBeDisabled();
 });
+
+test("rotation edits preserve centre, pixels, undo and native recovery with pointer selection", async ({ page }) => {
+  const errors: string[] = [];
+  page.on("pageerror", error => errors.push(error.message));
+  await login(page);
+  const creation = page.getByRole("group", { name: "Create rectangle", exact: true });
+  for (const [label, value] of [["X", "100"], ["Y", "100"], ["Width", "100"], ["Height", "50"]]) await creation.getByLabel(label, { exact: true }).fill(value);
+  await page.getByRole("button", { name: "Create rectangle", exact: true }).click();
+  await page.getByLabel("Rotation", { exact: true }).fill("90");
+  await page.getByRole("button", { name: "Apply geometry", exact: true }).click();
+  await geometry(page, [125, 175, 100, 50]);
+  const canvas = page.getByLabel("Design canvas", { exact: true });
+  await expect.poll(async () => canvas.evaluate((node: HTMLCanvasElement) => Array.from(node.getContext("2d")!.getImageData(150, 90, 1, 1).data))).toEqual([217, 217, 217, 255]);
+  await expect.poll(async () => canvas.evaluate((node: HTMLCanvasElement) => Array.from(node.getContext("2d")!.getImageData(110, 110, 1, 1).data))).toEqual([245, 245, 245, 255]);
+  await page.getByRole("button", { name: "Undo", exact: true }).click();
+  await geometry(page, [100, 100, 100, 50]);
+  await page.getByRole("button", { name: "Redo", exact: true }).click();
+  await expect(page.getByText("Recovery saved on this device", { exact: true })).toBeVisible();
+  await page.reload();
+  await expect(page.getByRole("button", { name: "Create rectangle", exact: true })).toBeEnabled();
+  const bounds = (await canvas.boundingBox())!;
+  await page.mouse.click(bounds.x + 150, bounds.y + 90);
+  await expect(page.getByLabel("Rotation", { exact: true })).toHaveValue("90");
+  await geometry(page, [125, 175, 100, 50]);
+  await canvas.focus(); await page.keyboard.press("ControlOrMeta+a");
+  await expect(page.getByRole("region", { name: "Selected rectangle" })).toBeVisible();
+  expect(errors).toEqual([]);
+});

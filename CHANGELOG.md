@@ -2,6 +2,16 @@
 
 All notable changes to the React port and its upstream compatibility baseline are recorded here.
 
+## [0.5.0] - 2026-11-06
+
+The reference baseline remains `8eb0b87646c5aef712326d6c431ccde5408630de`; full parity remains in progress.
+
+- Added finite affine rectangle transforms, centre-preserving rotation, geometry property edits, atomic history and native/recovery round trips.
+- Added basic selection commands, layer controls and inverse-transform pointer selection for supported flat rectangles.
+- Added transformed Canvas 2D painting and screen-width selection outlines, retaining legacy translated-node compatibility.
+- Added algebra, transformed-file, property, selection and transaction fixtures, authenticated rotation/reload checks and a 10,000-transformed-rectangle performance fixture.
+- Full node properties, hierarchy, paints, gestures, viewport and remaining product workflows remain required.
+
 ## [0.4.0] - 2026-11-06
 
 The reference baseline remains `8eb0b87646c5aef712326d6c431ccde5408630de`; the full port remains in progress.

@@ -73,6 +73,18 @@ describe("bounded native Figcraft file adapter", () => {
     expect((await decodeFigcraft(bytes(source))).document.currentPage).toBe("1");
   });
 
+  it.each([[0, -1, 1, 0, 30, 40], [2, .5, .25, -3, 10, 20], [0, 0, 0, 1, 12, 14]])("retains finite affine coefficients through a native round-trip (%j)", async (...transform) => {
+    const source = encodedFixture(value => { value.nodes["2"].transform = transform; });
+    const decoded = await decodeFigcraft(source);
+    expect(decoded.document.nodes["2"]).toMatchObject({ transform, x: transform[4], y: transform[5] });
+    expect(await decodeFigcraft(await encodeFigcraft(decoded.document, decoded.nextId))).toEqual(decoded);
+  });
+
+  it("rejects malformed or overflowing affine geometry before import", async () => {
+    await expect(decodeFigcraft(encodedFixture(value => { value.nodes["2"].transform = [1, 0, 0]; }))).rejects.toThrow();
+    await expect(decodeFigcraft(encodedFixture(value => { value.nodes["2"].transform = [1e308, 0, 0, 1, 0, 0]; }))).rejects.toThrow();
+  });
+
   it("accepts explicitly written default node properties", async () => {
     const data = encodedFixture((value) => {
       Object.assign(value.nodes["2"], { visible: true, locked: false, opacity: 1, effects: [], strokes: [], corners: { radii: [0, 0, 0, 0], smoothing: 0 }, constraints: { horizontal: "left", vertical: "top" }, stroke: { weight: 1, align: "inside", sides: null, cap_start: "none", cap_end: "none", join: "miter", miter_limit: 4, dashes: [] }, child_layout: { sizing_h: "fixed", sizing_v: "fixed", absolute: false, grid_column_span: 0, grid_row_span: 0 }, styles: { fill: null, stroke: null, effect: null, text: null, grid: null } });
@@ -87,7 +99,6 @@ describe("bounded native Figcraft file adapter", () => {
     ["frame", (value: ReturnType<typeof fixture>) => { value.nodes["2"].type = "frame"; }],
     ["locked rectangle", (value: ReturnType<typeof fixture>) => { value.nodes["2"].locked = true; }],
     ["node opacity", (value: ReturnType<typeof fixture>) => { value.nodes["2"].opacity = 0.5; }],
-    ["rotation", (value: ReturnType<typeof fixture>) => { value.nodes["2"].transform = [0, 1, -1, 0, 0, 0]; }],
     ["custom metadata", (value: ReturnType<typeof fixture>) => { value.nodes["2"].plugin_data = { key: "preserve me" }; }],
     ["paint opacity", (value: ReturnType<typeof fixture>) => { value.nodes["2"].fills = [{ type: "solid", color: "#ffffff", opacity: 0.5 }]; }],
     ["colour precision", (value: ReturnType<typeof fixture>) => { value.nodes["2"].fills = [{ type: "solid", color: [0.12345, 1, 1] }]; }],

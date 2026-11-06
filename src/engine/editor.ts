@@ -1,9 +1,14 @@
 import { newDocument, pageOf, type Document, type RectangleNode, type NodeId } from "./document";
 import { decodeFigcraft, encodeFigcraft } from "./file-format";
 import { executePage, listPages, pageSpecs } from "./pages";
+import { executeSelection, selectionSpecs } from "./selection";
+import { setRectangleProperties } from "./properties";
+import { transformBounds } from "./affine";
 
 export const commandSpecs = Object.freeze({
   ...pageSpecs,
+  ...selectionSpecs,
+  "node.set": { label: "Set properties", undo: true },
   "shape.rectangle": { label: "Rectangle", undo: true },
   "node.create": { label: "Create layer", undo: true },
   "tool.rectangle": { label: "Rectangle", undo: false },
@@ -73,6 +78,21 @@ export class EditorEngine {
     if (!Object.hasOwn(commandSpecs, command)) throw new Error(`Unsupported command: ${command}`);
     if (!this.#snapshot.editable) throw new Error("Sign in to edit this document");
     const p = parameters(input);
+    if (Object.hasOwn(selectionSpecs, command)) {
+      const next = executeSelection(command, this.#snapshot.document, this.#snapshot.selection, p);
+      this.#publish({ document: next.document, selection: next.selection });
+      return next.result;
+    }
+    if (command === "node.set") {
+      const before = this.#snapshot;
+      const document = setRectangleProperties(before.document, before.selection, p);
+      if (document !== before.document) {
+        this.#undo.push({ document: before.document, selection: before.selection });
+        this.#redo = [];
+        this.#publish({ document });
+      }
+      return { ok: true };
+    }
     if (command === "page.list") return listPages(this.#snapshot.document);
     if (Object.hasOwn(pageSpecs, command)) {
       const before = this.#snapshot;
@@ -155,6 +175,7 @@ export class EditorEngine {
     if (!Number.isSafeInteger(index) || index < 0) throw new Error("index must be a non-negative safe integer");
     const node: RectangleNode = Object.freeze({ id: String(this.#nextId), kind: "rectangle", name: typeof p.name === "string" ? p.name : "Rectangle", parent: page.id,
       x: number(p, "x", 0), y: number(p, "y", 0), width: Math.max(0, number(p, "width", 100)), height: Math.max(0, number(p, "height", 100)), fill: "#d9d9d9" });
+    transformBounds([1, 0, 0, 1, node.x, node.y], node.width, node.height);
     const children = [...page.children];
     children.splice(Math.min(index, children.length), 0, node.id);
     const document: Document = Object.freeze({ ...before.document, nodes: Object.freeze({ ...before.document.nodes, [page.id]: Object.freeze({ ...page, children: Object.freeze(children) }), [node.id]: node }) });

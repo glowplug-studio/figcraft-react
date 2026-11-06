@@ -1,11 +1,12 @@
 import { Unzip, UnzipInflate, ZipPassThrough, zipSync } from "fflate";
 import { Uint8ArrayReader, ZipReader } from "@zip.js/zip.js/lib/zip-core-native.js";
 import { isLosslessNumber, LosslessNumber, parse, stringify } from "lossless-json";
-import type { Document, DocumentNode } from "./document";
+import { rectangleTransform, withRectangleTransform, type Document, type DocumentNode } from "./document";
+import { transformBounds, type Affine } from "./affine";
 
 /** A deliberately bounded adapter for native format v1, not full archive parity.
  * Source: original/figcraft/crates/{format/src/lib.rs,doc/src/{lib,node,props}.rs}.
- * Only pages and translated, opaque solid-colour rectangles are editable here.
+ * Only pages and affine, opaque solid-colour rectangles are editable here.
  * Unsupported data is rejected, never opened and silently discarded on save.
  * Browser limits are intentionally below native's: 16 MiB and 10,000 nodes.
  * zip.js reads ZIP metadata; fflate bounds inflation and computes CRC32.
@@ -138,10 +139,12 @@ function decodeDocument(raw: unknown): DecodedFigcraft {
     const name = text(n.name, "node name"), width = number(n.width, "width"), height = number(n.height, "height");
     if (width < 0 || height < 0) fail("negative dimensions are not supported yet");
     const transform = list(n.transform ?? [1, 0, 0, 1, 0, 0], "transform").map((entry) => number(entry, "transform"));
-    if (transform.length !== 6 || transform.slice(0, 4).some((entry, index) => entry !== [1, 0, 0, 1][index])) fail("rotated, scaled or skewed nodes are not supported yet");
+    if (transform.length !== 6) fail("transform needs six coefficients");
+    const matrix = transform as unknown as Affine;
+    transformBounds(matrix, width, height);
     const children = list(n.children ?? [], "children").map((entry) => id(entry, "child ID"));
     if (kind === "page") {
-      if (n.parent != null || width !== 0 || height !== 0 || transform[4] !== 0 || transform[5] !== 0) fail("non-default page geometry is not supported yet");
+      if (n.parent != null || width !== 0 || height !== 0 || transform.some((entry, index) => entry !== [1, 0, 0, 1, 0, 0][index])) fail("non-default page geometry is not supported yet");
       defaultValue(n.blend ?? "passThrough", "passThrough", "page blend");
       defaultValue(n.fills ?? [], [], "page fills");
       defaultValue(n.flows ?? [], [], "page flows");
@@ -154,7 +157,7 @@ function decodeDocument(raw: unknown): DecodedFigcraft {
     } else {
       if (children.length) fail("rectangle children are not supported yet");
       if (n.blend !== undefined && n.blend !== "normal" && n.blend !== "passThrough") fail("rectangle blend is not supported yet");
-      nodes[key] = Object.freeze({ id: key, kind, name, parent: id(n.parent, "rectangle parent"), x: transform[4]!, y: transform[5]!, width, height, fill: fill(n.fills, "rectangle fills") });
+      nodes[key] = withRectangleTransform({ id: key, kind, name, parent: id(n.parent, "rectangle parent"), x: transform[4]!, y: transform[5]!, width, height, fill: fill(n.fills, "rectangle fills") }, matrix);
     }
   }
   const referenced = new Set<string>();
@@ -246,7 +249,7 @@ export async function encodeFigcraft(document: Document, nextId?: string): Promi
     if (node.kind === "page") {
       nodes[key] = { ...common, width: 0, height: 0, children: node.children.map(wireId), background: colour(node.background, "page background") };
     } else {
-      nodes[key] = { ...common, parent: wireId(node.parent), transform: [1, 0, 0, 1, node.x, node.y], width: node.width, height: node.height, blend: "normal", fills: node.fill === "transparent" ? [] : [{ type: "solid", color: colour(node.fill, "rectangle fill"), opacity: 1, visible: true, blend: "normal" }] };
+      nodes[key] = { ...common, parent: wireId(node.parent), transform: rectangleTransform(node), width: node.width, height: node.height, blend: "normal", fills: node.fill === "transparent" ? [] : [{ type: "solid", color: colour(node.fill, "rectangle fill"), opacity: 1, visible: true, blend: "normal" }] };
     }
   }
   const minimum = maximum < U64_MAX ? maximum + 1n : U64_MAX;

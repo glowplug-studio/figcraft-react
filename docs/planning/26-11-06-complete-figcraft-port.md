@@ -5,16 +5,16 @@
 | Field | Current value |
 |---|---|
 | Overall status | In progress; full parity is not implemented |
-| Active slice | Page lifecycle and document navigation |
-| Active phase | Phase 7: verified page checkpoint |
+| Active slice | Affine rectangle geometry and property editing |
+| Active phase | Phase 7: verified affine checkpoint |
 | Upstream baseline | `0b97f3f1801a9b7b96fd7a4f3c0942a3f1a676f3`; prior parity baseline `8eb0b87646c5aef712326d6c431ccde5408630de` |
-| Branch and last verified commit | `prompt/full-figcraft-port`; verified persistence `41d467b`; integration `fc3b4a6` from updated dev plus rectangle branch |
-| Completed slices | Rectangle/host-auth, bounded native persistence/recovery and supported-model page lifecycle verified locally |
+| Branch and last verified commit | `prompt/full-figcraft-port`; verified pages `6c988a5`, persistence `41d467b`; integration `fc3b4a6` from updated dev plus rectangle branch |
+| Completed slices | Rectangle/host-auth, bounded native persistence/recovery, supported-model pages and affine rectangle geometry/selection verified locally |
 | Remaining slices | Every row below except the integrated foundation; static inventory entries remain unverified until mapped and tested |
-| Tests last passed | Pages: strict typecheck, 190 pure tests, 2 real local Auth integration tests, package/Next production build, 10/10 authenticated production-browser checks |
-| Files currently in progress | Persistence reports; page command reducer, engine history integration, page controls and tests |
+| Tests last passed | Affine: strict typecheck, 217 pure tests, 2 real local Auth integration tests, package/Next production build, 12/12 authenticated production-browser/performance checks |
+| Files currently in progress | Affine utilities, transform-aware model/codec/canvas, property commands, selection, tests and affine reports |
 | Blockers | None |
-| Exact next action | Finish final page checks and reports, commit verified page workflow, then continue affine scene geometry and containers |
+| Exact next action | Implement and verify transform-aware rectangle property editing, then expand shared model/colour and hierarchy foundations |
 | Last updated | 2026-11-06 |
 
 ## Scope and continuation
@@ -98,3 +98,19 @@ State: retain cheap immutable page/node maps. Navigation changes the serialised 
 Allocation: page reducer agent owns only `src/engine/pages.ts` and `tests/parity/pages.test.ts`; coordinator owns engine/document integration, `PagePanel.tsx`, editor integration and browser tests. Persistence reporting agent owns only the two persistence reports. No overlapping edits. Rollback point: verified `41d467b`. Full hierarchy and affine transforms follow this bounded page workflow.
 
 Page verification: 49 reducer cases and five page/history cases passed; full suite has 190 pure tests plus two separately run local Auth integration tests. Final typecheck, package/Next production build and 10/10 authenticated local production Playwright checks passed (13.4 seconds). New browser flows cover page add/dividers/duplicate/reorder/rename/undo/redo/reload and narrow-screen navigation; last-page delete/rename failures preserve content. Maximum-u64 allocation remains serialisable and the next allocation fails atomically. Persistence report is committed as `ceb9602`; page implementation and its reports follow. No deployment or branch push.
+
+## Active affine geometry plan
+
+Port `geom/src/transform.rs` and native affine coefficients `[a,b,c,d,e,f]`: multiplication order, inverse, full four-corner bounds, screen-convention rotation and centre/flip preservation. Required guards reject non-finite resulting geometry atomically; inverse rejects exact singular/non-finite matrices without an invented near-singular threshold. Paired fixtures translate `geom/src/tests.rs:140–164`; independent algebra fixtures verify composition, skew/reflection and inverse. Canvas painting/selection must use transforms and transformed bounds while pointer previews remain outside React.
+
+The bounded vertical workflow is `node.set` on currently supported rectangles for x/y/width/height/rotation, through inspector controls, history, native ZIP and recovery. Source: `cmd/edit.rs::set`, `cmd/props.rs:410–427,513–562`. Dimensions precede rotation; x/y apply last. Preserve exact command contracts and atomic multi-target validation. Other `node.set` properties remain explicit unsupported work, never silently ignored.
+
+Transition: retain public rectangle x/y/fill compatibility while adding optional native affine coefficients; one accessor and update helper own canonical transform resolution and translation aliases. Plain translated legacy nodes remain accepted. This is a bounded compatibility bridge, not the final common-node schema; full float colour/paint/base-property modelling precedes container hierarchy. Native codec accepts finite affine rectangle transforms and writes them without flattening. Structural/appearance fields remain rejected until supported. Native page-only fixtures continue to round-trip unchanged.
+
+No provider schema or role changes; existing identity gates and principal-scoped recovery apply. Tests include matrix fixtures, transformed native round-trips, centre preservation/undo, invalid transform atomicity, browser inspector→pixels→save/reload, unchanged rectangle screenshot and 10,000-node frame budget. Record the byte-colour, rectangle-only and viewport-fit limitations until their required slices land.
+
+Allocation: bounded affine agent owns `src/engine/affine.ts` and `tests/parity/affine.test.ts`; coordinator owns transform model helpers, codec/renderer/property-command integration, UI and browser tests. Page reporting agent owns only page reports. Rollback point: `6c988a5`.
+
+Affine workflow dependency: imported/recovered rectangles must be selectable before inspector edits. Include the existing upstream `select.set`, `select.add`, `select.remove`, `select.all`, `select.none` contracts for the current flat model, a layer-list action and frontmost rectangle pointer hit testing through inverse affine coordinates. Selection is ephemeral and non-undoable; `select.set` validates existence, switches to the first target page and cleans other-page/duplicate/page selections (`cmd/edit.rs:152–185,507–525`, `doc_state.rs:331–356`). This does not claim marquee, nested hit testing, locked/hidden handling or move/resize gestures, which remain required. Bounded selection agent owns `src/engine/selection.ts` and its parity tests; coordinator integrates engine/canvas/layer controls.
+
+Affine verification: 217 pure tests and two local Auth integration tests passed; strict TypeScript and package/Next production builds passed. Final local production browser suite passed 12/12 (15.1 seconds), including rotation pixels/centre/undo/reload/pointer selection. At 10,000 rectangles over 110 measured frames, plain rendering p95/max were 1.0/1.0 ms; affine rendering p95/max were 5.7/12.5 ms after removing temporary bounds allocations. The pre-optimisation affine run was p95 15.7 ms/max 25.4 ms; that slower implementation is not the accepted checkpoint. No React frame-frequency reconciliation was introduced. Full archive/model/gesture/UI families remain unfinished.

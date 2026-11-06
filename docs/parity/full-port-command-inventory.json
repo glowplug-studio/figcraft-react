@@ -959,7 +959,9 @@
       "label": "Create layer",
       "source": "crates/engine/src/cmd/create.rs",
       "line": 59,
-      "status": "Not tested"
+      "status": "Partial",
+      "scope": "Verified supported page/rectangle subset; full command and dependent-model parity remain incomplete.",
+      "evidence": "docs/planning/26-11-06-complete-figcraft-port.md"
     },
     {
       "command": "frame.create",
@@ -973,7 +975,9 @@
       "label": "Rectangle",
       "source": "crates/engine/src/cmd/create.rs",
       "line": 73,
-      "status": "Not tested"
+      "status": "Partial",
+      "scope": "Verified supported page/rectangle subset; full command and dependent-model parity remain incomplete.",
+      "evidence": "docs/planning/26-11-06-complete-figcraft-port.md"
     },
     {
       "command": "shape.ellipse",
@@ -1050,14 +1054,18 @@
       "label": "Undo",
       "source": "crates/engine/src/cmd/edit.rs",
       "line": 108,
-      "status": "Not tested"
+      "status": "Partial",
+      "scope": "Verified supported page/rectangle subset; full command and dependent-model parity remain incomplete.",
+      "evidence": "docs/planning/26-11-06-complete-figcraft-port.md"
     },
     {
       "command": "edit.redo",
       "label": "Redo",
       "source": "crates/engine/src/cmd/edit.rs",
       "line": 109,
-      "status": "Not tested"
+      "status": "Partial",
+      "scope": "Verified supported page/rectangle subset; full command and dependent-model parity remain incomplete.",
+      "evidence": "docs/planning/26-11-06-complete-figcraft-port.md"
     },
     {
       "command": "edit.delete",
@@ -1148,21 +1156,27 @@
       "label": "Select",
       "source": "crates/engine/src/cmd/edit.rs",
       "line": 151,
-      "status": "Not tested"
+      "status": "Partial",
+      "scope": "Verified supported page/rectangle subset; full command and dependent-model parity remain incomplete.",
+      "evidence": "docs/planning/26-11-06-complete-figcraft-port.md"
     },
     {
       "command": "select.add",
       "label": "Add to selection",
       "source": "crates/engine/src/cmd/edit.rs",
       "line": 159,
-      "status": "Not tested"
+      "status": "Partial",
+      "scope": "Verified supported page/rectangle subset; full command and dependent-model parity remain incomplete.",
+      "evidence": "docs/planning/26-11-06-complete-figcraft-port.md"
     },
     {
       "command": "select.remove",
       "label": "Remove from selection",
       "source": "crates/engine/src/cmd/edit.rs",
       "line": 169,
-      "status": "Not tested"
+      "status": "Partial",
+      "scope": "Verified supported page/rectangle subset; full command and dependent-model parity remain incomplete.",
+      "evidence": "docs/planning/26-11-06-complete-figcraft-port.md"
     },
     {
       "command": "select.layersAt",
@@ -1176,14 +1190,18 @@
       "label": "Select all",
       "source": "crates/engine/src/cmd/edit.rs",
       "line": 182,
-      "status": "Not tested"
+      "status": "Partial",
+      "scope": "Verified supported page/rectangle subset; full command and dependent-model parity remain incomplete.",
+      "evidence": "docs/planning/26-11-06-complete-figcraft-port.md"
     },
     {
       "command": "select.none",
       "label": "Select none",
       "source": "crates/engine/src/cmd/edit.rs",
       "line": 183,
-      "status": "Not tested"
+      "status": "Partial",
+      "scope": "Verified supported page/rectangle subset; full command and dependent-model parity remain incomplete.",
+      "evidence": "docs/planning/26-11-06-complete-figcraft-port.md"
     },
     {
       "command": "select.inverse",
@@ -1379,7 +1397,9 @@
       "label": "Set properties",
       "source": "crates/engine/src/cmd/edit.rs",
       "line": 307,
-      "status": "Not tested"
+      "status": "Partial",
+      "scope": "Verified supported page/rectangle subset; full command and dependent-model parity remain incomplete.",
+      "evidence": "docs/planning/26-11-06-complete-figcraft-port.md"
     },
     {
       "command": "node.get",
@@ -1631,7 +1651,9 @@
       "label": "Open",
       "source": "crates/engine/src/cmd/file.rs",
       "line": 76,
-      "status": "Not tested"
+      "status": "Partial",
+      "scope": "Verified supported page/rectangle subset; full command and dependent-model parity remain incomplete.",
+      "evidence": "docs/planning/26-11-06-complete-figcraft-port.md"
     },
     {
       "command": "file.openRecent",
@@ -1659,14 +1681,18 @@
       "label": "Save as",
       "source": "crates/engine/src/cmd/file.rs",
       "line": 104,
-      "status": "Not tested"
+      "status": "Partial",
+      "scope": "Verified supported page/rectangle subset; full command and dependent-model parity remain incomplete.",
+      "evidence": "docs/planning/26-11-06-complete-figcraft-port.md"
     },
     {
       "command": "file.markSaved",
       "label": "Mark saved",
       "source": "crates/engine/src/cmd/file.rs",
       "line": 111,
-      "status": "Not tested"
+      "status": "Partial",
+      "scope": "Verified supported page/rectangle subset; full command and dependent-model parity remain incomplete.",
+      "evidence": "docs/planning/26-11-06-complete-figcraft-port.md"
     },
     {
       "command": "file.export",
@@ -1729,7 +1755,9 @@
       "label": "Recover file",
       "source": "crates/engine/src/cmd/file.rs",
       "line": 181,
-      "status": "Not tested"
+      "status": "Partial",
+      "scope": "Verified supported page/rectangle subset; full command and dependent-model parity remain incomplete.",
+      "evidence": "docs/planning/26-11-06-complete-figcraft-port.md"
     },
     {
       "command": "file.rename",
@@ -2086,42 +2114,54 @@
       "label": "Add page",
       "source": "crates/engine/src/cmd/page.rs",
       "line": 39,
-      "status": "Not tested"
+      "status": "Partial",
+      "scope": "Verified supported page/rectangle subset; full command and dependent-model parity remain incomplete.",
+      "evidence": "docs/planning/26-11-06-complete-figcraft-port.md"
     },
     {
       "command": "page.select",
       "label": "Go to page",
       "source": "crates/engine/src/cmd/page.rs",
       "line": 61,
-      "status": "Not tested"
+      "status": "Partial",
+      "scope": "Verified supported page/rectangle subset; full command and dependent-model parity remain incomplete.",
+      "evidence": "docs/planning/26-11-06-complete-figcraft-port.md"
     },
     {
       "command": "page.rename",
       "label": "Rename page",
       "source": "crates/engine/src/cmd/page.rs",
       "line": 83,
-      "status": "Not tested"
+      "status": "Partial",
+      "scope": "Verified supported page/rectangle subset; full command and dependent-model parity remain incomplete.",
+      "evidence": "docs/planning/26-11-06-complete-figcraft-port.md"
     },
     {
       "command": "page.delete",
       "label": "Delete page",
       "source": "crates/engine/src/cmd/page.rs",
       "line": 90,
-      "status": "Not tested"
+      "status": "Partial",
+      "scope": "Verified supported page/rectangle subset; full command and dependent-model parity remain incomplete.",
+      "evidence": "docs/planning/26-11-06-complete-figcraft-port.md"
     },
     {
       "command": "page.duplicate",
       "label": "Duplicate page",
       "source": "crates/engine/src/cmd/page.rs",
       "line": 96,
-      "status": "Not tested"
+      "status": "Partial",
+      "scope": "Verified supported page/rectangle subset; full command and dependent-model parity remain incomplete.",
+      "evidence": "docs/planning/26-11-06-complete-figcraft-port.md"
     },
     {
       "command": "page.move",
       "label": "Move page",
       "source": "crates/engine/src/cmd/page.rs",
       "line": 130,
-      "status": "Not tested"
+      "status": "Partial",
+      "scope": "Verified supported page/rectangle subset; full command and dependent-model parity remain incomplete.",
+      "evidence": "docs/planning/26-11-06-complete-figcraft-port.md"
     },
     {
       "command": "page.setBackground",
@@ -2135,7 +2175,9 @@
       "label": "List pages",
       "source": "crates/engine/src/cmd/page.rs",
       "line": 150,
-      "status": "Not tested"
+      "status": "Partial",
+      "scope": "Verified supported page/rectangle subset; full command and dependent-model parity remain incomplete.",
+      "evidence": "docs/planning/26-11-06-complete-figcraft-port.md"
     },
     {
       "command": "guide.add",
@@ -3731,7 +3773,9 @@
       "label": "Move",
       "source": "crates/engine/src/cmd/view.rs",
       "line": 576,
-      "status": "Not tested"
+      "status": "Partial",
+      "scope": "Verified supported page/rectangle subset; full command and dependent-model parity remain incomplete.",
+      "evidence": "docs/planning/26-11-06-complete-figcraft-port.md"
     },
     {
       "command": "tool.scale",
@@ -3773,7 +3817,9 @@
       "label": "Rectangle",
       "source": "crates/engine/src/cmd/view.rs",
       "line": 582,
-      "status": "Not tested"
+      "status": "Partial",
+      "scope": "Verified supported page/rectangle subset; full command and dependent-model parity remain incomplete.",
+      "evidence": "docs/planning/26-11-06-complete-figcraft-port.md"
     },
     {
       "command": "tool.line",
