@@ -22,7 +22,7 @@ export function LayerPanel({ document, selection, editable, dispatch }: LayerPan
       if (seen.has(id)) continue;
       seen.add(id);
       const node = document.nodes[id];
-      if (node?.kind === "group") {
+      if (node && node.kind !== "rectangle" && node.kind !== "page") {
         containers.push({ id, name: node.name, depth });
         collect(node.children, depth + 1);
       }
@@ -31,8 +31,8 @@ export function LayerPanel({ document, selection, editable, dispatch }: LayerPan
   collect(page.children, 1);
   const destination = containers.some(container => container.id === target) ? target : page.id;
   const active = selection.length === 1 ? document.nodes[selection[0]] : undefined;
-  const parent = active?.kind === "group" || active?.kind === "rectangle" ? document.nodes[active.parent] : undefined;
-  const siblings = parent?.kind === "page" || parent?.kind === "group" ? parent.children : [];
+  const parent = active && active.kind !== "page" ? document.nodes[active.parent] : undefined;
+  const siblings = parent && parent.kind !== "rectangle" ? parent.children : [];
   const position = active ? siblings.indexOf(active.id) : -1;
 
   const toggle = (id: NodeId): void => setCollapsed(previous => {
@@ -43,10 +43,10 @@ export function LayerPanel({ document, selection, editable, dispatch }: LayerPan
   const rows = (ids: readonly NodeId[], depth: number): ReactNode => [...ids].reverse().map(id => {
     const node = document.nodes[id];
     if (!node || node.kind === "page") return null;
-    const group = node.kind === "group" ? node : undefined;
+    const group = node.kind !== "rectangle" ? node : undefined;
     const expanded = group !== undefined && !collapsed.has(id);
     return <li key={id} aria-current={selected.has(id) ? "true" : undefined} data-layer-id={id} style={{ paddingInlineStart: `${depth * 1.1}rem` }}>
-      {group && <button type="button" aria-label={`${expanded ? "Collapse" : "Expand"} group ${group.name}`} aria-expanded={expanded}
+      {group && <button type="button" aria-label={`${expanded ? "Collapse" : "Expand"} ${group.kind} ${group.name}`} aria-expanded={expanded}
         onClick={() => toggle(id)}>{expanded ? "▾" : "▸"}</button>}
       <button type="button" disabled={!editable} onClick={event => dispatch("select.set", {
         ids: event.shiftKey ? selected.has(id) ? selection.filter(current => current !== id) : [...selection, id] : [id],
@@ -68,8 +68,12 @@ export function LayerPanel({ document, selection, editable, dispatch }: LayerPan
     <div role="group" aria-label="Layer actions">
       <button type="button" disabled={!editable || selection.length === 0} onClick={() => dispatch("object.group", { ids: selection })}>Group</button>
       <button type="button" disabled={!editable || !selection.some(id => document.nodes[id]?.kind === "group")} onClick={() => dispatch("object.ungroup", { ids: selection })}>Ungroup</button>
-      <button type="button" disabled={!editable || !selection.some(id => document.nodes[id]?.kind === "group")} onClick={() => dispatch("select.children")}>Select children</button>
+      <button type="button" disabled={!editable || !selection.some(id => ["group", "frame"].includes(document.nodes[id]?.kind))} onClick={() => dispatch("select.children")}>Select children</button>
       <button type="button" disabled={!editable || !parent || parent.kind === "page"} onClick={() => dispatch("select.parent")}>Select parent</button>
+      <button type="button" disabled={!editable || selection.length === 0} onClick={() => dispatch("object.frameSelection", { ids: selection })}>Frame selection</button>
+      <button type="button" disabled={!editable || !selection.some(id => document.nodes[id]?.kind === "frame")} onClick={() => dispatch("object.removeFrame", { ids: selection })}>Remove frame</button>
+      <button type="button" disabled={!editable || !selection.some(id => document.nodes[id]?.kind === "group")} onClick={() => dispatch("object.convertToFrame", { ids: selection })}>Convert to frame</button>
+      <button type="button" disabled={!editable || !selection.some(id => document.nodes[id]?.kind === "frame")} onClick={() => dispatch("object.convertToGroup", { ids: selection })}>Convert to group</button>
       <button type="button" disabled={!editable || selection.length === 0} onClick={() => dispatch("edit.delete", { ids: selection })}>Delete layers</button>
       <button type="button" disabled={!editable || position < 0 || position === siblings.length - 1} onClick={() => reorder(position + 1)}>Move layer up</button>
       <button type="button" disabled={!editable || position <= 0} onClick={() => reorder(position - 1)}>Move layer down</button>

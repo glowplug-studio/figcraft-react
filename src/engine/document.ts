@@ -13,6 +13,11 @@ export interface PageNode {
   readonly background: string;
   readonly backgroundColor?: Colour;
 }
+export interface Constraints {
+  readonly horizontal: "left" | "right" | "leftRight" | "center" | "scale";
+  readonly vertical: "top" | "bottom" | "topBottom" | "center" | "scale";
+}
+export const defaultConstraints: Constraints = Object.freeze({ horizontal: "left", vertical: "top" });
 export interface LayerProperties {
   readonly id: NodeId;
   readonly name: string;
@@ -29,13 +34,19 @@ export interface LayerProperties {
   readonly locked?: boolean;
   readonly opacity?: number;
   readonly blend?: "normal" | "passThrough";
+  readonly constraints?: Constraints;
 }
 export interface RectangleNode extends LayerProperties { readonly kind: "rectangle" }
 export interface GroupNode extends LayerProperties {
   readonly kind: "group";
   readonly children: readonly NodeId[];
 }
-export type LayerNode = RectangleNode | GroupNode;
+export interface FrameNode extends LayerProperties {
+  readonly kind: "frame";
+  readonly children: readonly NodeId[];
+  readonly clip: boolean;
+}
+export type LayerNode = RectangleNode | GroupNode | FrameNode;
 export type DocumentNode = PageNode | LayerNode;
 export interface Document {
   readonly name: string;

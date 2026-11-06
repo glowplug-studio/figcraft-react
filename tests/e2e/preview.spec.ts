@@ -415,7 +415,7 @@ test("rotation edits preserve centre, pixels, undo and native recovery with poin
   const errors: string[] = [];
   page.on("pageerror", error => errors.push(error.message));
   await login(page);
-  const creation = page.getByRole("group", { name: "Create rectangle", exact: true });
+  const creation = page.getByRole("group", { name: "Create layer", exact: true });
   for (const [label, value] of [["X", "100"], ["Y", "100"], ["Width", "100"], ["Height", "50"]]) await creation.getByLabel(label, { exact: true }).fill(value);
   await page.getByRole("button", { name: "Create rectangle", exact: true }).click();
   await page.getByLabel("Rotation", { exact: true }).fill("90");
@@ -446,7 +446,7 @@ test("rotation edits preserve centre, pixels, undo and native recovery with poin
 });
 
 async function createNamedRectangle(page: Page, name: string, x: number, y: number, width = 60, height = 40) {
-  const creation = page.getByRole("group", { name: "Create rectangle", exact: true });
+  const creation = page.getByRole("group", { name: "Create layer", exact: true });
   for (const [label, value] of [["X", x], ["Y", y], ["Width", width], ["Height", height]] as const) {
     await creation.getByLabel(label, { exact: true }).fill(String(value));
   }
@@ -551,4 +551,83 @@ test("duplicating and deleting a page copies and removes the full group subtree"
   await expect(pages.getByRole("button", { name: "Page 1", exact: true })).toHaveAttribute("aria-current", "page");
   await expect(layers.getByRole("button", { name: "Group 1", exact: true })).toBeVisible();
   await expect(layers.getByRole("button", { name: "Nested", exact: true })).toBeVisible();
+});
+
+test("frames clip children, resize with constraints, isolate opacity and retain native recovery", async ({ page }) => {
+  await login(page);
+  const creation = page.getByRole("group", { name: "Create layer", exact: true });
+  await creation.getByLabel("Height", { exact: true }).fill("80");
+  await creation.getByRole("button", { name: "Create frame", exact: true }).click();
+  const layers = page.getByRole("region", { name: "Layers" });
+  await expect(page.getByLabel("Clip content", { exact: true })).toBeChecked();
+  await expectCanvasPixel(page, 50, 50, [255, 255, 255, 255]);
+  await creation.getByLabel("Create in", { exact: true }).selectOption({ label: "Frame 1" });
+  await createNamedRectangle(page, "Overflow", 80, 10, 40, 30);
+  const appearance = page.getByRole("region", { name: "Appearance" });
+  await appearance.getByLabel("Fill 1 CSS colour").fill("red");
+  await appearance.getByRole("button", { name: "Apply fill 1" }).click();
+  await expectCanvasPixel(page, 130, 60, [255, 0, 0, 255]);
+  await expectCanvasPixel(page, 150, 60, [245, 245, 245, 255]);
+  const canvas = page.getByLabel("Design canvas", { exact: true }), bounds = (await canvas.boundingBox())!;
+  await page.mouse.click(bounds.x + 130, bounds.y + 60);
+  await expect(page.getByLabel("Edit X", { exact: true })).toHaveValue("80");
+  await page.getByLabel("Horizontal constraint").selectOption("right");
+  await page.getByRole("button", { name: "Apply constraints" }).click();
+  await layers.getByRole("button", { name: "Frame 1", exact: true }).click();
+  await page.getByLabel("Rotation", { exact: true }).fill("90");
+  await page.getByRole("button", { name: "Apply geometry" }).click();
+  await expectCanvasPixel(page, 70, 40, [255, 0, 0, 255]);
+  await expectCanvasPixel(page, 70, 20, [245, 245, 245, 255]);
+  await page.getByLabel("Clip content", { exact: true }).uncheck();
+  await expectCanvasPixel(page, 70, 20, [255, 0, 0, 255]);
+  await page.getByRole("button", { name: "Undo", exact: true }).click();
+  await page.getByRole("button", { name: "Undo", exact: true }).click();
+  await page.getByLabel("Clip content", { exact: true }).uncheck();
+  await expectCanvasPixel(page, 150, 60, [255, 0, 0, 255]);
+  await page.getByLabel("Edit Width", { exact: true }).fill("200");
+  await page.getByRole("button", { name: "Apply geometry" }).click();
+  await layers.getByRole("button", { name: "Overflow", exact: true }).click();
+  await expect(page.getByLabel("Edit X", { exact: true })).toHaveValue("180");
+  await page.getByRole("button", { name: "Undo", exact: true }).click();
+  await layers.getByRole("button", { name: "Frame 1", exact: true }).click();
+  await appearance.getByLabel("Node opacity").fill("0.5");
+  await appearance.getByRole("button", { name: "Apply layer" }).click();
+  await expectCanvasPixel(page, 130, 60, [250, 122, 122, 255]);
+  await expectCanvasPixel(page, 150, 60, [250, 122, 122, 255]);
+  const downloaded = page.waitForEvent("download");
+  await page.getByRole("button", { name: "Save as", exact: true }).click();
+  const native = await decodeFigcraft(await readFile((await (await downloaded).path())!));
+  const frame = Object.values(native.document.nodes).find(node => node.kind === "frame");
+  expect(frame).toMatchObject({ clip: false, width: 100, opacity: 0.5 });
+  expect(Object.values(native.document.nodes).find(node => node.name === "Overflow")).toMatchObject({ constraints: { horizontal: "right", vertical: "top" } });
+  await expect(page.getByText("Recovery saved on this device", { exact: true })).toBeVisible();
+  await page.reload();
+  await expect(layers.getByRole("button", { name: "Frame 1", exact: true })).toBeVisible();
+  await expectCanvasPixel(page, 150, 60, [250, 122, 122, 255]);
+  await page.screenshot({ path: "test-results/frame-constraints-desktop.png", fullPage: true });
+});
+
+test("frame conversion preserves children and refuses an empty frame atomically", async ({ page }) => {
+  await login(page);
+  const layers = page.getByRole("region", { name: "Layers" });
+  await page.getByRole("button", { name: "Create frame", exact: true }).click();
+  await layers.getByRole("button", { name: "Convert to group", exact: true }).click();
+  await expect(page.locator("main [role=alert]")).toContainText("empty: a group needs layers");
+  await expect(page.getByRole("region", { name: "Selected frame", exact: true })).toBeVisible();
+  await layers.getByRole("button", { name: "Delete layers", exact: true }).click();
+  await createNamedRectangle(page, "Inside", 40, 40, 60, 40);
+  await layers.getByRole("button", { name: "Frame selection", exact: true }).click();
+  await expect(page.getByRole("region", { name: "Selected frame", exact: true })).toBeVisible();
+  await layers.getByRole("button", { name: "Convert to group", exact: true }).click();
+  await expect(page.getByRole("region", { name: "Selected group", exact: true })).toBeVisible();
+  await layers.getByRole("button", { name: "Convert to frame", exact: true }).click();
+  await expect(page.getByLabel("Clip content", { exact: true })).not.toBeChecked();
+  await expect(page.getByLabel("Fill 1 CSS colour")).toHaveCount(0);
+  await layers.getByRole("button", { name: "Remove frame", exact: true }).click();
+  await expect(page.getByLabel("Edit X", { exact: true })).toHaveValue("40");
+  await expectCanvasPixel(page, 60, 60, [217, 217, 217, 255]);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.locator(".figcraft-mobile-layers > summary").click();
+  await expect(page.locator(".figcraft-mobile-layers").getByRole("button", { name: "Inside", exact: true })).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });

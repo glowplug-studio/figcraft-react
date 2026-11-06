@@ -59,7 +59,7 @@ export function executeSelection(command: string, document: Document, selection:
   } else if (command === "select.children") {
     const children = selection.flatMap(id => {
       const node = document.nodes[id];
-      return node?.kind === "group" ? node.children : [];
+      return node && node.kind !== "page" && node.kind !== "rectangle" ? node.children : [];
     });
     ids = children.length ? children : selection;
   } else if (command === "select.parent") {
@@ -88,7 +88,7 @@ export function executeSelection(command: string, document: Document, selection:
   return { document: current, selection: cleaned, result: command === "select.none" ? { ok: true } : { selection: cleaned } };
 }
 
-/** Match native level_target for the group-only subset, using the current selection as context. */
+/** Match native level_target for supported containers, using the current selection as context. */
 function targetForLeaf(document: Document, leaf: NodeId, selection: readonly NodeId[]): NodeId {
   const chain: NodeId[] = [];
   let id: NodeId | null = leaf;
@@ -104,19 +104,26 @@ function targetForLeaf(document: Document, leaf: NodeId, selection: readonly Nod
     const at = chain.indexOf(parent);
     if (at >= 0 && at + 1 < chain.length) target = Math.max(target, at + 1);
   }
+  if (target === 0 && chain.length > 1 && document.nodes[chain[0]]?.kind === "frame") target = 1;
   return chain[target] ?? leaf;
 }
 
-/** Hit frontmost visible rectangle; group selection follows native level_target. */
+/** Hit frontmost visible layer; container selection follows native level_target. */
 export function hitRectangle(document: Document, point: Point, deep = false, selection: readonly NodeId[] = []): NodeId | undefined {
   if (!Number.isFinite(point.x) || !Number.isFinite(point.y)) return undefined;
   const page = pageOf(document);
-  const hit = (id: NodeId, parent: NodeId, world: Affine): NodeId | undefined => {
+  const hit = (id: NodeId, parent: NodeId, world: Affine, depth: number): NodeId | undefined => {
     const node = document.nodes[id];
-    if (!node || node.kind === "page" || node.parent !== parent || node.visible === false || node.locked === true) return undefined;
+    if (depth > 256 || !node || node.kind === "page" || node.parent !== parent || node.visible === false || node.locked === true) return undefined;
     try {
       const transform = world === identity ? layerTransform(node) : multiply(world, layerTransform(node));
-      if (node.kind === "group") return hitGroup(node.children, id, transform);
+      if (node.kind === "group") return hitGroup(node.children, id, transform, depth + 1);
+      if (node.kind === "frame") {
+        const local = transformPoint(inverse(transform), point);
+        const inside = local.x >= 0 && local.x <= node.width && local.y >= 0 && local.y <= node.height;
+        if (node.clip && !inside) return undefined;
+        return hitGroup(node.children, id, transform, depth + 1) ?? (inside ? id : undefined);
+      }
       if (world === identity && !node.transform) {
         return point.x >= node.x && point.x <= node.x + node.width && point.y >= node.y && point.y <= node.y + node.height ? id : undefined;
       }
@@ -126,15 +133,15 @@ export function hitRectangle(document: Document, point: Point, deep = false, sel
       return undefined;
     }
   };
-  const hitGroup = (children: readonly NodeId[], parent: NodeId, world: Affine): NodeId | undefined => {
+  const hitGroup = (children: readonly NodeId[], parent: NodeId, world: Affine, depth: number): NodeId | undefined => {
     for (let index = children.length - 1; index >= 0; index--) {
-      const leaf = hit(children[index]!, parent, world);
+      const leaf = hit(children[index]!, parent, world, depth);
       if (leaf !== undefined) return leaf;
     }
     return undefined;
   };
   for (let index = page.children.length - 1; index >= 0; index--) {
-    const leaf = hit(page.children[index]!, page.id, identity);
+    const leaf = hit(page.children[index]!, page.id, identity, 0);
     if (leaf !== undefined) return deep ? leaf : targetForLeaf(document, leaf, selection);
   }
   return undefined;

@@ -13,6 +13,7 @@ export const commandSpecs = Object.freeze({
   ...selectionSpecs,
   ...structureSpecs,
   "node.set": { label: "Set properties", undo: true },
+  "frame.create": { label: "Frame", undo: true },
   "shape.rectangle": { label: "Rectangle", undo: true },
   "node.create": { label: "Create layer", undo: true },
   "tool.rectangle": { label: "Rectangle", undo: false },
@@ -129,7 +130,7 @@ export class EditorEngine {
       return { saved: true };
     }
     if (command.startsWith("file.")) throw new Error(`${command} requires executeAsync`);
-    if (command === "shape.rectangle" || command === "node.create") return this.#rectangle(command, p);
+    if (command === "shape.rectangle" || command === "frame.create" || command === "node.create") return this.#rectangle(command, p);
     if (Object.keys(p).length) throw new Error(`${command} takes no parameters`);
     if (command === "tool.rectangle" || command === "tool.move") {
       this.#publish({ tool: command === "tool.rectangle" ? "rectangle" : "move" });
@@ -178,20 +179,20 @@ export class EditorEngine {
   #rectangle(command: string, p: Record<string, unknown>): Record<string, unknown> {
     const allowed = ["x", "y", "width", "height", "parent", "index", "name", "select", "props", ...(command === "node.create" ? ["type"] : [])];
     for (const key of Object.keys(p)) if (!allowed.includes(key)) throw new Error(`Unsupported rectangle parameter: ${key}`);
-    if (command === "node.create" && (typeof p.type !== "string" || !["rectangle", "rect", "group"].includes(p.type.toLowerCase()))) throw new Error("Only rectangle and group nodes are supported");
-    const kind = command === "node.create" && String(p.type).toLowerCase() === "group" ? "group" : "rectangle";
+    if (command === "node.create" && (typeof p.type !== "string" || !["rectangle", "rect", "group", "frame"].includes(p.type.toLowerCase()))) throw new Error("Only rectangle, group and frame nodes are supported");
+    const kind = command === "frame.create" || command === "node.create" && String(p.type).toLowerCase() === "frame" ? "frame" : command === "node.create" && String(p.type).toLowerCase() === "group" ? "group" : "rectangle";
     const before = this.#snapshot;
     if (this.#nextId > 18446744073709551615n || before.document.nodes[String(this.#nextId)]) throw new Error("Document identifiers are exhausted");
     const parentId = p.parent === undefined ? before.document.currentPage : parseNodeId(p.parent);
     const parent = parentId === undefined ? undefined : before.document.nodes[parentId];
-    if (!parent || parent.kind === "rectangle") throw new Error("The parent must be a page or group");
+    if (!parent || parent.kind === "rectangle") throw new Error("The parent must be a container");
     if (p.name !== undefined && typeof p.name !== "string") throw new Error("name must be a string");
     if (p.select !== undefined && typeof p.select !== "boolean") throw new Error("select must be a boolean");
     const index = number(p, "index", parent.children.length);
     if (!Number.isSafeInteger(index) || index < 0) throw new Error("index must be a non-negative safe integer");
-    const base = { id: String(this.#nextId), name: typeof p.name === "string" ? p.name : kind === "group" ? nextLayerName(before.document, "Group") : "Rectangle", parent: parent.id,
+    const base = { id: String(this.#nextId), name: typeof p.name === "string" ? p.name : kind !== "rectangle" ? nextLayerName(before.document, kind === "frame" ? "Frame" : "Group") : "Rectangle", parent: parent.id,
       x: number(p, "x", 0), y: number(p, "y", 0), width: Math.max(0, number(p, "width", 100)), height: Math.max(0, number(p, "height", 100)) };
-    let node: LayerNode = kind === "group" ? Object.freeze({ ...base, kind, children: Object.freeze([]), fill: "transparent", blend: "passThrough" }) : Object.freeze({ ...base, kind, fill: "#d9d9d9" });
+    let node: LayerNode = kind === "frame" ? Object.freeze({ ...base, kind, children: Object.freeze([]), fill: "#ffffff", blend: "passThrough", clip: true }) : kind === "group" ? Object.freeze({ ...base, kind, children: Object.freeze([]), fill: "transparent", blend: "passThrough" }) : Object.freeze({ ...base, kind, fill: "#d9d9d9" });
     transformBounds([1, 0, 0, 1, node.x, node.y], node.width, node.height);
     if (parent.kind === "group") node = withLayerTransform(node, multiply(inverse(frameRelative(before.document, parent.id)), [1, 0, 0, 1, node.x, node.y]));
     const draft = new HierarchyDraft(before.document);

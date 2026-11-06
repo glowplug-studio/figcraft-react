@@ -3,7 +3,7 @@ import type { DocumentCapability } from "./backends/access";
 import type { IdentityAdapter } from "./backends/identity";
 import { CanvasController } from "./engine/canvas";
 import { EditorEngine } from "./engine/editor";
-import { pageOf, rectangleTransform } from "./engine/document";
+import { defaultConstraints, pageOf, rectangleTransform } from "./engine/document";
 import { rotationDegrees } from "./engine/affine";
 import type { RecoveryStore } from "./backends/recovery";
 import { RecoveryController, base64Bytes } from "./engine/recovery";
@@ -11,7 +11,7 @@ import { MAX_FILE_BYTES } from "./engine/file-format";
 import { PagePanel } from "./PagePanel";
 import { AppearancePanel } from "./AppearancePanel";
 import { LayerPanel } from "./LayerPanel";
-import { frameRelative } from "./engine/hierarchy";
+import { frameRelative, pageForNode } from "./engine/hierarchy";
 
 export interface EditorProps {
   identity: IdentityAdapter;
@@ -97,7 +97,8 @@ export function Editor({ identity, capabilities, engine: suppliedEngine, recover
   function create(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
-    dispatch("shape.rectangle", Object.fromEntries(["x", "y", "width", "height"].map(name => [name, Number(data.get(name))])));
+    const submitter = (event.nativeEvent as SubmitEvent).submitter as HTMLButtonElement | null;
+    dispatch(submitter?.value === "frame" ? "frame.create" : "shape.rectangle", { ...Object.fromEntries(["x", "y", "width", "height"].map(name => [name, Number(data.get(name))])), parent: String(data.get("parent")) });
   }
   async function open(file: File) {
     controller.current?.cancel(); setPendingFile(null); setBusy(true); setError("");
@@ -166,9 +167,13 @@ export function Editor({ identity, capabilities, engine: suppliedEngine, recover
           </div>
         </div>
         <aside className="figcraft-properties" aria-label="Design"><h2>Design</h2>
-          <form onSubmit={create}><fieldset disabled={!editable}><legend>Create rectangle</legend>
+          <form key={page.id} onSubmit={create}><fieldset disabled={!editable}><legend>Create layer</legend>
             {(["x", "y", "width", "height"] as const).map(name => <label key={name}>{name === "width" ? "Width" : name === "height" ? "Height" : name.toUpperCase()}<input name={name} type="number" step="any" required defaultValue={name === "x" || name === "y" ? 40 : 100} /></label>)}
-            <button type="submit">Create rectangle</button>
+            <label>Create in<select aria-label="Create in" name="parent" defaultValue={page.id}>
+              {Object.values(snapshot.document.nodes).filter(node => node.kind !== "rectangle" && pageForNode(snapshot.document, node.id) === page.id).map(node => <option key={node.id} value={node.id}>{node.name}</option>)}
+            </select></label>
+            <button type="submit" value="rectangle">Create rectangle</button>
+            <button type="submit" value="frame">Create frame</button>
           </fieldset></form>
           {recoveryStore && <p className="figcraft-recovery" role="status">{recoveryStatus === "loading" ? "Restoring local recovery…" : recoveryStatus === "stored" ? "Recovery saved on this device" : recoveryStatus === "pending" ? "Saving recovery…" : recoveryStatus === "error" ? "Recovery failed" : "Local recovery ready"}</p>}
           {selected && selected.kind !== "page" && relative && <section aria-label={`Selected ${selected.kind}`}><h3>{selected.name}</h3><dl>
@@ -187,7 +192,19 @@ export function Editor({ identity, capabilities, engine: suppliedEngine, recover
               </label>)}
               <button type="submit">Apply geometry</button>
             </fieldset>
-          </form></section>}
+          </form>
+          {selected.kind === "frame" && <label><input type="checkbox" checked={selected.clip} disabled={!editable} onChange={event => dispatch("node.set", { id: selected.id, props: { clip: event.currentTarget.checked } })} />Clip content</label>}
+          <form key={`${selected.id}:${selected.constraints?.horizontal}:${selected.constraints?.vertical}`} onSubmit={event => {
+            event.preventDefault(); const data = new FormData(event.currentTarget);
+            dispatch("node.set", { id: selected.id, props: { constraints: { horizontal: data.get("horizontal"), vertical: data.get("vertical") } } });
+          }}><fieldset disabled={!editable}><legend>Constraints</legend>
+            <label>Horizontal constraint<select aria-label="Horizontal constraint" name="horizontal" defaultValue={(selected.constraints ?? defaultConstraints).horizontal}>
+              {["left", "right", "leftRight", "center", "scale"].map(value => <option key={value} value={value}>{({ left: "Left", right: "Right", leftRight: "Left and right", center: "Centre", scale: "Scale" })[value]}</option>)}
+            </select></label>
+            <label>Vertical constraint<select aria-label="Vertical constraint" name="vertical" defaultValue={(selected.constraints ?? defaultConstraints).vertical}>
+              {["top", "bottom", "topBottom", "center", "scale"].map(value => <option key={value} value={value}>{({ top: "Top", bottom: "Bottom", topBottom: "Top and bottom", center: "Centre", scale: "Scale" })[value]}</option>)}
+            </select></label><button type="submit">Apply constraints</button>
+          </fieldset></form></section>}
           <AppearancePanel page={page} selected={selected && selected.kind !== "page" ? selected : undefined} editable={editable && !busy} dispatch={dispatch} />
         </aside>
       </div>

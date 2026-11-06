@@ -134,7 +134,7 @@ describe("bounded native Figcraft file adapter", () => {
     ["future version", (value: ReturnType<typeof fixture>) => { value.version = 2; }],
     ["image resources", (value: ReturnType<typeof fixture>) => { value.imageIndex = [{ hash: "image", width: 1, height: 1 }]; }],
     ["comments", (value: ReturnType<typeof fixture>) => { value.comments = [{ text: "preserve me" }]; }],
-    ["frame", (value: ReturnType<typeof fixture>) => { value.nodes["2"].type = "frame"; }],
+    ["ellipse", (value: ReturnType<typeof fixture>) => { value.nodes["2"].type = "ellipse"; }],
     ["custom metadata", (value: ReturnType<typeof fixture>) => { value.nodes["2"].plugin_data = { key: "preserve me" }; }],
     ["gradient paint", (value: ReturnType<typeof fixture>) => { value.nodes["2"].fills = [{ type: "gradient", stops: [] }]; }],
     ["paint blend", (value: ReturnType<typeof fixture>) => { value.nodes["2"].fills = [{ type: "solid", color: "#ffffff", blend: "multiply" }]; }],

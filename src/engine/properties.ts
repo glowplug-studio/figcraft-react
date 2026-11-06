@@ -1,12 +1,14 @@
-import { identity, inverse, multiply, setRotationAboutCenter, transformBounds, withTranslation, type Affine } from "./affine";
-import { rectanglePaints, rectangleTransform, withRectanglePaints, withRectangleTransform, type Document, type NodeId, type LayerNode } from "./document";
+import { identity, inverse, multiply, setRotationAboutCenter, transformBounds, withTranslation } from "./affine";
+import { defaultConstraints, rectanglePaints, rectangleTransform, withRectanglePaints, withRectangleTransform, type Document, type NodeId, type LayerNode } from "./document";
 import { HierarchyDraft, frameRelative } from "./hierarchy";
 import { parseNodeId, parseNumber } from "./parameters";
 import { parseColour } from "./colour-css";
 import { readSolidPaints, solidPaint, type SolidPaint } from "./solid-paint";
 
+import { readConstraints, resizeChildren } from "./constraints";
+
 const geometryKeys = new Set(["x", "y", "width", "height", "w", "h", "rotation"]);
-const appearanceKeys = new Set(["name", "visible", "locked", "opacity", "fill", "fills"]);
+const appearanceKeys = new Set(["name", "visible", "locked", "opacity", "fill", "fills", "clip", "constraints"]);
 
 function samePaints(left: readonly SolidPaint[], right: readonly SolidPaint[]): boolean {
   return left.length === right.length && left.every((paint, index) => {
@@ -18,7 +20,7 @@ function samePaints(left: readonly SolidPaint[], right: readonly SolidPaint[]): 
   });
 }
 
-/** The rectangle geometry and appearance subset of upstream `node.set`. No history is recorded here. */
+/** The supported layer geometry and appearance subset of upstream `node.set`. No history is recorded here. */
 export function setRectangleProperties(document: Document, selection: readonly NodeId[], params: Record<string, unknown>): Document {
   if (params.ids != null && !Array.isArray(params.ids)) throw new Error("node.set ids must be an array");
   const rawTargets = params.ids ?? params.id;
@@ -47,7 +49,7 @@ export function setRectangleProperties(document: Document, selection: readonly N
     ? typeof props.name === "string" || typeof props.name === "number" && Number.isFinite(props.name)
       ? String(props.name) : (() => { throw new Error("name must be a string"); })()
     : undefined;
-  for (const key of ["visible", "locked"] as const) {
+  for (const key of ["visible", "locked", "clip"] as const) {
     if (key in props && typeof props[key] !== "boolean") throw new Error(`${key} must be a boolean`);
   }
   const opacity = "opacity" in props ? (() => {
@@ -68,10 +70,14 @@ export function setRectangleProperties(document: Document, selection: readonly N
     }
   }
   if ("fills" in props) paints = readSolidPaints(props.fills, true);
+  if ("constraints" in props) readConstraints(props.constraints);
   const draft = new HierarchyDraft(document);
   for (const id of ids) {
     const node = draft.nodes[id];
     if (!node || node.kind === "page") throw new Error(`node.set target ${id} is not an editable layer`);
+    if ("clip" in props && node.kind !== "frame") throw new Error("Clip content requires a frame");
+    const constraints = "constraints" in props ? readConstraints(props.constraints, node.constraints) : node.constraints;
+    const constraintsChanged = constraints && (constraints.horizontal !== (node.constraints ?? defaultConstraints).horizontal || constraints.vertical !== (node.constraints ?? defaultConstraints).vertical);
     let width = node.width;
     let height = node.height;
     // Upstream sorts equal-priority geometry keys by name; aliases may coexist.
@@ -79,9 +85,9 @@ export function setRectangleProperties(document: Document, selection: readonly N
       const oldWidth = width, oldHeight = height;
       if (key === "width" || key === "w") width = Math.max(0, values[key]);
       else height = Math.max(0, values[key]);
-      if (node.kind === "group" && (width !== oldWidth || height !== oldHeight)) {
+      if (node.kind !== "rectangle" && (width !== oldWidth || height !== oldHeight)) {
         draft.set({ ...node, width, height });
-        scaleGroupChildren(draft, id, oldWidth > 1e-9 ? width / oldWidth : 1, oldHeight > 1e-9 ? height / oldHeight : 1);
+        resizeChildren(draft, id, oldWidth, oldHeight);
       }
     }
     let transform = rectangleTransform(node);
@@ -96,12 +102,14 @@ export function setRectangleProperties(document: Document, selection: readonly N
     }
     transformBounds(transform, width, height);
     let updated: LayerNode = Object.freeze({ ...withRectangleTransform(node, transform), width, height });
+    if (constraintsChanged) updated = Object.freeze({ ...updated, constraints });
+    if ("clip" in props && updated.kind === "frame") updated = Object.freeze({ ...updated, clip: props.clip as boolean });
     if (name !== undefined && name !== node.name) updated = Object.freeze({ ...updated, name });
     if ("visible" in props && props.visible !== (node.visible ?? true)) updated = Object.freeze({ ...updated, visible: props.visible as boolean });
     if ("locked" in props && props.locked !== (node.locked ?? false)) updated = Object.freeze({ ...updated, locked: props.locked as boolean });
     if (opacity !== undefined && opacity !== (node.opacity ?? 1)) updated = Object.freeze({ ...updated, opacity });
     if (paints && !samePaints(rectanglePaints(node), paints)) updated = withRectanglePaints(updated, paints);
-    if (width !== node.width || height !== node.height || transform.some((value, index) => value !== rectangleTransform(node)[index])
+    if (constraintsChanged || "clip" in props && node.kind === "frame" && props.clip !== node.clip || width !== node.width || height !== node.height || transform.some((value, index) => value !== rectangleTransform(node)[index])
       || name !== undefined && name !== node.name || "visible" in props && props.visible !== (node.visible ?? true)
       || "locked" in props && props.locked !== (node.locked ?? false) || opacity !== undefined && opacity !== (node.opacity ?? 1)
       || paints && !samePaints(rectanglePaints(node), paints)) {
@@ -110,31 +118,4 @@ export function setRectangleProperties(document: Document, selection: readonly N
   }
   draft.normaliseGroups();
   return draft.finish();
-}
-
-/** Native layout::scale_group_children: scale local axes, retaining rotation/flip. */
-function scaleGroupChildren(draft: HierarchyDraft, id: NodeId, kx: number, ky: number): void {
-  const pending = [{ id, kx, ky }];
-  while (pending.length) {
-    const item = pending.pop()!, group = draft.nodes[item.id];
-    if (group.kind !== "group") continue;
-    for (const childId of group.children) {
-      const child = draft.nodes[childId];
-      if (child.kind === "page") throw new Error("Invalid group child");
-      const matrix = rectangleTransform(child), oldBounds = transformBounds(matrix, child.width, child.height);
-      const along = (x: number, y: number, fallback: number) => {
-        const length = Math.hypot(x, y), factor = Math.hypot(item.kx * x, item.ky * y) / length;
-        return length > 1e-12 && Number.isFinite(factor) ? factor : fallback;
-      };
-      const kw = along(matrix[0], matrix[1], item.kx), kh = along(matrix[2], matrix[3], item.ky);
-      const width = child.width * kw, height = child.height * kh;
-      const linear: Affine = [matrix[0], matrix[1], matrix[2], matrix[3], 0, 0];
-      const box = transformBounds(linear, width, height);
-      const transform = withTranslation(linear, { x: (oldBounds.x + oldBounds.width / 2) * item.kx - box.width / 2 - box.x,
-        y: (oldBounds.y + oldBounds.height / 2) * item.ky - box.height / 2 - box.y });
-      transformBounds(transform, width, height);
-      draft.set({ ...withRectangleTransform(child, transform), width, height });
-      if (child.kind === "group") pending.push({ id: childId, kx: kw, ky: kh });
-    }
-  }
 }

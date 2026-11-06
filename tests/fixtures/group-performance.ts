@@ -1,8 +1,8 @@
 import { renderDocument } from "../../src/engine/canvas";
-import { newDocument, pageOf, type Document, type DocumentNode, type GroupNode, type RectangleNode } from "../../src/engine/document";
+import { newDocument, pageOf, type Document, type DocumentNode, type GroupNode, type FrameNode, type RectangleNode } from "../../src/engine/document";
 
 /** In-memory browser rendering fixture; native file node limits do not apply. */
-export async function measureGroupedDocument(canvas: HTMLCanvasElement) {
+export async function measureGroupedDocument(canvas: HTMLCanvasElement, frames = false) {
   const empty = newDocument();
   const page = pageOf(empty);
   const nodes: Record<string, DocumentNode> = {};
@@ -26,7 +26,7 @@ export async function measureGroupedDocument(canvas: HTMLCanvasElement) {
       nodes[subgroupId] = node;
     }
     const x = (root % 10) * 96, y = Math.floor(root / 10) * 96;
-    const node: GroupNode = { id: rootId, kind: "group", parent: page.id, name: "Root group", children: subgroups, x, y, transform: [1, 0, 0, 1, x, y], width: 80, height: 80, fill: "transparent", opacity: 0.5 };
+    const node: GroupNode | FrameNode = { id: rootId, ...(frames ? { kind: "frame" as const, clip: false } : { kind: "group" as const }), parent: page.id, name: "Root group", children: subgroups, x, y, transform: [1, 0, 0, 1, x, y], width: 80, height: 80, fill: frames ? "#ffffff" : "transparent", opacity: 0.5 };
     nodes[rootId] = node;
   }
   const document: Document = { ...empty, nodes: { ...nodes, [page.id]: { ...page, children: roots } } };
@@ -41,11 +41,11 @@ export async function measureGroupedDocument(canvas: HTMLCanvasElement) {
   }
   const sorted = durations.slice(10).sort((a, b) => a - b);
   const pixel = Array.from(context.getImageData(2, 2, 1, 1).data);
-  const moved = { ...document, nodes: { ...document.nodes, "4": { ...document.nodes["4"], x: 100 } } } as Document;
+  const moved = { ...document, nodes: { ...document.nodes, "4": { ...document.nodes["4"], x: 80 } } } as Document;
   renderDocument(context, moved, 1000, 1000);
-  const changedBoundsPixel = Array.from(context.getImageData(102, 2, 1, 1).data);
+  const changedBoundsPixel = Array.from(context.getImageData(82, 2, 1, 1).data);
   return {
-    rectangles: 10_000, rootGroups: roots.length, subgroups: 1_000,
+    rectangles: 10_000, rootGroups: frames ? 0 : roots.length, rootFrames: frames ? roots.length : 0, subgroups: 1_000,
     measuredFrames: sorted.length, p95: sorted[Math.floor(sorted.length * .95)], max: sorted.at(-1),
     pixel, changedBoundsPixel,
     reactRenderers: canvas.ownerDocument.querySelectorAll("[data-figcraft-editor]").length,

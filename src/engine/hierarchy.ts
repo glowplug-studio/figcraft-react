@@ -1,5 +1,5 @@
 import { identity, inverse, multiply, transformBounds, type Affine } from "./affine";
-import { layerTransform, withLayerTransform, type Document, type DocumentNode, type GroupNode, type LayerNode, type NodeId } from "./document";
+import { layerTransform, withLayerTransform, type Document, type DocumentNode, type LayerNode, type NodeId } from "./document";
 
 function nodeOf(document: Document, id: NodeId): DocumentNode {
   const node = document.nodes[id];
@@ -119,7 +119,7 @@ export class HierarchyDraft {
     const target = nodeOf(this.document, parent);
     if (target.kind === "rectangle") throw new Error(`${parent} is not a container`);
     if (index !== undefined && (!Number.isSafeInteger(index) || index < 0)) throw new Error("Invalid child index");
-    if (node.kind === "group" && node.children.length) throw new Error("Inserted groups must start empty");
+    if (node.kind !== "rectangle" && node.children.length) throw new Error("Inserted containers must start empty");
     const children = [...target.children];
     children.splice(Math.min(index ?? children.length, children.length), 0, node.id);
     this.nodes[node.id] = Object.freeze({ ...node, parent });

@@ -59,7 +59,7 @@ function AppearanceControls({ page, selected, editable, dispatch }: AppearancePa
           <button type="submit">Apply layer</button>
         </fieldset>
       </form>
-      {selected.kind === "rectangle" && <fieldset disabled={!editable}><legend>Fills</legend>
+      {selected.kind !== "group" && <fieldset disabled={!editable}><legend>Fills</legend>
         <ol>{paints.map((paint, index) => ({ paint, index })).reverse().map(({ paint, index }, row) => <li key={`${selected.id}:${index}`}>
           <form key={`paint:${selected.id}:${index}:${JSON.stringify(paint)}`} onSubmit={event => {
             event.preventDefault();

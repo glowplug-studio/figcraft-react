@@ -1,4 +1,4 @@
-import { pageOf, pageColour, rectanglePaints, rectangleTransform, type Document, type RectangleNode, type LayerNode } from "./document";
+import { pageOf, pageColour, rectanglePaints, rectangleTransform, type Document, type LayerNode } from "./document";
 import { renderColour } from "./colour";
 import { EditorEngine } from "./editor";
 import { drawnRectangle, type Point, type Rectangle } from "./geometry";
@@ -11,7 +11,7 @@ const compositeSurfaces = new WeakMap<CanvasRenderingContext2D, HTMLCanvasElemen
 const groupBounds = new WeakMap<Document, Map<string, { matrix: readonly number[]; bounds: Rectangle | undefined }>>();
 const opacity = (value: number) => Math.max(0, Math.min(1, value));
 
-function paintRectangle(context: CanvasRenderingContext2D, node: RectangleNode, alpha = 1): void {
+function paintRectangle(context: CanvasRenderingContext2D, node: LayerNode, alpha = 1): void {
   context.save();
   if (node.transform) context.transform(...node.transform);
   else context.translate(node.x, node.y);
@@ -61,12 +61,13 @@ function paintedGroupBounds(context: CanvasRenderingContext2D, document: Documen
     const item = pending.pop()!, current = item.node;
     if (current.visible === false || (current.opacity ?? 1) <= 0 || item.depth > 256) continue;
     const matrix = multiply(item.parent, rectangleTransform(current));
-    if (current.kind === "group") {
+    if (current.kind !== "rectangle") {
       for (const id of current.children) {
         const child = document.nodes[id];
         if (child && child.kind !== "page") pending.push({ node: child, parent: matrix, depth: item.depth + 1 });
       }
-    } else {
+    }
+    if (current.kind !== "group") {
       const bounds = transformBounds(matrix, current.width, current.height);
       x0 = Math.min(x0, bounds.x); y0 = Math.min(y0, bounds.y);
       x1 = Math.max(x1, bounds.x + bounds.width); y1 = Math.max(y1, bounds.y + bounds.height);
@@ -79,9 +80,11 @@ function paintedGroupBounds(context: CanvasRenderingContext2D, document: Documen
 
 function drawLayer(context: CanvasRenderingContext2D, document: Document, node: LayerNode, depth = 0): void {
   if (node.visible === false || (node.opacity ?? 1) <= 0 || depth > 256) return;
-  if (node.kind === "group") {
+  if (node.kind !== "rectangle") {
     const draw = (target: CanvasRenderingContext2D) => {
+      if (node.kind === "frame") paintRectangle(target, node);
       target.save(); target.transform(...rectangleTransform(node));
+      if (node.kind === "frame" && node.clip) { target.beginPath(); target.rect(0, 0, node.width, node.height); target.clip(); }
       for (const id of node.children) {
         const child = document.nodes[id];
         if (child && child.kind !== "page") drawLayer(target, document, child, depth + 1);

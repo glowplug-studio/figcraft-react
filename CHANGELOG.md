@@ -2,6 +2,15 @@
 
 All notable changes to the React port and its upstream compatibility baseline are recorded here.
 
+## [0.8.0] - 2026-11-07
+
+The reference baseline remains `8eb0b87646c5aef712326d6c431ccde5408630de`; full parity remains in progress.
+
+- Added Frame containers with transformed clipping, solid fills, isolated opacity and frame-relative selection/creation.
+- Added frame wrapping/removal, Frame/Group conversion and all horizontal/vertical constraint modes with iterative nested resize propagation.
+- Added frame/constraint inspector controls and native/recovery/page subtree support, with source-derived and authenticated browser fixtures.
+- Preset placement, viewport navigation, drawing/resize gestures, sections, advanced layout and remaining product families are still required.
+
 ## [0.7.0] - 2026-11-07
 
 The reference baseline remains `8eb0b87646c5aef712326d6c431ccde5408630de`; full parity remains in progress.
