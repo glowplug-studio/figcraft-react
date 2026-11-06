@@ -136,7 +136,7 @@ Current local graph1204 nodes/5100 edges resolves these targets. Metadata on oth
 
 ## Variable-width profiles — 7 November 2026
 
-Upstream0b97f3f → React0.22.0; reviewed base47c91d2. [Property evidence](../reports/26-11-07-width-profiles-parity.html).
+Upstream0b97f3f → React0.22.0; verified implementation5f035a2, reviewed base47c91d2. [Property evidence](../reports/26-11-07-width-profiles-parity.html).
 
 | Upstream symbol/source | React target | Verified behaviour / boundary |
 |---|---|---|

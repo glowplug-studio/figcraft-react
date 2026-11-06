@@ -1,6 +1,6 @@
 # Variable-width stroke profiles — 7 November 2026
 
-React0.22.0, branch `prompt/full-figcraft-port`, reviewed base `47c91d2`. Upstream `0b97f3f1801a9b7b96fd7a4f3c0942a3f1a676f3`; global parity baseline remains `8eb0b876`. The bounded implementation is locally verified; full-product parity remains incomplete.
+React0.22.0, branch `prompt/full-figcraft-port`, verified implementation `5f035a2` (reviewed base `47c91d2`). Upstream `0b97f3f1801a9b7b96fd7a4f3c0942a3f1a676f3`; global parity baseline remains `8eb0b876`. The bounded implementation is locally verified; full-product parity remains incomplete.
 
 Implemented native WidthPoint/WidthProfile values, six presets, command forms, asymmetric sides, monotone interpolation, position flipping, mixed selection, atomic history, native files and recovery. Raw finite file values retain ordering, empty objects and out-of-range metadata; commands/rendering sanitise the first64 finite points, then clamp and stable-sort. Scale changes stroke weight without changing dimensionless profile points. The command does not invent stroke paint. Hit bands use the widest profile side; culling uses the finite rendered envelope.
 
