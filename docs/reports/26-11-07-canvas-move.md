@@ -1,0 +1,15 @@
+# Canvas selection and movement — 7 November 2026
+
+React0.15.0, implementation `0d34280`, branch `prompt/full-figcraft-port`; upstream evidence `0b97f3f1801a9b7b96fd7a4f3c0942a3f1a676f3`. Global parity baseline remains `8eb0b876`; full parity is incomplete.
+
+Implemented contextual clicks, deferred multi-selection/Shift narrowing, deep entry, normal/deep/Frame-contained marquee, native hit tolerance, move slop/axis lock, sibling/parent/equal-gap snapping, pixel rounding, Alt-copy transitions and measured guides. Frame drops preserve world geometry; group children retain their group. Transient document, selection and allocation stay outside React/recovery; cancellation restores the source, release commits once, and repeated duplication remembers the committed displacement. Custom origins follow ordinary movement and restore after cancelled copy previews.
+
+Verification:418 pure tests (2 environment-gated tests skipped here and passed separately as2 real local Auth tests), strict TypeScript, package/Next production builds and46/46 Chromium checks in81.6s. Fixed-environment browser flows cover pointer/modifier transitions, Escape, undo/recovery/native download, Frame drops, marquee/mobile, equal gaps and guide pixels. Inspected `test-results/marquee-preview-desktop.png` and `test-results/alt-drag-guides-desktop.png`. No browser errors or failed requests; local preview stopped cleanly and temporary Auth fixtures removed.
+
+Initial Alt-copy performance failed at27.8ms p95. Caching immutable subtree preparation per gesture corrected it. Final10000-node ordinary100-selected move: p9513.2ms, max16.5ms, input p9512.8ms;20-selected Alt-copy: p957.9ms, max13.6ms, input p957.3ms. Both110 measured frames after10 warm-up, zero root notifications and cancellation restored the source. Existing moving-Frame guard p9515.3ms, max21.3ms; isolated frame spikes remain visible rather than hidden in the p95 gate. Smart-preview p955.9ms, max9.5ms; other render fixtures p95≤10ms.
+
+Full regression exposed an outdated fixture: native own-box fallback retains an already-selected hidden layer. Corrected the fixture and added an independent pure case; unselected hidden layers remain unselectable by pointer. Locked layers and locked ancestors remain stationary.
+
+No database/schema/provider/identity/RLS/Storage/Realtime changes. Scoped Supabase MCP access succeeded during this run; public tables remain empty pending online-file scope. Current local Auth suite passes. Both Graphify repositories queried: Rust evidence current; React remains stale/README-only. Graphify authentication recovered and subsequent queries succeeded. No Rust execution, branch push, Vercel publication or main merge. No user action required.
+
+Required gaps: pointer resize/rotate/Scale handles are next. Other node kinds, layout grids/ruler guides/preferences, frame labels, focus view, Alt-hover measurement and layout/instance restrictions remain on the full-port roadmap. Browser Canvas2D replaces native rendering while preserving the verified pointer/guide behaviour. [Property evidence](26-11-07-canvas-move-parity.html).

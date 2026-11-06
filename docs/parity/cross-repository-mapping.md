@@ -49,3 +49,7 @@ Add mappings only after inspecting behaviour, callers, data contracts and tests.
 ## Layer duplication — 7 November 2026
 
 `cmd/edit::{Duplicated,duplicate}`, `doc::Document::{duplicate_into,paste_nodes}`, `components::copy_in_file` and selection cleanup → `engine/duplicate.ts`, EditorEngine session state and immutable hierarchy copying; primary+D → Editor/LayerPanel. Upstream0b97f3f, Reactf6dfc3f.391 pure/40 browser checks include exact maps, offsets, atomic allocation, source preservation, keyboard/mobile/native recovery. [Property evidence](../reports/26-11-07-duplication-parity.html). Explicit offsets follow parent-space native implementation. Other kinds/reference remapping, preferences and Alt-drag remain required.
+
+## Canvas selection and movement — 7 November 2026
+
+`tools/drag::{move_down,drag}`, `draw::up`, pointer marquee and document hit selection → `MoveInteraction`, `canvas-selection.ts` and extended EditorEngine transient selection/allocation. `canvas/snap::Targets`, drop and distance helpers → `snapping.ts`, `measurements.ts`. Upstream0b97f3f, React0d34280.418 pure/46 browser checks verify contextual selection, move/modifiers, Alt-copy repeat, Frame parenting, guide geometry, native recovery and10000-node preview performance. [Property evidence](../reports/26-11-07-canvas-move-parity.html). Other kinds/layout/preferences/labels and remaining transforms continue on the roadmap.

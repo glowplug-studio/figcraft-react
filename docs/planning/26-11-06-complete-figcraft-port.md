@@ -5,16 +5,16 @@
 | Field | Current value |
 |---|---|
 | Overall status | In progress; full parity is not implemented |
-| Active slice | Canvas selection, move gestures, snapping and Alt-drag |
-| Active phase | Phase 1–3: move/selection evidence and plan |
+| Active slice | Pointer resize/rotate handles and Scale tool |
+| Active phase | Phase 1–3: transform-handle evidence and plan |
 | Upstream baseline | `0b97f3f1801a9b7b96fd7a4f3c0942a3f1a676f3`; prior parity baseline `8eb0b87646c5aef712326d6c431ccde5408630de` |
-| Branch and last verified commit | `prompt/full-figcraft-port`; verified duplication `f6dfc3f`; verified smart selection `3326d26`; verified rotations `92062ca`; verified sizing `c6b8c71`; verified arrangement `783a694`; verified viewport `d0fae6c`; verified frames `3e7943a`; verified nested groups `e81ba76`; verified colour `bfa5dd8`; affine `080fc27`, outline check `2404d6b`, reports `ff29f38`; pages `6c988a5`, persistence `41d467b`; integration `fc3b4a6` from updated dev plus rectangle branch |
+| Branch and last verified commit | `prompt/full-figcraft-port`; verified canvas move `0d34280`; verified duplication `f6dfc3f`; verified smart selection `3326d26`; verified rotations `92062ca`; verified sizing `c6b8c71`; verified arrangement `783a694`; verified viewport `d0fae6c`; verified frames `3e7943a`; verified nested groups `e81ba76`; verified colour `bfa5dd8`; affine `080fc27`, outline check `2404d6b`, reports `ff29f38`; pages `6c988a5`, persistence `41d467b`; integration `fc3b4a6` from updated dev plus rectangle branch |
 | Completed slices | Rectangle/host-auth, bounded native persistence/recovery, supported-model pages, affine rectangle geometry/selection and solid appearance, plus nested group hierarchy and Frame containers verified locally |
 | Remaining slices | Every row below except the integrated foundation; static inventory entries remain unverified until mapped and tested |
-| Tests last passed | Strict TypeScript,391 pure tests,2 local Auth tests, package/Next builds and40/40 production Chromium checks (53.4s); smart-preview p95 3.9ms, moving-frame p95 13.8ms |
-| Files currently in progress | Duplication reports; move/selection plan; no active product edits |
+| Tests last passed | Strict TypeScript,418 pure tests,2 local Auth tests, package/Next builds and46/46 Chromium checks (81.6s); move/Alt-copy p95 13.2/7.9ms |
+| Files currently in progress | Move reports and transform-handle plan; no unverified product changes |
 | Blockers | None |
-| Exact next action | Implement native canvas selection/marquee and move snapping/drop/Alt-drag using transient selection/allocation; verify and continue |
+| Exact next action | Implement source-derived handle maths, resize/rotate preview reducers and Scale tool, then browser verification |
 | Last updated | 2026-11-07 |
 
 ## Scope and continuation
@@ -284,3 +284,21 @@ Evidence/mapping: `tools/drag::{move_down,drag}` and `draw::up` → MoveInteract
 Hazards: page/parent coordinate conversion, deterministic nearest/tie order, negative half-pixel Rust rounding, IDs allocated only at commit, transient selection separate from root snapshots/recovery, capture cancellation and reentrant subscriptions, group refitting versus committed parenting, missing/singular targets and finite failures. Preserve source immutability; cancel entire invalid preview; no provider tokens or speculative node fields. Supported model includes Rectangle/Group/Frame only; layout grids/guides preferences, instance restrictions, other kinds, focus view and native labels extend with their required families.
 
 Files: pure canvas selection/snapping/drop/measurement helpers, move controller, engine interaction and canvas integration, focused source-derived pure tests, authenticated keyboard/pointer/native-recovery/mobile tests and10000-node moving-preview benchmark. Verify slop, modifier transitions including release-only Alt, sibling/rotated/equal-gap snaps, locked ancestors, frame entry/exit/group retention, selection/history cancellation and no React frame notifications. Run full tests/typecheck/build/Auth/browser/performance and inspect fixed screenshots. No database/schema/provider/identity change. Sequential implementation under latest user instruction; rollbackf6dfc3f.
+
+Move integration checkpoint: move/marquee/Alt-copy, guide maths/labels and Frame drops implemented.415 pure tests and strict TypeScript/build passed; three focused browser flows pass after waiting for the rendered viewport in coordinate fixtures. Initial20-copy/10000-node preview p9527.8ms failed; cached immutable subtree preparation per interaction reduced it to5.9ms (100-layer ordinary move10ms), with zero root notifications. Added origin-preview lifecycle and hit-tolerance checks; final rebuild/full suite next. Rust tie semantics verified against [Iterator::min_by](https://doc.rust-lang.org/std/iter/trait.Iterator.html#method.min_by): equal minima retain the first candidate. No external blocker/publication.
+
+## Verified canvas movement checkpoint
+
+Implementation0d34280, version0.15.0:418 pure,2 local Auth, strict TypeScript/build and46/46 browser checks passed in81.6s.10000-node move/Alt-copy p9513.2/7.9ms, zero root notifications. Hidden-selection regression fixture corrected from exact native fallback; locked-ancestor assertion added and passed. [Report](../reports/26-11-07-canvas-move.md). Local preview stopped; no external blocker/publication.
+
+## Active pointer transforms and Scale tool plan
+
+Acceptance: native oriented selection-box corner/edge hit precedence, inward reach capped to quarter of shortest side, outward rotation zones, tiny-box visibility and locked-ancestor rejection. Resize begins after3-screen-pixel slop, keeps opposite side/corner, Shift or constrain-proportions preserves ratio, Alt resizes about centre, crossed sides flip, single dimensions clamp0.01. Rotated single layers resize in their own axes. Multi-selection centres follow the box; own-axis factors preserve each rotation and reflect with the box. Frame resize honours constraints, primary-modifier single-Frame resize preserves child page positions. Rotation uses custom origin or selection centre and Shift15° increments. Each drag previews from immutable base, commits once, cancels on Escape/context/access changes, and never publishes root React frames.
+
+Scale tool K uses the same handles with signed uniform factor clamped0.01–1000, anchored at one of9 session points; anchor on dragged side falls back to opposite handle, Alt uses centre. Subtree dimensions and local child translation scale regardless of constraints. Tool body clicks/moves still use ordinary selection/move. Expose tool.scale and tool.scaleAnchor read/write; anchor never serialises into document. Dedicated Scale controls use page-space bounds for numeric width/height/factor and clamp factor0.01–100; retain one-undo live dimension scrubs. Canvas shows native size/factor label and anchor marker; standard browser resize cursor quantisation substitutes native custom angle cursor where needed.
+
+Source/mapping: `tools/handles::{handle_at_corners,resized_box,scale_factor,selection_frame}` → pure transform-handle geometry; `tools/drag::{resize_drag,scale_drag}` and Rotate branch → pure preview reducer/controller; existing constraints/sizing/rotation helpers preserve supported properties. `ui-egui/canvas/overlays` transform box → Canvas renderer, `panels/scale_panel` → ScalePanel, `cmd/view` → engine tool/anchor commands. `transform_behaviour_tests`, `scale_tool_tests`, handle/selection tests → paired TypeScript/browser fixtures. Graphify Rust supplied exact scale_drag and rotated resize fixtures at0b97f3f; React remains stale/README-only; current local source authoritative.
+
+Hazards: signed-zero Rust signum, affine inverse/conjugation, dimension clamp versus multi-selection zero dimensions, scaled descendants must not receive constraints, object point snapping versus pixel rounding only on upright resize, hit tolerance under zoom, root subscriptions cancelling the owner reentrantly, custom origin, no premature allocator/history writes. Test all handles/anchors, crossings/degenerate boxes, rotated/mixed parents, proportion locks, locked ancestors, constraints/Ctrl preservation, cancellation/no-op history, numeric panel scrubs, keyboard/mobile/native recovery and10000-node continuous preview performance. Extend other kinds (line/text/vector/image/layout), scaled properties and preferences in their own required families; no invented fields/stubs or full-family claim.
+
+Sequential implementation: geometry and reducers, engine transaction boundary, input/overlays, Scale controls, source-derived tests, full local Auth/build/browser/performance, reports and next slice. No provider/schema/identity changes. Rollback0d34280. Expected files: transform handles/controller, sizing helper exports, EditorEngine/CanvasController/Editor toolbar, ScalePanel, tests and version records.
