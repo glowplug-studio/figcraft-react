@@ -1477,11 +1477,12 @@
       "source": "crates/engine/src/cmd/edit.rs",
       "line": 307,
       "status": "Partial",
-      "scope": "Rectangle geometry, name, visibility, locking, opacity and solid fills; remaining native properties and node kinds required; constrainProportions linked numeric edits and native persistence verified",
+      "scope": "Rectangle geometry, name, visibility, locking, opacity and solid fills; remaining native properties and node kinds required; constrainProportions linked numeric edits and native persistence verified; Rectangle/Frame corner radii, individual corners and smoothing plus Group metadata verified",
       "evidence": [
         "tests/parity/rectangle-properties.test.ts",
         "tests/parity/appearance-properties.test.ts",
-        "tests/e2e/preview.spec.ts"
+        "tests/e2e/preview.spec.ts",
+        "tests/parity/corners.test.ts"
       ]
     },
     {

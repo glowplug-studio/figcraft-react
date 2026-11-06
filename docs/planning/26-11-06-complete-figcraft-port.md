@@ -5,16 +5,16 @@
 | Field | Current value |
 |---|---|
 | Overall status | In progress; full parity is not implemented |
-| Active slice | Rounded/smoothed corners and radius handles |
-| Active phase | Phase 7: corner evidence and next-slice selection |
+| Active slice | Ellipse, arc and ring geometry/handles |
+| Active phase | Phase 1–3: ellipse evidence and plan |
 | Upstream baseline | `0b97f3f1801a9b7b96fd7a4f3c0942a3f1a676f3`; prior parity baseline `8eb0b87646c5aef712326d6c431ccde5408630de` |
-| Branch and last verified commit | `prompt/full-figcraft-port`; verified transforms `cc26af1`; verified canvas move `0d34280`; verified duplication `f6dfc3f`; verified smart selection `3326d26`; verified rotations `92062ca`; verified sizing `c6b8c71`; verified arrangement `783a694`; verified viewport `d0fae6c`; verified frames `3e7943a`; verified nested groups `e81ba76`; verified colour `bfa5dd8`; affine `080fc27`, outline check `2404d6b`, reports `ff29f38`; pages `6c988a5`, persistence `41d467b`; integration `fc3b4a6` from updated dev plus rectangle branch |
+| Branch and last verified commit | `prompt/full-figcraft-port`; verified corners `37ad314`; verified transforms `cc26af1`; verified canvas move `0d34280`; verified duplication `f6dfc3f`; verified smart selection `3326d26`; verified rotations `92062ca`; verified sizing `c6b8c71`; verified arrangement `783a694`; verified viewport `d0fae6c`; verified frames `3e7943a`; verified nested groups `e81ba76`; verified colour `bfa5dd8`; affine `080fc27`, outline check `2404d6b`, reports `ff29f38`; pages `6c988a5`, persistence `41d467b`; integration `fc3b4a6` from updated dev plus rectangle branch |
 | Completed slices | Rectangle/host-auth, bounded native persistence/recovery, supported-model pages, affine rectangle geometry/selection and solid appearance, plus nested group hierarchy and Frame containers verified locally |
 | Remaining slices | Every row below except the integrated foundation; static inventory entries remain unverified until mapped and tested |
-| Tests last passed | Strict TypeScript,440 pure tests,2 local Auth tests, package/Next builds and52/52 Chromium checks (72.6s); resize/Scale p95 8.2/6.3ms |
-| Files currently in progress | Corner geometry, properties, codec, renderer, controls and tests |
+| Tests last passed | Strict TypeScript,460 pure tests,2 local Auth tests, package/Next builds and56/56 Chromium checks (104.2s); corner preview p95 4.6ms |
+| Files currently in progress | Corner reports/mapping and ellipse source evidence; product verified |
 | Blockers | None |
-| Exact next action | Implement the accepted corner plan below, then run all local verification gates |
+| Exact next action | Complete ellipse/arc/ring source evidence, record acceptance/mapping, then implement the next complete slice |
 | Last updated | 2026-11-07 |
 
 ## Scope and continuation
@@ -332,3 +332,12 @@ Sequential files: corners geometry/model/reducer/codec/scale; canvas rendering/h
 
 
 Corner integration checkpoint:20 source-derived corner cases and460 pure tests pass;2 real local Auth cases pass, strict TypeScript/package/Next builds pass. Scoped Supabase MCP read succeeds and confirms no public application tables; this local geometry slice needs no schema. Native Corners serde defaults and null rejection now covered. Immutable-base preview semantics verified in session/undo.rs. Radius-handle circles required moving an older fill-pixel assertion farther inside the shape. New Frame fixture explicitly creates its child inside the Frame. Reviewed fixed rounded-corner canvas baseline and live Radius29 readout. Full56-browser regression passed in104.2s; corner preview p954.6ms/max9.5ms/input4ms,110 measured frames and zero root notifications. Local preview stopped; no publication.
+
+
+## Verified corner checkpoint
+
+Implementation37ad314, version0.17.0:460 pure,2 real Auth, strict TypeScript/build and56/56 browser checks passed in104.2s. Corner10000-node preview p954.6ms, zero root notifications. [Report](../reports/26-11-07-rounded-corners.md). Local preview stopped. No external blocker/publication. Additional explicit H/V-flipped radius projection fixtures extend the existing source test without changing product code.
+
+## Active ellipse evidence
+
+Next foundation: native ellipse paths, arcs/wedges/rings and start/end/inner handles. Graphify Rust current0b97f3f returns native arc UI fixtures: arcStart90 degrees, arcSweep270 degrees displayed75%, arcInner0.4 displayed40%; mixed ellipses show mixed sweep, ellipse+rectangle hides arc controls. Ring tests and rotated/flipped handle tests are source anchors. Complete exact geometry, command, wire, tool and hit semantics before edits. Existing rounded path support has a single-contour flattening helper: full rings require independent contours and winding, never a spurious connecting segment. Extend leaf-kind tests throughout hierarchy/render/selection/codec rather than treating ellipse as a container. React index remains README-only; current files are authoritative. Sequential execution; rollback37ad314.

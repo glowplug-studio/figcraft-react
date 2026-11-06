@@ -57,3 +57,15 @@ Add mappings only after inspecting behaviour, callers, data contracts and tests.
 ## Pointer transforms and Scale tool — 7 November 2026
 
 `tools/handles::{handle_at_corners,resized_box,scale_factor}` → `transform-handles.ts`; `tools/drag::{resize_drag,scale_drag}` and Rotate → `transform-preview.ts` / `TransformInteraction`; native scale panel → `ScalePanel`; source proportions property → properties/codec. `theme::{set_canvas_page,under_white}` → canvas-colours and shared overlays, correcting prior blue outlines. Upstream0b97f3f, Reactcc26af1.440 pure/52 browser checks pass, including source multi-rotation/anchor fixtures, Frame/keyboard/persistence/mobile and10000-node previews. [Property evidence](../reports/26-11-07-transform-handles-parity.html). Other kinds/scaled properties/layout/preferences and custom cursor artwork remain required.
+
+
+## Rounded corners and radius handles (0.17.0)
+
+| Upstream symbol/source | React target | Behavioural evidence and verification | Confidence / boundary |
+|---|---|---|---|
+| geom::rounded_rect, corner_profile, append_corner; Kurbo0.13.1 Arc | engine/corners.ts | Native cubic profiles, 0.01 arc approximation; geom area/bounds fixtures → corners.test.ts; rounded-corners.png browser baseline | High for Rectangle/Frame; other shapes remain required |
+| doc::Corners; cmd::props::apply_corners/four | document.ts, properties.ts, file-format.ts | Native radii order, 1/2/4 expansion, sorted commands, serde defaults; pure tests and authenticated save/reload | High; Group metadata retained but has no painted shape |
+| doc::geometry::hits_path and Frame branch; render::draw_children_clipped | selection.ts, canvas.ts | Rounded rectangle winding/distance; rounded Frame paint clip but rectangular hit fallback, browser pixels/selection | High; flattening0.001 versus native nearest0.01 tolerance |
+| canvas::shape_handles::{handles,hit,drag,value}; session::preview | corner-handles.ts, EditorEngine.previewProperties | Native48px/10px/6px thresholds, affine projection, immutable-base Alt preview and one undo; pure/browser/performance | High for Rectangle/Frame handles |
+| ui-egui::paints; shape_overlay | CornerPanel, CornerInteraction.draw | Mixed controls, individual order, smoothing and60% preset, circles/pill; authenticated desktop/mobile | High for tested controls; shared native field scrubbing/theme remain UI-family work |
+| cmd::arrange::scale_node | sizing.ts::scaleSubtree | Scale multiplies stored radii, ordinary resize retains them, overflow rejects atomically | High; pure and browser Scale checks |

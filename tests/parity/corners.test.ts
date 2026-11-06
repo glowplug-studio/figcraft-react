@@ -94,8 +94,11 @@ describe("source-derived corner gestures", () => {
   });
   it("supports rotated/flipped local projection and ignores nonfinite pointers", () => {
     const { e, id } = fixture(); e.execute("node.set", { props: { rotation: 45 } });
-    const d = e.getSnapshot().document, point = transformPoint(worldTransform(d, id), { x: 30, y: 28 });
-    expect(cornerDrag(d, id, 0, point, false)?.cornerRadius).toBeCloseTo(29); expect(cornerDrag(d, id, 0, { x: NaN, y: 0 }, false)).toBeUndefined();
+    for (const flip of [undefined, "object.flipH", "object.flipV"]) {
+      if (flip) e.execute(flip);
+      const d = e.getSnapshot().document, point = transformPoint(worldTransform(d, id), { x: 30, y: 28 });
+      expect(cornerDrag(d, id, 0, point, false)?.cornerRadius).toBeCloseTo(29); expect(cornerDrag(d, id, 0, { x: NaN, y: 0 }, false)).toBeUndefined();
+    }
   });
   it("hides small, locked, hidden, multi-selection and Scale-tool handles; actual box corners retain precedence", () => {
     const { e, id, t } = fixture(); expect(t.down({ x: 100, y: 100 })).toBe(false);
