@@ -1,3 +1,4 @@
+import type { Corners } from "./corners";
 import type { Affine } from "./affine";
 import { type Colour, fromRgba8, toRgba8, toCssHex } from "./colour";
 import { parseCssColour } from "./colour-css";
@@ -36,6 +37,7 @@ export interface LayerProperties {
   readonly blend?: "normal" | "passThrough";
   readonly constraints?: Constraints;
   readonly constrainProportions?: boolean;
+  readonly corners?: Corners;
 }
 export interface RectangleNode extends LayerProperties { readonly kind: "rectangle" }
 export interface GroupNode extends LayerProperties {

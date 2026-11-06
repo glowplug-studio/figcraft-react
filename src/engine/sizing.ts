@@ -1,3 +1,4 @@
+import type { Radii } from "./corners";
 import { multiply, transformBounds, transformPoint, type Affine } from "./affine";
 import { arrangementTargets, moveWorld } from "./arrange";
 import { resizeChildren } from "./constraints";
@@ -37,7 +38,9 @@ export function scaleSubtree(draft: HierarchyDraft, root: NodeId, factor: number
     const matrix: Affine = id === root ? original : [original[0], original[1], original[2], original[3], original[4] * factor, original[5] * factor];
     const width = node.width * factor, height = node.height * factor;
     transformBounds(matrix, width, height);
-    draft.set({ ...withLayerTransform(node, matrix), width, height });
+    const radii = node.corners?.radii.map(r => r * factor);
+    if (radii?.some(r => !Number.isFinite(r))) throw new Error("Scaled corner radii must be finite");
+    draft.set({ ...withLayerTransform(node, matrix), width, height, ...(node.corners && radii ? { corners: Object.freeze({ ...node.corners, radii: Object.freeze(radii) as unknown as Radii }) } : {}) });
   }
 }
 

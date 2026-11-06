@@ -1,9 +1,11 @@
+import { CornerInteraction } from "./corner-handles";
+import { cornerPath, hasRoundedCorners, tracePath } from "./corners";
 import { canvasAccent } from "./canvas-colours";
 import { pageOf, pageColour, rectanglePaints, rectangleTransform, type Document, type LayerNode } from "./document";
 import { renderColour } from "./colour";
 import { EditorEngine } from "./editor";
 import { drawnRectangle, type Point, type Rectangle } from "./geometry";
-import { multiply, transformBounds, type Affine } from "./affine";
+import { multiply, transformBounds, transformPoint, type Affine } from "./affine";
 import { worldTransform } from "./hierarchy";
 import { pageToScreen, screenToPage, scrollView, viewOrigin, zoomAt, type Viewport } from "./viewport";
 import { SmartHandles } from "./smart-handles";
@@ -23,7 +25,8 @@ function paintRectangle(context: CanvasRenderingContext2D, node: LayerNode, alph
     if (!paint.visible || paint.opacity <= 0) continue;
     context.globalAlpha = opacity(paint.opacity) * alpha;
     context.fillStyle = renderColour(paint.color);
-    context.fillRect(0, 0, node.width, node.height);
+    if (hasRoundedCorners(node)) { context.beginPath(); tracePath(context, cornerPath(node)); context.fill(); }
+    else context.fillRect(0, 0, node.width, node.height);
   }
   context.restore();
 }
@@ -88,7 +91,7 @@ function drawLayer(context: CanvasRenderingContext2D, document: Document, node: 
     const draw = (target: CanvasRenderingContext2D) => {
       if (node.kind === "frame") paintRectangle(target, node);
       target.save(); target.transform(...rectangleTransform(node));
-      if (node.kind === "frame" && node.clip) { target.beginPath(); target.rect(0, 0, node.width, node.height); target.clip(); }
+      if (node.kind === "frame" && node.clip) { target.beginPath(); tracePath(target, cornerPath(node)); target.clip(); }
       for (const id of node.children) {
         const child = document.nodes[id];
         if (child && child.kind !== "page") drawLayer(target, document, child, depth + 1);
@@ -99,7 +102,7 @@ function drawLayer(context: CanvasRenderingContext2D, document: Document, node: 
       const bounds = paintedGroupBounds(context, document, node);
       if (bounds) paintComposite(context, node, draw, bounds);
     } else draw(context);
-  } else if (node.fills || node.opacity !== undefined && node.opacity !== 1) {
+  } else if (hasRoundedCorners(node) || node.fills || node.opacity !== undefined && node.opacity !== 1) {
     if (rectanglePaints(node).length > 1 && opacity(node.opacity ?? 1) < 1) paintComposite(context, node, target => paintRectangle(target, node));
     else paintRectangle(context, node, opacity(node.opacity ?? 1));
   } else {
@@ -133,7 +136,9 @@ export function renderDocument(context: CanvasRenderingContext2D, document: Docu
   for (const id of selection) {
     const node = document.nodes[id];
     if (node && node.kind !== "page") {
-      if (node.transform || node.parent !== document.currentPage) {
+      if (hasRoundedCorners(node)) {
+        context.beginPath(); const matrix = worldTransform(document, id); tracePath(context, cornerPath(node), point => transformPoint(matrix, point)); context.stroke();
+      } else if (node.transform || node.parent !== document.currentPage) {
         // Map the outline points so stroke width remains in screen pixels under scale/skew.
         const [a, b, c, d, e, f] = worldTransform(document, id);
         context.beginPath(); context.moveTo(e, f);
@@ -168,6 +173,7 @@ export class CanvasController {
   #smart: SmartHandles;
   #moving: MoveInteraction;
   #transforming: TransformInteraction;
+  #rounding: CornerInteraction;
   #dragOrigin = false;
   #space = false;
   #zoomHeld = false;
@@ -182,10 +188,11 @@ export class CanvasController {
     this.#smart = new SmartHandles(engine, onError);
     this.#moving = new MoveInteraction(engine, onError);
     this.#transforming = new TransformInteraction(engine, onError);
+    this.#rounding = new CornerInteraction(engine, onError);
     const options = { signal: this.#abort.signal };
     canvas.addEventListener("pointerdown", this.#down, options);
     canvas.addEventListener("pointermove", this.#move, options);
-    canvas.addEventListener("pointerleave", event => { if (this.#pointer === null) { this.#smart.hover(undefined, event); this.invalidate(); } }, options);
+    canvas.addEventListener("pointerleave", event => { if (this.#pointer === null) { this.#smart.hover(undefined, event); this.#rounding.hover(undefined); this.invalidate(); } }, options);
     canvas.addEventListener("pointerup", this.#up, options);
     canvas.addEventListener("dblclick", this.#doubleClick, options);
     canvas.addEventListener("pointercancel", this.#cancelEvent, options);
@@ -230,6 +237,9 @@ export class CanvasController {
     if (this.#smart.down(this.#screenPoint(event), event)) {
       event.preventDefault(); this.#pointer = event.pointerId; this.canvas.setPointerCapture(event.pointerId); this.invalidate(); return;
     }
+    if (this.#rounding.down(this.#point(event))) {
+      event.preventDefault(); this.#pointer = event.pointerId; this.canvas.setPointerCapture(event.pointerId); this.invalidate(); return;
+    }
     if (this.#transforming.down(this.#point(event))) {
       event.preventDefault(); this.#pointer = event.pointerId; this.canvas.setPointerCapture(event.pointerId); this.invalidate(); return;
     }
@@ -247,8 +257,12 @@ export class CanvasController {
   };
   #move = (event: PointerEvent): void => {
     if (this.#pointer === null) {
-      this.canvas.style.cursor = this.#onOrigin(this.#point(event)) ? "move" : this.#transforming.hover(this.#point(event)) ?? this.#smart.hover(this.#screenPoint(event), event);
+      this.canvas.style.cursor = this.#onOrigin(this.#point(event)) ? "move" : this.#rounding.hover(this.#point(event)) ?? this.#transforming.hover(this.#point(event)) ?? this.#smart.hover(this.#screenPoint(event), event);
       this.invalidate();
+    }
+    if (event.pointerId === this.#pointer && this.#rounding.active) {
+      const started = performance.now(); this.#rounding.move(this.#point(event), event.altKey); this.invalidate();
+      performance.measure("figcraft:pointer", { start: started, end: performance.now() }); return;
     }
     if (event.pointerId === this.#pointer && this.#transforming.active) {
       const started = performance.now(); this.#transforming.move(this.#point(event), event); this.invalidate();
@@ -287,6 +301,7 @@ export class CanvasController {
     performance.measure("figcraft:pointer", { start: started, end: performance.now() });
   };
   #up = (event: PointerEvent): void => {
+    if (event.pointerId === this.#pointer && this.#rounding.active) { this.#rounding.up(); this.cancel(); return; }
     if (event.pointerId === this.#pointer && this.#transforming.active) { this.#transforming.up(); this.cancel(); return; }
     if (event.pointerId === this.#pointer && this.#moving.active) { this.#moving.up(this.#point(event), event); this.cancel(); return; }
     if (event.pointerId === this.#pointer && this.#smart.active) {
@@ -351,6 +366,7 @@ export class CanvasController {
     if (event.key.toLowerCase() === "z") this.#zoomHeld = false;
   };
   cancel(): void {
+    this.#rounding.cancel();
     this.#transforming.cancel();
     this.#moving.cancel();
     this.#smart.cancel();
@@ -387,7 +403,8 @@ export class CanvasController {
       const snapshot = this.engine.getSnapshot();
       const view = this.engine.getView(), origin = viewOrigin(view);
       renderDocument(context, this.engine.getRenderDocument(), this.#width, this.#height, this.engine.getRenderSelection(), this.#preview, view);
-      if (!this.#moving.active && !this.#transforming.active) this.#smart.draw(context);
+      if (!this.#moving.active && !this.#transforming.active && !this.#rounding.active) this.#smart.draw(context);
+      if (!this.#moving.active && !this.#transforming.active && !this.#smart.active) this.#rounding.draw(context);
       if (!this.#moving.active && !this.#smart.active) this.#transforming.draw(context);
       this.#moving.draw(context);
       const rotationOrigin = this.engine.getRotationOrigin();

@@ -1,3 +1,4 @@
+import { hasRoundedCorners, hitsCornerPath } from "./corners";
 import { identity, inverse, multiply, transformPoint, type Affine } from "./affine";
 import { layerTransform, pageOf, type Document, type NodeId } from "./document";
 import { pageForNode } from "./hierarchy";
@@ -126,6 +127,7 @@ export function hitRectangle(document: Document, point: Point, deep = false, sel
         const near = local.x >= -tolerance && local.x <= node.width + tolerance && local.y >= -tolerance && local.y <= node.height + tolerance;
         return hitGroup(node.children, id, transform, depth + 1) ?? (near ? id : undefined);
       }
+      if (hasRoundedCorners(node)) return hitsCornerPath(node, transformPoint(inverse(transform), point), tolerance) ? id : undefined;
       if (world === identity && !node.transform) {
         return nearRectangle(point.x - node.x, point.y - node.y, node.width, node.height) ? id : undefined;
       }

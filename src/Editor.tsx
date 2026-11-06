@@ -1,3 +1,4 @@
+import { CornerPanel } from "./CornerPanel";
 import { ViewControls } from "./ViewControls";
 import { ArrangePanel } from "./ArrangePanel";
 import { ScalePanel } from "./ScalePanel";
@@ -251,6 +252,7 @@ export function Editor({ identity, capabilities, engine: suppliedEngine, recover
           <SmartSelectionPanel engine={engine} enabled={editable && !busy} dispatch={dispatch} onError={setError} />
           {snapshot.tool === "scale" ? <ScalePanel engine={engine} enabled={editable && !busy} dispatch={dispatch} onError={setError} /> : <SizePanel enabled={editable && !busy && snapshot.selection.length > 0} dispatch={dispatch} />}
           <RotationPanel engine={engine} enabled={editable && !busy && snapshot.selection.length > 0} dispatch={dispatch} />
+          <CornerPanel nodes={snapshot.selection.flatMap(id => { const n = snapshot.document.nodes[id]; return n && n.kind !== "page" ? [n] : []; })} editable={editable && !busy} dispatch={dispatch} />
           <AppearancePanel page={page} selected={selected && selected.kind !== "page" ? selected : undefined} editable={editable && !busy} dispatch={dispatch} />
         </aside>
       </div>

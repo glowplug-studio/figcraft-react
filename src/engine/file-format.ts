@@ -1,3 +1,4 @@
+import { type Corners, type Radii } from "./corners";
 import { Unzip, UnzipInflate, ZipPassThrough, zipSync } from "fflate";
 import { Uint8ArrayReader, ZipReader } from "@zip.js/zip.js/lib/zip-core-native.js";
 import { isLosslessNumber, LosslessNumber, parse, stringify } from "lossless-json";
@@ -120,7 +121,7 @@ function decodeDocument(raw: unknown): DecodedFigcraft {
     const n = object(value, `node ${key}`), kind = n.type;
     if (id(n.id, "node ID") !== key) fail(`node ${key} has a mismatched ID`);
     if (kind !== "page" && kind !== "group" && kind !== "frame" && kind !== "rectangle") fail(`node type ${String(kind)} is not supported yet`);
-    fields(n, ["id", "name", "type", "parent", "children", "transform", "width", "height", "fills", "blend", ...(kind === "page" ? ["background", "flows", "prototype"] : ["visible", "locked", "opacity", "constraints", "constrain_proportions", ...(kind === "frame" ? ["clip"] : [])])], nodeDefaults, `node ${key}`);
+    fields(n, ["id", "name", "type", "parent", "children", "transform", "width", "height", "fills", "blend", ...(kind === "page" ? ["background", "flows", "prototype"] : ["visible", "locked", "opacity", "corners", "constraints", "constrain_proportions", ...(kind === "frame" ? ["clip"] : [])])], nodeDefaults, `node ${key}`);
     const name = text(n.name, "node name"), width = number(n.width, "width"), height = number(n.height, "height");
     if (width < 0 || height < 0) fail("negative dimensions are not supported yet");
     const transform = list(n.transform ?? [1, 0, 0, 1, 0, 0], "transform").map((entry) => number(entry, "transform"));
@@ -153,9 +154,19 @@ function decodeDocument(raw: unknown): DecodedFigcraft {
         try { return readSolidPaints(appearanceValue(n.fills ?? [])); }
         catch (error) { return fail(error instanceof Error ? error.message : "Invalid paints"); }
       })();
+      let corners: Corners | undefined;
+      if (n.corners !== undefined) {
+        const value = object(n.corners, "corners");
+        fields(value, ["radii", "smoothing"], {}, "corners");
+        const rawRadii = value.radii === undefined ? [0, 0, 0, 0] : value.radii;
+        if (!Array.isArray(rawRadii) || rawRadii.length !== 4) fail("corners.radii must contain four numbers");
+        const radii = (rawRadii as unknown[]).map(v => number(v, "radius"));
+        const smoothing = number(value.smoothing === undefined ? 0 : value.smoothing, "smoothing");
+        if (smoothing !== 0 || radii.some(r => r !== 0)) corners = Object.freeze({ radii: Object.freeze(radii) as unknown as Radii, smoothing });
+      }
       const constraints = readConstraints(n.constraints === undefined ? {} : n.constraints);
       if (kind === "frame" && n.clip !== undefined && typeof n.clip !== "boolean") fail("frame clip must be boolean");
-      const layer = { id: key, kind, name, parent: id(n.parent, `${kind} parent`), x: transform[4]!, y: transform[5]!, width, height, fill: "transparent", ...(constraints.horizontal !== "left" || constraints.vertical !== "top" ? { constraints } : {}),
+      const layer = { id: key, kind, name, ...(corners ? { corners } : {}), parent: id(n.parent, `${kind} parent`), x: transform[4]!, y: transform[5]!, width, height, fill: "transparent", ...(constraints.horizontal !== "left" || constraints.vertical !== "top" ? { constraints } : {}),
         ...(n.constrain_proportions === true ? { constrainProportions: true } : {}), ...(n.visible === false ? { visible: false } : {}), ...(n.locked === true ? { locked: true } : {}), ...(opacity !== 1 ? { opacity } : {}),
         ...(n.blend !== undefined && n.blend !== (kind !== "rectangle" ? "passThrough" : "normal") ? { blend: n.blend as "normal" | "passThrough" } : {}) };
       nodes[key] = kind !== "rectangle"
@@ -258,7 +269,7 @@ export async function encodeFigcraft(document: Document, nextId?: string): Promi
       nodes[key] = { ...common, width: 0, height: 0, children: node.children.map(wireId), background: pageColour(node) };
     } else {
       nodes[key] = { ...common, parent: wireId(node.parent), ...(node.kind !== "rectangle" ? { children: node.children.map(wireId) } : {}), transform: layerTransform(node), width: node.width, height: node.height,
-        ...(node.constraints ? { constraints: node.constraints } : {}), ...(node.constrainProportions ? { constrain_proportions: true } : {}), ...(node.kind === "frame" ? { clip: node.clip } : {}), blend: node.blend ?? (node.kind !== "rectangle" ? "passThrough" : "normal"), visible: node.visible ?? true, locked: node.locked ?? false, opacity: node.opacity ?? 1, fills: rectanglePaints(node) };
+        ...(node.corners ? { corners: node.corners } : {}), ...(node.constraints ? { constraints: node.constraints } : {}), ...(node.constrainProportions ? { constrain_proportions: true } : {}), ...(node.kind === "frame" ? { clip: node.clip } : {}), blend: node.blend ?? (node.kind !== "rectangle" ? "passThrough" : "normal"), visible: node.visible ?? true, locked: node.locked ?? false, opacity: node.opacity ?? 1, fills: rectanglePaints(node) };
     }
   }
   const minimum = maximum < U64_MAX ? maximum + 1n : U64_MAX;

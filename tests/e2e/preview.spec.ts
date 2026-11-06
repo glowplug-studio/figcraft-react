@@ -832,7 +832,7 @@ test("anchored sizing, keyboard resize and uniform scale retain native recovery"
   await sizing.getByLabel("Scale factor", { exact: true }).fill("2");
   await sizing.getByLabel("Scale pivot X", { exact: true }).fill("0"); await sizing.getByLabel("Scale pivot Y", { exact: true }).fill("0");
   await sizing.getByRole("button", { name: "Scale selection", exact: true }).click(); await geometry(page, [200, 300, 402, 200]);
-  await expectCanvasPixel(page, 205, 305, [217, 217, 217, 255]);
+  await expectCanvasPixel(page, 220, 320, [217, 217, 217, 255]);
   const download = page.waitForEvent("download"); await page.getByRole("button", { name: "Save as", exact: true }).click();
   const decoded = await decodeFigcraft(await readFile((await (await download).path())!));
   expect(Object.values(decoded.document.nodes).find(node => node.name === "Sized")).toMatchObject({ x: 200, y: 300, width: 402, height: 200 });
@@ -1213,4 +1213,66 @@ test("Frame handles distinguish constraints, primary preservation and uniform su
   await layers.getByRole("button", { name: "Pinned child", exact: true }).click(); await geometry(page, [200, 60, 40, 30]); await expectCanvasPixel(page, 360, 270, [217, 217, 217, 255]);
   await page.getByRole("button", { name: "Undo", exact: true }).click(); await selectFrame(); await page.getByRole("button", { name: "Scale", exact: true }).click();
   await drag(400, 300, 500, 350); await layers.getByRole("button", { name: "Pinned child", exact: true }).click(); await geometry(page, [225, 90, 60, 45]);
+});
+
+test("rounded corners preview, Alt individual edits, smoothing and native recovery", async ({ page }) => {
+  await login(page); await createNamedRectangle(page, "Rounded", 200, 200, 200, 120);
+  const canvas = page.getByLabel("Design canvas", { exact: true }), root = page.locator("[data-figcraft-editor]");
+  await expect(page.locator(".figcraft-recovery")).toHaveText("Recovery saved on this device");
+  const start = await canvasPoint(page, 207.071, 207.071), end = await canvasPoint(page, 230, 228);
+  await page.mouse.move(start.x, start.y); await page.mouse.down(); const commits = await root.getAttribute("data-commits");
+  await page.mouse.move(end.x, end.y, { steps: 10 }); await expect(root).toHaveAttribute("data-commits", commits!);
+  await expectCanvasPixel(page, 210, 201, [245, 245, 245, 255]);
+  await page.screenshot({ path: "test-results/corner-drag-desktop.png", fullPage: true });
+  await page.mouse.up(); await expect(page.getByLabel("Corner radius", { exact: true })).toHaveValue("29");
+  await page.getByRole("button", { name: "Undo", exact: true }).click(); await expect(page.getByLabel("Corner radius", { exact: true })).toHaveValue("0");
+  const br = await canvasPoint(page, 392.929, 312.929), to = await canvasPoint(page, 390, 310);
+  await page.keyboard.down("Alt"); await page.mouse.move(br.x, br.y); await page.mouse.down(); await page.mouse.move(to.x, to.y, { steps: 4 }); await page.mouse.up(); await page.keyboard.up("Alt");
+  await page.getByRole("button", { name: "Individual corners", exact: true }).click();
+  await expect(page.getByLabel("Bottom right radius", { exact: true })).toHaveValue("10"); await expect(page.getByLabel("Top left radius", { exact: true })).toHaveValue("0");
+  await page.getByLabel("Corner radius", { exact: true }).fill("40"); await page.getByRole("button", { name: "Apply corner radius", exact: true }).click();
+  await page.getByRole("button", { name: "iOS", exact: true }).click(); await expect(page.getByLabel("Corner smoothing", { exact: true })).toHaveValue("60");
+  await expect(canvas).toHaveScreenshot("rounded-corners.png", { animations: "disabled", maxDiffPixels: 0 });
+  const download = page.waitForEvent("download"); await page.getByRole("button", { name: "Save as", exact: true }).click();
+  const decoded = await decodeFigcraft(await readFile((await (await download).path())!));
+  expect((Object.values(decoded.document.nodes).find(n => n.name === "Rounded") as RectangleNode).corners).toEqual({ radii: [40, 40, 40, 40], smoothing: .6 });
+  await expect(page.locator(".figcraft-recovery")).toHaveText("Recovery saved on this device"); await page.reload();
+  await page.getByRole("button", { name: "Rounded", exact: true }).click(); await expect(page.getByLabel("Corner radius", { exact: true })).toHaveValue("40");
+  await page.setViewportSize({ width: 390, height: 844 }); await expect(page.getByLabel("Corner radius", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Individual corners", exact: true }).click(); await page.getByLabel("Top left radius", { exact: true }).fill("17"); await page.getByRole("button", { name: "Apply top left radius", exact: true }).click();
+  await expect(page.getByLabel("Top left radius", { exact: true })).toHaveValue("17");
+  await expect(canvas).toBeVisible();
+});
+
+test("rounded Frame clips child paint while preserving rectangular hit selection", async ({ page }) => {
+  await login(page); const creation = page.getByRole("group", { name: "Create layer", exact: true });
+  for (const [label, value] of [["X", 200], ["Y", 200], ["Width", 200], ["Height", 120]] as const) await creation.getByLabel(label, { exact: true }).fill(String(value));
+  await creation.getByRole("button", { name: "Create frame", exact: true }).click();
+  await page.getByLabel("Corner radius", { exact: true }).fill("50"); await page.getByRole("button", { name: "Apply corner radius", exact: true }).click();
+  await creation.getByLabel("Create in", { exact: true }).selectOption({ label: "Frame 1" });
+  await createNamedRectangle(page, "Clipped child", 0, 0, 200, 120);
+  await page.getByLabel("Fill 1 CSS colour", { exact: true }).fill("#ff0000"); await page.getByRole("button", { name: "Apply fill 1", exact: true }).click();
+  await expectCanvasPixel(page, 210, 202, [245, 245, 245, 255]); await expectCanvasPixel(page, 280, 240, [255, 0, 0, 255]);
+  await page.getByRole("button", { name: "Frame 1", exact: true }).click();
+  const outside = await canvasPoint(page, 650, 500); await page.mouse.click(outside.x, outside.y);
+  const corner = await canvasPoint(page, 210, 202); await page.keyboard.down("ControlOrMeta"); await page.mouse.click(corner.x, corner.y); await page.keyboard.up("ControlOrMeta");
+  await expect(page.getByLabel("Name", { exact: true })).toHaveValue("Clipped child");
+  await page.screenshot({ path: "test-results/rounded-frame-clipping.png", fullPage: true });
+});
+
+test("corner controls edit mixed selections, preserve resize radii and scale them", async ({ page }) => {
+  await login(page); await createNamedRectangle(page, "Corner A", 200, 200, 200, 120);
+  await page.getByLabel("Corner radius", { exact: true }).fill("20"); await page.getByRole("button", { name: "Apply corner radius", exact: true }).click();
+  await createNamedRectangle(page, "Corner B", 450, 200, 200, 120);
+  await page.getByRole("button", { name: "Corner A", exact: true }).click({ modifiers: ["Shift"] });
+  await expect(page.getByLabel("Corner radius", { exact: true })).toHaveAttribute("placeholder", "Mixed");
+  await page.getByLabel("Corner radius", { exact: true }).fill("30"); await page.getByRole("button", { name: "Apply corner radius", exact: true }).click();
+  for (const name of ["Corner A", "Corner B"]) { await page.getByRole("button", { name, exact: true }).click(); await expect(page.getByLabel("Corner radius", { exact: true })).toHaveValue("30"); }
+  await page.getByLabel("Edit Width", { exact: true }).fill("100"); await page.getByRole("button", { name: "Apply geometry", exact: true }).click(); await expect(page.getByLabel("Corner radius", { exact: true })).toHaveValue("30");
+  const canvas = page.getByLabel("Design canvas", { exact: true }); await canvas.focus(); await page.keyboard.press("k");
+  await page.getByLabel("Tool scale factor", { exact: true }).fill("2"); await page.getByRole("button", { name: "Apply scale factor", exact: true }).click(); await expect(page.getByLabel("Corner radius", { exact: true })).toHaveValue("60");
+  await canvas.focus(); await page.keyboard.press("v");
+  const from = await canvasPoint(page, 510, 260), to = await canvasPoint(page, 525, 275);
+  await page.mouse.move(from.x, from.y); await page.mouse.down(); await page.mouse.move(to.x, to.y, { steps: 6 }); await page.keyboard.press("Escape"); await page.mouse.up();
+  await expect(page.getByLabel("Corner radius", { exact: true })).toHaveValue("60");
 });

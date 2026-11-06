@@ -134,6 +134,10 @@ export class EditorEngine {
     interaction.document = document; interaction.selection = selection; interaction.nextId = nextId; interaction.duplicated = duplicated;
     this.#notifyCanvas();
   }
+  previewProperties(id: NodeId, props: Record<string, unknown>): void {
+    const interaction = this.#interaction; if (!interaction) throw new Error("No active interaction");
+    interaction.document = setRectangleProperties(interaction.base.document, [id], { id, props }); this.#notifyCanvas();
+  }
   previewResize(start: ResizeStart, point: Point, keep: boolean, centre: boolean, keepChildren: boolean, scale?: ScaleAnchor): ReturnType<typeof previewResize>["hint"] {
     const interaction = this.#interaction; if (!interaction) throw new Error("No active interaction");
     const next = previewResize(interaction.base.document, start, point, keep, centre, keepChildren, scale);

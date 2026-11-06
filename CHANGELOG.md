@@ -2,6 +2,15 @@
 
 All notable changes to the React port and its upstream compatibility baseline are recorded here.
 
+## [0.17.0] - 2026-11-07
+
+The reference baseline remains `8eb0b87646c5aef712326d6c431ccde5408630de`; full parity remains in progress.
+
+- Added rounded/smoothed Rectangle and Frame paths, native corner properties and persistent independent radii.
+- Added on-canvas radius handles, Alt individual edits, one-gesture history, mixed-selection controls and the iOS smoothing preset.
+- Rounded Frame children clip visually while native rectangular Frame hit behaviour remains intact; Scale multiplies radii and ordinary resize retains them.
+- Added source-derived geometry, native file, authenticated browser and large-document interaction checks. Further shape kinds and complete UI remain required roadmap work.
+
 ## [0.16.0] - 2026-11-07
 
 The reference baseline remains `8eb0b87646c5aef712326d6c431ccde5408630de`; full parity remains in progress.
