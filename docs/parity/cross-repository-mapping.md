@@ -153,7 +153,7 @@ Local graph1268 nodes/5392 edges resolves the current target chain; hosted React
 
 ## Procedural brushes — 7 November 2026
 
-Upstream0b97f3f → React0.23.0; reviewed basee13f8da. [Property evidence](../reports/26-11-07-brushes-parity.html); 622 pure tests,2 real Auth tests, strict TypeScript/package/Next builds and82/82 Chromium pass.
+Upstream0b97f3f → React0.23.0; implementationd3f7934; reviewed basee13f8da. [Property evidence](../reports/26-11-07-brushes-parity.html); 622 pure tests,2 real Auth tests, strict TypeScript/package/Next builds and82/82 Chromium pass.
 
 | Upstream symbol/source | React target | Behaviour and boundary |
 |---|---|---|

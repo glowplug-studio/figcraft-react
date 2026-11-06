@@ -21,14 +21,14 @@ export function setArc(node: LayerNode, props: Record<string, unknown>): LayerNo
   return start === node.start && sweep === node.sweep && inner === node.inner ? node : Object.freeze({ ...node, start, sweep, inner });
 }
 /** Independent Kurbo0.13.1 Arc approximation, using the native0.01 tolerance. */
-export function ellipticalArcPath(cx: number, cy: number, rx: number, ry: number, start: number, sweep: number, rotation = 0): PathCommand[] {
+export function ellipticalArcPath(cx: number, cy: number, rx: number, ry: number, start: number, sweep: number, rotation = 0, tolerance = .01): PathCommand[] {
   const sample = (angle: number): [number, number] => {
     const x = rx * Math.cos(angle), y = ry * Math.sin(angle);
     return [x * Math.cos(rotation) - y * Math.sin(rotation), x * Math.sin(rotation) + y * Math.cos(rotation)];
   };
   const p = sample(start), path: PathCommand[] = [["M", cx + p[0], cy + p[1]]];
   // Bound browser work for astronomical finite wire dimensions; ordinary sizes keep native tolerance.
-  const count = Math.min(4096, Math.ceil(Math.max((1.1163 * Math.max(rx, ry) / .01) ** (1 / 6), 3.999999) * Math.abs(sweep) / TAU));
+  const count = Math.min(4096, Math.ceil(Math.max((1.1163 * Math.max(rx, ry) / tolerance) ** (1 / 6), 3.999999) * Math.abs(sweep) / TAU));
   const step = sweep / count, arm = 4 / 3 * Math.tan(Math.abs(step / 4)) * Math.sign(sweep);
   let angle = start, previous = p;
   for (let i = 0; i < count; i++) {

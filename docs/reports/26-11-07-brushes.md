@@ -1,6 +1,6 @@
 # Procedural stroke brushes — 7 November 2026
 
-React0.23.0, branch `prompt/full-figcraft-port`, reviewed base `e13f8da`; upstream `0b97f3f1801a9b7b96fd7a4f3c0942a3f1a676f3`. Global parity baseline remains `8eb0b876`. The bounded brush implementation passes local verification; full-product parity remains incomplete.
+React0.23.0, branch `prompt/full-figcraft-port`, implementation `d3f7934`, reviewed base `e13f8da`; upstream `0b97f3f1801a9b7b96fd7a4f3c0942a3f1a676f3`. Global parity baseline remains `8eb0b876`. The bounded brush implementation passes local verification; full-product parity remains incomplete.
 
 Implemented eight native procedural presets: stretched Taper, Ink, Ribbon and Bristle; scattered Dots, Stars, Confetti and Leaves. Raw Brush metadata preserves native defaults, finite out-of-range values and unknown preset strings. Commands accept exact preset ids and strict serde numeric fields, convert sorted camel/snake keys, sanitise ranges and enforce unsigned32-bit seeds. `stroke.brush` adds black paint only when a non-null brush is assigned to an empty stroke stack; property aliases do not add paint. Null/missing preset clears the brush while retaining paint. Atomic multi-target history, dimensionless scale behaviour, native files and local recovery are covered.
 
