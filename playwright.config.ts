@@ -13,7 +13,9 @@ export default defineConfig({
   reporter: [["json", { outputFile: "test-results/browser-results.json" }], ["list"], ["html", { open: "never", outputFolder: "playwright-report" }]],
   use: {
     baseURL: externalBaseUrl ?? localBaseUrl,
-    trace: "retain-on-failure",
+    // An ignored, origin-scoped protection cookie can authenticate hosted verification.
+    storageState: process.env.PLAYWRIGHT_STORAGE_STATE,
+    trace: externalBaseUrl ? "off" : "retain-on-failure",
     screenshot: "only-on-failure",
     video: "retain-on-failure",
     viewport: { width: 1440, height: 900 },
