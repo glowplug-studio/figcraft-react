@@ -1,4 +1,4 @@
-import { Profiler, useEffect, useRef, useState, useSyncExternalStore, type FormEvent, type KeyboardEvent } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type FormEvent, type KeyboardEvent } from "react";
 import type { DocumentCapability } from "./backends/access";
 import type { IdentityAdapter } from "./backends/identity";
 import { CanvasController } from "./engine/canvas";
@@ -20,6 +20,10 @@ export function Editor({ identity, capabilities, engine: suppliedEngine }: Edito
   const canvas = useRef<HTMLCanvasElement>(null);
   const root = useRef<HTMLDivElement>(null);
   const controller = useRef<CanvasController | null>(null);
+  // Count committed chrome renders in development and production without scheduling a render.
+  useLayoutEffect(() => {
+    if (root.current) root.current.dataset.commits = String(Number(root.current.dataset.commits ?? 0) + 1);
+  });
   useEffect(() => {
     const update = () => {
       const authenticated = identity.getSnapshot().status === "authenticated";
@@ -60,8 +64,7 @@ export function Editor({ identity, capabilities, engine: suppliedEngine }: Edito
   const editable = signedIn && snapshot.editable && capabilities.includes("document.edit");
   const page = pageOf(snapshot.document);
   const selected = snapshot.document.nodes[snapshot.selection[0]];
-  return <Profiler id="figcraft-chrome" onRender={() => { if (root.current) root.current.dataset.commits = String(Number(root.current.dataset.commits ?? 0) + 1); }}>
-    <div ref={root} className="figcraft-editor" onKeyDown={key} data-figcraft-editor="">
+  return <div ref={root} className="figcraft-editor" onKeyDown={key} data-figcraft-editor="">
       <header className="figcraft-document-bar"><h1>{snapshot.document.name}</h1><span>Unsaved · Local document</span>
         <button disabled={!editable || !snapshot.canUndo} onClick={() => dispatch("edit.undo")}>Undo</button>
         <button disabled={!editable || !snapshot.canRedo} onClick={() => dispatch("edit.redo")}>Redo</button>
@@ -90,6 +93,5 @@ export function Editor({ identity, capabilities, engine: suppliedEngine }: Edito
           </dl></section>}
         </aside>
       </div>
-    </div>
-  </Profiler>;
+    </div>;
 }

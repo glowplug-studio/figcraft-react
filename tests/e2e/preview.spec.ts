@@ -88,10 +88,12 @@ test("pointer reverse drag, square and centre modifiers, click, cancellation and
   await page.mouse.move(bounds.x + 240, bounds.y + 220);
   await page.mouse.down();
   const commits = await page.locator("[data-figcraft-editor]").getAttribute("data-commits");
+  expect(Number(commits)).toBeGreaterThan(0);
   await page.mouse.move(bounds.x + 140, bounds.y + 160, { steps: 40 });
   await expect(page.locator("[data-figcraft-editor]")).toHaveAttribute("data-commits", commits!);
   await page.mouse.up();
   await geometry(page, [140, 160, 100, 60]);
+  await expect.poll(async () => Number(await page.locator("[data-figcraft-editor]").getAttribute("data-commits"))).toBeGreaterThan(Number(commits));
   await expect(page.getByRole("button", { name: "Move", exact: true })).toHaveAttribute("aria-pressed", "true");
   await page.keyboard.press("r");
   await page.mouse.move(bounds.x + 300, bounds.y + 300);
