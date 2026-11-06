@@ -4,15 +4,15 @@
 
 | Field | Current value |
 |---|---|
-| Overall status | Complete — Phases 1–7; Phase 8 awaiting CLI authentication |
+| Overall status | Complete — Phases 1–7; Phase 8 ready to stage |
 | Active phase | Phase 8 — pre-deployment configuration verification |
 | Upstream baseline | `8eb0b87646c5aef712326d6c431ccde5408630de` (fork, original upstream and parity record agree) |
-| Branch and last verified commit | `prompt/rectangle-slice`; verified source `5314525b2f6ad9ef793091e082d7199a3537c07d`; core `d71b73d`; starting `f6450d5` preserved |
+| Branch and last verified commit | `prompt/rectangle-slice`; verified application `5314525b2f6ad9ef793091e082d7199a3537c07d`; deployment exclusions and browser configuration `f5ed4bd`; core `d71b73d`; starting `f6450d5` preserved |
 | Completed work | Mandatory documents read; upstream sync passed; both Graphify repositories queried; Supabase MCP read succeeded, public schema empty; first slice selected; Phases 2–4 implemented and reviewed; local reset and advisers passed |
 | Tests last passed | 68 unit/contract/parity/local integration tests; 6 Playwright flows against the production build; strict typecheck, package and Next.js build |
-| Files in progress | None; source and publication checkpoint reviewed |
-| Blockers | Vercel CLI is unauthenticated; sign-in requested for omitted build-setting inspection and protected browser access. MCP confirms the authorised project and GitHub link. |
-| Exact next action | Complete pending Vercel CLI sign-in; verify the configured root/build settings; deploy this clean reviewed commit, test that deployment and promote without rebuilding. |
+| Files in progress | None; deployment inputs and protected-browser configuration reviewed |
+| Blockers | None. CLI identity, project root, build/install commands and Node version verified; MCP confirms repository link and required environment metadata. |
+| Exact next action | Stage the clean reviewed revision with production environment and --skip-domain; follow build through MCP; run protected hosted Playwright before promotion. |
 | Last updated | 2026-11-06T21:54+07:00 |
 
 ## Scope and acceptance
