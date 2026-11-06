@@ -120,7 +120,7 @@ Hosted React remains stale default-branch source; current local files and the re
 
 ## Per-side Rectangle/Frame strokes — 7 November 2026
 
-Upstream0b97f3f → React0.21.0; [property evidence](../reports/26-11-07-per-side-strokes-parity.html). Reviewed base2b1aece; implementation commit follows final regression.
+Upstream0b97f3f → React0.21.0; [property evidence](../reports/26-11-07-per-side-strokes-parity.html). Verified implementatione21aaf0, reviewed base2b1aece.
 
 | Upstream symbol/source | React target | Verified behaviour / boundary |
 |---|---|---|

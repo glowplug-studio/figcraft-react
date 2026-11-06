@@ -1,6 +1,6 @@
 # Per-side Rectangle and Frame strokes — 7 November 2026
 
-React0.21.0, branch `prompt/full-figcraft-port`, reviewed base `2b1aece`; implementation commit recorded after verification. Upstream `0b97f3f1801a9b7b96fd7a4f3c0942a3f1a676f3`; global parity baseline remains `8eb0b876`. The complete port remains in progress.
+React0.21.0, branch `prompt/full-figcraft-port`, implementation `e21aaf0` (reviewed base `2b1aece`). Upstream `0b97f3f1801a9b7b96fd7a4f3c0942a3f1a676f3`; global parity baseline remains `8eb0b876`. The complete port remains in progress.
 
 Implemented optional immutable top/right/bottom/left weights, native wire null/default behaviour, scalar and1/2/4 command expansion, individual aliases, sorted precedence, scaling versus resizing, atomic errors and history. Native finite negative side metadata survives files; rendering sanitises it. Visibility and hit bands retain upstream's global-weight rules. Side geometry overrides dashes, caps and joins only for currently supported Rectangle/Frame kinds; other kinds retain metadata, including the source even-odd fill-rule effect on Line arrow overlap.
 
