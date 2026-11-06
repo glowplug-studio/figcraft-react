@@ -7,11 +7,11 @@
 | Scope | Next required vertical slice in the autonomous full-port run |
 | Phase | Evidence and design; implementation not started |
 | Reference | `0b97f3f1801a9b7b96fd7a4f3c0942a3f1a676f3`; upstream sync unchanged |
-| React | `prompt/full-figcraft-port`; vector foundation verified from mathematics `cb5417d`, commit being recorded |
+| React | `prompt/full-figcraft-port`; vector foundation verified from mathematics `cb5417d`, commit `154f5a7` |
 | Verification | Foundation671 pure/2 Auth/86 browser passes; authoring tests not written |
 | Files in progress | This plan only |
 | Blockers | Hosted Graphify authentication expired; local source and local React graph available |
-| Next action | Finish and commit vector foundation, then implement independent point/handle operations and paired fixtures before session/UI integration |
+| Next action | Implement independent point/handle operations and paired fixtures before session/UI integration |
 
 ## Acceptance and dependency order
 

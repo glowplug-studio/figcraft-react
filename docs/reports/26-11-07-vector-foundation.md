@@ -1,6 +1,6 @@
 # Vector networks and Flatten — 7 November 2026
 
-React 0.24.0, branch `prompt/full-figcraft-port`; reviewed mathematics commit `cb5417d`, integration verified, commit being recorded. Upstream `0b97f3f1801a9b7b96fd7a4f3c0942a3f1a676f3`; the global parity baseline remains `8eb0b876`. Full-product parity is incomplete. The final full Chromium regression passes 86/86 in 200.9 seconds, with no skipped or flaky checks.
+React 0.24.0, branch `prompt/full-figcraft-port`; reviewed mathematics commit `cb5417d`, verified integration `154f5a7`. Upstream `0b97f3f1801a9b7b96fd7a4f3c0942a3f1a676f3`; the global parity baseline remains `8eb0b876`. Full-product parity is incomplete. The final full Chromium regression passes 86/86 in 200.9 seconds, with no skipped or flaky checks.
 
 The vertical workflow is native vector creation/path replacement → immutable document/history → solid region and stroke rendering → Flatten/Reverse controls → native files and principal-scoped recovery. The Next.js host continues to own sign-in and validated identity; vector operations remain entirely inside the provider-neutral engine.
 
