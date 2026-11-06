@@ -116,7 +116,7 @@ describe("rectangle upstream parity", () => {
 
 describe("rectangle port boundary and transaction safety", () => {
   it.each([
-    ["shape.polygon", {}],
+    ["shape.vector", {}],
     ["shape.rectangle", { unknown: true }],
     ["shape.rectangle", { props: { effects: [] } }],
     ["shape.rectangle", { width: Number.NaN }],
@@ -126,7 +126,7 @@ describe("rectangle port boundary and transaction safety", () => {
     ["shape.rectangle", { index: -1 }],
     ["shape.rectangle", { index: 0.5 }],
     ["shape.rectangle", { index: 1e9 }],
-    ["node.create", { type: "polygon" }],
+    ["node.create", { type: "vector" }],
     ["shape.rectangle", null],
     ["edit.undo", { extra: true }],
   ] as const)("rejects %s invalid input atomically (%j)", (command, params) => {

@@ -1,3 +1,4 @@
+import { isLeafKind } from "./document";
 import { canvasAccent } from "./canvas-colours";
 import type { EditorEngine } from "./editor";
 import { lockedIn } from "./canvas-selection";
@@ -23,7 +24,7 @@ export class TransformInteraction {
   get scaleHint(): Readonly<{ factor: number; pivot: Point }> | undefined { return this.#hint; }
   #frame() {
     const s = this.engine.getSnapshot();
-    if (!s.editable || (s.tool === "rectangle" || s.tool === "ellipse") || s.selection.some(id => lockedIn(s.document, id))) return;
+    if (!s.editable || isLeafKind(s.tool) || s.selection.some(id => lockedIn(s.document, id))) return;
     return selectionFrame(s.document, s.selection);
   }
   hover(point: Point): string | undefined {
@@ -71,7 +72,7 @@ export class TransformInteraction {
   cancel(): void { if (this.#gesture) { this.#clear(); this.engine.cancelInteraction(); } }
   #fail(error: unknown): void { this.#clear(); this.engine.cancelInteraction(); this.onError(error instanceof Error ? error.message : "Could not transform selection"); }
   draw(context: CanvasRenderingContext2D): void {
-    const s = this.engine.getSnapshot(); if ((s.tool === "rectangle" || s.tool === "ellipse")) return;
+    const s = this.engine.getSnapshot(); if (isLeafKind(s.tool)) return;
     const doc = this.engine.getRenderDocument(), ids = this.engine.getRenderSelection(), frame = selectionFrame(doc, ids); if (!frame) return;
     const view = this.engine.getView(), corners = frameCorners(frame).map(p => pageToScreen(view, p));
     const locked = ids.some(id => lockedIn(doc, id)), longest = Math.max(Math.hypot(corners[1].x - corners[0].x, corners[1].y - corners[0].y), Math.hypot(corners[3].x - corners[0].x, corners[3].y - corners[0].y));

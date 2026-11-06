@@ -37,3 +37,5 @@ export { roundedRect, type Corners, type Radii, type PathCommand } from "./engin
 
 export { ellipsePath, type Arc } from "./engine/ellipse";
 export type { EllipseNode } from "./engine/document";
+export { polygonPoints, starPoints, roundedPolygon, smoothedPolygon } from "./engine/polygon";
+export type { PolygonNode, StarNode, LeafNode, DrawShapeKind } from "./engine/document";

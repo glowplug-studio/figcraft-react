@@ -2,6 +2,15 @@
 
 All notable changes to the React port and its upstream compatibility baseline are recorded here.
 
+## [0.19.0] - 2026-11-07
+
+The reference baseline remains `8eb0b87646c5aef712326d6c431ccde5408630de`; full parity remains in progress.
+
+- Added Polygon and Star leaves, rounded/smoothed geometry, native count/ratio properties and archive/recovery support.
+- Added shape creation tools, mixed point controls, uniform corner smoothing and on-canvas radius/ratio gestures with one-step history.
+- Extended shared drawing, hierarchy, selection and transformations to both kinds; mobile toolbars wrap without obscuring zoom controls.
+- Documented separate hosted default-branch and local working-tree Graphify indexes. Vector editing, strokes and remaining product families are still required.
+
 ## [0.18.0] - 2026-11-07
 
 The reference baseline remains `8eb0b87646c5aef712326d6c431ccde5408630de`; full parity remains in progress.

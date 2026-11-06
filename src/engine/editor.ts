@@ -1,6 +1,6 @@
 import { createLayer } from "./creation";
 import { isLeaf } from "./document";
-import { newDocument, type Document, type NodeId } from "./document";
+import { newDocument, type Document, type DrawShapeKind, type NodeId } from "./document";
 import { decodeFigcraft, encodeFigcraft } from "./file-format";
 import { executePage, listPages, pageSpecs } from "./pages";
 import { executeSelection, selectionSpecs } from "./selection";
@@ -33,6 +33,10 @@ export const commandSpecs = Object.freeze({
   ...structureSpecs,
   "node.set": { label: "Set properties", undo: true },
   "frame.create": { label: "Frame", undo: true },
+  "shape.polygon": { label: "Polygon", undo: true },
+  "shape.star": { label: "Star", undo: true },
+  "tool.polygon": { label: "Polygon", undo: false },
+  "tool.star": { label: "Star", undo: false },
   "shape.ellipse": { label: "Ellipse", undo: true },
   "shape.rectangle": { label: "Rectangle", undo: true },
   "node.create": { label: "Create layer", undo: true },
@@ -53,7 +57,7 @@ export type CommandId = keyof typeof commandSpecs;
 export interface EditorSnapshot {
   readonly document: Document;
   readonly selection: readonly NodeId[];
-  readonly tool: "move" | "rectangle" | "ellipse" | "scale";
+  readonly tool: "move" | DrawShapeKind | "scale";
   readonly scaleAnchor: ScaleAnchor;
   readonly canUndo: boolean;
   readonly canRedo: boolean;
@@ -132,7 +136,7 @@ export class EditorEngine {
     interaction.document = document; interaction.selection = selection; interaction.nextId = nextId; interaction.duplicated = duplicated;
     this.#notifyCanvas();
   }
-  previewDraw(kind: "rectangle" | "ellipse", box: import("./geometry").Rectangle, parent: NodeId): void {
+  previewDraw(kind: DrawShapeKind, box: import("./geometry").Rectangle, parent: NodeId): void {
     const interaction = this.#interaction; if (!interaction) throw new Error("No active interaction");
     const next = createLayer(interaction.base, this.#nextId, `shape.${kind}`, { ...box, parent }, this.#view, [1, 0, 0, 1, box.x, box.y]);
     interaction.document = next.document; interaction.selection = next.selection; interaction.nextId = next.nextId; this.#notifyCanvas();
@@ -360,10 +364,10 @@ export class EditorEngine {
       return { saved: true };
     }
     if (command.startsWith("file.")) throw new Error(`${command} requires executeAsync`);
-    if (command === "shape.ellipse" || command === "shape.rectangle" || command === "frame.create" || command === "node.create") return this.#create(command, p);
+    if (command === "shape.polygon" || command === "shape.star" || command === "shape.ellipse" || command === "shape.rectangle" || command === "frame.create" || command === "node.create") return this.#create(command, p);
     if (Object.keys(p).length) throw new Error(`${command} takes no parameters`);
-    if (command === "tool.ellipse" || command === "tool.rectangle" || command === "tool.move" || command === "tool.scale") {
-      this.#publish({ tool: command === "tool.ellipse" ? "ellipse" : command === "tool.rectangle" ? "rectangle" : command === "tool.scale" ? "scale" : "move" });
+    if (command === "tool.polygon" || command === "tool.star" || command === "tool.ellipse" || command === "tool.rectangle" || command === "tool.move" || command === "tool.scale") {
+      this.#publish({ tool: command === "tool.polygon" ? "polygon" : command === "tool.star" ? "star" : command === "tool.ellipse" ? "ellipse" : command === "tool.rectangle" ? "rectangle" : command === "tool.scale" ? "scale" : "move" });
       return {};
     }
     const undo = command === "edit.undo";

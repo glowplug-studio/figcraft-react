@@ -1,4 +1,5 @@
 import { ArcPanel } from "./ArcPanel";
+import { PointsPanel } from "./PointsPanel";
 import { isLeaf } from "./engine/document";
 import { CornerPanel } from "./CornerPanel";
 import { ViewControls } from "./ViewControls";
@@ -135,7 +136,8 @@ export function Editor({ identity, capabilities, engine: suppliedEngine, recover
     event.preventDefault();
     const data = new FormData(event.currentTarget);
     const submitter = (event.nativeEvent as SubmitEvent).submitter as HTMLButtonElement | null;
-    dispatch(submitter?.value === "frame" ? "frame.create" : submitter?.value === "ellipse" ? "shape.ellipse" : "shape.rectangle", { ...Object.fromEntries(["x", "y", "width", "height"].map(name => [name, Number(data.get(name))])), parent: String(data.get("parent")) });
+    const kind = submitter?.value ?? "rectangle";
+    dispatch(kind === "frame" ? "frame.create" : `shape.${kind}`, { ...Object.fromEntries(["x", "y", "width", "height"].map(name => [name, Number(data.get(name))])), parent: String(data.get("parent")) });
   }
   async function open(file: File) {
     controller.current?.cancel(); setPendingFile(null); setBusy(true); setError("");
@@ -203,6 +205,8 @@ export function Editor({ identity, capabilities, engine: suppliedEngine, recover
             <button disabled={!editable} aria-pressed={snapshot.tool === "move"} onClick={() => { dispatch("tool.move"); canvas.current?.focus(); }}>Move</button>
             <button disabled={!editable} aria-pressed={snapshot.tool === "scale"} onClick={() => { dispatch("tool.scale"); canvas.current?.focus(); }}>Scale</button>
             <button disabled={!editable} aria-pressed={snapshot.tool === "ellipse"} onClick={() => { dispatch("tool.ellipse"); canvas.current?.focus(); }}>Ellipse</button>
+            <button disabled={!editable} aria-pressed={snapshot.tool === "polygon"} onClick={() => { dispatch("tool.polygon"); canvas.current?.focus(); }}>Polygon</button>
+            <button disabled={!editable} aria-pressed={snapshot.tool === "star"} onClick={() => { dispatch("tool.star"); canvas.current?.focus(); }}>Star</button>
             <button disabled={!editable} aria-pressed={snapshot.tool === "rectangle"} onClick={() => { dispatch("tool.rectangle"); canvas.current?.focus(); }}>Rectangle</button>
           </div>
         </div>
@@ -214,6 +218,8 @@ export function Editor({ identity, capabilities, engine: suppliedEngine, recover
             </select></label>
             <button type="submit" value="rectangle">Create rectangle</button>
             <button type="submit" value="ellipse">Create ellipse</button>
+            <button type="submit" value="polygon">Create polygon</button>
+            <button type="submit" value="star">Create star</button>
             <button type="submit" value="frame">Create frame</button>
           </fieldset></form>
           <details><summary>Frame presets</summary><form onSubmit={event => {
@@ -258,6 +264,7 @@ export function Editor({ identity, capabilities, engine: suppliedEngine, recover
           {snapshot.tool === "scale" ? <ScalePanel engine={engine} enabled={editable && !busy} dispatch={dispatch} onError={setError} /> : <SizePanel enabled={editable && !busy && snapshot.selection.length > 0} dispatch={dispatch} />}
           <RotationPanel engine={engine} enabled={editable && !busy && snapshot.selection.length > 0} dispatch={dispatch} />
           <ArcPanel nodes={snapshot.selection.flatMap(id => { const n = snapshot.document.nodes[id]; return n && n.kind !== "page" ? [n] : []; })} editable={editable && !busy} dispatch={dispatch} />
+          <PointsPanel nodes={snapshot.selection.flatMap(id => { const n = snapshot.document.nodes[id]; return n && n.kind !== "page" ? [n] : []; })} editable={editable && !busy} dispatch={dispatch} />
           <CornerPanel nodes={snapshot.selection.flatMap(id => { const n = snapshot.document.nodes[id]; return n && n.kind !== "page" ? [n] : []; })} editable={editable && !busy} dispatch={dispatch} />
           <AppearancePanel page={page} selected={selected && selected.kind !== "page" ? selected : undefined} editable={editable && !busy} dispatch={dispatch} />
         </aside>

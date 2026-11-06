@@ -1,3 +1,4 @@
+import { isLeafKind, type DrawShapeKind } from "./document";
 import type { EditorEngine } from "./editor";
 import { drawnRectangle, type Point } from "./geometry";
 import { dropParent } from "./canvas-selection";
@@ -5,14 +6,14 @@ import { SnapTargets, type Guide } from "./snapping";
 import { drawGuides } from "./measurements";
 import type { MoveModifiers } from "./move-interaction";
 
-/** Shared native Rectangle/Ellipse draw gesture, including parent coordinates and preview IDs. */
+/** Shared native closed-shape draw gesture, including parent coordinates and preview IDs. */
 export class DrawInteraction {
-  #gesture?: { start: Point; parent: string; kind: "rectangle" | "ellipse"; targets: SnapTargets; moved: boolean };
+  #gesture?: { start: Point; parent: string; kind: DrawShapeKind; targets: SnapTargets; moved: boolean };
   #guides: Guide[] = [];
   constructor(private engine: EditorEngine, private onError: (message: string) => void) {}
   get active(): boolean { return Boolean(this.#gesture); }
   down(point: Point): boolean {
-    const s = this.engine.getSnapshot(); if (!s.editable || s.tool !== "rectangle" && s.tool !== "ellipse") return false;
+    const s = this.engine.getSnapshot(); if (!s.editable || !isLeafKind(s.tool)) return false;
     this.engine.beginInteraction();
     this.#gesture = { start: point, parent: dropParent(s.document, point, []) ?? s.document.currentPage, kind: s.tool, targets: new SnapTargets(s.document, []), moved: false }; return true;
   }

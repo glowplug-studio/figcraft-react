@@ -3,7 +3,7 @@ import { DrawInteraction } from "./draw-interaction";
 import { isLeaf } from "./document";
 import { CornerInteraction } from "./corner-handles";
 import { tracePath } from "./corners";
-import { shapePath, hasShapePath } from "./ellipse";
+import { shapePath, hasShapePath } from "./shape-path";
 import { canvasAccent } from "./canvas-colours";
 import { pageOf, pageColour, rectanglePaints, rectangleTransform, type Document, type LayerNode } from "./document";
 import { renderColour } from "./colour";

@@ -6,6 +6,7 @@ import { decodeFigcraft } from "../../src/engine/file-format";
 import { rectanglePaints, type RectangleNode } from "../../src/engine/document";
 import { transformPoint } from "../../src/engine/affine";
 import { worldTransform } from "../../src/engine/hierarchy";
+import { starPoints } from "../../src/engine/polygon";
 
 test.describe.configure({ mode: "serial" });
 let email: string;
@@ -1340,4 +1341,67 @@ test("Ellipse shortcut draws inside Frames, previews outside React and preserves
   await expect(page.getByRole("region", { name: "Selected ellipse", exact: true }).locator("dd")).toHaveText(["90", "90", "120", "120"]);
   await expect(page.getByRole("list", { name: "Children of Frame 1", exact: true }).getByRole("button", { name: "Ellipse", exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Undo", exact: true }).click(); await expect(page.getByText("1 layer", { exact: true })).toBeVisible();
+});
+
+async function createPointShape(page: Page, kind: "polygon" | "star", name: string, x = 200) {
+  const creation = page.getByRole("group", { name: "Create layer", exact: true });
+  for (const [label, value] of [["X", x], ["Y", 200], ["Width", 200], ["Height", 200]] as const) await creation.getByLabel(label, { exact: true }).fill(String(value));
+  await creation.getByRole("button", { name: `Create ${kind}`, exact: true }).click();
+  await page.getByLabel("Name", { exact: true }).fill(name); await page.getByRole("button", { name: "Apply layer", exact: true }).click();
+}
+
+test("Star ratio and Polygon radius handles preview, cancel and undo without React frame updates", async ({ page }) => {
+  await login(page); await createPointShape(page, "star", "Star handles");
+  const root = page.locator("[data-figcraft-editor]"), canvas = page.getByLabel("Design canvas", { exact: true });
+  const ratioPoint = async (ratio: number) => { const p = starPoints(200, 200, 5, ratio)[1]; return canvasPoint(page, 200 + p.x, 200 + p.y); };
+  await expect(page.locator(".figcraft-recovery")).toHaveText("Recovery saved on this device");
+  const a = await ratioPoint(.38), b = await ratioPoint(.5); await page.mouse.move(a.x, a.y); await page.mouse.down(); const commits = await root.getAttribute("data-commits");
+  await page.mouse.move(b.x, b.y, { steps: 8 }); await expect(root).toHaveAttribute("data-commits", commits!); await expect(page.getByLabel("Star ratio", { exact: true })).toHaveValue("38");
+  await page.screenshot({ path: "test-results/star-ratio-preview.png", fullPage: true }); await page.mouse.up(); await expect(page.getByLabel("Star ratio", { exact: true })).toHaveValue("50");
+  const c = await ratioPoint(.7); await page.mouse.move(b.x, b.y); await page.mouse.down(); await page.mouse.move(c.x, c.y, { steps: 6 }); await page.keyboard.press("Escape"); await page.mouse.up(); await expect(page.getByLabel("Star ratio", { exact: true })).toHaveValue("50");
+  await page.getByRole("button", { name: "Undo", exact: true }).click(); await expect(page.getByLabel("Star ratio", { exact: true })).toHaveValue("38");
+  await createPointShape(page, "polygon", "Polygon handles", 450);
+  const from = await canvasPoint(page, 550, 210), to = await canvasPoint(page, 550, 240);
+  await page.keyboard.down("Alt"); await page.mouse.move(from.x, from.y); await page.mouse.down(); await page.mouse.move(to.x, to.y, { steps: 8 }); await page.mouse.up(); await page.keyboard.up("Alt");
+  await expect(page.getByLabel("Corner radius", { exact: true })).toHaveValue("20");
+  await page.getByRole("button", { name: "Corner smoothing", exact: true }).click(); await page.getByRole("button", { name: "iOS", exact: true }).click(); await expect(page.getByLabel("Corner smoothing", { exact: true })).toHaveValue("60");
+  await expect(page.getByLabel("Top left radius", { exact: true })).toHaveCount(0); await expect(page.getByLabel("Star ratio", { exact: true })).toHaveCount(0);
+  await expectCanvasPixel(page, 550, 290, [217, 217, 217, 255]); await expectCanvasPixel(page, 455, 205, [245, 245, 245, 255]);
+  await expect(canvas).toHaveScreenshot("polygon-star-smoothed.png", { animations: "disabled", maxDiffPixels: 0 });
+});
+
+test("Polygon Star controls preserve mixed counts, native save, recovery and mobile access", async ({ page }) => {
+  await login(page); await createPointShape(page, "star", "Saved star");
+  await page.getByLabel("Point count", { exact: true }).fill("120"); await page.getByRole("button", { name: "Apply point count", exact: true }).click(); await expect(page.getByLabel("Point count", { exact: true })).toHaveValue("60");
+  await page.getByLabel("Star ratio", { exact: true }).fill("50"); await page.getByRole("button", { name: "Apply star ratio", exact: true }).click();
+  await createPointShape(page, "polygon", "Saved polygon", 450); await page.getByRole("button", { name: "Saved star", exact: true }).click({ modifiers: ["Shift"] });
+  await expect(page.getByLabel("Point count", { exact: true })).toHaveAttribute("placeholder", "Mixed"); await expect(page.getByLabel("Star ratio", { exact: true })).toHaveCount(0);
+  await page.getByLabel("Point count", { exact: true }).fill("7"); await page.getByRole("button", { name: "Apply point count", exact: true }).click();
+  const download = page.waitForEvent("download"); await page.getByRole("button", { name: "Save as", exact: true }).click();
+  const opened = await decodeFigcraft(await readFile((await (await download).path())!));
+  const shapes = Object.values(opened.document.nodes).filter(n => n.kind === "star" || n.kind === "polygon"); expect(shapes).toHaveLength(2); expect(shapes.every(n => n.count === 7)).toBe(true); expect(shapes.find(n => n.kind === "star")).toMatchObject({ innerRatio: .5 });
+  await expect(page.locator(".figcraft-recovery")).toHaveText("Recovery saved on this device"); await page.reload(); await page.getByRole("button", { name: "Saved star", exact: true }).click();
+  await expect(page.getByLabel("Star ratio", { exact: true })).toHaveValue("50"); await expect(page.getByLabel("Point count", { exact: true })).toHaveValue("7");
+  await page.setViewportSize({ width: 390, height: 844 }); await page.getByLabel("Star ratio", { exact: true }).fill("25"); await page.getByRole("button", { name: "Apply star ratio", exact: true }).click(); await expect(page.getByLabel("Star ratio", { exact: true })).toHaveValue("25");
+  const toolbar = page.getByRole("toolbar", { name: "Tools", exact: true }); const bounds = (await toolbar.boundingBox())!; expect(bounds.x).toBeGreaterThanOrEqual(0); expect(bounds.x + bounds.width).toBeLessThanOrEqual(390);
+  await toolbar.getByRole("button", { name: "Polygon", exact: true }).click(); await expect(toolbar.getByRole("button", { name: "Polygon", exact: true })).toHaveAttribute("aria-pressed", "true");
+  await toolbar.getByRole("button", { name: "Star", exact: true }).click(); await expect(toolbar.getByRole("button", { name: "Star", exact: true })).toHaveAttribute("aria-pressed", "true");
+  await page.screenshot({ path: "test-results/polygon-star-mobile.png", fullPage: true });
+});
+
+test("Polygon Star tools share constrained Frame drawing and shape-aware selection", async ({ page }) => {
+  await login(page); const creation = page.getByRole("group", { name: "Create layer", exact: true });
+  for (const [label, value] of [["X", 100], ["Y", 100], ["Width", 500], ["Height", 400]] as const) await creation.getByLabel(label, { exact: true }).fill(String(value));
+  await creation.getByRole("button", { name: "Create frame", exact: true }).click();
+  for (const [kind, x] of [["Polygon", 250], ["Star", 450]] as const) {
+    await page.getByRole("toolbar", { name: "Tools", exact: true }).getByRole("button", { name: kind, exact: true }).click();
+    const a = await canvasPoint(page, x, 250), b = await canvasPoint(page, x + 60, 290);
+    await page.keyboard.down("Shift"); await page.keyboard.down("Alt"); await page.mouse.move(a.x, a.y); await page.mouse.down(); await page.mouse.move(b.x, b.y, { steps: 8 }); await page.mouse.up(); await page.keyboard.up("Alt"); await page.keyboard.up("Shift");
+    await expect(page.getByRole("region", { name: `Selected ${kind.toLowerCase()}`, exact: true }).locator("dd")).toHaveText([String(x - 160), "90", "120", "120"]);
+    await expect(page.getByRole("list", { name: "Children of Frame 1", exact: true }).getByRole("button", { name: kind, exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Move", exact: true })).toHaveAttribute("aria-pressed", "true");
+  }
+  const outside = await canvasPoint(page, 650, 500), empty = await canvasPoint(page, 391, 191), inside = await canvasPoint(page, 450, 250);
+  await page.mouse.click(outside.x, outside.y); await page.keyboard.down("ControlOrMeta"); await page.mouse.click(empty.x, empty.y); await page.keyboard.up("ControlOrMeta"); await expect(page.getByLabel("Name", { exact: true })).toHaveValue("Frame 1");
+  await page.keyboard.down("ControlOrMeta"); await page.mouse.click(inside.x, inside.y); await page.keyboard.up("ControlOrMeta"); await expect(page.getByLabel("Name", { exact: true })).toHaveValue("Star");
 });

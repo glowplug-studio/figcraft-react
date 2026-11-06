@@ -1,6 +1,6 @@
 import { isLeaf } from "./document";
 import { hitsPath } from "./corners";
-import { hasShapePath, shapePath } from "./ellipse";
+import { hasShapePath, shapePath } from "./shape-path";
 import { identity, inverse, multiply, transformPoint, type Affine } from "./affine";
 import { layerTransform, pageOf, type Document, type NodeId } from "./document";
 import { pageForNode } from "./hierarchy";

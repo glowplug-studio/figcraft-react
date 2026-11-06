@@ -42,14 +42,25 @@ The Supabase adapter uses Supabase Realtime. Core collaboration code depends onl
 
 ## Graphify
 
-Graphify indexes Git repositories from their remote provider. It does not index uncommitted files, ignored files or arbitrary local directories.
+Hosted Graphify indexes the connected repository's default branch. It does not include uncommitted files or feature-branch changes merely because that branch is pushed. Check the indexed commit before relying on results; current local source remains authoritative.
 
 ```sh
 codex mcp add graphify --url https://api.graphify.com/mcp
 codex mcp login graphify --no-browser
 ```
 
-Connect the GitHub repository in the Graphify portal, select the intended workspace and verify `list_repositories` reports it as queryable. Push a branch before expecting Graphify to know its changes, then allow its index to refresh.
+Connect the GitHub repository in the Graphify portal, select the intended workspace and verify `list_repositories` reports it as queryable. Default-branch updates trigger hosted indexing; no hosted refresh mutation is exposed by the current MCP tools. See [Graphify repository indexing](https://docs.graphify.com/concepts/index-a-repository).
+
+For the current working tree, the separate [Graphify CLI](https://docs.graphify.com/open-source/configuration/cli) can build a local code-only graph, including uncommitted authored source. With `graphify` installed in an isolated environment, run from the repository root:
+
+```sh
+graphify extract . --code-only --no-cluster --max-workers 1 \
+  --exclude original --exclude node_modules --exclude dist \
+  --exclude test-results --exclude playwright-report \
+  --out "${XDG_CACHE_HOME:-$HOME/.cache}/figcraft-graphify-index"
+```
+
+Repeat the command after source changes; extraction reuses its cache. This updates only the local graph, not the hosted MCP index. The `original` exclusion keeps the Rust reference in its separate index. The CLI's optional SQL parser is required for SQL symbols; code-only extraction does not semantically index documentation. No model API key is needed for this mode.
 
 The root repository index covers tracked source files in this repository. A Git submodule is recorded only as a repository pointer; Graphify will not infer the contents of `original/figcraft`. Connect `glowplug-studio/figcraft` as a second repository in the same Graphify workspace when Graphify needs indexed knowledge of the Rust source.
 

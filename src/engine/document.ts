@@ -41,6 +41,10 @@ export interface LayerProperties {
 }
 export interface RectangleNode extends LayerProperties { readonly kind: "rectangle" }
 export interface EllipseNode extends LayerProperties { readonly kind: "ellipse"; readonly start: number; readonly sweep: number; readonly inner: number }
+export interface PolygonNode extends LayerProperties { readonly kind: "polygon"; readonly count: number }
+export interface StarNode extends LayerProperties { readonly kind: "star"; readonly count: number; readonly innerRatio: number }
+export type LeafNode = RectangleNode | EllipseNode | PolygonNode | StarNode;
+export type DrawShapeKind = LeafNode["kind"];
 export interface GroupNode extends LayerProperties {
   readonly kind: "group";
   readonly children: readonly NodeId[];
@@ -50,10 +54,10 @@ export interface FrameNode extends LayerProperties {
   readonly children: readonly NodeId[];
   readonly clip: boolean;
 }
-export type LayerNode = RectangleNode | EllipseNode | GroupNode | FrameNode;
+export type LayerNode = LeafNode | GroupNode | FrameNode;
 export type DocumentNode = PageNode | LayerNode;
-export const isLeafKind = (kind: unknown): kind is "rectangle" | "ellipse" => kind === "rectangle" || kind === "ellipse";
-export const isLeaf = (node: DocumentNode): node is RectangleNode | EllipseNode => isLeafKind(node.kind);
+export const isLeafKind = (kind: unknown): kind is DrawShapeKind => kind === "rectangle" || kind === "ellipse" || kind === "polygon" || kind === "star";
+export const isLeaf = (node: DocumentNode): node is LeafNode => isLeafKind(node.kind);
 export interface Document {
   readonly name: string;
   readonly pages: readonly NodeId[];
