@@ -85,17 +85,25 @@
     "activePublishableKeyMatchesLocalConfiguredHostedKey": true,
     "authSettingsPublicConnectivity": 200,
     "managementAuthConfigRead": 200,
-    "siteUrlAndCallbacks": "Blocked: intended public Site URL not supplied; current Site URL http://localhost:3000; local callbacks verified",
+    "siteUrlAndCallbacks": "Vercel-assigned domain selected; no matching Vercel project exists; awaiting project selection",
     "previousManagementAuthConfigRead": 403,
     "localCallbackUpdate": 200,
     "localCallbacksReadBackVerified": true
   },
-  "publication": "Not attempted: public Site URL prerequisite incomplete",
+  "publication": "Read-only Vercel account/team/project discovery completed; project absent; no creation or deployment",
   "propertyCoverage": {
     "Passed": 39,
     "Failed": 0,
     "Partial": 0,
     "Blocked": 1,
     "Not tested": 1
+  },
+  "vercelDiscovery": {
+    "authenticated": true,
+    "matchingProjectFound": false,
+    "requestedDomain": "stable Vercel-assigned domain",
+    "proposedProjectName": "figcraft-react",
+    "repository": "glowplug-studio/figcraft-react",
+    "rootDirectory": "examples/nextjs"
   }
 }

@@ -4,16 +4,16 @@
 
 | Field | Current value |
 |---|---|
-| Overall status | Blocked — local slice verified; public Site URL required |
+| Overall status | Blocked — local slice verified; Vercel project selection required |
 | Active phase | Phase 7 — report complete; Phase 4.8 hosted prerequisite blocks Phase 8 |
 | Upstream baseline | `8eb0b87646c5aef712326d6c431ccde5408630de` (fork, original upstream and parity record agree) |
 | Branch and last verified commit | `prompt/rectangle-slice`; verified source `a84d7a5c3825e616cfadf62ec83ee7c3ded1be79`; core `d71b73d`; starting `f6450d5` preserved |
 | Completed work | Mandatory documents read; upstream sync passed; both Graphify repositories queried; Supabase MCP read succeeded, public schema empty; first slice selected; Phases 2–4 implemented and reviewed; local reset and advisers passed |
 | Tests last passed | 68 unit/contract/parity/local integration tests; 6 Playwright flows; package and Next.js build |
 | Files in progress | None; documentation/evidence finalised |
-| Blockers | CLI Auth access now returns HTTP 200; local callback allow-list updated and verified. Public Site URL is still unspecified (current value: http://localhost:3000). |
-| Exact next action | Obtain the intended public Site URL, set it and its exact callback URL, verify by reading back, then reassess Phase 8 gates. CLI access is restored; do not ask for another login. |
-| Last updated | 2026-11-06 21:33 +07 |
+| Blockers | User selected the stable Vercel-assigned URL. Authenticated Vercel inventory has no project named or linked to figcraft-react; the prompt forbids creating or linking one without user selection. |
+| Exact next action | Obtain selection to create figcraft-react in the authenticated team, linked to glowplug-studio/figcraft-react with root examples/nextjs; obtain its assigned domain, configure Auth and resume the publication gates. |
+| Last updated | 2026-11-06 21:45 +07 |
 
 ## Scope and acceptance
 
@@ -97,3 +97,7 @@ Expected files: `src/engine/*`, `src/Editor.tsx`, package exports, Supabase iden
 ## Resumption — CLI access restored
 
 The renewed CLI credential read the intended Figcraft project’s Auth configuration successfully (HTTP 200), and the scoped MCP project call still succeeded. Hosted Auth had Site URL `http://localhost:3000` and an empty callback allow-list. Added and read-back verified the three repository-configured local callback URLs, preserving Site URL and all other settings. The earlier 403 is resolved. The public Site URL remains a required user decision; no Vercel action or publication has been attempted.
+
+## Resumption — Vercel-assigned URL selected
+
+The user selected whatever stable domain Vercel assigns, authorising the read-only project discovery needed to resolve that URL. Authenticated Vercel account/team inventory and project Git links were checked; no existing project named or linked to `glowplug-studio/figcraft-react` was found. No project was created, linked or retargeted. Phase 8.2 explicitly requires user selection in this case. Proposed target: project `figcraft-react`, repository `glowplug-studio/figcraft-react`, root `examples/nextjs`; build from the monorepo root with `npm run preview:build`. No deployment or push has occurred.

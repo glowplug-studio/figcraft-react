@@ -4,7 +4,7 @@
 
 Implemented and locally verified the first browser-relevant slice: create a rectangle in a fresh local design document, display its selected geometry, and undo/redo creation. The dependency-ordered roadmap is in [the plan](../planning/26-11-06-rectangle-slice.md). The reusable editor receives host identity and capabilities; the Next.js example owns Supabase password login, verified route protection, session refresh, callback handling and logout.
 
-**Publication is blocked pending the intended public Site URL.** The renewed CLI credential now reads hosted Auth settings successfully (HTTP 200), resolving the earlier 403. The project currently uses `http://localhost:3000`; its three repository-configured local callback URLs have been added and read-back verified. The production Site URL and callback cannot be inferred. The checkpoint remains **Blocked** and Phase 8 has not begun. No Vercel calls, deployment, branch push, merge, pull request or GitHub homepage change were made.
+**Publication is blocked pending Vercel project selection.** The user selected Vercel’s stable assigned domain. Read-only authenticated Vercel discovery found no project named or linked to `glowplug-studio/figcraft-react`. Phase 8.2 forbids creating, linking or retargeting a project by assumption. Proposed target: `figcraft-react`, linked to the repository with root `examples/nextjs`. CLI Supabase Auth access and local callback configuration are verified. No project creation, deployment, branch push, merge, pull request or homepage change occurred.
 
 ## Reference and commits
 
@@ -42,7 +42,7 @@ Canvas 2D replaces native CPU rendering for flat rectangles. Browser pointer cap
 | Browser flows | Denied route, safe destination, bad password, invalid callback, login, creation, reverse/Shift/Alt/click/cancel, keyboard history, resize at 390/700/1440, forced refresh with token rotation, logout, unavailable Canvas 2D |
 | `npm run preview:dev` | Additional login/create/logout run passed; no page errors; reviewed desktop capture |
 | Local declarative sync/reset/advisers | Passed/no changes/zero findings |
-| Hosted Auth configuration | CLI read and local callback update verified HTTP 200; **public Site URL still required** |
+| Hosted Auth configuration | CLI read and local callback update verified HTTP 200; **awaiting Vercel project selection to obtain assigned Site URL** |
 | Phase 8 publication | **Not tested/not attempted** because the preceding gate fails |
 
 Test environment: Node 24.20.0, Next.js 16.4.5, Playwright 1.65.0 bundled Chromium, macOS; fixed scale 1 and browser sans-serif chrome. Counts are executed tests, not line/branch coverage percentages. Geometry fixture provenance distinguishes the existing Rust `create_select_undo_redo` test from inspection-derived expected values; no React test executes Rust.
@@ -55,7 +55,7 @@ Local preview and this project’s Supabase processes were stopped cleanly after
 
 ## Resume
 
-1. Identify the intended public Site URL. CLI access is now verified; another login is not required. Do not put tokens or passwords in chat or committed files.
+1. Select creation of the proposed Vercel project or identify another target. The stable Vercel-assigned domain is authorised; CLI access is verified.
 2. Configure and read-back verify the approved public Site URL and exact callback URL, preserving the already verified local callbacks. Add real hosted test credentials only to ignored environment variables.
 3. Update the blocked evidence row and checkpoint only after verification. Then, and only then, enter Phase 8 to inspect the authorised Vercel account/project, immutable deployment source, environment, staged tests, promotion/rollback and demo links.
 4. No merge to main or pull request is authorised. The branch push remains gated by Phase 8.
