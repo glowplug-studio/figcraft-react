@@ -1,11 +1,14 @@
-import { identity, inverse, multiply, setRotationAboutCenter, transformBounds, withTranslation } from "./affine";
+import { identity, inverse, multiply, setRotationAboutCenter, transformBounds, transformPoint, withTranslation } from "./affine";
 import { defaultConstraints, rectanglePaints, rectangleTransform, withRectanglePaints, withRectangleTransform, type Document, type NodeId, type LayerNode } from "./document";
-import { HierarchyDraft, frameRelative } from "./hierarchy";
+import { HierarchyDraft, frameRelative, rootIds, worldTransform } from "./hierarchy";
 import { parseNodeId, parseNumber } from "./parameters";
 import { parseColour } from "./colour-css";
 import { readSolidPaints, solidPaint, type SolidPaint } from "./solid-paint";
 
 import { readConstraints, resizeChildren } from "./constraints";
+import { localOrigin, sameIds, validateChangedGeometry } from "./rotation";
+import { moveWorld } from "./arrange";
+import type { Point } from "./geometry";
 
 const geometryKeys = new Set(["x", "y", "width", "height", "w", "h", "rotation"]);
 const appearanceKeys = new Set(["name", "visible", "locked", "opacity", "fill", "fills", "clip", "constraints"]);
@@ -21,16 +24,17 @@ function samePaints(left: readonly SolidPaint[], right: readonly SolidPaint[]): 
 }
 
 /** The supported layer geometry and appearance subset of upstream `node.set`. No history is recorded here. */
-export function setRectangleProperties(document: Document, selection: readonly NodeId[], params: Record<string, unknown>): Document {
+export function setRectangleProperties(document: Document, selection: readonly NodeId[], params: Record<string, unknown>, origin?: Point): Document {
   if (params.ids != null && !Array.isArray(params.ids)) throw new Error("node.set ids must be an array");
   const rawTargets = params.ids ?? params.id;
   const suppliedTargets = rawTargets == null ? selection : Array.isArray(rawTargets) ? rawTargets : [rawTargets];
   if (suppliedTargets.length === 0) throw new Error("node.set requires at least one target");
-  const ids = [...new Set(suppliedTargets.map(value => {
+  const requestedIds = suppliedTargets.map(value => {
     const id = parseNodeId(value);
     if (id === undefined) throw new Error("node.set requires valid node IDs");
     return id;
-  }))];
+  });
+  const ids = [...new Set(requestedIds)];
   const rawProps = params.props;
   if (rawProps !== undefined && (rawProps === null || typeof rawProps !== "object" || Array.isArray(rawProps))) {
     throw new Error("node.set props must be an object");
@@ -42,6 +46,8 @@ export function setRectangleProperties(document: Document, selection: readonly N
   if (keys.length === 0) throw new Error("node.set requires properties");
   const unsupported = keys.filter(key => !geometryKeys.has(key) && !appearanceKeys.has(key));
   if (unsupported.length) throw new Error(`node.set unsupported properties: ${unsupported.join(", ")}`);
+  const pivot = origin && "rotation" in props && !("x" in props) && !("y" in props) && sameIds(requestedIds, selection) ? origin : undefined;
+  const pinned = pivot ? rootIds(document, ids).map(id => ({ id, point: localOrigin(document, id, pivot) })) : [];
 
   // Parse before changing any node, so one invalid value refuses the entire selection.
   const values = Object.fromEntries(keys.filter(key => geometryKeys.has(key)).map(key => [key, parseNumber(props[key], key)])) as Record<string, number>;
@@ -116,6 +122,10 @@ export function setRectangleProperties(document: Document, selection: readonly N
       draft.set(updated);
     }
   }
+  if (pivot) for (const { id, point } of pinned) if (point) {
+    const after = transformPoint(worldTransform(draft.document, id), point);
+    moveWorld(draft, id, pivot.x - after.x, pivot.y - after.y);
+  }
   draft.normaliseGroups();
-  return draft.finish();
+  return validateChangedGeometry(draft);
 }

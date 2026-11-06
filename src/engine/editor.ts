@@ -8,13 +8,17 @@ import { HierarchyDraft, frameRelative, pageForNode } from "./hierarchy";
 import { executeStructure, nextLayerName, structureSpecs } from "./structure";
 import { defaultViewport, executeView, fitPage, viewSpecs, type Viewport } from "./viewport";
 import { framePresets, presetParameters } from "./frame-presets";
-import { parseNodeId } from "./parameters";
+import { parseBoolean, parseNodeId, parseNumber } from "./parameters";
 import { arrangeSpecs, executeArrange } from "./arrange";
 import { sizingSpecs, executeSizing } from "./sizing";
+import { executeRotation, localOrigin, movedOrigin, originBoxPoints, originSpecs, rotationSpecs, sameIds, snappedOrigin, type OriginSnapshot, type RotationOrigin } from "./rotation";
+import type { Point } from "./geometry";
 
 export const commandSpecs = Object.freeze({
   ...arrangeSpecs,
   ...sizingSpecs,
+  ...rotationSpecs,
+  ...originSpecs,
   ...pageSpecs,
   ...viewSpecs,
   "frame.presets": { label: "List frame presets", undo: false },
@@ -67,6 +71,9 @@ export class EditorEngine {
   #listeners = new Set<() => void>();
   #view: Viewport = fitPage(defaultViewport, newDocument());
   #viewListeners = new Set<() => void>();
+  #origin?: RotationOrigin;
+  #originSnapshot: OriginSnapshot = Object.freeze({ editing: false, moved: false });
+  #originListeners = new Set<() => void>();
   #viewportAttached = false;
   #viewConfigured = false;
   #saved: Document | null = null;
@@ -78,6 +85,30 @@ export class EditorEngine {
   }
   getSnapshot = (): EditorSnapshot => this.#snapshot;
   getView = (): Viewport => this.#view;
+  getRotationOrigin = (): OriginSnapshot => this.#originSnapshot;
+  subscribeOrigin = (listener: () => void): (() => void) => { this.#originListeners.add(listener); return () => { this.#originListeners.delete(listener); }; };
+  #refreshOrigin(): void {
+    const { document, selection, editable } = this.#snapshot;
+    if (this.#origin && (!editable || !sameIds(selection, this.#origin.ids))) this.#origin = undefined;
+    const moved = movedOrigin(document, selection, this.#origin);
+    let point = moved;
+    // Derived overlays must not interrupt publication of an already validated transaction.
+    if (!point) try { point = originBoxPoints(document, selection)?.[8]; } catch { point = undefined; }
+    const next = { editing: this.#origin?.editing ?? false, moved: Boolean(moved), ...(point ? { point: Object.freeze(point) } : {}) };
+    const old = this.#originSnapshot;
+    if (old.editing === next.editing && old.moved === next.moved && old.point?.x === point?.x && old.point?.y === point?.y) return;
+    this.#originSnapshot = Object.freeze(next); this.#originListeners.forEach(listener => listener());
+  }
+  dragRotationOrigin(point: Point, zoom: number): void {
+    const { document, selection, editable } = this.#snapshot;
+    if (!editable || !this.#originSnapshot.editing) return;
+    const snapped = snappedOrigin(document, selection, point, zoom);
+    this.execute("transform.setRotationOrigin", snapped ?? { reset: true });
+  }
+  endOriginEdit(): boolean {
+    if (!this.#originSnapshot.editing) return false;
+    this.execute("transform.rotationOrigin", { on: false }); return true;
+  }
   subscribeView = (listener: () => void): (() => void) => { this.#viewListeners.add(listener); return () => { this.#viewListeners.delete(listener); }; };
   updateView(view: Viewport): void {
     if (Object.values(view).some(value => !Number.isFinite(value)) || view.zoom < 0.02 || view.zoom > 256 || view.vw <= 0 || view.vh <= 0) throw new Error("Invalid viewport");
@@ -95,6 +126,7 @@ export class EditorEngine {
   #publish(patch: Partial<EditorSnapshot>): void {
     const document = patch.document ?? this.#snapshot.document;
     this.#snapshot = Object.freeze({ ...this.#snapshot, ...patch, canUndo: this.#undo.length > 0, canRedo: this.#redo.length > 0, dirty: !sameContent(document, this.#saved), hasSaved: this.#saved !== null });
+    this.#refreshOrigin();
     this.#listeners.forEach(listener => listener());
   }
   setEditable(editable: boolean): void {
@@ -109,8 +141,26 @@ export class EditorEngine {
     if (!this.#snapshot.editable) throw new Error("Sign in to edit this document");
     const p = parameters(input);
     if (command === "frame.presets") return framePresets;
-    if (Object.hasOwn(arrangeSpecs, command) || Object.hasOwn(sizingSpecs, command)) {
-      const before = this.#snapshot, document = (Object.hasOwn(sizingSpecs, command) ? executeSizing : executeArrange)(command, before.document, before.selection, p);
+    if (Object.hasOwn(originSpecs, command)) {
+      const allowed = command === "transform.rotationOrigin" ? ["on"] : ["x", "y", "reset"];
+      for (const key of Object.keys(p)) if (!allowed.includes(key)) throw new Error(`Unsupported ${command} parameter: ${key}`);
+      const { selection, document } = this.#snapshot;
+      if (!selection.length) throw new Error("Nothing selected");
+      const previous = this.#origin ?? { ids: selection, editing: false };
+      if (command === "transform.rotationOrigin") this.#origin = { ...previous, editing: parseBoolean(p.on) ?? !previous.editing };
+      else {
+        const point = parseBoolean(p.reset) === true ? undefined : { x: parseNumber(p.x, "x"), y: parseNumber(p.y, "y") };
+        this.#origin = { ...previous, at: localOrigin(document, selection[0], point) };
+      }
+      this.#refreshOrigin();
+      const { editing, moved, point } = this.#originSnapshot;
+      return { editing, moved, x: point?.x ?? 0, y: point?.y ?? 0 };
+    }
+    if (Object.hasOwn(arrangeSpecs, command) || Object.hasOwn(sizingSpecs, command) || Object.hasOwn(rotationSpecs, command)) {
+      const before = this.#snapshot;
+      const document = Object.hasOwn(rotationSpecs, command)
+        ? executeRotation(command, before.document, before.selection, p, movedOrigin(before.document, before.selection, this.#origin))
+        : (Object.hasOwn(sizingSpecs, command) ? executeSizing : executeArrange)(command, before.document, before.selection, p);
       if (document !== before.document) {
         this.#undo.push({ document: before.document, selection: before.selection }); this.#redo = [];
         this.#publish({ document });
@@ -140,7 +190,7 @@ export class EditorEngine {
     }
     if (command === "node.set") {
       const before = this.#snapshot;
-      const document = setRectangleProperties(before.document, before.selection, p);
+      const document = setRectangleProperties(before.document, before.selection, p, movedOrigin(before.document, before.selection, this.#origin));
       if (document !== before.document) {
         this.#undo.push({ document: before.document, selection: before.selection });
         this.#redo = [];

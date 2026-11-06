@@ -1,6 +1,7 @@
 import { ViewControls } from "./ViewControls";
 import { ArrangePanel } from "./ArrangePanel";
 import { SizePanel } from "./SizePanel";
+import { RotationPanel } from "./RotationPanel";
 import { framePresets } from "./engine/frame-presets";
 import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type FormEvent, type KeyboardEvent } from "react";
 import type { DocumentCapability } from "./backends/access";
@@ -85,6 +86,7 @@ export function Editor({ identity, capabilities, engine: suppliedEngine, recover
     if (!editable || busy) return;
     if (event.target instanceof HTMLElement && event.target.closest("input,textarea,select,dialog,[contenteditable=true]")) return;
     let command: string | undefined;
+    if (!event.metaKey && !event.ctrlKey && event.altKey && event.code === "KeyR") command = "transform.rotationOrigin";
     if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "s") { event.preventDefault(); void save(); return; }
     if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "o") { event.preventDefault(); fileInput.current?.click(); return; }
     if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "a") command = "select.all";
@@ -94,6 +96,8 @@ export function Editor({ identity, capabilities, engine: suppliedEngine, recover
     else if (!event.metaKey && !event.ctrlKey && !event.altKey) {
       if (event.key.toLowerCase() === "r") command = "tool.rectangle";
       if (event.key.toLowerCase() === "v") command = "tool.move";
+      if (event.shiftKey && event.key.toLowerCase() === "h") command = "object.flipH";
+      if (event.shiftKey && event.key.toLowerCase() === "v") command = "object.flipV";
       if (event.key.toLowerCase() === "n") command = event.shiftKey ? "view.prevFrame" : "view.nextFrame";
       if (event.shiftKey && event.code === "Digit0") command = "view.zoom100";
       if (event.shiftKey && event.code === "Digit1") command = "view.zoomFit";
@@ -101,7 +105,7 @@ export function Editor({ identity, capabilities, engine: suppliedEngine, recover
       if (["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(event.key)) {
         event.preventDefault(); dispatch(snapshot.selection.length ? "transform.nudge" : "view.pan", { dx: event.key === "ArrowRight" ? 1 : event.key === "ArrowLeft" ? -1 : 0, dy: event.key === "ArrowDown" ? 1 : event.key === "ArrowUp" ? -1 : 0, big: event.shiftKey }); return;
       }
-      if (event.key === "Escape") { controller.current?.cancel(); return; }
+      if (event.key === "Escape") { event.preventDefault(); controller.current?.cancel(); engine.endOriginEdit(); return; }
     }
     if (!event.altKey && (event.metaKey || event.ctrlKey) && snapshot.selection.length && ["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(event.key)) {
       event.preventDefault(); dispatch("transform.nudgeSize", { dw: event.key === "ArrowRight" ? 1 : event.key === "ArrowLeft" ? -1 : 0, dh: event.key === "ArrowDown" ? 1 : event.key === "ArrowUp" ? -1 : 0, big: event.shiftKey }); return;
@@ -237,6 +241,7 @@ export function Editor({ identity, capabilities, engine: suppliedEngine, recover
           </fieldset></form></section>}
           <ArrangePanel document={snapshot.document} selection={snapshot.selection} editable={editable && !busy} dispatch={dispatch} />
           <SizePanel enabled={editable && !busy && snapshot.selection.length > 0} dispatch={dispatch} />
+          <RotationPanel engine={engine} enabled={editable && !busy && snapshot.selection.length > 0} dispatch={dispatch} />
           <AppearancePanel page={page} selected={selected && selected.kind !== "page" ? selected : undefined} editable={editable && !busy} dispatch={dispatch} />
         </aside>
       </div>

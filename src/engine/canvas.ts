@@ -5,7 +5,7 @@ import { drawnRectangle, type Point, type Rectangle } from "./geometry";
 import { multiply, transformBounds, type Affine } from "./affine";
 import { hitRectangle } from "./selection";
 import { worldTransform } from "./hierarchy";
-import { screenToPage, scrollView, viewOrigin, zoomAt, type Viewport } from "./viewport";
+import { pageToScreen, screenToPage, scrollView, viewOrigin, zoomAt, type Viewport } from "./viewport";
 
 const compositeSurfaces = new WeakMap<CanvasRenderingContext2D, HTMLCanvasElement>();
 // Immutable document snapshots invalidate these derived bounds after any edit.
@@ -160,6 +160,8 @@ export class CanvasController {
   #observer: ResizeObserver;
   #unsubscribe: () => void;
   #unsubscribeView: () => void;
+  #unsubscribeOrigin: () => void;
+  #dragOrigin = false;
   #space = false;
   #zoomHeld = false;
   #pan?: { screen: Point; view: Viewport };
@@ -174,6 +176,7 @@ export class CanvasController {
     canvas.addEventListener("pointerdown", this.#down, options);
     canvas.addEventListener("pointermove", this.#move, options);
     canvas.addEventListener("pointerup", this.#up, options);
+    canvas.addEventListener("dblclick", this.#doubleClick, options);
     canvas.addEventListener("pointercancel", this.#cancelEvent, options);
     canvas.addEventListener("lostpointercapture", this.#cancelEvent, options);
     canvas.addEventListener("keydown", this.#key, options);
@@ -188,9 +191,10 @@ export class CanvasController {
       this.invalidate();
     });
     this.#unsubscribeView = engine.subscribeView(() => this.invalidate());
+    this.#unsubscribeOrigin = engine.subscribeOrigin(() => this.invalidate());
     this.#resize();
   }
-  #point(event: PointerEvent): Point {
+  #point(event: { clientX: number; clientY: number }): Point {
     return screenToPage(this.engine.getView(), this.#screenPoint(event));
   }
   #screenPoint(event: { clientX: number; clientY: number }): Point {
@@ -207,6 +211,10 @@ export class CanvasController {
     }
     if (event.button !== 0) return;
     this.canvas.focus();
+    if (this.#onOrigin(this.#point(event))) {
+      event.preventDefault(); this.#dragOrigin = true; this.#pointer = event.pointerId;
+      this.canvas.setPointerCapture(event.pointerId); return;
+    }
     if (this.engine.getSnapshot().tool !== "rectangle") {
       const snapshot = this.engine.getSnapshot();
       const hit = hitRectangle(snapshot.document, this.#point(event), event.metaKey || event.ctrlKey, snapshot.selection);
@@ -222,6 +230,13 @@ export class CanvasController {
     this.canvas.setPointerCapture(event.pointerId);
   };
   #move = (event: PointerEvent): void => {
+    if (this.#pointer === null) this.canvas.style.cursor = this.#onOrigin(this.#point(event)) ? "move" : "";
+    if (event.pointerId === this.#pointer && this.#dragOrigin) {
+      const started = performance.now();
+      try { this.engine.dragRotationOrigin(this.#point(event), this.engine.getView().zoom); }
+      catch (error) { this.onError(error instanceof Error ? error.message : "Could not move rotation origin"); this.cancel(); }
+      performance.measure("figcraft:pointer", { start: started, end: performance.now() }); return;
+    }
     if (event.pointerId === this.#pointer && this.#pan) {
       const point = this.#screenPoint(event);
       this.engine.updateView(scrollView(this.#pan.view, point.x - this.#pan.screen.x, point.y - this.#pan.screen.y)); return;
@@ -239,6 +254,7 @@ export class CanvasController {
     performance.measure("figcraft:pointer", { start: started, end: performance.now() });
   };
   #up = (event: PointerEvent): void => {
+    if (event.pointerId === this.#pointer && this.#dragOrigin) { this.cancel(); return; }
     if (event.pointerId === this.#pointer && this.#pan) { this.#move(event); this.cancel(); return; }
     if (event.pointerId === this.#pointer && this.#zoomStart) {
       const start = this.#zoomStart, end = this.#screenPoint(event), view = this.engine.getView();
@@ -271,6 +287,14 @@ export class CanvasController {
       ? zoomAt(view, view.zoom * Math.exp(Math.max(-50, Math.min(50, -dy * 0.005))), screenToPage(view, this.#screenPoint(event)))
       : scrollView(view, -dx, -dy, event.shiftKey));
   };
+  #onOrigin(point: Point): boolean {
+    const origin = this.engine.getRotationOrigin();
+    return Boolean(origin.editing && origin.point && Math.hypot(point.x - origin.point.x, point.y - origin.point.y) * this.engine.getView().zoom <= 8);
+  }
+  #doubleClick = (event: MouseEvent): void => {
+    if (!this.engine.getSnapshot().editable || !this.#onOrigin(this.#point(event))) return;
+    event.preventDefault(); this.engine.execute("transform.setRotationOrigin", { reset: true });
+  };
   #blur = (): void => { this.#space = false; this.#zoomHeld = false; this.cancel(); };
   #cancelEvent = (): void => this.cancel();
   #key = (event: KeyboardEvent): void => {
@@ -289,6 +313,8 @@ export class CanvasController {
     this.#pointer = null;
     this.#start = this.#last = null;
     this.#preview = undefined;
+    this.#dragOrigin = false;
+    this.canvas.style.cursor = "";
     this.#pan = undefined; this.#zoomStart = undefined; this.#zoomArea = undefined;
     if (pointer !== null && this.canvas.hasPointerCapture(pointer)) this.canvas.releasePointerCapture(pointer);
     this.invalidate();
@@ -316,6 +342,18 @@ export class CanvasController {
       const snapshot = this.engine.getSnapshot();
       const view = this.engine.getView(), origin = viewOrigin(view);
       renderDocument(context, snapshot.document, this.#width, this.#height, snapshot.selection, this.#preview, view);
+      const rotationOrigin = this.engine.getRotationOrigin();
+      if (rotationOrigin.editing && rotationOrigin.point) {
+        const point = pageToScreen(view, rotationOrigin.point);
+        context.strokeStyle = "#0d99ff"; context.fillStyle = "#ffffff"; context.lineWidth = 1.5;
+        context.beginPath(); context.arc(point.x, point.y, 5, 0, Math.PI * 2); context.fill(); context.stroke();
+        context.beginPath();
+        for (const [x, y] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+          context.moveTo(point.x + x * 5, point.y + y * 5); context.lineTo(point.x + x * 10, point.y + y * 10);
+        }
+        context.stroke(); context.fillStyle = "#0d99ff";
+        context.beginPath(); context.arc(point.x, point.y, 1.5, 0, Math.PI * 2); context.fill();
+      }
       if (this.#zoomArea) {
         context.strokeStyle = "#0d99ff"; context.lineWidth = 1;
         context.strokeRect(this.#zoomArea.x, this.#zoomArea.y, this.#zoomArea.width, this.#zoomArea.height);
@@ -335,6 +373,7 @@ export class CanvasController {
     this.#observer.disconnect();
     this.#unsubscribe();
     this.#unsubscribeView();
+    this.#unsubscribeOrigin();
     this.#abort.abort();
   }
 }

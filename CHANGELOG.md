@@ -2,6 +2,14 @@
 
 All notable changes to the React port and its upstream compatibility baseline are recorded here.
 
+## [0.12.0] - 2026-11-07
+
+The reference baseline remains `8eb0b87646c5aef712326d6c431ccde5408630de`; full parity remains in progress.
+
+- Added transient rotation origins with canvas dragging, box snapping, double-click reset and Alt+R/Escape controls; no document/history changes while moving the origin.
+- Added page-space rotations/flips and rotation-field pinning, with inspector controls, finite transactions and native persistence.
+- General transform gestures, vector/text editing and unsupported kinds remain required later slices.
+
 ## [0.11.0] - 2026-11-07
 
 The reference baseline remains `8eb0b87646c5aef712326d6c431ccde5408630de`; full parity remains in progress.
