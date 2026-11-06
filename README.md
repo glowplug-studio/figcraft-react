@@ -14,6 +14,10 @@ The first slice creates rectangles in a fresh, unsaved local document, with sele
 
 This is a bounded port, not a complete design application. Documents are not saved across reloads. Save/load, other shapes, manipulation, object snapping, viewport navigation and collaboration are not yet implemented. See the [roadmap](docs/planning/26-11-06-rectangle-slice.md) and [parity report](docs/reports/26-11-06-rectangle-slice-parity.html).
 
+## Demo
+
+[Open the Figcraft React demo](https://figcraft-react.vercel.app). Sign in with a provisioned host account. The demo supports the rectangle slice above; documents are unsaved and reset on reload.
+
 ## Repository layout
 
 - `src/` — the reusable React package.

@@ -91,13 +91,49 @@
     "localCallbacksReadBackVerified": true,
     "hostedCallbackUpdate": 200
   },
-  "publication": "Authorised project created; repository link and production/preview environment metadata verified; CLI sign-in and build-setting read-back pending; no deployment",
+  "publication": {
+    "status": "Production verified; GitHub homepage metadata pending",
+    "account": "glowplug-studio",
+    "team": "glowplug",
+    "project": "figcraft-react",
+    "deploymentId": "dpl_Gvr7N6fX3hL1SKu9qrZyjTYTHzNa",
+    "sourceCommit": "f64d9c77745742a2b427d2bf02e0cb4752998743",
+    "stableUrl": "https://figcraft-react.vercel.app",
+    "stagedUrl": "https://figcraft-react-vcb69t30u-glowplug.vercel.app",
+    "stagedTests": {
+      "startTime": "2026-11-06T14:59:17.486Z",
+      "duration": 31140.499,
+      "expected": 6,
+      "skipped": 0,
+      "unexpected": 0,
+      "flaky": 0
+    },
+    "stableTests": {
+      "startTime": "2026-11-06T15:00:31.017Z",
+      "duration": 21139.040999999997,
+      "expected": 6,
+      "skipped": 0,
+      "unexpected": 0,
+      "flaky": 0
+    },
+    "promotion": "Same production deployment; no rebuild",
+    "previousProductionDeployment": null,
+    "rollbackPlan": "First release: no prior deployment exists. Pause the project and withdraw the failed release if stable verification fails. Not required: verification passed.",
+    "runtimeErrors": 0,
+    "runtimeErrorWindow": "30 minutes after deployment",
+    "temporaryAuthFixtureDeleted": true,
+    "temporaryAutomationBypassRevoked": true,
+    "deploymentProtectionUnchanged": true,
+    "stableAccess": "HTTP 200 login without Vercel bypass; full stable browser run without bypass cookie",
+    "githubMcpRepositoryVerified": true,
+    "githubHomepage": "Pending: MCP has no metadata-write operation; browser control timed out; no CLI credential available"
+  },
   "propertyCoverage": {
-    "Passed": 40,
+    "Passed": 41,
     "Failed": 0,
     "Partial": 0,
-    "Blocked": 0,
-    "Not tested": 1
+    "Blocked": 1,
+    "Not tested": 0
   },
   "vercelDiscovery": {
     "authenticated": true,
@@ -108,7 +144,7 @@
     "rootDirectory": "examples/nextjs",
     "assignedStableUrl": "https://figcraft-react.vercel.app",
     "repositoryLinkVerified": true,
-    "buildSettingsReadBackVerified": false
+    "buildSettingsReadBackVerified": true
   },
   "productionBuildFollowUp": {
     "sourceCommit": "5314525b2f6ad9ef793091e082d7199a3537c07d",

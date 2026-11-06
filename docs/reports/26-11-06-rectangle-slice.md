@@ -4,7 +4,7 @@
 
 Implemented and locally verified the first browser-relevant slice: create a rectangle in a fresh local design document, display its selected geometry, and undo/redo creation. The dependency-ordered roadmap is in [the plan](../planning/26-11-06-rectangle-slice.md). The reusable editor receives host identity and capabilities; the Next.js example owns Supabase password login, verified route protection, session refresh, callback handling and logout.
 
-**Publication setup is in progress.** The user authorised creation of `figcraft-react` with root `examples/nextjs`. Vercel MCP confirms its link to `glowplug-studio/figcraft-react`. The assigned stable domain is `https://figcraft-react.vercel.app`; Supabase Site URL and its exact callback were configured and read back successfully, preserving local callbacks. Production and preview environment-variable names and targets were verified without exposing values. CLI sign-in is pending for omitted build-setting inspection and protected browser access. The production-compatible render counter passed all six browser flows against local `next start`. No deployment, push, promotion or homepage change has occurred.
+**Production is verified at [figcraft-react.vercel.app](https://figcraft-react.vercel.app).** Six Playwright tests passed on the staged deployment and again on the stable URL. The same production build was promoted without rebuilding. Supabase Site URL and exact callback are configured, local callbacks retained, and temporary Auth fixture/automation bypass removed. GitHub homepage metadata is the only outstanding publication item; the connector lacks that write operation, browser control repeatedly timed out, and no CLI credential is available.
 
 ## Reference and commits
 
@@ -12,7 +12,7 @@ Implemented and locally verified the first browser-relevant slice: create a rect
 - Upstream original, fork, submodule and parity reference: `8eb0b87646c5aef712326d6c431ccde5408630de`. `npm run upstream:sync` succeeded; fork push was already up to date.
 - Core engine commit: `d71b73d`.
 - Reviewed and tested React implementation: `5314525b2f6ad9ef793091e082d7199a3537c07d` on `prompt/rectangle-slice` (version 0.2.0).
-- The evidence commit follows that source revision and changes documentation only. The current branch remains local and unmerged.
+- The evidence commit follows that source revision and changes documentation only. The release and demo documentation are published on `prompt/rectangle-slice`; `main` remains unchanged.
 - Rust Graphify index matched the reference. React Graphify remained stale at `b3b8a1b`; current local files supplied its authority. Both explicitly authorised repositories were queryable.
 
 ## Scope and substitutions
@@ -43,7 +43,8 @@ Canvas 2D replaces native CPU rendering for flat rectangles. Browser pointer cap
 | `npm run preview:dev` | Additional login/create/logout run passed; no page errors; reviewed desktop capture |
 | Local declarative sync/reset/advisers | Passed/no changes/zero findings |
 | Hosted Auth configuration | Passed — stable Site URL and exact callback configured; management read-back HTTP 200; local callbacks preserved |
-| Phase 8 publication | **Not tested** — authorised project created; CLI authentication and build-setting read-back pending |
+| Phase 8 deployment | Passed — staged 6/6; stable 6/6; same build promoted; runtime-error scan clean |
+| GitHub homepage metadata | Blocked — authenticated MCP verified the repository; manual Website update requested |
 
 Test environment: Node 24.20.0, Next.js 16.4.5, Playwright 1.65.0 bundled Chromium, macOS; fixed scale 1 and browser sans-serif chrome. Counts are executed tests, not line/branch coverage percentages. Geometry fixture provenance distinguishes the existing Rust `create_select_undo_redo` test from inspection-derived expected values; no React test executes Rust.
 
@@ -53,9 +54,27 @@ Evidence: [property-level HTML report](26-11-06-rectangle-slice-parity.html), [s
 
 Local preview and this project’s Supabase processes were stopped cleanly after verification. The unrelated local project was left running.
 
+## Publication evidence
+
+| Property | Verified value |
+|---|---|
+| Vercel account / team / project | `glowplug-studio` / `glowplug` / `figcraft-react` |
+| Deployment | `dpl_Gvr7N6fX3hL1SKu9qrZyjTYTHzNa` |
+| Exact deployed commit | `f64d9c77745742a2b427d2bf02e0cb4752998743` |
+| Branch / root | `prompt/rectangle-slice` / `examples/nextjs` |
+| Build / install | `cd ../.. && npm run preview:build` / `cd ../.. && npm ci`; Node 24.x |
+| Source isolation | CLI dry run: 78 source files plus directory entries; no Rust reference, environment files or local test/build artefacts |
+| Environment | Required public Supabase URL and publishable key verified in production and preview via MCP; values not logged |
+| Staged URL | `https://figcraft-react-vcb69t30u-glowplug.vercel.app` |
+| Stable URL | `https://figcraft-react.vercel.app` |
+| Staged / stable Playwright | 6/6, no skips or flaky tests; stable run used no Vercel bypass cookie |
+| Runtime check | MCP: zero runtime errors and no error/fatal logs in the deployment's 30-minute window |
+| Rollback target | None: first deployment. Pre-recorded first-release fallback was to pause the project and withdraw a failed release. Stable verification passed, so no rollback was needed. |
+| Cleanup | Temporary hosted Auth fixture deleted and absence verified; CLI-created automation bypass revoked and read-back verified; protection policy unchanged |
+| GitHub metadata | MCP verified `glowplug-studio/figcraft-react`; homepage update pending manual action |
+
+The README demo link is committed on the working branch. It will not appear in the default-branch README until reviewed and merged. No main merge or pull request is authorised.
+
 ## Resume
 
-1. Complete Vercel CLI sign-in and verify the selected account, project, root and build settings. MCP already confirms the repository link and both required environment variables.
-2. Reviewed source is committed; strict typecheck, production build, 68 tests and all six production-build browser flows passed. Confirm the deployment checkout remains clean.
-3. Follow Phase 8: deploy that clean revision, test the exact deployment, promote without rebuilding, verify the stable URL, then update demo links and push the current branch.
-4. No merge to main or pull request is authorised. No previous production deployment exists; record this before the first promotion.
+Verify that the repository Website field is `https://figcraft-react.vercel.app`, then update the remaining metadata evidence row and checkpoint. The deployed application is already verified; no rebuild is needed for this metadata change.
