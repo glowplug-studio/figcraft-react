@@ -1,6 +1,6 @@
 {
   "name": "@glowplug-studio/figcraft-react",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
   "workspaces": [
@@ -32,11 +32,12 @@
     "preview:build": "npm run build && npm run build --workspace @glowplug-studio/figcraft-react-preview",
     "preview:dev": "npm run build && npm run dev --workspace @glowplug-studio/figcraft-react-preview",
     "preview:test": "npm run build && npm run dev --workspace @glowplug-studio/figcraft-react-preview -- --hostname 127.0.0.1 --port 3100",
-    "typecheck": "tsc -b --force --pretty false && npm run typecheck --workspace @glowplug-studio/figcraft-react-preview",
+    "typecheck": "tsc -b --force --pretty false && tsc -p tsconfig.tests.json --pretty false && npm run typecheck --workspace @glowplug-studio/figcraft-react-preview",
     "test": "vitest run",
     "test:e2e": "playwright test",
     "upstream:check": "bash scripts/sync-upstream.sh --check",
-    "upstream:sync": "bash scripts/sync-upstream.sh --push"
+    "upstream:sync": "bash scripts/sync-upstream.sh --push",
+    "test:integration": "FIGCRAFT_LOCAL_INTEGRATION=1 vitest run tests/integration"
   },
   "peerDependencies": {
     "@supabase/supabase-js": ">=2.119.0 <3",

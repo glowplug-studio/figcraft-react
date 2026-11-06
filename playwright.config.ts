@@ -5,14 +5,17 @@ const localBaseUrl = "http://127.0.0.1:3100";
 
 export default defineConfig({
   testDir: "./tests/e2e",
+  snapshotPathTemplate: "{testDir}/{testFilePath}-snapshots/{arg}{ext}",
   outputDir: "test-results/playwright",
   forbidOnly: Boolean(process.env.CI),
   retries: process.env.CI ? 2 : 0,
   workers: process.env.CI ? 1 : undefined,
-  reporter: [["list"], ["html", { open: "never", outputFolder: "playwright-report" }]],
+  reporter: [["json", { outputFile: "test-results/browser-results.json" }], ["list"], ["html", { open: "never", outputFolder: "playwright-report" }]],
   use: {
     baseURL: externalBaseUrl ?? localBaseUrl,
-    trace: "retain-on-failure",
+    // An ignored, origin-scoped protection cookie can authenticate hosted verification.
+    storageState: process.env.PLAYWRIGHT_STORAGE_STATE,
+    trace: externalBaseUrl ? "off" : "retain-on-failure",
     screenshot: "only-on-failure",
     video: "retain-on-failure",
     viewport: { width: 1440, height: 900 },
@@ -20,7 +23,7 @@ export default defineConfig({
   projects: [
     {
       name: "chromium",
-      use: { ...devices["Desktop Chrome"] },
+      use: { ...devices["Desktop Chrome"], viewport: { width: 1440, height: 900 }, deviceScaleFactor: 1 },
     },
   ],
   webServer: externalBaseUrl

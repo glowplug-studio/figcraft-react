@@ -8,6 +8,16 @@ The port targets the browser rather than reproducing the native desktop host she
 
 > **Disclaimer:** `figcraft-js` is an independent, unofficial repository. It is not affiliated with, sponsored by, or endorsed by the ArtCraft team or Figma, Inc.
 
+## Current port scope
+
+The first slice creates rectangles in a fresh, unsaved local document, with selection, undo/redo, constrained pointer drawing and a Canvas 2D renderer. The Next.js example requires a host account. The reusable editor receives provider-neutral identity and capabilities; authentication stays in the host.
+
+This is a bounded port, not a complete design application. Documents are not saved across reloads. Save/load, other shapes, manipulation, object snapping, viewport navigation and collaboration are not yet implemented. See the [roadmap](docs/planning/26-11-06-rectangle-slice.md) and [parity report](docs/reports/26-11-06-rectangle-slice-parity.html).
+
+## Demo
+
+[Open the Figcraft React demo](https://figcraft-react.vercel.app). Sign in with a provisioned host account. The demo supports the rectangle slice above; documents are unsaved and reset on reload.
+
 ## Repository layout
 
 - `src/` — the reusable React package.
@@ -35,6 +45,7 @@ npm run playwright:install
 npm run typecheck
 npm test
 npm run build
+# Configure and start local Supabase first; see docs/setup.md.
 npm run test:e2e
 ```
 

@@ -1,0 +1,163 @@
+{
+  "date": "2026-11-06",
+  "timezone": "Asia/Bangkok",
+  "upstreamCommit": "8eb0b87646c5aef712326d6c431ccde5408630de",
+  "reactSourceCommit": "a84d7a5c3825e616cfadf62ec83ee7c3ded1be79",
+  "branch": "prompt/rectangle-slice",
+  "environment": {
+    "node": "24.20.0",
+    "next": "16.4.5",
+    "playwright": "1.65.0",
+    "browser": "bundled Chromium",
+    "os": "macOS",
+    "viewport": [
+      1440,
+      900
+    ],
+    "deviceScaleFactor": 1,
+    "chromeFont": "Arial/Helvetica/sans-serif"
+  },
+  "tests": {
+    "unitContractParityIntegrationPassed": 68,
+    "parityAndTransactionTests": 35,
+    "browserPassed": 6,
+    "browserFailed": 0,
+    "codeCoveragePercentage": "Not instrumented; counts are executed tests and feature properties, not line coverage"
+  },
+  "browserTests": [
+    {
+      "name": "Canvas 2D renders 10000 rectangles within the frame budget",
+      "status": "expected"
+    },
+    {
+      "name": "protected host, failed login, callback failure and safe redirects",
+      "status": "expected"
+    },
+    {
+      "name": "authenticated rectangle command, pixels, keyboard undo/redo and resize",
+      "status": "expected"
+    },
+    {
+      "name": "pointer reverse drag, square and centre modifiers, click, cancellation and no React frame updates",
+      "status": "expected"
+    },
+    {
+      "name": "session persists across reload, refreshes and logout protects the editor",
+      "status": "expected"
+    },
+    {
+      "name": "unavailable Canvas 2D reports an accessible error",
+      "status": "expected"
+    }
+  ],
+  "measurements": {
+    "large-document-performance": {
+      "rectangles": 10000,
+      "measuredFrames": 110,
+      "p95": 1,
+      "max": 1.300000011920929,
+      "pixel": [
+        217,
+        217,
+        217,
+        255
+      ]
+    },
+    "interaction-performance": {
+      "figcraft:pointer": {
+        "count": 49,
+        "p95": 0.10000002384185791
+      },
+      "figcraft:render": {
+        "count": 57,
+        "p95": 0.10000002384185791
+      }
+    }
+  },
+  "database": {
+    "applicationTables": 0,
+    "declarativeSync": "No schema changes found",
+    "localReset": "Passed",
+    "advisers": []
+  },
+  "hosted": {
+    "scopedMcpRead": "Passed",
+    "activePublishableKeyMatchesLocalConfiguredHostedKey": true,
+    "authSettingsPublicConnectivity": 200,
+    "managementAuthConfigRead": 200,
+    "siteUrlAndCallbacks": "Passed: https://figcraft-react.vercel.app and exact /auth/callback configured and read back; local callbacks preserved",
+    "previousManagementAuthConfigRead": 403,
+    "localCallbackUpdate": 200,
+    "localCallbacksReadBackVerified": true,
+    "hostedCallbackUpdate": 200
+  },
+  "publication": {
+    "status": "Complete: production and GitHub homepage verified",
+    "account": "glowplug-studio",
+    "team": "glowplug",
+    "project": "figcraft-react",
+    "deploymentId": "dpl_Gvr7N6fX3hL1SKu9qrZyjTYTHzNa",
+    "sourceCommit": "f64d9c77745742a2b427d2bf02e0cb4752998743",
+    "stableUrl": "https://figcraft-react.vercel.app",
+    "stagedUrl": "https://figcraft-react-vcb69t30u-glowplug.vercel.app",
+    "stagedTests": {
+      "startTime": "2026-11-06T14:59:17.486Z",
+      "duration": 31140.499,
+      "expected": 6,
+      "skipped": 0,
+      "unexpected": 0,
+      "flaky": 0
+    },
+    "stableTests": {
+      "startTime": "2026-11-06T15:00:31.017Z",
+      "duration": 21139.040999999997,
+      "expected": 6,
+      "skipped": 0,
+      "unexpected": 0,
+      "flaky": 0
+    },
+    "promotion": "Same production deployment; no rebuild",
+    "previousProductionDeployment": null,
+    "rollbackPlan": "First release: no prior deployment exists. Pause the project and withdraw the failed release if stable verification fails. Not required: verification passed.",
+    "runtimeErrors": 0,
+    "runtimeErrorWindow": "30 minutes after deployment",
+    "temporaryAuthFixtureDeleted": true,
+    "temporaryAutomationBypassRevoked": true,
+    "deploymentProtectionUnchanged": true,
+    "stableAccess": "HTTP 200 login without Vercel bypass; full stable browser run without bypass cookie",
+    "githubMcpRepositoryVerified": true,
+    "githubHomepage": "https://figcraft-react.vercel.app",
+    "githubHomepageVerification": {
+      "method": "User update followed by GET /repos/glowplug-studio/figcraft-react",
+      "httpStatus": 200,
+      "verifiedAt": "2026-11-06T22:17+07:00"
+    }
+  },
+  "propertyCoverage": {
+    "Passed": 42,
+    "Failed": 0,
+    "Partial": 0,
+    "Blocked": 0,
+    "Not tested": 0
+  },
+  "vercelDiscovery": {
+    "authenticated": true,
+    "matchingProjectFound": true,
+    "requestedDomain": "stable Vercel-assigned domain",
+    "proposedProjectName": "figcraft-react",
+    "repository": "glowplug-studio/figcraft-react",
+    "rootDirectory": "examples/nextjs",
+    "assignedStableUrl": "https://figcraft-react.vercel.app",
+    "repositoryLinkVerified": true,
+    "buildSettingsReadBackVerified": true
+  },
+  "productionBuildFollowUp": {
+    "sourceCommit": "5314525b2f6ad9ef793091e082d7199a3537c07d",
+    "typecheck": "Passed",
+    "packageAndNextBuild": "Passed",
+    "unitContractParityIntegrationTests": 68,
+    "playwrightTests": 6,
+    "server": "next start on local Figcraft stack",
+    "renderCounter": "Active in production; unchanged across 40 pointer moves; increments after command commit"
+  }
+}

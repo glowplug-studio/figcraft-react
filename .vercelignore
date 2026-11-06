@@ -1,0 +1,19 @@
+# Reference-only upstream sources must never enter the browser deployment.
+original/
+
+# Build on Vercel from reviewed sources, without local artefacts or credentials.
+node_modules/
+dist/
+.next/
+.vercel/
+coverage/
+playwright-report/
+test-results/
+.vite/
+*.tsbuildinfo
+.env
+.env.*
+supabase/.branches/
+supabase/.temp/
+.DS_Store
+*.log

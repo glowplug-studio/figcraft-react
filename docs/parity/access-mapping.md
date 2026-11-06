@@ -18,3 +18,9 @@ Upstream Figcraft does not yet have user accounts. This mapping separates its be
 | Agent-authored comments | `crates/doc/src/comments.rs` `Message::agent` | Existing agent marker, separate from user identity | Agent attribution remains visible without introducing an account role | Planned |
 
 For each implemented provider, append evidence showing how the target concept is enforced. The initial Supabase implementation uses server-validated claims and RLS. UI capability checks alone never satisfy parity.
+
+## Local rectangle slice (0.2.0)
+
+The Next.js host validates its account with `getClaims()` and supplies only the stable principal and existing `document.read`/`document.edit` capabilities for a fresh local document. This is not an online owner/membership/share grant. No provider roles or user-editable metadata confer authority. `SupabaseIdentityAdapter` strips provider data, expires identity and rejects stale validation after sign-out; the core disables commands on sign-out or missing edit capability.
+
+Evidence: `tests/contracts/supabaseIdentity.contract.test.ts`, `tests/unit/hostAuth.test.ts`, `tests/integration/supabase.test.ts` and `tests/e2e/preview.spec.ts`. The shared access harness uses the memory adapter explicitly; it is not evidence of Supabase document RLS. Real Auth tests prove a signed-out caller and an ordinary user with spoofed role metadata cannot administer users. Document RLS and online grants remain planned because this slice persists no document or profile data.
