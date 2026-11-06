@@ -44,7 +44,10 @@ export function executeSelection(command: string, document: Document, selection:
   if (command === "select.none") {
     ids = [];
   } else if (command === "select.all") {
-    ids = pageOf(document).children;
+    ids = pageOf(document).children.filter(id => {
+      const node = document.nodes[id];
+      return node?.kind === "rectangle" && node.visible !== false && node.locked !== true;
+    });
   } else {
     const targets = parsedTargets(params);
     if (command === "select.set") {
@@ -76,7 +79,7 @@ export function hitRectangle(document: Document, point: Point): NodeId | undefin
   for (let index = children.length - 1; index >= 0; index--) {
     const id = children[index]!;
     const node = document.nodes[id];
-    if (node?.kind !== "rectangle" || node.parent !== document.currentPage) continue;
+    if (node?.kind !== "rectangle" || node.parent !== document.currentPage || node.visible === false || node.locked === true) continue;
     if (!node.transform) {
       if (point.x >= node.x && point.x <= node.x + node.width && point.y >= node.y && point.y <= node.y + node.height) return id;
       continue;

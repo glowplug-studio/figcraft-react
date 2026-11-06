@@ -62,6 +62,16 @@ describe("selection command parity", () => {
     expect(cleared.result).toEqual({ ok: true });
     expect(cleared.document).toBe(document);
   });
+  it("skips hidden and locked nodes for pointer/all but permits explicit selection", () => {
+    const base = fixture();
+    const document: Document = { ...base, nodes: { ...base.nodes,
+      "3": { ...base.nodes["3"], visible: false } as RectangleNode,
+      "4": { ...base.nodes["4"], locked: true } as RectangleNode,
+    } };
+    expect(hitRectangle(document, { x: 5, y: 5 })).toBeUndefined();
+    expect(run("select.all", document).selection).toEqual([]);
+    expect(run("select.set", document, [], { ids: ["3", "4"] }).selection).toEqual(["3", "4"]);
+  });
 
   it("rejects unsupported parameters and commands", () => {
     expect(() => run("select.set", fixture(), [], { unexpected: true })).toThrow("Unsupported");

@@ -1,4 +1,5 @@
-import type { Document, DocumentNode, NodeId, PageNode } from "./document";
+import { withPageColour, type Document, type DocumentNode, type NodeId, type PageNode } from "./document";
+import { parseColour } from "./colour-css";
 import { parseNodeId as parseId, parseString as stringValue, parseNumber as numeric } from "./parameters";
 
 /** Source: upstream engine/cmd/page.rs; viewport and history belong to the caller. */
@@ -10,6 +11,7 @@ export const pageSpecs = Object.freeze({
   "page.duplicate": { label: "Duplicate page", undo: true },
   "page.move": { label: "Move page", undo: true },
   "page.list": { label: "List pages", undo: false },
+  "page.setBackground": { label: "Page background", undo: true },
 });
 export interface PageListing {
   readonly id: NodeId;
@@ -28,6 +30,7 @@ const U64_MAX = 18446744073709551615n;
 const allowed: Readonly<Record<string, readonly string[]>> = {
   "page.add": ["name"], "page.select": ["id", "index"], "page.rename": ["id", "name"],
   "page.delete": ["id"], "page.duplicate": ["id"], "page.move": ["id", "index"], "page.list": [],
+  "page.setBackground": ["id", "color"],
 };
 function page(document: Document, id: NodeId): PageNode {
   const node = document.nodes[id];
@@ -92,7 +95,7 @@ export function executePage(command: string, document: Document, selection: read
   if (command === "page.add") {
     const current = page(document, document.currentPage);
     const id = allocate();
-    const node: PageNode = Object.freeze({ id, kind: "page", name: stringValue(params.name) ?? `Page ${document.pages.length + 1}`, parent: null, children: Object.freeze([]), background: current.background });
+    const node: PageNode = Object.freeze({ id, kind: "page", name: stringValue(params.name) ?? `Page ${document.pages.length + 1}`, parent: null, children: Object.freeze([]), background: current.background, ...(current.backgroundColor ? { backgroundColor: current.backgroundColor } : {}) });
     updated = Object.freeze({ ...document, pages: Object.freeze([...document.pages, id]), nodes: Object.freeze({ ...document.nodes, [id]: node }) });
     const divider = isDivider(updated, id);
     if (!divider) { updated = Object.freeze({ ...updated, currentPage: id }); selected = Object.freeze([]); }
@@ -113,7 +116,11 @@ export function executePage(command: string, document: Document, selection: read
     // Upstream optional id() treats an unparseable id like an omitted one.
     const id = parseId(params.id) ?? document.currentPage;
     const source = page(document, id);
-    if (command === "page.rename") {
+    if (command === "page.setBackground") {
+      const value = parseColour(params.color);
+      if (!value) throw new Error("color must be a colour");
+      replacePage(withPageColour(source, value));
+    } else if (command === "page.rename") {
       const name = stringValue(params.name);
       if (name === undefined) throw new Error("name must be a string");
       if (name !== source.name) replacePage({ ...source, name });

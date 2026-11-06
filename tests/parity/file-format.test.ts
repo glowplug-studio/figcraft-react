@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { strFromU8, unzipSync, zipSync } from "fflate";
 import { decodeFigcraft, encodeFigcraft, MAX_FILE_BYTES } from "../../src/engine/file-format";
 import { newDocument, type Document, type RectangleNode } from "../../src/engine/document";
+import { colour } from "../../src/engine/colour";
 
 // Inspection-derived fixture, NOT captured from a running Rust engine.
 // Based on original/figcraft/crates/format/src/lib.rs:DocumentJson,
@@ -92,17 +93,52 @@ describe("bounded native Figcraft file adapter", () => {
     expect(await decodeFigcraft(data)).toEqual(await decodeFigcraft(bytes(fixtureText)));
   });
 
+  it("retains f32 colour channels and alpha without rounding them to CSS bytes", async () => {
+    const source = encodedFixture(value => {
+      value.nodes["1"].background = [0.12345, 0.23456, 0.34567, 0.45678];
+      value.nodes["2"].fills = [{ type: "solid", color: [0.12345, 0.23456, 0.34567, 0.45678] }];
+    });
+    const decoded = await decodeFigcraft(source);
+    const expected = colour(0.12345, 0.23456, 0.34567, 0.45678);
+    expect(decoded.document.nodes["1"]).toMatchObject({ backgroundColor: expected });
+    expect((decoded.document.nodes["2"] as RectangleNode).fills?.[0].color).toEqual(expected);
+    expect(await decodeFigcraft(await encodeFigcraft(decoded.document, decoded.nextId))).toEqual(decoded);
+    const wire = JSON.parse(strFromU8(unzipSync(await encodeFigcraft(decoded.document))["document.json"]));
+    expect(wire.nodes["1"].background).toEqual(expected);
+    expect(wire.nodes["2"].fills[0].color).toEqual(expected);
+  });
+
+  it("retains independent node opacity, paint opacity, colour alpha, order and visibility", async () => {
+    const source = encodedFixture(value => {
+      Object.assign(value.nodes["2"], { visible: false, locked: true, opacity: 0.6, fills: [
+        { type: "solid", color: [0.25, 0.5, 0.75, 0.8], opacity: 0.4, colorAlpha: 0.2, visible: false },
+        { type: "solid", color: "#123456", opacity: 0.9, colorAlpha: 0.7, visible: true },
+      ] });
+    });
+    const decoded = await decodeFigcraft(source);
+    const node = decoded.document.nodes["2"] as RectangleNode;
+    expect(node).toMatchObject({ visible: false, locked: true, opacity: Math.fround(0.6) });
+    expect(node.fills).toHaveLength(2);
+    expect(node.fills?.[0]).toMatchObject({ opacity: Math.fround(0.4), colorAlpha: Math.fround(0.2), visible: false, color: colour(0.25, 0.5, 0.75, 0.8) });
+    expect(node.fills?.[1]).toMatchObject({ opacity: Math.fround(0.9), colorAlpha: Math.fround(0.7), visible: true });
+    expect(Object.isFrozen(node.fills)).toBe(true);
+    const archive = await encodeFigcraft(decoded.document, decoded.nextId);
+    const wire = JSON.parse(strFromU8(unzipSync(archive)["document.json"])).nodes["2"];
+    expect(wire).toMatchObject({ visible: false, locked: true, opacity: Math.fround(0.6) });
+    expect(wire.fills.map((paint: { color: { r: number } }) => paint.color.r)).toEqual([0.25, Math.fround(0x12 / 255)]);
+    expect(wire.fills[0]).toMatchObject({ opacity: Math.fround(0.4), colorAlpha: Math.fround(0.2), visible: false });
+    expect(await decodeFigcraft(archive)).toEqual(decoded);
+  });
+
   it.each([
     ["future version", (value: ReturnType<typeof fixture>) => { value.version = 2; }],
     ["image resources", (value: ReturnType<typeof fixture>) => { value.imageIndex = [{ hash: "image", width: 1, height: 1 }]; }],
     ["comments", (value: ReturnType<typeof fixture>) => { value.comments = [{ text: "preserve me" }]; }],
     ["frame", (value: ReturnType<typeof fixture>) => { value.nodes["2"].type = "frame"; }],
-    ["locked rectangle", (value: ReturnType<typeof fixture>) => { value.nodes["2"].locked = true; }],
-    ["node opacity", (value: ReturnType<typeof fixture>) => { value.nodes["2"].opacity = 0.5; }],
     ["custom metadata", (value: ReturnType<typeof fixture>) => { value.nodes["2"].plugin_data = { key: "preserve me" }; }],
-    ["paint opacity", (value: ReturnType<typeof fixture>) => { value.nodes["2"].fills = [{ type: "solid", color: "#ffffff", opacity: 0.5 }]; }],
-    ["colour precision", (value: ReturnType<typeof fixture>) => { value.nodes["2"].fills = [{ type: "solid", color: [0.12345, 1, 1] }]; }],
-    ["colour alpha", (value: ReturnType<typeof fixture>) => { value.nodes["2"].fills = [{ type: "solid", color: [1, 1, 1, 0.5] }]; }],
+    ["gradient paint", (value: ReturnType<typeof fixture>) => { value.nodes["2"].fills = [{ type: "gradient", stops: [] }]; }],
+    ["paint blend", (value: ReturnType<typeof fixture>) => { value.nodes["2"].fills = [{ type: "solid", color: "#ffffff", blend: "multiply" }]; }],
+    ["node blend", (value: ReturnType<typeof fixture>) => { value.nodes["2"].blend = "multiply"; }],
     ["unknown properties", (value: ReturnType<typeof fixture>) => { value.nodes["2"].future = null; }],
   ])("refuses unsupported %s without dropping it", async (_label, change) => {
     await expect(decodeFigcraft(encodedFixture(change))).rejects.toThrow(/not supported|newer/);

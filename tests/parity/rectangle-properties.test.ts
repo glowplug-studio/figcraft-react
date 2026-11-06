@@ -45,7 +45,7 @@ describe("node.set rectangle geometry parity", () => {
     for (const params of [
       { ids: ["2", "999"], props: { width: 20 } },
       { ids: ["2", doc.currentPage], props: { width: 20 } },
-      { ids: ["2", "3"], props: { name: "Changed" } },
+      { ids: ["2", "3"], props: { effects: [] } },
       { ids: ["2", "3"], props: { width: Number.POSITIVE_INFINITY } },
       { ids: ["2", "3"], props: { width: 1e308, x: 1e308 } },
       { ids: [], props: { x: 1 } },
@@ -56,10 +56,10 @@ describe("node.set rectangle geometry parity", () => {
     }
   });
 
-  it("rejects native base properties until model support exists", () => {
+  it("rejects unsupported effects and strokes without changing geometry", () => {
     const doc = fixture();
-    expect(() => setRectangleProperties(doc, ["2"], { props: { visible: false } })).toThrow("unsupported properties");
-    expect(() => setRectangleProperties(doc, ["2"], { props: { fill: "#fff" } })).toThrow("unsupported properties");
+    expect(() => setRectangleProperties(doc, ["2"], { props: { effects: [] } })).toThrow("unsupported properties");
+    expect(() => setRectangleProperties(doc, ["2"], { props: { strokes: [] } })).toThrow("unsupported properties");
     expect(setRectangleProperties(doc, ["2"], { props: { x: 10 } })).toBe(doc);
   });
 });

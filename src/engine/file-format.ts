@@ -1,12 +1,15 @@
 import { Unzip, UnzipInflate, ZipPassThrough, zipSync } from "fflate";
 import { Uint8ArrayReader, ZipReader } from "@zip.js/zip.js/lib/zip-core-native.js";
 import { isLosslessNumber, LosslessNumber, parse, stringify } from "lossless-json";
-import { rectangleTransform, withRectangleTransform, type Document, type DocumentNode } from "./document";
+import { rectangleTransform, withRectangleTransform, rectanglePaints, withRectanglePaints, pageColour, withPageColour, type Document, type DocumentNode } from "./document";
+import { parseColour } from "./colour-css";
+import type { Colour } from "./colour";
+import { readSolidPaints } from "./solid-paint";
 import { transformBounds, type Affine } from "./affine";
 
 /** A deliberately bounded adapter for native format v1, not full archive parity.
  * Source: original/figcraft/crates/{format/src/lib.rs,doc/src/{lib,node,props}.rs}.
- * Only pages and affine, opaque solid-colour rectangles are editable here.
+ * Only pages and affine rectangles with solid paints are editable here.
  * Unsupported data is rejected, never opened and silently discarded on save.
  * Browser limits are intentionally below native's: 16 MiB and 10,000 nodes.
  * zip.js reads ZIP metadata; fflate bounds inflation and computes CRC32.
@@ -85,37 +88,17 @@ const nodeDefaults = {
   annotations: [], code_links: [], dev_resources: [], measurements: [], board: null,
 };
 
-/** Preserve the model's byte sRGB colours; do not quantise arbitrary native float colours. */
-function colour(value: unknown, path: string): string {
-  if (typeof value === "string") {
-    if (/^#[0-9a-f]{6}$/i.test(value)) return value.toLowerCase();
-    fail(`${path}: only opaque six-digit sRGB colours are supported yet`);
-  }
-  let channels: unknown[];
-  if (Array.isArray(value)) {
-    if (value.length !== 3 && value.length !== 4) fail(`${path} has invalid colour channels`);
-    channels = value;
-  } else {
-    const c = object(value, path);
-    fields(c, ["r", "g", "b", "a"], {}, path);
-    channels = [c.r, c.g, c.b, c.a ?? 1];
-  }
-  if (number(channels[3] ?? 1, path) !== 1) fail(`${path}: colour alpha is not supported yet`);
-  return `#${channels.slice(0, 3).map((entry) => {
-    const channel = number(entry, path), byte = Math.round(channel * 255);
-    // Native channels are f32: allow their representation error, not lossy rounding.
-    if (channel < 0 || channel > 1 || Math.abs(channel * 255 - byte) > 0.00002) fail(`${path}: non-byte sRGB colours are not supported yet`);
-    return byte.toString(16).padStart(2, "0");
-  }).join("")}`;
+/** Convert only appearance numbers; node IDs remain lossless tokens elsewhere. */
+function appearanceValue(value: unknown): unknown {
+  if (isLosslessNumber(value)) return number(value, "appearance number");
+  if (Array.isArray(value)) return value.map(appearanceValue);
+  if (value && typeof value === "object") return Object.fromEntries(Object.entries(value).map(([key, entry]) => [key, appearanceValue(entry)]));
+  return value;
 }
-function fill(value: unknown, path: string): string {
-  const paints = list(value ?? [], path);
-  if (!paints.length) return "transparent";
-  if (paints.length !== 1) fail(`${path}: multiple paints are not supported yet`);
-  const paint = object(paints[0], path);
-  fields(paint, ["color"], { type: "solid", opacity: 1, visible: true, blend: "normal", colorAlpha: 1 }, path);
-  if (paint.type !== "solid") fail(`${path}: only solid paint is supported yet`);
-  return colour(paint.color, `${path}/color`);
+function nativeColour(value: unknown, path: string): Colour {
+  const result = parseColour(appearanceValue(value));
+  if (!result) fail(`${path}: invalid colour`);
+  return result;
 }
 function decodeDocument(raw: unknown): DecodedFigcraft {
   const root = object(raw, "document");
@@ -135,7 +118,7 @@ function decodeDocument(raw: unknown): DecodedFigcraft {
     const n = object(value, `node ${key}`), kind = n.type;
     if (id(n.id, "node ID") !== key) fail(`node ${key} has a mismatched ID`);
     if (kind !== "page" && kind !== "rectangle") fail(`node type ${String(kind)} is not supported yet`);
-    fields(n, ["id", "name", "type", "parent", "children", "transform", "width", "height", "fills", "blend", ...(kind === "page" ? ["background", "flows", "prototype"] : [])], nodeDefaults, `node ${key}`);
+    fields(n, ["id", "name", "type", "parent", "children", "transform", "width", "height", "fills", "blend", ...(kind === "page" ? ["background", "flows", "prototype"] : ["visible", "locked", "opacity"])], nodeDefaults, `node ${key}`);
     const name = text(n.name, "node name"), width = number(n.width, "width"), height = number(n.height, "height");
     if (width < 0 || height < 0) fail("negative dimensions are not supported yet");
     const transform = list(n.transform ?? [1, 0, 0, 1, 0, 0], "transform").map((entry) => number(entry, "transform"));
@@ -151,13 +134,24 @@ function decodeDocument(raw: unknown): DecodedFigcraft {
       if (n.prototype !== undefined) {
         const prototype = object(n.prototype, "prototype");
         fields(prototype, ["background"], { device: "None", rotation: "portrait", color: "", custom_size: [1280, 720], customSize: [1280, 720], responsive: false }, "prototype");
-        if (prototype.background !== undefined && colour(prototype.background, "prototype background") !== "#1e1e1e") fail("prototype background is not supported yet");
+        if (prototype.background !== undefined) {
+          const background = nativeColour(prototype.background, "prototype background"), expected = nativeColour("#1e1e1e", "prototype default");
+          if (Object.keys(expected).some(key => background[key as keyof Colour] !== expected[key as keyof Colour])) fail("prototype background is not supported yet");
+        }
       }
-      nodes[key] = Object.freeze({ id: key, kind, name, parent: null, children: Object.freeze(children), background: colour(n.background ?? "#f5f5f5", "page background") });
+      nodes[key] = withPageColour({ id: key, kind, name, parent: null, children: Object.freeze(children), background: "#f5f5f5" }, nativeColour(n.background ?? "#f5f5f5", "page background"));
     } else {
       if (children.length) fail("rectangle children are not supported yet");
       if (n.blend !== undefined && n.blend !== "normal" && n.blend !== "passThrough") fail("rectangle blend is not supported yet");
-      nodes[key] = withRectangleTransform({ id: key, kind, name, parent: id(n.parent, "rectangle parent"), x: transform[4]!, y: transform[5]!, width, height, fill: fill(n.fills, "rectangle fills") }, matrix);
+      if (n.visible !== undefined && typeof n.visible !== "boolean" || n.locked !== undefined && typeof n.locked !== "boolean") fail("node visibility/lock must be boolean");
+      const opacity = Math.fround(number(n.opacity ?? 1, "node opacity"));
+      if (!Number.isFinite(opacity)) fail("node opacity is outside the native finite range");
+      const paints = (() => {
+        try { return readSolidPaints(appearanceValue(n.fills ?? [])); }
+        catch (error) { return fail(error instanceof Error ? error.message : "Invalid paints"); }
+      })();
+      nodes[key] = withRectanglePaints(withRectangleTransform({ id: key, kind, name, parent: id(n.parent, "rectangle parent"), x: transform[4]!, y: transform[5]!, width, height, fill: "transparent",
+        ...(n.visible === false ? { visible: false } : {}), ...(n.locked === true ? { locked: true } : {}), ...(opacity !== 1 ? { opacity } : {}) }, matrix), paints);
     }
   }
   const referenced = new Set<string>();
@@ -247,9 +241,9 @@ export async function encodeFigcraft(document: Document, nextId?: string): Promi
     if (node.id !== key) fail("node map key and ID differ");
     const common = { id: numericId, name: node.name, type: node.kind };
     if (node.kind === "page") {
-      nodes[key] = { ...common, width: 0, height: 0, children: node.children.map(wireId), background: colour(node.background, "page background") };
+      nodes[key] = { ...common, width: 0, height: 0, children: node.children.map(wireId), background: pageColour(node) };
     } else {
-      nodes[key] = { ...common, parent: wireId(node.parent), transform: rectangleTransform(node), width: node.width, height: node.height, blend: "normal", fills: node.fill === "transparent" ? [] : [{ type: "solid", color: colour(node.fill, "rectangle fill"), opacity: 1, visible: true, blend: "normal" }] };
+      nodes[key] = { ...common, parent: wireId(node.parent), transform: rectangleTransform(node), width: node.width, height: node.height, blend: "normal", visible: node.visible ?? true, locked: node.locked ?? false, opacity: node.opacity ?? 1, fills: rectanglePaints(node) };
     }
   }
   const minimum = maximum < U64_MAX ? maximum + 1n : U64_MAX;

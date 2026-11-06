@@ -1,23 +1,70 @@
-import { pageOf, type Document } from "./document";
+import { pageOf, pageColour, rectanglePaints, rectangleTransform, type Document, type RectangleNode } from "./document";
+import { renderColour } from "./colour";
 import { EditorEngine } from "./editor";
 import { drawnRectangle, type Point, type Rectangle } from "./geometry";
-import { transformBounds } from "./affine";
+import { multiply, transformBounds } from "./affine";
 import { hitRectangle } from "./selection";
+
+const compositeSurfaces = new WeakMap<CanvasRenderingContext2D, HTMLCanvasElement>();
+const opacity = (value: number) => Math.max(0, Math.min(1, value));
+
+function paintRectangle(context: CanvasRenderingContext2D, node: RectangleNode, alpha = 1): void {
+  context.save();
+  if (node.transform) context.transform(...node.transform);
+  else context.translate(node.x, node.y);
+  for (const paint of rectanglePaints(node)) {
+    if (!paint.visible || paint.opacity <= 0) continue;
+    context.globalAlpha = opacity(paint.opacity) * alpha;
+    context.fillStyle = renderColour(paint.color);
+    context.fillRect(0, 0, node.width, node.height);
+  }
+  context.restore();
+}
+
+/** Node opacity affects the finished stack, including antialiased edges, once. */
+function paintComposite(context: CanvasRenderingContext2D, node: RectangleNode): void {
+  const matrix = context.getTransform();
+  const bounds = transformBounds(multiply([matrix.a, matrix.b, matrix.c, matrix.d, matrix.e, matrix.f], rectangleTransform(node)), node.width, node.height);
+  const left = Math.max(0, Math.floor(bounds.x)), top = Math.max(0, Math.floor(bounds.y));
+  const width = Math.min(context.canvas.width, Math.ceil(bounds.x + bounds.width)) - left;
+  const height = Math.min(context.canvas.height, Math.ceil(bounds.y + bounds.height)) - top;
+  if (width <= 0 || height <= 0) return;
+  let surface = compositeSurfaces.get(context);
+  if (!surface) {
+    surface = context.canvas.ownerDocument.createElement("canvas");
+    compositeSurfaces.set(context, surface);
+  }
+  if (surface.width < width) surface.width = width;
+  if (surface.height < height) surface.height = height;
+  const scratch = surface.getContext("2d");
+  if (!scratch) throw new Error("Canvas compositing is unavailable");
+  scratch.resetTransform(); scratch.clearRect(0, 0, width, height);
+  scratch.setTransform(matrix.a, matrix.b, matrix.c, matrix.d, matrix.e - left, matrix.f - top);
+  paintRectangle(scratch, node);
+  context.save(); context.resetTransform(); context.globalAlpha = opacity(node.opacity ?? 1);
+  context.drawImage(surface, 0, 0, width, height, left, top, width, height); context.restore();
+}
 
 /** Only this module paints editable geometry; React never renders canvas layers. */
 export function renderDocument(context: CanvasRenderingContext2D, document: Document, width: number, height: number, selection: readonly string[] = [], preview?: Rectangle): void {
   const page = pageOf(document);
-  context.fillStyle = page.background;
+  context.clearRect(0, 0, width, height);
+  context.fillStyle = page.backgroundColor ? renderColour(pageColour(page)) : page.background;
   context.fillRect(0, 0, width, height);
   for (const id of page.children) {
     const node = document.nodes[id];
-    if (!node || node.kind !== "rectangle") continue;
+    if (!node || node.kind !== "rectangle" || node.visible === false || (node.opacity ?? 1) <= 0) continue;
     const bounds = node.transform ? transformBounds(node.transform, node.width, node.height) : node;
     if (bounds.x > width || bounds.y > height || bounds.x + bounds.width < 0 || bounds.y + bounds.height < 0) continue;
-    context.fillStyle = node.fill;
-    if (node.transform) {
-      context.save(); context.transform(...node.transform); context.fillRect(0, 0, node.width, node.height); context.restore();
-    } else context.fillRect(node.x, node.y, node.width, node.height);
+    if (node.fills || node.opacity !== undefined && node.opacity !== 1) {
+      if (rectanglePaints(node).length > 1 && opacity(node.opacity ?? 1) < 1) paintComposite(context, node);
+      else paintRectangle(context, node, opacity(node.opacity ?? 1));
+    } else {
+      context.fillStyle = node.fill;
+      if (node.transform) {
+        context.save(); context.transform(...node.transform); context.fillRect(0, 0, node.width, node.height); context.restore();
+      } else context.fillRect(node.x, node.y, node.width, node.height);
+    }
   }
   context.strokeStyle = "#0d99ff";
   context.lineWidth = 1;

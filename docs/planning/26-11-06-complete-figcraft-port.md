@@ -5,16 +5,16 @@
 | Field | Current value |
 |---|---|
 | Overall status | In progress; full parity is not implemented |
-| Active slice | Affine rectangle geometry and property editing |
-| Active phase | Phase 7: verified affine checkpoint |
+| Active slice | Native colour, solid paints and basic appearance properties |
+| Active phase | Phase 5–7: final colour/appearance verification and reporting |
 | Upstream baseline | `0b97f3f1801a9b7b96fd7a4f3c0942a3f1a676f3`; prior parity baseline `8eb0b87646c5aef712326d6c431ccde5408630de` |
-| Branch and last verified commit | `prompt/full-figcraft-port`; verified pages `6c988a5`, persistence `41d467b`; integration `fc3b4a6` from updated dev plus rectangle branch |
+| Branch and last verified commit | `prompt/full-figcraft-port`; verified affine `080fc27`, outline check `2404d6b`, reports `ff29f38`; pages `6c988a5`, persistence `41d467b`; integration `fc3b4a6` from updated dev plus rectangle branch |
 | Completed slices | Rectangle/host-auth, bounded native persistence/recovery, supported-model pages and affine rectangle geometry/selection verified locally |
 | Remaining slices | Every row below except the integrated foundation; static inventory entries remain unverified until mapped and tested |
-| Tests last passed | Affine: strict typecheck, 217 pure tests, 2 real local Auth integration tests, package/Next production build, 12/12 authenticated production-browser/performance checks |
-| Files currently in progress | Affine utilities, transform-aware model/codec/canvas, property commands, selection, tests and affine reports |
+| Tests last passed | Colour: strict typecheck, 242 pure tests, 2 real local Auth integration tests, package/Next production build, 16/16 authenticated production-browser/performance checks; CSS follow-up 1/1 |
+| Files currently in progress | Colour primitives/conversions/CSS parsing, solid paint model and codec, appearance commands/UI and tests |
 | Blockers | None |
-| Exact next action | Implement and verify transform-aware rectangle property editing, then expand shared model/colour and hierarchy foundations |
+| Exact next action | Implement native colour/solid-paint fidelity and basic appearance editing through native files, rendering and recovery; verify before expanding containers |
 | Last updated | 2026-11-06 |
 
 ## Scope and continuation
@@ -114,3 +114,19 @@ Allocation: bounded affine agent owns `src/engine/affine.ts` and `tests/parity/a
 Affine workflow dependency: imported/recovered rectangles must be selectable before inspector edits. Include the existing upstream `select.set`, `select.add`, `select.remove`, `select.all`, `select.none` contracts for the current flat model, a layer-list action and frontmost rectangle pointer hit testing through inverse affine coordinates. Selection is ephemeral and non-undoable; `select.set` validates existence, switches to the first target page and cleans other-page/duplicate/page selections (`cmd/edit.rs:152–185,507–525`, `doc_state.rs:331–356`). This does not claim marquee, nested hit testing, locked/hidden handling or move/resize gestures, which remain required. Bounded selection agent owns `src/engine/selection.ts` and its parity tests; coordinator integrates engine/canvas/layer controls.
 
 Affine verification: 217 pure tests and two local Auth integration tests passed; strict TypeScript and package/Next production builds passed. Final local production browser suite passed 12/12 (15.1 seconds), including rotation pixels/centre/undo/reload/pointer selection. At 10,000 rectangles over 110 measured frames, plain rendering p95/max were 1.0/1.0 ms; affine rendering p95/max were 5.7/12.5 ms after removing temporary bounds allocations. The pre-optimisation affine run was p95 15.7 ms/max 25.4 ms; that slower implementation is not the accepted checkpoint. No React frame-frequency reconciliation was introduced. Full archive/model/gesture/UI families remain unfinished.
+
+## Active colour and basic appearance plan
+
+Source: `color/src/lib.rs` Color/ColorRepr, Paint/Paint::solid/solid_color; `color/src/hsx.rs`, `lch.rs`, `profile.rs` conversion helpers, and `named.rs`; `engine/src/cmd/props.rs:566–600`; `doc/src/geometry.rs` visibility/lock filtering. Native colours are non-premultiplied clamped f32 sRGB RGBA, not byte-only strings. CSS/hex, object and array inputs must preserve alpha and native numeric precision. Solid paint stores colour, independent opacity/visibility/blend, and `colorAlpha`; a typed solid alpha moves into paint opacity while the stored colour becomes opaque. Preserve that distinction on native round trips. Multiple solid fills paint in order. Gradients/images/patterns/blending/effects remain subsequent required families, with explicit refusal until retained/rendered faithfully.
+
+Acceptance: typed/native colour parsing (hex variations, normalised CSS names, RGB/HSL/LCH/OKLCH), float/alpha native round trips, solid fill/none and paint-stack editing, node name/visible/locked/opacity, page background colour, undo/recovery. Hidden nodes do not paint; hidden/locked nodes are excluded from pointer hits and select-all while explicit layer targeting follows upstream. Rendering must not accumulate transparent backgrounds across frames; node opacity composes a node's paint stack as one layer. Controls expose only implemented upstream properties. Tests translate colour crate fixtures and property behaviour, add fractional-channel/alpha and paint-origin fixtures, test invalid atomic mutations, browser pixels/selection/undo/reload, and retain both 10,000-node performance fixtures.
+
+Architecture: provider-neutral typed colour/solid-paint objects; optional canonical paint/background fields preserve the existing public string aliases until the common-node schema absorbs them. Conversion/parser modules are browser-independent and never depend on Rust. Runtime f32 channels are explicitly rounded; intermediate precision differences require quantified paired tolerances, not byte quantisation. This slice does not create backend tables or product roles. Identity gating and local recovery remain the verified host boundary; cloud document persistence is still required later.
+
+Allocation: coordinator owns colour base primitives, document/codec/renderer/property/selection/UI integration. A conversion agent owns `src/engine/colour-spaces.ts` and focused tests; a CSS agent owns `src/engine/colour-css.ts`, `src/engine/colour-names.ts` and parser tests. No overlapping edits or agent commits. Rollback: `080fc27` with outline test `2404d6b` and report `ff29f38`.
+
+Colour integration review: paint rows now follow native top-first panel order while storage remains bottom-first. RGB-only edits preserve loaded colour alpha/paint opacity provenance; explicit opacity changes clear typed-alpha provenance as `cmd/edit/props.rs` specifies. Canvas layer opacity uses a cropped reusable scratch surface, preserving stack compositing without allocating a viewport surface per rectangle. Existing unit and local Auth checks passed; final production-browser verification follows these review corrections.
+
+Graphify access was renewed successfully. A real query now returns Rust `0b97f3f1`, including `paint_opacity_and_layer_opacity_differ` and group behaviour fixtures. The React graph remains stale at `b3b8a1b` with README-only nodes; current local files remain authoritative. No user action remains for authentication.
+
+Colour verification: 242 pure and two real local Auth integration tests, strict TypeScript and package/Next production builds passed. Final full production-browser suite passed 16/16 in 17.8 seconds, including typed-paint metadata save after RGB/opacity edits. The CSS-only hidden-input/checkbox correction passed a rebuilt focused browser check (1/1, 3.7 seconds); its screenshot was inspected. Plain/affine 10,000-node p95/max were 1.0/1.3 ms and 4.9/8.1 ms over 110 measured frames. No deployment or push. Next: nested group hierarchy with world-preserving group/ungroup/reparent and native/history/rendering integration.

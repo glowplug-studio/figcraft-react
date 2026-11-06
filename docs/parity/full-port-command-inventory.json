@@ -1398,8 +1398,12 @@
       "source": "crates/engine/src/cmd/edit.rs",
       "line": 307,
       "status": "Partial",
-      "scope": "Verified supported page/rectangle subset; full command and dependent-model parity remain incomplete.",
-      "evidence": "docs/planning/26-11-06-complete-figcraft-port.md"
+      "scope": "Rectangle geometry, name, visibility, locking, opacity and solid fills; remaining native properties and node kinds required",
+      "evidence": [
+        "tests/parity/rectangle-properties.test.ts",
+        "tests/parity/appearance-properties.test.ts",
+        "tests/e2e/preview.spec.ts"
+      ]
     },
     {
       "command": "node.get",
@@ -2168,7 +2172,13 @@
       "label": "Page background",
       "source": "crates/engine/src/cmd/page.rs",
       "line": 142,
-      "status": "Not tested"
+      "status": "Passed",
+      "scope": "Supported page colour including f32 channels and alpha",
+      "evidence": [
+        "tests/parity/pages.test.ts",
+        "tests/parity/page-history.test.ts",
+        "tests/e2e/preview.spec.ts"
+      ]
     },
     {
       "command": "page.list",

@@ -1,10 +1,23 @@
 import { setRotationAboutCenter, transformBounds, withTranslation } from "./affine";
-import { rectangleTransform, withRectangleTransform, type Document, type NodeId, type RectangleNode } from "./document";
+import { rectanglePaints, rectangleTransform, withRectanglePaints, withRectangleTransform, type Document, type NodeId, type RectangleNode } from "./document";
 import { parseNodeId, parseNumber } from "./parameters";
+import { parseColour } from "./colour-css";
+import { readSolidPaints, solidPaint, type SolidPaint } from "./solid-paint";
 
 const geometryKeys = new Set(["x", "y", "width", "height", "w", "h", "rotation"]);
+const appearanceKeys = new Set(["name", "visible", "locked", "opacity", "fill", "fills"]);
 
-/** The rectangle geometry subset of upstream `node.set`. No history is recorded here. */
+function samePaints(left: readonly SolidPaint[], right: readonly SolidPaint[]): boolean {
+  return left.length === right.length && left.every((paint, index) => {
+    const other = right[index];
+    return paint.type === other.type && paint.opacity === other.opacity && paint.visible === other.visible
+      && paint.blend === other.blend && paint.colorAlpha === other.colorAlpha
+      && paint.color.r === other.color.r && paint.color.g === other.color.g
+      && paint.color.b === other.color.b && paint.color.a === other.color.a;
+  });
+}
+
+/** The rectangle geometry and appearance subset of upstream `node.set`. No history is recorded here. */
 export function setRectangleProperties(document: Document, selection: readonly NodeId[], params: Record<string, unknown>): Document {
   if (params.ids != null && !Array.isArray(params.ids)) throw new Error("node.set ids must be an array");
   const rawTargets = params.ids ?? params.id;
@@ -24,11 +37,36 @@ export function setRectangleProperties(document: Document, selection: readonly N
     : rawProps as Record<string, unknown>;
   const keys = Object.keys(props);
   if (keys.length === 0) throw new Error("node.set requires properties");
-  const unsupported = keys.filter(key => !geometryKeys.has(key));
+  const unsupported = keys.filter(key => !geometryKeys.has(key) && !appearanceKeys.has(key));
   if (unsupported.length) throw new Error(`node.set unsupported properties: ${unsupported.join(", ")}`);
 
   // Parse before changing any node, so one invalid value refuses the entire selection.
-  const values = Object.fromEntries(keys.map(key => [key, parseNumber(props[key], key)])) as Record<string, number>;
+  const values = Object.fromEntries(keys.filter(key => geometryKeys.has(key)).map(key => [key, parseNumber(props[key], key)])) as Record<string, number>;
+  const name = "name" in props
+    ? typeof props.name === "string" || typeof props.name === "number" && Number.isFinite(props.name)
+      ? String(props.name) : (() => { throw new Error("name must be a string"); })()
+    : undefined;
+  for (const key of ["visible", "locked"] as const) {
+    if (key in props && typeof props[key] !== "boolean") throw new Error(`${key} must be a boolean`);
+  }
+  const opacity = "opacity" in props ? (() => {
+    const fraction = parseNumber(props.opacity, "opacity");
+    const percent = typeof props.opacity === "string" && props.opacity.trim().endsWith("%");
+    const result = Math.fround(Math.max(0, Math.min(1, percent || fraction > 1 ? fraction / 100 : fraction)));
+    if (!Number.isFinite(result)) throw new Error("opacity exceeds the finite native range");
+    return result;
+  })() : undefined;
+  let paints: readonly SolidPaint[] | undefined;
+  // Rust sorts equal-priority keys by name: `fills` replaces `fill` when both are present.
+  if ("fill" in props) {
+    if (props.fill === null || typeof props.fill === "string" && props.fill.toLowerCase() === "none") paints = Object.freeze([]);
+    else {
+      const colour = parseColour(props.fill);
+      if (!colour) throw new Error("fill must be a colour, none or null");
+      paints = Object.freeze([solidPaint(colour)]);
+    }
+  }
+  if ("fills" in props) paints = readSolidPaints(props.fills, true);
   const nextNodes: Record<NodeId, RectangleNode> = {};
   let changed = false;
   for (const id of ids) {
@@ -50,9 +88,17 @@ export function setRectangleProperties(document: Document, selection: readonly N
       });
     }
     transformBounds(transform, width, height);
-    const updated = Object.freeze({ ...withRectangleTransform(node, transform), width, height });
+    let updated: RectangleNode = Object.freeze({ ...withRectangleTransform(node, transform), width, height });
+    if (name !== undefined && name !== node.name) updated = Object.freeze({ ...updated, name });
+    if ("visible" in props && props.visible !== (node.visible ?? true)) updated = Object.freeze({ ...updated, visible: props.visible as boolean });
+    if ("locked" in props && props.locked !== (node.locked ?? false)) updated = Object.freeze({ ...updated, locked: props.locked as boolean });
+    if (opacity !== undefined && opacity !== (node.opacity ?? 1)) updated = Object.freeze({ ...updated, opacity });
+    if (paints && !samePaints(rectanglePaints(node), paints)) updated = withRectanglePaints(updated, paints);
     nextNodes[id] = updated;
-    if (width !== node.width || height !== node.height || transform.some((value, index) => value !== rectangleTransform(node)[index])) changed = true;
+    if (width !== node.width || height !== node.height || transform.some((value, index) => value !== rectangleTransform(node)[index])
+      || name !== undefined && name !== node.name || "visible" in props && props.visible !== (node.visible ?? true)
+      || "locked" in props && props.locked !== (node.locked ?? false) || opacity !== undefined && opacity !== (node.opacity ?? 1)
+      || paints && !samePaints(rectanglePaints(node), paints)) changed = true;
   }
   return changed ? Object.freeze({ ...document, nodes: Object.freeze({ ...document.nodes, ...nextNodes }) }) : document;
 }

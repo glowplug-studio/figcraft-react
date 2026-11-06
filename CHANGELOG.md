@@ -2,6 +2,15 @@
 
 All notable changes to the React port and its upstream compatibility baseline are recorded here.
 
+## [0.6.0] - 2026-11-06
+
+The reference baseline remains `8eb0b87646c5aef712326d6c431ccde5408630de`; full parity remains in progress.
+
+- Added native f32 colour, CSS/hex/named and perceptual colour parsing, solid paint stacks and independent alpha metadata in native files and recovery.
+- Added page backgrounds and rectangle name, visibility, locking, opacity and fill controls through existing commands and undo/redo.
+- Added paint-stack compositing, transparent background clearing and visibility/lock-aware pointer selection, with retained plain/affine rendering performance checks.
+- Gradients, other paint kinds, advanced blending/effects, complete colour-picker UI and the remaining product workflows are still required.
+
 ## [0.5.0] - 2026-11-06
 
 The reference baseline remains `8eb0b87646c5aef712326d6c431ccde5408630de`; full parity remains in progress.

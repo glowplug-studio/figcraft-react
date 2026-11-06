@@ -42,6 +42,8 @@ fieldset { border: 0; padding: 0; margin: 20px 0; }
 legend { font-weight: 600; margin-bottom: 12px; }
 label { display: block; margin: 10px 0; }
 input { display: block; width: 100%; margin-top: 5px; border: 1px solid #ccc; border-radius: 4px; padding: 7px; }
+input[hidden] { display: none; }
+input[type="checkbox"] { display: inline-block; width: auto; margin: 0 0 0 8px; vertical-align: middle; }
 dl { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 dd { margin: 0; }
 [role=alert] { color: #a21818; padding: 8px 16px; }

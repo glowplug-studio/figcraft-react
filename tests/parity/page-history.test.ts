@@ -2,6 +2,19 @@ import { describe, expect, it } from "vitest";
 import { EditorEngine } from "../../src/engine/editor";
 
 describe("page commands in editor transactions", () => {
+  it("undoes page background colour and preserves its precision in native snapshots", async () => {
+    const engine = new EditorEngine();
+    const before = engine.getSnapshot().document;
+    engine.execute("page.setBackground", { color: [0.12345, .25, .5, .75] });
+    const after = engine.getSnapshot().document;
+    engine.execute("edit.undo");
+    expect(engine.getSnapshot().document).toEqual(before);
+    engine.execute("edit.redo");
+    const reopened = new EditorEngine();
+    const saved = await engine.executeAsync("file.saveAs", { data: true });
+    await reopened.executeAsync("file.open", { data: saved.data });
+    expect(reopened.getSnapshot().document).toEqual(after);
+  });
   it("page navigation is not a dirty content change or undo entry", () => {
     const engine = new EditorEngine();
     engine.execute("page.add", { name: "Second" });

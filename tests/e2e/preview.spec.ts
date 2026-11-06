@@ -2,6 +2,8 @@ import { randomUUID } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { expect, test, type Page } from "@playwright/test";
 import { localSupabase } from "../support/localSupabase";
+import { decodeFigcraft } from "../../src/engine/file-format";
+import { rectanglePaints, type RectangleNode } from "../../src/engine/document";
 
 test.describe.configure({ mode: "serial" });
 let email: string;
@@ -34,6 +36,14 @@ async function login(page: Page) {
 }
 async function geometry(page: Page, expected: number[]) {
   await expect(page.getByRole("region", { name: "Selected rectangle" }).locator("dd")).toHaveText(expected.map(String));
+}
+async function expectCanvasPixel(page: Page, x: number, y: number, rgba: readonly number[]) {
+  const canvas = page.getByLabel("Design canvas", { exact: true });
+  await expect.poll(async () => canvas.evaluate((node: HTMLCanvasElement, point) => {
+    const scale = window.devicePixelRatio || 1;
+    const actual = node.getContext("2d")!.getImageData(Math.round(point.x * scale), Math.round(point.y * scale), 1, 1).data;
+    return point.rgba.every((channel, index) => Math.abs(actual[index] - channel) <= 2);
+  }, { x, y, rgba })).toBe(true);
 }
 
 test("protected host, failed login, callback failure and safe redirects", async ({ page }) => {
@@ -265,6 +275,130 @@ test("last-page deletion and divider rename fail without losing the page", async
   await expect(page.locator("main [role=alert]")).toContainText("a file needs a page");
   await expect(pages.getByRole("button", { name: "Page 1", exact: true })).toHaveAttribute("aria-current", "page");
   await expect(page.getByRole("button", { name: "Undo", exact: true })).toBeDisabled();
+});
+
+test("CSS fill alpha, invalid input, undo and recovery retain the visible colour", async ({ page }) => {
+  await login(page);
+  const appearance = page.getByRole("region", { name: "Appearance" });
+  await appearance.getByLabel("Background CSS colour").fill("white");
+  await appearance.getByRole("button", { name: "Apply background" }).click();
+  await page.getByRole("button", { name: "Create rectangle", exact: true }).click();
+  await appearance.getByLabel("Fill 1 CSS colour").fill("rgba(255, 0, 0, 0.5)");
+  await appearance.getByRole("button", { name: "Apply fill 1" }).click();
+  await expectCanvasPixel(page, 80, 80, [255, 127, 127, 255]);
+  await appearance.getByLabel("Fill 1 CSS colour").fill("not-a-colour");
+  await appearance.getByRole("button", { name: "Apply fill 1" }).click();
+  await expect(appearance.getByRole("alert")).toHaveText("Enter a valid CSS colour.");
+  await expectCanvasPixel(page, 80, 80, [255, 127, 127, 255]);
+  await page.getByRole("button", { name: "Undo", exact: true }).click();
+  await expectCanvasPixel(page, 80, 80, [217, 217, 217, 255]);
+  await page.getByRole("button", { name: "Redo", exact: true }).click();
+  await expectCanvasPixel(page, 80, 80, [255, 127, 127, 255]);
+  await expect(page.getByText("Recovery saved on this device", { exact: true })).toBeVisible();
+  await page.reload();
+  await expectCanvasPixel(page, 80, 80, [255, 127, 127, 255]);
+});
+
+test("native paint colour and opacity edits retain independent metadata", async ({ page }) => {
+  await login(page);
+  const native = JSON.parse(await readFile(new URL("../fixtures/native-rectangle.json", import.meta.url), "utf8"));
+  native.nodes["2"].fills = [{
+    type: "solid", color: { r: 0.12345, g: 0.25, b: 0.5, a: 0.5 },
+    opacity: 0.5, colorAlpha: 0.4, visible: true, blend: "normal",
+  }];
+  await page.getByLabel("Open Figcraft file", { exact: true }).setInputFiles({
+    name: "native-appearance.json", mimeType: "application/json", buffer: Buffer.from(JSON.stringify(native)),
+  });
+  await expect(page.getByRole("heading", { name: "Native rectangle", exact: true })).toBeVisible();
+  await page.locator('aside.figcraft-layers [aria-label="Page layers"] button').first().click();
+  const appearance = page.getByRole("region", { name: "Appearance" });
+  const colour = appearance.getByLabel("Fill 1 CSS colour");
+  const paintOpacity = appearance.getByLabel("Fill 1 opacity");
+  async function savedPaint() {
+    const pending = page.waitForEvent("download");
+    await page.getByRole("button", { name: "Save as", exact: true }).click();
+    const download = await pending;
+    expect(await download.failure()).toBeNull();
+    const decoded = await decodeFigcraft(new Uint8Array(await readFile((await download.path())!)));
+    return rectanglePaints(decoded.document.nodes["2"] as RectangleNode)[0];
+  }
+
+  await expect(colour).toHaveValue(/,0\.25\)$/);
+  await colour.fill("rgba(51,63.75,127.5,0.25)");
+  await appearance.getByRole("button", { name: "Apply fill 1" }).click();
+  const rgbEdit = await savedPaint();
+  expect(rgbEdit.color.r).toBe(Math.fround(0.2));
+  expect(rgbEdit.color.a).toBe(0.5);
+  expect(rgbEdit.opacity).toBe(0.5);
+  expect(rgbEdit.colorAlpha).toBe(Math.fround(0.4));
+
+  await paintOpacity.fill("0.7");
+  await appearance.getByRole("button", { name: "Apply fill 1" }).click();
+  const opacityEdit = await savedPaint();
+  expect(opacityEdit.color.a).toBe(0.5);
+  expect(opacityEdit.opacity).toBe(Math.fround(0.7));
+  expect(opacityEdit.colorAlpha).toBe(1);
+
+  await colour.fill("rgba(51,63.75,127.5,0.4)");
+  await paintOpacity.fill("0.6");
+  await appearance.getByRole("button", { name: "Apply fill 1" }).click();
+  const combinedEdit = await savedPaint();
+  expect(combinedEdit.color.a).toBe(1);
+  expect(combinedEdit.opacity).toBe(Math.fround(0.6));
+  expect(combinedEdit.colorAlpha).toBe(1);
+});
+
+test("fill stack order, visibility and node opacity composite once", async ({ page }) => {
+  await login(page);
+  const appearance = page.getByRole("region", { name: "Appearance" });
+  await appearance.getByLabel("Background CSS colour").fill("white");
+  await appearance.getByRole("button", { name: "Apply background" }).click();
+  await page.getByRole("button", { name: "Create rectangle", exact: true }).click();
+  await appearance.getByLabel("Fill 1 CSS colour").fill("red");
+  await appearance.getByRole("button", { name: "Apply fill 1" }).click();
+  await appearance.getByRole("button", { name: "Add fill" }).click();
+  await appearance.getByLabel("Fill 1 CSS colour").fill("blue");
+  await appearance.getByLabel("Fill 1 opacity").fill("0.5");
+  await appearance.getByRole("button", { name: "Apply fill 1" }).click();
+  await appearance.getByLabel("Node opacity").fill("0.5");
+  await appearance.getByRole("button", { name: "Apply layer" }).click();
+  await expectCanvasPixel(page, 80, 80, [191, 127, 191, 255]);
+  await page.screenshot({ path: "test-results/solid-paint-stack.png", fullPage: true });
+  await appearance.getByRole("button", { name: "Move fill 1 down" }).click();
+  await expectCanvasPixel(page, 80, 80, [255, 127, 127, 255]);
+  await appearance.getByLabel("Fill 1 visible").uncheck();
+  await expectCanvasPixel(page, 80, 80, [191, 191, 255, 255]);
+  await appearance.getByRole("button", { name: "Remove fill 1" }).click();
+  await expect(appearance.getByLabel("Fill 2 CSS colour")).toHaveCount(0);
+  await expectCanvasPixel(page, 80, 80, [191, 191, 255, 255]);
+});
+
+test("transparent page redraw and hidden or locked layers bypass pointer and select all", async ({ page }) => {
+  await login(page);
+  const appearance = page.getByRole("region", { name: "Appearance" });
+  await appearance.getByLabel("Background CSS colour").fill("rgba(0, 0, 0, 0)");
+  await appearance.getByRole("button", { name: "Apply background" }).click();
+  await expectCanvasPixel(page, 5, 5, [0, 0, 0, 0]);
+  await page.getByRole("button", { name: "Create rectangle", exact: true }).click();
+  await page.getByRole("button", { name: "Create rectangle", exact: true }).click();
+  const layers = page.locator('[aria-label="Page layers"] li');
+  await expect(layers).toHaveCount(2);
+  await appearance.getByLabel("Locked", { exact: true }).check();
+  const canvas = page.getByLabel("Design canvas", { exact: true });
+  const bounds = (await canvas.boundingBox())!;
+  await page.mouse.click(bounds.x + 80, bounds.y + 80);
+  await expect(layers.nth(0)).toHaveAttribute("aria-current", "true");
+  await appearance.getByLabel("Visible", { exact: true }).uncheck();
+  await page.mouse.click(bounds.x + 80, bounds.y + 80);
+  await expect(page.getByRole("region", { name: "Selected rectangle" })).toHaveCount(0);
+  await canvas.focus(); await page.keyboard.press("ControlOrMeta+a");
+  await expect(page.getByRole("region", { name: "Selected rectangle" })).toHaveCount(0);
+  await expectCanvasPixel(page, 5, 5, [0, 0, 0, 0]);
+  await appearance.getByLabel("Background CSS colour").fill("white");
+  await appearance.getByRole("button", { name: "Apply background" }).click();
+  await appearance.getByLabel("Background CSS colour").fill("rgba(0, 0, 0, 0)");
+  await appearance.getByRole("button", { name: "Apply background" }).click();
+  await expectCanvasPixel(page, 5, 5, [0, 0, 0, 0]);
 });
 
 test("rotation edits preserve centre, pixels, undo and native recovery with pointer selection", async ({ page }) => {

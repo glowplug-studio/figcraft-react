@@ -9,6 +9,7 @@ import type { RecoveryStore } from "./backends/recovery";
 import { RecoveryController, base64Bytes } from "./engine/recovery";
 import { MAX_FILE_BYTES } from "./engine/file-format";
 import { PagePanel } from "./PagePanel";
+import { AppearancePanel } from "./AppearancePanel";
 
 export interface EditorProps {
   identity: IdentityAdapter;
@@ -181,6 +182,7 @@ export function Editor({ identity, capabilities, engine: suppliedEngine, recover
               <button type="submit">Apply geometry</button>
             </fieldset>
           </form></section>}
+          <AppearancePanel page={page} selected={selected?.kind === "rectangle" ? selected : undefined} editable={editable && !busy} dispatch={dispatch} />
         </aside>
       </div>
     </div>;

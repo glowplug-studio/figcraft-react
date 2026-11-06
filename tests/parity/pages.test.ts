@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { newDocument, type Document, type PageNode, type RectangleNode } from "../../src/engine/document";
+import { newDocument, pageColour, type Document, type PageNode, type RectangleNode } from "../../src/engine/document";
 import { executePage, isDivider, listPages, pageSpecs } from "../../src/engine/pages";
 
 // Inspection-derived cases: upstream panels_behaviour_tests:327–393,
@@ -226,9 +226,20 @@ describe("page lifecycle upstream parity", () => {
 
   it("rejects unsupported parameters and commands without touching input", () => {
     const document = fixture();
-    expect(() => run("page.setBackground", document, { color: "#ffffff" })).toThrow("Unsupported");
+    expect(() => run("page.setPrototype", document, { color: "#ffffff" })).toThrow("Unsupported");
     expect(() => run("page.add", document, { unknown: true })).toThrow("Unsupported");
     expect(() => run("page.list", document, { id: "1" })).toThrow("Unsupported");
     expect(document.pages).toEqual(["1", "2"]);
+  });
+  it("preserves precise translucent page colours through creation and duplication", () => {
+    const document = fixture();
+    const updated = run("page.setBackground", document, { color: [0.12345, .5, .75, .4] }).document;
+    const expected = { r: Math.fround(.12345), g: .5, b: .75, a: Math.fround(.4) };
+    expect(pageColour(updated.nodes["1"] as PageNode)).toEqual(expected);
+    expect(pageColour(run("page.add", updated).document.nodes["5"] as PageNode)).toEqual(expected);
+    expect(pageColour(run("page.duplicate", updated).document.nodes["5"] as PageNode)).toEqual(expected);
+    expect(document.nodes["1"]).toMatchObject({ background: "#336699" });
+    expect(() => run("page.setBackground", updated, { color: "invalid" })).toThrow("colour");
+    expect(() => run("page.setBackground", updated, { id: "4", color: "red" })).toThrow("not a page");
   });
 });

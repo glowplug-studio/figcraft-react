@@ -54,7 +54,7 @@ Upstream test evidence: [`vector_behaviour_tests`](../../original/figcraft/crate
 
 ### 5. Paints, images, strokes and effects
 
-Status: **Not implemented / Not tested**.
+Status: **Partial**. Native float colours, rectangle solid-paint stacks and basic layer/page appearance are verified in the [colour report](../reports/26-11-06-solid-colour-parity.html); remaining paint/image/stroke/effect properties below are required.
 
 Ordered fills/strokes/effects; solid/gradient/pattern/image paints; crop/adjustment/presets; blending/masks/pass-through; custom dashes/caps/brush/variable width; shadows/blur/progressive blur/glass/noise/texture. P3 value storage and sRGB proofing do not establish true P3 canvas output. Dependencies: properties, colour, geometry, renderer and resources.
 
