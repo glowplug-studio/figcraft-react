@@ -5,13 +5,13 @@
 | Field | State |
 |---|---|
 | Scope | Next required vertical slice in the autonomous full-port run |
-| Phase | Evidence and design; implementation not started |
+| Phase | Phase 4: pure network operations and session primitives implemented; command/pointer/UI integration remains |
 | Reference | `0b97f3f1801a9b7b96fd7a4f3c0942a3f1a676f3`; upstream sync unchanged |
 | React | `prompt/full-figcraft-port`; vector foundation verified from mathematics `cb5417d`, commit `154f5a7` |
-| Verification | Foundation671 pure/2 Auth/86 browser passes; authoring tests not written |
-| Files in progress | This plan only |
+| Verification | 696 pure tests (25 new authoring fixtures), strict TypeScript and package build pass; foundation2 Auth/86 browser checks remain the last browser baseline |
+| Files in progress | New vector-edit-ops.ts, vector-edit.ts and two parity fixture files; no editor/UI integration yet |
 | Blockers | Hosted Graphify authentication expired; local source and local React graph available |
-| Next action | Implement independent point/handle operations and paired fixtures before session/UI integration |
+| Next action | Integrate native edit commands and lifecycle into EditorEngine, then pointer geometry/gestures and React controls |
 
 ## Acceptance and dependency order
 
@@ -53,3 +53,11 @@ No tables, migrations, Storage, Realtime, profiles or roles are required for loc
 After pure operations: strict TypeScript and focused paired fixtures. After command integration: complete pure suite and archive/history/error tests. After UI/pointer integration: production package/Next builds, authenticated Playwright workflow, pixels/screenshots, mobile controls, browser/network error checks and all performance fixtures. Correct failures before marking the slice verified. Record independent properties with explicit remaining gaps in a self-contained HTML matrix and Markdown report. Rollback is the verified vector-foundation commit; no partial publication, branch push or main merge.
 
 Single-thread ownership follows the user's current instruction; no subagents or alternate checkouts. Expected files: new network-edit/session/interaction modules and parity/browser fixtures; focused changes in `editor.ts`, `controller.ts`, `Editor.tsx`, vector point panel, package exports and reports. Existing rendering/codec modules change only when evidence requires it.
+
+## Pure implementation checkpoint
+
+`vector-edit-ops.ts` implements immutable point movement/transforms, inferred/explicit handle mirroring, selected-handle movement from original positions, smooth/sharp points, curve bending, de Casteljau split, reverse-loop repair, segment deletion, point deletion/healing and merge-on-drop. `vector-edit.ts` implements shape conversion, finite bounds refitting, multi-layer selection/activation/clamping, parent-space selection position, page-space overlays and regional selection metadata. Exact topology comparison replaces a Rust hash without changing invalidation semantics; topology snapshots are released when no region selection remains.
+
+Paired evidence:16 operation fixtures and9 state fixtures pass. Full pure suite696 passes; strict TypeScript and package build pass. New modules are not yet reachable from editor commands/UI and are not evidence of a completed workflow. No new release version or browser claims. Conversion omits zero corners in the canonical TypeScript representation, preventing archive round-trip differences; baked geometry retains their appearance. Source-specific shape fields are removed when converting. Non-finite calculated point/handle mutations refuse atomically; transform operations retain the source snapshot on non-finite results, as native checks require. Whole-network paint-frame movement, reversed loop insertion, multi-layer activation, 500-input limit and native file round trips are tested.
+
+Remaining in this slice: native command registry/parameter contracts, engine history and state clearing on undo/page/file/identity changes, nearest-curve hit testing, pointer capture/previews/cancellation, marquee/midpoint/Bend/Alt handle behaviour, point controls, keyboard actions, authenticated browser recovery/mobile and performance verification. The source runtime cleans vector mode if the active vector disappears or changes page (`doc_state.rs:343`); file changes also clear it. Do not confuse the partial internal state type with the complete native diagnostic command or Pen/width tool state, which still require their own implementation.

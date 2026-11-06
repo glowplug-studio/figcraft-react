@@ -6,15 +6,15 @@
 |---|---|
 | Overall status | In progress; full parity is not implemented |
 | Active slice | Vector point and handle authoring; [bounded plan](26-11-07-vector-authoring.md) |
-| Active phase | Phase 1–2: vector foundation verified; next authoring scope mapped from pinned source |
+| Active phase | Phase 4: point/handle operations and session primitives pass25 new fixtures; command/pointer/UI integration next |
 | Upstream baseline | `0b97f3f1801a9b7b96fd7a4f3c0942a3f1a676f3`; prior parity baseline `8eb0b87646c5aef712326d6c431ccde5408630de` |
 | Branch and last verified commit | `prompt/full-figcraft-port`; verified vector foundation `154f5a7`; verified brushes `d3f7934`; verified width profiles `5f035a2`; verified per-side strokes `e21aaf0`; verified Line/strokes `0ca7c35`; verified Polygon/Star `f4db7fc`; verified ellipses `f21fe2b`; verified corners `37ad314`; verified transforms `cc26af1`; verified canvas move `0d34280`; verified duplication `f6dfc3f`; verified smart selection `3326d26`; verified rotations `92062ca`; verified sizing `c6b8c71`; verified arrangement `783a694`; verified viewport `d0fae6c`; verified frames `3e7943a`; verified nested groups `e81ba76`; verified colour `bfa5dd8`; affine `080fc27`, outline check `2404d6b`, reports `ff29f38`; pages `6c988a5`, persistence `41d467b`; integration `fc3b4a6` from updated dev plus rectangle branch |
 | Completed slices | Rectangle/host-auth, bounded native persistence/recovery, supported-model pages, affine rectangle geometry/selection and solid appearance, plus nested group hierarchy, Frame containers, movement/transform gestures, rounded corners, ellipse/arc/ring and Polygon/Star editing verified locally; Line/Arrow and uniform solid strokes also verified; per-side Rectangle/Frame strokes, variable-width profiles and procedural brushes verified; vector networks, solid region/stroke rendering and Flatten/Reverse also verified; foundation commit `154f5a7` |
 | Remaining slices | Every row below except the integrated foundation; static inventory entries remain unverified until mapped and tested |
 | Tests last passed | Vector foundation:671 pure,2 real Auth, strict TypeScript/package/Next builds and86/86 Chromium in200.9s. Vector resize/draw/pan p958.3/9.1/13.1ms; max8.9ms, input2.0ms; zero root preview notifications. First failed run and corrections retained in report |
-| Files currently in progress | Point/handle authoring plan; foundation committed as154f5a7 |
+| Files currently in progress | vector-edit-ops.ts, vector-edit.ts and two parity fixture files; pure primitives only, editor integration outstanding |
 | Blockers | No implementation blocker. Hosted Graphify authentication expired; reauthorisation requested; pinned local source/local React graph available |
-| Exact next action | Implement point/handle operations and paired fixtures under the authoring plan |
+| Exact next action | Integrate native point/handle commands into EditorEngine, then hit testing, pointer previews and React controls under the authoring plan |
 | Last updated | 2026-11-07 |
 
 ## Scope and continuation
@@ -608,3 +608,5 @@ Vector integration checkpoint: mathematics committed as `cb5417d`. Eight new com
 ## Verified vector-foundation checkpoint
 
 Version0.24.0:671 pure tests,2 local Auth checks, strict TypeScript, package/Next production builds and final86/86 Chromium checks in200.9s pass. First full run failed local Auth setup and per-side timing; setup timeout was bounded separately and unchanged16.7ms performance gates passed both reruns. Final review fixed move-only damaged-run bounds from native/Kurbo evidence. One failed-run local fixture orphan was removed; owned preview stopped. [Report](../reports/26-11-07-vector-foundation.md) and [31-property matrix](../reports/26-11-07-vector-foundation-parity.html):30 bounded Passed rows, full product Partial. No publication. Continue immediately with the [point/handle authoring plan](26-11-07-vector-authoring.md).
+
+Point/handle internal checkpoint:25 new fixtures pass; full pure suite696, strict TypeScript and package build pass. Foundation154f5a7 remains the last complete browser-verified slice. Session/command/pointer/UI integration and its browser verification remain required; no new publication or version claim.
