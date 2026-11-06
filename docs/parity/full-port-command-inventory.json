@@ -625,7 +625,7 @@
     },
     {
       "command": "object.rotate180",
-      "label": "Rotate 180\u00b0",
+      "label": "Rotate 180°",
       "source": "crates/engine/src/cmd/arrange.rs",
       "line": 46,
       "status": "Partial",
@@ -634,7 +634,7 @@
     },
     {
       "command": "object.rotateLeft",
-      "label": "Rotate 90\u00b0 left",
+      "label": "Rotate 90° left",
       "source": "crates/engine/src/cmd/arrange.rs",
       "line": 49,
       "status": "Partial",
@@ -643,7 +643,7 @@
     },
     {
       "command": "object.rotateRight",
-      "label": "Rotate 90\u00b0 right",
+      "label": "Rotate 90° right",
       "source": "crates/engine/src/cmd/arrange.rs",
       "line": 52,
       "status": "Partial",
@@ -1067,14 +1067,28 @@
       "label": "Polygon",
       "source": "crates/engine/src/cmd/create.rs",
       "line": 79,
-      "status": "Not tested"
+      "status": "Partial",
+      "scope": "Polygon/Star defaults, native count/ratio properties, smoothed paths, radius/ratio handles and shared Frame-aware drawing verified. Vector conversion, shared numeric fields and tool preferences remain required.",
+      "evidence": [
+        "tests/parity/polygon.test.ts",
+        "tests/e2e/preview.spec.ts",
+        "tests/e2e/polygon-performance.spec.ts",
+        "docs/reports/26-11-07-polygon-star-parity.html"
+      ]
     },
     {
       "command": "shape.star",
       "label": "Star",
       "source": "crates/engine/src/cmd/create.rs",
       "line": 86,
-      "status": "Not tested"
+      "status": "Partial",
+      "scope": "Polygon/Star defaults, native count/ratio properties, smoothed paths, radius/ratio handles and shared Frame-aware drawing verified. Vector conversion, shared numeric fields and tool preferences remain required.",
+      "evidence": [
+        "tests/parity/polygon.test.ts",
+        "tests/e2e/preview.spec.ts",
+        "tests/e2e/polygon-performance.spec.ts",
+        "docs/reports/26-11-07-polygon-star-parity.html"
+      ]
     },
     {
       "command": "shape.line",
@@ -2044,7 +2058,7 @@
     },
     {
       "command": "libraries.publish",
-      "label": "Publish library\u2026",
+      "label": "Publish library…",
       "source": "crates/engine/src/cmd/library.rs",
       "line": 28,
       "status": "Not tested"
@@ -4018,14 +4032,28 @@
       "label": "Polygon",
       "source": "crates/engine/src/cmd/view.rs",
       "line": 586,
-      "status": "Not tested"
+      "status": "Partial",
+      "scope": "Polygon/Star defaults, native count/ratio properties, smoothed paths, radius/ratio handles and shared Frame-aware drawing verified. Vector conversion, shared numeric fields and tool preferences remain required.",
+      "evidence": [
+        "tests/parity/polygon.test.ts",
+        "tests/e2e/preview.spec.ts",
+        "tests/e2e/polygon-performance.spec.ts",
+        "docs/reports/26-11-07-polygon-star-parity.html"
+      ]
     },
     {
       "command": "tool.star",
       "label": "Star",
       "source": "crates/engine/src/cmd/view.rs",
       "line": 587,
-      "status": "Not tested"
+      "status": "Partial",
+      "scope": "Polygon/Star defaults, native count/ratio properties, smoothed paths, radius/ratio handles and shared Frame-aware drawing verified. Vector conversion, shared numeric fields and tool preferences remain required.",
+      "evidence": [
+        "tests/parity/polygon.test.ts",
+        "tests/e2e/preview.spec.ts",
+        "tests/e2e/polygon-performance.spec.ts",
+        "docs/reports/26-11-07-polygon-star-parity.html"
+      ]
     },
     {
       "command": "tool.pen",
@@ -4309,7 +4337,7 @@
     },
     {
       "command": "plugin.import",
-      "label": "Import plugin from manifest\u2026",
+      "label": "Import plugin from manifest…",
       "source": "crates/engine/src/extensions/plugins.rs",
       "line": 666,
       "status": "Not tested"
@@ -4358,7 +4386,7 @@
     },
     {
       "command": "plugins.manage",
-      "label": "Manage plugins\u2026",
+      "label": "Manage plugins…",
       "source": "crates/engine/src/extensions/plugins.rs",
       "line": 697,
       "status": "Not tested"

@@ -85,3 +85,18 @@ Upstream0b97f3f → Reactf21fe2b;480 pure,2 local Auth and60 browser checks pass
 | ui::arc_section / arc_overlay | ArcPanel; controller overlay | Mixed signed fields, ring pixels, native save/recovery, mobile; root-free previews | High for tested UI; full shared numeric fields/preferences remain required |
 
 Hosted React Graphify tracks initial main. A local code-only CLI graph of the canonical port branch now supplies current React structure (1058 nodes,4284 edges). Query results were verified against current ArcInteraction, previewDraw and createLayer; excluded Rust reference/generated output. Some symbol-free test/config files and SQL grammar coverage remain outside that local graph; local files/tests remain authoritative.
+
+## Polygon and Star — 7 November 2026
+
+Upstream0b97f3f → Reactf4db7fc;506 pure,2 real Auth and64 browser checks pass, followed by4 focused checks after lexical integer validation. [Property evidence](../reports/26-11-07-polygon-star-parity.html).
+
+| Upstream symbol/source | React target | Verified behaviour / boundary |
+|---|---|---|
+| geom::{polygon_points,star_points,rounded_polygon,smoothed_polygon} | polygon.ts; ellipticalArcPath | Top vertices, fit/easing, concave Star paths, source area/tangent fixtures; browser pixels and screenshot |
+| NodeKind::{Polygon,Star}; geometry::shape_path | LeafNode; shape-path.ts; native codec | Required raw fields/u32 tokens, path hits/caching, native save/recovery, leaf hierarchy/copies |
+| kind_for/create; props::apply_shape | creation.ts; shape-properties.ts | Aliases/defaults, count3..120/60, ratio fractions/fallback/key precedence and atomicity |
+| shape_handles::{corner,top,ratio_point,drag,value} | CornerInteraction and pure helpers | Top radius/inner ratio, affine projection, eligibility, uniform Alt behaviour, single undo/cancel; browser gesture evidence |
+| tools::draw_drag; tool.polygon/tool.star | DrawInteraction; Editor toolbar | Shared Frame-relative Shift/Alt drawing, Move return and zero frame-frequency root updates |
+| right::points_section; right::paints | PointsPanel; CornerPanel | Mixed counts, Star-only ratio, smoothing-only expansion and mobile controls |
+
+Local code-only graph refreshed to1097 nodes/4516 relationships and queried for PointsPanel, cornerDrag and smoothedPolygon. Hosted React remains initial-main; graph coverage is supplementary to local implementation/tests. Vector conversion, strokes and shared numeric/UI families remain required.

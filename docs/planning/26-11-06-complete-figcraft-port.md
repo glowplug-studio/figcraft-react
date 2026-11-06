@@ -5,16 +5,16 @@
 | Field | Current value |
 |---|---|
 | Overall status | In progress; full parity is not implemented |
-| Active slice | Polygon and Star geometry, properties and handles |
-| Active phase | Phase 7: polygon/star verification evidence and continuation |
+| Active slice | Line/Arrow and their foundational solid strokes |
+| Active phase | Phase 1: source evidence and dependency mapping |
 | Upstream baseline | `0b97f3f1801a9b7b96fd7a4f3c0942a3f1a676f3`; prior parity baseline `8eb0b87646c5aef712326d6c431ccde5408630de` |
-| Branch and last verified commit | `prompt/full-figcraft-port`; verified ellipses `f21fe2b`; verified corners `37ad314`; verified transforms `cc26af1`; verified canvas move `0d34280`; verified duplication `f6dfc3f`; verified smart selection `3326d26`; verified rotations `92062ca`; verified sizing `c6b8c71`; verified arrangement `783a694`; verified viewport `d0fae6c`; verified frames `3e7943a`; verified nested groups `e81ba76`; verified colour `bfa5dd8`; affine `080fc27`, outline check `2404d6b`, reports `ff29f38`; pages `6c988a5`, persistence `41d467b`; integration `fc3b4a6` from updated dev plus rectangle branch |
-| Completed slices | Rectangle/host-auth, bounded native persistence/recovery, supported-model pages, affine rectangle geometry/selection and solid appearance, plus nested group hierarchy, Frame containers, movement/transform gestures, rounded corners and ellipse/arc/ring editing verified locally |
+| Branch and last verified commit | `prompt/full-figcraft-port`; verified Polygon/Star `f4db7fc`; verified ellipses `f21fe2b`; verified corners `37ad314`; verified transforms `cc26af1`; verified canvas move `0d34280`; verified duplication `f6dfc3f`; verified smart selection `3326d26`; verified rotations `92062ca`; verified sizing `c6b8c71`; verified arrangement `783a694`; verified viewport `d0fae6c`; verified frames `3e7943a`; verified nested groups `e81ba76`; verified colour `bfa5dd8`; affine `080fc27`, outline check `2404d6b`, reports `ff29f38`; pages `6c988a5`, persistence `41d467b`; integration `fc3b4a6` from updated dev plus rectangle branch |
+| Completed slices | Rectangle/host-auth, bounded native persistence/recovery, supported-model pages, affine rectangle geometry/selection and solid appearance, plus nested group hierarchy, Frame containers, movement/transform gestures, rounded corners, ellipse/arc/ring and Polygon/Star editing verified locally; latest implementationf4db7fc |
 | Remaining slices | Every row below except the integrated foundation; static inventory entries remain unverified until mapped and tested |
 | Tests last passed | Strict TypeScript,506 pure tests,2 local Auth tests, package/Next builds and64/64 Chromium checks (132.3s,1 worker); final lexical u32 correction also passes4/4 focused browser checks (15.4s); Polygon/Star handle/draw p95 2.9/2.8ms |
-| Files currently in progress | Polygon/star implementation and fixtures verified; reports and mappings |
+| Files currently in progress | Polygon/Star reports and mappings complete; Line/Arrow source inspection |
 | Blockers | None |
-| Exact next action | Commit verified Polygon/Star implementation, record property evidence and select the next dependency-backed slice |
+| Exact next action | Complete Line/Arrow creation, drawing, endpoint, hit and stroke geometry/UI source evidence; write bounded accepted plan before implementation |
 | Last updated | 2026-11-07 |
 
 ## Scope and continuation
@@ -42,7 +42,7 @@ The existing production rectangle demo is a previous release, not evidence of co
 | 2 | Complete typed document properties and kinds, hierarchy, pages, validation/repair, affine transforms; `crates/doc/src/{lib,node,props}.rs`, `crates/geom`, `crates/color` | 1 codec boundary; split into independently verifiable property families | Partial: pages, affine model, groups and frames verified; other kinds/properties remain |
 | 3 | Selection/hit testing, move/resize/rotate, arrange/align/distribute, duplicate/delete/reparent/group, clipboard; `engine/src/cmd/{edit,structure,arrange}.rs`, tools and document geometry | 2 | Partial: hierarchy and numeric movement/arrangement verified; gestures, transforms and clipboard remain |
 | 4 | Pan/zoom, rulers, guides/grids, snapping, measurement, layer panel, pages/tabs and navigation; `cmd/{view,page}.rs`, keymap/catalog and UI canvas/panels | 2–3 | Partial: pages, layer tree and viewport verified; grids/guides/snapping and remaining navigation UI remain |
-| 5 | Shapes, vectors, pen/pencil, booleans, shape builder, stroke geometry; `doc/src/vector.rs`, `geom`, `pathops`, engine tools | 2–4 | Partial: rounded Rectangle/Frame and Ellipse/arc/ring paths verified; other kinds/vector/stroke authoring remain |
+| 5 | Shapes, vectors, pen/pencil, booleans, shape builder, stroke geometry; `doc/src/vector.rs`, `geom`, `pathops`, engine tools | 2–4 | Partial: rounded Rectangle/Frame, Ellipse/arc/ring and Polygon/Star paths verified; Line, vector and stroke authoring remain |
 | 6 | Paints, gradients, images/crops/adjustments, masks, blending and effects; `color`, `render`, `cmd/{props,image}.rs` | 2–5 | Partial: solid colours/fills/opacity verified; remaining appearance families required |
 | 7 | Rich text editing/shaping, fonts, spans, typography, lists, bidi and outlines; `text`, `doc/src/text.rs`, `cmd/{text,lists}.rs` | 2, 4, 6 | Not implemented |
 | 8 | Auto layout horizontal/vertical/wrap/grid, hug/fill/min/max, constraints and resize propagation; `layout`, `cmd/layout.rs`, document props | 2–7 | Partial: Frame constraints verified; auto-layout still required |
@@ -416,3 +416,11 @@ UI: Polygon and Star tools and numeric create buttons dispatch native commands; 
 Graph evidence: Rust query identifies exact geometry/tests but caller/tests edges are absent; local geometry.rs and tools/drag.rs establish actual call relationships. React local CLI query identifies shapePath, CornerPanel, DrawInteraction and CanvasController; all definitions confirmed on disk. Refactor generic shape dispatch out of ellipse.ts into shape-path.ts to preserve acyclic geometry modules, reuse elliptical cubic segments for smoothed polygon arcs, and retain provider-independent engine ownership.
 
 Implementation sequence: add geometry and source fixtures; extend leaf model/properties/codec/shared creation/drawing; extend radius/ratio interaction and points/corner controls; add browser/persistence/mobile/performance coverage; review full diff and run pure/Auth/typecheck/build/full Playwright; version/report/mappings/checkpoint. Expected files: polygon.ts, shape-path.ts, PointsPanel.tsx, document/ellipse/corners/creation/properties/file-format/draw-interaction/editor/corner-handles/canvas/selection/transform-interaction, Editor/CornerPanel/index and parity/browser/performance fixtures. Rollbackf21fe2b; no provider contracts, identity, schema, Storage or Realtime changes. Scoped Supabase public-table read succeeds with no tables. Existing Auth and shared adapter suites remain required. Representative9999-layer polygon/star rendering and handle/draw previews must stay below16.7ms p95, with zero root notifications and cancelled preview restoration.
+
+### Polygon/Star verified checkpoint
+
+Implementationf4db7fc, version0.19; [report](../reports/26-11-07-polygon-star.md) and [19-row property matrix](../reports/26-11-07-polygon-star-parity.html).506 pure,2 real Auth and64 full browser checks pass; final lexical u32 validation correction passes all pure/Auth/build checks and4 focused browser checks. Handle/draw p952.9/2.8ms; zero root notifications. Reviewed shape screenshot and toolbar-only changes to three old baselines; corrected mobile zoom/toolbar overlap. Local Next stopped; hosted production and main untouched. No external blocker.
+
+## Active Line/Arrow evidence
+
+Upstream sync remains0b97f3f; Reactf4db7fc. Both hosted Graphify repositories are queryable and scoped Supabase public-table read succeeds with no application tables. Hosted React remainsb3b8a1b; local source/CLI graph supplies current targets. The broad Rust dependency query routed into vector-network face processing, but direct create/node/geometry source proves Line is its own leaf kind and Arrow is Line with an end cap, not a VectorNetwork. Select this simpler foundational stroke path before vector authoring: Node::new(Line) creates black strokes with centred alignment, and tools/draw establishes length/rotation rather than closed-shape width/height drawing. Inspect complete stroke/cap/endpoint and relevant UI/tests before fixing the bounded plan. No implementation changes in this evidence phase.

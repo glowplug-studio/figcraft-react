@@ -242,3 +242,5 @@ Rotation origins and numeric transforms: [property report](../reports/26-11-07-r
 Smart-selection tracks, reordering and transient gestures: [property report](../reports/26-11-07-smart-selection-parity.html).
 
 Supported subtree duplication and repeated offsets: [property report](../reports/26-11-07-duplication-parity.html).
+
+Polygon/Star geometry, properties, radius/ratio handles and native/recovery flows: [property report](../reports/26-11-07-polygon-star-parity.html). Full shape/vector/stroke and product parity remain incomplete.
