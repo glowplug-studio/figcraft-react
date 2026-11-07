@@ -71,6 +71,8 @@ export function LayerPanel({ document, selection, editable, dispatch }: LayerPan
       <button type="button" disabled={!editable || selection.length === 0} onClick={() => dispatch("object.group", { ids: selection })}>Group</button>
       <button type="button" disabled={!editable || !selection.some(id => document.nodes[id]?.kind === "group")} onClick={() => dispatch("object.ungroup", { ids: selection })}>Ungroup</button>
       <button type="button" disabled={!editable || selection.length === 0} onClick={() => dispatch("vector.flatten")}>Flatten</button>
+      <button type="button" disabled={!editable || selection.length === 0} onClick={() => dispatch("vector.join")}>Join selection</button>
+      <button type="button" disabled={!editable || selection.length === 0} onClick={() => dispatch("vector.smoothJoin")}>Smooth join selection</button>
       <button type="button" disabled={!editable || !selection.some(id => document.nodes[id]?.kind === "vector")} onClick={() => dispatch("vector.reverse")}>Reverse path direction</button>
       <button type="button" disabled={!editable || !selection.some(id => ["group", "frame"].includes(document.nodes[id]?.kind))} onClick={() => dispatch("select.children")}>Select children</button>
       <button type="button" disabled={!editable || !parent || parent.kind === "page"} onClick={() => dispatch("select.parent")}>Select parent</button>

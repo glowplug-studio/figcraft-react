@@ -8,7 +8,7 @@ import { executeSelection, selectionSpecs } from "./selection";
 import { setRectangleProperties } from "./properties";
 import { HierarchyDraft, pageForNode, worldTransform } from "./hierarchy";
 import { executeStructure, structureSpecs } from "./structure";
-import { executeVector, vectorSpecs } from "./vector-commands";
+import { executeVector, isVectorJoin, vectorSpecs } from "./vector-commands";
 import { executeVectorEdit, vectorEditSpecs, type VectorEditCommand } from "./vector-edit-commands";
 import { clampVectorEdit, type VectorEditState } from "./vector-edit";
 import { defaultViewport, executeView, fitPage, viewSpecs, type Viewport } from "./viewport";
@@ -336,8 +336,8 @@ export class EditorEngine {
     if (preservePen && command === "tool.pen") { if (Object.keys(p).length) throw new Error("tool.pen takes no parameters"); return {}; }
     const gesture = Object.hasOwn(smartSpecs, command) && command !== "arrange.roundToPixels" && parseBoolean(p.fromGesture) === true;
     if (!gesture && !preservePen) { const interacting = this.interacting; this.pencil.cancel(); if (this.pen.open) this.pen.cancel(); else this.cancelInteraction(); if (interacting && command === "edit.undo") return { undone: true }; }
-    if (Object.hasOwn(vectorEditSpecs, command)) {
-      const before = this.#snapshot, oldState = this.#vectorEdit, next = executeVectorEdit(command as VectorEditCommand, before.document, before.selection, oldState, p);
+    if (Object.hasOwn(vectorEditSpecs, command) || (this.#vectorEdit && isVectorJoin(command))) {
+      const before = this.#snapshot, oldState = this.#vectorEdit, next = executeVectorEdit(isVectorJoin(command) ? command : command as VectorEditCommand, before.document, before.selection, oldState, p);
       if (next.recordHistory) { this.#undo.push({ document: before.document, selection: before.selection }); this.#redo = []; }
       this.#vectorEdit = next.state;
       if (next.document !== before.document || !sameIds(next.selection, before.selection)) this.#publish({ document: next.document, selection: next.selection });

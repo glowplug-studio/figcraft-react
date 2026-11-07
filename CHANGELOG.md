@@ -2,6 +2,11 @@
 
 All notable changes to the React port and its upstream compatibility baseline are recorded here.
 
+## [0.30.0] - 2026-11-07
+
+- Added Join selection, Smooth join selection and the explicit Connect points command. Joining within a vector pairs selected points, while layer joins close an open vector or combine selected layers.
+- Reconnecting a broken region through its endpoints preserves the winding of its holes and the region's paints. Pen and Join share this behaviour.
+
 ## [0.29.0] - 2026-11-07
 
 - Added the native `node.reorder` command. The layer panel uses it to change sibling order while preserving local transforms and selection.

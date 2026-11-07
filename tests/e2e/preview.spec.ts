@@ -2094,3 +2094,52 @@ test("layer reorder changes nested paint order and survives undo, native save an
   await redButton.click(); await page.getByRole("button", { name: "Move layer down", exact: true }).click();
   await expectCanvasPixel(page, 140, 130, [0, 0, 255, 255]);
 });
+
+test("join shortcuts reconnect a hole, preserve its winding and save smooth tangents", async ({ page }) => {
+  const e = new EditorEngine();
+  const id = String(e.execute("vector.create", { name: "Ring", x: 200, y: 160, path: "M0 0H100V100H0Z M25 25V75H75V25Z", props: { fill: "#ff0000" } }).id);
+  const line = String(e.execute("vector.create", { name: "Open path", x: 400, y: 200, points: [[0,0],[50,0],[50,50]] }).id);
+  const doc = e.getSnapshot().document, ring = doc.nodes[id] as VectorNode;
+  // Remove one hole corner and its two incident edges. Its loop still owns the surviving pair.
+  const net = ring.network, corner = net.vertices.findIndex(v => v.x === 75 && v.y === 25);
+  const { deleteVertices } = await import("../../src/engine/vector-edit-ops");
+  const open = deleteVertices(net, [corner]);
+  const file = await encodeFigcraft({ ...doc, nodes: { ...doc.nodes, [id]: { ...ring, network: open } } });
+  await login(page); await page.getByLabel("Open Figcraft file", {exact:true}).setInputFiles({ name:"join.figcraft", mimeType:"application/octet-stream", buffer:Buffer.from(file) });
+  const layers = page.getByRole("region",{ name:"Layers",exact:true }), canvas = page.getByLabel("Design canvas",{exact:true});
+  const ringButton = layers.getByRole("button",{ name:"Ring",exact:true });
+  await expect(ringButton).toBeVisible(); await resetCanvasOrigin(page); await ringButton.click();
+  await page.getByRole("button",{name:"Edit vector",exact:true}).click();
+  const click = async (x: number, y: number) => { const at = await canvasPoint(page,x,y); await page.mouse.click(at.x, at.y); };
+  await click(225,185); await page.keyboard.down("Shift"); await click(275,235); await page.keyboard.up("Shift");
+  await canvas.focus(); await page.keyboard.press("ControlOrMeta+j");
+  const save = async () => {
+    const downloading = page.waitForEvent("download"); await page.getByRole("button",{name:"Save as",exact:true}).click();
+    return (await decodeFigcraft(await readFile((await (await downloading).path())!))).document;
+  };
+  const closed = (await save()).nodes[id] as VectorNode;
+  expect(closed.network.regions).toHaveLength(1); expect(closed.network.regions[0].loops.map(loop=>loop.length)).toEqual([4,3]);
+  await page.getByRole("button",{name:"Undo",exact:true}).click();
+  expect(((await save()).nodes[id] as VectorNode).network.segments).toHaveLength(open.segments.length);
+  await canvas.focus(); await page.keyboard.press("ControlOrMeta+Shift+j");
+  const smooth = ((await save()).nodes[id] as VectorNode).network;
+  expect(smooth.regions[0].loops.map(loop=>loop.length)).toEqual([4,3]);
+  expect(Math.hypot(...smooth.segments.at(-1)!.ta)).toBeGreaterThan(0);
+  await page.getByRole("button",{name:"Done editing",exact:true}).click();
+  await layers.getByRole("button",{name:"Open path",exact:true}).click();
+  await layers.getByRole("button",{name:"Join selection",exact:true}).click();
+  expect(((await save()).nodes[line] as VectorNode).network.regions[0].loops).toEqual([[0,1,2]]);
+  await expectCanvasPixel(page,210,210,[255,0,0,255]);
+  const background = await canvas.evaluate((node: HTMLCanvasElement) => Array.from(node.getContext("2d")!.getImageData(175,220,1,1).data));
+  await expectCanvasPixel(page,240,220,background);
+  const capture = await canvasPoint(page,190,150);
+  await expect(page).toHaveScreenshot("join-reconnected-hole.png", { clip: { x:capture.x, y:capture.y, width:120, height:120 }, animations:"disabled", maxDiffPixels:0 });
+  await expect(page.locator(".figcraft-recovery")).toHaveText("Recovery saved on this device"); await page.reload(); await resetCanvasOrigin(page);
+  const recovered = (await save()).nodes[id] as VectorNode;
+  expect(recovered.network).toEqual(smooth);
+  await page.setViewportSize({width:390,height:844}); await page.locator(".figcraft-mobile-layers > summary").click();
+  for(const label of ["Join selection","Smooth join selection"]) {
+    const button = page.locator(".figcraft-mobile-layers").getByRole("button",{ name:label,exact:true });
+    await button.scrollIntoViewIfNeeded(); const box = (await button.boundingBox())!; expect(box.x).toBeGreaterThanOrEqual(0); expect(box.x+box.width).toBeLessThanOrEqual(390);
+  }
+});

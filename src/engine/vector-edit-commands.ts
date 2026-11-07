@@ -11,6 +11,8 @@ import { beginVectorEdit, clampVectorEdit, clearVectorSelection, freezeVectorEdi
 import { freezeNetwork, networkMirroring, type VectorNetwork, type VectorVertex } from "./vector-network";
 import { pointBoxCentre, pointBoxCorners, pointBoxOnto, pointRotationMatrix, transformVectorPoints, vectorPointBox } from "./vector-point-transform";
 import { hitVector } from "./vector-edit-hit";
+import { connectVectorPoints, joinVectorPoints } from "./vector-connect";
+import { isVectorJoin, type VectorJoinCommand } from "./vector-commands";
 import { applyPen, planPen } from "./vector-pen";
 
 export const vectorEditSpecs = Object.freeze({
@@ -18,6 +20,7 @@ export const vectorEditSpecs = Object.freeze({
   "vector.edit.end": { label: "Done editing", undo: false },
   "vector.edit.state": { label: "Vector edit state", undo: false },
   "vector.edit.tool": { label: "Vector edit tool", undo: false },
+  "vector.edit.connect": { label: "Connect points", undo: true },
   "vector.edit.pen": { label: "Pen point", undo: true },
   "vector.edit.penEnd": { label: "End pen path", undo: false },
   "vector.edit.select": { label: "Select points", undo: false },
@@ -44,6 +47,7 @@ export const vectorEditSpecs = Object.freeze({
 export type VectorEditCommand = keyof typeof vectorEditSpecs;
 const allowed: Record<VectorEditCommand, readonly string[]> = {
   "vector.edit.begin": ["id", "ids"], "vector.edit.end": [], "vector.edit.state": [], "vector.edit.tool": ["tool"],
+  "vector.edit.connect": ["a", "b"],
   "vector.edit.pen": ["x", "y", "dx", "dy"], "vector.edit.penEnd": [],
   "vector.edit.select": ["vertices", "segments", "handles", "regions", "id", "add"], "vector.edit.selectAll": [],
   "vector.edit.moveVertices": ["vertices", "dx", "dy"], "vector.edit.nudge": ["dx", "dy"], "vector.edit.position": ["x", "y"],
@@ -85,8 +89,8 @@ function pointProperty<K extends "radius" | "cap" | "join">(net: VectorNetwork, 
   return changed ? freezeNetwork({ ...net, vertices }) : net;
 }
 export interface VectorEditResult { document: Document; selection: readonly NodeId[]; state: VectorEditState | undefined; recordHistory: boolean; result: Record<string, unknown> }
-export function executeVectorEdit(command: VectorEditCommand, document: Document, selection: readonly NodeId[], state: VectorEditState | undefined, p: Record<string, unknown>): VectorEditResult {
-  for (const key of Object.keys(p)) if (!allowed[command].includes(key)) throw new Error(`Unsupported ${command} parameter: ${key}`);
+export function executeVectorEdit(command: VectorEditCommand | VectorJoinCommand, document: Document, selection: readonly NodeId[], state: VectorEditState | undefined, p: Record<string, unknown>): VectorEditResult {
+  for (const key of Object.keys(p)) if (!isVectorJoin(command) && !allowed[command].includes(key)) throw new Error(`Unsupported ${command} parameter: ${key}`);
   const result: VectorEditResult = { document, selection, state, recordHistory: false, result: { ok: true } };
   if (command === "vector.edit.begin") {
     const id = parseNodeId(p.id), ids = Array.isArray(p.ids) ? p.ids.flatMap(v => { const i = parseNodeId(v); return i === undefined ? [] : [i]; }) : id ? [id] : selection;
@@ -146,6 +150,25 @@ export function executeVectorEdit(command: VectorEditCommand, document: Document
       const open = decision.plan.kind === "new";
       result.state = freezeVectorEdit({ ...state, vertices: vertex === undefined ? [] : [vertex], segments: [], anchor: open ? vertex : undefined, penOut: open && drag ? [drag.x, drag.y] : undefined });
       result.result = { vertex: vertex ?? null }; break;
+    }
+    case "vector.edit.connect": {
+      const a = index(p.a, "a"), b = index(p.b, "b");
+      edit(state.id, net => {
+        const joined = connectVectorPoints(net, a, b);
+        if (!joined) throw new Error("can't connect those points");
+        result.result = { segment: joined.segment };
+        return joined.network;
+      });
+      break;
+    }
+    case "vector.join": case "vector.smoothJoin": {
+      edit(state.id, net => {
+        const joined = joinVectorPoints(net, selectedVectorPoints(net, state), command === "vector.smoothJoin");
+        result.result = { joins: joined.joins };
+        return joined.network;
+      });
+      result.state = freezeVectorEdit({ ...state, segments: [] });
+      break;
     }
     case "vector.edit.resize": {
       const box = selectedBox();
