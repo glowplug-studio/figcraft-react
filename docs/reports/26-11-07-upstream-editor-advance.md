@@ -31,3 +31,15 @@ Graphify currently covers Rust at the previous `09e04e71` and React at README-on
 | f566f961: collab-net hub/queue and tests | Verify slow joins in busy rooms are not dropped because of cursor updates. |
 | cd5c9aeb / c16c3676: doc/text.rs, text/layout.rs, format, codegen | Forced paragraph direction, alignment, paragraph-array length and trailing empty paragraphs in editing, import and CSS export. |
 | 5bdedc39 / 104aa3de / d23cebb1: effects, style_vars and binding tests | Bind only existing effect fields, refuse unknown keys and wrap glass light angle at ±180°. |
+
+## Reference 909d68e0 to 894d0246
+
+The reference advanced by 35 commits across 24 files, with 454 insertions and 61 deletions. The fork fast-forwarded cleanly. The command-validation source and preceding snap-priority change are unaffected.
+
+| Evidence | Roadmap work |
+|---|---|
+| `f35af507`, `971c82b8` | Browser input. Side buttons 4/5 pan the canvas and releasing the primary pointer during a pan still ends the primary drag. Cover held-button transitions and browser navigation suppression. |
+| `ff862dcf` | Pages. Clicking a different page after an unchanged rename still opens the clicked page. Pair native test and React focus/blur workflow. |
+| `f797cbe0`, `acbc9882` | .fig/Kiwi decoder. Reject duplicate schema field IDs. Valid fixtures require distinct IDs. Architecture guide correction `cd77b017` describes existing support. |
+| `facc2a21`, `2c92a169`, `a63f0d79`, `bae4a4e8` | Localised chrome. Match script fallback for Ethiopic and Indic scripts, CJK path for Bengali/Thai, and 43 Finnish labels. |
+| `853e8c6c` | Minimized Wayland window control is native process/window behaviour. Check browser command delivery independently when integrating the host command surface. |

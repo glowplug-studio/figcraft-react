@@ -1,0 +1,9 @@
+# Fractional layer snapping
+
+React 0.28.2 at `4b86d414d98b00dc726a2ffc74503ed03a98b8d7` on `prompt/full-figcraft-port` matches the bounded change in upstream `39c58338`, verified at reference `909d68e02bf0e509891f8388239353f86334d063`. The global supported baseline is `8eb0b876`.
+
+The six supported shape tools, selection move and aligned resize now round the raw input first and then align it to object targets. The captured axis preserves fractional geometry. The free axis follows the pixel preference. The captured guide, saved native file and recovered inspector agree. The implementation uses existing browser pointer events, gesture caches and the command transaction. Frame, Section and Slice drawing tools remain on the roadmap.
+
+All 860 pure tests, two real local Supabase Auth checks, strict TypeScript and both library and Next.js builds passed. All 104 Chromium workflows passed in 225.2 seconds with zero skipped, flaky or unexpected results. For 110 measured frames in 10,000 nodes, the move, Alt-copy, resize and Scale previews had p95 times of 6.5, 5.9, 5.6 and 5.9 ms respectively. Each recorded zero root notifications and restored the selection fixture. The main library entry is 653.61 kB, 182.73 kB gzip. [Browser measurements](26-11-07-snap-priority-measurements.json)
+
+The scoped Supabase MCP read returned an empty public schema. All changed geometry belongs to local editing and uses existing identity, native files and recovery. Both Graphify repositories answered queries. Rust resolved round_move but predates the precedence change. The remote React graph still contains four README nodes. The refreshed local AST had 1,753 nodes and 8,266 edges, with two SQL parser omissions. Publication remains gated on full browser parity. The next slice addresses command input validation and layer ordering. [Property matrix](26-11-07-snap-priority-parity.html) · [Plan](../planning/26-11-07-snap-priority.md)

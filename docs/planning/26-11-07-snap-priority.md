@@ -17,3 +17,7 @@ The current draw tool accepts Rectangle, Ellipse, Polygon, Star, Line and Arrow.
 ## Integrated checkpoint
 
 Pixel rounding now precedes object correction in all three gesture controllers. Seven focused geometry cases demonstrated the prior rounding error; the eighth checks capture eligibility on either side of the five-pixel threshold. 860 pure tests and two real local Auth checks passed. Strict TypeScript and both release builds passed; main package entry 653.61 kB / 182.73 kB gzip. Authenticated Chromium passed the fractional guide pixel, exact move and resize geometry, drawn shape, native download and recovery. Full headless regression against the running local release build is underway. No publication. Next: record the full result and performance evidence, then index/point validation.
+
+## Verified checkpoint
+
+All 104 Chromium checks passed in 225.2s. The [report](../reports/26-11-07-snap-priority.md) records saved geometry, measured preview cost and per-property coverage. Phase 7 complete at implementation 4b86d41.

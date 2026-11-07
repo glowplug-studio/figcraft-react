@@ -1,0 +1,182 @@
+{
+  "react": "4b86d414d98b00dc726a2ffc74503ed03a98b8d7",
+  "upstream": "909d68e02bf0e509891f8388239353f86334d063",
+  "stats": {
+    "startTime": "2026-11-07T02:15:15.744Z",
+    "duration": 225246.182,
+    "expected": 104,
+    "skipped": 0,
+    "unexpected": 0,
+    "flaky": 0
+  },
+  "measurements": [
+    {
+      "test": "ellipse previews in a10000-node document retain the frame budget",
+      "data": {
+        "ellipses": 9999,
+        "selected": 1,
+        "previewCount": 10000,
+        "measuredFrames": 110,
+        "p95": 2.800000011920929,
+        "max": 4.900000035762787,
+        "inputP95": 2.199999988079071,
+        "rootNotifications": 0,
+        "restored": true,
+        "drawP95": 3.099999964237213,
+        "drawRootNotifications": 0
+      }
+    },
+    {
+      "test": "canvas move previews in a10000-node document retain the frame budget",
+      "data": {
+        "rectangles": 9999,
+        "selected": 100,
+        "duplicate": false,
+        "previewCount": 10000,
+        "measuredFrames": 110,
+        "p95": 6.5,
+        "max": 8.699999988079071,
+        "inputP95": 6,
+        "rootNotifications": 0,
+        "restored": true
+      }
+    },
+    {
+      "test": "canvas Alt-copy previews in a10000-node document retain the frame budget",
+      "data": {
+        "rectangles": 9999,
+        "selected": 20,
+        "duplicate": true,
+        "previewCount": 10020,
+        "measuredFrames": 110,
+        "p95": 5.899999976158142,
+        "max": 9.899999976158142,
+        "inputP95": 5.300000011920929,
+        "rootNotifications": 0,
+        "restored": true
+      }
+    },
+    {
+      "test": "Polygon Star previews retain the frame budget in a10000-node document",
+      "data": {
+        "nodes": 10000,
+        "measuredFrames": 110,
+        "p95": 3,
+        "max": 3.300000011920929,
+        "inputP95": 2.199999988079071,
+        "rootNotifications": 0,
+        "drawP95": 2.800000011920929,
+        "drawRootNotifications": 0,
+        "restored": true
+      }
+    },
+    {
+      "test": "Line and dashed stroke previews retain the10000-node frame budget",
+      "data": {
+        "nodes": 10000,
+        "visible": 100,
+        "measuredFrames": 110,
+        "p95": 6.199999988079071,
+        "max": 8.199999988079071,
+        "inputP95": 2,
+        "rootNotifications": 0,
+        "drawP95": 7.199999988079071,
+        "drawRootNotifications": 0,
+        "restored": true
+      }
+    },
+    {
+      "test": "Per-side rounded stroke previews retain the10000-node frame budget",
+      "data": {
+        "nodes": 10000,
+        "visible": 100,
+        "measuredFrames": 110,
+        "p95": 6.5,
+        "max": 7,
+        "inputP95": 2,
+        "rootNotifications": 0,
+        "drawP95": 6.199999988079071,
+        "drawRootNotifications": 0,
+        "restored": true
+      }
+    },
+    {
+      "test": "Variable-width stroke previews retain the10000-node frame budget",
+      "data": {
+        "nodes": 10000,
+        "visible": 100,
+        "measuredFrames": 110,
+        "p95": 6.199999988079071,
+        "max": 9.200000047683716,
+        "inputP95": 2.099999964237213,
+        "rootNotifications": 0,
+        "drawP95": 6.400000035762787,
+        "drawRootNotifications": 0,
+        "panP95": 7.300000011920929,
+        "restored": true
+      }
+    },
+    {
+      "test": "Brush stroke previews retain the10000-node frame budget",
+      "data": {
+        "nodes": 10000,
+        "visible": 100,
+        "measuredFrames": 110,
+        "p95": 6.099999964237213,
+        "max": 6.800000011920929,
+        "inputP95": 2,
+        "rootNotifications": 0,
+        "drawP95": 5.599999964237213,
+        "drawRootNotifications": 0,
+        "panP95": 10.100000023841858,
+        "restored": true
+      }
+    },
+    {
+      "test": "Vector network stroke previews retain the10000-node frame budget",
+      "data": {
+        "nodes": 10000,
+        "visible": 100,
+        "measuredFrames": 110,
+        "p95": 8.199999988079071,
+        "max": 9.199999988079071,
+        "inputP95": 2.199999988079071,
+        "rootNotifications": 0,
+        "drawP95": 9.100000023841858,
+        "drawRootNotifications": 0,
+        "panP95": 12.5,
+        "restored": true
+      }
+    },
+    {
+      "test": "transform resize previews in a10000-node document retain the frame budget",
+      "data": {
+        "rectangles": 9999,
+        "selected": 100,
+        "scale": false,
+        "previewCount": 10000,
+        "measuredFrames": 110,
+        "p95": 5.600000023841858,
+        "max": 7.199999988079071,
+        "inputP95": 4.699999988079071,
+        "rootNotifications": 0,
+        "restored": true
+      }
+    },
+    {
+      "test": "transform Scale previews in a10000-node document retain the frame budget",
+      "data": {
+        "rectangles": 9999,
+        "selected": 100,
+        "scale": true,
+        "previewCount": 10000,
+        "measuredFrames": 110,
+        "p95": 5.900000035762787,
+        "max": 7.199999988079071,
+        "inputP95": 4.899999976158142,
+        "rootNotifications": 0,
+        "restored": true
+      }
+    }
+  ]
+}

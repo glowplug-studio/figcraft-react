@@ -244,3 +244,5 @@ Smart-selection tracks, reordering and transient gestures: [property report](../
 Supported subtree duplication and repeated offsets: [property report](../reports/26-11-07-duplication-parity.html).
 
 Polygon/Star geometry, properties, radius/ratio handles and native/recovery flows: [property report](../reports/26-11-07-polygon-star-parity.html). Full shape/vector/stroke and product parity remain incomplete.
+
+Drawing, moving and resizing preserve fractional object targets after grid snapping at 4b86d41. Frame/Section/Slice drag creation remains outstanding. [Coverage](../reports/26-11-07-snap-priority-parity.html)

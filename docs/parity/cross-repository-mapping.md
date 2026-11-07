@@ -251,3 +251,7 @@ Upstream `0e6fcf9b` at reference `7522c39b` supersedes open-path undo behaviour 
 | Keymap Edit Undo/Redo and host history controls | `Editor.dispatch`, `HistoryButtons`, `CanvasController.cancel(true)` | Authenticated keyboard/buttons, no root preview updates, save/recovery and mobile bounds. No per-frame React state. |
 
 See the [property report](../reports/26-11-07-pen-anchor-undo-parity.html). The hosted Rust graph predates these new methods; current source and `pen_undo_tests.rs` are authoritative. Existing live per-client undo remains a separate roadmap dependency.
+
+| Port scope | Native evidence | TypeScript target | Verification |
+|---|---|---|---|
+| Fractional target priority | `39c58338`, draw.rs::draw_drag, drag.rs move/resize, transform_behaviour_tests::snapping_to_layers_wins_over_the_pixel_grid | DrawInteraction, MoveInteraction and TransformInteraction | [Paired fixtures](../../tests/parity/snap-priority.test.ts) and [browser evidence](../reports/26-11-07-snap-priority-parity.html), implementation 4b86d41 |
