@@ -5,17 +5,17 @@
 | Field | Current value |
 |---|---|
 | Overall status | In progress; full parity is not implemented |
-| Active slice | [Pen anchor undo/redo](26-11-07-pen-anchor-undo.md), incoming correction before width-point editing |
-| Active phase | Phase 6: Pen anchor history implemented; 852 pure, 2 real Auth, strict/build and 3 focused authenticated workflows pass; final 0.28.1 regression next |
+| Active slice | Pixel-grid and object snapping precedence during drawing, moving and resizing (upstream `39c58338`) |
+| Active phase | Phase 1: establish exact affected paths and native regression fixtures for the incoming target-priority correction |
 | Upstream baseline | Current reference `7522c39ba594ed7e948b6d2626210c4a36b03497`; supported global baseline `8eb0b87646c5aef712326d6c431ccde5408630de` unchanged |
-| Branch and last verified commit | `prompt/full-figcraft-port`; verified Pencil `7ad8a5a`; verified Pencil foundation `b630d0c`; verified Pen `d3c00a4`; verified internal Pen foundation `653e4a4`; verified point transforms/snapping `4a762cd`; verified vector authoring `adc59d4`; verified internal authoring primitives `74fbbb0`; verified vector foundation `154f5a7`; verified brushes `d3f7934`; verified width profiles `5f035a2`; verified per-side strokes `e21aaf0`; verified Line/strokes `0ca7c35`; verified Polygon/Star `f4db7fc`; verified ellipses `f21fe2b`; verified corners `37ad314`; verified transforms `cc26af1`; verified canvas move `0d34280`; verified duplication `f6dfc3f`; verified smart selection `3326d26`; verified rotations `92062ca`; verified sizing `c6b8c71`; verified arrangement `783a694`; verified viewport `d0fae6c`; verified frames `3e7943a`; verified nested groups `e81ba76`; verified colour `bfa5dd8`; affine `080fc27`, outline check `2404d6b`, reports `ff29f38`; pages `6c988a5`, persistence `41d467b`; integration `fc3b4a6` from updated dev plus rectangle branch |
+| Branch and last verified commit | `prompt/full-figcraft-port`; Pen anchor implementation `6ffb65a`, reference plan `eba0174`; verified Pencil `7ad8a5a`; verified Pencil foundation `b630d0c`; verified Pen `d3c00a4`; verified internal Pen foundation `653e4a4`; verified point transforms/snapping `4a762cd`; verified vector authoring `adc59d4`; verified internal authoring primitives `74fbbb0`; verified vector foundation `154f5a7`; verified brushes `d3f7934`; verified width profiles `5f035a2`; verified per-side strokes `e21aaf0`; verified Line/strokes `0ca7c35`; verified Polygon/Star `f4db7fc`; verified ellipses `f21fe2b`; verified corners `37ad314`; verified transforms `cc26af1`; verified canvas move `0d34280`; verified duplication `f6dfc3f`; verified smart selection `3326d26`; verified rotations `92062ca`; verified sizing `c6b8c71`; verified arrangement `783a694`; verified viewport `d0fae6c`; verified frames `3e7943a`; verified nested groups `e81ba76`; verified colour `bfa5dd8`; affine `080fc27`, outline check `2404d6b`, reports `ff29f38`; pages `6c988a5`, persistence `41d467b`; integration `fc3b4a6` from updated dev plus rectangle branch |
 | Completed slices | Rectangle/host-auth, bounded native persistence/recovery, supported-model pages, affine rectangle geometry/selection and solid appearance, plus nested group hierarchy, Frame containers, movement/transform gestures, rounded corners, ellipse/arc/ring and Polygon/Star editing verified locally; Line/Arrow and uniform solid strokes also verified; per-side Rectangle/Frame strokes, variable-width profiles and procedural brushes verified; vector networks, solid region/stroke rendering and Flatten/Reverse also verified; foundation commit `154f5a7` |
 | Remaining slices | Every row below except the integrated foundation; static inventory entries remain unverified until mapped and tested |
-| Tests last passed | Pencil at `7ad8a5a`: 848 pure, 2 real Auth, strict TypeScript and package/Next production builds; 102/102 Chromium in 219.9s with no failures/skips/flakes. Preview p95 0.8ms; 4,001-sample completion 11.6ms. Extended Shift/fractional browser assertion also passes. |
-| Files currently in progress | Pen anchor undo/redo engine, targeted toolbar history controls and paired/browser tests; final reports in progress |
+| Tests last passed | Pen anchor undo/redo at `6ffb65a`: 852 pure, two real Auth, strict TypeScript and both production builds; 103/103 Chromium passed in 227.6s without failures, skips or flakes. Fixed one-anchor capture also passed independently. |
+| Files currently in progress | Pen anchor evidence complete; next snap-priority analysis and plan |
 | Blockers | No implementation blocker. Graphify authentication restored; hosted React index remains stale; current local source is authoritative |
-| Exact next action | Run final 0.28.1 production build and full Playwright regression, complete Pen anchor property report and mapping, then reconcile incoming snap priority. |
-| Last updated | 2026-11-07T08:56+07:00 |
+| Exact next action | Inspect native draw/move/resize fixtures and matched React controllers for pixel-before-object ordering, then implement and verify the correction. Continue remaining width/vector and full roadmap slices. |
+| Last updated | 2026-11-07T09:07+07:00 |
 
 ## Scope and continuation
 
@@ -635,3 +635,8 @@ React 0.28.0, `7ad8a5a`: [Pencil report](../reports/26-11-07-pencil-authoring.md
 ## Incoming editing correction
 
 The reference fork fast-forwarded 65 commits to `7522c39b`; [incoming scope](../reports/26-11-07-upstream-editor-advance.md). The formerly verified Pen undo behaviour changed upstream. [Anchor undo/redo](26-11-07-pen-anchor-undo.md) is active before width-point editing; no previous report is retrospectively relabelled as passing the new reference. Width-point editing remains mandatory.
+
+
+## Verified Pen anchor history checkpoint
+
+Version 0.28.1, `6ffb65a`; [property report](../reports/26-11-07-pen-anchor-undo-parity.html). Native three-to-zero anchor undo/redo, earlier document history, captured-pointer cancellation, toolbar/keyboard and native save/recovery pass. Next: upstream snap-target priority in supported draw/move/resize workflows. The global baseline remains unchanged and publication remains gated.

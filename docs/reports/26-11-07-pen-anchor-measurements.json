@@ -1,0 +1,51 @@
+{
+  "implementationCommit": "6ffb65af507256051544f9abaaa780a177c886cc",
+  "upstream": "7522c39ba594ed7e948b6d2626210c4a36b03497",
+  "version": "0.28.1",
+  "browser": {
+    "startTime": "2026-11-07T02:01:58.251Z",
+    "duration": 227617.605,
+    "expected": 103,
+    "skipped": 0,
+    "unexpected": 0,
+    "flaky": 0
+  },
+  "penPerformance": [
+    {
+      "operation": "hover",
+      "nodes": 10000,
+      "visibleLayers": 100,
+      "measuredFrames": 110,
+      "rootNotifications": 0,
+      "chromeNotifications": 0,
+      "p95": 1,
+      "max": 1,
+      "inputP95": 0.10000002384185791,
+      "restored": true
+    },
+    {
+      "operation": "draw",
+      "nodes": 10000,
+      "visibleLayers": 100,
+      "measuredFrames": 110,
+      "rootNotifications": 0,
+      "chromeNotifications": 0,
+      "p95": 6,
+      "max": 6.400000035762787,
+      "inputP95": 5.100000023841858,
+      "restored": true
+    },
+    {
+      "operation": "edit",
+      "nodes": 10000,
+      "visibleLayers": 100,
+      "measuredFrames": 110,
+      "rootNotifications": 0,
+      "chromeNotifications": 0,
+      "p95": 2.899999976158142,
+      "max": 2.900000035762787,
+      "inputP95": 2.199999988079071,
+      "restored": true
+    }
+  ]
+}

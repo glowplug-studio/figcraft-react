@@ -4,14 +4,14 @@
 
 | Field | Value |
 |---|---|
-| Status / phase | Active; Phase 6 final release-build regression pending |
-| React branch / base | `prompt/full-figcraft-port` at `12a7671`; verified Pencil implementation `7ad8a5a` |
+| Status / phase | Phase 7 complete; Pen anchor history verified locally. Full product remains incomplete. |
+| React branch / base | `prompt/full-figcraft-port` at `6ffb65a` (implementation); incoming reference plan `eba0174`; verified Pencil implementation `7ad8a5a` |
 | Reference / global baseline | Fork/original/submodule `7522c39ba594ed7e948b6d2626210c4a36b03497`; global `8eb0b87646c5aef712326d6c431ccde5408630de` unchanged |
-| Tests last passed | 852 pure tests, two real local Auth tests, strict TypeScript and package/Next builds; all three focused authenticated Pen browser workflows pass |
-| Files in progress | PenInteraction, EditorEngine, Editor history buttons, paired tests and authenticated browser flow; implementation integrated. |
+| Tests last passed | 852 pure, two real Auth, strict package/tests/Next TypeScript and production builds; 103/103 Chromium in 227.6s. One-anchor screenshot separately verified without updates. |
+| Files in progress | None in Pen anchor implementation. Reports and stable mapping accompany the evidence commit. |
 | Blockers | None. Both Graphify repositories and scoped Supabase MCP responded. Hosted graphs lag the pin. |
-| Exact next action | Run final 0.28.1 build and complete Playwright regression; record property matrix, stable mapping and commit. |
-| Updated | 2026-11-07T08:56+07:00 |
+| Exact next action | Reconcile incoming pixel-grid/object snapping priority across drawing, moving and resizing, then continue validation corrections and width-point editing. |
+| Updated | 2026-11-07T09:07+07:00 |
 
 ## Evidence and acceptance
 
@@ -39,3 +39,8 @@ Both named Graphify repositories are queryable: Rust 26,788 nodes indexed at `09
 ## Integrated checkpoint
 
 The transient anchor stack preserves handles, clears on accepted new anchors only, drops the vector below two anchors and retains earlier document history. Native command precedence and ordinary document redo fallback are covered. Button availability uses a two-bit external-store subscription in `HistoryButtons`; 100 drag moves publish no history availability or root notifications. The authenticated workflow exercises keyboard and toolbar undo/redo, branches after undo, saves the exact anchor coordinates and first tangent, reloads recovery and checks mobile controls. 852 pure, two real Auth, strict/build and three focused browser workflows pass. Graphify resolved the older `pen_down` → `pen_update` → `connect` edges; its test query did not contain the incoming native fixture. React impact query was unresolved. Final report and exact release-build regression remain.
+
+
+## Verified checkpoint
+
+React 0.28.1 at `6ffb65a` passed all 103 Chromium checks in 227.6s without failures, skips or flakes. The additional one-anchor fixed capture was inspected and passes unchanged on repeat. Pen hover/draw/edit p95 was 1.0/6.0/2.9ms with zero root/panel preview notifications. The [12-property report](../reports/26-11-07-pen-anchor-undo-parity.html) and raw measurements distinguish this local change from later live per-client undo. Owned Next server stopped; no publication. Continue snap precedence.

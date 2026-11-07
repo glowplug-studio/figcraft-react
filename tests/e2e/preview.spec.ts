@@ -1811,7 +1811,9 @@ test("Pen anchor undo and redo preserve earlier anchors, handles and document hi
   const start = await at(150, 180), handle = await at(180, 180); await page.mouse.move(start.x, start.y); await page.mouse.down(); await page.mouse.move(handle.x, handle.y); await page.mouse.up();
   await expect(undo).toBeEnabled(); await expect(redo).toBeDisabled(); const commits = await page.locator("[data-figcraft-editor]").getAttribute("data-commits");
   await click(300, 240); await click(400, 350); await page.keyboard.press("ControlOrMeta+z"); await expect(redo).toBeEnabled();
-  await undo.click(); await expect(undo).toBeEnabled(); await redo.click(); await canvas.focus(); await page.keyboard.press("ControlOrMeta+Shift+z");
+  await undo.click(); await expect(undo).toBeEnabled();
+  await expect(canvas).toHaveScreenshot("pen-undo-one-anchor.png", { animations: "disabled", maxDiffPixels: 0 });
+  await redo.click(); await canvas.focus(); await page.keyboard.press("ControlOrMeta+Shift+z");
   await expect(redo).toBeDisabled(); await page.keyboard.press("ControlOrMeta+z"); await click(420, 300); await expect(redo).toBeDisabled();
   expect(await page.locator("[data-figcraft-editor]").getAttribute("data-commits")).toBe(commits);
   await page.keyboard.press("Enter"); await expect(page.getByText("1 layer", { exact: true })).toBeVisible(); await undo.click();

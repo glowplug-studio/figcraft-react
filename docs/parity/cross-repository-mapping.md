@@ -238,3 +238,16 @@ Reference `09e04e71765517975950403eec4cb6fbe8955359`; verified implementation `7
 | `ui-egui/src/canvas/overlays.rs::pen_overlay`, `canvas_fixes_tests`; native Pencil keymap | `PencilInteraction.draw`, `CanvasController`, `Editor` | Black polyline with max(2 × zoom, 1) screen width; no anchor dots; actual capture/cancel/lost-capture and zoom preservation. Four authenticated workflows, desktop screenshots and mobile bounds. High for these interactions. |
 
 Analytical line integrals and adaptive Simpson/bisection replace equivalent native numerical procedures; tolerances and precision limits are documented in the [verification report](../reports/26-11-07-pencil-authoring.md). Hosted React Graphify remains README-only. No schema or provider change applies. Width-point editing, regions, booleans and the remaining master roadmap stay required.
+
+
+## Pen anchor history — 2026-11-07
+
+Upstream `0e6fcf9b` at reference `7522c39b` supersedes open-path undo behaviour from the earlier Pen report. React implementation `6ffb65a`; global baseline unchanged.
+
+| Upstream source/symbol | Independent target | Evidence and scope |
+|---|---|---|
+| `canvas/tools.rs::PenPath.undone`; `canvas/tools/pen.rs::{pen_down,pen_undo,pen_redo,pen_update}` | `PenInteraction.travel`, path-local removed-anchor stack and existing preview geometry | Paired native three-to-zero anchor fixture, complete handle restoration, discarded redo branch, one-layer threshold and exact order. |
+| `session/undo.rs::{undo,redo}`, `cmd/edit.rs` history command specs | `EditorEngine.execute` | Anchor travel precedes normal history; an earlier real document redo remains available. Finished paths retain one history entry. |
+| Keymap Edit Undo/Redo and host history controls | `Editor.dispatch`, `HistoryButtons`, `CanvasController.cancel(true)` | Authenticated keyboard/buttons, no root preview updates, save/recovery and mobile bounds. No per-frame React state. |
+
+See the [property report](../reports/26-11-07-pen-anchor-undo-parity.html). The hosted Rust graph predates these new methods; current source and `pen_undo_tests.rs` are authoritative. Existing live per-client undo remains a separate roadmap dependency.
