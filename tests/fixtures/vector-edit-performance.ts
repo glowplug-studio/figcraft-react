@@ -1,0 +1,42 @@
+import { newDocument, type Document, type DocumentNode, type VectorNode } from "../../src/engine/document";
+import { EditorEngine } from "../../src/engine/editor";
+import { encodeFigcraft } from "../../src/engine/file-format";
+import { base64Bytes } from "../../src/engine/recovery";
+import { renderDocument } from "../../src/engine/canvas";
+import { drawVectorEdit } from "../../src/engine/vector-edit-overlay";
+import { VectorInteraction } from "../../src/engine/vector-interaction";
+
+export async function measureVectorEdit(canvas: HTMLCanvasElement) {
+  const seed = new EditorEngine(), id = String(seed.execute("vector.create", { path: "M0 0C10 -5 30 -5 40 0L40 30L0 30Z" }).id);
+  const template = seed.getSnapshot().document.nodes[id] as VectorNode;
+  const initial = newDocument(), nodes: Record<string, DocumentNode> = { ...initial.nodes }, children: string[] = [];
+  for (let i = 0; i < 9_999; i++) {
+    const id = String(i + 2), x = i < 100 ? 40 + i % 10 * 90 : 10_000 + i, y = i < 100 ? 40 + Math.floor(i / 10) * 65 : 10_000;
+    children.push(id);
+    nodes[id] = i < 100 ? { ...template, id, parent: "1", x, y, transform: [1, 0, 0, 1, x, y] } : { id, parent: "1", kind: "rectangle", name: `Layer ${i}`, x, y, width: 40, height: 30, fill: "#d9d9d9" };
+  }
+  nodes["1"] = { ...initial.nodes["1"], kind: "page", parent: null, background: "#f5f5f5", children };
+  const document: Document = { ...initial, nodes }, engine = new EditorEngine();
+  await engine.executeAsync("file.open", { data: base64Bytes(await encodeFigcraft(document, "10002")) });
+  engine.execute("vector.edit.begin", { ids: children.slice(0, 100) });
+  engine.updateVectorSelection(s => ({ ...s, vertices: [0], others: s.others.map(p => ({ ...p, vertices: [0] })) }));
+  engine.execute("view.set", { cx: 600, cy: 400, vw: 1200, vh: 800, zoom: 1 });
+  canvas.width = 1200; canvas.height = 800;
+  const context = canvas.getContext("2d")!, interaction = new VectorInteraction(engine, message => { throw new Error(message); });
+  const modifiers = { altKey: false, ctrlKey: false, metaKey: false, shiftKey: false };
+  interaction.down({ x: 40, y: 40 }, modifiers);
+  const before = engine.getSnapshot().document, state = engine.getVectorEdit(); let rootNotifications = 0, chromeNotifications = 0;
+  engine.subscribe(() => rootNotifications++); engine.subscribeVectorEdit(() => chromeNotifications++);
+  const measurements: number[] = [], inputs: number[] = [];
+  for (let i = 0; i < 120; i++) {
+    await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
+    const start = performance.now(); interaction.move({ x: 20 + i % 10, y: 20 + i % 8 }, modifiers); const input = performance.now() - start;
+    renderDocument(context, engine.getRenderDocument(), 1200, 800, [], undefined, engine.getView());
+    drawVectorEdit(context, engine.getRenderDocument(), engine.getRenderVectorEdit()!, engine.getView(), interaction.overlay);
+    if (i >= 10) { inputs.push(input); measurements.push(performance.now() - start); }
+  }
+  interaction.cancel(); measurements.sort((a, b) => a - b); inputs.sort((a, b) => a - b);
+  return { nodes: Object.keys(before.nodes).length, visibleEditedLayers: 100, selectedPoints: 100, measuredFrames: measurements.length,
+    p95: measurements[Math.floor(measurements.length * .95)], max: measurements.at(-1), inputP95: inputs[Math.floor(inputs.length * .95)], rootNotifications, chromeNotifications,
+    restored: engine.getRenderDocument() === before && engine.getRenderVectorEdit() === state };
+}

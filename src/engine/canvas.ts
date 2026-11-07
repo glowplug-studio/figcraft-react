@@ -18,6 +18,8 @@ import { TransformInteraction } from "./transform-interaction";
 import { paintStroke, strokeBounds } from "./stroke-renderer";
 import { hasVisibleStroke } from "./stroke";
 import { vectorPaintRegions } from "./vector-presentation";
+import { VectorInteraction } from "./vector-interaction";
+import { drawVectorEdit } from "./vector-edit-overlay";
 
 const compositeSurfaces = new WeakMap<CanvasRenderingContext2D, HTMLCanvasElement>();
 // Immutable document snapshots invalidate these derived bounds after any edit.
@@ -188,6 +190,7 @@ export class CanvasController {
   #rounding: CornerInteraction;
   #drawing: DrawInteraction;
   #arcs: ArcInteraction;
+  #vectors: VectorInteraction;
   #dragOrigin = false;
   #space = false;
   #zoomHeld = false;
@@ -205,10 +208,11 @@ export class CanvasController {
     this.#rounding = new CornerInteraction(engine, onError);
     this.#drawing = new DrawInteraction(engine, onError);
     this.#arcs = new ArcInteraction(engine, onError);
+    this.#vectors = new VectorInteraction(engine, onError);
     const options = { signal: this.#abort.signal };
     canvas.addEventListener("pointerdown", this.#down, options);
     canvas.addEventListener("pointermove", this.#move, options);
-    canvas.addEventListener("pointerleave", event => { if (this.#pointer === null) { this.#smart.hover(undefined, event); this.#rounding.hover(undefined); this.#arcs.hover(undefined); this.invalidate(); } }, options);
+    canvas.addEventListener("pointerleave", event => { if (this.#pointer === null) { this.#smart.hover(undefined, event); this.#rounding.hover(undefined); this.#arcs.hover(undefined); this.#vectors.hover(undefined); this.invalidate(); } }, options);
     canvas.addEventListener("pointerup", this.#up, options);
     canvas.addEventListener("dblclick", this.#doubleClick, options);
     canvas.addEventListener("pointercancel", this.#cancelEvent, options);
@@ -246,6 +250,9 @@ export class CanvasController {
     }
     if (event.button !== 0) return;
     this.canvas.focus();
+    if (this.#vectors.down(this.#point(event), event)) {
+      event.preventDefault(); this.#pointer = event.pointerId; this.canvas.setPointerCapture(event.pointerId); this.invalidate(); return;
+    }
     if (this.#onOrigin(this.#point(event))) {
       event.preventDefault(); this.#dragOrigin = true; this.#pointer = event.pointerId;
       this.canvas.setPointerCapture(event.pointerId); return;
@@ -266,8 +273,12 @@ export class CanvasController {
 
   #move = (event: PointerEvent): void => {
     if (this.#pointer === null) {
-      this.canvas.style.cursor = this.#onOrigin(this.#point(event)) ? "move" : this.#arcs.hover(this.#point(event)) ?? this.#rounding.hover(this.#point(event)) ?? this.#transforming.hover(this.#point(event)) ?? this.#smart.hover(this.#screenPoint(event), event);
+      this.canvas.style.cursor = this.engine.getVectorEdit() ? this.#vectors.hover(this.#point(event), event) ?? "default" : this.#onOrigin(this.#point(event)) ? "move" : this.#arcs.hover(this.#point(event)) ?? this.#rounding.hover(this.#point(event)) ?? this.#transforming.hover(this.#point(event)) ?? this.#smart.hover(this.#screenPoint(event), event);
       this.invalidate();
+    }
+    if (event.pointerId === this.#pointer && this.#vectors.active) {
+      const started = performance.now(); this.#vectors.move(this.#point(event), event); this.invalidate();
+      performance.measure("figcraft:pointer", { start: started, end: performance.now() }); return;
     }
     if (event.pointerId === this.#pointer && this.#arcs.active) {
       const started = performance.now(); this.#arcs.move(this.#point(event), event.shiftKey); this.invalidate();
@@ -313,6 +324,11 @@ export class CanvasController {
   };
 
   #up = (event: PointerEvent): void => {
+    if (event.pointerId === this.#pointer && this.#vectors.active) {
+      const point = this.#point(event), forward = this.#vectors.up(point); this.cancel();
+      if (forward && this.#moving.down(forward, event)) this.#moving.up(point, event);
+      return;
+    }
     if (event.pointerId === this.#pointer && this.#arcs.active) { this.#arcs.up(); this.cancel(); return; }
     if (event.pointerId === this.#pointer && this.#drawing.active) { this.#drawing.up(this.#point(event)); this.cancel(); return; }
     if (event.pointerId === this.#pointer && this.#rounding.active) { this.#rounding.up(); this.cancel(); return; }
@@ -351,6 +367,7 @@ export class CanvasController {
     if (!this.engine.getSnapshot().editable) return;
     event.preventDefault();
     try {
+      if (this.#vectors.doubleClick(this.#point(event))) return;
       if (this.#onOrigin(this.#point(event))) this.engine.execute("transform.setRotationOrigin", { reset: true });
       else this.#moving.doubleClick(this.#point(event));
     } catch (error) { this.onError(error instanceof Error ? error.message : "Could not enter layer"); }
@@ -369,6 +386,7 @@ export class CanvasController {
     if (event.key.toLowerCase() === "z") this.#zoomHeld = false;
   };
   cancel(): void {
+    this.#vectors.cancel();
     this.#arcs.cancel();
     this.#drawing.cancel();
     this.#rounding.cancel();
@@ -405,13 +423,15 @@ export class CanvasController {
       context.setTransform(this.#dpr, 0, 0, this.#dpr, 0, 0);
       const snapshot = this.engine.getSnapshot();
       const view = this.engine.getView(), origin = viewOrigin(view);
-      renderDocument(context, this.engine.getRenderDocument(), this.#width, this.#height, this.engine.getRenderSelection(), undefined, view);
-      if (!this.#moving.active && !this.#transforming.active && !this.#rounding.active && !this.#arcs.active && !this.#drawing.active) this.#smart.draw(context);
-      if (!this.#moving.active && !this.#transforming.active && !this.#smart.active && !this.#drawing.active) { this.#rounding.draw(context); this.#arcs.draw(context); }
-      if (!this.#moving.active && !this.#smart.active) this.#transforming.draw(context);
+      const vectorEdit = this.engine.getRenderVectorEdit();
+      renderDocument(context, this.engine.getRenderDocument(), this.#width, this.#height, vectorEdit ? [] : this.engine.getRenderSelection(), undefined, view);
+      if (!vectorEdit && !this.#moving.active && !this.#transforming.active && !this.#rounding.active && !this.#arcs.active && !this.#drawing.active) this.#smart.draw(context);
+      if (!vectorEdit && !this.#moving.active && !this.#transforming.active && !this.#smart.active && !this.#drawing.active) { this.#rounding.draw(context); this.#arcs.draw(context); }
+      if (!vectorEdit && !this.#moving.active && !this.#smart.active) this.#transforming.draw(context);
       this.#moving.draw(context); this.#drawing.draw(context);
+      if (vectorEdit) drawVectorEdit(context, this.engine.getRenderDocument(), vectorEdit, view, this.#vectors.overlay);
       const rotationOrigin = this.engine.getRotationOrigin();
-      if (rotationOrigin.editing && rotationOrigin.point) {
+      if (!vectorEdit && rotationOrigin.editing && rotationOrigin.point) {
         const point = pageToScreen(view, rotationOrigin.point);
         context.strokeStyle = canvasAccent(this.engine.getRenderDocument()); context.fillStyle = "#ffffff"; context.lineWidth = 1.5;
         context.beginPath(); context.arc(point.x, point.y, 5, 0, Math.PI * 2); context.fill(); context.stroke();

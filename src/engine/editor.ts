@@ -9,6 +9,8 @@ import { setRectangleProperties } from "./properties";
 import { HierarchyDraft, pageForNode } from "./hierarchy";
 import { executeStructure, structureSpecs } from "./structure";
 import { executeVector, vectorSpecs } from "./vector-commands";
+import { executeVectorEdit, vectorEditSpecs, type VectorEditCommand } from "./vector-edit-commands";
+import { clampVectorEdit, type VectorEditState } from "./vector-edit";
 import { defaultViewport, executeView, fitPage, viewSpecs, type Viewport } from "./viewport";
 import { framePresets } from "./frame-presets";
 import { parseBoolean, parseNumber } from "./parameters";
@@ -35,6 +37,7 @@ export const commandSpecs = Object.freeze({
   ...selectionSpecs,
   ...structureSpecs,
   ...vectorSpecs,
+  ...vectorEditSpecs,
   "node.set": { label: "Set properties", undo: true },
   "frame.create": { label: "Frame", undo: true },
   "shape.polygon": { label: "Polygon", undo: true },
@@ -99,8 +102,11 @@ export class EditorEngine {
   #interaction?: {
     base: EditorSnapshot; document: Document; selection: readonly NodeId[]; nextId: bigint; duplicated?: Duplicated;
     preparedCopy?: { ids: readonly NodeId[]; result: ReturnType<typeof executeDuplicate> };
+    baseVectorEdit?: VectorEditState; vectorEdit?: VectorEditState;
   };
   #canvasListeners = new Set<() => void>();
+  #vectorEdit?: VectorEditState;
+  #vectorListeners = new Set<() => void>();
   #viewportAttached = false;
   #viewConfigured = false;
   #saved: Document | null = null;
@@ -111,6 +117,9 @@ export class EditorEngine {
     this.#snapshot = Object.freeze({ document: newDocument(), selection: Object.freeze([]), tool: "move", scaleAnchor: "tl", canUndo: false, canRedo: false, editable: true, dirty: true, hasSaved: false });
   }
   getSnapshot = (): EditorSnapshot => this.#snapshot;
+  getVectorEdit = (): VectorEditState | undefined => this.#vectorEdit;
+  getRenderVectorEdit = (): VectorEditState | undefined => this.#interaction ? this.#interaction.vectorEdit : this.#vectorEdit;
+  subscribeVectorEdit = (listener: () => void): (() => void) => { this.#vectorListeners.add(listener); return () => { this.#vectorListeners.delete(listener); }; };
   getRenderDocument = (): Document => this.#interaction?.document ?? this.#snapshot.document;
   getRenderSelection = (): readonly NodeId[] => this.#interaction?.selection ?? this.#snapshot.selection;
   getInteractionBase = (): Document => this.#interaction?.base.document ?? this.#snapshot.document;
@@ -119,7 +128,23 @@ export class EditorEngine {
   beginInteraction(): void {
     if (!this.#snapshot.editable) throw new Error("Sign in to edit this document");
     if (this.#interaction) throw new Error("An interaction is already active");
-    this.#interaction = { base: this.#snapshot, document: this.#snapshot.document, selection: this.#snapshot.selection, nextId: this.#nextId };
+    this.#interaction = { base: this.#snapshot, document: this.#snapshot.document, selection: this.#snapshot.selection, nextId: this.#nextId, baseVectorEdit: this.#vectorEdit, vectorEdit: this.#vectorEdit };
+  }
+  /** Pointer selection updates stable chrome once; frame-frequency previews use the method below. */
+  updateVectorSelection(update: (state: VectorEditState) => VectorEditState): void {
+    if (!this.#snapshot.editable) throw new Error("Sign in to edit this document");
+    if (!this.#vectorEdit || this.#interaction) throw new Error("No idle vector edit session");
+    const next = clampVectorEdit(this.#snapshot.document, update(this.#vectorEdit));
+    if (!next) throw new Error("Not a vector");
+    this.#vectorEdit = next; this.#vectorListeners.forEach(listener => listener()); this.#notifyCanvas();
+  }
+  /** Every preview derives from the captured document and selection; failures leave it unchanged. */
+  previewVectorEdit(update: (document: Document, state: VectorEditState) => { document: Document; state: VectorEditState }): void {
+    const interaction = this.#interaction;
+    if (!interaction?.baseVectorEdit) throw new Error("No active vector interaction");
+    const next = update(interaction.base.document, interaction.baseVectorEdit);
+    const state = clampVectorEdit(next.document, next.state); if (!state) throw new Error("Not a vector");
+    interaction.document = next.document; interaction.vectorEdit = state; this.#notifyCanvas();
   }
   previewSelection(ids: readonly NodeId[]): void {
     const interaction = this.#interaction;
@@ -190,6 +215,8 @@ export class EditorEngine {
     if (!interaction) return false;
     this.#interaction = undefined;
     const { base, document, selection } = interaction;
+    const vectorChanged = interaction.vectorEdit !== interaction.baseVectorEdit;
+    if (vectorChanged) this.#vectorEdit = interaction.vectorEdit;
     // Moving back to the source adds no history; copies and parenting are content changes.
     const changed = document !== base.document && (Object.keys(document.nodes).length !== Object.keys(base.document.nodes).length || Object.keys(document.nodes).some(id => {
       const node = document.nodes[id], old = base.document.nodes[id];
@@ -201,7 +228,7 @@ export class EditorEngine {
       if (interaction.duplicated) this.#lastDuplicate = interaction.duplicated;
       this.#publish({ document, selection });
     } else if (!sameIds(base.selection, selection)) this.#publish({ selection });
-    else this.#notifyCanvas();
+    else { if (vectorChanged) this.#vectorListeners.forEach(listener => listener()); this.#notifyCanvas(); }
     return changed;
   }
   getView = (): Viewport => this.#view;
@@ -247,6 +274,8 @@ export class EditorEngine {
     const document = patch.document ?? this.#snapshot.document;
     this.#snapshot = Object.freeze({ ...this.#snapshot, ...patch, canUndo: this.#undo.length > 0, canRedo: this.#redo.length > 0, dirty: !sameContent(document, this.#saved), hasSaved: this.#saved !== null });
     if (this.#lastDuplicate && !duplicateSelection(this.#lastDuplicate, this.#snapshot.selection)) this.#lastDuplicate = undefined;
+    if (this.#vectorEdit) this.#vectorEdit = pageForNode(document, this.#vectorEdit.id) === document.currentPage ? clampVectorEdit(document, this.#vectorEdit) : undefined;
+    this.#vectorListeners.forEach(listener => listener());
     this.#refreshOrigin();
     this.#canvasListeners.forEach(listener => listener());
     this.#listeners.forEach(listener => listener());
@@ -254,6 +283,7 @@ export class EditorEngine {
   setEditable(editable: boolean): void {
     if (!editable) this.cancelInteraction();
     if (!editable) this.cancelPendingFiles();
+    if (!editable) this.#vectorEdit = undefined;
     if (editable !== this.#snapshot.editable) this.#publish({ editable, tool: "move" });
   }
   execute(command: "frame.presets", input?: unknown): typeof framePresets;
@@ -265,6 +295,14 @@ export class EditorEngine {
     const p = parameters(input);
     const gesture = Object.hasOwn(smartSpecs, command) && command !== "arrange.roundToPixels" && parseBoolean(p.fromGesture) === true;
     if (!gesture && this.cancelInteraction() && command === "edit.undo") return { undone: true };
+    if (Object.hasOwn(vectorEditSpecs, command)) {
+      const before = this.#snapshot, oldState = this.#vectorEdit, next = executeVectorEdit(command as VectorEditCommand, before.document, before.selection, oldState, p);
+      if (next.recordHistory) { this.#undo.push({ document: before.document, selection: before.selection }); this.#redo = []; }
+      this.#vectorEdit = next.state;
+      if (next.document !== before.document || !sameIds(next.selection, before.selection)) this.#publish({ document: next.document, selection: next.selection });
+      else if (next.state !== oldState) { this.#vectorListeners.forEach(listener => listener()); this.#notifyCanvas(); }
+      return next.result;
+    }
     if (command === "tool.scaleAnchor") {
       for (const key of Object.keys(p)) if (key !== "anchor") throw new Error(`Unsupported scale anchor parameter: ${key}`);
       if (p.anchor !== undefined) {
@@ -338,6 +376,7 @@ export class EditorEngine {
     }
     if (Object.hasOwn(selectionSpecs, command)) {
       const next = executeSelection(command, this.#snapshot.document, this.#snapshot.selection, p);
+      if (command === "select.none") this.#vectorEdit = undefined;
       this.#publish({ document: next.document, selection: next.selection });
       return next.result;
     }
@@ -378,7 +417,9 @@ export class EditorEngine {
     if (command === "vector.create" || command === "shape.line" || command === "shape.arrow" || command === "shape.polygon" || command === "shape.star" || command === "shape.ellipse" || command === "shape.rectangle" || command === "frame.create" || command === "node.create") return this.#create(command, p);
     if (Object.keys(p).length) throw new Error(`${command} takes no parameters`);
     if (command === "tool.line" || command === "tool.arrow" || command === "tool.polygon" || command === "tool.star" || command === "tool.ellipse" || command === "tool.rectangle" || command === "tool.move" || command === "tool.scale") {
-      this.#publish({ tool: command === "tool.line" ? "line" : command === "tool.arrow" ? "arrow" : command === "tool.polygon" ? "polygon" : command === "tool.star" ? "star" : command === "tool.ellipse" ? "ellipse" : command === "tool.rectangle" ? "rectangle" : command === "tool.scale" ? "scale" : "move" });
+      const end = this.#vectorEdit && command !== "tool.move" && command !== "tool.scale" ? executeVectorEdit("vector.edit.end", this.#snapshot.document, this.#snapshot.selection, this.#vectorEdit, {}) : undefined;
+      if (end) this.#vectorEdit = undefined;
+      this.#publish({ ...(end ? { document: end.document, selection: end.selection } : {}), tool: command === "tool.line" ? "line" : command === "tool.arrow" ? "arrow" : command === "tool.polygon" ? "polygon" : command === "tool.star" ? "star" : command === "tool.ellipse" ? "ellipse" : command === "tool.rectangle" ? "rectangle" : command === "tool.scale" ? "scale" : "move" });
       return {};
     }
     const undo = command === "edit.undo";
@@ -420,6 +461,7 @@ export class EditorEngine {
     if (opening !== this.#openSequence || before !== this.#snapshot.document || !this.#snapshot.editable) throw new Error("Open was cancelled because the document or identity changed");
     this.#nextId = BigInt(decoded.nextId);
     this.#undo = []; this.#redo = []; this.#saved = null; this.#pendingSaves.clear();
+    this.#vectorEdit = undefined;
     this.#publish({ document: decoded.document, selection: Object.freeze([]), tool: "move" });
     this.updateView(fitPage(this.#view, decoded.document));
     return { summary: { name: decoded.document.name, pages: decoded.document.pages.length, layers: Object.keys(decoded.document.nodes).length - decoded.document.pages.length, images: 0 } };

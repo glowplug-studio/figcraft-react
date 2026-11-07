@@ -1,0 +1,35 @@
+# Vector point and handle authoring — 7 November 2026
+
+Version 0.25.0 on `prompt/full-figcraft-port`. Reviewed base `58c0981`; implementation revision is recorded after the verified commit. Upstream reference `0b97f3f1801a9b7b96fd7a4f3c0942a3f1a676f3`; global parity baseline remains `8eb0b87646c5aef712326d6c431ccde5408630de`. Full browser-relevant parity remains incomplete. No deployment, branch push or main merge occurred.
+
+## Implemented workflow
+
+Shapes enter vector edit mode through Edit vector, Enter or double-click. Multi-layer sessions retain per-layer point/segment selection and an active layer; conversion records one history item, while existing vectors enter without content history. Native conversion bakes corners, preserves appearance and paint frames, removes shape-only fields and keeps Line paths open. Refit translates coordinates and adjusts placement without scaling geometry twice. Empty networks are removed on exit. Undo, page/file changes, Select none, drawing-tool changes and identity loss clean the session according to the native lifecycle.
+
+Twenty native command entries cover begin/end/state/tool/select/selectAll, point/handle movement, position, mirroring, smoothing, bending, insertion, deletion/healing, point radius and cap/join overrides. Commands preserve local versus page versus parent coordinates, selected segment endpoints, active versus multi-layer targets, parameter parsing and atomicity. The diagnostic state remains bounded to implemented tools; width and region-hover fields are outstanding.
+
+Hit testing compares eligible handles and vertices on the page, uses native determinant-scaled local tolerance and lets handles win cross-kind ties. Cubic nearest points use an independent stationary-polynomial root solver, normalised to avoid avoidable overflow; no polyline approximation or Rust execution is used. Evidence: pinned [Kurbo cubic nearest implementation](https://docs.rs/kurbo/0.13.1/src/kurbo/cubicbez.rs.html), native short-handle/non-uniform-scale/tie fixtures and independent degenerate/multiple-minimum curve checks. Marquee edges follow [Kurbo half-open rectangle containment](https://docs.rs/kurbo/0.13.1/src/kurbo/rect.rs.html).
+
+Captured pointer previews derive each frame from the original immutable document and edit state. They notify Canvas only, commit one history item and restore both on cancellation. Supported gestures include point/segment movement, Shift selection and axis locking, multi-layer movement, selected handle groups, Alt independent handles, midpoint/Alt insertion and drag, Bend point/segment editing, marquee selection and merge-on-drop. Native smooth/sharp click behaviour leaves an endpoint unchanged. Dropping the two ends of a line together moves them without deleting its last segment.
+
+Canvas overlays show inactive edited layers below the active one, source-sized point/handle controls, selected and hovered segments, midpoint hints and marquee. React owns point position/radius/mirroring/cap/join fields and Move/Bend/Done controls. Arrow/Shift-arrow nudge, Select all, Delete/Shift-delete, Enter/Escape and V route to point commands. Enter on a focused button retains native browser activation. Point-only selection and all drag frames avoid root editor renders. The existing inspector width is retained; 390px controls are verified.
+
+## Verification
+
+Node 24.20.0, TypeScript 7.0.2, React 19.3.1, Next 16.4.5, Playwright 1.65.0 Chromium; fixed 1440×900 viewport and DPR 1 for screenshot checks.735 pure tests pass; two real local Auth integration tests pass separately. Strict package/tests/Next TypeScript, package build and Next production build pass. Final full Chromium regression: 89/89 pass in 146.8 seconds, with zero skipped, failed or flaky tests.
+
+Two focused authenticated browser flows pass: captured insertion/drag, no root commits during movement, one undo/redo, position/nudges, smooth/mirroring/radius/cap/join fields, downloaded native metadata, recovery reload, mobile controls, Bend, double-click entry, keyboard activation/deletion/healing and Escape. Browser hooks reject page errors and failed non-aborted requests. The fixed canvas screenshot and full mobile screenshot were inspected. All owned preview processes were stopped cleanly. Initial browser verification failed on a test-only field name (`mirroring` versus the typed `mirror`); the assertion was corrected and both flows rerun. Earlier command fixture review corrected the expected isolated-neighbour count after edge deletion; native geometry was retained.
+
+The 100-edited-layer/100-selected-point/10,000-total-node fixture measures 110 frames after 10 warm-up frames. Focused p95 combined input/render is 5.3ms, maximum 6.2ms and input p95 3.3ms; zero root or point-panel notifications and cancellation restores the original document/session. The 16.7ms gate is unchanged. Full-suite combined p95 is 7.9ms, maximum 8.6ms and input p95 5.4ms, with the same zero-notification and restoration results. This does not establish unrestricted visible complexity, complete-host memory usage or long-session stability. Main library output is 595.43kB, gzip 166.45kB; this is neither the total Next download nor RAM.
+
+## Providers and evidence access
+
+Scoped Supabase MCP public-table read succeeds; there are no public application tables. This local geometry workflow requires no schema, migration, Storage, Realtime, profile or authorisation change. Existing host identity, capability, sign-out and principal-scoped recovery contracts remain in force. Local Auth fixtures are created and removed by test hooks.
+
+Graphify authentication was unavailable during early integration and was requested without opening a browser. It is now restored; both authorised repositories were queried successfully. Rust at0b97f3f resolves vector-edit and next-step point-box dependencies. Hosted React remains README-only atb3b8a1b and returns an explicitly ungrounded result. The refreshed local AST graph has 1,566 nodes/7,185 edges and resolves VectorInteraction, CanvasController, overlays and tests; its 700-token query truncates 201 neighbours and is not an exhaustive impact audit. Two SQL files lack a parser and a symbol-free performance spec is omitted; current source/tests remain authoritative. No user action is outstanding.
+
+## Required continuation
+
+Point transform boxes, point dimensions/resize/rotation/flip and snapping are the next required slice. Field scrubbing remains part of shared numeric chrome. Pen/Pencil, region selection/hatching, paint bucket/cut/eraser, width gestures, joining, booleans/shape builder and the remainder of the master roadmap are still required. None is represented by a placeholder tool. Native custom widgets are currently accessible HTML controls; complete chrome/localisation remains a later explicit obligation. Browser publication is still gated on the entire product.
+
+See the [property matrix](26-11-07-vector-authoring-parity.html), [active plan](../planning/26-11-07-vector-authoring.md), [master checkpoint](../planning/26-11-06-complete-figcraft-port.md) and [mapping](../parity/cross-repository-mapping.md).

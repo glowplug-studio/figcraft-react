@@ -1698,6 +1698,75 @@ test("Flatten and Reverse preserve geometry, shortcuts, undo, native files and r
   await page.screenshot({ path: "test-results/vector-mobile.png", fullPage: true });
 });
 
+test("vector point authoring supports captured drag, one undo, controls, native recovery and mobile", async ({ page }) => {
+  await login(page);
+  const creation = page.getByRole("group", { name: "Create layer", exact: true });
+  for (const [label, value] of [["X", 200], ["Y", 180], ["Width", 160], ["Height", 120]] as const) await creation.getByLabel(label, { exact: true }).fill(String(value));
+  await creation.getByRole("button", { name: "Create rectangle", exact: true }).click();
+  await page.getByRole("button", { name: "Edit vector", exact: true }).click();
+  const panel = page.getByRole("group", { name: "Vector points", exact: true }), canvas = page.getByLabel("Design canvas", { exact: true });
+  await expect(panel).toContainText("Select points to edit");
+  await expect(page.getByRole("toolbar", { name: "Vector tools", exact: true })).toBeVisible();
+  await expect(page.locator(".figcraft-recovery")).toHaveText("Recovery saved on this device");
+  const start = await canvasPoint(page, 280, 180), end = await canvasPoint(page, 280, 140);
+  await page.mouse.move(start.x, start.y); await page.mouse.down();
+  const commits = await page.locator("[data-figcraft-editor]").getAttribute("data-commits");
+  await page.mouse.move(end.x, end.y, { steps: 12 });
+  expect(await page.locator("[data-figcraft-editor]").getAttribute("data-commits")).toBe(commits);
+  await page.mouse.up(); await expect(panel.getByLabel("Point X", { exact: true })).toHaveValue("280");
+  await expect(panel.getByLabel("Point Y", { exact: true })).toHaveValue("140");
+  await canvas.focus(); await page.keyboard.press("ControlOrMeta+z"); await expect(panel).toContainText("Select points to edit");
+  await page.keyboard.press("ControlOrMeta+Shift+z");
+  const moved = await canvasPoint(page, 280, 140); await page.mouse.click(moved.x, moved.y);
+  await page.keyboard.press("ArrowRight"); await page.keyboard.press("Shift+ArrowDown");
+  await expect(panel.getByLabel("Point X", { exact: true })).toHaveValue("281"); await expect(panel.getByLabel("Point Y", { exact: true })).toHaveValue("150");
+  await panel.getByLabel("Point X", { exact: true }).fill("290"); await panel.getByLabel("Point Y", { exact: true }).fill("160");
+  await panel.getByRole("button", { name: "Apply point position", exact: true }).click();
+  await panel.getByRole("button", { name: "Smooth points", exact: true }).click();
+  await panel.getByLabel("Handle mirroring", { exact: true }).selectOption("angleAndLength");
+  await panel.getByLabel("Point corner radius", { exact: true }).fill("5"); await panel.getByRole("button", { name: "Apply point radius", exact: true }).click();
+  await panel.getByLabel("Point end cap", { exact: true }).selectOption("round"); await panel.getByLabel("Point stroke join", { exact: true }).selectOption("bevel");
+  await page.mouse.move(10, 10); await expect(canvas).toHaveScreenshot("vector-point-authoring.png", { animations: "disabled", maxDiffPixels: 0 });
+  const download = page.waitForEvent("download"); await page.getByRole("button", { name: "Save as", exact: true }).click();
+  const saved = await decodeFigcraft(await readFile((await (await download).path())!)), node = Object.values(saved.document.nodes).find(n => n.kind === "vector") as VectorNode;
+  expect(node.network.vertices).toHaveLength(5); expect(node.network.vertices[4]).toMatchObject({ radius: 5, cap: "round", join: "bevel", mirror: "angleAndLength" });
+  const p = transformPoint(worldTransform(saved.document, node.id), node.network.vertices[4]); expect(p.x).toBeCloseTo(290, 8); expect(p.y).toBeCloseTo(160, 8);
+  await expect(page.locator(".figcraft-recovery")).toHaveText("Recovery saved on this device"); await page.reload();
+  await page.getByRole("region", { name: "Layers", exact: true }).getByRole("button", { name: "Rectangle", exact: true }).click();
+  await canvas.focus(); await page.keyboard.press("Enter"); await expect(panel).toBeVisible();
+  const recovered = await canvasPoint(page, 290, 160); await page.mouse.click(recovered.x, recovered.y);
+  await expect(panel.getByLabel("Handle mirroring", { exact: true })).toHaveValue("angleAndLength");
+  await expect(panel.getByLabel("Point corner radius", { exact: true })).toHaveValue("5");
+  await page.setViewportSize({ width: 390, height: 844 });
+  await panel.scrollIntoViewIfNeeded(); await expect(panel).toBeVisible();
+  for (const label of ["Point X", "Handle mirroring", "Point end cap"]) {
+    const input = panel.getByLabel(label, { exact: true }); await input.scrollIntoViewIfNeeded(); const box = (await input.boundingBox())!;
+    expect(box.x).toBeGreaterThanOrEqual(0); expect(box.x + box.width).toBeLessThanOrEqual(390);
+  }
+  await page.screenshot({ path: "test-results/vector-points-mobile.png", fullPage: true });
+  await page.getByRole("button", { name: "Done editing", exact: true }).click(); await expect(panel).toHaveCount(0);
+});
+
+test("vector Bend, double-click entry, Escape and point deletion use editor keyboard routing", async ({ page }) => {
+  await login(page); const engine = new EditorEngine();
+  engine.execute("vector.create", { name: "Editable path", path: "M0 0L50 30L100 0", x: 200, y: 200 });
+  await page.getByLabel("Open Figcraft file", { exact: true }).setInputFiles({ name: "points.figcraft", mimeType: "application/octet-stream", buffer: Buffer.from(await engine.nativeSnapshot()) });
+  const canvas = page.getByLabel("Design canvas", { exact: true }); await resetCanvasOrigin(page);
+  const p = await canvasPoint(page, 250, 230); await page.mouse.dblclick(p.x, p.y);
+  const panel = page.getByRole("group", { name: "Vector points", exact: true }); await expect(panel).toBeVisible();
+  await page.getByRole("button", { name: "Bend", exact: true }).click(); await page.mouse.click(p.x, p.y);
+  await expect(panel.getByLabel("Handle mirroring", { exact: true })).toHaveValue("angle");
+  await page.mouse.click(p.x, p.y); await expect(panel.getByLabel("Handle mirroring", { exact: true })).toHaveValue("none");
+  await panel.getByRole("button", { name: "Smooth points", exact: true }).focus(); await page.keyboard.press("Enter");
+  await expect(panel.getByLabel("Handle mirroring", { exact: true })).toHaveValue("angle");
+  await panel.getByRole("button", { name: "Sharpen points", exact: true }).click();
+  await canvas.focus(); await page.keyboard.press("v"); await expect(page.getByRole("button", { name: "Move points", exact: true })).toHaveAttribute("aria-pressed", "true");
+  await page.keyboard.press("Shift+Delete"); await expect(panel).toContainText("Select points to edit");
+  await page.keyboard.press("ControlOrMeta+a"); await expect(panel).toContainText("2 selected points");
+  await page.keyboard.press("ControlOrMeta+z"); await page.keyboard.press("ControlOrMeta+a"); await expect(panel).toContainText("3 selected points");
+  await page.keyboard.press("Escape"); await expect(panel).toHaveCount(0); await expect(page.getByRole("region", { name: "Selected vector", exact: true })).toBeVisible();
+});
+
 test("native open vectors and even-odd regions support canvas selection, caps and atomic file errors", async ({ page }) => {
   const engine = new EditorEngine();
   engine.execute("vector.create", { name: "Open curve", x: 200, y: 200, path: "M0 0C60 0 100 100 160 100", props: { fill: null, stroke: "black", strokeWeight: 8 } });

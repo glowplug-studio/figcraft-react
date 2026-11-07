@@ -172,3 +172,19 @@ Upstream0b97f3f → React0.23.0; implementationd3f7934; reviewed basee13f8da. [P
 | right::stroke::brush_row/brush_art | StrokePanel/BrushArt | Presets/Mixed/scatter fields, percentage jitter, memoised outline preview and authenticated recovery/mobile |
 
 Local graph1298 nodes/5558 edges resolves these targets. Pencil pressure, vector authoring, vector.outlineStroke and export remain required dependencies. Canvas masks and native HTML selects substitute native boolean contours/custom popup UI for this bounded workflow. Full browser parity remains incomplete.
+
+## Vector point authoring — 7 November 2026
+
+Upstream `0b97f3f` → React0.25.0; reviewed base `58c0981`, implementation revision recorded after commit. [Property evidence](../reports/26-11-07-vector-authoring-parity.html):735 pure tests,2 real Auth checks, strict TypeScript/package/Next builds and89/89 Chromium pass.
+
+| Upstream symbol/source | React target | Verified behaviour / boundary |
+|---|---|---|
+| vectoredit::ops movement/handles/mirroring/smooth/bend/split/delete/merge | vector-edit-ops.ts | Independent immutable geometry, handle snapshots, region repair, healing and finite guards |
+| vectoredit::{begin_many,end,refit,clamp_doc,activate,selected_points} | vector-edit.ts / EditorEngine | Multi-layer conversion/history, bounds refit, ephemeral selection and native lifecycle |
+| vectoredit::specs; params::f64_of/indices | vector-edit-commands.ts | Twenty native command identifiers and bounded diagnostics, coordinate spaces, lenient optional parsing and atomic errors |
+| vectoredit::{hit,hit_any,visible_handles}; Kurbo CubicBez::nearest | vector-edit-hit.ts / cubic-nearest.ts | Page-distance priority, stable ties, independent stationary-polynomial roots, short handles and singular guards |
+| vectoredit::pointer::{vector_down,vector_drag,vector_up,merge_dropped_point} | VectorInteraction / EditorEngine previews | Point/segment/handle gestures, midpoint/Alt insertion, Bend, marquee and one-step history; snapping/point-box branches remain next |
+| tools::double_click; vectoredit::key | MoveInteraction.doubleClick / Editor.key | Hollow selected shapes, multi-layer entry, nudge/select/delete/heal/exit and browser button activation |
+| ui-egui::vector_overlay / edit_toolbar / vector_panel::points | drawVectorEdit / VectorToolbar / VectorPanel | Screen-sized overlays, Move/Bend/Done, point position/radius/mirroring/cap/join, recovery and mobile controls |
+
+The refreshed local graph contains1,566 nodes/7,185 edges and locates the interaction/controller/test chain; bounded queries are not exhaustive impact audits. Both hosted repositories are queryable again. Rust is pinned at0b97f3f; React still indexes only four README nodes atb3b8a1b. Full vector tools, point transforms/snapping, width-point diagnostics, shared scrubbing/chrome and full-product parity remain required.

@@ -5,13 +5,13 @@
 | Field | State |
 |---|---|
 | Scope | Next required vertical slice in the autonomous full-port run |
-| Phase | Phase 4: pure network operations and session primitives implemented; command/pointer/UI integration remains |
+| Phase | Phase 7: bounded authoring verified; reports complete, implementation commit next |
 | Reference | `0b97f3f1801a9b7b96fd7a4f3c0942a3f1a676f3`; upstream sync unchanged |
 | React | `prompt/full-figcraft-port`; verified internal primitives `74fbbb0`; last complete browser slice `154f5a7` |
-| Verification | 696 pure tests (25 new authoring fixtures), strict TypeScript and package build pass; foundation2 Auth/86 browser checks remain the last browser baseline |
-| Files in progress | Internal primitives committed as74fbbb0; command/pointer/UI integration not yet started |
-| Blockers | Hosted Graphify authentication expired; local source and local React graph available |
-| Next action | Integrate native edit commands and lifecycle into EditorEngine, then pointer geometry/gestures and React controls |
+| Verification | 735 pure tests,2 local Auth tests, strict TypeScript/package/Next builds and89/89 Chromium pass in146.8s; point input/render p957.9ms, zero root/panel preview notifications |
+| Files in progress | Verified version0.25.0 implementation, tests and reports awaiting commit |
+| Blockers | No implementation blocker; Graphify authentication restored. Hosted React index remains stale at four README nodes |
+| Next action | Commit verified authoring and continue point transform boxes and snapping |
 
 ## Acceptance and dependency order
 
@@ -52,7 +52,7 @@ No tables, migrations, Storage, Realtime, profiles or roles are required for loc
 
 After pure operations: strict TypeScript and focused paired fixtures. After command integration: complete pure suite and archive/history/error tests. After UI/pointer integration: production package/Next builds, authenticated Playwright workflow, pixels/screenshots, mobile controls, browser/network error checks and all performance fixtures. Correct failures before marking the slice verified. Record independent properties with explicit remaining gaps in a self-contained HTML matrix and Markdown report. Rollback is the verified vector-foundation commit; no partial publication, branch push or main merge.
 
-Single-thread ownership follows the user's current instruction; no subagents or alternate checkouts. Expected files: new network-edit/session/interaction modules and parity/browser fixtures; focused changes in `editor.ts`, `controller.ts`, `Editor.tsx`, vector point panel, package exports and reports. Existing rendering/codec modules change only when evidence requires it.
+Single-thread ownership follows the user's current instruction; no subagents or alternate checkouts. Expected files: new network-edit/session/interaction modules and parity/browser fixtures; focused changes in `editor.ts`, `canvas.ts`, `Editor.tsx`, vector point panel, package exports and reports. Existing rendering/codec modules change only when evidence requires it.
 
 ## Pure implementation checkpoint
 
@@ -61,3 +61,21 @@ Single-thread ownership follows the user's current instruction; no subagents or 
 Paired evidence:16 operation fixtures and9 state fixtures pass. Full pure suite696 passes; strict TypeScript and package build pass. New modules are not yet reachable from editor commands/UI and are not evidence of a completed workflow. No new release version or browser claims. Conversion omits zero corners in the canonical TypeScript representation, preventing archive round-trip differences; baked geometry retains their appearance. Source-specific shape fields are removed when converting. Non-finite calculated point/handle mutations refuse atomically; transform operations retain the source snapshot on non-finite results, as native checks require. Whole-network paint-frame movement, reversed loop insertion, multi-layer activation, 500-input limit and native file round trips are tested.
 
 Remaining in this slice: native command registry/parameter contracts, engine history and state clearing on undo/page/file/identity changes, nearest-curve hit testing, pointer capture/previews/cancellation, marquee/midpoint/Bend/Alt handle behaviour, point controls, keyboard actions, authenticated browser recovery/mobile and performance verification. The source runtime cleans vector mode if the active vector disappears or changes page (`doc_state.rs:343`); file changes also clear it. Do not confuse the partial internal state type with the complete native diagnostic command or Pen/width tool state, which still require their own implementation.
+
+## Command and hit-testing checkpoint
+
+Native command integration adds20 registry entries, isolated vector selection subscriptions, conversion-only begin history, multi-layer point operations, page/file/identity lifecycle clearing and atomic failed edits. Twelve command fixtures plus the existing suite pass (708 pure tests, two Auth tests intentionally skipped by this command); strict TypeScript passes. The first focused run corrected a test expectation: deleting an edge retains its newly isolated neighbour, as native removal does. Browser interaction is still outstanding.
+
+Next geometry implementation maps `vectoredit::{hit,hit_any}` to `vector-edit-hit.ts`. Cubic nearest-point distance uses the stationary quintic of squared distance, as the pinned Kurbo0.13.1 implementation does ([primary source](https://docs.rs/kurbo/0.13.1/src/kurbo/cubicbez.rs.html)). The independent TypeScript solver isolates roots through derivative intervals and bounded bisection, rather than sampling a polyline; normalise coordinates before forming coefficients to limit overflow. Check all stationary candidates and endpoints. Preserve local determinant-scaled candidate tolerance, page-space vertex/handle ranking, handle wins on cross-kind ties, stable same-kind ordering and active-layer priority. Paired native fixtures cover short handles, coincident handles and non-uniform transforms; independent curve fixtures cover endpoints, degenerate and multiple-minimum curves. Singular/non-finite hit transforms yield no hit.
+
+## Integrated verification checkpoint
+
+Twenty native command entries, lifecycle guards, precise curve hit testing, transient previews and Canvas pointer routing are integrated. Move supports multi-layer points, segments and handles; Shift selection/axis lock, midpoint/Alt insertion, Bend clicks/drags, deletion/healing and merge-on-drop have source-derived checks. Typed point position/radius/mirroring/cap/join controls, toolbar, Enter/double-click entry and Escape/Done exit dispatch engine commands. Native Select none clears mode; Move/Scale retain it; drawing tools end it and remove empty networks. Keyboard Enter on a focused button retains browser activation semantics.
+
+735 pure tests and2 local Auth tests pass, with strict TypeScript and production builds. Two authenticated browser flows pass, including captured pointer updates with no root commits, one undo, downloaded metadata, recovery reload,390px controls and Bend/deletion routing. The first browser run failed because the test expected `mirroring` instead of the existing typed `mirror` field; the expectation was corrected and both flows rerun. The new screenshot was inspected. The isolated100-edited-layer/10,000-total-node fixture reports5.3ms p95,6.2ms maximum,3.3ms input p95 and zero root/panel preview notifications across110 measured frames; cancellation restores document and point state. Full regression is running on the rebuilt0.25.0 production host.
+
+Supabase MCP public-table read succeeds, no tables or schema changes are required. Graphify access is restored and both authorised repositories were queried: Rust at0b97f3f resolves point-box/transform prerequisites; hosted React still returns an ungrounded README-only result atb3b8a1b. A local AST refresh is running. No user authentication action remains.
+
+Boundaries remain explicit: point transform boxes/resize/rotate/flip/snapping and numerical scrubs are required next; Pen/Pencil, region selection/hatching and paint/cut/eraser, width gestures and booleans follow. Diagnostic fields for those tools remain incomplete. This bounded authoring workflow is not full vector or product parity.
+
+Final verification:89/89 Chromium pass in146.8 seconds with zero skipped, failed or flaky tests. Full-suite point-edit p95/max/input p95 are7.9/8.6/5.4ms, with zero root/panel preview notifications and successful cancellation. Fixed canvas and390px mobile screenshots were inspected. Both owned production servers were stopped after their runs. Reports contain28 bounded Passed rows and a Partial full-product boundary. No required check for this bounded workflow remains failed; no full-vector or full-product completion claim. Local Graphify refreshed to1,566 nodes/7,185 edges; two SQL parser omissions and one symbol-free performance spec remain explicit.

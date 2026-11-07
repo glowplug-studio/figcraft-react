@@ -10,6 +10,7 @@ import { networkBounds } from "./vector-path";
 export interface VectorEditPart { readonly id: NodeId; readonly vertices: readonly number[]; readonly segments: readonly number[] }
 /** Ephemeral selection only; never written into the native document or backend identity. */
 export interface VectorEditState extends VectorEditPart {
+  readonly tool: "move" | "bend";
   readonly handles: readonly VectorHandle[];
   readonly others: readonly VectorEditPart[];
   readonly regions: readonly number[];
@@ -24,7 +25,7 @@ export function freezeVectorEdit(state: VectorEditState): VectorEditState {
     regions: Object.freeze([...state.regions]), regionVertices: Object.freeze([...state.regionVertices]) });
 }
 export function newVectorEdit(id: NodeId, others: readonly NodeId[] = []): VectorEditState {
-  return freezeVectorEdit({ id, vertices: [], segments: [], handles: [], regions: [], regionVertices: [], others: others.map(id => ({ id, vertices: [], segments: [] })) });
+  return freezeVectorEdit({ id, tool: "move", vertices: [], segments: [], handles: [], regions: [], regionVertices: [], others: others.map(id => ({ id, vertices: [], segments: [] })) });
 }
 export const vectorParts = (state: VectorEditState): readonly VectorEditPart[] => [{ id: state.id, vertices: state.vertices, segments: state.segments }, ...state.others];
 export function vectorNetwork(document: Document, id: NodeId): VectorNetwork | undefined { const n = document.nodes[id]; return n?.kind === "vector" ? n.network : undefined; }
@@ -35,7 +36,7 @@ export function activateVector(state: VectorEditState, id: NodeId): VectorEditSt
   if (id === state.id) return state;
   const index = state.others.findIndex(p => p.id === id); if (index < 0) return undefined;
   const others = [...state.others], next = others[index]; others[index] = { id: state.id, vertices: state.vertices, segments: state.segments };
-  return freezeVectorEdit({ ...next, others, handles: [], regions: [], regionVertices: [] });
+  return freezeVectorEdit({ ...next, tool: state.tool, others, handles: [], regions: [], regionVertices: [] });
 }
 function sameTopology(a: VectorNetwork | undefined, b: VectorNetwork): boolean {
   return a === b || Boolean(a && a.segments.length === b.segments.length && a.segments.every((s, i) => s.a === b.segments[i].a && s.b === b.segments[i].b)

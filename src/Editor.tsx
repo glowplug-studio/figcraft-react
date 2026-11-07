@@ -1,5 +1,6 @@
 import { ArcPanel } from "./ArcPanel";
 import { PointsPanel } from "./PointsPanel";
+import { VectorPanel, VectorToolbar } from "./VectorPanel";
 import { StrokePanel } from "./StrokePanel";
 import { isLeaf } from "./engine/document";
 import { CornerPanel } from "./CornerPanel";
@@ -36,6 +37,7 @@ export interface EditorProps {
 export function Editor({ identity, capabilities, engine: suppliedEngine, recoveryStore }: EditorProps) {
   const [engine] = useState(() => suppliedEngine ?? new EditorEngine());
   const snapshot = useSyncExternalStore(engine.subscribe, engine.getSnapshot, engine.getSnapshot);
+  const editingVector = useSyncExternalStore(engine.subscribeVectorEdit, () => Boolean(engine.getVectorEdit()), () => Boolean(engine.getVectorEdit()));
   const [signedIn, setSignedIn] = useState(() => identity.getSnapshot().status === "authenticated");
   const [error, setError] = useState("");
   const [recoveryStatus, setRecoveryStatus] = useState(recoveryStore ? "loading" : "ready");
@@ -94,7 +96,21 @@ export function Editor({ identity, capabilities, engine: suppliedEngine, recover
   function key(event: KeyboardEvent) {
     if (!editable || busy) return;
     if (event.target instanceof HTMLElement && event.target.closest("input,textarea,select,dialog,[contenteditable=true]")) return;
+    if ((event.key === "Enter" || event.key === " ") && event.target instanceof HTMLElement && event.target.closest("button,summary,a[href]")) return;
     let command: string | undefined;
+    if (engine.getVectorEdit()) {
+      const modified = event.metaKey || event.ctrlKey;
+      if (event.key === "Escape" || event.key === "Enter") { event.preventDefault(); dispatch("vector.edit.end"); return; }
+      if (!event.altKey && !modified && ["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(event.key)) {
+        const amount = event.shiftKey ? 10 : 1; event.preventDefault();
+        dispatch("vector.edit.nudge", { dx: event.key === "ArrowLeft" ? -amount : event.key === "ArrowRight" ? amount : 0, dy: event.key === "ArrowUp" ? -amount : event.key === "ArrowDown" ? amount : 0 }); return;
+      }
+      if (!event.altKey && !modified && (event.key === "Delete" || event.key === "Backspace")) { event.preventDefault(); dispatch(event.shiftKey ? "vector.deleteHeal" : "vector.edit.delete"); return; }
+      if (!event.altKey && !event.shiftKey && modified && event.key.toLowerCase() === "a") { event.preventDefault(); dispatch("vector.edit.selectAll"); return; }
+      if (!event.altKey && !event.shiftKey && !modified && event.key.toLowerCase() === "v") { event.preventDefault(); dispatch("vector.edit.tool", { tool: "move" }); return; }
+    } else if (event.key === "Enter" && snapshot.selection.length && snapshot.selection.every(id => { const n = snapshot.document.nodes[id]; return n && isLeaf(n); })) {
+      event.preventDefault(); dispatch("vector.edit.begin"); return;
+    }
     if (!event.metaKey && !event.ctrlKey && event.altKey && event.code === "KeyR") command = "transform.rotationOrigin";
     if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "s") { event.preventDefault(); void save(); return; }
     if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "o") { event.preventDefault(); fileInput.current?.click(); return; }
@@ -204,7 +220,7 @@ export function Editor({ identity, capabilities, engine: suppliedEngine, recover
           <canvas ref={canvas} aria-label="Design canvas" tabIndex={0} aria-describedby="canvas-instructions" />
           <ViewControls engine={engine} editable={editable && !busy} dispatch={dispatch} />
           <p id="canvas-instructions" className="figcraft-instructions">R: rectangle · O: ellipse · Space/middle drag: pan · Z: zoom · Ctrl/⌘ wheel: zoom · Escape: cancel</p>
-          <div className="figcraft-toolbar" role="toolbar" aria-label="Tools">
+          {editingVector ? <VectorToolbar engine={engine} editable={editable && !busy} dispatch={(command, params) => { dispatch(command, params); canvas.current?.focus(); }} /> : <div className="figcraft-toolbar" role="toolbar" aria-label="Tools">
             <button disabled={!editable} aria-pressed={snapshot.tool === "move"} onClick={() => { dispatch("tool.move"); canvas.current?.focus(); }}>Move</button>
             <button disabled={!editable} aria-pressed={snapshot.tool === "scale"} onClick={() => { dispatch("tool.scale"); canvas.current?.focus(); }}>Scale</button>
             <button disabled={!editable} aria-pressed={snapshot.tool === "ellipse"} onClick={() => { dispatch("tool.ellipse"); canvas.current?.focus(); }}>Ellipse</button>
@@ -213,9 +229,11 @@ export function Editor({ identity, capabilities, engine: suppliedEngine, recover
             <button disabled={!editable} aria-pressed={snapshot.tool === "line"} onClick={() => { dispatch("tool.line"); canvas.current?.focus(); }}>Line</button>
             <button disabled={!editable} aria-pressed={snapshot.tool === "arrow"} onClick={() => { dispatch("tool.arrow"); canvas.current?.focus(); }}>Arrow</button>
             <button disabled={!editable} aria-pressed={snapshot.tool === "rectangle"} onClick={() => { dispatch("tool.rectangle"); canvas.current?.focus(); }}>Rectangle</button>
-          </div>
+          </div>}
         </div>
         <aside className="figcraft-properties" aria-label="Design"><h2>Design</h2>
+          <VectorPanel engine={engine} editable={editable && !busy} dispatch={dispatch} />
+          <div hidden={editingVector}>
           <form key={page.id} onSubmit={create}><fieldset disabled={!editable}><legend>Create layer</legend>
             {(["x", "y", "width", "height"] as const).map(name => <label key={name}>{name === "width" ? "Width" : name === "height" ? "Height" : name.toUpperCase()}<input name={name} type="number" step="any" required defaultValue={name === "x" || name === "y" ? 40 : 100} /></label>)}
             <label>Create in<select aria-label="Create in" name="parent" defaultValue={page.id}>
@@ -235,8 +253,11 @@ export function Editor({ identity, capabilities, engine: suppliedEngine, recover
           }}><label>Preset<select aria-label="Frame preset" name="preset" disabled={!editable}>
             {framePresets.map(preset => <option key={preset.name} value={preset.name}>{preset.category}: {preset.name}</option>)}
           </select></label><button type="submit" disabled={!editable}>Create preset frame</button></form></details>
+          </div>
           {recoveryStore && <p className="figcraft-recovery" role="status">{recoveryStatus === "loading" ? "Restoring local recovery…" : recoveryStatus === "stored" ? "Recovery saved on this device" : recoveryStatus === "pending" ? "Saving recovery…" : recoveryStatus === "error" ? "Recovery failed" : "Local recovery ready"}</p>}
-          {selected && selected.kind !== "page" && relative && <section aria-label={`Selected ${selected.kind}`}><h3>{selected.name}</h3><dl>
+          {!editingVector && selected && selected.kind !== "page" && relative && <section aria-label={`Selected ${selected.kind}`}><h3>{selected.name}</h3>
+          {snapshot.selection.every(id => { const n = snapshot.document.nodes[id]; return n && isLeaf(n); }) && <button disabled={!editable || busy} onClick={() => { dispatch("vector.edit.begin"); canvas.current?.focus(); }}>Edit vector</button>}
+          <dl>
             <dt>X</dt><dd>{relative[4]}</dd><dt>Y</dt><dd>{relative[5]}</dd><dt>Width</dt><dd>{selected.width}</dd><dt>Height</dt><dd>{selected.height}</dd>
           </dl>
           <form key={[selected.id, relative[4], relative[5], selected.width, selected.height, ...(selected.transform ?? [])].join(",")} onSubmit={event => {
@@ -266,13 +287,13 @@ export function Editor({ identity, capabilities, engine: suppliedEngine, recover
               {["top", "bottom", "topBottom", "center", "scale"].map(value => <option key={value} value={value}>{({ top: "Top", bottom: "Bottom", topBottom: "Top and bottom", center: "Centre", scale: "Scale" })[value]}</option>)}
             </select></label><button type="submit">Apply constraints</button>
           </fieldset></form></section>}
-          <ArrangePanel document={snapshot.document} selection={snapshot.selection} editable={editable && !busy} dispatch={dispatch} />
+          {!editingVector && <><ArrangePanel document={snapshot.document} selection={snapshot.selection} editable={editable && !busy} dispatch={dispatch} />
           <SmartSelectionPanel engine={engine} enabled={editable && !busy} dispatch={dispatch} onError={setError} />
           {snapshot.tool === "scale" ? <ScalePanel engine={engine} enabled={editable && !busy} dispatch={dispatch} onError={setError} /> : <SizePanel enabled={editable && !busy && snapshot.selection.length > 0} dispatch={dispatch} />}
           <RotationPanel engine={engine} enabled={editable && !busy && snapshot.selection.length > 0} dispatch={dispatch} />
           <ArcPanel nodes={snapshot.selection.flatMap(id => { const n = snapshot.document.nodes[id]; return n && n.kind !== "page" ? [n] : []; })} editable={editable && !busy} dispatch={dispatch} />
           <PointsPanel nodes={snapshot.selection.flatMap(id => { const n = snapshot.document.nodes[id]; return n && n.kind !== "page" ? [n] : []; })} editable={editable && !busy} dispatch={dispatch} />
-          <CornerPanel nodes={snapshot.selection.flatMap(id => { const n = snapshot.document.nodes[id]; return n && n.kind !== "page" ? [n] : []; })} editable={editable && !busy} dispatch={dispatch} />
+          <CornerPanel nodes={snapshot.selection.flatMap(id => { const n = snapshot.document.nodes[id]; return n && n.kind !== "page" ? [n] : []; })} editable={editable && !busy} dispatch={dispatch} /></>}
           <AppearancePanel page={page} selected={selected && selected.kind !== "page" ? selected : undefined} editable={editable && !busy} dispatch={dispatch} />
           <StrokePanel nodes={snapshot.selection.flatMap(id => { const n = snapshot.document.nodes[id]; return n && n.kind !== "page" ? [n] : []; })} editable={editable && !busy} dispatch={dispatch} />
         </aside>

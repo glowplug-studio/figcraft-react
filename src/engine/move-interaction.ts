@@ -1,6 +1,7 @@
 import { canvasAccent } from "./canvas-colours";
 import type { EditorEngine } from "./editor";
-import type { Document, NodeId } from "./document";
+import { isLeaf, type Document, type NodeId } from "./document";
+import { isClosedShape } from "./shape-path";
 import type { Point, Rectangle } from "./geometry";
 import { ancestorIds, containsPoint, dragParent, enterTarget, lockedIn, marqueeSelection, marqueeWithin, paintsBelow, selectionContains } from "./canvas-selection";
 import { hitRectangle, targetForLeaf } from "./selection";
@@ -115,7 +116,18 @@ export class MoveInteraction {
     const { document, selection, tool, editable } = this.engine.getSnapshot();
     if (!editable || tool !== "move" && tool !== "scale") return;
     const leaf = hitRectangle(document, point, true, [], 2 / this.engine.getView().zoom);
-    if (leaf) this.engine.execute("select.set", { ids: [enterTarget(document, leaf, selection)] });
+    const selected = selection.length === 1 ? document.nodes[selection[0]] : undefined;
+    const bounds = selected && isLeaf(selected) && isClosedShape(selected) ? boundsOf(document, selection) : undefined;
+    if (selected && bounds && containsPoint(bounds, point) && (!leaf || leaf === selected.id)) {
+      this.engine.execute("vector.edit.begin", { id: selected.id }); return;
+    }
+    if (leaf) {
+      const target = enterTarget(document, leaf, selection), node = document.nodes[target];
+      if (node && isLeaf(node) && (selection.includes(target) || targetForLeaf(document, leaf, selection) === target)) {
+        const allShapes = selection.length && selection.every(id => { const n = document.nodes[id]; return n && isLeaf(n); });
+        this.engine.execute("vector.edit.begin", { ids: [target, ...(selection.includes(target) && allShapes ? selection.filter(id => id !== target) : [])] });
+      } else this.engine.execute("select.set", { ids: [target] });
+    }
   }
   cancel(): void {
     if (this.#gesture) { this.#gesture = undefined; this.engine.cancelInteraction(); }

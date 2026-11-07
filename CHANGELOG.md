@@ -2,6 +2,15 @@
 
 All notable changes to the React port and its upstream compatibility baseline are recorded here.
 
+## [0.25.0] - 2026-11-07
+
+The reference baseline remains `8eb0b87646c5aef712326d6c431ccde5408630de`; full parity remains in progress.
+
+- Added multi-layer vector point/segment/handle authoring, native command contracts, shape conversion, refitting and atomic history.
+- Added point and handle hit testing, captured drag previews, marquee selection, midpoint/Alt insertion, Bend, smoothing, deletion/healing and merge-on-drop.
+- Added point position/radius/mirroring/cap/join controls, edit tools, keyboard entry/exit and native file/recovery integration.
+- Point transform boxes/snapping, Pen/Pencil, region tools, width gestures, booleans and the remaining product roadmap remain required.
+
 ## [0.24.0] - 2026-11-07
 
 The reference baseline remains `8eb0b87646c5aef712326d6c431ccde5408630de`; full parity remains in progress.
