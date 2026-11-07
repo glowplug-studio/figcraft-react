@@ -250,3 +250,5 @@ Drawing, moving and resizing preserve fractional object targets after grid snapp
 Command validation, exact layer reorder, cap diagnostics and bounded group-cycle lookup are verified at 2a37b75. [Coverage](../reports/26-11-07-command-validation-parity.html)
 
 Vector editing now supports native Join and Smooth join in point and layer modes, and reconnects broken loops while preserving region winding. [Verified scope at 04b64a2](../reports/26-11-07-vector-join.md).
+
+Variable-width authoring, sided handle dragging, point sliding, inspector commands, native saving and local recovery verified at 6b3529a. [Local checks and limitations](../reports/26-11-07-width-point-authoring.md).

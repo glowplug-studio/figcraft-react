@@ -259,3 +259,5 @@ See the [property report](../reports/26-11-07-pen-anchor-undo-parity.html). The 
 `1aa6b81d`, `65060159`, `41ec33ee`, `5244b007` and `421a8e51` map respectively to createLayer, executePage/parseIndex, executeStructure, setStrokeProperties and frameRelative. [Ten verified command/geometry properties](../reports/26-11-07-command-validation-parity.html), React 2a37b75.
 
 Native vectoredit/ops.rs connect/join and vectoredit.rs join_cmd map to vector-connect.ts and vector-edit-commands.ts. The same region repair serves Pen, explicit connect, Join and Smooth join. [Property evidence](../reports/26-11-07-vector-join-parity.html).
+
+Native vectoredit/width.rs maps to vector-width.ts, VectorInteraction and VectorPanel. Stroke profile, shape geometry, command and undo boundaries are shared. [Per-property evidence](../reports/26-11-07-width-point-authoring-parity.html).
