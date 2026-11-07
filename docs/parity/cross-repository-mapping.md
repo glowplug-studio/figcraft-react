@@ -208,7 +208,7 @@ Engine source paths are relative to `original/figcraft/crates/engine/src`; UI pa
 
 ## Pen and open-path authoring — 2026-11-07
 
-Reference `0b97f3f1801a9b7b96fd7a4f3c0942a3f1a676f3`; React0.27.0, reviewed base `4a762cd`, internal foundation `653e4a4`; integration commit pending. Global baseline unchanged. Forty new paired fixtures pass within803 pure tests;2 real Auth tests, strict TypeScript/package/Next builds and67 authenticated browser checks pass. Final97-check regression passes in231.3s without failures, skips or flakes. The [46-row property report](../reports/26-11-07-pen-authoring-parity.html) separates paired-only properties from browser-covered workflows.
+Reference `0b97f3f1801a9b7b96fd7a4f3c0942a3f1a676f3`; React0.27.0, reviewed base `4a762cd`, internal foundation `653e4a4`; verified integration d3c00a4. Global baseline unchanged. Forty new paired fixtures pass within803 pure tests;2 real Auth tests, strict TypeScript/package/Next builds and67 authenticated browser checks pass. Final97-check regression passes in231.3s without failures, skips or flakes. The [46-row property report](../reports/26-11-07-pen-authoring-parity.html) separates paired-only properties from browser-covered workflows.
 
 | Upstream source/symbol | Independent TypeScript target | Evidence / boundary |
 |---|---|---|

@@ -1,6 +1,6 @@
 # Pen and open-path authoring
 
-React0.27.0 on `prompt/full-figcraft-port`. Reviewed base `4a762cd`, internal network/edit-mode foundation `653e4a4`; complete integration is verified and ready to commit. Reference `0b97f3f1801a9b7b96fd7a4f3c0942a3f1a676f3`; global parity baseline remains `8eb0b87646c5aef712326d6c431ccde5408630de`. Full parity and publication remain incomplete.
+React0.27.0 on `prompt/full-figcraft-port`. Reviewed base `4a762cd`, internal network/edit-mode foundation `653e4a4`; verified integration `d3c00a4`. Reference `0b97f3f1801a9b7b96fd7a4f3c0942a3f1a676f3`; global parity baseline remains `8eb0b87646c5aef712326d6c431ccde5408630de`. Full parity and publication remain incomplete.
 
 ## Implemented
 
@@ -32,7 +32,7 @@ Local malformed/non-finite input cancels an uncommitted Pen preview atomically. 
 
 Upstream sync succeeds unchanged at0b97f3f. Both authorised Graphify repositories are queryable; Rust maps the pinned Pen definitions/tests, while hosted React remains four README nodes atb3b8a1b. Current local source is authoritative. Local AST refreshed to1,676 nodes/7,938 edges, with two SQL parser omissions and one symbol-free performance test. Scoped Supabase MCP public-table read succeeds with no application tables; online files and collaboration remain mandatory future roadmap work.
 
-The46-row HTML report renders locally with13 columns and no broken evidence links; public-file hygiene and whitespace checks pass. The owned Next process was stopped cleanly. Record the integration commit, then continue immediately with Pencil and dependent vector operations. No deployment, branch push, main merge or user action. The full product is not complete.
+The46-row HTML report renders locally with13 columns and no broken evidence links; public-file hygiene and whitespace checks pass. The owned Next process was stopped cleanly. Integration is committed as `d3c00a4`; continue immediately with Pencil and dependent vector operations. No deployment, branch push, main merge or user action. The full product is not complete.
 
 See the [property matrix](26-11-07-pen-authoring-parity.html), [plan](../planning/26-11-07-pen-authoring.md) and [master checkpoint](../planning/26-11-06-complete-figcraft-port.md).
 
