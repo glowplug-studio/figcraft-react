@@ -69,6 +69,9 @@ describe("native point editing gestures", () => {
     const f = setup(); f.click(0, 0); f.click(100, 0, shift); expect(f.engine.getVectorEdit()?.vertices).toEqual([0, 1]);
     f.click(0, 0, shift); expect(f.engine.getVectorEdit()?.vertices).toEqual([1]);
     f.click(50, 100, shift); expect(f.engine.getVectorEdit()?.segments).toEqual([2]); expect(f.net().vertices).toHaveLength(4);
+    // With the top point still selected, the box's bottom edge takes priority over the segment.
+    f.click(50, 100, shift); expect(f.engine.getVectorEdit()?.segments).toEqual([2]);
+    f.engine.execute("vector.edit.select", { segments: [2] });
     f.click(50, 100, shift); expect(f.engine.getVectorEdit()?.segments).toEqual([]);
     expect(f.errors).toEqual([]);
   });

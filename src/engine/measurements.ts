@@ -57,6 +57,12 @@ export function drawGuides(context: CanvasRenderingContext2D, guides: readonly G
   const labels: { a: Point; b: Point; width: number; height: number; text: string }[] = [];
   for (const g of guides) {
     const a = pageToScreen(view, { x: g.x0, y: g.y0 }), b = pageToScreen(view, { x: g.x1, y: g.y1 });
+    if (g.x0 === g.x1 && g.y0 === g.y1) {
+      context.setLineDash([]); context.lineWidth = 1.5; context.beginPath();
+      context.moveTo(a.x - 4, a.y - 4); context.lineTo(a.x + 4, a.y + 4);
+      context.moveTo(a.x - 4, a.y + 4); context.lineTo(a.x + 4, a.y - 4); context.stroke(); context.lineWidth = 1;
+      continue;
+    }
     context.setLineDash(g.dashed ? [3, 2] : []); context.beginPath(); context.moveTo(a.x, a.y); context.lineTo(b.x, b.y); context.stroke();
     if (g.label !== undefined) labels.push({ a, b, width: context.measureText(g.label).width + 8, height: 14, text: g.label });
   }

@@ -5,6 +5,8 @@ import type { Point } from "./geometry";
 import { HierarchyDraft, rootIds, subtreeIds, worldTransform } from "./hierarchy";
 import { parseNumber } from "./parameters";
 import { boundsOf } from "./viewport";
+import type { VectorEditState } from "./vector-edit";
+import { pointBoxCentre, pointBoxOnto, pointRotationMatrix, transformVectorPoints, vectorPointBox } from "./vector-point-transform";
 
 export const rotationSpecs = Object.freeze({
   "transform.rotate": { label: "Rotate", undo: true },
@@ -88,10 +90,20 @@ export function validateChangedGeometry(draft: HierarchyDraft): Document {
   return result;
 }
 
-export function executeRotation(command: string, document: Document, selection: readonly NodeId[], params: Record<string, unknown>, origin?: Point): Document {
+export function executeRotation(command: string, document: Document, selection: readonly NodeId[], params: Record<string, unknown>, origin?: Point, vectorEdit?: VectorEditState): Document {
   if (!Object.hasOwn(rotationSpecs, command)) throw new Error(`Unsupported rotation command: ${command}`);
   const allowed = ["id", "ids", ...(command === "transform.rotate" ? ["degrees", "cx", "cy"] : [])];
   for (const key of Object.keys(params)) if (!allowed.includes(key)) throw new Error(`Unsupported ${command} parameter: ${key}`);
+  if (vectorEdit && command !== "transform.rotate" && !Object.hasOwn(params, "id") && !Object.hasOwn(params, "ids")) {
+    const box = vectorPointBox(document, vectorEdit);
+    if (box?.points.length) {
+      const matrix = command === "object.flipH" ? pointBoxOnto(box, box.width, 0, 0, box.height)
+        : command === "object.flipV" ? pointBoxOnto(box, 0, box.height, box.width, 0)
+        : pointRotationMatrix(pointBoxCentre(box), command === "object.rotateLeft" ? 90 : command === "object.rotateRight" ? -90 : 180);
+      const draft = new HierarchyDraft(document); transformVectorPoints(draft, vectorEdit.id, box.points, matrix);
+      draft.normaliseGroups(); return validateChangedGeometry(draft);
+    }
+  }
   const targets = arrangementTargets(document, selection, params, false), ids = rootIds(document, targets);
   const box = boundsOf(document, ids)!, centre = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
   const pivot = sameIds(targets, selection) && origin ? origin : centre;

@@ -1747,6 +1747,64 @@ test("vector point authoring supports captured drag, one undo, controls, native 
   await page.getByRole("button", { name: "Done editing", exact: true }).click(); await expect(panel).toHaveCount(0);
 });
 
+test("vector point dimensions, shared box gestures and snapping controls survive undo and recovery", async ({ page }) => {
+  const engine = new EditorEngine();
+  engine.execute("vector.create", { name: "Snap target", points: [[500, 180], [600, 280], [520, 240]], closed: true });
+  engine.execute("shape.rectangle", { name: "Point transforms", x: 200, y: 180, width: 160, height: 120 });
+  await login(page); await page.getByLabel("Open Figcraft file", { exact: true }).setInputFiles({ name: "transforms.figcraft", mimeType: "application/octet-stream", buffer: Buffer.from(await engine.nativeSnapshot()) });
+  await resetCanvasOrigin(page);
+  const layers = page.getByRole("region", { name: "Layers", exact: true }), canvas = page.getByLabel("Design canvas", { exact: true });
+  await layers.getByRole("button", { name: "Point transforms", exact: true }).click(); await page.getByRole("button", { name: "Edit vector", exact: true }).click();
+  const panel = page.getByRole("group", { name: "Vector points", exact: true });
+  await panel.getByRole("button", { name: "Select all points", exact: true }).click();
+  await expect(panel.getByLabel("Point width", { exact: true })).toHaveValue("160");
+  await panel.getByLabel("Point width", { exact: true }).fill("80"); await panel.getByLabel("Point height", { exact: true }).fill("80");
+  await panel.getByRole("button", { name: "Apply point dimensions", exact: true }).click();
+  const drag = async (from: [number, number], to: [number, number]) => {
+    await expect(page.locator(".figcraft-recovery")).toHaveText("Recovery saved on this device");
+    const a = await canvasPoint(page, ...from), b = await canvasPoint(page, ...to);
+    await page.mouse.move(a.x, a.y); await page.mouse.down(); const commits = await page.locator("[data-figcraft-editor]").getAttribute("data-commits");
+    await page.mouse.move(b.x, b.y, { steps: 8 }); expect(await page.locator("[data-figcraft-editor]").getAttribute("data-commits")).toBe(commits); await page.mouse.up();
+  };
+  await drag([280, 220], [320, 220]); await expect(panel.getByLabel("Point width", { exact: true })).toHaveValue("120");
+  await canvas.focus(); await page.keyboard.press("ControlOrMeta+z"); await expect(panel.getByLabel("Point width", { exact: true })).toHaveValue("80");
+  await page.keyboard.press("ControlOrMeta+Shift+z"); await expect(panel.getByLabel("Point width", { exact: true })).toHaveValue("120");
+  await page.mouse.move(10, 10); await expect(canvas).toHaveScreenshot("vector-point-box.png", { animations: "disabled", maxDiffPixels: 0 });
+  await drag([330, 170], [310, 290]); expect(Number(await panel.getByLabel("Point width", { exact: true }).inputValue())).toBeCloseTo(80, 7);
+  expect(Number(await panel.getByLabel("Point height", { exact: true }).inputValue())).toBeCloseTo(120, 7);
+  await canvas.focus(); await page.keyboard.press("ControlOrMeta+z");
+  const corner = await canvasPoint(page, 320, 260); await page.mouse.click(corner.x, corner.y);
+  // A second click after clearing the selection isolates this point.
+  const empty = await canvasPoint(page, 440, 380); await page.mouse.click(empty.x, empty.y); await page.mouse.click(corner.x, corner.y);
+  await expect(panel).toContainText("1 selected point"); await drag([320, 260], [518, 242]);
+  await expect(panel.getByLabel("Point X", { exact: true })).toHaveValue("520"); await expect(panel.getByLabel("Point Y", { exact: true })).toHaveValue("240");
+  await canvas.focus(); await page.keyboard.press("ControlOrMeta+z");
+  for (const name of ["Snap to objects", "Snap to pixel grid"]) {
+    const button = page.getByRole("button", { name, exact: true }); await expect(button).toHaveAttribute("aria-pressed", "true"); await button.click(); await expect(button).toHaveAttribute("aria-pressed", "false");
+  }
+  await drag([320, 260], [518, 242]); await expect(panel.getByLabel("Point X", { exact: true })).toHaveValue("518"); await expect(panel.getByLabel("Point Y", { exact: true })).toHaveValue("242");
+  const download = page.waitForEvent("download"); await page.getByRole("button", { name: "Save as", exact: true }).click();
+  const saved = await decodeFigcraft(await readFile((await (await download).path())!));
+  const n = Object.values(saved.document.nodes).find(n => n.name === "Point transforms") as VectorNode;
+  const savedPoint = transformPoint(worldTransform(saved.document, n.id), n.network.vertices[2]); expect(savedPoint).toEqual({ x: 518, y: 242 });
+  await expect(page.locator(".figcraft-recovery")).toHaveText("Recovery saved on this device"); await page.reload();
+  await layers.getByRole("button", { name: "Point transforms", exact: true }).click(); await page.getByRole("button", { name: "Edit vector", exact: true }).click();
+  await panel.getByRole("button", { name: "Select all points", exact: true }).click(); await expect(panel.getByLabel("Point width", { exact: true })).toHaveValue("318");
+  await page.setViewportSize({ width: 390, height: 844 });
+  for (const label of ["Point width", "Point height"]) { const input = panel.getByLabel(label, { exact: true }); await input.scrollIntoViewIfNeeded(); const b = (await input.boundingBox())!; expect(b.x).toBeGreaterThanOrEqual(0); expect(b.x + b.width).toBeLessThanOrEqual(390); }
+  await page.screenshot({ path: "test-results/vector-point-transforms-mobile.png", fullPage: true });
+  // Changing height must not submit and clamp an untouched, already-wide vector's width.
+  await page.setViewportSize({ width: 1440, height: 900 });
+  const wide = new EditorEngine(); wide.execute("vector.create", { name: "Wide path", points: [[0, 0], [2e7, 10]] });
+  await page.getByLabel("Open Figcraft file", { exact: true }).setInputFiles({ name: "wide.figcraft", mimeType: "application/octet-stream", buffer: Buffer.from(await wide.nativeSnapshot()) });
+  await page.getByRole("button", { name: "Replace document", exact: true }).click();
+  await layers.getByRole("button", { name: "Wide path", exact: true }).click(); await page.getByRole("button", { name: "Edit vector", exact: true }).click();
+  await panel.getByRole("button", { name: "Select all points", exact: true }).click();
+  await expect(panel.getByLabel("Point width", { exact: true })).toHaveValue("20000000");
+  await panel.getByLabel("Point height", { exact: true }).fill("20"); await panel.getByRole("button", { name: "Apply point dimensions", exact: true }).click();
+  await expect(panel.getByLabel("Point width", { exact: true })).toHaveValue("20000000"); await expect(panel.getByLabel("Point height", { exact: true })).toHaveValue("20");
+});
+
 test("vector Bend, double-click entry, Escape and point deletion use editor keyboard routing", async ({ page }) => {
   await login(page); const engine = new EditorEngine();
   engine.execute("vector.create", { name: "Editable path", path: "M0 0L50 30L100 0", x: 200, y: 200 });

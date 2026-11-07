@@ -5,13 +5,13 @@
 | Field | State |
 |---|---|
 | Scope | Next required vertical slice in the autonomous full-port run |
-| Phase | Phase 7: bounded authoring verified; reports complete, implementation commit next |
+| Phase | Phase 7 complete for bounded authoring; continuing point transforms/snapping |
 | Reference | `0b97f3f1801a9b7b96fd7a4f3c0942a3f1a676f3`; upstream sync unchanged |
-| React | `prompt/full-figcraft-port`; verified internal primitives `74fbbb0`; last complete browser slice `154f5a7` |
+| React | `prompt/full-figcraft-port`; verified authoring `adc59d4`; prior primitives `74fbbb0` and foundation `154f5a7` |
 | Verification | 735 pure tests,2 local Auth tests, strict TypeScript/package/Next builds and89/89 Chromium pass in146.8s; point input/render p957.9ms, zero root/panel preview notifications |
-| Files in progress | Verified version0.25.0 implementation, tests and reports awaiting commit |
+| Files in progress | None for this bounded workflow; next transform/snapping slice is active |
 | Blockers | No implementation blocker; Graphify authentication restored. Hosted React index remains stale at four README nodes |
-| Next action | Commit verified authoring and continue point transform boxes and snapping |
+| Next action | Continue point transform boxes and snapping under the next bounded plan |
 
 ## Acceptance and dependency order
 

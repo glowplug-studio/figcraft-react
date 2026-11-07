@@ -13,9 +13,17 @@ import { vectorLocalOffset } from "./vector-edit-commands";
 import { hitEditedVectors, type VectorHit } from "./vector-edit-hit";
 import { bendSegment, makeSmooth, mergeVertices, moveVertices, setHandle, smoothVertices, splitSegment, type VectorHandle } from "./vector-edit-ops";
 import { networkCubic, networkIncident, type VectorNetwork } from "./vector-network";
+import { handleCursor, resizedBox, type Handle } from "./transform-handles";
+import { pixelRound } from "./geometry";
+import { hitVectorPointBox, pointBoxCentre, pointBoxCorners, pointBoxOnto, pointRotationMatrix, shownVectorPointBox, transformVectorBox, type PointBox } from "./vector-point-transform";
+import { VectorPointTargets } from "./vector-point-snap";
+import type { Guide } from "./snapping";
 
-type Gesture = { kind: "points"; start: Point; parts: readonly VectorEditPart[]; split?: readonly [number, number]; moved: boolean }
-  | { kind: "handle"; seg: number; start: boolean; independent: boolean; group: readonly VectorHandle[] }
+type PointSnap = { targets: VectorPointTargets; from: readonly Point[]; grab?: Point };
+type Gesture = { kind: "points"; start: Point; parts: readonly VectorEditPart[]; split?: readonly [number, number]; moved: boolean; clearOnClick?: boolean; snap?: PointSnap }
+  | { kind: "boxScale"; box: PointBox; handle: Handle; targets: VectorPointTargets }
+  | { kind: "boxRotate"; box: PointBox; startAngle: number; angle: number }
+  | { kind: "handle"; seg: number; start: boolean; independent: boolean; group: readonly VectorHandle[]; targets: VectorPointTargets }
   | { kind: "bendSegment"; seg: number; t: number }
   | { kind: "bendVertex"; vertex: number; origin: Point; smooth: boolean; moved: boolean }
   | { kind: "marquee"; start: Point; base: readonly VectorEditPart[]; leave: boolean };
@@ -33,6 +41,16 @@ function segmentPoint(document: Document, id: NodeId, seg: number, t: number): P
   const net = vectorNetwork(document, id), c = net && networkCubic(net, seg);
   return c && transformPoint(worldTransform(document, id), cubicPoint(c, t));
 }
+function capturePointSnap(document: Document, id: NodeId, parts: readonly VectorEditPart[], start: Point): PointSnap {
+  const from: Point[] = [];
+  for (const part of parts) {
+    const net = vectorNetwork(document, part.id), w = worldTransform(document, part.id);
+    for (const i of part.vertices) if (net?.vertices[i]) from.push(transformPoint(w, net.vertices[i]));
+  }
+  let grab: Point | undefined, nearest = Infinity;
+  for (const p of from) { const d = distance(p, start); if (d < nearest) { nearest = d; grab = p; } }
+  return { from, grab, targets: new VectorPointTargets(document, id, parts.find(p => p.id === id)?.vertices ?? [], parts.filter(p => p.id !== id)) };
+}
 
 /** Point editing gestures own transient geometry outside React and commit a single history item. */
 export class VectorInteraction {
@@ -41,9 +59,15 @@ export class VectorInteraction {
   #hover?: { id: NodeId; hit: VectorHit };
   #add?: { point: Point; on: boolean };
   #marquee?: Rectangle;
+  #guides: Guide[] = [];
   constructor(private engine: EditorEngine, private onError: (message: string) => void) {}
   get active(): boolean { return this.#pressed; }
-  get overlay() { return { hover: this.#hover, add: this.#add, marquee: this.#marquee }; }
+  get overlay() {
+    const g = this.#gesture, state = this.engine.getRenderVectorEdit();
+    const box = state && shownVectorPointBox(this.engine.getRenderDocument(), state);
+    const corners = g?.kind === "boxRotate" ? pointBoxCorners(g.box).map(p => transformPoint(pointRotationMatrix(pointBoxCentre(g.box), -g.angle), p)) : box && pointBoxCorners(box);
+    return { hover: this.#hover, add: this.#add, marquee: this.#marquee, box: corners, guides: this.#guides };
+  }
   #fail(error: unknown): void { this.cancel(); this.onError(error instanceof Error ? error.message : "Could not edit vector"); }
   hover(point?: Point, modifiers?: MoveModifiers): string | undefined {
     this.#hover = undefined; this.#add = undefined;
@@ -51,6 +75,11 @@ export class VectorInteraction {
     const document = this.engine.getRenderDocument(), zoom = this.engine.getView().zoom;
     this.#hover = hitEditedVectors(document, state, point, 6 / zoom);
     const found = this.#hover;
+    if (!(modifiers?.ctrlKey || modifiers?.metaKey)) {
+      const box = shownVectorPointBox(document, state), hit = box && hitVectorPointBox(box, found?.hit, point, zoom);
+      if (box && hit?.kind === "handle") { this.#hover = undefined; return handleCursor(pointBoxCorners(box), hit.handle); }
+      if (hit?.kind === "inside" && !modifiers?.shiftKey) return "move";
+    }
     if (found?.hit.kind === "segment" && state.tool === "move" && !(modifiers?.ctrlKey || modifiers?.metaKey || modifiers?.shiftKey || modifiers?.altKey)) {
       const at = segmentPoint(document, found.id, found.hit.seg, .5); if (at) this.#add = { point: at, on: distance(at, point) * zoom <= 6 };
     }
@@ -58,7 +87,7 @@ export class VectorInteraction {
   }
   down(point: Point, modifiers: MoveModifiers): boolean {
     let state = this.engine.getVectorEdit(); if (!state || !this.engine.getSnapshot().editable) return false;
-    this.#pressed = true; this.#hover = undefined; this.#add = undefined;
+    this.#pressed = true; this.#hover = undefined; this.#add = undefined; this.#guides = [];
     try {
       const document = this.engine.getSnapshot().document, zoom = this.engine.getView().zoom;
       const found = hitEditedVectors(document, state, point, 6 / zoom);
@@ -68,6 +97,18 @@ export class VectorInteraction {
         state = this.engine.getVectorEdit()!;
       }
       const hit = found?.hit, bend = state.tool === "bend" || modifiers.ctrlKey || modifiers.metaKey;
+      const box = !bend && shownVectorPointBox(document, state), boxHit = box && hitVectorPointBox(box, hit, point, zoom);
+      if (box && boxHit && !(boxHit.kind === "inside" && modifiers.shiftKey)) {
+        this.engine.beginInteraction();
+        if (boxHit.kind === "inside") {
+          const parts = [{ id: state.id, vertices: box.points, segments: [] }, ...box.others.map(p => ({ ...p, segments: [] }))];
+          this.#gesture = { kind: "points", start: point, parts, moved: false, clearOnClick: true, snap: capturePointSnap(document, state.id, parts, point) };
+        }
+        else if (boxHit.handle.kind === "rotate") {
+          const c = pointBoxCentre(box); this.#gesture = { kind: "boxRotate", box, startAngle: Math.atan2(point.y - c.y, point.x - c.x), angle: 0 };
+        } else this.#gesture = { kind: "boxScale", box, handle: boxHit.handle, targets: new VectorPointTargets(document, state.id, box.points, box.others) };
+        return true;
+      }
       if (hit?.kind === "handle") {
         let handles = state.handles;
         const has = handles.some(h => h[0] === hit.seg && h[1] === hit.start);
@@ -76,7 +117,8 @@ export class VectorInteraction {
           this.engine.updateVectorSelection(s => ({ ...s, handles }));
           if (!handles.some(h => h[0] === hit.seg && h[1] === hit.start)) return true;
         }
-        this.engine.beginInteraction(); this.#gesture = { kind: "handle", seg: hit.seg, start: hit.start, independent: bend || modifiers.altKey, group: bend ? [] : handles };
+        const segment = vectorNetwork(document, state.id)!.segments[hit.seg];
+        this.engine.beginInteraction(); this.#gesture = { kind: "handle", seg: hit.seg, start: hit.start, independent: bend || modifiers.altKey, group: bend ? [] : handles, targets: new VectorPointTargets(document, state.id, [hit.start ? segment.a : segment.b]) };
       } else if (bend && hit?.kind === "vertex") {
         const net = vectorNetwork(document, state.id)!, v = net.vertices[hit.index];
         const smooth = networkIncident(net, hit.index).some(([seg, start]) => { const h = start ? net.segments[seg].ta : net.segments[seg].tb; return h[0] !== 0 || h[1] !== 0; });
@@ -90,7 +132,7 @@ export class VectorInteraction {
         this.engine.updateVectorSelection(s => ({ ...(keep ? s : clearVectorSelection(s)), vertices, handles: [], segments: modifiers.shiftKey ? s.segments : [], regionVertices: s.regionVertices.filter(i => i !== hit.index) }));
         const current = this.engine.getVectorEdit()!;
         const parts = vectorParts(current).map(p => ({ ...p, vertices: selectedVectorPoints(vectorNetwork(document, p.id)!, p), segments: [] }));
-        this.engine.beginInteraction(); this.#gesture = { kind: "points", start: point, parts, moved: false };
+        this.engine.beginInteraction(); this.#gesture = { kind: "points", start: point, parts, moved: false, snap: capturePointSnap(document, state.id, parts, point) };
       } else if (hit?.kind === "segment") {
         const at = segmentPoint(document, state.id, hit.seg, .5), midpoint = !modifiers.altKey && !modifiers.shiftKey && at && distance(at, point) * zoom <= 6;
         if (midpoint || modifiers.altKey) {
@@ -98,11 +140,13 @@ export class VectorInteraction {
           this.engine.beginInteraction();
           this.#gesture = { kind: "points", start: point, parts: [{ id: state.id, vertices: [vertex], segments: [] }], split: [hit.seg, t], moved: false };
           this.#previewPoints(this.#gesture, { x: 0, y: 0 });
+          this.#gesture.snap = capturePointSnap(this.engine.getRenderDocument(), state.id, this.#gesture.parts, point);
         } else if (modifiers.shiftKey) this.engine.updateVectorSelection(s => ({ ...s, segments: toggle(s.segments, hit.seg) }));
         else {
           const segment = vectorNetwork(document, state.id)!.segments[hit.seg];
           this.engine.updateVectorSelection(s => ({ ...clearVectorSelection(s), segments: [hit.seg] })); this.engine.beginInteraction();
-          this.#gesture = { kind: "points", start: point, parts: [{ id: state.id, vertices: [segment.a, segment.b], segments: [] }], moved: false };
+          const parts = [{ id: state.id, vertices: [segment.a, segment.b], segments: [] }];
+          this.#gesture = { kind: "points", start: point, parts, moved: false, snap: capturePointSnap(document, state.id, parts, point) };
         }
       } else {
         const inside = vectorParts(state).some(p => {
@@ -129,15 +173,34 @@ export class VectorInteraction {
   }
   move(point: Point, modifiers: MoveModifiers): void {
     const g = this.#gesture; if (!g) return;
-    if (!this.engine.interacting) { this.#gesture = undefined; this.#pressed = false; return; }
+    if (!this.engine.interacting) { this.#gesture = undefined; this.#pressed = false; this.#guides = []; return; }
     try {
-      const zoom = this.engine.getView().zoom;
+      const view = this.engine.getView(), zoom = view.zoom, objects = view.snapObjects !== false && !modifiers.ctrlKey && !modifiers.metaKey, pixel = view.snapPixel !== false;
       if (g.kind === "points") {
         const delta = { x: point.x - g.start.x, y: point.y - g.start.y }; if (Math.hypot(delta.x, delta.y) * zoom < 1) return;
-        if (modifiers.shiftKey) { if (Math.abs(delta.x) > Math.abs(delta.y)) delta.y = 0; else delta.x = 0; }
+        const lock = modifiers.shiftKey ? Math.abs(delta.x) > Math.abs(delta.y) : undefined;
+        if (lock === true) delta.y = 0; else if (lock === false) delta.x = 0;
+        if (g.snap) {
+          const add = (p: Point) => ({ x: p.x + delta.x, y: p.y + delta.y });
+          const snapped = g.snap.targets.snap(g.snap.from.map(add), g.snap.grab && add(g.snap.grab), zoom, objects, pixel, lock);
+          delta.x += snapped.correction.x; delta.y += snapped.correction.y; this.#guides = snapped.guides;
+        }
         this.#previewPoints(g, delta); g.moved = true; return;
       }
       this.engine.previewVectorEdit((document, state) => {
+        if (g.kind === "boxScale" || g.kind === "boxRotate") {
+          const draft = new HierarchyDraft(document);
+          if (g.kind === "boxScale") {
+            const snapped = g.targets.snap([point], undefined, zoom, objects, false); this.#guides = snapped.guides;
+            const local = transformPoint(inverse(g.box.frame), { x: point.x + snapped.correction.x, y: point.y + snapped.correction.y }), b = resizedBox(g.handle, local, g.box.width, g.box.height, modifiers.shiftKey, modifiers.altKey);
+            transformVectorBox(draft, state.id, g.box, pointBoxOnto(g.box, ...b));
+          } else {
+            const c = pointBoxCentre(g.box); g.angle = (Math.atan2(point.y - c.y, point.x - c.x) - g.startAngle) * 180 / Math.PI;
+            if (modifiers.shiftKey) g.angle = pixelRound(g.angle / 15) * 15;
+            transformVectorBox(draft, state.id, g.box, pointRotationMatrix(c, -g.angle));
+          }
+          draft.normaliseGroups(); return { document: validateChangedGeometry(draft), state };
+        }
         if (g.kind === "marquee") {
           const r = { x: Math.min(point.x, g.start.x), y: Math.min(point.y, g.start.y), width: Math.abs(point.x - g.start.x), height: Math.abs(point.y - g.start.y) };
           this.#marquee = r;
@@ -150,7 +213,12 @@ export class VectorInteraction {
           });
           return { document, state: { ...state, vertices: parts[0].vertices, others: parts.slice(1) } };
         }
-        const w = worldTransform(document, state.id), local = transformPoint(inverse(w), point);
+        let target = point;
+        if (g.kind === "handle") {
+          const snapped = g.targets.snap([point], point, zoom, objects, pixel); this.#guides = snapped.guides;
+          target = { x: point.x + snapped.correction.x, y: point.y + snapped.correction.y };
+        }
+        const w = worldTransform(document, state.id), local = transformPoint(inverse(w), target);
         if (g.kind === "bendVertex" && !g.moved && distance(point, transformPoint(w, g.origin)) * zoom < 2) return { document, state };
         const next = editNetworks(document, [{ id: state.id, update: net => {
           if (g.kind === "bendSegment") return bendSegment(net, g.seg, g.t, local);
@@ -172,10 +240,14 @@ export class VectorInteraction {
   }
   /** A click outside the edited layers may be replayed by the normal move tool. */
   up(point: Point): Point | undefined {
-    const g = this.#gesture; this.#gesture = undefined; this.#pressed = false; this.#marquee = undefined;
+    const g = this.#gesture; this.#gesture = undefined; this.#pressed = false; this.#marquee = undefined; this.#guides = [];
     if (!g || !this.engine.interacting) return;
     try {
-      if (g.kind === "points" && !g.moved && !g.split) { this.engine.cancelInteraction(); return; }
+      if (g.kind === "points" && !g.moved && !g.split) {
+        this.engine.cancelInteraction();
+        if (g.clearOnClick) this.engine.updateVectorSelection(s => ({ ...s, vertices: [], segments: [], others: s.others.map(p => ({ ...p, vertices: [], segments: [] })) }));
+        return;
+      }
       if (g.kind === "points" && !g.split && g.parts[0].vertices.length === 1 && g.parts.slice(1).every(p => !p.vertices.length)) this.#mergeDrop(g.parts[0].vertices[0]);
       if (g.kind === "bendVertex" && !g.moved) {
         const state = this.engine.getRenderVectorEdit()!, net = vectorNetwork(this.engine.getRenderDocument(), state.id)!;
@@ -208,6 +280,6 @@ export class VectorInteraction {
   }
   cancel(): void {
     if (this.#gesture) this.engine.cancelInteraction(); this.#gesture = undefined; this.#pressed = false;
-    this.#hover = undefined; this.#add = undefined; this.#marquee = undefined;
+    this.#hover = undefined; this.#add = undefined; this.#marquee = undefined; this.#guides = [];
   }
 }

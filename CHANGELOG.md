@@ -2,6 +2,15 @@
 
 All notable changes to the React port and its upstream compatibility baseline are recorded here.
 
+## [0.26.0] - 2026-11-07
+
+The reference baseline remains `8eb0b87646c5aef712326d6c431ccde5408630de`; full parity remains in progress.
+
+- Added active-vector point bounds, dimensions, resize, rotation and page-matrix commands, including edit-mode flip/fixed rotation routing.
+- Added shared multi-layer point boxes, captured scale/rotate/interior gestures, live modifiers, cancellation and one-step undo.
+- Added bounded point/segment-midpoint snapping, object/pixel switches and markers, with indexed lookups preserving native candidate ties.
+- Pen/Pencil, region tools, guides/grids, persisted preferences, remaining vector tools and the complete product roadmap remain required.
+
 ## [0.25.0] - 2026-11-07
 
 The reference baseline remains `8eb0b87646c5aef712326d6c431ccde5408630de`; full parity remains in progress.

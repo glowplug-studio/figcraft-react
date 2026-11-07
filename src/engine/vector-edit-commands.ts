@@ -9,6 +9,7 @@ import { wireVectorNetwork } from "./vector-codec";
 import { bendSegment, deleteVertices, moveHandles, moveVertices, removeSegments, setHandle, setMirroring, smoothVertices, splitSegment, type VectorHandle } from "./vector-edit-ops";
 import { beginVectorEdit, clampVectorEdit, clearVectorSelection, freezeVectorEdit, refitVector, selectVectorParts, selectedVectorPoints, vectorEditOverlay, vectorNetwork, vectorParts, vectorSelectionPosition, type VectorEditPart, type VectorEditState } from "./vector-edit";
 import { freezeNetwork, networkMirroring, type VectorNetwork, type VectorVertex } from "./vector-network";
+import { pointBoxCentre, pointBoxCorners, pointBoxOnto, pointRotationMatrix, transformVectorPoints, vectorPointBox } from "./vector-point-transform";
 
 export const vectorEditSpecs = Object.freeze({
   "vector.edit.begin": { label: "Edit vector", undo: false },
@@ -20,6 +21,10 @@ export const vectorEditSpecs = Object.freeze({
   "vector.edit.moveVertices": { label: "Move points", undo: true },
   "vector.edit.nudge": { label: "Nudge points", undo: true },
   "vector.edit.position": { label: "Point position", undo: true },
+  "vector.edit.bounds": { label: "Selected points' bounds", undo: false },
+  "vector.edit.resize": { label: "Resize points", undo: true },
+  "vector.edit.rotate": { label: "Rotate points", undo: true },
+  "vector.edit.transform": { label: "Transform points", undo: true },
   "vector.edit.setHandle": { label: "Set handle", undo: true },
   "vector.edit.moveHandles": { label: "Move handles", undo: true },
   "vector.edit.mirroring": { label: "Handle mirroring", undo: true },
@@ -37,6 +42,7 @@ const allowed: Record<VectorEditCommand, readonly string[]> = {
   "vector.edit.begin": ["id", "ids"], "vector.edit.end": [], "vector.edit.state": [], "vector.edit.tool": ["tool"],
   "vector.edit.select": ["vertices", "segments", "handles", "regions", "id", "add"], "vector.edit.selectAll": [],
   "vector.edit.moveVertices": ["vertices", "dx", "dy"], "vector.edit.nudge": ["dx", "dy"], "vector.edit.position": ["x", "y"],
+  "vector.edit.bounds": [], "vector.edit.resize": ["width", "height", "center"], "vector.edit.rotate": ["angle", "cx", "cy"], "vector.edit.transform": ["matrix", "vertices"],
   "vector.edit.setHandle": ["segment", "start", "x", "y", "independent"], "vector.edit.moveHandles": ["dx", "dy", "handles", "independent"],
   "vector.edit.mirroring": ["mode", "vertices"], "vector.edit.smooth": ["vertices", "smooth"], "vector.edit.bend": ["segment", "t", "x", "y"],
   "vector.edit.addVertex": ["segment", "t"], "vector.edit.delete": ["vertices", "segments"], "vector.deleteHeal": ["vertices"],
@@ -103,6 +109,11 @@ export function executeVectorEdit(command: VectorEditCommand, document: Document
     const selected = vectorParts(state).map(part => ({ id: part.id, vertices: Array.from({ length: vectorNetwork(document, part.id)?.vertices.length ?? 0 }, (_, i) => i), segments: [] }));
     return { ...result, state: freezeVectorEdit({ ...clearVectorSelection(state), vertices: selected[0].vertices, others: selected.slice(1) }), result: { count: selected.reduce((sum, part) => sum + part.vertices.length, 0) } };
   }
+  const selectedBox = () => { const box = vectorPointBox(document, state); if (!box?.points.length) throw new Error("Select points"); return box; };
+  if (command === "vector.edit.bounds") {
+    const box = selectedBox(), position = vectorSelectionPosition(document, state);
+    return { ...result, result: { x: position?.x ?? null, y: position?.y ?? null, width: box.width, height: box.height, corners: pointBoxCorners(box).map(p => [p.x, p.y]), points: box.points } };
+  }
   const draft = new HierarchyDraft(document);
   const edit = (id: NodeId, f: (net: VectorNetwork) => VectorNetwork): void => {
     const node = draft.nodes[id]; if (node?.kind !== "vector") throw new Error("Not a vector");
@@ -112,6 +123,24 @@ export function executeVectorEdit(command: VectorEditCommand, document: Document
     for (const part of pointSets(document, state, p, ends)) { const world = worldTransform(draft.document, part.id); edit(part.id, net => f(net, part.vertices, world)); }
   };
   switch (command) {
+    case "vector.edit.resize": {
+      const box = selectedBox();
+      const size = (key: string, fallback: number) => { try { return Math.max(0, Math.min(1e7, parseNumber(p[key]))); } catch { return fallback; } };
+      const width = size("width", box.width), height = size("height", box.height);
+      const centre = parseBoolean(p.center) ?? false, x = centre ? (box.width - width) / 2 : 0, y = centre ? (box.height - height) / 2 : 0;
+      transformVectorPoints(draft, state.id, box.points, pointBoxOnto(box, x, y, x + width, y + height)); break;
+    }
+    case "vector.edit.rotate": {
+      const box = selectedBox(), angle = parseNumber(p.angle, "angle"), centre = pointBoxCentre(box);
+      transformVectorPoints(draft, state.id, box.points, pointRotationMatrix({ x: num(p, "cx", centre.x), y: num(p, "cy", centre.y) }, angle)); break;
+    }
+    case "vector.edit.transform": {
+      const values = Array.isArray(p.matrix) ? p.matrix.flatMap(v => { try { return [parseNumber(v)]; } catch { return []; } }) : [];
+      if (values.length !== 6) throw new Error("matrix must be [a, b, c, d, e, f]");
+      const net = vectorNetwork(document, state.id); if (!net) throw new Error("Not a vector");
+      const [a, b, c, d, e, f] = values;
+      transformVectorPoints(draft, state.id, vectorIndices(p.vertices) ?? selectedVectorPoints(net, state), [a, b, c, d, e, f]); break;
+    }
     case "vector.edit.moveVertices": sets(true, (net, points) => moveVertices(net, points, { x: num(p, "dx", 0), y: num(p, "dy", 0) })); break;
     case "vector.edit.nudge": {
       const delta = { x: num(p, "dx", 0), y: num(p, "dy", 0) };

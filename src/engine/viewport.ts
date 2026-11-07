@@ -5,11 +5,12 @@ import { isDivider } from "./pages";
 import { parseBoolean, parseNumber } from "./parameters";
 import type { Point, Rectangle } from "./geometry";
 
-export interface Viewport { readonly cx: number; readonly cy: number; readonly zoom: number; readonly vw: number; readonly vh: number }
+export interface Viewport { readonly cx: number; readonly cy: number; readonly zoom: number; readonly vw: number; readonly vh: number; readonly snapObjects?: boolean; readonly snapPixel?: boolean }
 export const defaultViewport: Viewport = Object.freeze({ cx: 0, cy: 0, zoom: 1, vw: 1200, vh: 800 });
 export const minimumZoom = 0.02, maximumZoom = 256;
 const steps = [0.02, 0.03, 0.06, 0.13, 0.25, 0.5, 1, 2, 4, 8, 16, 32, 64, 128, 256];
 export const viewSpecs = Object.freeze({
+  "view.snapObjects": { label: "Snap to objects", undo: false }, "view.snapPixel": { label: "Snap to pixel grid", undo: false },
   "view.zoomIn": { label: "Zoom in", undo: false }, "view.zoomOut": { label: "Zoom out", undo: false },
   "view.zoom100": { label: "Zoom to 100%", undo: false }, "view.zoom50": { label: "Zoom to 50%", undo: false },
   "view.zoom200": { label: "Zoom to 200%", undo: false }, "view.zoomFit": { label: "Zoom to fit", undo: false },
@@ -57,12 +58,16 @@ function step(zoom: number, up: boolean): number { return up ? steps.find(value 
 
 export function executeView(command: string, previous: Viewport, document: Document, selection: readonly NodeId[], params: Record<string, unknown>) {
   if (!Object.hasOwn(viewSpecs, command)) throw new Error(`Unsupported view command: ${command}`);
-  const allowed = command === "view.set" ? ["zoom", "cx", "cy", "vw", "vh"] : command === "view.zoomAt" ? ["x", "y", "out", "width", "height"] : command === "view.pan" ? ["dx", "dy", "big"] : [];
+  const snap = command === "view.snapObjects" || command === "view.snapPixel";
+  const allowed = snap ? ["on"] : command === "view.set" ? ["zoom", "cx", "cy", "vw", "vh"] : command === "view.zoomAt" ? ["x", "y", "out", "width", "height"] : command === "view.pan" ? ["dx", "dy", "big"] : [];
   for (const key of Object.keys(params)) if (!allowed.includes(key)) throw new Error(`Unsupported ${command} parameter: ${key}`);
   let view = previous, current = document, selected = selection, result: Record<string, unknown> = {};
-  if (command === "view.set") {
+  if (snap) {
+    const key = command === "view.snapObjects" ? "snapObjects" : "snapPixel", on = parseBoolean(params.on) ?? !(view[key] ?? true);
+    view = Object.freeze({ ...view, [key]: on }); result = { on };
+  } else if (command === "view.set") {
     const values = Object.fromEntries(allowed.map(key => [key, optionalNumber(params[key])])) as Partial<Viewport>;
-    view = Object.freeze({ cx: values.cx ?? view.cx, cy: values.cy ?? view.cy, zoom: Math.max(minimumZoom, Math.min(maximumZoom, values.zoom ?? view.zoom)),
+    view = Object.freeze({ ...view, cx: values.cx ?? view.cx, cy: values.cy ?? view.cy, zoom: Math.max(minimumZoom, Math.min(maximumZoom, values.zoom ?? view.zoom)),
       vw: Math.max(10, Math.min(20000, values.vw ?? view.vw)), vh: Math.max(10, Math.min(20000, values.vh ?? view.vh)) });
     result = { ...view };
   } else if (command === "view.get") result = { ...view };

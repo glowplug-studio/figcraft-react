@@ -11,5 +11,7 @@ export function ViewControls({ engine, editable, dispatch }: { engine: EditorEng
     <button type="button" aria-label="Zoom to 100%" disabled={!editable} onClick={() => dispatch("view.zoom100")}>100%</button>
     <button type="button" disabled={!editable} onClick={() => dispatch("view.zoomFit")}>Fit page</button>
     <button type="button" disabled={!editable} onClick={() => dispatch("view.zoomSelection")}>Fit selection</button>
+    <button type="button" disabled={!editable} aria-pressed={view.snapObjects !== false} onClick={() => dispatch("view.snapObjects")}>Snap to objects</button>
+    <button type="button" disabled={!editable} aria-pressed={view.snapPixel !== false} onClick={() => dispatch("view.snapPixel")}>Snap to pixel grid</button>
   </div>;
 }

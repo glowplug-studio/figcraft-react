@@ -258,7 +258,7 @@ export class EditorEngine {
   }
   subscribeView = (listener: () => void): (() => void) => { this.#viewListeners.add(listener); return () => { this.#viewListeners.delete(listener); }; };
   updateView(view: Viewport): void {
-    if (Object.values(view).some(value => !Number.isFinite(value)) || view.zoom < 0.02 || view.zoom > 256 || view.vw <= 0 || view.vh <= 0) throw new Error("Invalid viewport");
+    if ([view.cx, view.cy, view.zoom, view.vw, view.vh].some(value => !Number.isFinite(value)) || [view.snapObjects, view.snapPixel].some(value => value !== undefined && typeof value !== "boolean") || view.zoom < 0.02 || view.zoom > 256 || view.vw <= 0 || view.vh <= 0) throw new Error("Invalid viewport");
     if ((Object.keys(view) as (keyof Viewport)[]).every(key => view[key] === this.#view[key])) return;
     this.#view = Object.freeze({ ...view }); this.#viewListeners.forEach(listener => listener());
   }
@@ -350,7 +350,7 @@ export class EditorEngine {
     if (Object.hasOwn(arrangeSpecs, command) || Object.hasOwn(sizingSpecs, command) || Object.hasOwn(rotationSpecs, command)) {
       const before = this.#snapshot;
       const document = Object.hasOwn(rotationSpecs, command)
-        ? executeRotation(command, before.document, before.selection, p, movedOrigin(before.document, before.selection, this.#origin))
+        ? executeRotation(command, before.document, before.selection, p, movedOrigin(before.document, before.selection, this.#origin), this.#vectorEdit)
         : (Object.hasOwn(sizingSpecs, command) ? executeSizing : executeArrange)(command, before.document, before.selection, p);
       if (document !== before.document) {
         this.#undo.push({ document: before.document, selection: before.selection }); this.#redo = [];

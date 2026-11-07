@@ -175,7 +175,7 @@ Local graph1298 nodes/5558 edges resolves these targets. Pencil pressure, vector
 
 ## Vector point authoring — 7 November 2026
 
-Upstream `0b97f3f` → React0.25.0; reviewed base `58c0981`, implementation revision recorded after commit. [Property evidence](../reports/26-11-07-vector-authoring-parity.html):735 pure tests,2 real Auth checks, strict TypeScript/package/Next builds and89/89 Chromium pass.
+Upstream `0b97f3f` → React0.25.0; reviewed base `58c0981`, verified implementation `adc59d4`. [Property evidence](../reports/26-11-07-vector-authoring-parity.html):735 pure tests,2 real Auth checks, strict TypeScript/package/Next builds and89/89 Chromium pass.
 
 | Upstream symbol/source | React target | Verified behaviour / boundary |
 |---|---|---|
@@ -188,3 +188,20 @@ Upstream `0b97f3f` → React0.25.0; reviewed base `58c0981`, implementation revi
 | ui-egui::vector_overlay / edit_toolbar / vector_panel::points | drawVectorEdit / VectorToolbar / VectorPanel | Screen-sized overlays, Move/Bend/Done, point position/radius/mirroring/cap/join, recovery and mobile controls |
 
 The refreshed local graph contains1,566 nodes/7,185 edges and locates the interaction/controller/test chain; bounded queries are not exhaustive impact audits. Both hosted repositories are queryable again. Rust is pinned at0b97f3f; React still indexes only four README nodes atb3b8a1b. Full vector tools, point transforms/snapping, width-point diagnostics, shared scrubbing/chrome and full-product parity remain required.
+
+## Vector point transforms and snapping — 2026-11-07
+
+Reviewed base `adc59d4`, reference `0b97f3f1801a9b7b96fd7a4f3c0942a3f1a676f3`. Implementation locally verified; integration commit pending. Full92-check regression and final focused oversized-dimension correction checks pass. Global parity baseline unchanged. Both hosted graphs are queryable; React remains README-only at `b3b8a1b`. Current local AST has1,611 nodes/7,508 edges; `VectorPointTargets` resolves to capture/gesture callers, SnapTargets and paired fixtures (87 neighbours,25 shown in the bounded query).
+
+| Upstream source/symbol | Independent TypeScript implementation | Evidence / confidence |
+|---|---|---|
+| `canvas/vectoredit/transform.rs::point_box`, `PointBox::onto`, `layers_box`, `shown_box` | `vector-point-transform.ts::vectorPointBox`, `pointBoxOnto`, `shownVectorPointBox` | Paired active/page-frame and degenerate fixtures; Medium |
+| `transform.rs::transform_points`, numeric specs | `transformVectorPoints`, `vector-edit-commands.ts` | Four native command contracts, overflow atomicity, history and saved coordinates; numeric dimensions browser flow; High for exercised dimensions, Medium for matrix-only properties |
+| `cmd/arrange.rs::flip`, `rotate_by`, `transform_in_edit_mode` | `rotation.ts::executeRotation`, `EditorEngine` | Explicit target bypass, active-only edit routing and rotated-parent fixtures; Medium |
+| `transform.rs::box_hit`, `pointer.rs::box_down`, BoxScale/BoxRotate | `hitVectorPointBox`, `VectorInteraction`, Canvas overlay | Priority/modifier/interior/multi-layer fixtures and edge/rotation browser flow; High for browser-covered properties, Medium otherwise |
+| `vectoredit/point_snap.rs::targets_moving`, `snap`; `canvas/snap.rs::snap_points` | `VectorPointTargets`, captured sorted `AxisIndex` | Exclusions, budgets, tie ordering, pixel/lock behaviour,100-case native-scan comparison and browser point snapping; High for browser-covered snapping, Medium for bounded algorithm properties |
+| `cmd/view.rs` object/pixel toggles and tools/draw/drag consumers | `executeView`, `ViewControls`, draw/move/transform controllers | Document/history preservation, fractional drawing and browser switches; High for switches, Medium for engine-only cases; persisted preferences remain required |
+| `ui-egui/src/panels/vector_panel.rs::points` dimensions | `VectorPanel` | Authenticated dimensions, undo/native recovery/mobile fields and fixed canvas screenshot; High |
+| `ui-egui/src/canvas/measure_overlay.rs` point marker | `measurements.ts::drawGuides` | Exact guide marker fixtures and Canvas cross rendering; Medium |
+
+Engine source paths are relative to `original/figcraft/crates/engine/src`; UI paths are relative to `original/figcraft/crates`. See the [property report](../reports/26-11-07-vector-point-transforms-parity.html). Guides/grids, Pen, cross-session preferences and remaining product families are explicitly unclaimed dependencies.

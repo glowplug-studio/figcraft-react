@@ -1,6 +1,6 @@
 # Vector point and handle authoring — 7 November 2026
 
-Version 0.25.0 on `prompt/full-figcraft-port`. Reviewed base `58c0981`; implementation revision is recorded after the verified commit. Upstream reference `0b97f3f1801a9b7b96fd7a4f3c0942a3f1a676f3`; global parity baseline remains `8eb0b87646c5aef712326d6c431ccde5408630de`. Full browser-relevant parity remains incomplete. No deployment, branch push or main merge occurred.
+Version 0.25.0 on `prompt/full-figcraft-port`. Reviewed base `58c0981`; verified implementation `adc59d4`. Upstream reference `0b97f3f1801a9b7b96fd7a4f3c0942a3f1a676f3`; global parity baseline remains `8eb0b87646c5aef712326d6c431ccde5408630de`. Full browser-relevant parity remains incomplete. No deployment, branch push or main merge occurred.
 
 ## Implemented workflow
 

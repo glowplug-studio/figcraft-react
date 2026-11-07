@@ -5,8 +5,9 @@ import { base64Bytes } from "../../src/engine/recovery";
 import { renderDocument } from "../../src/engine/canvas";
 import { drawVectorEdit } from "../../src/engine/vector-edit-overlay";
 import { VectorInteraction } from "../../src/engine/vector-interaction";
+import { pointBoxCentre, pointBoxCorners, shownVectorPointBox } from "../../src/engine/vector-point-transform";
 
-export async function measureVectorEdit(canvas: HTMLCanvasElement) {
+export async function measureVectorEdit(canvas: HTMLCanvasElement, operation: "move" | "scale" | "rotate" = "move") {
   const seed = new EditorEngine(), id = String(seed.execute("vector.create", { path: "M0 0C10 -5 30 -5 40 0L40 30L0 30Z" }).id);
   const template = seed.getSnapshot().document.nodes[id] as VectorNode;
   const initial = newDocument(), nodes: Record<string, DocumentNode> = { ...initial.nodes }, children: string[] = [];
@@ -24,19 +25,22 @@ export async function measureVectorEdit(canvas: HTMLCanvasElement) {
   canvas.width = 1200; canvas.height = 800;
   const context = canvas.getContext("2d")!, interaction = new VectorInteraction(engine, message => { throw new Error(message); });
   const modifiers = { altKey: false, ctrlKey: false, metaKey: false, shiftKey: false };
-  interaction.down({ x: 40, y: 40 }, modifiers);
+  const box = shownVectorPointBox(engine.getSnapshot().document, engine.getVectorEdit()!)!, corners = pointBoxCorners(box), centre = pointBoxCentre(box);
+  const startPoint = operation === "move" ? { x: 40, y: 40 } : operation === "scale" ? { x: corners[1].x, y: centre.y } : { x: corners[1].x + 10, y: corners[1].y - 10 };
+  interaction.down(startPoint, modifiers);
   const before = engine.getSnapshot().document, state = engine.getVectorEdit(); let rootNotifications = 0, chromeNotifications = 0;
   engine.subscribe(() => rootNotifications++); engine.subscribeVectorEdit(() => chromeNotifications++);
   const measurements: number[] = [], inputs: number[] = [];
   for (let i = 0; i < 120; i++) {
     await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
-    const start = performance.now(); interaction.move({ x: 20 + i % 10, y: 20 + i % 8 }, modifiers); const input = performance.now() - start;
+    const start = performance.now();
+    interaction.move(operation === "move" ? { x: 20 + i % 10, y: 20 + i % 8 } : { x: startPoint.x + 20 + i % 10, y: startPoint.y + 20 + i % 8 }, modifiers); const input = performance.now() - start;
     renderDocument(context, engine.getRenderDocument(), 1200, 800, [], undefined, engine.getView());
     drawVectorEdit(context, engine.getRenderDocument(), engine.getRenderVectorEdit()!, engine.getView(), interaction.overlay);
     if (i >= 10) { inputs.push(input); measurements.push(performance.now() - start); }
   }
   interaction.cancel(); measurements.sort((a, b) => a - b); inputs.sort((a, b) => a - b);
-  return { nodes: Object.keys(before.nodes).length, visibleEditedLayers: 100, selectedPoints: 100, measuredFrames: measurements.length,
+  return { operation, nodes: Object.keys(before.nodes).length, visibleEditedLayers: 100, selectedPoints: 100, measuredFrames: measurements.length,
     p95: measurements[Math.floor(measurements.length * .95)], max: measurements.at(-1), inputP95: inputs[Math.floor(inputs.length * .95)], rootNotifications, chromeNotifications,
     restored: engine.getRenderDocument() === before && engine.getRenderVectorEdit() === state };
 }

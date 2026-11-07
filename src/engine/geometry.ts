@@ -14,9 +14,9 @@ export function drawnLine(start: Point, end: Point, shift = false, alt = false, 
   return { x, y, width: Math.hypot(dx, dy), height: 0, angle: Math.atan2(dy, dx) };
 }
 /** tools/draw.rs: rounded endpoints, square constraint, centre expansion, normalised bounds. */
-export function drawnRectangle(start: Point, end: Point, shift = false, alt = false): Rectangle {
-  const ax = pixelRound(start.x), ay = pixelRound(start.y);
-  let dx = pixelRound(end.x) - ax, dy = pixelRound(end.y) - ay;
+export function drawnRectangle(start: Point, end: Point, shift = false, alt = false, round = true): Rectangle {
+  const ax = round ? pixelRound(start.x) : start.x, ay = round ? pixelRound(start.y) : start.y;
+  let dx = (round ? pixelRound(end.x) : end.x) - ax, dy = (round ? pixelRound(end.y) : end.y) - ay;
   if (shift) {
     const extent = Math.max(Math.abs(dx), Math.abs(dy));
     dx = extent * (dx < 0 || Object.is(dx, -0) ? -1 : 1);

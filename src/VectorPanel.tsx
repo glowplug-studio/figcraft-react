@@ -3,6 +3,7 @@ import type { EditorEngine } from "./engine/editor";
 import { selectedVectorPoints, vectorNetwork, vectorSelectionPosition } from "./engine/vector-edit";
 import { networkMirroring } from "./engine/vector-network";
 import { strokeCaps } from "./engine/stroke";
+import { vectorPointBox } from "./engine/vector-point-transform";
 
 interface Props { engine: EditorEngine; editable: boolean; dispatch: (command: string, params?: unknown) => void }
 const common = <T,>(values: readonly T[]): T | undefined => values.every(v => v === values[0]) ? values[0] : undefined;
@@ -28,6 +29,7 @@ export function VectorPanel({ engine, editable, dispatch }: Props) {
   const position = vectorSelectionPosition(snapshot.document, state), radius = common(vertices.map(v => v.radius));
   const mirroring = common(indices.map(i => networkMirroring(net, i)));
   const cap = common(vertices.map(v => v.cap ?? "layer")), join = common(vertices.map(v => v.join ?? "layer"));
+  const box = vertices.length > 1 ? vectorPointBox(snapshot.document, state) : undefined;
   return <fieldset disabled={!editable} aria-label="Vector points"><legend>{vertices.length > 1 ? "Points" : "Point"}</legend>
     {!vertices.length ? <p>Select points to edit their position, radius and mirroring.</p> : <>
       <p>{vertices.length} selected {vertices.length === 1 ? "point" : "points"}</p>
@@ -39,6 +41,15 @@ export function VectorPanel({ engine, editable, dispatch }: Props) {
         <label>Point Y<input name="y" type="number" step="any" required defaultValue={position?.y} /></label>
         <button type="submit">Apply point position</button>
       </form>
+      {box && <form key={`${state.id}:${box.width}:${box.height}`} onSubmit={event => {
+        event.preventDefault(); const data = new FormData(event.currentTarget);
+        const width = Number(data.get("width")), height = Number(data.get("height"));
+        dispatch("vector.edit.resize", { ...(width !== box.width ? { width } : {}), ...(height !== box.height ? { height } : {}) });
+      }}>
+        <label>Point width<input name="width" type="number" step="any" min="0" required defaultValue={box.width} /></label>
+        <label>Point height<input name="height" type="number" step="any" min="0" required defaultValue={box.height} /></label>
+        <button type="submit">Apply point dimensions</button>
+      </form>}
       <form key={`${state.id}:${indices.join()}:${radius}`} onSubmit={event => {
         event.preventDefault(); const data = new FormData(event.currentTarget); dispatch("vector.edit.cornerRadius", { radius: Number(data.get("radius")) });
       }}><label>Point corner radius<input name="radius" type="number" step="any" min="0" max="1000000" required defaultValue={radius ?? ""} placeholder={radius === undefined ? "Mixed" : undefined} /></label><button type="submit">Apply point radius</button></form>

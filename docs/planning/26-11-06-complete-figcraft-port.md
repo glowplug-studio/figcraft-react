@@ -5,16 +5,16 @@
 | Field | Current value |
 |---|---|
 | Overall status | In progress; full parity is not implemented |
-| Active slice | Vector point and handle authoring; [bounded plan](26-11-07-vector-authoring.md) |
-| Active phase | Phase 7: bounded point/handle authoring verified locally; commit and next transform/snapping slice |
+| Active slice | [Vector point transforms and snapping](26-11-07-vector-point-transforms.md) |
+| Active phase | Phase7: point transforms/snapping verified; commit and continuation next |
 | Upstream baseline | `0b97f3f1801a9b7b96fd7a4f3c0942a3f1a676f3`; prior parity baseline `8eb0b87646c5aef712326d6c431ccde5408630de` |
-| Branch and last verified commit | `prompt/full-figcraft-port`; verified internal authoring primitives `74fbbb0`; verified vector foundation `154f5a7`; verified brushes `d3f7934`; verified width profiles `5f035a2`; verified per-side strokes `e21aaf0`; verified Line/strokes `0ca7c35`; verified Polygon/Star `f4db7fc`; verified ellipses `f21fe2b`; verified corners `37ad314`; verified transforms `cc26af1`; verified canvas move `0d34280`; verified duplication `f6dfc3f`; verified smart selection `3326d26`; verified rotations `92062ca`; verified sizing `c6b8c71`; verified arrangement `783a694`; verified viewport `d0fae6c`; verified frames `3e7943a`; verified nested groups `e81ba76`; verified colour `bfa5dd8`; affine `080fc27`, outline check `2404d6b`, reports `ff29f38`; pages `6c988a5`, persistence `41d467b`; integration `fc3b4a6` from updated dev plus rectangle branch |
+| Branch and last verified commit | `prompt/full-figcraft-port`; verified vector authoring `adc59d4`; verified internal authoring primitives `74fbbb0`; verified vector foundation `154f5a7`; verified brushes `d3f7934`; verified width profiles `5f035a2`; verified per-side strokes `e21aaf0`; verified Line/strokes `0ca7c35`; verified Polygon/Star `f4db7fc`; verified ellipses `f21fe2b`; verified corners `37ad314`; verified transforms `cc26af1`; verified canvas move `0d34280`; verified duplication `f6dfc3f`; verified smart selection `3326d26`; verified rotations `92062ca`; verified sizing `c6b8c71`; verified arrangement `783a694`; verified viewport `d0fae6c`; verified frames `3e7943a`; verified nested groups `e81ba76`; verified colour `bfa5dd8`; affine `080fc27`, outline check `2404d6b`, reports `ff29f38`; pages `6c988a5`, persistence `41d467b`; integration `fc3b4a6` from updated dev plus rectangle branch |
 | Completed slices | Rectangle/host-auth, bounded native persistence/recovery, supported-model pages, affine rectangle geometry/selection and solid appearance, plus nested group hierarchy, Frame containers, movement/transform gestures, rounded corners, ellipse/arc/ring and Polygon/Star editing verified locally; Line/Arrow and uniform solid strokes also verified; per-side Rectangle/Frame strokes, variable-width profiles and procedural brushes verified; vector networks, solid region/stroke rendering and Flatten/Reverse also verified; foundation commit `154f5a7` |
 | Remaining slices | Every row below except the integrated foundation; static inventory entries remain unverified until mapped and tested |
-| Tests last passed | Vector authoring:735 pure,2 real Auth, strict TypeScript/package/Next builds and89/89 Chromium in146.8s. Point preview p957.9ms/max8.6ms/input5.4ms; zero root/panel preview notifications. Corrected test-only expectations retained in report |
-| Files currently in progress | Verified vector authoring0.25.0, tests and reports awaiting commit |
+| Tests last passed | Point transforms:763 pure,2 real Auth, strict TypeScript/package/Next builds; focused authenticated flow and3 performance cases pass. Combined p95 move5.7ms/scale4.1ms/rotate4.2ms, zero root/panel notifications. Full92-check regression passes in203.9s; final oversized-dimension fix passes pure/strict/build and focused rebuilt-host checks |
+| Files currently in progress | Point transform/snapping modules, command/gesture/UI integration,28 fixtures, browser/performance cases,0.26.0 metadata and reports; all uncommitted |
 | Blockers | No implementation blocker. Graphify authentication restored; hosted React index remains stale; current local source is authoritative |
-| Exact next action | Commit verified authoring, then synchronise and plan point transform boxes/snapping |
+| Exact next action | Commit point transform/snapping workflow, record revision and continue immediately to Pen/open-path upstream evidence |
 | Last updated | 2026-11-07 |
 
 ## Scope and continuation

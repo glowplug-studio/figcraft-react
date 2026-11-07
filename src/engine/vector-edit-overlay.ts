@@ -3,11 +3,18 @@ import type { Document } from "./document";
 import { vectorEditOverlay, type VectorEditState } from "./vector-edit";
 import type { VectorInteraction } from "./vector-interaction";
 import { pageToScreen, type Viewport } from "./viewport";
+import { drawGuides } from "./measurements";
 
 /** Native edit overlays: inactive layers below the active layer, with screen-sized controls. */
 export function drawVectorEdit(context: CanvasRenderingContext2D, document: Document, state: VectorEditState, view: Viewport, interaction: VectorInteraction["overlay"]): void {
   const accent = canvasAccent(document), screen = (p: readonly number[]) => pageToScreen(view, { x: p[0], y: p[1] });
   context.save(); context.strokeStyle = accent;
+  if (interaction.box) {
+    const points = interaction.box.map(p => pageToScreen(view, p)); context.lineWidth = 1;
+    context.beginPath(); context.moveTo(points[0].x, points[0].y);
+    for (const p of points.slice(1)) context.lineTo(p.x, p.y);
+    context.closePath(); context.stroke();
+  }
   for (const part of [...state.others.map(p => ({ ...state, ...p, handles: [], regions: [], regionVertices: [] })), state]) {
     const overlay = vectorEditOverlay(document, part); if (!overlay) continue;
     const hover = interaction.hover?.id === part.id ? interaction.hover.hit : undefined;
@@ -39,4 +46,5 @@ export function drawVectorEdit(context: CanvasRenderingContext2D, document: Docu
     context.fillRect(p.x, p.y, r.width * view.zoom, r.height * view.zoom); context.strokeRect(p.x, p.y, r.width * view.zoom, r.height * view.zoom);
   }
   context.restore();
+  drawGuides(context, interaction.guides, view);
 }

@@ -22,9 +22,9 @@ export class DrawInteraction {
     if (!this.engine.interacting) { this.#gesture = undefined; this.#guides = []; return; }
     try {
       this.#guides = [];
-      if (!modifiers.ctrlKey && !modifiers.metaKey) { const snap = g.targets.snapPoint(point, 5 / this.engine.getView().zoom); point = snap.point; this.#guides = snap.guides; }
+      if (this.engine.getView().snapObjects !== false && !modifiers.ctrlKey && !modifiers.metaKey) { const snap = g.targets.snapPoint(point, 5 / this.engine.getView().zoom); point = snap.point; this.#guides = snap.guides; }
       const draw = g.kind === "line" || g.kind === "arrow" ? drawnLine : drawnRectangle;
-      this.engine.previewDraw(g.kind, draw(g.start, point, modifiers.shiftKey, modifiers.altKey), g.parent); g.moved = true;
+      this.engine.previewDraw(g.kind, draw(g.start, point, modifiers.shiftKey, modifiers.altKey, this.engine.getView().snapPixel !== false), g.parent); g.moved = true;
     } catch (error) { this.#fail(error); }
   }
   up(point: Point): void {
@@ -33,7 +33,7 @@ export class DrawInteraction {
     try {
       if (!g.moved || Math.hypot(point.x - g.start.x, point.y - g.start.y) * this.engine.getView().zoom < 3) {
         const line = g.kind === "line" || g.kind === "arrow";
-        this.engine.previewDraw(g.kind, (line ? drawnLine : drawnRectangle)(g.start, { x: g.start.x + 100, y: g.start.y + (line ? 0 : 100) }), g.parent);
+        this.engine.previewDraw(g.kind, (line ? drawnLine : drawnRectangle)(g.start, { x: g.start.x + 100, y: g.start.y + (line ? 0 : 100) }, false, false, this.engine.getView().snapPixel !== false), g.parent);
       }
       this.engine.commitInteraction(); this.engine.execute("tool.move");
     } catch (error) { this.#fail(error); }

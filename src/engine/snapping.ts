@@ -35,10 +35,10 @@ export class SnapTargets {
   readonly space: Affine;
   readonly toSpace: Affine;
   readonly moving?: Rectangle;
-  constructor(document: Document, moving: readonly NodeId[]) {
+  constructor(document: Document, moving: readonly NodeId[], space?: Affine) {
     const parentId = document.nodes[moving[0]]?.parent ?? document.currentPage;
     const parent = document.nodes[parentId], world = worldTransform(document, parentId);
-    this.space = parentId !== document.currentPage && !(Math.abs(world[1]) < 1e-7 && Math.abs(world[2]) < 1e-7) ? world : identity;
+    this.space = space ?? (parentId !== document.currentPage && !(Math.abs(world[1]) < 1e-7 && Math.abs(world[2]) < 1e-7) ? world : identity);
     this.toSpace = inverse(this.space);
     const box = (id: NodeId): Rectangle | undefined => {
       const node = document.nodes[id];
