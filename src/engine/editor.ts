@@ -1,12 +1,12 @@
 import { createLayer } from "./creation";
 import { executeStrokeList, strokeSpecs } from "./stroke-commands";
 import { isLeaf } from "./document";
-import { newDocument, type Document, type DrawShapeKind, type NodeId } from "./document";
+import { newDocument, withLayerTransform, type Document, type DrawShapeKind, type NodeId } from "./document";
 import { decodeFigcraft, encodeFigcraft } from "./file-format";
 import { executePage, listPages, pageSpecs } from "./pages";
 import { executeSelection, selectionSpecs } from "./selection";
 import { setRectangleProperties } from "./properties";
-import { HierarchyDraft, pageForNode } from "./hierarchy";
+import { HierarchyDraft, pageForNode, worldTransform } from "./hierarchy";
 import { executeStructure, structureSpecs } from "./structure";
 import { executeVector, vectorSpecs } from "./vector-commands";
 import { executeVectorEdit, vectorEditSpecs, type VectorEditCommand } from "./vector-edit-commands";
@@ -23,6 +23,8 @@ import { duplicateSelection, executeDuplicate, type Duplicated } from "./duplica
 import { ancestorIds } from "./canvas-selection";
 import { previewResize, type ResizeStart } from "./transform-preview";
 import type { ScaleAnchor } from "./transform-handles";
+import { PenInteraction } from "./pen-interaction";
+import { buildPenPath, type PenAnchor } from "./pen-path";
 
 export const commandSpecs = Object.freeze({
   ...strokeSpecs,
@@ -56,6 +58,7 @@ export const commandSpecs = Object.freeze({
   "tool.rectangle": { label: "Rectangle", undo: false },
   "tool.move": { label: "Move", undo: false },
   "tool.scale": { label: "Scale", undo: false },
+  "tool.pen": { label: "Pen", undo: false },
   "tool.scaleAnchor": { label: "Scale anchor", undo: false },
   "edit.undo": { label: "Undo", undo: false },
   "edit.redo": { label: "Redo", undo: false },
@@ -69,7 +72,7 @@ export type CommandId = keyof typeof commandSpecs;
 export interface EditorSnapshot {
   readonly document: Document;
   readonly selection: readonly NodeId[];
-  readonly tool: "move" | DrawShapeKind | "scale";
+  readonly tool: "move" | DrawShapeKind | "scale" | "pen";
   readonly scaleAnchor: ScaleAnchor;
   readonly canUndo: boolean;
   readonly canRedo: boolean;
@@ -88,6 +91,7 @@ function parameters(input: unknown): Record<string, unknown> {
 }
 /** React-free command transactions. Snapshots share immutable nodes and document references. */
 export class EditorEngine {
+  readonly pen = new PenInteraction(this);
   #snapshot: EditorSnapshot;
   #undo: HistoryEntry[] = [];
   #redo: HistoryEntry[] = [];
@@ -177,6 +181,15 @@ export class EditorEngine {
     const next = createLayer(interaction.base, this.#nextId, `shape.${kind}`, { ...dimensions, parent }, this.#view, [c, s, -s, c, box.x, box.y]);
     interaction.document = next.document; interaction.selection = next.selection; interaction.nextId = next.nextId; this.#notifyCanvas();
   }
+  previewPenPath(points: readonly PenAnchor[], parent: NodeId, closed: boolean, join?: number): NodeId {
+    const interaction = this.#interaction; if (!interaction) throw new Error("No active Pen interaction");
+    const shape = buildPenPath(points, worldTransform(interaction.base.document, parent), closed, join); if (!shape) throw new Error("Pen needs two anchors");
+    const created = createLayer(interaction.base, this.#nextId, "vector.create", { parent, props: { fills: closed ? ["#d9d9d9"] : [], strokes: ["#000000"], strokeAlign: "center" } }, this.#view);
+    const node = created.document.nodes[created.id]; if (node.kind !== "vector") throw new Error("Not a vector");
+    const draft = new HierarchyDraft(created.document); draft.set(withLayerTransform({ ...node, network: shape.network, width: shape.width, height: shape.height }, shape.transform));
+    interaction.document = validateChangedGeometry(draft); interaction.selection = created.selection; interaction.nextId = created.nextId; this.#notifyCanvas(); return created.id;
+  }
+  invalidateCanvas(): void { this.#notifyCanvas(); }
   previewProperties(id: NodeId, props: Record<string, unknown>): void {
     const interaction = this.#interaction; if (!interaction) throw new Error("No active interaction");
     interaction.document = setRectangleProperties(interaction.base.document, [id], { id, props }); this.#notifyCanvas();
@@ -282,6 +295,7 @@ export class EditorEngine {
     this.#listeners.forEach(listener => listener());
   }
   setEditable(editable: boolean): void {
+    if (!editable) this.pen.cancel();
     if (!editable) this.cancelInteraction();
     if (!editable) this.cancelPendingFiles();
     if (!editable) this.#vectorEdit = undefined;
@@ -294,8 +308,12 @@ export class EditorEngine {
     if (!Object.hasOwn(commandSpecs, command)) throw new Error(`Unsupported command: ${command}`);
     if (!this.#snapshot.editable) throw new Error("Sign in to edit this document");
     const p = parameters(input);
+    if (command.startsWith("tool.") && command !== "tool.scaleAnchor" && Object.keys(p).length) throw new Error(`${command} takes no parameters`);
+    if (this.pen.open && command.startsWith("tool.") && command !== "tool.pen" && command !== "tool.scaleAnchor") this.pen.finish();
+    const preservePen = this.pen.open && (command === "tool.pen" || command === "tool.scaleAnchor" || Object.hasOwn(viewSpecs, command));
+    if (preservePen && command === "tool.pen") { if (Object.keys(p).length) throw new Error("tool.pen takes no parameters"); return {}; }
     const gesture = Object.hasOwn(smartSpecs, command) && command !== "arrange.roundToPixels" && parseBoolean(p.fromGesture) === true;
-    if (!gesture && this.cancelInteraction() && command === "edit.undo") return { undone: true };
+    if (!gesture && !preservePen) { const interacting = this.interacting; if (this.pen.open) this.pen.cancel(); else this.cancelInteraction(); if (interacting && command === "edit.undo") return { undone: true }; }
     if (Object.hasOwn(vectorEditSpecs, command)) {
       const before = this.#snapshot, oldState = this.#vectorEdit, next = executeVectorEdit(command as VectorEditCommand, before.document, before.selection, oldState, p);
       if (next.recordHistory) { this.#undo.push({ document: before.document, selection: before.selection }); this.#redo = []; }
@@ -417,10 +435,10 @@ export class EditorEngine {
     if (command.startsWith("file.")) throw new Error(`${command} requires executeAsync`);
     if (command === "vector.create" || command === "shape.line" || command === "shape.arrow" || command === "shape.polygon" || command === "shape.star" || command === "shape.ellipse" || command === "shape.rectangle" || command === "frame.create" || command === "node.create") return this.#create(command, p);
     if (Object.keys(p).length) throw new Error(`${command} takes no parameters`);
-    if (command === "tool.line" || command === "tool.arrow" || command === "tool.polygon" || command === "tool.star" || command === "tool.ellipse" || command === "tool.rectangle" || command === "tool.move" || command === "tool.scale") {
+    if (command === "tool.pen" || command === "tool.line" || command === "tool.arrow" || command === "tool.polygon" || command === "tool.star" || command === "tool.ellipse" || command === "tool.rectangle" || command === "tool.move" || command === "tool.scale") {
       const end = this.#vectorEdit && command !== "tool.move" && command !== "tool.scale" ? executeVectorEdit("vector.edit.end", this.#snapshot.document, this.#snapshot.selection, this.#vectorEdit, {}) : undefined;
       if (end) this.#vectorEdit = undefined;
-      this.#publish({ ...(end ? { document: end.document, selection: end.selection } : {}), tool: command === "tool.line" ? "line" : command === "tool.arrow" ? "arrow" : command === "tool.polygon" ? "polygon" : command === "tool.star" ? "star" : command === "tool.ellipse" ? "ellipse" : command === "tool.rectangle" ? "rectangle" : command === "tool.scale" ? "scale" : "move" });
+      this.#publish({ ...(end ? { document: end.document, selection: end.selection } : {}), tool: command === "tool.pen" ? "pen" : command === "tool.line" ? "line" : command === "tool.arrow" ? "arrow" : command === "tool.polygon" ? "polygon" : command === "tool.star" ? "star" : command === "tool.ellipse" ? "ellipse" : command === "tool.rectangle" ? "rectangle" : command === "tool.scale" ? "scale" : "move" });
       return {};
     }
     const undo = command === "edit.undo";
@@ -438,10 +456,10 @@ export class EditorEngine {
   async executeAsync(command: string, input: unknown = {}): Promise<Record<string, unknown>> {
     if (!["file.open", "file.recover", "file.saveAs"].includes(command)) return this.execute(command, input);
     if (!this.#snapshot.editable) throw new Error("Sign in to edit this document");
-    this.cancelInteraction();
     const p = parameters(input);
     if (command === "file.saveAs") {
       if (Object.keys(p).some(key => key !== "data") || (p.data !== undefined && p.data !== true)) throw new Error("Browser save requires data: true");
+      this.pen.finish(); this.cancelInteraction();
       const document = this.#snapshot.document;
       const revision = ++this.#saveSequence;
       const opening = this.#openSequence;
@@ -454,6 +472,7 @@ export class EditorEngine {
       return { name: `${document.name}.figcraft`, bytes: bytes.length, data: btoa(binary), revision };
     }
     if (Object.keys(p).some(key => !["data", "name"].includes(key)) || typeof p.data !== "string" || (p.name !== undefined && typeof p.name !== "string")) throw new Error("File open requires base64 data and optional name");
+    this.pen.cancel(); this.cancelInteraction();
     if (p.data.length > Math.ceil(16 * 1024 * 1024 / 3) * 4) throw new Error("File exceeds the browser import limit");
     const before = this.#snapshot.document;
     const opening = ++this.#openSequence;

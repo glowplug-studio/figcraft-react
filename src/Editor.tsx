@@ -87,10 +87,13 @@ export function Editor({ identity, capabilities, engine: suppliedEngine, recover
   }, [engine, recoveryStatus === "loading"]);
   function dispatch(command: string, params: unknown = {}) {
     const cancellingUndo = command === "edit.undo" && engine.interacting;
-    controller.current?.cancel();
     setError("");
-    if (cancellingUndo) return;
-    try { engine.execute(command, params); }
+    try {
+      if (engine.pen.open && command.startsWith("tool.") && command !== "tool.pen" && command !== "tool.scaleAnchor") engine.pen.finish();
+      controller.current?.cancel(engine.pen.open && (command.startsWith("view.") || command === "tool.pen" || command === "tool.scaleAnchor"));
+      if (cancellingUndo) return;
+      engine.execute(command, params);
+    }
     catch (caught) { setError(caught instanceof Error ? caught.message : "Command failed"); }
   }
   function key(event: KeyboardEvent) {
@@ -98,9 +101,18 @@ export function Editor({ identity, capabilities, engine: suppliedEngine, recover
     if (event.target instanceof HTMLElement && event.target.closest("input,textarea,select,dialog,[contenteditable=true]")) return;
     if ((event.key === "Enter" || event.key === " ") && event.target instanceof HTMLElement && event.target.closest("button,summary,a[href]")) return;
     let command: string | undefined;
+    if (engine.pen.open && !event.altKey && !event.metaKey && !event.ctrlKey && (event.key === "Escape" || event.key === "Enter")) {
+      event.preventDefault(); engine.pen.finish(event.key === "Escape" ? "pen" : "move"); return;
+    }
     if (engine.getVectorEdit()) {
       const modified = event.metaKey || event.ctrlKey;
-      if (event.key === "Escape" || event.key === "Enter") { event.preventDefault(); dispatch("vector.edit.end"); return; }
+      if (!event.altKey && !modified && (event.key === "Escape" || event.key === "Enter")) {
+        event.preventDefault(); const state = engine.getVectorEdit()!;
+        if (event.key === "Enter" && state.tool === "pen") dispatch("vector.edit.tool", { tool: "move" });
+        else dispatch(state.anchor !== undefined ? "vector.edit.penEnd" : "vector.edit.end");
+        return;
+      }
+      if (!event.altKey && !event.shiftKey && !modified && event.key.toLowerCase() === "p") { event.preventDefault(); dispatch("vector.edit.tool", { tool: "pen" }); return; }
       if (!event.altKey && !modified && ["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(event.key)) {
         const amount = event.shiftKey ? 10 : 1; event.preventDefault();
         dispatch("vector.edit.nudge", { dx: event.key === "ArrowLeft" ? -amount : event.key === "ArrowRight" ? amount : 0, dy: event.key === "ArrowUp" ? -amount : event.key === "ArrowDown" ? amount : 0 }); return;
@@ -124,6 +136,7 @@ export function Editor({ identity, capabilities, engine: suppliedEngine, recover
       if (event.key.toLowerCase() === "o") command = "tool.ellipse";
       if (event.key.toLowerCase() === "l") command = event.shiftKey ? "tool.arrow" : "tool.line";
       if (event.key.toLowerCase() === "r") command = "tool.rectangle";
+      if (!event.shiftKey && event.key.toLowerCase() === "p") command = "tool.pen";
       if (event.key.toLowerCase() === "v") command = "tool.move";
       if (event.key.toLowerCase() === "k") command = "tool.scale";
       if (event.shiftKey && event.key.toLowerCase() === "h") command = "object.flipH";
@@ -167,8 +180,9 @@ export function Editor({ identity, capabilities, engine: suppliedEngine, recover
     finally { setBusy(false); }
   }
   async function save() {
-    controller.current?.cancel(); setBusy(true); setError("");
+    setBusy(true); setError("");
     try {
+      engine.pen.finish(); controller.current?.cancel();
       const result = await engine.executeAsync("file.saveAs", { data: true });
       const bytes = Uint8Array.from(atob(String(result.data)), value => value.charCodeAt(0));
       const url = URL.createObjectURL(new Blob([bytes], { type: "application/octet-stream" }));
@@ -222,6 +236,7 @@ export function Editor({ identity, capabilities, engine: suppliedEngine, recover
           <p id="canvas-instructions" className="figcraft-instructions">R: rectangle · O: ellipse · Space/middle drag: pan · Z: zoom · Ctrl/⌘ wheel: zoom · Escape: cancel</p>
           {editingVector ? <VectorToolbar engine={engine} editable={editable && !busy} dispatch={(command, params) => { dispatch(command, params); canvas.current?.focus(); }} /> : <div className="figcraft-toolbar" role="toolbar" aria-label="Tools">
             <button disabled={!editable} aria-pressed={snapshot.tool === "move"} onClick={() => { dispatch("tool.move"); canvas.current?.focus(); }}>Move</button>
+            <button disabled={!editable} aria-pressed={snapshot.tool === "pen"} title="Pen · P" onClick={() => { dispatch("tool.pen"); canvas.current?.focus(); }}>Pen</button>
             <button disabled={!editable} aria-pressed={snapshot.tool === "scale"} onClick={() => { dispatch("tool.scale"); canvas.current?.focus(); }}>Scale</button>
             <button disabled={!editable} aria-pressed={snapshot.tool === "ellipse"} onClick={() => { dispatch("tool.ellipse"); canvas.current?.focus(); }}>Ellipse</button>
             <button disabled={!editable} aria-pressed={snapshot.tool === "polygon"} onClick={() => { dispatch("tool.polygon"); canvas.current?.focus(); }}>Polygon</button>

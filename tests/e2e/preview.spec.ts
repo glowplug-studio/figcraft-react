@@ -1747,6 +1747,62 @@ test("vector point authoring supports captured drag, one undo, controls, native 
   await page.getByRole("button", { name: "Done editing", exact: true }).click(); await expect(panel).toHaveCount(0);
 });
 
+test("Pen creates one undoable path, continues in the same vector, saves and recovers", async ({ page }) => {
+  await login(page); const canvas = page.getByLabel("Design canvas", { exact: true });
+  const click = async (x: number, y: number) => { const p = await canvasPoint(page, x, y); await page.mouse.click(p.x, p.y); };
+  await page.getByRole("button", { name: "Pen", exact: true }).click();
+  await expect(page.locator(".figcraft-recovery")).toHaveText("Local recovery ready");
+  const a = await canvasPoint(page, 150, 180), handle = await canvasPoint(page, 190, 180);
+  await page.mouse.move(a.x, a.y); await page.mouse.down();
+  const commits = await page.locator("[data-figcraft-editor]").getAttribute("data-commits");
+  await page.mouse.move(handle.x, handle.y, { steps: 8 }); await page.mouse.up();
+  await click(300, 280);
+  expect(await page.locator("[data-figcraft-editor]").getAttribute("data-commits")).toBe(commits);
+  const hover = await canvasPoint(page, 400, 240); await page.mouse.move(hover.x, hover.y);
+  await expect(canvas).toHaveScreenshot("pen-open-path.png", { animations: "disabled", maxDiffPixels: 0 });
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("toolbar", { name: "Vector tools", exact: true }).getByRole("button", { name: "Pen", exact: true })).toHaveAttribute("aria-pressed", "true");
+  await page.keyboard.press("ControlOrMeta+z"); await expect(page.getByRole("toolbar", { name: "Tools", exact: true })).toBeVisible();
+  await page.keyboard.press("ControlOrMeta+Shift+z"); await page.getByRole("button", { name: "Edit vector", exact: true }).click();
+  await page.getByRole("toolbar", { name: "Vector tools", exact: true }).getByRole("button", { name: "Pen", exact: true }).click();
+  await click(180, 400); await click(300, 400); await page.keyboard.press("Enter");
+  await expect(page.getByRole("button", { name: "Move points", exact: true })).toHaveAttribute("aria-pressed", "true");
+  const downloading = page.waitForEvent("download"); await page.getByRole("button", { name: "Save as", exact: true }).click();
+  const decoded = await decodeFigcraft(await readFile((await (await downloading).path())!));
+  const vectors = Object.values(decoded.document.nodes).filter((n): n is VectorNode => n.kind === "vector");
+  expect(vectors).toHaveLength(1); expect(vectors[0].network.vertices).toHaveLength(4); expect(vectors[0].network.segments).toHaveLength(2);
+  expect(vectors[0].network.segments[0].ta).toEqual([40, 0]); expect(vectors[0].fill).toBe("transparent");
+  await expect(page.locator(".figcraft-recovery")).toHaveText("Recovery saved on this device"); await page.reload();
+  await page.getByRole("region", { name: "Layers", exact: true }).getByRole("button", { name: "Vector", exact: true }).click();
+  await page.getByRole("button", { name: "Edit vector", exact: true }).click();
+  await page.getByRole("button", { name: "Select all points", exact: true }).click(); await expect(page.getByRole("group", { name: "Vector points", exact: true })).toContainText("4 selected points");
+  await page.setViewportSize({ width: 390, height: 844 });
+  const pen = page.getByRole("toolbar", { name: "Vector tools", exact: true }).getByRole("button", { name: "Pen", exact: true });
+  await pen.scrollIntoViewIfNeeded(); const box = (await pen.boundingBox())!; expect(box.x).toBeGreaterThanOrEqual(0); expect(box.x + box.width).toBeLessThanOrEqual(390);
+  await page.screenshot({ path: "test-results/pen-mobile.png", fullPage: true });
+});
+
+test("Pen closes, resumes endpoints and double-clicks without stray layers", async ({ page }) => {
+  await login(page); const canvas = page.getByLabel("Design canvas", { exact: true });
+  const click = async (x: number, y: number) => { const p = await canvasPoint(page, x, y); await page.mouse.click(p.x, p.y); };
+  await canvas.focus(); await page.keyboard.press("p");
+  await click(150, 180); await click(250, 180); await click(250, 280); await click(150, 180);
+  await expect(page.getByRole("toolbar", { name: "Tools", exact: true }).getByRole("button", { name: "Pen", exact: true })).toHaveAttribute("aria-pressed", "true");
+  await click(350, 380); await click(500, 380); await page.keyboard.press("Enter");
+  await expect(page.getByRole("button", { name: "Move points", exact: true })).toHaveAttribute("aria-pressed", "true");
+  await page.keyboard.press("Enter"); await page.keyboard.press("p"); await click(500, 380); await click(600, 450);
+  await page.keyboard.press("Escape"); await expect(page.getByRole("toolbar", { name: "Vector tools", exact: true })).toBeVisible();
+  await page.keyboard.press("Escape"); await page.keyboard.press("p");
+  const p = await canvasPoint(page, 420, 380); await page.mouse.dblclick(p.x, p.y);
+  await expect(page.getByRole("button", { name: "Move points", exact: true })).toHaveAttribute("aria-pressed", "true");
+  await page.keyboard.press("Enter"); await page.keyboard.press("p"); await click(700, 180); await click(800, 250); await page.keyboard.press("ControlOrMeta+z");
+  const downloading = page.waitForEvent("download"); await page.getByRole("button", { name: "Save as", exact: true }).click();
+  const decoded = await decodeFigcraft(await readFile((await (await downloading).path())!));
+  const vectors = Object.values(decoded.document.nodes).filter((n): n is VectorNode => n.kind === "vector");
+  expect(vectors).toHaveLength(2); expect(vectors[0].network.vertices).toHaveLength(3); expect(vectors[0].network.regions).toHaveLength(1); expect(vectors[0].fill).toBe("#d9d9d9");
+  expect(vectors[1].network.vertices).toHaveLength(3); expect(vectors[1].network.segments).toHaveLength(2); expect(vectors[1].network.regions).toEqual([]);
+});
+
 test("vector point dimensions, shared box gestures and snapping controls survive undo and recovery", async ({ page }) => {
   const engine = new EditorEngine();
   engine.execute("vector.create", { name: "Snap target", points: [[500, 180], [600, 280], [520, 240]], closed: true });

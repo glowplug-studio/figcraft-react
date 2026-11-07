@@ -4,15 +4,15 @@
 
 | Field | Value |
 |---|---|
-| Status | In progress; no Pen workflow or full-product completion claimed |
-| Phase | 4: network/command/edit-mode pointer foundation verified; new-path integration next |
-| Base / branch | `4a762cd`, `prompt/full-figcraft-port` |
+| Status | Bounded Pen workflow verified locally; full product remains incomplete |
+| Phase | 7: all slice checks/report review pass; integration commit next |
+| Base / branch | Complete transform slice `4a762cd`; verified internal Pen foundation `653e4a4`; `prompt/full-figcraft-port` |
 | Upstream | Fork, original and submodule `0b97f3f1801a9b7b96fd7a4f3c0942a3f1a676f3`; sync succeeded unchanged |
 | Global parity baseline | `8eb0b87646c5aef712326d6c431ccde5408630de`, unchanged |
-| Last verified | Transform/snapping:763 pure tests,2 real Auth, strict TypeScript/package/Next builds;92 Chromium regression before the final correction and focused rebuilt-host checks afterwards |
-| Files in progress | Pen operations, command/state integration, cached targets, edit-mode gestures/overlay and21 fixtures; prior slice commit metadata |
+| Last verified | 803 pure tests,2 separately run real Auth tests, strict TypeScript/package/Next builds;97 Chromium checks pass in231.3s;3 Pen performance cases pass |
+| Files in progress | Pen controller/geometry/overlay, engine/Canvas/React integration,40 paired fixtures total, browser/performance cases,0.27.0 metadata and MD/HTML reports |
 | Blockers | None; hosted React graph remains README-only; current local source is authoritative |
-| Next | Commit verified internal foundation, then implement top-level Pen path preview/history and finish/resume transitions, UI/keyboard, authenticated browser/performance verification |
+| Next | Commit verified Pen integration, then continue Pencil evidence/plan/implementation; no full-product completion or publication |
 | Updated | 2026-11-07 |
 
 ## Evidence and mapping
@@ -62,3 +62,14 @@ Independent connection/BFS and Pen new/connect/split plans, native commands, tra
 Initial fixture corrections: (200,-80) is below the22.5° threshold and correctly snaps horizontal; the diagonal fixture now uses(200,-100). Native negative-zero handle equality is checked geometrically, and JSON round-trip comparison normalises signed zero without depending on object-key order. Parent creation uses the existing native `frame.create` command. These corrections did not relax any product or performance gate.
 
 Next: implement the separate new-path controller and preview transaction. It must retain one interaction across pointer releases, choose the first point's frame, preserve exact parent-local cubic bounds and black centred open stroke, support closure/join/resume, and finish correctly for Escape/Enter/double-click/tool switches. Integrate controls/keyboard only with working flows; then run the complete verification/report/version gate. The internal commit is not a completed slice or publication candidate.
+
+
+Internal foundation is committed as `653e4a4`. Subsequent new-path geometry has7 passing paired fixtures and strict package/tests/Next TypeScript checks. `pen-path.ts` implements parent-local analytical cubic bounds, native anchor decisions (close/join/duplicate-last/Shift), ordered visible handles and selected endpoint lookup. These functions are not yet integrated into a top-level pointer controller. The full784-test run/package build predates these two new files; the7 focused tests and strict checks cover them. No browser or completed-slice claim. Exact next action: integrate this builder into a captured editor preview transaction that persists across pointer releases, then connect finishing and cancellation semantics before exposing the toolbar.
+
+## Integrated workflow review
+
+Top-level creation and edit-mode continuation now work through the engine, Canvas and labelled controls. Both new authenticated browser workflows pass, including native save/recovery and mobile access. All40 Pen paired fixtures pass within803 pure tests; strict package/tests/Next TypeScript and production builds pass. The67 authenticated checks passed in119.9s with no skips, failures or flakes. Final97-check regression passes in231.3s against the rebuilt0.27.0 host, without snapshot updates, failures, skips or flakes. Report rendering/link checks pass.
+
+Screenshot review shows all11 prior captures changing only controls: the bottom toolbar gains Pen; the vector-point-box capture additionally has118 changed pixels in the top control strip. Canvas geometry is unchanged. The new open-path capture is inspected. Final source review corrected the Scale-anchor preference command to preserve an open Pen transaction; read/write/invalid-value assertions pass. The native command is a preference, not a tool transition.
+
+The [verification report](../reports/26-11-07-pen-authoring.md) and [46-row property matrix](../reports/26-11-07-pen-authoring-parity.html) separate paired-only properties from authenticated browser coverage and retain full-product gaps. Earlier internal checkpoints above are historical and superseded by this integration checkpoint.

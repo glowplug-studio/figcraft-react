@@ -205,3 +205,20 @@ Reviewed base `adc59d4`, reference `0b97f3f1801a9b7b96fd7a4f3c0942a3f1a676f3`. V
 | `ui-egui/src/canvas/measure_overlay.rs` point marker | `measurements.ts::drawGuides` | Exact guide marker fixtures and Canvas cross rendering; Medium |
 
 Engine source paths are relative to `original/figcraft/crates/engine/src`; UI paths are relative to `original/figcraft/crates`. See the [property report](../reports/26-11-07-vector-point-transforms-parity.html). Guides/grids, Pen, cross-session preferences and remaining product families are explicitly unclaimed dependencies.
+
+## Pen and open-path authoring — 2026-11-07
+
+Reference `0b97f3f1801a9b7b96fd7a4f3c0942a3f1a676f3`; React0.27.0, reviewed base `4a762cd`, internal foundation `653e4a4`; integration commit pending. Global baseline unchanged. Forty new paired fixtures pass within803 pure tests;2 real Auth tests, strict TypeScript/package/Next builds and67 authenticated browser checks pass. Final97-check regression passes in231.3s without failures, skips or flakes. The [46-row property report](../reports/26-11-07-pen-authoring-parity.html) separates paired-only properties from browser-covered workflows.
+
+| Upstream source/symbol | Independent TypeScript target | Evidence / boundary |
+|---|---|---|
+| `canvas/tools/pen.rs::{pen_down,pen_update,pen_finish,end_pen_path,pen_double_click}` | `pen-path.ts`, `PenInteraction`, `EditorEngine.previewPenPath` | Native bounds/parent coordinates, one transaction per new path, closure/join/resume, finish transitions and cancellation; paired fixtures plus two authenticated workflows |
+| `canvas/tools.rs::{PenPath,pen_handles,at_45_degrees}`, `tools/drag.rs::PenDrag` | `PenAnchor`, `penPathHandles`, `penAt45`, `PenInteraction.move` | Mirrored handles,3px slop, strict8px anchor hits,45° length-preserving placement; paired geometry tests and browser dragged-handle capture |
+| `canvas/vectoredit/ops.rs::{connect,path_between}` | `connectVectorPoints` and ordered adjacency | Endpoint-only unfilled closure, stable shortest-chain order, finite fallback and20,000-point chain; paired-only Medium |
+| `canvas/vectoredit/pointer.rs::{PenPlan,apply_pen,pen_plan,pen_click,pen_double_click_editing}` | `vector-pen.ts`, `VectorInteraction`, `vector-edit-commands.ts` | New/connect/split/branch, closing handles, local Shift, captured coordinates, per-click history and double-click correction; paired fixtures; disconnected continuation browser coverage |
+| `canvas/vectoredit.rs::{set_tool,escape,specs}` | `VectorEdit`, native `vector.edit.pen`/`vector.edit.penEnd`, Editor keyboard routing | Ephemeral anchor/tangent, topology clamping and active-layer lock; repeated Pen/Escape/Enter transitions; paired and browser evidence |
+| `canvas/vectoredit/point_snap.rs::{PenTargets,snap_pen}` | `PenSnapCache`, existing sorted snap targets | Immutable-document/layer/extras invalidation, object/pixel switches and modifier semantics; paired fixtures and measured browser hover |
+| `ui-egui/src/canvas/overlays.rs::pen_overlay` and edit-mode rubber band | `drawPen`, `drawVectorEdit` | Native handle/anchor order, cubic new-path band, dashed edit-mode band; source review and fixed screenshot |
+| `cmd/view.rs::tool`, `tool.scaleAnchor`; Pen catalogue/keymap | `EditorEngine.execute`, `Editor`, `VectorToolbar`, `CanvasController` | Tool switches finish; Scale-anchor preference preserves path; labelled Pen/P controls and mobile bounds. Full native icons/chrome and later mode transitions remain required |
+
+Engine paths are under `original/figcraft/crates/engine/src`; UI paths under `original/figcraft/crates`. Local AST has1,676 nodes/7,938 edges. Hosted Rust graph resolves pinned Pen symbols; hosted React remains README-only at `b3b8a1b`, so current local source is authoritative. Browser Canvas/pointer capture/HTML controls are explicit substitutions. No provider/schema changes. Pencil, regions, width editing, booleans and other master-roadmap families remain required.

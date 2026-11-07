@@ -2,6 +2,15 @@
 
 All notable changes to the React port and its upstream compatibility baseline are recorded here.
 
+## [0.27.0] - 2026-11-07
+
+The reference baseline remains `8eb0b87646c5aef712326d6c431ccde5408630de`; full parity remains in progress.
+
+- Added Pen creation with parent-local cubic geometry, smooth handles, closure, interior joins and selected endpoint continuation.
+- Added edit-mode Pen commands, branching/splitting, cached snapping, native Escape/Enter/double-click transitions and separate path/click undo semantics.
+- Added Canvas overlays and accessible Pen controls, native download/recovery coverage and bounded 10,000-node hover/draw/edit performance fixtures.
+- Pencil, region/width tools, booleans, remaining appearance/text/layout and the complete backend/product roadmap remain required. Publication is still gated on full parity.
+
 ## [0.26.0] - 2026-11-07
 
 The reference baseline remains `8eb0b87646c5aef712326d6c431ccde5408630de`; full parity remains in progress.

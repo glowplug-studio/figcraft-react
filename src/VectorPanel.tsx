@@ -14,6 +14,7 @@ export function VectorToolbar({ engine, editable, dispatch }: Props) {
   if (!state) return null;
   return <div className="figcraft-toolbar" role="toolbar" aria-label="Vector tools">
     <button disabled={!editable} aria-pressed={state.tool === "move"} onClick={() => dispatch("vector.edit.tool", { tool: "move" })}>Move points</button>
+    <button disabled={!editable} aria-pressed={state.tool === "pen"} title="Pen · P" onClick={() => dispatch("vector.edit.tool", { tool: "pen" })}>Pen</button>
     <button disabled={!editable} aria-pressed={state.tool === "bend"} title="Bend · hold Ctrl/⌘ with Move" onClick={() => dispatch("vector.edit.tool", { tool: "bend" })}>Bend</button>
     <button disabled={!editable} onClick={() => dispatch("vector.edit.end")}>Done editing</button>
   </div>;
