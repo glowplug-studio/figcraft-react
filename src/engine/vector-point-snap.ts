@@ -8,6 +8,18 @@ import { vectorNetwork, type VectorEditPart } from "./vector-edit";
 import { networkCubic } from "./vector-network";
 
 const MAX_POINTS = 20_000, MAX_NODES = 200_000, MAX_MOVING = 256;
+
+/** Native Pen hover cache: immutable document/page, edited layer and initial extra points. */
+export class PenSnapCache {
+  #cached?: { document: Document; edited?: NodeId; extra: readonly Point[]; targets: VectorPointTargets };
+  targets(document: Document, edited?: NodeId, extra: readonly Point[] = []): VectorPointTargets {
+    const old = this.#cached;
+    if (old && old.document === document && old.edited === edited && old.extra.length === extra.length && old.extra.every((p, i) => p.x === extra[i].x && p.y === extra[i].y)) return old.targets;
+    const targets = new VectorPointTargets(document, edited, [], [], extra);
+    this.#cached = { document, edited, extra: extra.map(p => ({ ...p })), targets }; return targets;
+  }
+  clear(): void { this.#cached = undefined; }
+}
 const pagePoint = (w: Affine, p: Point): Point => ({ x: w[0] * p.x + w[2] * p.y + w[4], y: w[1] * p.x + w[3] * p.y + w[5] });
 type Line = { value: number; order: number; lo: number; hi: number };
 /** Sorted distinct coordinates avoid rescanning every layer per moving point. Original order

@@ -41,6 +41,10 @@ export function drawVectorEdit(context: CanvasRenderingContext2D, document: Docu
     context.fillStyle = on ? accent : "#ffffffbe"; context.strokeStyle = on ? "white" : accent; context.lineWidth = 1.2;
     context.beginPath(); context.arc(p.x, p.y, on ? 5.5 : 3.5, 0, Math.PI * 2); context.fill(); context.stroke();
   }
+  if (interaction.rubber) {
+    const [from, to] = interaction.rubber.map(p => pageToScreen(view, p));
+    context.strokeStyle = accent; context.lineWidth = 1; context.beginPath(); context.moveTo(from.x, from.y); context.lineTo(to.x, to.y); context.stroke();
+  }
   if (interaction.marquee) {
     const r = interaction.marquee, p = pageToScreen(view, r); context.fillStyle = `${accent}1a`; context.strokeStyle = accent; context.lineWidth = 1;
     context.fillRect(p.x, p.y, r.width * view.zoom, r.height * view.zoom); context.strokeRect(p.x, p.y, r.width * view.zoom, r.height * view.zoom);

@@ -10,7 +10,9 @@ import { networkBounds } from "./vector-path";
 export interface VectorEditPart { readonly id: NodeId; readonly vertices: readonly number[]; readonly segments: readonly number[] }
 /** Ephemeral selection only; never written into the native document or backend identity. */
 export interface VectorEditState extends VectorEditPart {
-  readonly tool: "move" | "bend";
+  readonly tool: "move" | "bend" | "pen";
+  readonly anchor?: number;
+  readonly penOut?: readonly [number, number];
   readonly handles: readonly VectorHandle[];
   readonly others: readonly VectorEditPart[];
   readonly regions: readonly number[];
@@ -19,7 +21,7 @@ export interface VectorEditState extends VectorEditPart {
   readonly regionTopology?: VectorNetwork;
 }
 export function freezeVectorEdit(state: VectorEditState): VectorEditState {
-  return Object.freeze({ ...state, vertices: Object.freeze([...state.vertices]), segments: Object.freeze([...state.segments]),
+  return Object.freeze({ ...state, ...(state.penOut ? { penOut: Object.freeze([...state.penOut]) as readonly [number, number] } : {}), vertices: Object.freeze([...state.vertices]), segments: Object.freeze([...state.segments]),
     handles: Object.freeze(state.handles.map(h => Object.freeze([...h]) as VectorHandle)),
     others: Object.freeze(state.others.map(p => Object.freeze({ ...p, vertices: Object.freeze([...p.vertices]), segments: Object.freeze([...p.segments]) }))),
     regions: Object.freeze([...state.regions]), regionVertices: Object.freeze([...state.regionVertices]) });
@@ -46,7 +48,8 @@ const validIndex = (i: number, length: number): boolean => Number.isInteger(i) &
 export function clampVectorEdit(document: Document, state: VectorEditState): VectorEditState | undefined {
   const net = vectorNetwork(document, state.id); if (!net) return undefined;
   const vertices = state.vertices.filter(i => validIndex(i, net.vertices.length)), regions = state.regions.length && !sameTopology(state.regionTopology, net) ? [] : state.regions;
-  return freezeVectorEdit({ ...state, vertices, segments: state.segments.filter(i => validIndex(i, net.segments.length)), handles: state.handles.filter(([i]) => validIndex(i, net.segments.length)), regions,
+  const invalidAnchor = state.anchor !== undefined && !validIndex(state.anchor, net.vertices.length);
+  return freezeVectorEdit({ ...state, ...(invalidAnchor ? { anchor: undefined, penOut: undefined } : {}), vertices, segments: state.segments.filter(i => validIndex(i, net.segments.length)), handles: state.handles.filter(([i]) => validIndex(i, net.segments.length)), regions,
     regionVertices: regions.length ? state.regionVertices.filter(i => vertices.includes(i)) : [], regionTopology: regions.length ? state.regionTopology : undefined,
     others: state.others.flatMap(p => { const n = vectorNetwork(document, p.id); return n ? [{ ...p, vertices: p.vertices.filter(i => validIndex(i, n.vertices.length)), segments: p.segments.filter(i => validIndex(i, n.segments.length)) }] : []; }) });
 }

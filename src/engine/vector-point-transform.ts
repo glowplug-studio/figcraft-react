@@ -45,7 +45,7 @@ export function vectorPointBox(document: Document, state: VectorEditState): Poin
 
 /** The canvas shares page axes only when other edited layers have selected parts. */
 export function shownVectorPointBox(document: Document, state: VectorEditState): PointBox | undefined {
-  if (state.tool !== "move") return;
+  if (state.tool !== "move" || state.anchor !== undefined) return;
   let box: PointBox | undefined;
   if (state.others.some(p => p.vertices.length || p.segments.length)) {
     const net = vectorNetwork(document, state.id); if (!net) return;

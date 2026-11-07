@@ -191,7 +191,7 @@ The refreshed local graph contains1,566 nodes/7,185 edges and locates the intera
 
 ## Vector point transforms and snapping — 2026-11-07
 
-Reviewed base `adc59d4`, reference `0b97f3f1801a9b7b96fd7a4f3c0942a3f1a676f3`. Implementation locally verified; integration commit pending. Full92-check regression and final focused oversized-dimension correction checks pass. Global parity baseline unchanged. Both hosted graphs are queryable; React remains README-only at `b3b8a1b`. Current local AST has1,611 nodes/7,508 edges; `VectorPointTargets` resolves to capture/gesture callers, SnapTargets and paired fixtures (87 neighbours,25 shown in the bounded query).
+Reviewed base `adc59d4`, reference `0b97f3f1801a9b7b96fd7a4f3c0942a3f1a676f3`. Verified implementation `4a762cd`. Full92-check regression and final focused oversized-dimension correction checks pass. Global parity baseline unchanged. Both hosted graphs are queryable; React remains README-only at `b3b8a1b`. Current local AST has1,611 nodes/7,508 edges; `VectorPointTargets` resolves to capture/gesture callers, SnapTargets and paired fixtures (87 neighbours,25 shown in the bounded query).
 
 | Upstream source/symbol | Independent TypeScript implementation | Evidence / confidence |
 |---|---|---|

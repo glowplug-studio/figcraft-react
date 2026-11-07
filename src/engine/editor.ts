@@ -117,6 +117,7 @@ export class EditorEngine {
     this.#snapshot = Object.freeze({ document: newDocument(), selection: Object.freeze([]), tool: "move", scaleAnchor: "tl", canUndo: false, canRedo: false, editable: true, dirty: true, hasSaved: false });
   }
   getSnapshot = (): EditorSnapshot => this.#snapshot;
+  getUndoDepth = (): number => this.#undo.length;
   getVectorEdit = (): VectorEditState | undefined => this.#vectorEdit;
   getRenderVectorEdit = (): VectorEditState | undefined => this.#interaction ? this.#interaction.vectorEdit : this.#vectorEdit;
   subscribeVectorEdit = (listener: () => void): (() => void) => { this.#vectorListeners.add(listener); return () => { this.#vectorListeners.delete(listener); }; };

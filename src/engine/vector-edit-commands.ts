@@ -10,12 +10,16 @@ import { bendSegment, deleteVertices, moveHandles, moveVertices, removeSegments,
 import { beginVectorEdit, clampVectorEdit, clearVectorSelection, freezeVectorEdit, refitVector, selectVectorParts, selectedVectorPoints, vectorEditOverlay, vectorNetwork, vectorParts, vectorSelectionPosition, type VectorEditPart, type VectorEditState } from "./vector-edit";
 import { freezeNetwork, networkMirroring, type VectorNetwork, type VectorVertex } from "./vector-network";
 import { pointBoxCentre, pointBoxCorners, pointBoxOnto, pointRotationMatrix, transformVectorPoints, vectorPointBox } from "./vector-point-transform";
+import { hitVector } from "./vector-edit-hit";
+import { applyPen, planPen } from "./vector-pen";
 
 export const vectorEditSpecs = Object.freeze({
   "vector.edit.begin": { label: "Edit vector", undo: false },
   "vector.edit.end": { label: "Done editing", undo: false },
   "vector.edit.state": { label: "Vector edit state", undo: false },
   "vector.edit.tool": { label: "Vector edit tool", undo: false },
+  "vector.edit.pen": { label: "Pen point", undo: true },
+  "vector.edit.penEnd": { label: "End pen path", undo: false },
   "vector.edit.select": { label: "Select points", undo: false },
   "vector.edit.selectAll": { label: "Select all points", undo: false },
   "vector.edit.moveVertices": { label: "Move points", undo: true },
@@ -40,6 +44,7 @@ export const vectorEditSpecs = Object.freeze({
 export type VectorEditCommand = keyof typeof vectorEditSpecs;
 const allowed: Record<VectorEditCommand, readonly string[]> = {
   "vector.edit.begin": ["id", "ids"], "vector.edit.end": [], "vector.edit.state": [], "vector.edit.tool": ["tool"],
+  "vector.edit.pen": ["x", "y", "dx", "dy"], "vector.edit.penEnd": [],
   "vector.edit.select": ["vertices", "segments", "handles", "regions", "id", "add"], "vector.edit.selectAll": [],
   "vector.edit.moveVertices": ["vertices", "dx", "dy"], "vector.edit.nudge": ["dx", "dy"], "vector.edit.position": ["x", "y"],
   "vector.edit.bounds": [], "vector.edit.resize": ["width", "height", "center"], "vector.edit.rotate": ["angle", "cx", "cy"], "vector.edit.transform": ["matrix", "vertices"],
@@ -95,13 +100,14 @@ export function executeVectorEdit(command: VectorEditCommand, document: Document
   if (!state) throw new Error("Not in vector edit mode");
   if (command === "vector.edit.state") {
     const net = vectorNetwork(document, state.id); if (!net) throw new Error("Not a vector");
-    return { ...result, result: { id: state.id, tool: state.tool, overlay: { ...vectorEditOverlay(document, state), anchor: null }, network: wireVectorNetwork(net), mirroring: net.vertices.map((_, i) => networkMirroring(net, i)),
+    return { ...result, result: { id: state.id, tool: state.tool, overlay: { ...vectorEditOverlay(document, state), anchor: state.anchor ?? null }, network: wireVectorNetwork(net), mirroring: net.vertices.map((_, i) => networkMirroring(net, i)),
       layers: vectorParts(state).map(p => p.id), others: state.others, handles: state.handles, regions: state.regions, regionVertices: state.regionVertices } };
   }
   if (command === "vector.edit.tool") {
-    const tool = parseString(p.tool)?.toLowerCase(); if (tool !== "move" && tool !== "bend") throw new Error("This vector tool is not implemented yet");
-    return { ...result, state: freezeVectorEdit({ ...state, tool }), result: { tool } };
+    const tool = parseString(p.tool)?.toLowerCase(); if (tool !== "move" && tool !== "bend" && tool !== "pen") throw new Error("This vector tool is not implemented yet");
+    return { ...result, state: freezeVectorEdit({ ...state, tool, ...(tool !== "pen" ? { anchor: undefined, penOut: undefined } : {}) }), result: { tool } };
   }
+  if (command === "vector.edit.penEnd") return { ...result, state: freezeVectorEdit({ ...state, anchor: undefined, penOut: undefined }) };
   if (command === "vector.edit.select") return { ...result, state: selectVectorParts(document, state, {
     id: parseNodeId(p.id), vertices: vectorIndices(p.vertices), segments: vectorIndices(p.segments), handles: handles(p.handles), regions: vectorIndices(p.regions), add: parseBoolean(p.add),
   }) };
@@ -123,6 +129,24 @@ export function executeVectorEdit(command: VectorEditCommand, document: Document
     for (const part of pointSets(document, state, p, ends)) { const world = worldTransform(draft.document, part.id); edit(part.id, net => f(net, part.vertices, world)); }
   };
   switch (command) {
+    case "vector.edit.pen": {
+      const net = vectorNetwork(document, state.id); if (!net) throw new Error("Not a vector");
+      const point = { x: parseNumber(p.x, "x"), y: parseNumber(p.y, "y") }, world = worldTransform(document, state.id);
+      const decision = planPen(net, state.anchor, hitVector(document, state, point, 6), transformPoint(inverse(world), point), false);
+      if (decision.kind !== "edit") {
+        const anchor = decision.kind === "start" ? decision.vertex : undefined;
+        return { ...result, state: freezeVectorEdit({ ...state, anchor, penOut: undefined, ...(anchor !== undefined ? { vertices: [anchor], segments: [] } : {}) }), result: { vertex: anchor ?? null } };
+      }
+      const m = inverse(world), dx = num(p, "dx", 0), dy = num(p, "dy", 0);
+      // Native drops an overflowing optional drag, retaining the valid point edit.
+      const delta = { x: m[0] * dx + m[2] * dy + m[4] - m[4], y: m[1] * dx + m[3] * dy + m[5] - m[5] };
+      const drag = [delta.x, delta.y].every(Number.isFinite) && Math.hypot(delta.x, delta.y) > 1e-9 ? delta : undefined;
+      let vertex: number | undefined;
+      edit(state.id, network => { const next = applyPen(network, decision.plan, state.penOut, drag); vertex = next.vertex; return next.network; });
+      const open = decision.plan.kind === "new";
+      result.state = freezeVectorEdit({ ...state, vertices: vertex === undefined ? [] : [vertex], segments: [], anchor: open ? vertex : undefined, penOut: open && drag ? [drag.x, drag.y] : undefined });
+      result.result = { vertex: vertex ?? null }; break;
+    }
     case "vector.edit.resize": {
       const box = selectedBox();
       const size = (key: string, fallback: number) => { try { return Math.max(0, Math.min(1e7, parseNumber(p[key]))); } catch { return fallback; } };
@@ -184,7 +208,7 @@ export function executeVectorEdit(command: VectorEditCommand, document: Document
         const now = points.flatMap(p => { const i = removed.vertices.findIndex(v => v.x === p.x && v.y === p.y); return i < 0 ? [] : [i]; });
         return deleteVertices(removed, now, command === "vector.deleteHeal");
       });
-      result.state = clearVectorSelection(state); break;
+      result.state = freezeVectorEdit({ ...clearVectorSelection(state), anchor: undefined, penOut: undefined }); break;
     }
     case "vector.edit.cornerRadius": { const radius = Math.max(0, Math.min(1e6, parseNumber(p.radius, "radius"))); sets(true, (net, points) => pointProperty(net, points, "radius", radius)); break; }
     case "vector.edit.strokeCap": {

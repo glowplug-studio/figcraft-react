@@ -5,11 +5,11 @@
 | Field | Value |
 |---|---|
 | Status | Bounded transform/snapping workflow verified; full product remains incomplete |
-| Phase | 7: verification/report complete; integration commit next |
+| Phase | 7 complete: verified implementation `4a762cd` |
 | Base | `adc59d4`, branch `prompt/full-figcraft-port` |
 | Upstream | `0b97f3f1801a9b7b96fd7a4f3c0942a3f1a676f3`; global parity baseline unchanged |
 | Verified foundation | 735 pure tests, 2 real Auth, strict TypeScript/package/Next builds, 89 Chromium checks |
-| Next | Commit verified changes, record its revision and continue to Pen/open-path evidence |
+| Next | Continue the Pen/open-path plan; full-product roadmap remains active |
 | Blockers | None; hosted React graph remains README-only and current local source is authoritative |
 
 ## Evidence and mapping

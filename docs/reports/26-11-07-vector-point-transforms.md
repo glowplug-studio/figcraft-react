@@ -1,6 +1,6 @@
 # Vector point transforms and snapping
 
-Version 0.26.0 on `prompt/full-figcraft-port`, reviewed base `adc59d4`. Implementation is verified locally and awaiting its integration commit. Upstream reference `0b97f3f1801a9b7b96fd7a4f3c0942a3f1a676f3`; global parity baseline remains `8eb0b87646c5aef712326d6c431ccde5408630de`. Full product parity remains incomplete. No deployment, branch push or main merge.
+Version 0.26.0 on `prompt/full-figcraft-port`, reviewed base `adc59d4`. Verified implementation commit `4a762cd`. Upstream reference `0b97f3f1801a9b7b96fd7a4f3c0942a3f1a676f3`; global parity baseline remains `8eb0b87646c5aef712326d6c431ccde5408630de`. Full product parity remains incomplete. No deployment, branch push or main merge.
 
 ## Implemented workflow
 
