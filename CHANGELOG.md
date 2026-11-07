@@ -2,6 +2,11 @@
 
 All notable changes to the React port and its upstream compatibility baseline are recorded here.
 
+## [0.29.0] - 2026-11-07
+
+- Added the native `node.reorder` command. The layer panel uses it to change sibling order while preserving local transforms and selection.
+- Page and layer ordering reject invalid indices. Vector creation rejects malformed point pairs. Stroke-cap errors list accepted values. Frame-relative lookup terminates on restored group cycles.
+
 ## [0.28.2] - 2026-11-07
 
 - When drawing, moving or resizing a shape, a fractional layer target takes precedence over the pixel grid on the snapped axis. Free axes retain the existing pixel preference. Matches upstream `39c58338`; the global baseline is unchanged.

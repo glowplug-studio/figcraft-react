@@ -2064,3 +2064,33 @@ test("fractional layer targets win over pixels during move, resize and draw", as
   await expect(page.locator(".figcraft-recovery")).toHaveText("Recovery saved on this device");
   await page.reload(); await moving.click(); await expect(page.getByLabel("Edit X", { exact: true })).toHaveValue("105.5");
 });
+
+test("layer reorder changes nested paint order and survives undo, native save and recovery", async ({ page }) => {
+  const engine = new EditorEngine();
+  const frame = String(engine.execute("frame.create", { name: "Artwork", x: 80, y: 80, width: 200, height: 160 }).id);
+  const rect = (name: string, fill: string) => String(engine.execute("shape.rectangle", {
+    name, parent: frame, x: 20, y: 20, width: 100, height: 80, props: { fill },
+  }).id);
+  const red = rect("Red", "#ff0000"), blue = rect("Blue", "#0000ff");
+  await login(page);
+  await page.getByLabel("Open Figcraft file", { exact: true }).setInputFiles({ name: "reorder.figcraft", mimeType: "application/octet-stream", buffer: Buffer.from(await engine.nativeSnapshot()) });
+  const list = page.getByRole("list", { name: "Children of Artwork" }), redButton = list.getByRole("button", { name: "Red", exact: true });
+  await expect(redButton).toBeVisible(); await resetCanvasOrigin(page);
+  await expectCanvasPixel(page, 140, 130, [0, 0, 255, 255]); await redButton.click();
+  const up = page.getByRole("button", { name: "Move layer up", exact: true });
+  await up.click(); await expect(up).toBeDisabled();
+  await expectCanvasPixel(page, 140, 130, [255, 0, 0, 255]);
+  await page.getByRole("button", { name: "Undo", exact: true }).click(); await expect(up).toBeEnabled();
+  await expectCanvasPixel(page, 140, 130, [0, 0, 255, 255]);
+  await page.getByRole("button", { name: "Redo", exact: true }).click();
+  await expectCanvasPixel(page, 140, 130, [255, 0, 0, 255]);
+  await expect(page.getByLabel("Name", { exact: true })).toHaveValue("Red");
+  const downloading = page.waitForEvent("download"); await page.getByRole("button", { name: "Save as", exact: true }).click();
+  const { document } = await decodeFigcraft(await readFile((await (await downloading).path())!));
+  expect(document.nodes[frame]).toMatchObject({ children: [blue, red] });
+  expect(document.nodes[red]).toMatchObject({ parent: frame, x: 20, y: 20 });
+  await expect(page.locator(".figcraft-recovery")).toHaveText("Recovery saved on this device"); await page.reload();
+  await expect(redButton).toBeVisible(); await resetCanvasOrigin(page); await expectCanvasPixel(page, 140, 130, [255, 0, 0, 255]);
+  await redButton.click(); await page.getByRole("button", { name: "Move layer down", exact: true }).click();
+  await expectCanvasPixel(page, 140, 130, [0, 0, 255, 255]);
+});

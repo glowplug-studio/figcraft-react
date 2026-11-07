@@ -174,7 +174,7 @@ describe("page lifecycle upstream parity", () => {
     expect(copied.document.currentPage).toBe("6");
   });
 
-  it.each([[-8, ["2", "1"]], [0.8, ["2", "1"]], [999, ["1", "2"]], ["0px", ["2", "1"]]] as const)("moves using clamped/truncated index %j", (index, expected) => {
+  it.each([[true, ["1", "2"]], [false, ["2", "1"]], [999, ["1", "2"]], ["0px", ["2", "1"]]] as const)("moves using a valid whole index %j", (index, expected) => {
     const document = fixture();
     const result = run("page.move", document, { id: "2", index });
     expect(result.document.pages).toEqual(expected);

@@ -37,9 +37,11 @@ export function createLayer(before: { document: Document; selection: readonly No
     if (kind === "vector") {
       const optional = (key: string) => { try { return parseNumber(p[key]); } catch { return undefined; } };
       const data = parseString(p.path), width = optional("width"), height = optional("height");
-      const points = Array.isArray(p.points) ? p.points.flatMap(value => {
-        if (!Array.isArray(value)) return [];
-        try { return [{ x: parseNumber(value[0]), y: parseNumber(value[1]) }]; } catch { return []; }
+      const points = data === undefined && Array.isArray(p.points) ? Array.from(p.points, value => {
+        if (Array.isArray(value) && value.length === 2) {
+          try { return { x: parseNumber(value[0]), y: parseNumber(value[1]) }; } catch { /* Report the pair error below. */ }
+        }
+        throw new Error("`points` entries must be numeric [x, y] pairs");
       }) : undefined;
       const shape = data !== undefined ? pathNetwork(data, width, height) : points ? pointsNetwork(points, parseBoolean(p.closed) ?? false, width, height) : undefined;
       const network = shape ? data !== undefined && parseBoolean(p.closed) === false ? freezeNetwork({ ...shape.network, regions: [] }) : shape.network : emptyNetwork();

@@ -2,7 +2,7 @@ import { isLeaf } from "./document";
 import { inverse, transformBounds } from "./affine";
 import { type Document, type GroupNode, type FrameNode, type NodeId } from "./document";
 import { HierarchyDraft, pageForNode, rootIds, worldTransform, zSorted } from "./hierarchy";
-import { parseNodeId, parseNumber, parseString } from "./parameters";
+import { parseIndex, parseNodeId, parseNumber, parseString } from "./parameters";
 
 export const structureSpecs = Object.freeze({
   "object.group": { label: "Group selection", undo: true },
@@ -11,6 +11,7 @@ export const structureSpecs = Object.freeze({
   "object.convertToFrame": { label: "Convert to frame", undo: true },
   "object.convertToGroup": { label: "Convert to group", undo: true },
   "object.ungroup": { label: "Ungroup selection", undo: true },
+  "node.reorder": { label: "Reorder layer", undo: true },
   "node.reparent": { label: "Move layer into", undo: true },
   "edit.delete": { label: "Delete", undo: true },
 });
@@ -32,6 +33,24 @@ export function nextLayerName(document: Document, base: string): string {
 }
 
 export function executeStructure(command: string, document: Document, selection: readonly NodeId[], nextId: bigint, params: Record<string, unknown>) {
+  if (command === "node.reorder") {
+    const id = parseNodeId(params.id);
+    if (id === undefined) throw new Error("`id` must be a node id");
+    const index = parseIndex(params.index);
+    const node = document.nodes[id];
+    if (!node) throw new Error(`No node ${id}`);
+    if (node.parent === null) throw new Error("Cannot reorder a page as a layer");
+    const parent = document.nodes[node.parent];
+    if (!parent || isLeaf(parent)) throw new Error("A container parent is required");
+    const draft = new HierarchyDraft(document);
+    const position = Math.min(index, parent.children.length - 1);
+    if (parent.children[position] !== id) {
+      const children = parent.children.filter(child => child !== id);
+      children.splice(position, 0, id);
+      draft.set(Object.freeze({ ...parent, children: Object.freeze(children) }));
+    }
+    return { document: draft.finish(), selection, nextId, result: { ok: true } };
+  }
   const allowed = (command === "object.group" || command === "object.frameSelection") ? ["ids", "id", "name"] : command === "node.reparent" ? ["ids", "id", "parent", "index"] : ["ids", "id"];
   if (!Object.hasOwn(structureSpecs, command)) throw new Error(`Unsupported structure command: ${command}`);
   for (const key of Object.keys(params)) if (!allowed.includes(key)) throw new Error(`Unsupported ${command} parameter: ${key}`);

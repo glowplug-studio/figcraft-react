@@ -1,7 +1,7 @@
 import { isLeaf } from "./document";
 import { withPageColour, type Document, type DocumentNode, type LayerNode, type NodeId, type PageNode } from "./document";
 import { parseColour } from "./colour-css";
-import { parseNodeId as parseId, parseString as stringValue, parseNumber as numeric } from "./parameters";
+import { parseNodeId as parseId, parseString as stringValue, parseIndex } from "./parameters";
 
 /** Source: upstream engine/cmd/page.rs; viewport and history belong to the caller. */
 export const pageSpecs = Object.freeze({
@@ -126,8 +126,7 @@ export function executePage(command: string, document: Document, selection: read
   } else if (command === "page.select") {
     let id = parseId(params.id);
     if (id === undefined) {
-      const index = numeric(params.index);
-      if (!Number.isInteger(index) || index < 0 || index >= 1e9) throw new Error("index out of range");
+      const index = parseIndex(params.index);
       id = document.pages[index];
       if (id === undefined) throw new Error("no such page");
     }
@@ -138,6 +137,7 @@ export function executePage(command: string, document: Document, selection: read
   } else {
     // Upstream optional id() treats an unparseable id like an omitted one.
     const id = parseId(params.id) ?? document.currentPage;
+    const moveIndex = command === "page.move" ? parseIndex(params.index) : undefined;
     const source = page(document, id);
     if (command === "page.setBackground") {
       const value = parseColour(params.color);
@@ -172,8 +172,8 @@ export function executePage(command: string, document: Document, selection: read
       pages.splice(pages.indexOf(id) + 1, 0, copyId);
       updated = Object.freeze({ ...document, currentPage: copyId, pages: Object.freeze(pages), nodes: Object.freeze(nodes) });
       result = { id: copyId };
-    } else if (command === "page.move") {
-      const index = Math.min(document.pages.length - 1, Math.trunc(Math.max(0, numeric(params.index))));
+    } else if (moveIndex !== undefined) {
+      const index = Math.min(document.pages.length - 1, moveIndex);
       if (document.pages.indexOf(id) !== index) {
         const pages = document.pages.filter(candidate => candidate !== id);
         pages.splice(index, 0, id);

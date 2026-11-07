@@ -60,7 +60,7 @@ export function LayerPanel({ document, selection, editable, dispatch }: LayerPan
     if (editable && selection.length) dispatch("node.reparent", { ids: selection, parent: destination });
   }
   const reorder = (index: number): void => {
-    if (editable && active && parent) dispatch("node.reparent", { ids: [active.id], parent: parent.id, index });
+    if (editable && active) dispatch("node.reorder", { id: active.id, index });
   };
 
   return <section aria-label="Layers">

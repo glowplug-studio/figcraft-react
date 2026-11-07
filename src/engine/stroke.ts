@@ -129,9 +129,14 @@ export function setStrokeProperties(node: LayerNode, props: Record<string, unkno
       }
       case "strokeAlign": stroke.align = strokeEnum(value, aligns); break;
       case "strokeJoin": stroke.join = strokeEnum(value, joins); break;
-      case "strokeCap": stroke.capStart = stroke.capEnd = strokeEnum(value, strokeCaps); break;
-      case "startCap": stroke.capStart = strokeEnum(value, strokeCaps); break;
-      case "endCap": stroke.capEnd = strokeEnum(value, strokeCaps); break;
+      case "strokeCap": case "startCap": case "endCap": {
+        let cap: StrokeCap;
+        try { cap = strokeEnum(value, strokeCaps); }
+        catch { throw new Error(`${key}: ${strokeCaps.join("|")}`); }
+        if (key !== "endCap") stroke.capStart = cap;
+        if (key !== "startCap") stroke.capEnd = cap;
+        break;
+      }
       case "miterAngle": stroke.miterLimit = miterLimitFor(parseNumber(value, key)); break;
       case "miterLimit": {
         let limit = 4; try { limit = parseNumber(value, key); } catch { /* Native malformed limit fallback. */ }

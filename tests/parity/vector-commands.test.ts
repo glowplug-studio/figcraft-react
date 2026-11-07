@@ -11,7 +11,7 @@ describe("native vector creation and path replacement", () => {
   it("creates SVG, point and empty networks with native names, offsets and defaults", () => {
     const engine = new EditorEngine(), id = vector(engine, { path: "M5 5 L15 25", x: 10, y: 20, width: 20 });
     expect(node(engine, id)).toMatchObject({ kind: "vector", name: "Vector", x: 15, y: 25, width: 20, height: 40, fill: "#d9d9d9", stroke: { align: "center" } }); expect(node(engine, id).strokes).toBeUndefined();
-    const alias = String(engine.execute("node.create", { type: "path", points: [[5, 5], [15, 5], [15, 25], ["bad"], ["10px", "20"]], closed: true }).id);
+    const alias = String(engine.execute("node.create", { type: "path", points: [[5, 5], [15, 5], [15, 25], ["10px", "20"]], closed: true }).id);
     expect(node(engine, alias).network.vertices).toHaveLength(4); expect(node(engine, alias).network.regions).toHaveLength(1);
     const open = vector(engine, { path: "M0 0 L20 0 L20 20Z", closed: false }); expect(node(engine, open).network.regions).toEqual([]); expect(node(engine, open).network.segments).toHaveLength(3);
     const empty = vector(engine, { select: false }); expect(node(engine, empty)).toMatchObject({ width: 100, height: 100, network: { vertices: [], segments: [], regions: [] } }); expect(engine.getSnapshot().selection).toEqual([open]);

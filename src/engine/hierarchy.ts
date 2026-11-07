@@ -40,16 +40,19 @@ export function worldTransform(document: Document, id: NodeId): Affine {
 
 /** Groups have no frame coordinate space of their own. */
 export function frameRelative(document: Document, id: NodeId): Affine {
-  let node = nodeOf(document, id);
-  if (node.kind === "page") return identity;
-  let transform: Affine = layerTransform(node);
-  const seen = new Set<NodeId>([id]);
-  while (node.parent !== null) {
-    node = nodeOf(document, node.parent);
-    if (seen.has(node.id)) throw new Error("Cyclic node hierarchy");
-    seen.add(node.id);
-    if (node.kind !== "group") break;
-    transform = multiply(layerTransform(node), transform);
+  const node = document.nodes[id];
+  if (!node || node.kind === "page") return identity;
+  let transform = layerTransform(node);
+  let parent = document.nodes[node.parent];
+  const seen = new Set<NodeId>();
+  let limit = Infinity;
+  for (let hops = 0; parent?.kind === "group"; hops++) {
+    // Count the whole document only for a malformed cycle, matching the native hop bound.
+    if (limit === Infinity && seen.has(parent.id)) limit = Object.keys(document.nodes).length;
+    if (hops >= limit) break;
+    seen.add(parent.id);
+    transform = multiply(layerTransform(parent), transform);
+    parent = document.nodes[parent.parent];
   }
   return transform;
 }

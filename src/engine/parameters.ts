@@ -26,6 +26,13 @@ export function parseNumber(value: unknown, key = "value"): number {
   return result;
 }
 
+/** Native req_index accepts numeric command values below the exclusive one-billion limit. */
+export function parseIndex(value: unknown, key = "index"): number {
+  const index = parseNumber(value, key);
+  if (!Number.isInteger(index) || index < 0 || index >= 1e9) throw new Error(`${key} out of range`);
+  return index;
+}
+
 /** Native lenient bool_of; whitespace is deliberately not trimmed. */
 export function parseBoolean(value: unknown): boolean | undefined {
   if (typeof value === "boolean") return value;
