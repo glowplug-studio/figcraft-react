@@ -12,7 +12,9 @@ import { isLeaf } from "./document";
 
 /** A new path owns one transaction across all clicks. Existing networks use VectorInteraction. */
 export class PenInteraction {
-  #path?: { points: PenAnchor[]; parent: NodeId; id?: NodeId; closed: boolean; join?: number };
+  #path?: { points: PenAnchor[]; undone: PenAnchor[]; parent: NodeId; id?: NodeId; closed: boolean; join?: number };
+  #history = 0;
+  #historyListeners = new Set<() => void>();
   #anchor?: Point;
   #rubber?: readonly [Point, Point];
   #guides: Guide[] = [];
@@ -20,10 +22,17 @@ export class PenInteraction {
   constructor(private engine: EditorEngine) {}
   get open(): boolean { return this.#path !== undefined; }
   get active(): boolean { return this.#anchor !== undefined; }
+  /** Two availability bits for the history buttons; handle movement never notifies React. */
+  getHistory = (): number => this.#history;
+  subscribeHistory = (listener: () => void): (() => void) => { this.#historyListeners.add(listener); return () => { this.#historyListeners.delete(listener); }; };
+  #notifyHistory(): void {
+    const value = (this.#path?.points.length ? 1 : 0) | (this.#path?.undone.length ? 2 : 0);
+    if (value !== this.#history) { this.#history = value; this.#historyListeners.forEach(listener => listener()); }
+  }
   get overlay() {
     const points = this.#path?.points ?? [], last = points.at(-1);
     return { points: points.map(p => p.at), handles: penPathHandles(points), rubber: this.#rubber, guides: this.#guides,
-      rubberHandle: last && Math.hypot(last.outgoing.x, last.outgoing.y) > 0 ? { x: last.at.x + last.outgoing.x, y: last.at.y + last.outgoing.y } : undefined };
+      rubberHandle: this.#rubber && last && Math.hypot(last.outgoing.x, last.outgoing.y) > 0 ? { x: last.at.x + last.outgoing.x, y: last.at.y + last.outgoing.y } : undefined };
   }
   #snap(point: Point, modifiers: MoveModifiers): Point {
     const view = this.engine.getView(), objects = view.snapObjects !== false && !modifiers.ctrlKey && !modifiers.metaKey, pixel = view.snapPixel !== false;
@@ -44,7 +53,7 @@ export class PenInteraction {
       if (end) { this.#edit(end.id, "pen", end.vertex); return true; }
     }
     const at = modifiers.shiftKey ? point : this.#snap(point, modifiers);
-    const path = this.#path ??= { points: [], parent: dropParent(snapshot.document, at, []) ?? snapshot.document.currentPage, closed: false };
+    const path = this.#path ??= { points: [], undone: [], parent: dropParent(snapshot.document, at, []) ?? snapshot.document.currentPage, closed: false };
     const action = penPathAction(path.points, at, this.engine.getView().zoom, modifiers.shiftKey);
     if (action.kind === "ignore") return true;
     if (action.kind === "close" || action.kind === "join") {
@@ -52,12 +61,24 @@ export class PenInteraction {
       this.#update(); this.finish(); return true;
     }
     path.points.push({ at: action.point, incoming: { x: 0, y: 0 }, outgoing: { x: 0, y: 0 } }); this.#anchor = action.point;
-    this.#update(); return true;
+    path.undone.length = 0; this.#update(); this.#notifyHistory(); return true;
+  }
+  /** Restore at most one complete anchor; past the first anchor document history owns Undo again. */
+  travel(undo: boolean): boolean {
+    const path = this.#path; if (!path) return false;
+    const anchor = undo ? path.points.pop() : path.undone.pop(); if (!anchor) return false;
+    this.#anchor = undefined;
+    if (undo) {
+      path.undone.push(anchor); this.#rubber = undefined; this.#guides = [];
+      if (path.points.length < 2 && path.id !== undefined) { path.id = undefined; this.engine.cancelInteraction(); }
+      if (!path.points.length) { this.finish(); return true; }
+    } else path.points.push(anchor);
+    try { this.#update(); this.#notifyHistory(); return true; } catch (error) { this.cancel(); throw error; }
   }
   #update(): void {
     const path = this.#path; if (!path) return;
     if (path.points.length >= 2) {
-      if (path.id === undefined) this.engine.beginInteraction();
+      if (!this.engine.interacting) this.engine.beginInteraction();
       path.id = this.engine.previewPenPath(path.points, path.parent, path.closed, path.join);
     } else this.engine.invalidateCanvas();
   }
@@ -95,6 +116,6 @@ export class PenInteraction {
     this.finish(); const snapshot = this.engine.getSnapshot(), id = hitRectangle(snapshot.document, point, true, [], 6 / this.engine.getView().zoom);
     if (id && isLeaf(snapshot.document.nodes[id])) this.#edit(id, "move"); return true;
   }
-  #clear(): void { this.#path = undefined; this.#anchor = undefined; this.#rubber = undefined; this.#guides = []; this.#targets.clear(); }
+  #clear(): void { this.#path = undefined; this.#anchor = undefined; this.#rubber = undefined; this.#guides = []; this.#targets.clear(); this.#notifyHistory(); }
   cancel(): void { const hadPath = this.open; this.#clear(); if (hadPath) this.engine.cancelInteraction(); this.engine.invalidateCanvas(); }
 }

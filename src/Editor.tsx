@@ -33,6 +33,12 @@ export interface EditorProps {
   engine?: EditorEngine;
   recoveryStore?: RecoveryStore;
 }
+
+function HistoryButtons({ engine, editable, undo, redo, dispatch }: { engine: EditorEngine; editable: boolean; undo: boolean; redo: boolean; dispatch: (command: string) => void }) {
+  const pen = useSyncExternalStore(engine.pen.subscribeHistory, engine.pen.getHistory, engine.pen.getHistory);
+  return <><button disabled={!editable || (!undo && !(pen & 1))} onClick={() => dispatch("edit.undo")}>Undo</button>
+    <button disabled={!editable || (!redo && !(pen & 2))} onClick={() => dispatch("edit.redo")}>Redo</button></>;
+}
 /** Embeddable local rectangle workflow. The host owns authentication and styling. */
 export function Editor({ identity, capabilities, engine: suppliedEngine, recoveryStore }: EditorProps) {
   const [engine] = useState(() => suppliedEngine ?? new EditorEngine());
@@ -89,6 +95,9 @@ export function Editor({ identity, capabilities, engine: suppliedEngine, recover
     const cancellingUndo = command === "edit.undo" && engine.interacting;
     setError("");
     try {
+      if (engine.pen.open && (command === "edit.undo" || command === "edit.redo")) {
+        controller.current?.cancel(true); engine.execute(command, params); return;
+      }
       if (engine.pen.open && command.startsWith("tool.") && !["tool.pen", "tool.scaleAnchor", "tool.pencilBrush"].includes(command)) engine.pen.finish();
       const preserve = engine.pen.open && command === "tool.pen" || (engine.pen.open || engine.pencil.active) && (command.startsWith("view.") || command === "tool.scaleAnchor" || command === "tool.pencilBrush");
       if (!preserve) controller.current?.cancel();
@@ -209,8 +218,7 @@ export function Editor({ identity, capabilities, engine: suppliedEngine, recover
           if (snapshot.dirty && Object.keys(snapshot.document.nodes).length > snapshot.document.pages.length) setPendingFile(file);
           else void open(file);
         }} />
-        <button disabled={!editable || !snapshot.canUndo} onClick={() => dispatch("edit.undo")}>Undo</button>
-        <button disabled={!editable || !snapshot.canRedo} onClick={() => dispatch("edit.redo")}>Redo</button>
+        <HistoryButtons engine={engine} editable={editable} undo={snapshot.canUndo} redo={snapshot.canRedo} dispatch={dispatch} />
         <details className="figcraft-mobile-pages"><summary>Pages</summary>
           <PagePanel document={snapshot.document} editable={editable && !busy} dispatch={dispatch} />
         </details>

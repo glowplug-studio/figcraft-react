@@ -25,6 +25,39 @@ describe("native new Pen path lifetime", () => {
     e.pen.finish("move"); expect(e.getUndoDepth()).toBe(1); expect(e.getVectorEdit()).toMatchObject({ id, tool: "move", anchor: undefined });
     e.execute("edit.undo"); expect(e.getSnapshot().document).toBe(before); e.execute("edit.redo"); expect(e.getSnapshot().document.nodes[id]).toBeDefined();
   });
+  it("matches undo_while_drawing_takes_back_one_anchor and preserves the preceding rectangle", () => {
+    const { e, click, node } = setup(); e.execute("shape.rectangle", { x: 400, y: 400, width: 50, height: 50 }); e.execute("tool.pen");
+    const rectangle = e.getSnapshot().document; click(100, 100); click(200, 100); click(200, 200);
+    const undo = () => expect(e.execute("edit.undo")).toEqual({ undone: true }), redo = () => expect(e.execute("edit.redo")).toEqual({ redone: true });
+    expect(node().network.vertices).toHaveLength(3); undo(); expect(e.pen.overlay.points).toHaveLength(2); expect(node().network.segments).toHaveLength(1);
+    undo(); expect(e.pen.overlay.points).toHaveLength(1); expect(e.getRenderDocument()).toBe(rectangle); expect(e.interacting).toBe(false);
+    redo(); expect(node().network.segments).toHaveLength(1); redo(); expect(node().network.segments).toHaveLength(2);
+    expect(e.pen.overlay.points).toEqual([{ x: 100, y: 100 }, { x: 200, y: 100 }, { x: 200, y: 200 }]);
+    undo(); undo(); undo(); expect(e.pen.open).toBe(false); expect(e.getSnapshot().document).toBe(rectangle); expect(e.getUndoDepth()).toBe(1);
+    expect(e.execute("edit.redo")).toEqual({ redone: false }); undo(); expect(Object.keys(e.getSnapshot().document.nodes)).toHaveLength(1);
+  });
+  it("restores dragged handles, ends held gestures and clears the old redo branch only on a new anchor", () => {
+    const { e, drag, click, node } = setup(); drag(100, 100, 130, 100); click(200, 100);
+    e.pen.down({ x: 250, y: 200 }, plain); e.pen.move({ x: 270, y: 220 }); const before = node().network;
+    e.pen.hover({ x: 300, y: 210 }, plain); e.execute("edit.undo"); expect(e.pen.active).toBe(false);
+    expect(e.pen.overlay.rubber).toBeUndefined(); expect(e.pen.overlay.rubberHandle).toBeUndefined();
+    e.pen.move({ x: 650, y: 650 }); e.pen.up(); click(200, 100); expect(e.pen.getHistory()).toBe(3);
+    e.execute("edit.redo"); expect(node().network).toEqual(before); e.execute("edit.undo"); click(320, 280);
+    expect(e.pen.getHistory()).toBe(1); expect(e.execute("edit.redo")).toEqual({ redone: false }); expect(e.pen.open).toBe(true);
+    e.pen.finish(); expect(e.getUndoDepth()).toBe(1); expect(e.pen.getHistory()).toBe(0);
+  });
+  it("notifies only history availability transitions without publishing the root snapshot", () => {
+    const { e, click } = setup(); let roots = 0; const flags: number[] = []; e.subscribe(() => roots++); e.pen.subscribeHistory(() => flags.push(e.pen.getHistory()));
+    click(100, 100); click(200, 100); e.pen.down({ x: 200, y: 200 }, plain);
+    for (let i = 0; i < 100; i++) e.pen.move({ x: 201 + i, y: 220 }); e.pen.up(); e.execute("edit.undo"); e.execute("edit.undo");
+    e.execute("edit.redo"); e.execute("edit.redo"); e.pen.cancel(); expect(flags).toEqual([1, 3, 1, 0]); expect(roots).toBe(0);
+  });
+  it("falls back to a real document redo when an open path has no removed anchors", () => {
+    const { e, click, node } = setup(); const id = String(e.execute("shape.rectangle", { x: 500, y: 500 }).id); e.execute("edit.undo");
+    click(100, 100); click(200, 100); const previewId = node().id; expect(e.execute("edit.redo")).toEqual({ redone: true });
+    expect(e.getSnapshot().document.nodes[id]).toBeDefined(); expect(e.pen.overlay.points).toHaveLength(2); expect(e.getSnapshot().document.nodes[previewId]).toBeUndefined();
+    click(200, 200); e.pen.finish(); expect(Object.values(e.getSnapshot().document.nodes).filter(n => n.kind === "vector")).toHaveLength(1); expect(e.getSnapshot().document.nodes[id]).toBeDefined();
+  });
   it("Escape keeps Pen in edit mode and the next path belongs to the same layer", () => {
     const { e, click, node } = setup(); click(100, 100); click(200, 100); const id = node().id;
     e.pen.finish("pen"); expect(e.getVectorEdit()).toMatchObject({ id, tool: "pen", anchor: undefined });

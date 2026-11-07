@@ -316,6 +316,16 @@ export class EditorEngine {
     if (!Object.hasOwn(commandSpecs, command)) throw new Error(`Unsupported command: ${command}`);
     if (!this.#snapshot.editable) throw new Error("Sign in to edit this document");
     const p = parameters(input);
+    if (this.pen.open && (command === "edit.undo" || command === "edit.redo")) {
+      if (Object.keys(p).length) throw new Error(`${command} takes no parameters`);
+      const undo = command === "edit.undo";
+      if (this.pen.travel(undo)) return { [undo ? "undone" : "redone"]: true };
+      // A path with no removed anchor declines Redo. An earlier document redo may still exist.
+      const entry = this.#redo.pop(); if (!entry) return { redone: false };
+      this.#undo.push({ document: this.getRenderDocument(), selection: this.getRenderSelection() });
+      if (this.#interaction) { this.#nextId = this.#interaction.nextId; this.cancelInteraction(); }
+      this.#lastDuplicate = undefined; this.#publish(entry); return { redone: true };
+    }
     if (command === "tool.pencilBrush") {
       if (Object.hasOwn(p, "preset")) this.#pencilBrush = parseBrush(p.preset === null ? null : p);
       return { brush: this.#pencilBrush ? wireBrush(this.#pencilBrush) : null };

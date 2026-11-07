@@ -1803,6 +1803,28 @@ test("Pen closes, resumes endpoints and double-clicks without stray layers", asy
   expect(vectors[1].network.vertices).toHaveLength(3); expect(vectors[1].network.segments).toHaveLength(2); expect(vectors[1].network.regions).toEqual([]);
 });
 
+test("Pen anchor undo and redo preserve earlier anchors, handles and document history", async ({ page }) => {
+  await login(page); const canvas = page.getByLabel("Design canvas", { exact: true }), undo = page.getByRole("button", { name: "Undo", exact: true }), redo = page.getByRole("button", { name: "Redo", exact: true });
+  const at = (x: number, y: number) => canvasPoint(page, x, y);
+  const click = async (x: number, y: number) => { const p = await at(x, y); await page.mouse.click(p.x, p.y); };
+  await expect(undo).toBeDisabled(); await canvas.focus(); await page.keyboard.press("p");
+  const start = await at(150, 180), handle = await at(180, 180); await page.mouse.move(start.x, start.y); await page.mouse.down(); await page.mouse.move(handle.x, handle.y); await page.mouse.up();
+  await expect(undo).toBeEnabled(); await expect(redo).toBeDisabled(); const commits = await page.locator("[data-figcraft-editor]").getAttribute("data-commits");
+  await click(300, 240); await click(400, 350); await page.keyboard.press("ControlOrMeta+z"); await expect(redo).toBeEnabled();
+  await undo.click(); await expect(undo).toBeEnabled(); await redo.click(); await canvas.focus(); await page.keyboard.press("ControlOrMeta+Shift+z");
+  await expect(redo).toBeDisabled(); await page.keyboard.press("ControlOrMeta+z"); await click(420, 300); await expect(redo).toBeDisabled();
+  expect(await page.locator("[data-figcraft-editor]").getAttribute("data-commits")).toBe(commits);
+  await page.keyboard.press("Enter"); await expect(page.getByText("1 layer", { exact: true })).toBeVisible(); await undo.click();
+  await expect(page.getByText("0 layers", { exact: true })).toBeVisible(); await redo.click(); await expect(page.getByText("1 layer", { exact: true })).toBeVisible();
+  const downloading = page.waitForEvent("download"); await page.getByRole("button", { name: "Save as", exact: true }).click();
+  const decoded = await decodeFigcraft(await readFile((await (await downloading).path())!)), vector = Object.values(decoded.document.nodes).find((n): n is VectorNode => n.kind === "vector")!;
+  const matrix = worldTransform(decoded.document, vector.id); expect(vector.network.vertices.map(v => transformPoint(matrix, v))).toEqual([{ x: 150, y: 180 }, { x: 300, y: 240 }, { x: 420, y: 300 }]);
+  expect(vector.network.segments[0].ta).toEqual([30, 0]);
+  await expect(page.locator(".figcraft-recovery")).toHaveText("Recovery saved on this device"); await page.reload(); await expect(page.getByText("1 layer", { exact: true })).toBeVisible();
+  await page.setViewportSize({ width: 390, height: 844 });
+  for (const control of [undo, redo]) { const box = (await control.boundingBox())!; expect(box.x).toBeGreaterThanOrEqual(0); expect(box.x + box.width).toBeLessThanOrEqual(390); }
+});
+
 test("Pencil draws without React updates, commits once, saves and recovers", async ({ page }) => {
   await login(page); const canvas = page.getByLabel("Design canvas", { exact: true });
   await canvas.focus(); await page.keyboard.press("Shift+p");

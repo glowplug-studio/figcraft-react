@@ -4,13 +4,13 @@
 
 | Field | Value |
 |---|---|
-| Status / phase | Active; Phase 1–3 evidence, mapping and sequential decomposition complete; implementation next |
+| Status / phase | Active; Phase 6 final release-build regression pending |
 | React branch / base | `prompt/full-figcraft-port` at `12a7671`; verified Pencil implementation `7ad8a5a` |
 | Reference / global baseline | Fork/original/submodule `7522c39ba594ed7e948b6d2626210c4a36b03497`; global `8eb0b87646c5aef712326d6c431ccde5408630de` unchanged |
-| Tests last passed | Prior slice: 848 pure, two real Auth, strict package/tests/Next, production builds, 102 Chromium checks (219.9s); no new Pen undo claim yet |
-| Files in progress | Incoming reference report/gitlink, this plan, master checkpoint. No new Pen undo implementation yet. |
+| Tests last passed | 852 pure tests, two real local Auth tests, strict TypeScript and package/Next builds; all three focused authenticated Pen browser workflows pass |
+| Files in progress | PenInteraction, EditorEngine, Editor history buttons, paired tests and authenticated browser flow; implementation integrated. |
 | Blockers | None. Both Graphify repositories and scoped Supabase MCP responded. Hosted graphs lag the pin. |
-| Exact next action | Implement transient anchor undo/redo stack, command precedence, targeted history controls and paired lifetime tests; verify keyboard/button/native files and full regression. |
+| Exact next action | Run final 0.28.1 build and complete Playwright regression; record property matrix, stable mapping and commit. |
 | Updated | 2026-11-07T08:56+07:00 |
 
 ## Evidence and acceptance
@@ -34,3 +34,8 @@ Both named Graphify repositories are queryable: Rust 26,788 nodes indexed at `09
 2. Add paired engine fixtures and authenticated keyboard/toolbar flows, including handles, one-anchor threshold, document history and native save/recovery. Check root/panel notifications and existing 10,000-node Pen performance gates.
 3. Run all pure, real Auth, strict TypeScript, package/Next production and Playwright checks, inspect fixed screenshots, then write MD/13-column HTML evidence, mapping, changelog/version and checkpoint. Roll back to `12a7671` if needed. User requires canonical sequential work; no subagents, partial publication or main merge.
 4. Reconcile incoming drawing/moving/resizing snap priority and command validation before declaring the newer upstream supported. Continue width-point editing and all other roadmap families. The [incoming reference report](../reports/26-11-07-upstream-editor-advance.md) assigns other changes to their owning slices.
+
+
+## Integrated checkpoint
+
+The transient anchor stack preserves handles, clears on accepted new anchors only, drops the vector below two anchors and retains earlier document history. Native command precedence and ordinary document redo fallback are covered. Button availability uses a two-bit external-store subscription in `HistoryButtons`; 100 drag moves publish no history availability or root notifications. The authenticated workflow exercises keyboard and toolbar undo/redo, branches after undo, saves the exact anchor coordinates and first tangent, reloads recovery and checks mobile controls. 852 pure, two real Auth, strict/build and three focused browser workflows pass. Graphify resolved the older `pen_down` → `pen_update` → `connect` edges; its test query did not contain the incoming native fixture. React impact query was unresolved. Final report and exact release-build regression remain.

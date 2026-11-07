@@ -2,6 +2,11 @@
 
 All notable changes to the React port and its upstream compatibility baseline are recorded here.
 
+## [0.28.1] - 2026-11-07
+
+- Updated Pen Undo/Redo to match upstream `7522c39b`: remove or restore individual anchors while drawing, including their handles. Completed paths still take one document undo.
+- Keyboard and toolbar controls share the command path; history availability changes do not rerender the root editor. The global parity baseline remains unchanged.
+
 ## [0.28.0] - 2026-11-07
 
 The global upstream baseline remains `8eb0b87646c5aef712326d6c431ccde5408630de`. Pencil was checked against `09e04e71765517975950403eec4cb6fbe8955359`.
