@@ -25,6 +25,8 @@ import { previewResize, type ResizeStart } from "./transform-preview";
 import type { ScaleAnchor } from "./transform-handles";
 import { PenInteraction } from "./pen-interaction";
 import { buildPenPath, type PenAnchor } from "./pen-path";
+import { PencilInteraction } from "./pencil-interaction";
+import { parseBrush, wireBrush, type Brush } from "./brush";
 
 export const commandSpecs = Object.freeze({
   ...strokeSpecs,
@@ -59,6 +61,8 @@ export const commandSpecs = Object.freeze({
   "tool.move": { label: "Move", undo: false },
   "tool.scale": { label: "Scale", undo: false },
   "tool.pen": { label: "Pen", undo: false },
+  "tool.pencil": { label: "Pencil", undo: false },
+  "tool.pencilBrush": { label: "Pencil brush", undo: false },
   "tool.scaleAnchor": { label: "Scale anchor", undo: false },
   "edit.undo": { label: "Undo", undo: false },
   "edit.redo": { label: "Redo", undo: false },
@@ -72,7 +76,7 @@ export type CommandId = keyof typeof commandSpecs;
 export interface EditorSnapshot {
   readonly document: Document;
   readonly selection: readonly NodeId[];
-  readonly tool: "move" | DrawShapeKind | "scale" | "pen";
+  readonly tool: "move" | DrawShapeKind | "scale" | "pen" | "pencil";
   readonly scaleAnchor: ScaleAnchor;
   readonly canUndo: boolean;
   readonly canRedo: boolean;
@@ -92,6 +96,9 @@ function parameters(input: unknown): Record<string, unknown> {
 /** React-free command transactions. Snapshots share immutable nodes and document references. */
 export class EditorEngine {
   readonly pen = new PenInteraction(this);
+  readonly pencil = new PencilInteraction(this);
+  #pencilBrush?: Brush;
+  getPencilBrush(): Brush | undefined { return this.#pencilBrush; }
   #snapshot: EditorSnapshot;
   #undo: HistoryEntry[] = [];
   #redo: HistoryEntry[] = [];
@@ -295,6 +302,7 @@ export class EditorEngine {
     this.#listeners.forEach(listener => listener());
   }
   setEditable(editable: boolean): void {
+    if (!editable) this.pencil.cancel();
     if (!editable) this.pen.cancel();
     if (!editable) this.cancelInteraction();
     if (!editable) this.cancelPendingFiles();
@@ -308,12 +316,16 @@ export class EditorEngine {
     if (!Object.hasOwn(commandSpecs, command)) throw new Error(`Unsupported command: ${command}`);
     if (!this.#snapshot.editable) throw new Error("Sign in to edit this document");
     const p = parameters(input);
+    if (command === "tool.pencilBrush") {
+      if (Object.hasOwn(p, "preset")) this.#pencilBrush = parseBrush(p.preset === null ? null : p);
+      return { brush: this.#pencilBrush ? wireBrush(this.#pencilBrush) : null };
+    }
     if (command.startsWith("tool.") && command !== "tool.scaleAnchor" && Object.keys(p).length) throw new Error(`${command} takes no parameters`);
     if (this.pen.open && command.startsWith("tool.") && command !== "tool.pen" && command !== "tool.scaleAnchor") this.pen.finish();
-    const preservePen = this.pen.open && (command === "tool.pen" || command === "tool.scaleAnchor" || Object.hasOwn(viewSpecs, command));
+    const preservePen = this.pen.open && command === "tool.pen" || (this.pen.open || this.pencil.active) && (command === "tool.scaleAnchor" || Object.hasOwn(viewSpecs, command));
     if (preservePen && command === "tool.pen") { if (Object.keys(p).length) throw new Error("tool.pen takes no parameters"); return {}; }
     const gesture = Object.hasOwn(smartSpecs, command) && command !== "arrange.roundToPixels" && parseBoolean(p.fromGesture) === true;
-    if (!gesture && !preservePen) { const interacting = this.interacting; if (this.pen.open) this.pen.cancel(); else this.cancelInteraction(); if (interacting && command === "edit.undo") return { undone: true }; }
+    if (!gesture && !preservePen) { const interacting = this.interacting; this.pencil.cancel(); if (this.pen.open) this.pen.cancel(); else this.cancelInteraction(); if (interacting && command === "edit.undo") return { undone: true }; }
     if (Object.hasOwn(vectorEditSpecs, command)) {
       const before = this.#snapshot, oldState = this.#vectorEdit, next = executeVectorEdit(command as VectorEditCommand, before.document, before.selection, oldState, p);
       if (next.recordHistory) { this.#undo.push({ document: before.document, selection: before.selection }); this.#redo = []; }
@@ -435,10 +447,10 @@ export class EditorEngine {
     if (command.startsWith("file.")) throw new Error(`${command} requires executeAsync`);
     if (command === "vector.create" || command === "shape.line" || command === "shape.arrow" || command === "shape.polygon" || command === "shape.star" || command === "shape.ellipse" || command === "shape.rectangle" || command === "frame.create" || command === "node.create") return this.#create(command, p);
     if (Object.keys(p).length) throw new Error(`${command} takes no parameters`);
-    if (command === "tool.pen" || command === "tool.line" || command === "tool.arrow" || command === "tool.polygon" || command === "tool.star" || command === "tool.ellipse" || command === "tool.rectangle" || command === "tool.move" || command === "tool.scale") {
+    if (command === "tool.pencil" || command === "tool.pen" || command === "tool.line" || command === "tool.arrow" || command === "tool.polygon" || command === "tool.star" || command === "tool.ellipse" || command === "tool.rectangle" || command === "tool.move" || command === "tool.scale") {
       const end = this.#vectorEdit && command !== "tool.move" && command !== "tool.scale" ? executeVectorEdit("vector.edit.end", this.#snapshot.document, this.#snapshot.selection, this.#vectorEdit, {}) : undefined;
       if (end) this.#vectorEdit = undefined;
-      this.#publish({ ...(end ? { document: end.document, selection: end.selection } : {}), tool: command === "tool.pen" ? "pen" : command === "tool.line" ? "line" : command === "tool.arrow" ? "arrow" : command === "tool.polygon" ? "polygon" : command === "tool.star" ? "star" : command === "tool.ellipse" ? "ellipse" : command === "tool.rectangle" ? "rectangle" : command === "tool.scale" ? "scale" : "move" });
+      this.#publish({ ...(end ? { document: end.document, selection: end.selection } : {}), tool: command === "tool.pencil" ? "pencil" : command === "tool.pen" ? "pen" : command === "tool.line" ? "line" : command === "tool.arrow" ? "arrow" : command === "tool.polygon" ? "polygon" : command === "tool.star" ? "star" : command === "tool.ellipse" ? "ellipse" : command === "tool.rectangle" ? "rectangle" : command === "tool.scale" ? "scale" : "move" });
       return {};
     }
     const undo = command === "edit.undo";
@@ -459,7 +471,7 @@ export class EditorEngine {
     const p = parameters(input);
     if (command === "file.saveAs") {
       if (Object.keys(p).some(key => key !== "data") || (p.data !== undefined && p.data !== true)) throw new Error("Browser save requires data: true");
-      this.pen.finish(); this.cancelInteraction();
+      this.pen.finish(); this.pencil.cancel(); this.cancelInteraction();
       const document = this.#snapshot.document;
       const revision = ++this.#saveSequence;
       const opening = this.#openSequence;
@@ -472,7 +484,7 @@ export class EditorEngine {
       return { name: `${document.name}.figcraft`, bytes: bytes.length, data: btoa(binary), revision };
     }
     if (Object.keys(p).some(key => !["data", "name"].includes(key)) || typeof p.data !== "string" || (p.name !== undefined && typeof p.name !== "string")) throw new Error("File open requires base64 data and optional name");
-    this.pen.cancel(); this.cancelInteraction();
+    this.pen.cancel(); this.pencil.cancel(); this.cancelInteraction();
     if (p.data.length > Math.ceil(16 * 1024 * 1024 / 3) * 4) throw new Error("File exceeds the browser import limit");
     const before = this.#snapshot.document;
     const opening = ++this.#openSequence;

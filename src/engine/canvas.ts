@@ -21,6 +21,7 @@ import { vectorPaintRegions } from "./vector-presentation";
 import { VectorInteraction } from "./vector-interaction";
 import { drawVectorEdit } from "./vector-edit-overlay";
 import { drawPen } from "./pen-overlay";
+import { pencilPointerPressure } from "./pencil-samples";
 
 const compositeSurfaces = new WeakMap<CanvasRenderingContext2D, HTMLCanvasElement>();
 // Immutable document snapshots invalidate these derived bounds after any edit.
@@ -227,7 +228,7 @@ export class CanvasController {
     this.#observer = new ResizeObserver(this.#resize);
     this.#observer.observe(canvas);
     this.#unsubscribe = engine.subscribe(() => {
-      if (!engine.pen.open) this.cancel();
+      if (!engine.pen.open && !engine.pencil.active) this.cancel();
       this.invalidate();
     });
     this.#unsubscribeView = engine.subscribeView(() => this.invalidate());
@@ -253,6 +254,9 @@ export class CanvasController {
     if (event.button !== 0) return;
     this.canvas.focus();
     try {
+      if (this.engine.pencil.down(this.#point(event), pencilPointerPressure(event))) {
+        event.preventDefault(); this.#pointer = event.pointerId; this.canvas.setPointerCapture(event.pointerId); this.invalidate(); return;
+      }
       if (this.engine.pen.down(this.#point(event), event)) {
         event.preventDefault(); this.#penPointer = true; this.#pointer = event.pointerId; this.canvas.setPointerCapture(event.pointerId); this.invalidate(); return;
       }
@@ -279,6 +283,16 @@ export class CanvasController {
   };
 
   #move = (event: PointerEvent): void => {
+    if (this.engine.getSnapshot().tool === "pencil" && (this.#pointer === null || this.engine.pencil.active)) {
+      try {
+        this.canvas.style.cursor = "crosshair";
+        if (this.#pointer === event.pointerId) {
+          const started = performance.now(); this.engine.pencil.move(this.#point(event), pencilPointerPressure(event)); performance.measure("figcraft:pointer", { start: started, end: performance.now() });
+        }
+        this.invalidate();
+      } catch (error) { this.#penFailure(error); }
+      return;
+    }
     if (this.engine.getSnapshot().tool === "pen" && (this.#pointer === null || this.#penPointer)) {
       try {
         if (this.#pointer === null) this.canvas.style.cursor = this.engine.pen.hover(this.#point(event), event);
@@ -341,6 +355,9 @@ export class CanvasController {
   };
 
   #up = (event: PointerEvent): void => {
+    if (event.pointerId === this.#pointer && this.engine.pencil.active) {
+      try { this.engine.pencil.up(this.#point(event), pencilPointerPressure(event)); this.cancel(); } catch (error) { this.#penFailure(error); } return;
+    }
     if (event.pointerId === this.#pointer && this.#penPointer) { this.engine.pen.up(); this.cancel(true); return; }
     if (event.pointerId === this.#pointer && this.#vectors.active) {
       const point = this.#point(event), forward = this.#vectors.up(point); this.cancel();
@@ -393,7 +410,7 @@ export class CanvasController {
   };
   #blur = (): void => { this.#space = false; this.#zoomHeld = false; this.cancel(); };
   #cancelEvent = (event: PointerEvent): void => { if (this.#pointer === event.pointerId) this.cancel(); };
-  #penFailure(error: unknown): void { this.cancel(); this.onError(error instanceof Error ? error.message : "Could not draw Pen path"); }
+  #penFailure(error: unknown): void { this.cancel(); this.onError(error instanceof Error ? error.message : "Could not draw path"); }
   #key = (event: KeyboardEvent): void => {
     if (this.engine.pen.open && !event.ctrlKey && !event.metaKey && !event.altKey && (event.key === "Escape" || event.key === "Enter")) {
       event.preventDefault(); event.stopPropagation();
@@ -412,6 +429,7 @@ export class CanvasController {
   };
   cancel(preservePen = false): void {
     if (!preservePen) {
+      this.engine.pencil.cancel();
       this.engine.pen.cancel();
       this.#vectors.cancel();
       this.#arcs.cancel();
@@ -460,6 +478,7 @@ export class CanvasController {
       this.#moving.draw(context); this.#drawing.draw(context);
       if (vectorEdit) drawVectorEdit(context, this.engine.getRenderDocument(), vectorEdit, view, this.#vectors.overlay);
       if (pen) drawPen(context, this.engine.getRenderDocument(), view, this.engine.pen.overlay);
+      this.engine.pencil.draw(context);
       const rotationOrigin = this.engine.getRotationOrigin();
       if (!vectorEdit && rotationOrigin.editing && rotationOrigin.point) {
         const point = pageToScreen(view, rotationOrigin.point);

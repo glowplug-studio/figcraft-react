@@ -2,6 +2,14 @@
 
 All notable changes to the React port and its upstream compatibility baseline are recorded here.
 
+## [0.28.0] - 2026-11-07
+
+The global upstream baseline remains `8eb0b87646c5aef712326d6c431ccde5408630de`. Pencil was checked against `09e04e71765517975950403eec4cb6fbe8955359`.
+
+- Added Pencil freehand drawing with fitted open vectors, pressure-sensitive widths, brush preferences, frame-local coordinates and one undo per stroke.
+- Added captured-pointer previews, cancellation, Shift+P, native file/recovery coverage, and browser measurements for continuous drawing and long-stroke completion.
+- Vector width-point editing, regions, booleans and the remaining product roadmap are outstanding. Full-parity publication remains gated.
+
 ## [0.27.0] - 2026-11-07
 
 The reference baseline remains `8eb0b87646c5aef712326d6c431ccde5408630de`; full parity remains in progress.

@@ -4,15 +4,15 @@
 
 | Field | Value |
 |---|---|
-| Status | In progress; Pencil is not implemented; full product remains incomplete |
-| Phase | 4: pressure/sampling primitives verified; curve fitting and workflow integration next |
-| Base / branch | Verified Pen `d3c00a4`; `prompt/full-figcraft-port` |
+| Status | In progress; Pencil implemented, final browser regression/report gate pending; full product remains incomplete |
+| Phase | 5–6: complete fitting/controller/UI integrated; authenticated browser and performance verification |
+| Base / branch | Verified Pen `d3c00a4`; internal Pencil foundation `b630d0c`; `prompt/full-figcraft-port` |
 | Reference | Fork, original and submodule `09e04e71765517975950403eec4cb6fbe8955359`; authorised fast-forward from `0b97f3f1` succeeded |
 | Global parity baseline | `8eb0b87646c5aef712326d6c431ccde5408630de`, unchanged |
-| Last verified | Pencil foundation:814 pure tests, strict package/tests/Next TypeScript and package build. Pen atd3c00a4:2 real Auth, Next production build and97 Chromium checks in231.3s |
-| Files in progress | `pencil-samples.ts`,11 paired/boundary fixtures, reference update and checkpoint documents |
-| Blockers | None; the complete curve-fitting branch requires further source translation before UI integration |
-| Next | Complete pinned Kurbo simplifier/fitter analysis and implementation, then Pencil controller/commands/UI and complete browser verification |
+| Last verified | Integrated Pencil:848 pure,2 real Auth, strict package/tests/Next TypeScript and package/Next production builds. All four new authenticated workflows and the performance fixture pass in the 102-check no-update run (230.1s). The final 0.28.0 build, including the FMA infinity correction, is running the same regression |
+| Files in progress | Numerical fitting, controller, engine/Canvas/Editor integration, paired and browser fixtures; uncommitted since `b630d0c` |
+| Blockers | None |
+| Next | Finish full browser regression, inspect changed screenshots, write property reports/mapping, version and commit; continue vector tools |
 | Updated | 2026-11-07 |
 
 ## Evidence and acceptance
@@ -62,3 +62,29 @@ The existing Next host owns Auth, validated identity, logout/refresh and protect
 `pencil-samples.ts` independently implements strict sample spacing and length-resampled f32 pressure, without exposing a Pencil tool. All11 focused cases and814 pure tests pass; strict package/tests/Next TypeScript and package build pass. Existing2 real Auth tests and97 Chromium checks were verified at the Pen integration, not rerun for this unintegrated pure module. No Next build or completed Pencil browser claim applies yet.
 
 One initial duplicate-length fixture compared rational4/3 against interpolation arithmetic exactly; they differ by one floating-point unit. Interior values now use14-decimal tolerance, while duplicate endpoint/tie results remain exact. Native arithmetic and thresholds were unchanged. No runtime dependency or version change. Next: corner/run splitting plus the complete subdividing fit branch, followed by the controller and authenticated browser flow.
+
+## Curve-fitting evidence checkpoint
+
+The Kurbo0.13.1 reference crate was obtained as source only and checked against the Cargo.lock SHA-256 `4b60dfc32f652b926df6192e55525b16d186c69d47876c3ead4da5cc9f8450e2`. It is outside the repository and is not executed or imported. `simplify.rs` and the default subdividing branch in `fit.rs` are reviewed. Optimised fitting is not called by Pencil and is not needed for this slice.
+
+Exact next implementation order:
+
+1. Split non-degenerate polyline segments into runs at abs(cross)>abs(dot)×1e-3. Absolute dot deliberately retains exact reversals within a run. Pass one-segment runs through as lines. Preserve move/duplicate semantics.
+2. Represent the source run with equal parameter spans per line and analytical cumulative area/moments. Fit normalised cubic candidates preserving signed area and chord-axis moment. Native candidate solving includes real parts of complex conjugate pairs from quartic factors; a real-roots-only solver is insufficient. Existing nearest-cubic polynomial isolation cannot be substituted unchanged.
+3. Preserve short-chord seven-sample line acceptance;20 interior tangent-ray samples for candidate error; the0.65 handle-length elbow/2.0 penalty slope; strict squared-error acceptance; midpoint subdivision and representational no-progress line fallback. The high-curvature distance branch also checks arc-length correspondence (210 derivative subsamples plus cubic arc-length inversion). Nearly collinear input does not justify silently omitting that branch, especially with reversals.
+4. Add analytical straight/corner/reversal/near-collinear examples and native fixture mapping before controller integration. Keep fitting out of continuous pointer handling and measure completion latency separately.
+
+This evidence preceded the implementation below; the full browser port remains active.
+
+
+## Integrated verification checkpoint
+
+Independent `fit-polynomial.ts`, `fit-candidates.ts`, `fit-polyline.ts`, `pencil-fit.ts` and `pencil-path.ts` now supply complete corner/run fitting. `fit-fma.ts` uses exact binary64 decomposition and BigInt for single-rounded multiply-add only at completion; a native near-repeated cubic-root fixture failed by1.873e-10 with separate JavaScript multiply/add and now passes its unchanged1e-12 tolerance. Quadratic/cubic/quartic examples, complex-pair real parts, analytical moments, corners, reversals, loops, inflections and dense nearest-curve checks pass. Native decision thresholds and candidate order are retained.
+
+Analytical line moments replace the equivalent native cubic-line integral evaluation. Existing adaptive Simpson integration plus bounded bisection replaces native Gaussian integration/ITP for cubic arc-length correspondence at1e-9; these are numerical equivalents, not a claim of bit-identical output. Native unscaled quartic examples use documented floating-point tolerances (1e-14 relative for ordinary coefficients, native1e-6 clustered-root bounds). Independent coefficient reconstruction and dense geometric errors test the substitutions. No Rust runtime/build/test dependency is introduced; attribution is in NOTICE.
+
+Pencil controller, native tool/brush commands, Canvas overlay, Shift+P and accessible controls are integrated. Continuous samples do not publish document/root/panel state. Browser pen pressure is delivered through Chromium's Input.dispatchMouseEvent with pointerType pen and force, reaching real pointer capture; physical stylus hardware is not tested. Mouse pressure is omitted because its0.5 value represents button state ([PointerEvent pressure](https://developer.mozilla.org/en-US/docs/Web/API/PointerEvent/pressure)). Ordinary browser event delivery is used; coalesced events are not independently replayed.
+
+848 pure tests,2 real local Auth tests, strict TypeScript and package/Next production builds pass. All three new authenticated workflows pass individually: mouse preview/one undo/save/recovery/mobile; cancellation and zoom during capture; pen pressure/native persistence. The first zoom follow-up used a point outside the zoomed viewport; the fixture now restores origin before its next stroke. Review fixed Editor command dispatch to preserve pointer capture for view/preference commands during an active path, rather than only preserving controller samples.
+
+The bounded performance fixture has10,000 total nodes,100 visible rectangles and110 measured preview frames after10 warm-ups. Initial p95/max/input are0.9/1.3/0.1ms; zero root/panel notifications and exact cancellation. A4,001-sample smooth pressure-bearing stroke completes with cubic segments in11.3ms, below the separately declared100ms completion gate. Continuous input/render retains16.7ms gates. This is not a full-host memory or arbitrary-document guarantee. All 102 checks passed without snapshot updates in 230.1s; each of ten changed existing screenshots differs only in the bottom toolbar. The 0.28.0 build adds the final FMA infinity correction. All 848 pure tests, two real Auth tests, strict TypeScript and package/Next builds pass on that revision. Its exact final browser regression is running.

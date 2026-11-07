@@ -1,5 +1,10 @@
 import type { Point } from "./geometry";
 
+/** Mouse PointerEvent.pressure is a synthetic button state, not device pressure. */
+export function pencilPointerPressure(event: Pick<PointerEvent, "pointerType" | "pressure">): number | undefined {
+  return event.pointerType === "pen" || event.pointerType === "touch" ? event.pressure : undefined;
+}
+
 /** Native Pencil accepts moves and release positions strictly beyond half a screen pixel. */
 export function shouldSamplePencil(previous: Point | undefined, point: Point, zoom: number): boolean {
   if (![point.x, point.y, zoom, ...(previous ? [previous.x, previous.y] : [])].every(Number.isFinite)) throw new Error("Pencil samples must remain finite");

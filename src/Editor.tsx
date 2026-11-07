@@ -89,8 +89,9 @@ export function Editor({ identity, capabilities, engine: suppliedEngine, recover
     const cancellingUndo = command === "edit.undo" && engine.interacting;
     setError("");
     try {
-      if (engine.pen.open && command.startsWith("tool.") && command !== "tool.pen" && command !== "tool.scaleAnchor") engine.pen.finish();
-      controller.current?.cancel(engine.pen.open && (command.startsWith("view.") || command === "tool.pen" || command === "tool.scaleAnchor"));
+      if (engine.pen.open && command.startsWith("tool.") && !["tool.pen", "tool.scaleAnchor", "tool.pencilBrush"].includes(command)) engine.pen.finish();
+      const preserve = engine.pen.open && command === "tool.pen" || (engine.pen.open || engine.pencil.active) && (command.startsWith("view.") || command === "tool.scaleAnchor" || command === "tool.pencilBrush");
+      if (!preserve) controller.current?.cancel();
       if (cancellingUndo) return;
       engine.execute(command, params);
     }
@@ -136,7 +137,7 @@ export function Editor({ identity, capabilities, engine: suppliedEngine, recover
       if (event.key.toLowerCase() === "o") command = "tool.ellipse";
       if (event.key.toLowerCase() === "l") command = event.shiftKey ? "tool.arrow" : "tool.line";
       if (event.key.toLowerCase() === "r") command = "tool.rectangle";
-      if (!event.shiftKey && event.key.toLowerCase() === "p") command = "tool.pen";
+      if (event.key.toLowerCase() === "p") command = event.shiftKey ? "tool.pencil" : "tool.pen";
       if (event.key.toLowerCase() === "v") command = "tool.move";
       if (event.key.toLowerCase() === "k") command = "tool.scale";
       if (event.shiftKey && event.key.toLowerCase() === "h") command = "object.flipH";
@@ -237,6 +238,7 @@ export function Editor({ identity, capabilities, engine: suppliedEngine, recover
           {editingVector ? <VectorToolbar engine={engine} editable={editable && !busy} dispatch={(command, params) => { dispatch(command, params); canvas.current?.focus(); }} /> : <div className="figcraft-toolbar" role="toolbar" aria-label="Tools">
             <button disabled={!editable} aria-pressed={snapshot.tool === "move"} onClick={() => { dispatch("tool.move"); canvas.current?.focus(); }}>Move</button>
             <button disabled={!editable} aria-pressed={snapshot.tool === "pen"} title="Pen · P" onClick={() => { dispatch("tool.pen"); canvas.current?.focus(); }}>Pen</button>
+            <button disabled={!editable} aria-pressed={snapshot.tool === "pencil"} title="Pencil · Shift+P" onClick={() => { dispatch("tool.pencil"); canvas.current?.focus(); }}>Pencil</button>
             <button disabled={!editable} aria-pressed={snapshot.tool === "scale"} onClick={() => { dispatch("tool.scale"); canvas.current?.focus(); }}>Scale</button>
             <button disabled={!editable} aria-pressed={snapshot.tool === "ellipse"} onClick={() => { dispatch("tool.ellipse"); canvas.current?.focus(); }}>Ellipse</button>
             <button disabled={!editable} aria-pressed={snapshot.tool === "polygon"} onClick={() => { dispatch("tool.polygon"); canvas.current?.focus(); }}>Polygon</button>

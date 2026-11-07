@@ -1803,6 +1803,105 @@ test("Pen closes, resumes endpoints and double-clicks without stray layers", asy
   expect(vectors[1].network.vertices).toHaveLength(3); expect(vectors[1].network.segments).toHaveLength(2); expect(vectors[1].network.regions).toEqual([]);
 });
 
+test("Pencil draws without React updates, commits once, saves and recovers", async ({ page }) => {
+  await login(page); const canvas = page.getByLabel("Design canvas", { exact: true });
+  await canvas.focus(); await page.keyboard.press("Shift+p");
+  const pencil = page.getByRole("button", { name: "Pencil", exact: true }); await expect(pencil).toHaveAttribute("aria-pressed", "true");
+  await expect(page.locator(".figcraft-recovery")).toHaveText("Local recovery ready");
+  const start = await canvasPoint(page, 150, 180); await page.mouse.move(start.x, start.y); await page.mouse.down();
+  const commits = await page.locator("[data-figcraft-editor]").getAttribute("data-commits");
+  for (const [x, y] of [[300, 180], [300, 300], [450, 240]]) { const p = await canvasPoint(page, x, y); await page.mouse.move(p.x, p.y, { steps: 10 }); }
+  expect(await page.locator("[data-figcraft-editor]").getAttribute("data-commits")).toBe(commits);
+  await expectCanvasPixel(page, 220, 180, [0, 0, 0, 255]);
+  await expect(canvas).toHaveScreenshot("pencil-preview.png", { animations: "disabled", maxDiffPixels: 0 });
+  await page.mouse.up(); await expect(page.getByText("1 layer", { exact: true })).toBeVisible();
+  await expect(pencil).toHaveAttribute("aria-pressed", "true");
+  await page.keyboard.press("ControlOrMeta+z"); await expect(page.getByText("0 layers", { exact: true })).toBeVisible();
+  await page.keyboard.press("ControlOrMeta+Shift+z"); await expect(page.getByText("1 layer", { exact: true })).toBeVisible();
+  const downloading = page.waitForEvent("download"); await page.getByRole("button", { name: "Save as", exact: true }).click();
+  const decoded = await decodeFigcraft(await readFile((await (await downloading).path())!));
+  const vectors = Object.values(decoded.document.nodes).filter((n): n is VectorNode => n.kind === "vector");
+  expect(vectors).toHaveLength(1); const node = vectors[0];
+  expect(node).toMatchObject({ fill: "transparent", stroke: { weight: 2, capStart: "round", capEnd: "round", join: "round", align: "center" } });
+  expect(node.stroke?.widthProfile).toBeUndefined(); expect(node.network.regions).toEqual([]);
+  const world = worldTransform(decoded.document, node.id), first = transformPoint(world, node.network.vertices[0]), last = transformPoint(world, node.network.vertices.at(-1)!);
+  expect(first.x).toBeCloseTo(150, 8); expect(first.y).toBeCloseTo(180, 8); expect(last.x).toBeCloseTo(450, 8); expect(last.y).toBeCloseTo(240, 8);
+  await expect(page.locator(".figcraft-recovery")).toHaveText("Recovery saved on this device"); await page.reload();
+  await expect(page.getByText("1 layer", { exact: true })).toBeVisible(); await resetCanvasOrigin(page);
+  await expectCanvasPixel(page, 220, 180, [0, 0, 0, 255]);
+  await page.mouse.move(10, 10); await expect(canvas).toHaveScreenshot("pencil-completed.png", { animations: "disabled", maxDiffPixels: 0 });
+  await page.setViewportSize({ width: 390, height: 844 }); await pencil.scrollIntoViewIfNeeded();
+  const box = (await pencil.boundingBox())!; expect(box.x).toBeGreaterThanOrEqual(0); expect(box.x + box.width).toBeLessThanOrEqual(390);
+  await pencil.click(); await expect(pencil).toHaveAttribute("aria-pressed", "true");
+  await page.screenshot({ path: "test-results/pencil-mobile.png", fullPage: true });
+});
+
+test("Pencil cancels clicks and interrupted strokes and preserves capture across zoom", async ({ page }) => {
+  await login(page); const canvas = page.getByLabel("Design canvas", { exact: true });
+  await page.getByRole("button", { name: "Pencil", exact: true }).click();
+  const start = await canvasPoint(page, 150, 180), end = await canvasPoint(page, 300, 240);
+  await page.mouse.click(start.x, start.y); await expect(page.getByText("0 layers", { exact: true })).toBeVisible();
+  for (const key of ["Escape", "ControlOrMeta+z", "v"]) {
+    await page.keyboard.press("Shift+p"); await page.mouse.move(start.x, start.y); await page.mouse.down();
+    await page.mouse.move(end.x, end.y, { steps: 8 }); await page.keyboard.press(key); await page.mouse.up();
+    await expect(page.getByText("0 layers", { exact: true })).toBeVisible();
+  }
+  for (const interruption of ["pointercancel", "releaseCapture"] as const) {
+    await page.keyboard.press("Shift+p"); await page.mouse.move(start.x, start.y);
+    await canvas.evaluate(node => { node.addEventListener("pointerdown", event => { node.setAttribute("data-test-pointer", String((event as PointerEvent).pointerId)); }, { once: true }); });
+    await page.mouse.down(); const pointerId = Number(await canvas.getAttribute("data-test-pointer")); await page.mouse.move(end.x, end.y);
+    if (interruption === "pointercancel") await canvas.dispatchEvent("pointercancel", { pointerId, pointerType: "mouse" });
+    else await canvas.evaluate((node, id) => node.releasePointerCapture(id), pointerId);
+    await page.mouse.move(end.x + 10, end.y); await page.mouse.up();
+    await expect(page.getByText("0 layers", { exact: true })).toBeVisible();
+  }
+  await page.keyboard.press("Shift+p"); await page.mouse.move(start.x, start.y); await page.mouse.down();
+  await page.mouse.move(end.x, end.y, { steps: 8 });
+  await page.keyboard.press("+"); await expect(canvas).not.toHaveAttribute("data-view-zoom", "1");
+  const final = await canvasPoint(page, 400, 260); await page.mouse.move(final.x, final.y); await page.mouse.up();
+  await expect(page.getByText("1 layer", { exact: true })).toBeVisible();
+  await page.keyboard.press("ControlOrMeta+z"); await expect(page.getByText("0 layers", { exact: true })).toBeVisible();
+  // Restore a visible origin after centre-anchored zoom; a new stroke proves capture was cleared.
+  await resetCanvasOrigin(page);
+  const next = await canvasPoint(page, 200, 200); await page.mouse.move(next.x, next.y); await page.mouse.down();
+  const nextEnd = await canvasPoint(page, 300, 200); await page.mouse.move(nextEnd.x, nextEnd.y); await page.mouse.up();
+  await expect(page.getByText("1 layer", { exact: true })).toBeVisible();
+});
+
+test("Pencil preview is black with native zoom weight and one-screen-pixel floor", async ({ page }) => {
+  await login(page); const canvas = page.getByLabel("Design canvas", { exact: true });
+  await page.getByRole("button", { name: "Pencil", exact: true }).click();
+  for (const [zoom, weight] of [[1, 2], [.25, 1]]) {
+    if (zoom === .25) { await page.getByRole("button", { name: "Zoom out", exact: true }).click({ clickCount: 1 }); await page.getByRole("button", { name: "Zoom out", exact: true }).click(); }
+    await expect(canvas).toHaveAttribute("data-view-zoom", String(zoom)); const box = (await canvas.boundingBox())!;
+    await page.mouse.move(box.x + 120, box.y + 250); await page.mouse.down(); await page.mouse.move(box.x + 320, box.y + 250);
+    // Summed darkness across the antialiased horizontal cross-section measures actual screen width.
+    await expect.poll(() => canvas.evaluate((node: HTMLCanvasElement) => {
+      const ctx = node.getContext("2d")!, bg = ctx.getImageData(220, 240, 1, 1).data[0], data = ctx.getImageData(220, 245, 1, 11).data;
+      let width = 0; for (let i = 0; i < data.length; i += 4) { if (data[i] !== data[i + 1] || data[i] !== data[i + 2]) return -1; width += 1 - data[i] / bg; } return width;
+    })).toBeCloseTo(weight, 1);
+    await page.keyboard.press("Escape"); await page.mouse.up(); await expect(page.getByText("0 layers", { exact: true })).toBeVisible();
+  }
+});
+
+test("Pencil records browser pen pressure and persists the tapered stroke", async ({ page, context }) => {
+  await login(page); await page.getByRole("button", { name: "Pencil", exact: true }).click();
+  const session = await context.newCDPSession(page);
+  const send = async (type: "mousePressed" | "mouseMoved" | "mouseReleased", x: number, force: number) => {
+    const point = await canvasPoint(page, x, 220);
+    await session.send("Input.dispatchMouseEvent", { type, ...point, pointerType: "pen", button: "left", buttons: type === "mouseReleased" ? 0 : 1, clickCount: type === "mouseMoved" ? 0 : 1, force });
+  };
+  await send("mousePressed", 150, .25); await send("mouseMoved", 250, .5); await send("mouseMoved", 350, 1); await send("mouseReleased", 450, 0); await session.detach();
+  await expect(page.getByText("1 layer", { exact: true })).toBeVisible();
+  const downloading = page.waitForEvent("download"); await page.getByRole("button", { name: "Save as", exact: true }).click();
+  const decoded = await decodeFigcraft(await readFile((await (await downloading).path())!));
+  const node = Object.values(decoded.document.nodes).find((n): n is VectorNode => n.kind === "vector")!;
+  expect(node.stroke?.widthProfile?.points).toHaveLength(4);
+  expect(node.stroke?.widthProfile?.points.map(p => p.scale)).toEqual([.5, 1, 2, .1]);
+  await expect(page.locator(".figcraft-recovery")).toHaveText("Recovery saved on this device"); await page.reload(); await resetCanvasOrigin(page);
+  await page.mouse.move(10, 10); await expect(page.getByLabel("Design canvas", { exact: true })).toHaveScreenshot("pencil-pressure.png", { animations: "disabled", maxDiffPixels: 0 });
+});
+
 test("vector point dimensions, shared box gestures and snapping controls survive undo and recovery", async ({ page }) => {
   const engine = new EditorEngine();
   engine.execute("vector.create", { name: "Snap target", points: [[500, 180], [600, 280], [520, 240]], closed: true });
