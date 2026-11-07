@@ -1,0 +1,39 @@
+# Pencil authoring verification
+
+React 0.28.0 implementation `7ad8a5ab1783e6cf97715349b0cdf19886ca7793` on `prompt/full-figcraft-port`, following foundation `b630d0c`. Reference `09e04e71765517975950403eec4cb6fbe8955359`; global baseline `8eb0b87646c5aef712326d6c431ccde5408630de` is unchanged. Full-product parity and publication remain incomplete. The final local regression passed against this committed implementation.
+
+## Implemented behaviour
+
+Pencil captures page-coordinate samples strictly beyond half a screen pixel, including the release position. A click creates no layer. The transient black polyline stays outside document history and React state. Release creates one selected open Vector with no fill, black 2-unit centred stroke and round caps/joins; one undo removes the stroke. The first point determines its containing frame and all fitted coordinates become parent-local.
+
+Independent TypeScript corner/run simplification preserves pinned Kurbo 0.13.1 default decisions: 1e-3 corner threshold, 0.75 fitting accuracy, analytical moments, area/moment cubic candidates, complex-pair real parts, tangent-ray error, high-curvature arc correspondence, arm penalties, midpoint subdivision and representational termination. Exact binary64 multiply-add preserves native near-repeated cubic-root precision without a Rust runtime. The numerical routines carry attribution in NOTICE.
+
+Pressure is rounded to f32 and resampled by source arc length at up to 32 positions. Missing/non-finite values use medium pressure where a profile is needed; width factors clamp 0.1–2. Browser mouse button pressure is omitted; pen/touch pressure is retained. Native `tool.pencilBrush` reads on omitted preset, clears on null and applies the existing brush metadata only to subsequent strokes. Invalid presets fail atomically; extra read fields are ignored as upstream does.
+
+Shift+P and labelled Pencil controls expose the tool. Escape, undo during preview, tool changes, pointer cancellation, lost capture and identity revocation abandon unfinished strokes. View/preference commands preserve active samples and pointer capture. Native save/open and browser recovery retain completed geometry/profile/brush data.
+
+## Evidence and corrections
+
+848 pure tests pass, including 45 new Pencil/numerical fixtures since the verified Pen slice. Two real local Supabase Auth tests pass separately. Strict package/tests/Next TypeScript and package/Next production builds pass. Four authenticated Pencil workflows and the bounded performance fixture pass individually. The final no-update Chromium regression passed all 102 checks in 219.9s with no failures, skips or flakes. A subsequent test-only extension also verifies Shift-held free angles and exact half-unit page endpoints with snapping enabled in the same running build; the focused flow and strict TypeScript pass.
+
+The browser tests cover mouse preview pixels, no React frame updates, one undo/redo, native download, recovery, mobile bounds, clicks, Escape/undo/tool cancellation, zoom during capture, and Chromium pen pressure with a persisted tapered stroke. Pointer-cancel and actual loss-of-capture cases pass. A cross-section pixel fixture measures two screen pixels at 100% and one at 25% zoom. The first zoom follow-up accidentally clicked outside the centre-zoomed canvas; the corrected fixture uses visible page positions at 200%. Review corrected command dispatch so preserving a path also preserves its captured pointer. Native brush reads were corrected to ignore extra fields. The first cancellation probe registered its listener asynchronously and missed pointer-down; the fixture now awaits listener installation before input. An intermediate browser attempt overlapped a local rebuild and failed at host login. The owned server was stopped and restarted from the completed build; all five affected/previously skipped workflows then passed.
+
+The 10,000-total-node fixture has 100 visible rectangles, 10 warm-ups and 110 measured preview frames. Final p95/max/input p95 are 0.8/1.2/0.1ms with zero root/panel notifications and exact cancellation. A 4,001-sample smooth pressure-bearing stroke creates cubic segments with one undo in 11.6ms. Continuous input/render must stay below 16.7ms p95; completion has a separate 100ms gate. These measurements do not establish full-host memory, unrestricted scale or long-session stability.
+
+Node 24.20.0, TypeScript 7.0.2, React 19.3.1, Next 16.4.5 and Playwright 1.65.0; Chromium 1440×900/DPR1, mobile 390×844. Final main-library output 651.74 kB (182.27 kB gzip), separate from the full Next download and RAM.
+
+## Substitutions and limitations
+
+Browser Pointer Events, Canvas drawing and labelled HTML controls replace native input/widgets. Chromium's pen protocol supplies real pressure-bearing pointer events and capture; physical stylus hardware is not exercised. Ordinary pointer events are sampled without separately replaying coalesced events. Mouse pressure 0.5 denotes button state, as documented by [MDN](https://developer.mozilla.org/en-US/docs/Web/API/PointerEvent/pressure).
+
+Analytical line integrals replace native cubic-line moment evaluation. Existing adaptive Simpson integration and bounded bisection replace native Gaussian/ITP arc-length calculations at 1e-9. These are tested numerical equivalents, not bit-identical native output. Native cubic fixtures retain 1e-12 absolute tolerance; ordinary quartic examples use 1e-14 relative tolerance, clustered cases native 1e-6 bounds. Independently generated quartics reconstruct coefficients within 1e-13; candidate recovery uses 1e-7 and 101 dense nearest-curve samples test accuracy + 1e-8. The fitter's sampled error is an approximate Fréchet criterion, not a global geometric proof.
+
+Full native chrome/icons and Draw/Design/Prototype mode integration remain in their roadmap families. Marker/Highlighter use board-specific behaviour and remain required there. No speculative Pencil brush picker was added: inspected native UI exposes no such picker. Full browser-relevant parity remains the objective.
+
+## Infrastructure and continuation
+
+Both authorised Graphify repositories were queryable during Pencil evidence gathering. Rust resolves pressure/profile/finish symbols; hosted React remains four README nodes at b3b8a1b. Current source is authoritative. Local AST refreshed to 1,743  nodes / 8,223 edges; two SQL parser omissions remain; the final incremental scan also identified one symbol-free test module. Scoped Supabase MCP read succeeded with no public application tables. Pencil needs no new schema, profiles, grants, RLS, Storage or Realtime; online files and collaboration remain mandatory later work.
+
+The host owns Auth/session validation and the engine receives provider-neutral identity/capabilities. No provider boundary, credential or hosted resource was changed. No Rust code is executed, imported or bundled. A final arithmetic review corrected a finite overflowing product plus an opposite infinite addend: the fused result must retain the infinite addend, rather than produce NaN from a separately rounded product. Two signed boundary assertions pass with all 24 fitting tests. All ten changed prior screenshots differ only within the bottom toolbar (x166–832, y727–788 at 1000×804); no pixels elsewhere changed. Three new desktop captures and the mobile control capture were inspected. The local HTML matrix renders with 32 property rows and 13 columns; all evidence links resolve. The owned Next process was stopped. Continue with variable-width point editing. No deployment, branch push or main merge is authorised at this stage; no user action is needed.
+
+See the [recorded final browser metrics](26-11-07-pencil-measurements.json), [32-property matrix](26-11-07-pencil-authoring-parity.html), [plan](../planning/26-11-07-pencil-authoring.md) and [master roadmap](../planning/26-11-06-complete-figcraft-port.md).

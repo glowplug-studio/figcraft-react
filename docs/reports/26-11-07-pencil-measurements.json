@@ -1,0 +1,41 @@
+{
+  "implementationCommit": "7ad8a5ab1783e6cf97715349b0cdf19886ca7793",
+  "referenceCommit": "09e04e71765517975950403eec4cb6fbe8955359",
+  "version": "0.28.0",
+  "environment": {
+    "node": "24.20.0",
+    "typescript": "7.0.2",
+    "react": "19.3.1",
+    "next": "16.4.5",
+    "playwright": "1.65.0",
+    "browser": "Chromium",
+    "viewport": [
+      1440,
+      900
+    ],
+    "deviceScaleFactor": 1
+  },
+  "browser": {
+    "startTime": "2026-11-07T01:46:54.368Z",
+    "duration": 219893.84600000002,
+    "expected": 102,
+    "skipped": 0,
+    "unexpected": 0,
+    "flaky": 0
+  },
+  "pencilPerformance": {
+    "nodes": 10000,
+    "visibleLayers": 100,
+    "measuredFrames": 110,
+    "rootNotifications": 0,
+    "chromeNotifications": 0,
+    "restored": true,
+    "p95": 0.800000011920929,
+    "max": 1.2000000476837158,
+    "inputP95": 0.10000002384185791,
+    "samples": 4001,
+    "completionMs": 11.599999964237213,
+    "completed": true,
+    "undoDepth": 1
+  }
+}

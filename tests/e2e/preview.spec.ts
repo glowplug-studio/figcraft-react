@@ -1861,11 +1861,18 @@ test("Pencil cancels clicks and interrupted strokes and preserves capture across
   const final = await canvasPoint(page, 400, 260); await page.mouse.move(final.x, final.y); await page.mouse.up();
   await expect(page.getByText("1 layer", { exact: true })).toBeVisible();
   await page.keyboard.press("ControlOrMeta+z"); await expect(page.getByText("0 layers", { exact: true })).toBeVisible();
-  // Restore a visible origin after centre-anchored zoom; a new stroke proves capture was cleared.
-  await resetCanvasOrigin(page);
-  const next = await canvasPoint(page, 200, 200); await page.mouse.move(next.x, next.y); await page.mouse.down();
-  const nextEnd = await canvasPoint(page, 300, 200); await page.mouse.move(nextEnd.x, nextEnd.y); await page.mouse.up();
+  // These half-unit page positions are visible integer screen pixels at 200%. Pencil ignores
+  // pixel snapping and Shift's angle constraint, unlike the neighbouring shape/Pen tools.
+  await expect(page.getByRole("button", { name: "Snap to pixel grid", exact: true })).toHaveAttribute("aria-pressed", "true");
+  const next = await canvasPoint(page, 410.5, 300.5); await page.mouse.move(next.x, next.y); await page.keyboard.down("Shift"); await page.mouse.down();
+  const nextEnd = await canvasPoint(page, 479.5, 329.5); await page.mouse.move(nextEnd.x, nextEnd.y); await page.mouse.up(); await page.keyboard.up("Shift");
   await expect(page.getByText("1 layer", { exact: true })).toBeVisible();
+  const downloading = page.waitForEvent("download"); await page.getByRole("button", { name: "Save as", exact: true }).click();
+  const decoded = await decodeFigcraft(await readFile((await (await downloading).path())!));
+  const vector = Object.values(decoded.document.nodes).find((node): node is VectorNode => node.kind === "vector")!;
+  const matrix = worldTransform(decoded.document, vector.id);
+  expect(transformPoint(matrix, vector.network.vertices[0])).toEqual({ x: 410.5, y: 300.5 });
+  expect(transformPoint(matrix, vector.network.vertices.at(-1)!)).toEqual({ x: 479.5, y: 329.5 });
 });
 
 test("Pencil preview is black with native zoom weight and one-screen-pixel floor", async ({ page }) => {

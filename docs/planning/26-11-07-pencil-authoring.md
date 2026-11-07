@@ -4,16 +4,16 @@
 
 | Field | Value |
 |---|---|
-| Status | In progress; Pencil implemented, final browser regression/report gate pending; full product remains incomplete |
-| Phase | 5–6: complete fitting/controller/UI integrated; authenticated browser and performance verification |
-| Base / branch | Verified Pen `d3c00a4`; internal Pencil foundation `b630d0c`; `prompt/full-figcraft-port` |
-| Reference | Fork, original and submodule `09e04e71765517975950403eec4cb6fbe8955359`; authorised fast-forward from `0b97f3f1` succeeded |
+| Status | Pencil verified locally; full product remains incomplete |
+| Phase | 7 complete: property reports, mapping, visual review and local regression passed |
+| Base / branch | Verified implementation `7ad8a5a`, foundation `b630d0c`; `prompt/full-figcraft-port` |
+| Reference | Fork, original and submodule `09e04e71765517975950403eec4cb6fbe8955359` |
 | Global parity baseline | `8eb0b87646c5aef712326d6c431ccde5408630de`, unchanged |
-| Last verified | Integrated Pencil:848 pure,2 real Auth, strict package/tests/Next TypeScript and package/Next production builds. All four new authenticated workflows and the performance fixture pass in the 102-check no-update run (230.1s). The final 0.28.0 build, including the FMA infinity correction, is running the same regression |
-| Files in progress | Numerical fitting, controller, engine/Canvas/Editor integration, paired and browser fixtures; uncommitted since `b630d0c` |
+| Last verified | 848 pure, 2 real Auth, strict TypeScript and package/Next production builds; 102/102 Chromium in 219.9s with no skips/flakes/failures; extended Shift/half-unit browser assertion also passes |
+| Files in progress | None in Pencil implementation; final reports and mapping accompany the evidence commit |
 | Blockers | None |
-| Next | Finish full browser regression, inspect changed screenshots, write property reports/mapping, version and commit; continue vector tools |
-| Updated | 2026-11-07 |
+| Next | Variable-width point editing: slice-level upstream sync, Graphify/Supabase evidence, mapping and vertical implementation |
+| Updated | 2026-11-07T08:51+07:00 |
 
 ## Evidence and acceptance
 
@@ -88,3 +88,8 @@ Pencil controller, native tool/brush commands, Canvas overlay, Shift+P and acces
 848 pure tests,2 real local Auth tests, strict TypeScript and package/Next production builds pass. All three new authenticated workflows pass individually: mouse preview/one undo/save/recovery/mobile; cancellation and zoom during capture; pen pressure/native persistence. The first zoom follow-up used a point outside the zoomed viewport; the fixture now restores origin before its next stroke. Review fixed Editor command dispatch to preserve pointer capture for view/preference commands during an active path, rather than only preserving controller samples.
 
 The bounded performance fixture has10,000 total nodes,100 visible rectangles and110 measured preview frames after10 warm-ups. Initial p95/max/input are0.9/1.3/0.1ms; zero root/panel notifications and exact cancellation. A4,001-sample smooth pressure-bearing stroke completes with cubic segments in11.3ms, below the separately declared100ms completion gate. Continuous input/render retains16.7ms gates. This is not a full-host memory or arbitrary-document guarantee. All 102 checks passed without snapshot updates in 230.1s; each of ten changed existing screenshots differs only in the bottom toolbar. The 0.28.0 build adds the final FMA infinity correction. All 848 pure tests, two real Auth tests, strict TypeScript and package/Next builds pass on that revision. Its exact final browser regression is running.
+
+
+## Verified checkpoint
+
+Implementation `7ad8a5a`, React 0.28.0: all 102 final no-update Chromium checks passed in 219.9s, without skips, flakes or failures. Final 10,000-node preview p95/max/input p95: 0.8/1.2/0.1ms, with zero root/panel notifications and exact cancellation. A 4,001-sample stroke completed in 11.6ms with cubic geometry and one undo. Signed infinite-addend FMA boundaries, Shift-held free angles and unsnapped half-unit coordinates also pass. Ten changed prior screenshots are confined to the bottom toolbar. See the [report](../reports/26-11-07-pencil-authoring.md) and [property matrix](../reports/26-11-07-pencil-authoring-parity.html). No publication or user action. Continue variable-width point editing.

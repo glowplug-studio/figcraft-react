@@ -222,3 +222,19 @@ Reference `0b97f3f1801a9b7b96fd7a4f3c0942a3f1a676f3`; React0.27.0, reviewed base
 | `cmd/view.rs::tool`, `tool.scaleAnchor`; Pen catalogue/keymap | `EditorEngine.execute`, `Editor`, `VectorToolbar`, `CanvasController` | Tool switches finish; Scale-anchor preference preserves path; labelled Pen/P controls and mobile bounds. Full native icons/chrome and later mode transitions remain required |
 
 Engine paths are under `original/figcraft/crates/engine/src`; UI paths under `original/figcraft/crates`. Local AST has1,676 nodes/7,938 edges. Hosted Rust graph resolves pinned Pen symbols; hosted React remains README-only at `b3b8a1b`, so current local source is authoritative. Browser Canvas/pointer capture/HTML controls are explicit substitutions. No provider/schema changes. Pencil, regions, width editing, booleans and other master-roadmap families remain required.
+
+
+## Pencil authoring — 2026-11-07
+
+Reference `09e04e71765517975950403eec4cb6fbe8955359`; verified implementation `7ad8a5a`, sampling foundation `b630d0c`. All 102 Chromium checks pass in 219.9s on React 0.28.0. The global baseline is unchanged. The [property matrix](../reports/26-11-07-pencil-authoring-parity.html) links paired fixtures, authenticated Chromium workflows and performance evidence. Engine paths below are under `original/figcraft/crates/engine/src`.
+
+| Source / symbol | Independent TypeScript target | Observable equivalence / confidence |
+|---|---|---|
+| `canvas/tools/{pointer,drag,draw}.rs` Pencil input; `pen.rs::pressure_profile` | `PencilInteraction`, `shouldSamplePencil`, `pencilPressureProfile`, `pencilPointerPressure` | Strict half-pixel spacing, final release, f32 length-resampled pressure, mouse omission. Paired native pressure fixture and browser tapered-file capture; High for browser-covered properties. |
+| `canvas/tools/pen.rs::pencil_finish`, `handles.rs::PENCIL_STROKE` | `pencilPath`, `PencilInteraction.up`, `node.create` | First-point frame, inverse parent transform, open unfilled black round stroke, one undo. Rotated-parent geometry is paired-only Medium; mouse/pressure completion and save/recovery High. |
+| Kurbo 0.13.1 `simplify.rs::{simplify_bezpath,SimplifyBezPath}`, `fit.rs::{fit_to_bezpath,fit_to_cubic,CurveDist}` | `simplifyPencil`, `FittingPolyline`, `fitPencilRun`, `FittingDistance` | Native corner threshold, pass-through lines, moments, tangent rays, arc correspondence, penalties, subdivision. Dense independent geometric checks; Medium for numerical equivalence. |
+| Kurbo `fit.rs::cubic_fit`; `common.rs` quadratic/cubic/quartic factor routines | `cubicFitCandidates`, `fitQuadratic`, `fitCubicRoots`, `fitQuarticFactors`, `fitMultiplyAdd` | Native candidate ordering/complex real parts, polynomial fixtures, correctly rounded arithmetic and independent coefficient reconstruction. Medium; no independent native executable was used. |
+| `cmd/view.rs::tool.pencilBrush`; `brush_tests` | `EditorEngine.execute`, existing `parseBrush` and `wireBrush` | Omitted preset read, null clear, future strokes only, invalid preset atomicity and brush/profile round trip. Medium; no native brush picker was found or invented. |
+| `ui-egui/src/canvas/overlays.rs::pen_overlay`, `canvas_fixes_tests`; native Pencil keymap | `PencilInteraction.draw`, `CanvasController`, `Editor` | Black polyline with max(2 × zoom, 1) screen width; no anchor dots; actual capture/cancel/lost-capture and zoom preservation. Four authenticated workflows, desktop screenshots and mobile bounds. High for these interactions. |
+
+Analytical line integrals and adaptive Simpson/bisection replace equivalent native numerical procedures; tolerances and precision limits are documented in the [verification report](../reports/26-11-07-pencil-authoring.md). Hosted React Graphify remains README-only. No schema or provider change applies. Width-point editing, regions, booleans and the remaining master roadmap stay required.

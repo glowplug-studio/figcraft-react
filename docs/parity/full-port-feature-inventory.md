@@ -45,7 +45,7 @@ Upstream test evidence: [`view_behaviour_tests`](../../original/figcraft/crates/
 
 ### 4. Vector authoring and geometry
 
-Status: **Partial**. Rounded Rectangle/Frame and Ellipse/arc/ring geometry are verified; [ellipse evidence](../reports/26-11-07-ellipse-arcs-parity.html). Vector authoring and other shapes below remain required.
+Status: **Partial**. Rounded Rectangle/Frame and Ellipse/arc/ring geometry are verified; [ellipse evidence](../reports/26-11-07-ellipse-arcs-parity.html). Polygon/Star, Line/Arrow, vector networks, point editing, transforms, Pen and Pencil now have bounded local verification. See the [Pen](../reports/26-11-07-pen-authoring-parity.html) and [Pencil](../reports/26-11-07-pencil-authoring-parity.html) reports. Regions, width-point gestures, booleans, shape builder and the remaining geometry operations below are still required.
 
 Pen/pencil; vertices/handles/mirroring/smoothing; region selection/painting, cuts/joins and deletion/healing; lasso/transforms; variable-width points; booleans/flatten/outline stroke/winding/offsets; shape-builder region merge/remove and paint preservation. Dependencies: geometry/path operations, renderer, selection and history.
 
@@ -54,7 +54,7 @@ Upstream test evidence: [`vector_behaviour_tests`](../../original/figcraft/crate
 
 ### 5. Paints, images, strokes and effects
 
-Status: **Partial**. Native float colours, rectangle solid-paint stacks and basic layer/page appearance are verified in the [colour report](../reports/26-11-06-solid-colour-parity.html). Line/Arrow and uniform solid strokes have [bounded property evidence](../reports/26-11-07-line-strokes-parity.html); Per-side Rectangle/Frame strokes have [bounded property evidence](../reports/26-11-07-per-side-strokes-parity.html); variable-width profiles have [bounded property evidence](../reports/26-11-07-width-profiles-parity.html); procedural brushes have [bounded property evidence](../reports/26-11-07-brushes-parity.html); Pencil pressure, vector width-point gestures and remaining paint/image/effect properties below are required.
+Status: **Partial**. Native float colours, rectangle solid-paint stacks and basic layer/page appearance are verified in the [colour report](../reports/26-11-06-solid-colour-parity.html). Line/Arrow and uniform solid strokes have [bounded property evidence](../reports/26-11-07-line-strokes-parity.html); Per-side Rectangle/Frame strokes have [bounded property evidence](../reports/26-11-07-per-side-strokes-parity.html); variable-width profiles have [bounded property evidence](../reports/26-11-07-width-profiles-parity.html); procedural brushes have [bounded property evidence](../reports/26-11-07-brushes-parity.html); [Pencil pressure](../reports/26-11-07-pencil-authoring-parity.html) is verified; vector width-point gestures and remaining paint/image/effect properties below are required.
 
 Ordered fills/strokes/effects; solid/gradient/pattern/image paints; crop/adjustment/presets; blending/masks/pass-through; custom dashes/caps/brush/variable width; shadows/blur/progressive blur/glass/noise/texture. P3 value storage and sRGB proofing do not establish true P3 canvas output. Dependencies: properties, colour, geometry, renderer and resources.
 
