@@ -43,3 +43,14 @@ The reference advanced by 35 commits across 24 files, with 454 insertions and 61
 | `f797cbe0`, `acbc9882` | .fig/Kiwi decoder. Reject duplicate schema field IDs. Valid fixtures require distinct IDs. Architecture guide correction `cd77b017` describes existing support. |
 | `facc2a21`, `2c92a169`, `a63f0d79`, `bae4a4e8` | Localised chrome. Match script fallback for Ethiopic and Indic scripts, CJK path for Bengali/Thai, and 43 Finnish labels. |
 | `853e8c6c` | Minimized Wayland window control is native process/window behaviour. Check browser command delivery independently when integrating the host command surface. |
+
+## Reference 894d0246 to e9fc975a
+
+The fork advanced by 26 commits, 44 files, 1,058 insertions and 138 deletions. Four commits arrived during the fast-forward. Graphify's Rust graph subsequently reached 7522c39b.
+
+| Native evidence | Required work |
+|---|---|
+| `367f188b`, `56ad0ba1`, `90bec333`, `85a11f04`; place_crosshair_tests.rs | Browser keyboard placement. Arrows move a per-document/page crosshair, Enter places supported shapes or frames, pointer placement clears it, repeat tool selection retains it, view pans to follow it, and board shapes use it. Include the translated label. |
+| `95d71a68`, `44f9eccb`, `4cd01f0a`; text/layout.rs and breaks.rs | CJK justification, grapheme-safe gaps, RTL run edges and nested bidirectional embeddings. |
+| `deee3d8a`; format/sketch/text.rs | Bound total output characters from overlapping Sketch text runs. |
+| `000d39b0`, `f56e30e7`, `099cc037` | Closed vector corner smoothing, rendered and hit-test outlines, per-region fills, simplify/offset and SVG/PDF/.fig/Penpot output. Audit the earlier vector rendering slice against the new smoothing behaviour. The existing zero-smoothing radius case remains the reconnect fixture. |

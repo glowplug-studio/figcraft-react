@@ -246,3 +246,5 @@ Supported subtree duplication and repeated offsets: [property report](../reports
 Polygon/Star geometry, properties, radius/ratio handles and native/recovery flows: [property report](../reports/26-11-07-polygon-star-parity.html). Full shape/vector/stroke and product parity remain incomplete.
 
 Drawing, moving and resizing preserve fractional object targets after grid snapping at 4b86d41. Frame/Section/Slice drag creation remains outstanding. [Coverage](../reports/26-11-07-snap-priority-parity.html)
+
+Command validation, exact layer reorder, cap diagnostics and bounded group-cycle lookup are verified at 2a37b75. [Coverage](../reports/26-11-07-command-validation-parity.html)

@@ -17,3 +17,7 @@ Implement source-defined parsing and one in-parent order operation, wire existin
 ## Integrated checkpoint
 
 Phase 6. The Layers buttons dispatch node.reorder and preserve geometry, selection and undo. All five native cases have paired TypeScript fixtures, with valid conversions, SVG path precedence, the exclusive 1e9 index limit, stable redo after rejection, native output and a cyclic parent transform. Strict file loading continues to reject structural cycles. 865 pure tests, two local Auth tests, strict TypeScript and both production builds passed. The authenticated Chromium workflow observed overlapping layers change colour and order, undo/redo, native download and persisted recovery. The full Chromium run is in progress. The next action is the per-property evidence report and vector loop reconnection.
+
+## Verified checkpoint
+
+At `2a37b75`, 105/105 Chromium checks passed in 223.1 seconds, with zero skips, failures and flakes. [Property evidence](../reports/26-11-07-command-validation-parity.html). Proceed to vector reconnection and Join.

@@ -1,0 +1,15 @@
+# Vector reconnection and Join
+
+React base 2a37b75. Original and fork reference e9fc975aa6a6fbc7277948d46af6f60e9bebf640. Global baseline 8eb0b876. The exact change history for loop repair is de881846, 9ff2105d and cacf73a0. These corrections affect Pen and Join through a shared topology operation.
+
+| Native behaviour and symbols | TypeScript owner | Paired acceptance |
+|---|---|---|
+| vectoredit/ops.rs::connect, path_between | connectVectorPoints | Preserve existing region properties, hole winding and loop order. Insert the new segment at the gap only if consecutive segments including wraparound share an endpoint. Leave disordered or partially matching loops intact. Keep shortest-path ordering for new regions. |
+| ops.rs::join, merge_vertices, away | vector point joining, mergeVertices, connectVectorPoints | Sorted unique point selection. Merge two points closer than 0.5. Otherwise pair the lowest selected endpoint with its nearest eligible partner. For exactly two points include interior vertices. Smooth join uses the reverse of existing handle or chord direction, at one third of the gap. |
+| vectoredit.rs::join_cmd, cmd/structure.rs::join | executeVectorEdit, executeVector and EditorEngine | While editing, join the active vector’s selected points, count joins, clear segment selection. Outside editing, close a single unfilled vector of at least three vertices, otherwise preserve it. Multiple layers use the native Flatten path. |
+| keymap.rs, catalog.rs and key handling | Editor and LayerPanel | Cmd/Ctrl+J and Shift+Cmd/Ctrl+J, plus both existing Vector operation labels. One undo per command. Verify native download, reload, rendered hole and actual keyboard routing. |
+| Native chamfer, repaired-hole and out-of-order fixtures | vector-pen and region fill/outline tests | Exercise both end orders, retained region paints, fill hit testing and the cut/rounded rectangle. Include the upstream winding permutations and a long linear chain. |
+
+Both remote graphs are queryable. Rust at 7522c39b confirmed join_cmd calls ops::join. Its graph test lookup supplied an unrelated same-name match. React impact was unresolved on its four-node README index. Current pinned source owns the contract. The scoped Supabase connection returned no public tables. Joining local geometry needs the existing host Auth/capability, editor transaction, native file and recovery only. No new backend schema or live protocol.
+
+Implement topology and paired fixtures first, then dual command dispatch, shortcuts/controls and authenticated flow. Preserve selection indices after merges using existing clamping. Avoid repeated immutable network copies during large joins where practical. Retain the existing 10,000-node performance gates, and check complete shape/region/paint output. Run pure, Auth, strict TypeScript, builds, full Playwright and self-contained property report. Rollback to 2a37b75. Closed-vector smoothing from the subsequent incoming range requires its own rendering, hit-test and interoperability checks. Further work includes width-point editing, region operations and the remaining roadmap.

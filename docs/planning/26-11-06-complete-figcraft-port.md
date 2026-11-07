@@ -5,17 +5,17 @@
 | Field | Current value |
 |---|---|
 | Overall status | In progress; full parity is not implemented |
-| Active slice | Command validation and layer reorder |
-| Active phase | Phase 6. [Command validation](26-11-07-command-validation.md) integrated. Focused Chromium passed, complete regression running. |
-| Upstream baseline | Current reference `894d02464325fce04bd7c82fdc7953319ca52df4`. Supported global baseline `8eb0b87646c5aef712326d6c431ccde5408630de`. |
-| Branch and last verified commit | `prompt/full-figcraft-port`; verified snap priority `4b86d41`, Pen anchor implementation `6ffb65a`, reference plan `eba0174`; verified Pencil `7ad8a5a`; verified Pencil foundation `b630d0c`; verified Pen `d3c00a4`; verified internal Pen foundation `653e4a4`; verified point transforms/snapping `4a762cd`; verified vector authoring `adc59d4`; verified internal authoring primitives `74fbbb0`; verified vector foundation `154f5a7`; verified brushes `d3f7934`; verified width profiles `5f035a2`; verified per-side strokes `e21aaf0`; verified Line/strokes `0ca7c35`; verified Polygon/Star `f4db7fc`; verified ellipses `f21fe2b`; verified corners `37ad314`; verified transforms `cc26af1`; verified canvas move `0d34280`; verified duplication `f6dfc3f`; verified smart selection `3326d26`; verified rotations `92062ca`; verified sizing `c6b8c71`; verified arrangement `783a694`; verified viewport `d0fae6c`; verified frames `3e7943a`; verified nested groups `e81ba76`; verified colour `bfa5dd8`; affine `080fc27`, outline check `2404d6b`, reports `ff29f38`; pages `6c988a5`, persistence `41d467b`; integration `fc3b4a6` from updated dev plus rectangle branch |
+| Active slice | Vector loop reconnection and Join / Smooth join |
+| Active phase | Phase 4. Implement the [vector join plan](26-11-07-vector-join.md) from the paired native fixtures. |
+| Upstream baseline | Current reference `e9fc975aa6a6fbc7277948d46af6f60e9bebf640`. Supported global baseline `8eb0b87646c5aef712326d6c431ccde5408630de`. |
+| Branch and last verified commit | `prompt/full-figcraft-port`; verified command validation `2a37b75`, verified snap priority `4b86d41`, Pen anchor implementation `6ffb65a`, reference plan `eba0174`; verified Pencil `7ad8a5a`; verified Pencil foundation `b630d0c`; verified Pen `d3c00a4`; verified internal Pen foundation `653e4a4`; verified point transforms/snapping `4a762cd`; verified vector authoring `adc59d4`; verified internal authoring primitives `74fbbb0`; verified vector foundation `154f5a7`; verified brushes `d3f7934`; verified width profiles `5f035a2`; verified per-side strokes `e21aaf0`; verified Line/strokes `0ca7c35`; verified Polygon/Star `f4db7fc`; verified ellipses `f21fe2b`; verified corners `37ad314`; verified transforms `cc26af1`; verified canvas move `0d34280`; verified duplication `f6dfc3f`; verified smart selection `3326d26`; verified rotations `92062ca`; verified sizing `c6b8c71`; verified arrangement `783a694`; verified viewport `d0fae6c`; verified frames `3e7943a`; verified nested groups `e81ba76`; verified colour `bfa5dd8`; affine `080fc27`, outline check `2404d6b`, reports `ff29f38`; pages `6c988a5`, persistence `41d467b`; integration `fc3b4a6` from updated dev plus rectangle branch |
 | Completed slices | Rectangle/host-auth, bounded native persistence/recovery, supported-model pages, affine rectangle geometry/selection and solid appearance, plus nested group hierarchy, Frame containers, movement/transform gestures, rounded corners, ellipse/arc/ring and Polygon/Star editing verified locally; Line/Arrow and uniform solid strokes also verified; per-side Rectangle/Frame strokes, variable-width profiles and procedural brushes verified; vector networks, solid region/stroke rendering and Flatten/Reverse also verified; foundation commit `154f5a7` |
 | Remaining slices | Every row below except the integrated foundation; static inventory entries remain unverified until mapped and tested |
-| Tests last passed | Validation commands: 865 pure, two real local Auth, strict TypeScript, library/Next production builds and authenticated layer reorder with save/recovery. Last complete Chromium suite 104/104 (snap 4b86d41). |
-| Files currently in progress | Command validation evidence and release-build browser verification. |
+| Tests last passed | At validation implementation 2a37b75, 865 pure, two real local Auth tests, strict TS, both production builds and 105/105 Chromium passed in 223.1s. |
+| Files currently in progress | Vector join topology, edit command, layer command, keyboard and menu targets. |
 | Blockers | No implementation blocker. Graphify authentication restored; hosted React index remains stale; current local source is authoritative |
-| Exact next action | Record full regression and hierarchy performance results, then implement upstream reconnection of broken vector region loops. |
-| Last updated | 2026-11-07T09:25+07:00 |
+| Exact next action | Port conditional region reconnection and Join/Smooth join across point-edit and layer modes. Verify holes, smooth tangents, command routes and saved data. |
+| Last updated | 2026-11-07T09:30+07:00 |
 
 ## Scope and continuation
 

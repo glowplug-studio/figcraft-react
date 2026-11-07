@@ -255,3 +255,5 @@ See the [property report](../reports/26-11-07-pen-anchor-undo-parity.html). The 
 | Port scope | Native evidence | TypeScript target | Verification |
 |---|---|---|---|
 | Fractional target priority | `39c58338`, draw.rs::draw_drag, drag.rs move/resize, transform_behaviour_tests::snapping_to_layers_wins_over_the_pixel_grid | DrawInteraction, MoveInteraction and TransformInteraction | [Paired fixtures](../../tests/parity/snap-priority.test.ts) and [browser evidence](../reports/26-11-07-snap-priority-parity.html), implementation 4b86d41 |
+
+`1aa6b81d`, `65060159`, `41ec33ee`, `5244b007` and `421a8e51` map respectively to createLayer, executePage/parseIndex, executeStructure, setStrokeProperties and frameRelative. [Ten verified command/geometry properties](../reports/26-11-07-command-validation-parity.html), React 2a37b75.
