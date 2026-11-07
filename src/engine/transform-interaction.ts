@@ -52,13 +52,13 @@ export class TransformInteraction {
         this.engine.previewRotate(g.resize.ids, -angle, g.pivot); return;
       }
       if (!g.moved && Math.hypot(point.x - g.start.x, point.y - g.start.y) * this.engine.getView().zoom < 3) return;
+      const matrix = g.resize.frame.matrix;
+      if (!g.scale && this.engine.getView().snapPixel !== false && Math.abs(matrix[1]) < 1e-7 && Math.abs(matrix[2]) < 1e-7) point = { x: pixelRound(point.x), y: pixelRound(point.y) };
       this.#guides = [];
       if (this.engine.getView().snapObjects !== false && !modifiers.ctrlKey && !modifiers.metaKey) {
         // Native resize gathers against the current preview: refitted parent bounds may change.
         const snapped = g.targets.get(this.engine.getRenderDocument()).snapPoint(point, 5 / this.engine.getView().zoom); point = snapped.point; this.#guides = snapped.guides;
       }
-      const matrix = g.resize.frame.matrix;
-      if (!g.scale && this.engine.getView().snapPixel !== false && Math.abs(matrix[1]) < 1e-7 && Math.abs(matrix[2]) < 1e-7) point = { x: pixelRound(point.x), y: pixelRound(point.y) };
       this.#hint = this.engine.previewResize(g.resize, point, modifiers.shiftKey, modifiers.altKey, modifiers.ctrlKey || modifiers.metaKey, g.scale);
       g.moved = true;
     } catch (error) { this.#fail(error); }

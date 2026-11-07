@@ -1,6 +1,6 @@
 import { isDrawTool, type DrawShapeKind } from "./document";
 import type { EditorEngine } from "./editor";
-import { drawnLine, drawnRectangle, type Point } from "./geometry";
+import { drawnLine, drawnRectangle, pixelRound, type Point } from "./geometry";
 import { dropParent } from "./canvas-selection";
 import { SnapTargets, type Guide } from "./snapping";
 import { drawGuides } from "./measurements";
@@ -21,10 +21,13 @@ export class DrawInteraction {
     const g = this.#gesture; if (!g) return;
     if (!this.engine.interacting) { this.#gesture = undefined; this.#guides = []; return; }
     try {
+      const view = this.engine.getView(), pixel = view.snapPixel !== false;
+      const start = pixel ? { x: pixelRound(g.start.x), y: pixelRound(g.start.y) } : g.start;
+      if (pixel) point = { x: pixelRound(point.x), y: pixelRound(point.y) };
       this.#guides = [];
-      if (this.engine.getView().snapObjects !== false && !modifiers.ctrlKey && !modifiers.metaKey) { const snap = g.targets.snapPoint(point, 5 / this.engine.getView().zoom); point = snap.point; this.#guides = snap.guides; }
+      if (view.snapObjects !== false && !modifiers.ctrlKey && !modifiers.metaKey) { const snap = g.targets.snapPoint(point, 5 / view.zoom); point = snap.point; this.#guides = snap.guides; }
       const draw = g.kind === "line" || g.kind === "arrow" ? drawnLine : drawnRectangle;
-      this.engine.previewDraw(g.kind, draw(g.start, point, modifiers.shiftKey, modifiers.altKey, this.engine.getView().snapPixel !== false), g.parent); g.moved = true;
+      this.engine.previewDraw(g.kind, draw(start, point, modifiers.shiftKey, modifiers.altKey, false), g.parent); g.moved = true;
     } catch (error) { this.#fail(error); }
   }
   up(point: Point): void {

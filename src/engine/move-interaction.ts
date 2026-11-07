@@ -79,12 +79,12 @@ export class MoveInteraction {
       let delta = { x: point.x - gesture.start.x, y: point.y - gesture.start.y };
       if (!gesture.moved && Math.hypot(delta.x, delta.y) * this.engine.getView().zoom < 3) return;
       if (modifiers.shiftKey) { if (Math.abs(delta.x) > Math.abs(delta.y)) delta.y = 0; else delta.x = 0; }
+      if (this.engine.getView().snapPixel !== false) delta = gesture.targets.roundMove(delta);
       this.#guides = [];
       if (this.engine.getView().snapObjects !== false && !(modifiers.ctrlKey || modifiers.metaKey)) {
         const snapped = gesture.targets.snapMove(delta, 5 / this.engine.getView().zoom);
         delta = { x: delta.x + snapped.correction.x, y: delta.y + snapped.correction.y }; this.#guides = snapped.guides;
       }
-      if (this.engine.getView().snapPixel !== false) delta = gesture.targets.roundMove(delta);
       this.engine.previewMove(gesture.ids, delta, gesture.duplicate);
       const document = this.engine.getRenderDocument(), moving = gesture.duplicate ? this.engine.getRenderSelection() : gesture.ids;
       const home = document.nodes[moving[0]]?.parent;

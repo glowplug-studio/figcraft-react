@@ -17,3 +17,17 @@ The authorised fork fast-forwarded from `09e04e71765517975950403eec4cb6fbe895535
 | `4cacc966`, `00fa951f`, `6cb724c5`, corresponding docs/roadmap | Track contributor/release credits and documentation changes. Native release CI is not a browser editing feature. Review user-visible credits in the UI audit. |
 
 Graphify currently covers Rust at the previous `09e04e71` and React at README-only `b3b8a1b`. The newly pinned local source and upstream tests are authoritative. This report records incoming scope, not a claim that these changes are all implemented.
+
+## Subsequent reference advance: 7522c39b to 909d68e0
+
+39 commits; 55 files, 1,412 insertions and 100 deletions. Fork, original and submodule agree. The React implementation at 20fe465 and supported global baseline are unchanged. This range does not modify the three shape drawing, moving and resizing paths under active review.
+
+| Evidence | Owning follow-up |
+|---|---|
+| SVG import 16d97cf8 / 8bc405ed / 8fb53baa; final diff in crates/svg/src/import.rs | Distinguish closed outlines, open lines, mixed subpaths and outlined text for dash offsets. Test fill/stroke splitting during SVG import. |
+| 024b7fe4: cmd/file/import_ids.rs and import_ids_tests.rs | Remap colliding imported style/variable IDs and internal bindings without binding to unrelated assets. |
+| de881846 / 9ff2105d / cacf73a0: canvas/vectoredit/ops.rs and tests.rs | Reconnect a broken region loop through the new segment only when continuous; retain winding and holes. Revisit existing vector authoring after snap and index corrections. |
+| 23792e85 / 05d1b147 / cf1fed33: locale files and typography controls | Check measured German wrapping, tooltips and Spanish text-direction commands with UI/localisation. |
+| f566f961: collab-net hub/queue and tests | Verify slow joins in busy rooms are not dropped because of cursor updates. |
+| cd5c9aeb / c16c3676: doc/text.rs, text/layout.rs, format, codegen | Forced paragraph direction, alignment, paragraph-array length and trailing empty paragraphs in editing, import and CSS export. |
+| 5bdedc39 / 104aa3de / d23cebb1: effects, style_vars and binding tests | Bind only existing effect fields, refuse unknown keys and wrap glass light angle at ±180°. |

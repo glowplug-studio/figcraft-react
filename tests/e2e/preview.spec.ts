@@ -2034,3 +2034,33 @@ test("native open vectors and even-odd regions support canvas selection, caps an
   await expect(page.locator("main [role=alert]")).toContainText("Vector metadata must be an array");
   await expect(page.getByLabel("Name", { exact: true })).toHaveValue("Open curve"); await expect(stroke.getByLabel("End cap", { exact: true })).toHaveValue("diamondFilled");
 });
+
+test("fractional layer targets win over pixels during move, resize and draw", async ({ page }) => {
+  const e = new EditorEngine();
+  e.execute("shape.rectangle", { name: "Target", x: 100, y: 100, width: 11, height: 11 });
+  const id = String(e.execute("shape.rectangle", { name: "Moving", x: 300, y: 300, width: 100, height: 100 }).id);
+  await login(page);
+  await page.getByLabel("Open Figcraft file", { exact: true }).setInputFiles({ name: "priority.figcraft", mimeType: "application/octet-stream", buffer: Buffer.from(await e.nativeSnapshot()) });
+  const moving = page.getByRole("region", { name: "Layers", exact: true }).getByRole("button", { name: "Moving", exact: true });
+  await expect(moving).toBeVisible(); await resetCanvasOrigin(page); await moving.click();
+  const drag = async (x: number, y: number, xx: number, yy: number, guide = false) => {
+    const a = await canvasPoint(page, x, y), b = await canvasPoint(page, xx, yy);
+    await page.mouse.move(a.x, a.y); await page.mouse.down(); await page.mouse.move(b.x, b.y, { steps: 5 });
+    if (guide) await expectCanvasPixel(page, 105, 200, [242, 72, 34, 255]);
+    await page.mouse.up();
+  };
+  await drag(350, 350, 106, 352, true);
+  await expect(page.getByLabel("Edit X", { exact: true })).toHaveValue("55.5");
+  await page.getByRole("button", { name: "Undo", exact: true }).click();
+  await drag(300, 350, 106, 350);
+  await expect(page.getByLabel("Edit Width", { exact: true })).toHaveValue("294.5");
+  const canvas = page.getByLabel("Design canvas", { exact: true }); await canvas.focus(); await page.keyboard.press("r");
+  await drag(150, 200, 106, 240);
+  await expect(page.getByLabel("Edit Width", { exact: true })).toHaveValue("44.5");
+  const downloading = page.waitForEvent("download"); await page.getByRole("button", { name: "Save as", exact: true }).click();
+  const { document } = await decodeFigcraft(await readFile((await (await downloading).path())!));
+  expect(document.nodes[id]).toMatchObject({ x: 105.5, y: 300, width: 294.5, height: 100 });
+  expect(Object.values(document.nodes).find(n => n.name === "Rectangle")).toMatchObject({ x: 105.5, y: 200, width: 44.5, height: 40 });
+  await expect(page.locator(".figcraft-recovery")).toHaveText("Recovery saved on this device");
+  await page.reload(); await moving.click(); await expect(page.getByLabel("Edit X", { exact: true })).toHaveValue("105.5");
+});

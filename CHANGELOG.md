@@ -2,6 +2,10 @@
 
 All notable changes to the React port and its upstream compatibility baseline are recorded here.
 
+## [0.28.2] - 2026-11-07
+
+- When drawing, moving or resizing a shape, a fractional layer target takes precedence over the pixel grid on the snapped axis. Free axes retain the existing pixel preference. Matches upstream `39c58338`; the global baseline is unchanged.
+
 ## [0.28.1] - 2026-11-07
 
 - Updated Pen Undo/Redo to match upstream `7522c39b`: remove or restore individual anchors while drawing, including their handles. Completed paths still take one document undo.
