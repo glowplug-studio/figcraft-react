@@ -1,0 +1,92 @@
+{
+  "react": "43ddc4b2d11ee6c51cac0ed193d91ab22e8ea91f",
+  "upstream": "3daa9d3293c5973bc8811e9b1108cea3224690aa",
+  "stats": {
+    "startTime": "2026-11-07T03:08:56.806Z",
+    "duration": 208717.19499999998,
+    "expected": 92,
+    "skipped": 16,
+    "unexpected": 1,
+    "flaky": 0
+  },
+  "measurements": [
+    {
+      "test": "Line and dashed stroke previews retain the10000-node frame budget",
+      "metrics": {
+        "nodes": 10000,
+        "visible": 100,
+        "measuredFrames": 110,
+        "p95": 5.700000047683716,
+        "max": 7.100000023841858,
+        "inputP95": 2.100000023841858,
+        "rootNotifications": 0,
+        "drawP95": 5.5,
+        "drawRootNotifications": 0,
+        "restored": true
+      }
+    },
+    {
+      "test": "Per-side rounded stroke previews retain the10000-node frame budget",
+      "metrics": {
+        "nodes": 10000,
+        "visible": 100,
+        "measuredFrames": 110,
+        "p95": 6.800000011920929,
+        "max": 10.800000011920929,
+        "inputP95": 2,
+        "rootNotifications": 0,
+        "drawP95": 6,
+        "drawRootNotifications": 0,
+        "restored": true
+      }
+    },
+    {
+      "test": "Variable-width stroke previews retain the10000-node frame budget",
+      "metrics": {
+        "nodes": 10000,
+        "visible": 100,
+        "measuredFrames": 110,
+        "p95": 6.100000023841858,
+        "max": 6.300000011920929,
+        "inputP95": 2.099999964237213,
+        "rootNotifications": 0,
+        "drawP95": 5.699999988079071,
+        "drawRootNotifications": 0,
+        "panP95": 6.699999988079071,
+        "restored": true
+      }
+    },
+    {
+      "test": "Brush stroke previews retain the10000-node frame budget",
+      "metrics": {
+        "nodes": 10000,
+        "visible": 100,
+        "measuredFrames": 110,
+        "p95": 6,
+        "max": 6.600000023841858,
+        "inputP95": 2,
+        "rootNotifications": 0,
+        "drawP95": 5.800000011920929,
+        "drawRootNotifications": 0,
+        "panP95": 10.100000023841858,
+        "restored": true
+      }
+    },
+    {
+      "test": "Vector network stroke previews retain the10000-node frame budget",
+      "metrics": {
+        "nodes": 10000,
+        "visible": 100,
+        "measuredFrames": 110,
+        "p95": 8.5,
+        "max": 9.400000035762787,
+        "inputP95": 2,
+        "rootNotifications": 0,
+        "drawP95": 11.599999964237213,
+        "drawRootNotifications": 0,
+        "panP95": 13.399999976158142,
+        "restored": true
+      }
+    }
+  ]
+}
