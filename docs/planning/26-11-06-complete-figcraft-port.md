@@ -5,17 +5,17 @@
 | Field | Current value |
 |---|---|
 | Overall status | In progress; full parity is not implemented |
-| Active slice | Variable-width point editing (vector edit mode); existing width-profile model/rendering and vector interaction are verified dependencies |
-| Active phase | Phase 1: synchronise and inspect width handles, hit testing, commands, pointer lifetime and inspector controls |
-| Upstream baseline | Current reference `09e04e71765517975950403eec4cb6fbe8955359`; supported global parity baseline remains `8eb0b87646c5aef712326d6c431ccde5408630de` |
+| Active slice | [Pen anchor undo/redo](26-11-07-pen-anchor-undo.md), incoming correction before width-point editing |
+| Active phase | Phase 1–3 complete: incoming reference reconciled, evidence/acceptance and mapping recorded; implementation next |
+| Upstream baseline | Current reference `7522c39ba594ed7e948b6d2626210c4a36b03497`; supported global baseline `8eb0b87646c5aef712326d6c431ccde5408630de` unchanged |
 | Branch and last verified commit | `prompt/full-figcraft-port`; verified Pencil `7ad8a5a`; verified Pencil foundation `b630d0c`; verified Pen `d3c00a4`; verified internal Pen foundation `653e4a4`; verified point transforms/snapping `4a762cd`; verified vector authoring `adc59d4`; verified internal authoring primitives `74fbbb0`; verified vector foundation `154f5a7`; verified brushes `d3f7934`; verified width profiles `5f035a2`; verified per-side strokes `e21aaf0`; verified Line/strokes `0ca7c35`; verified Polygon/Star `f4db7fc`; verified ellipses `f21fe2b`; verified corners `37ad314`; verified transforms `cc26af1`; verified canvas move `0d34280`; verified duplication `f6dfc3f`; verified smart selection `3326d26`; verified rotations `92062ca`; verified sizing `c6b8c71`; verified arrangement `783a694`; verified viewport `d0fae6c`; verified frames `3e7943a`; verified nested groups `e81ba76`; verified colour `bfa5dd8`; affine `080fc27`, outline check `2404d6b`, reports `ff29f38`; pages `6c988a5`, persistence `41d467b`; integration `fc3b4a6` from updated dev plus rectangle branch |
 | Completed slices | Rectangle/host-auth, bounded native persistence/recovery, supported-model pages, affine rectangle geometry/selection and solid appearance, plus nested group hierarchy, Frame containers, movement/transform gestures, rounded corners, ellipse/arc/ring and Polygon/Star editing verified locally; Line/Arrow and uniform solid strokes also verified; per-side Rectangle/Frame strokes, variable-width profiles and procedural brushes verified; vector networks, solid region/stroke rendering and Flatten/Reverse also verified; foundation commit `154f5a7` |
 | Remaining slices | Every row below except the integrated foundation; static inventory entries remain unverified until mapped and tested |
 | Tests last passed | Pencil at `7ad8a5a`: 848 pure, 2 real Auth, strict TypeScript and package/Next production builds; 102/102 Chromium in 219.9s with no failures/skips/flakes. Preview p95 0.8ms; 4,001-sample completion 11.6ms. Extended Shift/fractional browser assertion also passes. |
-| Files currently in progress | Pencil verification reports/mapping; next width-point evidence and plan |
+| Files currently in progress | Incoming reference report/gitlink, Pen anchor-undo plan and checkpoint |
 | Blockers | No implementation blocker. Graphify authentication restored; hosted React index remains stale; current local source is authoritative |
-| Exact next action | Run slice-level upstream sync and scoped Graphify/Supabase reads, inspect native width edit actions/commands/overlays, write mapped acceptance plan, then implement and verify. |
-| Last updated | 2026-11-07T08:51+07:00 |
+| Exact next action | Implement Pen-local anchor undo/redo and command/UI routing from the new paired native fixture; then close incoming snap/validation gaps and continue width-point editing. |
+| Last updated | 2026-11-07T08:56+07:00 |
 
 ## Scope and continuation
 
@@ -630,3 +630,8 @@ The authorised reference sync advanced to09e04e71765517975950403eec4cb6fbe895535
 ## Verified Pencil checkpoint
 
 React 0.28.0, `7ad8a5a`: [Pencil report](../reports/26-11-07-pencil-authoring.md) and [32-property matrix](../reports/26-11-07-pencil-authoring-parity.html). All scoped gates pass; full browser parity is incomplete. The next slice is variable-width point editing: existing profile persistence/rendering, vector edit state, pointer capture and fitted paths supply its prerequisites. No hosted changes or publication.
+
+
+## Incoming editing correction
+
+The reference fork fast-forwarded 65 commits to `7522c39b`; [incoming scope](../reports/26-11-07-upstream-editor-advance.md). The formerly verified Pen undo behaviour changed upstream. [Anchor undo/redo](26-11-07-pen-anchor-undo.md) is active before width-point editing; no previous report is retrospectively relabelled as passing the new reference. Width-point editing remains mandatory.
