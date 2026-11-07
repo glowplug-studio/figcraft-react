@@ -248,3 +248,5 @@ Polygon/Star geometry, properties, radius/ratio handles and native/recovery flow
 Drawing, moving and resizing preserve fractional object targets after grid snapping at 4b86d41. Frame/Section/Slice drag creation remains outstanding. [Coverage](../reports/26-11-07-snap-priority-parity.html)
 
 Command validation, exact layer reorder, cap diagnostics and bounded group-cycle lookup are verified at 2a37b75. [Coverage](../reports/26-11-07-command-validation-parity.html)
+
+Vector editing now supports native Join and Smooth join in point and layer modes, and reconnects broken loops while preserving region winding. [Verified scope at 04b64a2](../reports/26-11-07-vector-join.md).
