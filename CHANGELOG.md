@@ -2,6 +2,10 @@
 
 All notable changes to the React port and its upstream compatibility baseline are recorded here.
 
+## [0.31.0] - 2026-11-07
+
+- Edit variable-width strokes on the canvas with Shift+W. Add and slide width points, adjust either side with Alt, or enter precise widths in the inspector.
+
 ## [0.30.0] - 2026-11-07
 
 - Added Join selection, Smooth join selection and the explicit Connect points command. Joining within a vector pairs selected points, while layer joins close an open vector or combine selected layers.

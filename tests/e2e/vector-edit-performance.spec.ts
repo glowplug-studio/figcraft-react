@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 import { build } from "vite";
 import type { measureVectorEdit } from "../fixtures/vector-edit-performance";
 
-for (const operation of ["move", "scale", "rotate"] as const) test(`vector point ${operation} previews and overlays keep the frame budget across100 edited layers in10000 nodes`, async ({ page }) => {
+for (const operation of ["move", "scale", "rotate", "width"] as const) test(`vector point ${operation} previews and overlays keep the frame budget across100 edited layers in10000 nodes`, async ({ page }) => {
   const bundle = await build({ configFile: false, logLevel: "silent", build: { write: false, lib: { entry: "tests/fixtures/vector-edit-performance.ts", name: "VectorEditPerformance", formats: ["iife"] }, minify: true } });
   const output = (Array.isArray(bundle) ? bundle[0] : bundle) as { output: { type: string; code?: string }[] };
   const code = output.output.find(chunk => chunk.type === "chunk")?.code; if (!code) throw new Error("Vector edit fixture did not build");

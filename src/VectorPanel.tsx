@@ -1,8 +1,9 @@
 import { useSyncExternalStore } from "react";
 import type { EditorEngine } from "./engine/editor";
-import { selectedVectorPoints, vectorNetwork, vectorSelectionPosition } from "./engine/vector-edit";
+import { selectedVectorPoints, vectorSelectionPosition } from "./engine/vector-edit";
 import { networkMirroring } from "./engine/vector-network";
-import { strokeCaps } from "./engine/stroke";
+import { widthPointSides } from "./engine/width-profile";
+import { defaultStroke, strokeCaps } from "./engine/stroke";
 import { vectorPointBox } from "./engine/vector-point-transform";
 
 interface Props { engine: EditorEngine; editable: boolean; dispatch: (command: string, params?: unknown) => void }
@@ -16,6 +17,7 @@ export function VectorToolbar({ engine, editable, dispatch }: Props) {
     <button disabled={!editable} aria-pressed={state.tool === "move"} onClick={() => dispatch("vector.edit.tool", { tool: "move" })}>Move points</button>
     <button disabled={!editable} aria-pressed={state.tool === "pen"} title="Pen · P" onClick={() => dispatch("vector.edit.tool", { tool: "pen" })}>Pen</button>
     <button disabled={!editable} aria-pressed={state.tool === "bend"} title="Bend · hold Ctrl/⌘ with Move" onClick={() => dispatch("vector.edit.tool", { tool: "bend" })}>Bend</button>
+    <button disabled={!editable} aria-pressed={state.tool === "width"} title="Variable width · Shift+W" onClick={() => dispatch("vector.edit.tool", { tool: "width" })}>Variable width</button>
     <button disabled={!editable} onClick={() => dispatch("vector.edit.end")}>Done editing</button>
   </div>;
 }
@@ -25,7 +27,32 @@ export function VectorPanel({ engine, editable, dispatch }: Props) {
   const state = useSyncExternalStore(engine.subscribeVectorEdit, engine.getVectorEdit, engine.getVectorEdit);
   const snapshot = useSyncExternalStore(engine.subscribe, engine.getSnapshot, engine.getSnapshot);
   if (!state) return null;
-  const net = vectorNetwork(snapshot.document, state.id); if (!net) return null;
+  const node = snapshot.document.nodes[state.id]; if (node?.kind !== "vector") return null;
+  const net = node.network;
+  if (state.tool === "width") {
+    const stroke = node.stroke ?? defaultStroke;
+    const i = state.widthPoint, point = i === undefined ? undefined : stroke.widthProfile?.points[i];
+    if (!point) return <fieldset disabled={!editable}><legend>Width point</legend><p>Drag the stroke to add a width point</p></fieldset>;
+    const [left, right] = widthPointSides(point);
+    const fields = [
+      { label: "Position (%)", value: point.t * 100, params: (v: number) => ({ t: v / 100 }) },
+      { label: "Width", value: point.scale * stroke.weight, params: (v: number) => ({ width: Math.max(0, v) }) },
+      { label: "Left side width", value: left * stroke.weight / 2, params: (v: number) => ({ side: "left", width: Math.max(0, v) }) },
+      { label: "Right side width", value: right * stroke.weight / 2, params: (v: number) => ({ side: "right", width: Math.max(0, v) }) },
+    ];
+    return <fieldset disabled={!editable} aria-label="Width point"><legend>Width point</legend>
+      {fields.map(field => {
+        const value = Math.round(field.value * 100) / 100;
+        return <label key={field.label}>{field.label}<input key={state.id + "/" + i + "/" + value} type="number" step="any" defaultValue={value}
+          onKeyDown={event => { if (event.key === "Enter") { event.preventDefault(); event.currentTarget.blur(); } }}
+          onBlur={event => {
+            const input = event.currentTarget, v = input.valueAsNumber;
+            input.value = String(value);
+            if (Number.isFinite(v) && v !== value) dispatch("vector.edit.widthPoint", { index: i, ...field.params(v) });
+          }} /></label>;
+      })}
+    </fieldset>;
+  }
   const indices = selectedVectorPoints(net, state), vertices = indices.flatMap(i => net.vertices[i] ? [net.vertices[i]] : []);
   const position = vectorSelectionPosition(snapshot.document, state), radius = common(vertices.map(v => v.radius));
   const mirroring = common(indices.map(i => networkMirroring(net, i)));

@@ -122,12 +122,18 @@ export function Editor({ identity, capabilities, engine: suppliedEngine, recover
         else dispatch(state.anchor !== undefined ? "vector.edit.penEnd" : "vector.edit.end");
         return;
       }
+      if (!event.altKey && event.shiftKey && !modified && event.key.toLowerCase() === "w") { event.preventDefault(); dispatch("vector.edit.tool", { tool: "width" }); return; }
       if (!event.altKey && !event.shiftKey && !modified && event.key.toLowerCase() === "p") { event.preventDefault(); dispatch("vector.edit.tool", { tool: "pen" }); return; }
       if (!event.altKey && !modified && ["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(event.key)) {
         const amount = event.shiftKey ? 10 : 1; event.preventDefault();
         dispatch("vector.edit.nudge", { dx: event.key === "ArrowLeft" ? -amount : event.key === "ArrowRight" ? amount : 0, dy: event.key === "ArrowUp" ? -amount : event.key === "ArrowDown" ? amount : 0 }); return;
       }
-      if (!event.altKey && !modified && (event.key === "Delete" || event.key === "Backspace")) { event.preventDefault(); dispatch(event.shiftKey ? "vector.deleteHeal" : "vector.edit.delete"); return; }
+      if (!event.altKey && !modified && (event.key === "Delete" || event.key === "Backspace")) { event.preventDefault();
+        const state = engine.getVectorEdit()!;
+        if (!event.shiftKey && state.tool === "width") {
+          if (state.widthPoint !== undefined) dispatch("vector.edit.widthPoint", { action: "remove", index: state.widthPoint });
+        } else dispatch(event.shiftKey ? "vector.deleteHeal" : "vector.edit.delete");
+        return; }
       if (!event.altKey && !event.shiftKey && modified && event.key.toLowerCase() === "a") { event.preventDefault(); dispatch("vector.edit.selectAll"); return; }
       if (!event.altKey && !event.shiftKey && !modified && event.key.toLowerCase() === "v") { event.preventDefault(); dispatch("vector.edit.tool", { tool: "move" }); return; }
     } else if (event.key === "Enter" && snapshot.selection.length && snapshot.selection.every(id => { const n = snapshot.document.nodes[id]; return n && isLeaf(n); })) {

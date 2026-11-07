@@ -2143,3 +2143,43 @@ test("join shortcuts reconnect a hole, preserve its winding and save smooth tang
     await button.scrollIntoViewIfNeeded(); const box = (await button.boundingBox())!; expect(box.x).toBeGreaterThanOrEqual(0); expect(box.x+box.width).toBeLessThanOrEqual(390);
   }
 });
+
+test("variable width authors both sides on canvas, edits the inspector and restores the native profile", async ({ page }) => {
+  const e = new EditorEngine();
+  const id = String(e.execute("vector.create", { name: "Width sample", x: 200, y: 200, points: [[0,0],[150,0]], closed: false }).id);
+  e.execute("node.set", { id, props: { strokes: ["#303030"], strokeWeight: 10, strokeAlign: "center" } });
+  await login(page);
+  await page.getByLabel("Open Figcraft file", { exact: true }).setInputFiles({ name: "width.figcraft", mimeType: "application/octet-stream", buffer: Buffer.from(await encodeFigcraft(e.getSnapshot().document)) });
+  const layers = page.getByRole("region", { name: "Layers", exact: true });
+  const canvas = page.getByLabel("Design canvas", { exact: true });
+  await expect(layers.getByRole("button", { name: "Width sample", exact: true })).toBeVisible();
+  await resetCanvasOrigin(page); await layers.getByRole("button", { name: "Width sample", exact: true }).click();
+  await page.getByRole("button", { name: "Edit vector", exact: true }).click(); await canvas.focus(); await page.keyboard.press("Shift+w");
+  const tool = page.getByRole("button", { name: "Variable width", exact: true });
+  await expect(tool).toHaveAttribute("aria-pressed", "true"); await expect(page.getByText("Drag the stroke to add a width point")).toBeVisible();
+  const at = await canvasPoint(page, 275, 200);
+  await page.mouse.move(at.x, at.y + 1); await page.mouse.down(); await page.keyboard.down("Alt");
+  await page.mouse.move(at.x, at.y + 25, { steps: 5 }); await page.mouse.up(); await page.keyboard.up("Alt");
+  const group = page.getByRole("group", { name: "Width point", exact: true });
+  const left = group.getByLabel("Left side width"), right = group.getByLabel("Right side width");
+  await expect(left).toHaveValue("5"); await expect(right).toHaveValue("25");
+  await left.fill("12"); await left.press("Enter"); await expect(group.getByLabel("Width", { exact: true })).toHaveValue("37");
+  const position = group.getByLabel("Position (%)"); await position.fill("60"); await position.press("Enter"); await expect(position).toHaveValue("60");
+  await page.mouse.move(at.x + 50, at.y + 54);
+  const clip = await canvasPoint(page,184,162);
+  await expect(page).toHaveScreenshot("asymmetric-width-handles.png", { clip: { x: clip.x, y: clip.y, width: 182, height: 78 }, animations: "disabled", maxDiffPixels: 0 });
+  await canvas.focus(); await page.keyboard.press("Delete"); await expect(page.getByText("Drag the stroke to add a width point")).toBeVisible();
+  await page.getByRole("button", { name: "Undo", exact: true }).click();
+  const save = async () => {
+    const download = page.waitForEvent("download"); await page.getByRole("button", { name: "Save as", exact: true }).click();
+    const file = await decodeFigcraft(await readFile((await (await download).path())!));
+    return (file.document.nodes[id] as VectorNode).stroke?.widthProfile;
+  };
+  const profile = await save(); expect(profile?.points).toHaveLength(3);
+  const p = profile!.points[1]; expect(p.t).toBeCloseTo(.6); expect(p.scale * (1-p.bias)*5).toBeCloseTo(12); expect(p.scale * (1+p.bias)*5).toBeCloseTo(25);
+  await expect(page.locator(".figcraft-recovery")).toHaveText("Recovery saved on this device"); await page.reload();
+  expect(await save()).toEqual(profile);
+  await layers.getByRole("button", { name: "Width sample", exact: true }).click(); await page.getByRole("button", { name: "Edit vector", exact: true }).click();
+  await page.setViewportSize({ width: 390, height: 844 }); await tool.scrollIntoViewIfNeeded(); await tool.click(); await expect(tool).toHaveAttribute("aria-pressed", "true");
+  const button = (await tool.boundingBox())!; expect(button.x).toBeGreaterThanOrEqual(0); expect(button.x + button.width).toBeLessThanOrEqual(390);
+});

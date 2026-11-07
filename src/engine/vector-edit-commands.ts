@@ -15,11 +15,14 @@ import { connectVectorPoints, joinVectorPoints } from "./vector-connect";
 import { isVectorJoin, type VectorJoinCommand } from "./vector-commands";
 import { applyPen, planPen } from "./vector-pen";
 
+import { editWidthPoint, widthHandles } from "./vector-width";
+
 export const vectorEditSpecs = Object.freeze({
   "vector.edit.begin": { label: "Edit vector", undo: false },
   "vector.edit.end": { label: "Done editing", undo: false },
   "vector.edit.state": { label: "Vector edit state", undo: false },
   "vector.edit.tool": { label: "Vector edit tool", undo: false },
+  "vector.edit.widthPoint": { label: "Width point", undo: true },
   "vector.edit.connect": { label: "Connect points", undo: true },
   "vector.edit.pen": { label: "Pen point", undo: true },
   "vector.edit.penEnd": { label: "End pen path", undo: false },
@@ -47,6 +50,7 @@ export const vectorEditSpecs = Object.freeze({
 export type VectorEditCommand = keyof typeof vectorEditSpecs;
 const allowed: Record<VectorEditCommand, readonly string[]> = {
   "vector.edit.begin": ["id", "ids"], "vector.edit.end": [], "vector.edit.state": [], "vector.edit.tool": ["tool"],
+  "vector.edit.widthPoint": ["action", "index", "t", "scale", "width", "side"],
   "vector.edit.connect": ["a", "b"],
   "vector.edit.pen": ["x", "y", "dx", "dy"], "vector.edit.penEnd": [],
   "vector.edit.select": ["vertices", "segments", "handles", "regions", "id", "add"], "vector.edit.selectAll": [],
@@ -105,10 +109,19 @@ export function executeVectorEdit(command: VectorEditCommand | VectorJoinCommand
   if (command === "vector.edit.state") {
     const net = vectorNetwork(document, state.id); if (!net) throw new Error("Not a vector");
     return { ...result, result: { id: state.id, tool: state.tool, overlay: { ...vectorEditOverlay(document, state), anchor: state.anchor ?? null }, network: wireVectorNetwork(net), mirroring: net.vertices.map((_, i) => networkMirroring(net, i)),
+      widthPoints: widthHandles(document, state.id, 1), widthPoint: state.widthPoint ?? null,
       layers: vectorParts(state).map(p => p.id), others: state.others, handles: state.handles, regions: state.regions, regionVertices: state.regionVertices } };
   }
+  if (command === "vector.edit.widthPoint") {
+    const node = document.nodes[state.id];
+    if (node?.kind !== "vector") throw new Error("Not a vector");
+    const edited = editWidthPoint(node, p), draft = new HierarchyDraft(document);
+    draft.set(edited.node);
+    return { ...result, document: draft.finish(), state: freezeVectorEdit({ ...state, widthPoint: edited.index ?? undefined }),
+      recordHistory: true, result: { index: edited.index, points: edited.points } };
+  }
   if (command === "vector.edit.tool") {
-    const tool = parseString(p.tool)?.toLowerCase(); if (tool !== "move" && tool !== "bend" && tool !== "pen") throw new Error("This vector tool is not implemented yet");
+    const tool = parseString(p.tool)?.toLowerCase(); if (tool !== "move" && tool !== "bend" && tool !== "pen" && tool !== "width") throw new Error("This vector tool is not implemented yet");
     return { ...result, state: freezeVectorEdit({ ...state, tool, ...(tool !== "pen" ? { anchor: undefined, penOut: undefined } : {}) }), result: { tool } };
   }
   if (command === "vector.edit.penEnd") return { ...result, state: freezeVectorEdit({ ...state, anchor: undefined, penOut: undefined }) };

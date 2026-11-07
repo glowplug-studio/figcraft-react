@@ -3,6 +3,7 @@ import type { Document } from "./document";
 import { vectorEditOverlay, type VectorEditState } from "./vector-edit";
 import type { VectorInteraction } from "./vector-interaction";
 import { pageToScreen, type Viewport } from "./viewport";
+import { widthHandles } from "./vector-width";
 import { drawGuides } from "./measurements";
 
 /** Native edit overlays: inactive layers below the active layer, with screen-sized controls. */
@@ -23,6 +24,7 @@ export function drawVectorEdit(context: CanvasRenderingContext2D, document: Docu
       const [a, b, d, e] = c.map(screen); context.lineWidth = selectedSegments.has(i) ? 3 : hover?.kind === "segment" && hover.seg === i ? 2.5 : 1.5;
       context.beginPath(); context.moveTo(a.x, a.y); context.bezierCurveTo(b.x, b.y, d.x, d.y, e.x, e.y); context.stroke();
     });
+    if (state.tool === "width") continue;
     context.lineWidth = 1;
     for (const h of overlay.handles) {
       const v = screen(h.vertex), p = screen(h.handle), on = overlay.selectedHandles.some(x => x[0] === h.seg && x[1] === h.start);
@@ -35,6 +37,26 @@ export function drawVectorEdit(context: CanvasRenderingContext2D, document: Docu
       context.fillStyle = selectedVertices.has(i) ? accent : "white";
       context.beginPath(); context.roundRect(p.x - size / 2, p.y - size / 2, size, size, 5); context.fill(); context.stroke();
     });
+  }
+  if (state.tool === "width") {
+    const hover = interaction.widthHover;
+    const handles = widthHandles(document, state.id, view.zoom);
+    if (hover?.kind === "path") handles.push(...widthHandles(document, state.id, view.zoom, hover.t));
+    for (const handle of handles) {
+      const centre = screen(handle.at), [right, left] = handle.sides.map(screen);
+      const colour = handle.index < 0 ? accent + "80" : accent;
+      context.beginPath(); context.moveTo(right.x, right.y); context.lineTo(left.x, left.y);
+      context.strokeStyle = "#ffffffa0"; context.lineWidth = 3; context.stroke();
+      context.strokeStyle = colour; context.lineWidth = 1; context.stroke();
+      const circle = (point: typeof centre, radius: number, selected: boolean) => {
+        context.fillStyle = selected ? accent : "white";
+        context.beginPath(); context.arc(point.x, point.y, radius, 0, Math.PI * 2); context.fill(); context.stroke();
+      };
+      const side = hover?.kind === "handle" && hover.index === handle.index ? hover.side : undefined;
+      circle(right, side === "right" ? 4.5 : 3.5, false);
+      circle(left, side === "left" ? 4.5 : 3.5, false);
+      circle(centre, hover?.kind === "point" && hover.index === handle.index ? 5 : 4, state.widthPoint === handle.index);
+    }
   }
   if (interaction.add) {
     const { point, on } = interaction.add, p = pageToScreen(view, point);

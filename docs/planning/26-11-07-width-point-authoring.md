@@ -13,3 +13,7 @@ React base 04b64a2. Reference ed90dc103bac791ee917184418df10f4ef133c96. The stro
 ## Checkpoint
 
 Phases 1–3 complete. Implement the profile operation and paired command fixtures, then geometry, gestures and UI. Source inspections and changes run sequentially in the canonical checkout under the human's execution directive. Rollback base 04b64a2. Final publication remains gated.
+
+## Integrated checkpoint
+
+React 0.31.0. Six paired case groups exercise authored width points, both sides, malformed inputs, capture, compound paths, affine handles and finite limits. All 879 pure tests pass. Both real local Auth checks pass separately. Strict TypeScript, the package and Next.js production builds pass. Authenticated Chromium verified Shift+W, captured Alt-drag, both side lengths, inspector position, Delete, undo, native download, reload and the mobile toolbar. The fixed viewport capture shows three points and the asymmetric band. The focused width performance fixture measured p95 2.7 ms including input and drawing across 100 visible edited layers in 10,000 nodes, with zero root or inspector notifications. Full Chromium regression and the Phase 7 report remain pending.

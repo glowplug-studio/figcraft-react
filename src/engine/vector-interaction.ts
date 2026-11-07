@@ -20,8 +20,11 @@ import { PenSnapCache, VectorPointTargets } from "./vector-point-snap";
 import type { Guide } from "./snapping";
 import { applyPen, planPen, type PenHandle, type PenPlan } from "./vector-pen";
 
+import { dragWidthPoint, editWidthPoint, widthHit, type WidthHit } from "./vector-width";
+
 type PointSnap = { targets: VectorPointTargets; from: readonly Point[]; grab?: Point };
 type Gesture = { kind: "points"; start: Point; parts: readonly VectorEditPart[]; split?: readonly [number, number]; moved: boolean; clearOnClick?: boolean; snap?: PointSnap }
+  | { kind: "width"; hit: WidthHit; moved: boolean }
   | { kind: "pen"; plan: PenPlan; origin: Point; out?: PenHandle }
   | { kind: "boxScale"; box: PointBox; handle: Handle; targets: VectorPointTargets }
   | { kind: "boxRotate"; box: PointBox; startAngle: number; angle: number }
@@ -58,6 +61,7 @@ function capturePointSnap(document: Document, id: NodeId, parts: readonly Vector
 export class VectorInteraction {
   #gesture?: Gesture;
   #pressed = false;
+  #widthHover?: WidthHit;
   #hover?: { id: NodeId; hit: VectorHit };
   #add?: { point: Point; on: boolean };
   #marquee?: Rectangle;
@@ -69,9 +73,9 @@ export class VectorInteraction {
   get active(): boolean { return this.#pressed; }
   get overlay() {
     const g = this.#gesture, state = this.engine.getRenderVectorEdit();
-    const box = state && shownVectorPointBox(this.engine.getRenderDocument(), state);
+    const box = state && state.tool !== "width" ? shownVectorPointBox(this.engine.getRenderDocument(), state) : undefined;
     const corners = g?.kind === "boxRotate" ? pointBoxCorners(g.box).map(p => transformPoint(pointRotationMatrix(pointBoxCentre(g.box), -g.angle), p)) : box && pointBoxCorners(box);
-    return { hover: this.#hover, add: this.#add, marquee: this.#marquee, box: corners, guides: this.#guides, rubber: this.#rubber };
+    return { widthHover: this.#widthHover, hover: this.#hover, add: this.#add, marquee: this.#marquee, box: corners, guides: this.#guides, rubber: this.#rubber };
   }
   #snapPen(point: Point, id: NodeId, modifiers?: MoveModifiers): Point {
     const view = this.engine.getView(), objects = view.snapObjects !== false && !modifiers?.ctrlKey && !modifiers?.metaKey, pixel = view.snapPixel !== false;
@@ -81,9 +85,13 @@ export class VectorInteraction {
   }
   #fail(error: unknown): void { this.cancel(); this.onError(error instanceof Error ? error.message : "Could not edit vector"); }
   hover(point?: Point, modifiers?: MoveModifiers): string | undefined {
-    this.#hover = undefined; this.#add = undefined; this.#rubber = undefined; this.#guides = [];
+    this.#widthHover = undefined; this.#hover = undefined; this.#add = undefined; this.#rubber = undefined; this.#guides = [];
     const state = this.engine.getRenderVectorEdit(); if (!state || !point) return undefined;
     const document = this.engine.getRenderDocument(), zoom = this.engine.getView().zoom;
+    if (state.tool === "width") {
+      this.#widthHover = widthHit(document, state.id, point, zoom);
+      return this.#widthHover?.kind === "point" ? "move" : "crosshair";
+    }
     this.#hover = hitEditedVectors(document, state, point, 6 / zoom);
     const found = this.#hover;
     if (state.tool === "pen") {
@@ -107,7 +115,7 @@ export class VectorInteraction {
   }
   down(point: Point, modifiers: MoveModifiers): boolean {
     let state = this.engine.getVectorEdit(); if (!state || !this.engine.getSnapshot().editable) return false;
-    this.#pressed = true; this.#hover = undefined; this.#add = undefined; this.#guides = []; this.#rubber = undefined;
+    this.#pressed = true; this.#widthHover = undefined; this.#hover = undefined; this.#add = undefined; this.#guides = []; this.#rubber = undefined;
     try {
       const document = this.engine.getSnapshot().document, zoom = this.engine.getView().zoom;
       const found = hitEditedVectors(document, state, point, 6 / zoom);
@@ -115,6 +123,20 @@ export class VectorInteraction {
       if (!modifiers.shiftKey && state.regions.length) {
         this.engine.updateVectorSelection(s => ({ ...s, vertices: s.vertices.filter(v => !s.regionVertices.includes(v)), regions: [], regionVertices: [], regionTopology: undefined }));
         state = this.engine.getVectorEdit()!;
+      }
+      if (state.tool === "width") {
+        const node = document.nodes[state.id];
+        if (node?.kind !== "vector" || (node.stroke?.weight ?? 1) <= 0) return true;
+        const hit = widthHit(document, state.id, point, zoom);
+        if (!hit) { this.engine.updateVectorSelection(s => ({ ...s, widthPoint: undefined })); return true; }
+        if (hit.kind !== "path") this.engine.updateVectorSelection(s => ({ ...s, widthPoint: hit.index }));
+        this.engine.beginInteraction();
+        this.#gesture = { kind: "width", hit, moved: false };
+        if (hit.kind === "path") this.engine.previewVectorEdit((doc, s) => {
+          const edit = editWidthPoint(node, { t: hit.t }), draft = new HierarchyDraft(doc);
+          draft.set(edit.node); return { document: draft.finish(), state: { ...s, widthPoint: edit.index ?? undefined } };
+        });
+        return true;
       }
       const hit = found?.id === state.id ? found.hit : undefined, bend = state.tool === "bend" || state.tool === "move" && (modifiers.ctrlKey || modifiers.metaKey);
       if (state.tool === "pen") {
@@ -218,6 +240,15 @@ export class VectorInteraction {
     if (!this.engine.interacting) { this.#gesture = undefined; this.#pressed = false; this.#guides = []; return; }
     try {
       const view = this.engine.getView(), zoom = view.zoom, objects = view.snapObjects !== false && !modifiers.ctrlKey && !modifiers.metaKey, pixel = view.snapPixel !== false;
+      if (g.kind === "width") {
+        this.engine.previewVectorEdit((document, state) => {
+          const edit = dragWidthPoint(document, state.id, g.hit, point, Boolean(modifiers.altKey));
+          if (!edit) return { document, state };
+          const draft = new HierarchyDraft(document); draft.set(edit.node);
+          return { document: draft.finish(), state: { ...state, widthPoint: edit.index ?? undefined } };
+        });
+        g.moved = true; return;
+      }
       if (g.kind === "pen") {
         if (distance(point, g.origin) * zoom < 2) return;
         const state = this.engine.getVectorEdit()!;
@@ -291,6 +322,7 @@ export class VectorInteraction {
     const g = this.#gesture; this.#gesture = undefined; this.#pressed = false; this.#marquee = undefined; this.#guides = [];
     if (!g || !this.engine.interacting) return;
     try {
+      if (g.kind === "width" && !g.moved && g.hit.kind !== "path") { this.engine.cancelInteraction(); return; }
       if (g.kind === "points" && !g.moved && !g.split) {
         this.engine.cancelInteraction();
         if (g.clearOnClick) this.engine.updateVectorSelection(s => ({ ...s, vertices: [], segments: [], others: s.others.map(p => ({ ...p, vertices: [], segments: [] })) }));
@@ -336,6 +368,6 @@ export class VectorInteraction {
   }
   cancel(): void {
     if (this.#gesture) this.engine.cancelInteraction(); this.#gesture = undefined; this.#pressed = false;
-    this.#hover = undefined; this.#add = undefined; this.#marquee = undefined; this.#guides = []; this.#rubber = undefined;
+    this.#widthHover = undefined; this.#hover = undefined; this.#add = undefined; this.#marquee = undefined; this.#guides = []; this.#rubber = undefined;
   }
 }

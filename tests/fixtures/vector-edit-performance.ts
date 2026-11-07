@@ -5,9 +5,10 @@ import { base64Bytes } from "../../src/engine/recovery";
 import { renderDocument } from "../../src/engine/canvas";
 import { drawVectorEdit } from "../../src/engine/vector-edit-overlay";
 import { VectorInteraction } from "../../src/engine/vector-interaction";
+import { widthHandles } from "../../src/engine/vector-width";
 import { pointBoxCentre, pointBoxCorners, shownVectorPointBox } from "../../src/engine/vector-point-transform";
 
-export async function measureVectorEdit(canvas: HTMLCanvasElement, operation: "move" | "scale" | "rotate" = "move") {
+export async function measureVectorEdit(canvas: HTMLCanvasElement, operation: "move" | "scale" | "rotate" | "width" = "move") {
   const seed = new EditorEngine(), id = String(seed.execute("vector.create", { path: "M0 0C10 -5 30 -5 40 0L40 30L0 30Z" }).id);
   const template = seed.getSnapshot().document.nodes[id] as VectorNode;
   const initial = newDocument(), nodes: Record<string, DocumentNode> = { ...initial.nodes }, children: string[] = [];
@@ -26,7 +27,15 @@ export async function measureVectorEdit(canvas: HTMLCanvasElement, operation: "m
   const context = canvas.getContext("2d")!, interaction = new VectorInteraction(engine, message => { throw new Error(message); });
   const modifiers = { altKey: false, ctrlKey: false, metaKey: false, shiftKey: false };
   const box = shownVectorPointBox(engine.getSnapshot().document, engine.getVectorEdit()!)!, corners = pointBoxCorners(box), centre = pointBoxCentre(box);
-  const startPoint = operation === "move" ? { x: 40, y: 40 } : operation === "scale" ? { x: corners[1].x, y: centre.y } : { x: corners[1].x + 10, y: corners[1].y - 10 };
+  let widthStart;
+  if (operation === "width") {
+    const active = engine.getVectorEdit()!.id;
+    engine.execute("node.set", { id: active, props: { strokes: ["#333"], strokeWeight: 8 } });
+    engine.execute("vector.edit.tool", { tool: "width" }); engine.execute("vector.edit.widthPoint", { t: .5, width: 40 });
+    const [x, y] = widthHandles(engine.getRenderDocument(), active, 1)[1].sides[0];
+    widthStart = { x, y };
+  }
+  const startPoint = widthStart ?? (operation === "move" ? { x: 40, y: 40 } : operation === "scale" ? { x: corners[1].x, y: centre.y } : { x: corners[1].x + 10, y: corners[1].y - 10 });
   interaction.down(startPoint, modifiers);
   const before = engine.getSnapshot().document, state = engine.getVectorEdit(); let rootNotifications = 0, chromeNotifications = 0;
   engine.subscribe(() => rootNotifications++); engine.subscribeVectorEdit(() => chromeNotifications++);
@@ -39,6 +48,7 @@ export async function measureVectorEdit(canvas: HTMLCanvasElement, operation: "m
     drawVectorEdit(context, engine.getRenderDocument(), engine.getRenderVectorEdit()!, engine.getView(), interaction.overlay);
     if (i >= 10) { inputs.push(input); measurements.push(performance.now() - start); }
   }
+  if (operation === "width" && (engine.getRenderDocument().nodes[engine.getVectorEdit()!.id] as VectorNode).stroke?.widthProfile?.points[1]?.scale === 5) throw new Error("Width gesture did not resize the stroke");
   interaction.cancel(); measurements.sort((a, b) => a - b); inputs.sort((a, b) => a - b);
   return { operation, nodes: Object.keys(before.nodes).length, visibleEditedLayers: 100, selectedPoints: 100, measuredFrames: measurements.length,
     p95: measurements[Math.floor(measurements.length * .95)], max: measurements.at(-1), inputP95: inputs[Math.floor(inputs.length * .95)], rootNotifications, chromeNotifications,
