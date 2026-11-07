@@ -2183,3 +2183,53 @@ test("variable width authors both sides on canvas, edits the inspector and resto
   await page.setViewportSize({ width: 390, height: 844 }); await tool.scrollIntoViewIfNeeded(); await tool.click(); await expect(tool).toHaveAttribute("aria-pressed", "true");
   const button = (await tool.boundingBox())!; expect(button.x).toBeGreaterThanOrEqual(0); expect(button.x + button.width).toBeLessThanOrEqual(390);
 });
+
+test("closed vectors smooth their painted corners and preserve authored points on undo and recovery", async ({ page }) => {
+  const engine = new EditorEngine();
+  const id = String(engine.execute("vector.create", { name: "Closed corners", x: 165, y: 120, path: "M0 0H1800V1800H0Z" }).id);
+  engine.execute("node.set", { id, props: { fill: "#ff0000", cornerRadius: 400 } });
+  engine.execute("vector.create", { name: "Open corners", x: 40, y: 450, path: "M0 0L40 0L40 50" });
+  await login(page);
+  await page.getByLabel("Open Figcraft file", { exact: true }).setInputFiles({ name: "corners.figcraft", mimeType: "application/octet-stream", buffer: Buffer.from(await encodeFigcraft(engine.getSnapshot().document)) });
+  const layers = page.getByRole("region", { name: "Layers", exact: true });
+  const closed = layers.getByRole("button", { name: "Closed corners", exact: true }), open = layers.getByRole("button", { name: "Open corners", exact: true });
+  await expect(closed).toBeVisible(); await resetCanvasOrigin(page); await open.click();
+  await expect(page.getByRole("button", { name: "Corner smoothing", exact: true })).toHaveCount(0);
+  await closed.click();
+  const canvas = page.getByLabel("Design canvas", { exact: true });
+  const firstRed = () => canvas.evaluate((node: HTMLCanvasElement) => {
+    const row = node.getContext("2d")!.getImageData(165, 160, 450, 1).data;
+    for (let i = 0; i < row.length; i += 4) if (row[i] === 255 && row[i+1] === 0 && row[i+2] === 0) return i/4;
+    throw new Error("Missing red contour");
+  });
+  const plain = await firstRed();
+  await page.getByRole("button", { name: "Corner smoothing", exact: true }).click();
+  const smooth = page.getByLabel("Corner smoothing", { exact: true });
+  await smooth.fill("100"); await page.getByRole("button", { name: "Apply corner smoothing" }).click();
+  await expect.poll(firstRed).toBeGreaterThan(plain + 4);
+  const edge = await firstRed();
+  await page.getByRole("button", { name: "Undo", exact: true }).click(); await expect.poll(firstRed).toBe(plain);
+  await page.getByRole("button", { name: "Redo", exact: true }).click(); await expect.poll(firstRed).toBe(edge);
+  const click = async (x:number, y:number) => { const point = await canvasPoint(page,x,y); await page.mouse.click(point.x,point.y); };
+  await click(100,260); await click(165 + Math.floor((edge + plain)/2),160);
+  await expect(layers.locator('li[aria-current="true"]')).toHaveCount(0);
+  await click(500,400); await expect(layers.locator('li[aria-current="true"]')).toHaveAttribute("data-layer-id",id);
+  await click(100,260); await page.mouse.move(10,10);
+  const unselectedEdge = await firstRed();
+  const crop = await canvasPoint(page,157,112);
+  await expect(page).toHaveScreenshot("closed-vector-smoothed-corner.png", { clip: { x: crop.x, y: crop.y, width: 435, height: 285 }, animations: "disabled", maxDiffPixels: 0 });
+  const save = async () => {
+    const download = page.waitForEvent("download"); await page.getByRole("button", { name: "Save as", exact:true }).click();
+    const file = await decodeFigcraft(await readFile((await (await download).path())!)); return file.document.nodes[id] as VectorNode;
+  };
+  const saved = await save(); expect(saved.corners?.smoothing).toBe(1); expect(saved.network.vertices.map(v=>v.radius)).toEqual([400,400,400,400]); expect(saved.network.segments).toHaveLength(4);
+  await expect(page.locator(".figcraft-recovery")).toHaveText("Recovery saved on this device"); await page.reload(); await resetCanvasOrigin(page);
+  const recovered = await save(); expect(recovered.network).toEqual(saved.network); expect(recovered.corners).toEqual(saved.corners);
+  await expect.poll(firstRed).toBe(unselectedEdge);
+  await closed.click(); await page.setViewportSize({ width:390,height:844 });
+  const control = page.getByRole("button", { name: "Corner smoothing", exact:true }); await control.scrollIntoViewIfNeeded();
+  const bounds=(await control.boundingBox())!; expect(bounds.x).toBeGreaterThanOrEqual(0); expect(bounds.x+bounds.width).toBeLessThanOrEqual(390);
+  if (await control.getAttribute("aria-expanded") !== "true") await control.click();
+  await page.getByRole("button", { name: "iOS", exact: true }).click(); await expect(smooth).toHaveValue("60");
+  await page.getByRole("button", { name: "Undo", exact: true }).click(); await expect(smooth).toHaveValue("100");
+});

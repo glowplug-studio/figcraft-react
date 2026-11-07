@@ -22,3 +22,7 @@ The 15 commits from ed90dc10 to 3daa9d32 change 13 files (+283/−31). Six non-m
 - ee6ca15c joins and rounds layer hierarchy highlights. 901bc6d4 computes selection roots once per visible row. Assign both to the layer panel work and its large-document browser checks.
 
 The global supported baseline remains 8eb0b876. Audit all incoming changes before advancing it.
+
+## Integrated checkpoint
+
+Phase 6. Native closed-vector corner smoothing uses the polygon corner profile and retains the source network. Every applicable shape, stroke, hit and width-geometry caller takes the drawn network. Nine paired fixtures include four native rectangle-area comparisons within 0.1 square unit, 32 direction and region-paint combinations, open and curved edges, holes, malformed loops, sharp junctions and rendered hit discrimination. All 888 pure tests and two local Auth checks pass. Strict TypeScript and both production builds pass. Authenticated Chromium checked open-vector eligibility, closed-vector position-sensitive pixels and selection, undo/redo, authored native file, reload, mobile smoothing and the iOS preset. The 10,000-node vector benchmark includes 33 visible smoothed rings. Full Chromium regression and the property report follow. The local graph refreshed to 1,800 nodes and 8,596 edges.

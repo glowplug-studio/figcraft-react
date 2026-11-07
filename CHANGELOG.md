@@ -2,6 +2,10 @@
 
 All notable changes to the React port and its upstream compatibility baseline are recorded here.
 
+## [0.32.0] - 2026-11-07
+
+- Apply corner smoothing to closed vectors while preserving each point's radius, region winding and authored geometry in saved files.
+
 ## [0.31.0] - 2026-11-07
 
 - Edit variable-width strokes on the canvas with Shift+W. Add and slide width points, adjust either side with Alt, or enter precise widths in the inspector.

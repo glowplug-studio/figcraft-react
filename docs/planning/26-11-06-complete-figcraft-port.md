@@ -6,16 +6,16 @@
 |---|---|
 | Overall status | In progress; full parity is not implemented |
 | Active slice | Closed vector corner smoothing |
-| Active phase | Phase 4. [Source mapping and incoming changes](26-11-07-closed-vector-smoothing.md). |
+| Active phase | Phase 6. [Closed-vector smoothing](26-11-07-closed-vector-smoothing.md) integrated. Full Chromium suite in progress. |
 | Upstream baseline | Current reference 3daa9d32. Global supported baseline 8eb0b876. |
 | Branch and last verified commit | `prompt/full-figcraft-port`; verified variable-width points 6b3529a, verified Join 04b64a2, verified command validation `2a37b75`, verified snap priority `4b86d41`, Pen anchor implementation `6ffb65a`, reference plan `eba0174`; verified Pencil `7ad8a5a`; verified Pencil foundation `b630d0c`; verified Pen `d3c00a4`; verified internal Pen foundation `653e4a4`; verified point transforms/snapping `4a762cd`; verified vector authoring `adc59d4`; verified internal authoring primitives `74fbbb0`; verified vector foundation `154f5a7`; verified brushes `d3f7934`; verified width profiles `5f035a2`; verified per-side strokes `e21aaf0`; verified Line/strokes `0ca7c35`; verified Polygon/Star `f4db7fc`; verified ellipses `f21fe2b`; verified corners `37ad314`; verified transforms `cc26af1`; verified canvas move `0d34280`; verified duplication `f6dfc3f`; verified smart selection `3326d26`; verified rotations `92062ca`; verified sizing `c6b8c71`; verified arrangement `783a694`; verified viewport `d0fae6c`; verified frames `3e7943a`; verified nested groups `e81ba76`; verified colour `bfa5dd8`; affine `080fc27`, outline check `2404d6b`, reports `ff29f38`; pages `6c988a5`, persistence `41d467b`; integration `fc3b4a6` from updated dev plus rectangle branch |
 | Completed slices | Rectangle/host-auth, bounded native persistence/recovery, supported-model pages, affine rectangle geometry/selection and solid appearance, plus nested group hierarchy, Frame containers, movement/transform gestures, rounded corners, ellipse/arc/ring and Polygon/Star editing verified locally; Line/Arrow and uniform solid strokes also verified; per-side Rectangle/Frame strokes, variable-width profiles and procedural brushes verified; vector networks, solid region/stroke rendering and Flatten/Reverse also verified; foundation commit `154f5a7` |
 | Remaining slices | Every row below except the integrated foundation; static inventory entries remain unverified until mapped and tested |
-| Tests last passed | At 6b3529a, 879 pure tests, two real Auth tests, strict TypeScript, both production builds and all 108 Chromium tests in 237.9 seconds. |
-| Files currently in progress | Closed vector smoothing geometry and its consumers. |
+| Tests last passed | 888 pure, two real local Auth, strict TypeScript, package and Next.js production builds, focused authenticated smoothing and vector performance workflows. Previous full suite 108/108 at 6b3529a. |
+| Files currently in progress | Full Chromium run and property evidence. |
 | Blockers | No implementation blocker. Graphify authentication restored; hosted React index remains stale; current local source is authoritative |
-| Exact next action | Implement shared corner geometry and verify the native closed-path, mixed-radius and hole fixtures. |
-| Last updated | 2026-11-07T10:03+07:00 |
+| Exact next action | Verify the full suite at the local implementation commit, then continue vector face discovery and painting. |
+| Last updated | 2026-11-07T10:08+07:00 |
 
 ## Scope and continuation
 

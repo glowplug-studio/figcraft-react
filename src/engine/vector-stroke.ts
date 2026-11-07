@@ -8,7 +8,7 @@ import { variableStrokeOutline } from "./variable-stroke";
 import { bandCaps, capShape, defaultStroke, lineDashes, MAX_STROKE_WIDTH, renderDashes, type StrokeCap, type StrokeJoin } from "./stroke";
 import { freezeNetwork, networkCubic } from "./vector-network";
 import { vectorStrokePath, vectorStrokeRuns } from "./vector-path";
-import { roundedNetwork } from "./vector-rounded";
+import { drawnVectorNetwork } from "./vector-rounded";
 
 interface Measured { readonly points: readonly Point[]; readonly distances: readonly number[]; readonly length: number }
 interface Band { readonly path: readonly PathCommand[]; readonly measured: Measured; readonly closed: boolean; readonly caps: readonly [StrokeCap, StrokeCap]; readonly join: StrokeJoin; readonly dash: ReturnType<typeof lineDashes> | null; readonly outline?: readonly PathCommand[] }
@@ -69,9 +69,9 @@ export function vectorArrowhead(path: readonly PathCommand[], weight: number, ca
 export function vectorStrokePlan(node: VectorNode): VectorStrokePlan {
   const cached = plans.get(node); if (cached) return cached;
   const props = node.stroke ?? defaultStroke, weight = Math.min(props.weight, MAX_STROKE_WIDTH), closed = node.network.regions.length > 0;
-  const align = closed ? props.align : "center", width = weight * (align === "center" ? 1 : 2), clip = vectorStrokePath(node.network);
+  let net = drawnVectorNetwork(node);
+  const align = closed ? props.align : "center", width = weight * (align === "center" ? 1 : 2), clip = vectorStrokePath(net);
   const styled = !props.dashes.length && !props.widthProfile?.points.length && !props.brush && node.network.vertices.some(v => v.cap !== undefined || v.join !== undefined && v.join !== props.join);
-  let net = roundedNetwork(node.network) ?? node.network;
   if (styled) net = freezeNetwork({ ...net, vertices: net.vertices.map(v => { const { join, ...rest } = v; return join === props.join ? rest : v; }) });
   const runs = vectorStrokeRuns(net, styled), bands: Band[] = [], arrows: PathCommand[] = [];
   const outline = props.brush ? brushOutline(clip, width, props, props.brush)

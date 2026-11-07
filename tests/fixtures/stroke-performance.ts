@@ -17,12 +17,12 @@ export async function measureStrokes(canvas: HTMLCanvasElement, individual = fal
   const initial = newDocument(), nodes: Record<string, DocumentNode> = { ...initial.nodes }, children: string[] = [];
   const paints = [solidPaint(fromRgba8(0, 0, 0))], stroke = { ...defaultStroke, weight: 3, align: "outside" as const, dashes: [8, 4], capStart: "round" as const, capEnd: "square" as const };
   const curved = pathNetwork("M0 0C20 0 40 50 60 50").network, ring = pathNetwork("M0 0H60V50H0Z M15 15H45V35H15Z").network;
-  const networks = [curved, freezeNetwork({ ...ring, regions: ring.regions.map(r => ({ ...r, winding: "evenOdd" })) }), freezeNetwork({ ...curved, vertices: curved.vertices.map(v => ({ ...v, cap: "triangleArrow" })) })];
+  const networks = [curved, freezeNetwork({ ...ring, vertices: ring.vertices.map(v => ({ ...v, radius: 6 })), regions: ring.regions.map(r => ({ ...r, winding: "evenOdd" })) }), freezeNetwork({ ...curved, vertices: curved.vertices.map(v => ({ ...v, cap: "triangleArrow" })) })];
   for (let i = 0; i < 9_999; i++) {
     const id = String(i + 2); children.push(id);
     const currentStroke = { ...stroke, ...(profiles ? { widthProfile: i % 2 ? widthPresetProfile("eye") : parseWidthProfile([[0, 0, 2], [.5, 2, 1], [1, 0, 1]]) } : {}), ...(brushes ? { brush: { ...defaultBrush, preset: brushPresets[i % brushPresets.length].id, spacing: 2, sizeJitter: .25, rotationJitter: .25, scatter: .25, seed: 7 } } : {}) };
     const common = { id, parent: "1", name: `Layer ${i}`, x: i < 100 ? i % 10 * 80 : 10_000 + i, y: i < 100 ? 20 + Math.floor(i / 10) * 70 : 10_000, width: 60, fill: "transparent", strokes: paints, stroke: currentStroke };
-    nodes[id] = vectors ? { ...common, kind: "vector", height: 50, network: networks[i % networks.length], stroke: { ...stroke, dashes: i % 3 === 0 ? [8, 4] : [], ...(i % 5 === 0 ? { widthProfile: widthPresetProfile("eye") } : {}), ...(i % 7 === 0 ? { brush: { ...defaultBrush, preset: "dots" } } : {}) } }
+    nodes[id] = vectors ? { ...common, kind: "vector", height: 50, ...(i % 3 === 1 ? { corners: { radii: [6, 6, 6, 6] as const, smoothing: .6 } } : {}), network: networks[i % networks.length], stroke: { ...stroke, dashes: i % 3 === 0 ? [8, 4] : [], ...(i % 5 === 0 ? { widthProfile: widthPresetProfile("eye") } : {}), ...(i % 7 === 0 ? { brush: { ...defaultBrush, preset: "dots" } } : {}) } }
       : individual ? { ...common, kind: "rectangle", height: 50, corners: { radii: [12, 12, 12, 12], smoothing: .6 }, stroke: { ...stroke, sides: [0, 0, 3, 2] } }
       : i % 2 ? { ...common, kind: "star", height: 50, count: 5, innerRatio: .38 } : { ...common, kind: "line", height: 0, stroke: { ...currentStroke, capEnd: "triangleArrow" } };
   }
