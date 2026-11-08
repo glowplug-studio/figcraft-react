@@ -17,3 +17,5 @@ Preserve the existing host identity and edit capability. The document file owns 
 ## Execution checkpoint
 
 Phases 1–3. Upstream, fork and submodule at 8a7ebc2484a6d64d80a13c19c18ffb814325e347, global supported baseline 8eb0b876. React a9f8ec6. The recombined local graph contains 29,463 nodes and 96,474 edges, with the optional SQL parser and prose semantics outside coverage. Scoped Supabase MCP verified zero public tables. Rollback base a9f8ec6. Start with deterministic network operations and paired tests, then integrate commands, cross-layer allocation, three pointer modes and overlays.
+
+Phases 4–7 complete at b737b56. See the [verified property matrix](../reports/26-11-09-vector-cut-erase-lasso-parity.html) for the browser fixtures, recovery, performance and remaining product scope.

@@ -1,0 +1,47 @@
+{
+  "react": "b737b56df913fab24a7472ab965c6c53363f755b",
+  "upstream": "8a7ebc2484a6d64d80a13c19c18ffb814325e347",
+  "stats": {
+    "startTime": "2026-11-08T18:09:28.783Z",
+    "duration": 256045.999,
+    "expected": 119,
+    "skipped": 0,
+    "unexpected": 0,
+    "flaky": 0
+  },
+  "performance": [
+    {
+      "tool": "lasso",
+      "nodes": 10000,
+      "editedLayers": 100,
+      "measuredFrames": 110,
+      "inputP95": 0.5999999046325684,
+      "p95": 2.5,
+      "releaseMs": 0.40000009536743164,
+      "root": 0,
+      "chrome": 0
+    },
+    {
+      "tool": "cut",
+      "nodes": 10000,
+      "editedLayers": 100,
+      "measuredFrames": 110,
+      "inputP95": 0.09999990463256836,
+      "p95": 2.0999999046325684,
+      "releaseMs": 12.299999952316284,
+      "root": 0,
+      "chrome": 0
+    },
+    {
+      "tool": "eraser",
+      "nodes": 10000,
+      "editedLayers": 100,
+      "measuredFrames": 110,
+      "inputP95": 2.4000000953674316,
+      "p95": 4,
+      "releaseMs": 1.7000000476837158,
+      "root": 0,
+      "chrome": 0
+    }
+  ]
+}

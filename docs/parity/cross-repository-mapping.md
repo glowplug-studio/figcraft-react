@@ -269,3 +269,7 @@ Native vector_faces and vectoredit::paint_all map to vector-faces.ts, vector-pai
 Native vectoredit::region_hit, region_under, region_down and region_hatch map to hitPaintedRegion, VectorInteraction, selectVectorParts and regionHatch. Authenticated pointer, file, visual and 10,000-node evidence passed at React 59700e8. [Property matrix](../reports/26-11-09-vector-region-selection-parity.html).
 
 Native selected_region_fills, fill_regions, edit_region_fills, paint_list, paint_set_in and paint_copy/paste correspond to selectedRegionFills, writeFill, paintStackEdit and the session paint clipboard. Native inspector mixed state and contextual copy/paste use existing React appearance rows. [Regional solid paint evidence](../reports/26-11-09-vector-region-fills-parity.html).
+
+## Cut, Eraser and Lasso
+
+Native vectoredit/ops.rs cut_vertex, cut_segment, cut_across and parts map to vector-cut.ts. Native inside_ranges and erase map to vector-erase.ts. The Rust pointer and overlay gestures map to VectorInteraction, drawVectorEdit and VectorToolbar. The public commands share EditorEngine history and the hierarchy allocator. [Property evidence](../reports/26-11-09-vector-cut-erase-lasso-parity.html).

@@ -45,7 +45,7 @@ Upstream test evidence: [`view_behaviour_tests`](../../original/figcraft/crates/
 
 ### 4. Vector authoring and geometry
 
-Status: **Partial**. Rounded Rectangle/Frame and Ellipse/arc/ring geometry are verified; [ellipse evidence](../reports/26-11-07-ellipse-arcs-parity.html). Polygon/Star, Line/Arrow, vector networks, point editing, transforms, Pen and Pencil now have bounded local verification. See the [Pen](../reports/26-11-07-pen-authoring-parity.html) and [Pencil](../reports/26-11-07-pencil-authoring-parity.html) reports. Regions, width-point gestures, booleans, shape builder and the remaining geometry operations below are still required.
+Status: **Partial**. Rounded Rectangle/Frame and Ellipse/arc/ring geometry are verified; [ellipse evidence](../reports/26-11-07-ellipse-arcs-parity.html). Polygon/Star, Line/Arrow, vector networks, point editing, transforms, Pen and Pencil now have bounded local verification. See the [Pen](../reports/26-11-07-pen-authoring-parity.html) and [Pencil](../reports/26-11-07-pencil-authoring-parity.html) reports. Width-point editing, painted-region selection, solid regional fills and [Cut, Eraser and Lasso](../reports/26-11-09-vector-cut-erase-lasso.md) have bounded local verification. Winding commands, booleans, Shape Builder and remaining path operations still require verification.
 
 Pen/pencil; vertices/handles/mirroring/smoothing; region selection/painting, cuts/joins and deletion/healing; lasso/transforms; variable-width points; booleans/flatten/outline stroke/winding/offsets; shape-builder region merge/remove and paint preservation. Dependencies: geometry/path operations, renderer, selection and history.
 
