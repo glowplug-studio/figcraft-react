@@ -90,12 +90,26 @@ export class IndexedDbRecoveryStore implements RecoveryStore {
     });
   }
 
-  read(principalId: string): Promise<Uint8Array | null> {
+  #stored(principalId: string): Promise<ArrayBuffer | Blob | null> {
     return this.#transaction(principalId, "readonly", store => store.get(principalId), value => {
       if (value === undefined) return null;
-      if (!(value instanceof ArrayBuffer)) throw new Error("The stored recovery snapshot is invalid");
-      return new Uint8Array(value.slice(0));
+      if (!(value instanceof ArrayBuffer || value instanceof Blob)) throw new Error("The stored recovery snapshot is invalid");
+      return value;
     });
+  }
+
+  async read(principalId: string): Promise<Uint8Array | null> {
+    const stored = await this.#stored(principalId);
+    return stored && new Uint8Array(stored instanceof Blob ? await stored.arrayBuffer() : stored);
+  }
+
+  async readBlob(principalId: string): Promise<Blob | null> {
+    const stored = await this.#stored(principalId);
+    return stored instanceof ArrayBuffer ? new Blob([stored]) : stored;
+  }
+
+  writeBlob(principalId: string, archive: Blob): Promise<void> {
+    return this.#transaction(principalId, "readwrite", store => store.put(archive, principalId), () => undefined);
   }
 
   write(principalId: string, bytes: Uint8Array): Promise<void> {

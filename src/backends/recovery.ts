@@ -7,6 +7,9 @@
 export interface RecoveryStore {
   read(principalId: string): Promise<Uint8Array | null>;
   write(principalId: string, bytes: Uint8Array): Promise<void>;
+  /** Blob-aware hosts can store and restore large archives without copying them into the JS heap. */
+  readBlob?(principalId: string): Promise<Blob | null>;
+  writeBlob?(principalId: string, archive: Blob): Promise<void>;
   remove(principalId: string): Promise<void>;
   close(): void;
 }

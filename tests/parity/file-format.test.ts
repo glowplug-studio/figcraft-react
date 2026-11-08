@@ -1,8 +1,8 @@
 import { expectSolid } from "../fixtures/expect-solid";
 import { readFileSync } from "node:fs";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { strFromU8, unzipSync, zipSync } from "fflate";
-import { decodeFigcraft, encodeFigcraft, MAX_FILE_BYTES } from "../../src/engine/file-format";
+import { decodeFigcraft, encodeFigcraft, encodeFigcraftBlob, MAX_FILE_BYTES } from "../../src/engine/file-format";
 import { newDocument, type Document, type RectangleNode } from "../../src/engine/document";
 import { colour } from "../../src/engine/colour";
 
@@ -207,6 +207,27 @@ describe("bounded native Figcraft file adapter", () => {
     expect(decoded.issues?.join("\n")).toMatch(/image missing.*missing/);
     expect(decoded.issues?.join("\n")).toMatch(/image \.\.\/path.*invalid image name/);
     expect((await decodeFigcraft(json)).issues).toBeUndefined();
+  });
+
+  it("streams stored images on save and reads a selected ZIP by range on open", async () => {
+    const payload = new Uint8Array(1024 * 1024);
+    payload.set([1,2,3], payload.length - 3);
+    const image = new Blob([payload]);
+    const encoded = vi.spyOn(image, "arrayBuffer").mockRejectedValue(Error("whole image read"));
+    const archive = await encodeFigcraftBlob({...newDocument(), images: {legacy: {bytes: image, width: 0, height: 0}}});
+    const file = new File([archive], "streamed.figcraft");
+    const wholeFile = vi.spyOn(file, "arrayBuffer").mockRejectedValue(Error("whole archive read"));
+    const {document,issues} = await decodeFigcraft(file);
+    expect(issues).toBeUndefined();
+    expect(wholeFile).not.toHaveBeenCalled();
+    expect(encoded).not.toHaveBeenCalled();
+    expect(await document.images!.legacy!.bytes.slice(-3).bytes()).toEqual(Uint8Array.of(1,2,3));
+    expect(document.images!.legacy!.bytes.size).toBe(payload.length);
+  });
+
+  it("recognises raw JSON after a full whitespace chunk in a selected file", async () => {
+    const padded = new File([" ".repeat(70000), fixtureText], "native.json");
+    expect(await decodeFigcraft(padded)).toEqual(await decodeFigcraft(bytes(fixtureText)));
   });
 
   it("limits missing image notices and skips resources past the aggregate budget", async () => {

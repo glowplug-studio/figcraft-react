@@ -21,6 +21,17 @@ describe("browser recovery contract", () => {
     expect(await open(indexedDB).read("principal")).toEqual(new Uint8Array([3, 4, 5]));
   });
 
+  it("reads legacy byte records as Blobs and new Blob records through the byte adapter", async () => {
+    const indexedDB = new IDBFactory(), store = open(indexedDB);
+    await store.write("old", Uint8Array.of(1,2));
+    await store.writeBlob("new", new Blob([Uint8Array.of(3,4)]));
+    store.close();
+    const reopened = open(indexedDB);
+    expect(await (await reopened.readBlob("old"))!.bytes()).toEqual(Uint8Array.of(1,2));
+    expect(await reopened.read("new")).toEqual(Uint8Array.of(3,4));
+    expect(await reopened.readBlob("missing")).toBeNull();
+  });
+
   it("isolates principals and deletes only the requested principal", async () => {
     const store = open();
     await store.write("alice", new Uint8Array([1]));

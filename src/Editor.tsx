@@ -288,9 +288,8 @@ export function Editor({ identity, capabilities, engine: suppliedEngine, recover
     setBusy(true); setError("");
     try {
       engine.pen.finish(); controller.current?.cancel();
-      const result = await engine.executeAsync("file.saveAs", { data: true });
-      const bytes = Uint8Array.from(atob(String(result.data)), value => value.charCodeAt(0));
-      const url = URL.createObjectURL(new Blob([bytes], { type: "application/octet-stream" }));
+      const result = await engine.saveFile();
+      const url = URL.createObjectURL(result.data);
       try {
         const link = document.createElement("a"); link.href = url; link.download = String(result.name);
         document.body.append(link); link.click(); link.remove();

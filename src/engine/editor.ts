@@ -9,7 +9,8 @@ import type { Paint } from "./solid-paint";
 import { executeStrokeList, strokeSpecs } from "./stroke-commands";
 import { isLeaf } from "./document";
 import { newDocument, sameContent, withLayerTransform, type Document, type DrawShapeKind, type NodeId } from "./document";
-import { decodeFigcraft, encodeFigcraft, MAX_FILE_BYTES } from "./file-format";
+import { base64Bytes } from "./recovery";
+import { decodeFigcraft, encodeFigcraft, encodeFigcraftBlob, MAX_FILE_BYTES } from "./file-format";
 import { executePage, listPages, pageSpecs } from "./pages";
 import { executeSelection, selectionSpecs } from "./selection";
 import { setRectangleProperties } from "./properties";
@@ -39,7 +40,7 @@ import { buildPenPath, type PenAnchor } from "./pen-path";
 import { PencilInteraction } from "./pencil-interaction";
 import { parseBrush, wireBrush, type Brush } from "./brush";
 
-interface FileSource {file:File; picker?:PaintPicker; paste?:boolean; centre?:boolean}
+interface FileSource {file:Blob; picker?:PaintPicker; paste?:boolean; centre?:boolean}
 type OpenResult = { repairs: readonly string[]; summary: {name:string; pages:number; layers:number; images:number} }
 
 export const commandSpecs = Object.freeze({
@@ -371,6 +372,10 @@ export class EditorEngine {
     this.#viewportAttached = true;
   }
   subscribe = (listener: () => void): (() => void) => { this.#listeners.add(listener); return () => { this.#listeners.delete(listener); }; };
+  captureNativeSnapshot() {
+    const document = this.#snapshot.document, nextId = String(this.#nextId);
+    return () => encodeFigcraftBlob(document, nextId);
+  }
   nativeSnapshot = (): Promise<Uint8Array> => encodeFigcraft(this.#snapshot.document, String(this.#nextId));
   cancelPendingFiles(): void { this.#openSequence++; this.#pendingSaves.clear(); }
   #publish(patch: Partial<EditorSnapshot>): void {
@@ -629,6 +634,24 @@ export class EditorEngine {
   async executeAsync(command: string, input: unknown = {}): Promise<Record<string, unknown> | null> {
     return this.#executeFileCommand(command, input);
   }
+  async #prepareSave<T>(output: (archive: Blob) => Promise<T>) {
+    if (!this.#snapshot.editable) throw new Error("Sign in to edit this document");
+    this.pen.finish(); this.pencil.cancel(); this.cancelInteraction();
+    const document = this.#snapshot.document;
+    const revision = ++this.#saveSequence, opening = this.#openSequence;
+    const archive = await encodeFigcraftBlob(document, String(this.#nextId));
+    const data = await output(archive);
+    if (!this.#snapshot.editable || opening !== this.#openSequence) throw new Error("Save was cancelled because the document or identity changed");
+    this.#pendingSaves.set(revision, document);
+    while (this.#pendingSaves.size > 16) this.#pendingSaves.delete(this.#pendingSaves.keys().next().value!);
+    return {name: `${document.name}.figcraft`, bytes: archive.size, data, revision};
+  }
+  saveFile() {
+    return this.#prepareSave(async archive => archive);
+  }
+  recoverFile(file: Blob) {
+    return this.#executeFileCommand("file.recover", {}, {file});
+  }
   async openFile(file:File) {
     return this.#executeFileCommand("file.open",{name:file.name},{file});
   }
@@ -662,7 +685,7 @@ export class EditorEngine {
     }
     return errors;
   }
-  async #executeFileCommand(command:"file.open", input:unknown, source?:FileSource): Promise<OpenResult>;
+  async #executeFileCommand(command:"file.open" | "file.recover", input:unknown, source?:FileSource): Promise<OpenResult>;
   async #executeFileCommand(command:string, input:unknown, source?:FileSource): Promise<Record<string, unknown> | null>;
   async #executeFileCommand(command:string, input:unknown, source?:FileSource): Promise<Record<string,unknown> | OpenResult | null> {
     const importing = command === "file.import";
@@ -673,17 +696,7 @@ export class EditorEngine {
     const p = parameters(input);
     if (command === "file.saveAs") {
       if (Object.keys(p).some(key => key !== "data") || (p.data !== undefined && p.data !== true)) throw new Error("Browser save requires data: true");
-      this.pen.finish(); this.pencil.cancel(); this.cancelInteraction();
-      const document = this.#snapshot.document;
-      const revision = ++this.#saveSequence;
-      const opening = this.#openSequence;
-      const bytes = await encodeFigcraft(document, String(this.#nextId));
-      if (!this.#snapshot.editable || opening !== this.#openSequence) throw new Error("Save was cancelled because the document or identity changed");
-      this.#pendingSaves.set(revision, document);
-      while (this.#pendingSaves.size > 16) this.#pendingSaves.delete(this.#pendingSaves.keys().next().value!);
-      let binary = "";
-      for (let offset = 0; offset < bytes.length; offset += 8192) binary += String.fromCharCode(...bytes.subarray(offset, offset + 8192));
-      return { name: `${document.name}.figcraft`, bytes: bytes.length, data: btoa(binary), revision };
+      return this.#prepareSave(async archive => base64Bytes(new Uint8Array(await archive.arrayBuffer())));
     }
     if (source && source.file.size > MAX_FILE_BYTES) throw new Error("File exceeds the browser import limit");
     const allowed = importing ? ["name","data","x","y","center","variables"] : replacing ? ["data", "ids", "id", "target", "index"] : placing ? ["data", "name", "target", "mode", "width", "height", "parent", "x", "y"] : ["data", "name"];
@@ -693,13 +706,14 @@ export class EditorEngine {
     const opening = ++this.#openSequence;
     const regionState = this.#vectorEdit;
     const centre = this.#view;
-    const bytes = source ? new Uint8Array(await source.file.arrayBuffer()) : fileData(p.data);
+    const inputBytes = () => source ? source.file.arrayBuffer().then(buffer => new Uint8Array(buffer)) : fileData(p.data);
     const checkCurrent = () => {
       if (source?.picker && (this.#snapshot.paintPicker !== source.picker || this.#vectorEdit !== regionState)) throw new Error("Image picker target changed");
       if ((replacing || source?.paste) && !sameIds(before.selection, this.#snapshot.selection)) throw new Error("Image edit was cancelled because the selection changed");
       if (opening !== this.#openSequence || before.document !== this.#snapshot.document || !this.#snapshot.editable || this.interacting) throw new Error("Open was cancelled because the document or identity changed");
     };
     if (placing || replacing) {
+      const bytes = await inputBytes();
       if (source) checkCurrent();
       const placement = importing ? rasterImportParams(p,centre) : p;
       const image = await prepareImage(bytes, before.document.images, source?.paste ? 100_000_000 : undefined);
@@ -707,7 +721,7 @@ export class EditorEngine {
       const next = replacing ? replaceImage(before, this.#nextId, image, p, source ? regionState : undefined) : placeImage(before, this.#nextId, image, source?.centre ? {...placement,...centrePastedImage(image,centre)} : placement);
       // Recovery uses this same bounded native archive. A placement that cannot be stored
       // must leave history, selection and the previous document intact.
-      await encodeFigcraft(next.document, String(next.nextId));
+      await encodeFigcraftBlob(next.document, String(next.nextId));
       checkCurrent();
       this.#undo.push({ document: before.document, selection: before.selection }); this.#redo = [];
       this.#nextId = next.nextId;
@@ -717,13 +731,13 @@ export class EditorEngine {
     const raster = command === "file.open" && typeof p.name === "string" && rasterFilename.test(p.name);
     let decoded: Awaited<ReturnType<typeof decodeFigcraft>>;
     if (raster) {
-      const image = await prepareImage(bytes);
+      const image = await prepareImage(await inputBytes());
       const name = String(p.name).split(/[\\/]/).pop()!.replace(rasterFilename, "");
       const initial = { document: newDocument(name), selection: [] };
       const opened = placeImage(initial, 2n, image, { name, width: image.resource.width, height: image.resource.height });
-      await encodeFigcraft(opened.document, String(opened.nextId));
+      await encodeFigcraftBlob(opened.document, String(opened.nextId));
       decoded = { document: opened.document, nextId: String(opened.nextId) };
-    } else decoded = await decodeFigcraft(bytes);
+    } else decoded = await decodeFigcraft(source?.file ?? fileData(p.data));
     checkCurrent();
     this.#nextId = BigInt(decoded.nextId);
     this.#undo = []; this.#redo = []; this.#saved = null; this.#pendingSaves.clear();

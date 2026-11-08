@@ -3428,3 +3428,38 @@ test("two- and four-component JPEG TIFFs keep native CMYK and alpha pixels on op
     expect(Buffer.from(archive[key])).toEqual(original);
   }
 });
+
+test("native archives stream through file selection, recovery and download without base64 copies", async ({page}) => {
+  await page.addInitScript(() => {
+    const encode = window.btoa, decode = window.atob;
+    window.btoa = data => {
+      if (data.length > 1024 * 1024) throw Error("Full archive base64 encoding");
+      return encode(data);
+    };
+    window.atob = data => {
+      if (data.length > 1024 * 1024) throw Error("Full archive base64 decoding");
+      return decode(data);
+    };
+    const original = File.prototype.arrayBuffer;
+    File.prototype.arrayBuffer = function() {
+      if (this.name === "stream.figcraft") throw Error("Full input archive read");
+      return original.call(this);
+    };
+  });
+  await login(page);
+  const payload = Buffer.alloc(2 * 1024 * 1024, 37);
+  const document = await readFile(new URL("../fixtures/native-rectangle.json",import.meta.url));
+  const archive = zipSync({"document.json":document, "images/legacy":[payload,{level:0}]});
+  await page.getByLabel("Open Figcraft file",{exact:true}).setInputFiles({
+    name:"stream.figcraft",mimeType:"application/octet-stream",buffer:Buffer.from(archive),
+  });
+  await expect(page.getByText("1 layer",{exact:true})).toBeVisible();
+  await page.getByRole("button",{name:"Create rectangle",exact:true}).click();
+  await expect(page.getByText("Recovery saved on this device",{exact:true})).toBeVisible();
+  await page.reload();
+  await expect(page.getByText("2 layers",{exact:true})).toBeVisible();
+  const pending = page.waitForEvent("download");
+  await page.getByRole("button",{name:"Save as",exact:true}).click();
+  const restored = unzipSync(await readFile((await (await pending).path())!));
+  expect(Buffer.compare(restored["images/legacy"], payload)).toBe(0);
+});

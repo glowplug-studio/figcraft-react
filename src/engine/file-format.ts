@@ -1,10 +1,9 @@
 import { readVectorNetwork, wireVectorNetwork } from "./vector-codec";
 import { isBooleanOperation, isLeaf, isLeafKind } from "./document";
 import { type Corners, type Radii } from "./corners";
-import { zipSync, type Zippable } from "fflate";
 import { readImageFilters } from "./image-filters";
 import { imageResource, readImageResource, validImageKey, type ImageResource } from "./image-resource";
-import { ERR_INVALID_CRC32, ERR_INVALID_UNCOMPRESSED_SIZE, Uint8ArrayReader, Uint8ArrayWriter, ZipReader, type FileEntry } from "@zip.js/zip.js/lib/zip-core-native.js";
+import { BlobReader, BlobWriter, ZipWriter, ERR_INVALID_CRC32, ERR_INVALID_UNCOMPRESSED_SIZE, Uint8ArrayReader, Uint8ArrayWriter, ZipReader, type FileEntry } from "@zip.js/zip.js/lib/zip-core-native.js";
 import { isLosslessNumber, LosslessNumber, parse, stringify } from "lossless-json";
 import { readConstraints } from "./constraints";
 import { layerTransform, withLayerTransform, rectanglePaints, withRectanglePaints, pageColour, withPageColour, type Document, type DocumentNode } from "./document";
@@ -261,10 +260,10 @@ async function readMember(file: FileEntry): Promise<Uint8Array<ArrayBuffer>> {
   }
 }
 
-async function readArchive(bytes: Uint8Array): Promise<DecodedFigcraft> {
+async function readArchive(bytes: Uint8Array | Blob): Promise<DecodedFigcraft> {
   // Keys are validated before reading image members. An unsafe key is a recoverable
   // image issue. No entry name is ever used as a filesystem path.
-  const reader = new ZipReader(new Uint8ArrayReader(bytes), {
+  const reader = new ZipReader(bytes instanceof Blob ? new BlobReader(bytes) : new Uint8ArrayReader(bytes), {
     strictness: "strict", filenameValidation: "tolerant", checkCrc32: true,
     checkOverlappingEntry: true, useWebWorkers: false,
   });
@@ -334,18 +333,33 @@ async function readArchive(bytes: Uint8Array): Promise<DecodedFigcraft> {
   }
 }
 
-export async function decodeFigcraft(bytes: Uint8Array): Promise<DecodedFigcraft> {
-  if (!bytes.length || bytes.length > FIGCRAFT_FILE_LIMIT) fail("file must be between 1 byte and 16 MiB");
+/** A raw native JSON file may start with any number of JSON whitespace bytes. */
+async function startsWithJson(source: Uint8Array | Blob) {
+  const nonSpace = (byte: number) => byte !== 32 && byte !== 9 && byte !== 10 && byte !== 13;
+  if (!(source instanceof Blob)) return source.find(nonSpace) === 123;
+  for (let offset = 0; offset < source.size; offset += 65536) {
+    const chunk = new Uint8Array(await source.slice(offset, offset + 65536).arrayBuffer());
+    const first = chunk.find(nonSpace);
+    if (first !== undefined) return first === 123;
+  }
+  return false;
+}
+
+export async function decodeFigcraft(source: Uint8Array | Blob): Promise<DecodedFigcraft> {
+  const size = source instanceof Blob ? source.size : source.length;
+  if (!size || size > FIGCRAFT_FILE_LIMIT) fail("file must be between 1 byte and 16 MiB");
   try {
-    const first = bytes.find((byte) => byte !== 32 && byte !== 9 && byte !== 10 && byte !== 13);
-    return first === 123 ? parseDocument(bytes).decoded : await readArchive(bytes);
+    if (await startsWithJson(source)) {
+      return parseDocument(source instanceof Blob ? new Uint8Array(await source.arrayBuffer()) : source).decoded;
+    }
+    return await readArchive(source);
   } catch (error) {
     if (error instanceof Error && error.message.startsWith("Cannot open Figcraft file:")) throw error;
     fail("invalid JSON or ZIP data");
   }
 }
 
-export async function encodeFigcraft(document: Document, nextId?: string): Promise<Uint8Array> {
+export async function encodeFigcraftBlob(document: Document, nextId?: string): Promise<Blob> {
   const nodes: ObjectValue = Object.create(null);
   let maximum = 0n;
   for (const [key, node] of Object.entries(document.nodes)) {
@@ -375,10 +389,17 @@ export async function encodeFigcraft(document: Document, nextId?: string): Promi
   decodeDocument(root);
   const json = new TextEncoder().encode(stringify(root));
   if (json.length > FIGCRAFT_FILE_LIMIT) fail("document exceeds the 16 MiB browser limit");
-  const members: Zippable = { "document.json": json };
   if (keys.reduce((total, key) => total + resources[key]!.bytes.size, json.length) > FIGCRAFT_FILE_LIMIT) fail("archive members exceed the 16 MiB browser limit");
-  for (const key of keys) members[`images/${key}`] = [new Uint8Array(await resources[key]!.bytes.arrayBuffer()), { level: 0 }];
-  const archive = zipSync(members, { level: 3 });
-  if (archive.length > FIGCRAFT_FILE_LIMIT) fail("archive exceeds the 16 MiB browser limit");
+  const writer = new ZipWriter(new BlobWriter("application/octet-stream"), {useWebWorkers: false, extendedTimestamp: false});
+  await writer.add("document.json", new Uint8ArrayReader(json), {level: 3});
+  for (const key of keys) {
+    await writer.add(`images/${key}`, new BlobReader(resources[key]!.bytes), {level: 0});
+  }
+  const archive = await writer.close();
+  if (archive.size > FIGCRAFT_FILE_LIMIT) fail("archive exceeds the 16 MiB browser limit");
   return archive;
+}
+
+export async function encodeFigcraft(document: Document, nextId?: string): Promise<Uint8Array<ArrayBuffer>> {
+  return new Uint8Array(await (await encodeFigcraftBlob(document, nextId)).arrayBuffer());
 }

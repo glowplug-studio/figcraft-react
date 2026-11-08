@@ -22,9 +22,9 @@ export class RecoveryController {
   async start(): Promise<void> {
     this.notify("loading");
     try {
-      const bytes = await this.store.read(this.principal);
+      const stored = this.store.readBlob ? await this.store.readBlob(this.principal) : await this.store.read(this.principal);
       if (this.#disposed) return;
-      const result = bytes ? await this.engine.executeAsync("file.recover", { data: base64Bytes(bytes) }) : undefined;
+      const result = stored ? await this.engine.recoverFile(stored instanceof Blob ? stored : new Blob([new Uint8Array(stored)])) : undefined;
       if (this.#disposed) return;
       if (result?.repairs.length) {
         this.#partialRestore = this.engine.getSnapshot().document;
@@ -54,14 +54,18 @@ export class RecoveryController {
     // Hiding an untouched partially recovered drawing must preserve its original archive.
     if (this.#partialRestore && sameContent(document, this.#partialRestore)) return this.#queue;
     // Capture now; a later queued write must never read a different document revision.
-    const bytes = this.engine.nativeSnapshot();
-    void bytes.catch(() => undefined);
+    const encode = this.engine.captureNativeSnapshot();
     this.#queue = this.#queue.then(async () => {
       if (this.#disposed) return;
       try {
-        const encoded = await bytes;
+        const encoded = await encode();
         if (this.#disposed || !this.engine.getSnapshot().editable) return;
-        await this.store.write(this.principal, encoded);
+        if (this.store.writeBlob) await this.store.writeBlob(this.principal, encoded);
+        else {
+          const bytes = new Uint8Array(await encoded.arrayBuffer());
+          if (this.#disposed || !this.engine.getSnapshot().editable) return;
+          await this.store.write(this.principal, bytes);
+        }
         if (!this.#disposed && this.engine.getSnapshot().document === document) this.notify("stored");
       } catch (error) {
         if (!this.#disposed) this.notify("error", error instanceof Error ? error.message : "Recovery could not be stored");
