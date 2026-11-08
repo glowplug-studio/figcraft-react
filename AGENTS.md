@@ -81,6 +81,7 @@ Graphify indexes the Rust and React repositories independently; it does not infe
 
 ## Documentation and verification
 
+- Whenever the user asks for port status, percentage complete, remaining work or a timeframe, update `docs/planning/full-port-tracker.html` before replying. Use the latest checkpoint and test results to refresh the timeline checklists, milestone bars, overall effort estimate and estimated active hours remaining. Link the updated tracker in the reply.
 - Name planning files `YY-MM-DD-<description>.md` and store them in `docs/planning/`.
 - Keep a resumable execution checkpoint in every active port plan. Update it after each phase and before stopping with the active phase, last verified commit, completed work and tests, files in progress, blockers and exact next action.
 - Store investigation and verification reports in `docs/reports/`.
