@@ -24,6 +24,7 @@ test("gradient handle frames, colour stops, transparency and strokes match nativ
   near(pixels.opacity,[128,128,128,255],"paint opacity");
   near(pixels.hard[0],[255,0,0,255],"left of duplicate stops");
   near(pixels.hard[1],[0,0,255,255],"right of duplicate stops");
+  expect(pixels.largestSeam).toBeLessThanOrEqual(1);
   pixels.beforeFlatten.forEach((before,i)=>{
     expect(before[1]).toBe(0);
     expect(before[0]).toBeGreaterThan(0);

@@ -25,6 +25,49 @@ function diamondTexture(context: CanvasRenderingContext2D, paint: GradientPaint,
   return tile;
 }
 
+/** Split at device-pixel boundaries. Two antialiased edges on a translucent paint
+ * otherwise leave a light seam between the texture and the padded end colour. */
+function drawDiamond(context: CanvasRenderingContext2D, paint: GradientPaint, stops: readonly ColourStop[]) {
+  const frame = context.getTransform(), inverse = frame.inverse();
+  const width = context.canvas.width, height = context.canvas.height;
+  const tile = context.createPattern(diamondTexture(context,paint,stops),"repeat");
+  if (!tile || !Number.isFinite(inverse.a)) return;
+  tile.setTransform(frame.translate(-1,-1).scale(2/256));
+  context.resetTransform();
+  const interior = new Path2D();
+  // Intersect each row of pixel centres with both unit-square coordinate intervals.
+  const extent = Math.abs(frame.b) + Math.abs(frame.d);
+  const first = Math.max(0,Math.ceil(frame.f-extent-.5));
+  const last = Math.min(height,Math.floor(frame.f+extent-.5)+1);
+  const axisAligned = frame.b === 0 && frame.c === 0 || frame.a === 0 && frame.d === 0;
+  if (axisAligned && last>first) {
+    const radius = Math.abs(frame.a) + Math.abs(frame.c);
+    const left = Math.max(0,Math.ceil(frame.e-radius-.5));
+    const right = Math.min(width,Math.floor(frame.e+radius-.5)+1);
+    if (right>left) interior.rect(left,first,right-left,last-first);
+  }
+  for (let y=first; !axisAligned && y<last; y++) {
+    let left=0, right=width;
+    const u=inverse.c*(y+.5)+inverse.e, v=inverse.d*(y+.5)+inverse.f;
+    if (inverse.a===0 && Math.abs(u)>1 || inverse.b===0 && Math.abs(v)>1) continue;
+    if (inverse.a!==0) {
+      const x0=(-1-u)/inverse.a, x1=(1-u)/inverse.a;
+      left=Math.max(left,Math.ceil(Math.min(x0,x1)-.5)); right=Math.min(right,Math.floor(Math.max(x0,x1)-.5)+1);
+    }
+    if (inverse.b!==0) {
+      const x0=(-1-v)/inverse.b, x1=(1-v)/inverse.b;
+      left=Math.max(left,Math.ceil(Math.min(x0,x1)-.5)); right=Math.min(right,Math.floor(Math.max(x0,x1)-.5)+1);
+    }
+    if (right>left) interior.rect(left,y,right-left,1);
+  }
+  const exterior=new Path2D(interior);
+  exterior.rect(0,0,width,height);
+  context.fillStyle=renderColour(stops[stops.length-1].color);
+  context.fill(exterior,"evenodd");
+  context.fillStyle=tile;
+  context.fill(interior);
+}
+
 /** Fill the current clip in gradient coordinates. The caller established the shape or stroke mask. */
 export function drawGradient(context: CanvasRenderingContext2D, paint: GradientPaint, width: number, height: number, space?: RegionPaintSpace) {
   const frame = gradientFrame(paint,space?.width ?? width,space?.height ?? height);
@@ -36,23 +79,13 @@ export function drawGradient(context: CanvasRenderingContext2D, paint: GradientP
   context.save();
   try {
     context.transform(...matrix);
+    if (paint.kind === "diamond") { drawDiamond(context,paint,stops); return; }
     const inverse = context.getTransform().inverse();
     const w = context.canvas.width, h = context.canvas.height;
     const dx = inverse.a*w, ex = inverse.c*h, dy = inverse.b*w, ey = inverse.d*h;
     const left = inverse.e+Math.min(0,dx)+Math.min(0,ex)-1, right = inverse.e+Math.max(0,dx)+Math.max(0,ex)+1;
     const top = inverse.f+Math.min(0,dy)+Math.min(0,ey)-1, bottom = inverse.f+Math.max(0,dy)+Math.max(0,ey)+1;
     if (![left,right,top,bottom].every(Number.isFinite)) return;
-    if (paint.kind === "diamond") {
-      const surround = new Path2D();
-      // Cover the viewport and the entire tile so the even-odd hole is always nested.
-      const x = Math.min(left,-1), y = Math.min(top,-1);
-      surround.rect(x,y,Math.max(right,1)-x,Math.max(bottom,1)-y);
-      surround.rect(-1,-1,2,2);
-      context.fillStyle = renderColour(stops[stops.length-1].color);
-      context.fill(surround,"evenodd");
-      context.drawImage(diamondTexture(context,paint,stops),-1,-1,2,2);
-      return;
-    }
     const gradient = paint.kind === "linear" ? context.createLinearGradient(0,0,1,0)
       : paint.kind === "angular" ? context.createConicGradient(0,0,0) : context.createRadialGradient(0,0,0,0,0,1);
     for (const stop of stops) gradient.addColorStop(stop.position,renderColour(stop.color));

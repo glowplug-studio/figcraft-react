@@ -41,6 +41,11 @@ export function gradientPixels(canvas: HTMLCanvasElement) {
   const opacity = sample({ fills:[{...ramp,stops:["black","black"],opacity:.5}] },50,50);
   const stops = [{position:1,color:"blue"}, {position:.5,color:"red"}, {position:0,color:"red"}, {position:.5,color:"blue"}];
   const hard = [45,55].map(x => sample({fills:[{...ramp,stops}]}, x,50));
+  // A constant translucent diamond must have identical opacity across its skewed tile boundary.
+  sample({fills:[{type:"diamondGradient",from:centre,to:[.743,.564],width:[.55,.771],stops:["#0000ff80","#0000ff80"]}]},50,50);
+  const area=context.getImageData(0,0,100,100).data;
+  let largestSeam=0;
+  for (let i=0; i<area.length; i+=4) largestSeam=Math.max(largestSeam,Math.abs(area[i]-127));
   const strokes = [undefined,[100,1]].map(dashes => {
     const props = { fills:[], strokes:[ramp], strokeWeight:10, ...(dashes && { dashes }) };
     return { band:sample(props,49,2), centre:sample(props,49,50) };
@@ -53,5 +58,5 @@ export function gradientPixels(canvas: HTMLCanvasElement) {
   };
   const beforeFlatten = readRegions();
   engine.execute("vector.flatten",{ids:[id,other]});
-  return { handles, middle, fade, opacity, hard, strokes, beforeFlatten, afterFlatten:readRegions() };
+  return { handles, middle, fade, opacity, hard, strokes, largestSeam, beforeFlatten, afterFlatten:readRegions() };
 }
