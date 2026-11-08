@@ -45,6 +45,7 @@ export class TransformInteraction {
   move(point: Point, modifiers: MoveModifiers): void {
     const g = this.#gesture; if (!g) return;
     if (!this.engine.interacting) { this.#clear(); return; }
+    const command = modifiers.ctrlKey || modifiers.metaKey || !!this.engine.getSnapshot().crop;
     try {
       if (g.resize.handle.kind === "rotate") {
         let angle = (Math.atan2(point.y - g.pivot.y, point.x - g.pivot.x) - g.angle) * 180 / Math.PI;
@@ -55,11 +56,11 @@ export class TransformInteraction {
       const matrix = g.resize.frame.matrix;
       if (!g.scale && this.engine.getView().snapPixel !== false && Math.abs(matrix[1]) < 1e-7 && Math.abs(matrix[2]) < 1e-7) point = { x: pixelRound(point.x), y: pixelRound(point.y) };
       this.#guides = [];
-      if (this.engine.getView().snapObjects !== false && !modifiers.ctrlKey && !modifiers.metaKey) {
+      if (this.engine.getView().snapObjects !== false && !command) {
         // Native resize gathers against the current preview: refitted parent bounds may change.
         const snapped = g.targets.get(this.engine.getRenderDocument()).snapPoint(point, 5 / this.engine.getView().zoom); point = snapped.point; this.#guides = snapped.guides;
       }
-      this.#hint = this.engine.previewResize(g.resize, point, modifiers.shiftKey, modifiers.altKey, modifiers.ctrlKey || modifiers.metaKey, g.scale);
+      this.#hint = this.engine.previewResize(g.resize, point, modifiers.shiftKey, modifiers.altKey, command, g.scale);
       g.moved = true;
     } catch (error) { this.#fail(error); }
   }

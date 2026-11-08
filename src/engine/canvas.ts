@@ -18,6 +18,7 @@ import { MoveInteraction } from "./move-interaction";
 import { TransformInteraction } from "./transform-interaction";
 import { paintStroke, strokeBounds } from "./stroke-renderer";
 import { hasVisibleStroke } from "./stroke";
+import { ImageCropInteraction } from "./image-crop-interaction";
 import { GradientInteraction } from "./gradient-interaction";
 import { CanvasImages, type DrawImagePaint } from "./image-renderer";
 import { drawGradient } from "./gradient-renderer";
@@ -153,7 +154,7 @@ function drawLayer(context: CanvasRenderingContext2D, document: Document, node: 
 }
 
 /** Only this module paints editable geometry; React never renders canvas layers. */
-export function renderDocument(context: CanvasRenderingContext2D, document: Document, width: number, height: number, selection: readonly string[] = [], preview?: Rectangle, view?: Viewport, editingId?: string, invalidate?: () => void): void {
+export function renderDocument(context: CanvasRenderingContext2D, document: Document, width: number, height: number, selection: readonly string[] = [], preview?: Rectangle, view?: Viewport, editingId?: string, invalidate?: () => void, drawImageOverlay?: (images?: CanvasImages) => void): void {
   let images = imageCaches.get(context);
   if (document.images) {
     if (!images) { images = new CanvasImages(); imageCaches.set(context, images); }
@@ -162,7 +163,7 @@ export function renderDocument(context: CanvasRenderingContext2D, document: Docu
       context.save();
       try {
         context.setTransform(matrix!);
-        renderDocument(context, document, width, height, selection, preview, view, editingId);
+        renderDocument(context, document, width, height, selection, preview, view, editingId, undefined, drawImageOverlay);
       } finally { context.restore(); }
     }));
   } else if (images) {
@@ -186,7 +187,6 @@ export function renderDocument(context: CanvasRenderingContext2D, document: Docu
     }
     drawLayer(context, document, node, images?.draw);
   }
-  images?.end();
   context.strokeStyle = canvasAccent(document);
   context.lineWidth = 1 / zoom;
   const neighbours = new Set<string>();
@@ -236,6 +236,8 @@ export function renderDocument(context: CanvasRenderingContext2D, document: Docu
     context.strokeRect(preview.x, preview.y, preview.width, preview.height);
   }
   context.restore();
+  drawImageOverlay?.(images);
+  images?.end();
 }
 
 /** Owns transient gesture state and a demand-driven render loop, outside React. */
@@ -255,6 +257,7 @@ export class CanvasController {
   #rounding: CornerInteraction;
   #drawing: DrawInteraction;
   #gradients: GradientInteraction;
+  #crop: ImageCropInteraction;
   #arcs: ArcInteraction;
   #vectors: VectorInteraction;
   #builder: ShapeBuilderInteraction;
@@ -275,6 +278,7 @@ export class CanvasController {
     this.#rounding = new CornerInteraction(engine, onError);
     this.#drawing = new DrawInteraction(engine, onError);
     this.#gradients = new GradientInteraction(engine);
+    this.#crop = new ImageCropInteraction(engine);
     this.#arcs = new ArcInteraction(engine, onError);
     this.#builder = new ShapeBuilderInteraction(engine);
     this.#vectors = new VectorInteraction(engine, onError);
@@ -320,6 +324,10 @@ export class CanvasController {
     if (event.button !== 0) return;
     this.canvas.focus();
     try {
+      const crop=this.#crop.down(this.#screenPoint(event));
+      if (crop===true || crop==="layer" && this.#transforming.down(this.#point(event))) {
+        event.preventDefault(); this.#pointer=event.pointerId; this.canvas.setPointerCapture(event.pointerId); this.invalidate(); return;
+      }
       if (this.#gradients.down(this.#screenPoint(event))) {
         event.preventDefault(); this.#pointer = event.pointerId; this.canvas.setPointerCapture(event.pointerId); this.invalidate(); return;
       }
@@ -353,6 +361,10 @@ export class CanvasController {
   };
 
   #move = (event: PointerEvent): void => {
+    if (event.pointerId===this.#pointer && this.#crop.active) {
+      try {this.#crop.move(this.#screenPoint(event),event.shiftKey);} catch (e) {this.cancel();this.onError(e instanceof Error ? e.message : "Crop failed");}
+      this.invalidate();return;
+    }
     if (event.pointerId === this.#pointer && this.#gradients.active) {
       const started = performance.now();
       try { this.#gradients.move(this.#screenPoint(event)); } catch (error) { this.cancel(); this.onError(error instanceof Error ? error.message : "Could not move gradient handle"); }
@@ -385,7 +397,7 @@ export class CanvasController {
       return;
     }
     if (this.#pointer === null) {
-      this.canvas.style.cursor = this.#gradients.cursor(this.#screenPoint(event)) ?? (this.engine.getVectorEdit() ? this.#vectors.hover(this.#point(event), event) ?? "default" : this.#onOrigin(this.#point(event)) ? "move" : this.#arcs.hover(this.#point(event)) ?? this.#rounding.hover(this.#point(event)) ?? this.#transforming.hover(this.#point(event)) ?? this.#smart.hover(this.#screenPoint(event), event));
+      this.canvas.style.cursor = this.#crop.cursor(this.#screenPoint(event)) ?? this.#gradients.cursor(this.#screenPoint(event)) ?? (this.engine.getVectorEdit() ? this.#vectors.hover(this.#point(event), event) ?? "default" : this.#onOrigin(this.#point(event)) ? "move" : this.#arcs.hover(this.#point(event)) ?? this.#rounding.hover(this.#point(event)) ?? this.#transforming.hover(this.#point(event)) ?? this.#smart.hover(this.#screenPoint(event), event));
       this.invalidate();
     }
     if (event.pointerId === this.#pointer && this.#vectors.active) {
@@ -436,6 +448,7 @@ export class CanvasController {
   };
 
   #up = (event: PointerEvent): void => {
+    if (event.pointerId===this.#pointer && this.#crop.active) {this.#crop.up();this.cancel();return;}
     if (event.pointerId === this.#pointer && this.#gradients.active) { this.#gradients.up(); this.cancel(); return; }
     if (event.pointerId === this.#pointer && this.#builder.active) {
       try { this.#builder.up(this.#point(event),event); } catch (error) { this.onError(error instanceof Error ? error.message : "Shape Builder failed"); }
@@ -499,6 +512,11 @@ export class CanvasController {
   #cancelEvent = (event: PointerEvent): void => { if (this.#pointer === event.pointerId) this.cancel(); };
   #penFailure(error: unknown): void { this.cancel(); this.onError(error instanceof Error ? error.message : "Could not draw path"); }
   #key = (event: KeyboardEvent): void => {
+    if (this.engine.getSnapshot().crop && !event.altKey && !event.ctrlKey && !event.metaKey && !event.shiftKey && (event.key==="Enter" || event.key==="Escape")) {
+      event.preventDefault();event.stopPropagation();
+      if (event.key==="Enter") {this.#crop.up();this.#transforming.up();}
+      this.cancel();this.engine.finishCrop();return;
+    }
     if (this.engine.getSnapshot().tool === "shapeBuilder" && (event.key === "Escape" || event.key === "Enter")) {
       event.preventDefault(); event.stopPropagation();
       const finish = event.key === "Enter" || !this.#builder.active;
@@ -522,6 +540,7 @@ export class CanvasController {
   };
   cancel(preservePen = false): void {
     if (!preservePen) {
+      this.#crop.cancel();
       this.#gradients.cancel();
       this.#builder.cancel();
       this.engine.pencil.cancel();
@@ -567,10 +586,11 @@ export class CanvasController {
       const view = this.engine.getView(), origin = viewOrigin(view);
       const vectorEdit = this.engine.getRenderVectorEdit(), pen = this.engine.getSnapshot().tool === "pen";
       const builder = snapshot.tool === "shapeBuilder";
-      renderDocument(context, this.engine.getRenderDocument(), this.#width, this.#height, vectorEdit || pen || builder ? [] : this.engine.getRenderSelection(), undefined, view, vectorEdit?.id, () => this.invalidate());
-      if (!builder && !pen && !vectorEdit && !this.#moving.active && !this.#transforming.active && !this.#rounding.active && !this.#arcs.active && !this.#drawing.active) this.#smart.draw(context);
-      if (!builder && !pen && !vectorEdit && !this.#moving.active && !this.#transforming.active && !this.#smart.active && !this.#drawing.active) { this.#rounding.draw(context); this.#arcs.draw(context); }
-      if (!builder && !pen && !vectorEdit && !this.#moving.active && !this.#smart.active) this.#transforming.draw(context);
+      const crop = this.engine.pickedCrop();
+      renderDocument(context, this.engine.getRenderDocument(), this.#width, this.#height, vectorEdit || pen || builder ? [] : this.engine.getRenderSelection(), undefined, view, vectorEdit?.id, () => this.invalidate(), crop ? images => this.#crop.draw(context, images) : undefined);
+      if (!crop && !builder && !pen && !vectorEdit && !this.#moving.active && !this.#transforming.active && !this.#rounding.active && !this.#arcs.active && !this.#drawing.active) this.#smart.draw(context);
+      if (!crop && !builder && !pen && !vectorEdit && !this.#moving.active && !this.#transforming.active && !this.#smart.active && !this.#drawing.active) { this.#rounding.draw(context); this.#arcs.draw(context); }
+      if (!crop && !builder && !pen && !vectorEdit && !this.#moving.active && !this.#smart.active) this.#transforming.draw(context);
       this.#moving.draw(context); this.#drawing.draw(context);
       if (vectorEdit) drawVectorEdit(context, this.engine.getRenderDocument(), vectorEdit, view, this.#vectors.overlay);
       if (pen) drawPen(context, this.engine.getRenderDocument(), view, this.engine.pen.overlay);

@@ -1,4 +1,5 @@
 import { rectanglePaints, withRectanglePaints, type Document, type LayerNode, type NodeId } from "./document";
+import { placementCrop } from "./image-placement";
 import { HierarchyDraft } from "./hierarchy";
 import { imageFilterPresets, readImageFilters, type ImageFilters } from "./image-filters";
 import { parseIndex, parseNodeId, parseNumber, parseString } from "./parameters";
@@ -128,4 +129,33 @@ export function editImagePreset(command: string, document: Document, selection: 
     presets.push(preset);
   }
   return { document: Object.freeze({ ...document, imagePresets: Object.freeze(presets) }), result: preset };
+}
+
+export interface CropTarget {readonly id:NodeId; readonly index:number}
+
+export function topImageFill(node:LayerNode) {
+  const fills = rectanglePaints(node);
+  for (let i=fills.length-1; i>=0; i--) if (fills[i].type==="image" && fills[i].visible) return i;
+  return undefined;
+}
+
+/** A native command operates on the layer's own fill. Region handles follow the open picker separately. */
+export function startImageCrop(document:Document, selection:readonly NodeId[], p:Params) {
+  const ids = targets(selection,p,true);
+  if (ids.length !== 1) throw new Error("Select one layer to crop its image");
+  const id=ids[0], node=document.nodes[id];
+  if (!node || node.kind === "page") throw new Error("The layer has no image fill to crop");
+  const index=p.index == null ? topImageFill(node) : parseIndex(p.index);
+  if (index===undefined) throw new Error("The layer has no image fill to crop");
+  const fills=rectanglePaints(node), paint=fills[index];
+  if (!paint || paint.type!=="image") throw new Error("The selected fill is not an image");
+  const target:CropTarget=Object.freeze({id,index});
+  if (paint.scale_mode==="crop") return {document,target};
+  const resource=document.images?.[paint.image];
+  if (!resource) throw new Error("The image data is missing");
+  const crop=placementCrop(paint,resource.width,resource.height,node.width,node.height);
+  const next=[...fills]; next[index]=Object.freeze({...paint,scale_mode:"crop",crop:Object.freeze(crop)});
+  const draft=new HierarchyDraft(document);
+  draft.set(withRectanglePaints(node,next));
+  return {document:draft.finish(),target};
 }

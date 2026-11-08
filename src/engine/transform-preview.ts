@@ -1,4 +1,5 @@
-import { withLayerSize } from "./document";
+import { placementCrop } from "./image-placement";
+import { rectanglePaints, withRectanglePaints, withLayerSize } from "./document";
 import { inverse, multiply, transformPoint, type Affine } from "./affine";
 import { axisFactors, resizeChildren } from "./constraints";
 import type { Document, NodeId } from "./document";
@@ -50,6 +51,21 @@ export function previewResize(document: Document, start: ResizeStart, point: Poi
       let world = multiply(worldTransform(document, id), [1, 0, 0, 1, Math.min(x0, x1), Math.min(y0, y1)]);
       if (x1 < x0) world = multiply(world, [-1, 0, 0, 1, width, 0]);
       if (y1 < y0) world = multiply(world, [1, 0, 0, -1, 0, height]);
+      if (keepChildren && node.kind !== "page") {
+        const fills=rectanglePaints(node);
+        if (fills.some(paint=>paint.type==="image" && paint.scale_mode!=="tile")) {
+          const w=Math.max(node.width,1e-6), h=Math.max(node.height,1e-6);
+          // The new unit box in the old layer's axes, including flips across the fixed edge.
+          const toOld:Affine=[(x1<x0 ? -1 : 1)*Math.max(.01,width)/w,0,0,(y1<y0 ? -1 : 1)*Math.max(.01,height)/h,x0/w,y0/h];
+          const next=fills.map(paint=>{
+            if (paint.type!=="image" || paint.scale_mode==="tile") return paint;
+            const image=document.images?.[paint.image]; if (!image) return paint;
+            const crop=multiply(placementCrop(paint,image.width,image.height,w,h),toOld);
+            return Object.freeze({...paint,scale_mode:"crop" as const,crop:Object.freeze(crop)});
+          });
+          draft.set(withRectanglePaints(node,next));
+        }
+      }
       setWorld(id, world); size(id, Math.max(.01, width), Math.max(.01, height), preserve);
       for (const child of kept) setWorld(child.id, child.world);
     } else {

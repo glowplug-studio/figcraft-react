@@ -1,5 +1,5 @@
 import { isGroupLike, rectanglePaints } from "./document";
-import { editImagePaints, editImagePreset, imageEditSpecs } from "./image-commands";
+import { editImagePaints, editImagePreset, imageEditSpecs, startImageCrop, type CropTarget } from "./image-commands";
 import { listImagePresets } from "./image-filters";
 import { getNode } from "./inspect";
 import { centrePastedImage, rasterImportParams, fileData, placeImage, prepareImage, rasterFilename, replaceImage } from "./image-import";
@@ -61,6 +61,7 @@ export const commandSpecs = Object.freeze({
   ...vectorSpecs,
   ...vectorEditSpecs,
   ...imageEditSpecs,
+  "image.crop": { label:"Crop image", undo:true },
   "image.replace": { label: "Replace image", undo: true },
   "image.presets": { label: "Image presets", undo: false },
   "node.get": { label: "Get layer", undo: false },
@@ -105,6 +106,7 @@ export interface PaintPicker {
 }
 export interface EditorSnapshot {
   readonly paintPicker?: PaintPicker;
+  readonly crop?: CropTarget;
   readonly document: Document;
   readonly selection: readonly NodeId[];
   readonly tool: "move" | DrawShapeKind | "scale" | "pen" | "pencil" | "shapeBuilder";
@@ -240,19 +242,32 @@ export class EditorEngine {
   }
   setPaintPicker(paintPicker?: PaintPicker): void {
     if (paintPicker && !this.#snapshot.editable) return;
-    this.#publish({ paintPicker });
+    this.#publish(paintPicker ? {paintPicker,crop:undefined} : {paintPicker});
   }
   /** The native canvas handles edit one open picker. Mixed region paints have no target. */
-  pickedGradient() {
-    const picker = this.#snapshot.paintPicker, ids = this.getRenderSelection();
+  #pickedPaint(picker: PaintPicker | undefined) {
+    const ids=this.getRenderSelection();
     if (!picker || ids.length !== 1) return;
-    const node = this.getRenderDocument().nodes[ids[0]];
+    const node=this.getRenderDocument().nodes[ids[0]];
     if (!node || node.kind === "page") return;
-    const regions = picker.list === "fill" ? selectedRegionFills(node, this.getRenderVectorEdit()) : undefined;
-    const stack = picker.list === "stroke" ? node.strokes : regions === undefined ? rectanglePaints(node) : regions;
-    const paint = stack?.[picker.index];
-    if (paint?.type === "gradient") return { node, paint, picker };
+    const regions=picker.list==="fill" ? selectedRegionFills(node,this.getRenderVectorEdit()) : undefined;
+    const stack=picker.list==="stroke" ? node.strokes : regions===undefined ? rectanglePaints(node) : regions;
+    const paint=stack?.[picker.index];
+    if (paint) return {node,paint,picker};
   }
+  pickedGradient() {
+    const hit=this.#pickedPaint(this.#snapshot.paintPicker);
+    if (hit?.paint.type==="gradient") return {...hit,paint:hit.paint};
+  }
+  pickedCrop() {
+    const {paintPicker,crop}=this.#snapshot;
+    const picker=paintPicker ?? (crop && crop.id===this.getRenderSelection()[0] ? {list:"fill" as const,index:crop.index,stop:0} : undefined);
+    const hit=this.#pickedPaint(picker);
+    if (hit?.paint.type!=="image" || hit.paint.scale_mode!=="crop") return;
+    const resource=this.getRenderDocument().images?.[hit.paint.image];
+    if (resource) return {...hit,paint:hit.paint,resource};
+  }
+  finishCrop() { if (this.#snapshot.crop) this.#publish({crop:undefined}); }
   previewPaint(picker: PaintPicker, paint: Paint): void {
     const interaction = this.#interaction;
     if (!interaction) throw new Error("No active paint interaction");
@@ -359,6 +374,9 @@ export class EditorEngine {
     this.#snapshot = Object.freeze({ ...this.#snapshot, ...patch, canUndo: this.#undo.length > 0, canRedo: this.#redo.length > 0, dirty: !sameContent(document, this.#saved), hasSaved: this.#saved !== null });
     if (this.#lastDuplicate && !duplicateSelection(this.#lastDuplicate, this.#snapshot.selection)) this.#lastDuplicate = undefined;
     if (this.#vectorEdit) this.#vectorEdit = pageForNode(document, this.#vectorEdit.id) === document.currentPage ? clampVectorEdit(document, this.#vectorEdit) : undefined;
+    if (this.#snapshot.crop && (!this.#snapshot.editable || !this.pickedCrop())) {
+      this.#snapshot = Object.freeze({...this.#snapshot,crop:undefined});
+    }
     this.#vectorListeners.forEach(listener => listener());
     this.#refreshOrigin();
     this.#canvasListeners.forEach(listener => listener());
@@ -427,6 +445,14 @@ export class EditorEngine {
         this.#publish({ scaleAnchor: anchor as ScaleAnchor });
       }
       return { anchor: this.#snapshot.scaleAnchor };
+    }
+    if (command==="image.crop") {
+      const before=this.#snapshot, {document,target}=startImageCrop(before.document,before.selection,p);
+      if (document!==before.document) {
+        this.#undo.push({document:before.document,selection:before.selection}); this.#redo=[];
+      }
+      this.#publish({document,crop:target,paintPicker:undefined});
+      return {...target};
     }
     if (Object.hasOwn(imageEditSpecs, command)) {
       const before = this.#snapshot;

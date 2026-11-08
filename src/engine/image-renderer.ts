@@ -53,10 +53,17 @@ function coversBox(paint: ImagePaint, iw: number, ih: number, w: number, h: numb
   return crop[1] === 0 && crop[2] === 0 && Math.min(x0,x1) <= 0 && Math.min(y0,y1) <= 0 && Math.max(x0,x1) >= 1 && Math.max(y0,y1) >= 1;
 }
 
+// A file may contain finite coefficients whose products exceed JavaScript's numeric range.
+function drawableTransform(paint: ImagePaint, iw: number, ih: number, w: number, h: number) {
+  try { return imageTransform(paint, iw, ih, w, h); }
+  catch { return undefined; }
+}
+
 /** Draw into an established path or coverage mask. Extend boundary texels for covered strokes. */
 function drawPixels(ctx: CanvasRenderingContext2D, paint: ImagePaint, bitmap: ImageBitmap, width: number, height: number, space?: RegionPaintSpace) {
   const iw = bitmap.width, ih = bitmap.height, w = space?.width ?? width, h = space?.height ?? height;
-  const transform = imageTransform(paint, iw, ih, w, h);
+  const transform = drawableTransform(paint, iw, ih, w, h);
+  if (!transform) return;
   ctx.save();
   try {
     if (space) ctx.transform(...space.transform);
@@ -109,17 +116,22 @@ export class CanvasImages {
     this.#frame++;
   }
 
-  draw: DrawImagePaint = (ctx, paint, width, height, space) => {
+  draw: DrawImagePaint = (ctx, paint, width, height, space) => this.#draw(ctx,paint,width,height,space);
+  drawGhost(ctx:CanvasRenderingContext2D,paint:ImagePaint,width:number,height:number) {
+    this.#draw(ctx,paint,width,height,undefined,2048);
+  }
+  #draw(ctx:CanvasRenderingContext2D,paint:ImagePaint,width:number,height:number,space?:RegionPaintSpace,maxSide?:number) {
     const resource = this.#resources?.[paint.image];
     if (!resource || !resource.width || !resource.height || resource.width * resource.height * 4 > PIXEL_BYTES) return;
     const w = space?.width ?? width, h = space?.height ?? height;
     if (!w || !h) return;
-    const transform = imageTransform(paint, resource.width, resource.height, w, h);
+    const transform = drawableTransform(paint, resource.width, resource.height, w, h);
+    if (!transform) return;
     const frame = ctx.getTransform(), long = Math.max(resource.width, resource.height);
     let determinant = (frame.a*frame.d-frame.b*frame.c) * (transform[0]*transform[3]-transform[1]*transform[2]);
     if (space) determinant *= space.transform[0]*space.transform[3]-space.transform[1]*space.transform[2];
     const shown = long * Math.sqrt(Math.abs(determinant));
-    const side = paint.scale_mode === "tile" ? MAX_SIDE : shown <= 4096 ? 4096 : shown <= 8192 ? 8192 : MAX_SIDE;
+    const side = maxSide ?? (paint.scale_mode === "tile" ? MAX_SIDE : shown <= 4096 ? 4096 : shown <= 8192 ? 8192 : MAX_SIDE);
     const ratio = Math.min(1, side/long);
     const rw = Math.max(1, Math.round(resource.width*ratio)), rh = Math.max(1, Math.round(resource.height*ratio));
     let filterKey = this.#filterKeys.get(paint.filters);
@@ -136,7 +148,7 @@ export class CanvasImages {
     }
     entry.frame = this.#frame;
     if (entry.bitmap) drawPixels(ctx, paint, entry.bitmap, width, height, space);
-  };
+  }
 
   #remove(key: string, entry: ImageVariant) {
     this.#entries.delete(key);

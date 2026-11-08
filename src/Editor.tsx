@@ -14,6 +14,8 @@ import { framePresets } from "./engine/frame-presets";
 import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type FormEvent, type KeyboardEvent } from "react";
 import type { DocumentCapability } from "./backends/access";
 import type { IdentityAdapter } from "./backends/identity";
+import { hitRectangle } from "./engine/selection";
+import { topImageFill } from "./engine/image-commands";
 import { screenToPage } from "./engine/viewport";
 import type { Point } from "./engine/geometry";
 import { CanvasController } from "./engine/canvas";
@@ -115,6 +117,9 @@ export function Editor({ identity, capabilities, engine: suppliedEngine, recover
   }
   function key(event: KeyboardEvent) {
     if (!editable || busy) return;
+    if (snapshot.crop && !event.altKey && !event.ctrlKey && !event.metaKey && !event.shiftKey && (event.key==="Escape" || event.key==="Enter") && !(event.target instanceof Element && event.target.closest("input,textarea,select,[contenteditable=true]"))) {
+      event.preventDefault(); engine.finishCrop(); canvas.current?.focus(); return;
+    }
     if (event.key.toLowerCase() === "v") modifiedPaste.current = (event.ctrlKey || event.metaKey) && (event.shiftKey || event.altKey);
     if (event.target instanceof HTMLElement && event.target.closest("input,textarea,select,dialog,[contenteditable=true]")) return;
     if ((event.key === "Enter" || event.key === " ") && event.target instanceof HTMLElement && event.target.closest("button,summary,a[href]")) return;
@@ -296,6 +301,7 @@ export function Editor({ identity, capabilities, engine: suppliedEngine, recover
   const editable = signedIn && snapshot.editable && recoveryStatus !== "loading" && capabilities.includes("document.edit");
   const page = pageOf(snapshot.document);
   const selected = snapshot.document.nodes[snapshot.selection[0]];
+  const canCrop = editable && snapshot.selection.length === 1 && selected && selected.kind !== "page" && topImageFill(selected)!==undefined;
   const relative = selected && selected.kind !== "page" ? frameRelative(snapshot.document, selected.id) : undefined;
   return <div ref={root} className="figcraft-editor" onKeyDown={key} data-figcraft-editor=""
     onKeyUp={e=>{if (e.key.toLowerCase()==="v") modifiedPaste.current=false;}} onBlurCapture={()=>{modifiedPaste.current=false;}}
@@ -314,6 +320,9 @@ export function Editor({ identity, capabilities, engine: suppliedEngine, recover
       if (file) { e.preventDefault(); void paste(file); }
     }}>
       <header className="figcraft-document-bar"><h1>{snapshot.document.name}</h1><span>{snapshot.dirty ? "Unsaved" : "Downloaded"} · Local document</span>
+        <details><summary>Object</summary><button disabled={!canCrop || busy} type="button" onClick={e=>{
+          e.currentTarget.closest("details")?.removeAttribute("open");dispatch("image.crop");canvas.current?.focus();
+        }}>Crop image</button></details>
         <button disabled={!editable || busy} onClick={() => fileInput.current?.click()}>Open</button>
         <button disabled={!editable || busy} onClick={() => imageInput.current?.click()}>Place image</button>
         <input ref={imageInput} aria-label="Place image file" type="file" accept=".png,.jpg,.jpeg,.webp,.gif,.bmp,.tif,.tiff" hidden onChange={event => {
@@ -349,13 +358,18 @@ export function Editor({ identity, capabilities, engine: suppliedEngine, recover
         </aside>
         <div className="figcraft-canvas-area">
           <div ref={pasteMenu} popover="auto" role="group" aria-label="Canvas actions" style={{position:"fixed",inset:"auto",margin:0}}>
+            {canCrop && <button onClick={()=>{pasteMenu.current?.hidePopover();dispatch("image.crop");canvas.current?.focus();}}>Crop image</button>}
             <button onClick={()=>{pasteMenu.current?.hidePopover();canvas.current?.focus();void paste(undefined,pasteAt.current);}}>Paste here</button>
           </div>
           <canvas ref={canvas} onContextMenu={event=>{
+            // Chromium on macOS can emit contextmenu for the primary Control-drag used to resize.
+            if (event.ctrlKey || engine.interacting) {event.preventDefault();return;}
             if (!editable || busy || !pasteMenu.current) return;
             event.preventDefault();
             const menu = pasteMenu.current;
             pasteAt.current = pagePoint(event.clientX,event.clientY);
+            const target=hitRectangle(snapshot.document,pasteAt.current,event.metaKey,snapshot.selection,2/engine.getView().zoom);
+            if (target && !snapshot.selection.includes(target)) dispatch("select.set",{ids:[target]});
             menu.showPopover();
             const bounds = menu.getBoundingClientRect();
             menu.style.left = Math.max(0,Math.min(event.clientX,window.innerWidth-bounds.width))+"px";

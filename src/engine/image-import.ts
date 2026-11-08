@@ -1,5 +1,6 @@
 import type { Document, NodeId } from "./document";
 import { rectanglePaints, withRectanglePaints } from "./document";
+import { pixelRound } from "./geometry";
 import { HierarchyDraft } from "./hierarchy";
 import { selectedRegionFills, writeFill } from "./fill-commands";
 import type { VectorEditState } from "./vector-edit";
@@ -33,8 +34,7 @@ export function rasterImportParams(params: Record<string,unknown>, centre: {cx:n
 
 export function centrePastedImage(image: Awaited<ReturnType<typeof prepareImage>>, centre: {cx:number; cy:number}) {
   const {width,height} = placedImageSize(image.resource.width,image.resource.height,image.density);
-  const round = (v:number) => Math.sign(v)*Math.round(Math.abs(v));
-  return {x:round(centre.cx-width/2), y:round(centre.cy-height/2)};
+  return {x:pixelRound(centre.cx-width/2), y:pixelRound(centre.cy-height/2)};
 }
 
 export function fileData(data: unknown): Uint8Array<ArrayBuffer> {

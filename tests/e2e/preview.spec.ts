@@ -1559,6 +1559,9 @@ test("Line Arrow keyboard drawing and endpoint previews preserve Frame geometry 
   const matrix = worldTransform(first.document, line.id), end = transformPoint(matrix, { x: line.width, y: 0 });
   const p = await canvasPoint(page, end.x, end.y), q = await canvasPoint(page, end.x + 50, end.y + 20);
   await page.keyboard.down("Control"); await page.mouse.move(p.x, p.y); await page.mouse.down(); const before = await root.getAttribute("data-commits"); await page.mouse.move(q.x, q.y, { steps: 8 }); await expect(root).toHaveAttribute("data-commits", before!);
+  // A macOS Control-primary drag can raise contextmenu before the pointer is released.
+  await canvas.dispatchEvent("contextmenu",{ctrlKey:true,button:2,clientX:q.x,clientY:q.y});
+  await expect(page.getByRole("group",{name:"Canvas actions",exact:true})).toBeHidden();
   await page.keyboard.press("Escape"); await page.mouse.up(); await page.keyboard.up("Control");
   const cancelled = await save(); expect(cancelled.document.nodes[line.id]).toEqual(line);
   await page.keyboard.down("Control"); await page.mouse.move(p.x, p.y); await page.mouse.down(); await page.mouse.move(q.x, q.y, { steps: 8 }); await page.mouse.up(); await page.keyboard.up("Control");
@@ -3118,4 +3121,70 @@ test("browser image paste centres in the view, appends to a selected fill, respe
   await expect(page.getByText("Recovery saved on this device",{exact:true})).toBeVisible();
   await page.reload();await expect(page.getByText("2 layers",{exact:true})).toBeVisible();
   expect((await saved()).nodes["3"]).toMatchObject({x:82,y:124,fills:[{type:"image"}]});
+});
+
+test("image crop preserves visible pixels on layer resize, dims the outside and moves the picture independently", async ({page}) => {
+  await login(page);
+  await createNamedRectangle(page, "Crop fixture", 100, 100, 180, 120);
+  const canvas = page.getByLabel("Design canvas", {exact:true});
+  const picker = page.getByRole("group", {name:"fill 1 paint picker",exact:true});
+  await page.getByRole("button", {name:"Edit fill 1 paint",exact:true}).click();
+  await picker.getByLabel("Paint type").selectOption("image");
+  await picker.getByLabel("Choose image").setInputFiles(new URL("../fixtures/images/six-pixels.png",import.meta.url).pathname);
+  await expect(picker.getByLabel("Image mode")).toBeVisible();
+  await picker.getByRole("button", {name:"Close paint picker"}).click();
+  async function sample(x:number, y:number) {
+    const point = await canvasPoint(page,x,y);
+    return canvas.evaluate((node:HTMLCanvasElement, p) => {
+      const r=node.getBoundingClientRect();
+      return Array.from(node.getContext("2d")!.getImageData(Math.round((p.x-r.x)*devicePixelRatio),Math.round((p.y-r.y)*devicePixelRatio),1,1).data);
+    },point);
+  }
+  async function saved() {
+    const pending=page.waitForEvent("download");
+    await canvas.focus(); await page.keyboard.press("ControlOrMeta+s");
+    const {document} = await decodeFigcraft(await readFile((await (await pending).path())!));
+    return document.nodes["2"] as RectangleNode;
+  }
+  async function drag(x:number,y:number,toX:number,toY:number) {
+    const a=await canvasPoint(page,x,y), b=await canvasPoint(page,toX,toY);
+    await page.mouse.move(a.x,a.y); await page.mouse.down();
+    await page.mouse.move(b.x,b.y,{steps:4}); await page.mouse.up();
+  }
+  const background=await sample(300,130);
+  await expect.poll(()=>sample(266,115)).not.toEqual(background);
+  const retained=await sample(145,135), removed=await sample(266,115);
+  const centre=await canvasPoint(page,150,145);
+  await page.mouse.click(centre.x,centre.y,{button:"right"});
+  await page.getByRole("group",{name:"Canvas actions"}).getByRole("button",{name:"Crop image"}).click();
+  await drag(280,160,220,160);
+  const resized=await saved();
+  expect(resized).toMatchObject({x:100,y:100,width:120,height:120});
+  const paint=rectanglePaints(resized)[0];
+  if (paint.type!=="image") throw Error("Expected cropped image fill");
+  expect(paint.scale_mode).toBe("crop"); expect(paint.crop?.[0]).toBeCloseTo(2/3);
+  await expectCanvasPixel(page,145,135,retained);
+  const ghost=removed.map((v,i)=>Math.round(v*115/255+background[i]*(1-115/255)));
+  await expectCanvasPixel(page,266,115,ghost);
+  const clip=await canvasPoint(page,91,91);
+  await expect(page).toHaveScreenshot("image-crop-brackets.png",{clip:{...clip,width:198,height:138},animations:"disabled"});
+  await page.keyboard.press("Enter");
+  await expectCanvasPixel(page,266,115,background);
+  await page.keyboard.press("ControlOrMeta+z");
+  expect(await saved()).toMatchObject({width:180,height:120});
+  await page.getByRole("button",{name:"Crop fill 1 image",exact:true}).click();
+  await drag(150,145,165,155);
+  const moved=await saved();
+  expect(moved).toMatchObject({x:100,y:100,width:180,height:120});
+  const movedPaint=rectanglePaints(moved)[0];
+  if(movedPaint.type!=="image") throw Error("Expected moved image fill");
+  expect(movedPaint.crop?.[4]).toBeCloseTo(-15/180);
+  expect(movedPaint.crop?.[5]).toBeCloseTo(-10/120);
+  await page.keyboard.press("Escape"); await page.keyboard.press("ControlOrMeta+z");
+  expect(rectanglePaints(await saved())[0]).toMatchObject({scale_mode:"crop",crop:[1,0,0,1,0,0]});
+  await page.locator("summary").getByText("Object",{exact:true}).click();
+  await page.getByRole("button",{name:"Crop image",exact:true}).click();
+  const outside=await canvasPoint(page,320,240);
+  await page.mouse.click(outside.x,outside.y);
+  await expect(page.getByRole("button",{name:"Crop fill 1 image",exact:true})).toBeHidden();
 });

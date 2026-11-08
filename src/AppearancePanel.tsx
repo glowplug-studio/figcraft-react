@@ -121,6 +121,7 @@ function AppearanceControls({ engine, page, selected, editable, dispatch }: Appe
             <button type="button" disabled={index === paints.length - 1} onClick={() => dispatch("fill.move", { ids, from: index, to: index + 1 })}>Move fill {row + 1} up</button>
             <button type="button" disabled={index === 0} onClick={() => dispatch("fill.move", { ids, from: index, to: index - 1 })}>Move fill {row + 1} down</button>
           </form>
+          {ids.length===1 && regionPaints===undefined && paint.type==="image" && <button type="button" aria-label={`Crop fill ${row+1} image`} onClick={()=>dispatch("image.crop",{ids,index})}>Crop image</button>}
           <PaintPicker engine={engine} region={regionPaints !== undefined} list="fill" label={`fill ${row+1}`} index={index} paint={paint} change={next=>updatePaint(index,next)} />
         </li>)}</ol>
         <button type="button" onClick={() => dispatch("fill.add", { ids })} onContextMenu={event => openMenu(event)} onKeyDown={event => openMenu(event)}>Add fill</button>
