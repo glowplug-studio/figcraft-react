@@ -293,3 +293,7 @@ At dfdffca, native structure::offset_path maps to vector-offset.ts and the exist
 ## Simplify vector
 
 At dcc3c82, structure::simplify and the Kurbo cubic fitting rules map to simplifyVector, simplifyPath and CubicFitSource. Engine fixtures and authenticated native save, undo and recovery cover fitted geometry and colour. [Verification and evidence](../reports/26-11-09-simplify-vector-parity.html).
+
+## Shape Builder
+
+At a132b69, pathops::faces, union_faces and canvas/shapebuilder.rs map to path-arrangement, shape-builder, shape-builder-commands and ShapeBuilderInteraction. Native sources and named tests are linked from the [twelve-property matrix](../reports/26-11-09-shape-builder-parity.html). The independent browser tool covers fills, strokes, paint frames, atomic commands, input and recovery for supported node and paint types. Text contours, linked styles, auto layout and gradient sampling retain their downstream obligations.

@@ -196,28 +196,32 @@
       "label": "Shape builder regions",
       "source": "crates/engine/src/canvas/shapebuilder.rs",
       "line": 519,
-      "status": "Not tested"
+      "status": "Passed for supported layer types",
+      "evidence": "../reports/26-11-09-shape-builder-parity.html"
     },
     {
       "command": "shapeBuilder.merge",
       "label": "Merge regions",
       "source": "crates/engine/src/canvas/shapebuilder.rs",
       "line": 545,
-      "status": "Not tested"
+      "status": "Passed for supported layer types",
+      "evidence": "../reports/26-11-09-shape-builder-parity.html"
     },
     {
       "command": "shapeBuilder.remove",
       "label": "Remove regions",
       "source": "crates/engine/src/canvas/shapebuilder.rs",
       "line": 552,
-      "status": "Not tested"
+      "status": "Passed for supported layer types",
+      "evidence": "../reports/26-11-09-shape-builder-parity.html"
     },
     {
       "command": "shapeBuilder.mode",
       "label": "Shape builder mode",
       "source": "crates/engine/src/canvas/shapebuilder.rs",
       "line": 559,
-      "status": "Not tested"
+      "status": "Passed for supported layer types",
+      "evidence": "../reports/26-11-09-shape-builder-parity.html"
     },
     {
       "command": "vector.edit.bounds",
@@ -4192,7 +4196,8 @@
       "label": "Shape builder",
       "source": "crates/engine/src/cmd/view.rs",
       "line": 595,
-      "status": "Not tested"
+      "status": "Passed for supported layer types",
+      "evidence": "../reports/26-11-09-shape-builder-parity.html"
     },
     {
       "command": "edit.pickColor",

@@ -14,3 +14,7 @@ Phases 1–3 complete. The synchronised original, fork and local Rust revision a
 1. Verify the geometry kernel with independent native-derived fixtures before integrating command mutations.
 2. Add selection and arrangement caching, readback, mutation transactions and controller actions in sequence. Reject singular transforms and oversized arrangements atomically. Check UTF-8 native round trips and stable paint-space transforms.
 3. Verify a large retained scene, repeated hover hit tests, cache invalidation, frame timings and history. Run strict types, both builds, pure and Auth suites and full Chromium. Record all limitations and the next dependency in the matrix before publication.
+
+Phase 6 in progress at a132b69. Readback, transactions, hatching, mode controls and native recovery implemented. Strict types, both builds, 980 pure tests and both local Auth checks passed. The original production host recovered client-side from a server-rendering import error. The library now leaves Paper resolution to the consumer, and the host loads the server package in Node. A fresh authenticated HTTP test checks the actual host markup. The final one-worker Chromium run follows the review of fourteen toolbar-only screenshot changes.
+
+Phases 6–7 passed. See the [verified property matrix](../reports/26-11-09-shape-builder-parity.html) and [timing attachment](../reports/26-11-09-shape-builder-measurements.json). Proceed to gradient paints.

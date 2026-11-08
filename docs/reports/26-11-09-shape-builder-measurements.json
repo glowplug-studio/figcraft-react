@@ -1,0 +1,23 @@
+{
+  "react": "a132b69d5f4521a71ae9922264875e997afe7960",
+  "upstream": "8a7ebc2484a6d64d80a13c19c18ffb814325e347",
+  "stats": {
+    "startTime": "2026-11-08T19:51:14.731Z",
+    "duration": 277819.668,
+    "expected": 133,
+    "skipped": 0,
+    "unexpected": 0,
+    "flaky": 0
+  },
+  "performance": {
+    "nodes": 10000,
+    "targets": 32,
+    "regions": 60,
+    "frames": 110,
+    "notifications": 0,
+    "coldMs": 27.799999952316284,
+    "commitMs": 3.600000023841858,
+    "paintP95Ms": 0.6000000238418579,
+    "inputP95Ms": 0
+  }
+}
