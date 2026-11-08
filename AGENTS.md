@@ -51,6 +51,12 @@ Do not select a Graphify repository implicitly. A prompt that explicitly names r
 
 Graphify indexes the Rust and React repositories independently; it does not infer cross-repository equivalence. For every port, explicitly map upstream Rust modules, symbols, commands and tests to their TypeScript targets in the dated plan and update `docs/parity/cross-repository-mapping.md` once the mapping is verified. Do not infer equivalence from similar names alone.
 
+## Local Graphify index
+
+- Use a combined local graph for day-to-day port work. Index the active React checkout and the pinned `original/figcraft` submodule separately with `graphify extract <source> --code-only --no-cluster --out <cache-dir>`. Give each repository its own cache directory outside both working trees and preserve the submodule’s Git metadata.
+- On resumption, check the indexed revisions against both checkouts and check for unindexed source edits. Refresh any missing or stale graph. During implementation, refresh the React graph at each slice checkpoint that changes source or tests, and the Rust graph whenever the submodule revision changes.
+- After either refresh, run `graphify merge-graphs <react-graph.json> <rust-graph.json> --out <combined.json>`. Verify the combined graph contains symbols from both repositories. Record the indexed revisions and material coverage gaps in the checkpoint. Hosted indexing is optional for this local workflow; honour any separate hosted checks explicitly required by the task.
+
 ## Architecture boundaries
 
 - Keep reusable React code in `src/` and expose it as a library that can be embedded by React hosts, including Next.js.
