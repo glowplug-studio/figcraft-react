@@ -2539,3 +2539,58 @@ test("live boolean groups edit their operands, render cuts and recover native ge
   await page.getByRole("button", { name: "Undo", exact: true }).click();
   expect((await save()).nodes[group]).toMatchObject({ kind: "booleanOp", children: [bottom, top] });
 });
+
+test("Outline stroke preserves fill and border pixels, transformed native layers and device recovery", async ({ page }) => {
+  const engine = new EditorEngine(), id = String(engine.execute("shape.rectangle", {
+    x: 120, y: 120, width: 100, height: 70, props: { name: "Tile", fill: "#336699", stroke: "#cc2211", strokeWeight: 8, strokeAlign: "inside" },
+  }).id);
+  await login(page);
+  await page.getByLabel("Open Figcraft file", { exact: true }).setInputFiles({
+    name: "outline.figcraft", mimeType: "application/octet-stream", buffer: Buffer.from(await engine.nativeSnapshot()),
+  });
+  const layers = page.getByRole("region", { name: "Layers", exact: true });
+  const tile = layers.getByRole("button", { name: "Tile", exact: true });
+  await expect(tile).toHaveCount(1);
+  await resetCanvasOrigin(page);
+  const samples = async () => {
+    await expectCanvasPixel(page, 124, 150, [204,34,17,255]);
+    await expectCanvasPixel(page, 150, 150, [51,102,153,255]);
+    await expectCanvasPixel(page, 116, 150, [245,245,245,255]);
+  };
+  await samples();
+  await tile.click();
+  await page.keyboard.press("Control+Alt+o");
+  await expect(tile).toHaveCount(3);
+  const save = async () => {
+    const pending = page.waitForEvent("download");
+    await page.getByRole("button", { name:"Save as", exact:true }).click();
+    return (await decodeFigcraft(await readFile((await (await pending).path())!))).document;
+  };
+  const check = async () => {
+    const doc = await save();
+    const group = Object.values(doc.nodes).find(n => n.kind === "group");
+    expect(group?.children[0]).toBe(id);
+    expect(doc.nodes[group!.children[1]]).toMatchObject({ kind: "vector", fill: "#cc2211" });
+    expect(doc.nodes[id]).toMatchObject({ kind: "rectangle", fill: "#336699" });
+  };
+  await check();
+  const p = await canvasPoint(page, 300, 270);
+  await page.mouse.click(p.x, p.y);
+  await samples();
+  const origin = await canvasPoint(page, 114, 114);
+  await expect(page).toHaveScreenshot("outlined-stroke-fill.png", { clip: { ...origin, width: 112, height: 82 }, animations: "disabled", maxDiffPixels: 0 });
+  await page.getByRole("button", { name: "Undo", exact: true }).click();
+  await expect(tile).toHaveCount(1);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.locator(".figcraft-mobile-layers > summary").click();
+  await tile.click();
+  await layers.getByRole("button", { name: "Outline stroke", exact: true }).click();
+  await expect(tile).toHaveCount(3);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await expect(page.locator(".figcraft-recovery")).toHaveText("Recovery saved on this device");
+  await page.reload();
+  await expect(tile).toHaveCount(3);
+  await resetCanvasOrigin(page);
+  await samples();
+  await check();
+});

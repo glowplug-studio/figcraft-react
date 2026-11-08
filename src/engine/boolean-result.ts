@@ -58,6 +58,14 @@ function strokeOutline(node: LayerNode, vector: VectorNode): Path {
   return plan.arrows.length ? booleanStep(area,plan.arrows,"union") : area;
 }
 
+/** Convert a layer's painted stroke into local filled contours for Outline stroke. */
+export function paintedStrokePath(doc: Document, node: LayerNode): Path | undefined {
+  if (!hasVisibleStroke(node) || node.kind === "group") return;
+  const vector = node.kind === "booleanOp" ? booleanResult(doc, node) :
+    node.kind === "vector" ? node : asVector(node, shapePath(node));
+  return vector && strokeOutline(node, vector);
+}
+
 function transformed(node: LayerNode, path: Path): Path {
   const matrix = layerTransform(node);
   return mapVectorPath(path, p => transformPoint(matrix,p));

@@ -2,6 +2,10 @@
 
 All notable changes to the React port and its upstream compatibility baseline are recorded here.
 
+## [0.39.0] - 2026-11-09
+
+- Added Outline stroke for supported layers, including retained fills, profile and brush geometry, native save and undo.
+
 ## [0.38.0] - 2026-11-09
 
 - Added live Union, Subtract, Intersect and Exclude groups with editable operands, native file support and silhouette flattening.

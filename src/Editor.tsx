@@ -148,7 +148,10 @@ export function Editor({ identity, capabilities, engine: suppliedEngine, recover
     }
     if (!event.metaKey && !event.ctrlKey && event.altKey && event.code === "KeyR") command = "transform.rotationOrigin";
     if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "s") { event.preventDefault(); void save(); return; }
-    if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "o") { event.preventDefault(); fileInput.current?.click(); return; }
+    if ((event.metaKey || event.ctrlKey) && event.altKey && !event.shiftKey && event.code === "KeyO") {
+      event.preventDefault(); dispatch("vector.outlineStroke"); return;
+    }
+    if ((event.metaKey || event.ctrlKey) && !event.altKey && event.key.toLowerCase() === "o") { event.preventDefault(); fileInput.current?.click(); return; }
     if ((event.metaKey || event.ctrlKey) && !event.altKey && event.key.toLowerCase() === "j") command = event.shiftKey ? "vector.smoothJoin" : "vector.join";
     if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "a") command = "select.all";
     if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "g") command = event.shiftKey ? "object.ungroup" : "object.group";

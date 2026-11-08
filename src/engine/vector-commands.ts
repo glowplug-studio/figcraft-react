@@ -1,10 +1,10 @@
-import { booleanResult } from "./boolean-result";
+import { booleanResult, paintedStrokePath } from "./boolean-result";
 import { inverse, multiply, type Affine } from "./affine";
 import { fromRgba8 } from "./colour";
-import { isLeaf, rectanglePaints, withRectanglePaints, type Document, type LayerNode, type NodeId, type VectorNode } from "./document";
+import { layerTransform, withLayerTransform, isLeaf, rectanglePaints, withRectanglePaints, type Document, type LayerNode, type NodeId, type VectorNode } from "./document";
 import { HierarchyDraft, rootIds, worldTransform, zSorted } from "./hierarchy";
 import { parseNodeId } from "./parameters";
-import { shapePath } from "./shape-path";
+import { isClosedShape, shapePath } from "./shape-path";
 import { solidPaint, type SolidPaint } from "./solid-paint";
 import { defaultStroke } from "./stroke";
 import { freezeNetwork, vectorLine, networkFromPath, regionPaintFrame, transformNetwork, type VectorNetwork, type VectorRegion, type VectorSegment, type VectorVertex } from "./vector-network";
@@ -22,6 +22,7 @@ export const vectorSpecs = Object.freeze({
   "vector.fillRule": { label: "Set fill rule", undo: true },
   "vector.reverseLoop": { label: "Reverse loop", undo: true },
   "bool.flatten": { label: "Flatten boolean", undo: true },
+  "vector.outlineStroke": { label: "Outline stroke", undo: true },
   "vector.flatten": { label: "Flatten", undo: true },
   "vector.reverse": { label: "Reverse path direction", undo: true },
 });
@@ -95,6 +96,51 @@ export function executeVector(command: string, document: Document, selection: re
       draft.set({ ...node, network: freezeNetwork({ ...net, segments, regions: [region] }) });
     }
     return { document: draft.finish(), selection, nextId, result: { ok: true } };
+  }
+  if (command === "vector.outlineStroke") {
+    const outlined: NodeId[] = [];
+    const allocate = () => {
+      if (nextId > 18446744073709551615n || draft.nodes[String(nextId)]) throw new Error("Document identifiers are exhausted");
+      const id = String(nextId);
+      if (nextId < 18446744073709551615n) nextId++;
+      return id;
+    };
+    for (const id of targets) {
+      const source = draft.nodes[id];
+      if (!source) throw new Error(`No node ${id}`);
+      if (source.kind === "page") continue;
+      const path = paintedStrokePath(draft.document, source);
+      if (!path) continue;
+      const network = networkFromPath(path), box = networkBounds(network) ?? { x: 0, y: 0, width: 0, height: 0 };
+      const local = transformNetwork(network, [1, 0, 0, 1, -box.x, -box.y]);
+      const filled = freezeNetwork({ ...local, regions: local.regions.map(r => ({ ...r, winding: "evenOdd" })) });
+      const vid = allocate(), parent = draft.nodes[source.parent];
+      if (isLeaf(parent)) throw new Error("Invalid parent");
+      const index = parent.children.indexOf(id);
+      const paintedRegion = source.kind === "vector" && source.network.regions.some(r => r.fills?.some(p => p.visible));
+      const keepFill = isClosedShape(source) && (rectanglePaints(source).some(p => p.visible) || paintedRegion);
+      const vector = withRectanglePaints(withLayerTransform<VectorNode>({
+        kind: "vector", id: vid, name: source.name, parent: parent.id, network: filled,
+        x: 0, y: 0, width: box.width, height: box.height, fill: "transparent",
+        ...(!keepFill && { opacity: source.opacity, blend: source.blend, constraints: source.constraints, visible: source.visible, locked: source.locked }),
+      }, multiply(layerTransform(source), [1, 0, 0, 1, box.x, box.y])), source.strokes ?? []);
+      draft.insert(vector, parent.id, index + 1);
+      if (keepFill) {
+        draft.set({ ...source, strokes: Object.freeze([]) });
+        const gid = allocate();
+        draft.insert({ kind: "group", id: gid, name: source.name, parent: parent.id, children: [],
+          x: 0, y: 0, width: 0, height: 0, fill: "transparent", blend: "passThrough" }, parent.id, index + 2);
+        draft.reparent(id, gid);
+        draft.reparent(vid, gid);
+        draft.fitToChildren(gid);
+        outlined.push(gid);
+      } else {
+        draft.remove(id);
+        outlined.push(vid);
+      }
+    }
+    draft.normaliseGroups();
+    return { document: draft.finish(), selection: Object.freeze(outlined), nextId, result: { ids: outlined } };
   }
   // Native Join on several layers uses Flatten, including its region paint and placement rules.
   if (command === "vector.reverse") {
