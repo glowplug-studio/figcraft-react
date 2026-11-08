@@ -98,7 +98,7 @@ npm run preview:build
 
 Supabase is the first interchangeable remote-service adapter. Storage and realtime transport remain behind provider-neutral contracts so another PaaS can be used later without changing domain or UI code. Authentication is owned by the embedding host; the reusable package receives provider-neutral identity, session and capability data through an adapter. Ownership, access grants, collaboration roles and presence remain separate from provider implementation.
 
-Graphify is used by development agents to understand pushed source. The React repository and the Figcraft fork are indexed independently in the same workspace; Graphify does not automatically infer that a Rust symbol corresponds to a TypeScript symbol. Port plans must explicitly map upstream definitions, callers and tests to their React targets. A submodule pointer does not recursively index its contents, and Graphify does not read uncommitted local files or ignored build output.
+Port work uses local Graphify indexes of the active React checkout and the pinned Rust submodule. The combined graph includes uncommitted authored source. Port plans map upstream definitions, callers and tests to their React targets.
 
 See `docs/setup.md` for environment, Supabase, Graphify and preview configuration. The step-based Astra High port prompt is under `docs/prompts/`.
 
