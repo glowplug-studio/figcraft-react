@@ -3,7 +3,7 @@ import { isBooleanOperation, isLeaf, isLeafKind } from "./document";
 import { type Corners, type Radii } from "./corners";
 import { zipSync, type Zippable } from "fflate";
 import { readImageFilters } from "./image-filters";
-import { imageResource, validImageKey, type ImageResource } from "./image-resource";
+import { imageResource, readImageResource, validImageKey, type ImageResource } from "./image-resource";
 import { ERR_INVALID_CRC32, ERR_INVALID_UNCOMPRESSED_SIZE, Uint8ArrayReader, Uint8ArrayWriter, ZipReader, type FileEntry } from "@zip.js/zip.js/lib/zip-core-native.js";
 import { isLosslessNumber, LosslessNumber, parse, stringify } from "lossless-json";
 import { readConstraints } from "./constraints";
@@ -304,11 +304,19 @@ async function readArchive(bytes: Uint8Array): Promise<DecodedFigcraft> {
       }
       // Charge failed reads too, so a series of damaged members cannot repeatedly inflate the budget.
       remaining -= member.uncompressedSize;
+      let bytes: Uint8Array<ArrayBuffer>;
       try {
-        images[key] = imageResource(await readMember(member));
+        bytes = await readMember(member);
       } catch (error) {
         const reason = error instanceof Error ? error.message.replace(/^Cannot open Figcraft file: /, "") : "invalid ZIP data";
         report(`image ${key} couldn't be read (${reason}): it is left out, and saving this file again drops it`);
+        continue;
+      }
+      try {
+        images[key] = await readImageResource(bytes);
+      } catch {
+        images[key] = imageResource(bytes);
+        report(`image ${key} opened without colour conversion. Its original bytes are preserved.`);
       }
     }
     for (const key of [...listed].sort()) {

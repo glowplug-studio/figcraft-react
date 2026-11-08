@@ -3250,3 +3250,58 @@ test("PNG source profiles keep the native gamma labels and convert canvas pixels
     await picker.getByRole("button",{name:"Close paint picker"}).click();
   }
 });
+
+test("embedded ICC profiles convert PNG JPEG WebP and TIFF pixels and survive a native file round trip",async({page})=>{
+  await login(page);
+  const input=page.getByLabel("Open Figcraft file",{exact:true});
+  const files=["png","jpg","webp","tiff"];
+  for(const [i,ext] of files.entries()){
+    const file="icc-adobe."+ext, name=ext+"-adobe";
+    await input.setInputFiles({name:name+"."+ext,mimeType:"application/octet-stream",buffer:await readFile(new URL("../fixtures/images/"+file,import.meta.url))});
+    if(i) await page.getByRole("button",{name:"Replace document",exact:true}).click();
+    await expect(page.getByRole("heading",{name,level:1,exact:true})).toBeVisible();
+    await resetCanvasOrigin(page);
+    // D65 Adobe RGB (1998) [200,80,60] mapped through XYZ to sRGB.
+    await expectCanvasPixel(page,20,1,[230,79,56,255]);
+    await page.getByRole("list",{name:"Page layers",exact:true}).getByRole("button",{name,exact:true}).click();
+    await page.getByRole("button",{name:"Edit fill 1 paint",exact:true}).click();
+    const picker=page.getByRole("group",{name:"fill 1 paint picker",exact:true});
+    await expect(picker.getByText("Color profile: Adobe RGB (1998)",{exact:true})).toBeVisible();
+    await picker.getByRole("button",{name:"Close paint picker"}).click();
+  }
+  const pending=page.waitForEvent("download");
+  await page.getByRole("button",{name:"Save as",exact:true}).click();
+  const saved=await readFile((await (await pending).path())!);
+  const doc=(await decodeFigcraft(saved)).document;
+  const image=Object.values(doc.images!)[0];
+  expect(image.profileName).toBe("Adobe RGB (1998)");
+  expect(Buffer.from(await image.bytes.arrayBuffer())).toEqual(await readFile(new URL("../fixtures/images/icc-adobe.tiff",import.meta.url)));
+  await input.setInputFiles({name:"Recovered.figcraft",mimeType:"application/octet-stream",buffer:saved});
+  const confirm=page.getByRole("button",{name:"Replace document",exact:true});
+  if(await confirm.isVisible()) await confirm.click();
+  await resetCanvasOrigin(page);
+  await expectCanvasPixel(page,20,1,[230,79,56,255]);
+});
+
+test("grey and lookup-table ICC profiles preserve opacity and match the native picker pixels",async({page})=>{
+  await login(page);
+  const files=[
+    {name:"icc-grey",label:"Linear grey",pixels:[188,188,188,255,188,188,188,128]},
+    {name:"icc-lut",label:"Grey LUT",pixels:[119,119,119,255,194,194,194,128]}
+  ];
+  for(const [i,{name,label,pixels}] of files.entries()){
+    await page.getByLabel("Open Figcraft file",{exact:true}).setInputFiles(new URL("../fixtures/images/"+name+".png",import.meta.url).pathname);
+    if(i) await page.getByRole("button",{name:"Replace document",exact:true}).click();
+    await expect(page.getByRole("heading",{name,level:1,exact:true})).toBeVisible();
+    await page.getByRole("list",{name:"Page layers",exact:true}).getByRole("button",{name,exact:true}).click();
+    await page.getByRole("button",{name:"Edit fill 1 paint",exact:true}).click();
+    const picker=page.getByRole("group",{name:"fill 1 paint picker",exact:true});
+    await expect(picker.getByText("Color profile: "+label,{exact:true})).toBeVisible();
+    const preview=picker.getByLabel("Image preview");
+    await expect.poll(()=>preview.evaluate((canvas:HTMLCanvasElement, reference)=>{
+      const values=canvas.getContext("2d")!.getImageData(0,0,2,1).data;
+      return values.every((x,i)=>Math.abs(x-reference[i])<=(i%4===3?0:3));
+    },pixels)).toBe(true);
+    await picker.getByRole("button",{name:"Close paint picker"}).click();
+  }
+});

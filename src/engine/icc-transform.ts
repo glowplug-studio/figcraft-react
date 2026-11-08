@@ -1,0 +1,31 @@
+/// <reference path="./lcms.d.ts" />
+import { loadRuntime } from "#figcraft-icc-runtime";
+
+let loading: ReturnType<typeof loadRuntime> | undefined;
+async function cms() {
+  loading ??= loadRuntime().catch(error=>{loading=undefined;throw error;});
+  return loading;
+}
+
+export async function openIccTransform(profile:Uint8Array, grey:boolean) {
+  const {lib,TYPE_RGBA_8,TYPE_GRAYA_8,cmsFLAGS_COPY_ALPHA}=await cms();
+  const input=lib.cmsOpenProfileFromMem(profile,profile.length);
+  if (!input) return;
+  const output=lib.cmsCreate_sRGBProfile();
+  try {
+    const transform=output && lib.cmsCreateTransform(input,grey?TYPE_GRAYA_8:TYPE_RGBA_8,output,TYPE_RGBA_8,1,cmsFLAGS_COPY_ALPHA);
+    if (!transform) return;
+    return {
+      convert(rgba:Uint8ClampedArray) {
+        const pixels=rgba.length/4;
+        let source=new Uint8Array(rgba.buffer,rgba.byteOffset,rgba.byteLength);
+        if (grey) {
+          source=new Uint8Array(pixels*2);
+          for (let i=0;i<pixels;i++) {source[i*2]=rgba[i*4];source[i*2+1]=rgba[i*4+3];}
+        }
+        rgba.set(lib.cmsDoTransform(transform,source,pixels));
+      },
+      close() {lib.cmsDeleteTransform(transform);}
+    };
+  } finally {if(output)lib.cmsCloseProfile(output);lib.cmsCloseProfile(input);}
+}

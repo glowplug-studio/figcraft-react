@@ -6,7 +6,7 @@ import { selectedRegionFills, writeFill } from "./fill-commands";
 import type { VectorEditState } from "./vector-edit";
 import { editImagePaints } from "./image-commands";
 import { decodeImageBitmap } from "./image-decode";
-import { imageHash, imageResource, type ImageResource } from "./image-resource";
+import { imageHash, readImageResource, type ImageResource } from "./image-resource";
 import { imagePixelDensity, placedImageSize } from "./image-placement";
 import { parseNodeId, parseNumber, parseString } from "./parameters";
 import { readPaint } from "./solid-paint";
@@ -49,7 +49,7 @@ export function fileData(data: unknown): Uint8Array<ArrayBuffer> {
 
 /** Pixel validation is required only when introducing new data. Native archives retain damaged images. */
 export async function prepareImage(bytes: Uint8Array<ArrayBuffer>, existing?: Readonly<Record<string, ImageResource>>, maxPixels = 512 * 1024 * 1024 / 4) {
-  let resource = imageResource(bytes);
+  let resource = await readImageResource(bytes);
   if (!resource.width || !resource.height) throw new Error("Unsupported image: its dimensions could not be read");
   if (resource.width * resource.height > maxPixels) throw new Error("This image can't be read: it is too large");
   try {

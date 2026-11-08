@@ -1,6 +1,7 @@
 import { BMP } from "image-size/types/bmp";
 import { GIF } from "image-size/types/gif";
-import { pngProfileName } from "./image-profile";
+import { embeddedIcc } from "./icc-container";
+import { iccDescription, pngProfileName } from "./image-profile";
 import { jpegHeader } from "./jpeg-header";
 import { PNG } from "image-size/types/png";
 import { tiffDimensions } from "./tiff-directory";
@@ -13,6 +14,7 @@ export interface ImageResource {
   readonly height: number;
   readonly unsupportedJpegSampling?: true;
   readonly profileName?: string;
+  readonly icc?: {readonly bytes:Blob; readonly grey:boolean};
 }
 
 const readers = [
@@ -60,4 +62,21 @@ export function imageResource(data:Uint8Array<ArrayBuffer>):ImageResource {
   } catch { /* The native archive retains unreadable bytes with dimensions 0 × 0. */ }
   const profileName = mime === "image/png" ? pngProfileName(data) : undefined;
   return Object.freeze({width,height,bytes:new Blob([data],{type:mime}),...(profileName === undefined ? {} : {profileName})});
+}
+
+/** Only compressed colour metadata and transform validation require asynchronous work. */
+export async function readImageResource(bytes:Uint8Array<ArrayBuffer>):Promise<ImageResource> {
+  const resource=imageResource(bytes);
+  if (!resource.width || !resource.height) return resource;
+  const embedded=await embeddedIcc(bytes,resource.bytes.type);
+  if (!embedded) return resource;
+  const description=iccDescription(embedded.profile);
+  if (!description) return resource;
+  const {openIccTransform}=await import("./icc-transform");
+  const transform=await openIccTransform(embedded.profile,description.grey);
+  if (!transform) return resource;
+  transform.close();
+  const icc=description.grey && !embedded.grey ? undefined :
+    Object.freeze({bytes:new Blob([embedded.profile]),grey:description.grey});
+  return Object.freeze({...resource,profileName:description.name,icc});
 }

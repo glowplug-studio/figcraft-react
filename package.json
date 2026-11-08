@@ -13,6 +13,13 @@
   "main": "./dist/index.js",
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
+  "imports": {
+    "#figcraft-icc-runtime": {
+      "browser": "./dist/icc-browser.js",
+      "node": "./dist/icc-node.js",
+      "default": "./dist/icc-browser.js"
+    }
+  },
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -68,6 +75,7 @@
     "@zip.js/zip.js": "2.24.0",
     "fflate": "0.8.3",
     "image-size": "2.1.0",
+    "lcms-wasm": "1.0.5",
     "lossless-json": "4.3.3",
     "paper": "0.17.0"
   }

@@ -9,6 +9,8 @@ export default defineConfig({
     lib: {
       entry: {
         index: resolve(import.meta.dirname, "src/index.ts"),
+        "icc-node": resolve(import.meta.dirname, "src/engine/icc-node.ts"),
+        "icc-browser": resolve(import.meta.dirname, "src/engine/icc-browser.ts"),
         "backends/supabase/index": resolve(
           import.meta.dirname,
           "src/backends/supabase/index.ts",
@@ -21,7 +23,7 @@ export default defineConfig({
       formats: ["es"],
     },
     rollupOptions: {
-      external: ["paper/dist/paper-core.js", "@supabase/supabase-js", "react", "react-dom", "react/jsx-runtime"],
+      external: ["#figcraft-icc-runtime", "paper/dist/paper-core.js", "@supabase/supabase-js", "react", "react-dom", "react/jsx-runtime"],
     },
   },
 });
