@@ -90,3 +90,73 @@ describe("bounded native TIFF pixel decoding", () => {
     await expect(decodeTiffSegment(Uint8Array.of(9),1,2)).rejects.toThrow();
   });
 });
+
+describe("raw TIFF JPEG samples", () => {
+  it.each([
+    ["raw-cmyk", 32, [[255,0,0,255],[111,79,15,255],[0,191,0,255],[0,0,0,255]]],
+    ["raw-rgba", 30, [[0,255,255,0],[32,96,224,128],[255,0,255,64],[240,120,80,255]]],
+    ["raw-grey-alpha", 32, [[0,0,0,255],[32,32,32,96],[255,255,255,0],[240,240,240,120]]],
+  ] as const)("preserves the four colour bars in %s", async (name,width,pixels) => {
+    const image = await decodeTiff(read(name));
+    expect([image.width,image.height]).toEqual([width,8]);
+    for (let y=0;y<8;y++) for (let x=0;x<width;x++) {
+      const i=4*(y*width+x);
+      expect([...image.rgba.subarray(i,i+4)]).toEqual(pixels[Math.floor(x/8)]);
+    }
+  });
+
+  it("reconstructs the subsampled channels at the boundary between two bars", async () => {
+    const {rgba} = await decodeTiff(read("raw-subsampled"));
+    expect([...rgba.subarray(6*4,10*4)]).toEqual([
+      0,255,255,0, 0,215,247,32, 32,136,232,96, 32,96,224,128,
+    ]);
+  });
+
+  it.each([
+    ["raw-vertical", [96,160,32,96]],
+    ["raw-hv", [112,144,48,80]],
+  ] as const)("matches the native browser scalar kernel at the four quadrant corners of %s", async (name, expected) => {
+    const {rgba,width} = await decodeTiff(read(name));
+    const corners = [[15,15],[16,15],[15,16],[16,16]];
+    for (const [i, [x,y]] of corners.entries()) {
+      const start = (y * width + x) * 4, green = expected[i];
+      expect([...rgba.subarray(start, start + 4)]).toEqual([16, green, 192 - green, 255]);
+    }
+  });
+
+  it("refuses malformed shared tables and scan headers before raw decoding", () => {
+    const data = read("raw-cmyk");
+    const {value,byteField} = tiffDirectory(data);
+    const strip = data.slice(value(273), value(273) + value(279)), tables = byteField(347)!;
+    const scan = strip.findIndex((byte,i) => byte === 255 && strip[i+1] === 218);
+    const dht = tables.findIndex((byte,i) => byte === 255 && tables[i+1] === 196);
+    const dqt = tables.findIndex((byte,i) => byte === 255 && tables[i+1] === 219);
+    expect(Math.min(scan, dht, dqt)).toBeGreaterThan(0);
+    for (const [at, bad] of [[dht+5,3],[dqt+4,0x20],[dht+2,255]]) {
+      const damaged = tables.slice();
+      damaged[at] = bad;
+      expect(() => tiffJpegSource(strip, damaged, 32, 8, 4)).toThrow();
+    }
+    for (const [at, bad] of [[scan+7,strip[scan+5]],[scan+6,0x40],[scan+13,64],[scan+15,0xff]]) {
+      const damaged = strip.slice();
+      damaged[at] = bad;
+      expect(() => tiffJpegSource(damaged, tables, 32, 8, 4)).toThrow(/scan/);
+    }
+  });
+
+  it("refuses a second frame hidden after a scan and accounts for padded DCT blocks", () => {
+    const data=read("raw-cmyk");
+    const {value,byteField}=tiffDirectory(data);
+    const start=value(273), strip=data.subarray(start,start+value(279)), tables=byteField(347);
+    const frame=strip.findIndex((byte,i)=>byte===255 && strip[i+1]===192);
+    const n=2+strip[frame+2]*256+strip[frame+3];
+    const duplicate=new Uint8Array(strip.length+n);
+    duplicate.set(strip.subarray(0,-2));
+    duplicate.set(strip.subarray(frame,frame+n),strip.length-2);
+    duplicate.set([255,217],duplicate.length-2);
+    expect(()=>tiffJpegSource(duplicate,tables,32,8,4)).toThrow(/disagree/);
+    expect(()=>tiffJpegSource(strip,tables,32,8,4,1000)).toThrow(/working limit/);
+    const invalid=strip.slice(); invalid[frame+11]=0;
+    expect(()=>tiffJpegSource(invalid,tables,32,8,4)).toThrow(/sampling/);
+  });
+});

@@ -69,7 +69,7 @@ export async function decodeTiff(bytes: Uint8Array<ArrayBuffer>) {
     if (compression === 4 && (bits !== 1 || channels !== 1)) throw new Error("Invalid Group 4 TIFF sample format");
     let raw: Uint8Array<ArrayBuffer>;
     if (compression === 4) raw = await decodeFax4(segment, tileWidth, rows, reverseBits);
-    else if (compression === 7) raw = await decodeTiffJpeg(segment, jpegTables, tileWidth, rows, components);
+    else if (compression === 7) raw = await decodeTiffJpeg(segment, jpegTables, tileWidth, rows, components, MAX_WORKING_BYTES - outputBytes);
     else raw = await decodeTiffSegment(segment, compression, rowBytes*rows);
     const data = new DataView(raw.buffer, raw.byteOffset, raw.byteLength), plane = Math.floor(block/perPlane);
     const max = bits === 16 ? 65535 : bits === 8 ? 255 : 1;

@@ -3402,3 +3402,29 @@ test("P3 gamut warning and soft proof identify clipped colours and clear on a fr
   await expect(proof).toHaveAttribute("aria-pressed","false");
   await expectCanvasPixel(page,20,28,[0,255,0,255]);
 });
+
+test("two- and four-component JPEG TIFFs keep native CMYK and alpha pixels on open and save", async ({page}) => {
+  await login(page);
+  let workers = 0;
+  page.on("worker", () => { workers++; });
+  const open = page.getByLabel("Open Figcraft file", {exact:true});
+  for (const [i, [name, sampled]] of ([
+    ["raw-cmyk",[111,79,15,255]], ["raw-rgba",[138,170,234,255]], ["raw-grey-alpha",[165,165,165,255]], ["raw-hv",[16,0,192,255]], ["raw-worker",[138,170,234,255]],
+  ] as const).entries()) {
+    const beforeWorkers = workers;
+    const original = await readFile(new URL("../fixtures/images/"+name+".tiff",import.meta.url));
+    await open.setInputFiles({name:name+".tiff",mimeType:"image/tiff",buffer:original});
+    const replace = page.getByRole("button",{name:"Replace document",exact:true});
+    if (i && await replace.isVisible()) await replace.click();
+    await expect(page.getByRole("heading",{name,exact:true,level:1})).toBeVisible();
+    await resetCanvasOrigin(page);
+    await expectCanvasPixel(page,12,3,sampled);
+    if (name === "raw-hv") await expectCanvasPixel(page,15,15,[16,112,80,255]);
+    if (name === "raw-worker") expect(workers).toBeGreaterThan(beforeWorkers);
+    const download = page.waitForEvent("download");
+    await page.getByRole("button",{name:"Save as",exact:true}).click();
+    const archive = unzipSync(await readFile((await (await download).path())!));
+    const key = Object.keys(archive).find(key=>key.startsWith("images/"))!;
+    expect(Buffer.from(archive[key])).toEqual(original);
+  }
+});

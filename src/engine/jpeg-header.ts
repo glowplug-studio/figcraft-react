@@ -13,15 +13,11 @@ export function jpegHeader(data: Uint8Array) {
     if (marker >= 0xc0 && marker <= 0xcf && ![0xc4,0xc8,0xcc].includes(marker)) {
       const components = data[at+7];
       if (!components || length !== 8 + 3*components) return;
-      const first = data[at+9];
-      let unsupportedSampling = false;
-      if ([0xc2,0xc6,0xca,0xce].includes(marker)) {
-        for (let i=1; i<components; i++) {
-          const sample = data[at+9+3*i];
-          if ((sample >> 4) > (first >> 4) || (sample & 15) > (first & 15)) unsupportedSampling = true;
-        }
-      }
-      return {width:data[at+5]*256+data[at+6], height:data[at+3]*256+data[at+4], unsupportedSampling};
+      const sampling = Array.from({length: components}, (_, i) => data[at + 9 + 3*i]);
+      const first = sampling[0];
+      const unsupportedSampling = [0xc2,0xc6,0xca,0xce].includes(marker) &&
+        sampling.some(sample => (sample >>> 4) > (first >>> 4) || (sample & 15) > (first & 15));
+      return {width:data[at+5]*256+data[at+6], height:data[at+3]*256+data[at+4], sampling, unsupportedSampling};
     }
     at += length;
   }

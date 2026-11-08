@@ -40,7 +40,7 @@ describe("native encoded image resources",()=>{
     const source=readFileSync(new URL("../fixtures/images/progressive.jpg",import.meta.url));
     const frame=source.indexOf(Buffer.from([0xff,0xc2]));
     expect(frame).toBeGreaterThan(0);
-    expect(jpegHeader(source)).toEqual({width:8,height:8,unsupportedSampling:false});
+    expect(jpegHeader(source)).toEqual({width:8,height:8,sampling:[0x11,0x11,0x11],unsupportedSampling:false});
     for(const [marker,component,sampling] of [[0xc2,1,0x21],[0xc6,1,0x12],[0xca,2,0x22],[0xce,2,0x21]]) {
       const bytes=Uint8Array.from(source);
       bytes[frame+1]=marker; bytes[frame+11+component*3]=sampling;
