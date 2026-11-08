@@ -16,3 +16,7 @@ Phases 1–3 complete. Work from be059b7 on prompt/full-figcraft-port. Original,
 1. Extract the shared painted stroke geometry, preserving holes and cap direction. Implement the command using immutable document transactions and direct engine tests.
 2. Connect the action and shortcut. Compare actual Chromium pixels and native archive readback. Measure repeated outline/undo and heap on a representative selection.
 3. Run strict types, package and Next builds, the pure and local Auth tests and the complete Playwright regression. Record the property matrix, local graph refresh and next operation. Simplify and Offset share painted-region reconstruction and follow this command. Shape Builder follows those operations.
+
+## Verified checkpoint
+
+Phases 4–7 passed at 70cf052. Strict TypeScript, both production builds, 950 pure checks, two local Auth tests and 126 Chromium workflows passed. Repeated multi-layer conversion and undo matched the original document. The combined local graph resolves paintedStrokePath and native stroke_center, with 29,594 nodes and 97,145 edges. The code-only index excludes prose and e2e declarations with no extracted symbols. See the [local report](../reports/26-11-09-outline-stroke.md) and [Offset path plan](26-11-09-offset-path.md).

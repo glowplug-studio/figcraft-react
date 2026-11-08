@@ -1,0 +1,120 @@
+{
+  "react": "70cf05219f3677b10741d17a8c8cc5e25e05e34b",
+  "upstream": "8a7ebc2484a6d64d80a13c19c18ffb814325e347",
+  "stats": {
+    "startTime": "2026-11-08T19:07:18.678Z",
+    "duration": 278881.173,
+    "expected": 126,
+    "skipped": 0,
+    "unexpected": 0,
+    "flaky": 0
+  },
+  "measurements": {
+    "scenes": [
+      {
+        "kind": "line",
+        "props": {
+          "widthProfile": [
+            [
+              0,
+              0,
+              2
+            ],
+            [
+              1,
+              0,
+              2
+            ]
+          ]
+        },
+        "dark": 708,
+        "mismatch": 0
+      },
+      {
+        "kind": "line",
+        "props": {
+          "brush": {
+            "preset": "dots",
+            "spacing": 3
+          }
+        },
+        "dark": 80,
+        "mismatch": 0
+      },
+      {
+        "kind": "line",
+        "props": {
+          "brush": {
+            "preset": "taper"
+          }
+        },
+        "dark": 196,
+        "mismatch": 0
+      },
+      {
+        "kind": "line",
+        "props": {
+          "dashes": [
+            10,
+            10
+          ],
+          "startCap": "round",
+          "endCap": "square"
+        },
+        "dark": 542,
+        "mismatch": 0
+      },
+      {
+        "kind": "arrow",
+        "props": {
+          "startCap": "round",
+          "endCap": "triangleArrow"
+        },
+        "dark": 890,
+        "mismatch": 0
+      },
+      {
+        "kind": "rectangle",
+        "props": {
+          "strokeSides": [
+            2,
+            6,
+            10,
+            14
+          ],
+          "cornerRadius": 12,
+          "strokeAlign": "outside"
+        },
+        "dark": 2023,
+        "mismatch": 0
+      },
+      {
+        "kind": "ellipse",
+        "props": {
+          "strokeAlign": "inside"
+        },
+        "dark": 1400,
+        "mismatch": 0
+      },
+      {
+        "kind": "polygon",
+        "props": {
+          "pointCount": 6,
+          "strokeJoin": "bevel",
+          "strokeAlign": "center"
+        },
+        "dark": 1416,
+        "mismatch": 0
+      }
+    ],
+    "edits": {
+      "outlines": 32,
+      "runs": 15,
+      "medianMs": 7.199999928474426,
+      "p95Ms": 18,
+      "restored": true
+    },
+    "heapBeforeBytes": 4445428,
+    "heapAfterBytes": 4515192
+  }
+}
