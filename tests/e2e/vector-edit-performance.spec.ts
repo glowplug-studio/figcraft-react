@@ -73,3 +73,14 @@ test("Shape Builder caches overlapping geometry and hatches pointer frames in 10
   expect(result.inputP95Ms).toBeLessThan(16.7);
   expect(result.paintP95Ms).toBeLessThan(16.7);
 });
+
+test("gradient handle previews paint 100 visible gradients in a 10000-node scene",async({page})=>{
+  await openBenchmark(page);
+  const result=await page.evaluate(()=>(window as unknown as {VectorEditPerformance:{
+    measureGradient:typeof import("../fixtures/vector-edit-performance").measureGradient
+  }}).VectorEditPerformance.measureGradient(document.querySelector("canvas")!));
+  await test.info().attach("gradient-gesture",{body:JSON.stringify(result),contentType:"application/json"});
+  expect(result).toMatchObject({nodes:10000,visible:100,frames:110,notifications:0});
+  expect(result.inputP95).toBeLessThan(16.7);
+  expect(result.frameP95).toBeLessThan(16.7);
+});

@@ -1,7 +1,7 @@
-import { isGroupLike } from "./document";
+import { isGroupLike, rectanglePaints } from "./document";
 import { getNode } from "./inspect";
 import { createLayer } from "./creation";
-import { copyFill, fillSpecs, writeFill } from "./fill-commands";
+import { copyFill, fillSpecs, selectedRegionFills, writeFill } from "./fill-commands";
 import type { Paint } from "./solid-paint";
 import { executeStrokeList, strokeSpecs } from "./stroke-commands";
 import { isLeaf } from "./document";
@@ -86,7 +86,13 @@ export const commandSpecs = Object.freeze({
   "file.markSaved": { label: "Mark saved", undo: false },
 });
 export type CommandId = keyof typeof commandSpecs;
+export interface PaintPicker {
+  readonly list: "fill" | "stroke";
+  readonly index: number;
+  readonly stop: number;
+}
 export interface EditorSnapshot {
+  readonly paintPicker?: PaintPicker;
   readonly document: Document;
   readonly selection: readonly NodeId[];
   readonly tool: "move" | DrawShapeKind | "scale" | "pen" | "pencil" | "shapeBuilder";
@@ -224,6 +230,31 @@ export class EditorEngine {
     const interaction = this.#interaction; if (!interaction) throw new Error("No active interaction");
     interaction.document = setRectangleProperties(interaction.base.document, [id], { id, props }); this.#notifyCanvas();
   }
+  setPaintPicker(paintPicker?: PaintPicker): void {
+    if (paintPicker && !this.#snapshot.editable) return;
+    this.#publish({ paintPicker });
+  }
+  /** The native canvas handles edit one open picker. Mixed region paints have no target. */
+  pickedGradient() {
+    const picker = this.#snapshot.paintPicker, ids = this.getRenderSelection();
+    if (!picker || ids.length !== 1) return;
+    const node = this.getRenderDocument().nodes[ids[0]];
+    if (!node || node.kind === "page") return;
+    const regions = picker.list === "fill" ? selectedRegionFills(node, this.getRenderVectorEdit()) : undefined;
+    const stack = picker.list === "stroke" ? node.strokes : regions === undefined ? rectanglePaints(node) : regions;
+    const paint = stack?.[picker.index];
+    if (paint?.type === "gradient") return { node, paint, picker };
+  }
+  previewPaint(picker: PaintPicker, paint: Paint): void {
+    const interaction = this.#interaction;
+    if (!interaction) throw new Error("No active paint interaction");
+    const { document, selection } = interaction.base;
+    const params = { ids: selection, index: picker.index, paint };
+    interaction.document = picker.list === "fill"
+      ? writeFill("fill.set", document, selection, params, interaction.baseVectorEdit)
+      : executeStrokeList("stroke.set", document, selection, params);
+    this.#notifyCanvas();
+  }
   previewResize(start: ResizeStart, point: Point, keep: boolean, centre: boolean, keepChildren: boolean, scale?: ScaleAnchor): ReturnType<typeof previewResize>["hint"] {
     const interaction = this.#interaction; if (!interaction) throw new Error("No active interaction");
     const next = previewResize(interaction.base.document, start, point, keep, centre, keepChildren, scale);
@@ -316,6 +347,7 @@ export class EditorEngine {
   cancelPendingFiles(): void { this.#openSequence++; this.#pendingSaves.clear(); }
   #publish(patch: Partial<EditorSnapshot>): void {
     const document = patch.document ?? this.#snapshot.document;
+    if (patch.editable === false || patch.selection && !sameIds(patch.selection, this.#snapshot.selection)) patch = { ...patch, paintPicker: undefined };
     this.#snapshot = Object.freeze({ ...this.#snapshot, ...patch, canUndo: this.#undo.length > 0, canRedo: this.#redo.length > 0, dirty: !sameContent(document, this.#saved), hasSaved: this.#saved !== null });
     if (this.#lastDuplicate && !duplicateSelection(this.#lastDuplicate, this.#snapshot.selection)) this.#lastDuplicate = undefined;
     if (this.#vectorEdit) this.#vectorEdit = pageForNode(document, this.#vectorEdit.id) === document.currentPage ? clampVectorEdit(document, this.#vectorEdit) : undefined;

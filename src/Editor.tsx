@@ -119,6 +119,19 @@ export function Editor({ identity, capabilities, engine: suppliedEngine, recover
     if (snapshot.tool === "shapeBuilder" && (event.key === "Escape" || event.key === "Enter")) {
       event.preventDefault(); dispatch("tool.move"); return;
     }
+    if (!event.ctrlKey && !event.metaKey && !event.altKey && (event.key === "Delete" || event.key === "Backspace")) {
+      const target = engine.pickedGradient();
+      if (target) {
+        event.preventDefault();
+        const { paint, picker } = target;
+        if (paint.stops.length > 2) {
+          const index = Math.min(picker.stop, paint.stops.length-1);
+          dispatch(picker.list+".set", {id:target.node.id,index:picker.index,paint:{...paint,stops:paint.stops.filter((_,i)=>i!==index)}});
+          engine.setPaintPicker({...picker,stop:Math.max(0,index-1)});
+        }
+        return;
+      }
+    }
     if (engine.getVectorEdit()) {
       const modified = event.metaKey || event.ctrlKey;
       if (!event.altKey && !modified && (event.key === "Escape" || event.key === "Enter")) {
@@ -348,7 +361,7 @@ export function Editor({ identity, capabilities, engine: suppliedEngine, recover
           <PointsPanel nodes={snapshot.selection.flatMap(id => { const n = snapshot.document.nodes[id]; return n && n.kind !== "page" ? [n] : []; })} editable={editable && !busy} dispatch={dispatch} />
           <CornerPanel nodes={snapshot.selection.flatMap(id => { const n = snapshot.document.nodes[id]; return n && n.kind !== "page" ? [n] : []; })} editable={editable && !busy} dispatch={dispatch} /></>}
           <AppearancePanel engine={engine} page={page} selected={selected && selected.kind !== "page" ? selected : undefined} editable={editable && !busy} dispatch={dispatch} />
-          <StrokePanel nodes={snapshot.selection.flatMap(id => { const n = snapshot.document.nodes[id]; return n && n.kind !== "page" ? [n] : []; })} editable={editable && !busy} dispatch={dispatch} />
+          <StrokePanel engine={engine} nodes={snapshot.selection.flatMap(id => { const n = snapshot.document.nodes[id]; return n && n.kind !== "page" ? [n] : []; })} editable={editable && !busy} dispatch={dispatch} />
         </aside>
       </div>
     </div>;

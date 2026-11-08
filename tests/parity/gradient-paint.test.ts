@@ -62,3 +62,24 @@ describe("native gradient command and document routes", () => {
     expect(engine.getUndoDepth()).toBe(depth);
   });
 });
+
+it("previews only selected region fills and cancels without mutating committed state",()=>{
+  const engine=new EditorEngine();
+  const id=String(engine.execute("vector.create",{path:"M0 0H60V80H0Z",props:{fills:[short]}}).id);
+  engine.execute("vector.edit.begin",{id}); engine.execute("vector.edit.select",{regions:[0]});
+  const picker={list:"fill" as const,index:0,stop:0}; engine.setPaintPicker(picker);
+  const base=engine.getSnapshot().document, depth=engine.getUndoDepth();
+  engine.beginInteraction();
+  engine.previewPaint(picker,readPaint({...long,kind:"angular"}));
+  expect(engine.getSnapshot().document).toBe(base);
+  expect(engine.pickedGradient()?.paint.kind).toBe("angular");
+  expect(rectanglePaints(engine.getRenderDocument().nodes[id] as VectorNode)[0]).toMatchObject(long);
+  engine.cancelInteraction();
+  expect(engine.getRenderDocument()).toBe(base); expect(engine.getUndoDepth()).toBe(depth);
+  engine.beginInteraction(); engine.previewPaint(picker,readPaint({...long,kind:"radial"})); engine.commitInteraction();
+  expect(engine.pickedGradient()?.paint.kind).toBe("radial");
+  engine.execute("edit.undo"); expect(engine.getSnapshot().document).toBe(base);
+  engine.setEditable(false);
+  expect(engine.getSnapshot().paintPicker).toBeUndefined();
+  expect(engine.pickedGradient()).toBeUndefined();
+});

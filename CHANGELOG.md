@@ -2,6 +2,10 @@
 
 All notable changes to the React port and its upstream compatibility baseline are recorded here.
 
+## [0.43.0] - 2026-11-09
+
+- Added linear, radial, angular and diamond gradients for fills, strokes and vector regions, with editable stops, canvas handles and native file persistence.
+
 ## [0.42.0] - 2026-11-09
 
 - Added Shape Builder for overlapping fills and stroke outlines, including merge and remove gestures, regional paints and native recovery.

@@ -1,3 +1,4 @@
+import { GradientInteraction } from "../../src/engine/gradient-interaction";
 import { expectSolid } from "./expect-solid";
 import { newDocument, type Document, type DocumentNode, type VectorNode } from "../../src/engine/document";
 import { EditorEngine } from "../../src/engine/editor";
@@ -276,4 +277,38 @@ export async function measureShapeBuilder(canvas: HTMLCanvasElement) {
   const p95 = (samples:number[]) => samples.sort((a,b) => a-b)[Math.floor(samples.length*0.95)];
   return { nodes:Object.keys(document.nodes).length, targets:ids.length, regions:arrangement.regions.length,
     frames:frames.length, notifications, coldMs, commitMs, paintP95Ms:p95(frames), inputP95Ms:p95(input) };
+}
+
+export async function measureGradient(canvas:HTMLCanvasElement) {
+  const {engine,children}=await openVectorScene("M0 0H40V30H0Z",false);
+  engine.execute("vector.edit.end");
+  const ids=children.slice(0,100), kinds=["linear","radial","angular","diamond"];
+  for (const [index,kind] of kinds.entries()) engine.execute("node.set",{ids:ids.filter((_,i)=>i%4===index),props:{fills:[{type:kind+"Gradient",stops:["red","white","blue"]}]}});
+  const id=ids[3];
+  engine.execute("select.set",{ids:[id]}); engine.execute("view.set",{cx:600,cy:400,vw:1200,vh:800,zoom:1});
+  const picker={list:"fill" as const,index:0,stop:0};
+  engine.setPaintPicker(picker);
+  canvas.width=1200;canvas.height=800;
+  const context=canvas.getContext("2d")!, gesture=new GradientInteraction(engine);
+  const base=engine.getSnapshot().document, node=base.nodes[id];
+  if (node.kind!=="vector" || !gesture.down({x:node.x+node.width/2,y:node.y+node.height/2})) throw Error("Diamond handle missing");
+  let notifications=0;
+  const unsubscribe=engine.subscribe(()=>notifications++);
+  const inputs:number[]=[], frames:number[]=[];
+  for (let i=0;i<120;i++) {
+    await new Promise<void>(resolve=>requestAnimationFrame(()=>resolve()));
+    const start=performance.now();
+    gesture.move({x:node.x+12+i%10,y:node.y+8+i%6});
+    const moved=performance.now();
+    renderDocument(context,engine.getRenderDocument(),1200,800,[],undefined,engine.getView()); gesture.draw(context);
+    if (i>=10) {inputs.push(moved-start);frames.push(performance.now()-start);}
+  }
+  unsubscribe();
+  const depth=engine.getUndoDepth();
+  gesture.up();
+  if (depth+1!==engine.getUndoDepth() || engine.getSnapshot().document===base) throw Error("Handle did not commit once");
+  engine.execute("edit.undo");
+  if (engine.getSnapshot().document!==base) throw Error("Gradient undo did not restore the scene");
+  const p95=(values:number[])=>values.sort((a,b)=>a-b)[Math.floor(.95*values.length)];
+  return {nodes:Object.keys(base.nodes).length,visible:ids.length,frames:frames.length,notifications,inputP95:p95(inputs),frameP95:p95(frames),maximum:Math.max(...frames)};
 }

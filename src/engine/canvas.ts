@@ -18,6 +18,7 @@ import { MoveInteraction } from "./move-interaction";
 import { TransformInteraction } from "./transform-interaction";
 import { paintStroke, strokeBounds } from "./stroke-renderer";
 import { hasVisibleStroke } from "./stroke";
+import { GradientInteraction } from "./gradient-interaction";
 import { drawGradient } from "./gradient-renderer";
 import { vectorPaintRegions } from "./vector-presentation";
 import { VectorInteraction } from "./vector-interaction";
@@ -232,6 +233,7 @@ export class CanvasController {
   #transforming: TransformInteraction;
   #rounding: CornerInteraction;
   #drawing: DrawInteraction;
+  #gradients: GradientInteraction;
   #arcs: ArcInteraction;
   #vectors: VectorInteraction;
   #builder: ShapeBuilderInteraction;
@@ -251,6 +253,7 @@ export class CanvasController {
     this.#transforming = new TransformInteraction(engine, onError);
     this.#rounding = new CornerInteraction(engine, onError);
     this.#drawing = new DrawInteraction(engine, onError);
+    this.#gradients = new GradientInteraction(engine);
     this.#arcs = new ArcInteraction(engine, onError);
     this.#builder = new ShapeBuilderInteraction(engine);
     this.#vectors = new VectorInteraction(engine, onError);
@@ -296,6 +299,10 @@ export class CanvasController {
     if (event.button !== 0) return;
     this.canvas.focus();
     try {
+      if (this.#gradients.down(this.#screenPoint(event))) {
+        event.preventDefault(); this.#pointer = event.pointerId; this.canvas.setPointerCapture(event.pointerId); this.invalidate(); return;
+      }
+      if (this.engine.getSnapshot().paintPicker) this.engine.setPaintPicker();
       if (this.#builder.down(this.#point(event), event) || this.engine.pencil.down(this.#point(event), pencilPointerPressure(event))) {
         event.preventDefault(); this.#pointer = event.pointerId; this.canvas.setPointerCapture(event.pointerId); this.invalidate(); return;
       }
@@ -325,6 +332,11 @@ export class CanvasController {
   };
 
   #move = (event: PointerEvent): void => {
+    if (event.pointerId === this.#pointer && this.#gradients.active) {
+      const started = performance.now();
+      try { this.#gradients.move(this.#screenPoint(event)); } catch (error) { this.cancel(); this.onError(error instanceof Error ? error.message : "Could not move gradient handle"); }
+      performance.measure("figcraft:pointer", {start:started,end:performance.now()}); return;
+    }
     if (this.engine.getSnapshot().tool === "shapeBuilder" && (this.#pointer === null || this.#builder.active)) {
       if (this.#pointer !== null && this.#pointer !== event.pointerId) return;
       this.canvas.style.cursor = "crosshair";
@@ -352,7 +364,7 @@ export class CanvasController {
       return;
     }
     if (this.#pointer === null) {
-      this.canvas.style.cursor = this.engine.getVectorEdit() ? this.#vectors.hover(this.#point(event), event) ?? "default" : this.#onOrigin(this.#point(event)) ? "move" : this.#arcs.hover(this.#point(event)) ?? this.#rounding.hover(this.#point(event)) ?? this.#transforming.hover(this.#point(event)) ?? this.#smart.hover(this.#screenPoint(event), event);
+      this.canvas.style.cursor = this.#gradients.cursor(this.#screenPoint(event)) ?? (this.engine.getVectorEdit() ? this.#vectors.hover(this.#point(event), event) ?? "default" : this.#onOrigin(this.#point(event)) ? "move" : this.#arcs.hover(this.#point(event)) ?? this.#rounding.hover(this.#point(event)) ?? this.#transforming.hover(this.#point(event)) ?? this.#smart.hover(this.#screenPoint(event), event));
       this.invalidate();
     }
     if (event.pointerId === this.#pointer && this.#vectors.active) {
@@ -403,6 +415,7 @@ export class CanvasController {
   };
 
   #up = (event: PointerEvent): void => {
+    if (event.pointerId === this.#pointer && this.#gradients.active) { this.#gradients.up(); this.cancel(); return; }
     if (event.pointerId === this.#pointer && this.#builder.active) {
       try { this.#builder.up(this.#point(event),event); } catch (error) { this.onError(error instanceof Error ? error.message : "Shape Builder failed"); }
       this.cancel(); return;
@@ -488,6 +501,7 @@ export class CanvasController {
   };
   cancel(preservePen = false): void {
     if (!preservePen) {
+      this.#gradients.cancel();
       this.#builder.cancel();
       this.engine.pencil.cancel();
       this.engine.pen.cancel();
@@ -541,6 +555,7 @@ export class CanvasController {
       if (pen) drawPen(context, this.engine.getRenderDocument(), view, this.engine.pen.overlay);
       this.engine.pencil.draw(context);
       if (builder) this.#builder.draw(context);
+      this.#gradients.draw(context);
       const rotationOrigin = this.engine.getRotationOrigin();
       if (!vectorEdit && rotationOrigin.editing && rotationOrigin.point) {
         const point = pageToScreen(view, rotationOrigin.point);

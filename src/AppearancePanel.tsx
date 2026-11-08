@@ -1,3 +1,4 @@
+import { PaintPicker } from "./PaintPicker";
 import { useLayoutEffect, useRef, useState, useSyncExternalStore, type FormEvent, type KeyboardEvent, type MouseEvent } from "react";
 import { parseCssColour } from "./engine/colour-css";
 import { renderColour, withAlpha } from "./engine/colour";
@@ -120,6 +121,7 @@ function AppearanceControls({ engine, page, selected, editable, dispatch }: Appe
             <button type="button" disabled={index === paints.length - 1} onClick={() => dispatch("fill.move", { ids, from: index, to: index + 1 })}>Move fill {row + 1} up</button>
             <button type="button" disabled={index === 0} onClick={() => dispatch("fill.move", { ids, from: index, to: index - 1 })}>Move fill {row + 1} down</button>
           </form>
+          <PaintPicker engine={engine} list="fill" label={`fill ${row+1}`} index={index} paint={paint} change={next=>updatePaint(index,next)} />
         </li>)}</ol>
         <button type="button" onClick={() => dispatch("fill.add", { ids })} onContextMenu={event => openMenu(event)} onKeyDown={event => openMenu(event)}>Add fill</button>
         {menu && <div ref={popup} popover="auto" role="group" aria-label="Fill actions"

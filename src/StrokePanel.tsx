@@ -1,3 +1,5 @@
+import { PaintPicker } from "./PaintPicker";
+import type { EditorEngine } from "./engine/editor";
 import { useMemo, useState } from "react";
 import type { LayerNode } from "./engine/document";
 import { parseCssColour } from "./engine/colour-css";
@@ -8,7 +10,7 @@ import { sanitiseWidthProfile, widthPresetIds, widthPresetLabels, widthProfileMa
 import { brushPreset, brushPresets, defaultBrush, type Brush } from "./engine/brush";
 import { brushOutline } from "./engine/brush-geometry";
 
-interface Props { nodes: readonly LayerNode[]; editable: boolean; dispatch: (command: string, params?: unknown) => void }
+interface Props { engine: EditorEngine; nodes: readonly LayerNode[]; editable: boolean; dispatch: (command: string, params?: unknown) => void }
 const capLabels = ["None", "Round", "Square", "Line arrow", "Triangle arrow", "Reversed triangle", "Circle", "Diamond"];
 function common<T>(values: readonly T[]): T | undefined { return values.length && values.every(v => JSON.stringify(v) === JSON.stringify(values[0])) ? values[0] : undefined; }
 function ProfileArt({ profile }: { profile?: WidthProfile }) {
@@ -24,7 +26,7 @@ function BrushArt({ preset }: { preset: string }) {
   const path = useMemo(() => brushOutline([["M", 0, 0], ["L", 84, 0]], 10, defaultStroke, { ...defaultBrush, preset })?.map(c => c.join(" ")).join(" ") ?? "", [preset]);
   return <svg width="84" height="24" viewBox="0 -6 84 12" aria-hidden="true"><path d={path} fill="none" stroke="currentColor" strokeWidth=".4" /></svg>;
 }
-function StrokeControls({ nodes, editable, dispatch }: Props) {
+function StrokeControls({ engine, nodes, editable, dispatch }: Props) {
   const [custom, setCustom] = useState(false), [error, setError] = useState("");
   if (!nodes.length) return null;
   const ids = nodes.map(n => n.id), props = nodes.map(n => n.stroke ?? defaultStroke), stack = common(nodes.map(n => n.strokes ?? []));
@@ -50,8 +52,8 @@ function StrokeControls({ nodes, editable, dispatch }: Props) {
   }}><label>{label}<input name={key} type="number" required min={min} max={max} step="any" defaultValue={brush[key] * factor} /></label><button type="submit">Apply {label.toLowerCase()}</button></form>;
   return <fieldset className="figcraft-stroke" disabled={!editable} aria-label="Stroke"><legend>Stroke</legend>
     {error && <p role="alert">{error}</p>}
-    {stack === undefined ? <p>Mixed strokes</p> : <ol>{[...stack].map((paint, index) => ({ paint, index })).reverse().map(({ paint, index }, row) => <li key={`${index}:${JSON.stringify(paint)}`}>
-      <form onSubmit={event => {
+    {stack === undefined ? <p>Mixed strokes</p> : <ol>{[...stack].map((paint, index) => ({ paint, index })).reverse().map(({ paint, index }, row) => <li key={index}>
+      <form key={JSON.stringify(paint)} onSubmit={event => {
         event.preventDefault(); const data = new FormData(event.currentTarget), colour = String(data.get("colour")), opacity = Number(data.get("opacity"));
         const update: Record<string, unknown> = { ids, index };
         if (paint.type === "solid" && colour !== renderColour(paintColour(paint))) { if (!parseCssColour(colour)) { setError("Enter a valid CSS colour."); return; } update.color = colour; }
@@ -66,6 +68,7 @@ function StrokeControls({ nodes, editable, dispatch }: Props) {
         <button type="button" disabled={index === stack.length - 1} onClick={() => dispatch("stroke.move", { ids, from: index, to: index + 1 })}>Move stroke {row + 1} up</button>
         <button type="button" disabled={index === 0} onClick={() => dispatch("stroke.move", { ids, from: index, to: index - 1 })}>Move stroke {row + 1} down</button>
       </form>
+      <PaintPicker engine={engine} list="stroke" label={`stroke ${row+1}`} index={index} paint={paint} change={next=>dispatch("stroke.set",{ids,index,paint:next})} />
     </li>)}</ol>}
     <button type="button" onClick={() => dispatch("stroke.add", { ids })}>Add stroke</button>
     {stack && stack.length > 0 && <>
