@@ -289,3 +289,7 @@ At 70cf052, native cmd/structure.rs outline_stroke and render/draw.rs stroke_fil
 ## Offset path
 
 At dfdffca, native structure::offset_path maps to vector-offset.ts and the existing cubic kernel. The native regional, legacy winding, paint-space, corner-smoothing and container-preservation tests map to vector-offset.test.ts. The signed amount control maps to MenuInput::Offset and persists through the authenticated Next.js host. [Property matrix](../reports/26-11-09-offset-path-parity.html).
+
+## Simplify vector
+
+At dcc3c82, structure::simplify and the Kurbo cubic fitting rules map to simplifyVector, simplifyPath and CubicFitSource. Engine fixtures and authenticated native save, undo and recovery cover fitted geometry and colour. [Verification and evidence](../reports/26-11-09-simplify-vector-parity.html).

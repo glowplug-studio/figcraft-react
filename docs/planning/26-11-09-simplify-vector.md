@@ -13,3 +13,5 @@ Phases 1–3 complete. React implementation checkpoint dfdffca. Original, fork a
 1. Generalise the fit source while preserving Pencil’s existing behaviour. Reconstruct legacy fills, independent painted regions and leftover open trails in native order. A path-operations refusal during simplification falls back to the fitted curve per native.
 2. Connect the action. Exercise shrinking segment counts, maintained shape, preserved native paint frames and both open and closed results with real browser coverage.
 3. Verify both production builds, strict types, pure and local Auth cases and the full browser suite. Record a property matrix, refresh the local graph and proceed to Shape Builder. Complex paints and later layer kinds retain their own coverage obligations.
+
+Phases 4–7 complete. Implementation dcc3c82 passed the [local property matrix](../reports/26-11-09-simplify-vector-parity.html), strict types, both builds, 963 pure checks, two real Auth checks and 130 Chromium workflows. Continue with Shape Builder.

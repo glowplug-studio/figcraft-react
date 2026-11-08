@@ -8,6 +8,7 @@ import { EditorEngine } from "../../src/engine/editor";
 import { CubicFitSource } from "../../src/engine/fit-cubic-source";
 import { encodeFigcraft } from "../../src/engine/file-format";
 import { lineMoments } from "../../src/engine/fit-polyline";
+import { normaliseBooleanPath } from "../../src/engine/path-boolean";
 import { measurePath } from "../../src/engine/path-measure";
 import { simplifyPath } from "../../src/engine/simplify-path";
 import { solidPaint } from "../../src/engine/solid-paint";
@@ -76,6 +77,31 @@ describe("native curve and vector simplification",()=>{
         expect(vectorFillContains(output,p(50,50))).toBe(false);
       }
     }
+  });
+  it("retains fitted contours and source winding when normalisation exceeds the crossing budget", () => {
+    const engine = new EditorEngine();
+    const bars = Array.from({ length: 750 }, (_, i) =>
+      `M0 ${4 * i}h3000v2h-3000z M${4 * i} 0h2v3000h-2z`).join(" ");
+    const id = String(engine.execute("vector.create", { path: bars }).id);
+    const before = engine.getSnapshot().document;
+    const source = (before.nodes[id] as VectorNode).network;
+    const path = vectorFillPath(source);
+    expect(() => normaliseBooleanPath(path)).toThrow("too complex");
+    engine.execute("vector.simplify", { id });
+    const output = (engine.getSnapshot().document.nodes[id] as VectorNode).network;
+    expect(output.regions.map(r => r.winding)).toEqual(source.regions.map(r => r.winding));
+    expect(vectorFillPath(output)).toEqual(path);
+    engine.execute("edit.undo");
+    expect(engine.getSnapshot().document).toBe(before);
+  });
+  it("simplifies an entirely open stroke without introducing a fill", () => {
+    const engine = new EditorEngine();
+    const id = String(engine.execute("vector.create", { path: "M0 0H10H20H30" }).id);
+    engine.execute("vector.simplify", { id, tolerance: 0 });
+    const output = (engine.getSnapshot().document.nodes[id] as VectorNode).network;
+    expect(output.regions).toHaveLength(0);
+    expect(output.segments).toHaveLength(1);
+    expect(output.vertices.map(v => v.x)).toEqual([0, 30]);
   });
   it("rebuilds smoothed corners within the upstream area tolerance",()=>{
     const e=new EditorEngine(),id=String(e.execute("vector.create",{path:"M0 0H100V100H0Z"}).id);

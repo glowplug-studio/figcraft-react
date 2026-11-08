@@ -2805,7 +2805,8 @@
       "label": "Simplify vector",
       "source": "crates/engine/src/cmd/structure.rs",
       "line": 153,
-      "status": "Not tested"
+      "status": "Passed for supported layer types",
+      "evidence": "../reports/26-11-09-simplify-vector-parity.html"
     },
     {
       "command": "vector.offset",

@@ -266,3 +266,7 @@ React be059b7 preserves Union, Subtract, Intersect and Exclude as editable nativ
 Outline stroke passed for supported layer types at 70cf052. The original fill, painted regions, profiles, dashes, brushes, arrowheads and per-side widths are verified. [Geometry, command and browser coverage](../reports/26-11-09-outline-stroke-parity.html). Remaining data types carry their outline-specific coverage forward to their own milestones.
 
 Offset path passed for supported layers at dfdffca. The [property report](../reports/26-11-09-offset-path-parity.html) covers signed distances, source style frames, region collapse, inherited and empty paints, atomic failure and browser recovery.
+
+## Simplify vector
+
+At dcc3c82, structure::simplify and the Kurbo cubic fitting rules map to simplifyVector, simplifyPath and CubicFitSource. Engine fixtures and authenticated native save, undo and recovery cover fitted geometry and colour. [Verification and evidence](../reports/26-11-09-simplify-vector-parity.html).

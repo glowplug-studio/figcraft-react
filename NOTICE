@@ -2,7 +2,8 @@ Figcraft React
 
 The numerical routines in src/engine/fit-polynomial.ts and
 src/engine/fit-candidates.ts and the fitting decisions in
-src/engine/pencil-fit.ts adapt mathematical methods from Kurbo 0.13.1
+src/engine/pencil-fit.ts, src/engine/fit-cubic-source.ts and
+src/engine/simplify-path.ts adapt mathematical methods from Kurbo 0.13.1
 (common.rs, fit.rs and simplify.rs).
 Copyright 2022 the Kurbo Authors.
 Used under the Apache License, Version 2.0 (see LICENSE).

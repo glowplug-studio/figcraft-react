@@ -1,0 +1,22 @@
+{
+  "react": "dcc3c824e4d277f403bc3fb08c34279fb7369c56",
+  "upstream": "8a7ebc2484a6d64d80a13c19c18ffb814325e347",
+  "stats": {
+    "startTime": "2026-11-08T19:27:35.679Z",
+    "duration": 296004.346,
+    "expected": 130,
+    "skipped": 0,
+    "unexpected": 0,
+    "flaky": 0
+  },
+  "performance": {
+    "nodes": 10000,
+    "targets": 32,
+    "runs": 10,
+    "beforeSegments": 9,
+    "afterSegments": 5,
+    "sample": 217,
+    "commandP95Ms": 5.399999976158142,
+    "paintP95Ms": 0.7999999523162842
+  }
+}
