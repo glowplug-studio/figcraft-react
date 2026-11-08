@@ -1148,7 +1148,7 @@
       "source": "crates/engine/src/cmd/create.rs",
       "line": 113,
       "status": "Partial",
-      "scope": "Decoded placement, density, target append, shared bytes, undo and native recovery. Source profile results are verified for PNG sRGB and gamma/chromaticity metadata. Embedded ICC and remaining variants are open.",
+      "scope": "Decoded placement, density, target append, shared bytes, undo and native recovery. Verified PNG sRGB and gamma/chromaticity metadata and embedded RGB/grey ICC labels and sRGB pixels from PNG, JPEG, WebP and TIFF. Document working spaces and remaining decoder variants are open.",
       "evidence": "docs/planning/26-11-09-image-paints.md"
     },
     {
