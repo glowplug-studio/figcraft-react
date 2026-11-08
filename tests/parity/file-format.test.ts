@@ -2,7 +2,7 @@ import { expectSolid } from "../fixtures/expect-solid";
 import { readFileSync } from "node:fs";
 import { describe, expect, it, vi } from "vitest";
 import { strFromU8, unzipSync, zipSync } from "fflate";
-import { decodeFigcraft, encodeFigcraft, encodeFigcraftBlob, MAX_FILE_BYTES } from "../../src/engine/file-format";
+import { decodeFigcraft, encodeFigcraft, encodeFigcraftBlob, MAX_DOCUMENT_BYTES, MAX_ARCHIVE_MEMBER } from "../../src/engine/file-format";
 import { newDocument, type Document, type RectangleNode } from "../../src/engine/document";
 import { colour } from "../../src/engine/colour";
 
@@ -230,14 +230,26 @@ describe("bounded native Figcraft file adapter", () => {
     expect(await decodeFigcraft(padded)).toEqual(await decodeFigcraft(bytes(fixtureText)));
   });
 
-  it("limits missing image notices and skips resources past the aggregate budget", async () => {
+  it("bounds damaged inflation, skips excess members and still recovers a later small image", async () => {
     const json = encodedFixture(value => { value.imageIndex = Array.from({ length: 23 }, (_, i) => ({ hash: String(i) })); });
-    const archive = zipSync({ "document.json": json, "images/large": new Uint8Array(MAX_FILE_BYTES), "images/small": bytes("kept") });
+    const names = ["tooBig", "bad1", "bad2", "bad3", "beyondTotal"];
+    const entries = Object.fromEntries(names.map(key => ["images/"+key, bytes("bad")]));
+    const archive = zipSync({"document.json":json, ...entries, "images/small":bytes("kept")});
+    const encoded = Buffer.from(archive.buffer, archive.byteOffset, archive.byteLength);
+    for (const name of names) {
+      const key = "images/" + name, local = encoded.indexOf(key), central = encoded.lastIndexOf(key);
+      expect(central).toBeGreaterThan(local);
+      const size = MAX_ARCHIVE_MEMBER + Number(name === "tooBig");
+      encoded.writeUInt32LE(size, local - 30 + 22);
+      encoded.writeUInt32LE(size, central - 46 + 24);
+    }
     const { document, issues } = await decodeFigcraft(archive);
     expect(Object.keys(document.images!)).toEqual(["small"]);
     expect(issues).toHaveLength(21);
-    expect(issues?.[0]).toContain("exceeds the browser archive budget");
-    expect(issues?.at(-1)).toBe("4 more images couldn't be loaded");
+    expect(issues?.[0]).toContain("512 MiB native member limit");
+    expect(issues?.slice(1,4).every(issue => issue.includes("couldn't be read"))).toBe(true);
+    expect(issues?.[4]).toContain("browser archive budget");
+    expect(issues?.at(-1)).toBe("8 more images couldn't be loaded");
   });
 
   it("refuses malformed, truncated, duplicate-key and oversized input", async () => {
@@ -245,8 +257,9 @@ describe("bounded native Figcraft file adapter", () => {
     await expect(decodeFigcraft(bytes('{"version":1,"version":2}'))).rejects.toThrow("duplicate JSON key");
     const archive = await encodeFigcraft(newDocument());
     await expect(decodeFigcraft(archive.slice(0, -20))).rejects.toThrow("invalid JSON or ZIP");
-    await expect(decodeFigcraft(new Uint8Array(MAX_FILE_BYTES + 1))).rejects.toThrow("16 MiB");
-    const bomb = zipSync({ "document.json": new Uint8Array(MAX_FILE_BYTES + 1) });
+    const oversized = new Uint8Array(MAX_DOCUMENT_BYTES + 1); oversized[0] = 123;
+    await expect(decodeFigcraft(oversized)).rejects.toThrow("16 MiB");
+    const bomb = zipSync({ "document.json": new Uint8Array(MAX_DOCUMENT_BYTES + 1) });
     await expect(decodeFigcraft(bomb)).rejects.toThrow("16 MiB");
   });
 

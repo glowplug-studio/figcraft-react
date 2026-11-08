@@ -31,18 +31,19 @@ export function validImageKey(key:string):boolean {
 }
 
 /** Saving and collaboration use SHA-256 content keys. Some native imports use safe legacy keys. */
-export async function imageHash(bytes:Blob):Promise<string> {
-  const hash = new Uint8Array(await crypto.subtle.digest("SHA-256",await bytes.arrayBuffer()));
+export async function imageHash(bytes:Blob | Uint8Array<ArrayBuffer>):Promise<string> {
+  const hash = new Uint8Array(await crypto.subtle.digest("SHA-256", bytes instanceof Blob ? await bytes.arrayBuffer() : bytes));
   return Array.from(hash,byte=>byte.toString(16).padStart(2,"0")).join("");
 }
 
 /** Native archives keep encoded members even when dimensions cannot be read. */
-export function imageResource(data:Uint8Array<ArrayBuffer>):ImageResource {
-  if (data.length > MAX_IMAGE_BYTES) throw new Error("Image data exceeds the native 256 MiB member limit");
+export function imageResource(data:Uint8Array<ArrayBuffer>, original?: Blob):ImageResource {
+  if (!original && data.length > MAX_IMAGE_BYTES) throw new Error("Image data exceeds the native 256 MiB member limit");
+  const encoded = (type: string) => original ? original.slice(0, original.size, type) : new Blob([data], {type});
   if (data[0] === 255 && data[1] === 216) {
     const jpeg = jpegHeader(data);
     if (jpeg?.width && jpeg.height) return Object.freeze({
-      width: jpeg.width, height: jpeg.height, bytes: new Blob([data], {type:"image/jpeg"}),
+      width: jpeg.width, height: jpeg.height, bytes: encoded("image/jpeg"),
       ...(jpeg.unsupportedSampling && {unsupportedJpegSampling: true as const}),
     });
   }
@@ -61,12 +62,11 @@ export function imageResource(data:Uint8Array<ArrayBuffer>):ImageResource {
     }
   } catch { /* The native archive retains unreadable bytes with dimensions 0 × 0. */ }
   const profileName = mime === "image/png" ? pngProfileName(data) : undefined;
-  return Object.freeze({width,height,bytes:new Blob([data],{type:mime}),...(profileName === undefined ? {} : {profileName})});
+  return Object.freeze({width,height,bytes:encoded(mime),...(profileName === undefined ? {} : {profileName})});
 }
 
 /** Only compressed colour metadata and transform validation require asynchronous work. */
-export async function readImageResource(bytes:Uint8Array<ArrayBuffer>):Promise<ImageResource> {
-  const resource=imageResource(bytes);
+export async function readImageResource(bytes:Uint8Array<ArrayBuffer>, resource = imageResource(bytes)):Promise<ImageResource> {
   if (!resource.width || !resource.height) return resource;
   const embedded=await embeddedIcc(bytes,resource.bytes.type);
   if (!embedded) return resource;
@@ -79,4 +79,35 @@ export async function readImageResource(bytes:Uint8Array<ArrayBuffer>):Promise<I
   const icc=description.grey && !embedded.grey ? undefined :
     Object.freeze({bytes:new Blob([embedded.profile]),grey:description.grey});
   return Object.freeze({...resource,profileName:description.name,icc});
+}
+
+/** PNG colour metadata precedes IDAT; the pixels and trailing chunks need no heap copy. */
+function pngMetadataComplete(bytes: Uint8Array) {
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  for (let at = 8; at + 8 <= bytes.length;) {
+    const tag = view.getUint32(at + 4);
+    if (tag === 0x49444154 || tag === 0x49454e44) return true;
+    at += 12 + view.getUint32(at);
+  }
+  return false;
+}
+
+/** Unknown image members survive native round trips without bringing their payload into JS memory. */
+export async function archivedImage(blob: Blob) {
+  const header = new Uint8Array(await blob.slice(0, 32).arrayBuffer());
+  const first = imageResource(header, blob);
+  const png = header[0] === 137 && header[1] === 80 && header[2] === 78 && header[3] === 71;
+  const hasLongMetadata = png || header[0] === 255 && header[1] === 216
+    || header[0] === 82 && header[1] === 73 && header[2] === 70 && header[3] === 70
+    || header[0] === 73 && header[1] === 73 || header[0] === 77 && header[1] === 77;
+  if (!hasLongMetadata) return {resource: first};
+  let resource = first;
+  try {
+    const prefix = png ? new Uint8Array(await blob.slice(0, 65536).arrayBuffer()) : undefined;
+    const bytes = prefix && (prefix.length === blob.size || pngMetadataComplete(prefix)) ? prefix : new Uint8Array(await blob.arrayBuffer());
+    resource = imageResource(bytes, blob);
+    return {resource: await readImageResource(bytes, resource)};
+  } catch {
+    return {resource, profileUnavailable: true};
+  }
 }

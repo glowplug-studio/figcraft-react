@@ -9,8 +9,9 @@ import type { Paint } from "./solid-paint";
 import { executeStrokeList, strokeSpecs } from "./stroke-commands";
 import { isLeaf } from "./document";
 import { newDocument, sameContent, withLayerTransform, type Document, type DrawShapeKind, type NodeId } from "./document";
+import { MAX_IMAGE_BYTES } from "./image-resource";
 import { base64Bytes } from "./recovery";
-import { decodeFigcraft, encodeFigcraft, encodeFigcraftBlob, MAX_FILE_BYTES } from "./file-format";
+import { decodeFigcraft, encodeFigcraft, encodeFigcraftBlob, prepareArchive, MAX_UNPACKED_BYTES } from "./file-format";
 import { executePage, listPages, pageSpecs } from "./pages";
 import { executeSelection, selectionSpecs } from "./selection";
 import { setRectangleProperties } from "./properties";
@@ -698,7 +699,8 @@ export class EditorEngine {
       if (Object.keys(p).some(key => key !== "data") || (p.data !== undefined && p.data !== true)) throw new Error("Browser save requires data: true");
       return this.#prepareSave(async archive => base64Bytes(new Uint8Array(await archive.arrayBuffer())));
     }
-    if (source && source.file.size > MAX_FILE_BYTES) throw new Error("File exceeds the browser import limit");
+    const raster = command === "file.open" && typeof p.name === "string" && rasterFilename.test(p.name);
+    if (source && (placing || replacing || raster) && source.file.size > MAX_IMAGE_BYTES) throw new Error("Image exceeds the 256 MiB external input limit");
     const allowed = importing ? ["name","data","x","y","center","variables"] : replacing ? ["data", "ids", "id", "target", "index"] : placing ? ["data", "name", "target", "mode", "width", "height", "parent", "x", "y"] : ["data", "name"];
     if (Object.keys(p).some(key => !allowed.includes(key)) || !source && typeof p.data !== "string" || (!importing && p.name !== undefined && typeof p.name !== "string")) throw new Error("File import requires base64 data and supported parameters");
     this.pen.cancel(); this.pencil.cancel(); this.cancelInteraction();
@@ -716,28 +718,28 @@ export class EditorEngine {
       const bytes = await inputBytes();
       if (source) checkCurrent();
       const placement = importing ? rasterImportParams(p,centre) : p;
-      const image = await prepareImage(bytes, before.document.images, source?.paste ? 100_000_000 : undefined);
+      const image = await prepareImage(bytes, before.document.images, source?.paste ? 100_000_000 : undefined, source?.file);
       checkCurrent();
       const next = replacing ? replaceImage(before, this.#nextId, image, p, source ? regionState : undefined) : placeImage(before, this.#nextId, image, source?.centre ? {...placement,...centrePastedImage(image,centre)} : placement);
       // Recovery uses this same bounded native archive. A placement that cannot be stored
       // must leave history, selection and the previous document intact.
-      await encodeFigcraftBlob(next.document, String(next.nextId));
+      prepareArchive(next.document, String(next.nextId));
       checkCurrent();
       this.#undo.push({ document: before.document, selection: before.selection }); this.#redo = [];
       this.#nextId = next.nextId;
       this.#publish({ document: next.document, selection: next.selection });
       return next.result;
     }
-    const raster = command === "file.open" && typeof p.name === "string" && rasterFilename.test(p.name);
+
     let decoded: Awaited<ReturnType<typeof decodeFigcraft>>;
     if (raster) {
-      const image = await prepareImage(await inputBytes());
+      const image = await prepareImage(await inputBytes(), undefined, undefined, source?.file);
       const name = String(p.name).split(/[\\/]/).pop()!.replace(rasterFilename, "");
       const initial = { document: newDocument(name), selection: [] };
       const opened = placeImage(initial, 2n, image, { name, width: image.resource.width, height: image.resource.height });
-      await encodeFigcraftBlob(opened.document, String(opened.nextId));
+      prepareArchive(opened.document, String(opened.nextId));
       decoded = { document: opened.document, nextId: String(opened.nextId) };
-    } else decoded = await decodeFigcraft(source?.file ?? fileData(p.data));
+    } else decoded = await decodeFigcraft(source?.file ?? fileData(p.data, MAX_UNPACKED_BYTES));
     checkCurrent();
     this.#nextId = BigInt(decoded.nextId);
     this.#undo = []; this.#redo = []; this.#saved = null; this.#pendingSaves.clear();

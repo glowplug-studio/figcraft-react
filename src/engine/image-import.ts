@@ -6,11 +6,11 @@ import { selectedRegionFills, writeFill } from "./fill-commands";
 import type { VectorEditState } from "./vector-edit";
 import { editImagePaints } from "./image-commands";
 import { decodeImageBitmap } from "./image-decode";
-import { imageHash, readImageResource, type ImageResource } from "./image-resource";
+import { MAX_IMAGE_BYTES, imageHash, imageResource, readImageResource, type ImageResource } from "./image-resource";
 import { imagePixelDensity, placedImageSize } from "./image-placement";
 import { parseNodeId, parseNumber, parseString } from "./parameters";
 import { readPaint } from "./solid-paint";
-import { MAX_FILE_BYTES } from "./file-format";
+import { MAX_UNPACKED_BYTES } from "./file-format";
 
 export const rasterFilename = /\.(?:png|jpe?g|webp|gif|bmp|tiff?)$/i;
 
@@ -37,19 +37,27 @@ export function centrePastedImage(image: Awaited<ReturnType<typeof prepareImage>
   return {x:pixelRound(centre.cx-width/2), y:pixelRound(centre.cy-height/2)};
 }
 
-export function fileData(data: unknown): Uint8Array<ArrayBuffer> {
+export function fileData(data: unknown, limit = MAX_IMAGE_BYTES): Uint8Array<ArrayBuffer> {
   if (typeof data !== "string") throw new Error("A base64 file is required");
   const start = data.indexOf(",") + 1;
-  const encoded = data.slice(start).trim();
-  if (encoded.length > Math.ceil(MAX_FILE_BYTES / 3) * 4) throw new Error("File exceeds the browser import limit");
-  const bytes = Uint8Array.from(atob(encoded), c => c.charCodeAt(0));
-  if (bytes.length > MAX_FILE_BYTES) throw new Error("File exceeds the browser import limit");
+  const encoded = data.slice(start).replace(/[ \t\r\n\f]/g, "");
+  const padding = encoded.indexOf("=");
+  if (padding >= 0 && padding < encoded.length - 2) throw new Error("Invalid base64 padding");
+  const length = Math.floor((padding < 0 ? encoded.length : padding) * 3 / 4);
+  if (length > limit) throw new Error("File exceeds the browser import limit");
+  const bytes = new Uint8Array(length);
+  let offset = 0;
+  for (let i = 0; i < encoded.length; i += 65536) {
+    const chunk = atob(encoded.slice(i, i + 65536));
+    for (let j = 0; j < chunk.length; j++) bytes[offset++] = chunk.charCodeAt(j);
+  }
   return bytes;
 }
 
 /** Pixel validation is required only when introducing new data. Native archives retain damaged images. */
-export async function prepareImage(bytes: Uint8Array<ArrayBuffer>, existing?: Readonly<Record<string, ImageResource>>, maxPixels = 512 * 1024 * 1024 / 4) {
-  let resource = await readImageResource(bytes);
+export async function prepareImage(bytes: Uint8Array<ArrayBuffer>, existing?: Readonly<Record<string, ImageResource>>, maxPixels = 512 * 1024 * 1024 / 4, original?: Blob) {
+  if (bytes.length > MAX_IMAGE_BYTES) throw new Error("Image exceeds the 256 MiB external input limit");
+  let resource = await readImageResource(bytes, imageResource(bytes, original));
   if (!resource.width || !resource.height) throw new Error("Unsupported image: its dimensions could not be read");
   if (resource.width * resource.height > maxPixels) throw new Error("This image can't be read: it is too large");
   try {
@@ -60,7 +68,7 @@ export async function prepareImage(bytes: Uint8Array<ArrayBuffer>, existing?: Re
   } catch {
     throw new Error("This image can't be read: the encoded pixels are damaged or unsupported by the browser");
   }
-  const hash = await imageHash(resource.bytes);
+  const hash = await imageHash(bytes);
   const previous = existing?.[hash];
   // Native archives allow legacy member names, including a digest that does not match the contents.
   if (previous && previous.bytes.size === bytes.length && await imageHash(previous.bytes) === hash) resource = previous;
@@ -69,7 +77,7 @@ export async function prepareImage(bytes: Uint8Array<ArrayBuffer>, existing?: Re
 
 function withImageResource(document: Document, {hash, resource}: Awaited<ReturnType<typeof prepareImage>>) {
   const extraBytes = Object.entries(document.images ?? {}).reduce((total, [key, stored]) => key === hash ? total : total + stored.bytes.size, resource.bytes.size);
-  if (extraBytes > MAX_FILE_BYTES) throw new Error("Image resources exceed the 16 MiB browser archive limit");
+  if (extraBytes > MAX_UNPACKED_BYTES) throw new Error("Image resources exceed the 2 GiB browser unpacked limit");
   const images = document.images?.[hash] === resource ? document.images : Object.freeze({ ...document.images, [hash]: resource });
   return images === document.images ? document : Object.freeze({ ...document, images });
 }

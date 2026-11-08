@@ -1,12 +1,21 @@
 import {readFileSync} from "node:fs";
 import {crc32} from "node:zlib";
 import {createHash} from "node:crypto";
-import {describe,expect,it} from "vitest";
+import {describe,expect,it,vi} from "vitest";
 import {jpegHeader} from "../../src/engine/jpeg-header";
 import {decodeImageBitmap} from "../../src/engine/image-decode";
-import {imageHash,imageResource,validImageKey} from "../../src/engine/image-resource";
+import {archivedImage,imageHash,imageResource,validImageKey} from "../../src/engine/image-resource";
 
 describe("native encoded image resources",()=>{
+  it("reads PNG archive dimensions and colour metadata ahead of the pixels", async () => {
+    const png = readFileSync(new URL("../fixtures/images/six-pixels.png",import.meta.url));
+    const blob = new Blob([png,new Uint8Array(2**20)]);
+    const full = vi.spyOn(blob,"arrayBuffer").mockRejectedValue(Error("full PNG copy"));
+    const {resource,profileUnavailable} = await archivedImage(blob);
+    expect(resource).toMatchObject({width:3,height:2,bytes:{type:"image/png",size:blob.size}});
+    expect(profileUnavailable).toBeUndefined();
+    expect(full).not.toHaveBeenCalled();
+  });
   it.each([["png","png"],["jpg","jpeg"],["gif","gif"],["webp","webp"],["bmp","bmp"],["tiff","tiff"]])("preserves the original %s member and its content identity",async(ext,mime)=>{
     const original=readFileSync(new URL("../fixtures/images/six-pixels."+ext,import.meta.url));
     const data=Uint8Array.from(original), resource=imageResource(data);

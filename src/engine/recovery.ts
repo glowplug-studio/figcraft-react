@@ -3,9 +3,12 @@ import { sameContent, type Document } from "./document";
 import type { EditorEngine } from "./editor";
 
 export function base64Bytes(bytes: Uint8Array): string {
-  let binary = "";
-  for (let offset = 0; offset < bytes.length; offset += 8192) binary += String.fromCharCode(...bytes.subarray(offset, offset + 8192));
-  return btoa(binary);
+  const chunks: string[] = [];
+  // Only the final chunk may require base64 padding.
+  for (let offset = 0; offset < bytes.length; offset += 12288) {
+    chunks.push(btoa(String.fromCharCode(...bytes.subarray(offset, offset + 12288))));
+  }
+  return chunks.join("");
 }
 
 /** Host-owned recovery lifecycle. Serial writes prevent old snapshots overtaking newer edits. */

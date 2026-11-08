@@ -1,6 +1,6 @@
 import { expectSolid } from "../fixtures/expect-solid";
 import { randomUUID } from "node:crypto";
-import { readFile } from "node:fs/promises";
+import { readFile, rm, writeFile } from "node:fs/promises";
 import { expect, test, type Page } from "@playwright/test";
 import { localSupabase } from "../support/localSupabase";
 import { decodeFigcraft, encodeFigcraft } from "../../src/engine/file-format";
@@ -3447,19 +3447,39 @@ test("native archives stream through file selection, recovery and download witho
     };
   });
   await login(page);
-  const payload = Buffer.alloc(2 * 1024 * 1024, 37);
-  const document = await readFile(new URL("../fixtures/native-rectangle.json",import.meta.url));
-  const archive = zipSync({"document.json":document, "images/legacy":[payload,{level:0}]});
-  await page.getByLabel("Open Figcraft file",{exact:true}).setInputFiles({
-    name:"stream.figcraft",mimeType:"application/octet-stream",buffer:Buffer.from(archive),
-  });
+  const client = await page.context().newCDPSession(page);
+  const memory: Record<string, unknown> = {};
+  const sample = async (stage: string) => { memory[stage] = await client.send("Runtime.getHeapUsage"); };
+  await sample("beforeOpen");
+  const width = 2048, height = 4096, pixels = width * height * 3;
+  const payload = Buffer.alloc(54 + pixels, 37);
+  payload.fill(0,0,54);
+  payload.write("BM"); payload.writeUInt32LE(payload.length,2); payload.writeUInt32LE(54,10);
+  payload.writeUInt32LE(40,14); payload.writeUInt32LE(width,18); payload.writeUInt32LE(height,22);
+  payload.writeUInt16LE(1,26); payload.writeUInt16LE(24,28); payload.writeUInt32LE(pixels,34);
+  const native = JSON.parse(await readFile(new URL("../fixtures/native-rectangle.json",import.meta.url),"utf8"));
+  native.nodes["2"].fills = [{type:"image",image:"legacy",scale_mode:"fill"}];
+  const archive = zipSync({"document.json":Buffer.from(JSON.stringify(native)), "images/legacy":[payload,{level:0}]});
+  // File-path selection avoids Playwright serialising a 24 MiB buffer into the measured renderer.
+  const input = test.info().outputPath("stream.figcraft");
+  await writeFile(input,archive);
+  await page.getByLabel("Open Figcraft file",{exact:true}).setInputFiles(input);
   await expect(page.getByText("1 layer",{exact:true})).toBeVisible();
+  await resetCanvasOrigin(page);
+  await expectCanvasPixel(page,15,25,[37,37,37,255]);
+  await sample("afterOpen");
   await page.getByRole("button",{name:"Create rectangle",exact:true}).click();
   await expect(page.getByText("Recovery saved on this device",{exact:true})).toBeVisible();
+  await sample("afterRecoveryWrite");
   await page.reload();
   await expect(page.getByText("2 layers",{exact:true})).toBeVisible();
+  await sample("afterRestore");
   const pending = page.waitForEvent("download");
   await page.getByRole("button",{name:"Save as",exact:true}).click();
   const restored = unzipSync(await readFile((await (await pending).path())!));
   expect(Buffer.compare(restored["images/legacy"], payload)).toBe(0);
+  await sample("afterDownload");
+  await test.info().attach("archive-memory",{contentType:"application/json",body:Buffer.from(JSON.stringify(memory))});
+  await client.detach();
+  await rm(input);
 });
