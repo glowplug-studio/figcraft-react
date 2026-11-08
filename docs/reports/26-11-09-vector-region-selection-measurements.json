@@ -1,0 +1,26 @@
+{
+  "react": "59700e8486724e843cd1f5fdaa9fd1f7c3019f24",
+  "upstream": "8a7ebc2484a6d64d80a13c19c18ffb814325e347",
+  "stats": {
+    "startTime": "2026-11-08T17:37:38.961Z",
+    "duration": 237346.801,
+    "expected": 113,
+    "skipped": 0,
+    "unexpected": 0,
+    "flaky": 0
+  },
+  "region": {
+    "operation": "region",
+    "nodes": 10000,
+    "visibleEditedLayers": 100,
+    "selectedPoints": 103,
+    "measuredFrames": 110,
+    "p95": 5.700000047683716,
+    "max": 6.5,
+    "inputP95": 3.5999999046325684,
+    "rootNotifications": 0,
+    "chromeNotifications": 0,
+    "hoverPanP95": 3.600000023841858,
+    "restored": true
+  }
+}
