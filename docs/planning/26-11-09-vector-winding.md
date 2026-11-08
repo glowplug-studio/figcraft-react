@@ -14,3 +14,5 @@ Region painting, selection, path traversal and the native codec now work in the 
 ## Checkpoint
 
 Phases 1–3. React b737b56, pinned upstream and fork main 8a7ebc2484a6d64d80a13c19c18ffb814325e347, global supported baseline 8eb0b876. Local merged graph 29,487 nodes and 96,614 edges, with native fill_rule and reverse_loop plus TypeScript vectorLoopWalk and appendVectorLoops verified. Local code-only extraction omits prose semantics and optional SQL parsing. Scoped Supabase MCP verified zero public tables. Local authenticated edit access and document recovery own this behaviour. No new schema or transport is needed. Rollback b737b56. Implement the paired reducers and native fixtures, then run build, local Auth, Playwright, hit/render, performance and reporting gates.
+
+Phases 4–7 complete at c93010f. The [offline property matrix](../reports/26-11-09-vector-winding-parity.html) links the native-matched fixtures, browser coverage and performance observations.

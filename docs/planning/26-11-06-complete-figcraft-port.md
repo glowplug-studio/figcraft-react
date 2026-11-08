@@ -5,16 +5,16 @@
 | Field | Current value |
 |---|---|
 | Overall status | In progress. [Execution checkpoint](26-11-07-full-port-resume.md). |
-| Active slice | Vector fill rules and loop direction |
-| Active phase | Phases 1–3 completed. [Vector winding plan](26-11-09-vector-winding.md). |
+| Active slice | Live boolean groups and contour operations |
+| Active phase | Phases 1–3 completed. [Live boolean group plan](26-11-09-live-boolean-groups.md). |
 | Upstream baseline | Closed-vector smoothing reference 3daa9d32. Paint bucket reference 8a7ebc24. Global supported baseline 8eb0b876. |
-| Branch and last verified commit | `prompt/full-figcraft-port`; verified Cut, Eraser and Lasso b737b56, verified selected-region solid fill editing a9f8ec6, verified painted region selection 59700e8, verified vector faces and solid Paint bucket 50370fe, verified closed-vector smoothing ca85638, verified variable-width points 6b3529a, verified Join 04b64a2, verified command validation `2a37b75`, verified snap priority `4b86d41`, Pen anchor implementation `6ffb65a`, reference plan `eba0174`; verified Pencil `7ad8a5a`; verified Pencil foundation `b630d0c`; verified Pen `d3c00a4`; verified internal Pen foundation `653e4a4`; verified point transforms/snapping `4a762cd`; verified vector authoring `adc59d4`; verified internal authoring primitives `74fbbb0`; verified vector foundation `154f5a7`; verified brushes `d3f7934`; verified width profiles `5f035a2`; verified per-side strokes `e21aaf0`; verified Line/strokes `0ca7c35`; verified Polygon/Star `f4db7fc`; verified ellipses `f21fe2b`; verified corners `37ad314`; verified transforms `cc26af1`; verified canvas move `0d34280`; verified duplication `f6dfc3f`; verified smart selection `3326d26`; verified rotations `92062ca`; verified sizing `c6b8c71`; verified arrangement `783a694`; verified viewport `d0fae6c`; verified frames `3e7943a`; verified nested groups `e81ba76`; verified colour `bfa5dd8`; affine `080fc27`, outline check `2404d6b`, reports `ff29f38`; pages `6c988a5`, persistence `41d467b`; integration `fc3b4a6` from updated dev plus rectangle branch |
+| Branch and last verified commit | `prompt/full-figcraft-port`; verified vector winding c93010f, verified Cut, Eraser and Lasso b737b56, verified selected-region solid fill editing a9f8ec6, verified painted region selection 59700e8, verified vector faces and solid Paint bucket 50370fe, verified closed-vector smoothing ca85638, verified variable-width points 6b3529a, verified Join 04b64a2, verified command validation `2a37b75`, verified snap priority `4b86d41`, Pen anchor implementation `6ffb65a`, reference plan `eba0174`; verified Pencil `7ad8a5a`; verified Pencil foundation `b630d0c`; verified Pen `d3c00a4`; verified internal Pen foundation `653e4a4`; verified point transforms/snapping `4a762cd`; verified vector authoring `adc59d4`; verified internal authoring primitives `74fbbb0`; verified vector foundation `154f5a7`; verified brushes `d3f7934`; verified width profiles `5f035a2`; verified per-side strokes `e21aaf0`; verified Line/strokes `0ca7c35`; verified Polygon/Star `f4db7fc`; verified ellipses `f21fe2b`; verified corners `37ad314`; verified transforms `cc26af1`; verified canvas move `0d34280`; verified duplication `f6dfc3f`; verified smart selection `3326d26`; verified rotations `92062ca`; verified sizing `c6b8c71`; verified arrangement `783a694`; verified viewport `d0fae6c`; verified frames `3e7943a`; verified nested groups `e81ba76`; verified colour `bfa5dd8`; affine `080fc27`, outline check `2404d6b`, reports `ff29f38`; pages `6c988a5`, persistence `41d467b`; integration `fc3b4a6` from updated dev plus rectangle branch |
 | Completed slices | Rectangle/host-auth, bounded native persistence/recovery, supported-model pages, affine rectangle geometry/selection and solid appearance, plus nested group hierarchy, Frame containers, movement/transform gestures, rounded corners, ellipse/arc/ring and Polygon/Star editing verified locally; Line/Arrow and uniform solid strokes also verified; per-side Rectangle/Frame strokes, variable-width profiles and procedural brushes verified; vector networks, solid region/stroke rendering and Flatten/Reverse also verified; foundation commit `154f5a7` |
 | Remaining slices | Every row below except the integrated foundation; static inventory entries remain unverified until mapped and tested |
-| Tests last passed | At b737b56, 922 pure checks, two local Auth tests, strict TypeScript, both production builds and all 119 Chromium workflows passed. |
-| Files currently in progress | Winding and loop-direction command design. |
+| Tests last passed | At c93010f, 928 pure checks, two local Auth tests, strict TypeScript, both production builds and all 122 Chromium workflows passed. |
+| Files currently in progress | Boolean complexity limits and contour result evaluation. |
 | Blockers | No blocker. Use local Graphify for all remaining slices. The scoped Supabase read succeeded. |
-| Exact next action | Implement vector.fillRule and vector.reverseLoop using the native winding fixtures. |
+| Exact next action | Implement native complexity accounting and bounded cubic contour operations, then integrate live boolean layers. |
 | Last updated | 2026-11-09 |
 
 ## Scope and continuation
@@ -646,3 +646,7 @@ Fractional object target precedence is verified locally. [Implementation and evi
 ## Cut, Eraser and Lasso
 
 React 0.36.0 b737b56. The [slice report](../reports/26-11-09-vector-cut-erase-lasso.md) covers 11 properties, 119 browser workflows and three 10,000-node benchmarks. Continue with the [winding plan](26-11-09-vector-winding.md).
+
+## Vector fill rules and loop direction
+
+React 0.37.0 c93010f. The [winding report](../reports/26-11-09-vector-winding.md) covers all six native fixture families, eight property rows and the 100-ring Chromium benchmarks.

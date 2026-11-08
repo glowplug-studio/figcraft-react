@@ -273,3 +273,7 @@ Native selected_region_fills, fill_regions, edit_region_fills, paint_list, paint
 ## Cut, Eraser and Lasso
 
 Native vectoredit/ops.rs cut_vertex, cut_segment, cut_across and parts map to vector-cut.ts. Native inside_ranges and erase map to vector-erase.ts. The Rust pointer and overlay gestures map to VectorInteraction, drawVectorEdit and VectorToolbar. The public commands share EditorEngine history and the hierarchy allocator. [Property evidence](../reports/26-11-09-vector-cut-erase-lasso-parity.html).
+
+## Vector winding
+
+Native structure.rs fill_rule, area_index, short_loop_segments and reverse_loop map to vector-winding.ts, the public vector command runner and undo history. Native vector_fill_rule_tests.rs supplied the paired ring, squares, lenses and shared single-segment cases. [Verified property matrix](../reports/26-11-09-vector-winding-parity.html).

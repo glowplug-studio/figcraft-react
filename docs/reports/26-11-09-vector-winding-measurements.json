@@ -1,0 +1,32 @@
+{
+  "react": "c93010f902838b3a7de366eed34dd14e69910e37",
+  "upstream": "8a7ebc2484a6d64d80a13c19c18ffb814325e347",
+  "stats": {
+    "startTime": "2026-11-08T18:20:35.657Z",
+    "duration": 261524.479,
+    "expected": 122,
+    "skipped": 0,
+    "unexpected": 0,
+    "flaky": 0
+  },
+  "performance": {
+    "vector.fillRule": {
+      "nodes": 10000,
+      "rings": 100,
+      "edits": 120,
+      "frames": 110,
+      "inputP95": 0.30000007152557373,
+      "p95": 1.2999999523162842,
+      "undoPixel": 245
+    },
+    "vector.reverseLoop": {
+      "nodes": 10000,
+      "rings": 100,
+      "edits": 120,
+      "frames": 110,
+      "inputP95": 0.30000007152557373,
+      "p95": 1.3000000715255737,
+      "undoPixel": 245
+    }
+  }
+}
