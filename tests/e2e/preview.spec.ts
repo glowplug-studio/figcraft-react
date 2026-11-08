@@ -1690,7 +1690,7 @@ test("Flatten and Reverse preserve geometry, shortcuts, undo, native files and r
   await canvas.focus(); await page.keyboard.press("ControlOrMeta+e"); await expect(selected).toBeVisible();
   await expect(page.locator(".figcraft-recovery")).toHaveText("Recovery saved on this device"); await page.reload();
   await layers.getByRole("button", { name: "Vector source", exact: true }).click(); await expect(selected.getByLabel("Edit Width", { exact: true })).toHaveValue("350");
-  await expect(page.getByRole("button", { name: "Corner smoothing", exact: true })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Corner smoothing", exact: true })).toBeVisible();
   await page.setViewportSize({ width: 390, height: 844 });
   await page.locator(".figcraft-mobile-layers > summary").click();
   const mobile = page.locator(".figcraft-mobile-layers");
