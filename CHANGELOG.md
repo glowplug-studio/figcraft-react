@@ -2,6 +2,10 @@
 
 All notable changes to the React port and its upstream compatibility baseline are recorded here.
 
+## [0.35.0] - 2026-11-09
+
+- Edit solid fills on selected vector regions. The inspector shows shared or mixed fills. Add, remove, reorder, copy and paste paints while preserving inherited fills on untouched regions.
+
 ## [0.34.0] - 2026-11-09
 
 - Select and drag painted vector regions with the Move tool. Shift adds or removes a region. Hatching follows selected regions and the region under the pointer.

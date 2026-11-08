@@ -10,7 +10,7 @@ import { defaultConstraints, rectanglePaints, rectangleTransform, withRectangleP
 import { HierarchyDraft, frameRelative, rootIds, worldTransform } from "./hierarchy";
 import { parseNodeId, parseNumber } from "./parameters";
 import { parseColour } from "./colour-css";
-import { readSolidPaints, solidPaint, type SolidPaint } from "./solid-paint";
+import { samePaints, readSolidPaints, solidPaint, type SolidPaint } from "./solid-paint";
 
 import { readConstraints, resizeChildren } from "./constraints";
 import { localOrigin, sameIds, validateChangedGeometry } from "./rotation";
@@ -19,16 +19,6 @@ import type { Point } from "./geometry";
 
 const geometryKeys = new Set(["x", "y", "width", "height", "w", "h", "rotation"]);
 const appearanceKeys = new Set(["name", "visible", "locked", "opacity", "fill", "fills", "clip", "constraints", "constrainProportions"]);
-
-function samePaints(left: readonly SolidPaint[], right: readonly SolidPaint[]): boolean {
-  return left.length === right.length && left.every((paint, index) => {
-    const other = right[index];
-    return paint.type === other.type && paint.opacity === other.opacity && paint.visible === other.visible
-      && paint.blend === other.blend && paint.colorAlpha === other.colorAlpha
-      && paint.color.r === other.color.r && paint.color.g === other.color.g
-      && paint.color.b === other.color.b && paint.color.a === other.color.a;
-  });
-}
 
 /** The supported layer geometry and appearance subset of upstream `node.set`. No history is recorded here. */
 export function setRectangleProperties(document: Document, selection: readonly NodeId[], params: Record<string, unknown>, origin?: Point, warnings: string[] = []): Document {

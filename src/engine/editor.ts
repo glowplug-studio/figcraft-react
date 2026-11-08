@@ -1,4 +1,6 @@
 import { createLayer } from "./creation";
+import { copyFill, fillSpecs, writeFill } from "./fill-commands";
+import type { SolidPaint } from "./solid-paint";
 import { executeStrokeList, strokeSpecs } from "./stroke-commands";
 import { isLeaf } from "./document";
 import { newDocument, withLayerTransform, type Document, type DrawShapeKind, type NodeId } from "./document";
@@ -30,6 +32,7 @@ import { parseBrush, wireBrush, type Brush } from "./brush";
 
 export const commandSpecs = Object.freeze({
   ...strokeSpecs,
+  ...fillSpecs,
   ...arrangeSpecs,
   ...sizingSpecs,
   ...rotationSpecs,
@@ -117,6 +120,8 @@ export class EditorEngine {
   };
   #canvasListeners = new Set<() => void>();
   #vectorEdit?: VectorEditState;
+  #copiedFill?: SolidPaint;
+  hasCopiedFill = (): boolean => this.#copiedFill !== undefined;
   #vectorListeners = new Set<() => void>();
   #viewportAttached = false;
   #viewConfigured = false;
@@ -313,7 +318,7 @@ export class EditorEngine {
     if (!editable) this.pen.cancel();
     if (!editable) this.cancelInteraction();
     if (!editable) this.cancelPendingFiles();
-    if (!editable) this.#vectorEdit = undefined;
+    if (!editable) { this.#vectorEdit = undefined; this.#copiedFill = undefined; }
     if (editable !== this.#snapshot.editable) this.#publish({ editable, tool: "move" });
   }
   execute(command: "frame.presets", input?: unknown): typeof framePresets;
@@ -427,6 +432,21 @@ export class EditorEngine {
       if (command === "select.none") this.#vectorEdit = undefined;
       this.#publish({ document: next.document, selection: next.selection });
       return next.result;
+    }
+    if (command === "fill.copy") {
+      const wasEmpty = !this.#copiedFill;
+      this.#copiedFill = copyFill(this.#snapshot.document, this.#snapshot.selection, p, this.#vectorEdit);
+      if (wasEmpty) this.#publish({});
+      return { ...this.#copiedFill };
+    }
+    if (Object.hasOwn(fillSpecs, command)) {
+      const before = this.#snapshot;
+      const document = writeFill(command as Exclude<keyof typeof fillSpecs, "fill.copy">, before.document, before.selection, p, this.#vectorEdit, this.#copiedFill);
+      if (document !== before.document) {
+        this.#undo.push({ document: before.document, selection: before.selection }); this.#redo = [];
+        this.#publish({ document });
+      }
+      return { ok: true };
     }
     if (command === "node.set" || Object.hasOwn(strokeSpecs, command)) {
       const before = this.#snapshot;

@@ -2331,3 +2331,56 @@ test("painted region hover, Shift selection, drag undo and recovery", async ({ p
   await page.mouse.click(spot.x, spot.y); await page.mouse.move(0, 0);
   expect((await save()).network).toEqual(moved.network);
 });
+
+test("selected region fills show mixed stacks, edit independently and survive native recovery", async ({ page }) => {
+  const engine = new EditorEngine(), id = String(engine.execute("vector.create", { x: 120, y: 120, name: "Fill regions",
+    path: "M0 0H80V80H0Z M100 0H180V80H100Z", props: { fill: "#ff0000" } }).id);
+  const doc = engine.getSnapshot().document, node = doc.nodes[id] as VectorNode;
+  const regions = node.network.regions[0].loops.map(loop => ({ winding: "nonZero" as const, loops: [loop] }));
+  const bytes = await encodeFigcraft({ ...doc, nodes: { ...doc.nodes, [id]: { ...node, network: { ...node.network, regions } } } });
+  await login(page);
+  await page.getByLabel("Open Figcraft file", { exact: true }).setInputFiles({ name: "fills.figcraft", mimeType: "application/octet-stream", buffer: Buffer.from(bytes) });
+  const layer = page.getByRole("region", { name: "Layers", exact: true }).getByRole("button", { name: "Fill regions", exact: true });
+  await expect(layer).toBeVisible(); await resetCanvasOrigin(page); await layer.click();
+  await page.getByRole("button", { name: "Edit vector", exact: true }).click();
+  const left = await canvasPoint(page, 150, 155), right = await canvasPoint(page, 250, 155);
+  const panel = page.getByRole("region", { name: "Appearance", exact: true });
+  const fill = panel.getByLabel("Fill 1 CSS colour", { exact: true }), opacity = panel.getByLabel("Fill 1 opacity", { exact: true });
+  const clickRegion = async (p: { x: number; y: number }, shift = false) => {
+    if (shift) await page.keyboard.down("Shift"); await page.mouse.click(p.x, p.y); if (shift) await page.keyboard.up("Shift");
+  };
+  await clickRegion(right); await fill.fill("#0000ff"); await panel.getByRole("button", { name: "Apply fill 1" }).click();
+  await panel.getByRole("button", { name: "Add fill" }).click();
+  await fill.fill("#00ff00"); await opacity.fill("0.5"); await panel.getByRole("button", { name: "Apply fill 1" }).click();
+  await panel.getByRole("button", { name: "Move fill 1 down" }).click();
+  await expect(opacity).toHaveValue("1");
+  await panel.getByLabel("Fill 2 CSS colour", { exact: true }).click({ button: "right" }); await panel.getByRole("button", { name: "Copy fill" }).click();
+  await clickRegion(left, true); await expect(panel.getByText("Click + to replace mixed content")).toBeVisible();
+  await expect(fill).toHaveCount(0);
+  await expect(panel.getByRole("group", { name: "Fills", exact: true })).toHaveScreenshot("mixed-vector-region-fills.png", { animations: "disabled", maxDiffPixels: 0 });
+  await clickRegion(right, true); await expect(fill).toBeVisible();
+  await fill.focus(); await page.keyboard.press("Shift+F10"); await panel.getByRole("button", { name: "Paste fill" }).click();
+  await expect(opacity).toHaveValue("0.5");
+  await page.getByRole("button", { name: "Undo", exact: true }).click();
+  await expect(opacity).toHaveValue("1");
+  await page.getByRole("button", { name: "Redo", exact: true }).click(); await expect(opacity).toHaveValue("0.5");
+  await page.getByRole("button", { name: "Done editing", exact: true }).click();
+  // The right region's opaque top blue paint masks its green underlay.
+  await expectCanvasPixel(page, 250, 155, [0, 0, 255, 255]);
+  const crop = await canvasPoint(page, 112, 112);
+  await expect(page).toHaveScreenshot("independent-vector-region-fills.png", { clip: { ...crop, width: 196, height: 96 }, animations: "disabled", maxDiffPixels: 0 });
+  const save = async () => {
+    const pending = page.waitForEvent("download"); await page.getByRole("button", { name: "Save as", exact: true }).click();
+    return (await decodeFigcraft(await readFile((await (await pending).path())!))).document.nodes[id] as VectorNode;
+  };
+  const saved = await save(); expect(saved.fill).toBe("#ff0000"); expect(saved.network.regions.map(r => r.fills?.length)).toEqual([1, 2]);
+  expect(saved.network.regions[0].fills![0]).toEqual(saved.network.regions[1].fills![0]);
+  await expect(page.locator(".figcraft-recovery")).toHaveText("Recovery saved on this device"); await page.reload(); await expect(layer).toBeVisible();
+  expect((await save()).network).toEqual(saved.network);
+  await layer.click(); await page.getByRole("button", { name: "Edit vector", exact: true }).click();
+  await page.setViewportSize({ width: 390, height: 844 }); await page.getByRole("button", { name: "Fit selection", exact: true }).click();
+  const canvas = page.getByLabel("Design canvas", { exact: true }); await canvas.scrollIntoViewIfNeeded();
+  await clickRegion(await canvasPoint(page, 250, 155));
+  const remove = panel.getByRole("button", { name: "Remove fill 1" }); await remove.scrollIntoViewIfNeeded(); await remove.click();
+  await expect(opacity).toHaveValue("0.5"); expect((await save()).network.regions[1].fills).toHaveLength(1);
+});

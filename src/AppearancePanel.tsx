@@ -1,21 +1,55 @@
-import { useState, type FormEvent } from "react";
+import { useLayoutEffect, useRef, useState, useSyncExternalStore, type FormEvent, type KeyboardEvent, type MouseEvent } from "react";
 import { parseCssColour } from "./engine/colour-css";
-import { fromRgba8, renderColour, withAlpha } from "./engine/colour";
+import { renderColour, withAlpha } from "./engine/colour";
 import { pageColour, rectanglePaints, type PageNode, type LayerNode } from "./engine/document";
-import { paintColour, solidPaint, type SolidPaint } from "./engine/solid-paint";
+import { paintColour, samePaints, solidPaint, type SolidPaint } from "./engine/solid-paint";
+
+import type { EditorEngine } from "./engine/editor";
+import { selectedRegionFills } from "./engine/fill-commands";
 
 interface AppearancePanelProps {
+  engine: EditorEngine;
   page: PageNode;
   selected?: LayerNode;
   editable: boolean;
   dispatch: (command: string, params?: unknown) => void;
 }
 
-function AppearanceControls({ page, selected, editable, dispatch }: AppearancePanelProps) {
+function AppearanceControls({ engine, page, selected, editable, dispatch }: AppearancePanelProps) {
   const [alert, setAlert] = useState("");
-  const paints = selected ? rectanglePaints(selected) : [];
-  const updatePaints = (next: readonly SolidPaint[]) => dispatch("node.set", { id: selected?.id, props: { fills: next } });
-  const updatePaint = (index: number, next: SolidPaint) => updatePaints(paints.map((paint, current) => current === index ? next : paint));
+  const state = useSyncExternalStore(engine.subscribeVectorEdit, engine.getVectorEdit, engine.getVectorEdit);
+  const snapshot = engine.getSnapshot(), ids = snapshot.selection;
+  const inherited = selected ? rectanglePaints(selected) : [];
+  const regionPaints = selected && ids.length === 1 ? selectedRegionFills(selected, state) : undefined;
+  const mixed = regionPaints === null || ids.length > 1 && ids.some(id => {
+    const node = snapshot.document.nodes[id];
+    return node.kind !== "page" && !samePaints(inherited, rectanglePaints(node));
+  });
+  const paints = mixed ? [] : regionPaints ?? inherited;
+  const updatePaint = (index: number, paint: SolidPaint) => dispatch("fill.set", { ids, index, paint });
+  const [menu, setMenu] = useState<{ x: number; y: number; index?: number }>();
+  const popup = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    const element = popup.current;
+    if (!element || !menu) return;
+    element.showPopover();
+    const bounds = element.getBoundingClientRect();
+    element.style.left = Math.max(0, Math.min(menu.x, window.innerWidth - bounds.width)) + "px";
+    element.style.top = Math.max(0, Math.min(menu.y, window.innerHeight - bounds.height)) + "px";
+    element.querySelector("button")?.focus();
+  }, [menu]);
+  function openMenu(event: MouseEvent | KeyboardEvent, index?: number) {
+    if (!editable || ("key" in event && event.key !== "ContextMenu" && !(event.shiftKey && event.key === "F10"))) return;
+    if (index === undefined && !engine.hasCopiedFill()) return;
+    event.preventDefault(); event.stopPropagation();
+    const rect = event.currentTarget.getBoundingClientRect();
+    setMenu({ index, x: "clientX" in event ? event.clientX : rect.left, y: "clientY" in event ? event.clientY : rect.bottom });
+  }
+  function menuAction(command: string) {
+    popup.current?.hidePopover();
+    dispatch(command, { ids, index: menu?.index });
+    setMenu(undefined);
+  }
   const parseInput = (input: string) => {
     const value = parseCssColour(input);
     if (!value) setAlert("Enter a valid CSS colour.");
@@ -59,8 +93,9 @@ function AppearanceControls({ page, selected, editable, dispatch }: AppearancePa
           <button type="submit">Apply layer</button>
         </fieldset>
       </form>
-      {selected.kind !== "group" && <fieldset disabled={!editable}><legend>Fills</legend>
-        <ol>{paints.map((paint, index) => ({ paint, index })).reverse().map(({ paint, index }, row) => <li key={`${selected.id}:${index}`}>
+      {selected.kind !== "group" && <fieldset disabled={!editable}><legend tabIndex={0} onContextMenu={event => openMenu(event)} onKeyDown={event => openMenu(event)}>Fills</legend>
+        {mixed && <p>Click + to replace mixed content</p>}
+        <ol>{paints.map((paint, index) => ({ paint, index })).reverse().map(({ paint, index }, row) => <li key={`${selected.id}:${index}`} tabIndex={0} onContextMenu={event => openMenu(event, index)} onKeyDown={event => openMenu(event, index)}>
           <form key={`paint:${selected.id}:${index}:${JSON.stringify(paint)}`} onSubmit={event => {
             event.preventDefault();
             const form = event.currentTarget;
@@ -81,12 +116,18 @@ function AppearanceControls({ page, selected, editable, dispatch }: AppearancePa
             <label>Fill {row + 1} opacity<input name="paintOpacity" type="number" min="0" max="1" step="any" defaultValue={paint.opacity} required /></label>
             <label>Fill {row + 1} visible<input type="checkbox" checked={paint.visible} onChange={event => updatePaint(index, { ...paint, visible: event.currentTarget.checked })} /></label>
             <button type="submit">Apply fill {row + 1}</button>
-            <button type="button" onClick={() => updatePaints(paints.filter((_, current) => current !== index))}>Remove fill {row + 1}</button>
-            <button type="button" disabled={index === paints.length - 1} onClick={() => { const next = [...paints]; [next[index + 1], next[index]] = [next[index], next[index + 1]]; updatePaints(next); }}>Move fill {row + 1} up</button>
-            <button type="button" disabled={index === 0} onClick={() => { const next = [...paints]; [next[index], next[index - 1]] = [next[index - 1], next[index]]; updatePaints(next); }}>Move fill {row + 1} down</button>
+            <button type="button" onClick={() => dispatch("fill.remove", { ids, index })}>Remove fill {row + 1}</button>
+            <button type="button" disabled={index === paints.length - 1} onClick={() => dispatch("fill.move", { ids, from: index, to: index + 1 })}>Move fill {row + 1} up</button>
+            <button type="button" disabled={index === 0} onClick={() => dispatch("fill.move", { ids, from: index, to: index - 1 })}>Move fill {row + 1} down</button>
           </form>
         </li>)}</ol>
-        <button type="button" onClick={() => updatePaints([...paints, solidPaint(fromRgba8(128, 128, 128))])}>Add fill</button>
+        <button type="button" onClick={() => dispatch("fill.add", { ids })} onContextMenu={event => openMenu(event)} onKeyDown={event => openMenu(event)}>Add fill</button>
+        {menu && <div ref={popup} popover="auto" role="group" aria-label="Fill actions"
+          style={{ position: "fixed", inset: "auto", margin: 0 }}
+          onToggle={event => { if (event.newState === "closed") setMenu(undefined); }}>
+          {menu.index !== undefined && <button type="button" onClick={() => menuAction("fill.copy")}>Copy fill</button>}
+          {engine.hasCopiedFill() && <button type="button" onClick={() => menuAction("fill.paste")}>Paste fill</button>}
+        </div>}
       </fieldset>}
     </>}
   </section>;

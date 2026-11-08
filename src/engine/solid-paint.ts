@@ -45,3 +45,13 @@ export function isLegacyPaint(paint: SolidPaint): boolean {
 export function paintColour(paint: SolidPaint): Colour {
   return colour(paint.color.r, paint.color.g, paint.color.b, Math.fround(paint.color.a * paint.opacity));
 }
+
+export function samePaints(left: readonly SolidPaint[], right: readonly SolidPaint[]): boolean {
+  return left.length === right.length && left.every((paint, index) => {
+    const other = right[index];
+    return paint.type === other.type && paint.opacity === other.opacity && paint.visible === other.visible
+      && paint.blend === other.blend && paint.colorAlpha === other.colorAlpha
+      && paint.color.r === other.color.r && paint.color.g === other.color.g
+      && paint.color.b === other.color.b && paint.color.a === other.color.a;
+  });
+}

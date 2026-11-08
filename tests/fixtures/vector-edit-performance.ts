@@ -8,9 +8,11 @@ import { VectorInteraction } from "../../src/engine/vector-interaction";
 import { widthHandles } from "../../src/engine/vector-width";
 import { pointBoxCentre, pointBoxCorners, shownVectorPointBox } from "../../src/engine/vector-point-transform";
 
-export async function measureVectorEdit(canvas: HTMLCanvasElement, operation: "move" | "scale" | "rotate" | "width" | "paint" | "region" = "move") {
-  const seed = new EditorEngine(), id = String(seed.execute("vector.create", { path: "M0 0C10 -5 30 -5 40 0L40 30L0 30Z" }).id);
-  const template = seed.getSnapshot().document.nodes[id] as VectorNode;
+async function openVectorScene(path: string) {
+  const seed = new EditorEngine(), id = String(seed.execute("vector.create", { path }).id);
+  const vector = seed.getSnapshot().document.nodes[id] as VectorNode;
+  const regions = vector.network.regions.flatMap(r => r.loops.map(loop => ({ ...r, loops: [loop] })));
+  const template = { ...vector, network: { ...vector.network, regions } };
   const initial = newDocument(), nodes: Record<string, DocumentNode> = { ...initial.nodes }, children: string[] = [];
   for (let i = 0; i < 9_999; i++) {
     const id = String(i + 2), x = i < 100 ? 40 + i % 10 * 90 : 10_000 + i, y = i < 100 ? 40 + Math.floor(i / 10) * 80 : 10_000;
@@ -21,6 +23,11 @@ export async function measureVectorEdit(canvas: HTMLCanvasElement, operation: "m
   const document: Document = { ...initial, nodes }, engine = new EditorEngine();
   await engine.executeAsync("file.open", { data: base64Bytes(await encodeFigcraft(document, "10002")) });
   engine.execute("vector.edit.begin", { ids: children.slice(0, 100) });
+  return { engine, children };
+}
+
+export async function measureVectorEdit(canvas: HTMLCanvasElement, operation: "move" | "scale" | "rotate" | "width" | "paint" | "region" = "move") {
+  const { engine, children } = await openVectorScene("M0 0C10 -5 30 -5 40 0L40 30L0 30Z");
   engine.updateVectorSelection(s => ({ ...s, vertices: [0], others: s.others.map(p => ({ ...p, vertices: [0] })) }));
   engine.execute("view.set", { cx: 600, cy: 400, vw: 1200, vh: 800, zoom: 1 });
   canvas.width = 1200; canvas.height = 800;
@@ -90,4 +97,34 @@ export async function measureVectorEdit(canvas: HTMLCanvasElement, operation: "m
     p95: measurements[Math.floor(measurements.length * .95)], max: measurements.at(-1), inputP95: inputs[Math.floor(inputs.length * .95)], rootNotifications, chromeNotifications,
     hoverPanP95: hoverPan[Math.floor(hoverPan.length * .95)],
     restored };
+}
+
+
+export async function measureRegionFills(canvas: HTMLCanvasElement) {
+  const { engine, children } = await openVectorScene("M0 0H18V30H0Z M22 0H40V30H22Z");
+  const id = children[0];
+  engine.execute("vector.edit.select", { regions: [0, 1] });
+  engine.execute("view.set", { cx: 600, cy: 400, vw: 1200, vh: 800, zoom: 1 });
+  canvas.width = 1200; canvas.height = 800;
+  const context = canvas.getContext("2d")!, interaction = new VectorInteraction(engine, message => { throw Error(message); });
+  const initial = engine.getSnapshot().document, depth = engine.getUndoDepth();
+  const input: number[] = [], frames: number[] = [];
+  for (let i = 0; i < 120; i++) {
+    await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
+    const start = performance.now();
+    engine.execute("fill.set", { id, color: i % 2 ? "#0000ff" : "#ff0000" });
+    const changed = performance.now();
+    renderDocument(context, engine.getRenderDocument(), 1200, 800, [], undefined, engine.getView());
+    drawVectorEdit(context, engine.getRenderDocument(), engine.getRenderVectorEdit()!, engine.getView(), interaction.overlay);
+    if (i >= 10) { input.push(changed - start); frames.push(performance.now() - start); }
+  }
+  const getNode = () => engine.getSnapshot().document.nodes[id] as VectorNode;
+  const colours = () => getNode().network.regions.map(r => r.fills?.[0].color);
+  if (colours().length !== 2 || !colours().every(c => c?.b === 1 && c.r === 0)) throw Error("Both selected regions must be blue");
+  if (engine.getSnapshot().document.nodes[children[1]] !== initial.nodes[children[1]]) throw Error("Sibling changed");
+  const edits = engine.getUndoDepth() - depth;
+  engine.execute("edit.undo");
+  if (!colours().every(c => c?.r === 1 && c.b === 0)) throw Error("Undo must restore both red regions");
+  const p95 = (values: number[]) => values.sort((a, b) => a - b)[Math.floor(.95 * values.length)];
+  return { nodes: Object.keys(initial.nodes).length, editedLayers: 100, regions: 2, edits, measuredFrames: frames.length, inputP95: p95(input), p95: p95(frames) };
 }
