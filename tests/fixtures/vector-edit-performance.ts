@@ -13,7 +13,7 @@ export async function measureVectorEdit(canvas: HTMLCanvasElement, operation: "m
   const template = seed.getSnapshot().document.nodes[id] as VectorNode;
   const initial = newDocument(), nodes: Record<string, DocumentNode> = { ...initial.nodes }, children: string[] = [];
   for (let i = 0; i < 9_999; i++) {
-    const id = String(i + 2), x = i < 100 ? 40 + i % 10 * 90 : 10_000 + i, y = i < 100 ? 40 + Math.floor(i / 10) * 65 : 10_000;
+    const id = String(i + 2), x = i < 100 ? 40 + i % 10 * 90 : 10_000 + i, y = i < 100 ? 40 + Math.floor(i / 10) * 80 : 10_000;
     children.push(id);
     nodes[id] = i < 100 ? { ...template, id, parent: "1", x, y, transform: [1, 0, 0, 1, x, y] } : { id, parent: "1", kind: "rectangle", name: `Layer ${i}`, x, y, width: 40, height: 30, fill: "#d9d9d9" };
   }
@@ -61,6 +61,11 @@ export async function measureVectorEdit(canvas: HTMLCanvasElement, operation: "m
     renderDocument(context, engine.getRenderDocument(), 1200, 800, [], undefined, engine.getView());
     drawVectorEdit(context, engine.getRenderDocument(), engine.getRenderVectorEdit()!, engine.getView(), interaction.overlay);
     if (i >= 10) { inputs.push(input); measurements.push(performance.now() - start); }
+  }
+  if (operation === "scale") {
+    const farId = children[99];
+    const original = before.nodes[farId] as VectorNode, scaled = engine.getRenderDocument().nodes[farId] as VectorNode;
+    if (original === scaled || original.network === scaled.network) throw Error("Scale drag did not transform the far selected layer");
   }
   if (operation === "width" && (engine.getRenderDocument().nodes[engine.getVectorEdit()!.id] as VectorNode).stroke?.widthProfile?.points[1]?.scale === 5) throw new Error("Width gesture did not resize the stroke");
   if (operation === "paint" && (engine.getRenderDocument().nodes[engine.getVectorEdit()!.id] as VectorNode).network.regions.length) throw Error("Paint gesture did not unfill the face");
