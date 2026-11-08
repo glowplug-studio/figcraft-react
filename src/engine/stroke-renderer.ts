@@ -1,4 +1,5 @@
 import { multiply, transformBounds, type Affine } from "./affine";
+import type { DrawImagePaint } from "./image-renderer";
 import { drawGradient } from "./gradient-renderer";
 import { renderColour, withAlpha } from "./colour";
 import { flattenContours, tracePath, type PathCommand } from "./corners";
@@ -148,12 +149,12 @@ function dashCaps(context: CanvasRenderingContext2D, contour: Contour, pattern: 
   }
 }
 const gradientMasks = new WeakMap<CanvasRenderingContext2D, HTMLCanvasElement>();
-function paintMask(context: CanvasRenderingContext2D, node: LayerNode, mask: Mask, alpha: number): void {
+function paintMask(context: CanvasRenderingContext2D, node: LayerNode, mask: Mask, alpha: number, drawImage?: DrawImagePaint): void {
   const { surface, context: scratch, left, top, width, height } = mask;
   scratch.resetTransform(); scratch.globalCompositeOperation = "source-in";
   context.save(); context.resetTransform();
   for (const paint of node.strokes ?? []) if (paint.visible && paint.opacity > 0) {
-    if (paint.type === "gradient") {
+    if (paint.type !== "solid") {
       // The cached coverage mask must retain its original alpha for every paint and redraw.
       let buffer = gradientMasks.get(context);
       if (!buffer) { buffer = context.canvas.ownerDocument.createElement("canvas"); gradientMasks.set(context,buffer); }
@@ -163,7 +164,8 @@ function paintMask(context: CanvasRenderingContext2D, node: LayerNode, mask: Mas
       target.resetTransform(); target.globalCompositeOperation = "source-over"; target.clearRect(0,0,buffer.width,buffer.height);
       const [a,b,c,d,e,f] = mask.matrix;
       target.setTransform(a,b,c,d,e-left,f-top);
-      drawGradient(target,paint,node.width,node.height);
+      if (paint.type === "gradient") drawGradient(target,paint,node.width,node.height);
+      else drawImage?.(target,paint,node.width,node.height);
       target.resetTransform(); target.globalCompositeOperation = "destination-in";
       target.drawImage(surface,0,0,width,height,0,0,width,height);
       context.globalAlpha = clampAlpha(paint.opacity)*alpha;
@@ -177,15 +179,17 @@ function paintMask(context: CanvasRenderingContext2D, node: LayerNode, mask: Mas
 }
 
 /** Caller has entered node-local coordinates. No DOM or React node represents a canvas layer. */
-export function paintStroke(context: CanvasRenderingContext2D, node: LayerNode, alpha = 1): void {
+export function paintStroke(context: CanvasRenderingContext2D, node: LayerNode, alpha = 1, drawImage?: DrawImagePaint): void {
   if (!hasVisibleStroke(node) || node.kind === "group") return;
   const filled = filledStroke(node), paints = node.strokes ?? [];
   if (filled) {
     for (const paint of paints) if (paint.visible && paint.opacity > 0) {
       context.globalAlpha = clampAlpha(paint.opacity) * alpha;
-      if (paint.type === "gradient") {
+      if (paint.type !== "solid") {
         context.save(); context.clip(filled.path,filled.rule);
-        drawGradient(context,paint,node.width,node.height); context.restore();
+        if (paint.type === "gradient") drawGradient(context,paint,node.width,node.height);
+        else drawImage?.(context,paint,node.width,node.height);
+        context.restore();
       } else { context.fillStyle = renderColour(paint.color); context.fill(filled.path, filled.rule); }
     }
     return;
@@ -195,7 +199,7 @@ export function paintStroke(context: CanvasRenderingContext2D, node: LayerNode, 
   let cache = masks.get(context); if (!cache) { cache = { entries: new Map(), bytes: 0 }; masks.set(context, cache); }
   const previous = cache.entries.get(node);
   if (previous && cacheKey.every((v, i) => v === previous.matrix[i])) {
-    cache.entries.delete(node); cache.entries.set(node, previous); paintMask(context, node, previous, alpha); return;
+    cache.entries.delete(node); cache.entries.set(node, previous); paintMask(context, node, previous, alpha, drawImage); return;
   }
   if (previous) { cache.entries.delete(node); cache.bytes -= previous.bytes; }
   const bounds = strokeBounds(node, coefficients);
@@ -245,5 +249,5 @@ export function paintStroke(context: CanvasRenderingContext2D, node: LayerNode, 
       }
     }
   }
-  paintMask(context, node, mask, alpha);
+  paintMask(context, node, mask, alpha, drawImage);
 }

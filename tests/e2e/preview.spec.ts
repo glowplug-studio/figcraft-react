@@ -282,6 +282,47 @@ test("native image archive preserves original bytes through browser open, edits,
   expect(saved.image_presets).toEqual([{ name: "Camera flash", filters: { exposure: -0.5, shadows: 0.25, highlights: 0, tint: 0, temperature: 0, saturation: 0, contrast: 0 } }]);
 });
 
+test("image paints draw original pixels and retain placed files through undo, recovery and download", async ({ page }) => {
+  const png = await readFile(new URL("../fixtures/images/six-pixels.png", import.meta.url));
+  const native = JSON.parse(await readFile(new URL("../fixtures/native-rectangle.json", import.meta.url), "utf8"));
+  const paint = { type: "image", image: "sample", scale_mode: "tile" };
+  const rect = native.nodes["2"];
+  rect.fills = [paint];
+  native.nodes["3"] = { ...rect, id: 3, transform: [1,0,0,1,60,20], fills: [{ ...paint, rotation: 1, filters: { saturation: -1 } }] };
+  native.nodes["4"] = { ...rect, id: 4, transform: [1,0,0,1,110,20], fills: [], strokes: [paint], stroke: { weight: 5, align: "inside" } };
+  native.nodes["1"].children = [2,3,4];
+  native.next_id = 5;
+  await login(page);
+  await page.getByLabel("Open Figcraft file", { exact: true }).setInputFiles({ name: "raster.figcraft", mimeType: "application/octet-stream",
+    buffer: Buffer.from(zipSync({ "document.json": Buffer.from(JSON.stringify(native)), "images/sample": png })) });
+  await expect(page.getByRole("heading", { name: "Native rectangle", exact: true })).toBeVisible();
+  await resetCanvasOrigin(page);
+  await expectCanvasPixel(page, 13, 22, [255,0,0,255]);
+  await expectCanvasPixel(page, 14, 22, [0,255,0,255]);
+  await expectCanvasPixel(page, 15, 22, [0,0,255,255]);
+  await expectCanvasPixel(page, 62, 23, [18,18,18,255]);
+  await expectCanvasPixel(page, 114, 22, [0,255,0,255]);
+  await page.getByLabel("Place image file", { exact: true }).setInputFiles({ name:"Placed.png", mimeType:"image/png", buffer:png });
+  await expect(page.getByText("4 layers", {exact:true})).toBeVisible();
+  await page.getByRole("button", { name:"Undo", exact:true }).click();
+  await expect(page.getByText("3 layers", {exact:true})).toBeVisible();
+  await page.getByRole("button", { name:"Redo", exact:true }).click();
+  await expect(page.getByText("Recovery saved on this device", {exact:true})).toBeVisible();
+  await page.reload();
+  await expect(page.getByText("4 layers", {exact:true})).toBeVisible();
+  await resetCanvasOrigin(page);
+  await expectCanvasPixel(page, 13, 22, [255,0,0,255]);
+  const pending = page.waitForEvent("download");
+  await page.getByRole("button",{name:"Save as",exact:true}).click();
+  const bytes = await readFile((await (await pending).path())!);
+  const wire = JSON.parse(strFromU8(unzipSync(bytes)["document.json"]!));
+  expect(wire.nodes["5"]).toMatchObject({ name:"Placed", width:3, height:2, fills:[{type:"image",scale_mode:"fill"}] });
+  expect(Buffer.from(unzipSync(bytes)["images/"+wire.nodes["5"].fills[0].image]!)).toEqual(png);
+  await page.getByLabel("Place image file", { exact:true }).setInputFiles({ name:"Damaged.png",mimeType:"image/png",buffer:png.subarray(0,png.length-12) });
+  await expect(page.locator("main [role=alert]")).toContainText("can't be read");
+  await expect(page.getByText("4 layers", {exact:true})).toBeVisible();
+});
+
 test("unavailable recovery storage reports the failure without blocking editing or download", async ({ page }) => {
   await page.addInitScript(() => { Object.defineProperty(window, "indexedDB", { get() { throw new Error("Storage access denied"); } }); });
   await login(page);

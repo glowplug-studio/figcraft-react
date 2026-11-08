@@ -2,6 +2,10 @@ import { colour, fromRgba8, toRgba8, withAlpha, type Colour } from "./colour";
 import { readGradient, type Gradient } from "./gradient";
 import { parseColour } from "./colour-css";
 
+import { readImageFilters, type ImageFilters } from "./image-filters";
+import type { ImagePlacement } from "./image-placement";
+import type { Affine } from "./affine";
+
 interface PaintProperties {
   readonly opacity: number;
   readonly visible: boolean;
@@ -10,7 +14,25 @@ interface PaintProperties {
 }
 export interface SolidPaint extends PaintProperties { readonly type: "solid"; readonly color: Colour }
 export interface GradientPaint extends PaintProperties, Gradient { readonly type: "gradient" }
-export type Paint = SolidPaint | GradientPaint;
+export interface ImagePaint extends PaintProperties, ImagePlacement {
+  readonly type: "image";
+  readonly image: string;
+  readonly filters: ImageFilters;
+}
+export type Paint = SolidPaint | GradientPaint | ImagePaint;
+
+function readImagePaint(p: Record<string, unknown>, properties: PaintProperties): ImagePaint {
+  const allowed = ["type", "image", "scale_mode", "scale", "rotation", "crop", "filters", "opacity", "visible", "blend", "colorAlpha"];
+  if (Object.keys(p).some(key => !allowed.includes(key))) throw new Error("Unsupported image paint property");
+  if (typeof p.image !== "string") throw new Error("An image paint needs an image key");
+  const { scale_mode = "fill", scale = 1, rotation = 0, crop = null, filters = {} } = p;
+  if (scale_mode !== "fill" && scale_mode !== "fit" && scale_mode !== "tile" && scale_mode !== "crop") throw new Error("Invalid image scale mode");
+  if (typeof scale !== "number" || !Number.isFinite(scale)) throw new Error("Image scale must be finite");
+  if (typeof rotation !== "number" || !Number.isInteger(rotation) || rotation < -2147483648 || rotation > 2147483647) throw new Error("Image rotation must be a signed 32-bit quarter turn count");
+  if (crop !== null && (!Array.isArray(crop) || crop.length !== 6 || !crop.every(Number.isFinite))) throw new Error("Image crop needs six finite coefficients");
+  return Object.freeze({ type: "image", image: p.image, scale_mode, scale, rotation,
+    crop: crop === null ? null : Object.freeze([...crop]) as Affine, filters: readImageFilters(filters), ...properties });
+}
 
 export function solidPaint(value: Colour): SolidPaint {
   return Object.freeze({ type: "solid", color: withAlpha(value, 1), opacity: value.a, visible: true, blend: "normal", colorAlpha: value.a });
@@ -36,6 +58,7 @@ export function readPaint(value: unknown, command = false): Paint {
     if (!color) throw new Error("Invalid paint colour");
     return Object.freeze({ type: "solid", color, ...properties });
   }
+  if (p.type === "image") return readImagePaint(p, properties);
   if (typeof p.type !== "string" || !p.type.toLowerCase().endsWith("gradient")) throw new Error("This paint kind is not supported yet");
   if (Object.keys(p).some(key => !["type","kind","stops","from","to","width","opacity","visible","blend","colorAlpha"].includes(key))) throw new Error("Unsupported gradient paint property");
   return Object.freeze({ type:"gradient", ...readGradient(p,command), ...properties });
@@ -74,6 +97,11 @@ export function samePaints(left: readonly Paint[], right: readonly Paint[]): boo
     if (a === b) return true;
     if (a.opacity !== b.opacity || a.visible !== b.visible || a.blend !== b.blend || a.colorAlpha !== b.colorAlpha) return false;
     if (a.type === "solid") return b.type === "solid" && sameColour(a.color,b.color);
+    if (a.type === "image") {
+      return b.type === "image" && a.image === b.image && a.scale_mode === b.scale_mode && a.rotation === b.rotation && a.scale === b.scale
+        && (a.crop === b.crop || !!a.crop && !!b.crop && a.crop.every((v, i) => v === b.crop![i]))
+        && (Object.keys(a.filters) as (keyof ImageFilters)[]).every(key => a.filters[key] === b.filters[key]);
+    }
     return b.type === "gradient" && a.kind === b.kind
       && (["from","to","width"] as const).every(key => a[key][0] === b[key][0] && a[key][1] === b[key][1])
       && a.stops.length === b.stops.length && a.stops.every((s,j) => s.position === b.stops[j].position && sameColour(s.color,b.stops[j].color));

@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState, type PointerEvent } from "react";
-import { renderColour, withAlpha } from "./engine/colour";
+import { fromRgba8, renderColour, withAlpha } from "./engine/colour";
 import { parseCssColour } from "./engine/colour-css";
 import type { EditorEngine, PaintPicker as Picker } from "./engine/editor";
 import { defaultGradient, sampleSorted, sortedStops, type GradientHandle, type GradientKind } from "./engine/gradient";
@@ -16,7 +16,7 @@ type Props = {
 
 function changeKind(paint: Paint, kind: GradientKind | "solid"): Paint {
   const { opacity, visible, blend, colorAlpha } = paint;
-  const base = paint.type === "solid" ? paintColour(paint) : sampleSorted(sortedStops(paint.stops), 0);
+  const base = paint.type === "solid" ? paintColour(paint) : paint.type === "gradient" ? sampleSorted(sortedStops(paint.stops), 0) : fromRgba8(179,179,179);
   if (kind === "solid") return { type:"solid", color:withAlpha(base,1), opacity, visible, blend, colorAlpha };
   const gradient = defaultGradient(kind,base);
   return { type:"gradient", ...gradient, stops:paint.type === "gradient" ? paint.stops : gradient.stops, opacity, visible, blend, colorAlpha };
@@ -121,7 +121,8 @@ export function PaintPicker({engine,list,index,label,paint,change}:Props) {
       style={{position:"fixed",inset:"auto",margin:0,width:"min(240px, calc(100vw - 8px))",maxHeight:"calc(100dvh - 8px)",overflow:"auto",padding:12,border:"1px solid #bbb",borderRadius:6,background:"Canvas",color:"CanvasText"}}
       onKeyDown={event=>{if(event.key==="Escape" && !engine.interacting){event.preventDefault();event.stopPropagation();engine.setPaintPicker();button.current?.focus();}}}>
       <button type="button" aria-label="Close paint picker" style={{float:"right"}} onClick={()=>{engine.setPaintPicker();button.current?.focus();}}>×</button>
-      <label>Paint type<select value={paint.type === "solid" ? "solid" : paint.kind} onChange={event=>change(changeKind(paint,event.target.value as GradientKind|"solid"))}>
+      <label>Paint type<select value={paint.type === "gradient" ? paint.kind : paint.type} onChange={event=>change(changeKind(paint,event.target.value as GradientKind|"solid"))}>
+        {paint.type === "image" && <option value="image">Image</option>}
         {(["solid","linear","radial","angular","diamond"] as const).map(kind=><option key={kind} value={kind}>{kind[0].toUpperCase()+kind.slice(1)}</option>)}
       </select></label>
       {paint.type === "gradient" && <Stops engine={engine} paint={paint} picker={picker} change={change}/>}

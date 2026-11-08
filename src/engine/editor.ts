@@ -1,13 +1,14 @@
 import { isGroupLike, rectanglePaints } from "./document";
 import { listImagePresets } from "./image-filters";
 import { getNode } from "./inspect";
+import { fileData, placeImage, prepareImage, rasterFilename } from "./image-import";
 import { createLayer } from "./creation";
 import { copyFill, fillSpecs, selectedRegionFills, writeFill } from "./fill-commands";
 import type { Paint } from "./solid-paint";
 import { executeStrokeList, strokeSpecs } from "./stroke-commands";
 import { isLeaf } from "./document";
 import { newDocument, sameContent, withLayerTransform, type Document, type DrawShapeKind, type NodeId } from "./document";
-import { decodeFigcraft, encodeFigcraft, MAX_FILE_BYTES } from "./file-format";
+import { decodeFigcraft, encodeFigcraft } from "./file-format";
 import { executePage, listPages, pageSpecs } from "./pages";
 import { executeSelection, selectionSpecs } from "./selection";
 import { setRectangleProperties } from "./properties";
@@ -82,6 +83,8 @@ export const commandSpecs = Object.freeze({
   "edit.undo": { label: "Undo", undo: false },
   "edit.redo": { label: "Redo", undo: false },
   "edit.duplicate": { label: "Duplicate", undo: true },
+  "image.place": { label: "Place image", undo: true },
+  "file.placeImage": { label: "Place image", undo: true },
   "file.open": { label: "Open", undo: false },
   "file.recover": { label: "Recover file", undo: false },
   "file.saveAs": { label: "Save as", undo: false },
@@ -536,7 +539,7 @@ export class EditorEngine {
       this.#publish({});
       return { saved: true };
     }
-    if (command.startsWith("file.")) throw new Error(`${command} requires executeAsync`);
+    if (command.startsWith("file.") || command === "image.place") throw new Error(`${command} requires executeAsync`);
     if (command === "vector.create" || command === "shape.line" || command === "shape.arrow" || command === "shape.polygon" || command === "shape.star" || command === "shape.ellipse" || command === "shape.rectangle" || command === "frame.create" || command === "node.create") return this.#create(command, p);
     if (Object.keys(p).length) throw new Error(`${command} takes no parameters`);
     if (command === "tool.shapeBuilder" || command === "tool.pencil" || command === "tool.pen" || command === "tool.line" || command === "tool.arrow" || command === "tool.polygon" || command === "tool.star" || command === "tool.ellipse" || command === "tool.rectangle" || command === "tool.move" || command === "tool.scale") {
@@ -561,7 +564,8 @@ export class EditorEngine {
   async executeAsync(command: "node.get", input: unknown): Promise<ReturnType<typeof getNode>>;
   async executeAsync(command: string, input?: unknown): Promise<Record<string, unknown>>;
   async executeAsync(command: string, input: unknown = {}): Promise<Record<string, unknown> | null> {
-    if (!["file.open", "file.recover", "file.saveAs"].includes(command)) return this.execute(command, input);
+    const placing = command === "image.place" || command === "file.placeImage";
+    if (!placing && !["file.open", "file.recover", "file.saveAs"].includes(command)) return this.execute(command, input);
     if (!this.#snapshot.editable) throw new Error("Sign in to edit this document");
     const p = parameters(input);
     if (command === "file.saveAs") {
@@ -578,14 +582,39 @@ export class EditorEngine {
       for (let offset = 0; offset < bytes.length; offset += 8192) binary += String.fromCharCode(...bytes.subarray(offset, offset + 8192));
       return { name: `${document.name}.figcraft`, bytes: bytes.length, data: btoa(binary), revision };
     }
-    if (Object.keys(p).some(key => !["data", "name"].includes(key)) || typeof p.data !== "string" || (p.name !== undefined && typeof p.name !== "string")) throw new Error("File open requires base64 data and optional name");
+    const allowed = placing ? ["data", "name", "target", "mode", "width", "height", "parent", "x", "y"] : ["data", "name"];
+    if (Object.keys(p).some(key => !allowed.includes(key)) || typeof p.data !== "string" || (p.name !== undefined && typeof p.name !== "string")) throw new Error("File import requires base64 data and supported parameters");
     this.pen.cancel(); this.pencil.cancel(); this.cancelInteraction();
-    if (p.data.length > Math.ceil(MAX_FILE_BYTES / 3) * 4) throw new Error("File exceeds the browser import limit");
-    const before = this.#snapshot.document;
+    const before = this.#snapshot;
     const opening = ++this.#openSequence;
-    const bytes = Uint8Array.from(atob(p.data), character => character.charCodeAt(0));
-    const decoded = await decodeFigcraft(bytes);
-    if (opening !== this.#openSequence || before !== this.#snapshot.document || !this.#snapshot.editable) throw new Error("Open was cancelled because the document or identity changed");
+    const bytes = fileData(p.data);
+    const checkCurrent = () => {
+      if (opening !== this.#openSequence || before.document !== this.#snapshot.document || !this.#snapshot.editable || this.interacting) throw new Error("Open was cancelled because the document or identity changed");
+    };
+    if (placing) {
+      const image = await prepareImage(bytes, before.document.images);
+      checkCurrent();
+      const next = placeImage(before, this.#nextId, image, p);
+      // Recovery uses this same bounded native archive. A placement that cannot be stored
+      // must leave history, selection and the previous document intact.
+      await encodeFigcraft(next.document, String(next.nextId));
+      checkCurrent();
+      this.#undo.push({ document: before.document, selection: before.selection }); this.#redo = [];
+      this.#nextId = next.nextId;
+      this.#publish({ document: next.document, selection: next.selection });
+      return next.result;
+    }
+    const raster = command === "file.open" && typeof p.name === "string" && rasterFilename.test(p.name);
+    let decoded: Awaited<ReturnType<typeof decodeFigcraft>>;
+    if (raster) {
+      const image = await prepareImage(bytes);
+      const name = String(p.name).split(/[\\/]/).pop()!.replace(rasterFilename, "");
+      const initial = { document: newDocument(name), selection: [] };
+      const opened = placeImage(initial, 2n, image, { name, width: image.resource.width, height: image.resource.height });
+      await encodeFigcraft(opened.document, String(opened.nextId));
+      decoded = { document: opened.document, nextId: String(opened.nextId) };
+    } else decoded = await decodeFigcraft(bytes);
+    checkCurrent();
     this.#nextId = BigInt(decoded.nextId);
     this.#undo = []; this.#redo = []; this.#saved = null; this.#pendingSaves.clear();
     this.#vectorEdit = undefined;

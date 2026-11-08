@@ -39,7 +39,7 @@ function requestedFields(params: Record<string, unknown>): Set<string> | undefin
 const round = (v: number) => Math.sign(v) * Math.round(Math.abs(v) * 100) / 100;
 
 function inspectPaint(paint: Paint) {
-  if (paint.type === "gradient") {
+  if (paint.type !== "solid") {
     const { colorAlpha, ...record } = paint;
     return colorAlpha === 1 ? record : { ...record, colorAlpha };
   }

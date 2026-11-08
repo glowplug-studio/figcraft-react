@@ -53,6 +53,7 @@ export function Editor({ identity, capabilities, engine: suppliedEngine, recover
   const [busy, setBusy] = useState(false);
   const [mobileLayersOpen, setMobileLayersOpen] = useState(false);
   const [pendingFile, setPendingFile] = useState<File | null>(null);
+  const imageInput = useRef<HTMLInputElement>(null);
   const fileInput = useRef<HTMLInputElement>(null);
   const replaceDialog = useRef<HTMLDialogElement>(null);
   const initialPrincipal = useRef(identity.getSnapshot().principal?.id);
@@ -168,6 +169,9 @@ export function Editor({ identity, capabilities, engine: suppliedEngine, recover
     if ((event.metaKey || event.ctrlKey) && event.altKey && !event.shiftKey && event.code === "KeyO") {
       event.preventDefault(); dispatch("vector.outlineStroke"); return;
     }
+    if ((event.metaKey || event.ctrlKey) && event.shiftKey && !event.altKey && event.key.toLowerCase() === "k") {
+      event.preventDefault(); imageInput.current?.click(); return;
+    }
     if ((event.metaKey || event.ctrlKey) && !event.altKey && event.key.toLowerCase() === "o") { event.preventDefault(); fileInput.current?.click(); return; }
     if ((event.metaKey || event.ctrlKey) && !event.altKey && event.key.toLowerCase() === "j") command = event.shiftKey ? "vector.smoothJoin" : "vector.join";
     if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "a") command = "select.all";
@@ -216,6 +220,16 @@ export function Editor({ identity, capabilities, engine: suppliedEngine, recover
     const kind = submitter?.value ?? "rectangle";
     dispatch(kind === "frame" ? "frame.create" : `shape.${kind}`, { ...Object.fromEntries(["x", "y", "width", "height"].map(name => [name, Number(data.get(name))])), parent: String(data.get("parent")) });
   }
+  async function place(file: File) {
+    controller.current?.cancel(); setBusy(true); setError("");
+    try {
+      if (file.size > MAX_FILE_BYTES) throw new Error("File exceeds the 16 MiB browser import limit");
+      const view = engine.getView();
+      await engine.executeAsync("file.placeImage", { data: base64Bytes(new Uint8Array(await file.arrayBuffer())),
+        x: view.cx, y: view.cy, name: file.name.replace(/\.[^.]+$/, "") });
+    } catch (caught) { setError(caught instanceof Error ? caught.message : "Image could not be placed"); }
+    finally { setBusy(false); }
+  }
   async function open(file: File) {
     controller.current?.cancel(); setPendingFile(null); setBusy(true); setError("");
     try {
@@ -247,8 +261,13 @@ export function Editor({ identity, capabilities, engine: suppliedEngine, recover
   return <div ref={root} className="figcraft-editor" onKeyDown={key} data-figcraft-editor="">
       <header className="figcraft-document-bar"><h1>{snapshot.document.name}</h1><span>{snapshot.dirty ? "Unsaved" : "Downloaded"} · Local document</span>
         <button disabled={!editable || busy} onClick={() => fileInput.current?.click()}>Open</button>
+        <button disabled={!editable || busy} onClick={() => imageInput.current?.click()}>Place image</button>
+        <input ref={imageInput} aria-label="Place image file" type="file" accept=".png,.jpg,.jpeg,.webp,.gif,.bmp,.tif,.tiff" hidden onChange={event => {
+          const file = event.currentTarget.files?.[0]; event.currentTarget.value = "";
+          if (file) void place(file);
+        }} />
         <button disabled={!editable || busy} onClick={() => void save()}>Save as</button>
-        <input ref={fileInput} aria-label="Open Figcraft file" type="file" accept=".figcraft,.json" hidden onChange={event => {
+        <input ref={fileInput} aria-label="Open Figcraft file" type="file" accept=".figcraft,.json,.png,.jpg,.jpeg,.webp,.gif,.bmp,.tif,.tiff" hidden onChange={event => {
           const file = event.currentTarget.files?.[0]; event.currentTarget.value = "";
           if (!file) return;
           if (snapshot.dirty && Object.keys(snapshot.document.nodes).length > snapshot.document.pages.length) setPendingFile(file);
