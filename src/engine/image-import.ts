@@ -1,6 +1,7 @@
 import type { Document, NodeId } from "./document";
 import { rectanglePaints, withRectanglePaints } from "./document";
 import { HierarchyDraft } from "./hierarchy";
+import { editImagePaints } from "./image-commands";
 import { decodeImageBitmap } from "./image-decode";
 import { imageHash, imageResource, type ImageResource } from "./image-resource";
 import { imagePixelDensity, placedImageSize } from "./image-placement";
@@ -40,16 +41,27 @@ export async function prepareImage(bytes: Uint8Array<ArrayBuffer>, existing?: Re
   return { resource, hash, density: imagePixelDensity(bytes) };
 }
 
+function withImageResource(document: Document, {hash, resource}: Awaited<ReturnType<typeof prepareImage>>) {
+  const extraBytes = Object.entries(document.images ?? {}).reduce((total, [key, stored]) => key === hash ? total : total + stored.bytes.size, resource.bytes.size);
+  if (extraBytes > MAX_FILE_BYTES) throw new Error("Image resources exceed the 16 MiB browser archive limit");
+  const images = document.images?.[hash] === resource ? document.images : Object.freeze({ ...document.images, [hash]: resource });
+  return images === document.images ? document : Object.freeze({ ...document, images });
+}
+
+export function replaceImage(before: { document: Document; selection: readonly NodeId[] }, nextId: bigint,
+  image: Awaited<ReturnType<typeof prepareImage>>, p: Record<string, unknown>) {
+  const edit = editImagePaints(before.document, before.selection, p, image.hash);
+  return { document: withImageResource(edit.document, image), nextId, selection: before.selection,
+    result: { ...edit.result, image: image.hash, width: image.resource.width, height: image.resource.height } };
+}
+
 export function placeImage(before: { document: Document; selection: readonly NodeId[] }, nextId: bigint,
   image: Awaited<ReturnType<typeof prepareImage>>, p: Record<string, unknown>) {
   const { resource, hash, density } = image;
   const mode = typeof p.mode === "string" ? p.mode.toLowerCase() : "fill";
   const paint = readPaint({ type: "image", image: hash, scale_mode: ["fit", "crop", "tile"].includes(mode) ? mode : "fill" });
   const target = p.target == null ? undefined : parseNodeId(p.target);
-  const extraBytes = Object.entries(before.document.images ?? {}).reduce((total, [key, stored]) => key === hash ? total : total + stored.bytes.size, resource.bytes.size);
-  if (extraBytes > MAX_FILE_BYTES) throw new Error("Image resources exceed the 16 MiB browser archive limit");
-  const images = before.document.images?.[hash] === resource ? before.document.images : Object.freeze({ ...before.document.images, [hash]: resource });
-  const document = Object.freeze({ ...before.document, images });
+  const document = withImageResource(before.document, image);
   if (target !== undefined) {
     const node = document.nodes[target];
     if (!node || node.kind === "page" || node.kind === "group") throw new Error("Image target must be a layer that can have a fill");

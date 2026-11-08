@@ -1,7 +1,8 @@
 import { isGroupLike, rectanglePaints } from "./document";
+import { editImagePaints, editImagePreset, imageEditSpecs } from "./image-commands";
 import { listImagePresets } from "./image-filters";
 import { getNode } from "./inspect";
-import { fileData, placeImage, prepareImage, rasterFilename } from "./image-import";
+import { fileData, placeImage, prepareImage, rasterFilename, replaceImage } from "./image-import";
 import { createLayer } from "./creation";
 import { copyFill, fillSpecs, selectedRegionFills, writeFill } from "./fill-commands";
 import type { Paint } from "./solid-paint";
@@ -56,6 +57,8 @@ export const commandSpecs = Object.freeze({
   "shapeBuilder.remove": { label: "Remove regions", undo: true },
   ...vectorSpecs,
   ...vectorEditSpecs,
+  ...imageEditSpecs,
+  "image.replace": { label: "Replace image", undo: true },
   "image.presets": { label: "Image presets", undo: false },
   "node.get": { label: "Get layer", undo: false },
   "node.set": { label: "Set properties", undo: true },
@@ -421,6 +424,15 @@ export class EditorEngine {
       }
       return { anchor: this.#snapshot.scaleAnchor };
     }
+    if (Object.hasOwn(imageEditSpecs, command)) {
+      const before = this.#snapshot;
+      const next = command === "image.adjust" ? editImagePaints(before.document, before.selection, p)
+        : editImagePreset(command, before.document, before.selection, p);
+      this.#undo.push({ document: before.document, selection: before.selection });
+      this.#redo = [];
+      this.#publish({ document: next.document });
+      return next.result;
+    }
     if (command === "frame.presets") return framePresets;
     if (command === "edit.duplicate") {
       const before = this.#snapshot;
@@ -539,7 +551,7 @@ export class EditorEngine {
       this.#publish({});
       return { saved: true };
     }
-    if (command.startsWith("file.") || command === "image.place") throw new Error(`${command} requires executeAsync`);
+    if (command.startsWith("file.") || command === "image.place" || command === "image.replace") throw new Error(`${command} requires executeAsync`);
     if (command === "vector.create" || command === "shape.line" || command === "shape.arrow" || command === "shape.polygon" || command === "shape.star" || command === "shape.ellipse" || command === "shape.rectangle" || command === "frame.create" || command === "node.create") return this.#create(command, p);
     if (Object.keys(p).length) throw new Error(`${command} takes no parameters`);
     if (command === "tool.shapeBuilder" || command === "tool.pencil" || command === "tool.pen" || command === "tool.line" || command === "tool.arrow" || command === "tool.polygon" || command === "tool.star" || command === "tool.ellipse" || command === "tool.rectangle" || command === "tool.move" || command === "tool.scale") {
@@ -565,7 +577,8 @@ export class EditorEngine {
   async executeAsync(command: string, input?: unknown): Promise<Record<string, unknown>>;
   async executeAsync(command: string, input: unknown = {}): Promise<Record<string, unknown> | null> {
     const placing = command === "image.place" || command === "file.placeImage";
-    if (!placing && !["file.open", "file.recover", "file.saveAs"].includes(command)) return this.execute(command, input);
+    const replacing = command === "image.replace";
+    if (!placing && !replacing && !["file.open", "file.recover", "file.saveAs"].includes(command)) return this.execute(command, input);
     if (!this.#snapshot.editable) throw new Error("Sign in to edit this document");
     const p = parameters(input);
     if (command === "file.saveAs") {
@@ -582,19 +595,20 @@ export class EditorEngine {
       for (let offset = 0; offset < bytes.length; offset += 8192) binary += String.fromCharCode(...bytes.subarray(offset, offset + 8192));
       return { name: `${document.name}.figcraft`, bytes: bytes.length, data: btoa(binary), revision };
     }
-    const allowed = placing ? ["data", "name", "target", "mode", "width", "height", "parent", "x", "y"] : ["data", "name"];
+    const allowed = replacing ? ["data", "ids", "id", "target", "index"] : placing ? ["data", "name", "target", "mode", "width", "height", "parent", "x", "y"] : ["data", "name"];
     if (Object.keys(p).some(key => !allowed.includes(key)) || typeof p.data !== "string" || (p.name !== undefined && typeof p.name !== "string")) throw new Error("File import requires base64 data and supported parameters");
     this.pen.cancel(); this.pencil.cancel(); this.cancelInteraction();
     const before = this.#snapshot;
     const opening = ++this.#openSequence;
     const bytes = fileData(p.data);
     const checkCurrent = () => {
+      if (replacing && !sameIds(before.selection, this.#snapshot.selection)) throw new Error("Image replacement was cancelled because the selection changed");
       if (opening !== this.#openSequence || before.document !== this.#snapshot.document || !this.#snapshot.editable || this.interacting) throw new Error("Open was cancelled because the document or identity changed");
     };
-    if (placing) {
+    if (placing || replacing) {
       const image = await prepareImage(bytes, before.document.images);
       checkCurrent();
-      const next = placeImage(before, this.#nextId, image, p);
+      const next = (replacing ? replaceImage : placeImage)(before, this.#nextId, image, p);
       // Recovery uses this same bounded native archive. A placement that cannot be stored
       // must leave history, selection and the previous document intact.
       await encodeFigcraft(next.document, String(next.nextId));
