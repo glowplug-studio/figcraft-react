@@ -1,12 +1,12 @@
 {
-  "react": "43ddc4b2d11ee6c51cac0ed193d91ab22e8ea91f",
+  "react": "ca85638ec78841a5d9943063188fb48742189d2f",
   "upstream": "3daa9d3293c5973bc8811e9b1108cea3224690aa",
   "stats": {
-    "startTime": "2026-11-07T03:08:56.806Z",
-    "duration": 208717.19499999998,
-    "expected": 92,
-    "skipped": 16,
-    "unexpected": 1,
+    "startTime": "2026-11-08T16:46:09.573Z",
+    "duration": 230912.05000000002,
+    "expected": 109,
+    "skipped": 0,
+    "unexpected": 0,
     "flaky": 0
   },
   "measurements": [
@@ -16,11 +16,11 @@
         "nodes": 10000,
         "visible": 100,
         "measuredFrames": 110,
-        "p95": 5.700000047683716,
-        "max": 7.100000023841858,
-        "inputP95": 2.100000023841858,
+        "p95": 7.100000023841858,
+        "max": 8.300000071525574,
+        "inputP95": 2.4000000953674316,
         "rootNotifications": 0,
-        "drawP95": 5.5,
+        "drawP95": 5.600000023841858,
         "drawRootNotifications": 0,
         "restored": true
       }
@@ -31,11 +31,11 @@
         "nodes": 10000,
         "visible": 100,
         "measuredFrames": 110,
-        "p95": 6.800000011920929,
-        "max": 10.800000011920929,
-        "inputP95": 2,
+        "p95": 6.600000023841858,
+        "max": 11.199999928474426,
+        "inputP95": 2.1999999284744263,
         "rootNotifications": 0,
-        "drawP95": 6,
+        "drawP95": 5.399999976158142,
         "drawRootNotifications": 0,
         "restored": true
       }
@@ -46,13 +46,13 @@
         "nodes": 10000,
         "visible": 100,
         "measuredFrames": 110,
-        "p95": 6.100000023841858,
-        "max": 6.300000011920929,
-        "inputP95": 2.099999964237213,
+        "p95": 5.900000095367432,
+        "max": 6.700000047683716,
+        "inputP95": 2.0999999046325684,
         "rootNotifications": 0,
-        "drawP95": 5.699999988079071,
+        "drawP95": 5.899999976158142,
         "drawRootNotifications": 0,
-        "panP95": 6.699999988079071,
+        "panP95": 7,
         "restored": true
       }
     },
@@ -63,10 +63,10 @@
         "visible": 100,
         "measuredFrames": 110,
         "p95": 6,
-        "max": 6.600000023841858,
+        "max": 7.5,
         "inputP95": 2,
         "rootNotifications": 0,
-        "drawP95": 5.800000011920929,
+        "drawP95": 5.699999928474426,
         "drawRootNotifications": 0,
         "panP95": 10.100000023841858,
         "restored": true
@@ -78,13 +78,13 @@
         "nodes": 10000,
         "visible": 100,
         "measuredFrames": 110,
-        "p95": 8.5,
-        "max": 9.400000035762787,
-        "inputP95": 2,
+        "p95": 9.200000047683716,
+        "max": 13.600000023841858,
+        "inputP95": 2.700000047683716,
         "rootNotifications": 0,
-        "drawP95": 11.599999964237213,
+        "drawP95": 8,
         "drawRootNotifications": 0,
-        "panP95": 13.399999976158142,
+        "panP95": 12.200000047683716,
         "restored": true
       }
     }

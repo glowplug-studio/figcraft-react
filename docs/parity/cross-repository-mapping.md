@@ -261,3 +261,5 @@ See the [property report](../reports/26-11-07-pen-anchor-undo-parity.html). The 
 Native vectoredit/ops.rs connect/join and vectoredit.rs join_cmd map to vector-connect.ts and vector-edit-commands.ts. The same region repair serves Pen, explicit connect, Join and Smooth join. [Property evidence](../reports/26-11-07-vector-join-parity.html).
 
 Native vectoredit/width.rs maps to vector-width.ts, VectorInteraction and VectorPanel. Stroke profile, shape geometry, command and undo boundaries are shared. [Per-property evidence](../reports/26-11-07-width-point-authoring-parity.html).
+
+Native smoothed_corner, rounded_smoothed and drawn_network map to the shared polygon corner profile, vector-rounded geometry and drawnVectorNetwork. CornerPanel exposes smoothing on closed vectors after recovery. [Geometry, file, inspector and browser evidence](../reports/26-11-07-closed-vector-smoothing-parity.html).

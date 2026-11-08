@@ -252,3 +252,5 @@ Command validation, exact layer reorder, cap diagnostics and bounded group-cycle
 Vector editing now supports native Join and Smooth join in point and layer modes, and reconnects broken loops while preserving region winding. [Verified scope at 04b64a2](../reports/26-11-07-vector-join.md).
 
 Variable-width authoring, sided handle dragging, point sliding, inspector commands, native saving and local recovery verified at 6b3529a. [Local checks and limitations](../reports/26-11-07-width-point-authoring.md).
+
+Closed-vector corner smoothing, authored point preservation, hit testing and recovered inspector eligibility verified at ca85638. [Ten checked properties](../reports/26-11-07-closed-vector-smoothing-parity.html).
