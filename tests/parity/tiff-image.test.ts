@@ -31,6 +31,14 @@ describe("bounded native TIFF pixel decoding", () => {
     expect(Buffer.from(rgba).equals(Buffer.from(expected))).toBe(true);
   });
 
+  it.each(["float-strip", "float-planar-tile"])("reverses floating-point prediction in %s and clips native RGB samples", async name => {
+    const bytes = read(name), original = bytes.slice();
+    const {width, height, rgba} = await decodeTiff(bytes);
+    expect([width,height]).toEqual([3,2]);
+    expect([...rgba]).toEqual([255,0,0,255, 0,255,0,255, 0,0,255,255, 0,64,128,255, 191,255,0,255, 255,255,255,255]);
+    expect(bytes).toEqual(original);
+  });
+
   it("crosses all LZW code widths and dictionary resets in one independently compressed strip", async () => {
     const { width, height, rgba } = await decodeTiff(read("noise-lzw"));
     const expected = new Uint8ClampedArray(96*64*4);

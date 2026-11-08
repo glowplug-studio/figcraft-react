@@ -4,6 +4,20 @@ import { tiffDirectory } from "./tiff-directory";
 import { decodeTiffSegment } from "./tiff-segment";
 
 const MAX_WORKING_BYTES = 512 * 1024 * 1024;
+/** Predictor 3 differences each channel across four significance planes, including tile padding. */
+function undoFloatPrediction(input: Uint8Array, row: Uint8Array, channels: number) {
+  const samples = row.length / 4;
+  for (let channel = 0; channel < channels; channel++) {
+    let previous = 0;
+    for (let plane = 0; plane < 4; plane++) {
+      for (let i = channel; i < samples; i += channels) {
+        previous = (input[plane * samples + i] + previous) & 255;
+        row[4 * i + plane] = previous;
+      }
+    }
+  }
+}
+
 /** Expand only validated strips or tiles. The output and largest scratch segment share one budget. */
 export async function decodeTiff(bytes: Uint8Array<ArrayBuffer>) {
   const { value, byteField, fields, little } = tiffDirectory(bytes);
@@ -20,7 +34,7 @@ export async function decodeTiff(bytes: Uint8Array<ArrayBuffer>) {
     for (let i=0; i<count; i++) if (value(tag,i) !== expected) throw new Error("Mixed TIFF sample types");
   }
   if (format !== 1 && !(format === 3 && bits === 32) || bits === 32 && format !== 3) throw new Error("Unsupported TIFF sample format");
-  if (planar !== 1 && planar !== 2 || predictor !== 1 && !(predictor === 2 && (bits === 8 || bits === 16))) throw new Error("Unsupported TIFF sample layout");
+  if (planar !== 1 && planar !== 2 || predictor !== 1 && !(predictor === 2 && (bits === 8 || bits === 16)) && !(predictor === 3 && format === 3 && bits === 32)) throw new Error("Unsupported TIFF sample layout");
   const tiled = fields.has(322), tileWidth = tiled ? value(322) : width;
   const tileHeight = tiled ? value(323) : Math.min(height, value(278,0,height));
   if (!tileWidth || !tileHeight) throw new Error("Invalid TIFF strip or tile dimensions");
@@ -31,7 +45,7 @@ export async function decodeTiff(bytes: Uint8Array<ArrayBuffer>) {
   const rowBytes = Math.ceil(tileWidth*components*bits/8);
   const outputBytes = width*height*4;
   const expanded = rowBytes * (tiled ? tileHeight*blocks : height*(planar === 2 ? channels : 1));
-  if (expanded > MAX_WORKING_BYTES || outputBytes + rowBytes*tileHeight > MAX_WORKING_BYTES) throw new Error("TIFF pixels exceed the browser working limit");
+  if (expanded > MAX_WORKING_BYTES || outputBytes + rowBytes*tileHeight + (predictor === 3 ? rowBytes : 0) > MAX_WORKING_BYTES) throw new Error("TIFF pixels exceed the browser working limit");
   const jpegTables = compression === 7 ? byteField(347) : undefined;
   if (compression === 7) {
     if (bits !== 8 || predictor !== 1) throw new Error("Unsupported JPEG TIFF sample layout");
@@ -42,6 +56,8 @@ export async function decodeTiff(bytes: Uint8Array<ArrayBuffer>) {
     }
   }
   const rgba = new Uint8ClampedArray(outputBytes);
+  const floatRow = predictor === 3 ? new Uint8Array(rowBytes) : undefined;
+  const predicted = floatRow && new DataView(floatRow.buffer);
   const reverseBits = value(266,0,1) === 2;
   let processed = 0;
   for (let block = 0; block < blocks; block++) {
@@ -58,12 +74,13 @@ export async function decodeTiff(bytes: Uint8Array<ArrayBuffer>) {
     const data = new DataView(raw.buffer, raw.byteOffset, raw.byteLength), plane = Math.floor(block/perPlane);
     const max = bits === 16 ? 65535 : bits === 8 ? 255 : 1;
     for (let y = 0; y < Math.min(rows,height-y0); y++) {
+      if (floatRow) undoFloatPrediction(raw.subarray(y*rowBytes, (y+1)*rowBytes), floatRow, components);
       const prior = [0,0,0,0];
       for (let x = 0; x < Math.min(tileWidth,width-x0); x++) {
         const pixel = ((y+y0)*width+x+x0)*4;
         for (let c = 0; c < components; c++) {
           const sample = x*components+c, byte = y*rowBytes + Math.floor(sample*bits/8);
-          let n = bits === 8 ? raw[byte] : bits === 16 ? data.getUint16(byte,little) : bits === 32 ? data.getFloat32(byte,little)
+          let n = bits === 8 ? raw[byte] : bits === 16 ? data.getUint16(byte,little) : bits === 32 ? (predicted ? predicted.getFloat32(sample*4) : data.getFloat32(byte,little))
             : (raw[byte] >>> (reverseBits && compression !== 4 ? sample%8 : 7-sample%8)) & 1;
           if (predictor === 2) { n = (n+prior[c]) & max; prior[c] = n; }
           const channel = planar === 2 ? plane : c;

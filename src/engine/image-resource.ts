@@ -1,6 +1,6 @@
 import { BMP } from "image-size/types/bmp";
 import { GIF } from "image-size/types/gif";
-import { JPG } from "image-size/types/jpg";
+import { jpegHeader } from "./jpeg-header";
 import { PNG } from "image-size/types/png";
 import { tiffDimensions } from "./tiff-directory";
 import { WEBP } from "image-size/types/webp";
@@ -10,10 +10,11 @@ export interface ImageResource {
   readonly bytes: Blob;
   readonly width: number;
   readonly height: number;
+  readonly unsupportedJpegSampling?: true;
 }
 
 const readers = [
-  ["image/png",PNG], ["image/jpeg",JPG], ["image/webp",WEBP],
+  ["image/png",PNG], ["image/webp",WEBP],
   ["image/gif",GIF], ["image/bmp",BMP], ["image/tiff",{
     validate: (bytes: Uint8Array) => bytes.length >= 8 && ((bytes[0] === 73 && bytes[1] === 73 && bytes[3] === 0 && (bytes[2] === 42 || bytes[2] === 43))
       || (bytes[0] === 77 && bytes[1] === 77 && bytes[2] === 0 && (bytes[3] === 42 || bytes[3] === 43))),
@@ -34,6 +35,13 @@ export async function imageHash(bytes:Blob):Promise<string> {
 /** Native archives keep encoded members even when dimensions cannot be read. */
 export function imageResource(data:Uint8Array<ArrayBuffer>):ImageResource {
   if (data.length > MAX_IMAGE_BYTES) throw new Error("Image data exceeds the native 256 MiB member limit");
+  if (data[0] === 255 && data[1] === 216) {
+    const jpeg = jpegHeader(data);
+    if (jpeg?.width && jpeg.height) return Object.freeze({
+      width: jpeg.width, height: jpeg.height, bytes: new Blob([data], {type:"image/jpeg"}),
+      ...(jpeg.unsupportedSampling && {unsupportedJpegSampling: true as const}),
+    });
+  }
   let width=0, height=0, mime="application/octet-stream";
   try {
     const format = readers.find(([,reader])=>reader.validate(data));

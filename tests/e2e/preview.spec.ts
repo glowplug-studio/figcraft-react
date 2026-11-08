@@ -326,7 +326,7 @@ test("image paints draw original pixels and retain placed files through undo, re
 test("opening raster files draws decoded pixels for all six formats and preserves the TIFF source on download", async ({ page }) => {
   await login(page);
   const input = page.getByLabel("Open Figcraft file", { exact:true });
-  const files = ["six-pixels.png","six-pixels.jpg","six-pixels.webp","six-pixels.gif","six-pixels.bmp","strips-deflate-be.tiff","tile-packbits-big.tiff","planes-lzw.tiff","strips-jpeg.tiff"];
+  const files = ["six-pixels.png","six-pixels.jpg","six-pixels.webp","six-pixels.gif","six-pixels.bmp","strips-deflate-be.tiff","tile-packbits-big.tiff","planes-lzw.tiff","float-strip.tiff","float-planar-tile.tiff","strips-jpeg.tiff"];
   for (const [index, filename] of files.entries()) {
     const source = await readFile(new URL("../fixtures/images/"+filename,import.meta.url));
     await input.setInputFiles({name:index+"-"+filename,mimeType:"application/octet-stream",buffer:source});
@@ -3187,4 +3187,43 @@ test("image crop preserves visible pixels on layer resize, dims the outside and 
   const outside=await canvasPoint(page,320,240);
   await page.mouse.click(outside.x,outside.y);
   await expect(page.getByRole("button",{name:"Crop fill 1 image",exact:true})).toBeHidden();
+});
+
+test("the editor holds an animated GIF on frame one at idle and refuses unsafe progressive JPEG placement atomically",async({page})=>{
+  await login(page);
+  const open=page.getByLabel("Open Figcraft file",{exact:true});
+  const gif=await readFile(new URL("../fixtures/images/red-green-animated.gif",import.meta.url));
+  await open.setInputFiles({name:"Animated.gif",mimeType:"image/gif",buffer:gif});
+  await expect(page.getByRole("heading",{name:"Animated",exact:true})).toBeVisible();
+  await resetCanvasOrigin(page);
+  await expectCanvasPixel(page,1,1,[255,0,0,255]);
+  await expect(page.getByText("Recovery saved on this device",{exact:true})).toBeVisible();
+  const idle=await page.evaluate(async()=>{
+    const node=document.querySelector<HTMLCanvasElement>("canvas[aria-label='Design canvas']")!;
+    const renders=()=>performance.getEntriesByName("figcraft:render").length;
+    const count=renders(), colours=[];
+    for(let i=0;i<8;i++) {
+      await new Promise(resolve=>setTimeout(resolve,40));
+      colours.push(Array.from(node.getContext("2d")!.getImageData(1,1,1,1).data));
+    }
+    return {renders:renders()-count,colours};
+  });
+  expect(idle.renders).toBe(0);
+  expect(idle.colours).toEqual(Array(8).fill([255,0,0,255]));
+  const jpeg=await readFile(new URL("../fixtures/images/progressive.jpg",import.meta.url));
+  const place=page.getByLabel("Place image file",{exact:true});
+  const damaged=Buffer.from(jpeg), frame=damaged.indexOf(Buffer.from([255,194]));
+  expect(frame).toBeGreaterThan(0); damaged[frame+14]=0x21;
+  await place.setInputFiles({name:"Unsupported.jpg",mimeType:"image/jpeg",buffer:damaged});
+  await expect(page.locator("main [role=alert]")).toContainText("can't be read");
+  await expect(page.getByText("1 layer",{exact:true})).toBeVisible();
+  await place.setInputFiles({name:"Valid.jpg",mimeType:"image/jpeg",buffer:jpeg});
+  await expect(page.getByText("2 layers",{exact:true})).toBeVisible();
+  const pending=page.waitForEvent("download");
+  await page.getByRole("button",{name:"Save as",exact:true}).click();
+  const members=unzipSync(await readFile((await (await pending).path())!));
+  const originals=Object.entries(members).filter(([key])=>key.startsWith("images/")).map(([,data])=>Buffer.from(data));
+  expect(originals.some(bytes=>bytes.equals(gif))).toBe(true);
+  expect(originals.some(bytes=>bytes.equals(jpeg))).toBe(true);
+  expect(originals).toHaveLength(2);
 });
