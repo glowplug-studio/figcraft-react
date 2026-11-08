@@ -66,7 +66,7 @@ describe("native selected-point transform box gestures", () => {
     const f = setup(); f.e.execute("vector.edit.select", { vertices: [0, 2] });
     f.drag([60, 40], [80, 50]); near(f.points()[0], 20, 10); near(f.points()[2], 120, 110); near(f.points()[1], 100, 0);
     f.e.execute("edit.undo"); f.interaction.down({ x: 60, y: 40 }, plain); f.interaction.up({ x: 60, y: 40 }); expect(f.e.getVectorEdit()?.vertices).toEqual([]);
-    f.e.execute("vector.edit.select", { vertices: [0, 2] }); f.drag([60, 40], [110, -10], { ...plain, shiftKey: true });
+    f.e.execute("vector.edit.select", { vertices: [0, 2] }); f.drag([110, 40], [65, -10], { ...plain, shiftKey: true });
     expect(f.e.getVectorEdit()?.vertices).toEqual([0, 2, 1]); near(f.points()[0], 0, 0);
   });
   it("transforms both differently rotated layers and moves across the gap between them", () => {

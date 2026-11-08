@@ -113,7 +113,7 @@ export function executeVectorEdit(command: VectorEditCommand | VectorJoinCommand
     const net = vectorNetwork(document, state.id); if (!net) throw new Error("Not a vector");
     return { ...result, result: { id: state.id, tool: state.tool, overlay: { ...vectorEditOverlay(document, state), anchor: state.anchor ?? null }, network: wireVectorNetwork(net), mirroring: net.vertices.map((_, i) => networkMirroring(net, i)),
       widthPoints: widthHandles(document, state.id, 1), widthPoint: state.widthPoint ?? null,
-      layers: vectorParts(state).map(p => p.id), others: state.others, handles: state.handles, regions: state.regions, regionVertices: state.regionVertices } };
+      layers: vectorParts(state).map(p => p.id), others: state.others, handles: state.handles, regions: state.regions, regionHover: state.regionHover ?? null, regionVertices: state.regionVertices } };
   }
   if (command === "vector.edit.widthPoint") {
     const node = document.nodes[state.id];
@@ -125,7 +125,7 @@ export function executeVectorEdit(command: VectorEditCommand | VectorJoinCommand
   }
   if (command === "vector.edit.tool") {
     const tool = parseString(p.tool)?.toLowerCase(); if (tool !== "move" && tool !== "bend" && tool !== "pen" && tool !== "width" && tool !== "paint") throw new Error("This vector tool is not implemented yet");
-    return { ...result, state: freezeVectorEdit({ ...state, tool, ...(tool !== "pen" ? { anchor: undefined, penOut: undefined } : {}) }), result: { tool } };
+    return { ...result, state: freezeVectorEdit({ ...state, tool, regionHover: undefined, ...(tool !== "pen" ? { anchor: undefined, penOut: undefined } : {}) }), result: { tool } };
   }
   if (command === "vector.edit.penEnd") return { ...result, state: freezeVectorEdit({ ...state, anchor: undefined, penOut: undefined }) };
   if (command === "vector.edit.select") return { ...result, state: selectVectorParts(document, state, {

@@ -10,7 +10,7 @@ import { HierarchyDraft, pageForNode, worldTransform } from "./hierarchy";
 import { executeStructure, structureSpecs } from "./structure";
 import { executeVector, isVectorJoin, vectorSpecs } from "./vector-commands";
 import { executeVectorEdit, vectorEditSpecs, type VectorEditCommand } from "./vector-edit-commands";
-import { clampVectorEdit, type VectorEditState } from "./vector-edit";
+import { clampVectorEdit, vectorNetwork, type VectorEditState } from "./vector-edit";
 import { defaultViewport, executeView, fitPage, viewSpecs, type Viewport } from "./viewport";
 import { framePresets } from "./frame-presets";
 import { parseBoolean, parseNumber } from "./parameters";
@@ -141,6 +141,13 @@ export class EditorEngine {
     if (!this.#snapshot.editable) throw new Error("Sign in to edit this document");
     if (this.#interaction) throw new Error("An interaction is already active");
     this.#interaction = { base: this.#snapshot, document: this.#snapshot.document, selection: this.#snapshot.selection, nextId: this.#nextId, baseVectorEdit: this.#vectorEdit, vectorEdit: this.#vectorEdit };
+  }
+  setVectorRegionHover(regionHover: number | undefined): void {
+    const state = this.#vectorEdit;
+    if (!state || this.#interaction || state.regionHover === regionHover) return;
+    const regionTopology = regionHover !== undefined || state.regions.length ? vectorNetwork(this.#snapshot.document, state.id) : undefined;
+    this.#vectorEdit = Object.freeze({ ...state, regionHover, regionTopology });
+    this.#notifyCanvas();
   }
   /** Pointer selection updates stable chrome once; frame-frequency previews use the method below. */
   updateVectorSelection(update: (state: VectorEditState) => VectorEditState): void {

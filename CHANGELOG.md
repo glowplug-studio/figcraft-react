@@ -2,6 +2,10 @@
 
 All notable changes to the React port and its upstream compatibility baseline are recorded here.
 
+## [0.34.0] - 2026-11-09
+
+- Select and drag painted vector regions with the Move tool. Shift adds or removes a region. Hatching follows selected regions and the region under the pointer.
+
 ## [0.33.0] - 2026-11-09
 
 - Fill or unfill closed vector faces with the Paint bucket in vector edit mode. B or Shift+B selects the tool. Drag across faces to apply the same action in one undo step.

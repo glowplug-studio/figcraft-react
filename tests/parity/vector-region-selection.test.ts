@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import { identity, type Affine } from "../../src/engine/affine";
 import { rectanglePaints, type VectorNode } from "../../src/engine/document";
 import { EditorEngine } from "../../src/engine/editor";
+import { deselectVectorRegion, newVectorEdit, selectVectorParts } from "../../src/engine/vector-edit";
+import { vectorLine, type VectorNetwork } from "../../src/engine/vector-network";
 import { hitPaintedRegion, regionHatch, regionHatchSpacing } from "../../src/engine/vector-region-selection";
 
 function setup() {
@@ -40,6 +42,18 @@ describe("native region hits and hatching", () => {
     }).length;
     expect(midpointsInsideHole(hole)).toBe(0);
     expect(midpointsInsideHole(make(true, false))).toBeGreaterThan(0);
+  });
+  it("removes only vertices owned exclusively by the deselected region", () => {
+    const { document, id } = setup(), node = document.nodes[id] as VectorNode;
+    const net: VectorNetwork = { ...node.network, segments: [...node.network.segments, vectorLine(0, 2)],
+      regions: [{ winding: "nonZero", loops: [[0, 1, 8]] }, { winding: "nonZero", loops: [[8, 2, 3]] }] };
+    const doc = { ...document, nodes: { ...document.nodes, [id]: { ...node, network: net } } };
+    const selected = selectVectorParts(doc, newVectorEdit(id), { vertices: [1], regions: [0, 1] });
+    const keepSecond = deselectVectorRegion(selected, net, 0);
+    expect(keepSecond.regions).toEqual([1]);
+    expect(keepSecond.vertices).toEqual([0, 1, 2, 3]);
+    const none = deselectVectorRegion(keepSecond, net, 1);
+    expect(none.vertices).toEqual([1]); expect(none.regionVertices).toEqual([]);
   });
   it("folds hatch spacing at octave boundaries", () => {
     for (const z of [.25, .5, 1, 2, 4]) expect(regionHatchSpacing(z)).toBe(8);

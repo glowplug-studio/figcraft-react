@@ -1,5 +1,5 @@
 import { transformPoint } from "./affine";
-import { flattenContours, tracePath, type PathCommand } from "./corners";
+import { flattenContours } from "./corners";
 import type { Point } from "./geometry";
 import { worldTransform } from "./hierarchy";
 import { canvasAccent } from "./canvas-colours";
@@ -7,6 +7,7 @@ import type { Document } from "./document";
 import { vectorEditOverlay, type VectorEditState } from "./vector-edit";
 import type { VectorInteraction } from "./vector-interaction";
 import { pageToScreen, type Viewport } from "./viewport";
+import { mapVectorPath, regionHatch } from "./vector-region-selection";
 import { widthHandles } from "./vector-width";
 import { drawGuides } from "./measurements";
 
@@ -60,15 +61,17 @@ export function drawVectorEdit(context: CanvasRenderingContext2D, document: Docu
   }
   for (const part of [...state.others.map(p => ({ ...state, ...p, handles: [], regions: [], regionVertices: [] })), state]) {
     const overlay = vectorEditOverlay(document, part); if (!overlay) continue;
+    if (part.id === state.id && (state.regions.length || interaction.regionHover !== undefined)) {
+      const origin = pageToScreen(view, { x: 0, y: 0 });
+      const regions = interaction.regionHover === undefined ? state.regions : [...state.regions, interaction.regionHover];
+      const lines = regionHatch(document, state.id, regions, [view.zoom, 0, 0, view.zoom, origin.x, origin.y], { x: 0, y: 0, width: view.vw, height: view.vh });
+      context.beginPath(); context.lineWidth = 1.4;
+      for (const [a, b] of lines) { context.moveTo(a.x, a.y); context.lineTo(b.x, b.y); }
+      context.stroke();
+    }
     if (state.tool === "paint" && interaction.paintHover?.id === part.id && state.id === part.id) {
       const world = worldTransform(document, part.id);
-      const screenPath: PathCommand[] = [];
-      tracePath({
-        moveTo: (x, y) => screenPath.push(["M", x, y]),
-        lineTo: (x, y) => screenPath.push(["L", x, y]),
-        bezierCurveTo: (ax, ay, bx, by, x, y) => screenPath.push(["C", ax, ay, bx, by, x, y]),
-        closePath: () => screenPath.push(["Z"]),
-      }, interaction.paintHover.face.path, p => pageToScreen(view, transformPoint(world, p)));
+      const screenPath = mapVectorPath(interaction.paintHover.face.path, p => pageToScreen(view, transformPoint(world, p)));
       drawPaintTarget(context, flattenContours(screenPath, .25), accent);
     }
     const hover = interaction.hover?.id === part.id ? interaction.hover.hit : undefined;

@@ -17,6 +17,7 @@ export interface VectorEditState extends VectorEditPart {
   readonly handles: readonly VectorHandle[];
   readonly others: readonly VectorEditPart[];
   readonly regions: readonly number[];
+  readonly regionHover?: number;
   readonly regionVertices: readonly number[];
   /** Immutable reference used for exact topology comparison; geometry changes keep selection. */
   readonly regionTopology?: VectorNetwork;
@@ -33,7 +34,7 @@ export function newVectorEdit(id: NodeId, others: readonly NodeId[] = []): Vecto
 export const vectorParts = (state: VectorEditState): readonly VectorEditPart[] => [{ id: state.id, vertices: state.vertices, segments: state.segments }, ...state.others];
 export function vectorNetwork(document: Document, id: NodeId): VectorNetwork | undefined { const n = document.nodes[id]; return n?.kind === "vector" ? n.network : undefined; }
 export function clearVectorSelection(state: VectorEditState): VectorEditState {
-  return freezeVectorEdit({ ...state, vertices: [], segments: [], handles: [], regions: [], regionVertices: [], regionTopology: undefined, others: state.others.map(p => ({ ...p, vertices: [], segments: [] })) });
+  return freezeVectorEdit({ ...state, vertices: [], segments: [], handles: [], regions: [], regionHover: undefined, regionVertices: [], regionTopology: undefined, others: state.others.map(p => ({ ...p, vertices: [], segments: [] })) });
 }
 export function activateVector(state: VectorEditState, id: NodeId): VectorEditState | undefined {
   if (id === state.id) return state;
@@ -48,10 +49,12 @@ function sameTopology(a: VectorNetwork | undefined, b: VectorNetwork): boolean {
 const validIndex = (i: number, length: number): boolean => Number.isInteger(i) && i >= 0 && i < length;
 export function clampVectorEdit(document: Document, state: VectorEditState): VectorEditState | undefined {
   const net = vectorNetwork(document, state.id); if (!net) return undefined;
-  const vertices = state.vertices.filter(i => validIndex(i, net.vertices.length)), regions = state.regions.length && !sameTopology(state.regionTopology, net) ? [] : state.regions;
+  const topologyChanged = (state.regions.length > 0 || state.regionHover !== undefined) && !sameTopology(state.regionTopology, net);
+  const vertices = state.vertices.filter(i => validIndex(i, net.vertices.length)), regions = topologyChanged ? [] : state.regions;
+  const regionHover = topologyChanged ? undefined : state.regionHover;
   const invalidAnchor = state.anchor !== undefined && !validIndex(state.anchor, net.vertices.length);
   return freezeVectorEdit({ ...state, ...(invalidAnchor ? { anchor: undefined, penOut: undefined } : {}), vertices, segments: state.segments.filter(i => validIndex(i, net.segments.length)), handles: state.handles.filter(([i]) => validIndex(i, net.segments.length)), regions,
-    regionVertices: regions.length ? state.regionVertices.filter(i => vertices.includes(i)) : [], regionTopology: regions.length ? state.regionTopology : undefined,
+    regionVertices: regions.length ? state.regionVertices.filter(i => vertices.includes(i)) : [], regionHover, regionTopology: regions.length || regionHover !== undefined ? net : undefined,
     others: state.others.flatMap(p => { const n = vectorNetwork(document, p.id); return n ? [{ ...p, vertices: p.vertices.filter(i => validIndex(i, n.vertices.length)), segments: p.segments.filter(i => validIndex(i, n.segments.length)) }] : []; }) });
 }
 export function selectedVectorPoints(net: VectorNetwork, selection: Pick<VectorEditPart, "vertices" | "segments">): readonly number[] {
@@ -76,6 +79,12 @@ export function selectVectorParts(document: Document, state: VectorEditState, se
     regions.push(r); for (const v of regionPoints(net, r)) if (!vertices.includes(v)) { vertices.push(v); regionVertices.push(v); }
   }
   return clampVectorEdit(document, { ...activated, vertices: [...new Set(vertices)].sort((a, b) => a - b), segments: [...new Set(segments)].sort((a, b) => a - b), handles, regions, regionVertices, regionTopology: net })!;
+}
+export function deselectVectorRegion(state: VectorEditState, net: VectorNetwork, region: number): VectorEditState {
+  const regions = state.regions.filter(index => index !== region);
+  const shared = new Set(regions.flatMap(index => regionPoints(net, index)));
+  const removed = new Set(regionPoints(net, region).filter(v => state.regionVertices.includes(v) && !shared.has(v)));
+  return { ...state, regions, vertices: state.vertices.filter(v => !removed.has(v)), regionVertices: state.regionVertices.filter(v => !removed.has(v)) };
 }
 export function vectorSelectionPosition(document: Document, state: VectorEditState): { x: number; y: number } | undefined {
   const node = document.nodes[state.id]; if (node?.kind !== "vector") return undefined;

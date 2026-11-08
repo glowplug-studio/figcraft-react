@@ -1,6 +1,6 @@
 {
   "name": "@glowplug-studio/figcraft-react-preview",
-  "version": "0.33.0",
+  "version": "0.34.0",
   "private": true,
   "scripts": {
     "build": "next build",

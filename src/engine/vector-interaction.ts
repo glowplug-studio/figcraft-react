@@ -1,5 +1,6 @@
 import { inverse, transformPoint, type Affine } from "./affine";
 import { vectorFaceAt, vectorFaces, type VectorFace } from "./vector-faces";
+import { hitPaintedRegion } from "./vector-region-selection";
 import { paintVector } from "./vector-paint";
 import { cubicPoint } from "./cubic";
 import type { Document, NodeId } from "./document";
@@ -10,7 +11,7 @@ import type { MoveModifiers } from "./move-interaction";
 import { validateChangedGeometry } from "./rotation";
 import { hitRectangle } from "./selection";
 import { strokeBounds } from "./stroke-renderer";
-import { activateVector, clearVectorSelection, refitVector, selectedVectorPoints, vectorNetwork, vectorParts, type VectorEditPart, type VectorEditState } from "./vector-edit";
+import { activateVector, clearVectorSelection, deselectVectorRegion, selectVectorParts, refitVector, selectedVectorPoints, vectorNetwork, vectorParts, type VectorEditPart, type VectorEditState } from "./vector-edit";
 import { vectorLocalOffset } from "./vector-edit-commands";
 import { hitEditedVectors, hitVector, type VectorHit } from "./vector-edit-hit";
 import { bendSegment, makeSmooth, mergeVertices, moveVertices, setHandle, smoothVertices, splitSegment, type VectorHandle } from "./vector-edit-ops";
@@ -50,6 +51,12 @@ function paintFaceAt(document: Document, id: NodeId, page: Point, segmentLimit =
   if (!net || net.segments.length > segmentLimit) return;
   return vectorFaceAt(vectorFaces(net), transformPoint(inverse(worldTransform(document, id)), page));
 }
+function regionUnder(document: Document, state: VectorEditState, point: Point, zoom: number, insideBox: boolean, shift: boolean): number | undefined {
+  const region = hitPaintedRegion(document, state.id, point, zoom);
+  if (region === undefined || shift || !insideBox || state.regions.includes(region)) return region;
+  const own = state.segments.length || state.vertices.some(i => !state.regionVertices.includes(i)) || state.others.some(p => p.vertices.length || p.segments.length);
+  return own ? undefined : region;
+}
 function segmentPoint(document: Document, id: NodeId, seg: number, t: number): Point | undefined {
   const net = vectorNetwork(document, id), c = net && networkCubic(net, seg);
   return c && transformPoint(worldTransform(document, id), cubicPoint(c, t));
@@ -84,7 +91,7 @@ export class VectorInteraction {
     const g = this.#gesture, state = this.engine.getRenderVectorEdit();
     const box = state && state.tool !== "width" ? shownVectorPointBox(this.engine.getRenderDocument(), state) : undefined;
     const corners = g?.kind === "boxRotate" ? pointBoxCorners(g.box).map(p => transformPoint(pointRotationMatrix(pointBoxCentre(g.box), -g.angle), p)) : box && pointBoxCorners(box);
-    return { paintHover: this.#paintHover, widthHover: this.#widthHover, hover: this.#hover, add: this.#add, marquee: this.#marquee, box: corners, guides: this.#guides, rubber: this.#rubber };
+    return { regionHover: this.#pressed ? undefined : state?.regionHover, paintHover: this.#paintHover, widthHover: this.#widthHover, hover: this.#hover, add: this.#add, marquee: this.#marquee, box: corners, guides: this.#guides, rubber: this.#rubber };
   }
   #snapPen(point: Point, id: NodeId, modifiers?: MoveModifiers): Point {
     const view = this.engine.getView(), objects = view.snapObjects !== false && !modifiers?.ctrlKey && !modifiers?.metaKey, pixel = view.snapPixel !== false;
@@ -95,7 +102,7 @@ export class VectorInteraction {
   #fail(error: unknown): void { this.cancel(); this.onError(error instanceof Error ? error.message : "Could not edit vector"); }
   hover(point?: Point, modifiers?: MoveModifiers): string | undefined {
     this.#paintHover = undefined; this.#widthHover = undefined; this.#hover = undefined; this.#add = undefined; this.#rubber = undefined; this.#guides = [];
-    const state = this.engine.getRenderVectorEdit(); if (!state || !point) return undefined;
+    const state = this.engine.getRenderVectorEdit(); if (!state || !point) { this.engine.setVectorRegionHover(undefined); return undefined; }
     const document = this.engine.getRenderDocument(), zoom = this.engine.getView().zoom;
     if (state.tool === "paint") {
       const face = paintFaceAt(document, state.id, point, 3000);
@@ -117,11 +124,15 @@ export class VectorInteraction {
       if (hit?.kind === "segment") { const at = segmentPoint(document, state.id, hit.seg, hit.t); if (at) this.#add = { point: at, on: true }; }
       return hit?.kind === "vertex" ? "alias" : hit?.kind === "segment" ? "copy" : "crosshair";
     }
-    if (!(modifiers?.ctrlKey || modifiers?.metaKey)) {
-      const box = shownVectorPointBox(document, state), hit = box && hitVectorPointBox(box, found?.hit, point, zoom);
+    if (state.tool === "move" && !(modifiers?.ctrlKey || modifiers?.metaKey)) {
+      const box = shownVectorPointBox(document, state), hit = box && hitVectorPointBox(box, found?.id === state.id ? found.hit : undefined, point, zoom);
+      const region = hit?.kind !== "handle" && (!found || found.id === state.id && found.hit.kind !== "handle")
+        ? regionUnder(document, state, point, zoom, hit?.kind === "inside", !!modifiers?.shiftKey) : undefined;
+      this.engine.setVectorRegionHover(region);
       if (box && hit?.kind === "handle") { this.#hover = undefined; return handleCursor(pointBoxCorners(box), hit.handle); }
+      if (region !== undefined) { this.#hover = undefined; return "default"; }
       if (hit?.kind === "inside" && !modifiers?.shiftKey) return "move";
-    }
+    } else this.engine.setVectorRegionHover(undefined);
     if (found?.hit.kind === "segment" && state.tool === "move" && !(modifiers?.ctrlKey || modifiers?.metaKey || modifiers?.shiftKey || modifiers?.altKey)) {
       const at = segmentPoint(document, found.id, found.hit.seg, .5); if (at) this.#add = { point: at, on: distance(at, point) * zoom <= 6 };
     }
@@ -141,7 +152,14 @@ export class VectorInteraction {
         const target = targetId;
         this.engine.updateVectorSelection(s => activateVector(s, target)!); state = this.engine.getVectorEdit()!;
       }
-      if (!modifiers.shiftKey && state.regions.length) {
+      const hit = found?.id === state.id ? found.hit : undefined, bend = state.tool === "bend" || state.tool === "move" && (modifiers.ctrlKey || modifiers.metaKey);
+      let region: number | undefined;
+      if (state.tool === "move" && !bend && hit?.kind !== "handle") {
+        const box = shownVectorPointBox(document, state);
+        region = regionUnder(document, state, point, zoom, !!box && hitVectorPointBox(box, hit, point, zoom)?.kind === "inside", modifiers.shiftKey);
+      }
+      this.engine.setVectorRegionHover(undefined);
+      if (!modifiers.shiftKey && state.regions.length && (region === undefined || !state.regions.includes(region))) {
         this.engine.updateVectorSelection(s => ({ ...s, vertices: s.vertices.filter(v => !s.regionVertices.includes(v)), regions: [], regionVertices: [], regionTopology: undefined }));
         state = this.engine.getVectorEdit()!;
       }
@@ -166,7 +184,6 @@ export class VectorInteraction {
         });
         return true;
       }
-      const hit = found?.id === state.id ? found.hit : undefined, bend = state.tool === "bend" || state.tool === "move" && (modifiers.ctrlKey || modifiers.metaKey);
       if (state.tool === "pen") {
         const at = !hit && !modifiers.shiftKey ? this.#snapPen(point, state.id, modifiers) : point;
         const decision = planPen(vectorNetwork(document, state.id)!, state.anchor, hit, transformPoint(inverse(worldTransform(document, state.id)), at), modifiers.shiftKey);
@@ -180,7 +197,7 @@ export class VectorInteraction {
         this.#gesture = g; this.#previewPen(g); return true;
       }
       const box = !bend && shownVectorPointBox(document, state), boxHit = box && hitVectorPointBox(box, hit, point, zoom);
-      if (box && boxHit && !(boxHit.kind === "inside" && modifiers.shiftKey)) {
+      if (box && boxHit && !(boxHit.kind === "inside" && (modifiers.shiftKey || region !== undefined))) {
         this.engine.beginInteraction();
         if (boxHit.kind === "inside") {
           const parts = [{ id: state.id, vertices: box.points, segments: [] }, ...box.others.map(p => ({ ...p, segments: [] }))];
@@ -189,6 +206,19 @@ export class VectorInteraction {
         else if (boxHit.handle.kind === "rotate") {
           const c = pointBoxCentre(box); this.#gesture = { kind: "boxRotate", box, startAngle: Math.atan2(point.y - c.y, point.x - c.x), angle: 0 };
         } else this.#gesture = { kind: "boxScale", box, handle: boxHit.handle, targets: new VectorPointTargets(document, state.id, box.points, box.others) };
+        return true;
+      }
+      if (region !== undefined) {
+        const index = region, selected = state.regions.includes(index);
+        if (selected && modifiers.shiftKey) {
+          this.engine.updateVectorSelection(s => deselectVectorRegion(s, vectorNetwork(document, s.id)!, index));
+          return true;
+        }
+        if (!selected) this.engine.updateVectorSelection(s => selectVectorParts(document, { ...s, handles: [] }, { regions: [index], add: modifiers.shiftKey }));
+        const parts = vectorParts(this.engine.getVectorEdit()!).map(p => ({ ...p, vertices: selectedVectorPoints(vectorNetwork(document, p.id)!, p), segments: [] }))
+          .filter(p => p.vertices.length);
+        this.engine.beginInteraction();
+        this.#gesture = { kind: "points", start: point, parts, moved: false, snap: capturePointSnap(document, state.id, parts, point) };
         return true;
       }
       if (hit?.kind === "handle") {
@@ -374,7 +404,7 @@ export class VectorInteraction {
         if (g.clearOnClick) this.engine.updateVectorSelection(s => ({ ...s, vertices: [], segments: [], others: s.others.map(p => ({ ...p, vertices: [], segments: [] })) }));
         return;
       }
-      if (g.kind === "points" && !g.split && g.parts[0].vertices.length === 1 && g.parts.slice(1).every(p => !p.vertices.length)) this.#mergeDrop(g.parts[0].vertices[0]);
+      if (g.kind === "points" && !g.split && g.parts[0]?.vertices.length === 1 && g.parts.slice(1).every(p => !p.vertices.length)) this.#mergeDrop(g.parts[0].vertices[0]);
       if (g.kind === "bendVertex" && !g.moved) {
         const state = this.engine.getRenderVectorEdit()!, net = vectorNetwork(this.engine.getRenderDocument(), state.id)!;
         if (!g.smooth && networkIncident(net, g.vertex).length !== 2) { this.engine.cancelInteraction(); return; }
@@ -414,6 +444,7 @@ export class VectorInteraction {
   }
   cancel(): void {
     if (this.#gesture) this.engine.cancelInteraction(); this.#gesture = undefined; this.#pressed = false;
+    this.engine.setVectorRegionHover(undefined);
     this.#paintHover = undefined; this.#widthHover = undefined; this.#hover = undefined; this.#add = undefined; this.#marquee = undefined; this.#guides = []; this.#rubber = undefined;
   }
 }

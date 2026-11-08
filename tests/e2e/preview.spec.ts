@@ -2276,3 +2276,58 @@ test("Paint bucket hatches a face, previews a drag and recovers independent nati
   await page.setViewportSize({ width: 390, height: 844 });
   await bucket.scrollIntoViewIfNeeded(); await bucket.click(); await expect(bucket).toHaveAttribute("aria-pressed", "true");
 });
+
+test("painted region hover, Shift selection, drag undo and recovery", async ({ page }) => {
+  const engine = new EditorEngine();
+  const id = String(engine.execute("vector.create", { name: "Region with hole", x: 140, y: 110,
+    path: "M0 0H160V160H0Z M50 50H110V110H50Z", props: { fill: "#ff0000" } }).id);
+  const doc = engine.getRenderDocument(), node = doc.nodes[id] as VectorNode;
+  const network = freezeNetwork({ ...node.network, regions: [{ ...node.network.regions[0], winding: "evenOdd" }] });
+  const file = await encodeFigcraft({ ...doc, nodes: { ...doc.nodes, [id]: { ...node, network } } });
+  await login(page);
+  await page.getByLabel("Open Figcraft file", { exact: true }).setInputFiles({ name: "region.figcraft", mimeType: "application/octet-stream", buffer: Buffer.from(file) });
+  const layer = page.getByRole("region", { name: "Layers", exact: true }).getByRole("button", { name: "Region with hole", exact: true });
+  await expect(layer).toBeVisible(); await resetCanvasOrigin(page); await layer.click();
+  await page.getByRole("button", { name: "Edit vector", exact: true }).click();
+  const canvas = page.getByLabel("Design canvas", { exact: true });
+  const coloured = await canvasPoint(page, 170, 140), hole = await canvasPoint(page, 220, 190);
+  const sample = () => canvas.evaluate((el: HTMLCanvasElement) => {
+    const pixels = el.getContext("2d")!.getImageData(155, 125, 25, 25).data;
+    let marks = 0;
+    for (let i = 0; i < pixels.length; i += 4) if (pixels[i + 2] > 30) marks++;
+    return marks;
+  });
+  await page.mouse.move(hole.x, hole.y); await expect.poll(sample).toBe(0);
+  await page.mouse.move(coloured.x, coloured.y); await expect.poll(sample).toBeGreaterThan(25);
+  const crop = await canvasPoint(page, 130, 100);
+  await expect(page).toHaveScreenshot("painted-vector-region-hole.png", { clip: { ...crop, width: 180, height: 180 }, animations: "disabled", maxDiffPixels: 0 });
+  await page.mouse.move(0, 0); await expect.poll(sample).toBe(0);
+  await page.mouse.click(coloured.x, coloured.y); await page.mouse.move(0, 0); await expect.poll(sample).toBeGreaterThan(25);
+  await page.keyboard.down("Shift"); await page.mouse.click(coloured.x, coloured.y); await page.keyboard.up("Shift");
+  await page.mouse.move(0, 0); await expect.poll(sample).toBe(0);
+  const save = async () => {
+    const download = page.waitForEvent("download"); await page.getByRole("button", { name: "Save as", exact: true }).click();
+    return (await decodeFigcraft(await readFile((await (await download).path())!))).document.nodes[id] as VectorNode;
+  };
+  for (const cancel of [true, false]) {
+    await page.mouse.move(coloured.x, coloured.y); await page.mouse.down(); await page.mouse.move(coloured.x + 30, coloured.y + 20, { steps: 4 });
+    if (cancel) await page.keyboard.press("Escape");
+    await page.mouse.up();
+    if (cancel) expect((await save()).x).toBe(140);
+  }
+  const moved = await save(); expect(moved.x).toBe(170); expect(moved.y).toBe(130); expect(moved.network.regions).toEqual(network.regions);
+  await page.getByRole("button", { name: "Undo", exact: true }).click(); expect((await save()).x).toBe(140);
+  await page.getByRole("button", { name: "Redo", exact: true }).click();
+  await expect(page.locator(".figcraft-recovery")).toHaveText("Recovery saved on this device");
+  await page.reload(); await expect(layer).toBeVisible();
+  const recovered = await save(); expect(recovered.x).toBe(170); expect(recovered.network).toEqual(moved.network);
+  await layer.click(); await page.getByRole("button", { name: "Edit vector", exact: true }).click();
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.getByRole("button", { name: "Fit selection", exact: true }).click();
+  await canvas.scrollIntoViewIfNeeded();
+  const spot = await canvasPoint(page, 200, 160);
+  const bounds = (await canvas.boundingBox())!;
+  expect(spot.x).toBeGreaterThan(bounds.x); expect(spot.x).toBeLessThan(bounds.x + bounds.width);
+  await page.mouse.click(spot.x, spot.y); await page.mouse.move(0, 0);
+  expect((await save()).network).toEqual(moved.network);
+});

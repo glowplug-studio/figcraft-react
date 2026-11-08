@@ -129,10 +129,59 @@ describe("native point editing gestures", () => {
     expect(f.net().vertices).toHaveLength(3); expect(f.points()[0]).toEqual({ x: 100, y: 0 }); expect(f.errors).toEqual([]);
   });
   it("empty clicks clear points, empty double-clicks exit and distant-layer clicks request replay", () => {
-    const f = setup(); f.click(0, 0); f.click(50, 50); expect(f.engine.getVectorEdit()?.vertices).toEqual([]);
+    const f = setup(); f.click(0, 0); f.click(-10, 45); expect(f.engine.getVectorEdit()?.vertices).toEqual([]);
     expect(f.interaction.doubleClick({ x: 50, y: 50 })).toBe(true); expect(f.engine.getVectorEdit()).toBeUndefined();
     f.engine.execute("shape.rectangle", { x: 300, y: 0, width: 100, height: 100 }); f.engine.execute("vector.edit.begin", { id: f.id });
     f.interaction.down({ x: 350, y: 50 }, plain); expect(f.interaction.up({ x: 350, y: 50 })).toEqual({ x: 350, y: 50 });
     expect(f.engine.getVectorEdit()).toBeUndefined(); expect(f.errors).toEqual([]);
+  });
+});
+
+describe("painted-region Move gestures", () => {
+  it("gives the painted interior priority past the outline clearance and clears hover on exit or tool change", () => {
+    const f = setup(), at = { x: 35, y: 3 };
+    let published = 0;
+    f.engine.subscribeVectorEdit(() => published++);
+    f.interaction.hover(at, plain);
+    expect(f.engine.execute("vector.edit.state").regionHover).toBe(0);
+    expect(f.interaction.overlay.hover).toBeUndefined();
+    f.interaction.hover(at, { ...plain, ctrlKey: true });
+    expect(f.engine.execute("vector.edit.state").regionHover).toBeNull();
+    f.interaction.hover(at, plain); f.interaction.hover(undefined);
+    expect(f.engine.getVectorEdit()?.regionHover).toBeUndefined();
+    expect(published).toBe(0);
+    f.interaction.hover(at, plain);
+    f.engine.execute("vector.edit.tool", { tool: "bend" });
+    expect(f.engine.execute("vector.edit.state").regionHover).toBeNull();
+  });
+  it("invalidates hovered and selected regions when a command changes topology", () => {
+    const f = setup(), at = { x: 40, y: 40 };
+    f.click(at.x, at.y); f.interaction.hover(at, plain);
+    expect(f.engine.getVectorEdit()?.regionHover).toBe(0);
+    f.engine.execute("vector.edit.connect", { a: 0, b: 2 });
+    const state = f.engine.getVectorEdit()!;
+    expect(state.regionHover).toBeUndefined(); expect(state.regions).toEqual([]);
+    expect(state.regionVertices).toEqual([]);
+  });
+  it("keeps independently selected vertices when Shift removes a region and records only movement in history", () => {
+    const f = setup(), original = f.engine.getSnapshot().document, depth = f.engine.getUndoDepth();
+    f.click(0, 0); f.click(40, 40, shift);
+    expect(f.engine.getVectorEdit()?.regions).toEqual([0]);
+    expect(f.engine.getVectorEdit()?.regionVertices).toEqual([1, 2, 3]);
+    f.click(40, 40, shift);
+    expect(f.engine.getVectorEdit()?.regions).toEqual([]);
+    expect(f.engine.getVectorEdit()?.vertices).toEqual([0]);
+    f.click(40, 40);
+    expect(f.engine.getUndoDepth()).toBe(depth);
+    for (const commit of [false, true]) {
+      f.interaction.down({ x: 40, y: 40 }, plain); f.interaction.move({ x: 60, y: 70 }, plain);
+      expect(f.points()[0]).toEqual({ x: 20, y: 30 });
+      expect(f.engine.getRenderVectorEdit()?.regions).toEqual([0]);
+      if (commit) f.interaction.up({ x: 60, y: 70 }); else f.interaction.cancel();
+    }
+    expect(f.engine.getUndoDepth()).toBe(depth + 1);
+    f.engine.execute("edit.undo");
+    expect(f.engine.getSnapshot().document).toBe(original);
+    expect(f.errors).toEqual([]);
   });
 });

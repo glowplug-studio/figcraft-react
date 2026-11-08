@@ -8,7 +8,7 @@ import { VectorInteraction } from "../../src/engine/vector-interaction";
 import { widthHandles } from "../../src/engine/vector-width";
 import { pointBoxCentre, pointBoxCorners, shownVectorPointBox } from "../../src/engine/vector-point-transform";
 
-export async function measureVectorEdit(canvas: HTMLCanvasElement, operation: "move" | "scale" | "rotate" | "width" | "paint" = "move") {
+export async function measureVectorEdit(canvas: HTMLCanvasElement, operation: "move" | "scale" | "rotate" | "width" | "paint" | "region" = "move") {
   const seed = new EditorEngine(), id = String(seed.execute("vector.create", { path: "M0 0C10 -5 30 -5 40 0L40 30L0 30Z" }).id);
   const template = seed.getSnapshot().document.nodes[id] as VectorNode;
   const initial = newDocument(), nodes: Record<string, DocumentNode> = { ...initial.nodes }, children: string[] = [];
@@ -36,12 +36,19 @@ export async function measureVectorEdit(canvas: HTMLCanvasElement, operation: "m
     widthStart = { x, y };
   }
   if (operation === "paint") engine.execute("vector.edit.tool", { tool: "paint" });
-  const paintStart = operation === "paint" ? { x: 55, y: 55 } : undefined;
+  if (operation === "region") {
+    engine.execute("vector.edit.select", { regions: [0], add: true });
+  }
+  const paintStart = operation === "paint" || operation === "region" ? { x: 55, y: 55 } : undefined;
   const startPoint = paintStart ?? widthStart ?? (operation === "move" ? { x: 40, y: 40 } : operation === "scale" ? { x: corners[1].x, y: centre.y } : { x: corners[1].x + 10, y: corners[1].y - 10 });
   if (operation === "paint") {
     interaction.hover(startPoint);
     if (!interaction.overlay.paintHover) throw Error("Paint hover missed the active face");
     drawVectorEdit(context, engine.getRenderDocument(), engine.getRenderVectorEdit()!, engine.getView(), interaction.overlay);
+  }
+  if (operation === "region") {
+    interaction.hover(startPoint);
+    if (engine.getVectorEdit()?.regionHover !== 0) throw Error("Region hover missed the active region");
   }
   interaction.down(startPoint, modifiers);
   const before = engine.getSnapshot().document, state = engine.getVectorEdit(); let rootNotifications = 0, chromeNotifications = 0;
@@ -57,9 +64,12 @@ export async function measureVectorEdit(canvas: HTMLCanvasElement, operation: "m
   }
   if (operation === "width" && (engine.getRenderDocument().nodes[engine.getVectorEdit()!.id] as VectorNode).stroke?.widthProfile?.points[1]?.scale === 5) throw new Error("Width gesture did not resize the stroke");
   if (operation === "paint" && (engine.getRenderDocument().nodes[engine.getVectorEdit()!.id] as VectorNode).network.regions.length) throw Error("Paint gesture did not unfill the face");
-  interaction.cancel(); measurements.sort((a, b) => a - b); inputs.sort((a, b) => a - b);
+  if (operation === "region" && (engine.getRenderVectorEdit()?.regions[0] !== 0 || engine.getRenderDocument() === before)) throw Error("Region drag did not move selected points");
+  interaction.cancel();
+  const restored = engine.getRenderDocument() === before && engine.getRenderVectorEdit() === state;
+  measurements.sort((a, b) => a - b); inputs.sort((a, b) => a - b);
   const hoverPan: number[] = [];
-  if (operation === "paint") {
+  if (operation === "paint" || operation === "region") {
     for (let i = 0; i < 120; i++) {
       await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
       const start = performance.now();
@@ -71,8 +81,8 @@ export async function measureVectorEdit(canvas: HTMLCanvasElement, operation: "m
     }
     hoverPan.sort((a, b) => a - b);
   }
-  return { operation, nodes: Object.keys(before.nodes).length, visibleEditedLayers: 100, selectedPoints: 100, measuredFrames: measurements.length,
+  return { operation, nodes: Object.keys(before.nodes).length, visibleEditedLayers: 100, selectedPoints: (state?.vertices.length ?? 0) + (state?.others.reduce((n, p) => n + p.vertices.length, 0) ?? 0), measuredFrames: measurements.length,
     p95: measurements[Math.floor(measurements.length * .95)], max: measurements.at(-1), inputP95: inputs[Math.floor(inputs.length * .95)], rootNotifications, chromeNotifications,
     hoverPanP95: hoverPan[Math.floor(hoverPan.length * .95)],
-    restored: engine.getRenderDocument() === before && engine.getRenderVectorEdit() === state };
+    restored };
 }

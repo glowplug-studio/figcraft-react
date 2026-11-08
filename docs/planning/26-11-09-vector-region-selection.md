@@ -16,3 +16,5 @@ Use validated host identity and the existing editable session boundary. No new c
 ## Checkpoint
 
 Phases 1–3 complete. Rollback base dad5382a. Implemented hitPaintedRegion, octave spacing, origin-anchored screen hatching and fill-rule clipping. Four paired tests and strict TypeScript pass. Next connect region picking to Move pointer hover/down, native Shift selection, existing point gestures, vector.edit.state and the screen overlay. The independent Paint bucket hatch uses a different spacing, direction and outline; its native screenshot remains a regression check.
+
+Phase 4 integrated native Move hit priority, shared region vertices, pointer exit, tool and topology invalidation, command introspection and hatch rendering. The authenticated desktop fixture and 10,000-node selected-region benchmark passed. Existing empty-space and marquee fixtures now start outside the painted area, preserving their original assertions. The first pure run caught those two fixture conflicts. Full Chromium and the narrow-view check are in progress.
