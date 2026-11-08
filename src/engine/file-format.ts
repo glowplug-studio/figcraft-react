@@ -83,7 +83,7 @@ function fields(value: ObjectValue, supported: string[], defaults: ObjectValue, 
 }
 const documentDefaults = {
   kind: "design", styles: [], variables: { collections: [], variables: [] },
-  document_colors: [], comments: [], color_profile: "srgb",
+  comments: [],
   libraries: { enabled: [], store: null, components: [], styles: [], collections: [], variables: [], detached: [], inserted: [] },
   annotation_categories: null, dev_snapshots: {}, timer: null,
   vote: null, votes: {}, vote_history: [],
@@ -117,7 +117,10 @@ function decodeDocument(raw: unknown): DecodedFigcraft {
   if (root.version !== undefined && number(root.version, "version") > 1) fail("this file needs a newer Figcraft format reader");
   if (root.version !== undefined && number(root.version, "version") !== 1) fail("unsupported format version");
   if (root.format !== undefined && root.format !== "figcraft") fail("unrecognised format");
-  fields(root, ["format", "version", "name", "pages", "nodes", "next_id", "current_page", "imageIndex", "image_presets"], documentDefaults, "document");
+  fields(root, ["format", "version", "name", "pages", "nodes", "next_id", "current_page", "imageIndex", "image_presets", "document_colors", "color_profile"], documentDefaults, "document");
+  const profile = root.color_profile === undefined ? "srgb" : root.color_profile;
+  if (profile !== "srgb" && profile !== "displayP3") fail("invalid document colour profile");
+  const palette = root.document_colors === undefined ? [] : list(root.document_colors, "document colors").map(c => nativeColour(c, "document color"));
   const presets = root.image_presets === undefined ? [] : list(root.image_presets, "image presets").map(entry => {
     const preset = object(entry, "image preset");
     fields(preset, ["name", "filters"], {}, "image preset");
@@ -153,15 +156,16 @@ function decodeDocument(raw: unknown): DecodedFigcraft {
       defaultValue(n.blend ?? "passThrough", "passThrough", "page blend");
       defaultValue(n.fills ?? [], [], "page fills");
       defaultValue(n.flows ?? [], [], "page flows");
+      let prototypeBackground: Colour | undefined;
       if (n.prototype !== undefined) {
         const prototype = object(n.prototype, "prototype");
         fields(prototype, ["background"], { device: "None", rotation: "portrait", color: "", custom_size: [1280, 720], customSize: [1280, 720], responsive: false }, "prototype");
         if (prototype.background !== undefined) {
           const background = nativeColour(prototype.background, "prototype background"), expected = nativeColour("#1e1e1e", "prototype default");
-          if (Object.keys(expected).some(key => background[key as keyof Colour] !== expected[key as keyof Colour])) fail("prototype background is not supported yet");
+          if (Object.keys(expected).some(key => background[key as keyof Colour] !== expected[key as keyof Colour])) prototypeBackground = background;
         }
       }
-      nodes[key] = withPageColour({ id: key, kind, name, parent: null, children: Object.freeze(children), background: "#f5f5f5" }, nativeColour(n.background ?? "#f5f5f5", "page background"));
+      nodes[key] = withPageColour({ ...(prototypeBackground && {prototypeBackground}), id: key, kind, name, parent: null, children: Object.freeze(children), background: "#f5f5f5" }, nativeColour(n.background ?? "#f5f5f5", "page background"));
     } else {
       if (isLeafKind(kind) && children.length) fail("leaf children are not supported");
       if (n.blend !== undefined && n.blend !== "normal" && n.blend !== "passThrough") fail(`${kind} blend is not supported yet`);
@@ -229,7 +233,7 @@ function decodeDocument(raw: unknown): DecodedFigcraft {
   if (!pages.includes(currentPage)) fail("current page is not listed");
   const declared = BigInt(id(root.next_id, "next_id"));
   const minimum = maximum < U64_MAX ? maximum + 1n : U64_MAX;
-  return { document: Object.freeze({ ...(presets.length ? { imagePresets: Object.freeze(presets) } : {}), name: text(root.name, "document name"), pages: Object.freeze(pages), currentPage, nodes: Object.freeze(nodes) }), nextId: (declared < minimum ? minimum : declared).toString() };
+  return { document: Object.freeze({ ...(profile === "displayP3" && {colourProfile: "displayP3" as const}), ...(palette.length > 0 && {documentColours: Object.freeze(palette)}), ...(presets.length ? { imagePresets: Object.freeze(presets) } : {}), name: text(root.name, "document name"), pages: Object.freeze(pages), currentPage, nodes: Object.freeze(nodes) }), nextId: (declared < minimum ? minimum : declared).toString() };
 }
 
 function parseDocument(bytes: Uint8Array) {
@@ -350,7 +354,7 @@ export async function encodeFigcraft(document: Document, nextId?: string): Promi
     if (node.id !== key) fail("node map key and ID differ");
     const common = { id: numericId, name: node.name, type: node.kind, ...(node.kind === "booleanOp" ? { op: node.op } : {}), ...(node.kind === "ellipse" ? { start: node.start, sweep: node.sweep, inner: node.inner } : node.kind === "star" ? { count: node.count, inner_ratio: node.innerRatio } : node.kind === "polygon" ? { count: node.count } : node.kind === "vector" ? { network: wireVectorNetwork(node.network) } : {}) };
     if (node.kind === "page") {
-      nodes[key] = { ...common, width: 0, height: 0, children: node.children.map(wireId), background: pageColour(node) };
+      nodes[key] = { ...common, width: 0, height: 0, children: node.children.map(wireId), background: pageColour(node), ...(node.prototypeBackground && { prototype: { device: "None", rotation: "portrait", background: node.prototypeBackground } }) };
     } else {
       nodes[key] = { ...common, ...(node.boolOp ? { bool_op: node.boolOp } : {}), parent: wireId(node.parent), ...(!isLeaf(node) ? { children: node.children.map(wireId) } : {}), transform: layerTransform(node), width: node.width, height: node.height, ...(node.stroke ? { stroke: wireStroke(node.stroke) } : {}), ...(node.strokes ? { strokes: node.strokes } : {}),
         ...(node.corners ? { corners: node.corners } : {}), ...(node.constraints ? { constraints: node.constraints } : {}), ...(node.constrainProportions ? { constrain_proportions: true } : {}), ...(node.kind === "frame" ? { clip: node.clip } : {}), blend: node.blend ?? (!isLeaf(node) ? "passThrough" : "normal"), visible: node.visible ?? true, locked: node.locked ?? false, opacity: node.opacity ?? 1, fills: rectanglePaints(node) };
@@ -366,7 +370,7 @@ export async function encodeFigcraft(document: Document, nextId?: string): Promi
     const { width, height } = resources[hash]!;
     return { hash, width, height };
   });
-  const root = { format: "figcraft", version: 1, imageIndex, ...(document.imagePresets?.length ? { image_presets: document.imagePresets } : {}), name: document.name, pages: document.pages.map(wireId), nodes, next_id: wireId((supplied < minimum ? minimum : supplied).toString()), current_page: wireId(document.currentPage), styles: [], variables: { collections: [], variables: [] }, document_colors: [], comments: [] };
+  const root = { format: "figcraft", version: 1, imageIndex, ...(document.imagePresets?.length ? { image_presets: document.imagePresets } : {}), name: document.name, pages: document.pages.map(wireId), nodes, next_id: wireId((supplied < minimum ? minimum : supplied).toString()), current_page: wireId(document.currentPage), styles: [], variables: { collections: [], variables: [] }, document_colors: document.documentColours ?? [], ...(document.colourProfile === "displayP3" && {color_profile: document.colourProfile}), comments: [] };
   // Validate before serialisation (including finite geometry and graph integrity).
   decodeDocument(root);
   const json = new TextEncoder().encode(stringify(root));

@@ -1,10 +1,11 @@
+import { ColourProfileDialog } from "./ColourProfileDialog";
 import { ArcPanel } from "./ArcPanel";
 import { PointsPanel } from "./PointsPanel";
 import { VectorPanel, VectorToolbar } from "./VectorPanel";
 import { StrokePanel } from "./StrokePanel";
 import { isLeaf } from "./engine/document";
 import { CornerPanel } from "./CornerPanel";
-import { ViewControls } from "./ViewControls";
+import { ViewControls, ViewMenu } from "./ViewControls";
 import { ArrangePanel } from "./ArrangePanel";
 import { ScalePanel } from "./ScalePanel";
 import { SizePanel } from "./SizePanel";
@@ -320,6 +321,10 @@ export function Editor({ identity, capabilities, engine: suppliedEngine, recover
       if (file) { e.preventDefault(); void paste(file); }
     }}>
       <header className="figcraft-document-bar"><h1>{snapshot.document.name}</h1><span>{snapshot.dirty ? "Unsaved" : "Downloaded"} · Local document</span>
+        <details><summary>File</summary><button disabled={!editable || busy} type="button" onClick={event => {
+          event.currentTarget.closest("details")?.removeAttribute("open"); dispatch("file.colorProfile");
+        }}>Color profile</button></details>
+        <ViewMenu engine={engine} editable={editable && !busy} dispatch={dispatch} />
         <details><summary>Object</summary><button disabled={!canCrop || busy} type="button" onClick={e=>{
           e.currentTarget.closest("details")?.removeAttribute("open");dispatch("image.crop");canvas.current?.focus();
         }}>Crop image</button></details>
@@ -346,6 +351,8 @@ export function Editor({ identity, capabilities, engine: suppliedEngine, recover
       {!signedIn && <p role="status">Sign in to edit this document.</p>}
       {error && <p role="alert">{error}</p>}
       {recoveryError && <p role="alert">{recoveryStatus === "error" ? "Recovery unavailable" : "Recovery notice"}: {recoveryError}</p>}
+      {snapshot.profileDialog && editable && <ColourProfileDialog current={snapshot.document.colourProfile ?? "srgb"}
+        close={() => engine.closeProfileDialog()} apply={(profile, convert) => dispatch("file.colorProfile", {profile, convert})} />}
       <dialog ref={replaceDialog} aria-label="Replace unsaved document" onCancel={() => setPendingFile(null)}>
         <p>Open {pendingFile?.name} and replace the unsaved document?</p>
         <button onClick={() => setPendingFile(null)}>Cancel</button>

@@ -7,6 +7,7 @@ import { tracePath } from "./corners";
 import { shapePath, hasShapePath } from "./shape-path";
 import { canvasAccent } from "./canvas-colours";
 import { pageOf, pageColour, rectanglePaints, rectangleTransform, type Document, type LayerNode } from "./document";
+import { convertColourPixels } from "./colour-spaces";
 import { renderColour } from "./colour";
 import { EditorEngine } from "./editor";
 import { type Point, type Rectangle } from "./geometry";
@@ -29,6 +30,7 @@ import { drawPen } from "./pen-overlay";
 import { ShapeBuilderInteraction } from "./shape-builder-interaction";
 import { pencilPointerPressure } from "./pencil-samples";
 
+const workingSurfaces = new WeakMap<CanvasRenderingContext2D, CanvasRenderingContext2D>();
 const imageCaches = new WeakMap<CanvasRenderingContext2D, CanvasImages>();
 const compositeSurfaces = new WeakMap<CanvasRenderingContext2D, HTMLCanvasElement>();
 // Immutable document snapshots invalidate these derived bounds after any edit.
@@ -169,28 +171,46 @@ function drawDocumentFrame(context: CanvasRenderingContext2D, document: Document
         context.setTransform(matrix!);
         drawDocumentFrame(context, document, width, height, selection, preview, view, editingId, undefined, drawImageOverlay);
       } finally { context.restore(); }
-    }));
+    }), document.colourProfile);
   } else if (images) {
     images.clear();
     imageCaches.delete(context);
     images = undefined;
   }
-  const page = pageOf(document);
-  context.clearRect(0, 0, width, height);
-  context.fillStyle = page.backgroundColor ? renderColour(pageColour(page)) : page.background;
-  context.fillRect(0, 0, width, height);
-  context.save();
   const origin = view ? viewOrigin(view) : { x: 0, y: 0 }, zoom = view?.zoom ?? 1;
-  context.scale(zoom, zoom); context.translate(-origin.x, -origin.y);
-  for (const id of page.children) {
-    const node = document.nodes[id];
-    if (!node || node.kind === "page") continue;
-    if (isLeaf(node)) {
-      const bounds = hasVisibleStroke(node) ? strokeBounds(node, rectangleTransform(node)) : node.transform ? transformBounds(node.transform, node.width, node.height) : node;
-      if (bounds.x > origin.x + width / zoom || bounds.y > origin.y + height / zoom || bounds.x + bounds.width < origin.x || bounds.y + bounds.height < origin.y) continue;
+  if (document.colourProfile === "displayP3") {
+    let working = workingSurfaces.get(context);
+    if (!working) {
+      working = context.canvas.ownerDocument.createElement("canvas").getContext("2d", { willReadFrequently: true })!;
+      workingSurfaces.set(context, working);
     }
-    drawLayer(context, document, node, images?.draw);
+    const matrix = context.getTransform();
+    const w = Math.max(1, Math.ceil(width * Math.hypot(matrix.a, matrix.b)));
+    const h = Math.max(1, Math.ceil(height * Math.hypot(matrix.c, matrix.d)));
+    if (working.canvas.width !== w) working.canvas.width = w;
+    if (working.canvas.height !== h) working.canvas.height = h;
+    if (width > 0 && height > 0) {
+      working.setTransform(w / width, 0, 0, h / height, 0, 0);
+      paintPage(working, document, width, height, origin, zoom, images);
+      const rows = Math.max(1, Math.floor(262144 / w));
+      for (let y = 0; y < h; y += rows) {
+        const strip = working.getImageData(0, y, w, Math.min(h - y, rows));
+        convertColourPixels(strip.data, "displayP3", "srgb", view?.proofSrgb ? {width:w, y} : undefined);
+        working.putImageData(strip, 0, y);
+      }
+      context.clearRect(0, 0, width, height);
+      context.drawImage(working.canvas, 0, 0, width, height);
+    }
+  } else {
+    if (workingSurfaces.has(context)) {
+      const surface = workingSurfaces.get(context)!.canvas;
+      surface.width = surface.height = 0;
+      workingSurfaces.delete(context);
+    }
+    paintPage(context, document, width, height, origin, zoom, images);
   }
+  context.save();
+  context.scale(zoom, zoom); context.translate(-origin.x, -origin.y);
   context.strokeStyle = canvasAccent(document);
   context.lineWidth = 1 / zoom;
   const neighbours = new Set<string>();
@@ -242,6 +262,25 @@ function drawDocumentFrame(context: CanvasRenderingContext2D, document: Document
   context.restore();
   drawImageOverlay?.(images);
   images?.end();
+}
+
+function paintPage(context: CanvasRenderingContext2D, document: Document, width: number, height: number, origin: Point, zoom: number, images?: CanvasImages) {
+  const page = pageOf(document);
+  context.clearRect(0, 0, width, height);
+  context.fillStyle = page.backgroundColor ? renderColour(pageColour(page)) : page.background;
+  context.fillRect(0, 0, width, height);
+  context.save();
+  context.scale(zoom, zoom); context.translate(-origin.x, -origin.y);
+  for (const id of page.children) {
+    const node = document.nodes[id];
+    if (!node || node.kind === "page") continue;
+    if (isLeaf(node)) {
+      const bounds = hasVisibleStroke(node) ? strokeBounds(node, rectangleTransform(node)) : node.transform ? transformBounds(node.transform, node.width, node.height) : node;
+      if (bounds.x > origin.x + width / zoom || bounds.y > origin.y + height / zoom || bounds.x + bounds.width < origin.x || bounds.y + bounds.height < origin.y) continue;
+    }
+    drawLayer(context, document, node, images?.draw);
+  }
+  context.restore();
 }
 
 /** Owns transient gesture state and a demand-driven render loop, outside React. */

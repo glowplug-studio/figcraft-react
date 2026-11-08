@@ -5,6 +5,8 @@ import type { ImageResource } from "./image-resource";
 import type { ImagePaint } from "./solid-paint";
 import type { RegionPaintSpace } from "./vector-network";
 
+import { convertColourPixels, type ColourProfile } from "./colour-spaces";
+
 const MAX_SIDE = 16_384;
 const PIXEL_BYTES = 512 * 1024 * 1024;
 const MAX_CACHED_IMAGES = 256;
@@ -13,6 +15,8 @@ interface ImageVariant {
   key: string;
   resource: ImageResource;
   filters: ImageFilters;
+  profile: ColourProfile;
+  screen: boolean;
   width: number;
   height: number;
   bytes: number;
@@ -21,10 +25,13 @@ interface ImageVariant {
   bitmap?: ImageBitmap;
 }
 
-async function decodeVariant(entry: ImageVariant, current: () => boolean): Promise<ImageBitmap> {
-  const { resource, width, height, filters } = entry;
-  const source = await decodeImageBitmap(resource, width, height);
-  if (Object.values(filters).every(value => value === 0)) return source;
+export async function decodeVariant(entry: Pick<ImageVariant, "resource" | "width" | "height" | "filters" | "profile" | "screen">, current: () => boolean): Promise<ImageBitmap> {
+  const { resource, width, height, filters, profile } = entry;
+  const source = await decodeImageBitmap(resource, width, height, profile);
+  const adjust = Object.values(filters).some(value => value !== 0);
+  const convert = profile === "displayP3" && !resource.icc && !resource.profileName?.startsWith("Gamma ");
+  const proof = entry.screen && profile === "displayP3";
+  if (!adjust && !convert && !proof) return source;
   try {
     const surface = new OffscreenCanvas(width, height);
     const context = surface.getContext("2d", { willReadFrequently: true });
@@ -37,7 +44,9 @@ async function decodeVariant(entry: ImageVariant, current: () => boolean): Promi
       if (y) await new Promise<void>(resolve => setTimeout(resolve, 0));
       if (!current()) throw new Error("Image decode was cancelled");
       const pixels = context.getImageData(0, y, width, Math.min(rows, height-y));
-      adjustImagePixels(pixels.data, filters);
+      if (adjust) adjustImagePixels(pixels.data, filters);
+      if (convert) convertColourPixels(pixels.data, "srgb", profile);
+      if (proof) convertColourPixels(pixels.data, profile, "srgb");
       context.putImageData(pixels, 0, y);
     }
     return surface.transferToImageBitmap();
@@ -104,11 +113,13 @@ export class CanvasImages {
   #resources?: Readonly<Record<string, ImageResource>>;
   #redraw?: () => void;
   #frame = 0;
+  #profile: ColourProfile = "srgb";
   #bytes = 0;
   #loading = false;
   #filterKeys = new WeakMap<ImageFilters, string>();
 
-  begin(resources: Readonly<Record<string, ImageResource>>, redraw: () => void) {
+  begin(resources: Readonly<Record<string, ImageResource>>, redraw: () => void, profile: ColourProfile = "srgb") {
+    this.#profile = profile;
     if (resources !== this.#resources) {
       for (const [key, entry] of this.#entries) if (resources[entry.key] !== entry.resource) this.#remove(key, entry);
     }
@@ -140,11 +151,11 @@ export class CanvasImages {
       filterKey = Object.values(paint.filters).join(",");
       this.#filterKeys.set(paint.filters, filterKey);
     }
-    const key = JSON.stringify([paint.image, rw, rh, filterKey]);
+    const key = JSON.stringify([paint.image, rw, rh, filterKey, this.#profile]);
     let entry = this.#entries.get(key);
     if (entry && entry.resource !== resource) { this.#remove(key, entry); entry = undefined; }
     if (!entry) {
-      entry = { key: paint.image, resource, filters: paint.filters, width: rw, height: rh, bytes: rw*rh*4, frame: this.#frame, state: "queued" };
+      entry = { key: paint.image, resource, profile: this.#profile, screen: false, filters: paint.filters, width: rw, height: rh, bytes: rw*rh*4, frame: this.#frame, state: "queued" };
       this.#entries.set(key, entry);
     }
     entry.frame = this.#frame;

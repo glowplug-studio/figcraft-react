@@ -15,3 +15,14 @@ export function ViewControls({ engine, editable, dispatch }: { engine: EditorEng
     <button type="button" disabled={!editable} aria-pressed={view.snapPixel !== false} onClick={() => dispatch("view.snapPixel")}>Snap to pixel grid</button>
   </div>;
 }
+
+export function ViewMenu({ engine, editable, dispatch }: Parameters<typeof ViewControls>[0]) {
+  const checked = () => engine.getView().proofSrgb === true;
+  const proof = useSyncExternalStore(engine.subscribeView, checked, checked);
+  return <details><summary>View</summary>
+    <button type="button" disabled={!editable} aria-pressed={proof} onClick={event => {
+      event.currentTarget.closest("details")?.removeAttribute("open");
+      dispatch("view.proofSrgb");
+    }}>Soft-proof sRGB</button>
+  </details>;
+}

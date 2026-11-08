@@ -3305,3 +3305,100 @@ test("grey and lookup-table ICC profiles preserve opacity and match the native p
     await picker.getByRole("button",{name:"Close paint picker"}).click();
   }
 });
+
+test("file profile dialog converts or assigns colours, previews the composite and recovers the working space", async ({page}) => {
+  await login(page);
+  const native = JSON.parse(await readFile(new URL("../fixtures/native-rectangle.json", import.meta.url), "utf8"));
+  native.nodes["2"].fills[0].color = {r: 0.8, g: 0.4, b: 0.2, a: 1};
+  const file = page.getByLabel("Open Figcraft file", {exact:true});
+  await file.setInputFiles({ name:"Colour.figcraft", mimeType:"application/json", buffer:Buffer.from(JSON.stringify(native)) });
+  await resetCanvasOrigin(page);
+  await expectCanvasPixel(page,20,30,[204,102,51,255]);
+  const dialog = page.getByRole("dialog",{name:"Color profile",exact:true});
+  const open = async () => {
+    await page.getByText("File", {exact:true}).click();
+    await page.getByRole("button",{name:"Color profile",exact:true}).click();
+    await expect(dialog).toBeVisible();
+  };
+  await open();
+  await expect(dialog.getByRole("radio",{name:"sRGB (current)",exact:true})).toBeChecked();
+  await dialog.getByRole("radio",{name:"Display P3",exact:true}).check();
+  await expect(dialog).toHaveScreenshot("document-working-profile.png", {animations:"disabled"});
+  await dialog.getByRole("button",{name:"Keep appearance"}).click();
+  await expectCanvasPixel(page,20,30,[204,102,51,255]);
+  await page.getByRole("button",{name:"Undo",exact:true}).click();
+  await open();
+  await dialog.getByRole("radio",{name:"Display P3",exact:true}).check();
+  await dialog.getByRole("button",{name:"Keep values"}).click();
+  // Display P3 (0.8, 0.4, 0.2), converted via D65 XYZ into the sRGB screen preview.
+  await expectCanvasPixel(page,20,30,[219,94,31,255]);
+  const download = page.waitForEvent("download");
+  await page.getByRole("button", {name:"Save as",exact:true}).click();
+  const bytes = await readFile((await (await download).path())!);
+  const wire = JSON.parse(strFromU8(unzipSync(bytes)["document.json"]));
+  expect(wire.color_profile).toBe("displayP3");
+  expect(wire.nodes["2"].fills[0].color.r).toBeCloseTo(.8, 6);
+  await expect(page.locator(".figcraft-recovery")).toContainText(/saved/i);
+  await page.reload();
+  await resetCanvasOrigin(page);
+  await expectCanvasPixel(page,20,30,[219,94,31,255]);
+  await page.setViewportSize({width:390,height:844});
+  await open();
+  await expect(dialog.getByRole("radio",{name:"Display P3 (current)",exact:true})).toBeChecked();
+  await page.keyboard.press("Escape");
+  await expect(dialog).toHaveCount(0);
+});
+
+test("working-space image filters use direct ICC and PNG gamma conversion and reuse images after switching the file profile", async ({page}) => {
+  await login(page);
+  const native = JSON.parse(await readFile(new URL("../fixtures/native-rectangle.json", import.meta.url), "utf8"));
+  native.color_profile = "displayP3";
+  const members: Record<string, Uint8Array> = {};
+  for (const [i, name] of ["icc","gamma","plain"].entries()) {
+    const node = structuredClone(native.nodes["2"]);
+    node.id = 2+i; node.name = name; node.transform = [1,0,0,1,10+40*i,20];
+    node.fills = [{type:"image",image:name,filters:{saturation:-1}}];
+    native.nodes[String(node.id)] = node;
+    members["images/"+name] = await readFile(new URL("../fixtures/images/red-"+name+".png",import.meta.url));
+  }
+  native.next_id = 5; native.nodes["1"].children = [2,3,4];
+  members["document.json"] = new TextEncoder().encode(JSON.stringify(native));
+  await page.getByLabel("Open Figcraft file",{exact:true}).setInputFiles({
+    name:"Working space.figcraft",mimeType:"application/octet-stream",buffer:Buffer.from(zipSync(members))
+  });
+  await resetCanvasOrigin(page);
+  // Adobe red in P3 composes grey from (255,61,43). Untagged red is filtered in sRGB.
+  for (const [x,v] of [[20,101],[60,101],[100,54]]) await expectCanvasPixel(page,x,30,[v,v,v,255]);
+  await page.getByText("File",{exact:true}).click();
+  await page.getByRole("button",{name:"Color profile",exact:true}).click();
+  const dialog = page.getByRole("dialog",{name:"Color profile"});
+  await dialog.getByRole("radio",{name:"sRGB",exact:true}).check();
+  await dialog.getByRole("button",{name:"Keep values"}).click();
+  for (const x of [20,60,100]) await expectCanvasPixel(page,x,30,[54,54,54,255]);
+  await page.getByRole("button",{name:"Undo",exact:true}).click();
+  await expectCanvasPixel(page,20,30,[101,101,101,255]);
+});
+
+test("P3 gamut warning and soft proof identify clipped colours and clear on a fresh file", async ({page}) => {
+  await login(page);
+  const doc = JSON.parse(await readFile(new URL("../fixtures/native-rectangle.json", import.meta.url),"utf8"));
+  doc.color_profile="displayP3"; doc.nodes["2"].fills[0].color={r:0,g:1,b:0,a:1};
+  const input = page.getByLabel("Open Figcraft file",{exact:true});
+  const open = () => input.setInputFiles({name:"Gamut.figcraft",mimeType:"application/json",buffer:Buffer.from(JSON.stringify(doc))});
+  await open(); await resetCanvasOrigin(page);
+  await page.locator("summary").filter({hasText:/^View$/}).click();
+  const proof = page.getByRole("button",{name:"Soft-proof sRGB",exact:true});
+  await expect(proof).toHaveAttribute("aria-pressed","false");
+  await proof.click();
+  await expectCanvasPixel(page,20,28,[128,128,128,255]);
+  await expectCanvasPixel(page,24,28,[0,255,0,255]);
+  await page.getByRole("list",{name:"Page layers",exact:true}).getByRole("button",{name:"Rectangle",exact:true}).click();
+  await page.getByRole("button",{name:"Edit fill 1 paint",exact:true}).click();
+  await expect(page.getByText("Outside sRGB",{exact:true})).toBeVisible();
+  await page.getByRole("button",{name:"Close paint picker"}).click();
+  await open();
+  await page.getByRole("button",{name:"Replace document",exact:true}).click();
+  await page.locator("summary").filter({hasText:/^View$/}).click();
+  await expect(proof).toHaveAttribute("aria-pressed","false");
+  await expectCanvasPixel(page,20,28,[0,255,0,255]);
+});

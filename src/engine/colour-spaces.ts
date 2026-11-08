@@ -87,6 +87,75 @@ const XYZ_TO_SRGB: Mat3 = [
   [-0.9692436362808796, 1.8759675015077202, 0.04155505740717559],
   [0.05563007969699366, -0.20397695888897652, 1.0569715142428786],
 ];
+const P3_TO_XYZ: Mat3 = [
+  [0.4865709486482162, 0.2656676931690931, 0.1982172852343625],
+  [0.2289745640697488, 0.6917385218365064, 0.079286914093745],
+  [0, 0.0451133818589026, 1.043944368900976],
+];
+const XYZ_TO_P3: Mat3 = [
+  [2.493496911941425, -0.931383617919124, -0.402710784450717],
+  [-0.829488969561575, 1.762664060318346, 0.023624685841944],
+  [0.035845830243784, -0.076172389268041, 0.956884524007687],
+];
+export type ColourProfile = "srgb" | "displayP3";
+
+export function parseColourProfile(name: string): ColourProfile | undefined {
+  switch (name.toLowerCase().replace(/[ _-]/g, "")) {
+    case "srgb": return "srgb";
+    case "displayp3": case "p3": return "displayP3";
+  }
+}
+
+function compose(left: Mat3, right: Mat3): Mat3 {
+  const row = (i: number): V3 => [0, 1, 2].map(j =>
+    left[i][0] * right[0][j] + left[i][1] * right[1][j] + left[i][2] * right[2][j]) as unknown as V3;
+  return [row(0), row(1), row(2)];
+}
+const toP3 = compose(XYZ_TO_P3, SRGB_TO_XYZ);
+const toSrgb = compose(XYZ_TO_SRGB, P3_TO_XYZ);
+
+export function convertColour(value: Colour, from: ColourProfile, to: ColourProfile): Colour {
+  if (from === to) return value;
+  const [r, g, b] = mul(to === "displayP3" ? toP3 : toSrgb, linearRgb(value));
+  return colour(encode(r), encode(g), encode(b), value.a);
+}
+
+// Canvas ImageData exposes straight channels. The rasteriser has already undone premultiplication.
+const decoded8 = Float32Array.from({ length: 256 }, (_, i) => decode(i / 255));
+const encoded8 = Uint8Array.from({ length: 4097 }, (_, i) => Math.round(encode(i / 4096) * 255));
+const encodedByte = (linear: number) => encoded8[Math.round(Math.max(0, Math.min(1, linear)) * 4096)];
+
+// Native soft proof tolerates at most two encoded 8-bit steps beyond the destination gamut.
+const minimumLinear = -(2 / 255) / 12.92;
+const maximumLinear = ((1 + 2 / 255 + .055) / 1.055) ** 2.4;
+const outside = (v: number) => v < minimumLinear || v > maximumLinear;
+export function outsideSrgb(value: Colour, from: ColourProfile): boolean {
+  return from === "displayP3" && mul(toSrgb, linearRgb(value)).some(outside);
+}
+
+export function convertColourPixels(pixels: Uint8ClampedArray, from: ColourProfile, to: ColourProfile, proof?: {width:number; y:number}): void {
+  if (from === to) return;
+  const [red, green, blue] = to === "displayP3" ? toP3 : toSrgb;
+  for (let i = 0; i < pixels.length; i += 4) {
+    if (!pixels[i + 3]) continue;
+    const r = decoded8[pixels[i]], g = decoded8[pixels[i + 1]], b = decoded8[pixels[i + 2]];
+    const rr = red[0] * r + red[1] * g + red[2] * b;
+    const gg = green[0] * r + green[1] * g + green[2] * b;
+    const bb = blue[0] * r + blue[1] * g + blue[2] * b;
+    if (proof && (outside(rr) || outside(gg) || outside(bb))) {
+      const index = i / 4;
+      if ((index % proof.width + Math.floor(index / proof.width) + proof.y) % 8 < 4) {
+        pixels[i] = pixels[i + 1] = pixels[i + 2] = 128;
+        pixels[i + 3] = 255;
+        continue;
+      }
+    }
+    pixels[i] = encodedByte(rr);
+    pixels[i + 1] = encodedByte(gg);
+    pixels[i + 2] = encodedByte(bb);
+  }
+}
+
 const D65_TO_D50: Mat3 = [
   [1.0479298208405488, 0.022946793341019088, -0.05019222954313557],
   [0.029627815688159344, 0.990434484573249, -0.01707382502938514],

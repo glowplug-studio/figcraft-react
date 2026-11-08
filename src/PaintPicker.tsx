@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState, type PointerEvent } from "react";
 import { ImagePaintControls } from "./ImagePaintControls";
+import { outsideSrgb } from "./engine/colour-spaces";
 import { fromRgba8, renderColour, withAlpha } from "./engine/colour";
 import { parseCssColour } from "./engine/colour-css";
 import type { EditorEngine, PaintPicker as Picker } from "./engine/editor";
@@ -127,6 +128,7 @@ export function PaintPicker({engine,list,index,label,paint,change,region=false}:
       document.removeEventListener("pointerdown",outside);
     };
   },[open,engine]);
+  const selectedColour = paint.type === "solid" ? paint.color : paint.type === "gradient" && picker ? paint.stops[picker.stop]?.color : undefined;
   return <>
     <button ref={button} type="button" aria-expanded={open} onClick={()=>engine.setPaintPicker(open ? undefined : {list,index,stop:0})}>Edit {label} paint</button>
     {open && <div data-figcraft-image-drop-target={image && !region ? "" : undefined} ref={panel} role="group" popover="manual" aria-label={label+" paint picker"}
@@ -152,6 +154,8 @@ export function PaintPicker({engine,list,index,label,paint,change,region=false}:
       {image && <ImagePaintControls engine={engine} picker={picker} paint={paint.type === "image" ? paint : undefined} region={region} hover={hover===picker} upload={upload} change={change}/>}
       {image && uploadError?.picker===picker && <p role="alert">{uploadError.message}</p>}
       {!image && paint.type === "gradient" && <Stops engine={engine} paint={paint} picker={picker} change={change}/>}
+      {!image && selectedColour && outsideSrgb(selectedColour, engine.getSnapshot().document.colourProfile ?? "srgb") &&
+        <p title="The canvas shows the nearest sRGB color.">Outside sRGB</p>}
     </div>}
   </>;
 }

@@ -1,12 +1,14 @@
 import { useEffect, useRef, useState } from "react";
 import type { EditorEngine, PaintPicker } from "./engine/editor";
-import { decodeImageBitmap } from "./engine/image-decode";
+import { decodeVariant } from "./engine/image-renderer";
+import type { ColourProfile } from "./engine/colour-spaces";
 import { findImagePreset } from "./engine/image-commands";
-import { listImagePresets, type ImageFilters } from "./engine/image-filters";
+import { readImageFilters, listImagePresets, type ImageFilters } from "./engine/image-filters";
 import type { ImageResource } from "./engine/image-resource";
 import type { ImagePaint } from "./engine/solid-paint";
 
-function ImagePreview({resource}: {resource?:ImageResource}) {
+const noAdjustments = readImageFilters({});
+function ImagePreview({resource, profile}: {resource?:ImageResource; profile:ColourProfile}) {
   const canvas = useRef<HTMLCanvasElement>(null);
   useEffect(() => {
     let current = true;
@@ -15,7 +17,7 @@ function ImagePreview({resource}: {resource?:ImageResource}) {
     if (!resource || !resource.width || !resource.height) return;
     const scale = Math.min(1, 448 / resource.width, 240 / resource.height);
     const width = Math.max(1, Math.round(resource.width * scale)), height = Math.max(1, Math.round(resource.height * scale));
-    void decodeImageBitmap(resource,width,height).then(bitmap => {
+    void decodeVariant({resource, width, height, filters: noAdjustments, profile, screen: true}, () => current).then(bitmap => {
       try {
         if (current) {
           element.width = width; element.height = height;
@@ -24,7 +26,7 @@ function ImagePreview({resource}: {resource?:ImageResource}) {
       } finally { bitmap.close(); }
     }).catch(() => { /* Upstream keeps the checkerboard for an unreadable native member. */ });
     return () => { current = false; };
-  }, [resource]);
+  }, [resource, profile]);
   return <div style={{height:120,display:"grid",placeItems:"center",background:"repeating-conic-gradient(#ddd 0 25%, white 0 50%) 0 0/16px 16px"}}>
     <canvas ref={canvas} aria-label="Image preview" style={{width:"100%",height:"100%",objectFit:"contain",minHeight:0}} />
   </div>;
@@ -67,7 +69,7 @@ export function ImagePaintControls({engine,picker,paint,region,change,hover,uplo
     setPreview(undefined);
   }
   return <div role="group" aria-label="Image paint">
-    <ImagePreview resource={resource}/>
+    <ImagePreview resource={resource} profile={snapshot.document.colourProfile ?? "srgb"}/>
     {hover && <span>Drop to use this image</span>}
     <button type="button" onClick={()=>input.current?.click()}>Upload from computer</button>
     <input hidden ref={input} type="file" aria-label="Choose image" accept=".png,.jpg,.jpeg,.webp,.gif,.bmp,.tif,.tiff" onChange={e=>{

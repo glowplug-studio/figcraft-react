@@ -22,7 +22,9 @@ import { executeVectorEdit, vectorEditSpecs, type VectorEditCommand } from "./ve
 import { clampVectorEdit, vectorNetwork, type VectorEditState } from "./vector-edit";
 import { defaultViewport, executeView, fitPage, viewSpecs, type Viewport } from "./viewport";
 import { framePresets } from "./frame-presets";
-import { parseBoolean, parseNumber } from "./parameters";
+import { parseColourProfile } from "./colour-spaces";
+import { setDocumentProfile } from "./document-profile";
+import { parseBoolean, parseNumber, parseString } from "./parameters";
 import { arrangeSpecs, executeArrange } from "./arrange";
 import { anchors, sizingSpecs, executeSizing } from "./sizing";
 import { executeRotation, localOrigin, movedOrigin, originBoxPoints, originSpecs, rotationSpecs, sameIds, snappedOrigin, validateChangedGeometry, type OriginSnapshot, type RotationOrigin } from "./rotation";
@@ -93,6 +95,7 @@ export const commandSpecs = Object.freeze({
   "image.place": { label: "Place image", undo: true },
   "file.import": { label: "Import", undo: true },
   "file.placeImage": { label: "Place image", undo: true },
+  "file.colorProfile": { label: "Color profile", undo: true },
   "file.open": { label: "Open", undo: false },
   "file.recover": { label: "Recover file", undo: false },
   "file.saveAs": { label: "Save as", undo: false },
@@ -105,6 +108,7 @@ export interface PaintPicker {
   readonly stop: number;
 }
 export interface EditorSnapshot {
+  readonly profileDialog?: boolean;
   readonly paintPicker?: PaintPicker;
   readonly crop?: CropTarget;
   readonly document: Document;
@@ -267,6 +271,7 @@ export class EditorEngine {
     const resource=this.getRenderDocument().images?.[hit.paint.image];
     if (resource) return {...hit,paint:hit.paint,resource};
   }
+  closeProfileDialog() { if (this.#snapshot.profileDialog) this.#publish({ profileDialog: false }); }
   finishCrop() { if (this.#snapshot.crop) this.#publish({crop:undefined}); }
   previewPaint(picker: PaintPicker, paint: Paint): void {
     const interaction = this.#interaction;
@@ -356,7 +361,7 @@ export class EditorEngine {
   }
   subscribeView = (listener: () => void): (() => void) => { this.#viewListeners.add(listener); return () => { this.#viewListeners.delete(listener); }; };
   updateView(view: Viewport): void {
-    if ([view.cx, view.cy, view.zoom, view.vw, view.vh].some(value => !Number.isFinite(value)) || [view.snapObjects, view.snapPixel].some(value => value !== undefined && typeof value !== "boolean") || view.zoom < 0.02 || view.zoom > 256 || view.vw <= 0 || view.vh <= 0) throw new Error("Invalid viewport");
+    if ([view.cx, view.cy, view.zoom, view.vw, view.vh].some(value => !Number.isFinite(value)) || [view.snapObjects, view.snapPixel, view.proofSrgb].some(value => value !== undefined && typeof value !== "boolean") || view.zoom < 0.02 || view.zoom > 256 || view.vw <= 0 || view.vh <= 0) throw new Error("Invalid viewport");
     if ((Object.keys(view) as (keyof Viewport)[]).every(key => view[key] === this.#view[key])) return;
     this.#view = Object.freeze({ ...view }); this.#viewListeners.forEach(listener => listener());
   }
@@ -388,7 +393,7 @@ export class EditorEngine {
     if (!editable) this.cancelInteraction();
     if (!editable) this.cancelPendingFiles();
     if (!editable) { this.#vectorEdit = undefined; this.#copiedFill = undefined; }
-    if (editable !== this.#snapshot.editable) this.#publish({ editable, tool: "move" });
+    if (editable !== this.#snapshot.editable) this.#publish({ editable, tool: "move", profileDialog: false });
   }
   execute(command: "node.get", input: unknown): ReturnType<typeof getNode>;
   execute(command: "shapeBuilder.regions", input?: unknown): ReturnType<typeof readBuilderRegions>;
@@ -445,6 +450,22 @@ export class EditorEngine {
         this.#publish({ scaleAnchor: anchor as ScaleAnchor });
       }
       return { anchor: this.#snapshot.scaleAnchor };
+    }
+    if (command === "file.colorProfile") {
+      const before = this.#snapshot, name = parseString(p.profile);
+      if (name === undefined) {
+        this.#publish({ profileDialog: true });
+        return { profile: before.document.colourProfile ?? "srgb", changed: false };
+      }
+      const profile = parseColourProfile(name);
+      if (!profile) throw new Error("file.colorProfile: profile must be srgb or displayP3");
+      const document = setDocumentProfile(before.document, profile, parseBoolean(p.convert) ?? true);
+      if (document !== before.document) {
+        this.#undo.push({ document: before.document, selection: before.selection });
+        this.#redo = [];
+        this.#publish({ document, profileDialog: false });
+      } else this.closeProfileDialog();
+      return { profile, changed: document !== before.document };
     }
     if (command==="image.crop") {
       const before=this.#snapshot, {document,target}=startImageCrop(before.document,before.selection,p);
@@ -707,8 +728,8 @@ export class EditorEngine {
     this.#nextId = BigInt(decoded.nextId);
     this.#undo = []; this.#redo = []; this.#saved = null; this.#pendingSaves.clear();
     this.#vectorEdit = undefined;
-    this.#publish({ document: decoded.document, selection: Object.freeze([]), tool: "move" });
-    this.updateView(fitPage(this.#view, decoded.document));
+    this.#publish({ document: decoded.document, profileDialog: false, selection: Object.freeze([]), tool: "move" });
+    this.updateView(fitPage({ ...this.#view, proofSrgb: false }, decoded.document));
     return { repairs: decoded.issues ?? [], summary: { name: decoded.document.name, pages: decoded.document.pages.length, layers: Object.keys(decoded.document.nodes).length - decoded.document.pages.length, images: Object.keys(decoded.document.images ?? {}).length } };
   }
   #create(command: string, p: Record<string, unknown>): Record<string, unknown> {
