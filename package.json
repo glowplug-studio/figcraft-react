@@ -67,6 +67,7 @@
   "dependencies": {
     "@zip.js/zip.js": "2.24.0",
     "fflate": "0.8.3",
+    "image-size": "2.1.0",
     "lossless-json": "4.3.3",
     "paper": "0.17.0"
   }
