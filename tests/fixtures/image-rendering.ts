@@ -42,3 +42,63 @@ export async function imagePixels(canvas: HTMLCanvasElement) {
   engine.execute("vector.flatten", { ids:[id,second] }); render();
   return { fit, fill, crop, tile, stroke, maskedStroke, beforeFlatten, afterFlatten:samples() };
 }
+
+/** Two 6000 × 8 opposite-phase striped images, as in the native large-image fixture. */
+export async function largeImagePaints(canvas:HTMLCanvasElement) {
+  const engine = new EditorEngine();
+  for (let phase=0;phase<2;phase++) {
+    const source=document.createElement("canvas");
+    source.width=6000; source.height=8;
+    const ctx=source.getContext("2d")!;
+    ctx.fillStyle="white"; ctx.fillRect(0,0,6000,8);
+    ctx.fillStyle="black";
+    for(let x=phase;x<6000;x+=2) ctx.fillRect(x,0,1,8);
+    const blob=await new Promise<Blob>(resolve=>source.toBlob(value=>resolve(value!)));
+    await engine.executeAsync("image.place",{data:base64Bytes(new Uint8Array(await blob.arrayBuffer())),x:0,y:phase*16,width:6000,height:8});
+  }
+  const ctx=canvas.getContext("2d",{willReadFrequently:true})!;
+  const sizes:number[][]=[], original=globalThis.createImageBitmap;
+  globalThis.createImageBitmap = new Proxy(original, {
+    async apply(fn, receiver, args) {
+      const img:ImageBitmap = await Reflect.apply(fn, receiver, args);
+      sizes.push([img.width,img.height]);
+      return img;
+    }
+  });
+  try {
+    let scale=.25, dirty=true;
+    function render() {
+      dirty=false;
+      ctx.setTransform(scale,0,0,scale,0,0);
+      renderDocument(ctx,engine.getSnapshot().document,canvas.width/scale,canvas.height/scale,[],undefined,undefined,undefined,()=>{dirty=true;});
+    }
+    async function settle(count:number) {
+      const start=performance.now();
+      while(sizes.length<count || dirty) {
+        if(dirty) render();
+        if(performance.now()-start>5000) throw Error("Image cache did not finish decoding");
+        await new Promise<void>(resolve=>requestAnimationFrame(()=>resolve()));
+      }
+    }
+    canvas.width=1500;canvas.height=8;
+    await settle(2);
+    const small=sizes.slice(), warmTimes:number[]=[];
+    for(let frame=0;frame<60;frame++){
+      const start=performance.now(); render();warmTimes.push(performance.now()-start);
+      await new Promise<void>(resolve=>requestAnimationFrame(()=>resolve()));
+    }
+    const warm=sizes.length, p95=warmTimes.sort((a,b)=>a-b)[56];
+    canvas.width=4200;canvas.height=56;scale=2;dirty=true;
+    await settle(4);
+    const mismatch=(phase:number)=>{
+      const data=ctx.getImageData(0,phase*32+7,4200,1).data;
+      let count=0;
+      for(const offset of [0,4000]) for(let i=offset;i<offset+200;i++){
+        const black=(Math.floor(i/2)%2)===phase;
+        if(black ? data[i*4]>=8 : data[i*4]<=247) count++;
+      }
+      return count;
+    };
+    return {small,warm,sizes,mismatches:[mismatch(0),mismatch(1)],p95};
+  } finally {globalThis.createImageBitmap=original;}
+}

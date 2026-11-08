@@ -60,7 +60,7 @@ function drawableTransform(paint: ImagePaint, iw: number, ih: number, w: number,
 }
 
 /** Draw into an established path or coverage mask. Extend boundary texels for covered strokes. */
-function drawPixels(ctx: CanvasRenderingContext2D, paint: ImagePaint, bitmap: ImageBitmap, width: number, height: number, space?: RegionPaintSpace) {
+function drawPixels(ctx: CanvasRenderingContext2D, paint: ImagePaint, bitmap: ImageBitmap, width: number, height: number, space: RegionPaintSpace | undefined, magnifiedPixels: boolean) {
   const iw = bitmap.width, ih = bitmap.height, w = space?.width ?? width, h = space?.height ?? height;
   const transform = drawableTransform(paint, iw, ih, w, h);
   if (!transform) return;
@@ -70,8 +70,9 @@ function drawPixels(ctx: CanvasRenderingContext2D, paint: ImagePaint, bitmap: Im
     ctx.transform(...transform);
     const frame = ctx.getTransform(), inverse = frame.inverse();
     if (!Number.isFinite(inverse.a)) return;
-    ctx.imageSmoothingEnabled = true;
-    ctx.imageSmoothingQuality = "high";
+    // Upstream shows individual fill texels from two device pixels per image pixel.
+    ctx.imageSmoothingEnabled = !magnifiedPixels || Math.abs(frame.a*frame.d-frame.b*frame.c) < 4;
+    ctx.imageSmoothingQuality = magnifiedPixels ? "high" : "low";
     if (paint.scale_mode === "tile") {
       const pattern = ctx.createPattern(bitmap, "repeat");
       if (!pattern) return;
@@ -147,7 +148,7 @@ export class CanvasImages {
       this.#entries.set(key, entry);
     }
     entry.frame = this.#frame;
-    if (entry.bitmap) drawPixels(ctx, paint, entry.bitmap, width, height, space);
+    if (entry.bitmap) drawPixels(ctx, paint, entry.bitmap, width, height, space, maxSide === undefined);
   }
 
   #remove(key: string, entry: ImageVariant) {

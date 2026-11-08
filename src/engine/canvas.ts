@@ -154,7 +154,11 @@ function drawLayer(context: CanvasRenderingContext2D, document: Document, node: 
 }
 
 /** Only this module paints editable geometry; React never renders canvas layers. */
-export function renderDocument(context: CanvasRenderingContext2D, document: Document, width: number, height: number, selection: readonly string[] = [], preview?: Rectangle, view?: Viewport, editingId?: string, invalidate?: () => void, drawImageOverlay?: (images?: CanvasImages) => void): void {
+export function renderDocument(context: CanvasRenderingContext2D, document: Document, width: number, height: number, selection: readonly string[] = [], preview?: Rectangle, view?: Viewport, editingId?: string, invalidate?: () => void): void {
+  drawDocumentFrame(context, document, width, height, selection, preview, view, editingId, invalidate);
+}
+
+function drawDocumentFrame(context: CanvasRenderingContext2D, document: Document, width: number, height: number, selection: readonly string[], preview?: Rectangle, view?: Viewport, editingId?: string, invalidate?: () => void, drawImageOverlay?: (images?: CanvasImages) => void): void {
   let images = imageCaches.get(context);
   if (document.images) {
     if (!images) { images = new CanvasImages(); imageCaches.set(context, images); }
@@ -163,7 +167,7 @@ export function renderDocument(context: CanvasRenderingContext2D, document: Docu
       context.save();
       try {
         context.setTransform(matrix!);
-        renderDocument(context, document, width, height, selection, preview, view, editingId, undefined, drawImageOverlay);
+        drawDocumentFrame(context, document, width, height, selection, preview, view, editingId, undefined, drawImageOverlay);
       } finally { context.restore(); }
     }));
   } else if (images) {
@@ -587,7 +591,7 @@ export class CanvasController {
       const vectorEdit = this.engine.getRenderVectorEdit(), pen = this.engine.getSnapshot().tool === "pen";
       const builder = snapshot.tool === "shapeBuilder";
       const crop = this.engine.pickedCrop();
-      renderDocument(context, this.engine.getRenderDocument(), this.#width, this.#height, vectorEdit || pen || builder ? [] : this.engine.getRenderSelection(), undefined, view, vectorEdit?.id, () => this.invalidate(), crop ? images => this.#crop.draw(context, images) : undefined);
+      drawDocumentFrame(context, this.engine.getRenderDocument(), this.#width, this.#height, vectorEdit || pen || builder ? [] : this.engine.getRenderSelection(), undefined, view, vectorEdit?.id, () => this.invalidate(), crop ? images => this.#crop.draw(context, images) : undefined);
       if (!crop && !builder && !pen && !vectorEdit && !this.#moving.active && !this.#transforming.active && !this.#rounding.active && !this.#arcs.active && !this.#drawing.active) this.#smart.draw(context);
       if (!crop && !builder && !pen && !vectorEdit && !this.#moving.active && !this.#transforming.active && !this.#smart.active && !this.#drawing.active) { this.#rounding.draw(context); this.#arcs.draw(context); }
       if (!crop && !builder && !pen && !vectorEdit && !this.#moving.active && !this.#smart.active) this.#transforming.draw(context);

@@ -3152,8 +3152,8 @@ test("image crop preserves visible pixels on layer resize, dims the outside and 
     await page.mouse.move(b.x,b.y,{steps:4}); await page.mouse.up();
   }
   const background=await sample(300,130);
-  await expect.poll(()=>sample(266,115)).not.toEqual(background);
-  const retained=await sample(145,135), removed=await sample(266,115);
+  await expect.poll(()=>sample(250,130)).not.toEqual(background);
+  const retained=await sample(145,135), removed=await sample(250,130);
   const centre=await canvasPoint(page,150,145);
   await page.mouse.click(centre.x,centre.y,{button:"right"});
   await page.getByRole("group",{name:"Canvas actions"}).getByRole("button",{name:"Crop image"}).click();
@@ -3165,11 +3165,11 @@ test("image crop preserves visible pixels on layer resize, dims the outside and 
   expect(paint.scale_mode).toBe("crop"); expect(paint.crop?.[0]).toBeCloseTo(2/3);
   await expectCanvasPixel(page,145,135,retained);
   const ghost=removed.map((v,i)=>Math.round(v*115/255+background[i]*(1-115/255)));
-  await expectCanvasPixel(page,266,115,ghost);
+  await expectCanvasPixel(page,250,130,ghost);
   const clip=await canvasPoint(page,91,91);
   await expect(page).toHaveScreenshot("image-crop-brackets.png",{clip:{...clip,width:198,height:138},animations:"disabled"});
   await page.keyboard.press("Enter");
-  await expectCanvasPixel(page,266,115,background);
+  await expectCanvasPixel(page,250,130,background);
   await page.keyboard.press("ControlOrMeta+z");
   expect(await saved()).toMatchObject({width:180,height:120});
   await page.getByRole("button",{name:"Crop fill 1 image",exact:true}).click();
