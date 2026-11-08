@@ -1148,7 +1148,7 @@
       "source": "crates/engine/src/cmd/create.rs",
       "line": 113,
       "status": "Partial",
-      "scope": "Decoded placement, density, target append, shared bytes, undo and native recovery. Verified PNG sRGB and gamma/chromaticity metadata and embedded RGB/grey ICC labels and sRGB pixels from PNG, JPEG, WebP and TIFF. Working-space filter ordering passed for embedded ICC, gamma and untagged PNG. Two- and four-channel JPEG TIFF browser pixels and exact native archive bytes passed at f64eeb0. Cache pressure and archive budgets are open.",
+      "scope": "Decoded placement, density, target append, shared bytes, undo and native recovery. Verified PNG sRGB and gamma/chromaticity metadata and embedded RGB/grey ICC labels and sRGB pixels from PNG, JPEG, WebP and TIFF. Working-space filter ordering passed for embedded ICC, gamma and untagged PNG. Two- and four-channel JPEG TIFF browser pixels and exact native archive bytes passed at f64eeb0. Archive member and aggregate budgets passed at beb8ddc. Cache count, bytes, replacement and ordered painting passed at 17fabdd. Large JSON is in progress.",
       "evidence": "docs/planning/26-11-09-image-paints.md"
     },
     {

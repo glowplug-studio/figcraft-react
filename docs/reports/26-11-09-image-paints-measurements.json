@@ -1,0 +1,247 @@
+{
+  "react": "17fabdd",
+  "upstream": "8a7ebc2484a6d64d80a13c19c18ffb814325e347",
+  "environment": "Local production Next.js, Chromium, one worker, zero retries",
+  "chromium": {
+    "passed": 160,
+    "skipped": 0,
+    "flaky": 0,
+    "durationSeconds": 371.05
+  },
+  "image-pixels": {
+    "fit": [
+      [
+        255,
+        255,
+        255,
+        255
+      ],
+      [
+        255,
+        0,
+        0,
+        255
+      ],
+      [
+        255,
+        0,
+        0,
+        255
+      ]
+    ],
+    "fill": [
+      [
+        255,
+        127,
+        127,
+        255
+      ],
+      [
+        127,
+        127,
+        255,
+        255
+      ],
+      [
+        127,
+        255,
+        127,
+        255
+      ]
+    ],
+    "crop": [
+      [
+        255,
+        255,
+        255,
+        255
+      ],
+      [
+        255,
+        0,
+        0,
+        255
+      ]
+    ],
+    "tile": [
+      [
+        0,
+        0,
+        255,
+        255
+      ],
+      [
+        255,
+        0,
+        0,
+        255
+      ],
+      [
+        0,
+        0,
+        255,
+        255
+      ],
+      [
+        0,
+        255,
+        0,
+        255
+      ]
+    ],
+    "stroke": [
+      [
+        255,
+        0,
+        0,
+        255
+      ],
+      [
+        255,
+        0,
+        0,
+        255
+      ],
+      [
+        255,
+        255,
+        255,
+        255
+      ]
+    ],
+    "maskedStroke": [
+      [
+        255,
+        0,
+        0,
+        255
+      ],
+      [
+        255,
+        255,
+        255,
+        255
+      ]
+    ],
+    "beforeFlatten": [
+      [
+        255,
+        0,
+        0,
+        255
+      ],
+      [
+        255,
+        0,
+        0,
+        255
+      ],
+      [
+        255,
+        0,
+        0,
+        255
+      ],
+      [
+        255,
+        0,
+        0,
+        255
+      ]
+    ],
+    "afterFlatten": [
+      [
+        255,
+        0,
+        0,
+        255
+      ],
+      [
+        255,
+        0,
+        0,
+        255
+      ],
+      [
+        255,
+        0,
+        0,
+        255
+      ],
+      [
+        255,
+        0,
+        0,
+        255
+      ]
+    ]
+  },
+  "large-image-paints": {
+    "small": [
+      [
+        4096,
+        5
+      ],
+      [
+        4096,
+        5
+      ]
+    ],
+    "warm": 2,
+    "sizes": [
+      [
+        4096,
+        5
+      ],
+      [
+        4096,
+        5
+      ],
+      [
+        6000,
+        8
+      ],
+      [
+        6000,
+        8
+      ]
+    ],
+    "mismatches": [
+      0,
+      0
+    ],
+    "p95": 0.20000004768371582
+  },
+  "archive-memory": {
+    "beforeOpen": {
+      "usedSize": 11626024,
+      "totalSize": 19628032,
+      "embedderHeapUsedSize": 5762872,
+      "backingStorageSize": 1751236
+    },
+    "afterOpen": {
+      "usedSize": 9415236,
+      "totalSize": 24870912,
+      "embedderHeapUsedSize": 4727776,
+      "backingStorageSize": 37381585
+    },
+    "afterRecoveryWrite": {
+      "usedSize": 11914196,
+      "totalSize": 24084480,
+      "embedderHeapUsedSize": 3464808,
+      "backingStorageSize": 52130639
+    },
+    "afterRestore": {
+      "usedSize": 13799572,
+      "totalSize": 45203456,
+      "embedderHeapUsedSize": 3154648,
+      "backingStorageSize": 127794631
+    },
+    "afterDownload": {
+      "usedSize": 11014680,
+      "totalSize": 42057728,
+      "embedderHeapUsedSize": 1856792,
+      "backingStorageSize": 77517635
+    }
+  }
+}
