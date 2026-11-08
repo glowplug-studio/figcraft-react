@@ -7,6 +7,11 @@ import { parseCssColour } from "./colour-css";
 import { isLegacyPaint, paintColour, solidPaint, type SolidPaint } from "./solid-paint";
 /** Deliberate Document/Node subset; native serialisation belongs to the file adapter. */
 export type NodeId = string;
+export const booleanOperations = ["union", "subtract", "intersect", "exclude"] as const;
+export type BooleanOperation = typeof booleanOperations[number];
+export function isBooleanOperation(value: unknown): value is BooleanOperation {
+  return booleanOperations.some(op => op === value);
+}
 export interface PageNode {
   readonly id: NodeId;
   readonly kind: "page";
@@ -22,6 +27,7 @@ export interface Constraints {
 }
 export const defaultConstraints: Constraints = Object.freeze({ horizontal: "left", vertical: "top" });
 export interface LayerProperties {
+  readonly boolOp?: BooleanOperation;
   readonly id: NodeId;
   readonly name: string;
   readonly parent: NodeId;
@@ -60,8 +66,14 @@ export interface FrameNode extends LayerProperties {
   readonly children: readonly NodeId[];
   readonly clip: boolean;
 }
-export type LayerNode = LeafNode | GroupNode | FrameNode;
+export interface BooleanNode extends LayerProperties {
+  readonly kind: "booleanOp";
+  readonly op: BooleanOperation;
+  readonly children: readonly NodeId[];
+}
+export type LayerNode = LeafNode | GroupNode | FrameNode | BooleanNode;
 export type DocumentNode = PageNode | LayerNode;
+export const isGroupLike = (node: DocumentNode | undefined): node is GroupNode | BooleanNode => node?.kind === "group" || node?.kind === "booleanOp";
 export const isLeafKind = (kind: unknown): kind is LeafNode["kind"] => kind === "rectangle" || kind === "ellipse" || kind === "polygon" || kind === "star" || kind === "line" || kind === "vector";
 export const isDrawTool = (kind: unknown): kind is DrawShapeKind => isLeafKind(kind) && kind !== "vector" || kind === "arrow";
 export const isLeaf = (node: DocumentNode): node is LeafNode => isLeafKind(node.kind);

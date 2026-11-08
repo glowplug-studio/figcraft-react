@@ -23,6 +23,7 @@ import { RecoveryController, base64Bytes } from "./engine/recovery";
 import { MAX_FILE_BYTES } from "./engine/file-format";
 import { PagePanel } from "./PagePanel";
 import { AppearancePanel } from "./AppearancePanel";
+import { BooleanMenu } from "./BooleanMenu";
 import { LayerPanel } from "./LayerPanel";
 import { frameRelative, pageForNode } from "./engine/hierarchy";
 
@@ -269,7 +270,8 @@ export function Editor({ identity, capabilities, engine: suppliedEngine, recover
             <button disabled={!editable} aria-pressed={snapshot.tool === "rectangle"} onClick={() => { dispatch("tool.rectangle"); canvas.current?.focus(); }}>Rectangle</button>
           </div>}
         </div>
-        <aside className="figcraft-properties" aria-label="Design"><h2>Design</h2>
+        <aside className="figcraft-properties" aria-label="Design"><div style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}><h2>Design</h2>
+          {!editingVector && snapshot.selection.length > 0 && <BooleanMenu document={snapshot.document} selection={snapshot.selection} editable={editable && !busy} dispatch={dispatch} />}</div>
           <VectorPanel engine={engine} editable={editable && !busy} dispatch={dispatch} />
           <div hidden={editingVector}>
           <form key={page.id} onSubmit={create}><fieldset disabled={!editable}><legend>Create layer</legend>

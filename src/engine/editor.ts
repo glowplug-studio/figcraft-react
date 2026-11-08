@@ -1,3 +1,5 @@
+import { isGroupLike } from "./document";
+import { getNode } from "./inspect";
 import { createLayer } from "./creation";
 import { copyFill, fillSpecs, writeFill } from "./fill-commands";
 import type { SolidPaint } from "./solid-paint";
@@ -45,6 +47,7 @@ export const commandSpecs = Object.freeze({
   ...structureSpecs,
   ...vectorSpecs,
   ...vectorEditSpecs,
+  "node.get": { label: "Get layer", undo: false },
   "node.set": { label: "Set properties", undo: true },
   "frame.create": { label: "Frame", undo: true },
   "shape.polygon": { label: "Polygon", undo: true },
@@ -232,7 +235,7 @@ export class EditorEngine {
     const moving = interaction.duplicated?.copies ?? ids, draft = new HierarchyDraft(interaction.document);
     if (draft.nodes[moving[0]]?.parent !== target) for (const id of moving) {
       const node = draft.nodes[id];
-      if (!node || node.kind === "page" || draft.nodes[node.parent]?.kind === "group" || id === target || ancestorIds(draft.document, target).includes(id)) continue;
+      if (!node || node.kind === "page" || isGroupLike(draft.nodes[node.parent]) || id === target || ancestorIds(draft.document, target).includes(id)) continue;
       draft.reparent(id, target);
     }
     draft.normaliseGroups(); interaction.document = validateChangedGeometry(draft);
@@ -321,13 +324,15 @@ export class EditorEngine {
     if (!editable) { this.#vectorEdit = undefined; this.#copiedFill = undefined; }
     if (editable !== this.#snapshot.editable) this.#publish({ editable, tool: "move" });
   }
+  execute(command: "node.get", input: unknown): ReturnType<typeof getNode>;
   execute(command: "frame.presets", input?: unknown): typeof framePresets;
   execute(command: "page.list", input?: unknown): ReturnType<typeof listPages>;
   execute(command: string, input?: unknown): Record<string, unknown>;
-  execute(command: string, input: unknown = {}): Record<string, unknown> | ReturnType<typeof listPages> | typeof framePresets {
+  execute(command: string, input: unknown = {}): Record<string, unknown> | ReturnType<typeof listPages> | typeof framePresets | null {
     if (!Object.hasOwn(commandSpecs, command)) throw new Error(`Unsupported command: ${command}`);
     if (!this.#snapshot.editable) throw new Error("Sign in to edit this document");
     const p = parameters(input);
+    if (command === "node.get") return getNode(this.getRenderDocument(), p);
     if (this.pen.open && (command === "edit.undo" || command === "edit.redo")) {
       if (Object.keys(p).length) throw new Error(`${command} takes no parameters`);
       const undo = command === "edit.undo";
@@ -503,7 +508,9 @@ export class EditorEngine {
     return { [undo ? "undone" : "redone"]: Boolean(entry) };
   }
   /** Native file commands run outside pointer rendering and retain atomic document replacement. */
-  async executeAsync(command: string, input: unknown = {}): Promise<Record<string, unknown>> {
+  async executeAsync(command: "node.get", input: unknown): Promise<ReturnType<typeof getNode>>;
+  async executeAsync(command: string, input?: unknown): Promise<Record<string, unknown>>;
+  async executeAsync(command: string, input: unknown = {}): Promise<Record<string, unknown> | null> {
     if (!["file.open", "file.recover", "file.saveAs"].includes(command)) return this.execute(command, input);
     if (!this.#snapshot.editable) throw new Error("Sign in to edit this document");
     const p = parameters(input);

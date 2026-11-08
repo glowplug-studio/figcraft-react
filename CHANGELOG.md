@@ -2,6 +2,10 @@
 
 All notable changes to the React port and its upstream compatibility baseline are recorded here.
 
+## [0.38.0] - 2026-11-09
+
+- Added live Union, Subtract, Intersect and Exclude groups with editable operands, native file support and silhouette flattening.
+
 ## [0.37.0] - 2026-11-09
 
 - Added vector.fillRule and vector.reverseLoop for selected areas, holes and shared short-loop boundaries.

@@ -1,3 +1,4 @@
+import { isGroupLike } from "./document";
 import { isLeaf } from "./document";
 import { identity, inverse, multiply, transformBounds, type Affine } from "./affine";
 import { layerTransform, withLayerTransform, type Document, type DocumentNode, type LayerNode, type NodeId } from "./document";
@@ -12,7 +13,7 @@ function childrenOf(node: DocumentNode): readonly NodeId[] {
   return isLeaf(node) ? [] : node.children;
 }
 
-function ancestors(document: Document, id: NodeId): NodeId[] {
+export function ancestors(document: Document, id: NodeId): NodeId[] {
   const result: NodeId[] = [], seen = new Set<NodeId>([id]);
   let node = document.nodes[id];
   while (node && node.parent !== null) {
@@ -46,7 +47,7 @@ export function frameRelative(document: Document, id: NodeId): Affine {
   let parent = document.nodes[node.parent];
   const seen = new Set<NodeId>();
   let limit = Infinity;
-  for (let hops = 0; parent?.kind === "group"; hops++) {
+  for (let hops = 0; isGroupLike(parent); hops++) {
     // Count the whole document only for a malformed cycle, matching the native hop bound.
     if (limit === Infinity && seen.has(parent.id)) limit = Object.keys(document.nodes).length;
     if (hops >= limit) break;
@@ -161,7 +162,7 @@ export class HierarchyDraft {
 
   fitToChildren(id: NodeId): void {
     const document = this.document, node = nodeOf(document, id);
-    if (node.kind !== "group" || node.children.length === 0) return;
+    if (!isGroupLike(node) || node.children.length === 0) return;
     const world = worldTransform(document, id), toLocal = inverse(world);
     let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
     const childWorlds = node.children.map(childId => {
@@ -186,7 +187,7 @@ export class HierarchyDraft {
 
   fitAncestors(id: NodeId): void {
     for (const parent of ancestors(this.document, id)) {
-      if (this.nodes[parent]?.kind !== "group") break;
+      if (!isGroupLike(this.nodes[parent])) break;
       this.fitToChildren(parent);
     }
   }
@@ -216,16 +217,16 @@ export class HierarchyDraft {
     }
     const groups = new Set<NodeId>();
     for (const id of touched) {
-      if (this.nodes[id]?.kind === "group") groups.add(id);
+      if (isGroupLike(this.nodes[id])) groups.add(id);
       for (const parent of ancestors(document, id)) {
-        if (this.nodes[parent]?.kind !== "group") break;
+        if (!isGroupLike(this.nodes[parent])) break;
         groups.add(parent);
       }
     }
     const deepestFirst = [...groups].sort((left, right) => ancestors(document, right).length - ancestors(document, left).length);
     for (const id of deepestFirst) {
       const node = this.nodes[id];
-      if (!node || node.kind !== "group") continue;
+      if (!isGroupLike(node)) continue;
       if (node.children.length === 0) this.remove(id);
       else this.fitToChildren(id);
     }

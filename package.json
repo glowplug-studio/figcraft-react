@@ -1,6 +1,6 @@
 {
   "name": "@glowplug-studio/figcraft-react",
-  "version": "0.37.0",
+  "version": "0.38.0",
   "private": true,
   "type": "module",
   "workspaces": [
@@ -66,6 +66,7 @@
   "dependencies": {
     "@zip.js/zip.js": "2.24.0",
     "fflate": "0.8.3",
-    "lossless-json": "4.3.3"
+    "lossless-json": "4.3.3",
+    "paper": "0.17.0"
   }
 }

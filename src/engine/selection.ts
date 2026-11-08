@@ -1,10 +1,11 @@
+import { booleanResult } from "./boolean-result";
 import { isLeaf } from "./document";
 import { hitsPath } from "./corners";
 import { hasShapePath, shapePath } from "./shape-path";
 import { identity, inverse, multiply, transformPoint, type Affine } from "./affine";
 import { layerTransform, pageOf, rectanglePaints, type Document, type NodeId } from "./document";
 import { defaultStroke, hasVisibleStroke, strokeMaxWeight } from "./stroke";
-import { pageForNode } from "./hierarchy";
+import { ancestors, pageForNode } from "./hierarchy";
 import type { Point } from "./geometry";
 import { parseNodeId } from "./parameters";
 import { hitsVector } from "./vector-presentation";
@@ -114,7 +115,7 @@ export function targetForLeaf(document: Document, leaf: NodeId, selection: reado
 }
 
 /** Hit frontmost visible layer; container selection follows native level_target. */
-export function hitRectangle(document: Document, point: Point, deep = false, selection: readonly NodeId[] = [], tolerance = 0): NodeId | undefined {
+export function hitRectangle(document: Document, point: Point, deep = false, selection: readonly NodeId[] = [], tolerance = 0, enterBooleans = deep): NodeId | undefined {
   if (!Number.isFinite(point.x) || !Number.isFinite(point.y)) return undefined;
   const nearRectangle = (x: number, y: number, width: number, height: number): boolean => Math.hypot(Math.max(0, -x, x - width), Math.max(0, -y, y - height)) <= tolerance;
   const page = pageOf(document);
@@ -123,6 +124,12 @@ export function hitRectangle(document: Document, point: Point, deep = false, sel
     if (depth > 256 || !node || node.kind === "page" || node.parent !== parent || node.visible === false || node.locked === true) return undefined;
     try {
       const transform = world === identity ? layerTransform(node) : multiply(world, layerTransform(node));
+      if (node.kind === "booleanOp") {
+        const editing = enterBooleans || selection.some(selected => selected === id || ancestors(document, selected).includes(id));
+        if (editing) return hitGroup(node.children, id, transform, depth + 1);
+        const result = booleanResult(document, node);
+        return result && hitsVector(result, transformPoint(inverse(transform), point), tolerance) ? id : undefined;
+      }
       if (node.kind === "group") return hitGroup(node.children, id, transform, depth + 1);
       if (node.kind === "frame") {
         const local = transformPoint(inverse(transform), point);

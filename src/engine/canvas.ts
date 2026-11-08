@@ -1,3 +1,4 @@
+import { booleanResult } from "./boolean-result";
 import { ArcInteraction } from "./arc-handles";
 import { DrawInteraction } from "./draw-interaction";
 import { isLeaf } from "./document";
@@ -104,6 +105,11 @@ function paintedGroupBounds(context: CanvasRenderingContext2D, document: Documen
 
 function drawLayer(context: CanvasRenderingContext2D, document: Document, node: LayerNode, depth = 0): void {
   if (node.visible === false || (node.opacity ?? 1) <= 0 || depth > 256) return;
+  if (node.kind === "booleanOp") {
+    const result = booleanResult(document, node);
+    if (result) drawLayer(context, document, result, depth);
+    return;
+  }
   if (!isLeaf(node)) {
     const draw = (target: CanvasRenderingContext2D) => {
       if (node.kind === "frame") paintRectangle(target, node, 1, false);
@@ -133,7 +139,7 @@ function drawLayer(context: CanvasRenderingContext2D, document: Document, node: 
 }
 
 /** Only this module paints editable geometry; React never renders canvas layers. */
-export function renderDocument(context: CanvasRenderingContext2D, document: Document, width: number, height: number, selection: readonly string[] = [], preview?: Rectangle, view?: Viewport): void {
+export function renderDocument(context: CanvasRenderingContext2D, document: Document, width: number, height: number, selection: readonly string[] = [], preview?: Rectangle, view?: Viewport, editingId?: string): void {
   const page = pageOf(document);
   context.clearRect(0, 0, width, height);
   context.fillStyle = page.backgroundColor ? renderColour(pageColour(page)) : page.background;
@@ -152,11 +158,36 @@ export function renderDocument(context: CanvasRenderingContext2D, document: Docu
   }
   context.strokeStyle = canvasAccent(document);
   context.lineWidth = 1 / zoom;
+  const neighbours = new Set<string>();
+  for (const id of editingId ? [...selection, editingId] : selection) {
+    let parent = document.nodes[id]?.parent;
+    while (parent) {
+      const group = document.nodes[parent];
+      if (group?.kind === "booleanOp") {
+        for (const child of group.children) if (!selection.includes(child) && child !== editingId) neighbours.add(child);
+        break;
+      }
+      parent = group?.parent;
+    }
+  }
+  if (neighbours.size) {
+    context.save(); context.globalAlpha *= .6;
+    for (const id of neighbours) {
+      const node = document.nodes[id];
+      if (!node || node.kind === "page" || node.visible === false) continue;
+      const outline = node.kind === "booleanOp" ? booleanResult(document,node) : node;
+      if (!outline) continue;
+      const matrix = worldTransform(document,id); context.beginPath();
+      tracePath(context,shapePath(outline),p=>transformPoint(matrix,p)); context.stroke();
+    }
+    context.restore();
+  }
   for (const id of selection) {
     const node = document.nodes[id];
     if (node && node.kind !== "page") {
-      if (hasShapePath(node)) {
-        context.beginPath(); const matrix = worldTransform(document, id); tracePath(context, shapePath(node), point => transformPoint(matrix, point)); context.stroke();
+      const outline = node.kind === "booleanOp" ? booleanResult(document, node) : node;
+      if (outline && hasShapePath(outline)) {
+        context.beginPath(); const matrix = worldTransform(document, id); tracePath(context, shapePath(outline), point => transformPoint(matrix, point)); context.stroke();
       } else if (node.transform || node.parent !== document.currentPage) {
         // Map the outline points so stroke width remains in screen pixels under scale/skew.
         const [a, b, c, d, e, f] = worldTransform(document, id);
@@ -471,7 +502,7 @@ export class CanvasController {
       const snapshot = this.engine.getSnapshot();
       const view = this.engine.getView(), origin = viewOrigin(view);
       const vectorEdit = this.engine.getRenderVectorEdit(), pen = this.engine.getSnapshot().tool === "pen";
-      renderDocument(context, this.engine.getRenderDocument(), this.#width, this.#height, vectorEdit || pen ? [] : this.engine.getRenderSelection(), undefined, view);
+      renderDocument(context, this.engine.getRenderDocument(), this.#width, this.#height, vectorEdit || pen ? [] : this.engine.getRenderSelection(), undefined, view, vectorEdit?.id);
       if (!pen && !vectorEdit && !this.#moving.active && !this.#transforming.active && !this.#rounding.active && !this.#arcs.active && !this.#drawing.active) this.#smart.draw(context);
       if (!pen && !vectorEdit && !this.#moving.active && !this.#transforming.active && !this.#smart.active && !this.#drawing.active) { this.#rounding.draw(context); this.#arcs.draw(context); }
       if (!pen && !vectorEdit && !this.#moving.active && !this.#smart.active) this.#transforming.draw(context);

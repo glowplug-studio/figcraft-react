@@ -1,3 +1,4 @@
+import { booleanResult } from "./boolean-result";
 import { inverse, multiply, type Affine } from "./affine";
 import { fromRgba8 } from "./colour";
 import { isLeaf, rectanglePaints, withRectanglePaints, type Document, type LayerNode, type NodeId, type VectorNode } from "./document";
@@ -20,6 +21,7 @@ export const vectorSpecs = Object.freeze({
   "vector.smoothJoin": { label: "Smooth join selection", undo: true },
   "vector.fillRule": { label: "Set fill rule", undo: true },
   "vector.reverseLoop": { label: "Reverse loop", undo: true },
+  "bool.flatten": { label: "Flatten boolean", undo: true },
   "vector.flatten": { label: "Flatten", undo: true },
   "vector.reverse": { label: "Reverse path direction", undo: true },
 });
@@ -42,6 +44,11 @@ function flattenedNetwork(document: Document, ids: readonly NodeId[], parent: No
     const node = document.nodes[id]; if (!node) return;
     if (node.kind === "page") throw new Error("Cannot flatten a page");
     const intoParent = multiply(toParent, worldTransform(document, id));
+    if (node.kind === "booleanOp") {
+      const result = booleanResult(document, node, 0, true);
+      if (result) append(node, result.network, intoParent);
+      return;
+    }
     if (!isLeaf(node) && node.children.length) {
       if (node.kind === "frame" && rectanglePaints(node).some(p => p.visible)) append(node, networkFromPath(shapePath(node)), intoParent);
       for (const child of node.children) { const item = document.nodes[child]; if (item && item.kind !== "page" && item.visible !== false) collect(child, depth + 1); }

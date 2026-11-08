@@ -1,3 +1,4 @@
+import { isGroupLike } from "./document";
 import { withLayerSize } from "./document";
 import { isLeaf } from "./document";
 import { transformBounds, withTranslation, type Affine } from "./affine";
@@ -31,7 +32,7 @@ export function resizeChildren(draft: HierarchyDraft, id: NodeId, oldWidth: numb
     const item = pending.pop()!, container = draft.nodes[item.id];
     if (!container || isLeaf(container) || container.kind === "page") continue;
     const nw = container.width, nh = container.height, ow = item.oldWidth, oh = item.oldHeight;
-    const group = container.kind === "group";
+    const group = isGroupLike(container);
     if (!group && Math.abs(nw - ow) < 1e-9 && Math.abs(nh - oh) < 1e-9) continue;
     const [sx, sy] = item.groupScale ?? [ow > 1e-9 ? nw / ow : 1, oh > 1e-9 ? nh / oh : 1];
     for (const childId of container.children) {
@@ -64,7 +65,7 @@ export function resizeChildren(draft: HierarchyDraft, id: NodeId, oldWidth: numb
       transformBounds(transform, width, height);
       draft.set(withLayerSize(withLayerTransform(child, transform), width, height));
       if (!isLeaf(child) && (group || resized)) pending.push({ id: childId, oldWidth: child.width, oldHeight: child.height,
-        ...(child.kind === "group" ? { groupScale: [kw, kh] as const } : {}) });
+        ...(isGroupLike(child) ? { groupScale: [kw, kh] as const } : {}) });
     }
   }
 }

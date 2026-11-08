@@ -1,3 +1,4 @@
+import { isBooleanOperation, isGroupLike } from "./document";
 import { pathNetwork } from "./svg-path";
 import { freezeNetwork } from "./vector-network";
 import { isShapeKey, setShapeProperties } from "./shape-properties";
@@ -18,7 +19,7 @@ import { moveWorld } from "./arrange";
 import type { Point } from "./geometry";
 
 const geometryKeys = new Set(["x", "y", "width", "height", "w", "h", "rotation"]);
-const appearanceKeys = new Set(["name", "visible", "locked", "opacity", "fill", "fills", "clip", "constraints", "constrainProportions"]);
+const appearanceKeys = new Set(["booleanOperation", "operandOperation", "name", "visible", "locked", "opacity", "fill", "fills", "clip", "constraints", "constrainProportions"]);
 
 /** The supported layer geometry and appearance subset of upstream `node.set`. No history is recorded here. */
 export function setRectangleProperties(document: Document, selection: readonly NodeId[], params: Record<string, unknown>, origin?: Point, warnings: string[] = []): Document {
@@ -89,6 +90,21 @@ export function setRectangleProperties(document: Document, selection: readonly N
     if (!node || node.kind === "page") throw new Error(`node.set target ${id} is not an editable layer`);
     if ("clip" in props && node.kind !== "frame") throw new Error("Clip content requires a frame");
     let arcNode = setStrokeProperties(setShapeProperties(setArc(node, props), props), props);
+    for (const key of ["booleanOperation", "operandOperation"] as const) {
+      if (!(key in props)) continue;
+      const op = props[key];
+      if (key === "booleanOperation" && arcNode.kind === "booleanOp") {
+        if (!isBooleanOperation(op)) throw new Error("Invalid boolean group operation");
+        if (op !== arcNode.op) arcNode = { ...arcNode, op };
+      } else {
+        if (draft.nodes[node.parent]?.kind !== "booleanOp") throw new Error("Not a boolean group or a layer in one");
+        if (op !== null && !isBooleanOperation(op)) throw new Error("Invalid operand operation");
+        if ((op ?? undefined) !== arcNode.boolOp) {
+          const { boolOp: _previous, ...rest } = arcNode;
+          arcNode = op === null ? rest : { ...rest, boolOp: op };
+        }
+      }
+    }
     const corners = setCorners(node.corners ?? zeroCorners, props);
     const cornersChanged = corners !== (node.corners ?? zeroCorners);
     const constraints = "constraints" in props ? readConstraints(props.constraints, node.constraints) : node.constraints;
@@ -116,7 +132,7 @@ export function setRectangleProperties(document: Document, selection: readonly N
     let transform = rectangleTransform(node);
     if ("rotation" in values) transform = setRotationAboutCenter(transform, width, height, values.rotation);
     if ("x" in values || "y" in values) {
-      const space = draft.nodes[node.parent]?.kind === "group" ? frameRelative(draft.document, node.parent) : identity;
+      const space = isGroupLike(draft.nodes[node.parent]) ? frameRelative(draft.document, node.parent) : identity;
       const relative = multiply(space, transform);
       transform = multiply(inverse(space), withTranslation(relative, {
         x: "x" in values ? values.x + (replacement?.offset.x ?? 0) : relative[4],

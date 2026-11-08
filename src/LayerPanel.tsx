@@ -1,4 +1,6 @@
-import { isLeaf } from "./engine/document";
+import { BooleanIcon } from "./BooleanMenu";
+import { booleanLabel } from "./engine/structure";
+import { isGroupLike, isLeaf } from "./engine/document";
 import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import type { Document, NodeId, PageNode } from "./engine/document";
 
@@ -44,6 +46,8 @@ export function LayerPanel({ document, selection, editable, dispatch }: LayerPan
   const rows = (ids: readonly NodeId[], depth: number): ReactNode => [...ids].reverse().map(id => {
     const node = document.nodes[id];
     if (!node || node.kind === "page") return null;
+    const parent = document.nodes[node.parent];
+    const own = parent?.kind === "booleanOp" && parent.children[0] !== id && node.boolOp !== parent.op ? node.boolOp : undefined;
     const group = !isLeaf(node) ? node : undefined;
     const expanded = group !== undefined && !collapsed.has(id);
     return <li key={id} aria-current={selected.has(id) ? "true" : undefined} data-layer-id={id} style={{ paddingInlineStart: `${depth * 1.1}rem` }}>
@@ -51,7 +55,8 @@ export function LayerPanel({ document, selection, editable, dispatch }: LayerPan
         onClick={() => toggle(id)}>{expanded ? "▾" : "▸"}</button>}
       <button type="button" disabled={!editable} onClick={event => dispatch("select.set", {
         ids: event.shiftKey ? selected.has(id) ? selection.filter(current => current !== id) : [...selection, id] : [id],
-      })}>{node.name}</button>
+      })}>{node.kind === "booleanOp" && <BooleanIcon op={node.op}/>} {node.name}</button>
+      {own && <span aria-label={booleanLabel(own) + " operand"} title={booleanLabel(own)}><BooleanIcon op={own} /></span>}
       {group && expanded && <ul aria-label={`Children of ${group.name}`}>{rows(group.children, depth + 1)}</ul>}
     </li>;
   });
@@ -69,12 +74,12 @@ export function LayerPanel({ document, selection, editable, dispatch }: LayerPan
     <div role="group" aria-label="Layer actions">
       <button type="button" disabled={!editable || selection.length === 0} onClick={() => dispatch("edit.duplicate")}>Duplicate layers</button>
       <button type="button" disabled={!editable || selection.length === 0} onClick={() => dispatch("object.group", { ids: selection })}>Group</button>
-      <button type="button" disabled={!editable || !selection.some(id => document.nodes[id]?.kind === "group")} onClick={() => dispatch("object.ungroup", { ids: selection })}>Ungroup</button>
+      <button type="button" disabled={!editable || !selection.some(id => isGroupLike(document.nodes[id]))} onClick={() => dispatch("object.ungroup", { ids: selection })}>Ungroup</button>
       <button type="button" disabled={!editable || selection.length === 0} onClick={() => dispatch("vector.flatten")}>Flatten</button>
       <button type="button" disabled={!editable || selection.length === 0} onClick={() => dispatch("vector.join")}>Join selection</button>
       <button type="button" disabled={!editable || selection.length === 0} onClick={() => dispatch("vector.smoothJoin")}>Smooth join selection</button>
       <button type="button" disabled={!editable || !selection.some(id => document.nodes[id]?.kind === "vector")} onClick={() => dispatch("vector.reverse")}>Reverse path direction</button>
-      <button type="button" disabled={!editable || !selection.some(id => ["group", "frame"].includes(document.nodes[id]?.kind))} onClick={() => dispatch("select.children")}>Select children</button>
+      <button type="button" disabled={!editable || !selection.some(id => ["group", "frame", "booleanOp"].includes(document.nodes[id]?.kind))} onClick={() => dispatch("select.children")}>Select children</button>
       <button type="button" disabled={!editable || !parent || parent.kind === "page"} onClick={() => dispatch("select.parent")}>Select parent</button>
       <button type="button" disabled={!editable || selection.length === 0} onClick={() => dispatch("object.frameSelection", { ids: selection })}>Frame selection</button>
       <button type="button" disabled={!editable || !selection.some(id => document.nodes[id]?.kind === "frame")} onClick={() => dispatch("object.removeFrame", { ids: selection })}>Remove frame</button>

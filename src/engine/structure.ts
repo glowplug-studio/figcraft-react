@@ -1,10 +1,16 @@
-import { isLeaf } from "./document";
+import { booleanOperations, isBooleanOperation, isLeaf, rectanglePaints, withRectanglePaints, type BooleanNode, type BooleanOperation } from "./document";
+import { fromRgba8 } from "./colour";
+import { solidPaint } from "./solid-paint";
 import { inverse, transformBounds } from "./affine";
 import { type Document, type GroupNode, type FrameNode, type NodeId } from "./document";
 import { HierarchyDraft, pageForNode, rootIds, worldTransform, zSorted } from "./hierarchy";
 import { parseIndex, parseNodeId, parseNumber, parseString } from "./parameters";
 
 export const structureSpecs = Object.freeze({
+  "bool.union": { label: "Union selection", undo: true },
+  "bool.subtract": { label: "Subtract selection", undo: true },
+  "bool.intersect": { label: "Intersect selection", undo: true },
+  "bool.exclude": { label: "Exclude selection", undo: true },
   "object.group": { label: "Group selection", undo: true },
   "object.frameSelection": { label: "Frame selection", undo: true },
   "object.removeFrame": { label: "Remove frame", undo: true },
@@ -15,6 +21,14 @@ export const structureSpecs = Object.freeze({
   "node.reparent": { label: "Move layer into", undo: true },
   "edit.delete": { label: "Delete", undo: true },
 });
+export const booleanLabel = (op: BooleanOperation) => op[0].toUpperCase() + op.slice(1);
+function clearOperand(draft: HierarchyDraft, id: NodeId) {
+  const node = draft.nodes[id];
+  if (node.kind !== "page" && node.boolOp !== undefined) {
+    const { boolOp: _op, ...rest } = node;
+    draft.set(rest);
+  }
+}
 const maximumId = 18446744073709551615n;
 export function nextLayerName(document: Document, base: string): string {
   const taken = new Set<bigint>();
@@ -51,19 +65,42 @@ export function executeStructure(command: string, document: Document, selection:
     }
     return { document: draft.finish(), selection, nextId, result: { ok: true } };
   }
-  const allowed = (command === "object.group" || command === "object.frameSelection") ? ["ids", "id", "name"] : command === "node.reparent" ? ["ids", "id", "parent", "index"] : ["ids", "id"];
+  const suffix = command.startsWith("bool.") ? command.slice(5) : undefined;
+  const operation = isBooleanOperation(suffix) ? suffix : undefined;
+  const wraps = command === "object.group" || command === "object.frameSelection" || operation !== undefined;
+  const allowed = wraps ? ["ids", "id", "name"] : command === "node.reparent" ? ["ids", "id", "parent", "index"] : ["ids", "id"];
   if (!Object.hasOwn(structureSpecs, command)) throw new Error(`Unsupported structure command: ${command}`);
   for (const key of Object.keys(params)) if (!allowed.includes(key)) throw new Error(`Unsupported ${command} parameter: ${key}`);
   const raw = params.ids ?? params.id;
-  if (params.ids !== undefined && !Array.isArray(params.ids)) throw new Error("ids must be an array");
-  const targets = raw === undefined ? [...selection] : (Array.isArray(raw) ? raw : [raw]).map(parseNodeId).filter((id): id is string => id !== undefined);
+  if ((operation ? params.ids != null : params.ids !== undefined) && !Array.isArray(params.ids)) throw new Error("ids must be an array");
+  if (operation && raw != null && (Array.isArray(raw) ? raw : [raw]).some(v => parseNodeId(v) === undefined)) throw new Error("Every target must be a node id");
+  const targets = (raw === undefined || (operation && raw === null)) ? [...selection] : (Array.isArray(raw) ? raw : [raw]).map(parseNodeId).filter((id): id is string => id !== undefined);
   if (!targets.length) throw new Error("Nothing selected");
   for (const id of targets) if (!document.nodes[id]) throw new Error(`No node ${id}`);
   const draft = new HierarchyDraft(document);
   let selected: readonly NodeId[] = selection;
   let allocator = nextId;
   let result: Record<string, unknown> = { ok: true };
-  if (command === "object.group" || command === "object.frameSelection") {
+  if (operation) {
+    const first = draft.nodes[targets[0]];
+    if (targets.length === 1 && first.kind === "booleanOp") {
+      const name = booleanOperations.some(op => booleanLabel(op) === first.name) ? booleanLabel(operation) : first.name;
+      if (first.op !== operation || first.name !== name) draft.set({ ...first, op: operation, name });
+      for (const id of first.children) clearOperand(draft, id);
+      return { document: draft.finish(), selection, nextId, result: { id: first.id, operation } };
+    }
+    const operands = targets.map(id => draft.nodes[id]);
+    if (operands.every(n => n.parent && draft.nodes[n.parent]?.kind === "booleanOp")) {
+      for (const node of operands) {
+        if (node.kind === "page") continue;
+        const group = draft.nodes[node.parent] as BooleanNode;
+        if (operation === group.op) clearOperand(draft, node.id);
+        else if (node.boolOp !== operation) draft.set({ ...node, boolOp: operation });
+      }
+      return { document: draft.finish(), selection, nextId, result: { ids: targets, operation } };
+    }
+  }
+  if (wraps) {
     const frame = command === "object.frameSelection";
     const ids = zSorted(document, rootIds(document, targets));
     const top = document.nodes[ids.at(-1)!];
@@ -81,10 +118,20 @@ export function executeStructure(command: string, document: Document, selection:
     const local = transformBounds([inv[0], inv[1], inv[2], inv[3], inv[0] * x + inv[2] * y + inv[4], inv[1] * x + inv[3] * y + inv[5]], width, height);
     if (allocator > maximumId || draft.nodes[String(allocator)]) throw new Error("Document identifiers are exhausted");
     const id = String(allocator);
-    const group: GroupNode | FrameNode = Object.freeze({ id, ...(frame ? { kind: "frame" as const, clip: true } : { kind: "group" as const }), name: parseString(params.name) ?? nextLayerName(document, frame ? "Frame" : "Group"), parent: parent.id,
+    let group: GroupNode | FrameNode | BooleanNode = Object.freeze({ id, ...(frame ? { kind: "frame" as const, clip: true } : { kind: "group" as const }), name: parseString(params.name) ?? nextLayerName(document, frame ? "Frame" : "Group"), parent: parent.id,
       children: Object.freeze([]), x: local.x, y: local.y, width: local.width, height: local.height, fill: frame ? "#ffffff" : "transparent", blend: "passThrough" });
+    if (operation) {
+      const source = document.nodes[operation === "subtract" ? ids[0] : top.id];
+      if (source.kind === "page") throw new Error("Cannot group a page");
+      const paints = rectanglePaints(source);
+      group = withRectanglePaints({ ...group, kind: "booleanOp", op: operation, name: parseString(params.name) ?? booleanLabel(operation), blend: "normal",
+        ...(source.stroke ? { stroke: source.stroke } : {}), ...(source.strokes ? { strokes: source.strokes } : {}) }, paints.length ? paints : [solidPaint(fromRgba8(217,217,217))]);
+    }
     draft.insert(group, parent.id, parent.children.indexOf(top.id) + 1);
-    for (const child of ids) draft.reparent(child, id);
+    for (const child of ids) {
+      draft.reparent(child, id);
+      if (operation) clearOperand(draft, child);
+    }
     if (!frame) draft.fitToChildren(id);
     if (allocator < maximumId) allocator++;
     selected = [id]; result = { id };
@@ -98,6 +145,7 @@ export function executeStructure(command: string, document: Document, selection:
       const index = parent.children.indexOf(id);
       for (const [offset, child] of group.children.entries()) {
         draft.reparent(child, parent.id, index + offset);
+        if (group.kind === "booleanOp") clearOperand(draft, child);
         const node = draft.nodes[child];
         if (node.kind !== "page" && (group.opacity ?? 1) < 1) draft.set({ ...node, opacity: Math.fround((node.opacity ?? 1) * (group.opacity ?? 1)) });
         out.push(child);

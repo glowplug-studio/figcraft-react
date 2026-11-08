@@ -1,3 +1,4 @@
+import { isGroupLike } from "./document";
 import { canvasAccent } from "./canvas-colours";
 import type { EditorEngine } from "./editor";
 import { isLeaf, type Document, type NodeId } from "./document";
@@ -29,7 +30,7 @@ export class MoveInteraction {
     if (!editable || tool !== "move" && tool !== "scale") return false;
     try {
       const deep = modifiers.metaKey || modifiers.ctrlKey;
-      const leaf = hitRectangle(document, point, true, [], 2 / this.engine.getView().zoom);
+      const leaf = hitRectangle(document, point, true, selection, 2 / this.engine.getView().zoom, deep);
       const node = leaf && document.nodes[leaf];
       const background = node && node.kind === "frame" && node.parent === document.currentPage && node.children.length > 0 && !selection.includes(node.id);
       const clicked = leaf && (deep || !background) ? deep ? leaf : targetForLeaf(document, leaf, selection) : undefined;
@@ -88,7 +89,7 @@ export class MoveInteraction {
       this.engine.previewMove(gesture.ids, delta, gesture.duplicate);
       const document = this.engine.getRenderDocument(), moving = gesture.duplicate ? this.engine.getRenderSelection() : gesture.ids;
       const home = document.nodes[moving[0]]?.parent;
-      gesture.drop = home && document.nodes[home]?.kind === "group" ? home : dragParent(document, point, moving);
+      gesture.drop = home && isGroupLike(document.nodes[home]) ? home : dragParent(document, point, moving);
       if (gesture.duplicate) this.#guides = neighbourGuides(document, moving);
       gesture.moved = true;
     } catch (error) { this.#fail(error); }

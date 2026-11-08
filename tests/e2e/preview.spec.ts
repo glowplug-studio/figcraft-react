@@ -2451,3 +2451,91 @@ test("winding and reversed inner loops retain holes and native geometry in the a
   await expect(page.locator(".figcraft-recovery")).toHaveText("Recovery saved on this device");
   await page.reload(); await resetCanvasOrigin(page); await expectCanvasPixel(page, 150, 150, [245,245,245,255]);
 });
+
+test("live boolean groups edit their operands, render cuts and recover native geometry", async ({ page }) => {
+  const engine = new EditorEngine();
+  const rectangle = (name: string, x: number, y: number, fill: string) =>
+    String(engine.execute("shape.rectangle", { x, y, width: 120, height: 100, props: { name, fill } }).id);
+  const bottom = rectangle("Base", 150, 140, "#ff0000");
+  const top = rectangle("Cutter", 210, 185, "#00ff00");
+  await login(page);
+  await page.getByLabel("Open Figcraft file", { exact: true }).setInputFiles({
+    name: "boolean.figcraft", mimeType: "application/octet-stream", buffer: Buffer.from(await engine.nativeSnapshot()),
+  });
+  const layers = page.getByRole("region", { name: "Layers", exact: true });
+  const row = (name: string) => layers.getByRole("button", { name, exact: true });
+  const menu = page.getByRole("button", { name: "Boolean groups", exact: true });
+  const choose = async (name: string) => {
+    await menu.click();
+    await page.getByRole("menuitemradio", { name, exact: true }).click();
+  };
+  const save = async () => {
+    const pending = page.waitForEvent("download");
+    await page.getByRole("button", { name: "Save as", exact: true }).click();
+    return (await decodeFigcraft(await readFile((await (await pending).path())!))).document;
+  };
+  const clickCanvas = async (x: number, y: number) => {
+    const p = await canvasPoint(page, x, y);
+    await page.mouse.click(p.x, p.y);
+  };
+  await expect(row("Base")).toBeVisible();
+  await resetCanvasOrigin(page);
+  await row("Base").click();
+  await row("Cutter").click({ modifiers: ["Shift"] });
+  await choose("Subtract");
+  const selected = layers.locator('li[aria-current="true"]');
+  const group = (await selected.getAttribute("data-layer-id"))!;
+  const saved = await save();
+  expect(saved.nodes[group]).toMatchObject({ kind: "booleanOp", op: "subtract", children: [bottom, top], fill: "#ff0000" });
+  const red = [255,0,0,255], background = [245,245,245,255];
+  await clickCanvas(390, 350);
+  await expectCanvasPixel(page, 180, 205, red);
+  await expectCanvasPixel(page, 235, 200, background);
+  await clickCanvas(235, 200);
+  await expect(selected).toHaveCount(0);
+  const origin = await canvasPoint(page, 144, 134);
+  await expect(page).toHaveScreenshot("boolean-subtract.png", { clip: { ...origin, width: 192, height: 158 }, animations: "disabled", maxDiffPixels: 0 });
+  await clickCanvas(175, 175);
+  await expect(selected).toHaveAttribute("data-layer-id", group);
+  await menu.click();
+  await expect(page.getByRole("menuitemradio", { name: "Subtract" })).toHaveAttribute("aria-checked", "true");
+  await expect(page.getByRole("menu", { name: "Boolean operations" })).toHaveScreenshot("boolean-operations.png", { animations: "disabled" });
+  await page.keyboard.press("Escape");
+  await choose("Intersect");
+  await expect(row("Intersect")).toBeVisible();
+  await expectCanvasPixel(page, 235, 200, red);
+  await choose("Union");
+  await expect(row("Union")).toBeVisible();
+  await row("Cutter").click();
+  await choose("Exclude");
+  await expect(layers.getByLabel("Exclude operand")).toBeVisible();
+  await expect(page.locator(".figcraft-recovery")).toHaveText("Recovery saved on this device");
+  await page.reload();
+  await resetCanvasOrigin(page);
+  await expect(layers.getByLabel("Exclude operand")).toBeVisible();
+  expect((await save()).nodes[top]).toMatchObject({ parent: group, boolOp: "exclude" });
+  await row("Union").click();
+  await choose("Subtract");
+  await expect(layers.getByLabel("Exclude operand")).toHaveCount(0);
+  await row("Cutter").click();
+  const start = await canvasPoint(page, 295, 255), end = await canvasPoint(page, 365, 255);
+  await page.mouse.move(start.x, start.y);
+  await page.mouse.down();
+  await page.mouse.move(end.x, end.y, { steps: 5 });
+  await expectCanvasPixel(page, 235, 200, red);
+  await page.mouse.up();
+  expect((await save()).nodes[top]).toMatchObject({ parent: group, x: 130 });
+  await page.getByRole("button", { name: "Undo", exact: true }).click();
+  expect((await save()).nodes[top]).toMatchObject({ parent: group, x: 60 });
+  await row("Subtract").click();
+  await page.setViewportSize({ width: 390, height: 844 });
+  await menu.click();
+  await expect(page.getByRole("menuitemradio", { name: "Subtract" })).toBeInViewport();
+  await page.getByRole("menuitem", { name: "Flatten" }).click();
+  const flat = await save();
+  expect(Object.values(flat.nodes).filter(n => n.kind === "vector")).toHaveLength(1);
+  expect(flat.nodes[top]).toBeUndefined();
+  expect(flat.nodes[bottom]).toBeUndefined();
+  await page.getByRole("button", { name: "Undo", exact: true }).click();
+  expect((await save()).nodes[group]).toMatchObject({ kind: "booleanOp", children: [bottom, top] });
+});

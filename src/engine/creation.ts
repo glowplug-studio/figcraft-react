@@ -1,3 +1,4 @@
+import { isGroupLike } from "./document";
 import { emptyNetwork, freezeNetwork } from "./vector-network";
 import { pathNetwork, pointsNetwork } from "./svg-path";
 import { isLeaf, withLayerTransform, type Document, type LayerNode, type NodeId } from "./document";
@@ -50,7 +51,7 @@ export function createLayer(before: { document: Document; selection: readonly No
     }
     transformBounds([1, 0, 0, 1, node.x, node.y], node.width, node.height);
     if (placement) node = withLayerTransform(node, multiply(inverse(worldTransform(before.document, parent.id)), placement));
-    else if (parent.kind === "group") node = withLayerTransform(node, multiply(inverse(frameRelative(before.document, parent.id)), [1, 0, 0, 1, node.x, node.y]));
+    else if (isGroupLike(parent)) node = withLayerTransform(node, multiply(inverse(frameRelative(before.document, parent.id)), [1, 0, 0, 1, node.x, node.y]));
     const draft = new HierarchyDraft(before.document);
     draft.insert(node, parent.id, index);
     let document: Document;
