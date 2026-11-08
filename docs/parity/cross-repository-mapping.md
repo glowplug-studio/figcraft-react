@@ -297,3 +297,7 @@ At dcc3c82, structure::simplify and the Kurbo cubic fitting rules map to simplif
 ## Shape Builder
 
 At a132b69, pathops::faces, union_faces and canvas/shapebuilder.rs map to path-arrangement, shape-builder, shape-builder-commands and ShapeBuilderInteraction. Native sources and named tests are linked from the [twelve-property matrix](../reports/26-11-09-shape-builder-parity.html). The independent browser tool covers fills, strokes, paint frames, atomic commands, input and recovery for supported node and paint types. Text contours, linked styles, auto layout and gradient sampling retain their downstream obligations.
+
+## Gradient paints
+
+At 113507a, color::Gradient, paint::prepare_at and diamond_pixmap map to gradient.ts and gradient-renderer.ts. Native paints, inspect, edited_list and set_gradient map to readPaint, paintStackEdit, pickedGradient and previewPaint. Native picker stop operations map to PaintPicker and GradientInteraction. Native files, sample colours, rotation, capture, undo and recovery have [property-level evidence](../reports/26-11-09-gradient-paints-parity.html).

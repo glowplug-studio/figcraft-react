@@ -33,3 +33,7 @@ The master roadmap lists earlier verified implementations from rectangles throug
 ## Resume instruction
 
 “Resume the paused full Figcraft port goal. Read docs/planning/26-11-07-full-port-resume.md and the master checkpoint, then continue from the existing local prompt/full-figcraft-port branch through full browser-relevant parity and final verified publication. Do not merge to main.”
+
+## 9 November gradient checkpoint
+
+The [gradient matrix](../reports/26-11-09-gradient-paints-parity.html) passed at 113507a. The [image plan](26-11-09-image-paints.md) records the current source, local graph, scoped Supabase read and exact next actions. The production host was stopped after 137/137 Chromium checks.
