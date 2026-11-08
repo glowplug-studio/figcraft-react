@@ -21,3 +21,7 @@ Phases 1–3. Rollback base 59700e8. Fork, upstream and local submodule at 8a7eb
 ### Local implementation
 
 Phase 4 connected six native fill commands to effective region stacks, selection, the solid paint clipboard and the existing appearance inspector. The stroke commands share the stack editor. Paired tests verify no-op inheritance, explicit empty lists, duplicate and invalid targets, atomic failure, mixed selection, command history and clipboard scoping. Keyboard and pointer context actions support copy, slot replacement and append. The local production browser passed the new region workflow at 1440 and 390 pixels, both screenshot fixtures and the 10,000-node fill benchmark. All 913 pure tests and two Auth integration checks passed. Phase 6 full Chromium regression is running. No application schema or Realtime change applies.
+
+### Verified checkpoint
+
+All 115 Chromium checks passed at a9f8ec6, with zero retries or skips. On the 10,000-node scene, p95 fill input was 0.3 ms and command plus drawing was 3.0 ms. The [property matrix](../reports/26-11-09-vector-region-fills-parity.html) contains ten passing rows and one explicitly pending non-solid paint row. The [next vector tool slice](26-11-09-vector-cut-erase-lasso.md) covers Cut, Eraser and Lasso.

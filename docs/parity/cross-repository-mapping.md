@@ -267,3 +267,5 @@ Native smoothed_corner, rounded_smoothed and drawn_network map to the shared pol
 Native vector_faces and vectoredit::paint_all map to vector-faces.ts, vector-paint.ts, vector.edit.paint and VectorInteraction. The reference hatch spacing and region loops are verified in the authenticated preview. [Property matrix](../reports/26-11-09-vector-paint-bucket-parity.html).
 
 Native vectoredit::region_hit, region_under, region_down and region_hatch map to hitPaintedRegion, VectorInteraction, selectVectorParts and regionHatch. Authenticated pointer, file, visual and 10,000-node evidence passed at React 59700e8. [Property matrix](../reports/26-11-09-vector-region-selection-parity.html).
+
+Native selected_region_fills, fill_regions, edit_region_fills, paint_list, paint_set_in and paint_copy/paste correspond to selectedRegionFills, writeFill, paintStackEdit and the session paint clipboard. Native inspector mixed state and contextual copy/paste use existing React appearance rows. [Regional solid paint evidence](../reports/26-11-09-vector-region-fills-parity.html).
