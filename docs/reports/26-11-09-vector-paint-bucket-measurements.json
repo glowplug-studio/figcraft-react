@@ -1,0 +1,26 @@
+{
+  "react": "50370fe01b5d63050e9a28e2361285e736d8481b",
+  "upstream": "8a7ebc2484a6d64d80a13c19c18ffb814325e347",
+  "stats": {
+    "startTime": "2026-11-08T17:15:40.687Z",
+    "duration": 236048.523,
+    "expected": 111,
+    "skipped": 0,
+    "unexpected": 0,
+    "flaky": 0
+  },
+  "paint": {
+    "operation": "paint",
+    "nodes": 10000,
+    "visibleEditedLayers": 100,
+    "selectedPoints": 100,
+    "measuredFrames": 110,
+    "p95": 4.399999976158142,
+    "max": 9.300000071525574,
+    "inputP95": 2.6999999284744263,
+    "rootNotifications": 0,
+    "chromeNotifications": 0,
+    "hoverPanP95": 2.200000047683716,
+    "restored": true
+  }
+}

@@ -263,3 +263,5 @@ Native vectoredit/ops.rs connect/join and vectoredit.rs join_cmd map to vector-c
 Native vectoredit/width.rs maps to vector-width.ts, VectorInteraction and VectorPanel. Stroke profile, shape geometry, command and undo boundaries are shared. [Per-property evidence](../reports/26-11-07-width-point-authoring-parity.html).
 
 Native smoothed_corner, rounded_smoothed and drawn_network map to the shared polygon corner profile, vector-rounded geometry and drawnVectorNetwork. CornerPanel exposes smoothing on closed vectors after recovery. [Geometry, file, inspector and browser evidence](../reports/26-11-07-closed-vector-smoothing-parity.html).
+
+Native vector_faces and vectoredit::paint_all map to vector-faces.ts, vector-paint.ts, vector.edit.paint and VectorInteraction. The reference hatch spacing and region loops are verified in the authenticated preview. [Property matrix](../reports/26-11-09-vector-paint-bucket-parity.html).

@@ -254,3 +254,7 @@ Vector editing now supports native Join and Smooth join in point and layer modes
 Variable-width authoring, sided handle dragging, point sliding, inspector commands, native saving and local recovery verified at 6b3529a. [Local checks and limitations](../reports/26-11-07-width-point-authoring.md).
 
 Closed-vector corner smoothing, authored point preservation, hit testing and recovered inspector eligibility verified at ca85638. [Ten checked properties](../reports/26-11-07-closed-vector-smoothing-parity.html).
+
+## Verified bounded additions — 9 November 2026
+
+Vector face discovery and solid Paint bucket editing passed at 50370fe. Non-solid region paints depend on their own codecs and renderers. [Evidence and open dependency](../reports/26-11-09-vector-paint-bucket-parity.html).
