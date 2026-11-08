@@ -1148,7 +1148,7 @@
       "source": "crates/engine/src/cmd/create.rs",
       "line": 113,
       "status": "Partial",
-      "scope": "Decoded placement, density, target append, shared bytes, undo and native recovery. Verified PNG sRGB and gamma/chromaticity metadata and embedded RGB/grey ICC labels and sRGB pixels from PNG, JPEG, WebP and TIFF. Document working spaces and remaining decoder variants are open.",
+      "scope": "Decoded placement, density, target append, shared bytes, undo and native recovery. Verified PNG sRGB and gamma/chromaticity metadata and embedded RGB/grey ICC labels and sRGB pixels from PNG, JPEG, WebP and TIFF. Working-space filter ordering passed for embedded ICC, gamma and untagged PNG. Remaining decoder variants and cache budgets are open.",
       "evidence": "docs/planning/26-11-09-image-paints.md"
     },
     {
@@ -1953,7 +1953,9 @@
       "label": "Color profile",
       "source": "crates/engine/src/cmd/file.rs",
       "line": 203,
-      "status": "Not tested"
+      "status": "Partial",
+      "scope": "Convert or assign sRGB and Display P3 in supported documents, preserve every supported colour, undo, save/open, device recovery and the file dialog. Additional colour-bearing native types follow their own slices.",
+      "evidence": "tests/parity/document-profile.test.ts"
     },
     {
       "command": "file.duplicate",
@@ -3678,7 +3680,9 @@
       "label": "Soft-proof sRGB",
       "source": "crates/engine/src/cmd/view.rs",
       "line": 313,
-      "status": "Not tested"
+      "status": "Passed",
+      "scope": "Per-file View toggle with sRGB gamut stripes over the composited P3 page. A fresh file clears proofing. Verified through the menu, engine, canvas and gamut warning.",
+      "evidence": "tests/e2e/preview.spec.ts"
     },
     {
       "command": "view.snapGeometry",

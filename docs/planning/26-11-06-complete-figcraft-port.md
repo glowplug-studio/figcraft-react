@@ -8,13 +8,13 @@
 | Active slice | Image resources and paints |
 | Active phase | Phase 4. [Image source colour, rendering and archive verification](26-11-09-image-paints.md#raster-import-and-crop). |
 | Upstream baseline | Closed-vector smoothing reference 3daa9d32. Paint bucket reference 8a7ebc24. Global supported baseline 8eb0b876. |
-| Branch and last verified commit | `prompt/full-figcraft-port`, embedded ICC 29902bc, PNG source colour 3c80225. Earlier checkpoints are recorded below and in the dated plans. |
+| Branch and last verified commit | `prompt/full-figcraft-port`, document working spaces 8d97001, embedded ICC 29902bc. Earlier checkpoints are recorded below and in the dated plans. |
 | Completed slices | Rectangle/host-auth, bounded native persistence/recovery, supported-model pages, affine rectangle geometry/selection and solid appearance, plus nested group hierarchy, Frame containers, movement/transform gestures, rounded corners, ellipse/arc/ring and Polygon/Star editing verified locally; Line/Arrow and uniform solid strokes also verified; per-side Rectangle/Frame strokes, variable-width profiles and procedural brushes verified; vector networks, solid region/stroke rendering and Flatten/Reverse also verified; foundation commit `154f5a7` |
 | Remaining slices | Every row below except the integrated foundation; static inventory entries remain unverified until mapped and tested |
-| Tests last passed | At the 29902bc checkpoint, 151/151 production Chromium workflows, strict TypeScript, both production builds, 1,064 pure tests and two local Auth tests passed. |
-| Files currently in progress | Display P3 working-space conversion, file persistence, rendering and dialog. |
+| Tests last passed | At 8d97001, all 155 production Chromium workflows, strict TypeScript, both production builds, 1,069 pure tests and both local Auth tests passed. The 10,000-node Display P3 pan measured 13.8 ms p95. |
+| Files currently in progress | Two- and four-component JPEG sampling in TIFF strips and tiles. |
 | Blockers | No blocker. Use local Graphify for all remaining slices. The scoped Supabase read succeeded. |
-| Exact next action | Verify the document working-space command, direct P3 image transforms, sRGB screen preview, native save/open and recovery. Then cover four-channel JPEG TIFF, visible cache overflow and archive budgets. |
+| Exact next action | Verify raw JPEG TIFF components, alpha and memory bounds against real browser pixels. Complete cache-pressure and file-budget work before closing the image slice. |
 | Last updated | 2026-11-09 |
 
 ## Scope and continuation

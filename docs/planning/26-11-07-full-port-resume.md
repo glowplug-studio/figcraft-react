@@ -4,7 +4,7 @@ Resumed on 8 November. The objective is still full browser-relevant parity and f
 
 ## Current checkpoint
 
-Latest verified image implementation is 29902bc. The rebuilt host passed 151/151 Chromium checks. Document working-space integration is under way. The active image work and exact next action are in the [master checkpoint](26-11-06-complete-figcraft-port.md#execution-checkpoint). The sections below record earlier restart points in chronological order.
+Document working spaces at 8d97001 passed 155/155 Chromium checks. The current two- and four-component TIFF JPEG decoder work follows this checkpoint. The active image work and exact next action are in the [master checkpoint](26-11-06-complete-figcraft-port.md#execution-checkpoint). The sections below record earlier restart points in chronological order.
 
 ## Checkout and release state
 
