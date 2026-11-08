@@ -41,7 +41,7 @@ The archive checkpoint d629a99 passed 1,011 pure tests, both local Auth checks a
 
 ## Image placement and editing checkpoint
 
-Phase 4 remains active at 096ede0 against Rust 8a7ebc24. The global supported baseline remains 8eb0b876. The next interaction is the image well in the paint picker, including placeholder cancellation, upload and drop, region isolation, adjustments, presets and recovery. Then implement canvas crop, clipboard placement, GIF animation, colour profiles, cache pressure and the remaining pixel comparisons before the image release gates.
+The command checkpoint was 096ede0 against Rust 8a7ebc24. The global supported baseline remains 8eb0b876. The following picker checkpoint records browser coverage for those commands.
 
 | Commit | Implemented and verified |
 |---|---|
@@ -52,3 +52,11 @@ Phase 4 remains active at 096ede0 against Rust 8a7ebc24. The global supported ba
 The TIFF fixtures use independent LibTIFF encodings. The three-by-two RGB source is stored as big-endian predicted Deflate strips, planar LZW, tiled BigTIFF PackBits and RGB JPEG with shared tables. The Group 4 rows exercise horizontal, vertical, pass and long runs. The larger LZW fixture checks all code widths against a deterministic uncompressed source. JPEG dimensions and shared-table extents are checked before browser decoding. The archive retains original encoded bytes. Four-channel JPEG, floating-point predictors, wide-gamut/profile handling and stress tests at the allocation limit still need comparison with the pinned native dependencies. See the [TIFF specification](https://download.osgeo.org/libtiff/doc/TIFF6.pdf).
 
 At 6877404 the combined local graph had 29,821 nodes and 98,349 edges, with readImagePaint and image_transform in their owning source files. At e889fff it had 29,857 nodes and 98,426 edges, including decodeTiff. At 096ede0 it has 29,875 nodes and 98,515 edges. Verified editImagePaints and replaceImage against the Rust replace and image_transform paths. Macro registrations and pixel outcomes still require direct source and test evidence.
+
+## Image picker checkpoint
+
+Phase 4 continues at 35ac0bd. The Image tab shows a checkerboard without changing the current paint. Upload validates the file and replaces the selected fill or stroke. Whole-layer replacement retains settings. Upload into selected vector regions edits only those region fills. Closing the picker cancels an outstanding read. The preview displays decoded pixels, including TIFF. Controls cover Fill, Fit, Crop and Tile, quarter turns, seven adjustment sliders, saved presets and Reset. The Crop option in the picker changes scale mode. Entering canvas crop with image.crop still requires its separate engine and interaction path.
+
+The [picker screenshot](../../tests/e2e/preview.spec.ts-snapshots/image-picker-warm.png) shows the reviewed reference for this browser implementation. Strict TypeScript, library and Next.js builds, 1,035 pure tests and both local Auth tests passed. Three focused Chromium workflows passed in 9.6 seconds, including six-format open, desktop upload/drop/undo/recovery and narrow-screen stroke editing. The most recent full run was 141/141 at the TIFF checkpoint. Graphify at 35ac0bd and Rust 8a7ebc24 has 29,887 nodes and 98,563 edges. Verified ImagePaintControls in the React graph and image_well in the Rust graph.
+
+Next implement raster file.import through canvas drop and image paste. Follow canvas/input.rs::import_dropped and menus/clipboard.rs::paste. Preserve drop coordinates, centre a pasted image using density-aware dimensions, route the first image to an active layer picker and remaining files to the canvas, and preserve ordinary text input. Then implement image.crop and the canvas crop handles, animated GIFs, embedded profiles, remaining TIFF variants and cache-pressure verification. No release or publication gate has passed for the full image slice.

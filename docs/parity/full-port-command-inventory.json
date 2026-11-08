@@ -2078,7 +2078,7 @@
       "source": "crates/engine/src/cmd/image.rs",
       "line": 13,
       "status": "Partial",
-      "scope": "Layer fill and stroke batches, saved and built-in presets, range sanitisation, explicit index, atomic refusal and undo. Linked styles and interactive controls remain open.",
+      "scope": "Layer fill and stroke batches, saved and built-in presets, range sanitisation, explicit index, atomic refusal and undo. Desktop and narrow picker controls verified. Linked-style detachment remains open.",
       "evidence": "docs/planning/26-11-09-image-paints.md"
     },
     {
@@ -2087,7 +2087,7 @@
       "source": "crates/engine/src/cmd/image.rs",
       "line": 20,
       "status": "Partial",
-      "scope": "Atomic layer fill or stroke replacement, default top image and explicit index, preserved appearance, deduplication and undo. Picker and region workflows remain open.",
+      "scope": "Atomic layer fill or stroke replacement, default top image and explicit index, preserved appearance, deduplication and undo. Single-file picker replacement and isolated region upload verified. Multi-file routing remains open.",
       "evidence": "docs/planning/26-11-09-image-paints.md"
     },
     {
@@ -2096,7 +2096,7 @@
       "source": "crates/engine/src/cmd/image.rs",
       "line": 27,
       "status": "Partial",
-      "scope": "Explicit or selected filters, cleaned Unicode names, exact-name replacement, native cap, persistence and undo. Browser picker verification remains open.",
+      "scope": "Explicit or selected filters, cleaned Unicode names, exact-name replacement, native cap, persistence and undo. Authenticated browser picker workflow verified.",
       "evidence": "docs/planning/26-11-09-image-paints.md"
     },
     {
@@ -2105,7 +2105,7 @@
       "source": "crates/engine/src/cmd/image.rs",
       "line": 34,
       "status": "Partial",
-      "scope": "Exact saved name, missing-name refusal and undo. Browser picker verification remains open.",
+      "scope": "Exact saved name, missing-name refusal and undo. Authenticated browser picker workflow verified.",
       "evidence": "docs/planning/26-11-09-image-paints.md"
     },
     {

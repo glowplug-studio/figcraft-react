@@ -45,4 +45,4 @@ Resume Phase 4 from 7b32853 on the full-port branch. The [image plan](26-11-09-i
 
 ## 9 November image rendering and commands
 
-Resume from 096ede0 on the canonical branch. The image slice is in Phase 4. The [active image plan](26-11-09-image-paints.md#image-placement-and-editing-checkpoint) records the verified placement, TIFF and command commits, graph revisions and open rows. Next wire the image picker, then canvas crop, paste, animated images, embedded profiles and cache stress. Complete all subsequent roadmap and publication gates.
+Resume Phase 4 from image picker checkpoint 35ac0bd on the canonical branch. The [active image plan](26-11-09-image-paints.md#image-picker-checkpoint) records implementation, graph revisions, exact verification and open rows. Next wire raster file.import, canvas drop and image paste, then canvas crop, animated images, embedded profiles and cache stress. Complete all subsequent roadmap and publication gates.
