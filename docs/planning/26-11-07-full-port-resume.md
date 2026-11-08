@@ -2,6 +2,10 @@
 
 Resumed on 8 November. The objective is still full browser-relevant parity and final verified publication under [the governing prompt](../prompts/26-11-06-astra-high-step-port.md). Use the [master roadmap](26-11-06-complete-figcraft-port.md) and [feature inventory](../parity/full-port-feature-inventory.md). The live demo is the earlier rectangle release.
 
+## Current checkpoint
+
+The active image work and exact next action are in the [master checkpoint](26-11-06-complete-figcraft-port.md#execution-checkpoint). The sections below record earlier restart points in chronological order.
+
 ## Checkout and release state
 
 - Use the established canonical figcraft-react checkout, branch `prompt/full-figcraft-port`. The branch already contains updated dev and the rectangle slice. Resume the existing branch. The remote branch contains the pause checkpoint. The latest smoothing regression correction is local.
@@ -52,3 +56,7 @@ Resume Phase 4 from image picker checkpoint 35ac0bd on the canonical branch. The
 Resume image Phase 4 after 34a3e3d. Raster import/drop/paste and crop gestures passed strict types, production builds, 1,046 pure tests, two local Auth tests and 146/146 production browser workflows. The local graph and source mapping are recorded in the [image plan](26-11-09-image-paints.md#raster-import-and-crop). Next verify float-predictor TIFFs, progressive JPEG sampling and animated GIF editor idle. Then finish colour management, cache bounds, performance fixtures and remaining image gates. Final publication remains pending.
 
 The decoder checkpoint at 8ca195d passed 147/147 production Chromium checks. The image plan lists the newly verified formats and native GIF editor behaviour. Magnified canvas pixels, cache pressure, input profiles and native archive budgeting remain in progress.
+
+## 9 November image sampling and source colour
+
+The full suite passed 148/148 at ba25ef5. Resume from 3c80225 with PNG gamma and chromaticity labelling verified by 1,055 pure tests, both local Auth checks, strict types, production builds and three focused Chromium workflows. The [image plan](26-11-09-image-paints.md#raster-import-and-crop) lists the exact embedded ICC acceptance cases, remaining image limits and subsequent gates. No hosted change accompanied these checkpoints.
