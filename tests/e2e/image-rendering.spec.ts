@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { build } from "vite";
-import type { imagePixels, largeImagePaints } from "../fixtures/image-rendering";
+import type { imagePixels, largeImagePaints, imageCachePressure, imageBytePressure, interruptedImagePage } from "../fixtures/image-rendering";
 
 async function loadImages(page:Page) {
   const bundle = await build({ configFile:false, logLevel:"silent", build:{ write:false, lib:{ entry:"tests/fixtures/image-rendering.ts", name:"FigcraftImages", formats:["iife"] } } });
@@ -37,4 +37,31 @@ test("two large images reuse preview copies and retain individual texels at doub
   expect(result.sizes.slice(2)).toEqual([[6000,8],[6000,8]]);
   expect(result.mismatches).toEqual([0,0]);
   expect(result.p95).toBeLessThan(16.7);
+});
+
+test("all 264 visible images render in order within the 256-bitmap cache", async ({page}) => {
+  await loadImages(page);
+  const result = await page.evaluate(() => (window as unknown as {FigcraftImages:{imageCachePressure:typeof imageCachePressure}})
+    .FigcraftImages.imageCachePressure(document.querySelector("canvas")!));
+  expect(result.cold).toBe(264);
+  expect(result.decoded).toBe(result.cold);
+  expect(result.peak).toBeLessThanOrEqual(257); // One decoder result can be awaiting insertion.
+  expect(result.retained).toBeLessThanOrEqual(256);
+  expect(result.afterClose).toBe(0);
+});
+
+test("decoded bytes evict the least recently used image and hold an oversized entry alone", async ({page}) => {
+  await loadImages(page);
+  const created = await page.evaluate(() => (window as unknown as {FigcraftImages:{imageBytePressure:typeof imageBytePressure}})
+    .FigcraftImages.imageBytePressure(document.querySelector("canvas")!));
+  expect(created).toEqual(["a","b","c","d","b","wide","a"]);
+});
+
+test("an interrupted image frame preserves replacement clipping and composites opacity once", async ({page}) => {
+  await loadImages(page);
+  const result = await page.evaluate(() => (window as unknown as {FigcraftImages:{interruptedImagePage:typeof interruptedImagePage}})
+    .FigcraftImages.interruptedImagePage(document.querySelector("canvas")!));
+  expect(result.inside).toEqual([127,127,255,255]);
+  expect(result.clipped).toEqual([255,255,255,255]);
+  expect(result.released).toEqual([0,0]);
 });

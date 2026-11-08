@@ -20,8 +20,7 @@ interface ImageVariant {
   width: number;
   height: number;
   bytes: number;
-  frame: number;
-  state: "queued" | "loading" | "ready" | "failed";
+  loading?: boolean;
   bitmap?: ImageBitmap;
 }
 
@@ -53,7 +52,7 @@ export async function decodeVariant(entry: Pick<ImageVariant, "resource" | "widt
   } finally { source.close(); }
 }
 
-export type DrawImagePaint = (context: CanvasRenderingContext2D, paint: ImagePaint, width: number, height: number, space?: RegionPaintSpace) => void;
+export type PaintSteps = Generator<[context: CanvasRenderingContext2D, paint: ImagePaint, width: number, height: number, space?: RegionPaintSpace], void>;
 
 function coversBox(paint: ImagePaint, iw: number, ih: number, w: number, h: number): boolean {
   if (paint.scale_mode !== "crop") return paint.scale_mode === "fill";
@@ -112,11 +111,14 @@ export class CanvasImages {
   #entries = new Map<string, ImageVariant>();
   #resources?: Readonly<Record<string, ImageResource>>;
   #redraw?: () => void;
-  #frame = 0;
+  readonly #budget: number;
   #profile: ColourProfile = "srgb";
   #bytes = 0;
-  #loading = false;
+  #loading?: Promise<void>;
+  #ghostWaiting?: Promise<void>;
   #filterKeys = new WeakMap<ImageFilters, string>();
+
+  constructor(byteBudget = PIXEL_BYTES) { this.#budget = byteBudget; }
 
   begin(resources: Readonly<Record<string, ImageResource>>, redraw: () => void, profile: ColourProfile = "srgb") {
     this.#profile = profile;
@@ -125,14 +127,26 @@ export class CanvasImages {
     }
     this.#resources = resources;
     this.#redraw = redraw;
-    this.#frame++;
+
   }
 
-  draw: DrawImagePaint = (ctx, paint, width, height, space) => this.#draw(ctx,paint,width,height,space);
-  drawGhost(ctx:CanvasRenderingContext2D,paint:ImagePaint,width:number,height:number) {
-    this.#draw(ctx,paint,width,height,undefined,2048);
+  paint(ctx: CanvasRenderingContext2D, paint: ImagePaint, width: number, height: number, space?: RegionPaintSpace) {
+    return this.#draw(ctx, paint, width, height, space);
   }
-  #draw(ctx:CanvasRenderingContext2D,paint:ImagePaint,width:number,height:number,space?:RegionPaintSpace,maxSide?:number) {
+
+  drawGhost(ctx:CanvasRenderingContext2D,paint:ImagePaint,width:number,height:number) {
+    const pending = this.#draw(ctx,paint,width,height,undefined,2048);
+    if (pending && pending !== this.#ghostWaiting) {
+      this.#ghostWaiting = pending;
+      void pending.then(() => {
+        if (this.#ghostWaiting !== pending) return;
+        this.#ghostWaiting = undefined;
+        this.#redraw?.();
+      });
+    }
+  }
+
+  #draw(ctx:CanvasRenderingContext2D,paint:ImagePaint,width:number,height:number,space?:RegionPaintSpace,maxSide?:number): void | Promise<void> {
     const resource = this.#resources?.[paint.image];
     if (!resource || !resource.width || !resource.height || resource.width * resource.height * 4 > PIXEL_BYTES) return;
     const w = space?.width ?? width, h = space?.height ?? height;
@@ -152,14 +166,33 @@ export class CanvasImages {
       this.#filterKeys.set(paint.filters, filterKey);
     }
     const key = JSON.stringify([paint.image, rw, rh, filterKey, this.#profile]);
-    let entry = this.#entries.get(key);
-    if (entry && entry.resource !== resource) { this.#remove(key, entry); entry = undefined; }
-    if (!entry) {
-      entry = { key: paint.image, resource, profile: this.#profile, screen: false, filters: paint.filters, width: rw, height: rh, bytes: rw*rh*4, frame: this.#frame, state: "queued" };
-      this.#entries.set(key, entry);
+    const cached = this.#entries.get(key);
+    if (cached && cached.resource === resource) {
+      if (cached.loading) return this.#loading;
+      this.#entries.delete(key);
+      this.#entries.set(key, cached);
+      if (cached.bitmap) drawPixels(ctx, paint, cached.bitmap, width, height, space, maxSide === undefined);
+      return;
     }
-    entry.frame = this.#frame;
-    if (entry.bitmap) drawPixels(ctx, paint, entry.bitmap, width, height, space, maxSide === undefined);
+    if (this.#loading) return this.#loading;
+    const bytes = rw * rh * 4;
+    for (const [oldKey, old] of this.#entries) {
+      if (this.#entries.size < MAX_CACHED_IMAGES && this.#bytes + bytes <= this.#budget) break;
+      this.#remove(oldKey, old);
+    }
+    const entry: ImageVariant = {key:paint.image, resource, profile:this.#profile, screen:false, filters:paint.filters,
+      width:rw, height:rh, bytes, loading:true};
+    this.#entries.set(key,entry);
+    const current = () => this.#entries.get(key) === entry;
+    this.#loading = decodeVariant(entry,current).then(bitmap => {
+      if (!current()) { bitmap.close(); return; }
+      entry.bitmap = bitmap;
+      this.#bytes += entry.bytes;
+    }, () => { /* Keep this unreadable variant empty until the resource changes or is evicted. */ }).finally(() => {
+      entry.loading = false;
+      this.#loading = undefined;
+    });
+    return this.#loading;
   }
 
   #remove(key: string, entry: ImageVariant) {
@@ -167,39 +200,10 @@ export class CanvasImages {
     if (entry.bitmap) { this.#bytes -= entry.bytes; entry.bitmap.close(); }
   }
 
-  end() {
-    for (const [key, entry] of this.#entries) {
-      if (entry.frame !== this.#frame && entry.state !== "ready") this.#remove(key, entry);
-    }
-    if (!this.#loading) void this.#load();
-  }
-
-  async #load() {
-    this.#loading = true;
-    try {
-      for (const [key, entry] of this.#entries) {
-        if (entry.state !== "queued" || entry.frame !== this.#frame) continue;
-        for (const [oldKey, old] of this.#entries) {
-          if (this.#bytes + entry.bytes <= PIXEL_BYTES && this.#entries.size <= MAX_CACHED_IMAGES) break;
-          if (old.state === "ready" && old.frame !== this.#frame) this.#remove(oldKey, old);
-        }
-        if (this.#bytes + entry.bytes > PIXEL_BYTES) continue;
-        entry.state = "loading";
-        try {
-          const bitmap = await decodeVariant(entry, () => this.#entries.get(key) === entry);
-          if (this.#entries.get(key) !== entry) { bitmap.close(); continue; }
-          entry.bitmap = bitmap;
-          entry.state = "ready";
-          this.#bytes += entry.bytes;
-          this.#redraw?.();
-        } catch { entry.state = "failed"; }
-      }
-    } finally { this.#loading = false; }
-  }
-
   clear() {
     for (const [key, entry] of this.#entries) this.#remove(key, entry);
     this.#resources = undefined;
+    this.#ghostWaiting = undefined;
     this.#redraw = undefined;
   }
 }

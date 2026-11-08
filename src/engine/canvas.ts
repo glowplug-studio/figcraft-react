@@ -21,7 +21,8 @@ import { paintStroke, strokeBounds } from "./stroke-renderer";
 import { hasVisibleStroke } from "./stroke";
 import { ImageCropInteraction } from "./image-crop-interaction";
 import { GradientInteraction } from "./gradient-interaction";
-import { CanvasImages, type DrawImagePaint } from "./image-renderer";
+import { ImagePage } from "./image-page";
+import { CanvasImages, type PaintSteps } from "./image-renderer";
 import { drawGradient } from "./gradient-renderer";
 import { vectorPaintRegions } from "./vector-presentation";
 import { VectorInteraction } from "./vector-interaction";
@@ -31,13 +32,14 @@ import { ShapeBuilderInteraction } from "./shape-builder-interaction";
 import { pencilPointerPressure } from "./pencil-samples";
 
 const workingSurfaces = new WeakMap<CanvasRenderingContext2D, CanvasRenderingContext2D>();
+const imagePages = new WeakMap<CanvasRenderingContext2D, ImagePage>();
 const imageCaches = new WeakMap<CanvasRenderingContext2D, CanvasImages>();
 const compositeSurfaces = new WeakMap<CanvasRenderingContext2D, HTMLCanvasElement>();
 // Immutable document snapshots invalidate these derived bounds after any edit.
 const groupBounds = new WeakMap<Document, Map<string, Rectangle | undefined>>();
 const opacity = (value: number) => Math.max(0, Math.min(1, value));
 
-function paintRectangle(context: CanvasRenderingContext2D, node: LayerNode, alpha = 1, strokes = true, drawImage?: DrawImagePaint): void {
+function* paintRectangle(context: CanvasRenderingContext2D, node: LayerNode, alpha = 1, strokes = true): PaintSteps {
   context.save();
   if (node.transform) context.transform(...node.transform);
   else context.translate(node.x, node.y);
@@ -51,22 +53,22 @@ function paintRectangle(context: CanvasRenderingContext2D, node: LayerNode, alph
       context.clip(region.rule);
       const space = "space" in region ? region.space : undefined;
       if (paint.type === "gradient") drawGradient(context, paint, node.width, node.height, space);
-      else drawImage?.(context, paint, node.width, node.height, space);
+      else yield [context, paint, node.width, node.height, space];
       context.restore(); continue;
     }
     context.fillStyle = renderColour(paint.color);
     if (region.path) { context.beginPath(); tracePath(context, region.path); context.fill(region.rule); }
     else context.fillRect(0, 0, node.width, node.height);
   }
-  if (strokes) paintStroke(context, node, alpha, drawImage);
+  if (strokes) yield* paintStroke(context, node, alpha);
   context.restore();
 }
-function paintLayerStroke(context: CanvasRenderingContext2D, node: LayerNode, drawImage?: DrawImagePaint): void {
-  context.save(); context.transform(...rectangleTransform(node)); paintStroke(context, node, 1, drawImage); context.restore();
+function* paintLayerStroke(context: CanvasRenderingContext2D, node: LayerNode): PaintSteps {
+  context.save(); context.transform(...rectangleTransform(node)); yield* paintStroke(context, node, 1); context.restore();
 }
 
 /** Node opacity affects the finished stack, including antialiased edges, once. */
-function paintComposite(context: CanvasRenderingContext2D, node: LayerNode, draw: (target: CanvasRenderingContext2D) => void, painted?: Rectangle): void {
+function* paintComposite(context: CanvasRenderingContext2D, node: LayerNode, draw: (target: CanvasRenderingContext2D) => PaintSteps, painted?: Rectangle): PaintSteps {
   const matrix = context.getTransform();
   const bounds = painted ?? strokeBounds(node, multiply([matrix.a, matrix.b, matrix.c, matrix.d, matrix.e, matrix.f], rectangleTransform(node)));
   const left = Math.max(0, Math.floor(bounds.x)), top = Math.max(0, Math.floor(bounds.y));
@@ -84,7 +86,7 @@ function paintComposite(context: CanvasRenderingContext2D, node: LayerNode, draw
   if (!scratch) throw new Error("Canvas compositing is unavailable");
   scratch.resetTransform(); scratch.clearRect(0, 0, width, height);
   scratch.setTransform(matrix.a, matrix.b, matrix.c, matrix.d, matrix.e - left, matrix.f - top);
-  draw(scratch);
+  yield* draw(scratch);
   context.save(); context.resetTransform(); context.globalAlpha = opacity(node.opacity ?? 1);
   context.drawImage(surface, 0, 0, width, height, left, top, width, height); context.restore();
 }
@@ -120,33 +122,33 @@ function paintedGroupBounds(context: CanvasRenderingContext2D, document: Documen
   return screenBounds(bounds);
 }
 
-function drawLayer(context: CanvasRenderingContext2D, document: Document, node: LayerNode, drawImage?: DrawImagePaint, depth = 0): void {
+function* drawLayer(context: CanvasRenderingContext2D, document: Document, node: LayerNode, depth = 0): PaintSteps {
   if (node.visible === false || (node.opacity ?? 1) <= 0 || depth > 256) return;
   if (node.kind === "booleanOp") {
     const result = booleanResult(document, node);
-    if (result) drawLayer(context, document, result, drawImage, depth);
+    if (result) yield* drawLayer(context, document, result, depth);
     return;
   }
   if (!isLeaf(node)) {
-    const draw = (target: CanvasRenderingContext2D) => {
-      if (node.kind === "frame") paintRectangle(target, node, 1, false, drawImage);
+    const draw = function* (target: CanvasRenderingContext2D): PaintSteps {
+      if (node.kind === "frame") yield* paintRectangle(target, node, 1, false);
       target.save(); target.transform(...rectangleTransform(node));
       if (node.kind === "frame" && node.clip) { target.beginPath(); tracePath(target, shapePath(node)); target.clip(); }
       for (const id of node.children) {
         const child = document.nodes[id];
-        if (child && child.kind !== "page") drawLayer(target, document, child, drawImage, depth + 1);
+        if (child && child.kind !== "page") yield* drawLayer(target, document, child, depth + 1);
       }
       target.restore();
-      if (node.kind === "frame" && hasVisibleStroke(node)) paintLayerStroke(target, node, drawImage);
+      if (node.kind === "frame" && hasVisibleStroke(node)) yield* paintLayerStroke(target, node);
     };
     if (opacity(node.opacity ?? 1) < 1) {
       const bounds = paintedGroupBounds(context, document, node);
-      if (bounds) paintComposite(context, node, draw, bounds);
-    } else draw(context);
+      if (bounds) yield* paintComposite(context, node, draw, bounds);
+    } else yield* draw(context);
   } else if (hasShapePath(node) || hasVisibleStroke(node) || node.fills || node.opacity !== undefined && node.opacity !== 1) {
     const fillCount = node.kind === "vector" ? vectorPaintRegions(node).reduce((sum, region) => sum + region.paints.length, 0) : rectanglePaints(node).length;
-    if (fillCount + (node.strokes?.length ?? 0) > 1 && opacity(node.opacity ?? 1) < 1) paintComposite(context, node, target => paintRectangle(target, node, 1, true, drawImage));
-    else paintRectangle(context, node, opacity(node.opacity ?? 1), true, drawImage);
+    if (fillCount + (node.strokes?.length ?? 0) > 1 && opacity(node.opacity ?? 1) < 1) yield* paintComposite(context, node, target => paintRectangle(target, node, 1, true));
+    else yield* paintRectangle(context, node, opacity(node.opacity ?? 1), true);
   } else {
     context.fillStyle = node.fill;
     if (node.transform) {
@@ -162,22 +164,36 @@ export function renderDocument(context: CanvasRenderingContext2D, document: Docu
 
 function drawDocumentFrame(context: CanvasRenderingContext2D, document: Document, width: number, height: number, selection: readonly string[], preview?: Rectangle, view?: Viewport, editingId?: string, invalidate?: () => void, drawImageOverlay?: (images?: CanvasImages) => void): void {
   let images = imageCaches.get(context);
+  let redraw = invalidate;
   if (document.images) {
     if (!images) { images = new CanvasImages(); imageCaches.set(context, images); }
     const matrix = invalidate ? undefined : context.getTransform();
-    images.begin(document.images, invalidate ?? (() => {
+    redraw ??= () => {
       context.save();
       try {
         context.setTransform(matrix!);
         drawDocumentFrame(context, document, width, height, selection, preview, view, editingId, undefined, drawImageOverlay);
       } finally { context.restore(); }
-    }), document.colourProfile);
+    };
+    images.begin(document.images, redraw, document.colourProfile);
   } else if (images) {
     images.clear();
-    imageCaches.delete(context);
+    imagePages.get(context)?.clear();
+    imagePages.delete(context);
     images = undefined;
   }
   const origin = view ? viewOrigin(view) : { x: 0, y: 0 }, zoom = view?.zoom ?? 1;
+  function drawPage(target: CanvasRenderingContext2D) {
+    const paint = (ctx: CanvasRenderingContext2D) => paintPage(ctx,document,width,height,origin,zoom);
+    if (images && redraw) {
+      let staged = imagePages.get(context);
+      if (!staged) { staged = new ImagePage(); imagePages.set(context, staged); }
+      staged.draw(target,document,width,height,origin,zoom,images,paint,redraw);
+    } else {
+      // Missing image references are transparent, including in legacy files without image members.
+      for (const _ of paint(target)) { /* No bitmap to draw. */ }
+    }
+  }
   if (document.colourProfile === "displayP3") {
     let working = workingSurfaces.get(context);
     if (!working) {
@@ -191,7 +207,7 @@ function drawDocumentFrame(context: CanvasRenderingContext2D, document: Document
     if (working.canvas.height !== h) working.canvas.height = h;
     if (width > 0 && height > 0) {
       working.setTransform(w / width, 0, 0, h / height, 0, 0);
-      paintPage(working, document, width, height, origin, zoom, images);
+      drawPage(working);
       const rows = Math.max(1, Math.floor(262144 / w));
       for (let y = 0; y < h; y += rows) {
         const strip = working.getImageData(0, y, w, Math.min(h - y, rows));
@@ -207,7 +223,7 @@ function drawDocumentFrame(context: CanvasRenderingContext2D, document: Document
       surface.width = surface.height = 0;
       workingSurfaces.delete(context);
     }
-    paintPage(context, document, width, height, origin, zoom, images);
+    drawPage(context);
   }
   context.save();
   context.scale(zoom, zoom); context.translate(-origin.x, -origin.y);
@@ -261,10 +277,10 @@ function drawDocumentFrame(context: CanvasRenderingContext2D, document: Document
   }
   context.restore();
   drawImageOverlay?.(images);
-  images?.end();
+
 }
 
-function paintPage(context: CanvasRenderingContext2D, document: Document, width: number, height: number, origin: Point, zoom: number, images?: CanvasImages) {
+function* paintPage(context: CanvasRenderingContext2D, document: Document, width: number, height: number, origin: Point, zoom: number): PaintSteps {
   const page = pageOf(document);
   context.clearRect(0, 0, width, height);
   context.fillStyle = page.backgroundColor ? renderColour(pageColour(page)) : page.background;
@@ -278,7 +294,7 @@ function paintPage(context: CanvasRenderingContext2D, document: Document, width:
       const bounds = hasVisibleStroke(node) ? strokeBounds(node, rectangleTransform(node)) : node.transform ? transformBounds(node.transform, node.width, node.height) : node;
       if (bounds.x > origin.x + width / zoom || bounds.y > origin.y + height / zoom || bounds.x + bounds.width < origin.x || bounds.y + bounds.height < origin.y) continue;
     }
-    drawLayer(context, document, node, images?.draw);
+    yield* drawLayer(context, document, node);
   }
   context.restore();
 }
@@ -665,7 +681,7 @@ export class CanvasController {
   }
   dispose(): void {
     const context = this.canvas.getContext("2d");
-    if (context) { imageCaches.get(context)?.clear(); imageCaches.delete(context); }
+    if (context) { imagePages.get(context)?.clear(); imagePages.delete(context); imageCaches.get(context)?.clear(); imageCaches.delete(context); }
     this.#disposed = true;
     this.cancel();
     cancelAnimationFrame(this.#frame);
