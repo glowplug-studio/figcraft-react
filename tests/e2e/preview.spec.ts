@@ -2702,3 +2702,77 @@ test("Simplify vector reduces editable segments and recovers a closed fill plus 
   await expect(row).toBeVisible();
   expect(await save()).toEqual(simplified);
 });
+
+test("authenticated host renders its initial editor shell on the server", async ({ page }) => {
+  await login(page);
+  const response = await page.request.get("/");
+  expect(response.status()).toBe(200);
+  const html = await response.text();
+  expect(html).toMatch(/<button[^>]*>Sign out<\/button>/);
+  expect(html).toMatch(/<p role="status">Opening editor…<\/p>/);
+});
+
+test("Shape Builder hatches overlaps, commits one drag and recovers editable regions", async ({page}) => {
+  const seed = new EditorEngine();
+  const rectangle = (x: number, fill: string, name: string) => String(seed.execute("shape.rectangle", {
+    x, y:120, width:100, height:80, props:{fill,name},
+  }).id);
+  const red = rectangle(120,"#ff0000","Red"), blue = rectangle(180,"#0000ff","Blue");
+  await login(page);
+  await page.getByLabel("Open Figcraft file",{exact:true}).setInputFiles({
+    name:"builder.figcraft",mimeType:"application/octet-stream",buffer:Buffer.from(await seed.nativeSnapshot()),
+  });
+  const canvas = page.getByLabel("Design canvas",{exact:true});
+  const toolbar = page.getByRole("toolbar",{name:"Shape Builder",exact:true});
+  const save = async () => {
+    const pending = page.waitForEvent("download");
+    await page.getByRole("button",{name:"Save as",exact:true}).click();
+    return (await decodeFigcraft(await readFile((await (await pending).path())!))).document;
+  };
+  await expect(page.getByRole("region",{name:"Layers",exact:true}).getByRole("button",{name:"Blue",exact:true})).toBeVisible();
+  await resetCanvasOrigin(page);
+  await canvas.focus();
+  await page.keyboard.press("ControlOrMeta+a");
+  await page.keyboard.press("Shift+m");
+  await expect(toolbar.getByRole("button",{name:"Merge regions"})).toHaveAttribute("aria-pressed","true");
+  const overlap = await canvasPoint(page,200,155), right = await canvasPoint(page,250,155);
+  await page.mouse.move(overlap.x,overlap.y);
+  const crop = await canvasPoint(page,115,115);
+  await expect(page).toHaveScreenshot("shape-builder-overlap.png",{clip:{...crop,width:170,height:90},animations:"disabled",maxDiffPixels:0});
+  await page.mouse.down();
+  await page.mouse.move(right.x,right.y);
+  await page.keyboard.press("Escape");
+  await page.mouse.up();
+  await expect(toolbar).toBeVisible();
+  expect((await save()).nodes[red].kind).toBe("rectangle");
+  await page.mouse.move(overlap.x,overlap.y);
+  await page.mouse.down();
+  await page.mouse.move(right.x,right.y);
+  await page.mouse.up();
+  await page.keyboard.press("Enter");
+  const merged = await save();
+  expect(merged.nodes[red].kind).toBe("vector");
+  expect(merged.nodes[blue]).toBeUndefined();
+  const created = Object.values(merged.nodes).find(n => n.id !== red && n.kind === "vector")!;
+  expect(created).toMatchObject({fill:"#0000ff",width:100,height:80});
+  await page.getByRole("button",{name:"Undo",exact:true}).click();
+  expect((await save()).nodes[blue].kind).toBe("rectangle");
+  await canvas.focus(); await page.keyboard.press("ControlOrMeta+a");
+  await page.getByRole("button",{name:"Shape Builder",exact:true}).click();
+  await page.setViewportSize({width:390,height:844});
+  await toolbar.getByRole("button",{name:"Remove regions"}).click();
+  await expect(toolbar.getByRole("button",{name:"Remove regions"})).toHaveAttribute("aria-pressed","true");
+  await page.setViewportSize({width:1440,height:900});
+  await resetCanvasOrigin(page);
+  const hit = await canvasPoint(page,200,155);
+  await page.mouse.click(hit.x,hit.y);
+  await toolbar.getByRole("button",{name:"Done"}).click();
+  await expectCanvasPixel(page,200,155,[245,245,245,255]);
+  await expectCanvasPixel(page,145,155,[255,0,0,255]);
+  await expectCanvasPixel(page,245,155,[0,0,255,255]);
+  await expect(page.locator(".figcraft-recovery")).toHaveText("Recovery saved on this device");
+  await page.reload();
+  const recovered = await save();
+  expect(recovered.nodes[red]).toMatchObject({kind:"vector",width:60});
+  expect(recovered.nodes[blue]).toMatchObject({kind:"vector",width:60});
+});

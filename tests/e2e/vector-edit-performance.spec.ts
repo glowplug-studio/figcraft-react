@@ -62,3 +62,14 @@ test("Simplify vector reduces 32 mixed paths in 10000 nodes without losing their
   expect(result.afterSegments).toBeLessThan(result.beforeSegments);
   await test.info().attach("vector.simplify",{body:JSON.stringify(result),contentType:"application/json"});
 });
+
+test("Shape Builder caches overlapping geometry and hatches pointer frames in 10000 nodes", async ({page}) => {
+  await openBenchmark(page);
+  const result = await page.evaluate(() => (window as unknown as {VectorEditPerformance:{
+    measureShapeBuilder:typeof import("../fixtures/vector-edit-performance").measureShapeBuilder
+  }}).VectorEditPerformance.measureShapeBuilder(document.querySelector("canvas")!));
+  await test.info().attach("shapeBuilder",{body:JSON.stringify(result),contentType:"application/json"});
+  expect(result).toMatchObject({nodes:10000,targets:32,regions:60,frames:110,notifications:0});
+  expect(result.inputP95Ms).toBeLessThan(16.7);
+  expect(result.paintP95Ms).toBeLessThan(16.7);
+});

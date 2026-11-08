@@ -22,6 +22,7 @@ import { vectorPaintRegions } from "./vector-presentation";
 import { VectorInteraction } from "./vector-interaction";
 import { drawVectorEdit } from "./vector-edit-overlay";
 import { drawPen } from "./pen-overlay";
+import { ShapeBuilderInteraction } from "./shape-builder-interaction";
 import { pencilPointerPressure } from "./pencil-samples";
 
 const compositeSurfaces = new WeakMap<CanvasRenderingContext2D, HTMLCanvasElement>();
@@ -225,6 +226,7 @@ export class CanvasController {
   #drawing: DrawInteraction;
   #arcs: ArcInteraction;
   #vectors: VectorInteraction;
+  #builder: ShapeBuilderInteraction;
   #dragOrigin = false;
   #space = false;
   #zoomHeld = false;
@@ -242,11 +244,12 @@ export class CanvasController {
     this.#rounding = new CornerInteraction(engine, onError);
     this.#drawing = new DrawInteraction(engine, onError);
     this.#arcs = new ArcInteraction(engine, onError);
+    this.#builder = new ShapeBuilderInteraction(engine);
     this.#vectors = new VectorInteraction(engine, onError);
     const options = { signal: this.#abort.signal };
     canvas.addEventListener("pointerdown", this.#down, options);
     canvas.addEventListener("pointermove", this.#move, options);
-    canvas.addEventListener("pointerleave", event => { if (this.#pointer === null) { this.engine.pen.hover(undefined, event); this.#smart.hover(undefined, event); this.#rounding.hover(undefined); this.#arcs.hover(undefined); this.#vectors.hover(undefined); this.invalidate(); } }, options);
+    canvas.addEventListener("pointerleave", event => { if (this.#pointer === null) { this.#builder.cancel(); this.engine.pen.hover(undefined, event); this.#smart.hover(undefined, event); this.#rounding.hover(undefined); this.#arcs.hover(undefined); this.#vectors.hover(undefined); this.invalidate(); } }, options);
     canvas.addEventListener("pointerup", this.#up, options);
     canvas.addEventListener("dblclick", this.#doubleClick, options);
     canvas.addEventListener("pointercancel", this.#cancelEvent, options);
@@ -285,7 +288,7 @@ export class CanvasController {
     if (event.button !== 0) return;
     this.canvas.focus();
     try {
-      if (this.engine.pencil.down(this.#point(event), pencilPointerPressure(event))) {
+      if (this.#builder.down(this.#point(event), event) || this.engine.pencil.down(this.#point(event), pencilPointerPressure(event))) {
         event.preventDefault(); this.#pointer = event.pointerId; this.canvas.setPointerCapture(event.pointerId); this.invalidate(); return;
       }
       if (this.engine.pen.down(this.#point(event), event)) {
@@ -314,6 +317,12 @@ export class CanvasController {
   };
 
   #move = (event: PointerEvent): void => {
+    if (this.engine.getSnapshot().tool === "shapeBuilder" && (this.#pointer === null || this.#builder.active)) {
+      if (this.#pointer !== null && this.#pointer !== event.pointerId) return;
+      this.canvas.style.cursor = "crosshair";
+      this.#builder.move(this.#point(event), event.altKey);
+      this.invalidate(); return;
+    }
     if (this.engine.getSnapshot().tool === "pencil" && (this.#pointer === null || this.engine.pencil.active)) {
       try {
         this.canvas.style.cursor = "crosshair";
@@ -386,6 +395,10 @@ export class CanvasController {
   };
 
   #up = (event: PointerEvent): void => {
+    if (event.pointerId === this.#pointer && this.#builder.active) {
+      try { this.#builder.up(this.#point(event),event); } catch (error) { this.onError(error instanceof Error ? error.message : "Shape Builder failed"); }
+      this.cancel(); return;
+    }
     if (event.pointerId === this.#pointer && this.engine.pencil.active) {
       try { this.engine.pencil.up(this.#point(event), pencilPointerPressure(event)); this.cancel(); } catch (error) { this.#penFailure(error); } return;
     }
@@ -433,6 +446,7 @@ export class CanvasController {
     if (!this.engine.getSnapshot().editable) return;
     event.preventDefault();
     try {
+      if (this.engine.getSnapshot().tool === "shapeBuilder") return;
       if (this.engine.pen.doubleClick(this.#point(event))) return;
       if (this.#vectors.doubleClick(this.#point(event))) return;
       if (this.#onOrigin(this.#point(event))) this.engine.execute("transform.setRotationOrigin", { reset: true });
@@ -443,6 +457,12 @@ export class CanvasController {
   #cancelEvent = (event: PointerEvent): void => { if (this.#pointer === event.pointerId) this.cancel(); };
   #penFailure(error: unknown): void { this.cancel(); this.onError(error instanceof Error ? error.message : "Could not draw path"); }
   #key = (event: KeyboardEvent): void => {
+    if (this.engine.getSnapshot().tool === "shapeBuilder" && (event.key === "Escape" || event.key === "Enter")) {
+      event.preventDefault(); event.stopPropagation();
+      const finish = event.key === "Enter" || !this.#builder.active;
+      this.cancel(); if (finish) this.engine.execute("tool.move");
+      return;
+    }
     if (this.engine.pen.open && !event.ctrlKey && !event.metaKey && !event.altKey && (event.key === "Escape" || event.key === "Enter")) {
       event.preventDefault(); event.stopPropagation();
       try { this.engine.pen.finish(event.key === "Escape" ? "pen" : "move"); this.cancel(); } catch (error) { this.#penFailure(error); }
@@ -460,6 +480,7 @@ export class CanvasController {
   };
   cancel(preservePen = false): void {
     if (!preservePen) {
+      this.#builder.cancel();
       this.engine.pencil.cancel();
       this.engine.pen.cancel();
       this.#vectors.cancel();
@@ -502,14 +523,16 @@ export class CanvasController {
       const snapshot = this.engine.getSnapshot();
       const view = this.engine.getView(), origin = viewOrigin(view);
       const vectorEdit = this.engine.getRenderVectorEdit(), pen = this.engine.getSnapshot().tool === "pen";
-      renderDocument(context, this.engine.getRenderDocument(), this.#width, this.#height, vectorEdit || pen ? [] : this.engine.getRenderSelection(), undefined, view, vectorEdit?.id);
-      if (!pen && !vectorEdit && !this.#moving.active && !this.#transforming.active && !this.#rounding.active && !this.#arcs.active && !this.#drawing.active) this.#smart.draw(context);
-      if (!pen && !vectorEdit && !this.#moving.active && !this.#transforming.active && !this.#smart.active && !this.#drawing.active) { this.#rounding.draw(context); this.#arcs.draw(context); }
-      if (!pen && !vectorEdit && !this.#moving.active && !this.#smart.active) this.#transforming.draw(context);
+      const builder = snapshot.tool === "shapeBuilder";
+      renderDocument(context, this.engine.getRenderDocument(), this.#width, this.#height, vectorEdit || pen || builder ? [] : this.engine.getRenderSelection(), undefined, view, vectorEdit?.id);
+      if (!builder && !pen && !vectorEdit && !this.#moving.active && !this.#transforming.active && !this.#rounding.active && !this.#arcs.active && !this.#drawing.active) this.#smart.draw(context);
+      if (!builder && !pen && !vectorEdit && !this.#moving.active && !this.#transforming.active && !this.#smart.active && !this.#drawing.active) { this.#rounding.draw(context); this.#arcs.draw(context); }
+      if (!builder && !pen && !vectorEdit && !this.#moving.active && !this.#smart.active) this.#transforming.draw(context);
       this.#moving.draw(context); this.#drawing.draw(context);
       if (vectorEdit) drawVectorEdit(context, this.engine.getRenderDocument(), vectorEdit, view, this.#vectors.overlay);
       if (pen) drawPen(context, this.engine.getRenderDocument(), view, this.engine.pen.overlay);
       this.engine.pencil.draw(context);
+      if (builder) this.#builder.draw(context);
       const rotationOrigin = this.engine.getRotationOrigin();
       if (!vectorEdit && rotationOrigin.editing && rotationOrigin.point) {
         const point = pageToScreen(view, rotationOrigin.point);

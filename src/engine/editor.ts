@@ -11,6 +11,8 @@ import { executePage, listPages, pageSpecs } from "./pages";
 import { executeSelection, selectionSpecs } from "./selection";
 import { setRectangleProperties } from "./properties";
 import { HierarchyDraft, pageForNode, worldTransform } from "./hierarchy";
+import { applyBuilder } from "./shape-builder-commands";
+import { builderArrangement, builderTargets, readBuilderRegions } from "./shape-builder";
 import { executeStructure, structureSpecs } from "./structure";
 import { executeVector, isVectorJoin, vectorSpecs } from "./vector-commands";
 import { executeVectorEdit, vectorEditSpecs, type VectorEditCommand } from "./vector-edit-commands";
@@ -45,6 +47,11 @@ export const commandSpecs = Object.freeze({
   "frame.presets": { label: "List frame presets", undo: false },
   ...selectionSpecs,
   ...structureSpecs,
+  "tool.shapeBuilder": { label: "Shape builder", undo: false },
+  "shapeBuilder.mode": { label: "Shape builder mode", undo: false },
+  "shapeBuilder.regions": { label: "Shape builder regions", undo: false },
+  "shapeBuilder.merge": { label: "Merge regions", undo: true },
+  "shapeBuilder.remove": { label: "Remove regions", undo: true },
   ...vectorSpecs,
   ...vectorEditSpecs,
   "node.get": { label: "Get layer", undo: false },
@@ -82,7 +89,8 @@ export type CommandId = keyof typeof commandSpecs;
 export interface EditorSnapshot {
   readonly document: Document;
   readonly selection: readonly NodeId[];
-  readonly tool: "move" | DrawShapeKind | "scale" | "pen" | "pencil";
+  readonly tool: "move" | DrawShapeKind | "scale" | "pen" | "pencil" | "shapeBuilder";
+  readonly builderMode: "merge" | "remove";
   readonly scaleAnchor: ScaleAnchor;
   readonly canUndo: boolean;
   readonly canRedo: boolean;
@@ -133,7 +141,7 @@ export class EditorEngine {
   #pendingSaves = new Map<number, Document>();
   #openSequence = 0;
   constructor() {
-    this.#snapshot = Object.freeze({ document: newDocument(), selection: Object.freeze([]), tool: "move", scaleAnchor: "tl", canUndo: false, canRedo: false, editable: true, dirty: true, hasSaved: false });
+    this.#snapshot = Object.freeze({ document: newDocument(), selection: Object.freeze([]), tool: "move", builderMode: "merge", scaleAnchor: "tl", canUndo: false, canRedo: false, editable: true, dirty: true, hasSaved: false });
   }
   getSnapshot = (): EditorSnapshot => this.#snapshot;
   getUndoDepth = (): number => this.#undo.length;
@@ -325,6 +333,7 @@ export class EditorEngine {
     if (editable !== this.#snapshot.editable) this.#publish({ editable, tool: "move" });
   }
   execute(command: "node.get", input: unknown): ReturnType<typeof getNode>;
+  execute(command: "shapeBuilder.regions", input?: unknown): ReturnType<typeof readBuilderRegions>;
   execute(command: "frame.presets", input?: unknown): typeof framePresets;
   execute(command: "page.list", input?: unknown): ReturnType<typeof listPages>;
   execute(command: string, input?: unknown): Record<string, unknown>;
@@ -332,6 +341,12 @@ export class EditorEngine {
     if (!Object.hasOwn(commandSpecs, command)) throw new Error(`Unsupported command: ${command}`);
     if (!this.#snapshot.editable) throw new Error("Sign in to edit this document");
     const p = parameters(input);
+    if (command === "shapeBuilder.mode") {
+      if (p.mode !== "merge" && p.mode !== "remove") throw new Error("shapeBuilder.mode: mode must be merge or remove");
+      this.#publish({builderMode:p.mode});
+      return {mode:p.mode};
+    }
+    if (command === "shapeBuilder.regions") return readBuilderRegions(builderArrangement(this.#snapshot.document, builderTargets(p, this.#snapshot.selection)));
     if (command === "node.get") return getNode(this.getRenderDocument(), p);
     if (this.pen.open && (command === "edit.undo" || command === "edit.redo")) {
       if (Object.keys(p).length) throw new Error(`${command} takes no parameters`);
@@ -423,9 +438,11 @@ export class EditorEngine {
       if (next.document !== before.document || next.selection !== before.selection) this.#publish({ document: next.document, selection: next.selection });
       return next.result;
     }
-    if (Object.hasOwn(structureSpecs, command) || Object.hasOwn(vectorSpecs, command)) {
+    const builderEdit = command === "shapeBuilder.merge" || command === "shapeBuilder.remove";
+    if (builderEdit || Object.hasOwn(structureSpecs, command) || Object.hasOwn(vectorSpecs, command)) {
       const before = this.#snapshot;
-      const next = (Object.hasOwn(vectorSpecs, command) ? executeVector : executeStructure)(command, before.document, before.selection, this.#nextId, p);
+      const execute = builderEdit ? applyBuilder : Object.hasOwn(vectorSpecs, command) ? executeVector : executeStructure;
+      const next = execute(command, before.document, before.selection, this.#nextId, p);
       if (!sameContent(before.document, next.document)) {
         this.#undo.push({ document: before.document, selection: before.selection }); this.#redo = [];
       }
@@ -490,10 +507,10 @@ export class EditorEngine {
     if (command.startsWith("file.")) throw new Error(`${command} requires executeAsync`);
     if (command === "vector.create" || command === "shape.line" || command === "shape.arrow" || command === "shape.polygon" || command === "shape.star" || command === "shape.ellipse" || command === "shape.rectangle" || command === "frame.create" || command === "node.create") return this.#create(command, p);
     if (Object.keys(p).length) throw new Error(`${command} takes no parameters`);
-    if (command === "tool.pencil" || command === "tool.pen" || command === "tool.line" || command === "tool.arrow" || command === "tool.polygon" || command === "tool.star" || command === "tool.ellipse" || command === "tool.rectangle" || command === "tool.move" || command === "tool.scale") {
+    if (command === "tool.shapeBuilder" || command === "tool.pencil" || command === "tool.pen" || command === "tool.line" || command === "tool.arrow" || command === "tool.polygon" || command === "tool.star" || command === "tool.ellipse" || command === "tool.rectangle" || command === "tool.move" || command === "tool.scale") {
       const end = this.#vectorEdit && command !== "tool.move" && command !== "tool.scale" ? executeVectorEdit("vector.edit.end", this.#snapshot.document, this.#snapshot.selection, this.#vectorEdit, {}) : undefined;
       if (end) this.#vectorEdit = undefined;
-      this.#publish({ ...(end ? { document: end.document, selection: end.selection } : {}), tool: command === "tool.pencil" ? "pencil" : command === "tool.pen" ? "pen" : command === "tool.line" ? "line" : command === "tool.arrow" ? "arrow" : command === "tool.polygon" ? "polygon" : command === "tool.star" ? "star" : command === "tool.ellipse" ? "ellipse" : command === "tool.rectangle" ? "rectangle" : command === "tool.scale" ? "scale" : "move" });
+      this.#publish({ ...(end ? { document: end.document, selection: end.selection } : {}), tool: command === "tool.shapeBuilder" ? "shapeBuilder" : command === "tool.pencil" ? "pencil" : command === "tool.pen" ? "pen" : command === "tool.line" ? "line" : command === "tool.arrow" ? "arrow" : command === "tool.polygon" ? "polygon" : command === "tool.star" ? "star" : command === "tool.ellipse" ? "ellipse" : command === "tool.rectangle" ? "rectangle" : command === "tool.scale" ? "scale" : "move" });
       return {};
     }
     const undo = command === "edit.undo";

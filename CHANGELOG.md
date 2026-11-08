@@ -2,6 +2,10 @@
 
 All notable changes to the React port and its upstream compatibility baseline are recorded here.
 
+## [0.42.0] - 2026-11-09
+
+- Added Shape Builder for overlapping fills and stroke outlines, including merge and remove gestures, regional paints and native recovery.
+
 ## [0.41.0] - 2026-11-09
 
 - Added Simplify vector for open trails and closed painted regions, with source winding and paint-frame preservation.

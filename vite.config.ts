@@ -21,7 +21,7 @@ export default defineConfig({
       formats: ["es"],
     },
     rollupOptions: {
-      external: ["@supabase/supabase-js", "react", "react-dom", "react/jsx-runtime"],
+      external: ["paper/dist/paper-core.js", "@supabase/supabase-js", "react", "react-dom", "react/jsx-runtime"],
     },
   },
 });

@@ -16,6 +16,7 @@ import type { DocumentCapability } from "./backends/access";
 import type { IdentityAdapter } from "./backends/identity";
 import { CanvasController } from "./engine/canvas";
 import { EditorEngine } from "./engine/editor";
+import { availableBuilderArrangement } from "./engine/shape-builder";
 import { defaultConstraints, pageOf, rectangleTransform } from "./engine/document";
 import { rotationDegrees } from "./engine/affine";
 import type { RecoveryStore } from "./backends/recovery";
@@ -115,6 +116,9 @@ export function Editor({ identity, capabilities, engine: suppliedEngine, recover
     if (engine.pen.open && !event.altKey && !event.metaKey && !event.ctrlKey && (event.key === "Escape" || event.key === "Enter")) {
       event.preventDefault(); engine.pen.finish(event.key === "Escape" ? "pen" : "move"); return;
     }
+    if (snapshot.tool === "shapeBuilder" && (event.key === "Escape" || event.key === "Enter")) {
+      event.preventDefault(); dispatch("tool.move"); return;
+    }
     if (engine.getVectorEdit()) {
       const modified = event.metaKey || event.ctrlKey;
       if (!event.altKey && !modified && (event.key === "Escape" || event.key === "Enter")) {
@@ -163,6 +167,7 @@ export function Editor({ identity, capabilities, engine: suppliedEngine, recover
       if (event.key.toLowerCase() === "o") command = "tool.ellipse";
       if (event.key.toLowerCase() === "l") command = event.shiftKey ? "tool.arrow" : "tool.line";
       if (event.key.toLowerCase() === "r") command = "tool.rectangle";
+      if (event.shiftKey && event.key.toLowerCase() === "m") command = "tool.shapeBuilder";
       if (event.key.toLowerCase() === "p") command = event.shiftKey ? "tool.pencil" : "tool.pen";
       if (event.key.toLowerCase() === "v") command = "tool.move";
       if (event.key.toLowerCase() === "k") command = "tool.scale";
@@ -260,7 +265,11 @@ export function Editor({ identity, capabilities, engine: suppliedEngine, recover
           <canvas ref={canvas} aria-label="Design canvas" tabIndex={0} aria-describedby="canvas-instructions" />
           <ViewControls engine={engine} editable={editable && !busy} dispatch={dispatch} />
           <p id="canvas-instructions" className="figcraft-instructions">R: rectangle · O: ellipse · Space/middle drag: pan · Z: zoom · Ctrl/⌘ wheel: zoom · Escape: cancel</p>
-          {editingVector ? <VectorToolbar engine={engine} editable={editable && !busy} dispatch={(command, params) => { dispatch(command, params); canvas.current?.focus(); }} /> : <div className="figcraft-toolbar" role="toolbar" aria-label="Tools">
+          {snapshot.tool === "shapeBuilder" ? <div className="figcraft-toolbar" role="toolbar" aria-label="Shape Builder">
+            {(["merge", "remove"] as const).map(mode => <button key={mode} disabled={!editable || busy} aria-pressed={snapshot.builderMode === mode} onClick={() => { dispatch("shapeBuilder.mode", {mode}); canvas.current?.focus(); }}>{mode === "merge" ? "Merge regions" : "Remove regions"}</button>)}
+            <span>{!availableBuilderArrangement(snapshot.document, snapshot.selection)?.regions.length ? "Select overlapping shapes" : snapshot.builderMode === "merge" ? "Click or drag to merge · Alt removes" : "Click or drag to remove · Alt merges"}</span>
+            <button disabled={!editable || busy} onClick={() => { dispatch("tool.move"); canvas.current?.focus(); }}>Done</button>
+          </div> : editingVector ? <VectorToolbar engine={engine} editable={editable && !busy} dispatch={(command, params) => { dispatch(command, params); canvas.current?.focus(); }} /> : <div className="figcraft-toolbar" role="toolbar" aria-label="Tools">
             <button disabled={!editable} aria-pressed={snapshot.tool === "move"} onClick={() => { dispatch("tool.move"); canvas.current?.focus(); }}>Move</button>
             <button disabled={!editable} aria-pressed={snapshot.tool === "pen"} title="Pen · P" onClick={() => { dispatch("tool.pen"); canvas.current?.focus(); }}>Pen</button>
             <button disabled={!editable} aria-pressed={snapshot.tool === "pencil"} title="Pencil · Shift+P" onClick={() => { dispatch("tool.pencil"); canvas.current?.focus(); }}>Pencil</button>
@@ -271,6 +280,7 @@ export function Editor({ identity, capabilities, engine: suppliedEngine, recover
             <button disabled={!editable} aria-pressed={snapshot.tool === "line"} onClick={() => { dispatch("tool.line"); canvas.current?.focus(); }}>Line</button>
             <button disabled={!editable} aria-pressed={snapshot.tool === "arrow"} onClick={() => { dispatch("tool.arrow"); canvas.current?.focus(); }}>Arrow</button>
             <button disabled={!editable} aria-pressed={snapshot.tool === "rectangle"} onClick={() => { dispatch("tool.rectangle"); canvas.current?.focus(); }}>Rectangle</button>
+            <button disabled={!editable || busy} title="Shape Builder · Shift+M" onClick={() => { dispatch("tool.shapeBuilder"); canvas.current?.focus(); }}>Shape Builder</button>
           </div>}
         </div>
         <aside className="figcraft-properties" aria-label="Design"><div style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}><h2>Design</h2>

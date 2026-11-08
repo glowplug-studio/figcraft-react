@@ -4,6 +4,8 @@ import { encodeFigcraft } from "../../src/engine/file-format";
 import { base64Bytes } from "../../src/engine/recovery";
 import { renderDocument } from "../../src/engine/canvas";
 import { drawVectorEdit } from "../../src/engine/vector-edit-overlay";
+import { ShapeBuilderInteraction } from "../../src/engine/shape-builder-interaction";
+import { builderArrangement } from "../../src/engine/shape-builder";
 import { VectorInteraction } from "../../src/engine/vector-interaction";
 import { widthHandles } from "../../src/engine/vector-width";
 import { pointBoxCentre, pointBoxCorners, shownVectorPointBox } from "../../src/engine/vector-point-transform";
@@ -239,4 +241,38 @@ export async function measureSimplify(canvas: HTMLCanvasElement) {
   const p95=(a:number[])=>a.sort((x,y)=>x-y)[Math.floor(a.length*.95)];
   return {nodes:Object.keys(before.nodes).length,targets:ids.length,runs:commands.length,beforeSegments:(before.nodes[ids[0]] as VectorNode).network.segments.length,
     afterSegments,sample,commandP95Ms:p95(commands),paintP95Ms:p95(frames)};
+}
+
+export async function measureShapeBuilder(canvas: HTMLCanvasElement) {
+  const { engine, children } = await openVectorScene("M0 0H120V60H0Z", false);
+  engine.execute("tool.shapeBuilder");
+  const ids = children.slice(0, 32);
+  engine.execute("select.set", { ids });
+  engine.execute("view.set", {cx:480,cy:200,vw:960,vh:400,zoom:1});
+  canvas.width = 960; canvas.height = 400;
+  const context = canvas.getContext("2d", {willReadFrequently:true})!;
+  const document = engine.getSnapshot().document, start = performance.now();
+  const arrangement = builderArrangement(document, ids), coldMs = performance.now() - start;
+  const interaction = new ShapeBuilderInteraction(engine);
+  const input: number[] = [], frames: number[] = [];
+  let notifications = 0;
+  const unsubscribe = engine.subscribe(() => { notifications++; });
+  for (let i = 0; i < 120; i++) {
+    const before = performance.now();
+    interaction.move({x:45+(i*7)%850,y:60},i%2===0);
+    const moved = performance.now();
+    renderDocument(context,document,960,400,[],undefined,engine.getView());
+    interaction.draw(context);
+    const finished = performance.now();
+    if (i >= 10) { input.push(moved-before); frames.push(finished-moved); }
+  }
+  unsubscribe();
+  const before = performance.now();
+  engine.execute("shapeBuilder.remove",{points:[[135,60]]});
+  const commitMs = performance.now()-before;
+  engine.execute("edit.undo");
+  if (engine.getSnapshot().document !== document) throw Error("Shape Builder undo lost the source document");
+  const p95 = (samples:number[]) => samples.sort((a,b) => a-b)[Math.floor(samples.length*0.95)];
+  return { nodes:Object.keys(document.nodes).length, targets:ids.length, regions:arrangement.regions.length,
+    frames:frames.length, notifications, coldMs, commitMs, paintP95Ms:p95(frames), inputP95Ms:p95(input) };
 }
