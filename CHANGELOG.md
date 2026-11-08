@@ -2,6 +2,10 @@
 
 All notable changes to the React port and its upstream compatibility baseline are recorded here.
 
+## [0.37.0] - 2026-11-09
+
+- Added vector.fillRule and vector.reverseLoop for selected areas, holes and shared short-loop boundaries.
+
 ## [0.36.0] - 2026-11-09
 
 - Use Lasso (Q) to select points across edited vectors, Cut (X) to open paths or separate crossed parts into layers, and Eraser (Shift+E) to remove portions of paths with a circular brush.

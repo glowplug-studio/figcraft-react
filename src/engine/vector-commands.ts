@@ -8,6 +8,7 @@ import { solidPaint, type SolidPaint } from "./solid-paint";
 import { defaultStroke } from "./stroke";
 import { freezeNetwork, vectorLine, networkFromPath, regionPaintFrame, transformNetwork, type VectorNetwork, type VectorRegion, type VectorSegment, type VectorVertex } from "./vector-network";
 import { networkBounds } from "./vector-path";
+import { reverseLoop, setFillRule } from "./vector-winding";
 
 export type VectorJoinCommand = "vector.join" | "vector.smoothJoin";
 export function isVectorJoin(command: string): command is VectorJoinCommand {
@@ -17,6 +18,8 @@ export function isVectorJoin(command: string): command is VectorJoinCommand {
 export const vectorSpecs = Object.freeze({
   "vector.join": { label: "Join selection", undo: true },
   "vector.smoothJoin": { label: "Smooth join selection", undo: true },
+  "vector.fillRule": { label: "Set fill rule", undo: true },
+  "vector.reverseLoop": { label: "Reverse loop", undo: true },
   "vector.flatten": { label: "Flatten", undo: true },
   "vector.reverse": { label: "Reverse path direction", undo: true },
 });
@@ -54,9 +57,14 @@ function flattenedNetwork(document: Document, ids: readonly NodeId[], parent: No
   for (const id of ids) collect(id, 0);
   return freezeNetwork({ vertices, segments, regions });
 }
-export function executeVector(command: string, document: Document, selection: readonly NodeId[], nextId: bigint, params: Record<string, unknown>) {
+export function executeVector(command: string, document: Document, selection: readonly NodeId[], nextId: bigint, params: Record<string, unknown>): {
+  document: Document; selection: readonly NodeId[]; nextId: bigint; result: Record<string, unknown>;
+} {
   if (!Object.hasOwn(vectorSpecs, command)) throw new Error(`Unsupported vector command: ${command}`);
-  if (Object.keys(params).some(k => k !== "ids" && k !== "id")) throw new Error(`Unsupported ${command} parameter`);
+  const allowed = ["ids", "id"];
+  if (command === "vector.fillRule") allowed.push("region", "rule");
+  if (command === "vector.reverseLoop") allowed.push("region", "loop");
+  if (Object.keys(params).some(k => !allowed.includes(k))) throw new Error(`Unsupported ${command} parameter`);
   if (params.ids != null && !Array.isArray(params.ids)) throw new Error("ids must be an array");
   const raw = Array.isArray(params.ids) ? params.ids : params.id != null ? [params.id] : selection;
   const targets = raw.map(value => {
@@ -67,6 +75,10 @@ export function executeVector(command: string, document: Document, selection: re
   if (!targets.length) throw new Error("Nothing selected");
   for (const id of targets) if (!document.nodes[id]) throw new Error(`No node ${id}`);
   const draft = new HierarchyDraft(document);
+  if (command === "vector.fillRule" || command === "vector.reverseLoop") {
+    const result = command === "vector.fillRule" ? setFillRule(draft, targets, params) : reverseLoop(draft, targets, params);
+    return { document: draft.finish(), selection, nextId, result };
+  }
   if (isVectorJoin(command) && targets.length === 1) {
     const node = document.nodes[targets[0]];
     if (node.kind === "vector" && !node.network.regions.length && node.network.vertices.length > 2) {

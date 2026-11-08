@@ -8,10 +8,10 @@ import { VectorInteraction } from "../../src/engine/vector-interaction";
 import { widthHandles } from "../../src/engine/vector-width";
 import { pointBoxCentre, pointBoxCorners, shownVectorPointBox } from "../../src/engine/vector-point-transform";
 
-async function openVectorScene(path: string) {
+async function openVectorScene(path: string, splitRegions = true) {
   const seed = new EditorEngine(), id = String(seed.execute("vector.create", { path }).id);
   const vector = seed.getSnapshot().document.nodes[id] as VectorNode;
-  const regions = vector.network.regions.flatMap(r => r.loops.map(loop => ({ ...r, loops: [loop] })));
+  const regions = splitRegions ? vector.network.regions.flatMap(r => r.loops.map(loop => ({ ...r, loops: [loop] }))) : vector.network.regions;
   const template = { ...vector, network: { ...vector.network, regions } };
   const initial = newDocument(), nodes: Record<string, DocumentNode> = { ...initial.nodes }, children: string[] = [];
   for (let i = 0; i < 9_999; i++) {
@@ -167,4 +167,31 @@ export async function measureVectorPathTool(canvas: HTMLCanvasElement, tool: "cu
   }
   const p95 = (n: number[]) => n.sort((a,b) => a-b)[Math.floor(.95*n.length)];
   return { tool, nodes: Object.keys(before.nodes).length, editedLayers:100, measuredFrames: frames.length, inputP95:p95(inputs), p95:p95(frames), releaseMs, root, chrome };
+}
+
+export async function measureWinding(canvas: HTMLCanvasElement, command: "vector.fillRule" | "vector.reverseLoop") {
+  const { engine, children } = await openVectorScene("M0 0H40V30H0Z M10 8H30V22H10Z", false);
+  const ids = children.slice(0, 100), params = { ids, region: 0, loop: 1 };
+  engine.execute("vector.edit.end");
+  engine.execute("view.set", { cx: 600, cy: 400, vw: 1200, vh: 800, zoom: 1 });
+  canvas.width = 1200; canvas.height = 800;
+  const ctx = canvas.getContext("2d")!, frames: number[] = [], inputs: number[] = [];
+  const depth = engine.getUndoDepth();
+  for (let i = 0; i < 120; i++) {
+    await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
+    const start = performance.now();
+    if (command === "vector.reverseLoop") engine.execute(command, params);
+    else engine.execute(command, { ids, rule: i % 2 ? "nonZero" : "evenOdd" });
+    const changed = performance.now();
+    renderDocument(ctx, engine.getRenderDocument(), 1200, 800, [], undefined, engine.getView());
+    const rendered = performance.now();
+    if (i >= 10) { frames.push(rendered - start); inputs.push(changed - start); }
+    // Read one centre in the final visible row, after drawing. Even iterations open the holes.
+    const pixel = ctx.getImageData(870, 775, 1, 1).data;
+    if (pixel[0] !== (i % 2 ? 217 : 245)) throw Error(`Last ring did not change fill: ${Array.from(pixel)}`);
+  }
+  const edits = engine.getUndoDepth() - depth, p95 = (a: number[]) => a.sort((x,y) => x-y)[Math.floor(a.length * .95)];
+  engine.execute("edit.undo");
+  renderDocument(ctx, engine.getRenderDocument(), 1200, 800, [], undefined, engine.getView());
+  return { nodes: Object.keys(engine.getSnapshot().document.nodes).length, rings: ids.length, edits, frames: frames.length, inputP95: p95(inputs), p95: p95(frames), undoPixel: ctx.getImageData(870,775,1,1).data[0] };
 }

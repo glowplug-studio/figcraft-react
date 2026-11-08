@@ -2429,3 +2429,25 @@ test("Lasso selects points, Cut separates layers, and Eraser previews and recove
     await tool(name).scrollIntoViewIfNeeded(); await tool(name).click(); await expect(tool(name)).toHaveAttribute("aria-pressed", "true");
   }
 });
+
+test("winding and reversed inner loops retain holes and native geometry in the authenticated editor", async ({ page }) => {
+  const engine = new EditorEngine(), id = String(engine.execute("vector.create", { x: 100, y: 100, path: "M0 0H100V100H0Z M25 25H75V75H25Z" }).id);
+  engine.execute("node.set", { id, props: { fill: "#008844" } });
+  await login(page);
+  for (const state of ["evenOdd", "nonZero", "reverseLoop"] as const) {
+    if (state === "reverseLoop") engine.execute("vector.reverseLoop", { id, region: 0, loop: 1 });
+    else engine.execute("vector.fillRule", { id, rule: state });
+    const document = engine.getSnapshot().document;
+    await page.getByLabel("Open Figcraft file", { exact: true }).setInputFiles({ name: state + ".figcraft", mimeType: "application/octet-stream", buffer: Buffer.from(await engine.nativeSnapshot()) });
+    await resetCanvasOrigin(page);
+    await expectCanvasPixel(page, 110, 150, [0,136,68,255]);
+    await expectCanvasPixel(page, 150, 150, state === "nonZero" ? [0,136,68,255] : [245,245,245,255]);
+    const saved = page.waitForEvent("download"); await page.getByRole("button", { name: "Save as", exact: true }).click();
+    const decoded = await decodeFigcraft(await readFile((await (await saved).path())!));
+    expect((decoded.document.nodes[id] as VectorNode).network).toEqual((document.nodes[id] as VectorNode).network);
+  }
+  const origin = await canvasPoint(page, 94, 94);
+  await expect(page).toHaveScreenshot("vector-winding-hole.png", { clip: { ...origin, width: 112, height: 112 }, animations: "disabled", maxDiffPixels: 0 });
+  await expect(page.locator(".figcraft-recovery")).toHaveText("Recovery saved on this device");
+  await page.reload(); await resetCanvasOrigin(page); await expectCanvasPixel(page, 150, 150, [245,245,245,255]);
+});
