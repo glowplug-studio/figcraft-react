@@ -42,3 +42,7 @@ The [gradient matrix](../reports/26-11-09-gradient-paints-parity.html) passed at
 ## 9 November image archive checkpoint
 
 Resume Phase 4 from 7b32853 on the full-port branch. The [image plan](26-11-09-image-paints.md) records the archive and preset checkpoints, six-format byte comparisons, production browser results, TIFF decoding gap and next paint integration work. The Rust pin is 8a7ebc24. The local combined graph has 29,788 nodes and 98,190 edges. Final parity audit and publication are pending.
+
+## 9 November image rendering and commands
+
+Resume from 096ede0 on the canonical branch. The image slice is in Phase 4. The [active image plan](26-11-09-image-paints.md#image-placement-and-editing-checkpoint) records the verified placement, TIFF and command commits, graph revisions and open rows. Next wire the image picker, then canvas crop, paste, animated images, embedded profiles and cache stress. Complete all subsequent roadmap and publication gates.

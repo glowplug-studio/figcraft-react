@@ -1147,7 +1147,9 @@
       "label": "Place image",
       "source": "crates/engine/src/cmd/create.rs",
       "line": 113,
-      "status": "Not tested"
+      "status": "Partial",
+      "scope": "Decoded placement, density, target append, shared bytes, undo and native recovery. Embedded profiles and remaining image variants are open.",
+      "evidence": "docs/planning/26-11-09-image-paints.md"
     },
     {
       "command": "frame.swapOrientation",
@@ -1828,8 +1830,8 @@
       "source": "crates/engine/src/cmd/file.rs",
       "line": 76,
       "status": "Partial",
-      "scope": "Verified supported page/rectangle subset; full command and dependent-model parity remain incomplete.",
-      "evidence": "docs/planning/26-11-06-complete-figcraft-port.md"
+      "scope": "Supported native document subset and raster open at encoded dimensions. Chromium drew PNG, JPEG, WebP, GIF, BMP and TIFF. The full archive and import matrix remains open.",
+      "evidence": "docs/planning/26-11-09-image-paints.md"
     },
     {
       "command": "file.openRecent",
@@ -1910,7 +1912,9 @@
       "label": "Place image",
       "source": "crates/engine/src/cmd/file.rs",
       "line": 159,
-      "status": "Not tested"
+      "status": "Partial",
+      "scope": "Authenticated file input and keyboard binding place at the viewport centre. Final picker and interaction comparisons remain open.",
+      "evidence": "docs/planning/26-11-09-image-paints.md"
     },
     {
       "command": "file.close",
@@ -2073,28 +2077,36 @@
       "label": "Adjust image",
       "source": "crates/engine/src/cmd/image.rs",
       "line": 13,
-      "status": "Not tested"
+      "status": "Partial",
+      "scope": "Layer fill and stroke batches, saved and built-in presets, range sanitisation, explicit index, atomic refusal and undo. Linked styles and interactive controls remain open.",
+      "evidence": "docs/planning/26-11-09-image-paints.md"
     },
     {
       "command": "image.replace",
       "label": "Replace image",
       "source": "crates/engine/src/cmd/image.rs",
       "line": 20,
-      "status": "Not tested"
+      "status": "Partial",
+      "scope": "Atomic layer fill or stroke replacement, default top image and explicit index, preserved appearance, deduplication and undo. Picker and region workflows remain open.",
+      "evidence": "docs/planning/26-11-09-image-paints.md"
     },
     {
       "command": "image.savePreset",
       "label": "Save image preset",
       "source": "crates/engine/src/cmd/image.rs",
       "line": 27,
-      "status": "Not tested"
+      "status": "Partial",
+      "scope": "Explicit or selected filters, cleaned Unicode names, exact-name replacement, native cap, persistence and undo. Browser picker verification remains open.",
+      "evidence": "docs/planning/26-11-09-image-paints.md"
     },
     {
       "command": "image.deletePreset",
       "label": "Delete image preset",
       "source": "crates/engine/src/cmd/image.rs",
       "line": 34,
-      "status": "Not tested"
+      "status": "Partial",
+      "scope": "Exact saved name, missing-name refusal and undo. Browser picker verification remains open.",
+      "evidence": "docs/planning/26-11-09-image-paints.md"
     },
     {
       "command": "image.crop",
@@ -2108,12 +2120,9 @@
       "label": "Image presets",
       "source": "crates/engine/src/cmd/image.rs",
       "line": 51,
-      "status": "Passed",
-      "scope": "Read-only built-in and document preset listing, with saved values recovered from native files. Picker authoring remains part of the active image slice.",
-      "evidence": [
-        "tests/parity/image-presets.test.ts",
-        "tests/e2e/preview.spec.ts"
-      ]
+      "status": "Partial",
+      "scope": "Seven built-ins and ordered document presets verified through the engine and native file recovery.",
+      "evidence": "docs/planning/26-11-09-image-paints.md"
     },
     {
       "command": "layout.setTrack",
