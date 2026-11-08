@@ -1,3 +1,4 @@
+import { decodeImageBitmap } from "./image-decode";
 import { adjustImagePixels, type ImageFilters } from "./image-filters";
 import { cropRect, imageTransform, placementCrop } from "./image-placement";
 import type { ImageResource } from "./image-resource";
@@ -22,9 +23,7 @@ interface ImageVariant {
 
 async function decodeVariant(entry: ImageVariant, current: () => boolean): Promise<ImageBitmap> {
   const { resource, width, height, filters } = entry;
-  const source = await createImageBitmap(resource.bytes, {
-    resizeWidth: width, resizeHeight: height, resizeQuality: "high", imageOrientation: "none",
-  });
+  const source = await decodeImageBitmap(resource, width, height);
   if (Object.values(filters).every(value => value === 0)) return source;
   try {
     const surface = new OffscreenCanvas(width, height);

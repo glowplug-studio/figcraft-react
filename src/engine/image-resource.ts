@@ -2,7 +2,7 @@ import { BMP } from "image-size/types/bmp";
 import { GIF } from "image-size/types/gif";
 import { JPG } from "image-size/types/jpg";
 import { PNG } from "image-size/types/png";
-import { TIFF } from "image-size/types/tiff";
+import { tiffDimensions } from "./tiff-directory";
 import { WEBP } from "image-size/types/webp";
 
 export const MAX_IMAGE_BYTES = 256 * 1024 * 1024;
@@ -14,7 +14,11 @@ export interface ImageResource {
 
 const readers = [
   ["image/png",PNG], ["image/jpeg",JPG], ["image/webp",WEBP],
-  ["image/gif",GIF], ["image/bmp",BMP], ["image/tiff",TIFF],
+  ["image/gif",GIF], ["image/bmp",BMP], ["image/tiff",{
+    validate: (bytes: Uint8Array) => bytes.length >= 8 && ((bytes[0] === 73 && bytes[1] === 73 && bytes[3] === 0 && (bytes[2] === 42 || bytes[2] === 43))
+      || (bytes[0] === 77 && bytes[1] === 77 && bytes[2] === 0 && (bytes[3] === 42 || bytes[3] === 43))),
+    calculate: tiffDimensions,
+  }],
 ] as const;
 
 export function validImageKey(key:string):boolean {

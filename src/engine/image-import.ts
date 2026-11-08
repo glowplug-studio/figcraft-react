@@ -1,6 +1,7 @@
 import type { Document, NodeId } from "./document";
 import { rectanglePaints, withRectanglePaints } from "./document";
 import { HierarchyDraft } from "./hierarchy";
+import { decodeImageBitmap } from "./image-decode";
 import { imageHash, imageResource, type ImageResource } from "./image-resource";
 import { imagePixelDensity, placedImageSize } from "./image-placement";
 import { parseNodeId, parseNumber } from "./parameters";
@@ -25,7 +26,7 @@ export async function prepareImage(bytes: Uint8Array<ArrayBuffer>, existing?: Re
   if (!resource.width || !resource.height) throw new Error("Unsupported image: its dimensions could not be read");
   if (resource.width * resource.height * 4 > 512 * 1024 * 1024) throw new Error("This image can't be read: it is too large");
   try {
-    const bitmap = await createImageBitmap(resource.bytes, { imageOrientation: "none" });
+    const bitmap = await decodeImageBitmap(resource);
     try {
       if (!bitmap.width || !bitmap.height) throw new Error("No image pixels");
     } finally { bitmap.close(); }

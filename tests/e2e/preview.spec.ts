@@ -323,6 +323,27 @@ test("image paints draw original pixels and retain placed files through undo, re
   await expect(page.getByText("4 layers", {exact:true})).toBeVisible();
 });
 
+test("opening raster files draws decoded pixels for all six formats and preserves the TIFF source on download", async ({ page }) => {
+  await login(page);
+  const input = page.getByLabel("Open Figcraft file", { exact:true });
+  const files = ["six-pixels.png","six-pixels.jpg","six-pixels.webp","six-pixels.gif","six-pixels.bmp","strips-deflate-be.tiff","tile-packbits-big.tiff","planes-lzw.tiff","strips-jpeg.tiff"];
+  for (const [index, filename] of files.entries()) {
+    const source = await readFile(new URL("../fixtures/images/"+filename,import.meta.url));
+    await input.setInputFiles({name:index+"-"+filename,mimeType:"application/octet-stream",buffer:source});
+    if (index) await page.getByRole("button", { name:"Replace document", exact:true }).click();
+    await expect(page.getByRole("heading", { name:index+"-"+filename.replace(/\.[^.]*$/,""), exact:true })).toBeVisible();
+    await resetCanvasOrigin(page);
+    await expectCanvasPixel(page,0,0,filename.endsWith(".jpg") ? [27,97,27,255] : filename === "strips-jpeg.tiff" ? [250,0,8,255] : [255,0,0,255]);
+    if (index === files.length-1) {
+      const pending=page.waitForEvent("download");
+      await page.getByRole("button",{name:"Save as",exact:true}).click();
+      const members=unzipSync(await readFile((await (await pending).path())!));
+      const root=JSON.parse(strFromU8(members["document.json"]!));
+      expect(Buffer.from(members["images/"+root.imageIndex[0].hash]!)).toEqual(source);
+    }
+  }
+});
+
 test("unavailable recovery storage reports the failure without blocking editing or download", async ({ page }) => {
   await page.addInitScript(() => { Object.defineProperty(window, "indexedDB", { get() { throw new Error("Storage access denied"); } }); });
   await login(page);
