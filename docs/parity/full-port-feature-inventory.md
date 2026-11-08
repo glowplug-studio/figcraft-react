@@ -258,3 +258,7 @@ Closed-vector corner smoothing, authored point preservation, hit testing and rec
 ## Verified bounded additions — 9 November 2026
 
 Vector face discovery and solid Paint bucket editing passed at 50370fe. Non-solid region paints depend on their own codecs and renderers. [Evidence and open dependency](../reports/26-11-09-vector-paint-bucket-parity.html).
+
+## Verified live boolean subset
+
+React be059b7 preserves Union, Subtract, Intersect and Exclude as editable native layer trees. Budgeted geometry, mixed operand rules, insertion order, inspect readback, native recovery, canvas hit testing and flatten are covered by [the verified matrix](../reports/26-11-09-live-boolean-groups-parity.html). The vector family remains partial pending Outline stroke, Simplify, Offset, Shape Builder and the remaining upstream inventory.

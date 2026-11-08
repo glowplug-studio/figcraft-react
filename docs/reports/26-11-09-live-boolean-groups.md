@@ -1,0 +1,9 @@
+# Live boolean groups
+
+Upstream 8a7ebc2484a6d64d80a13c19c18ffb814325e347. React 0.38.0 at be059b747a4cbc3a07195e808768fb2858e46957. Global supported baseline 8eb0b876. Strict TypeScript, package and Next.js production builds, 944 pure tests, two local Auth integration tests and 124 Chromium tests passed. One Chromium worker, zero retries, skips or failures, 286.5 seconds.
+
+Union, Subtract, Intersect and Exclude preserve editable operands, nested transforms, explicit per-operand overrides and native save/recovery. Subtract takes the bottom operand’s paint. Flatten replaces the tree with its contour. Both desktop pointer editing and the narrow-screen menu were exercised on the authenticated local host. Paper.js Core supplies independent cubic path operations. [13-property verification matrix](26-11-09-live-boolean-groups-parity.html).
+
+48 overlapping rectangles, 30 edits per operand. Top p50/p95 1.0/1.4 ms. Bottom p50/p95 13.1/16.7 ms. After forced collection the second 60-edit run changed retained JavaScript heap by 50,680 bytes. This measures engine command and result creation on an isolated scene. Sustained whole-host performance remains a final audit item. Next.js editor route scripts totalled 485,764 bytes gzipped across six chunks, up from 372,362 at c93010f. The reusable library entry increased from 197.40 to 328.21 kB gzipped. [Measurements](26-11-09-live-boolean-groups-measurements.json).
+
+The scoped Figcraft Supabase MCP returned zero public tables. These local document operations use existing host Auth and device recovery. Cloud files, ownership and collaboration retain their dedicated roadmap slices. Source and fork at 8a7ebc2484a6d64d80a13c19c18ffb814325e347. Branch prompt/full-figcraft-port, local checkpoint be059b7. The global baseline stays at 8eb0b876. Offset, Simplify, Outline stroke, Shape Builder and the remaining browser roadmap are still open. Final publication remains pending.

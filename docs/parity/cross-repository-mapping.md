@@ -277,3 +277,7 @@ Native vectoredit/ops.rs cut_vertex, cut_segment, cut_across and parts map to ve
 ## Vector winding
 
 Native structure.rs fill_rule, area_index, short_loop_segments and reverse_loop map to vector-winding.ts, the public vector command runner and undo history. Native vector_fill_rule_tests.rs supplied the paired ring, squares, lenses and shared single-segment cases. [Verified property matrix](../reports/26-11-09-vector-winding-parity.html).
+
+## Live boolean groups
+
+At be059b7, pathops budget/boolean_step/simplify_with_rule map to path-budget.ts and path-boolean.ts. Rust render::boolean::fold_cached maps to boolean-result.ts. Engine booleans.rs and inspect.rs map to structure.ts, properties.ts and inspect.ts. The native group/operand command, geometry, cache, refusal, hit, menu and storage cases are reported individually. [Property matrix](../reports/26-11-09-live-boolean-groups-parity.html).

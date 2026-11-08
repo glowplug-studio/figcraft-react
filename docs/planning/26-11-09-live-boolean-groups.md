@@ -24,3 +24,7 @@ Paper.js 0.17.0 (MIT) exposes cubic boolean operations and winding-aware orienta
 3. Connect the controls, operand selection, pointer drag and outlines. Run the local Auth success/denial suite, full preview and Chromium tests, frame and memory checks. Report each property and carry remaining dependencies forward.
 
 Phases 1–3. Source and fork main at 8a7ebc2484a6d64d80a13c19c18ffb814325e347. Global supported baseline 8eb0b876. React source c93010f. The local combined code graph has 29,499 nodes and 96,678 edges. Code-only extraction omits prose and optional SQL parsing. The scoped Figcraft Supabase MCP returned zero public tables. These in-document commands use existing Auth and device recovery. Online files and collaboration keep their own schema milestones. Rollback c93010f.
+
+## Verified checkpoint
+
+Phases 4–7 complete at be059b7. Passed 944 pure checks, two local Auth tests, strict types, package and Next.js production builds and 124 Chromium workflows with zero retries or skips. Checked editable operands, hole pixels, real pointer drag, native files, device recovery and narrow-screen flatten. Six Next.js editor chunks grew by 113,402 gzip bytes. The React graph has 1,992 nodes and 9,644 edges, and the combined graph has 29,586 nodes and 97,082 edges. Local extraction omitted a declaration/fixture with no extracted symbols and non-code assets. [Report](../reports/26-11-09-live-boolean-groups.md). Continue with [Outline stroke](26-11-09-outline-stroke.md).

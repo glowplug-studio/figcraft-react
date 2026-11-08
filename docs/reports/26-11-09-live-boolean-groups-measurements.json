@@ -1,0 +1,77 @@
+{
+  "react": "be059b747a4cbc3a07195e808768fb2858e46957",
+  "upstream": "8a7ebc2484a6d64d80a13c19c18ffb814325e347",
+  "stats": {
+    "startTime": "2026-11-08T18:55:11.194Z",
+    "duration": 286538.443,
+    "expected": 124,
+    "skipped": 0,
+    "unexpected": 0,
+    "flaky": 0
+  },
+  "performance": {
+    "boolean-edits": {
+      "operands": 48,
+      "editCount": 60,
+      "vertices": 192,
+      "top": {
+        "medianMs": 1,
+        "p95Ms": 1.399999976158142,
+        "maxMs": 1.4000000953674316
+      },
+      "bottom": {
+        "medianMs": 13.100000023841858,
+        "p95Ms": 16.700000047683716,
+        "maxMs": 20.200000047683716
+      },
+      "heapBeforeBytes": 4038368,
+      "heapAfterBytes": 4089048
+    },
+    "boolean-geometry": {
+      "hits": [
+        [
+          255,
+          255,
+          255
+        ],
+        [
+          255,
+          0,
+          0
+        ],
+        [
+          0,
+          255,
+          0
+        ],
+        [
+          255,
+          0,
+          255
+        ]
+      ],
+      "samples": [
+        0.5719999980926513,
+        0.22200000047683716,
+        0.13799999952316283,
+        0.14599999904632568
+      ],
+      "normaliseMs": 106.80000007152557,
+      "contours": 4097,
+      "last": 1
+    }
+  },
+  "productionEditorJavaScript": {
+    "baseline": {
+      "chunks": 6,
+      "rawBytes": 1232528,
+      "gzipBytes": 372362
+    },
+    "current": {
+      "chunks": 6,
+      "rawBytes": 1563343,
+      "gzipBytes": 485764
+    }
+  },
+  "chunkMethod": "Unique rootMainFiles and layout/page entryJSFiles in matching Next.js production manifests. Each chunk compressed separately using gzip level 9."
+}
