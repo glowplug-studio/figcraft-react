@@ -2594,3 +2594,67 @@ test("Outline stroke preserves fill and border pixels, transformed native layers
   await samples();
   await check();
 });
+
+test("Offset path grows and erodes a ring, preserves its hole and recovers its paint frame", async ({ page }) => {
+  const e = new EditorEngine(), id = String(e.execute("vector.create", { x:120,y:120,path:"M0 0H100V100H0Z M25 25H75V75H25Z" }).id);
+  e.execute("node.set", { id, props: { name:"Ring", fill:"#008844" } });
+  e.execute("vector.fillRule", { id, rule:"evenOdd" });
+  await login(page);
+  await page.getByLabel("Open Figcraft file", { exact:true }).setInputFiles({
+    name:"offset.figcraft", mimeType:"application/octet-stream", buffer:Buffer.from(await e.nativeSnapshot()),
+  });
+  const layers = page.getByRole("region", { name:"Layers", exact:true }), row = layers.getByRole("button", { name:"Ring", exact:true });
+  const dialog = page.getByRole("dialog", { name:"Offset path", exact:true });
+  const open = async () => {
+    await row.click();
+    await layers.getByRole("button", { name:"Offset path", exact:true }).click();
+    await expect(dialog.getByLabel("Offset distance")).toHaveValue("0");
+  };
+  const apply = async (distance: number) => {
+    await open();
+    await dialog.getByLabel("Offset distance").fill(String(distance));
+    await dialog.getByRole("button", { name:"Offset", exact:true }).click();
+    await expect(dialog).toBeHidden();
+  };
+  const deselect = async () => {
+    const p = await canvasPoint(page, 330, 290);
+    await page.mouse.click(p.x,p.y);
+  };
+  const green = [0,136,68,255], bg = [245,245,245,255];
+  await expect(row).toBeVisible();
+  await resetCanvasOrigin(page);
+  await open();
+  await dialog.getByLabel("Offset distance").fill("18");
+  await page.keyboard.press("Escape");
+  await expect(dialog).toBeHidden();
+  await deselect();
+  await expectCanvasPixel(page,115,170,bg);
+  await apply(8);
+  await deselect();
+  await expectCanvasPixel(page,115,170,green);
+  await expectCanvasPixel(page,149,170,green);
+  await expectCanvasPixel(page,170,170,bg);
+  await expectCanvasPixel(page,112,112,bg);
+  const origin = await canvasPoint(page,108,108);
+  await expect(page).toHaveScreenshot("offset-ring.png", { clip:{...origin,width:124,height:124}, animations:"disabled", maxDiffPixels:0 });
+  await page.getByRole("button", { name:"Undo", exact:true }).click();
+  await deselect();
+  await expectCanvasPixel(page,115,170,bg);
+  await page.setViewportSize({ width:390,height:844 });
+  await page.locator(".figcraft-mobile-layers > summary").click();
+  await apply(-5);
+  await page.setViewportSize({ width:1440,height:900 });
+  await expect(page.locator(".figcraft-recovery")).toHaveText("Recovery saved on this device");
+  await page.reload();
+  await expect(row).toBeVisible();
+  await resetCanvasOrigin(page);
+  await expectCanvasPixel(page,122,170,bg);
+  await expectCanvasPixel(page,129,170,green);
+  await expectCanvasPixel(page,143,170,bg);
+  const download = page.waitForEvent("download");
+  await page.getByRole("button", { name:"Save as", exact:true }).click();
+  const doc = (await decodeFigcraft(await readFile((await (await download).path())!))).document;
+  const layer = doc.nodes[id] as VectorNode;
+  expect(layer.network.regions[0]).toMatchObject({ winding:"evenOdd", paintSpace:{ width:100,height:100 } });
+  expect(layer.width).toBeCloseTo(90,2);
+});

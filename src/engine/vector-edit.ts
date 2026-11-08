@@ -1,5 +1,5 @@
 import { multiply, transformPoint } from "./affine";
-import { isLeaf, layerTransform, withLayerTransform, type Document, type LayerProperties, type LeafNode, type NodeId, type VectorNode } from "./document";
+import { commonProperties, isLeaf, layerTransform, withLayerTransform, type Document, type LeafNode, type NodeId, type VectorNode } from "./document";
 import { HierarchyDraft, worldTransform } from "./hierarchy";
 import { shapePath } from "./shape-path";
 import { defaultStroke } from "./stroke";
@@ -119,15 +119,6 @@ export function refitVector(node: VectorNode): VectorNode {
   if (!translate && bounds.width === node.width && bounds.height === node.height) return node;
   const next = { ...node, width: bounds.width, height: bounds.height };
   return translate ? withLayerTransform({ ...next, network: transformNetwork(node.network, [1, 0, 0, 1, -bounds.x, -bounds.y]) }, multiply(layerTransform(node), [1, 0, 0, 1, bounds.x, bounds.y])) : Object.freeze(next);
-}
-function commonProperties(node: LeafNode): LayerProperties {
-  switch (node.kind) {
-    case "ellipse": { const { kind: _kind, start: _start, sweep: _sweep, inner: _inner, ...common } = node; return common; }
-    case "polygon": { const { kind: _kind, count: _count, ...common } = node; return common; }
-    case "star": { const { kind: _kind, count: _count, innerRatio: _inner, ...common } = node; return common; }
-    case "vector": { const { kind: _kind, network: _network, ...common } = node; return common; }
-    default: { const { kind: _kind, ...common } = node; return common; }
-  }
 }
 export function convertToVector(node: LeafNode): VectorNode {
   if (node.kind === "vector") return node;

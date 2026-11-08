@@ -72,6 +72,18 @@ export interface BooleanNode extends LayerProperties {
   readonly children: readonly NodeId[];
 }
 export type LayerNode = LeafNode | GroupNode | FrameNode | BooleanNode;
+export function commonProperties(node: LayerNode): LayerProperties {
+  switch (node.kind) {
+    case "frame": { const { kind: _kind, children: _children, clip: _clip, ...common } = node; return common; }
+    case "group": { const { kind: _kind, children: _children, ...common } = node; return common; }
+    case "booleanOp": { const { kind: _kind, children: _children, op: _op, ...common } = node; return common; }
+    case "ellipse": { const { kind: _kind, start: _start, sweep: _sweep, inner: _inner, ...common } = node; return common; }
+    case "polygon": { const { kind: _kind, count: _count, ...common } = node; return common; }
+    case "star": { const { kind: _kind, count: _count, innerRatio: _inner, ...common } = node; return common; }
+    case "vector": { const { kind: _kind, network: _network, ...common } = node; return common; }
+    default: { const { kind: _kind, ...common } = node; return common; }
+  }
+}
 export type DocumentNode = PageNode | LayerNode;
 export const isGroupLike = (node: DocumentNode | undefined): node is GroupNode | BooleanNode => node?.kind === "group" || node?.kind === "booleanOp";
 export const isLeafKind = (kind: unknown): kind is LeafNode["kind"] => kind === "rectangle" || kind === "ellipse" || kind === "polygon" || kind === "star" || kind === "line" || kind === "vector";

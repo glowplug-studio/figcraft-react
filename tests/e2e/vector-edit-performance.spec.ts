@@ -42,3 +42,13 @@ for (const command of ["vector.fillRule", "vector.reverseLoop"] as const) test(`
   expect(result).toMatchObject({ nodes: 10_000, rings: 100, edits: 120, frames: 110, undoPixel: 245 });
   expect(result.p95).toBeLessThan(16.7); expect(result.inputP95).toBeLessThan(16.7);
 });
+
+test("Offset path rebuilds 32 visible rings in 10000 nodes and undo restores the full scene", async ({ page }) => {
+  await openBenchmark(page);
+  const result = await page.evaluate(() => (window as unknown as { VectorEditPerformance: {
+    measureOffset: typeof import("../fixtures/vector-edit-performance").measureOffset
+  } }).VectorEditPerformance.measureOffset(document.querySelector("canvas")!));
+  expect(result).toMatchObject({nodes:10000,rings:32,runs:10,holePixel:245});
+  expect(result.grownPixel).toBeLessThan(240);
+  await test.info().attach("vector.offset", {body:JSON.stringify(result),contentType:"application/json"});
+});

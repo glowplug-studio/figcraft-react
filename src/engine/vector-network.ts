@@ -11,6 +11,13 @@ export interface VectorSegment { readonly a: number; readonly b: number; readonl
 export interface RegionPaintSpace { readonly width: number; readonly height: number; readonly transform: Affine }
 export interface VectorRegion { readonly loops: readonly (readonly number[])[]; readonly winding: "nonZero" | "evenOdd"; readonly fills?: readonly SolidPaint[]; readonly paintSpace?: RegionPaintSpace }
 export interface VectorNetwork { readonly vertices: readonly VectorVertex[]; readonly segments: readonly VectorSegment[]; readonly regions: readonly VectorRegion[] }
+/** Append disconnected geometry, translating indices into the destination network. */
+export function appendNetwork(target: { vertices: VectorVertex[]; segments: VectorSegment[]; regions: VectorRegion[] }, part: VectorNetwork): void {
+  const nv = target.vertices.length, ns = target.segments.length;
+  for (const v of part.vertices) target.vertices.push(v);
+  for (const s of part.segments) target.segments.push({ ...s, a: s.a + nv, b: s.b + nv });
+  for (const r of part.regions) target.regions.push({ ...r, loops: r.loops.map(loop => loop.map(i => i + ns)) });
+}
 export const vectorVertex = (x: number, y: number): VectorVertex => ({ x, y, radius: 0 });
 export const vectorLine = (a: number, b: number): VectorSegment => ({ a, b, ta: [0, 0], tb: [0, 0] });
 export function freezeNetwork(net: VectorNetwork): VectorNetwork {

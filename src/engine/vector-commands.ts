@@ -3,12 +3,13 @@ import { inverse, multiply, type Affine } from "./affine";
 import { fromRgba8 } from "./colour";
 import { layerTransform, withLayerTransform, isLeaf, rectanglePaints, withRectanglePaints, type Document, type LayerNode, type NodeId, type VectorNode } from "./document";
 import { HierarchyDraft, rootIds, worldTransform, zSorted } from "./hierarchy";
-import { parseNodeId } from "./parameters";
+import { parseNodeId, parseNumber } from "./parameters";
 import { isClosedShape, shapePath } from "./shape-path";
 import { solidPaint, type SolidPaint } from "./solid-paint";
 import { defaultStroke } from "./stroke";
-import { freezeNetwork, vectorLine, networkFromPath, regionPaintFrame, transformNetwork, type VectorNetwork, type VectorRegion, type VectorSegment, type VectorVertex } from "./vector-network";
+import { appendNetwork, freezeNetwork, vectorLine, networkFromPath, regionPaintFrame, transformNetwork, type VectorNetwork, type VectorRegion, type VectorSegment, type VectorVertex } from "./vector-network";
 import { networkBounds } from "./vector-path";
+import { offsetLayer } from "./vector-offset";
 import { reverseLoop, setFillRule } from "./vector-winding";
 
 export type VectorJoinCommand = "vector.join" | "vector.smoothJoin";
@@ -22,6 +23,7 @@ export const vectorSpecs = Object.freeze({
   "vector.fillRule": { label: "Set fill rule", undo: true },
   "vector.reverseLoop": { label: "Reverse loop", undo: true },
   "bool.flatten": { label: "Flatten boolean", undo: true },
+  "vector.offset": { label: "Offset path", undo: true },
   "vector.outlineStroke": { label: "Outline stroke", undo: true },
   "vector.flatten": { label: "Flatten", undo: true },
   "vector.reverse": { label: "Reverse path direction", undo: true },
@@ -35,10 +37,7 @@ function flattenedNetwork(document: Document, ids: readonly NodeId[], parent: No
   const append = (node: LayerNode, source: VectorNetwork, intoParent: Affine) => {
     const paints = rectanglePaints(node), effective = paints.length ? paints : fallback ?? paints;
     const framed = freezeNetwork({ ...source, regions: source.regions.map(region => ({ ...region, ...(region.fills === undefined && !samePaints(effective, output) ? { fills: effective } : {}), paintSpace: regionPaintFrame(region, node.width, node.height) })) });
-    const part = transformNetwork(framed, intoParent), nv = vertices.length, ns = segments.length;
-    for (const v of part.vertices) vertices.push(v);
-    for (const s of part.segments) segments.push({ ...s, a: s.a + nv, b: s.b + nv });
-    for (const r of part.regions) regions.push({ ...r, loops: r.loops.map(loop => loop.map(i => i + ns)) });
+    appendNetwork({ vertices, segments, regions }, transformNetwork(framed, intoParent));
   };
   const collect = (id: NodeId, depth: number): void => {
     if (depth > 64) throw new Error("vector.flatten: group nesting exceeds 64");
@@ -70,6 +69,7 @@ export function executeVector(command: string, document: Document, selection: re
 } {
   if (!Object.hasOwn(vectorSpecs, command)) throw new Error(`Unsupported vector command: ${command}`);
   const allowed = ["ids", "id"];
+  if (command === "vector.offset") allowed.push("offset");
   if (command === "vector.fillRule") allowed.push("region", "rule");
   if (command === "vector.reverseLoop") allowed.push("region", "loop");
   if (Object.keys(params).some(k => !allowed.includes(k))) throw new Error(`Unsupported ${command} parameter`);
@@ -95,6 +95,18 @@ export function executeVector(command: string, document: Document, selection: re
       const region: VectorRegion = { loops: [segments.map((_, i) => i)], winding: "nonZero" };
       draft.set({ ...node, network: freezeNetwork({ ...net, segments, regions: [region] }) });
     }
+    return { document: draft.finish(), selection, nextId, result: { ok: true } };
+  }
+  if (command === "vector.offset") {
+    const distance = parseNumber(params.offset, "offset");
+    for (const id of targets) {
+      const node = draft.nodes[id];
+      if (distance && node.kind !== "page" && (isLeaf(node) || !node.children.length)) {
+        const next = offsetLayer(node, distance);
+        if (next) draft.set(next);
+      }
+    }
+    draft.normaliseGroups();
     return { document: draft.finish(), selection, nextId, result: { ok: true } };
   }
   if (command === "vector.outlineStroke") {

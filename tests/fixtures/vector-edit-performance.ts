@@ -195,3 +195,26 @@ export async function measureWinding(canvas: HTMLCanvasElement, command: "vector
   renderDocument(ctx, engine.getRenderDocument(), 1200, 800, [], undefined, engine.getView());
   return { nodes: Object.keys(engine.getSnapshot().document.nodes).length, rings: ids.length, edits, frames: frames.length, inputP95: p95(inputs), p95: p95(frames), undoPixel: ctx.getImageData(870,775,1,1).data[0] };
 }
+
+export async function measureOffset(canvas: HTMLCanvasElement) {
+  const { engine, children } = await openVectorScene("M0 0H40V30H0Z M10 8V22H30V8Z", false);
+  const ids = children.slice(0,32), original = engine.getSnapshot().document;
+  canvas.width=960; canvas.height=850;
+  const context = canvas.getContext("2d", { willReadFrequently:true })!;
+  const commands: number[] = [], frames: number[] = [];
+  let grownPixel = 0, holePixel = 0;
+  for (let i=0; i<12; i++) {
+    const start=performance.now();
+    engine.execute("vector.offset", { ids, offset:2 });
+    const changed=performance.now();
+    renderDocument(context, engine.getSnapshot().document, canvas.width, canvas.height);
+    const painted=performance.now();
+    if (i>=2) { commands.push(changed-start); frames.push(painted-changed); }
+    grownPixel=context.getImageData(39,55,1,1).data[0];
+    holePixel=context.getImageData(60,55,1,1).data[0];
+    engine.execute("edit.undo");
+    if (engine.getSnapshot().document!==original) throw Error("Undo did not restore the original document");
+  }
+  const p95=(values:number[]) => values.sort((a,b)=>a-b)[Math.floor(values.length*.95)];
+  return { nodes:Object.keys(original.nodes).length, rings:ids.length, runs:commands.length, commandP95Ms:p95(commands), paintP95Ms:p95(frames), grownPixel, holePixel };
+}

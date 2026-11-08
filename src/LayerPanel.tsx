@@ -1,7 +1,7 @@
 import { BooleanIcon } from "./BooleanMenu";
 import { booleanLabel } from "./engine/structure";
 import { isGroupLike, isLeaf } from "./engine/document";
-import { useEffect, useState, type FormEvent, type ReactNode } from "react";
+import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import type { Document, NodeId, PageNode } from "./engine/document";
 
 export interface LayerPanelProps {
@@ -13,6 +13,7 @@ export interface LayerPanelProps {
 
 /** Top-first layer tree; document children remain in bottom-to-top paint order. */
 export function LayerPanel({ document, selection, editable, dispatch }: LayerPanelProps) {
+  const offsetDialog = useRef<HTMLDialogElement>(null);
   const [collapsed, setCollapsed] = useState<ReadonlySet<NodeId>>(() => new Set());
   const [target, setTarget] = useState<NodeId>(document.currentPage);
   useEffect(() => setTarget(document.currentPage), [document.currentPage]);
@@ -76,6 +77,23 @@ export function LayerPanel({ document, selection, editable, dispatch }: LayerPan
       <button type="button" disabled={!editable || selection.length === 0} onClick={() => dispatch("object.group", { ids: selection })}>Group</button>
       <button type="button" disabled={!editable || !selection.some(id => isGroupLike(document.nodes[id]))} onClick={() => dispatch("object.ungroup", { ids: selection })}>Ungroup</button>
       <button type="button" disabled={!editable || selection.length === 0} onClick={() => dispatch("vector.flatten")}>Flatten</button>
+      <button type="button" disabled={!editable || selection.length === 0} onClick={() => {
+        const dialog = offsetDialog.current!;
+        dialog.querySelector("form")?.reset();
+        dialog.showModal();
+      }}>Offset path</button>
+      <dialog ref={offsetDialog} aria-label="Offset path">
+        <form onSubmit={event => {
+          event.preventDefault();
+          const value = Number(new FormData(event.currentTarget).get("offset"));
+          if (editable && selection.length && Number.isFinite(value)) dispatch("vector.offset", { offset: Math.max(-100000, Math.min(100000, value)) });
+          offsetDialog.current?.close();
+        }}>
+          <label>Offset distance<input name="offset" type="number" step="any" required defaultValue="0" autoFocus /></label>
+          <button type="submit">Offset</button>
+          <button type="button" onClick={() => offsetDialog.current?.close()}>Cancel</button>
+        </form>
+      </dialog>
       <button type="button" disabled={!editable || selection.length === 0} onClick={() => dispatch("vector.outlineStroke")}>Outline stroke</button>
       <button type="button" disabled={!editable || selection.length === 0} onClick={() => dispatch("vector.join")}>Join selection</button>
       <button type="button" disabled={!editable || selection.length === 0} onClick={() => dispatch("vector.smoothJoin")}>Smooth join selection</button>

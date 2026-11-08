@@ -2,6 +2,10 @@
 
 All notable changes to the React port and its upstream compatibility baseline are recorded here.
 
+## [0.40.0] - 2026-11-09
+
+- Added signed Offset path editing for native shapes and vector regions, preserving holes and paint frames.
+
 ## [0.39.0] - 2026-11-09
 
 - Added Outline stroke for supported layers, including retained fills, profile and brush geometry, native save and undo.
