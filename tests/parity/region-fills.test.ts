@@ -1,5 +1,6 @@
 import { expectSolid } from "../fixtures/expect-solid";
-import { describe, expect, it } from "vitest";
+import { readFileSync } from "node:fs";
+import { describe, expect, it, vi } from "vitest";
 import { toCssHex } from "../../src/engine/colour";
 import { rectanglePaints, type VectorNode } from "../../src/engine/document";
 import { EditorEngine } from "../../src/engine/editor";
@@ -23,6 +24,32 @@ async function setup() {
 const colours = (list?: readonly Paint[] | null) => list?.map(p => toCssHex(expectSolid(p).color).toLowerCase());
 
 describe("native effective region fill commands", () => {
+  it("uploads to only the selected region and cancels a pending read when the picker closes", async () => {
+    const {engine, select, stack, node} = await setup();
+    select([0]);
+    const picker = {list:"fill" as const,index:0,stop:0};
+    engine.setPaintPicker(picker);
+    const before = engine.getSnapshot().document, source = readFileSync(new URL("../fixtures/images/six-pixels.png",import.meta.url));
+    const file = new File([Uint8Array.from(source)],"region.png",{type:"image/png"});
+    vi.stubGlobal("createImageBitmap", async () => ({width:3,height:2,close(){}}));
+    try {
+      await engine.uploadPaintImage(picker,file);
+      expect(stack(0)?.[0]).toMatchObject({type:"image",scale_mode:"fill"});
+      expect(stack(1)).toBeUndefined();
+      expect(rectanglePaints(node())[0].type).toBe("solid");
+      engine.execute("edit.undo");
+      expect(engine.getSnapshot().document).toBe(before);
+      engine.setPaintPicker(picker);
+      let release!: (bytes:ArrayBuffer)=>void;
+      const read = new Promise<ArrayBuffer>(resolve=>{release=resolve;});
+      vi.spyOn(file,"arrayBuffer").mockReturnValue(read);
+      const pending = engine.uploadPaintImage(picker,file);
+      engine.setPaintPicker();
+      release(Uint8Array.from(source).buffer);
+      await expect(pending).rejects.toThrow(/picker target changed/);
+      expect(engine.getSnapshot().document).toBe(before);
+    } finally { vi.unstubAllGlobals(); }
+  });
   it("edits inherited stacks independently and reports a mixed region selection", async () => {
     const f = await setup(), inherited = rectanglePaints(f.node());
     f.select([1]); expect(f.inspect()).toEqual(inherited);

@@ -44,7 +44,7 @@ function withValues(base: ImageFilters, values: unknown): ImageFilters {
   }
   return Object.freeze(filters);
 }
-function findPreset(document: Document, name: string) {
+export function findImagePreset(document: Document, name: string) {
   const key = (s: string) => s.replace(/[^\p{L}\p{N}]/gu, "").toLowerCase();
   const saved = document.imagePresets?.find(p => p.name === name);
   const query = key(name);
@@ -58,7 +58,7 @@ export function editImagePaints(document: Document, selection: readonly NodeId[]
   const ids = targets(selection, p, true);
   const stroke = editsStrokes(p), index = p.index == null ? undefined : parseIndex(p.index);
   const name = replacement === undefined ? parseString(p.preset) : undefined;
-  const preset = name === undefined ? undefined : findPreset(document, name);
+  const preset = name === undefined ? undefined : findImagePreset(document, name);
   if (replacement === undefined && !preset && p.filters == null) throw new Error("Pass preset or filters");
   const draft = new HierarchyDraft(document);
   let changed = 0;

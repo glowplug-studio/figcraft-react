@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState, type PointerEvent } from "react";
+import { ImagePaintControls } from "./ImagePaintControls";
 import { fromRgba8, renderColour, withAlpha } from "./engine/colour";
 import { parseCssColour } from "./engine/colour-css";
 import type { EditorEngine, PaintPicker as Picker } from "./engine/editor";
@@ -12,6 +13,7 @@ type Props = {
   label: string;
   paint: Paint;
   change: (paint: Paint) => void;
+  region?: boolean;
 };
 
 function changeKind(paint: Paint, kind: GradientKind | "solid"): Paint {
@@ -86,8 +88,17 @@ function Stops({engine,picker,paint,change}: {engine:EditorEngine; picker:Picker
   </div>;
 }
 
-export function PaintPicker({engine,list,index,label,paint,change}:Props) {
+export function PaintPicker({engine,list,index,label,paint,change,region=false}:Props) {
   const picker = engine.getSnapshot().paintPicker;
+  const [pending,setPending] = useState<Picker>();
+  const image = paint.type === "image" || pending !== undefined && picker === pending;
+  const [hover,setHover] = useState<Picker>(), [uploadError,setUploadError] = useState<{picker:Picker;message:string}>();
+  async function upload(file?: File) {
+    if (!picker || !file) return;
+    setUploadError(undefined);
+    try { await engine.uploadPaintImage(picker,file); setPending(undefined); }
+    catch(e) { setUploadError({picker,message:e instanceof Error ? e.message : "Image upload failed"}); }
+  }
   const open = picker?.list === list && picker.index === index;
   const button = useRef<HTMLButtonElement>(null), panel = useRef<HTMLDivElement>(null);
   useLayoutEffect(()=>{
@@ -119,13 +130,28 @@ export function PaintPicker({engine,list,index,label,paint,change}:Props) {
     <button ref={button} type="button" aria-expanded={open} onClick={()=>engine.setPaintPicker(open ? undefined : {list,index,stop:0})}>Edit {label} paint</button>
     {open && <div ref={panel} role="group" popover="manual" aria-label={label+" paint picker"}
       style={{position:"fixed",inset:"auto",margin:0,width:"min(240px, calc(100vw - 8px))",maxHeight:"calc(100dvh - 8px)",overflow:"auto",padding:12,border:"1px solid #bbb",borderRadius:6,background:"Canvas",color:"CanvasText"}}
+      onDragOver={event=>{
+        if (image && !region && event.dataTransfer.types.includes("Files")) {event.preventDefault();event.stopPropagation();setHover(picker);}
+      }}
+      onDragLeave={event=>{
+        if (!(event.relatedTarget instanceof Node) || !event.currentTarget.contains(event.relatedTarget)) setHover(undefined);
+      }}
+      onDrop={event=>{
+        if (!image || region || !event.dataTransfer.files.length) return;
+        event.preventDefault();event.stopPropagation();setHover(undefined);void upload(event.dataTransfer.files[0]);
+      }}
       onKeyDown={event=>{if(event.key==="Escape" && !engine.interacting){event.preventDefault();event.stopPropagation();engine.setPaintPicker();button.current?.focus();}}}>
       <button type="button" aria-label="Close paint picker" style={{float:"right"}} onClick={()=>{engine.setPaintPicker();button.current?.focus();}}>×</button>
-      <label>Paint type<select value={paint.type === "gradient" ? paint.kind : paint.type} onChange={event=>change(changeKind(paint,event.target.value as GradientKind|"solid"))}>
-        {paint.type === "image" && <option value="image">Image</option>}
+      <label>Paint type<select value={image ? "image" : paint.type === "gradient" ? paint.kind : paint.type} onChange={event=>{
+        if(event.target.value==="image") setPending(picker);
+        else {setPending(undefined);change(changeKind(paint,event.target.value as GradientKind|"solid"));}
+      }}>
         {(["solid","linear","radial","angular","diamond"] as const).map(kind=><option key={kind} value={kind}>{kind[0].toUpperCase()+kind.slice(1)}</option>)}
+        <option value="image">Image</option>
       </select></label>
-      {paint.type === "gradient" && <Stops engine={engine} paint={paint} picker={picker} change={change}/>}
+      {image && <ImagePaintControls engine={engine} picker={picker} paint={paint.type === "image" ? paint : undefined} region={region} hover={hover===picker} upload={upload} change={change}/>}
+      {image && uploadError?.picker===picker && <p role="alert">{uploadError.message}</p>}
+      {!image && paint.type === "gradient" && <Stops engine={engine} paint={paint} picker={picker} change={change}/>}
     </div>}
   </>;
 }

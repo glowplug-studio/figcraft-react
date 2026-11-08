@@ -1,6 +1,8 @@
 import type { Document, NodeId } from "./document";
 import { rectanglePaints, withRectanglePaints } from "./document";
 import { HierarchyDraft } from "./hierarchy";
+import { selectedRegionFills, writeFill } from "./fill-commands";
+import type { VectorEditState } from "./vector-edit";
 import { editImagePaints } from "./image-commands";
 import { decodeImageBitmap } from "./image-decode";
 import { imageHash, imageResource, type ImageResource } from "./image-resource";
@@ -49,7 +51,20 @@ function withImageResource(document: Document, {hash, resource}: Awaited<ReturnT
 }
 
 export function replaceImage(before: { document: Document; selection: readonly NodeId[] }, nextId: bigint,
-  image: Awaited<ReturnType<typeof prepareImage>>, p: Record<string, unknown>) {
+  image: Awaited<ReturnType<typeof prepareImage>>, p: Record<string, unknown>, regionState?: VectorEditState) {
+  const node = before.document.nodes[before.selection[0]];
+  if (regionState && before.selection.length === 1 && node && node.kind !== "page" && p.target === "fill") {
+    const list = selectedRegionFills(node, regionState);
+    if (list !== undefined) {
+      const previous = list?.[Number(p.index)];
+      if (!previous) throw new Error("The selected regions have no shared paint at this index");
+      const {opacity, visible, colorAlpha, blend} = previous;
+      const paint = readPaint({type:"image", image:image.hash, opacity, visible, colorAlpha, blend});
+      const document = writeFill("fill.set", before.document, before.selection, {...p, paint}, regionState);
+      return {document:withImageResource(document,image), nextId, selection:before.selection,
+        result:{image:image.hash, width:image.resource.width, height:image.resource.height, changed:1}};
+    }
+  }
   const edit = editImagePaints(before.document, before.selection, p, image.hash);
   return { document: withImageResource(edit.document, image), nextId, selection: before.selection,
     result: { ...edit.result, image: image.hash, width: image.resource.width, height: image.resource.height } };

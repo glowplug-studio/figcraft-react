@@ -9,7 +9,7 @@ import type { Paint } from "./solid-paint";
 import { executeStrokeList, strokeSpecs } from "./stroke-commands";
 import { isLeaf } from "./document";
 import { newDocument, sameContent, withLayerTransform, type Document, type DrawShapeKind, type NodeId } from "./document";
-import { decodeFigcraft, encodeFigcraft } from "./file-format";
+import { decodeFigcraft, encodeFigcraft, MAX_FILE_BYTES } from "./file-format";
 import { executePage, listPages, pageSpecs } from "./pages";
 import { executeSelection, selectionSpecs } from "./selection";
 import { setRectangleProperties } from "./properties";
@@ -576,6 +576,14 @@ export class EditorEngine {
   async executeAsync(command: "node.get", input: unknown): Promise<ReturnType<typeof getNode>>;
   async executeAsync(command: string, input?: unknown): Promise<Record<string, unknown>>;
   async executeAsync(command: string, input: unknown = {}): Promise<Record<string, unknown> | null> {
+    return this.#executeFileCommand(command, input);
+  }
+  async uploadPaintImage(picker: PaintPicker, file: File) {
+    if (this.#snapshot.paintPicker !== picker) throw new Error("Image picker was closed");
+    if (file.size > MAX_FILE_BYTES) throw new Error("Image exceeds the browser import limit");
+    return this.#executeFileCommand("image.replace", {ids:this.#snapshot.selection, target:picker.list, index:picker.index}, {picker, file});
+  }
+  async #executeFileCommand(command: string, input: unknown, upload?: {picker:PaintPicker; file:File}): Promise<Record<string, unknown> | null> {
     const placing = command === "image.place" || command === "file.placeImage";
     const replacing = command === "image.replace";
     if (!placing && !replacing && !["file.open", "file.recover", "file.saveAs"].includes(command)) return this.execute(command, input);
@@ -596,19 +604,22 @@ export class EditorEngine {
       return { name: `${document.name}.figcraft`, bytes: bytes.length, data: btoa(binary), revision };
     }
     const allowed = replacing ? ["data", "ids", "id", "target", "index"] : placing ? ["data", "name", "target", "mode", "width", "height", "parent", "x", "y"] : ["data", "name"];
-    if (Object.keys(p).some(key => !allowed.includes(key)) || typeof p.data !== "string" || (p.name !== undefined && typeof p.name !== "string")) throw new Error("File import requires base64 data and supported parameters");
+    if (Object.keys(p).some(key => !allowed.includes(key)) || !upload && typeof p.data !== "string" || (p.name !== undefined && typeof p.name !== "string")) throw new Error("File import requires base64 data and supported parameters");
     this.pen.cancel(); this.pencil.cancel(); this.cancelInteraction();
     const before = this.#snapshot;
     const opening = ++this.#openSequence;
-    const bytes = fileData(p.data);
+    const regionState = this.#vectorEdit;
+    const bytes = upload ? new Uint8Array(await upload.file.arrayBuffer()) : fileData(p.data);
     const checkCurrent = () => {
+      if (upload && (this.#snapshot.paintPicker !== upload.picker || this.#vectorEdit !== regionState)) throw new Error("Image picker target changed");
       if (replacing && !sameIds(before.selection, this.#snapshot.selection)) throw new Error("Image replacement was cancelled because the selection changed");
       if (opening !== this.#openSequence || before.document !== this.#snapshot.document || !this.#snapshot.editable || this.interacting) throw new Error("Open was cancelled because the document or identity changed");
     };
     if (placing || replacing) {
+      if (upload) checkCurrent();
       const image = await prepareImage(bytes, before.document.images);
       checkCurrent();
-      const next = (replacing ? replaceImage : placeImage)(before, this.#nextId, image, p);
+      const next = replacing ? replaceImage(before, this.#nextId, image, p, upload ? regionState : undefined) : placeImage(before, this.#nextId, image, p);
       // Recovery uses this same bounded native archive. A placement that cannot be stored
       // must leave history, selection and the previous document intact.
       await encodeFigcraft(next.document, String(next.nextId));
