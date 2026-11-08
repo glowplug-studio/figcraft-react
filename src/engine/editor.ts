@@ -2,7 +2,7 @@ import { isGroupLike, rectanglePaints } from "./document";
 import { editImagePaints, editImagePreset, imageEditSpecs } from "./image-commands";
 import { listImagePresets } from "./image-filters";
 import { getNode } from "./inspect";
-import { fileData, placeImage, prepareImage, rasterFilename, replaceImage } from "./image-import";
+import { centrePastedImage, rasterImportParams, fileData, placeImage, prepareImage, rasterFilename, replaceImage } from "./image-import";
 import { createLayer } from "./creation";
 import { copyFill, fillSpecs, selectedRegionFills, writeFill } from "./fill-commands";
 import type { Paint } from "./solid-paint";
@@ -36,6 +36,9 @@ import { PenInteraction } from "./pen-interaction";
 import { buildPenPath, type PenAnchor } from "./pen-path";
 import { PencilInteraction } from "./pencil-interaction";
 import { parseBrush, wireBrush, type Brush } from "./brush";
+
+interface FileSource {file:File; picker?:PaintPicker; paste?:boolean; centre?:boolean}
+type OpenResult = { repairs: readonly string[]; summary: {name:string; pages:number; layers:number; images:number} }
 
 export const commandSpecs = Object.freeze({
   ...strokeSpecs,
@@ -87,6 +90,7 @@ export const commandSpecs = Object.freeze({
   "edit.redo": { label: "Redo", undo: false },
   "edit.duplicate": { label: "Duplicate", undo: true },
   "image.place": { label: "Place image", undo: true },
+  "file.import": { label: "Import", undo: true },
   "file.placeImage": { label: "Place image", undo: true },
   "file.open": { label: "Open", undo: false },
   "file.recover": { label: "Recover file", undo: false },
@@ -572,19 +576,50 @@ export class EditorEngine {
     return { [undo ? "undone" : "redone"]: Boolean(entry) };
   }
   /** Native file commands run outside pointer rendering and retain atomic document replacement. */
-  async executeAsync(command: "file.open" | "file.recover", input: unknown): Promise<{ repairs: readonly string[]; summary: { name: string; pages: number; layers: number; images: number } }>;
+  async executeAsync(command: "file.open" | "file.recover", input: unknown): Promise<OpenResult>;
   async executeAsync(command: "node.get", input: unknown): Promise<ReturnType<typeof getNode>>;
   async executeAsync(command: string, input?: unknown): Promise<Record<string, unknown>>;
   async executeAsync(command: string, input: unknown = {}): Promise<Record<string, unknown> | null> {
     return this.#executeFileCommand(command, input);
   }
+  async openFile(file:File) {
+    return this.#executeFileCommand("file.open",{name:file.name},{file});
+  }
+  async placeFile(file:File) {
+    return this.#executeFileCommand("file.placeImage",{x:this.#view.cx,y:this.#view.cy,name:file.name.replace(/\.[^.]+$/,"")},{file});
+  }
   async uploadPaintImage(picker: PaintPicker, file: File) {
     if (this.#snapshot.paintPicker !== picker) throw new Error("Image picker was closed");
-    if (file.size > MAX_FILE_BYTES) throw new Error("Image exceeds the browser import limit");
     return this.#executeFileCommand("image.replace", {ids:this.#snapshot.selection, target:picker.list, index:picker.index}, {picker, file});
   }
-  async #executeFileCommand(command: string, input: unknown, upload?: {picker:PaintPicker; file:File}): Promise<Record<string, unknown> | null> {
-    const placing = command === "image.place" || command === "file.placeImage";
+  async pasteImage(file: File, at?: Point) {
+    const {document, selection} = this.#snapshot;
+    const selected = selection.length === 1 ? document.nodes[selection[0]] : undefined;
+    if (!at && selected && selected.kind !== "page" && selected.kind !== "group") {
+      return this.#executeFileCommand("image.place",{target:selected.id},{file,paste:true});
+    }
+    return this.#executeFileCommand("file.import",{name:"Pasted image.png",...at},{file,paste:true,centre:!at});
+  }
+  async dropImages(files: readonly File[], at: Point, picker?: PaintPicker) {
+    const errors: string[] = [];
+    for (const [index,file] of files.entries()) {
+      const before = this.#snapshot.document;
+      const sequence = this.#openSequence;
+      try {
+        if (index === 0 && picker) await this.uploadPaintImage(picker,file);
+        else await this.#executeFileCommand("file.import",{name:file.name || "dropped.png",...at},{file});
+      } catch (error) {
+        errors.push(file.name + ": " + (error instanceof Error ? error.message : "Image import failed"));
+        if (!this.#snapshot.editable || before !== this.#snapshot.document || this.#openSequence > sequence+1) break;
+      }
+    }
+    return errors;
+  }
+  async #executeFileCommand(command:"file.open", input:unknown, source?:FileSource): Promise<OpenResult>;
+  async #executeFileCommand(command:string, input:unknown, source?:FileSource): Promise<Record<string, unknown> | null>;
+  async #executeFileCommand(command:string, input:unknown, source?:FileSource): Promise<Record<string,unknown> | OpenResult | null> {
+    const importing = command === "file.import";
+    const placing = importing || command === "image.place" || command === "file.placeImage";
     const replacing = command === "image.replace";
     if (!placing && !replacing && !["file.open", "file.recover", "file.saveAs"].includes(command)) return this.execute(command, input);
     if (!this.#snapshot.editable) throw new Error("Sign in to edit this document");
@@ -603,23 +638,26 @@ export class EditorEngine {
       for (let offset = 0; offset < bytes.length; offset += 8192) binary += String.fromCharCode(...bytes.subarray(offset, offset + 8192));
       return { name: `${document.name}.figcraft`, bytes: bytes.length, data: btoa(binary), revision };
     }
-    const allowed = replacing ? ["data", "ids", "id", "target", "index"] : placing ? ["data", "name", "target", "mode", "width", "height", "parent", "x", "y"] : ["data", "name"];
-    if (Object.keys(p).some(key => !allowed.includes(key)) || !upload && typeof p.data !== "string" || (p.name !== undefined && typeof p.name !== "string")) throw new Error("File import requires base64 data and supported parameters");
+    if (source && source.file.size > MAX_FILE_BYTES) throw new Error("File exceeds the browser import limit");
+    const allowed = importing ? ["name","data","x","y","center","variables"] : replacing ? ["data", "ids", "id", "target", "index"] : placing ? ["data", "name", "target", "mode", "width", "height", "parent", "x", "y"] : ["data", "name"];
+    if (Object.keys(p).some(key => !allowed.includes(key)) || !source && typeof p.data !== "string" || (!importing && p.name !== undefined && typeof p.name !== "string")) throw new Error("File import requires base64 data and supported parameters");
     this.pen.cancel(); this.pencil.cancel(); this.cancelInteraction();
     const before = this.#snapshot;
     const opening = ++this.#openSequence;
     const regionState = this.#vectorEdit;
-    const bytes = upload ? new Uint8Array(await upload.file.arrayBuffer()) : fileData(p.data);
+    const centre = this.#view;
+    const bytes = source ? new Uint8Array(await source.file.arrayBuffer()) : fileData(p.data);
     const checkCurrent = () => {
-      if (upload && (this.#snapshot.paintPicker !== upload.picker || this.#vectorEdit !== regionState)) throw new Error("Image picker target changed");
-      if (replacing && !sameIds(before.selection, this.#snapshot.selection)) throw new Error("Image replacement was cancelled because the selection changed");
+      if (source?.picker && (this.#snapshot.paintPicker !== source.picker || this.#vectorEdit !== regionState)) throw new Error("Image picker target changed");
+      if ((replacing || source?.paste) && !sameIds(before.selection, this.#snapshot.selection)) throw new Error("Image edit was cancelled because the selection changed");
       if (opening !== this.#openSequence || before.document !== this.#snapshot.document || !this.#snapshot.editable || this.interacting) throw new Error("Open was cancelled because the document or identity changed");
     };
     if (placing || replacing) {
-      if (upload) checkCurrent();
-      const image = await prepareImage(bytes, before.document.images);
+      if (source) checkCurrent();
+      const placement = importing ? rasterImportParams(p,centre) : p;
+      const image = await prepareImage(bytes, before.document.images, source?.paste ? 100_000_000 : undefined);
       checkCurrent();
-      const next = replacing ? replaceImage(before, this.#nextId, image, p, upload ? regionState : undefined) : placeImage(before, this.#nextId, image, p);
+      const next = replacing ? replaceImage(before, this.#nextId, image, p, source ? regionState : undefined) : placeImage(before, this.#nextId, image, source?.centre ? {...placement,...centrePastedImage(image,centre)} : placement);
       // Recovery uses this same bounded native archive. A placement that cannot be stored
       // must leave history, selection and the previous document intact.
       await encodeFigcraft(next.document, String(next.nextId));

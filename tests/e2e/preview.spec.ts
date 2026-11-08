@@ -3045,3 +3045,77 @@ test("image strokes can upload, adjust with the keyboard and delete a saved pres
   expect(node.strokes?.[0]).toMatchObject({type:"image",filters:{tint:1}});
   expect(document.imagePresets ?? []).toEqual([]);
 });
+
+test("multiple dropped files use page coordinates and the open image picker takes only the first",async({page})=>{
+  await login(page);
+  const canvas=page.getByLabel("Design canvas",{exact:true});
+  const png=await readFile(new URL("../fixtures/images/six-pixels.png",import.meta.url));
+  const data=await page.evaluateHandle(bytes=>{
+    const transfer=new DataTransfer();
+    for(const name of ["first.png","second.png"]) transfer.items.add(new File([Uint8Array.from(bytes)],name,{type:"image/png"}));
+    return transfer;
+  },[...png]);
+  const at=await canvasPoint(page,45,60);
+  const event={clientX:at.x,clientY:at.y,dataTransfer:data};
+  await canvas.dispatchEvent("drop",event);
+  await expect(page.getByText("2 layers",{exact:true})).toBeVisible();
+  async function saved() {
+    const download=page.waitForEvent("download");
+    await canvas.focus();await page.keyboard.press("ControlOrMeta+s");
+    return (await decodeFigcraft(await readFile((await (await download).path())!))).document;
+  }
+  const doc=await saved();
+  expect(doc.nodes["2"]).toMatchObject({name:"first",x:45,y:60});
+  expect(doc.nodes["3"]).toMatchObject({name:"second",x:45,y:60});
+  expect(Object.keys(doc.images!)).toHaveLength(1);
+  await createNamedRectangle(page,"Target",90,100,60,50);
+  await page.getByRole("button",{name:"Edit fill 1 paint",exact:true}).click();
+  const picker=page.getByRole("group",{name:"fill 1 paint picker",exact:true});
+  await picker.getByLabel("Paint type").selectOption("image");
+  await picker.dispatchEvent("drop",event);
+  await expect(page.getByText("4 layers",{exact:true})).toBeVisible();
+  const multi=await saved();
+  expect(multi.nodes["4"]).toMatchObject({name:"Target",fills:[{type:"image"}]});
+  expect(multi.nodes["5"]).toMatchObject({name:"second",x:45,y:60});
+  await page.keyboard.press("ControlOrMeta+z");
+  await expect(page.getByText("3 layers",{exact:true})).toBeVisible();
+  expect((await saved()).nodes["4"]).toMatchObject({fills:[{type:"image"}]});
+  await page.keyboard.press("ControlOrMeta+z");
+  expect(rectanglePaints((await saved()).nodes["4"] as RectangleNode)[0].type).toBe("solid");
+  await data.dispose();
+});
+
+test("browser image paste centres in the view, appends to a selected fill, respects fields and pastes here at the pointer",async({page,context})=>{
+  await login(page);
+  const canvas=page.getByLabel("Design canvas",{exact:true});
+  const png=await readFile(new URL("../fixtures/images/six-pixels.png",import.meta.url));
+  await context.grantPermissions(["clipboard-read","clipboard-write"],{origin:new URL(page.url()).origin});
+  await page.evaluate(async bytes=>navigator.clipboard.write([new ClipboardItem({"image/png":new Blob([Uint8Array.from(bytes)],{type:"image/png"})})]),[...png]);
+  const centre=await canvas.evaluate((node:HTMLCanvasElement)=>{
+    const bounds=node.getBoundingClientRect(), z=Number(node.dataset.viewZoom);
+    return {x:Number(node.dataset.viewOriginX)+bounds.width/(2*z),y:Number(node.dataset.viewOriginY)+bounds.height/(2*z)};
+  });
+  const round=(n:number)=>Math.sign(n)*Math.round(Math.abs(n));
+  await canvas.focus();await page.keyboard.press("ControlOrMeta+v");
+  await expect(page.getByText("1 layer",{exact:true})).toBeVisible();
+  async function saved() {
+    const download=page.waitForEvent("download");await canvas.focus();await page.keyboard.press("ControlOrMeta+s");
+    return (await decodeFigcraft(await readFile((await (await download).path())!))).document;
+  }
+  expect((await saved()).nodes["2"]).toMatchObject({name:"Pasted image",width:3,height:2,x:round(centre.x-1.5),y:round(centre.y-1)});
+  await page.keyboard.press("ControlOrMeta+v");
+  await expect(page.getByRole("button",{name:"Edit fill 2 paint",exact:true})).toBeVisible();
+  const field=page.getByRole("region",{name:"Appearance"}).getByLabel("Name",{exact:true});
+  await field.focus();await page.keyboard.press("ControlOrMeta+v");
+  expect(rectanglePaints((await saved()).nodes["2"] as RectangleNode)).toHaveLength(2);
+  const at=await canvasPoint(page,82,124);
+  await page.mouse.click(at.x,at.y,{button:"right"});
+  await page.getByRole("button",{name:"Paste here",exact:true}).click();
+  await expect(page.getByText("2 layers",{exact:true})).toBeVisible();
+  const doc=await saved();
+  expect(doc.nodes["3"]).toMatchObject({name:"Pasted image",x:82,y:124});
+  expect(rectanglePaints(doc.nodes["2"] as RectangleNode)).toHaveLength(2);
+  await expect(page.getByText("Recovery saved on this device",{exact:true})).toBeVisible();
+  await page.reload();await expect(page.getByText("2 layers",{exact:true})).toBeVisible();
+  expect((await saved()).nodes["3"]).toMatchObject({x:82,y:124,fills:[{type:"image"}]});
+});

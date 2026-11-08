@@ -82,3 +82,58 @@ describe("native image paints and placement", () => {
     expect(engine.getSnapshot()).toBe(current);
   });
 });
+
+describe("native raster import, drop and image paste", () => {
+  const file = (name="source.png") => new File([Uint8Array.from(png)],name,{type:"image/png"});
+  function setup() {
+    vi.stubGlobal("createImageBitmap",async ()=>({width:3,height:2,close(){}}));
+    const engine = new EditorEngine();
+    engine.updateView({...engine.getView(),cx:0,cy:20});
+    return engine;
+  }
+  it("imports by content, uses each coordinate independently and applies the native basename", async()=>{
+    const engine=setup();
+    const imported=await engine.executeAsync("file.import",{data,name:"designs/swatch.raw",y:"-7px",center:true});
+    expect(engine.getSnapshot().document.nodes[String(imported.id)]).toMatchObject({name:"swatch",width:3,height:2,x:0,y:-7});
+    const unnamed=await engine.executeAsync("file.import",{data});
+    expect(engine.getSnapshot().document.nodes[String(unnamed.id)]).toMatchObject({name:"import",x:0,y:20});
+    const before=engine.getSnapshot().document;
+    await expect(engine.executeAsync("file.import",{data,name:"design.svg"})).rejects.toThrow();
+    expect(engine.getSnapshot().document).toBe(before);
+  });
+  it("centres a plain paste using native rounding, fills one selected layer and pastes here independently", async()=>{
+    const engine=setup();
+    const pasted=await engine.pasteImage(file());
+    const id=String(pasted!.id), first=engine.getSnapshot().document;
+    expect(first.nodes[id]).toMatchObject({name:"Pasted image",x:-2,y:19,width:3,height:2});
+    await engine.pasteImage(file());
+    expect(rectanglePaints(engine.getSnapshot().document.nodes[id] as RectangleNode)).toHaveLength(2);
+    engine.execute("edit.undo"); expect(engine.getSnapshot().document).toBe(first);
+    const here=await engine.pasteImage(file(),{x:3.25,y:-4.5});
+    expect(engine.getSnapshot().document.nodes[String(here!.id)]).toMatchObject({name:"Pasted image",x:3.25,y:-4.5});
+    expect(rectanglePaints(engine.getSnapshot().document.nodes[id] as RectangleNode)).toHaveLength(1);
+  });
+  it("routes only the first file to an open image well, preserves order after a damaged file and undoes placements separately",async()=>{
+    const engine=setup(), id=String(engine.execute("shape.rectangle").id);
+    const picker={list:"fill" as const,index:0,stop:0};
+    engine.setPaintPicker(picker);
+    const before=engine.getSnapshot().document;
+    const errors=await engine.dropImages([file("first.png"),new File(["damaged"],"bad.png"),file("second.png")],{x:12,y:15},picker);
+    expect(errors).toHaveLength(1); expect(errors[0]).toContain("bad.png");
+    expect(engine.getSnapshot().document.nodes["3"]).toMatchObject({name:"second",x:12,y:15});
+    expect(rectanglePaints(engine.getSnapshot().document.nodes[id] as RectangleNode)[0].type).toBe("image");
+    engine.execute("edit.undo"); expect(engine.getSnapshot().document.nodes["3"]).toBeUndefined();
+    engine.execute("edit.undo"); expect(engine.getSnapshot().document).toBe(before);
+  });
+  it("cannot redirect a pending batch or a slow file picker read into a replacement drawing",async()=>{
+    const engine=setup(), slow=file();
+    let release!: (data:ArrayBuffer)=>void;
+    vi.spyOn(slow,"arrayBuffer").mockReturnValue(new Promise(resolve=>{release=resolve;}));
+    const pending=engine.dropImages([slow,file("later.png")],{x:0,y:0});
+    await engine.openFile(file("replacement.png"));
+    const current=engine.getSnapshot().document;
+    release(Uint8Array.from(png).buffer); expect(await pending).toHaveLength(1);
+    expect(engine.getSnapshot().document).toBe(current);
+    expect(current.name).toBe("replacement");
+  });
+});

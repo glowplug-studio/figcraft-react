@@ -14,14 +14,15 @@ import { framePresets } from "./engine/frame-presets";
 import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type FormEvent, type KeyboardEvent } from "react";
 import type { DocumentCapability } from "./backends/access";
 import type { IdentityAdapter } from "./backends/identity";
+import { screenToPage } from "./engine/viewport";
+import type { Point } from "./engine/geometry";
 import { CanvasController } from "./engine/canvas";
 import { EditorEngine } from "./engine/editor";
 import { availableBuilderArrangement } from "./engine/shape-builder";
 import { defaultConstraints, pageOf, rectangleTransform } from "./engine/document";
 import { rotationDegrees } from "./engine/affine";
 import type { RecoveryStore } from "./backends/recovery";
-import { RecoveryController, base64Bytes } from "./engine/recovery";
-import { MAX_FILE_BYTES } from "./engine/file-format";
+import { RecoveryController } from "./engine/recovery";
 import { PagePanel } from "./PagePanel";
 import { AppearancePanel } from "./AppearancePanel";
 import { BooleanMenu } from "./BooleanMenu";
@@ -60,6 +61,9 @@ export function Editor({ identity, capabilities, engine: suppliedEngine, recover
   const canvas = useRef<HTMLCanvasElement>(null);
   const root = useRef<HTMLDivElement>(null);
   const controller = useRef<CanvasController | null>(null);
+  const pasteMenu = useRef<HTMLDivElement>(null);
+  const pasteAt = useRef<Point | undefined>(undefined);
+  const modifiedPaste = useRef(false);
   useEffect(() => {
     if (pendingFile) replaceDialog.current?.showModal();
     else replaceDialog.current?.close();
@@ -111,6 +115,7 @@ export function Editor({ identity, capabilities, engine: suppliedEngine, recover
   }
   function key(event: KeyboardEvent) {
     if (!editable || busy) return;
+    if (event.key.toLowerCase() === "v") modifiedPaste.current = (event.ctrlKey || event.metaKey) && (event.shiftKey || event.altKey);
     if (event.target instanceof HTMLElement && event.target.closest("input,textarea,select,dialog,[contenteditable=true]")) return;
     if ((event.key === "Enter" || event.key === " ") && event.target instanceof HTMLElement && event.target.closest("button,summary,a[href]")) return;
     let command: string | undefined;
@@ -220,21 +225,55 @@ export function Editor({ identity, capabilities, engine: suppliedEngine, recover
     const kind = submitter?.value ?? "rectangle";
     dispatch(kind === "frame" ? "frame.create" : `shape.${kind}`, { ...Object.fromEntries(["x", "y", "width", "height"].map(name => [name, Number(data.get(name))])), parent: String(data.get("parent")) });
   }
+  function pagePoint(x: number, y: number) {
+    const bounds = canvas.current!.getBoundingClientRect();
+    return screenToPage(engine.getView(), {x:x-bounds.left,y:y-bounds.top});
+  }
+  function requestOpen(file:File) {
+    if (snapshot.dirty && Object.keys(snapshot.document.nodes).length > snapshot.document.pages.length) setPendingFile(file);
+    else void open(file);
+  }
+  async function drop(files:File[], point:Point, usePicker:boolean) {
+    const documents = files.filter(file=>/\.(?:figcraft|json)$/i.test(file.name));
+    if (documents.length) {
+      if (files.length === 1) requestOpen(documents[0]);
+      else setError("Open each drawing separately in this workspace.");
+      return;
+    }
+    controller.current?.cancel(); setBusy(true); setError("");
+    try { setError((await engine.dropImages(files,point,usePicker ? snapshot.paintPicker : undefined)).join("\n")); }
+    catch (e) { setError(e instanceof Error ? e.message : "File drop failed"); }
+    finally {setBusy(false);}
+  }
+  async function paste(file?:File, point?:Point) {
+    const document = engine.getSnapshot().document;
+    controller.current?.cancel(); setBusy(true); setError("");
+    try {
+      if (!file) {
+        if (!navigator.clipboard?.read) throw new Error("Use the browser’s Paste command to paste an image");
+        const items = await navigator.clipboard.read();
+        for (const item of items) {
+          const type = item.types.includes("image/png") ? "image/png" : item.types.find(type=>type.startsWith("image/"));
+          if (type) {file = new File([await item.getType(type)],"Pasted image",{type});break;}
+        }
+        if (!file) throw new Error("The clipboard contains no image");
+      }
+      if (document !== engine.getSnapshot().document) throw new Error("Paste was cancelled because the drawing changed");
+      await engine.pasteImage(file,point);
+    } catch (e) {setError(e instanceof Error ? e.message : "Image paste failed");}
+    finally {setBusy(false);}
+  }
   async function place(file: File) {
     controller.current?.cancel(); setBusy(true); setError("");
     try {
-      if (file.size > MAX_FILE_BYTES) throw new Error("File exceeds the 16 MiB browser import limit");
-      const view = engine.getView();
-      await engine.executeAsync("file.placeImage", { data: base64Bytes(new Uint8Array(await file.arrayBuffer())),
-        x: view.cx, y: view.cy, name: file.name.replace(/\.[^.]+$/, "") });
+      await engine.placeFile(file);
     } catch (caught) { setError(caught instanceof Error ? caught.message : "Image could not be placed"); }
     finally { setBusy(false); }
   }
   async function open(file: File) {
     controller.current?.cancel(); setPendingFile(null); setBusy(true); setError("");
     try {
-      if (file.size > MAX_FILE_BYTES) throw new Error("File exceeds the 16 MiB browser import limit");
-      const { repairs } = await engine.executeAsync("file.open", { data: base64Bytes(new Uint8Array(await file.arrayBuffer())), name: file.name });
+      const { repairs } = await engine.openFile(file);
       if (repairs.length) setError(repairs.join("\n"));
     } catch (caught) { setError(caught instanceof Error ? caught.message : "File could not be opened"); }
     finally { setBusy(false); }
@@ -258,7 +297,22 @@ export function Editor({ identity, capabilities, engine: suppliedEngine, recover
   const page = pageOf(snapshot.document);
   const selected = snapshot.document.nodes[snapshot.selection[0]];
   const relative = selected && selected.kind !== "page" ? frameRelative(snapshot.document, selected.id) : undefined;
-  return <div ref={root} className="figcraft-editor" onKeyDown={key} data-figcraft-editor="">
+  return <div ref={root} className="figcraft-editor" onKeyDown={key} data-figcraft-editor=""
+    onKeyUp={e=>{if (e.key.toLowerCase()==="v") modifiedPaste.current=false;}} onBlurCapture={()=>{modifiedPaste.current=false;}}
+    onDragOver={e=>{if (e.dataTransfer.types.includes("Files")) e.preventDefault();}}
+    onDrop={e=>{
+      if (!e.dataTransfer.files.length) return;
+      e.preventDefault();
+      if (!editable || busy || pendingFile || !canvas.current) return;
+      const well = e.target instanceof Element && !!e.target.closest("[data-figcraft-image-drop-target]");
+      void drop(Array.from(e.dataTransfer.files),pagePoint(e.clientX,e.clientY),well);
+    }}
+    onPaste={e=>{
+      if (!editable || busy || pendingFile || modifiedPaste.current || e.clipboardData.getData("text/plain")) return;
+      if (e.target instanceof Element && e.target.closest("input,textarea,select,dialog,[contenteditable]:not([contenteditable=false])")) return;
+      const file = Array.from(e.clipboardData.files).find(file=>file.type.startsWith("image/"));
+      if (file) { e.preventDefault(); void paste(file); }
+    }}>
       <header className="figcraft-document-bar"><h1>{snapshot.document.name}</h1><span>{snapshot.dirty ? "Unsaved" : "Downloaded"} · Local document</span>
         <button disabled={!editable || busy} onClick={() => fileInput.current?.click()}>Open</button>
         <button disabled={!editable || busy} onClick={() => imageInput.current?.click()}>Place image</button>
@@ -270,8 +324,7 @@ export function Editor({ identity, capabilities, engine: suppliedEngine, recover
         <input ref={fileInput} aria-label="Open Figcraft file" type="file" accept=".figcraft,.json,.png,.jpg,.jpeg,.webp,.gif,.bmp,.tif,.tiff" hidden onChange={event => {
           const file = event.currentTarget.files?.[0]; event.currentTarget.value = "";
           if (!file) return;
-          if (snapshot.dirty && Object.keys(snapshot.document.nodes).length > snapshot.document.pages.length) setPendingFile(file);
-          else void open(file);
+          requestOpen(file);
         }} />
         <HistoryButtons engine={engine} editable={editable} undo={snapshot.canUndo} redo={snapshot.canRedo} dispatch={dispatch} />
         <details className="figcraft-mobile-pages"><summary>Pages</summary>
@@ -295,7 +348,20 @@ export function Editor({ identity, capabilities, engine: suppliedEngine, recover
           <LayerPanel document={snapshot.document} selection={snapshot.selection} editable={editable && !busy} dispatch={dispatch} />
         </aside>
         <div className="figcraft-canvas-area">
-          <canvas ref={canvas} aria-label="Design canvas" tabIndex={0} aria-describedby="canvas-instructions" />
+          <div ref={pasteMenu} popover="auto" role="group" aria-label="Canvas actions" style={{position:"fixed",inset:"auto",margin:0}}>
+            <button onClick={()=>{pasteMenu.current?.hidePopover();canvas.current?.focus();void paste(undefined,pasteAt.current);}}>Paste here</button>
+          </div>
+          <canvas ref={canvas} onContextMenu={event=>{
+            if (!editable || busy || !pasteMenu.current) return;
+            event.preventDefault();
+            const menu = pasteMenu.current;
+            pasteAt.current = pagePoint(event.clientX,event.clientY);
+            menu.showPopover();
+            const bounds = menu.getBoundingClientRect();
+            menu.style.left = Math.max(0,Math.min(event.clientX,window.innerWidth-bounds.width))+"px";
+            menu.style.top = Math.max(0,Math.min(event.clientY,window.innerHeight-bounds.height))+"px";
+            menu.querySelector("button")?.focus();
+          }} aria-label="Design canvas" tabIndex={0} aria-describedby="canvas-instructions" />
           <ViewControls engine={engine} editable={editable && !busy} dispatch={dispatch} />
           <p id="canvas-instructions" className="figcraft-instructions">R: rectangle · O: ellipse · Space/middle drag: pan · Z: zoom · Ctrl/⌘ wheel: zoom · Escape: cancel</p>
           {snapshot.tool === "shapeBuilder" ? <div className="figcraft-toolbar" role="toolbar" aria-label="Shape Builder">

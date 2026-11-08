@@ -7,11 +7,35 @@ import { editImagePaints } from "./image-commands";
 import { decodeImageBitmap } from "./image-decode";
 import { imageHash, imageResource, type ImageResource } from "./image-resource";
 import { imagePixelDensity, placedImageSize } from "./image-placement";
-import { parseNodeId, parseNumber } from "./parameters";
+import { parseNodeId, parseNumber, parseString } from "./parameters";
 import { readPaint } from "./solid-paint";
 import { MAX_FILE_BYTES } from "./file-format";
 
 export const rasterFilename = /\.(?:png|jpe?g|webp|gif|bmp|tiff?)$/i;
+
+/** Native file.import places a raster's top left at the supplied coordinates or view centre. */
+export function rasterImportParams(params: Record<string,unknown>, centre: {cx:number; cy:number}) {
+  const {x,y,variables} = params, name = parseString(params.name) ?? "import.png";
+  if (variables != null) {
+    const json = typeof variables === "string" ? JSON.parse(variables) : variables;
+    const object = (v:unknown): v is Record<string,unknown> => !!v && typeof v === "object" && !Array.isArray(v);
+    if (!object(json) || ![json.meta,json].some(v=>object(v) && object(v.variableCollections))) {
+      throw new Error("variables requires the local variables JSON");
+    }
+  }
+  if (/\.(?:svg|figcraft|json|fig|jam|sketch|penpot)$/i.test(name)) throw new Error("This design-file import requires its format adapter");
+  const base = name.split(/[\\/]/).pop() || "Untitled", dot = base.lastIndexOf(".");
+  const coordinate = (value: unknown, fallback: number) => {
+    try { return parseNumber(value); } catch { return fallback; }
+  };
+  return {name:dot > 0 ? base.slice(0,dot) : base, x:coordinate(x,centre.cx), y:coordinate(y,centre.cy)};
+}
+
+export function centrePastedImage(image: Awaited<ReturnType<typeof prepareImage>>, centre: {cx:number; cy:number}) {
+  const {width,height} = placedImageSize(image.resource.width,image.resource.height,image.density);
+  const round = (v:number) => Math.sign(v)*Math.round(Math.abs(v));
+  return {x:round(centre.cx-width/2), y:round(centre.cy-height/2)};
+}
 
 export function fileData(data: unknown): Uint8Array<ArrayBuffer> {
   if (typeof data !== "string") throw new Error("A base64 file is required");
@@ -24,10 +48,10 @@ export function fileData(data: unknown): Uint8Array<ArrayBuffer> {
 }
 
 /** Pixel validation is required only when introducing new data. Native archives retain damaged images. */
-export async function prepareImage(bytes: Uint8Array<ArrayBuffer>, existing?: Readonly<Record<string, ImageResource>>) {
+export async function prepareImage(bytes: Uint8Array<ArrayBuffer>, existing?: Readonly<Record<string, ImageResource>>, maxPixels = 512 * 1024 * 1024 / 4) {
   let resource = imageResource(bytes);
   if (!resource.width || !resource.height) throw new Error("Unsupported image: its dimensions could not be read");
-  if (resource.width * resource.height * 4 > 512 * 1024 * 1024) throw new Error("This image can't be read: it is too large");
+  if (resource.width * resource.height > maxPixels) throw new Error("This image can't be read: it is too large");
   try {
     const bitmap = await decodeImageBitmap(resource);
     try {

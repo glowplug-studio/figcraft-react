@@ -99,6 +99,7 @@ export function PaintPicker({engine,list,index,label,paint,change,region=false}:
     try { await engine.uploadPaintImage(picker,file); setPending(undefined); }
     catch(e) { setUploadError({picker,message:e instanceof Error ? e.message : "Image upload failed"}); }
   }
+  useEffect(()=>{if (paint.type==="image") setPending(undefined);},[paint.type]);
   const open = picker?.list === list && picker.index === index;
   const button = useRef<HTMLButtonElement>(null), panel = useRef<HTMLDivElement>(null);
   useLayoutEffect(()=>{
@@ -128,7 +129,7 @@ export function PaintPicker({engine,list,index,label,paint,change,region=false}:
   },[open,engine]);
   return <>
     <button ref={button} type="button" aria-expanded={open} onClick={()=>engine.setPaintPicker(open ? undefined : {list,index,stop:0})}>Edit {label} paint</button>
-    {open && <div ref={panel} role="group" popover="manual" aria-label={label+" paint picker"}
+    {open && <div data-figcraft-image-drop-target={image && !region ? "" : undefined} ref={panel} role="group" popover="manual" aria-label={label+" paint picker"}
       style={{position:"fixed",inset:"auto",margin:0,width:"min(240px, calc(100vw - 8px))",maxHeight:"calc(100dvh - 8px)",overflow:"auto",padding:12,border:"1px solid #bbb",borderRadius:6,background:"Canvas",color:"CanvasText"}}
       onDragOver={event=>{
         if (image && !region && event.dataTransfer.types.includes("Files")) {event.preventDefault();event.stopPropagation();setHover(picker);}
@@ -137,8 +138,7 @@ export function PaintPicker({engine,list,index,label,paint,change,region=false}:
         if (!(event.relatedTarget instanceof Node) || !event.currentTarget.contains(event.relatedTarget)) setHover(undefined);
       }}
       onDrop={event=>{
-        if (!image || region || !event.dataTransfer.files.length) return;
-        event.preventDefault();event.stopPropagation();setHover(undefined);void upload(event.dataTransfer.files[0]);
+        if (event.dataTransfer.files.length) setHover(undefined);
       }}
       onKeyDown={event=>{if(event.key==="Escape" && !engine.interacting){event.preventDefault();event.stopPropagation();engine.setPaintPicker();button.current?.focus();}}}>
       <button type="button" aria-label="Close paint picker" style={{float:"right"}} onClick={()=>{engine.setPaintPicker();button.current?.focus();}}>×</button>
