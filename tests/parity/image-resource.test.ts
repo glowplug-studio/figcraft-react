@@ -1,4 +1,5 @@
 import {readFileSync} from "node:fs";
+import {crc32} from "node:zlib";
 import {createHash} from "node:crypto";
 import {describe,expect,it} from "vitest";
 import {jpegHeader} from "../../src/engine/jpeg-header";
@@ -14,6 +15,27 @@ describe("native encoded image resources",()=>{
     expect(Buffer.from(await resource.bytes.arrayBuffer())).toEqual(original);
     expect(await imageHash(resource.bytes)).toBe(createHash("sha256").update(original).digest("hex"));
   });
+  it("gives an explicit sRGB tag priority and ignores out-of-range gamma and invalid primaries",()=>{
+    const base=readFileSync(new URL("../fixtures/images/six-pixels.png",import.meta.url));
+    const chunk=(name:string,data:Buffer)=>{
+      const size=Buffer.alloc(4), sum=Buffer.alloc(4), payload=Buffer.concat([Buffer.from(name),data]);
+      size.writeUInt32BE(data.length); sum.writeUInt32BE(crc32(payload));
+      return Buffer.concat([size,payload,sum]);
+    };
+    const gamma=(value:number)=>{const buffer=Buffer.alloc(4);buffer.writeUInt32BE(value);return chunk("gAMA",buffer);};
+    const profile=(...chunks:Buffer[])=>imageResource(Uint8Array.from(Buffer.concat([base.subarray(0,33),...chunks,base.subarray(33)]))).profileName;
+    expect(profile(gamma(100000),chunk("sRGB",Buffer.of(0)))).toBe("sRGB");
+    expect(profile(gamma(45455),chunk("cHRM",Buffer.alloc(32)))).toBe("sRGB");
+    for(const value of [0,9999,1000001]) expect(profile(gamma(value))).toBeUndefined();
+  });
+
+  it("ignores a PNG gamma chunk with a damaged checksum",()=>{
+    const data=Uint8Array.from(readFileSync(new URL("../fixtures/images/gamma-linear.png",import.meta.url)));
+    const marker=Buffer.from(data).indexOf("gAMA");
+    expect(marker).toBeGreaterThan(0); data[marker+8]^=255;
+    expect(imageResource(data).profileName).toBeUndefined();
+  });
+
   it("preserves a refused progressive JPEG member and its dimensions without decoding its pixels",async()=>{
     const source=readFileSync(new URL("../fixtures/images/progressive.jpg",import.meta.url));
     const frame=source.indexOf(Buffer.from([0xff,0xc2]));

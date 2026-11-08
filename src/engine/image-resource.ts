@@ -1,5 +1,6 @@
 import { BMP } from "image-size/types/bmp";
 import { GIF } from "image-size/types/gif";
+import { pngProfileName } from "./image-profile";
 import { jpegHeader } from "./jpeg-header";
 import { PNG } from "image-size/types/png";
 import { tiffDimensions } from "./tiff-directory";
@@ -11,6 +12,7 @@ export interface ImageResource {
   readonly width: number;
   readonly height: number;
   readonly unsupportedJpegSampling?: true;
+  readonly profileName?: string;
 }
 
 const readers = [
@@ -56,5 +58,6 @@ export function imageResource(data:Uint8Array<ArrayBuffer>):ImageResource {
       }
     }
   } catch { /* The native archive retains unreadable bytes with dimensions 0 × 0. */ }
-  return Object.freeze({width,height,bytes:new Blob([data],{type:mime})});
+  const profileName = mime === "image/png" ? pngProfileName(data) : undefined;
+  return Object.freeze({width,height,bytes:new Blob([data],{type:mime}),...(profileName === undefined ? {} : {profileName})});
 }

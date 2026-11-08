@@ -107,7 +107,7 @@ export function placeImage(before: { document: Document; selection: readonly Nod
     const painted = withRectanglePaints(node, [...rectanglePaints(node), paint]);
     const nodes = Object.freeze({ ...document.nodes, [target]: painted });
     return { document: Object.freeze({ ...document, nodes }), selection: before.selection, nextId,
-      result: { id: target, image: hash, width: node.width, height: node.height, imageProfile: null } };
+      result: { id: target, image: hash, width: node.width, height: node.height, imageProfile: resource.profileName ?? null } };
   }
   const size = placedImageSize(resource.width, resource.height, density,
     p.width == null ? undefined : parseNumber(p.width, "width"), p.height == null ? undefined : parseNumber(p.height, "height"));
@@ -121,5 +121,5 @@ export function placeImage(before: { document: Document; selection: readonly Nod
   draft.insert(node, parent);
   draft.normaliseGroups();
   return { document: draft.finish(), nextId: allocated.nextId, selection: Object.freeze([allocated.id]),
-    result: { id: allocated.id, image: hash, ...size, imageProfile: null } };
+    result: { id: allocated.id, image: hash, ...size, imageProfile: resource.profileName ?? null } };
 }

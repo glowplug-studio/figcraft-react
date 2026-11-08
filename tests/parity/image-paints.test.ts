@@ -27,6 +27,19 @@ describe("native image paints and placement", () => {
     }
   });
 
+  it.each([["gamma-linear","Gamma 1.00"],["gamma-wide","Gamma 2.20"],["gamma-srgb","sRGB"],["six-pixels",null]])("reports and recovers the source profile for %s",async(file,profile)=>{
+    vi.stubGlobal("createImageBitmap",async()=>({width:2,height:1,close(){}}));
+    const engine=new EditorEngine();
+    const bytes=readFileSync(new URL("../fixtures/images/"+file+".png",import.meta.url)), data=base64Bytes(bytes);
+    const first=await engine.executeAsync("image.place",{data});
+    expect(first.imageProfile).toBe(profile);
+    expect((await engine.executeAsync("image.place",{data,target:first.id})).imageProfile).toBe(profile);
+    const doc=(await decodeFigcraft(await engine.nativeSnapshot())).document;
+    const stored=doc.images![String(first.image)];
+    expect(stored.profileName ?? null).toBe(profile);
+    expect(Buffer.from(await stored.bytes.arrayBuffer())).toEqual(bytes);
+  });
+
   it("uses all seven adjustment channels and retains transparency", () => {
     const sample = (channels: Record<string, number>, pixel=[128,128,128,255]) => {
       const pixels = Uint8ClampedArray.from(pixel);

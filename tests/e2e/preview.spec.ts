@@ -3227,3 +3227,26 @@ test("the editor holds an animated GIF on frame one at idle and refuses unsafe p
   expect(originals.some(bytes=>bytes.equals(jpeg))).toBe(true);
   expect(originals).toHaveLength(2);
 });
+
+test("PNG source profiles keep the native gamma labels and convert canvas pixels into sRGB",async({page})=>{
+  await login(page);
+  const input=page.getByLabel("Open Figcraft file",{exact:true});
+  const files=[
+    {name:"gamma-linear",profile:"Gamma 1.00",grey:188,colour:[229,152,133,255]},
+    {name:"gamma-wide",profile:"Gamma 2.20",grey:129,colour:[230,79,56,255]},
+    {name:"gamma-srgb",profile:"sRGB",grey:128,colour:[200,80,60,255]}
+  ];
+  for(const [index,{name,profile,grey,colour}] of files.entries()){
+    await input.setInputFiles(new URL("../fixtures/images/"+name+".png",import.meta.url).pathname);
+    if(index) await page.getByRole("button",{name:"Replace document",exact:true}).click();
+    await expect(page.getByRole("heading",{name,exact:true})).toBeVisible();
+    await resetCanvasOrigin(page);
+    await expectCanvasPixel(page,0,0,[grey,grey,grey,255]);
+    await expectCanvasPixel(page,1,0,colour);
+    await page.getByRole("list",{name:"Page layers",exact:true}).getByRole("button",{name,exact:true}).click();
+    await page.getByRole("button",{name:"Edit fill 1 paint",exact:true}).click();
+    const picker=page.getByRole("group",{name:"fill 1 paint picker",exact:true});
+    await expect(picker.getByText("Color profile: "+profile,{exact:true})).toBeVisible();
+    await picker.getByRole("button",{name:"Close paint picker"}).click();
+  }
+});

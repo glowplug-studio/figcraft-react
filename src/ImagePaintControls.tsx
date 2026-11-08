@@ -40,6 +40,7 @@ export function ImagePaintControls({engine,picker,paint,region,change,hover,uplo
   useEffect(() => () => { if (dragging.current !== null) engine.cancelInteraction(); },[engine]);
   const snapshot = engine.getSnapshot(), shown = preview ?? paint;
   const resource = paint && snapshot.document.images?.[paint.image];
+  const profile = resource?.profileName ?? "Unknown — treated as sRGB";
   const {builtIn, saved} = listImagePresets(snapshot.document.imagePresets);
   const identity = !shown || Object.values(shown.filters).every(n=>n===0);
   const same = (filters:ImageFilters) => shown && controls.every(label => {
@@ -78,6 +79,7 @@ export function ImagePaintControls({engine,picker,paint,region,change,hover,uplo
         {(["fill","fit","crop","tile"] as const).map(mode=><option key={mode} value={mode}>{mode[0].toUpperCase()+mode.slice(1)}</option>)}
       </select></label>
       <button type="button" onClick={()=>change({...shown,rotation:(shown.rotation+1)%4})}>Rotate 90°</button></div>
+      <small title={profile || "Embedded profile"} style={{display:"block",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>Color profile: {profile || "Embedded profile"}</small>
       <div style={{display:"grid",gridTemplateColumns:"minmax(0,1fr) auto",alignItems:"start",gap:6}}><details ref={presetsMenu}><summary aria-label="Adjustment presets">{current}</summary>
         {builtIn.filter(p=>p.id!=="reset").map(p=><button key={p.id} type="button" onClick={()=>apply(p.id)}>{p.label}</button>)}
         {saved.map((p,i)=><div key={i}><button type="button" onClick={()=>apply(p.name)}>{p.name}</button>
