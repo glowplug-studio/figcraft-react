@@ -2108,7 +2108,12 @@
       "label": "Image presets",
       "source": "crates/engine/src/cmd/image.rs",
       "line": 51,
-      "status": "Not tested"
+      "status": "Passed",
+      "scope": "Read-only built-in and document preset listing, with saved values recovered from native files. Picker authoring remains part of the active image slice.",
+      "evidence": [
+        "tests/parity/image-presets.test.ts",
+        "tests/e2e/preview.spec.ts"
+      ]
     },
     {
       "command": "layout.setTrack",

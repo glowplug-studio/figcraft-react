@@ -37,3 +37,8 @@ The master roadmap lists earlier verified implementations from rectangles throug
 ## 9 November gradient checkpoint
 
 The [gradient matrix](../reports/26-11-09-gradient-paints-parity.html) passed at 113507a. The [image plan](26-11-09-image-paints.md) records the current source, local graph, scoped Supabase read and exact next actions. The production host was stopped after 137/137 Chromium checks.
+
+
+## 9 November image archive checkpoint
+
+Resume Phase 4 from 7b32853 on the full-port branch. The [image plan](26-11-09-image-paints.md) records the archive and preset checkpoints, six-format byte comparisons, production browser results, TIFF decoding gap and next paint integration work. The Rust pin is 8a7ebc24. The local combined graph has 29,788 nodes and 98,190 edges. Final parity audit and publication are pending.

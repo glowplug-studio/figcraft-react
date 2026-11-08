@@ -301,3 +301,10 @@ At a132b69, pathops::faces, union_faces and canvas/shapebuilder.rs map to path-a
 ## Gradient paints
 
 At 113507a, color::Gradient, paint::prepare_at and diamond_pixmap map to gradient.ts and gradient-renderer.ts. Native paints, inspect, edited_list and set_gradient map to readPaint, paintStackEdit, pickedGradient and previewPaint. Native picker stop operations map to PaintPicker and GradientInteraction. Native files, sample colours, rotation, capture, undo and recovery have [property-level evidence](../reports/26-11-09-gradient-paints-parity.html).
+
+
+## Native image resources and archives
+
+At d629a99, format::read_images, report_lost_images, image_index and the native stored image writer map to readArchive, readMember and encodeFigcraft in file-format.ts. ImageData maps to the immutable Blob-backed ImageResource. The image budget, missing member, corrupt CRC, unsafe key, duplicate entry and exact-byte cases live in file-format.test.ts. RecoveryController and the authenticated file workflow cover local restoration and downloads. The file-size difference and remaining pixel decode work are recorded in the [image paint plan](../planning/26-11-09-image-paints.md).
+
+At 7b32853, color::ImageFilters::PRESETS, doc::ImagePreset and cmd::image's image.presets route map to image-filters.ts, document.imagePresets and EditorEngine.execute. The file codec writes native image_presets only when present. image-presets.test.ts checks immutable f32 data, read-only command behaviour, native persistence and atomic refusal. The six-format Chromium workflow verifies a saved preset after reload and download.
