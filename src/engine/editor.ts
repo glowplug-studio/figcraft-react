@@ -1,4 +1,5 @@
 import { isGroupLike, rectanglePaints } from "./document";
+import { listImagePresets } from "./image-filters";
 import { getNode } from "./inspect";
 import { createLayer } from "./creation";
 import { copyFill, fillSpecs, selectedRegionFills, writeFill } from "./fill-commands";
@@ -54,6 +55,7 @@ export const commandSpecs = Object.freeze({
   "shapeBuilder.remove": { label: "Remove regions", undo: true },
   ...vectorSpecs,
   ...vectorEditSpecs,
+  "image.presets": { label: "Image presets", undo: false },
   "node.get": { label: "Get layer", undo: false },
   "node.set": { label: "Set properties", undo: true },
   "frame.create": { label: "Frame", undo: true },
@@ -363,6 +365,7 @@ export class EditorEngine {
   execute(command: "node.get", input: unknown): ReturnType<typeof getNode>;
   execute(command: "shapeBuilder.regions", input?: unknown): ReturnType<typeof readBuilderRegions>;
   execute(command: "frame.presets", input?: unknown): typeof framePresets;
+  execute(command: "image.presets", input?: unknown): ReturnType<typeof listImagePresets>;
   execute(command: "page.list", input?: unknown): ReturnType<typeof listPages>;
   execute(command: string, input?: unknown): Record<string, unknown>;
   execute(command: string, input: unknown = {}): Record<string, unknown> | ReturnType<typeof listPages> | typeof framePresets | null {
@@ -375,6 +378,7 @@ export class EditorEngine {
       return {mode:p.mode};
     }
     if (command === "shapeBuilder.regions") return readBuilderRegions(builderArrangement(this.#snapshot.document, builderTargets(p, this.#snapshot.selection)));
+    if (command === "image.presets") return listImagePresets(this.#snapshot.document.imagePresets);
     if (command === "node.get") return getNode(this.getRenderDocument(), p);
     if (this.pen.open && (command === "edit.undo" || command === "edit.redo")) {
       if (Object.keys(p).length) throw new Error(`${command} takes no parameters`);

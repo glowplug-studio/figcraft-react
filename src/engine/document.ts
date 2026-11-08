@@ -1,3 +1,4 @@
+import type { ImagePreset } from "./image-filters";
 import type { ImageResource } from "./image-resource";
 import type { Corners } from "./corners";
 import type { StrokeProps } from "./stroke";
@@ -91,6 +92,7 @@ export const isLeafKind = (kind: unknown): kind is LeafNode["kind"] => kind === 
 export const isDrawTool = (kind: unknown): kind is DrawShapeKind => isLeafKind(kind) && kind !== "vector" || kind === "arrow";
 export const isLeaf = (node: DocumentNode): node is LeafNode => isLeafKind(node.kind);
 export interface Document {
+  readonly imagePresets?: readonly ImagePreset[];
   readonly images?: Readonly<Record<string, ImageResource>>;
   readonly name: string;
   readonly pages: readonly NodeId[];
@@ -99,7 +101,7 @@ export interface Document {
 }
 // Current page is navigation state. It is persisted, but does not dirty document content.
 export function sameContent(a: Document, b: Document | null): boolean {
-  return b !== null && a.name === b.name && a.pages === b.pages && a.nodes === b.nodes && a.images === b.images;
+  return b !== null && a.name === b.name && a.pages === b.pages && a.nodes === b.nodes && a.images === b.images && a.imagePresets === b.imagePresets;
 }
 export function newDocument(name = "Untitled"): Document {
   const page: PageNode = Object.freeze({ id: "1", kind: "page", name: "Page 1", parent: null, children: Object.freeze([]), background: "#f5f5f5" });

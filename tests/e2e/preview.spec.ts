@@ -254,10 +254,13 @@ test("native download, cancelled replacement, reopen and recovery after reload",
 });
 
 test("native image archive preserves original bytes through browser open, edits, recovery and download", async ({ page }) => {
-  const png = await readFile(new URL("../fixtures/images/six-pixels.png", import.meta.url));
+  const formats = ["bmp", "gif", "jpg", "png", "tiff", "webp"];
+  const resources: Record<string, Uint8Array> = {};
+  for (const ext of formats) resources[`images/${ext}`] = await readFile(new URL(`../fixtures/images/six-pixels.${ext}`, import.meta.url));
   const native = JSON.parse(await readFile(new URL("../fixtures/native-rectangle.json", import.meta.url), "utf8"));
-  native.imageIndex = [{ hash: "photo" }, { hash: "lost" }];
-  const archive = zipSync({ "document.json": Buffer.from(JSON.stringify(native)), "images/photo": png });
+  native.imageIndex = [...formats, "lost"].map(hash => ({ hash }));
+  native.image_presets = [{ name: "Camera flash", filters: { exposure: -0.5, shadows: 0.25 } }];
+  const archive = zipSync({ "document.json": Buffer.from(JSON.stringify(native)), ...resources });
   await login(page);
   await page.getByLabel("Open Figcraft file", { exact: true }).setInputFiles({
     name: "images.figcraft", mimeType: "application/octet-stream", buffer: Buffer.from(archive),
@@ -273,8 +276,10 @@ test("native image archive preserves original bytes through browser open, edits,
   const download = await pending;
   expect(await download.failure()).toBeNull();
   const members = unzipSync(await readFile((await download.path())!));
-  expect(Buffer.from(members["images/photo"]!)).toEqual(png);
-  expect(JSON.parse(strFromU8(members["document.json"]!)).imageIndex).toEqual([{ hash: "photo", width: 3, height: 2 }]);
+  for (const [name, original] of Object.entries(resources)) expect(Buffer.from(members[name]!)).toEqual(original);
+  const saved = JSON.parse(strFromU8(members["document.json"]!));
+  expect(saved.imageIndex).toEqual(formats.map(hash => ({ hash, width: 3, height: 2 })));
+  expect(saved.image_presets).toEqual([{ name: "Camera flash", filters: { exposure: -0.5, shadows: 0.25, highlights: 0, tint: 0, temperature: 0, saturation: 0, contrast: 0 } }]);
 });
 
 test("unavailable recovery storage reports the failure without blocking editing or download", async ({ page }) => {

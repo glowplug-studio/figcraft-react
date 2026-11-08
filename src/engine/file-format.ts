@@ -2,6 +2,7 @@ import { readVectorNetwork, wireVectorNetwork } from "./vector-codec";
 import { isBooleanOperation, isLeaf, isLeafKind } from "./document";
 import { type Corners, type Radii } from "./corners";
 import { zipSync, type Zippable } from "fflate";
+import { readImageFilters } from "./image-filters";
 import { imageResource, validImageKey, type ImageResource } from "./image-resource";
 import { ERR_INVALID_CRC32, ERR_INVALID_UNCOMPRESSED_SIZE, Uint8ArrayReader, Uint8ArrayWriter, ZipReader, type FileEntry } from "@zip.js/zip.js/lib/zip-core-native.js";
 import { isLosslessNumber, LosslessNumber, parse, stringify } from "lossless-json";
@@ -84,7 +85,7 @@ const documentDefaults = {
   kind: "design", styles: [], variables: { collections: [], variables: [] },
   document_colors: [], comments: [], color_profile: "srgb",
   libraries: { enabled: [], store: null, components: [], styles: [], collections: [], variables: [], detached: [], inserted: [] },
-  image_presets: [], annotation_categories: null, dev_snapshots: {}, timer: null,
+  annotation_categories: null, dev_snapshots: {}, timer: null,
   vote: null, votes: {}, vote_history: [],
 };
 const nodeDefaults = {
@@ -116,7 +117,17 @@ function decodeDocument(raw: unknown): DecodedFigcraft {
   if (root.version !== undefined && number(root.version, "version") > 1) fail("this file needs a newer Figcraft format reader");
   if (root.version !== undefined && number(root.version, "version") !== 1) fail("unsupported format version");
   if (root.format !== undefined && root.format !== "figcraft") fail("unrecognised format");
-  fields(root, ["format", "version", "name", "pages", "nodes", "next_id", "current_page", "imageIndex"], documentDefaults, "document");
+  fields(root, ["format", "version", "name", "pages", "nodes", "next_id", "current_page", "imageIndex", "image_presets"], documentDefaults, "document");
+  const presets = root.image_presets === undefined ? [] : list(root.image_presets, "image presets").map(entry => {
+    const preset = object(entry, "image preset");
+    fields(preset, ["name", "filters"], {}, "image preset");
+    const name = text(preset.name, "image preset name");
+    try {
+      return Object.freeze({ name, filters: readImageFilters(appearanceValue(preset.filters)) });
+    } catch (error) {
+      return fail(error instanceof Error ? error.message : "invalid image filters");
+    }
+  });
   const pages = list(root.pages, "pages").map((entry) => id(entry, "page ID"));
   if (!pages.length || new Set(pages).size !== pages.length) fail("pages must be non-empty and unique");
   const source = object(root.nodes, "nodes"), entries = Object.entries(source);
@@ -218,7 +229,7 @@ function decodeDocument(raw: unknown): DecodedFigcraft {
   if (!pages.includes(currentPage)) fail("current page is not listed");
   const declared = BigInt(id(root.next_id, "next_id"));
   const minimum = maximum < U64_MAX ? maximum + 1n : U64_MAX;
-  return { document: Object.freeze({ name: text(root.name, "document name"), pages: Object.freeze(pages), currentPage, nodes: Object.freeze(nodes) }), nextId: (declared < minimum ? minimum : declared).toString() };
+  return { document: Object.freeze({ ...(presets.length ? { imagePresets: Object.freeze(presets) } : {}), name: text(root.name, "document name"), pages: Object.freeze(pages), currentPage, nodes: Object.freeze(nodes) }), nextId: (declared < minimum ? minimum : declared).toString() };
 }
 
 function parseDocument(bytes: Uint8Array) {
@@ -347,7 +358,7 @@ export async function encodeFigcraft(document: Document, nextId?: string): Promi
     const { width, height } = resources[hash]!;
     return { hash, width, height };
   });
-  const root = { format: "figcraft", version: 1, imageIndex, name: document.name, pages: document.pages.map(wireId), nodes, next_id: wireId((supplied < minimum ? minimum : supplied).toString()), current_page: wireId(document.currentPage), styles: [], variables: { collections: [], variables: [] }, document_colors: [], comments: [] };
+  const root = { format: "figcraft", version: 1, imageIndex, ...(document.imagePresets?.length ? { image_presets: document.imagePresets } : {}), name: document.name, pages: document.pages.map(wireId), nodes, next_id: wireId((supplied < minimum ? minimum : supplied).toString()), current_page: wireId(document.currentPage), styles: [], variables: { collections: [], variables: [] }, document_colors: [], comments: [] };
   // Validate before serialisation (including finite geometry and graph integrity).
   decodeDocument(root);
   const json = new TextEncoder().encode(stringify(root));
