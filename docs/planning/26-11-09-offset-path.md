@@ -15,3 +15,7 @@ Offset is the next operation because it directly consumes the verified cubic boo
 1. Integrate rounded path expansion/contraction and region reconstruction. Cover the native tests and add dense failure/rollback cases.
 2. Wire the real dialog, signed input and save/recovery workflow. Verify exposed edges and hole pixels before and after conversion, with measurements for repeated edits on complex regions.
 3. Run the full locally authenticated Chromium suite, strict types, pure and local Auth tests and both production builds. Record the offline property matrix, refresh Graphify and return to the next operation.
+
+## Verified checkpoint
+
+Phases 4–7 passed at dfdffca. Strict types, both production builds, 956 pure tests, two local Auth tests and 128 Chromium workflows passed. Repeated operations on 32 rings in a 10,000-node document preserved the original snapshot on undo. Local Graphify at dfdffca has 2,007 React nodes and 9,806 edges and 29,601 combined nodes and 97,240 edges. The local graph resolves offset_path and offsetLayer. [Evidence](../reports/26-11-09-offset-path.md). Continue with [Simplify vector](26-11-09-simplify-vector.md).

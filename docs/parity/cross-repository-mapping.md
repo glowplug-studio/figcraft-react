@@ -285,3 +285,7 @@ At be059b7, pathops budget/boolean_step/simplify_with_rule map to path-budget.ts
 ## Outline stroke
 
 At 70cf052, native cmd/structure.rs outline_stroke and render/draw.rs stroke_fill map to paintedStrokePath and vector.outlineStroke. shapes_behaviour_tests, brush_tests and the two width-edit suites supply local geometry and history assertions. Desktop and narrow layer actions persist actual editable vector geometry. [Property matrix](../reports/26-11-09-outline-stroke-parity.html).
+
+## Offset path
+
+At dfdffca, native structure::offset_path maps to vector-offset.ts and the existing cubic kernel. The native regional, legacy winding, paint-space, corner-smoothing and container-preservation tests map to vector-offset.test.ts. The signed amount control maps to MenuInput::Offset and persists through the authenticated Next.js host. [Property matrix](../reports/26-11-09-offset-path-parity.html).

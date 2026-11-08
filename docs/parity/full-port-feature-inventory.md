@@ -264,3 +264,5 @@ Vector face discovery and solid Paint bucket editing passed at 50370fe. Non-soli
 React be059b7 preserves Union, Subtract, Intersect and Exclude as editable native layer trees. Budgeted geometry, mixed operand rules, insertion order, inspect readback, native recovery, canvas hit testing and flatten are covered by [the verified matrix](../reports/26-11-09-live-boolean-groups-parity.html). The vector family remains partial pending Outline stroke, Simplify, Offset, Shape Builder and the remaining upstream inventory.
 
 Outline stroke passed for supported layer types at 70cf052. The original fill, painted regions, profiles, dashes, brushes, arrowheads and per-side widths are verified. [Geometry, command and browser coverage](../reports/26-11-09-outline-stroke-parity.html). Remaining data types carry their outline-specific coverage forward to their own milestones.
+
+Offset path passed for supported layers at dfdffca. The [property report](../reports/26-11-09-offset-path-parity.html) covers signed distances, source style frames, region collapse, inherited and empty paints, atomic failure and browser recovery.

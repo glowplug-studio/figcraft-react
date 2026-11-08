@@ -1,0 +1,21 @@
+{
+  "react": "dfdffca5d08b6b76cdbdbe3ab06d0bf906e82be6",
+  "upstream": "8a7ebc2484a6d64d80a13c19c18ffb814325e347",
+  "stats": {
+    "startTime": "2026-11-08T19:18:11.300Z",
+    "duration": 284771.816,
+    "expected": 128,
+    "skipped": 0,
+    "unexpected": 0,
+    "flaky": 0
+  },
+  "performance": {
+    "nodes": 10000,
+    "rings": 32,
+    "runs": 10,
+    "commandP95Ms": 59,
+    "paintP95Ms": 0.8999999761581421,
+    "grownPixel": 217,
+    "holePixel": 245
+  }
+}

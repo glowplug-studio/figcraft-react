@@ -625,7 +625,7 @@
     },
     {
       "command": "object.rotate180",
-      "label": "Rotate 180\u00b0",
+      "label": "Rotate 180°",
       "source": "crates/engine/src/cmd/arrange.rs",
       "line": 46,
       "status": "Partial",
@@ -634,7 +634,7 @@
     },
     {
       "command": "object.rotateLeft",
-      "label": "Rotate 90\u00b0 left",
+      "label": "Rotate 90° left",
       "source": "crates/engine/src/cmd/arrange.rs",
       "line": 49,
       "status": "Partial",
@@ -643,7 +643,7 @@
     },
     {
       "command": "object.rotateRight",
-      "label": "Rotate 90\u00b0 right",
+      "label": "Rotate 90° right",
       "source": "crates/engine/src/cmd/arrange.rs",
       "line": 52,
       "status": "Partial",
@@ -1541,7 +1541,8 @@
       "label": "Get layer",
       "source": "crates/engine/src/cmd/edit.rs",
       "line": 308,
-      "status": "Not tested"
+      "status": "Partial",
+      "evidence": "../reports/26-11-09-live-boolean-groups-parity.html"
     },
     {
       "command": "node.find",
@@ -2114,7 +2115,7 @@
     },
     {
       "command": "libraries.publish",
-      "label": "Publish library\u2026",
+      "label": "Publish library…",
       "source": "crates/engine/src/cmd/library.rs",
       "line": 28,
       "status": "Not tested"
@@ -2677,35 +2678,40 @@
       "label": "Union selection",
       "source": "crates/engine/src/cmd/structure.rs",
       "line": 66,
-      "status": "Not tested"
+      "status": "Passed for supported layer types",
+      "evidence": "../reports/26-11-09-live-boolean-groups-parity.html"
     },
     {
       "command": "bool.subtract",
       "label": "Subtract selection",
       "source": "crates/engine/src/cmd/structure.rs",
       "line": 67,
-      "status": "Not tested"
+      "status": "Passed for supported layer types",
+      "evidence": "../reports/26-11-09-live-boolean-groups-parity.html"
     },
     {
       "command": "bool.intersect",
       "label": "Intersect selection",
       "source": "crates/engine/src/cmd/structure.rs",
       "line": 68,
-      "status": "Not tested"
+      "status": "Passed for supported layer types",
+      "evidence": "../reports/26-11-09-live-boolean-groups-parity.html"
     },
     {
       "command": "bool.exclude",
       "label": "Exclude selection",
       "source": "crates/engine/src/cmd/structure.rs",
       "line": 69,
-      "status": "Not tested"
+      "status": "Passed for supported layer types",
+      "evidence": "../reports/26-11-09-live-boolean-groups-parity.html"
     },
     {
       "command": "bool.flatten",
       "label": "Flatten boolean",
       "source": "crates/engine/src/cmd/structure.rs",
       "line": 70,
-      "status": "Not tested"
+      "status": "Passed for supported layer types",
+      "evidence": "../reports/26-11-09-live-boolean-groups-parity.html"
     },
     {
       "command": "vector.flatten",
@@ -2719,7 +2725,8 @@
       "label": "Outline stroke",
       "source": "crates/engine/src/cmd/structure.rs",
       "line": 72,
-      "status": "Not tested"
+      "status": "Partial",
+      "evidence": "../reports/26-11-09-outline-stroke-parity.html"
     },
     {
       "command": "layout.add",
@@ -2782,14 +2789,16 @@
       "label": "Set fill rule",
       "source": "crates/engine/src/cmd/structure.rs",
       "line": 139,
-      "status": "Not tested"
+      "status": "Passed for supported layer types",
+      "evidence": "../reports/26-11-09-vector-winding-parity.html"
     },
     {
       "command": "vector.reverseLoop",
       "label": "Reverse loop",
       "source": "crates/engine/src/cmd/structure.rs",
       "line": 146,
-      "status": "Not tested"
+      "status": "Passed for supported layer types",
+      "evidence": "../reports/26-11-09-vector-winding-parity.html"
     },
     {
       "command": "vector.simplify",
@@ -2803,7 +2812,8 @@
       "label": "Offset path",
       "source": "crates/engine/src/cmd/structure.rs",
       "line": 154,
-      "status": "Not tested"
+      "status": "Partial",
+      "evidence": "../reports/26-11-09-offset-path-parity.html"
     },
     {
       "command": "vector.join",
@@ -4423,7 +4433,7 @@
     },
     {
       "command": "plugin.import",
-      "label": "Import plugin from manifest\u2026",
+      "label": "Import plugin from manifest…",
       "source": "crates/engine/src/extensions/plugins.rs",
       "line": 666,
       "status": "Not tested"
@@ -4472,7 +4482,7 @@
     },
     {
       "command": "plugins.manage",
-      "label": "Manage plugins\u2026",
+      "label": "Manage plugins…",
       "source": "crates/engine/src/extensions/plugins.rs",
       "line": 697,
       "status": "Not tested"
