@@ -46,3 +46,9 @@ Resume Phase 4 from 7b32853 on the full-port branch. The [image plan](26-11-09-i
 ## 9 November image rendering and commands
 
 Resume Phase 4 from image picker checkpoint 35ac0bd on the canonical branch. The [active image plan](26-11-09-image-paints.md#image-picker-checkpoint) records implementation, graph revisions, exact verification and open rows. Next wire raster file.import, canvas drop and image paste, then canvas crop, animated images, embedded profiles and cache stress. Complete all subsequent roadmap and publication gates.
+
+## 9 November crop checkpoint
+
+Resume image Phase 4 after 34a3e3d. Raster import/drop/paste and crop gestures passed strict types, production builds, 1,046 pure tests, two local Auth tests and 146/146 production browser workflows. The local graph and source mapping are recorded in the [image plan](26-11-09-image-paints.md#raster-import-and-crop). Next verify float-predictor TIFFs, progressive JPEG sampling and animated GIF editor idle. Then finish colour management, cache bounds, performance fixtures and remaining image gates. Final publication remains pending.
+
+The decoder checkpoint at 8ca195d passed 147/147 production Chromium checks. The image plan lists the newly verified formats and native GIF editor behaviour. Magnified canvas pixels, cache pressure, input profiles and native archive budgeting remain in progress.

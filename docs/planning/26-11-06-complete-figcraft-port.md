@@ -664,3 +664,7 @@ Shape Builder passed the [twelve-property matrix](../reports/26-11-09-shape-buil
 Gradient Phase 4 now covers the paint model, native wire routes and browser rendering. Picker, canvas handle authoring and the slice verification gates remain open in the [gradient plan](26-11-09-gradient-paints.md).
 
 Gradient paints passed the [twelve-property matrix](../reports/26-11-09-gradient-paints-parity.html) at 113507a. The image slice has started.
+
+Image checkpoint 34a3e3d adds raster import, multi-file drops, clipboard image placement and crop gestures. All 146 production Chromium workflows passed. Image colour management, remaining decoder variants, cache pressure and performance remain open in the [image plan](26-11-09-image-paints.md#raster-import-and-crop).
+
+The image decoder checkpoint at 8ca195d passed 147/147 production Chromium workflows. See the image plan for TIFF float samples, progressive JPEG refusal, the static GIF editor and outstanding image properties.

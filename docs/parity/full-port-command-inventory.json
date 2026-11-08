@@ -1905,7 +1905,9 @@
       "label": "Import",
       "source": "crates/engine/src/cmd/file.rs",
       "line": 152,
-      "status": "Not tested"
+      "status": "Partial",
+      "scope": "Raster data or browser file, basename, explicit or viewport position, variables validation and native geometry. Multiple canvas drops and clipboard placement verified. Design-file adapters remain open.",
+      "evidence": "docs/planning/26-11-09-image-paints.md"
     },
     {
       "command": "file.placeImage",
@@ -2087,7 +2089,7 @@
       "source": "crates/engine/src/cmd/image.rs",
       "line": 20,
       "status": "Partial",
-      "scope": "Atomic layer fill or stroke replacement, default top image and explicit index, preserved appearance, deduplication and undo. Single-file picker replacement and isolated region upload verified. Multi-file routing remains open.",
+      "scope": "Atomic layer fill or stroke replacement, default top image and explicit index, preserved appearance, deduplication and undo. Single-file picker replacement and isolated region upload verified. The picker consumes the first dropped image and places subsequent images on the canvas.",
       "evidence": "docs/planning/26-11-09-image-paints.md"
     },
     {
@@ -2113,7 +2115,9 @@
       "label": "Crop image",
       "source": "crates/engine/src/cmd/image.rs",
       "line": 44,
-      "status": "Not tested"
+      "status": "Partial",
+      "scope": "Single layer, visible or explicit fill, mode conversion, body and corner gestures, crop brackets, anchored resize, ghost pixels, undo and native save. Layout and linked-style interactions await their owning slices.",
+      "evidence": "docs/planning/26-11-09-image-paints.md"
     },
     {
       "command": "image.presets",
