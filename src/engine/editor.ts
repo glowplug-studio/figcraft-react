@@ -349,7 +349,8 @@ export class EditorEngine {
     const gesture = Object.hasOwn(smartSpecs, command) && command !== "arrange.roundToPixels" && parseBoolean(p.fromGesture) === true;
     if (!gesture && !preservePen) { const interacting = this.interacting; this.pencil.cancel(); if (this.pen.open) this.pen.cancel(); else this.cancelInteraction(); if (interacting && command === "edit.undo") return { undone: true }; }
     if (Object.hasOwn(vectorEditSpecs, command) || (this.#vectorEdit && isVectorJoin(command))) {
-      const before = this.#snapshot, oldState = this.#vectorEdit, next = executeVectorEdit(isVectorJoin(command) ? command : command as VectorEditCommand, before.document, before.selection, oldState, p);
+      const before = this.#snapshot, oldState = this.#vectorEdit, next = executeVectorEdit(isVectorJoin(command) ? command : command as VectorEditCommand, before.document, before.selection, oldState, p, this.#nextId);
+      if (next.nextId !== undefined) this.#nextId = next.nextId;
       if (next.recordHistory) { this.#undo.push({ document: before.document, selection: before.selection }); this.#redo = []; }
       this.#vectorEdit = next.state;
       if (next.document !== before.document || !sameIds(next.selection, before.selection)) this.#publish({ document: next.document, selection: next.selection });

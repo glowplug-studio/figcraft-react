@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import { transformPoint } from "../../src/engine/affine";
 import type { VectorNode } from "../../src/engine/document";
 import { EditorEngine } from "../../src/engine/editor";
+import { encodeFigcraft } from "../../src/engine/file-format";
+import { base64Bytes } from "../../src/engine/recovery";
 import { worldTransform } from "../../src/engine/hierarchy";
 import type { MoveModifiers } from "../../src/engine/move-interaction";
 import { MoveInteraction } from "../../src/engine/move-interaction";
@@ -182,6 +184,71 @@ describe("painted-region Move gestures", () => {
     expect(f.engine.getUndoDepth()).toBe(depth + 1);
     f.engine.execute("edit.undo");
     expect(f.engine.getSnapshot().document).toBe(original);
+    expect(f.errors).toEqual([]);
+  });
+});
+
+describe("remaining native vector edit tools", () => {
+  it("lassos across edited layers and activates the selected one without recording history", () => {
+    const f = setup(), b = String(f.engine.execute("shape.rectangle", { x: 200, y: 0, width: 100, height: 100 }).id);
+    f.engine.execute("vector.edit.begin", { ids: [f.id, b] }); f.engine.execute("vector.edit.tool", { tool: "lasso" });
+    const depth = f.engine.getUndoDepth();
+    f.interaction.down({ x: 190, y: -10 }, plain);
+    for (const p of [{ x: 310, y: -10 }, { x: 310, y: 10 }, { x: 190, y: 10 }]) f.interaction.move(p, plain);
+    expect(f.interaction.overlay.lasso).toHaveLength(4);
+    f.interaction.up({ x: 190, y: 10 }); expect(f.interaction.overlay.lasso).toBeUndefined();
+    expect(f.engine.getVectorEdit()).toMatchObject({ id: b, vertices: [0, 1], segments: [] });
+    f.interaction.down({ x: 285, y: 90 }, shift);
+    for (const p of [{ x: 310, y: 90 }, { x: 310, y: 110 }, { x: 285, y: 110 }]) f.interaction.move(p, shift);
+    f.interaction.up({ x: 285, y: 110 });
+    expect(f.engine.getVectorEdit()?.vertices).toEqual([0,1,2]);
+    expect(f.engine.getUndoDepth()).toBe(depth); expect(f.errors).toEqual([]);
+  });
+  it("cuts across two sides into ordered editable sibling layers in one undo and restores exact geometry", () => {
+    const f = setup(), original = f.engine.getSnapshot().document, depth = f.engine.getUndoDepth();
+    f.engine.execute("vector.edit.tool", { tool: "cut" });
+    f.interaction.down({ x: 50, y: -10 }, plain); f.interaction.move({ x: 50, y: 110 }, plain);
+    expect(f.interaction.overlay.rubber).toEqual([{ x: 50, y: -10 }, { x: 50, y: 110 }]); expect(f.engine.getRenderDocument()).toBe(original);
+    f.interaction.cancel(); expect(f.engine.getUndoDepth()).toBe(depth);
+    f.interaction.down({ x: 50, y: -10 }, plain); f.interaction.up({ x: 50, y: 110 });
+    const doc = f.engine.getSnapshot().document, parent = doc.nodes[doc.currentPage];
+    if (parent.kind !== "page") throw Error("Expected page");
+    expect(parent.children).toHaveLength(2); expect(parent.children[0]).toBe(f.id);
+    const pieces = parent.children.map(id => doc.nodes[id] as VectorNode);
+    expect(pieces.map(p => Math.round(p.width))).toEqual([50,50]);
+    expect(pieces.map(p => Math.round(p.x))).toEqual([0,50]); expect(pieces[0].fill).toBe(pieces[1].fill);
+    f.engine.execute("edit.undo"); expect(f.engine.getSnapshot().document).toBe(original);
+    f.click(25, 0); expect(f.engine.getVectorEdit()?.vertices).toHaveLength(2);
+    f.engine.execute("edit.undo"); f.click(0, 0); expect(f.engine.getVectorEdit()?.vertices).toHaveLength(2);
+    expect(f.errors).toEqual([]);
+  });
+  it("rolls back an entire multi-piece cut when the second sibling cannot be allocated", async () => {
+    const f = setup("M0 0H100 M0 50H100 M0 100H100");
+    const maximum = "18446744073709551615";
+    const data = base64Bytes(await encodeFigcraft(f.engine.getSnapshot().document, maximum));
+    await f.engine.executeAsync("file.open", { data });
+    f.engine.execute("vector.edit.begin", { id: f.id });
+    const before = f.engine.getSnapshot().document, depth = f.engine.getUndoDepth(), state = f.engine.getVectorEdit();
+    expect(() => f.engine.execute("vector.edit.cut", { from: [50, -10], to: [50, 110] })).toThrow("exhausted");
+    expect(f.engine.getSnapshot().document).toBe(before);
+    expect(f.engine.getVectorEdit()).toBe(state);
+    expect(f.engine.getUndoDepth()).toBe(depth);
+    f.engine.execute("vector.edit.end");
+    expect(f.engine.execute("shape.rectangle").id).toBe(maximum);
+  });
+  it("erases at screen radius with interpolated drag stamps, atomic cancellation and page-space command radius", () => {
+    const f = setup(), original = f.engine.getSnapshot().document, depth = f.engine.getUndoDepth();
+    f.engine.execute("vector.edit.tool", { tool: "eraser" });
+    f.interaction.hover({ x: 50, y: -5 }); expect(f.interaction.overlay.brush).toEqual({ x: 50, y: -5 });
+    for (const commit of [false, true]) {
+      f.interaction.down({ x: 50, y: -5 }, plain); f.interaction.move({ x: 50, y: 5 }, plain);
+      expect(f.net().segments).toHaveLength(5);
+      if (commit) f.interaction.up({ x: 50, y: 5 }); else f.interaction.cancel();
+    }
+    expect(f.engine.getUndoDepth()).toBe(depth + 1); f.engine.execute("edit.undo");
+    expect(f.engine.getSnapshot().document).toBe(original);
+    expect(f.engine.execute("vector.edit.erase", { points: [[100, 50]], radius: 5 })).toEqual({ changed: true });
+    expect(f.engine.execute("vector.edit.erase", { points: [null, ["bad", 0], [1000,1000]] })).toEqual({ changed: false });
     expect(f.errors).toEqual([]);
   });
 });

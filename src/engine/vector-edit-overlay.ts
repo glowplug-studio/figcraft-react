@@ -123,6 +123,19 @@ export function drawVectorEdit(context: CanvasRenderingContext2D, document: Docu
     const [from, to] = interaction.rubber.map(p => pageToScreen(view, p));
     context.strokeStyle = accent; context.lineWidth = 1; context.setLineDash([4, 3]); context.beginPath(); context.moveTo(from.x, from.y); context.lineTo(to.x, to.y); context.stroke(); context.setLineDash([]);
   }
+  if (interaction.brush) {
+    const centre = pageToScreen(view, interaction.brush);
+    context.beginPath(); context.arc(centre.x, centre.y, 8, 0, Math.PI * 2);
+    context.strokeStyle = "white"; context.lineWidth = 3; context.stroke();
+    context.strokeStyle = accent; context.lineWidth = 1.5; context.stroke();
+  }
+  if (interaction.lasso && interaction.lasso.length > 1) {
+    const [first, ...rest] = interaction.lasso.map(p => pageToScreen(view, p));
+    context.beginPath(); context.moveTo(first.x, first.y);
+    for (const p of rest) context.lineTo(p.x, p.y);
+    context.closePath(); context.strokeStyle = accent; context.lineWidth = 1;
+    context.setLineDash([4, 3]); context.stroke(); context.setLineDash([]);
+  }
   if (interaction.marquee) {
     const r = interaction.marquee, p = pageToScreen(view, r); context.fillStyle = `${accent}1a`; context.strokeStyle = accent; context.lineWidth = 1;
     context.fillRect(p.x, p.y, r.width * view.zoom, r.height * view.zoom); context.strokeRect(p.x, p.y, r.width * view.zoom, r.height * view.zoom);

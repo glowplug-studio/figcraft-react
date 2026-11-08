@@ -2384,3 +2384,48 @@ test("selected region fills show mixed stacks, edit independently and survive na
   const remove = panel.getByRole("button", { name: "Remove fill 1" }); await remove.scrollIntoViewIfNeeded(); await remove.click();
   await expect(opacity).toHaveValue("0.5"); expect((await save()).network.regions[1].fills).toHaveLength(1);
 });
+
+test("Lasso selects points, Cut separates layers, and Eraser previews and recovers a native gap", async ({ page }) => {
+  const engine = new EditorEngine(), id = String(engine.execute("shape.rectangle", { name: "Cut and erase", x: 150, y: 120, width: 120, height: 100, props: { fill: "#e44c45", strokes: ["#222222"], strokeWeight: 2 } }).id);
+  engine.execute("vector.edit.begin", { id });
+  const bytes = await engine.nativeSnapshot();
+  await login(page); await page.getByLabel("Open Figcraft file", { exact: true }).setInputFiles({ name: "cut.figcraft", mimeType: "application/octet-stream", buffer: Buffer.from(bytes) });
+  const layers = page.getByRole("region", { name: "Layers", exact: true });
+  const row = layers.getByRole("button", { name: "Cut and erase", exact: true });
+  await expect(row).toHaveCount(1); await resetCanvasOrigin(page); await row.click();
+  await page.getByRole("button", { name: "Edit vector", exact: true }).click();
+  const canvas = page.getByLabel("Design canvas", { exact: true });
+  const tool = (name: string) => page.getByRole("toolbar", { name: "Vector tools" }).getByRole("button", { name, exact: true });
+  const move = async (x: number, y: number) => { const p = await canvasPoint(page, x, y); await page.mouse.move(p.x, p.y); };
+  const key = async (shortcut: string, name: string) => { await canvas.focus(); await page.keyboard.press(shortcut); await expect(tool(name)).toHaveAttribute("aria-pressed", "true"); };
+  const save = async () => {
+    const pending = page.waitForEvent("download"); await page.getByRole("button", { name: "Save as", exact: true }).click();
+    return (await decodeFigcraft(await readFile((await (await pending).path())!))).document;
+  };
+  const clip = { ...await canvasPoint(page, 130, 99), width: 165, height: 142 };
+  await key("q", "Lasso"); await move(140, 110); await page.mouse.down();
+  await move(280, 110); await move(280, 135); await move(140, 135);
+  await expect(page).toHaveScreenshot("lasso-two-vector-points.png", { clip, animations: "disabled", maxDiffPixels: 0 });
+  await page.mouse.up();
+  await key("x", "Cut"); await move(210, 108); await page.mouse.down(); await move(210, 232);
+  await expect(page).toHaveScreenshot("vector-cut-line.png", { clip, animations: "disabled", maxDiffPixels: 0 });
+  await page.keyboard.press("Escape"); await page.mouse.up(); await expect(row).toHaveCount(1);
+  await move(210,108); await page.mouse.down(); await move(210,232); await page.mouse.up(); await expect(row).toHaveCount(2);
+  const cut = await save(), pieces = Object.values(cut.nodes).filter((n): n is VectorNode => n.kind === "vector");
+  expect(pieces).toHaveLength(2); expect(pieces.map(p => Math.round(p.width))).toEqual([60,60]); expect(pieces.every(p => p.network.regions.length === 1)).toBe(true);
+  await page.getByRole("button", { name: "Undo", exact: true }).click(); await expect(row).toHaveCount(1);
+  await key("Shift+e", "Eraser"); await move(210, 120);
+  await expect(page).toHaveScreenshot("vector-eraser-brush.png", { clip, animations: "disabled", maxDiffPixels: 0 });
+  await page.mouse.down(); await move(210, 136); await page.keyboard.press("Escape"); await page.mouse.up();
+  expect(((await save()).nodes[id] as VectorNode).network.segments).toHaveLength(4);
+  await move(210, 115); await page.mouse.down(); await move(210, 125); await page.mouse.up();
+  const erased = ((await save()).nodes[id] as VectorNode).network; expect(erased.segments).toHaveLength(5);
+  await page.getByRole("button", { name: "Undo", exact: true }).click(); expect(((await save()).nodes[id] as VectorNode).network.segments).toHaveLength(4);
+  await page.getByRole("button", { name: "Redo", exact: true }).click();
+  await expect(page.locator(".figcraft-recovery")).toHaveText("Recovery saved on this device"); await page.reload(); await expect(row).toBeVisible();
+  expect(((await save()).nodes[id] as VectorNode).network).toEqual(erased);
+  await row.click(); await page.getByRole("button", { name: "Edit vector", exact: true }).click(); await page.setViewportSize({ width: 390, height: 844 });
+  for (const name of ["Lasso", "Cut", "Eraser"]) {
+    await tool(name).scrollIntoViewIfNeeded(); await tool(name).click(); await expect(tool(name)).toHaveAttribute("aria-pressed", "true");
+  }
+});

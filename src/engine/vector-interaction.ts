@@ -1,6 +1,7 @@
 import { inverse, transformPoint, type Affine } from "./affine";
 import { vectorFaceAt, vectorFaces, type VectorFace } from "./vector-faces";
 import { hitPaintedRegion } from "./vector-region-selection";
+import { eraseVector } from "./vector-erase";
 import { paintVector } from "./vector-paint";
 import { cubicPoint } from "./cubic";
 import type { Document, NodeId } from "./document";
@@ -27,6 +28,9 @@ import { dragWidthPoint, editWidthPoint, widthHit, type WidthHit } from "./vecto
 
 type PointSnap = { targets: VectorPointTargets; from: readonly Point[]; grab?: Point };
 type Gesture = { kind: "points"; start: Point; parts: readonly VectorEditPart[]; split?: readonly [number, number]; moved: boolean; clearOnClick?: boolean; snap?: PointSnap }
+  | { kind: "lasso"; points: Point[]; base: readonly VectorEditPart[] }
+  | { kind: "cut"; start: Point; hit?: VectorHit }
+  | { kind: "erase"; local: Affine; radius: number; last: Point; count: number; network: VectorNetwork }
   | { kind: "paint"; local: Affine; lastPage: Point; stamps: Point[] }
   | { kind: "width"; hit: WidthHit; moved: boolean }
   | { kind: "pen"; plan: PenPlan; origin: Point; out?: PenHandle }
@@ -50,6 +54,15 @@ function paintFaceAt(document: Document, id: NodeId, page: Point, segmentLimit =
   const net = vectorNetwork(document, id);
   if (!net || net.segments.length > segmentLimit) return;
   return vectorFaceAt(vectorFaces(net), transformPoint(inverse(worldTransform(document, id)), page));
+}
+function lassoContains(points: readonly Point[], p: Point): boolean {
+  if (points.length < 3) return false;
+  let inside = false, a = points[points.length - 1];
+  for (const b of points) {
+    if ((a.y > p.y) !== (b.y > p.y) && p.x < a.x + (p.y - a.y) * (b.x - a.x) / (b.y - a.y)) inside = !inside;
+    a = b;
+  }
+  return inside;
 }
 function regionUnder(document: Document, state: VectorEditState, point: Point, zoom: number, insideBox: boolean, shift: boolean): number | undefined {
   const region = hitPaintedRegion(document, state.id, point, zoom);
@@ -76,6 +89,7 @@ function capturePointSnap(document: Document, id: NodeId, parts: readonly Vector
 export class VectorInteraction {
   #gesture?: Gesture;
   #pressed = false;
+  #brush?: Point;
   #paintHover?: { id: NodeId; face: VectorFace };
   #widthHover?: WidthHit;
   #hover?: { id: NodeId; hit: VectorHit };
@@ -91,7 +105,7 @@ export class VectorInteraction {
     const g = this.#gesture, state = this.engine.getRenderVectorEdit();
     const box = state && state.tool !== "width" ? shownVectorPointBox(this.engine.getRenderDocument(), state) : undefined;
     const corners = g?.kind === "boxRotate" ? pointBoxCorners(g.box).map(p => transformPoint(pointRotationMatrix(pointBoxCentre(g.box), -g.angle), p)) : box && pointBoxCorners(box);
-    return { regionHover: this.#pressed ? undefined : state?.regionHover, paintHover: this.#paintHover, widthHover: this.#widthHover, hover: this.#hover, add: this.#add, marquee: this.#marquee, box: corners, guides: this.#guides, rubber: this.#rubber };
+    return { lasso: g?.kind === "lasso" ? g.points : undefined, brush: state?.tool === "eraser" ? this.#brush : undefined, regionHover: this.#pressed ? undefined : state?.regionHover, paintHover: this.#paintHover, widthHover: this.#widthHover, hover: this.#hover, add: this.#add, marquee: this.#marquee, box: corners, guides: this.#guides, rubber: this.#rubber };
   }
   #snapPen(point: Point, id: NodeId, modifiers?: MoveModifiers): Point {
     const view = this.engine.getView(), objects = view.snapObjects !== false && !modifiers?.ctrlKey && !modifiers?.metaKey, pixel = view.snapPixel !== false;
@@ -101,7 +115,7 @@ export class VectorInteraction {
   }
   #fail(error: unknown): void { this.cancel(); this.onError(error instanceof Error ? error.message : "Could not edit vector"); }
   hover(point?: Point, modifiers?: MoveModifiers): string | undefined {
-    this.#paintHover = undefined; this.#widthHover = undefined; this.#hover = undefined; this.#add = undefined; this.#rubber = undefined; this.#guides = [];
+    this.#brush = undefined; this.#paintHover = undefined; this.#widthHover = undefined; this.#hover = undefined; this.#add = undefined; this.#rubber = undefined; this.#guides = [];
     const state = this.engine.getRenderVectorEdit(); if (!state || !point) { this.engine.setVectorRegionHover(undefined); return undefined; }
     const document = this.engine.getRenderDocument(), zoom = this.engine.getView().zoom;
     if (state.tool === "paint") {
@@ -115,6 +129,8 @@ export class VectorInteraction {
     }
     this.#hover = hitEditedVectors(document, state, point, 6 / zoom);
     const found = this.#hover;
+    if (state.tool === "eraser") this.#brush = point;
+    if (state.tool === "eraser" || state.tool === "cut" || state.tool === "lasso") return "crosshair";
     if (state.tool === "pen") {
       const hit = hitVector(document, state, point, 6 / zoom), to = !hit && !modifiers?.shiftKey ? this.#snapPen(point, state.id, modifiers) : point;
       if (state.anchor !== undefined) {
@@ -140,7 +156,7 @@ export class VectorInteraction {
   }
   down(point: Point, modifiers: MoveModifiers): boolean {
     let state = this.engine.getVectorEdit(); if (!state || !this.engine.getSnapshot().editable) return false;
-    this.#pressed = true; this.#paintHover = undefined; this.#widthHover = undefined; this.#hover = undefined; this.#add = undefined; this.#guides = []; this.#rubber = undefined;
+    this.#pressed = true; this.#brush = undefined; this.#paintHover = undefined; this.#widthHover = undefined; this.#hover = undefined; this.#add = undefined; this.#guides = []; this.#rubber = undefined;
     try {
       const document = this.engine.getSnapshot().document, zoom = this.engine.getView().zoom;
       const found = hitEditedVectors(document, state, point, 6 / zoom);
@@ -162,6 +178,21 @@ export class VectorInteraction {
       if (!modifiers.shiftKey && state.regions.length && (region === undefined || !state.regions.includes(region))) {
         this.engine.updateVectorSelection(s => ({ ...s, vertices: s.vertices.filter(v => !s.regionVertices.includes(v)), regions: [], regionVertices: [], regionTopology: undefined }));
         state = this.engine.getVectorEdit()!;
+      }
+      if (state.tool === "cut" || state.tool === "lasso") {
+        this.engine.beginInteraction();
+        if (state.tool === "cut") { this.#gesture = { kind: "cut", start: point, hit }; this.#rubber = [point, point]; }
+        else this.#gesture = { kind: "lasso", points: [point], base: vectorParts(state).map(p => ({ ...p, vertices: modifiers.shiftKey ? p.vertices : [] })) };
+        return true;
+      }
+      if (state.tool === "eraser") {
+        const world = worldTransform(document, state.id), local = inverse(world), at = transformPoint(local, point);
+        const radius = 8 / zoom / Math.max(1e-9, Math.sqrt(Math.abs(world[0] * world[3] - world[1] * world[2])));
+        this.engine.beginInteraction();
+        this.#brush = point;
+        const network = eraseVector(vectorNetwork(document, state.id)!, at, radius);
+        this.#gesture = { kind: "erase", local, radius, last: at, count: 1, network };
+        this.#previewErase(network); return true;
       }
       if (state.tool === "paint") {
         const local = inverse(worldTransform(document, state.id)), stamps = [transformPoint(local, point)];
@@ -283,6 +314,11 @@ export class VectorInteraction {
       return { document: next, state: g.split ? { ...clearVectorSelection(state), vertices: g.parts[0].vertices } : state };
     });
   }
+  #previewErase(network: VectorNetwork): void {
+    this.engine.previewVectorEdit((doc, state) => ({
+      document: editNetworks(doc, [{ id: state.id, update: () => network }]), state: { ...state, vertices: [], segments: [] },
+    }));
+  }
   #previewPaint(stamps: readonly Point[]): void {
     this.engine.previewVectorEdit((document, state) => {
       const node = document.nodes[state.id];
@@ -308,6 +344,19 @@ export class VectorInteraction {
     if (!this.engine.interacting) { this.#gesture = undefined; this.#pressed = false; this.#guides = []; return; }
     try {
       const view = this.engine.getView(), zoom = view.zoom, objects = view.snapObjects !== false && !modifiers.ctrlKey && !modifiers.metaKey, pixel = view.snapPixel !== false;
+      if (g.kind === "cut") { this.#rubber = [g.start, point]; return; }
+      if (g.kind === "erase") {
+        this.#brush = point;
+        const target = transformPoint(g.local, point), count = Math.min(500, Math.floor(distance(g.last, target) / Math.max(1e-6, g.radius / 3)));
+        if (!count || g.count >= 20_000) return;
+        g.count += count;
+        if (g.count >= 20_000) return;
+        for (let k = 1; k <= count; k++) {
+          const t = k / count, stamp = { x: g.last.x + (target.x - g.last.x) * t, y: g.last.y + (target.y - g.last.y) * t };
+          g.network = eraseVector(g.network, stamp, g.radius);
+        }
+        g.last = target; this.#previewErase(g.network); return;
+      }
       if (g.kind === "paint") {
         if (g.stamps.length < 10_000 && distance(g.lastPage, point) * zoom >= 2) {
           g.lastPage = point;
@@ -356,17 +405,23 @@ export class VectorInteraction {
           }
           draft.normaliseGroups(); return { document: validateChangedGeometry(draft), state };
         }
-        if (g.kind === "marquee") {
-          const r = { x: Math.min(point.x, g.start.x), y: Math.min(point.y, g.start.y), width: Math.abs(point.x - g.start.x), height: Math.abs(point.y - g.start.y) };
-          this.#marquee = r;
+        if (g.kind === "marquee" || g.kind === "lasso") {
+          let contains: (q: Point) => boolean;
+          if (g.kind === "lasso") {
+            if (distance(g.points[g.points.length - 1], point) * zoom >= 2 && g.points.length < 100_000) g.points.push(point);
+            contains = q => lassoContains(g.points, q);
+          } else {
+            const r = { x: Math.min(point.x, g.start.x), y: Math.min(point.y, g.start.y), width: Math.abs(point.x - g.start.x), height: Math.abs(point.y - g.start.y) };
+            this.#marquee = r;
+            contains = q => q.x >= r.x && q.x < r.x + r.width && q.y >= r.y && q.y < r.y + r.height;
+          }
           const parts = g.base.map(p => {
-            const w = worldTransform(document, p.id), found = vectorNetwork(document, p.id)!.vertices.flatMap((v, i) => {
-              const q = transformPoint(w, v); return q.x >= r.x && q.x < r.x + r.width && q.y >= r.y && q.y < r.y + r.height ? [i] : [];
-            });
-            const old = vectorParts(state).find(s => s.id === p.id)!;
-            return { ...old, vertices: [...new Set([...p.vertices, ...found])] };
+            const world = worldTransform(document, p.id);
+            const vertices = new Set(p.vertices);
+            vectorNetwork(document, p.id)!.vertices.forEach((v, i) => { if (contains(transformPoint(world, v))) vertices.add(i); });
+            return { ...p, vertices: [...vertices], segments: g.kind === "lasso" ? [] : vectorParts(state).find(part => part.id === p.id)!.segments };
           });
-          return { document, state: { ...state, vertices: parts[0].vertices, others: parts.slice(1) } };
+          return { document, state: { ...state, vertices: parts[0].vertices, segments: parts[0].segments, others: parts.slice(1) } };
         }
         let target = point;
         if (g.kind === "handle") {
@@ -398,6 +453,16 @@ export class VectorInteraction {
     const g = this.#gesture; this.#gesture = undefined; this.#pressed = false; this.#marquee = undefined; this.#guides = [];
     if (!g || !this.engine.interacting) return;
     try {
+      if (g.kind === "cut") {
+        this.#rubber = undefined; this.engine.cancelInteraction();
+        if (distance(g.start, point) * this.engine.getView().zoom >= 3) {
+          try { this.engine.execute("vector.edit.cut", { from: [g.start.x, g.start.y], to: [point.x, point.y] }); }
+          catch (error) { if (!(error instanceof Error && error.message === "drag across a path to cut it")) throw error; }
+        } else if (g.hit?.kind === "vertex") this.engine.execute("vector.edit.cut", { vertex: g.hit.index });
+        else if (g.hit?.kind === "segment") this.engine.execute("vector.edit.cut", { segment: g.hit.seg, t: g.hit.t });
+        else this.engine.updateVectorSelection(s => ({ ...s, vertices: [], segments: [] }));
+        return;
+      }
       if (g.kind === "width" && !g.moved && g.hit.kind !== "path") { this.engine.cancelInteraction(); return; }
       if (g.kind === "points" && !g.moved && !g.split) {
         this.engine.cancelInteraction();
@@ -410,8 +475,8 @@ export class VectorInteraction {
         if (!g.smooth && networkIncident(net, g.vertex).length !== 2) { this.engine.cancelInteraction(); return; }
         this.engine.previewVectorEdit((document, state) => ({ document: editNetworks(document, [{ id: state.id, update: net => smoothVertices(net, [g.vertex], !g.smooth) }]), state }));
       }
-      if (g.kind === "marquee") {
-        if (g.leave && distance(point, g.start) * this.engine.getView().zoom < 3) { this.engine.cancelInteraction(); this.engine.execute("vector.edit.end"); return g.start; }
+      if (g.kind === "marquee" || g.kind === "lasso") {
+        if (g.kind === "marquee" && g.leave && distance(point, g.start) * this.engine.getView().zoom < 3) { this.engine.cancelInteraction(); this.engine.execute("vector.edit.end"); return g.start; }
         const current = this.engine.getRenderVectorEdit()!, document = this.engine.getRenderDocument();
         const other = !current.vertices.length && current.others.find(p => p.vertices.length);
         if (other) this.engine.previewVectorEdit(() => ({ document, state: activateVector(current, other.id)! }));
@@ -445,6 +510,6 @@ export class VectorInteraction {
   cancel(): void {
     if (this.#gesture) this.engine.cancelInteraction(); this.#gesture = undefined; this.#pressed = false;
     this.engine.setVectorRegionHover(undefined);
-    this.#paintHover = undefined; this.#widthHover = undefined; this.#hover = undefined; this.#add = undefined; this.#marquee = undefined; this.#guides = []; this.#rubber = undefined;
+    this.#brush = undefined; this.#paintHover = undefined; this.#widthHover = undefined; this.#hover = undefined; this.#add = undefined; this.#marquee = undefined; this.#guides = []; this.#rubber = undefined;
   }
 }

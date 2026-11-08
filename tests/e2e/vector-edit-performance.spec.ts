@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { build } from "vite";
-import type { measureRegionFills, measureVectorEdit } from "../fixtures/vector-edit-performance";
+import type { measureRegionFills, measureVectorEdit, measureVectorPathTool } from "../fixtures/vector-edit-performance";
 
 async function openBenchmark(page: Page) {
   const bundle = await build({ configFile: false, logLevel: "silent", build: { write: false, lib: { entry: "tests/fixtures/vector-edit-performance.ts", name: "VectorEditPerformance", formats: ["iife"] }, minify: true } });
@@ -25,4 +25,12 @@ test("selected region fill commands and draw stay within the frame budget in 100
   await test.info().attach("region-fill-performance", { body: JSON.stringify(result), contentType: "application/json" });
   expect(result).toMatchObject({ nodes: 10_000, editedLayers: 100, regions: 2, edits: 120, measuredFrames: 110 });
   expect(result.p95).toBeLessThan(16.7); expect(result.inputP95).toBeLessThan(16.7);
+});
+
+for (const tool of ["lasso", "cut", "eraser"] as const) test(`vector ${tool} keeps its drag and overlay budget in 10000 nodes`, async ({ page }) => {
+  await openBenchmark(page);
+  const result = await page.evaluate(tool => (window as unknown as { VectorEditPerformance: { measureVectorPathTool: typeof measureVectorPathTool } }).VectorEditPerformance.measureVectorPathTool(document.querySelector("canvas")!, tool), tool);
+  await test.info().attach("vector-path-tool-performance", { body: JSON.stringify(result), contentType: "application/json" });
+  expect(result).toMatchObject({ nodes: 10_000, editedLayers: 100, measuredFrames: 110, root: 0, chrome: 0 });
+  expect(result.inputP95).toBeLessThan(16.7); expect(result.p95).toBeLessThan(16.7);
 });

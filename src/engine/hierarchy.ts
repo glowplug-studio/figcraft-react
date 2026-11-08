@@ -118,6 +118,13 @@ export class HierarchyDraft {
     this.changedIds.add(node.id);
   }
 
+  allocateId(start: bigint): { id: NodeId; nextId: bigint } {
+    const maximum = 18446744073709551615n;
+    let value = start;
+    while (value <= maximum && this.nodes[String(value)]) value++;
+    if (value < 0n || value > maximum) throw new Error("Document identifiers are exhausted");
+    return { id: String(value), nextId: value === maximum ? maximum : value + 1n };
+  }
   insert(node: LayerNode, parent: NodeId, index?: number): void {
     if (this.nodes[node.id]) throw new Error(`Node ${node.id} already exists`);
     const target = nodeOf(this.document, parent);

@@ -2,6 +2,10 @@
 
 All notable changes to the React port and its upstream compatibility baseline are recorded here.
 
+## [0.36.0] - 2026-11-09
+
+- Use Lasso (Q) to select points across edited vectors, Cut (X) to open paths or separate crossed parts into layers, and Eraser (Shift+E) to remove portions of paths with a circular brush.
+
 ## [0.35.0] - 2026-11-09
 
 - Edit solid fills on selected vector regions. The inspector shows shared or mixed fills. Add, remove, reorder, copy and paste paints while preserving inherited fills on untouched regions.

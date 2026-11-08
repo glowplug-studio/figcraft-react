@@ -13,6 +13,8 @@ import { pointBoxCentre, pointBoxCorners, pointBoxOnto, pointRotationMatrix, tra
 import { hitVector } from "./vector-edit-hit";
 import { connectVectorPoints, joinVectorPoints } from "./vector-connect";
 import { isVectorJoin, type VectorJoinCommand } from "./vector-commands";
+import { cutComponents, cutVectorAcross, cutVectorSegment, cutVectorVertex } from "./vector-cut";
+import { eraseVector } from "./vector-erase";
 import { paintVector } from "./vector-paint";
 import { applyPen, planPen } from "./vector-pen";
 
@@ -24,6 +26,8 @@ export const vectorEditSpecs = Object.freeze({
   "vector.edit.state": { label: "Vector edit state", undo: false },
   "vector.edit.tool": { label: "Vector edit tool", undo: false },
   "vector.edit.widthPoint": { label: "Width point", undo: true },
+  "vector.edit.cut": { label: "Cut path", undo: true },
+  "vector.edit.erase": { label: "Erase", undo: true },
   "vector.edit.connect": { label: "Connect points", undo: true },
   "vector.edit.paint": { label: "Paint bucket", undo: true },
   "vector.edit.pen": { label: "Pen point", undo: true },
@@ -53,6 +57,8 @@ export type VectorEditCommand = keyof typeof vectorEditSpecs;
 const allowed: Record<VectorEditCommand, readonly string[]> = {
   "vector.edit.begin": ["id", "ids"], "vector.edit.end": [], "vector.edit.state": [], "vector.edit.tool": ["tool"],
   "vector.edit.widthPoint": ["action", "index", "t", "scale", "width", "side"],
+  "vector.edit.cut": ["from", "to", "segment", "vertex", "t"],
+  "vector.edit.erase": ["points", "radius"],
   "vector.edit.connect": ["a", "b"],
   "vector.edit.paint": ["x", "y", "points"],
   "vector.edit.pen": ["x", "y", "dx", "dy"], "vector.edit.penEnd": [],
@@ -95,8 +101,16 @@ function pointProperty<K extends "radius" | "cap" | "join">(net: VectorNetwork, 
   });
   return changed ? freezeNetwork({ ...net, vertices }) : net;
 }
-export interface VectorEditResult { document: Document; selection: readonly NodeId[]; state: VectorEditState | undefined; recordHistory: boolean; result: Record<string, unknown> }
-export function executeVectorEdit(command: VectorEditCommand | VectorJoinCommand, document: Document, selection: readonly NodeId[], state: VectorEditState | undefined, p: Record<string, unknown>): VectorEditResult {
+function optionalNumber(value: unknown): number | undefined {
+  try { return parseNumber(value); } catch { return undefined; }
+}
+function pagePair(value: unknown): Point | undefined {
+  if (!Array.isArray(value)) return;
+  const x = optionalNumber(value[0]), y = optionalNumber(value[1]);
+  return x === undefined || y === undefined ? undefined : { x, y };
+}
+export interface VectorEditResult { nextId?: bigint; document: Document; selection: readonly NodeId[]; state: VectorEditState | undefined; recordHistory: boolean; result: Record<string, unknown> }
+export function executeVectorEdit(command: VectorEditCommand | VectorJoinCommand, document: Document, selection: readonly NodeId[], state: VectorEditState | undefined, p: Record<string, unknown>, nextId?: bigint): VectorEditResult {
   for (const key of Object.keys(p)) if (!isVectorJoin(command) && !allowed[command].includes(key)) throw new Error(`Unsupported ${command} parameter: ${key}`);
   const result: VectorEditResult = { document, selection, state, recordHistory: false, result: { ok: true } };
   if (command === "vector.edit.begin") {
@@ -124,7 +138,7 @@ export function executeVectorEdit(command: VectorEditCommand | VectorJoinCommand
       recordHistory: true, result: { index: edited.index, points: edited.points } };
   }
   if (command === "vector.edit.tool") {
-    const tool = parseString(p.tool)?.toLowerCase(); if (tool !== "move" && tool !== "bend" && tool !== "pen" && tool !== "width" && tool !== "paint") throw new Error("This vector tool is not implemented yet");
+    const tool = parseString(p.tool)?.toLowerCase(); if (tool !== "move" && tool !== "bend" && tool !== "pen" && tool !== "width" && tool !== "paint" && tool !== "lasso" && tool !== "cut" && tool !== "eraser") throw new Error("This vector tool is not implemented yet");
     return { ...result, state: freezeVectorEdit({ ...state, tool, regionHover: undefined, ...(tool !== "pen" ? { anchor: undefined, penOut: undefined } : {}) }), result: { tool } };
   }
   if (command === "vector.edit.penEnd") return { ...result, state: freezeVectorEdit({ ...state, anchor: undefined, penOut: undefined }) };
@@ -149,20 +163,54 @@ export function executeVectorEdit(command: VectorEditCommand | VectorJoinCommand
     for (const part of pointSets(document, state, p, ends)) { const world = worldTransform(draft.document, part.id); edit(part.id, net => f(net, part.vertices, world)); }
   };
   switch (command) {
+    case "vector.edit.cut": {
+      const node = draft.nodes[state.id]; if (node.kind !== "vector") throw new Error("Not a vector");
+      const from = pagePair(p.from), to = pagePair(p.to);
+      if (from && to) {
+        const local = inverse(worldTransform(document, state.id));
+        const cut = cutVectorAcross(node.network, transformPoint(local, from), transformPoint(local, to));
+        if (!cut.vertices.length) throw new Error("drag across a path to cut it");
+        const networks = cutComponents(cut.network), parent = draft.nodes[node.parent];
+        if (!("children" in parent)) throw new Error("Missing vector parent");
+        const at = parent.children.indexOf(node.id) + 1, layers = [node.id];
+        for (let i = networks.length - 1; i >= 1; i--) {
+          if (nextId === undefined) throw new Error("A document allocator is required for new vector layers");
+          const allocated = draft.allocateId(nextId); nextId = allocated.nextId;
+          draft.insert(refitVector({ ...node, id: allocated.id, network: networks[i] }), node.parent, at);
+          layers.push(allocated.id);
+        }
+        draft.set(refitVector({ ...node, network: networks[0] }));
+        result.nextId = nextId; result.result = { layers: [layers[0], ...layers.slice(1).reverse()] };
+        result.state = { ...state, vertices: [], segments: [] };
+      } else {
+        const vertex = optionalNumber(p.vertex);
+        const cut = vertex !== undefined ? cutVectorVertex(node.network, vertex < 0 ? -1 : Math.trunc(vertex))
+          : cutVectorSegment(node.network, index(p.segment, "segment"), optionalNumber(p.t) ?? .5);
+        if (!cut) throw new Error("nothing to cut there");
+        draft.set(refitVector({ ...node, network: cut.network }));
+        result.result = { vertices: cut.vertices }; result.state = { ...state, vertices: cut.vertices, segments: [] };
+      }
+      break;
+    }
+    case "vector.edit.erase":
     case "vector.edit.paint": {
-      const node = document.nodes[state.id];
-      if (node?.kind !== "vector") throw new Error("Not a vector");
-      const local = inverse(worldTransform(document, state.id));
-      const stamps: Point[] = [];
+      const node = draft.nodes[state.id]; if (node.kind !== "vector") throw new Error("Not a vector");
+      const world = worldTransform(document, state.id), local = inverse(world), stamps: Point[] = [];
       if (Array.isArray(p.points)) {
         for (const pair of p.points) {
-          if (!Array.isArray(pair)) continue;
-          try { stamps.push(transformPoint(local, { x: parseNumber(pair[0]), y: parseNumber(pair[1]) })); }
-          catch { continue; }
+          const point = pagePair(pair); if (point) stamps.push(transformPoint(local, point));
           if (stamps.length === 10_000) break;
         }
-      } else {
+      } else if (command === "vector.edit.paint") {
         stamps.push(transformPoint(local, { x: parseNumber(p.x, "x"), y: parseNumber(p.y, "y") }));
+      }
+      if (command === "vector.edit.erase") {
+        const scale = Math.max(1e-9, Math.sqrt(Math.abs(world[0] * world[3] - world[1] * world[2])));
+        const radius = Math.min(1e5, Math.max(.01, optionalNumber(p.radius) ?? 8)) / scale;
+        const network = stamps.reduce((net, point) => eraseVector(net, point, radius), node.network);
+        if (network !== node.network) draft.set(refitVector({ ...node, network }));
+        result.result = { changed: network !== node.network }; result.state = { ...state, vertices: [], segments: [] };
+        break;
       }
       const painted = paintVector(node, stamps);
       if (!painted) throw new Error("click inside a closed area");

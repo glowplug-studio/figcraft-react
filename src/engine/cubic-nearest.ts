@@ -5,11 +5,11 @@ const evaluate = (coefficients: readonly number[], t: number): number => {
   let result = 0; for (let i = coefficients.length - 1; i >= 0; i--) result = result * t + coefficients[i]; return result;
 };
 /** Derivative roots partition [0,1] into monotone intervals, including repeated roots. */
-function roots(coefficients: readonly number[]): number[] {
+export function unitIntervalRoots(coefficients: readonly number[]): number[] {
   const p = [...coefficients]; while (p.length > 1 && p[p.length - 1] === 0) p.pop();
   if (p.length < 2) return [];
   if (p.length === 2) { const t = -p[0] / p[1]; return t >= 0 && t <= 1 ? [t] : []; }
-  const cuts = [0, ...roots(p.slice(1).map((c, i) => c * (i + 1))).filter(t => t > 0 && t < 1), 1];
+  const cuts = [0, ...unitIntervalRoots(p.slice(1).map((c, i) => c * (i + 1))).filter(t => t > 0 && t < 1), 1];
   const out: number[] = [], epsilon = p.reduce((sum, c) => sum + Math.abs(c), 0) * Number.EPSILON * 16;
   const add = (t: number) => { if (!out.some(v => Math.abs(v - t) <= Number.EPSILON * 8)) out.push(t); };
   for (const t of cuts) if (Math.abs(evaluate(p, t)) <= epsilon) add(t);
@@ -45,7 +45,7 @@ export function nearestCubic(c: Cubic, point: Point): { t: number; distance: num
   for (let i = 0; i < 4; i++) for (let j = 1; j < 4; j++) coefficients[i + j - 1] += j * (q[i].x * q[j].x + q[i].y * q[j].y);
   const normalised: Cubic = [relative[0], relative[1], relative[2], relative[3]];
   let t = 0, distance = Infinity;
-  for (const candidate of [...roots(coefficients), 0, 1]) {
+  for (const candidate of [...unitIntervalRoots(coefficients), 0, 1]) {
     const p = cubicPoint(normalised, candidate), d = Math.hypot(p.x, p.y);
     if (d < distance) { t = candidate; distance = d; }
   }

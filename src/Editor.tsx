@@ -123,6 +123,11 @@ export function Editor({ identity, capabilities, engine: suppliedEngine, recover
         return;
       }
       if (!event.altKey && !modified && event.key.toLowerCase() === "b") { event.preventDefault(); dispatch("vector.edit.tool", { tool: "paint" }); return; }
+      if (!event.altKey && !modified) {
+        const key = event.key.toLowerCase();
+        const tool = event.shiftKey ? (key === "e" ? "eraser" : undefined) : key === "q" ? "lasso" : key === "x" ? "cut" : undefined;
+        if (tool) { event.preventDefault(); dispatch("vector.edit.tool", { tool }); return; }
+      }
       if (!event.altKey && event.shiftKey && !modified && event.key.toLowerCase() === "w") { event.preventDefault(); dispatch("vector.edit.tool", { tool: "width" }); return; }
       if (!event.altKey && !event.shiftKey && !modified && event.key.toLowerCase() === "p") { event.preventDefault(); dispatch("vector.edit.tool", { tool: "pen" }); return; }
       if (!event.altKey && !modified && ["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(event.key)) {

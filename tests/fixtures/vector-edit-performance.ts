@@ -128,3 +128,43 @@ export async function measureRegionFills(canvas: HTMLCanvasElement) {
   const p95 = (values: number[]) => values.sort((a, b) => a - b)[Math.floor(.95 * values.length)];
   return { nodes: Object.keys(initial.nodes).length, editedLayers: 100, regions: 2, edits, measuredFrames: frames.length, inputP95: p95(input), p95: p95(frames) };
 }
+
+export async function measureVectorPathTool(canvas: HTMLCanvasElement, tool: "cut" | "eraser" | "lasso") {
+  const { engine, children } = await openVectorScene("M0 0H40V30H0Z");
+  engine.execute("vector.edit.tool", { tool });
+  engine.execute("view.set", { cx: 600, cy: 400, vw: 1200, vh: 800, zoom: 1 });
+  canvas.width = 1200; canvas.height = 800;
+  const ctx = canvas.getContext("2d")!, edit = new VectorInteraction(engine, message => { throw Error(message); });
+  const mods = { altKey: false, ctrlKey: false, metaKey: false, shiftKey: false };
+  const start = tool === "lasso" ? { x: 30, y: 30 } : { x: 60, y: 30 };
+  const before = engine.getSnapshot().document, frames: number[] = [], inputs: number[] = [];
+  edit.down(start, mods);
+  let root = 0, chrome = 0;
+  const offRoot = engine.subscribe(() => root++), offChrome = engine.subscribeVectorEdit(() => chrome++);
+  let end = start;
+  for (let i = 0; i < 120; i++) {
+    await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
+    if (tool === "lasso") {
+      const side = Math.floor(i / 30), t = (i % 30 + 1) / 30;
+      const corners = [start, { x: 905, y: 30 }, { x: 905, y: 798 }, { x: 30, y: 798 }, start];
+      end = { x: corners[side].x + (corners[side+1].x-corners[side].x)*t, y: corners[side].y+(corners[side+1].y-corners[side].y)*t };
+    } else end = { x: 60, y: 30 + i / 2 };
+    const begin = performance.now(); edit.move(end, mods); const input = performance.now();
+    renderDocument(ctx, engine.getRenderDocument(), 1200, 800, [], undefined, engine.getView());
+    drawVectorEdit(ctx, engine.getRenderDocument(), engine.getRenderVectorEdit()!, engine.getView(), edit.overlay);
+    if (i >= 10) { inputs.push(input - begin); frames.push(performance.now() - begin); }
+  }
+  offRoot(); offChrome();
+  const release = performance.now(); edit.up(end); const releaseMs = performance.now() - release;
+  const after = engine.getSnapshot().document, active = after.nodes[children[0]] as VectorNode, state = engine.getVectorEdit()!;
+  if (tool === "lasso") {
+    const selected = state.vertices.length + state.others.reduce((n,p) => n+p.vertices.length,0);
+    if (selected !== 400 || before !== after) throw Error("Lasso did not select all 400 points without changing geometry");
+  } else {
+    if (tool === "cut" && Object.keys(after.nodes).length !== 10_001) throw Error("Cut did not create a sibling");
+    if (tool === "eraser" && active.network.segments.length !== 6) throw Error("Brush did not erase both crossed edges");
+    engine.execute("edit.undo"); if (engine.getSnapshot().document !== before) throw Error("Undo did not restore the network");
+  }
+  const p95 = (n: number[]) => n.sort((a,b) => a-b)[Math.floor(.95*n.length)];
+  return { tool, nodes: Object.keys(before.nodes).length, editedLayers:100, measuredFrames: frames.length, inputP95:p95(inputs), p95:p95(frames), releaseMs, root, chrome };
+}

@@ -28,18 +28,7 @@ export function executeDuplicate(document: Document, selection: readonly NodeId[
   const dx = optionalNumber(params.dx), dy = optionalNumber(params.dy);
   const repeat = dx === undefined && dy === undefined && previous && duplicateSelection(previous, sources) ? repeatOffset(document, previous) : undefined;
   const draft = new HierarchyDraft(document), map: Record<NodeId, NodeId> = {}, copies: NodeId[] = [];
-  const maximum = 18446744073709551615n;
   let allocator = nextId;
-  const allocate = (): NodeId => {
-    if (allocator < 0n || allocator > maximum) throw new Error("Document identifiers are exhausted");
-    while (draft.nodes[String(allocator)]) {
-      if (allocator === maximum) throw new Error("Document identifiers are exhausted");
-      allocator++;
-    }
-    const id = String(allocator);
-    if (allocator < maximum) allocator++;
-    return id;
-  };
   for (const sourceId of sources) {
     const source = document.nodes[sourceId];
     if (source.kind === "page") throw new Error("Pages are duplicated with page.duplicate");
@@ -49,7 +38,8 @@ export function executeDuplicate(document: Document, selection: readonly NodeId[
     for (const oldId of subtreeIds(document, sourceId)) {
       const node = document.nodes[oldId];
       if (node.kind === "page") throw new Error("A page cannot be a layer child");
-      const id = allocate(), parentId = oldId === sourceId ? node.parent : map[node.parent];
+      const allocated = draft.allocateId(allocator); allocator = allocated.nextId;
+      const id = allocated.id, parentId = oldId === sourceId ? node.parent : map[node.parent];
       if (!parentId) throw new Error("Invalid subtree parent");
       map[oldId] = id;
       draft.insert(isLeaf(node) ? { ...node, id } : { ...node, id, children: Object.freeze([]) }, parentId, oldId === sourceId ? index : undefined);

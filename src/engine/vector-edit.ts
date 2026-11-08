@@ -10,7 +10,7 @@ import { networkBounds } from "./vector-path";
 export interface VectorEditPart { readonly id: NodeId; readonly vertices: readonly number[]; readonly segments: readonly number[] }
 /** Ephemeral selection only; never written into the native document or backend identity. */
 export interface VectorEditState extends VectorEditPart {
-  readonly tool: "move" | "bend" | "pen" | "paint" | "width";
+  readonly tool: "move" | "bend" | "pen" | "paint" | "width" | "cut" | "eraser" | "lasso";
   readonly widthPoint?: number;
   readonly anchor?: number;
   readonly penOut?: readonly [number, number];
