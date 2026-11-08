@@ -2658,3 +2658,47 @@ test("Offset path grows and erodes a ring, preserves its hole and recovers its p
   expect(layer.network.regions[0]).toMatchObject({ winding:"evenOdd", paintSpace:{ width:100,height:100 } });
   expect(layer.width).toBeCloseTo(90,2);
 });
+
+test("Simplify vector reduces editable segments and recovers a closed fill plus a loose trail", async ({ page }) => {
+  const e = new EditorEngine(), id = String(e.execute("vector.create", {
+    x:130,y:130,path:"M0 0H20H40H60V60H0Z M90 20H110H130H150",
+  }).id);
+  // Vector creation and sparse property writes are distinct native commands.
+  e.execute("node.set",{id,props:{name:"Path",fill:"#008844",stroke:"black",strokeWeight:2}});
+  const original=(e.getSnapshot().document.nodes[id] as VectorNode).network;
+  await login(page);
+  await page.getByLabel("Open Figcraft file",{exact:true}).setInputFiles({
+    name:"simplify.figcraft",mimeType:"application/octet-stream",buffer:Buffer.from(await e.nativeSnapshot()),
+  });
+  const layers=page.getByRole("region",{name:"Layers",exact:true}), row=layers.getByRole("button",{name:"Path",exact:true});
+  const apply=async()=>{
+    await row.click();
+    await layers.getByRole("button",{name:"Simplify vector",exact:true}).click();
+  };
+  const save=async()=>{
+    const pending=page.waitForEvent("download");await page.getByRole("button",{name:"Save as",exact:true}).click();
+    return ((await decodeFigcraft(await readFile((await (await pending).path())!))).document.nodes[id] as VectorNode).network;
+  };
+  await expect(row).toBeVisible();
+  await resetCanvasOrigin(page);
+  await apply();
+  const simplified=await save();
+  expect(simplified.segments.length).toBeLessThan(original.segments.length);
+  expect(simplified.regions).toHaveLength(1);
+  expect(simplified.regions[0].loops.flat()).toHaveLength(simplified.segments.length-1);
+  const away=await canvasPoint(page,340,280);await page.mouse.click(away.x,away.y);
+  await expectCanvasPixel(page,150,150,[0,136,68,255]);
+  await expectCanvasPixel(page,245,150,[0,0,0,255]);
+  const origin=await canvasPoint(page,124,124);
+  await expect(page).toHaveScreenshot("simplify-loose-trail.png",{clip:{...origin,width:162,height:72},animations:"disabled",maxDiffPixels:0});
+  await page.getByRole("button",{name:"Undo",exact:true}).click();
+  expect(await save()).toEqual(original);
+  await page.setViewportSize({width:390,height:844});
+  await page.locator(".figcraft-mobile-layers > summary").click();
+  await apply();
+  await page.setViewportSize({width:1440,height:900});
+  await expect(page.locator(".figcraft-recovery")).toHaveText("Recovery saved on this device");
+  await page.reload();
+  await expect(row).toBeVisible();
+  expect(await save()).toEqual(simplified);
+});

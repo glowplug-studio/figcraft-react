@@ -9,6 +9,7 @@ import { solidPaint, type SolidPaint } from "./solid-paint";
 import { defaultStroke } from "./stroke";
 import { appendNetwork, freezeNetwork, vectorLine, networkFromPath, regionPaintFrame, transformNetwork, type VectorNetwork, type VectorRegion, type VectorSegment, type VectorVertex } from "./vector-network";
 import { networkBounds } from "./vector-path";
+import { simplifyVector } from "./vector-simplify";
 import { offsetLayer } from "./vector-offset";
 import { reverseLoop, setFillRule } from "./vector-winding";
 
@@ -23,6 +24,7 @@ export const vectorSpecs = Object.freeze({
   "vector.fillRule": { label: "Set fill rule", undo: true },
   "vector.reverseLoop": { label: "Reverse loop", undo: true },
   "bool.flatten": { label: "Flatten boolean", undo: true },
+  "vector.simplify": { label: "Simplify vector", undo: true },
   "vector.offset": { label: "Offset path", undo: true },
   "vector.outlineStroke": { label: "Outline stroke", undo: true },
   "vector.flatten": { label: "Flatten", undo: true },
@@ -69,6 +71,7 @@ export function executeVector(command: string, document: Document, selection: re
 } {
   if (!Object.hasOwn(vectorSpecs, command)) throw new Error(`Unsupported vector command: ${command}`);
   const allowed = ["ids", "id"];
+  if (command === "vector.simplify") allowed.push("tolerance");
   if (command === "vector.offset") allowed.push("offset");
   if (command === "vector.fillRule") allowed.push("region", "rule");
   if (command === "vector.reverseLoop") allowed.push("region", "loop");
@@ -94,6 +97,16 @@ export function executeVector(command: string, document: Document, selection: re
       const segments = [...net.segments, vectorLine(net.vertices.length - 1, 0)];
       const region: VectorRegion = { loops: [segments.map((_, i) => i)], winding: "nonZero" };
       draft.set({ ...node, network: freezeNetwork({ ...net, segments, regions: [region] }) });
+    }
+    return { document: draft.finish(), selection, nextId, result: { ok: true } };
+  }
+  if (command === "vector.simplify") {
+    let tolerance = 0.5;
+    try { tolerance = Math.max(0.01, parseNumber(params.tolerance, "tolerance")); }
+    catch { /* The native optional numeric parameter falls back to 0.5. */ }
+    for (const id of targets) {
+      const node = draft.nodes[id];
+      if (node.kind === "vector") draft.set(simplifyVector(node, tolerance));
     }
     return { document: draft.finish(), selection, nextId, result: { ok: true } };
   }

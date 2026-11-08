@@ -218,3 +218,25 @@ export async function measureOffset(canvas: HTMLCanvasElement) {
   const p95=(values:number[]) => values.sort((a,b)=>a-b)[Math.floor(values.length*.95)];
   return { nodes:Object.keys(original.nodes).length, rings:ids.length, runs:commands.length, commandP95Ms:p95(commands), paintP95Ms:p95(frames), grownPixel, holePixel };
 }
+
+export async function measureSimplify(canvas: HTMLCanvasElement) {
+  const {engine,children}=await openVectorScene("M0 0H10H20H40V30H0Z M50 0H60H70H80",false);
+  const ids=children.slice(0,32), before=engine.getSnapshot().document;
+  canvas.width=960;canvas.height=850;
+  const context=canvas.getContext("2d",{willReadFrequently:true})!;
+  const commands:number[]=[], frames:number[]=[];
+  let afterSegments=0, sample=0;
+  for(let i=0;i<12;i++){
+    const start=performance.now();engine.execute("vector.simplify",{ids});
+    const committed=performance.now(), doc=engine.getSnapshot().document;
+    renderDocument(context,doc,canvas.width,canvas.height);
+    const finish=performance.now();
+    if(i>=2){commands.push(committed-start);frames.push(finish-committed);}
+    afterSegments=(doc.nodes[ids[0]] as VectorNode).network.segments.length;
+    sample=context.getImageData(60,55,1,1).data[0];
+    engine.execute("edit.undo");if(engine.getSnapshot().document!==before)throw Error("Simplify undo lost geometry");
+  }
+  const p95=(a:number[])=>a.sort((x,y)=>x-y)[Math.floor(a.length*.95)];
+  return {nodes:Object.keys(before.nodes).length,targets:ids.length,runs:commands.length,beforeSegments:(before.nodes[ids[0]] as VectorNode).network.segments.length,
+    afterSegments,sample,commandP95Ms:p95(commands),paintP95Ms:p95(frames)};
+}

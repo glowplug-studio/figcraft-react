@@ -2,6 +2,10 @@
 
 All notable changes to the React port and its upstream compatibility baseline are recorded here.
 
+## [0.41.0] - 2026-11-09
+
+- Added Simplify vector for open trails and closed painted regions, with source winding and paint-frame preservation.
+
 ## [0.40.0] - 2026-11-09
 
 - Added signed Offset path editing for native shapes and vector regions, preserving holes and paint frames.

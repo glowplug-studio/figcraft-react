@@ -52,3 +52,13 @@ test("Offset path rebuilds 32 visible rings in 10000 nodes and undo restores the
   expect(result.grownPixel).toBeLessThan(240);
   await test.info().attach("vector.offset", {body:JSON.stringify(result),contentType:"application/json"});
 });
+
+test("Simplify vector reduces 32 mixed paths in 10000 nodes without losing their fills or undo",async({page})=>{
+  await openBenchmark(page);
+  const result=await page.evaluate(()=>(window as unknown as {VectorEditPerformance:{
+    measureSimplify:typeof import("../fixtures/vector-edit-performance").measureSimplify
+  }}).VectorEditPerformance.measureSimplify(document.querySelector("canvas")!));
+  expect(result).toMatchObject({nodes:10000,targets:32,runs:10,sample:217});
+  expect(result.afterSegments).toBeLessThan(result.beforeSegments);
+  await test.info().attach("vector.simplify",{body:JSON.stringify(result),contentType:"application/json"});
+});

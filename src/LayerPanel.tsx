@@ -95,6 +95,7 @@ export function LayerPanel({ document, selection, editable, dispatch }: LayerPan
         </form>
       </dialog>
       <button type="button" disabled={!editable || selection.length === 0} onClick={() => dispatch("vector.outlineStroke")}>Outline stroke</button>
+      <button type="button" disabled={!editable || !selection.some(id => document.nodes[id]?.kind === "vector")} onClick={() => dispatch("vector.simplify")}>Simplify vector</button>
       <button type="button" disabled={!editable || selection.length === 0} onClick={() => dispatch("vector.join")}>Join selection</button>
       <button type="button" disabled={!editable || selection.length === 0} onClick={() => dispatch("vector.smoothJoin")}>Smooth join selection</button>
       <button type="button" disabled={!editable || !selection.some(id => document.nodes[id]?.kind === "vector")} onClick={() => dispatch("vector.reverse")}>Reverse path direction</button>

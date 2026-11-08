@@ -10,7 +10,9 @@ import { fitCubicRoots } from "./fit-polynomial";
 const distance2 = (a: Point, b: Point) => (a.x - b.x) ** 2 + (a.y - b.y) ** 2;
 const lineCubic = (a: Point, b: Point): Cubic => [a, { x: a.x + (b.x - a.x) / 3, y: a.y + (b.y - a.y) / 3 }, { x: b.x + (a.x - b.x) / 3, y: b.y + (a.y - b.y) / 3 }, b];
 
-function tryLine(source: FittingPolyline, from: number, to: number, a: Point, b: Point, accuracy: number): Cubic | undefined {
+export type FitSource = Pick<FittingPolyline, "sample" | "moments">;
+
+function tryLine(source: FitSource, from: number, to: number, a: Point, b: Point, accuracy: number): Cubic | undefined {
   const dx = b.x - a.x, dy = b.y - a.y, length2 = dx * dx + dy * dy;
   for (let i = 1; i <= 7; i++) {
     const p = source.sample(from + i * ((to - from) / 8)).point;
@@ -22,10 +24,10 @@ function tryLine(source: FittingPolyline, from: number, to: number, a: Point, b:
 
 /** Equal-source-parameter tangent rays, plus arc correspondence when curvature changes sharply. */
 class FittingDistance {
-  #samples: ReturnType<FittingPolyline["sample"]>[] = [];
+  #samples: ReturnType<FitSource["sample"]>[] = [];
   #spicy = false;
   #arc?: number[];
-  constructor(private source: FittingPolyline, private from: number, private to: number) {
+  constructor(private source: FitSource, private from: number, private to: number) {
     let last: Point | undefined;
     for (let i = 0; i < 22; i++) {
       const sample = source.sample(from + i * ((to - from) / 21)), tangent = sample.tangent;
@@ -73,7 +75,7 @@ class FittingDistance {
   }
 }
 
-function fitRange(source: FittingPolyline, from: number, to: number, accuracy: number): Cubic | undefined {
+function fitRange(source: FitSource, from: number, to: number, accuracy: number): Cubic | undefined {
   const start = source.sample(from), end = source.sample(to), a = start.point, b = end.point;
   const dx = b.x - a.x, dy = b.y - a.y, chord2 = dx * dx + dy * dy, accuracy2 = accuracy * accuracy;
   if (chord2 <= accuracy2) return tryLine(source, from, to, a, b, accuracy);
@@ -100,9 +102,9 @@ function fitRange(source: FittingPolyline, from: number, to: number, accuracy: n
 }
 
 /** Midpoint subdivision in native order, with an explicit stack instead of recursive JS calls. */
-export function fitPencilRun(points: readonly Point[], accuracy = .75): readonly Cubic[] {
+export function fitSource(source: FitSource, accuracy: number): readonly Cubic[] {
   if (!Number.isFinite(accuracy) || accuracy <= 0) throw new Error("Fitting accuracy must be positive and finite");
-  const source = new FittingPolyline(points), stack: [number, number][] = [[0, 1]], curves: Cubic[] = [];
+  const stack: [number, number][] = [[0, 1]], curves: Cubic[] = [];
   while (stack.length) {
     const [from, to] = stack.pop()!, curve = fitRange(source, from, to, accuracy);
     if (curve) { curves.push(curve); continue; }
@@ -111,6 +113,10 @@ export function fitPencilRun(points: readonly Point[], accuracy = .75): readonly
     else stack.push([middle, to], [from, middle]);
   }
   return curves;
+}
+
+export function fitPencilRun(points: readonly Point[], accuracy = .75): readonly Cubic[] {
+  return fitSource(new FittingPolyline(points), accuracy);
 }
 
 /** Native Pencil's simplify_bezpath(line samples,0.75,default): preserve corners, fit smooth runs. */
