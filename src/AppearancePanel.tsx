@@ -2,7 +2,7 @@ import { useLayoutEffect, useRef, useState, useSyncExternalStore, type FormEvent
 import { parseCssColour } from "./engine/colour-css";
 import { renderColour, withAlpha } from "./engine/colour";
 import { pageColour, rectanglePaints, type PageNode, type LayerNode } from "./engine/document";
-import { paintColour, samePaints, solidPaint, type SolidPaint } from "./engine/solid-paint";
+import { paintColour, samePaints, solidPaint, type Paint } from "./engine/solid-paint";
 
 import type { EditorEngine } from "./engine/editor";
 import { selectedRegionFills } from "./engine/fill-commands";
@@ -26,7 +26,7 @@ function AppearanceControls({ engine, page, selected, editable, dispatch }: Appe
     return node.kind !== "page" && !samePaints(inherited, rectanglePaints(node));
   });
   const paints = mixed ? [] : regionPaints ?? inherited;
-  const updatePaint = (index: number, paint: SolidPaint) => dispatch("fill.set", { ids, index, paint });
+  const updatePaint = (index: number, paint: Paint) => dispatch("fill.set", { ids, index, paint });
   const [menu, setMenu] = useState<{ x: number; y: number; index?: number }>();
   const popup = useRef<HTMLDivElement>(null);
   useLayoutEffect(() => {
@@ -99,10 +99,10 @@ function AppearanceControls({ engine, page, selected, editable, dispatch }: Appe
           <form key={`paint:${selected.id}:${index}:${JSON.stringify(paint)}`} onSubmit={event => {
             event.preventDefault();
             const form = event.currentTarget;
-            const css = (form.elements.namedItem("colour") as HTMLInputElement).value;
+            const css = (form.elements.namedItem("colour") as HTMLInputElement | null)?.value;
             const opacity = Number((form.elements.namedItem("paintOpacity") as HTMLInputElement).value);
             let next = paint;
-            if (css !== renderColour(paintColour(paint))) {
+            if (paint.type === "solid" && css !== undefined && css !== renderColour(paintColour(paint))) {
               const value = parseInput(css);
               if (!value) return;
               next = value.a === paintColour(paint).a
@@ -112,7 +112,7 @@ function AppearanceControls({ engine, page, selected, editable, dispatch }: Appe
             if (opacity !== paint.opacity) next = { ...next, opacity, colorAlpha: 1 };
             if (next !== paint) updatePaint(index, next);
           }}>
-            <label>Fill {row + 1} CSS colour<input name="colour" type="text" defaultValue={renderColour(paintColour(paint))} required /></label>
+            {paint.type === "solid" && <label>Fill {row + 1} CSS colour<input name="colour" type="text" defaultValue={renderColour(paintColour(paint))} required /></label>}
             <label>Fill {row + 1} opacity<input name="paintOpacity" type="number" min="0" max="1" step="any" defaultValue={paint.opacity} required /></label>
             <label>Fill {row + 1} visible<input type="checkbox" checked={paint.visible} onChange={event => updatePaint(index, { ...paint, visible: event.currentTarget.checked })} /></label>
             <button type="submit">Apply fill {row + 1}</button>

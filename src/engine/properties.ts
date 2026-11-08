@@ -11,7 +11,7 @@ import { defaultConstraints, rectanglePaints, rectangleTransform, withRectangleP
 import { HierarchyDraft, frameRelative, rootIds, worldTransform } from "./hierarchy";
 import { parseNodeId, parseNumber } from "./parameters";
 import { parseColour } from "./colour-css";
-import { samePaints, readSolidPaints, solidPaint, type SolidPaint } from "./solid-paint";
+import { samePaints, readPaints, solidPaint, type Paint } from "./solid-paint";
 
 import { readConstraints, resizeChildren } from "./constraints";
 import { localOrigin, sameIds, validateChangedGeometry } from "./rotation";
@@ -72,7 +72,7 @@ export function setRectangleProperties(document: Document, selection: readonly N
     if (!Number.isFinite(result)) throw new Error("opacity exceeds the finite native range");
     return result;
   })() : undefined;
-  let paints: readonly SolidPaint[] | undefined;
+  let paints: readonly Paint[] | undefined;
   // Rust sorts equal-priority keys by name: `fills` replaces `fill` when both are present.
   if ("fill" in props) {
     if (props.fill === null || typeof props.fill === "string" && props.fill.toLowerCase() === "none") paints = Object.freeze([]);
@@ -82,7 +82,7 @@ export function setRectangleProperties(document: Document, selection: readonly N
       paints = Object.freeze([solidPaint(colour)]);
     }
   }
-  if ("fills" in props) paints = readSolidPaints(props.fills, true);
+  if ("fills" in props) paints = readPaints(props.fills, true);
   if ("constraints" in props) readConstraints(props.constraints);
   const draft = new HierarchyDraft(document);
   for (const id of ids) {

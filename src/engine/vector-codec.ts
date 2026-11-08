@@ -1,5 +1,5 @@
 import type { Affine } from "./affine";
-import { readSolidPaints } from "./solid-paint";
+import { readPaints } from "./solid-paint";
 import { strokeCaps } from "./stroke";
 import { freezeNetwork, type RegionPaintSpace, type VectorNetwork } from "./vector-network";
 
@@ -24,7 +24,7 @@ export function readVectorNetwork(value: unknown): VectorNetwork {
     const r = object(v), winding = r.winding === undefined ? "nonZero" : r.winding;
     if (winding !== "nonZero" && winding !== "evenOdd") throw new Error("Invalid vector winding rule");
     const paintSpace = frame(r.paint_space);
-    return { loops: array(r.loops).map(l => array(l).map(index)), winding, ...(r.fills == null ? {} : { fills: readSolidPaints(r.fills) }), ...(paintSpace ? { paintSpace } : {}) };
+    return { loops: array(r.loops).map(l => array(l).map(index)), winding, ...(r.fills == null ? {} : { fills: readPaints(r.fills) }), ...(paintSpace ? { paintSpace } : {}) };
   }) });
 }
 export function wireVectorNetwork(net: VectorNetwork): Record<string, unknown> {

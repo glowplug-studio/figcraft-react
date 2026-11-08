@@ -18,6 +18,7 @@ import { MoveInteraction } from "./move-interaction";
 import { TransformInteraction } from "./transform-interaction";
 import { paintStroke, strokeBounds } from "./stroke-renderer";
 import { hasVisibleStroke } from "./stroke";
+import { drawGradient } from "./gradient-renderer";
 import { vectorPaintRegions } from "./vector-presentation";
 import { VectorInteraction } from "./vector-interaction";
 import { drawVectorEdit } from "./vector-edit-overlay";
@@ -38,6 +39,13 @@ function paintRectangle(context: CanvasRenderingContext2D, node: LayerNode, alph
   for (const region of regions) for (const paint of region.paints) {
     if (!paint.visible || paint.opacity <= 0) continue;
     context.globalAlpha = opacity(paint.opacity) * alpha;
+    if (paint.type === "gradient") {
+      context.save(); context.beginPath();
+      if (region.path) tracePath(context,region.path); else context.rect(0,0,node.width,node.height);
+      context.clip(region.rule);
+      drawGradient(context,paint,node.width,node.height,"space" in region ? region.space : undefined);
+      context.restore(); continue;
+    }
     context.fillStyle = renderColour(paint.color);
     if (region.path) { context.beginPath(); tracePath(context, region.path); context.fill(region.rule); }
     else context.fillRect(0, 0, node.width, node.height);

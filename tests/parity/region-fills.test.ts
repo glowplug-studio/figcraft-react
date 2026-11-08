@@ -1,3 +1,4 @@
+import { expectSolid } from "../fixtures/expect-solid";
 import { describe, expect, it } from "vitest";
 import { toCssHex } from "../../src/engine/colour";
 import { rectanglePaints, type VectorNode } from "../../src/engine/document";
@@ -5,7 +6,7 @@ import { EditorEngine } from "../../src/engine/editor";
 import { decodeFigcraft, encodeFigcraft } from "../../src/engine/file-format";
 import { selectedRegionFills } from "../../src/engine/fill-commands";
 import { base64Bytes } from "../../src/engine/recovery";
-import type { SolidPaint } from "../../src/engine/solid-paint";
+import type { Paint } from "../../src/engine/solid-paint";
 
 async function setup() {
   const engine = new EditorEngine(), id = String(engine.execute("vector.create", { path: "M0 0H80V80H0Z M100 0H180V80H100Z", props: { fill: "#123456" } }).id);
@@ -19,7 +20,7 @@ async function setup() {
   const inspect = () => selectedRegionFills(node(), engine.getVectorEdit());
   return { engine, id, node, select, stack, inspect };
 }
-const colours = (list?: readonly SolidPaint[] | null) => list?.map(p => toCssHex(p.color).toLowerCase());
+const colours = (list?: readonly Paint[] | null) => list?.map(p => toCssHex(expectSolid(p).color).toLowerCase());
 
 describe("native effective region fill commands", () => {
   it("edits inherited stacks independently and reports a mixed region selection", async () => {

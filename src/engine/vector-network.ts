@@ -2,14 +2,14 @@ import { identity, inverse, multiply, transformPoint, type Affine } from "./affi
 import type { PathCommand } from "./corners";
 import type { Cubic } from "./cubic";
 import type { Point } from "./geometry";
-import type { SolidPaint } from "./solid-paint";
+import type { Paint } from "./solid-paint";
 import type { StrokeCap, StrokeJoin } from "./stroke";
 
 export type HandleMirroring = "none" | "angle" | "angleAndLength";
 export interface VectorVertex extends Readonly<Point> { readonly radius: number; readonly mirror?: HandleMirroring; readonly cap?: StrokeCap; readonly join?: StrokeJoin }
 export interface VectorSegment { readonly a: number; readonly b: number; readonly ta: readonly [number, number]; readonly tb: readonly [number, number] }
 export interface RegionPaintSpace { readonly width: number; readonly height: number; readonly transform: Affine }
-export interface VectorRegion { readonly loops: readonly (readonly number[])[]; readonly winding: "nonZero" | "evenOdd"; readonly fills?: readonly SolidPaint[]; readonly paintSpace?: RegionPaintSpace }
+export interface VectorRegion { readonly loops: readonly (readonly number[])[]; readonly winding: "nonZero" | "evenOdd"; readonly fills?: readonly Paint[]; readonly paintSpace?: RegionPaintSpace }
 export interface VectorNetwork { readonly vertices: readonly VectorVertex[]; readonly segments: readonly VectorSegment[]; readonly regions: readonly VectorRegion[] }
 /** Append disconnected geometry, translating indices into the destination network. */
 export function appendNetwork(target: { vertices: VectorVertex[]; segments: VectorSegment[]; regions: VectorRegion[] }, part: VectorNetwork): void {

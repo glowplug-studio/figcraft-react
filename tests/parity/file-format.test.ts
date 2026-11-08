@@ -1,3 +1,4 @@
+import { expectSolid } from "../fixtures/expect-solid";
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { strFromU8, unzipSync, zipSync } from "fflate";
@@ -101,7 +102,7 @@ describe("bounded native Figcraft file adapter", () => {
     const decoded = await decodeFigcraft(source);
     const expected = colour(0.12345, 0.23456, 0.34567, 0.45678);
     expect(decoded.document.nodes["1"]).toMatchObject({ backgroundColor: expected });
-    expect((decoded.document.nodes["2"] as RectangleNode).fills?.[0].color).toEqual(expected);
+    expect(expectSolid((decoded.document.nodes["2"] as RectangleNode).fills?.[0]).color).toEqual(expected);
     expect(await decodeFigcraft(await encodeFigcraft(decoded.document, decoded.nextId))).toEqual(decoded);
     const wire = JSON.parse(strFromU8(unzipSync(await encodeFigcraft(decoded.document))["document.json"]));
     expect(wire.nodes["1"].background).toEqual(expected);
@@ -136,7 +137,6 @@ describe("bounded native Figcraft file adapter", () => {
     ["comments", (value: ReturnType<typeof fixture>) => { value.comments = [{ text: "preserve me" }]; }],
     ["text", (value: ReturnType<typeof fixture>) => { value.nodes["2"].type = "text"; }],
     ["custom metadata", (value: ReturnType<typeof fixture>) => { value.nodes["2"].plugin_data = { key: "preserve me" }; }],
-    ["gradient paint", (value: ReturnType<typeof fixture>) => { value.nodes["2"].fills = [{ type: "gradient", stops: [] }]; }],
     ["paint blend", (value: ReturnType<typeof fixture>) => { value.nodes["2"].fills = [{ type: "solid", color: "#ffffff", blend: "multiply" }]; }],
     ["node blend", (value: ReturnType<typeof fixture>) => { value.nodes["2"].blend = "multiply"; }],
     ["unknown properties", (value: ReturnType<typeof fixture>) => { value.nodes["2"].future = null; }],
@@ -145,6 +145,7 @@ describe("bounded native Figcraft file adapter", () => {
   });
 
   it.each([
+    ["gradient missing kind and handles", (value: ReturnType<typeof fixture>) => { value.nodes["2"].fills = [{ type: "gradient", stops: [] }]; }],
     ["duplicate page", (value: ReturnType<typeof fixture>) => { value.pages = [1, 1]; }],
     ["missing child", (value: ReturnType<typeof fixture>) => { value.nodes["1"].children = [7]; }],
     ["duplicate child", (value: ReturnType<typeof fixture>) => { value.nodes["1"].children = [2, 2]; }],

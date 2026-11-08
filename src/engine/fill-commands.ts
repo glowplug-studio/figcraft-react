@@ -4,7 +4,7 @@ import { rectanglePaints, withRectanglePaints, type Document, type LayerNode, ty
 import { HierarchyDraft } from "./hierarchy";
 import { paintStackEdit } from "./paint-stack";
 import { parseIndex, parseNodeId } from "./parameters";
-import { samePaints, solidPaint, type SolidPaint } from "./solid-paint";
+import { samePaints, solidPaint, type Paint } from "./solid-paint";
 import type { VectorEditState } from "./vector-edit";
 
 export const fillSpecs = Object.freeze({
@@ -19,10 +19,10 @@ type WriteCommand = Exclude<keyof typeof fillSpecs, "fill.copy">;
 const grey = solidPaint(fromRgba8(217, 217, 217)), white = solidPaint(fromRgba8(255, 255, 255));
 
 /** Undefined selects layer fills. Null denotes mixed selected regions. */
-export function selectedRegionFills(node: LayerNode, state?: VectorEditState): readonly SolidPaint[] | null | undefined {
+export function selectedRegionFills(node: LayerNode, state?: VectorEditState): readonly Paint[] | null | undefined {
   if (node.kind !== "vector" || state?.id !== node.id || !state.regions.length) return undefined;
   const inherited = rectanglePaints(node);
-  let first: readonly SolidPaint[] | undefined;
+  let first: readonly Paint[] | undefined;
   for (const i of state.regions) {
     const region = node.network.regions[i]; if (!region) continue;
     const stack = region.fills ?? inherited;
@@ -43,7 +43,7 @@ function fillRegions(document: Document, ids: readonly NodeId[], explicit: unkno
   return new Set(explicit);
 }
 
-export function copyFill(document: Document, selection: readonly NodeId[], params: Record<string, unknown>, state?: VectorEditState): SolidPaint {
+export function copyFill(document: Document, selection: readonly NodeId[], params: Record<string, unknown>, state?: VectorEditState): Paint {
   const id = Array.isArray(params.ids) ? params.ids.map(parseNodeId).find(id => id !== undefined) : parseNodeId(params.id) ?? selection[0];
   const node = id && document.nodes[id];
   if (!node || node.kind === "page") throw new Error("Select a layer to copy a fill");
@@ -55,7 +55,7 @@ export function copyFill(document: Document, selection: readonly NodeId[], param
 }
 
 export function writeFill(command: WriteCommand, document: Document, selection: readonly NodeId[], params: Record<string, unknown>,
-  state?: VectorEditState, clipboard?: SolidPaint): Document {
+  state?: VectorEditState, clipboard?: Paint): Document {
   const ids = arrangementTargets(document, selection, params, false);
   const regions = fillRegions(document, ids, params.regions, state);
   if (command === "fill.paste" && !clipboard) throw new Error("No copied fill");

@@ -1,3 +1,4 @@
+import { expectSolid } from "./expect-solid";
 import { newDocument, type Document, type DocumentNode, type VectorNode } from "../../src/engine/document";
 import { EditorEngine } from "../../src/engine/editor";
 import { encodeFigcraft } from "../../src/engine/file-format";
@@ -121,7 +122,7 @@ export async function measureRegionFills(canvas: HTMLCanvasElement) {
     if (i >= 10) { input.push(changed - start); frames.push(performance.now() - start); }
   }
   const getNode = () => engine.getSnapshot().document.nodes[id] as VectorNode;
-  const colours = () => getNode().network.regions.map(r => r.fills?.[0].color);
+  const colours = () => getNode().network.regions.map(r => expectSolid(r.fills?.[0]).color);
   if (colours().length !== 2 || !colours().every(c => c?.b === 1 && c.r === 0)) throw Error("Both selected regions must be blue");
   if (engine.getSnapshot().document.nodes[children[1]] !== initial.nodes[children[1]]) throw Error("Sibling changed");
   const edits = engine.getUndoDepth() - depth;

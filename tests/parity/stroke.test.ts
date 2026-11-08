@@ -1,3 +1,4 @@
+import { expectSolid } from "../fixtures/expect-solid";
 import { describe, expect, it } from "vitest";
 import { defaultStroke, readStroke, wireStroke, setStrokeProperties, strokeEnum, strokeCaps, bandCaps, capShape, dashPattern, lineDashes, renderDashes, miterAngle, miterLimitFor } from "../../src/engine/stroke";
 import type { RectangleNode } from "../../src/engine/document";
@@ -51,7 +52,7 @@ describe("native uniform stroke contracts (doc/props.rs and cmd/props.rs)", () =
   it("sorts competing aliases, parses numeric strings and clamps commands without mutating the node", () => {
     const out = setStrokeProperties(rect, { stroke: "red", strokes: ["blue"], strokeWeight: "-2px", startCap: "round", endCap: "square", strokeCap: "TRIANGLE_ARROW", miterAngle: 90, miterLimit: 12, dashes: ["3px", -2, "5"] });
     expect(out.stroke).toMatchObject({ weight: 0, capStart: "triangleArrow", capEnd: "triangleArrow", miterLimit: 12, dashes: [3, 0, 5] });
-    expect(out.strokes?.[0].color.b).toBe(1); expect(out.strokes?.[0].color.r).toBe(0); expect(rect.stroke).toBeUndefined();
+    expect(expectSolid(out.strokes?.[0]).color.b).toBe(1); expect(expectSolid(out.strokes?.[0]).color.r).toBe(0); expect(rect.stroke).toBeUndefined();
     expect(setStrokeProperties(rect, { name: "ignored" })).toBe(rect);
     expect(setStrokeProperties(out, { stroke: "NONE", dashes: null, dashCap: null, miterLimit: "invalid" })).toMatchObject({ strokes: [], stroke: { dashes: [], dashCap: null, miterLimit: 4 } });
   });

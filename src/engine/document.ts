@@ -4,7 +4,7 @@ import { transformNetwork, type VectorNetwork } from "./vector-network";
 import type { Affine } from "./affine";
 import { type Colour, fromRgba8, toRgba8, toCssHex } from "./colour";
 import { parseCssColour } from "./colour-css";
-import { isLegacyPaint, paintColour, solidPaint, type SolidPaint } from "./solid-paint";
+import { isLegacyPaint, paintColour, solidPaint, type Paint } from "./solid-paint";
 /** Deliberate Document/Node subset; native serialisation belongs to the file adapter. */
 export type NodeId = string;
 export const booleanOperations = ["union", "subtract", "intersect", "exclude"] as const;
@@ -38,8 +38,8 @@ export interface LayerProperties {
   readonly fill: string;
   /** Native coefficients; omitted for legacy translated rectangles. x/y retain translation aliases. */
   readonly transform?: Affine;
-  readonly fills?: readonly SolidPaint[];
-  readonly strokes?: readonly SolidPaint[];
+  readonly fills?: readonly Paint[];
+  readonly strokes?: readonly Paint[];
   readonly stroke?: StrokeProps;
   readonly visible?: boolean;
   readonly locked?: boolean;
@@ -129,8 +129,8 @@ export function withLayerSize(node: LayerNode, width: number, height: number): L
   return Object.freeze({ ...node, width, height });
 }
 
-const legacyPaintCache = new Map<string, readonly SolidPaint[]>();
-export function rectanglePaints(node: LayerNode): readonly SolidPaint[] {
+const legacyPaintCache = new Map<string, readonly Paint[]>();
+export function rectanglePaints(node: LayerNode): readonly Paint[] {
   if (node.fills) return node.fills;
   let paints = legacyPaintCache.get(node.fill);
   if (!paints) {
@@ -142,10 +142,10 @@ export function rectanglePaints(node: LayerNode): readonly SolidPaint[] {
   }
   return paints;
 }
-export function withRectanglePaints<T extends LayerNode>(node: T, paints: readonly SolidPaint[]): T {
+export function withRectanglePaints<T extends LayerNode>(node: T, paints: readonly Paint[]): T {
   const { fills: previous, ...rest } = node;
   const simple = paints.length === 0 || paints.length === 1 && isLegacyPaint(paints[0]);
-  const fill = paints.length ? toCssHex(paintColour(paints[0])).toLowerCase() : "transparent";
+  const fill = paints[0]?.type === "solid" ? toCssHex(paintColour(paints[0])).toLowerCase() : "transparent";
   return Object.freeze({ ...rest, fill, ...(simple ? {} : { fills: Object.freeze([...paints]) }) }) as T;
 }
 export function pageColour(page: PageNode): Colour {

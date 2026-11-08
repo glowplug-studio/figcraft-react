@@ -1,4 +1,5 @@
 import { multiply, transformBounds, type Affine } from "./affine";
+import { drawGradient } from "./gradient-renderer";
 import { renderColour, withAlpha } from "./colour";
 import { flattenContours, tracePath, type PathCommand } from "./corners";
 import type { LayerNode } from "./document";
@@ -146,11 +147,29 @@ function dashCaps(context: CanvasRenderingContext2D, contour: Contour, pattern: 
     context.fill();
   }
 }
+const gradientMasks = new WeakMap<CanvasRenderingContext2D, HTMLCanvasElement>();
 function paintMask(context: CanvasRenderingContext2D, node: LayerNode, mask: Mask, alpha: number): void {
   const { surface, context: scratch, left, top, width, height } = mask;
   scratch.resetTransform(); scratch.globalCompositeOperation = "source-in";
   context.save(); context.resetTransform();
   for (const paint of node.strokes ?? []) if (paint.visible && paint.opacity > 0) {
+    if (paint.type === "gradient") {
+      // The cached coverage mask must retain its original alpha for every paint and redraw.
+      let buffer = gradientMasks.get(context);
+      if (!buffer) { buffer = context.canvas.ownerDocument.createElement("canvas"); gradientMasks.set(context,buffer); }
+      if (buffer.width < width) buffer.width = width;
+      if (buffer.height < height) buffer.height = height;
+      const target = buffer.getContext("2d")!;
+      target.resetTransform(); target.globalCompositeOperation = "source-over"; target.clearRect(0,0,buffer.width,buffer.height);
+      const [a,b,c,d,e,f] = mask.matrix;
+      target.setTransform(a,b,c,d,e-left,f-top);
+      drawGradient(target,paint,node.width,node.height);
+      target.resetTransform(); target.globalCompositeOperation = "destination-in";
+      target.drawImage(surface,0,0,width,height,0,0,width,height);
+      context.globalAlpha = clampAlpha(paint.opacity)*alpha;
+      context.drawImage(buffer,0,0,width,height,left,top,width,height);
+      continue;
+    }
     scratch.fillStyle = renderColour(withAlpha(paint.color, 1)); scratch.fillRect(0, 0, surface.width, surface.height);
     context.globalAlpha = clampAlpha(paint.opacity) * clampAlpha(paint.color.a) * alpha; context.drawImage(surface, 0, 0, width, height, left, top, width, height);
   }
@@ -163,7 +182,11 @@ export function paintStroke(context: CanvasRenderingContext2D, node: LayerNode, 
   const filled = filledStroke(node), paints = node.strokes ?? [];
   if (filled) {
     for (const paint of paints) if (paint.visible && paint.opacity > 0) {
-      context.globalAlpha = clampAlpha(paint.opacity) * alpha; context.fillStyle = renderColour(paint.color); context.fill(filled.path, filled.rule);
+      context.globalAlpha = clampAlpha(paint.opacity) * alpha;
+      if (paint.type === "gradient") {
+        context.save(); context.clip(filled.path,filled.rule);
+        drawGradient(context,paint,node.width,node.height); context.restore();
+      } else { context.fillStyle = renderColour(paint.color); context.fill(filled.path, filled.rule); }
     }
     return;
   }

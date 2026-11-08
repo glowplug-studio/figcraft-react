@@ -2,7 +2,7 @@ import { isGroupLike } from "./document";
 import { getNode } from "./inspect";
 import { createLayer } from "./creation";
 import { copyFill, fillSpecs, writeFill } from "./fill-commands";
-import type { SolidPaint } from "./solid-paint";
+import type { Paint } from "./solid-paint";
 import { executeStrokeList, strokeSpecs } from "./stroke-commands";
 import { isLeaf } from "./document";
 import { newDocument, withLayerTransform, type Document, type DrawShapeKind, type NodeId } from "./document";
@@ -131,7 +131,7 @@ export class EditorEngine {
   };
   #canvasListeners = new Set<() => void>();
   #vectorEdit?: VectorEditState;
-  #copiedFill?: SolidPaint;
+  #copiedFill?: Paint;
   hasCopiedFill = (): boolean => this.#copiedFill !== undefined;
   #vectorListeners = new Set<() => void>();
   #viewportAttached = false;

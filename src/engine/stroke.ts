@@ -1,7 +1,7 @@
 import type { LayerNode } from "./document";
 import { parseColour } from "./colour-css";
 import { parseNumber } from "./parameters";
-import { readSolidPaints, solidPaint } from "./solid-paint";
+import { readPaints, solidPaint } from "./solid-paint";
 import { parseWidthProfile, readWidthProfile, wireWidthProfile, widthProfileMaxScale, type WidthProfile } from "./width-profile";
 import { brushReachFactor, parseBrush, readBrush, wireBrush, type Brush } from "./brush";
 
@@ -107,7 +107,7 @@ export function setStrokeProperties(node: LayerNode, props: Record<string, unkno
         else { const colour = parseColour(value); if (!colour) throw new Error("stroke must be a colour, none or null"); strokes = Object.freeze([solidPaint(colour)]); }
         break;
       }
-      case "strokes": strokes = readSolidPaints(value, true); break;
+      case "strokes": strokes = readPaints(value, true); break;
       case "strokeWeight": stroke.weight = Math.max(0, parseNumber(value, key)); break;
       case "widthProfile": {
         const profile = parseWidthProfile(value); if (profile) stroke.widthProfile = profile; else delete stroke.widthProfile; break;

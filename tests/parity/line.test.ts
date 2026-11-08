@@ -1,3 +1,4 @@
+import { expectSolid } from "../fixtures/expect-solid";
 import { describe, expect, it } from "vitest";
 import { EditorEngine } from "../../src/engine/editor";
 import { drawnLine } from "../../src/engine/geometry";
@@ -16,7 +17,7 @@ describe("native Line/Arrow creation and persistence", () => {
   it.each(["line", "arrow", "LINE", "ARROW"])("creates %s as a zero-height Line with native stroke defaults", async type => {
     const engine = new EditorEngine(), id = String(engine.execute("node.create", { type, height: 500 }).id), node = engine.getSnapshot().document.nodes[id] as LineNode;
     expect(node).toMatchObject({ kind: "line", name: type.toLowerCase() === "arrow" ? "Arrow" : "Line", width: 100, height: 0, fill: "transparent", stroke: { weight: 1, align: "center", capStart: "none", capEnd: type.toLowerCase() === "arrow" ? "lineArrow" : "none" } });
-    expect(node.strokes).toHaveLength(1); expect(node.strokes?.[0].color).toMatchObject({ r: 0, g: 0, b: 0 });
+    expect(node.strokes).toHaveLength(1); expect(expectSolid(node.strokes?.[0]).color).toMatchObject({ r: 0, g: 0, b: 0 });
     const document = engine.getSnapshot().document; expect((await decodeFigcraft(await encodeFigcraft(document))).document).toEqual(document);
     engine.execute("edit.undo"); expect(engine.getSnapshot().document.nodes[id]).toBeUndefined(); engine.execute("edit.redo"); expect(engine.getSnapshot().document).toBe(document);
   });

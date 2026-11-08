@@ -1,3 +1,4 @@
+import { expectSolid } from "../fixtures/expect-solid";
 import { describe, expect, it } from "vitest";
 import { multiply } from "../../src/engine/affine";
 import { rectanglePaints, type VectorNode } from "../../src/engine/document";
@@ -28,7 +29,7 @@ describe("native Flatten and Reverse path direction", () => {
     const id = create(e, "vector.flatten", { ids: [b, a, group, group] }), node = vector(e, id);
     expect(e.getSnapshot().document.nodes["1"]).toMatchObject({ children: [keep, id, above] });
     expect(node).toMatchObject({ name: "Wrapped", fill: "#d9d9d9", opacity: .5, blend: "normal", stroke: { align: "center" } });
-    expect(node.network.regions).toHaveLength(2); expect(node.network.regions[0].fills?.[0].color).toMatchObject({ r: 1, g: 0, b: 0 });
+    expect(node.network.regions).toHaveLength(2); expect(expectSolid(node.network.regions[0].fills?.[0]).color).toMatchObject({ r: 1, g: 0, b: 0 });
     expect(e.getSnapshot().document.nodes[a]).toBeUndefined(); expect(e.getSnapshot().document.nodes[group]).toBeUndefined();
   });
   it("includes a nonempty Frame's visible fill and visible descendants, retaining explicit differing paints", () => {
@@ -37,7 +38,7 @@ describe("native Flatten and Reverse path direction", () => {
     create(e, "shape.rectangle", { parent: frame, x: 500, props: { visible: false } });
     const id = create(e, "vector.flatten", { id: frame }), node = vector(e, id);
     expect(node).toMatchObject({ x: 20, y: 30, width: 100, height: 100 }); expect(node.network.regions).toHaveLength(2);
-    expect(node.network.regions[0].fills).toBeUndefined(); expect(node.network.regions[1].fills?.[0].color.r).toBe(1);
+    expect(node.network.regions[0].fills).toBeUndefined(); expect(expectSolid(node.network.regions[1].fills?.[0]).color.r).toBe(1);
     expect(node.network.regions[1].paintSpace).toMatchObject({ width: 30, height: 20, transform: [1, 0, 0, 1, 10, 10] });
   });
   it("keeps inherited paints editable and source paint frames stable through rotated regrouping", () => {
@@ -50,7 +51,7 @@ describe("native Flatten and Reverse path direction", () => {
     const regrouped = create(e, "object.group", { ids: [first] }), second = create(e, "vector.flatten", { id: regrouped }), final = vector(e, second);
     const after = multiply(worldTransform(e.getSnapshot().document, second), final.network.regions[0].paintSpace!.transform);
     after.forEach((v, i) => expect(v).toBeCloseTo(frame[i], 8));
-    e.execute("node.set", { id: second, props: { fill: "black" } }); expect(vector(e, second).network.regions[0].fills).toBeUndefined(); expect(rectanglePaints(vector(e, second))[0].color).toMatchObject({ r: 0, g: 0, b: 0 });
+    e.execute("node.set", { id: second, props: { fill: "black" } }); expect(vector(e, second).network.regions[0].fills).toBeUndefined(); expect(expectSolid(rectanglePaints(vector(e, second))[0]).color).toMatchObject({ r: 0, g: 0, b: 0 });
   });
   it("combines unstyled legacy regions with their even-odd hole while retaining explicit empty region paints", () => {
     const e = new EditorEngine(), id = create(e, "vector.create", { path: "M0 0H200V200H0Z M50 50H150V150H50Z" });

@@ -660,3 +660,5 @@ Offset path at dfdffca passed the [ten-property matrix](../reports/26-11-09-offs
 Simplify vector passed the [ten-property matrix](../reports/26-11-09-simplify-vector-parity.html) at dcc3c82. The next slice is Shape Builder.
 
 Shape Builder passed the [twelve-property matrix](../reports/26-11-09-shape-builder-parity.html) at a132b69. Supported shapes, independent regional paint frames, retained strokes, gesture hatching and native file recovery passed. Proceed to gradient paints.
+
+Gradient Phase 4 now covers the paint model, native wire routes and browser rendering. Picker, canvas handle authoring and the slice verification gates remain open in the [gradient plan](26-11-09-gradient-paints.md).

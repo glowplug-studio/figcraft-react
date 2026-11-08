@@ -1,3 +1,4 @@
+import { expectSolid } from "../fixtures/expect-solid";
 import { describe, expect, it } from "vitest";
 import { brushPresets, brushReachFactor, defaultBrush, parseBrush, readBrush, sanitiseBrush, wireBrush } from "../../src/engine/brush";
 import { EditorEngine } from "../../src/engine/editor";
@@ -39,7 +40,7 @@ describe("stroke.brush transactions, aliases and native persistence", () => {
     expect(node.stroke?.brush?.preset).toBe("dots"); expect(node.strokes ?? []).toEqual([]);
     engine.execute("stroke.brush", { preset: "taper" });
     const next = engine.getSnapshot().document.nodes[id] as LayerNode;
-    expect(next.strokes).toHaveLength(1); expect(next.strokes?.[0].color).toMatchObject({ r: 0, g: 0, b: 0, a: 1 });
+    expect(next.strokes).toHaveLength(1); expect(expectSolid(next.strokes?.[0]).color).toMatchObject({ r: 0, g: 0, b: 0, a: 1 });
     engine.execute("edit.undo"); expect(engine.getSnapshot().document).toBe(before); engine.execute("edit.redo");
     engine.execute("stroke.brush"); expect((engine.getSnapshot().document.nodes[id] as LayerNode).stroke?.brush).toBeUndefined();
     expect((engine.getSnapshot().document.nodes[id] as LayerNode).strokes).toHaveLength(1);

@@ -1,3 +1,4 @@
+import { expectSolid } from "../fixtures/expect-solid";
 import { randomUUID } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { expect, test, type Page } from "@playwright/test";
@@ -364,7 +365,7 @@ test("native paint colour and opacity edits retain independent metadata", async 
     const download = await pending;
     expect(await download.failure()).toBeNull();
     const decoded = await decodeFigcraft(new Uint8Array(await readFile((await download.path())!)));
-    return rectanglePaints(decoded.document.nodes["2"] as RectangleNode)[0];
+    return expectSolid(rectanglePaints(decoded.document.nodes["2"] as RectangleNode)[0]);
   }
 
   await expect(colour).toHaveValue(/,0\.25\)$/);

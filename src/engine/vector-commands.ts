@@ -5,7 +5,7 @@ import { layerTransform, withLayerTransform, isLeaf, rectanglePaints, withRectan
 import { HierarchyDraft, rootIds, worldTransform, zSorted } from "./hierarchy";
 import { parseNodeId, parseNumber } from "./parameters";
 import { isClosedShape, shapePath } from "./shape-path";
-import { solidPaint, type SolidPaint } from "./solid-paint";
+import { samePaints, solidPaint, type Paint } from "./solid-paint";
 import { defaultStroke } from "./stroke";
 import { appendNetwork, freezeNetwork, vectorLine, networkFromPath, regionPaintFrame, transformNetwork, type VectorNetwork, type VectorRegion, type VectorSegment, type VectorVertex } from "./vector-network";
 import { networkBounds } from "./vector-path";
@@ -30,11 +30,8 @@ export const vectorSpecs = Object.freeze({
   "vector.flatten": { label: "Flatten", undo: true },
   "vector.reverse": { label: "Reverse path direction", undo: true },
 });
-function samePaints(a: readonly SolidPaint[], b: readonly SolidPaint[]): boolean {
-  return a.length === b.length && a.every((p, i) => { const q = b[i]; return p.type === q.type && p.visible === q.visible && p.blend === q.blend && p.opacity === q.opacity && p.colorAlpha === q.colorAlpha && p.color.r === q.color.r && p.color.g === q.color.g && p.color.b === q.color.b && p.color.a === q.color.a; });
-}
 /** Flatten keeps source networks (including open runs), attaching each region's original paint frame. */
-function flattenedNetwork(document: Document, ids: readonly NodeId[], parent: NodeId, fallback: readonly SolidPaint[] | undefined, output: readonly SolidPaint[]): VectorNetwork {
+function flattenedNetwork(document: Document, ids: readonly NodeId[], parent: NodeId, fallback: readonly Paint[] | undefined, output: readonly Paint[]): VectorNetwork {
   const vertices: VectorVertex[] = [], segments: VectorSegment[] = [], regions: VectorRegion[] = [], toParent = inverse(worldTransform(document, parent));
   const append = (node: LayerNode, source: VectorNetwork, intoParent: Affine) => {
     const paints = rectanglePaints(node), effective = paints.length ? paints : fallback ?? paints;

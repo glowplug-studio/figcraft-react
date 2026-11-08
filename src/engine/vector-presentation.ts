@@ -1,15 +1,16 @@
 import { nearPath, type PathCommand } from "./corners";
 import { rectanglePaints, type VectorNode } from "./document";
 import type { Point } from "./geometry";
-import type { SolidPaint } from "./solid-paint";
+import type { Paint } from "./solid-paint";
 import { defaultStroke, hasVisibleStroke, strokeMaxWeight } from "./stroke";
 import { vectorFillContains, vectorFillPath, vectorRegionContains, vectorRegionPath, vectorStrokePath } from "./vector-path";
+import { regionPaintFrame, type RegionPaintSpace } from "./vector-network";
 import { drawnVectorNetwork } from "./vector-rounded";
 
-export interface VectorPaintRegion { readonly path: readonly PathCommand[]; readonly paints: readonly SolidPaint[]; readonly rule: CanvasFillRule }
+export interface VectorPaintRegion { readonly path: readonly PathCommand[]; readonly paints: readonly Paint[]; readonly rule: CanvasFillRule; readonly space?: RegionPaintSpace }
 const painted = new WeakMap<VectorNode, readonly VectorPaintRegion[]>();
 export const hasRegionPaints = (node: VectorNode): boolean => node.network.regions.some(r => r.fills !== undefined || r.paintSpace !== undefined);
-/** Solid paints are independent of the region's paint frame; geometry stays in node space. */
+/** Region geometry stays in node space while each paint is sampled in its source frame. */
 export function vectorPaintRegions(node: VectorNode): readonly VectorPaintRegion[] {
   const prior = painted.get(node); if (prior) return prior;
   const inherited = rectanglePaints(node), net = drawnVectorNetwork(node);
@@ -17,7 +18,7 @@ export function vectorPaintRegions(node: VectorNode): readonly VectorPaintRegion
   if (hasRegionPaints(node)) {
     net.regions.forEach((region, i) => {
       const path = vectorRegionPath(net, i);
-      if (path) regions.push({ path, paints: region.fills ?? inherited, rule: region.winding === "evenOdd" ? "evenodd" : "nonzero" });
+      if (path) regions.push({ path, paints: region.fills ?? inherited, space: regionPaintFrame(region,node.width,node.height), rule: region.winding === "evenOdd" ? "evenodd" : "nonzero" });
     });
   } else {
     const path = vectorFillPath(net);

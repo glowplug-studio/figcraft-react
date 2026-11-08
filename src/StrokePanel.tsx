@@ -54,11 +54,11 @@ function StrokeControls({ nodes, editable, dispatch }: Props) {
       <form onSubmit={event => {
         event.preventDefault(); const data = new FormData(event.currentTarget), colour = String(data.get("colour")), opacity = Number(data.get("opacity"));
         const update: Record<string, unknown> = { ids, index };
-        if (colour !== renderColour(paintColour(paint))) { if (!parseCssColour(colour)) { setError("Enter a valid CSS colour."); return; } update.color = colour; }
+        if (paint.type === "solid" && colour !== renderColour(paintColour(paint))) { if (!parseCssColour(colour)) { setError("Enter a valid CSS colour."); return; } update.color = colour; }
         if (opacity !== paint.opacity) update.opacity = opacity;
         if (Object.keys(update).length > 2) { setError(""); dispatch("stroke.set", update); }
       }}>
-        <label>Stroke {row + 1} CSS colour<input name="colour" type="text" required defaultValue={renderColour(paintColour(paint))} /></label>
+        {paint.type === "solid" && <label>Stroke {row + 1} CSS colour<input name="colour" type="text" required defaultValue={renderColour(paintColour(paint))} /></label>}
         <label>Stroke {row + 1} opacity<input name="opacity" type="number" min="0" max="1" step="any" required defaultValue={paint.opacity} /></label>
         <label>Stroke {row + 1} visible<input type="checkbox" checked={paint.visible} onChange={event => dispatch("stroke.set", { ids, index, visible: event.currentTarget.checked })} /></label>
         <button type="submit">Apply stroke {row + 1}</button>

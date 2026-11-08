@@ -8,7 +8,7 @@ import { readConstraints } from "./constraints";
 import { layerTransform, withLayerTransform, rectanglePaints, withRectanglePaints, pageColour, withPageColour, type Document, type DocumentNode } from "./document";
 import { parseColour } from "./colour-css";
 import type { Colour } from "./colour";
-import { readSolidPaints } from "./solid-paint";
+import { readPaints } from "./solid-paint";
 import { isDefaultStroke, readStroke, wireStroke } from "./stroke";
 import { transformBounds, type Affine } from "./affine";
 
@@ -158,12 +158,12 @@ function decodeDocument(raw: unknown): DecodedFigcraft {
       const opacity = Math.fround(number(n.opacity ?? 1, "node opacity"));
       if (!Number.isFinite(opacity)) fail("node opacity is outside the native finite range");
       const paints = (() => {
-        try { return readSolidPaints(appearanceValue(n.fills ?? [])); }
+        try { return readPaints(appearanceValue(n.fills ?? [])); }
         catch (error) { return fail(error instanceof Error ? error.message : "Invalid paints"); }
       })();
       const strokeData = (() => {
         try {
-          const stroke = readStroke(appearanceValue(n.stroke)), strokes = readSolidPaints(appearanceValue(n.strokes ?? []));
+          const stroke = readStroke(appearanceValue(n.stroke)), strokes = readPaints(appearanceValue(n.strokes ?? []));
           return { ...(isDefaultStroke(stroke) ? {} : { stroke }), ...(strokes.length ? { strokes } : {}) };
         }
         catch (error) { return fail(error instanceof Error ? error.message : "Invalid stroke"); }

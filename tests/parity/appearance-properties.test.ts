@@ -1,3 +1,4 @@
+import { expectSolid } from "../fixtures/expect-solid";
 import { describe, expect, it } from "vitest";
 import { EditorEngine } from "../../src/engine/editor";
 import { newDocument, pageOf, rectanglePaints, type Document, type RectangleNode } from "../../src/engine/document";
@@ -32,7 +33,7 @@ describe("node.set rectangle appearance parity", () => {
     const filled = setRectangleProperties(doc, ["2"], { fill: colour });
     const node = filled.nodes["2"] as RectangleNode;
     expect(rectanglePaints(node)[0]).toMatchObject({ opacity: Math.fround(0.5), colorAlpha: Math.fround(0.5) });
-    expect(rectanglePaints(node)[0].color.r).toBe(Math.fround(0.12345));
+    expect(expectSolid(rectanglePaints(node)[0]).color.r).toBe(Math.fround(0.12345));
     expect(node.fills).toBeDefined();
     const withMetadata = setRectangleProperties(filled, ["2"], { fills: [
       { type: "solid", color: [0.12345, 0.25, 0.75, 0.5], opacity: 0.35, visible: false, blend: "passThrough", colorAlpha: 0.4 },
@@ -45,7 +46,7 @@ describe("node.set rectangle appearance parity", () => {
     expect(setRectangleProperties(withMetadata, ["2"], { fill: "none" }).nodes["2"]).toMatchObject({ fill: "transparent" });
     expect(rectanglePaints(setRectangleProperties(withMetadata, ["2"], { fill: null }).nodes["2"] as RectangleNode)).toEqual([]);
     expect(rectanglePaints(setRectangleProperties(withMetadata, ["2"], { fills: [] }).nodes["2"] as RectangleNode)).toEqual([]);
-    expect(rectanglePaints(setRectangleProperties(doc, ["2"], { fill: "#000", fills: ["#fff"] }).nodes["2"] as RectangleNode)[0].color.r).toBe(1);
+    expect(expectSolid(rectanglePaints(setRectangleProperties(doc, ["2"], { fill: "#000", fills: ["#fff"] }).nodes["2"] as RectangleNode)[0]).color.r).toBe(1);
   });
 
   it("validates every property and target before publishing changes", () => {

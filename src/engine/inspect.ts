@@ -3,7 +3,7 @@ import { toCssHex } from "./colour";
 import { defaultConstraints, isLeaf, layerTransform, pageColour, rectanglePaints, type Document, type DocumentNode } from "./document";
 import { frameRelative } from "./hierarchy";
 import { parseNodeId } from "./parameters";
-import type { SolidPaint } from "./solid-paint";
+import type { Paint } from "./solid-paint";
 import { defaultStroke, miterAngle } from "./stroke";
 import { boundsOf } from "./viewport";
 import { widthProfilePoints, widthProfilePreset } from "./width-profile";
@@ -38,7 +38,11 @@ function requestedFields(params: Record<string, unknown>): Set<string> | undefin
 
 const round = (v: number) => Math.sign(v) * Math.round(Math.abs(v) * 100) / 100;
 
-function inspectPaint(paint: SolidPaint) {
+function inspectPaint(paint: Paint) {
+  if (paint.type === "gradient") {
+    const { colorAlpha, ...record } = paint;
+    return colorAlpha === 1 ? record : { ...record, colorAlpha };
+  }
   return {
     type: paint.type, color: toCssHex(paint.color),
     ...(paint.opacity < 1 && { opacity: paint.opacity }),
