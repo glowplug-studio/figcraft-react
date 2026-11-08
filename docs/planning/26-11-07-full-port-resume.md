@@ -4,7 +4,7 @@ Resumed on 8 November. The objective is still full browser-relevant parity and f
 
 ## Current checkpoint
 
-Raw two- and four-component JPEG TIFFs at f64eeb0 passed 156/156 Chromium checks. Streaming native archive I/O and recovery are in progress. The active image work and exact next action are in the [master checkpoint](26-11-06-complete-figcraft-port.md#execution-checkpoint). The sections below record earlier restart points in chronological order.
+Raw two- and four-component JPEG TIFFs at f64eeb0 passed 156/156 Chromium checks. Streamed archive I/O and Blob recovery at 6bcdf5b passed three authenticated production browser flows. Archive image budgets at beb8ddc passed 157/157 Chromium workflows. Cache pressure is in progress. The active image work and exact next action are in the [master checkpoint](26-11-06-complete-figcraft-port.md#execution-checkpoint). The sections below record earlier restart points in chronological order.
 
 ## Checkout and release state
 
