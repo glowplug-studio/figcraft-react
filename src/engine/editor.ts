@@ -5,8 +5,8 @@ import { copyFill, fillSpecs, selectedRegionFills, writeFill } from "./fill-comm
 import type { Paint } from "./solid-paint";
 import { executeStrokeList, strokeSpecs } from "./stroke-commands";
 import { isLeaf } from "./document";
-import { newDocument, withLayerTransform, type Document, type DrawShapeKind, type NodeId } from "./document";
-import { decodeFigcraft, encodeFigcraft } from "./file-format";
+import { newDocument, sameContent, withLayerTransform, type Document, type DrawShapeKind, type NodeId } from "./document";
+import { decodeFigcraft, encodeFigcraft, MAX_FILE_BYTES } from "./file-format";
 import { executePage, listPages, pageSpecs } from "./pages";
 import { executeSelection, selectionSpecs } from "./selection";
 import { setRectangleProperties } from "./properties";
@@ -105,10 +105,6 @@ export interface EditorSnapshot {
   readonly hasSaved: boolean;
 }
 interface HistoryEntry { document: Document; selection: readonly NodeId[] }
-// Current page is navigation state. It is persisted, but does not dirty document content.
-function sameContent(a: Document, b: Document | null): boolean {
-  return b !== null && a.name === b.name && a.pages === b.pages && a.nodes === b.nodes;
-}
 function parameters(input: unknown): Record<string, unknown> {
   if (typeof input !== "object" || input === null || Array.isArray(input)) throw new Error("Command parameters must be an object");
   return input as Record<string, unknown>;
@@ -557,6 +553,7 @@ export class EditorEngine {
     return { [undo ? "undone" : "redone"]: Boolean(entry) };
   }
   /** Native file commands run outside pointer rendering and retain atomic document replacement. */
+  async executeAsync(command: "file.open" | "file.recover", input: unknown): Promise<{ repairs: readonly string[]; summary: { name: string; pages: number; layers: number; images: number } }>;
   async executeAsync(command: "node.get", input: unknown): Promise<ReturnType<typeof getNode>>;
   async executeAsync(command: string, input?: unknown): Promise<Record<string, unknown>>;
   async executeAsync(command: string, input: unknown = {}): Promise<Record<string, unknown> | null> {
@@ -579,7 +576,7 @@ export class EditorEngine {
     }
     if (Object.keys(p).some(key => !["data", "name"].includes(key)) || typeof p.data !== "string" || (p.name !== undefined && typeof p.name !== "string")) throw new Error("File open requires base64 data and optional name");
     this.pen.cancel(); this.pencil.cancel(); this.cancelInteraction();
-    if (p.data.length > Math.ceil(16 * 1024 * 1024 / 3) * 4) throw new Error("File exceeds the browser import limit");
+    if (p.data.length > Math.ceil(MAX_FILE_BYTES / 3) * 4) throw new Error("File exceeds the browser import limit");
     const before = this.#snapshot.document;
     const opening = ++this.#openSequence;
     const bytes = Uint8Array.from(atob(p.data), character => character.charCodeAt(0));
@@ -590,7 +587,7 @@ export class EditorEngine {
     this.#vectorEdit = undefined;
     this.#publish({ document: decoded.document, selection: Object.freeze([]), tool: "move" });
     this.updateView(fitPage(this.#view, decoded.document));
-    return { summary: { name: decoded.document.name, pages: decoded.document.pages.length, layers: Object.keys(decoded.document.nodes).length - decoded.document.pages.length, images: 0 } };
+    return { repairs: decoded.issues ?? [], summary: { name: decoded.document.name, pages: decoded.document.pages.length, layers: Object.keys(decoded.document.nodes).length - decoded.document.pages.length, images: Object.keys(decoded.document.images ?? {}).length } };
   }
   #create(command: string, p: Record<string, unknown>): Record<string, unknown> {
     const before = this.#snapshot, next = createLayer(before, this.#nextId, command, p, this.#view);

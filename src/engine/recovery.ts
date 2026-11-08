@@ -1,5 +1,5 @@
 import type { RecoveryStore } from "../backends/recovery";
-import type { Document } from "./document";
+import { sameContent, type Document } from "./document";
 import type { EditorEngine } from "./editor";
 
 export function base64Bytes(bytes: Uint8Array): string {
@@ -15,6 +15,7 @@ export class RecoveryController {
   #timer?: ReturnType<typeof setTimeout>;
   #queue: Promise<void> = Promise.resolve();
   #last?: Document;
+  #partialRestore?: Document;
   constructor(private engine: EditorEngine, private store: RecoveryStore, private principal: string,
     private notify: (status: "loading" | "ready" | "pending" | "stored" | "error", message?: string) => void) {}
 
@@ -23,9 +24,12 @@ export class RecoveryController {
     try {
       const bytes = await this.store.read(this.principal);
       if (this.#disposed) return;
-      if (bytes) await this.engine.executeAsync("file.recover", { data: base64Bytes(bytes) });
+      const result = bytes ? await this.engine.executeAsync("file.recover", { data: base64Bytes(bytes) }) : undefined;
       if (this.#disposed) return;
-      this.notify("ready");
+      if (result?.repairs.length) {
+        this.#partialRestore = this.engine.getSnapshot().document;
+        this.notify("ready", result.repairs.join("\n"));
+      } else this.notify("ready");
     } catch (error) {
       if (this.#disposed) return;
       this.notify("error", error instanceof Error ? error.message : "Recovery could not be restored");
@@ -35,6 +39,8 @@ export class RecoveryController {
       const snapshot = this.engine.getSnapshot();
       if (!snapshot.editable || this.#disposed || snapshot.document === this.#last) return;
       this.#last = snapshot.document;
+      if (this.#partialRestore && sameContent(snapshot.document, this.#partialRestore)) return;
+      this.#partialRestore = undefined;
       this.notify("pending");
       clearTimeout(this.#timer);
       this.#timer = setTimeout(() => { void this.flush(); }, 250);
@@ -45,6 +51,8 @@ export class RecoveryController {
     clearTimeout(this.#timer);
     if (this.#disposed || !this.engine.getSnapshot().editable) return this.#queue;
     const document = this.engine.getSnapshot().document;
+    // Hiding an untouched partially recovered drawing must preserve its original archive.
+    if (this.#partialRestore && sameContent(document, this.#partialRestore)) return this.#queue;
     // Capture now; a later queued write must never read a different document revision.
     const bytes = this.engine.nativeSnapshot();
     void bytes.catch(() => undefined);

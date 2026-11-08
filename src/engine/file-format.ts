@@ -1,8 +1,9 @@
 import { readVectorNetwork, wireVectorNetwork } from "./vector-codec";
 import { isBooleanOperation, isLeaf, isLeafKind } from "./document";
 import { type Corners, type Radii } from "./corners";
-import { Unzip, UnzipInflate, ZipPassThrough, zipSync } from "fflate";
-import { Uint8ArrayReader, ZipReader } from "@zip.js/zip.js/lib/zip-core-native.js";
+import { zipSync, type Zippable } from "fflate";
+import { imageResource, validImageKey, type ImageResource } from "./image-resource";
+import { ERR_INVALID_CRC32, ERR_INVALID_UNCOMPRESSED_SIZE, Uint8ArrayReader, Uint8ArrayWriter, ZipReader, type FileEntry } from "@zip.js/zip.js/lib/zip-core-native.js";
 import { isLosslessNumber, LosslessNumber, parse, stringify } from "lossless-json";
 import { readConstraints } from "./constraints";
 import { layerTransform, withLayerTransform, rectanglePaints, withRectanglePaints, pageColour, withPageColour, type Document, type DocumentNode } from "./document";
@@ -14,10 +15,9 @@ import { transformBounds, type Affine } from "./affine";
 
 /** A deliberately bounded adapter for native format v1, not full archive parity.
  * Source: original/figcraft/crates/{format/src/lib.rs,doc/src/{lib,node,props}.rs}.
- * Only pages, affine groups, boolean groups, frames, rectangles, ellipses, polygons, stars, lines and vectors with solid paints are editable here.
  * Unsupported data is rejected, never opened and silently discarded on save.
  * Browser limits are intentionally below native's: 16 MiB and 10,000 nodes.
- * zip.js reads ZIP metadata; fflate bounds inflation and computes CRC32.
+ * zip.js checks metadata, bounds inflation and verifies CRC32 for each member.
  */
 export const FIGCRAFT_FILE_LIMIT = 16 * 1024 * 1024;
 export const MAX_FILE_BYTES = FIGCRAFT_FILE_LIMIT;
@@ -25,7 +25,8 @@ export const FIGCRAFT_NODE_LIMIT = 10_000;
 export const FIGCRAFT_TREE_DEPTH_LIMIT = 256;
 const U64_MAX = 18_446_744_073_709_551_615n;
 type ObjectValue = Record<string, unknown>;
-export interface DecodedFigcraft { document: Document; nextId: string }
+const IMAGE_COUNT_LIMIT = 20_000;
+export interface DecodedFigcraft { document: Document; nextId: string; issues?: readonly string[] }
 
 function fail(message: string): never { throw new Error(`Cannot open Figcraft file: ${message}`); }
 function nativeNetwork(value: unknown): ReturnType<typeof readVectorNetwork> {
@@ -81,7 +82,7 @@ function fields(value: ObjectValue, supported: string[], defaults: ObjectValue, 
 }
 const documentDefaults = {
   kind: "design", styles: [], variables: { collections: [], variables: [] },
-  imageIndex: [], document_colors: [], comments: [], color_profile: "srgb",
+  document_colors: [], comments: [], color_profile: "srgb",
   libraries: { enabled: [], store: null, components: [], styles: [], collections: [], variables: [], detached: [], inserted: [] },
   image_presets: [], annotation_categories: null, dev_snapshots: {}, timer: null,
   vote: null, votes: {}, vote_history: [],
@@ -115,7 +116,7 @@ function decodeDocument(raw: unknown): DecodedFigcraft {
   if (root.version !== undefined && number(root.version, "version") > 1) fail("this file needs a newer Figcraft format reader");
   if (root.version !== undefined && number(root.version, "version") !== 1) fail("unsupported format version");
   if (root.format !== undefined && root.format !== "figcraft") fail("unrecognised format");
-  fields(root, ["format", "version", "name", "pages", "nodes", "next_id", "current_page"], documentDefaults, "document");
+  fields(root, ["format", "version", "name", "pages", "nodes", "next_id", "current_page", "imageIndex"], documentDefaults, "document");
   const pages = list(root.pages, "pages").map((entry) => id(entry, "page ID"));
   if (!pages.length || new Set(pages).size !== pages.length) fail("pages must be non-empty and unique");
   const source = object(root.nodes, "nodes"), entries = Object.entries(source);
@@ -220,59 +221,101 @@ function decodeDocument(raw: unknown): DecodedFigcraft {
   return { document: Object.freeze({ name: text(root.name, "document name"), pages: Object.freeze(pages), currentPage, nodes: Object.freeze(nodes) }), nextId: (declared < minimum ? minimum : declared).toString() };
 }
 
-async function archiveJson(bytes: Uint8Array): Promise<Uint8Array> {
-  let expectedSize = -1, expectedCompression = -1, expectedCrc = -1, entries = 0;
-  // Parse the central directory without inflating any member first.
-  // The native-only entry point cannot introduce a WASM decoder or asset fetch.
-  const reader = new ZipReader(new Uint8ArrayReader(bytes), { strictness: "strict", useWebWorkers: false });
+function parseDocument(bytes: Uint8Array) {
+  const source = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+  const root = object(parse(source, undefined, { onDuplicateKey: ({ key }) => fail(`duplicate JSON key ${key}`) }), "document");
+  const decoded = decodeDocument(root);
+  const listed = new Set<string>();
+  if (Array.isArray(root.imageIndex)) {
+    for (const entry of root.imageIndex) if (typeof entry?.hash === "string") listed.add(entry.hash);
+  }
+  return { decoded, listed };
+}
+
+async function readMember(file: FileEntry): Promise<Uint8Array<ArrayBuffer>> {
+  if (file.encrypted) fail("encrypted ZIP members are not supported yet");
+  if (file.compressedSize > FIGCRAFT_FILE_LIMIT || file.uncompressedSize > FIGCRAFT_FILE_LIMIT) fail("archive member exceeds the 16 MiB browser limit");
+  if (file.compressionMethod !== 0 && file.compressionMethod !== 8) fail("unsupported ZIP compression");
+  if (file.crc32 === undefined) fail("ZIP member has no CRC32 checksum");
   try {
-    for await (const file of reader.getEntriesGenerator()) {
-      if (++entries !== 1 || file.filename !== "document.json" || file.directory) fail("archives with resources, history, branches or other members are not supported yet");
-      if (file.encrypted) fail("encrypted ZIP members are not supported yet");
-      if (file.uncompressedSize > FIGCRAFT_FILE_LIMIT || file.compressedSize > FIGCRAFT_FILE_LIMIT) fail("archive member exceeds the 16 MiB browser limit");
-      if (file.compressionMethod !== 0 && file.compressionMethod !== 8) fail("unsupported ZIP compression");
-      if (file.crc32 === undefined) fail("ZIP member has no CRC32 checksum");
-      expectedSize = file.uncompressedSize;
-      expectedCompression = file.compressionMethod;
-      expectedCrc = file.crc32;
-    }
-  } finally { await reader.close(); }
-  if (entries !== 1) fail("archive has no document.json");
-  const chunks: Uint8Array[] = [];
-  const checksum = new ZipPassThrough("document.json");
-  checksum.ondata = () => {};
-  let size = 0, found = 0, complete = false;
-  const unzip = new Unzip((file) => {
-    if (++found !== 1 || file.name !== "document.json") fail("inconsistent ZIP members");
-    if (file.compression !== expectedCompression || (file.originalSize !== undefined && file.originalSize !== expectedSize)) fail("inconsistent ZIP metadata");
-    file.ondata = (error, chunk, final) => {
-      if (error) throw error;
-      size += chunk.length;
-      if (size > FIGCRAFT_FILE_LIMIT || size > expectedSize) { file.terminate(); fail("decompressed data exceeds its permitted size"); }
-      checksum.push(chunk, final);
-      chunks.push(chunk);
-      complete = final;
-    };
-    file.start();
+    return await file.getData(new Uint8ArrayWriter());
+  } catch (error) {
+    if (error instanceof Error && error.message === ERR_INVALID_CRC32) fail("ZIP CRC32 checksum mismatch");
+    if (error instanceof Error && error.message === ERR_INVALID_UNCOMPRESSED_SIZE) fail("decompressed data exceeds its permitted size or is truncated");
+    throw error;
+  }
+}
+
+async function readArchive(bytes: Uint8Array): Promise<DecodedFigcraft> {
+  // Keys are validated before reading image members. An unsafe key is a recoverable
+  // image issue. No entry name is ever used as a filesystem path.
+  const reader = new ZipReader(new Uint8ArrayReader(bytes), {
+    strictness: "strict", filenameValidation: "tolerant", checkCrc32: true,
+    checkOverlappingEntry: true, useWebWorkers: false,
   });
-  unzip.register(UnzipInflate);
-  // Small input chunks also bound one decoder emission when metadata lies.
-  for (let offset = 0; offset < bytes.length; offset += 1024) unzip.push(bytes.subarray(offset, offset + 1024), offset + 1024 >= bytes.length);
-  if (!complete || found !== 1 || size !== expectedSize) fail("truncated or inconsistent ZIP data");
-  if ((checksum.crc >>> 0) !== expectedCrc) fail("ZIP CRC32 checksum mismatch");
-  const result = new Uint8Array(size);
-  let offset = 0;
-  for (const chunk of chunks) { result.set(chunk, offset); offset += chunk.length; }
-  return result;
+  try {
+    let documentFile: FileEntry | undefined;
+    const members = new Map<string, FileEntry>();
+    const unreadKeys = new Set<string>();
+    const issues: string[] = [];
+    let issueCount = 0;
+    const report = (message: string) => {
+      if (++issueCount <= 20) issues.push(message);
+    };
+    for await (const file of reader.getEntriesGenerator()) {
+      if (file.filename === "document.json" && !file.directory && !documentFile) {
+        documentFile = file;
+      } else if (file.filename === "images/" && file.directory) {
+        continue;
+      } else if (file.filename.startsWith("images/")) {
+        const key = file.filename.slice(7);
+        if (!validImageKey(key) || file.directory) {
+          unreadKeys.add(key);
+          report(`image ${key} couldn't be read (invalid image name): it is left out, and saving this file again drops it`);
+        } else {
+          if (members.has(key)) fail("duplicate image member");
+          members.set(key, file);
+        }
+      } else fail("archives with history, branches or other members are not supported yet");
+    }
+    if (!documentFile) fail("archive has no document.json");
+    const { decoded, listed } = parseDocument(await readMember(documentFile));
+    const images: Record<string, ImageResource> = Object.create(null);
+    let remaining = FIGCRAFT_FILE_LIMIT - documentFile.uncompressedSize;
+    let count = 0;
+    // Read the document's declared resources before any additional loose images.
+    const keys = [...members.keys()].sort((a, b) => Number(listed.has(b)) - Number(listed.has(a)));
+    for (const key of keys) {
+      const member = members.get(key)!;
+      if (++count > IMAGE_COUNT_LIMIT || member.uncompressedSize > remaining) {
+        report(`image ${key} exceeds the browser archive budget: it stays in the original file and is left out of the opened drawing`);
+        continue;
+      }
+      // Charge failed reads too, so a series of damaged members cannot repeatedly inflate the budget.
+      remaining -= member.uncompressedSize;
+      try {
+        images[key] = imageResource(await readMember(member));
+      } catch (error) {
+        const reason = error instanceof Error ? error.message.replace(/^Cannot open Figcraft file: /, "") : "invalid ZIP data";
+        report(`image ${key} couldn't be read (${reason}): it is left out, and saving this file again drops it`);
+      }
+    }
+    for (const key of [...listed].sort()) {
+      if (!members.has(key) && !unreadKeys.has(key)) report(`image ${key} is used by the file but its data is missing: it is left out, and saving this file again drops it`);
+    }
+    if (issueCount > issues.length) issues.push(`${issueCount - issues.length} more images couldn't be loaded`);
+    const document = Object.keys(images).length ? Object.freeze({ ...decoded.document, images: Object.freeze(images) }) : decoded.document;
+    return { ...decoded, document, ...(issues.length ? { issues: Object.freeze(issues) } : {}) };
+  } finally {
+    await reader.close();
+  }
 }
 
 export async function decodeFigcraft(bytes: Uint8Array): Promise<DecodedFigcraft> {
   if (!bytes.length || bytes.length > FIGCRAFT_FILE_LIMIT) fail("file must be between 1 byte and 16 MiB");
   try {
     const first = bytes.find((byte) => byte !== 32 && byte !== 9 && byte !== 10 && byte !== 13);
-    const json = first === 123 ? bytes : await archiveJson(bytes);
-    const source = new TextDecoder("utf-8", { fatal: true }).decode(json);
-    return decodeDocument(parse(source, undefined, { onDuplicateKey: ({ key }) => fail(`duplicate JSON key ${key}`) }));
+    return first === 123 ? parseDocument(bytes).decoded : await readArchive(bytes);
   } catch (error) {
     if (error instanceof Error && error.message.startsWith("Cannot open Figcraft file:")) throw error;
     fail("invalid JSON or ZIP data");
@@ -296,12 +339,23 @@ export async function encodeFigcraft(document: Document, nextId?: string): Promi
   }
   const minimum = maximum < U64_MAX ? maximum + 1n : U64_MAX;
   const supplied = nextId === undefined ? minimum : BigInt(idString(nextId, "next_id"));
-  const root = { format: "figcraft", version: 1, imageIndex: [], name: document.name, pages: document.pages.map(wireId), nodes, next_id: wireId((supplied < minimum ? minimum : supplied).toString()), current_page: wireId(document.currentPage), styles: [], variables: { collections: [], variables: [] }, document_colors: [], comments: [] };
+  const resources: Readonly<Record<string, ImageResource>> = document.images ?? {};
+  const keys = Object.keys(resources).sort();
+  if (keys.length > IMAGE_COUNT_LIMIT) fail("too many images for a native archive");
+  const imageIndex = keys.map(hash => {
+    if (!validImageKey(hash)) fail("invalid image resource key");
+    const { width, height } = resources[hash]!;
+    return { hash, width, height };
+  });
+  const root = { format: "figcraft", version: 1, imageIndex, name: document.name, pages: document.pages.map(wireId), nodes, next_id: wireId((supplied < minimum ? minimum : supplied).toString()), current_page: wireId(document.currentPage), styles: [], variables: { collections: [], variables: [] }, document_colors: [], comments: [] };
   // Validate before serialisation (including finite geometry and graph integrity).
   decodeDocument(root);
   const json = new TextEncoder().encode(stringify(root));
   if (json.length > FIGCRAFT_FILE_LIMIT) fail("document exceeds the 16 MiB browser limit");
-  const archive = zipSync({ "document.json": json }, { level: 3 });
+  const members: Zippable = { "document.json": json };
+  if (keys.reduce((total, key) => total + resources[key]!.bytes.size, json.length) > FIGCRAFT_FILE_LIMIT) fail("archive members exceed the 16 MiB browser limit");
+  for (const key of keys) members[`images/${key}`] = [new Uint8Array(await resources[key]!.bytes.arrayBuffer()), { level: 0 }];
+  const archive = zipSync(members, { level: 3 });
   if (archive.length > FIGCRAFT_FILE_LIMIT) fail("archive exceeds the 16 MiB browser limit");
   return archive;
 }

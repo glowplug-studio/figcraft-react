@@ -1,3 +1,4 @@
+import { unzipSync, zipSync } from "fflate";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { RecoveryStore } from "../../src/backends/recovery";
 import { EditorEngine } from "../../src/engine/editor";
@@ -49,6 +50,26 @@ describe("host recovery lifecycle", () => {
     expect(engine.getSnapshot()).toMatchObject({ dirty: true, hasSaved: false, canUndo: false });
     expect(notify.mock.calls).toEqual([["loading"], ["ready"]]);
     expect(store.write).not.toHaveBeenCalled();
+  });
+
+  it("keeps a damaged recovery archive until the recovered drawing is edited", async () => {
+    const { engine, store, controller, notify } = setup();
+    const original = new EditorEngine();
+    original.execute("page.add");
+    const members = unzipSync(await original.nativeSnapshot());
+    const native = JSON.parse(new TextDecoder().decode(members["document.json"]));
+    native.imageIndex = [{ hash: "lost" }];
+    members["document.json"] = new TextEncoder().encode(JSON.stringify(native));
+    const archive = zipSync(members);
+    store.snapshots.set("account-a", archive);
+    await controller.start();
+    expect(notify).toHaveBeenLastCalledWith("ready", expect.stringContaining("image lost"));
+    engine.execute("page.select", { id: "1" });
+    await controller.flush();
+    expect(store.write).not.toHaveBeenCalled();
+    engine.execute("shape.rectangle");
+    await controller.flush();
+    expect(store.write).toHaveBeenCalledTimes(1);
   });
 
   it("debounces document edits and ignores tool-only state changes", async () => {

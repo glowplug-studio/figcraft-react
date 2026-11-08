@@ -10,7 +10,7 @@ import { freezeNetwork } from "../../src/engine/vector-network";
 import { transformPoint } from "../../src/engine/affine";
 import { worldTransform } from "../../src/engine/hierarchy";
 import { starPoints } from "../../src/engine/polygon";
-import { strFromU8, unzipSync } from "fflate";
+import { strFromU8, unzipSync, zipSync } from "fflate";
 
 test.describe.configure({ mode: "serial" });
 let email: string;
@@ -251,6 +251,30 @@ test("native download, cancelled replacement, reopen and recovery after reload",
   await expect(page.locator("main [role=alert]")).toContainText("Cannot open Figcraft file");
   await expect(page.getByText("1 layer", { exact: true })).toBeVisible();
   expect(errors).toEqual([]);
+});
+
+test("native image archive preserves original bytes through browser open, edits, recovery and download", async ({ page }) => {
+  const png = await readFile(new URL("../fixtures/images/six-pixels.png", import.meta.url));
+  const native = JSON.parse(await readFile(new URL("../fixtures/native-rectangle.json", import.meta.url), "utf8"));
+  native.imageIndex = [{ hash: "photo" }, { hash: "lost" }];
+  const archive = zipSync({ "document.json": Buffer.from(JSON.stringify(native)), "images/photo": png });
+  await login(page);
+  await page.getByLabel("Open Figcraft file", { exact: true }).setInputFiles({
+    name: "images.figcraft", mimeType: "application/octet-stream", buffer: Buffer.from(archive),
+  });
+  await expect(page.locator("main [role=alert]")).toContainText("image lost is used by the file but its data is missing");
+  await page.getByRole("button", { name: "Create rectangle", exact: true }).click();
+  await expect(page.getByText("2 layers", { exact: true })).toBeVisible();
+  await expect(page.getByText("Recovery saved on this device", { exact: true })).toBeVisible();
+  await page.reload();
+  await expect(page.getByText("2 layers", { exact: true })).toBeVisible();
+  const pending = page.waitForEvent("download");
+  await page.getByRole("button", { name: "Save as", exact: true }).click();
+  const download = await pending;
+  expect(await download.failure()).toBeNull();
+  const members = unzipSync(await readFile((await download.path())!));
+  expect(Buffer.from(members["images/photo"]!)).toEqual(png);
+  expect(JSON.parse(strFromU8(members["document.json"]!)).imageIndex).toEqual([{ hash: "photo", width: 3, height: 2 }]);
 });
 
 test("unavailable recovery storage reports the failure without blocking editing or download", async ({ page }) => {

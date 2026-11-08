@@ -133,7 +133,6 @@ describe("bounded native Figcraft file adapter", () => {
 
   it.each([
     ["future version", (value: ReturnType<typeof fixture>) => { value.version = 2; }],
-    ["image resources", (value: ReturnType<typeof fixture>) => { value.imageIndex = [{ hash: "image", width: 1, height: 1 }]; }],
     ["comments", (value: ReturnType<typeof fixture>) => { value.comments = [{ text: "preserve me" }]; }],
     ["text", (value: ReturnType<typeof fixture>) => { value.nodes["2"].type = "text"; }],
     ["custom metadata", (value: ReturnType<typeof fixture>) => { value.nodes["2"].plugin_data = { key: "preserve me" }; }],
@@ -158,9 +157,66 @@ describe("bounded native Figcraft file adapter", () => {
     await expect(decodeFigcraft(encodedFixture(change))).rejects.toThrow("Cannot open Figcraft file");
   });
 
-  it.each(["images/hash", "versions/index.json", "branches/index.json", "library/manifest.json", "thumbnail.png", "../document.json"])("refuses unsupported ZIP member %s", async (member) => {
+  it.each(["versions/index.json", "branches/index.json", "library/manifest.json", "thumbnail.png", "../document.json"])("refuses unsupported ZIP member %s", async (member) => {
     const archive = zipSync({ "document.json": bytes(fixtureText), [member]: bytes("{}") });
     await expect(decodeFigcraft(archive)).rejects.toThrow("Cannot open Figcraft file");
+  });
+
+  it("round-trips stored and compressed images with native byte-derived dimensions and sorted keys", async () => {
+    const png = new Uint8Array(readFileSync(new URL("../fixtures/images/six-pixels.png", import.meta.url)));
+    const json = encodedFixture(value => { value.imageIndex = [{ hash: "z", width: 999, height: 999 }]; });
+    const archive = zipSync({ "images/z": [png, { level: 9 }], "document.json": json, "images/__proto__": [bytes("unknown bytes"), { level: 0 }] });
+    const { document, issues } = await decodeFigcraft(archive);
+    expect(issues).toBeUndefined();
+    expect(document.images?.z).toMatchObject({ width: 3, height: 2 });
+    expect(document.images?.["__proto__"]).toMatchObject({ width: 0, height: 0 });
+    const members = unzipSync(await encodeFigcraft(document));
+    expect(members["images/z"]).toEqual(png);
+    expect(members["images/__proto__"]).toEqual(bytes("unknown bytes"));
+    expect(JSON.parse(strFromU8(members["document.json"]!)).imageIndex).toEqual([{ hash: "__proto__", width: 0, height: 0 }, { hash: "z", width: 3, height: 2 }]);
+  });
+
+  it.each(["png", "jpg", "webp", "gif", "bmp", "tiff"])("preserves exact %s bytes when native files are reopened", async extension => {
+    const image = readFileSync(new URL(`../fixtures/images/six-pixels.${extension}`, import.meta.url));
+    const archive = zipSync({ "document.json": bytes(fixtureText), "images/shape": image });
+    const opened = await decodeFigcraft(archive);
+    const reopened = await decodeFigcraft(await encodeFigcraft(opened.document));
+    expect(reopened.document.images?.shape).toMatchObject({ width: 3, height: 2 });
+    expect(Buffer.from(await reopened.document.images!.shape!.bytes.arrayBuffer())).toEqual(image);
+  });
+
+  it("refuses ambiguous duplicate image entries", async () => {
+    const archive = zipSync({ "document.json": bytes(fixtureText), "images/keyA": bytes("first"), "images/keyB": bytes("second") }, { level: 0 });
+    const view = Buffer.from(archive.buffer, archive.byteOffset, archive.byteLength);
+    for (let offset = view.indexOf("images/keyB"); offset !== -1; offset = view.indexOf("images/keyB", offset + 1)) {
+      view.write("images/keyA", offset);
+    }
+    await expect(decodeFigcraft(archive)).rejects.toThrow("Cannot open Figcraft file");
+  });
+
+  it("reports damaged, unsafe and missing resources while retaining accessible images", async () => {
+    const json = encodedFixture(value => { value.imageIndex = ["bad", "missing", "../path"].map(hash => ({ hash })); });
+    const archive = zipSync({ "images/bad": bytes("damage marker"), "images/../path": bytes("unsafe"), "images/good": bytes("original"), "document.json": json }, { level: 0 });
+    const offset = Buffer.from(archive).indexOf("damage marker");
+    expect(offset).toBeGreaterThan(0);
+    archive[offset] = 0;
+    const decoded = await decodeFigcraft(archive);
+    expect(Object.keys(decoded.document.images!)).toEqual(["good"]);
+    expect(decoded.issues).toHaveLength(3);
+    expect(decoded.issues?.join("\n")).toMatch(/image bad.*CRC32/);
+    expect(decoded.issues?.join("\n")).toMatch(/image missing.*missing/);
+    expect(decoded.issues?.join("\n")).toMatch(/image \.\.\/path.*invalid image name/);
+    expect((await decodeFigcraft(json)).issues).toBeUndefined();
+  });
+
+  it("limits missing image notices and skips resources past the aggregate budget", async () => {
+    const json = encodedFixture(value => { value.imageIndex = Array.from({ length: 23 }, (_, i) => ({ hash: String(i) })); });
+    const archive = zipSync({ "document.json": json, "images/large": new Uint8Array(MAX_FILE_BYTES), "images/small": bytes("kept") });
+    const { document, issues } = await decodeFigcraft(archive);
+    expect(Object.keys(document.images!)).toEqual(["small"]);
+    expect(issues).toHaveLength(21);
+    expect(issues?.[0]).toContain("exceeds the browser archive budget");
+    expect(issues?.at(-1)).toBe("4 more images couldn't be loaded");
   });
 
   it("refuses malformed, truncated, duplicate-key and oversized input", async () => {

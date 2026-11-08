@@ -220,7 +220,8 @@ export function Editor({ identity, capabilities, engine: suppliedEngine, recover
     controller.current?.cancel(); setPendingFile(null); setBusy(true); setError("");
     try {
       if (file.size > MAX_FILE_BYTES) throw new Error("File exceeds the 16 MiB browser import limit");
-      await engine.executeAsync("file.open", { data: base64Bytes(new Uint8Array(await file.arrayBuffer())), name: file.name });
+      const { repairs } = await engine.executeAsync("file.open", { data: base64Bytes(new Uint8Array(await file.arrayBuffer())), name: file.name });
+      if (repairs.length) setError(repairs.join("\n"));
     } catch (caught) { setError(caught instanceof Error ? caught.message : "File could not be opened"); }
     finally { setBusy(false); }
   }
@@ -263,7 +264,7 @@ export function Editor({ identity, capabilities, engine: suppliedEngine, recover
       </header>
       {!signedIn && <p role="status">Sign in to edit this document.</p>}
       {error && <p role="alert">{error}</p>}
-      {recoveryError && <p role="alert">Recovery unavailable: {recoveryError}</p>}
+      {recoveryError && <p role="alert">{recoveryStatus === "error" ? "Recovery unavailable" : "Recovery notice"}: {recoveryError}</p>}
       <dialog ref={replaceDialog} aria-label="Replace unsaved document" onCancel={() => setPendingFile(null)}>
         <p>Open {pendingFile?.name} and replace the unsaved document?</p>
         <button onClick={() => setPendingFile(null)}>Cancel</button>
