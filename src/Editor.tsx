@@ -122,6 +122,7 @@ export function Editor({ identity, capabilities, engine: suppliedEngine, recover
         else dispatch(state.anchor !== undefined ? "vector.edit.penEnd" : "vector.edit.end");
         return;
       }
+      if (!event.altKey && !modified && event.key.toLowerCase() === "b") { event.preventDefault(); dispatch("vector.edit.tool", { tool: "paint" }); return; }
       if (!event.altKey && event.shiftKey && !modified && event.key.toLowerCase() === "w") { event.preventDefault(); dispatch("vector.edit.tool", { tool: "width" }); return; }
       if (!event.altKey && !event.shiftKey && !modified && event.key.toLowerCase() === "p") { event.preventDefault(); dispatch("vector.edit.tool", { tool: "pen" }); return; }
       if (!event.altKey && !modified && ["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(event.key)) {

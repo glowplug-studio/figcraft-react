@@ -2,6 +2,10 @@
 
 All notable changes to the React port and its upstream compatibility baseline are recorded here.
 
+## [0.33.0] - 2026-11-09
+
+- Fill or unfill closed vector faces with the Paint bucket in vector edit mode. B or Shift+B selects the tool. Drag across faces to apply the same action in one undo step.
+
 ## [0.32.0] - 2026-11-07
 
 - Apply corner smoothing to closed vectors while preserving each point's radius, region winding and authored geometry in saved files.

@@ -17,6 +17,7 @@ export function VectorToolbar({ engine, editable, dispatch }: Props) {
     <button disabled={!editable} aria-pressed={state.tool === "move"} onClick={() => dispatch("vector.edit.tool", { tool: "move" })}>Move points</button>
     <button disabled={!editable} aria-pressed={state.tool === "pen"} title="Pen · P" onClick={() => dispatch("vector.edit.tool", { tool: "pen" })}>Pen</button>
     <button disabled={!editable} aria-pressed={state.tool === "bend"} title="Bend · hold Ctrl/⌘ with Move" onClick={() => dispatch("vector.edit.tool", { tool: "bend" })}>Bend</button>
+    <button disabled={!editable} aria-pressed={state.tool === "paint"} title="Paint bucket · Shift+B" onClick={() => dispatch("vector.edit.tool", { tool: "paint" })}>Paint bucket</button>
     <button disabled={!editable} aria-pressed={state.tool === "width"} title="Variable width · Shift+W" onClick={() => dispatch("vector.edit.tool", { tool: "width" })}>Variable width</button>
     <button disabled={!editable} onClick={() => dispatch("vector.edit.end")}>Done editing</button>
   </div>;

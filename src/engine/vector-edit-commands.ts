@@ -13,6 +13,7 @@ import { pointBoxCentre, pointBoxCorners, pointBoxOnto, pointRotationMatrix, tra
 import { hitVector } from "./vector-edit-hit";
 import { connectVectorPoints, joinVectorPoints } from "./vector-connect";
 import { isVectorJoin, type VectorJoinCommand } from "./vector-commands";
+import { paintVector } from "./vector-paint";
 import { applyPen, planPen } from "./vector-pen";
 
 import { editWidthPoint, widthHandles } from "./vector-width";
@@ -24,6 +25,7 @@ export const vectorEditSpecs = Object.freeze({
   "vector.edit.tool": { label: "Vector edit tool", undo: false },
   "vector.edit.widthPoint": { label: "Width point", undo: true },
   "vector.edit.connect": { label: "Connect points", undo: true },
+  "vector.edit.paint": { label: "Paint bucket", undo: true },
   "vector.edit.pen": { label: "Pen point", undo: true },
   "vector.edit.penEnd": { label: "End pen path", undo: false },
   "vector.edit.select": { label: "Select points", undo: false },
@@ -52,6 +54,7 @@ const allowed: Record<VectorEditCommand, readonly string[]> = {
   "vector.edit.begin": ["id", "ids"], "vector.edit.end": [], "vector.edit.state": [], "vector.edit.tool": ["tool"],
   "vector.edit.widthPoint": ["action", "index", "t", "scale", "width", "side"],
   "vector.edit.connect": ["a", "b"],
+  "vector.edit.paint": ["x", "y", "points"],
   "vector.edit.pen": ["x", "y", "dx", "dy"], "vector.edit.penEnd": [],
   "vector.edit.select": ["vertices", "segments", "handles", "regions", "id", "add"], "vector.edit.selectAll": [],
   "vector.edit.moveVertices": ["vertices", "dx", "dy"], "vector.edit.nudge": ["dx", "dy"], "vector.edit.position": ["x", "y"],
@@ -121,7 +124,7 @@ export function executeVectorEdit(command: VectorEditCommand | VectorJoinCommand
       recordHistory: true, result: { index: edited.index, points: edited.points } };
   }
   if (command === "vector.edit.tool") {
-    const tool = parseString(p.tool)?.toLowerCase(); if (tool !== "move" && tool !== "bend" && tool !== "pen" && tool !== "width") throw new Error("This vector tool is not implemented yet");
+    const tool = parseString(p.tool)?.toLowerCase(); if (tool !== "move" && tool !== "bend" && tool !== "pen" && tool !== "width" && tool !== "paint") throw new Error("This vector tool is not implemented yet");
     return { ...result, state: freezeVectorEdit({ ...state, tool, ...(tool !== "pen" ? { anchor: undefined, penOut: undefined } : {}) }), result: { tool } };
   }
   if (command === "vector.edit.penEnd") return { ...result, state: freezeVectorEdit({ ...state, anchor: undefined, penOut: undefined }) };
@@ -146,6 +149,27 @@ export function executeVectorEdit(command: VectorEditCommand | VectorJoinCommand
     for (const part of pointSets(document, state, p, ends)) { const world = worldTransform(draft.document, part.id); edit(part.id, net => f(net, part.vertices, world)); }
   };
   switch (command) {
+    case "vector.edit.paint": {
+      const node = document.nodes[state.id];
+      if (node?.kind !== "vector") throw new Error("Not a vector");
+      const local = inverse(worldTransform(document, state.id));
+      const stamps: Point[] = [];
+      if (Array.isArray(p.points)) {
+        for (const pair of p.points) {
+          if (!Array.isArray(pair)) continue;
+          try { stamps.push(transformPoint(local, { x: parseNumber(pair[0]), y: parseNumber(pair[1]) })); }
+          catch { continue; }
+          if (stamps.length === 10_000) break;
+        }
+      } else {
+        stamps.push(transformPoint(local, { x: parseNumber(p.x, "x"), y: parseNumber(p.y, "y") }));
+      }
+      const painted = paintVector(node, stamps);
+      if (!painted) throw new Error("click inside a closed area");
+      draft.set(painted.node);
+      result.result = { filled: painted.filled };
+      break;
+    }
     case "vector.edit.pen": {
       const net = vectorNetwork(document, state.id); if (!net) throw new Error("Not a vector");
       const point = { x: parseNumber(p.x, "x"), y: parseNumber(p.y, "y") }, world = worldTransform(document, state.id);

@@ -2233,3 +2233,46 @@ test("closed vectors smooth their painted corners and preserve authored points o
   await page.getByRole("button", { name: "iOS", exact: true }).click(); await expect(smooth).toHaveValue("60");
   await page.getByRole("button", { name: "Undo", exact: true }).click(); await expect(smooth).toHaveValue("100");
 });
+
+test("Paint bucket hatches a face, previews a drag and recovers independent native regions", async ({ page }) => {
+  const engine = new EditorEngine();
+  const id = String(engine.execute("shape.rectangle", { name: "Bucket square", x: 150, y: 125, width: 100, height: 100, props: { fill: "#ff0000" } }).id);
+  engine.execute("vector.edit.begin", { id });
+  engine.execute("vector.edit.connect", { a: 0, b: 2 });
+  const file = await encodeFigcraft(engine.getRenderDocument());
+  await login(page);
+  await page.getByLabel("Open Figcraft file", { exact: true }).setInputFiles({ name: "faces.figcraft", mimeType: "application/octet-stream", buffer: Buffer.from(file) });
+  const layer = page.getByRole("region", { name: "Layers", exact: true }).getByRole("button", { name: "Bucket square", exact: true });
+  await expect(layer).toBeVisible(); await resetCanvasOrigin(page); await layer.click();
+  await page.getByRole("button", { name: "Edit vector", exact: true }).click();
+  const canvas = page.getByLabel("Design canvas", { exact: true });
+  const bucket = page.getByRole("button", { name: "Paint bucket", exact: true });
+  await canvas.focus(); await page.keyboard.press("b"); await expect(bucket).toHaveAttribute("aria-pressed", "true");
+  const upper = await canvasPoint(page, 225, 150), lower = await canvasPoint(page, 175, 200);
+  const background = await canvas.evaluate((el: HTMLCanvasElement) => Array.from(el.getContext("2d")!.getImageData(120, 115, 1, 1).data));
+  const save = async () => {
+    const promise = page.waitForEvent("download"); await page.getByRole("button", { name: "Save as", exact: true }).click();
+    return (await decodeFigcraft(await readFile((await (await promise).path())!))).document.nodes[id] as VectorNode;
+  };
+  await page.mouse.move(upper.x, upper.y);
+  const topLeft = await canvasPoint(page, 140, 115);
+  await expect(page).toHaveScreenshot("paint-bucket-face-hover.png", { clip: { ...topLeft, width: 120, height: 120 }, animations: "disabled", maxDiffPixels: 0 });
+  await page.mouse.down(); await page.mouse.move(lower.x, lower.y); await page.keyboard.press("Escape"); await page.mouse.up();
+  await page.mouse.move(0, 0);
+  await expectCanvasPixel(page, 225, 150, [255, 0, 0, 255]); await expectCanvasPixel(page, 175, 200, [255, 0, 0, 255]);
+  await page.mouse.move(upper.x, upper.y); await page.mouse.down(); await page.mouse.move(lower.x, lower.y); await page.mouse.up();
+  await page.mouse.move(0, 0); await expectCanvasPixel(page, 225, 150, background); await expectCanvasPixel(page, 175, 200, background);
+  await page.getByRole("button", { name: "Undo", exact: true }).click();
+  await expectCanvasPixel(page, 225, 150, [255, 0, 0, 255]); await expectCanvasPixel(page, 175, 200, [255, 0, 0, 255]);
+  await canvas.focus(); await page.keyboard.press("Shift+b"); await expect(bucket).toHaveAttribute("aria-pressed", "true");
+  await page.mouse.click(upper.x, upper.y); await page.mouse.move(0, 0);
+  await expectCanvasPixel(page, 225, 150, background); await expectCanvasPixel(page, 175, 200, [255, 0, 0, 255]);
+  const saved = (await save()).network;
+  expect(saved.regions).toHaveLength(1); expect(saved.regions[0].loops[0]).toHaveLength(3);
+  await expect(page.locator(".figcraft-recovery")).toHaveText("Recovery saved on this device");
+  await page.reload(); await resetCanvasOrigin(page);
+  expect((await save()).network).toEqual(saved);
+  await layer.click(); await page.getByRole("button", { name: "Edit vector", exact: true }).click();
+  await page.setViewportSize({ width: 390, height: 844 });
+  await bucket.scrollIntoViewIfNeeded(); await bucket.click(); await expect(bucket).toHaveAttribute("aria-pressed", "true");
+});

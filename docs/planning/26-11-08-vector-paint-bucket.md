@@ -1,6 +1,6 @@
 # Vector faces and Paint bucket
 
-Phase 4 ready. Base 880a580. The original, fork and local Rust reference are 8a7ebc2484a6d64d80a13c19c18ffb814325e347. Hosted Graphify resolves paint_all → edit at the same revision. Its file-to-test lookup for vector_faces.rs returned no links although the file contains seven native fixtures. Hosted React at b3b8a1b contains four README nodes and cannot resolve executeVectorEdit or vectorRegionPath. The combined local index contains both symbols and 29,394 nodes. The project-scoped Supabase MCP returned zero public tables.
+Phase 6 verification in progress. Base 880a580. The original, fork and local Rust reference are 8a7ebc2484a6d64d80a13c19c18ffb814325e347. Hosted Graphify resolves paint_all → edit at the same revision. Its file-to-test lookup for vector_faces.rs returned no links although the file contains seven native fixtures. Hosted React at b3b8a1b contains four README nodes and cannot resolve executeVectorEdit or vectorRegionPath. The combined local index contains both symbols and 29,394 nodes. The project-scoped Supabase MCP returned zero public tables.
 
 | Upstream evidence at the pin | TypeScript owner | Verification |
 |---|---|---|
@@ -16,3 +16,10 @@ Use double-precision geometry on authored points. Preserve stable angle ordering
 Existing host identity, file serialisation, Auth adapter and local recovery cover this slice. All edits go through the existing edit capability and history boundaries. Region geometry adds no database entity, share grant, new session state or realtime payload. The separate selected-region paint inspector introduced in the latest reference remains required in its own roadmap work.
 
 Implement sequentially in the canonical checkout. First port geometry and test the native fixtures, then immutable paint transactions and command parsing, pointer and inspector integration, file and performance verification. Use 880a580 as rollback point. Run pure and real local Auth tests, strict TypeScript, both builds, the focused browser flows and all Chromium checks before publishing a property matrix. Full-product publication remains gated.
+
+
+## Verification checkpoint
+
+The face walk, region normalisation, Paint bucket command, pointer gestures, hatched hover, toolbar and shortcuts are integrated. Twelve geometry, command and gesture fixtures pass, including preserving explicit paint frames, selecting another edited layer, skipped invalid pairs and the 10,000-stamp cap. The complete pure suite passed 900 tests and the local Supabase Auth suite passed both tests. Strict TypeScript passed. Focused authenticated Chromium checked the desktop hover snapshot, mobile toolbar, cancellation, two-face drag, undo, recovery and native regions. Review adjusted hover flattening to a quarter screen pixel and default fill assignment to use the refitted network. Rebuild the production preview and complete the final one-worker browser regression before closing the slice.
+
+Native gradient, image and pattern region paints in vector_behaviour_tests.rs also depend on the wider paint model and renderer. Re-run the region stack round-trip cases when those paint kinds are implemented. The solid paint stack and its authored coordinate frame have direct coverage here.

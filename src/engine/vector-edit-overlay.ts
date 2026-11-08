@@ -1,3 +1,7 @@
+import { transformPoint } from "./affine";
+import { flattenContours, tracePath, type PathCommand } from "./corners";
+import type { Point } from "./geometry";
+import { worldTransform } from "./hierarchy";
 import { canvasAccent } from "./canvas-colours";
 import type { Document } from "./document";
 import { vectorEditOverlay, type VectorEditState } from "./vector-edit";
@@ -5,6 +9,44 @@ import type { VectorInteraction } from "./vector-interaction";
 import { pageToScreen, type Viewport } from "./viewport";
 import { widthHandles } from "./vector-width";
 import { drawGuides } from "./measurements";
+
+/** Native screen-space hatch, clipped to the even-odd interior of all loops. */
+function drawPaintTarget(context: CanvasRenderingContext2D, contours: readonly (readonly Point[])[], accent: string): void {
+  const outline = new Path2D(), stripes = new Path2D();
+  let low = Infinity, high = -Infinity;
+  const edges: { x: number; y: number; endX: number; endY: number }[] = [];
+  const rotate = (p: Point) => ({ x: (p.x + p.y) * Math.SQRT1_2, y: (p.y - p.x) * Math.SQRT1_2 });
+  for (const contour of contours) {
+    if (!contour.length) continue;
+    outline.moveTo(contour[0].x, contour[0].y);
+    let previous = rotate(contour[contour.length - 1]);
+    for (const point of contour) {
+      outline.lineTo(point.x, point.y);
+      const end = rotate(point);
+      low = Math.min(low, end.y); high = Math.max(high, end.y);
+      edges.push({ ...previous, endX: end.x, endY: end.y });
+      previous = end;
+    }
+    outline.closePath();
+  }
+  const lines = Math.ceil((high - low) / 6);
+  if (lines <= 4000) for (let i = 0; i < lines; i++) {
+    const y = (Math.ceil(low / 6) + i) * 6;
+    const crossings = edges.filter(e => (e.y <= y && y < e.endY) || (e.endY <= y && y < e.y))
+      .map(e => e.x + (y - e.y) * (e.endX - e.x) / (e.endY - e.y)).sort((a, b) => a - b);
+    for (let j = 1; j < crossings.length; j += 2) {
+      const a = crossings[j - 1], b = crossings[j];
+      stripes.moveTo((a - y) * Math.SQRT1_2, (a + y) * Math.SQRT1_2);
+      stripes.lineTo((b - y) * Math.SQRT1_2, (b + y) * Math.SQRT1_2);
+    }
+  }
+  context.save();
+  for (const [path, halo, width] of [[stripes, 3, 1.25], [outline, 4, 2]] as const) {
+    context.strokeStyle = "#ffffffc8"; context.lineWidth = halo; context.stroke(path);
+    context.strokeStyle = accent; context.lineWidth = width; context.stroke(path);
+  }
+  context.restore();
+}
 
 /** Native edit overlays: inactive layers below the active layer, with screen-sized controls. */
 export function drawVectorEdit(context: CanvasRenderingContext2D, document: Document, state: VectorEditState, view: Viewport, interaction: VectorInteraction["overlay"]): void {
@@ -18,6 +60,17 @@ export function drawVectorEdit(context: CanvasRenderingContext2D, document: Docu
   }
   for (const part of [...state.others.map(p => ({ ...state, ...p, handles: [], regions: [], regionVertices: [] })), state]) {
     const overlay = vectorEditOverlay(document, part); if (!overlay) continue;
+    if (state.tool === "paint" && interaction.paintHover?.id === part.id && state.id === part.id) {
+      const world = worldTransform(document, part.id);
+      const screenPath: PathCommand[] = [];
+      tracePath({
+        moveTo: (x, y) => screenPath.push(["M", x, y]),
+        lineTo: (x, y) => screenPath.push(["L", x, y]),
+        bezierCurveTo: (ax, ay, bx, by, x, y) => screenPath.push(["C", ax, ay, bx, by, x, y]),
+        closePath: () => screenPath.push(["Z"]),
+      }, interaction.paintHover.face.path, p => pageToScreen(view, transformPoint(world, p)));
+      drawPaintTarget(context, flattenContours(screenPath, .25), accent);
+    }
     const hover = interaction.hover?.id === part.id ? interaction.hover.hit : undefined;
     const selectedSegments = new Set(overlay.selectedSegments), selectedVertices = new Set(overlay.selectedVertices);
     overlay.segments.forEach((c, i) => {

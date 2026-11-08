@@ -93,11 +93,11 @@ function distance(p: Point, a: Point, b: Point): number {
   return Math.hypot(p.x - a.x - t * dx, p.y - a.y - t * dy);
 }
 /** Adaptive cubic flattening; error is smaller than native nearest's 0.01 tolerance. */
-export function flattenContours(path: readonly PathCommand[]): readonly (readonly Point[])[] {
-  const cached = flattened.get(path); if (cached) return cached;
+export function flattenContours(path: readonly PathCommand[], tolerance = .001): readonly (readonly Point[])[] {
+  const cached = tolerance === .001 && flattened.get(path); if (cached) return cached;
   const contours: Point[][] = []; let out: Point[] = []; let previous = { x: 0, y: 0 }, subdivisions = 0;
   const cubic = (a: Point, b: Point, c: Point, d: Point, depth: number) => {
-    if (depth >= 24 || subdivisions++ >= 65536 || Math.max(distance(b, a, d), distance(c, a, d)) <= .001) { out.push(d); return; }
+    if (depth >= 24 || subdivisions++ >= 65536 || Math.max(distance(b, a, d), distance(c, a, d)) <= tolerance) { out.push(d); return; }
     const ab = midpoint(a, b), bc = midpoint(b, c), cd = midpoint(c, d), abc = midpoint(ab, bc), bcd = midpoint(bc, cd), mid = midpoint(abc, bcd);
     cubic(a, ab, abc, mid, depth + 1); cubic(mid, bcd, cd, d, depth + 1);
   };
@@ -106,7 +106,8 @@ export function flattenContours(path: readonly PathCommand[]): readonly (readonl
     else if (cmd[0] === "C") { const next = { x: cmd[5], y: cmd[6] }; cubic(previous, { x: cmd[1], y: cmd[2] }, { x: cmd[3], y: cmd[4] }, next, 0); previous = next; }
     else { if (cmd[0] === "M") { out = []; contours.push(out); } previous = { x: cmd[1], y: cmd[2] }; out.push(previous); }
   }
-  flattened.set(path, contours); return contours;
+  if (tolerance === .001) flattened.set(path, contours);
+  return contours;
 }
 export function flattenPath(path: readonly PathCommand[]): readonly Point[] { return flattenContours(path).flat(); }
 /** Open subpaths have no implicit closing edge when measuring stroke proximity. */

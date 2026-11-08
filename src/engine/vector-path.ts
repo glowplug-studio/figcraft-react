@@ -50,13 +50,17 @@ export function vectorStrokePath(net: VectorNetwork): readonly PathCommand[] {
 export function vectorFillPath(source: VectorNetwork): readonly PathCommand[] {
   const cached = fillCache.get(source); if (cached) return cached;
   const net = roundedNetwork(source) ?? source, path: PathCommand[] = [];
-  for (const region of net.regions) for (const loop of region.loops) {
+  for (const region of net.regions) appendVectorLoops(path, net, region.loops);
+  const result = frozenPath(path); if (Object.isFrozen(source)) fillCache.set(source, result); return result;
+}
+/** Append authored loops without applying derived corner geometry. */
+export function appendVectorLoops(path: PathCommand[], net: VectorNetwork, loops: readonly (readonly number[])[]): void {
+  for (const loop of loops) {
     const indices = loop.filter(i => net.segments[i]), first = net.segments[indices[0]], second = net.segments[indices[1]]; if (!first) continue;
     let current = second && (first.a === second.a || first.a === second.b) ? first.b : first.a;
     const start = net.vertices[current]; if (!start) continue; path.push(["M", start.x, start.y]);
     for (const i of indices) { const s = net.segments[i], reverse = s.a !== current; pushSegment(path, net, i, reverse); current = reverse ? s.a : s.b; } path.push(["Z"]);
   }
-  const result = frozenPath(path); if (Object.isFrozen(source)) fillCache.set(source, result); return result;
 }
 export function vectorLoopWalk(net: VectorNetwork, loop: readonly number[]): readonly (readonly [number, boolean])[] {
   const indices = loop.filter(i => net.segments[i]), first = net.segments[indices[0]], second = net.segments[indices[1]]; if (!first) return [];
