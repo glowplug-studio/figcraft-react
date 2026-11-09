@@ -59,7 +59,7 @@ import { MAX_IMAGE_BYTES } from "./image-resource";
 import { fileData } from "./file-bytes";
 import { readFontInput } from "./font-source";
 import { base64Bytes } from "./recovery";
-import { readVersionDocument, decodePublishedLibrary, decodeFigcraft, encodeFigcraft, encodeFigcraftBlob, prepareArchive, MAX_UNPACKED_BYTES } from "./file-format";
+import { type FileBranch, readVersionDocument, decodePublishedLibrary, decodeFigcraft, encodeFigcraft, encodeFigcraftBlob, prepareArchive, MAX_UNPACKED_BYTES } from "./file-format";
 import { executePage, listPages, pageSpecs } from "./pages";
 import { executeSelection, layersAt, selectionSpecs } from "./selection";
 import { setRectangleProperties, setPageGeometryFields } from "./properties";
@@ -370,12 +370,14 @@ export class EditorEngine {
     return restoredIndex < 0 ? null : versionDetails(version, restoredIndex);
   }
 
+  #branches: readonly FileBranch[] = Object.freeze([]);
+  get branches() { return this.#branches; }
   #savedVersions = this.#history.records;
-  #archiveRevision?: { document: Document; versions: readonly FileVersion[]; nextId: bigint };
+  #archiveRevision?: { document: Document; branches: readonly FileBranch[]; versions: readonly FileVersion[]; nextId: bigint };
   get archiveRevision() {
     const document = this.#fileDocument(), versions = this.#history.records;
-    if (this.#archiveRevision?.document !== document || this.#archiveRevision.versions !== versions || this.#archiveRevision.nextId !== this.#nextId) {
-      this.#archiveRevision = { document, versions, nextId: this.#nextId };
+    if (this.#archiveRevision?.document !== document || this.#archiveRevision.versions !== versions || this.#archiveRevision.branches !== this.#branches || this.#archiveRevision.nextId !== this.#nextId) {
+      this.#archiveRevision = { document, versions, branches: this.#branches, nextId: this.#nextId };
     }
     return this.#archiveRevision;
   }
@@ -937,10 +939,10 @@ export class EditorEngine {
   }
   subscribe = (listener: () => void): (() => void) => { this.#listeners.add(listener); return () => { this.#listeners.delete(listener); }; };
   captureNativeSnapshot() {
-    const { document, nextId, versions } = this.archiveRevision;
-    return () => encodeFigcraftBlob(document, String(nextId), versions);
+    const { document, nextId, versions, branches } = this.archiveRevision;
+    return () => encodeFigcraftBlob(document, String(nextId), versions, undefined, branches);
   }
-  nativeSnapshot = (): Promise<Uint8Array> => encodeFigcraft(this.#fileDocument(), String(this.#nextId), this.#history.records);
+  nativeSnapshot = (): Promise<Uint8Array> => encodeFigcraft(this.#fileDocument(), String(this.#nextId), this.#history.records, this.#branches);
   #cacheLibrary(path:string,source:PublishedLibrary) {
     if (this.#libraryFiles.size>=MAX_CACHED_LIBRARIES && !this.#libraryFiles.has(path)) this.#libraryFiles.clear();
     this.#libraryFiles.set(path,source);this.#libraryRevision++;
@@ -1593,9 +1595,10 @@ export class EditorEngine {
     const {document,nextId} = live ? this.#prepareEdit(live.document,live.nextId) : {document:this.#snapshot.document,nextId:this.#nextId};
     const revision = ++this.#saveSequence, opening = this.#openSequence;
     const versions = this.#history.records;
+    const branches = this.#branches;
     const thumbnail = typeof globalThis.document === "undefined" ? undefined :
       await (await import("./canvas")).renderFileThumbnail(document);
-    const archive = await encodeFigcraftBlob(document, String(nextId), versions, thumbnail);
+    const archive = await encodeFigcraftBlob(document, String(nextId), versions, thumbnail, branches);
     const data = await output(archive);
     if (!this.#snapshot.editable || opening !== this.#openSequence) throw new Error("Save was cancelled because the document or identity changed");
     this.#pendingSaves.set(revision, { document, versions });
@@ -1728,6 +1731,7 @@ export class EditorEngine {
     checkCurrent();
     this.#documentIdentity = Symbol();
     this.#nextId = BigInt(decoded.nextId);
+    this.#branches = decoded.branches ?? Object.freeze([]);
     this.#history = new VersionHistory(decoded.versions);
     this.#savedVersions = this.#history.records;
     this.#undo = []; this.#redo = []; this.#saved = null; this.#downloaded = false; this.#pendingSaves.clear();

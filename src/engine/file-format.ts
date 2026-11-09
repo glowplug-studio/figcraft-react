@@ -39,7 +39,19 @@ const MAX_DIRECTORY_READ = 16 * 1024 * 1024;
 export const FIGCRAFT_TREE_DEPTH_LIMIT = 256;
 type ObjectValue = Record<string, unknown>;
 const IMAGE_COUNT_LIMIT = 20_000;
-export interface DecodedFigcraft { document: Document; nextId: string; versions?: readonly FileVersion[]; issues?: readonly string[] }
+interface BranchDocument { readonly document: Document; readonly nextId: string }
+export interface FileBranch {
+  readonly id: string;
+  readonly name: string;
+  readonly time: string;
+  readonly client: number;
+  readonly state: "active" | "archived" | "merged";
+  readonly base: BranchDocument;
+  readonly head: BranchDocument;
+  readonly versions: readonly FileVersion[];
+}
+
+export interface DecodedFigcraft { document: Document; nextId: string; versions?: readonly FileVersion[]; branches?: readonly FileBranch[]; issues?: readonly string[] }
 
 function nativeEffects(value: unknown) {
   try { return readEffects(appearanceValue(value), "archive"); }
@@ -398,10 +410,19 @@ export async function decodePublishedLibrary(source:Uint8Array | Blob) {
   } finally { await reader.close(); }
 }
 
+function subsetImages(images: Readonly<Record<string, ImageResource>>, list: unknown): Readonly<Record<string, ImageResource>> {
+  const result: Record<string, ImageResource> = Object.create(null);
+  if (Array.isArray(list)) for (const key of list) {
+    if (typeof key === "string" && Object.hasOwn(images, key)) result[key] = images[key];
+  }
+  return Object.freeze(result);
+}
+
 async function readVersions(members: Map<string, FileEntry>, images: Readonly<Record<string, ImageResource>>,
-  budget: { remaining: number }, source: Blob | undefined, report: (message: string) => void) {
+  budget: { remaining: number }, source: Blob | undefined, report: (message: string) => void,
+  directory = "versions", snapshots = { remaining: versionByteLimit }) {
   const versions: FileVersion[] = [];
-  const index = members.get("versions/index.json");
+  const index = members.get(directory + "/index.json");
   if (!index) return versions;
   let entries: unknown;
   try {
@@ -414,31 +435,75 @@ async function readVersions(members: Map<string, FileEntry>, images: Readonly<Re
     return versions;
   }
   if (!Array.isArray(entries)) return versions;
-  let remaining = versionByteLimit;
   const ids = new Set<string>();
   for (const entry of entries) {
     if (versions.length === versionLimit) { report("only the first 100 versions were kept"); break; }
     const key: unknown = entry?.id;
     if (!validVersionId(key) || ids.has(key)) { report("a version with an invalid id was skipped"); continue; }
     try {
-      const file = members.get("versions/" + key + ".json");
+      const file = members.get(directory + "/" + key + ".json");
       if (!file) fail("missing snapshot");
-      if (file.uncompressedSize > Math.min(remaining, budget.remaining, MAX_ARCHIVE_MEMBER)) fail("snapshot exceeds its byte budget");
-      remaining -= file.uncompressedSize;
+      if (file.uncompressedSize > Math.min(snapshots.remaining, budget.remaining, MAX_ARCHIVE_MEMBER)) fail("snapshot exceeds its byte budget");
+      snapshots.remaining -= file.uncompressedSize;
       budget.remaining -= file.uncompressedSize;
       const json = await readMember(file, source);
-      const resources: Record<string, ImageResource> = Object.create(null);
-      if (Array.isArray(entry.images)) for (const hash of entry.images) {
-        if (typeof hash === "string" && Object.hasOwn(images, hash)) resources[hash] = images[hash];
-      }
       versions.push(Object.freeze({ id: key, name: clippedText(entry.name, 200), description: clippedText(entry.description, 2000),
-        time: readVersionTime(entry.time), auto: entry.auto === true, snapshot: { json, images: Object.freeze(resources) } }));
+        time: readVersionTime(entry.time), auto: entry.auto === true, snapshot: { json, images: subsetImages(images, entry.images) } }));
       ids.add(key);
     } catch (error) {
       report("version `" + key + "` was skipped: " + (error instanceof Error ? error.message : "invalid snapshot"));
     }
   }
   return versions;
+}
+
+async function readBranches(members: Map<string, FileEntry>, images: Readonly<Record<string, ImageResource>>,
+  budget: { remaining: number }, source: Blob | undefined, report: (message: string) => void) {
+  const branches: FileBranch[] = [];
+  const index = members.get("branches/index.json");
+  if (!index) return branches;
+  let entries: unknown;
+  try {
+    if (index.uncompressedSize > Math.min(versionIndexLimit, budget.remaining)) fail("branch index exceeds its byte budget");
+    budget.remaining -= index.uncompressedSize;
+    entries = object(parse(await (await readMember(index, source)).text()), "branch index").branches;
+  } catch (error) {
+    report("the branches were skipped: " + (error instanceof Error ? error.message : "invalid index"));
+    return branches;
+  }
+  if (!Array.isArray(entries)) return branches;
+  const snapshots = { remaining: versionByteLimit };
+  const ids = new Set<string>();
+  for (const entry of entries) {
+    if (branches.length === 100) { report("only the first 100 branches were kept"); break; }
+    const key: unknown = entry?.id;
+    if (!validVersionId(key) || ids.has(key)) { report("a branch with an invalid id was skipped"); continue; }
+    const directory = "branches/" + key;
+    async function readPart(part: string, list: unknown): Promise<BranchDocument> {
+      const file = members.get(directory + "/" + part + ".json");
+      if (!file) fail("missing " + part + " snapshot");
+      if (file.uncompressedSize > Math.min(budget.remaining, snapshots.remaining, MAX_ARCHIVE_MEMBER)) fail("branch snapshot exceeds its byte budget");
+      budget.remaining -= file.uncompressedSize;
+      snapshots.remaining -= file.uncompressedSize;
+      const { decoded } = await parseDocument(await readMember(file, source));
+      const resources = subsetImages(images, list);
+      return { nextId: decoded.nextId, document: Object.keys(resources).length
+        ? Object.freeze({ ...decoded.document, images: resources }) : decoded.document };
+    }
+    try {
+      const base = await readPart("base", entry.baseImages);
+      const head = await readPart("head", entry.headImages);
+      const versions = await readVersions(members, images, budget, source, report, directory + "/versions", snapshots);
+      const client = Number(readVersionTime(entry.client));
+      branches.push(Object.freeze({ id: key, name: clippedText(entry.name, 200), time: readVersionTime(entry.time),
+        client: client <= 0xffffffff ? client : 0, state: entry.state === "archived" || entry.state === "merged" ? entry.state : "active",
+        base, head, versions: Object.freeze(versions) }));
+      ids.add(key);
+    } catch (error) {
+      report("branch `" + key + "` was skipped: " + (error instanceof Error ? error.message : "invalid snapshot"));
+    }
+  }
+  return branches;
 }
 
 export async function readVersionDocument(version: FileVersion) {
@@ -457,7 +522,7 @@ async function readArchive(bytes: Uint8Array | Blob): Promise<DecodedFigcraft> {
     let documentFile: FileEntry | undefined;
     const members = new Map<string, FileEntry>();
     const publicationMembers = new Map<string,FileEntry>();
-    const versionMembers = new Map<string,FileEntry>();
+    const historyMembers = new Map<string,FileEntry>();
     const unreadKeys = new Set<string>();
     const issues: string[] = [];
     let issueCount = 0;
@@ -469,11 +534,11 @@ async function readArchive(bytes: Uint8Array | Blob): Promise<DecodedFigcraft> {
         documentFile = file;
       } else if (addLibraryMember(publicationMembers,file) || file.filename==="thumbnail.png" && !file.directory || file.filename==="library/" && file.directory) {
         continue;
-      } else if (file.filename === "versions/" && file.directory) {
+      } else if (file.directory && /^(?:versions|branches(?:\/[A-Za-z0-9_-]{1,64}(?:\/versions)?)?)\/$/.test(file.filename)) {
         continue;
-      } else if (/^versions\/[^/]+\.json$/.test(file.filename) && !file.directory) {
-        if (versionMembers.has(file.filename)) fail("duplicate version member");
-        versionMembers.set(file.filename, file);
+      } else if (/^(?:versions\/[^/]+|branches\/(?:index|[A-Za-z0-9_-]{1,64}\/(?:head|base|versions\/[^/]+)))\.json$/.test(file.filename) && !file.directory) {
+        if (historyMembers.has(file.filename)) fail("duplicate history member");
+        historyMembers.set(file.filename, file);
       } else if (file.filename === "images/" && file.directory) {
         continue;
       } else if (file.filename.startsWith("images/")) {
@@ -485,7 +550,7 @@ async function readArchive(bytes: Uint8Array | Blob): Promise<DecodedFigcraft> {
           if (members.has(key)) fail("duplicate image member");
           members.set(key, file);
         }
-      } else fail("archives with branches or other unsupported members cannot be opened yet");
+      } else fail("archives with unsupported members cannot be opened yet");
     }
     if (!documentFile) fail("archive has no document.json");
     const archiveBytes = bytes instanceof Blob ? bytes.size : bytes.byteLength;
@@ -526,7 +591,8 @@ async function readArchive(bytes: Uint8Array | Blob): Promise<DecodedFigcraft> {
     }
     const budget = { remaining };
     const source = bytes instanceof Blob ? bytes : undefined;
-    const versions = await readVersions(versionMembers, images, budget, source, report);
+    const versions = await readVersions(historyMembers, images, budget, source, report);
+    const branches = await readBranches(historyMembers, images, budget, source, report);
     let published:PublishedLibrary | undefined;
     try {
       published=await readPublished(publicationMembers,images,members,budget.remaining,source);
@@ -534,13 +600,18 @@ async function readArchive(bytes: Uint8Array | Blob): Promise<DecodedFigcraft> {
       report("the published library was skipped: "+(error instanceof Error ? error.message : "invalid library"));
     }
     if (issueCount > issues.length) issues.push(`${issueCount - issues.length} more images couldn't be loaded`);
-    if (hasImageIndex) for (const version of versions) {
+    if (hasImageIndex) for (const branch of branches) {
+      for (const part of [branch.base, branch.head]) for (const hash of Object.keys(part.document.images ?? {})) {
+        if (!listed.has(hash)) delete images[hash];
+      }
+    }
+    if (hasImageIndex) for (const version of [...versions, ...branches.flatMap(branch => branch.versions)]) {
       if ("images" in version.snapshot) for (const hash of Object.keys(version.snapshot.images)) {
         if (!listed.has(hash)) delete images[hash];
       }
     }
     const document = Object.keys(images).length || published ? Object.freeze({ ...decoded.document, ...(published && {published}), ...(Object.keys(images).length && {images:Object.freeze(images)}) }) : decoded.document;
-    return { ...decoded, document, ...(versions.length && { versions: Object.freeze(versions) }), ...(issues.length ? { issues: Object.freeze(issues) } : {}) };
+    return { ...decoded, document, ...(branches.length && { branches: Object.freeze(branches) }), ...(versions.length && { versions: Object.freeze(versions) }), ...(issues.length ? { issues: Object.freeze(issues) } : {}) };
   } finally {
     await reader.close();
   }
@@ -623,7 +694,7 @@ export async function prepareArchive(document: Document, nextId?: string) {
   return {json, keys, resources};
 }
 
-export async function encodeFigcraftBlob(document: Document, nextId?: string, versions: readonly FileVersion[] = [], thumbnail?: Blob): Promise<Blob> {
+export async function encodeFigcraftBlob(document: Document, nextId?: string, versions: readonly FileVersion[] = [], thumbnail?: Blob, branches: readonly FileBranch[] = []): Promise<Blob> {
   const {json, keys, resources} = await prepareArchive(document, nextId);
   const writer = new ZipWriter(new BlobWriter("application/octet-stream"), {useWebWorkers: false, extendedTimestamp: false});
   // A very compressible document above the 512 MiB floor could exceed the native 16:1 read budget.
@@ -632,32 +703,54 @@ export async function encodeFigcraftBlob(document: Document, nextId?: string, ve
   const allImages: Record<string, ImageResource> = Object.assign(Object.create(null), resources);
   let total = keys.reduce((n, key) => n + resources[key].bytes.size, json.size + (thumbnail?.size ?? 0));
   if (total > MAX_UNPACKED_BYTES) fail("archive exceeds the browser byte budget");
-  if (versions.length) {
-    if (versions.length > versionLimit) fail("version history exceeds 100 snapshots");
+  async function writeSnapshot(path: string, stored: { json: Blob; resources: Readonly<Record<string, ImageResource>> }, budget: { remaining: number }) {
+    budget.remaining -= stored.json.size;
+    total += stored.json.size;
+    if (stored.json.size > MAX_ARCHIVE_MEMBER || budget.remaining < 0) fail("history snapshots exceed the native byte budget");
+    const images = Object.keys(stored.resources).sort();
+    for (const key of images) if (!Object.hasOwn(allImages, key)) {
+      allImages[key] = stored.resources[key]; total += allImages[key].bytes.size;
+    }
+    if (total > MAX_UNPACKED_BYTES) fail("file history exceeds the archive budget");
+    await writer.add(path, new BlobReader(stored.json), { level: 3 });
+    return images;
+  }
+  async function writeIndex(path: string, entries: object) {
+    const metadata = new Blob([stringify(entries)!]);
+    total += metadata.size;
+    if (metadata.size > versionIndexLimit || total > MAX_UNPACKED_BYTES) fail("history index exceeds the archive budget");
+    await writer.add(path, new BlobReader(metadata), { level: 3 });
+  }
+  async function writeVersions(directory: string, records: readonly FileVersion[], budget: { remaining: number }) {
+    if (!records.length) return;
+    if (records.length > versionLimit) fail("version history exceeds 100 snapshots");
     const index = [], ids = new Set<string>();
-    let versionBytes = 0;
-    for (const version of versions) {
+    for (const version of records) {
       if (!validVersionId(version.id) || ids.has(version.id)) fail("invalid or duplicate version id");
       ids.add(version.id);
       const snapshot = version.snapshot;
       const stored = "json" in snapshot ? { json: snapshot.json, resources: snapshot.images }
         : await prepareArchive(snapshot.document, snapshot.nextId);
-      versionBytes += stored.json.size;
-      total += stored.json.size;
-      if (stored.json.size > MAX_ARCHIVE_MEMBER || versionBytes > versionByteLimit) fail("version snapshots exceed the native byte budget");
-      const images = Object.keys(stored.resources).sort();
-      for (const key of images) if (!Object.hasOwn(allImages, key)) {
-        allImages[key] = stored.resources[key]; total += allImages[key].bytes.size;
-      }
-      if (total > MAX_UNPACKED_BYTES) fail("version history exceeds the archive budget");
-      await writer.add("versions/" + version.id + ".json", new BlobReader(stored.json), { level: 3 });
+      const images = await writeSnapshot(directory + "/" + version.id + ".json", stored, budget);
       index.push({ id: version.id, name: version.name, description: version.description, time: wireId(version.time),
         ...(version.auto && { auto: true }), images });
     }
-    const metadata = new Blob([stringify({ versions: index })!]);
-    total += metadata.size;
-    if (metadata.size > versionIndexLimit || total > MAX_UNPACKED_BYTES) fail("version index exceeds the archive budget");
-    await writer.add("versions/index.json", new BlobReader(metadata), { level: 3 });
+    await writeIndex(directory + "/index.json", { versions: index });
+  }
+  await writeVersions("versions", versions, { remaining: versionByteLimit });
+  if (branches.length) {
+    if (branches.length > 100) fail("file exceeds 100 branches");
+    const index = [], ids = new Set<string>(), budget = { remaining: versionByteLimit };
+    for (const branch of branches) {
+      if (!validVersionId(branch.id) || ids.has(branch.id)) fail("invalid or duplicate branch id");
+      ids.add(branch.id);
+      const directory = "branches/" + branch.id;
+      const baseImages = await writeSnapshot(directory + "/base.json", await prepareArchive(branch.base.document, branch.base.nextId), budget);
+      const headImages = await writeSnapshot(directory + "/head.json", await prepareArchive(branch.head.document, branch.head.nextId), budget);
+      await writeVersions(directory + "/versions", branch.versions, budget);
+      index.push({ id: branch.id, name: branch.name, time: wireId(branch.time), client: branch.client, state: branch.state, baseImages, headImages });
+    }
+    await writeIndex("branches/index.json", { branches: index });
   }
   for (const [key, resource] of Object.entries(allImages)) {
     await writer.add("images/" + key, new BlobReader(resource.bytes), { level: 0 });
@@ -678,6 +771,6 @@ export async function encodeFigcraftBlob(document: Document, nextId?: string, ve
   return writer.close();
 }
 
-export async function encodeFigcraft(document: Document, nextId?: string, versions?: readonly FileVersion[]): Promise<Uint8Array<ArrayBuffer>> {
-  return new Uint8Array(await (await encodeFigcraftBlob(document, nextId, versions)).arrayBuffer());
+export async function encodeFigcraft(document: Document, nextId?: string, versions?: readonly FileVersion[], branches?: readonly FileBranch[]): Promise<Uint8Array<ArrayBuffer>> {
+  return new Uint8Array(await (await encodeFigcraftBlob(document, nextId, versions, undefined, branches)).arrayBuffer());
 }
