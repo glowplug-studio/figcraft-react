@@ -116,12 +116,15 @@ function readNode(key: string, value: unknown): DocumentNode {
   if (kind !== "page" && kind !== "group" && kind !== "booleanOp" && !isFrameLikeKind(kind) && !isLeafKind(kind)) fail(`node type ${String(kind)} is not supported yet`);
   const componentFields = kind === "component" ? ["description", "props", "prop_order"]
     : kind === "componentSet" ? ["description"] : kind === "instance" ? ["component", "props"] : [];
-  fields(n, [...componentFields, "bound", "var_modes", "styles", "grids", "overrides", "source", "prop_refs", "exposed", "id", "name", "type", "parent", "children", "transform", "width", "height", "fills", "blend", "effects", "is_mask", "mask_type", ...(kind === "page" ? ["background", "flows", "prototype", "strokes"] : ["bool_op", "child_layout", ...(kind === "booleanOp" ? ["op"] : kind === "ellipse" ? ["start", "sweep", "inner"] : kind === "star" ? ["count", "inner_ratio"] : kind === "polygon" ? ["count"] : kind === "vector" ? ["network"] : kind === "text" ? textFields : []), "stroke", "strokes", "visible", "locked", "opacity", "corners", "constraints", "constrain_proportions", ...(isFrameLikeKind(kind) ? ["clip", "layout"] : [])])], nodeDefaults, `node ${key}`);
+  fields(n, [...componentFields, "plugin_data", "bound", "var_modes", "styles", "grids", "overrides", "source", "prop_refs", "exposed", "id", "name", "type", "parent", "children", "transform", "width", "height", "fills", "blend", "effects", "is_mask", "mask_type", ...(kind === "page" ? ["background", "flows", "prototype", "strokes"] : ["bool_op", "child_layout", ...(kind === "booleanOp" ? ["op"] : kind === "ellipse" ? ["start", "sweep", "inner"] : kind === "star" ? ["count", "inner_ratio"] : kind === "polygon" ? ["count"] : kind === "vector" ? ["network"] : kind === "text" ? textFields : []), "stroke", "strokes", "visible", "locked", "opacity", "corners", "constraints", "constrain_proportions", ...(isFrameLikeKind(kind) ? ["clip", "layout"] : [])])], nodeDefaults, `node ${key}`);
   const modes=n.var_modes===undefined ? [] : Object.entries(object(n.var_modes,"layer variable modes"));
   const variableModes=modes.length ? Object.freeze(Object.fromEntries(modes.map(([k,v])=>[k,text(v,"variable mode ID")]))) : undefined;
   const bindings=Object.entries(n.bound===undefined ? {} : object(n.bound,"layer variable bindings"));
   const boundVariables=bindings.length ? Object.freeze(Object.fromEntries(bindings.map(([k,v])=>[k,text(v,"variable ID")]))) : undefined;
-  const links = { ...(boundVariables && {boundVariables}), ...(variableModes && {variableModes}), ...readComponentLinks(n), ...readLayerStyles(n) };
+  const metadata = n.plugin_data === undefined ? {} : object(n.plugin_data, "plugin_data");
+  fields(metadata, ["figcraft.thumbnail"], {}, "plugin_data");
+  const thumbnailFlag = metadata["figcraft.thumbnail"];
+  const links = { ...(thumbnailFlag !== undefined && { thumbnailFlag: text(thumbnailFlag, "thumbnail flag") }), ...(boundVariables && {boundVariables}), ...(variableModes && {variableModes}), ...readComponentLinks(n), ...readLayerStyles(n) };
   if (n.is_mask !== undefined && typeof n.is_mask !== "boolean") fail("is_mask must be boolean");
   if (n.mask_type !== undefined && !isMaskType(n.mask_type)) fail("mask_type must be alpha, vector or luminance");
   const effects = n.effects === undefined ? undefined : nativeEffects(n.effects);
@@ -573,7 +576,7 @@ export async function decodeFigcraft(source: Uint8Array | Blob): Promise<Decoded
 function wireNode(key: string, node: DocumentNode) {
   const numericId = wireId(key);
   if (node.id !== key) fail("node map key and ID differ");
-  const common = { ...(node.boundVariables && {bound:node.boundVariables}), ...(node.variableModes && {var_modes:node.variableModes}), ...(node.styles && { styles: node.styles }), ...(node.grids?.length && { grids: node.grids }), ...wireComponentLinks(node), ...(node.effects?.length && { effects: node.effects.map(wireEffect) }), ...(node.isMask && {is_mask:true}), ...(node.maskType && node.maskType !== "alpha" && {mask_type:node.maskType}), id: numericId, name: node.name, type: node.kind, ...(node.kind === "booleanOp" ? { op: node.op } : {}), ...(node.kind === "ellipse" ? { start: node.start, sweep: node.sweep, inner: node.inner } : node.kind === "star" ? { count: node.count, inner_ratio: node.innerRatio } : node.kind === "polygon" ? { count: node.count } : node.kind === "vector" ? { network: wireVectorNetwork(node.network, wirePaints) } : node.kind === "text" ? wireTextData(node.text) : {}) };
+  const common = { ...(node.thumbnailFlag !== undefined && {plugin_data: {"figcraft.thumbnail": node.thumbnailFlag}}), ...(node.boundVariables && {bound:node.boundVariables}), ...(node.variableModes && {var_modes:node.variableModes}), ...(node.styles && { styles: node.styles }), ...(node.grids?.length && { grids: node.grids }), ...wireComponentLinks(node), ...(node.effects?.length && { effects: node.effects.map(wireEffect) }), ...(node.isMask && {is_mask:true}), ...(node.maskType && node.maskType !== "alpha" && {mask_type:node.maskType}), id: numericId, name: node.name, type: node.kind, ...(node.kind === "booleanOp" ? { op: node.op } : {}), ...(node.kind === "ellipse" ? { start: node.start, sweep: node.sweep, inner: node.inner } : node.kind === "star" ? { count: node.count, inner_ratio: node.innerRatio } : node.kind === "polygon" ? { count: node.count } : node.kind === "vector" ? { network: wireVectorNetwork(node.network, wirePaints) } : node.kind === "text" ? wireTextData(node.text) : {}) };
   if (node.kind === "page") {
     return { ...common, ...(node.fills?.length && {fills:wirePaints(node.fills)}), ...(node.strokes?.length && {strokes:wirePaints(node.strokes)}), width: 0, height: 0, children: node.children.map(wireId), background: pageColour(node), ...(node.prototypeBackground && { prototype: { device: "None", rotation: "portrait", background: node.prototypeBackground } }) };
   } else {
@@ -620,13 +623,15 @@ export async function prepareArchive(document: Document, nextId?: string) {
   return {json, keys, resources};
 }
 
-export async function encodeFigcraftBlob(document: Document, nextId?: string, versions: readonly FileVersion[] = []): Promise<Blob> {
+export async function encodeFigcraftBlob(document: Document, nextId?: string, versions: readonly FileVersion[] = [], thumbnail?: Blob): Promise<Blob> {
   const {json, keys, resources} = await prepareArchive(document, nextId);
   const writer = new ZipWriter(new BlobWriter("application/octet-stream"), {useWebWorkers: false, extendedTimestamp: false});
   // A very compressible document above the 512 MiB floor could exceed the native 16:1 read budget.
   await writer.add("document.json", new BlobReader(json), {level: json.size > MAX_ARCHIVE_MEMBER ? 0 : 3});
+  if (thumbnail) await writer.add("thumbnail.png", new BlobReader(thumbnail), { level: 0 });
   const allImages: Record<string, ImageResource> = Object.assign(Object.create(null), resources);
-  let total = keys.reduce((n, key) => n + resources[key].bytes.size, json.size);
+  let total = keys.reduce((n, key) => n + resources[key].bytes.size, json.size + (thumbnail?.size ?? 0));
+  if (total > MAX_UNPACKED_BYTES) fail("archive exceeds the browser byte budget");
   if (versions.length) {
     if (versions.length > versionLimit) fail("version history exceeds 100 snapshots");
     const index = [], ids = new Set<string>();

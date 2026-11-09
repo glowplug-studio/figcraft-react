@@ -495,7 +495,9 @@ export function DocumentEditor({ identity, capabilities, engine: suppliedEngine,
           }}>Hide when publishing</button>
         </details>
         <ViewMenu engine={engine} editable={editable && !busy} dispatch={dispatch} />
-        <details><summary>Object</summary><button disabled={!canCrop || busy} type="button" onClick={e=>{
+        <details><summary>Object</summary><button type="button" disabled={!editable || busy || !selected || !isFrameLike(selected)}
+          onClick={event => { event.currentTarget.closest("details")?.removeAttribute("open"); dispatch("object.setThumbnail"); }}>Set as thumbnail</button>
+          <button disabled={!canCrop || busy} type="button" onClick={e=>{
           e.currentTarget.closest("details")?.removeAttribute("open");dispatch("image.crop");canvas.current?.focus();
         }}>Crop image</button></details>
         <button disabled={!editable || busy} onClick={() => fileInput.current?.click()}>Open</button>

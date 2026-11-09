@@ -39,6 +39,7 @@ export function withMaskProperties<T extends MaskProperties>(node:T, isMask = no
   return Object.freeze({...rest,...(isMask && {isMask:true}),...(maskType !== "alpha" && {maskType})}) as T;
 }
 export interface PageNode extends MaskProperties, ComponentLinks, LayerStyles, LayerVariableModes {
+  readonly thumbnailFlag?: string;
   readonly fills?: readonly Paint[];
   readonly strokes?: readonly Paint[];
   readonly effects?: readonly Effect[];
@@ -57,6 +58,7 @@ export interface Constraints {
 }
 export const defaultConstraints: Constraints = Object.freeze({ horizontal: "left", vertical: "top" });
 export interface LayerProperties extends MaskProperties, ComponentLinks, LayerStyles, LayerVariableModes {
+  readonly thumbnailFlag?: string;
   readonly childLayout?: ChildLayout;
   readonly sizing?: LayerSizing;
   readonly effects?: readonly Effect[];

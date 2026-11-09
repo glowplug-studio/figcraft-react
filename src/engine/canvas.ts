@@ -21,14 +21,14 @@ import { CornerInteraction } from "./corner-handles";
 import { tracePath, type PathCommand } from "./corners";
 import { shapePath, hasShapePath } from "./shape-path";
 import { canvasAccent } from "./canvas-colours";
-import { pageOf, pageColour, rectanglePaints, rectangleTransform, type Document, type LayerNode } from "./document";
+import { pageOf, pageColour, rectanglePaints, rectangleTransform, type Document, type LayerNode, type PageNode } from "./document";
 import { convertColourPixels } from "./colour-spaces";
 import { renderColour } from "./colour";
 import { EditorEngine } from "./editor";
 import { type Point, type Rectangle } from "./geometry";
 import { multiply, transformBounds, transformPoint, type Affine } from "./affine";
-import { worldTransform } from "./hierarchy";
-import { pageToScreen, screenToPage, scrollView, viewOrigin, zoomAt, type Viewport } from "./viewport";
+import { pageForNode, worldTransform } from "./hierarchy";
+import { boundsOf, pageToScreen, screenToPage, scrollView, viewOrigin, zoomAt, type Viewport } from "./viewport";
 import { SmartHandles } from "./smart-handles";
 import { MoveInteraction } from "./move-interaction";
 import { TransformInteraction } from "./transform-interaction";
@@ -430,49 +430,90 @@ function* drawChildren(context: CanvasRenderingContext2D, document: Document, ch
   }
 }
 
-/** Paint an isolated asset on transparency using the same image, font and colour pipeline as the editor. */
-export async function renderAssetThumbnail(canvas: HTMLCanvasElement, doc: Document, id: string, pixels: number, signal: AbortSignal) {
-  const node = doc.nodes[id];
-  if (!node || node.kind === "page") return;
+/** File previews include the page colour. Asset previews use the same paint pipeline on transparency. */
+async function thumbnailPixels(canvas: HTMLCanvasElement, doc: Document, bound: Rectangle, scale: number,
+  solo: string | undefined, signal?: AbortSignal, rounding = 0, background?: PageNode) {
   if (!documentTextReady(doc)) await prepareDocumentText(doc);
-  if (signal.aborted) return;
-  const scratch = canvas.ownerDocument.createElement("canvas");
-  const ctx = scratch.getContext("2d")!;
-  const parent = worldTransform(doc,node.parent);
-  const bound = worldRenderBounds(doc,id);
-  if (!bound || !bound.width || !bound.height) return;
-  const scale = Math.min(2,pixels / Math.max(bound.width,bound.height));
-  scratch.width = Math.max(1,Math.ceil(scale*bound.width-1e-6));
-  scratch.height = Math.max(1,Math.ceil(scale*bound.height-1e-6));
-  ctx.scale(scale,scale);
-  ctx.translate(-bound.x,-bound.y);
-  ctx.transform(...parent);
+  if (signal?.aborted) return false;
+  canvas.width = Math.max(1, Math.ceil(scale * bound.width - rounding));
+  canvas.height = Math.max(1, Math.ceil(scale * bound.height - rounding));
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return false;
+  if (background) {
+    ctx.fillStyle = background.backgroundColor ? renderColour(pageColour(background)) : background.background;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+  }
+  ctx.scale(scale, scale);
+  ctx.translate(-bound.x, -bound.y);
   beginGlassFrame();
-  const steps = drawLayer(ctx,doc,node,0,0,scale);
+  let steps: PaintSteps;
+  if (solo) {
+    const node = doc.nodes[solo];
+    if (!node || node.kind === "page") return false;
+    ctx.transform(...worldTransform(doc, node.parent));
+    steps = drawLayer(ctx, doc, node, 0, 0, scale);
+  } else {
+    const page = doc.nodes[doc.pages[0]];
+    if (page.kind !== "page") return false;
+    steps = drawChildren(ctx, doc, page.children, 0, 0, scale);
+  }
   const images = new CanvasImages();
   try {
-    if (doc.images) images.begin(doc.images,()=>{},doc.colourProfile);
+    if (doc.images) images.begin(doc.images, () => {}, doc.colourProfile);
     for (const args of steps) {
       let wait = images.paint(...args);
       while (wait) {
         await wait;
-        if (signal.aborted) return;
+        if (signal?.aborted) return false;
         wait = images.paint(...args);
       }
     }
     if (doc.colourProfile === "displayP3") {
-      const pixels = ctx.getImageData(0,0,scratch.width,scratch.height);
-      convertColourPixels(pixels.data,"displayP3","srgb");
-      ctx.putImageData(pixels,0,0);
+      const pixels = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      convertColourPixels(pixels.data, "displayP3", "srgb");
+      ctx.putImageData(pixels, 0, 0);
     }
+    return true;
+  } finally { steps.return(); images.clear(); }
+}
+
+export async function renderAssetThumbnail(canvas: HTMLCanvasElement, doc: Document, id: string, pixels: number, signal: AbortSignal) {
+  const bound = worldRenderBounds(doc, id);
+  if (!bound || !bound.width || !bound.height) return;
+  const scratch = canvas.ownerDocument.createElement("canvas");
+  try {
+    const scale = Math.min(2, pixels / Math.max(bound.width, bound.height));
+    if (!await thumbnailPixels(scratch, doc, bound, scale, id, signal, 1e-6) || signal.aborted) return;
     canvas.width = scratch.width;
     canvas.height = scratch.height;
-    canvas.getContext("2d")?.drawImage(scratch,0,0);
-  } finally {
-    steps.return();
-    images.clear();
-    scratch.width = scratch.height = 0;
+    canvas.getContext("2d")?.drawImage(scratch, 0, 0);
+  } finally { scratch.width = scratch.height = 0; }
+}
+
+export async function renderFileThumbnail(doc: Document): Promise<Blob | undefined> {
+  let solo: string | undefined, bound: Rectangle | undefined;
+  let pageId = doc.pages[0];
+  // Native IDs are ordered numerically, including IDs above the JavaScript array-index range.
+  const chosen = Object.values(doc.nodes).filter(n => n.thumbnailFlag === "true" && isFrameLike(n))
+    .sort((a, b) => a.id.length - b.id.length || (a.id < b.id ? -1 : 1));
+  for (const node of chosen) {
+    const page = pageForNode(doc, node.id);
+    if (!page || !doc.pages.includes(page)) continue;
+    const candidate = worldRenderBounds(doc, node.id);
+    if (candidate && candidate.width > 0 && candidate.height > 0 && Object.values(candidate).every(Number.isFinite)) {
+      solo = node.id; bound = candidate; pageId = page; break;
+    }
   }
+  const first = doc.nodes[doc.pages[0]];
+  bound ??= first?.kind === "page" ? boundsOf(doc, first.children) : undefined;
+  if (!bound || !Object.values(bound).every(Number.isFinite)) return;
+  const scratch = globalThis.document.createElement("canvas");
+  try {
+    const scale = Math.min(2, 400 / Math.max(1, bound.width, bound.height));
+    const background = doc.nodes[pageId];
+    if (background?.kind !== "page" || !await thumbnailPixels(scratch, doc, bound, scale, solo, undefined, 0, background)) return;
+    return await new Promise<Blob | undefined>(resolve => scratch.toBlob(blob => resolve(blob ?? undefined), "image/png"));
+  } finally { scratch.width = scratch.height = 0; }
 }
 
 /** Owns transient gesture state and a demand-driven render loop, outside React. */

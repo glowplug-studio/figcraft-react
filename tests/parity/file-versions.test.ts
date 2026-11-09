@@ -135,3 +135,17 @@ it("duplicates a version in an independent clean tab and refuses completions aft
   expect(engine.getSnapshot().previewVersionId).toBeUndefined();
   expect(() => engine.execute("version.list")).toThrow();
 });
+
+it("retains native thumbnail flags, replaces the previous choice and undoes the change", async () => {
+  const data = readFileSync(new URL("../fixtures/file-thumbnail-scene.json", import.meta.url));
+  const engine = new EditorEngine();
+  await engine.openFile(new File([data], "Thumbnail.json"));
+  engine.execute("object.setThumbnail", { id: 2 });
+  engine.execute("object.setThumbnail", { id: 3 });
+  expect(engine.getSnapshot().document.nodes["2"].thumbnailFlag).toBeUndefined();
+  expect(engine.getSnapshot().document.nodes["3"].thumbnailFlag).toBe("true");
+  engine.execute("edit.undo");
+  const reopened = await decodeFigcraft(await engine.nativeSnapshot());
+  expect(reopened.document.nodes["2"].thumbnailFlag).toBe("true");
+  expect(reopened.document.nodes["3"].thumbnailFlag).toBeUndefined();
+});

@@ -74,7 +74,7 @@ import { boundsOf, defaultViewport, executeView, fitPage, fitView, viewSpecs, ty
 import { framePresets } from "./frame-presets";
 import { parseColourProfile } from "./colour-spaces";
 import { setDocumentProfile } from "./document-profile";
-import { inspectedId, parseBoolean, parseNumber, parseString } from "./parameters";
+import { inspectedId, parseBoolean, parseNodeId, parseNumber, parseString } from "./parameters";
 import { arrangeSpecs, executeArrange } from "./arrange";
 import { anchors, sizingSpecs, executeSizing } from "./sizing";
 import { executeRotation, localOrigin, movedOrigin, originBoxPoints, originSpecs, rotationSpecs, sameIds, snappedOrigin, validateChangedGeometry, type OriginSnapshot, type RotationOrigin } from "./rotation";
@@ -202,6 +202,7 @@ export const commandSpecs = Object.freeze({
   "file.import": { label: "Import", undo: true },
   "file.placeImage": { label: "Place image", undo: true },
   "file.saveVersion": { label: "Save to version history", undo: false },
+  "object.setThumbnail": { label: "Set as thumbnail", undo: true },
   "file.versionHistory": { label: "Show version history", undo: false },
   "version.list": { label: "List versions", undo: false },
   "version.autosave": { label: "Autosave version", undo: false },
@@ -1198,6 +1199,18 @@ export class EditorEngine {
       this.#publish({});
       return result;
     }
+    if (command === "object.setThumbnail") {
+      const before = this.#snapshot, id = Array.isArray(p.ids) ? parseNodeId(p.ids[0]) : parseNodeId(p.id) ?? before.selection[0];
+      if (id === undefined || !before.document.nodes[id]) throw new Error("Select a frame");
+      const nodes = { ...before.document.nodes };
+      for (const node of Object.values(nodes)) if (node.thumbnailFlag !== undefined) {
+        const { thumbnailFlag, ...rest } = node;
+        nodes[node.id] = Object.freeze(rest);
+      }
+      nodes[id] = Object.freeze({ ...nodes[id], thumbnailFlag: "true" });
+      this.#commitEdit({ document: Object.freeze({ ...before.document, nodes: Object.freeze(nodes) }) });
+      return { ok: true };
+    }
     if (command === "file.rename") {
       const name = parseString(p.name);
       if (name === undefined) throw new Error("file.rename requires a name");
@@ -1580,7 +1593,9 @@ export class EditorEngine {
     const {document,nextId} = live ? this.#prepareEdit(live.document,live.nextId) : {document:this.#snapshot.document,nextId:this.#nextId};
     const revision = ++this.#saveSequence, opening = this.#openSequence;
     const versions = this.#history.records;
-    const archive = await encodeFigcraftBlob(document, String(nextId), versions);
+    const thumbnail = typeof globalThis.document === "undefined" ? undefined :
+      await (await import("./canvas")).renderFileThumbnail(document);
+    const archive = await encodeFigcraftBlob(document, String(nextId), versions, thumbnail);
     const data = await output(archive);
     if (!this.#snapshot.editable || opening !== this.#openSequence) throw new Error("Save was cancelled because the document or identity changed");
     this.#pendingSaves.set(revision, { document, versions });

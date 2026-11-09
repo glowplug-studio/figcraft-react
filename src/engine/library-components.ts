@@ -46,7 +46,7 @@ function localiseComponent(source:Document,node:LayerNode,ids:IdMap):LayerNode {
 
 function localiseNode(source:Document,node:LayerNode,parent:string,ids:IdMap,styles:IdMap,variables:IdMap,collections:IdMap):LayerNode {
   const main=localiseComponent(source,node,ids);
-  const {boundVariables,variableModes,source:mirror,styles:links,...base}=main;
+  const {boundVariables,variableModes,source:mirror,styles:links,thumbnailFlag: _thumbnailFlag,...base}=main;
   const bound=Object.fromEntries(Object.entries(boundVariables ?? {}).flatMap(([key,remote])=>variables.has(remote) ? [[key,variables.get(remote)!]] : []));
   const modes=Object.fromEntries(Object.entries(variableModes ?? {}).flatMap(([key,mode])=>collections.has(key) ? [[collections.get(key)!,mode]] : []));
   const refs=links && Object.fromEntries(Object.entries(links).map(([slot,key])=>[slot,key && styles.get(key) || null])) as StyleRefs|undefined;

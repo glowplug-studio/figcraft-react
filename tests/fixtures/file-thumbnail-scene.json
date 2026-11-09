@@ -1,0 +1,163 @@
+{
+  "comments": [],
+  "current_page": 1,
+  "document_colors": [],
+  "format": "figcraft",
+  "imageIndex": [],
+  "name": "Thumbnail frames",
+  "next_id": 6,
+  "nodes": {
+    "1": {
+      "background": {
+        "a": 1.0,
+        "b": 0.9607843160629272,
+        "g": 0.9607843160629272,
+        "r": 0.9607843160629272
+      },
+      "flows": [],
+      "height": 0.0,
+      "id": 1,
+      "name": "Page 1",
+      "prototype": {
+        "background": {
+          "a": 1.0,
+          "b": 0.11764705926179886,
+          "g": 0.11764705926179886,
+          "r": 0.11764705926179886
+        },
+        "device": "None",
+        "rotation": "portrait"
+      },
+      "type": "page",
+      "width": 0.0,
+      "children": [
+        2,
+        3,
+        5
+      ]
+    },
+    "2": {
+      "id": 2,
+      "type": "frame",
+      "name": "Cover",
+      "parent": 1,
+      "children": [
+        4
+      ],
+      "width": 100,
+      "height": 100,
+      "transform": [
+        1,
+        0,
+        0,
+        1,
+        0,
+        600
+      ],
+      "fills": [
+        {
+          "type": "solid",
+          "color": {
+            "r": 1,
+            "g": 0,
+            "b": 0,
+            "a": 1
+          }
+        }
+      ]
+    },
+    "3": {
+      "id": 3,
+      "type": "frame",
+      "name": "Wide",
+      "parent": 1,
+      "children": [],
+      "width": 600,
+      "height": 100,
+      "transform": [
+        1,
+        0,
+        0,
+        1,
+        700,
+        600
+      ],
+      "fills": [
+        {
+          "type": "solid",
+          "color": {
+            "r": 0,
+            "g": 0,
+            "b": 1,
+            "a": 1
+          }
+        }
+      ]
+    },
+    "4": {
+      "id": 4,
+      "type": "rectangle",
+      "name": "Child",
+      "parent": 2,
+      "children": [],
+      "width": 20,
+      "height": 20,
+      "transform": [
+        1,
+        0,
+        0,
+        1,
+        20,
+        20
+      ],
+      "fills": [
+        {
+          "type": "solid",
+          "color": {
+            "r": 0,
+            "g": 1,
+            "b": 0,
+            "a": 1
+          }
+        }
+      ]
+    },
+    "5": {
+      "id": 5,
+      "type": "rectangle",
+      "name": "Overlap",
+      "parent": 1,
+      "children": [],
+      "width": 100,
+      "height": 100,
+      "transform": [
+        1,
+        0,
+        0,
+        1,
+        0,
+        600
+      ],
+      "fills": [
+        {
+          "type": "solid",
+          "color": {
+            "r": 0,
+            "g": 0,
+            "b": 1,
+            "a": 1
+          }
+        }
+      ]
+    }
+  },
+  "pages": [
+    1
+  ],
+  "styles": [],
+  "variables": {
+    "collections": [],
+    "variables": []
+  },
+  "version": 1
+}

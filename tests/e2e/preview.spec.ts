@@ -6646,3 +6646,38 @@ test("three 10,000-layer tabs reuse their drawings and mount one canvas during r
   expect(afterSwitch - openHeap).toBeLessThan(8 * 1024 * 1024);
   expect(afterClose).toBeLessThan(openHeap);
 });
+
+test("native file thumbnails fit the first page or isolate the selected cover frame", async ({ page }) => {
+  await login(page);
+  await page.getByLabel("Open Figcraft file", { exact: true }).setInputFiles(new URL("../fixtures/file-thumbnail-scene.json", import.meta.url).pathname);
+  await expect(page.getByRole("heading", { name: "Thumbnail frames", exact: true })).toBeVisible();
+  const check = async (name: string) => {
+    const pending = page.waitForEvent("download");
+    await page.getByRole("button", { name: "Save as", exact: true }).click();
+    const members = unzipSync(await readFile((await (await pending).path())!));
+    expect(members["thumbnail.png"]).toBeDefined();
+    const native = await readFile(new URL("../fixtures/file-thumbnail-" + name + ".png", import.meta.url));
+    const pixels = await page.evaluate(async ({ pngs, name }) => {
+      const result = [];
+      for (const png of pngs) {
+        const img = await createImageBitmap(new Blob([Uint8Array.from(atob(png), c => c.charCodeAt(0))], { type: "image/png" }));
+        const ctx = new OffscreenCanvas(img.width, img.height).getContext("2d")!;
+        ctx.drawImage(img, 0, 0);
+        const points = name === "cover" ? [[10, 10], [60, 60], [180, 180]] : [[10, 15], [150, 15], [310, 15]];
+        result.push({ size: [img.width, img.height], pixels: points.map(([x, y]) => [...ctx.getImageData(x, y, 1, 1).data]) });
+        img.close();
+      }
+      return result;
+    }, { pngs: [native.toString("base64"), Buffer.from(members["thumbnail.png"]).toString("base64")], name });
+    expect(pixels[1]).toEqual(pixels[0]);
+    return JSON.parse(strFromU8(members["document.json"]));
+  };
+  await check("page");
+  await page.getByRole("list", { name: "Page layers", exact: true }).getByRole("button", { name: "Cover", exact: true }).click();
+  await page.locator(".figcraft-document-bar").getByText("Object", { exact: true }).click();
+  await page.getByRole("button", { name: "Set as thumbnail" }).click();
+  const chosen = await check("cover");
+  expect(chosen.nodes[2].plugin_data).toEqual({ "figcraft.thumbnail": "true" });
+  await page.getByRole("button", { name: "Undo", exact: true }).click();
+  await check("page");
+});
