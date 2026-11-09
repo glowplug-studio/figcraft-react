@@ -1,3 +1,5 @@
+import { editVariableMetadata, metadataSpecs } from "./variable-metadata";
+import { editVariableValue, valueSpecs } from "./variable-values";
 import { collectionSpecs, editCollection } from "./variable-collections";
 import { emptyVariables, type Variables } from "./variables";
 import { editLayoutGuides, gridSpecs } from "./layout-guides";
@@ -103,6 +105,8 @@ export const commandSpecs = Object.freeze({
   ...styleOrderSpecs,
   ...styleEditSpecs,
   ...collectionSpecs,
+  ...valueSpecs,
+  ...metadataSpecs,
   ...gridSpecs,
   "style.apply": {label:"Apply style",undo:true},
   "style.detach": {label:"Detach style",undo:true},
@@ -1123,10 +1127,14 @@ export class EditorEngine {
       else if (document !== before) this.#commitEdit({document});
       return result;
     }
-    if (Object.hasOwn(collectionSpecs,command)) {
+    if (Object.hasOwn(collectionSpecs,command) || Object.hasOwn(valueSpecs,command) || Object.hasOwn(metadataSpecs,command)) {
       const before=this.#snapshot.document, data=before.variables ?? emptyVariables;
-      const next=editCollection(data,command,p);
-      if (next.data!==data) this.#commitEdit({document:Object.freeze({...before,variables:next.data})});
+      const next=Object.hasOwn(collectionSpecs,command) ? editCollection(data,command,p) :
+        Object.hasOwn(metadataSpecs,command) ? editVariableMetadata(data,command,p) : editVariableValue(data,command,p);
+      if (next.data!==data) {
+        const {variables:old,...rest}=before;
+        this.#commitEdit({document:Object.freeze({...rest,...(next.data!==emptyVariables && {variables:next.data})})});
+      }
       return next.result;
     }
     if (command === "variable.list") {

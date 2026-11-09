@@ -1,20 +1,6 @@
 import { useRef, useState } from "react";
-import { toCssHex } from "./engine/colour";
-import { emptyVariables, ownVariableValue, resolveVariable, variableIndex, type Variables, type VariableValue } from "./engine/variables";
-
-function display(value:VariableValue|undefined, name:(id:string)=>string):string {
-  if (!value) return "—";
-  switch (value.type) {
-    case "alias": return "→ "+name(value.value);
-    case "color": return toCssHex(value.value);
-    case "colorAlpha": return "α "+Math.round(value.value.opacity*100)+"% · "+name(value.value.variable);
-    case "colorMix": {
-      const operand=(op:typeof value.value.from)=>"literal" in op ? toCssHex(op.literal) : name(op.variable);
-      return operand(value.value.from)+" + "+operand(value.value.to)+" @ "+Math.round(value.value.t*100)+"%";
-    }
-    default: return String(value.value);
-  }
-}
+import { emptyVariables, type Variables, type VariableType } from "./engine/variables";
+import { VariableDetails, VariableValueCell, type VariableRun } from "./VariableValueCell";
 
 function unique(base:string,names:Set<string>) {
   if (!names.has(base)) return base;
@@ -22,11 +8,12 @@ function unique(base:string,names:Set<string>) {
   return base;
 }
 
-type Run=(command:string,p:Record<string,unknown>)=>Record<string,unknown>|undefined;
-export function VariablesPanel({data=emptyVariables,run,enabled}:{data?:Variables;run:Run;enabled:boolean}) {
+export function VariablesPanel({data=emptyVariables,run,enabled,error}:{data?:Variables;run:VariableRun;enabled:boolean;error:string}) {
   const dialog=useRef<HTMLDialogElement>(null);
   const [open,setOpen]=useState(false), [choice,setChoice]=useState<string>(), [query,setQuery]=useState("");
   const [edit,setEdit]=useState<{id:string;mode?:string;value:string}>();
+  const [editingVariable,setEditingVariable]=useState<string>();
+  const [creating,setCreating]=useState(false);
   const active=data.collections.find(c=>c.id===choice) ?? data.collections[0];
   function create() {
     const name=unique("Collection",new Set(data.collections.map(c=>c.name)));
@@ -52,16 +39,24 @@ export function VariablesPanel({data=emptyVariables,run,enabled}:{data?:Variable
       onFocus={e=>e.target.select()} onChange={e=>setEdit({...edit,value:e.target.value})}/>
     <button type="submit">Save name</button><button type="button" onClick={()=>setEdit(undefined)}>Cancel</button>
   </form>;
-  const name=(id:string)=>variableIndex(data).variables.get(id)?.name ?? id;
+  const selected=data.variables.find(v=>v.id===editingVariable && v.collection===active?.id);
+  function createVariable(type:VariableType) {
+    if (!active) return;
+    const base=type[0].toUpperCase()+type.slice(1);
+    const name=unique(base,new Set(data.variables.filter(v=>v.collection===active.id).map(v=>v.name)));
+    const made=run("variable.create",{collection:active.id,name,type});
+    if (typeof made?.id==="string") {setQuery("");setCreating(false);setEditingVariable(made.id);}
+  }
   const list=open && active ? data.variables.filter(v=>v.collection===active.id && v.name.toLowerCase().includes(query.trim().toLowerCase())) : [];
   return <fieldset disabled={!enabled}><legend>Local variables</legend>
     <button type="button" onClick={()=>{setOpen(true);dialog.current?.showModal();}}>Open variables ({data.variables.length})</button>
-    <dialog ref={dialog} aria-label="Local variables" className="figcraft-variables" onClose={()=>{setOpen(false);setEdit(undefined);}}
+    <dialog ref={dialog} aria-label="Local variables" className="figcraft-variables" onClose={()=>{setOpen(false);setEdit(undefined);setEditingVariable(undefined);setCreating(false);}}
       onKeyDown={e=>e.stopPropagation()}>
       {open && <>
         <header><h2>Local variables</h2><button type="button" aria-label="Close variables" onClick={()=>dialog.current?.close()}>Close</button></header>
+        {error && <p role="alert">{error}</p>}
         <aside aria-label="Variable collections">
-          {data.collections.map(c=><button type="button" key={c.id} aria-pressed={active===c} onClick={()=>{setChoice(c.id);setQuery("");setEdit(undefined);}}>{c.name}</button>)}
+          {data.collections.map(c=><button type="button" key={c.id} aria-pressed={active===c} onClick={()=>{setChoice(c.id);setQuery("");setEdit(undefined);setCreating(false);setEditingVariable(undefined);}}>{c.name}</button>)}
           <button type="button" onClick={create}>Create collection</button>
         </aside>
         {active && <>
@@ -72,6 +67,7 @@ export function VariablesPanel({data=emptyVariables,run,enabled}:{data?:Variable
               if (typeof made?.id==="string") {setChoice(made.id);setEdit(undefined);setQuery("");}
             }}>Extend collection</button>
             {active.extends===undefined && <button type="button" onClick={()=>addMode()}>Add mode</button>}
+            <button type="button" onClick={()=>{if(run("variable.deleteCollection",{collection:active.id})){setChoice(undefined);setEdit(undefined);setQuery("");}}}>Delete collection</button>
             {rename}
             <input type="search" aria-label="Search variables" value={query} onChange={e=>setQuery(e.target.value)}/>
           </section>
@@ -85,13 +81,18 @@ export function VariablesPanel({data=emptyVariables,run,enabled}:{data?:Variable
               <button type="button" disabled={active.modes.length===1} onClick={()=>run("variable.removeMode",{collection:active.id,mode:m.id})}>Remove mode</button>
             </details>}
           </th>)}</tr></thead><tbody>
-          {list.map(v=><tr key={v.id}><th scope="row" title={v.description}>{v.name}</th>{active.modes.map(m=>{
-            const shown=resolveVariable(data,v.id,{[active.id]:m.id});
-            return <td key={m.id} title={display(shown,name)}>
-              {shown?.type==="color" && <span aria-hidden="true" className="figcraft-style-swatch" style={{background:toCssHex(shown.value)}}/>}
-              {display(ownVariableValue(v.values,m.id),name)}
-            </td>;
-          })}</tr>)}</tbody></table></div>
+          {list.map(v=><tr key={v.id}><th scope="row" title={v.description}>
+            <button type="button" aria-label={"Edit variable "+v.name} onClick={()=>setEditingVariable(v.id)}>{v.name}</button>
+            <details><summary aria-label={"Options for variable "+v.name}>⋯</summary>
+              <button type="button" onClick={()=>run("variable.duplicate",{variable:v.id})}>Duplicate variable</button>
+              <button type="button" disabled={v.extends!==undefined} onClick={()=>run("variable.delete",{variable:v.id})}>Delete variable</button>
+            </details></th>
+            {active.modes.map(m=><VariableValueCell key={m.id} v={v} mode={m} data={data} run={run}/>)}</tr>)}
+          </tbody></table></div>
+          <button type="button" aria-expanded={creating} onClick={()=>setCreating(!creating)}>Create variable</button>
+          {creating && <div role="group" aria-label="Variable type">{(["color","number","string","boolean"] as const).map(t=>
+            <button type="button" key={t} onClick={()=>createVariable(t)}>{t==="color" ? "Colour" : t[0].toUpperCase()+t.slice(1)}</button>)}</div>}
+          {selected && <VariableDetails key={selected.id} v={selected} run={run} close={()=>setEditingVariable(undefined)}/>}
           {!list.length && query && <p>No matching variables</p>}
         </>}
       </>}

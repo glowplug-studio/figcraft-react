@@ -615,7 +615,7 @@ export function Editor({ identity, capabilities, engine: suppliedEngine, recover
           <EffectsPanel engine={engine} editable={editable && !busy} dispatch={dispatch} />
           {!editingVector && <LayoutGuidesPanel key={snapshot.selection.join(",")} nodes={snapshot.selection.map(id=>snapshot.document.nodes[id])}
             engine={engine} enabled={editable && !busy} dispatch={dispatch} onError={setError}/>}
-          {!editingVector && !snapshot.selection.length && <VariablesPanel data={snapshot.document.variables} enabled={editable && !busy} run={dispatch}/>}
+          {!editingVector && !snapshot.selection.length && <VariablesPanel error={error} data={snapshot.document.variables} enabled={editable && !busy} run={dispatch}/>}
           {!editingVector && <SharedStylesPanel engine={engine} enabled={editable && !busy} run={dispatch} leave={()=>controller.current?.finishText()}/>}
         </aside>
       </div>

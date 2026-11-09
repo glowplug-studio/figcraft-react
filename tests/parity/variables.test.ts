@@ -18,7 +18,10 @@ it("round-trips native variables and expressions, including code syntax and file
   expect(JSON.parse(strFromU8(unzipSync(await e.nativeSnapshot())["document.json"])).variables).toEqual(fixture.variables);
   e.execute("file.colorProfile",{profile:"displayP3",convert:true});
   const p3=e.execute("variable.list");
-  expect(p3.variables[0].values).not.toEqual(catalogue.variables[0].values);
+  const converted=p3.variables[0].values[cid+"/mode1"];
+  expect(converted.type==="color" && converted.value.r).toBeCloseTo(0.7046054005622864,6);
+  const expression=p3.variables[2].values[cid+"/mode2"];
+  expect(expression.type==="colorMix" && "literal" in expression.value.from && expression.value.from.literal.g).toBeCloseTo(0.8979002833366394,6);
   expect(p3.variables[2].values[cid+"/mode2"]).not.toEqual(catalogue.variables[2].values[cid+"/mode2"]);
   expect(p3.variables[1].values).toEqual(catalogue.variables[1].values);
   e.execute("edit.undo"); expect(e.execute("variable.list")).toEqual(catalogue);
@@ -68,4 +71,47 @@ it("propagates parent modes through two collection extensions and preserves cata
   expect(vars.collections.every(c=>c.modes.every(mode=>mode.id!==m))).toBe(true);
   for(let i=0;i<6;i++) e.execute("edit.undo");
   expect(e.getSnapshot().document).toBe(capture);
+});
+
+it("validates references across modes and preserves resolved values when an operand is deleted",async()=>{
+  const e=new EditorEngine();
+  await e.executeAsync("file.open",{data:base64Bytes(bytes)});
+  const initial=e.getSnapshot().document;
+  const create=(name:string,value:unknown)=>String(e.execute("variable.create",{collection:cid,name,type:"color",value}).id);
+  const mix=create("Signal",{mix:{from:{variable:"Accent"},to:{literal:"#ccff00"},t:.25}});
+  const direct=create("Direct",{alias:"Accent"});
+  for (const value of [{alias:mix},{mix:{from:{variable:"Signal"},to:{literal:"red"},t:.7}},
+    {alpha:{variable:"Base",opacity:1.1}},{alpha:{variable:"Spacing",opacity:.5}},{mix:{from:"Base",to:"red",t:.5}}]) {
+    const before=e.getSnapshot().document;
+    expect(()=>e.execute("variable.set",{variable:"Accent",mode:"Dark",value})).toThrow();
+    expect(e.getSnapshot().document).toBe(before);
+  }
+  const modes=[cid+"/mode1",cid+"/mode2"], before=e.execute("variable.list");
+  const wanted=modes.map(m=>[mix,direct].map(id=>resolveVariable(before,id,{[cid]:m})));
+  e.execute("variable.delete",{variable:"Accent"});
+  const after=e.execute("variable.list");
+  for (const [i,m] of modes.entries()) expect([mix,direct].map(id=>after.variables.find(v=>v.id===id)?.values[m])).toEqual(wanted[i]);
+  e.execute("edit.undo");e.execute("edit.undo");e.execute("edit.undo");
+  expect(e.getSnapshot().document).toBe(initial);
+});
+
+it("copies inherited variables, resets a single mode override and validates metadata atomically", async()=>{
+  const e=new EditorEngine();
+  await e.executeAsync("file.open",{data:base64Bytes(bytes)});
+  const c=String(e.execute("variable.extendCollection",{collection:"Theme"}).id);
+  const list=()=>e.execute("variable.list").variables;
+  const inherited=list().find(v=>v.collection===c && v.name==="Action")!;
+  e.execute("variable.set",{variable:inherited.id,mode:"Dark",value:"Stop"});
+  const copy=e.execute("variable.duplicate",{variable:inherited.id}).id;
+  expect(list().find(v=>v.id===copy)?.extends).toBeUndefined();
+  e.execute("variable.resetOverride",{variable:inherited.id,mode:"Dark"});
+  expect(list().find(v=>v.id===inherited.id)?.values[cid+"/mode2"]).toEqual({type:"string",value:"次へ"});
+  expect(list().find(v=>v.id===copy)?.values[cid+"/mode2"]).toEqual({type:"string",value:"Stop"});
+  e.execute("variable.update",{variable:copy,name:" Site / Action ",description:"Navigation",hiddenFromPublishing:true,scopes:["TEXT_CONTENT"],codeSyntax:{WEB:" --action "}});
+  expect(list().find(v=>v.id===copy)).toMatchObject({name:"Site/Action",description:"Navigation",codeSyntax:{WEB:"--action"},scopes:["TEXT_CONTENT"],hiddenFromPublishing:true});
+  const before=e.getSnapshot().document;
+  expect(()=>e.execute("variable.update",{variable:copy,name:"Edited",codeSyntax:{web:"no"}})).toThrow();
+  expect(e.getSnapshot().document).toBe(before);
+  e.execute("variable.deleteCollection",{collection:cid});
+  expect(list().find(v=>v.id===inherited.id)?.extends).toBeUndefined();
 });

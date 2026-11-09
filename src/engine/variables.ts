@@ -106,20 +106,23 @@ export function variableIndex(data:Variables) {
 }
 
 /** Each root resolution has its own 32-variable budget, including failed or in-flight references. */
-export function resolveVariable(data:Variables,id:string,modes:Readonly<Record<string,string>>={}):Readonly<Literal>|undefined {
+export function resolveVariable(data:Variables,id:string,modes:Readonly<Record<string,string>>={}, proposed?:VariableValue):Readonly<Literal>|undefined {
   const index=variableIndex(data);
   const done=new Map<string,Readonly<Literal>|undefined>();
   function read(key:string):Readonly<Literal>|undefined {
     if (done.has(key)) return done.get(key);
     if (done.size >= 32) return;
     done.set(key,undefined);
-    const v=index.variables.get(key);
-    const c=v && index.collections.get(v.collection);
-    if (!v || !c) return;
-    const chosen=ownVariableValue(modes,c.id);
-    const mode=chosen!==undefined && Object.hasOwn(v.values,chosen) ? chosen : c.modes[0]?.id;
-    if (mode===undefined) return;
-    const stored=ownVariableValue(v.values,mode) ?? v.values[Object.keys(v.values).sort(compareScalarKeys)[0]];
+    let stored=key===id ? proposed : undefined;
+    if (!stored) {
+      const v=index.variables.get(key);
+      const c=v && index.collections.get(v.collection);
+      if (!v || !c) return;
+      const chosen=ownVariableValue(modes,c.id);
+      const mode=chosen!==undefined && Object.hasOwn(v.values,chosen) ? chosen : c.modes[0]?.id;
+      if (mode===undefined) return;
+      stored=ownVariableValue(v.values,mode) ?? v.values[Object.keys(v.values).sort(compareScalarKeys)[0]];
+    }
     if (!stored) return;
     let out:Readonly<Literal>|undefined;
     if (stored.type==="alias") out=read(stored.value);
