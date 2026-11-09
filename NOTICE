@@ -221,3 +221,9 @@ Except as contained in this notice, the name of a copyright holder shall
 not be used in advertising or otherwise to promote the sale, use or other
 dealings in these Data Files or Software without prior written
 authorization of the copyright holder.
+
+The optional Thai, Lao, Khmer and Burmese line segmenter contains the Unicode
+ICU4X 2.4.0 C API, its compiled LSTM models and a Rust standard-library runtime.
+The distributed icu directory contains THIRD-PARTY-NOTICES.txt and the
+compressed RUST-LIBRARY-LICENCES.html.gz. The reproducible build links selected
+exports from the unmodified public icu_capi crate under its own Cargo.lock.

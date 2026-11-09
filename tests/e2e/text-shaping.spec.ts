@@ -2,6 +2,7 @@ import { readFile } from "node:fs/promises";
 import { expect, test } from "@playwright/test";
 import { build } from "vite";
 import flow from "../fixtures/text-flow.json" with { type:"json" };
+import wordSamples from "../fixtures/text-word-starts.json" with { type:"json" };
 import styled from "../fixtures/styled-glyphs.json" with { type:"json" };
 import selection from "../fixtures/font-selection.json" with { type:"json" };
 import cases from "../fixtures/text-shaping.json" with { type:"json" };
@@ -16,10 +17,15 @@ test("Chromium shapes pinned font bytes with the native glyph IDs, positions and
   const inputs = [...new Set([...cases.map(c=>c.file),...["Regular","Bold","Italic","SemiBold"].map(s=>"inter/Inter-"+s+".ttf")])];
   const fontFiles = new Map(await Promise.all(inputs.map(async file =>
     ["/fonts/"+file,await readFile(new URL("../../fonts/"+file,import.meta.url))] as const)));
+  let failFirstWordRequest = true;
   await page.route("https://shaper.test/**", async route => {
     const path = new URL(route.request().url()).pathname, font = fontFiles.get(path), chunk = files.get(path);
     if (path === "/") return route.fulfill({contentType:"text/html",body:"<!doctype html><title>Shaping</title>"});
     if (font) return route.fulfill({contentType:"font/ttf",body:font});
+    if (path.includes("line-segmenter") && path.endsWith(".wasm") && failFirstWordRequest) {
+      failFirstWordRequest = false;
+      return route.fulfill({status:503});
+    }
     if (!chunk) return route.fulfill({status:404});
     if (chunk.type === "chunk") return route.fulfill({contentType:"text/javascript",body:chunk.code});
     return route.fulfill({contentType:"application/wasm",body:Buffer.from(chunk.source)});
@@ -91,5 +97,33 @@ test("Chromium shapes pinned font bytes with the native glyph IDs, positions and
     };
   },{inputs,selection,styled,flow});
   expect(selected).toEqual({...selection,flow:flow.map(({width,height,lines,glyphs,truncated})=>({width,height,lines,glyphs,truncated})),styled:styled.map(({glyphs,width})=>({glyphs,width}))});
+  const plain = await page.evaluate(async () => {
+    const url = "/shaper.js";
+    const api: typeof import("../fixtures/text-shaping-browser") = await import(url);
+    return (await api.textWordStarts("日本語 and English")).length;
+  });
+  expect(plain).toBe(0);
   expect(requests.filter(path => path.endsWith(".wasm"))).toHaveLength(1);
+  await expect(page.evaluate(async () => {
+    const url = "/shaper.js";
+    const api: typeof import("../fixtures/text-shaping-browser") = await import(url);
+    await api.textWordStarts("ภาษาไทย");
+  })).rejects.toThrow("HTTP 503");
+  const wordResults = await page.evaluate(async samples => {
+    const url = "/shaper.js";
+    const api: typeof import("../fixtures/text-shaping-browser") = await import(url);
+    const library = new api.FontLibrary();
+    const bytes = await (await fetch("/fonts/inter/Inter-Regular.ttf")).arrayBuffer();
+    for (const face of await api.readFontFaces(new Uint8Array(bytes))) library.add(face);
+    return Promise.all(samples.map(async ({text,width}) => {
+      const [flags, result] = await Promise.all([
+        api.textWordStarts(text),
+        api.layoutText(api.readTextData({characters:text,auto_resize:"height"}), library, {width}),
+      ]);
+      return {length:flags.length,starts:[...flags.keys()].filter(i => flags[i]),
+        flow:{width:result.width,height:result.height,lines:result.lines.map(l => [l.start,l.end,l.width,l.baseline])}};
+    }));
+  }, wordSamples);
+  expect(wordResults).toEqual(wordSamples.map(({length,starts,flow}) => ({length,starts,flow})));
+  expect(requests.filter(path => path.includes("line-segmenter") && path.endsWith(".wasm"))).toHaveLength(2);
 });

@@ -25,6 +25,11 @@
       "browser": "./dist/icc-browser.js",
       "node": "./dist/icc-node.js",
       "default": "./dist/icc-browser.js"
+    },
+    "#figcraft-word-segmenter": {
+      "browser": "./dist/icu-browser.js",
+      "node": "./dist/icu-node.js",
+      "default": "./dist/icu-browser.js"
     }
   },
   "exports": {

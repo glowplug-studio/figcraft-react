@@ -1,3 +1,4 @@
+import { textWordStarts } from "./text-word-starts";
 import type { FontLibrary } from "./font-library";
 import type { ShapingFace } from "./shaping-face";
 import type { TextData } from "./text-data";
@@ -198,4 +199,9 @@ export function layoutTextFlow(text:TextData, fonts:FontLibrary, box:{width?:num
     if (line.x) for (let i=line.first;i<line.last;i++) glyphs[i].x+=line.x;
   }
   return {glyphs,lines,width:widest,height,truncated};
+}
+
+/** Resolve the browser word model when the document contains a complex-script run. */
+export async function layoutText(text:TextData, fonts:FontLibrary, box:{width?:number; height?:number}={}) {
+  return layoutTextFlow(text,fonts,box,await textWordStarts(text.characters));
 }

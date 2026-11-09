@@ -96,3 +96,13 @@ Read-only native layout at a4251ca8 supplied 33 complete flow fixtures, includin
 Local Graphify refreshed the React source and tests over bf84fe5 and merged the pinned Rust index. The combined graph has 30,769 nodes and 101,615 edges. Verified layoutTextFlow, TextLineBreaker, break_lines and truncate_layout. Glyph outline painting, decorations, text paths, editor integration and final publication remain open.
 
 Next connect the four complex-script word models. The pinned native browser build uses ICU4X 2.4.0 LSTM line segmentation for Thai, Lao, Khmer and Burmese. The desktop build uses the dictionary. The official all-feature ICU npm WASM is about 19 MB. An external experiment removing unused exports and optimising that existing binary still produced 16,003,334 bytes. Build or extract just the required independent ICU data and verify it against the browser-selected model. Then connect glyph ink, decorations and text layers.
+
+### Complex-script word boundaries
+
+The browser build of upstream Figcraft uses ICU4X 2.4.0 LSTM models for Thai, Lao, Khmer and Burmese. The desktop build uses dictionaries that split some compounds differently. The independent package ships the upstream ICU4X C API and model data in a 419,318-byte lazy WebAssembly asset. scripts/rebuild-word-segmenter.sh pins the source, compiler and output digest. Ordinary builds use the precompiled asset. The TypeScript wrapper marks interior scalar boundaries within the same script ranges as Figcraft, filters unsafe breaks and shares one module instance. A failed request can be retried.
+
+Verified against the actual wasm32 builds of Figcraft’s word_breaks and layout at a4251ca8. All 6,000 generated word-boundary arrays matched. Twenty-one fixtures matched both word flags and wrapped line ranges, widths, baselines and height in Node and Chromium. Chromium verified zero word-model requests for ordinary text, recovery from HTTP 503 and one shared successful load for concurrent callers. Strict types, package and Next.js production builds, 1,300 pure tests, both real local Auth tests and three focused Chromium workflows passed. Local Graphify merged the React edits over 728cc96 with the pinned upstream graph, producing 30,792 nodes and 101,662 edges.
+
+In a separate stress test using Inter Regular, 981 of 1,000 mixed-script layouts matched. The 19 mismatches reduce to glyph-cluster or advance differences for mixed scripts and uncovered marks. All 19 had the correct word boundaries. Resolve the shaping configuration against these reproductions before glyph painting and editable text layers.
+
+The complete local production Chromium run passed 208/208 in 383.8 seconds with one worker and zero failures, skips or retries.

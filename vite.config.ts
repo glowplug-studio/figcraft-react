@@ -23,7 +23,7 @@ export default defineConfig({
       formats: ["es"],
     },
     rollupOptions: {
-      external: ["#figcraft-harfbuzz", "#figcraft-icc-runtime", "paper/dist/paper-core.js", "@supabase/supabase-js", "react", "react-dom", "react/jsx-runtime"],
+      external: ["#figcraft-word-segmenter", "#figcraft-harfbuzz", "#figcraft-icc-runtime", "paper/dist/paper-core.js", "@supabase/supabase-js", "react", "react-dom", "react/jsx-runtime"],
     },
   },
 });
