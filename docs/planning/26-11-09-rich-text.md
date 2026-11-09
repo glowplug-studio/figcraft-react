@@ -74,3 +74,13 @@ The styledGlyphs iterator consumes native text data, loaded fonts and scalar bid
 Local Graphify refreshed the React index from 6a5abd2 with the styled-glyph changes and merged the pinned Rust graph. The 30,668-node, 101,318-edge graph includes native shape_segment and React styledSegment and styledGlyphs. Runtime fixtures cover the package exports and the generated browser consumer.
 
 Next port paragraph bidi resolution, visual item and justification-gap order, then line wrapping and baseline calculation. Local font discovery, glyph painting and editable browser text layers remain open.
+
+### Bidirectional paragraphs and visual order
+
+The native text crate resolves Unicode 16 levels per scalar and retains the paragraph direction at the caret after the final character. Figcraft’s RTL candidate fast path, per-paragraph overrides and raw embedding levels are observable before line reordering. styledGlyphs now resolves these levels automatically and preserves supplied levels for callers that already shaped the paragraph.
+
+The independent TypeScript implementation handles embeddings, isolates, overrides, numbers, marks, bracket pairs, visual order and justification-gap order. The two generated tables derive from the pinned Unicode 16.0.0 DerivedBidiClass.txt and BidiBrackets.txt. An exhaustive comparison uncovered 3,970 reserved or unassigned characters whose native class differed from the published block defaults. The corrected tables matched unicode-bidi 0.3.18 on all 1,112,064 scalar values. The pure regression checks the native table digest.
+
+Running the pinned Figcraft functions over the Unicode BidiCharacterTest and BidiTest inputs produced the same raw levels, paragraph directions, item order and gap order in 91,707 character cases and 770,241 class/direction cases. Another 12,000 seeded mixed-script, control and forced-paragraph cases matched. These are comparisons with Figcraft before line-end resets. Nineteen pinned fixtures also matched Chromium, including maximum embedding depth, unclosed isolates, astral letters and trailing newlines. Strict types, both builds, 1,246 pure tests, two local Auth tests and three focused Chromium workflows passed. The previous full production pass was 207/207 at 6a5abd2.
+
+Combined local Graphify at Rust a4251ca8 and React 44cb676 plus these edits has 30,729 nodes and 101,434 edges. Verified textBidi, resolveParagraph, visual_order and visual_gaps. Next connect line breaking, metrics and visual glyph placement. Editable text nodes and publication remain open.

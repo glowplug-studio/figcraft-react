@@ -384,3 +384,5 @@ Native breaks::grapheme_step and backspace_step map to TextGraphemes.step and ba
 Native FontDb::find, default_face, fallbacks_for and pick_cluster_face map to FontLibrary and fontSegments for loaded faces. Face::axis_values and variation_info map to ShapingFace.axisValues and fontVariations. Native layout supplied the per-glyph reference for mixed-script selection. [Font selection evidence](../planning/26-11-09-rich-text.md#loaded-font-selection-and-variable-instances).
 
 Native layout::shape_segment and glyph_at map to styledGlyphs and styledSegment for logical items, case mapping, glyph ranges, script synthesis, metrics and tracking. Fifteen single-line fixtures compare glyph coordinates using native baselines. Paragraph-level layout and rendering remain open. [Styled glyph evidence](../planning/26-11-09-rich-text.md#styled-glyph-positions).
+
+Native Bidi::of, visual_order and visual_gaps map to textBidi, resolveParagraph, visualOrder and visualGaps. styledGlyphs consumes automatically resolved levels. [Unicode and browser differential evidence](../planning/26-11-09-rich-text.md#bidirectional-paragraphs-and-visual-order).

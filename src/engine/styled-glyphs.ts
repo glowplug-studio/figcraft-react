@@ -1,3 +1,4 @@
+import { textBidi } from "./text-bidi";
 import type { TextData } from "./text-data";
 import { letterSpacingPx, type TextStyle } from "./text-style";
 import type { FontLibrary } from "./font-library";
@@ -90,8 +91,8 @@ function* styledSegment(chars: readonly string[], seg: FaceSegment, style: TextS
   }
 }
 
-/** Logical glyph items before line layout. Supply scalar-indexed bidi levels, or undefined for an all-LTR run. */
-export function* styledGlyphs(text: TextData, fonts: FontLibrary, levels: ArrayLike<number> | undefined) {
+/** Logical glyph items before line layout. Resolve paragraph direction automatically unless the caller supplies scalar-indexed levels. */
+export function* styledGlyphs(text: TextData, fonts: FontLibrary, levels: ArrayLike<number> | undefined = textBidi(text.characters,text.paragraphs)?.levels) {
   const chars = Array.from(text.characters), boundaries = new TextGraphemes(text.characters);
   for (const {start,end,style} of textSpans(text)) {
     const segments = fonts.segments(chars,boundaries,start,end,style.fontFamily,style.fontStyle,levels);
