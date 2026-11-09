@@ -1,4 +1,5 @@
 import { useMemo, useState, useSyncExternalStore, type RefObject } from "react";
+import { TypographySettings } from "./TypographySettings";
 import { FontFamilyPicker } from "./FontFamilyPicker";
 import { fontGeneration, subscribeFonts } from "./engine/font-generation";
 import { canSupplyTextPath } from "./engine/text-path-commands";
@@ -89,7 +90,8 @@ export function TypographyPanel({engine, editable, apply, onLeave, linkDialog, l
         <button type="submit">Apply link</button><button type="button" onClick={()=>linkDialog.current?.close()}>Cancel</button>
       </form>
     </dialog>
-    <details><summary>More typography options</summary>
+    <TypographySettings key={ids.join(",")} nodes={nodes} styles={styles} run={run} applyStyle={props=>apply(ids,props)}
+      end={()=>engine.endTextPreview()} styleParams={props=>({ids,...props,...(live && live.start!==live.end && {id:live.node.id,start:live.start,end:live.end})})}>
       <label>Load font file<input type="file" aria-label="Load font file" accept=".ttf,.otf,.ttc,.otc" onChange={event=>{
         const file=event.currentTarget.files?.[0];
         event.currentTarget.value="";
@@ -109,6 +111,6 @@ export function TypographyPanel({engine, editable, apply, onLeave, linkDialog, l
       {select("leadingTrim", "Leading trim", nodes.map(n=>n.text.leadingTrim), ["none","capHeight"])}
       {select("wrapStyle", "Text wrap", nodes.map(n=>n.text.wrapStyle), ["auto","balance","pretty"])}
       {field("maxLines", "Maximum lines", nodes.map(n=>n.text.maxLines))}
-    </details>
+    </TypographySettings>
   </fieldset>;
 }

@@ -4448,3 +4448,93 @@ test("loading a browser font file resolves a missing family and saves its refitt
   expect(node.kind).toBe("text");
   if (node.kind==="text") { expect(node.width).toBeGreaterThan(1); expect(node.width).toBeLessThan(999); }
 });
+
+test("variable font axes preview on drag, cancel, commit once and survive native download",async ({page})=>{
+  const engine=new EditorEngine(), id=String((await engine.executeAsync("text.create",{name:"Variable sample",text:"ქართული ტექსტი",x:110,y:80})).id);
+  engine.execute("node.set",{id,props:{fontFamily:"Noto Sans Georgian",fontSize:34}});
+  await login(page);
+  await page.getByLabel("Open Figcraft file",{exact:true}).setInputFiles({name:"axes.figcraft",mimeType:"application/octet-stream",buffer:Buffer.from(await encodeFigcraft(engine.getSnapshot().document))});
+  await page.getByRole("region",{name:"Layers",exact:true}).getByRole("button",{name:"Variable sample"}).click();
+  const panel=page.getByRole("group",{name:"Typography",exact:true});
+  await panel.getByText("More typography options",{exact:true}).click();
+  await panel.getByRole("button",{name:"Variable",exact:true}).click();
+  const slider=panel.getByRole("slider",{name:"Weight slider"}), field=panel.getByRole("spinbutton",{name:"Weight value"});
+  await expect(field).toHaveValue("400");
+  await slider.scrollIntoViewIfNeeded();
+  const track=(await slider.boundingBox())!;
+  const canvas=page.getByLabel("Design canvas",{exact:true});
+  const pixels=()=>canvas.evaluate(el=>(el as HTMLCanvasElement).toDataURL());
+  const before=await pixels();
+  await page.mouse.move(track.x+track.width*.4,track.y+track.height/2);await page.mouse.down();
+  await page.mouse.move(track.x+track.width*.85,track.y+track.height/2,{steps:5});
+  await expect.poll(pixels).not.toBe(before);
+  await page.keyboard.press("Escape");await page.mouse.up();
+  await expect.poll(pixels).toBe(before);await expect(field).toHaveValue("400");
+  await page.mouse.move(track.x+track.width*.4,track.y+track.height/2);await page.mouse.down();
+  await page.mouse.move(track.x+track.width*.8,track.y+track.height/2,{steps:8});await page.mouse.up();
+  await expect(panel.getByRole("button",{name:"Reset to style"})).toBeVisible();
+  await page.getByRole("button",{name:"Undo",exact:true}).click();await expect(field).toHaveValue("400");
+  await field.fill("643");await field.press("Enter");await expect(field).toHaveValue("643");
+  const instance=panel.getByRole("button",{name:"Named instance"});await expect(instance).toHaveText("Custom");
+  await instance.click();
+  await panel.getByRole("button",{name:"Bold",exact:true}).click();
+  await expect(field).toHaveValue("700");await expect(instance).toHaveText("Bold");
+  await field.fill("671");await field.press("Enter");
+  const save=page.waitForEvent("download");await page.getByRole("button",{name:"Save as",exact:true}).click();
+  const reopened=await decodeFigcraft(await readFile((await (await save).path())!));
+  expect(reopened.document.nodes[id]).toMatchObject({text:{style:{fontStyle:"Bold",variations:{wght:671}}}});
+  await panel.getByRole("button",{name:"Reset to style"}).click();
+  await expect(field).toHaveValue("700");
+});
+
+test("OpenType feature switches expose mixed selections, record overrides and clear defaults",async ({page})=>{
+  const engine=new EditorEngine();
+  const ids=[];
+  for (const [i,name] of ["First text","Second text"].entries()) ids.push(String((await engine.executeAsync("text.create",{name,text:"123/456",x:100,y:80+i*80})).id));
+  engine.execute("text.setFeatures",{id:ids[0],features:{tnum:true}});
+  await login(page);
+  await page.getByLabel("Open Figcraft file",{exact:true}).setInputFiles({name:"features.figcraft",mimeType:"application/octet-stream",buffer:Buffer.from(await encodeFigcraft(engine.getSnapshot().document))});
+  const layers=page.getByRole("region",{name:"Layers",exact:true});
+  await layers.getByRole("button",{name:"First text"}).click();
+  await layers.getByRole("button",{name:"Second text"}).click({modifiers:["Shift"]});
+  const panel=page.getByRole("group",{name:"Typography",exact:true});
+  await panel.getByText("More typography options",{exact:true}).click();
+  await expect(panel.getByRole("button",{name:"Variable",exact:true})).toHaveCount(0);
+  await panel.getByRole("button",{name:"Details",exact:true}).click();
+  const tabular=panel.getByRole("checkbox",{name:"Tabular numbers"}), liga=panel.getByRole("checkbox",{name:"Standard ligatures"});
+  await expect(tabular).toHaveAttribute("aria-checked","mixed");
+  await expect(liga).toBeChecked();await expect(liga).toHaveAttribute("title","Not in this font");
+  await tabular.click();await expect(tabular).toBeChecked();
+  await tabular.click();await expect(tabular).not.toBeChecked();
+  await liga.click();await expect(liga).not.toBeChecked();
+  const save=page.waitForEvent("download");await page.getByRole("button",{name:"Save as",exact:true}).click();
+  const reopened=await decodeFigcraft(await readFile((await (await save).path())!));
+  for (const id of ids) {
+    const node=reopened.document.nodes[id];
+    expect(node.kind==="text" && node.text.features).toEqual({liga:false});
+  }
+});
+
+test("variable axes change only the selected Unicode characters during live text editing",async ({page})=>{
+  await login(page);
+  const canvas=page.getByLabel("Design canvas",{exact:true});await canvas.focus();await page.keyboard.press("t");
+  const point=await canvasPoint(page,155,115);await page.mouse.click(point.x,point.y);
+  const input=page.getByRole("textbox",{name:"Edit text layer"});
+  await expect(input).toBeFocused();
+  await page.keyboard.insertText("ა🙂ბგ");await expect(input).toHaveValue("ა🙂ბგ");await input.press("ControlOrMeta+a");
+  const panel=page.getByRole("group",{name:"Typography",exact:true});
+  await panel.getByRole("button",{name:"Font family",exact:true}).click();
+  await page.getByRole("option",{name:"Noto Sans Georgian",exact:true}).click();
+  await input.focus();await input.evaluate((el:HTMLTextAreaElement)=>el.setSelectionRange(1,4));
+  await panel.getByText("More typography options",{exact:true}).click();
+  await panel.getByRole("button",{name:"Variable",exact:true}).click();
+  const weight=panel.getByRole("spinbutton",{name:"Weight value",exact:true});
+  await weight.fill("575");await weight.press("Enter");await expect(input).toHaveCount(1);
+  await input.focus();await input.press("Escape");await expect(input).toHaveCount(0);
+  const save=page.waitForEvent("download");await page.getByRole("button",{name:"Save as",exact:true}).click();
+  const reopened=await decodeFigcraft(await readFile((await (await save).path())!));
+  const node=reopened.document.nodes["2"];
+  expect(node).toMatchObject({text:{characters:"ა🙂ბგ",style:{variations:{}},runs:expect.arrayContaining([
+    expect.objectContaining({start:1,end:3,style:expect.objectContaining({variations:{wght:575}})}),
+  ])}});
+});

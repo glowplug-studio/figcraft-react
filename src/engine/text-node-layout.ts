@@ -39,6 +39,7 @@ export async function prepareText(characters = "") {
 
 export const hasFontFamily = (family:string) => fonts?.hasFamily(family) ?? false;
 export const fontFamilies = () => fonts?.families() ?? [];
+export const textFace = (family:string,style:string) => fonts?.find(family,style) ?? fonts?.defaultFace();
 export const familyStyleWeights = (family:string) => fonts?.styleWeights(family) ?? [];
 export const familyStyles = (family: string) => fonts?.styles(family) ?? [];
 
@@ -48,7 +49,7 @@ export function queryFonts(params:Record<string,unknown>) {
   if (family===undefined) return fonts.families();
   const features=parseBoolean(params.features), axes=parseBoolean(params.axes);
   if (!features && !axes) return fonts.styles(family);
-  const face=fonts.find(family,parseString(params.style) ?? "Regular") ?? fonts.defaultFace();
+  const face=textFace(family,parseString(params.style) ?? "Regular");
   if (features) return face ? [...face.features] : [];
   if (!face) return null;
   return {
