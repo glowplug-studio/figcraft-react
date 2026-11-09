@@ -63,4 +63,14 @@ FontLibrary.segments selects one face per grapheme within a style span, preserve
 
 Local Graphify rebuilt the React index over the fff934d working tree with this checkpoint’s changes and merged the pinned Rust graph. The combined graph has 30,658 nodes and 101,265 edges, including FontLibrary, fontSegments and pick_cluster_face. The extractor reports no symbols for the package entry and the browser fixture. The package consumer test exercises those paths.
 
-Next apply case and script features per styled segment, compare snapped advances and offsets with native layout, then implement paragraph and line positioning. Local Font Access discovery, glyph painting and editable browser text nodes remain open.
+At 6a5abd2 the subsequent full local production Chromium run passed 207/207 in 383.7 seconds with one worker, zero skips, failures, flakes or retries.
+
+### Styled glyph positions
+
+Read-only native Figcraft layout at a4251ca8 supplied fifteen positioned, single-line cases using the bundled faces, including mixed-script fallback, fractional width and weight, kerning, negative and positive tracking, size clamps, upper-case expansion, final sigma across style boundaries, title case, small caps, and native and synthesised super/subscripts. Node and Chromium matched every face, glyph ID, source range, x and y position, size, advance and final line width. These comparisons use the native line baseline to isolate glyph positioning. An independent level-input test covered RTL mirroring and zero-advance hard breaks.
+
+The styledGlyphs iterator consumes native text data, loaded fonts and scalar bidi levels. It retains tracking separately so a line builder can omit trailing spacing. Advances and kerning deltas round separately to the native 1,024-step em grid. The scalar mapping keeps case expansions together and OS/2 metrics set synthesised script size and vertical shift. The updated package passed strict types, both production builds, 1,225 pure tests, two local Auth tests and three focused Chromium workflows including the signed-in editor’s lazy font loads. The most recent full browser pass is 207/207 at 6a5abd2.
+
+Local Graphify refreshed the React index from 6a5abd2 with the styled-glyph changes and merged the pinned Rust graph. The 30,668-node, 101,318-edge graph includes native shape_segment and React styledSegment and styledGlyphs. Runtime fixtures cover the package exports and the generated browser consumer.
+
+Next port paragraph bidi resolution, visual item and justification-gap order, then line wrapping and baseline calculation. Local font discovery, glyph painting and editable browser text layers remain open.

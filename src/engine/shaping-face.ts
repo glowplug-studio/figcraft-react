@@ -9,6 +9,7 @@ export interface ShapedGlyph {
   readonly id: number;
   readonly cluster: number;
   readonly advance: number;
+  readonly nominalAdvance: number;
   readonly offsetX: number;
   readonly offsetY: number;
 }
@@ -43,6 +44,8 @@ export class ShapingFace {
   readonly descent: number;
   readonly lineGap: number;
   readonly axes: Readonly<Record<string,Readonly<AxisInfo>>>;
+  readonly superscript: readonly [number,number];
+  readonly subscript: readonly [number,number];
   readonly instances: readonly FontInstance[];
   readonly italic: boolean;
   readonly hasColour: boolean;
@@ -60,6 +63,10 @@ export class ShapingFace {
     this.axes = variation.axes;
     this.instances = variation.instances;
     const os2 = tables.get("OS/2"), head = tables.get("head");
+    const scriptMetric = (offset: number) => os2 && os2.byteLength >= offset+2 ? os2.getInt16(offset) : 0;
+    const scriptSize = (units: number) => units>0 ? units/this.upem : 0.65;
+    this.superscript = [scriptSize(scriptMetric(20)),scriptMetric(24) || this.upem*0.35];
+    this.subscript = [scriptSize(scriptMetric(12)),-(scriptMetric(16) || this.upem*0.14)];
     const selection = os2 && os2.byteLength >= 64 ? os2.getUint16(62) : 0;
     const italicFlag = os2 && os2.byteLength >= 64 ? (selection & 0x201) !== 0
       : !!head && head.byteLength >= 46 && (head.getUint16(44) & 2) !== 0;
@@ -129,6 +136,7 @@ export class ShapingFace {
     hb.shape(this.#font,buffer,flags);
     const glyphs = buffer.getGlyphInfosAndPositions().map(glyph => ({
       id:glyph.codepoint, cluster:glyph.cluster, advance:glyph.xAdvance ?? 0,
+      nominalAdvance:this.#font.glyphHAdvance(glyph.codepoint),
       offsetX:glyph.xOffset ?? 0, offsetY:glyph.yOffset ?? 0,
     }));
     return rtl ? glyphs.reverse() : glyphs;

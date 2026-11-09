@@ -49,3 +49,5 @@ export { readFontFaces } from "./engine/font-source";
 export type { ShapingFace, ShapingScalar, ShapedGlyph } from "./engine/shaping-face";
 export { FontLibrary } from "./engine/font-library";
 export { TextGraphemes } from "./engine/text-graphemes";
+export { readTextData, type TextData } from "./engine/text-data";
+export { styledGlyphs, type StyledGlyph } from "./engine/styled-glyphs";

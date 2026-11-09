@@ -137,6 +137,6 @@ export function lineHeightPx(s: TextStyle, naturalRatio: number) {
   const h = s.lineHeight;
   return h.unit === "auto" ? s.fontSize * naturalRatio : Math.max(0,h.value) * (h.unit === "pixels" ? 1 : s.fontSize/100);
 }
-export function letterSpacingPx(s: TextStyle) {
-  return s.letterSpacing.value * (s.letterSpacing.unit === "pixels" ? 1 : s.fontSize/100);
+export function letterSpacingPx(s: TextStyle, size = s.fontSize) {
+  return s.letterSpacing.unit === "pixels" ? s.letterSpacing.value : size*s.letterSpacing.value/100;
 }
