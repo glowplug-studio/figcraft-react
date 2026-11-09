@@ -6,16 +6,16 @@
 |---|---|
 | Overall status | In progress. [Execution checkpoint](26-11-07-full-port-resume.md). |
 | Active slice | Shared styles, variables and linked libraries. [Dated plan](26-11-09-styles-variables-libraries.md). |
-| Active phase | Row 10 implementation. Local shared style records, layer references, catalogue ordering and native file interchange are verified. |
+| Active phase | Row 10 implementation. Native local style records, authoring, propagation, inspector and Assets workflows and frame layout guides are verified. |
 | Upstream baseline | Styles reference a2e87433. Components reference 79c36346. Global supported baseline 8eb0b876. |
-| Branch and last verified commit | prompt/full-figcraft-port at 73aa2d6. Last complete slice release 0.51.0 at 0dac4d7 passed 266/266 production Chromium workflows in 572.7 seconds with zero skips, failures or flaky results. |
+| Branch and last verified commit | prompt/full-figcraft-port at 8954761. The previous full production Chromium suite passed 269/269 at 0bf1eb6. The last complete slice release is 0.51.0. |
 | Completed slices | Rectangle/host-auth, bounded native persistence/recovery, supported-model pages, affine rectangle geometry/selection and solid appearance, plus nested group hierarchy, Frame containers, movement/transform gestures, rounded corners, ellipse/arc/ring and Polygon/Star editing verified locally; Line/Arrow and uniform solid strokes also verified; per-side Rectangle/Frame strokes, variable-width profiles and procedural brushes verified; vector networks, solid region/stroke rendering and Flatten/Reverse also verified; foundation commit `154f5a7`. Gradient, image, pattern, blend and mask releases now have local property matrices. [Blend evidence](../reports/26-11-09-blend-modes-parity.html). Auto layout and constraints passed the local release gate. [Release evidence](../reports/26-11-09-auto-layout.md). [Local components, instances, variant properties, slots and Assets](../reports/26-11-09-components-instances.md) passed the 0.51.0 gate. |
 | Remaining slices | Continue incomplete roadmap rows, excluding the user-deferred plugin and widget family. See each slice matrix for outstanding integrations. |
-| Tests last passed | Row 10 passed strict TypeScript, both builds, 1,886 pure tests, 1,536 native catalogue command comparisons, two local Auth checks and the signed-in style recovery/download workflow. The previous full production Chromium release passed 266 tests. Component performance and raster captures are in the [property matrix](../reports/26-11-09-components-instances-parity.html). |
+| Tests last passed | At 8954761 strict TypeScript, both builds, 1,891 pure tests, two local Auth integrations and five focused Chromium tests passed. Native checks cover 1,536 catalogue comparisons, 3,600 style command/query comparisons and 320 guide fixtures. [Row 10 evidence](26-11-09-styles-variables-libraries.md#style-authoring-and-frame-guides). |
 | Files currently in progress | [Shared styles, variables and libraries](26-11-09-styles-variables-libraries.md). |
 | Blockers | No blocker. Use local Graphify for all remaining slices. The scoped Supabase read succeeded. |
-| Exact next action | Implement style creation, application, detachment, updates and deletion, including text ranges, direct property edits and component propagation. Add the inspector and Assets workflows. |
-| Last updated | 2026-11-09 |
+| Exact next action | Finish local style folder and ordering controls and explicit definition editors. Then implement variable collections, modes and typed resolution against native fixtures. |
+| Last updated | 2026-11-10 |
 
 ## Scope and continuation
 

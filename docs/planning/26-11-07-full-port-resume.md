@@ -1,6 +1,6 @@
 # Full Figcraft port resume checkpoint
 
-Current checkpoint: React 73aa2d6 implements native style records, style.list, duplicate, move and folder rename. Seven upstream-generated styles survived production browser open, edit, recovery and download. The current catalogue passed 1,536 native comparisons and 1,886 pure tests. Continue with creation, application, detachment and propagation in [the row 10 plan](26-11-09-styles-variables-libraries.md). The last full Chromium release passed 266/266 workflows at 0dac4d7.
+Current checkpoint at 8954761. Local style authoring, application, propagation and frame layout guides passed production browser checks, strict types, both builds, 1,891 pure tests and two local Auth integrations. The full Chromium run at 0bf1eb6 passed 269/269. Finish local style folder and ordering controls and explicit definition editors. Then implement variable collections, modes and typed resolution against native fixtures. [Row 10 evidence](26-11-09-styles-variables-libraries.md#style-authoring-and-frame-guides).
 
 The 0.51.0 component candidate has passed both builds, strict TypeScript, 1,874 pure tests, two Auth integrations, native thumbnail comparisons and both 10,001-layer benchmarks. The subsequent full production browser run passed all 266 workflows. [Report and next action](../reports/26-11-09-components-instances.md).
 
