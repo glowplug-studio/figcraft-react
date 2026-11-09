@@ -6,22 +6,40 @@ import type { Document } from "./engine/document";
 
 export const componentDragType = "application/x-figcraft-component";
 
+// Native Assets renders at most eight visible thumbnails per frame. Also bound simultaneous image decodes.
+const thumbnails = new Set<()=>Promise<void>>();
+let scheduled = false, rendering = 0;
+function scheduleThumbnails() {
+  if (scheduled || !thumbnails.size || rendering >= 8) return;
+  scheduled = true;
+  requestAnimationFrame(()=>{
+    scheduled = false;
+    for (const draw of thumbnails) {
+      if (rendering >= 8) break;
+      thumbnails.delete(draw);
+      rendering++;
+      void draw().finally(()=>{rendering--; scheduleThumbnails();});
+    }
+  });
+}
+
 function AssetThumbnail({doc,id}:{doc:Document;id:string}) {
   const ref = useRef<HTMLCanvasElement>(null);
   useEffect(()=>{
     const canvas = ref.current!;
-    let active: AbortController | undefined;
+    const active = new AbortController();
+    const draw = async () => {
+      const pixels = Math.max(32,Math.ceil(canvas.parentElement!.clientWidth*devicePixelRatio));
+      try { await renderAssetThumbnail(canvas,doc,id,pixels,active.signal); }
+      catch { if (!active.signal.aborted) canvas.width = 1; }
+    };
     const observer = new IntersectionObserver(entries=>{
       if (!entries.some(entry=>entry.isIntersecting)) return;
       observer.disconnect();
-      active = new AbortController();
-      const pixels = Math.max(32,Math.ceil(canvas.parentElement!.clientWidth*devicePixelRatio));
-      void renderAssetThumbnail(canvas,doc,id,pixels,active.signal).catch(()=>{
-        if (!active?.signal.aborted) canvas.width = 1;
-      });
+      thumbnails.add(draw); scheduleThumbnails();
     },{rootMargin:"100px"});
     observer.observe(canvas);
-    return ()=>{observer.disconnect(); active?.abort();};
+    return ()=>{observer.disconnect(); thumbnails.delete(draw); active.abort();};
   },[doc,id]);
   return <canvas ref={ref} aria-hidden="true" width="1" height="1"/>;
 }

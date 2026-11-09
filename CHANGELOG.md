@@ -2,6 +2,11 @@
 
 All notable changes to the React port and its upstream compatibility baseline are recorded here.
 
+## [0.51.0] - 2026-11-09
+
+- Added local components, linked instances and overrides, variant sets, typed properties, exposed nested instances, editable slots and instance lifecycle commands. Component trees survive native save, undo and recovery.
+- Added local Assets search, component thumbnails, viewport-centred insertion, drag placement and Alt-swap. The component reference is upstream 79c36346. [Component verification](docs/planning/26-11-09-components-instances.md).
+
 ## [0.50.0] - 2026-11-09
 
 - Added native flow and grid layout, sizing and constraints, wrapped lines, baselines, grid tracks and child placement. Layout survives native save, local recovery and undo.

@@ -6,15 +6,15 @@
 |---|---|
 | Overall status | In progress. [Execution checkpoint](26-11-07-full-port-resume.md). |
 | Active slice | Components, instances and variants. [Dated plan](26-11-09-components-instances.md). |
-| Active phase | Phase 5. Local component and variant authoring and local Assets discovery, placement and Alt-swap passed model and browser checks. Component performance, thumbnail comparison and final slice evaluation remain open. |
+| Active phase | Phase 5. Local component and variant authoring and local Assets discovery, placement and Alt-swap passed model and browser checks. Component performance and native thumbnail comparisons passed. The full 0.51.0 browser regression is in progress. |
 | Upstream baseline | Components reference 79c36346. Auto layout reference 3839fe4a. Global supported baseline 8eb0b876. |
-| Branch and last verified commit | prompt/full-figcraft-port. Commit 09eedfd passed 261 production Chromium workflows in 601.7 seconds. The next commit, 14bb4c0, changes the tracker instructions and report. |
+| Branch and last verified commit | prompt/full-figcraft-port. Commit 05c49cd passed 263 production Chromium workflows in 576.0 seconds. |
 | Completed slices | Rectangle/host-auth, bounded native persistence/recovery, supported-model pages, affine rectangle geometry/selection and solid appearance, plus nested group hierarchy, Frame containers, movement/transform gestures, rounded corners, ellipse/arc/ring and Polygon/Star editing verified locally; Line/Arrow and uniform solid strokes also verified; per-side Rectangle/Frame strokes, variable-width profiles and procedural brushes verified; vector networks, solid region/stroke rendering and Flatten/Reverse also verified; foundation commit `154f5a7`. Gradient, image, pattern, blend and mask releases now have local property matrices. [Blend evidence](../reports/26-11-09-blend-modes-parity.html). Auto layout and constraints passed the local release gate. [Release evidence](../reports/26-11-09-auto-layout.md). |
 | Remaining slices | Continue incomplete roadmap rows, excluding the user-deferred plugin and widget family. See each slice matrix for outstanding integrations. |
 | Tests last passed | Local Assets passed 975 native comparison sequences, 1,874 pure tests, two local Auth tests, both builds, strict TypeScript and two signed-in Chromium workflows. The preceding checkpoint passed all 261 production Chromium workflows. [Component evidence](26-11-09-components-instances.md#local-assets-in-the-browser). |
 | Files currently in progress | [Component and instance plan](26-11-09-components-instances.md). |
 | Blockers | No blocker. Use local Graphify for all remaining slices. The scoped Supabase read succeeded. |
-| Exact next action | Complete the large component-tree performance fixture and thumbnail pixel comparisons, then finish the component matrix, full browser evaluation and slice release. |
+| Exact next action | Verify the full 0.51.0 browser result, close the local component release and begin the row 10 evidence pass. |
 | Last updated | 2026-11-09 |
 
 ## Scope and continuation
@@ -50,7 +50,7 @@ Full-host performance obligation: the user specifically asks about browser RAM, 
 | 6 | Paints, gradients, images/crops/adjustments, masks, blending and effects; `color`, `render`, `cmd/{props,image}.rs` | 2–5 | Partial: solid colours, gradients, image resources and live layer patterns verified. Layer and paint blends and alpha/vector/luminance masks verified. Layer effects remain |
 | 7 | Rich text editing/shaping, fonts, spans, typography, lists, bidi and outlines; `text`, `doc/src/text.rs`, `cmd/{text,lists}.rs` | 2, 4, 6 | Text and font milestone passed at a81127c. Shared styles, component overrides, auto-layout reflow and exchange remain with their owning rows. [Property matrix](../reports/26-11-09-rich-text-parity.html). |
 | 8 | Auto layout horizontal/vertical/wrap/grid, hug/fill/min/max, constraints and resize propagation; `layout`, `cmd/layout.rs`, document props | 2–7 | Verified for supported node types at dbc35f4. Component inheritance and variable bindings continue in rows 9 and 10. [Release evidence](../reports/26-11-09-auto-layout.md). |
-| 9 | Components, instances/overrides, variants/properties/slots and sync; `engine/src/assets/components`, `cmd/component/` | 2–8 | Native reference sessions and planning complete. [Component implementation plan](26-11-09-components-instances.md). |
+| 9 | Components, instances/overrides, variants/properties/slots and sync; `engine/src/assets/components`, `cmd/component/` | 2–8 | Local components, instances, variant sets and Assets implemented. Performance and native raster comparisons passed. Full release regression in progress. [Property matrix](../reports/26-11-09-components-instances-parity.html). |
 | 10 | Styles, variables/collections/modes/expressions and IO, libraries/assets and updates; `doc/src/{styles,library}.rs`, `cmd/{styles,variables,variables_io,library}.rs` | 2–9 | Not implemented |
 | 11 | File workspace, thumbnails, history/checkpoints, branches and conflict review; `cmd/file`, engine branches and library | 1–10 | Not implemented |
 | 12 | SVG/raster, REST, .fig, Penpot, Sketch imports and exports; native bundles, SVG/PDF/VectorDrawable/code/raster exports; current format/export crates | 1–11; current source determines actual supported subsets | Not implemented |

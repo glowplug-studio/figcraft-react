@@ -2,6 +2,7 @@ import { fontGeometryCache } from "./font-generation";
 import { prepareDocumentText, documentTextReady } from "./text-node-layout";
 import { assetDropSlot, assetSwapTarget } from "./component-assets";
 import { defaultMain } from "./component-tree";
+import { worldRenderBounds } from "./render-bounds";
 import { originBoxPoints } from "./rotation";
 import { CanvasTextInput } from "./canvas-text-input";
 import { paintText } from "./text-painter";
@@ -431,8 +432,7 @@ export async function renderAssetThumbnail(canvas: HTMLCanvasElement, doc: Docum
   const scratch = canvas.ownerDocument.createElement("canvas");
   const ctx = scratch.getContext("2d")!;
   const parent = worldTransform(doc,node.parent);
-  ctx.setTransform(...parent);
-  const bound = isFrameLike(node) && node.clip ? paddedRect(strokeBounds(node,worldTransform(doc,id)),effectMargin(node,1)) : deviceBounds(ctx,doc,node,1);
+  const bound = worldRenderBounds(doc,id);
   if (!bound || !bound.width || !bound.height) return;
   const scale = Math.min(2,pixels / Math.max(bound.width,bound.height));
   scratch.width = Math.max(1,Math.ceil(scale*bound.width-1e-6));

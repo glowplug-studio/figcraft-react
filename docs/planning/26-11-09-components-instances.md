@@ -4,10 +4,10 @@
 
 | Field | Evidence |
 |---|---|
-| Phase | Phase 5. Local component discovery, publication names, click placement and Alt-swapping passed native and signed-in browser checks. Component performance and the scope-wide release matrix remain open. |
+| Phase | Phase 5. Local component discovery, publication names, click placement and Alt-swapping passed native and signed-in browser checks. Performance, native thumbnail pixels and the property matrix passed focused verification. The release candidate is undergoing the full browser regression. |
 | Reference | Upstream and the authorised fork both point to 79c363466a46b96f989b73c7cf20240bc168b7a2. The incoming commit changes the upstream Cloudflare packaging size limit only. The layout reference remains 3839fe4a. |
-| React | At 09eedfd, all 261 production Chromium workflows passed in 601.7 seconds. The subsequent tracker-only commit is 14bb4c0. The global supported baseline remains 8eb0b876. |
-| Graph | The merged local index has 32,072 nodes and 106,625 edges. It links React placeAsset to assetDropSlot, insertInstance and wouldContainItself, and Rust swap_target to swap_family. Macro registrations and serde defaults require source inspection. |
+| React | At 05c49cd, all 263 production Chromium workflows passed in 576.0 seconds. The global supported baseline remains 8eb0b876. |
+| Graph | The merged local index has 32,090 nodes and 106,739 edges. It links React placeAsset to assetDropSlot, insertInstance and wouldContainItself, and Rust swap_target to swap_family. Macro registrations and serde defaults require source inspection. |
 | Backend | The scoped MCP read resolved the intended Figcraft project and returned zero public tables. This slice works on in-document component definitions and local instances. |
 | Native verification | All 15 upstream headless UI tests selected by the component filter passed. They cover panel and layer interactions. This filter does not cover the full engine family. |
 | First implementation | Preserve main component, component set, instance and descendant linkage records. Verify a real native component drawing survives open, render, recovery and download before adding authoring commands. |
@@ -144,3 +144,11 @@ The Assets panel lists local mains and sets, searches the full component name, g
 Three native comparison batches covered 580 listing and placement sequences, 315 slot, layout and containment sequences and 80 overlapping-family and undo sequences. They compared 9,302 native node records. Rotated inverse-transform coefficients used an absolute tolerance of 1e-10. Outcomes, selection, hierarchy, properties and override groups matched. Strict types, package and production builds, 1,874 pure tests, two local Auth tests and two signed-in Assets workflows passed.
 
 Next finish the large component-tree performance fixture, compare thumbnail bounds across clipped children, masks and effects with native pixels, and complete the component property matrix and release checks. The full production browser regression for Assets is in progress. The style and linked-library sections belong to the next asset scope.
+
+## Component rendering and performance gates
+
+The [property matrix](../reports/26-11-09-components-instances-parity.html) records local component and instance behaviour. Dev Mode playgrounds and cross-file libraries have separate dependencies. A [native fixture](../../tests/fixtures/native-asset-thumbnails.json) records independent measurements for clipped children, overflowing children, a drop shadow and a sibling mask. The browser matched all four raster sizes and their sampled pixels. Another 120 rotated and shadowed examples matched native bounds within 2.85e-14 page units. Capture sources were the pinned Rust renderer and document engine. The regular React tests consume only the fixed measurements.
+
+The [performance fixture](../../tests/fixtures/component-performance.ts) opens 10,001 layers and measures 60 frames after 10 warm-ups. A one-main drawing propagated a paint opacity change to 999 copies in 9.5 ms. With 100 mains the same change reached nine copies in 8.3 ms. In these runs hover input measured 0.9–1.0 ms p95 and combined input and rendering 6.2 ms p95. Neither hover loop published an editor snapshot. Retained heap growth after collection was 689,324 and 582,464 bytes respectively. Earlier runs also passed the 16.7 ms frame and 8 MiB heap ceilings. These timings describe the Chromium fixture.
+
+The 0.51.0 candidate passed both production builds, strict types, 1,874 pure tests, two real local Auth tests and the three focused Chromium performance and visual cases. Assets at 05c49cd passed all 263 production Chromium tests with zero skips, failures or flaky results. The next gate is the candidate’s complete browser suite. If it passes, close roadmap row 9 and begin the styles, variables and libraries evidence pass. [Release report](../reports/26-11-09-components-instances.md).
