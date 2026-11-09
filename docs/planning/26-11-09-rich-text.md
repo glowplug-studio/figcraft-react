@@ -294,3 +294,7 @@ Upstream `ui-egui/src/shortcuts.rs::copy_or_cut` copies the selected plain text.
 ### Text on a path tool
 
 Map `canvas/tools/click.rs::path_at`, `text_on_path_down`, `handles.rs::path_candidates` and the native draw-tool tests to browser path hit testing and the existing text interaction. A six-screen-pixel hit uses the frontmost eligible first subpath, measured in page space with the fractional start in path-local length. Cover locked layers, boolean operands, masks, clipped frames, anisotropic scale, source order, fills, effects, constraints and the restoration of an abandoned path. Open the existing textarea at scalar zero. Carry style and variable bindings when their owning document records are ported.
+
+### Text flattening and vector boundaries
+
+Trace `cmd/structure.rs::collect_flatten_parts` through `render::node_outline` and native `TextLayout::to_path`. Compare the vector vertices, handles, winding, region loops, dimensions and placement for glyphs with counters, curves, decorations, variable axes, multiple scripts, rotations and text attached to paths. Exercise the existing Flatten command, native export, Undo and an editable vector in the signed-in host.

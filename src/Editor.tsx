@@ -73,6 +73,7 @@ export function Editor({ identity, capabilities, engine: suppliedEngine, recover
   const root = useRef<HTMLDivElement>(null);
   const controller = useRef<CanvasController | null>(null);
   const pasteMenu = useRef<HTMLDivElement>(null);
+  const textTools = useRef<HTMLDivElement>(null);
   const [pointLayers, setPointLayers] = useState<ReturnType<typeof layersAt>["layers"]>([]);
   const menuOrigin = useRef<Point>({x:0,y:0});
   const pasteAt = useRef<Point | undefined>(undefined);
@@ -450,8 +451,23 @@ export function Editor({ identity, capabilities, engine: suppliedEngine, recover
             <button disabled={!editable || busy} onClick={() => { dispatch("tool.move"); canvas.current?.focus(); }}>Done</button>
           </div> : editingVector ? <VectorToolbar engine={engine} editable={editable && !busy} dispatch={(command, params) => { dispatch(command, params); canvas.current?.focus(); }} /> : <div className="figcraft-toolbar" role="toolbar" aria-label="Tools">
             <button disabled={!editable} aria-pressed={snapshot.tool === "move"} onClick={() => { dispatch("tool.move"); canvas.current?.focus(); }}>Move</button>
-            <button disabled={!editable} aria-pressed={snapshot.tool === "text"} title="Text · T" onClick={() => { dispatch("tool.text"); canvas.current?.focus(); }}>Text</button>
-            <button disabled={!editable} aria-pressed={snapshot.tool === "textOnPath"} onClick={() => { dispatch("tool.textOnPath"); canvas.current?.focus(); }}>Text on a path</button>
+            <button disabled={!editable} aria-pressed={snapshot.tool === "text" || snapshot.tool === "textOnPath"}
+              aria-haspopup="dialog" title="Text · T · Text tool options" onClick={event=>{
+                const menu=textTools.current;
+                if (!menu) return;
+                const rect=event.currentTarget.getBoundingClientRect();
+                menu.style.left=rect.left+"px";menu.style.bottom=(window.innerHeight-rect.top+6)+"px";
+                dispatch("tool.text");
+                if (menu.matches(":popover-open")) menu.hidePopover();
+                else {menu.showPopover();if (event.detail===0) menu.querySelector("button")?.focus();}
+              }}>Text</button>
+            <div ref={textTools} role="dialog" aria-label="Text tools" popover="auto"
+              style={{position:"fixed",top:"auto",right:"auto",margin:0,padding:4,border:"1px solid #ddd",borderRadius:6}}>
+              {(["text","textOnPath"] as const).map(tool=><button key={tool} disabled={!editable}
+                onClick={()=>{textTools.current?.hidePopover();dispatch("tool."+tool);canvas.current?.focus();}}>
+                {tool==="text" ? "Use Text tool" : "Text on a path"}
+              </button>)}
+            </div>
             <button disabled={!editable} aria-pressed={snapshot.tool === "pen"} title="Pen · P" onClick={() => { dispatch("tool.pen"); canvas.current?.focus(); }}>Pen</button>
             <button disabled={!editable} aria-pressed={snapshot.tool === "pencil"} title="Pencil · Shift+P" onClick={() => { dispatch("tool.pencil"); canvas.current?.focus(); }}>Pencil</button>
             <button disabled={!editable} aria-pressed={snapshot.tool === "scale"} onClick={() => { dispatch("tool.scale"); canvas.current?.focus(); }}>Scale</button>

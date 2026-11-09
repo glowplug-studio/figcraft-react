@@ -4659,13 +4659,14 @@ test("Text on a path hits the visible outline, cancels an empty edit and replace
   await expect(source).toBeVisible();
   const tool=page.getByRole("button",{name:"Text on a path",exact:true}), canvas=page.getByLabel("Design canvas",{exact:true});
   const input=page.getByRole("textbox",{name:"Edit text layer"});
-  await tool.click();
+  const openTool=async()=>{await page.getByRole("button",{name:"Text",exact:true}).click();await tool.click();};
+  await openTool();
   const miss=await canvasPoint(page,90,120), hit=await canvasPoint(page,90,103);
   await page.mouse.click(miss.x,miss.y); await expect(input).toHaveCount(0);
   await page.mouse.move(hit.x,hit.y); await expect(canvas).toHaveCSS("cursor","text");
   await page.mouse.click(hit.x,hit.y); await expect(input).toBeFocused(); await input.press("Escape");
   await expect(source).toBeVisible(); await expect(page.getByRole("button",{name:"Undo",exact:true})).toBeDisabled();
-  await tool.click();await page.mouse.click(hit.x,hit.y);await expect(input).toBeFocused();
+  await openTool();await page.mouse.click(hit.x,hit.y);await expect(input).toBeFocused();
   await page.keyboard.insertText("Along");await input.press("Escape");
   await expect(source).toHaveCount(0);
   const saving=page.waitForEvent("download");await page.getByRole("button",{name:"Save as",exact:true}).click();
@@ -4675,4 +4676,37 @@ test("Text on a path hits the visible outline, cancels an empty edit and replace
   expect(node).toMatchObject({name:"Along",fill:"#c61f42",text:{characters:"Along",path:{flip:false}}});
   expect(node!.text.path!.start).toBeCloseTo(.25,2);
   await page.getByRole("button",{name:"Undo",exact:true}).click();await expect(source).toBeVisible();
+});
+
+test("Flatten text preserves curved glyph counters and decoration ink in editable vector geometry",async ({page})=>{
+  const e=new EditorEngine();
+  await e.executeAsync("text.create",{name:"Glyph outlines",text:"O Bé",x:50,y:50});
+  e.execute("node.set",{id:2,props:{fontSize:28,fill:"#c61f42",textDecoration:"underline"}});
+  e.execute("vector.create",{x:90,y:100,path:"M0 0C65 60 130 60 220 0",props:{fills:[]}});
+  e.execute("text.onPath",{text:2,path:3,start:.2});
+  await login(page);
+  await page.getByLabel("Open Figcraft file",{exact:true}).setInputFiles({name:"glyphs.figcraft",mimeType:"application/octet-stream",buffer:Buffer.from(await encodeFigcraft(e.getSnapshot().document))});
+  const layers=page.getByRole("region",{name:"Layers",exact:true}), layer=layers.getByRole("button",{name:"Glyph outlines",exact:true});
+  await expect(layer).toBeVisible();
+  const canvas=page.getByLabel("Design canvas",{exact:true});
+  const ink=()=>canvas.evaluate(async (node:HTMLCanvasElement)=>{
+    await new Promise<void>(resolve=>requestAnimationFrame(()=>requestAnimationFrame(()=>resolve())));
+    const rgba=node.getContext("2d")!.getImageData(0,0,node.width,node.height).data, mask:number[]=[];
+    for (let i=0;i<rgba.length;i+=4) if(rgba[i]===198 && rgba[i+1]===31 && rgba[i+2]===66)mask.push(i/4);
+    return mask;
+  });
+  const before=await ink();expect(before.length).toBeGreaterThan(100);
+  await layer.click(); await layers.getByRole("button",{name:"Flatten",exact:true}).click();
+  await expect(page.getByRole("region",{name:"Selected vector",exact:true})).toBeVisible();
+  const blank=await canvasPoint(page,30,30);await page.mouse.click(blank.x,blank.y);
+  const after=await ink(),pixels=new Set(after);
+  expect(before.filter(p=>pixels.has(p)).length/Math.max(before.length,after.length)).toBeGreaterThan(.97);
+  await layer.click();
+  const saving=page.waitForEvent("download");await page.getByRole("button",{name:"Save as",exact:true}).click();
+  const saved=await decodeFigcraft(await readFile((await (await saving).path())!));
+  const vector=Object.values(saved.document.nodes).find(n=>n.kind==="vector");
+  expect(vector!.network.segments.length).toBeGreaterThan(30);
+  await page.getByRole("button",{name:"Edit vector",exact:true}).click();
+  await canvas.press("Escape");await page.getByRole("button",{name:"Undo",exact:true}).click();
+  await layer.click();await expect(page.getByRole("group",{name:"Typography",exact:true})).toBeVisible();
 });
