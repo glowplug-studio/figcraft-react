@@ -4,14 +4,14 @@ import type { PaintSteps, LayerPaintSteps } from "./image-renderer";
 import { patternCell, patternResolution } from "./pattern";
 
 type DrawLayer = (ctx: CanvasRenderingContext2D, doc: Document, node: LayerNode,
-  depth: number, nesting: number) => PaintSteps;
+  depth: number, nesting: number, scale: number) => PaintSteps;
 
 /** Resolve live layer references while the caller's clip or stroke mask is still active. */
 export function* resolveLayerPaints(steps: LayerPaintSteps, doc: Document, depth: number,
-  nesting: number, drawLayer: DrawLayer): PaintSteps {
+  nesting: number, drawLayer: DrawLayer, inspectOpacity = false): PaintSteps {
   for (const [ctx, paint, width, height, space] of steps) {
     if (paint.type === "image") {
-      yield [ctx, paint, width, height, space, nesting === 0];
+      yield [ctx, paint, width, height, space, nesting === 0, inspectOpacity];
       continue;
     }
     if (nesting >= 2 || depth >= 256) continue;
@@ -35,7 +35,7 @@ export function* resolveLayerPaints(steps: LayerPaintSteps, doc: Document, depth
         target.setTransform(kx, 0, 0, ky, x * kx, y * ky);
         target.scale(cell.scale, cell.scale);
         target.transform(...unplaced);
-        yield* drawLayer(target, doc, source, depth + 1, nesting + 1);
+        yield* drawLayer(target, doc, source, depth + 1, nesting + 1, Math.sqrt(kx*ky)*cell.scale);
       }
       const pattern = ctx.createPattern(surface, "repeat");
       if (!pattern) continue;

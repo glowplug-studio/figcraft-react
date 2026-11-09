@@ -49,11 +49,11 @@ function applyLuminance(ctx:CanvasRenderingContext2D) {
   }
 }
 
-type DrawLayer = (ctx:CanvasRenderingContext2D,doc:Document,node:LayerNode,depth:number,nesting:number)=>PaintSteps;
-type Bounds = (ctx:CanvasRenderingContext2D,doc:Document,node:LayerNode)=>Rectangle|undefined;
+type DrawLayer = (ctx:CanvasRenderingContext2D,doc:Document,node:LayerNode,depth:number,nesting:number,scale:number)=>PaintSteps;
+type Bounds = (ctx:CanvasRenderingContext2D,doc:Document,node:LayerNode,scale:number)=>Rectangle|undefined;
 
 export function* drawMasked(ctx:CanvasRenderingContext2D,doc:Document,mask:LayerNode,
-  children:readonly string[],start:number,end:number,depth:number,nesting:number,draw:DrawLayer,boundsOf:Bounds):PaintSteps {
+  children:readonly string[],start:number,end:number,depth:number,nesting:number,draw:DrawLayer,boundsOf:Bounds,scale:number):PaintSteps {
   if (start>=end || depth>256) return;
   const m=ctx.getTransform(), matrix:Affine=[m.a,m.b,m.c,m.d,m.e,m.f];
   const outline=mask.maskType==="vector" ? outlineFor(doc,mask,depth) : undefined;
@@ -62,14 +62,14 @@ export function* drawMasked(ctx:CanvasRenderingContext2D,doc:Document,mask:Layer
     if (!outline) return;
     const b=outline.bounds;
     bounds=transformBounds(multiply(multiply(matrix,layerTransform(mask)),[1,0,0,1,b.x,b.y]),b.width,b.height);
-  } else bounds=boundsOf(ctx,doc,mask);
+  } else bounds=boundsOf(ctx,doc,mask,scale);
   if (!bounds) return;
   // Native masked_area includes both the mask and content, with a pixel for antialiasing.
   let x0=bounds.x, y0=bounds.y, x1=x0+bounds.width, y1=y0+bounds.height;
   for (let i=start;i<end;i++) {
     const child=doc.nodes[children[i]];
     if (!child || child.kind==="page" || child.visible===false) continue;
-    const box=boundsOf(ctx,doc,child);
+    const box=boundsOf(ctx,doc,child,scale);
     if (!box) continue;
     x0=Math.min(x0,box.x); y0=Math.min(y0,box.y);
     x1=Math.max(x1,box.x+box.width); y1=Math.max(y1,box.y+box.height);
@@ -93,13 +93,13 @@ export function* drawMasked(ctx:CanvasRenderingContext2D,doc:Document,mask:Layer
       coverage.fillStyle="white"; coverage.fill(outline.path,outline.rule);
     } else {
       // The mask's own blend has no backdrop. Its painted alpha and node opacity still apply.
-      yield* draw(coverage,doc,{...mask,isMask:false,blend:mask.blend==="normal"?"normal":"passThrough"},depth,nesting);
+      yield* draw(coverage,doc,{...mask,isMask:false,blend:mask.blend==="normal"?"normal":"passThrough"},depth,nesting,scale);
       if (mask.maskType==="luminance") applyLuminance(coverage);
     }
     content.setTransform(m.a,m.b,m.c,m.d,m.e-left,m.f-top);
     for (let i=start;i<end;i++) {
       const child=doc.nodes[children[i]];
-      if (child && child.kind!=="page") yield* draw(content,doc,child,depth,nesting);
+      if (child && child.kind!=="page") yield* draw(content,doc,child,depth,nesting,scale);
     }
     content.resetTransform();
     content.globalCompositeOperation="destination-in";

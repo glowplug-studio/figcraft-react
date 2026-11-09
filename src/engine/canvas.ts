@@ -1,3 +1,4 @@
+import { hasShadows, shadowReach, ShadowLayer } from "./shadow-renderer";
 import { compositeSurface } from "./blend-composite";
 import { drawMasked, reserveLayerPixels } from "./mask-renderer";
 import { booleanResult } from "./boolean-result";
@@ -40,7 +41,7 @@ const imagePages = new WeakMap<CanvasRenderingContext2D, ImagePage>();
 const imageCaches = new WeakMap<CanvasRenderingContext2D, CanvasImages>();
 const compositeSurfaces = new WeakMap<CanvasRenderingContext2D, HTMLCanvasElement>();
 // Immutable document snapshots invalidate these derived bounds after any edit.
-const groupBounds = new WeakMap<Document, Map<string, Rectangle | undefined>>();
+const groupBounds = new WeakMap<Document, Map<string, { box: Rectangle; margin: number } | undefined>>();
 const opacity = (value: number) => Math.max(0, Math.min(1, value));
 
 const fillPaths = new WeakMap<readonly PathCommand[],Path2D>();
@@ -72,17 +73,24 @@ function* paintLayerStroke(context: CanvasRenderingContext2D, node: LayerNode): 
 }
 
 /** Node opacity affects the finished stack, including antialiased edges, once. */
-function* paintComposite(context: CanvasRenderingContext2D, node: LayerNode, draw: (target: CanvasRenderingContext2D) => PaintSteps, painted?: Rectangle): PaintSteps {
+function* paintComposite(context: CanvasRenderingContext2D, node: LayerNode, draw: (target: CanvasRenderingContext2D, shadows?: ShadowLayer) => PaintSteps, painted?: Rectangle, shadow?: { doc: Document; scale: number }): PaintSteps {
   const matrix = context.getTransform();
   const bounds = painted ?? strokeBounds(node, multiply([matrix.a, matrix.b, matrix.c, matrix.d, matrix.e, matrix.f], rectangleTransform(node)));
-  const left = Math.max(0, Math.floor(bounds.x)), top = Math.max(0, Math.floor(bounds.y));
-  const width = Math.min(context.canvas.width, Math.ceil(bounds.x + bounds.width)) - left;
-  const height = Math.min(context.canvas.height, Math.ceil(bounds.y + bounds.height)) - top;
+  let margin = 0;
+  if (shadow) for (const e of node.effects ?? []) {
+    if (e.visible && (e.type === "dropShadow" || e.type === "innerShadow")) {
+      const reach = 2 * Math.abs(e.radius) + 4 * Math.abs(e.spread) + Math.abs(e.offset[0]) + Math.abs(e.offset[1]);
+      margin = Math.max(margin, Math.min(2048, Math.ceil(reach * shadow.scale) + 1));
+    }
+  }
+  const left = Math.max(-margin, Math.floor(bounds.x)), top = Math.max(-margin, Math.floor(bounds.y));
+  const width = Math.min(shadow ? 16384 : Infinity, Math.min(context.canvas.width + margin, Math.ceil(bounds.x + bounds.width)) - left);
+  const height = Math.min(shadow ? 16384 : Infinity, Math.min(context.canvas.height + margin, Math.ceil(bounds.y + bounds.height)) - top);
   if (width <= 0 || height <= 0) return;
   // Chromium rounds half-opacity compositing differently on its whole-image fast path.
   // Crop the exact paint rectangle from a padded surface to retain native byte rounding.
-  const surfaceWidth = (node.opacity ?? 1) < 1 ? width + 1 : width;
-  const release = reserveLayerPixels(surfaceWidth, height, 1);
+  const surfaceWidth = !shadow && (node.opacity ?? 1) < 1 ? width + 1 : width;
+  const release = reserveLayerPixels(surfaceWidth, height, shadow ? 6 : 1);
   if (!release) return;
   try {
     let surface = compositeSurfaces.get(context);
@@ -94,40 +102,53 @@ function* paintComposite(context: CanvasRenderingContext2D, node: LayerNode, dra
     if (surface.height !== height) surface.height = height;
     const scratch = surface.getContext("2d");
     if (!scratch) throw new Error("Canvas compositing is unavailable");
-    scratch.resetTransform(); scratch.clearRect(0, 0, width, height);
+    scratch.resetTransform(); scratch.clearRect(0, 0, surfaceWidth, height);
     scratch.setTransform(matrix.a, matrix.b, matrix.c, matrix.d, matrix.e - left, matrix.f - top);
-    yield* draw(scratch);
+    const shadows = shadow && new ShadowLayer(scratch,shadow.doc,node,shadow.scale);
+    try {
+      yield* draw(scratch,shadows);
+      shadows?.drop(context,left,top);
+    } finally { shadows?.dispose(); }
     compositeSurface(context, scratch, left, top, width, height, node.blend ?? "normal", opacity(node.opacity ?? 1));
   } finally { release(); }
 }
 
-function paintedGroupBounds(context: CanvasRenderingContext2D, document: Document, node: LayerNode): Rectangle | undefined {
+function paddedRect(box: Rectangle, pad: number): Rectangle {
+  return pad ? { x: box.x-pad, y: box.y-pad, width: box.width+2*pad, height: box.height+2*pad } : box;
+}
+function outlinePad(matrix: Affine, local: number) {
+  return local * Math.max(Math.abs(matrix[0])+Math.abs(matrix[2]), Math.abs(matrix[1])+Math.abs(matrix[3]));
+}
+function paintedGroupBounds(context: CanvasRenderingContext2D, document: Document, node: LayerNode, scale: number): Rectangle | undefined {
   const m = context.getTransform();
-  const screenBounds = (bounds: Rectangle | undefined) => bounds && transformBounds(
-    multiply([m.a, m.b, m.c, m.d, m.e, m.f], [1, 0, 0, 1, bounds.x, bounds.y]), bounds.width, bounds.height);
+  const screenBounds = (entry?: {box: Rectangle; margin: number}) => entry && paddedRect(transformBounds(
+    multiply([m.a, m.b, m.c, m.d, m.e, m.f], [1, 0, 0, 1, entry.box.x, entry.box.y]), entry.box.width, entry.box.height), entry.margin * scale);
   let cachedDocument = groupBounds.get(document);
   if (!cachedDocument) { cachedDocument = new Map(); groupBounds.set(document, cachedDocument); }
   if (cachedDocument.has(node.id)) return screenBounds(cachedDocument.get(node.id));
   // Cache in the parent's coordinates: pan/zoom changes the view, not descendant geometry.
-  const pending: { node: LayerNode; parent: Affine; depth: number }[] = [{ node, parent: [1, 0, 0, 1, 0, 0], depth: 0 }];
-  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  const pending: { node: LayerNode; parent: Affine; depth: number; margin: number }[] = [{ node, parent: [1, 0, 0, 1, 0, 0], depth: 0, margin: 0 }];
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity, margin = 0;
   while (pending.length) {
     const item = pending.pop()!, current = item.node;
     if (current.visible === false || (current.opacity ?? 1) <= 0 || item.depth > 256) continue;
     const matrix = multiply(item.parent, rectangleTransform(current));
+    const reach = current.effects?.length ? shadowReach(current) : undefined;
+    const stackMargin = item.margin + (reach?.page ?? 0);
+    margin = Math.max(margin, stackMargin);
     if (!isLeaf(current)) {
       for (const id of current.children) {
         const child = document.nodes[id];
-        if (child && child.kind !== "page") pending.push({ node: child, parent: matrix, depth: item.depth + 1 });
+        if (child && child.kind !== "page") pending.push({ node: child, parent: matrix, depth: item.depth + 1, margin: stackMargin });
       }
     }
     if (current.kind !== "group") {
-      const bounds = strokeBounds(current, matrix);
+      const bounds = paddedRect(strokeBounds(current, matrix), reach ? outlinePad(matrix,reach.local) : 0);
       x0 = Math.min(x0, bounds.x); y0 = Math.min(y0, bounds.y);
       x1 = Math.max(x1, bounds.x + bounds.width); y1 = Math.max(y1, bounds.y + bounds.height);
     }
   }
-  const bounds = x0 === Infinity ? undefined : { x: x0, y: y0, width: x1 - x0, height: y1 - y0 };
+  const bounds = x0 === Infinity ? undefined : { box: {x: x0, y: y0, width: x1 - x0, height: y1 - y0}, margin };
   cachedDocument.set(node.id, bounds);
   return screenBounds(bounds);
 }
@@ -141,27 +162,37 @@ function loneNormalStroke(node: LayerNode): boolean {
     : !rectanglePaints(node).length;
 }
 
-function* drawLayer(context: CanvasRenderingContext2D, document: Document, node: LayerNode, depth: number, nesting: number): PaintSteps {
+function* drawLayer(context: CanvasRenderingContext2D, document: Document, node: LayerNode, depth: number, nesting: number, scale: number): PaintSteps {
   if (node.isMask || node.visible === false || (node.opacity ?? 1) <= 0 || depth > 256) return;
   if (node.kind === "booleanOp") {
     const result = booleanResult(document, node);
-    if (result) yield* drawLayer(context, document, result.isMask || result.blend !== node.blend ? { ...result, isMask: false, blend: node.blend } : result, depth, nesting);
+    if (result) yield* drawLayer(context, document, result.isMask || result.blend !== node.blend ? { ...result, isMask: false, blend: node.blend } : result, depth, nesting, scale);
     return;
   }
+  const shadow = hasShadows(node) ? { doc: document, scale } : undefined;
   const blended = node.blend !== undefined && node.blend !== "normal" && node.blend !== "passThrough";
   if (!isLeaf(node)) {
-    const draw = function* (target: CanvasRenderingContext2D): PaintSteps {
-      if (node.kind === "frame") yield* resolveLayerPaints(paintRectangle(target, node, 1, false), document, depth, nesting, drawLayer);
+    const draw = function* (target: CanvasRenderingContext2D, shadows?: ShadowLayer): PaintSteps {
+      if (node.kind === "frame") yield* resolveLayerPaints(paintRectangle(target, node, 1, false), document, depth, nesting, drawLayer, !!shadows);
+      if (node.kind === "frame") shadows?.inner();
       target.save(); target.transform(...rectangleTransform(node));
       if (node.kind === "frame" && node.clip) { target.beginPath(); tracePath(target, shapePath(node)); target.clip(); }
-      yield* drawChildren(target, document, node.children, depth + 1, nesting);
+      yield* drawChildren(target, document, node.children, depth + 1, nesting, scale);
       target.restore();
+      if (node.kind === "group") shadows?.inner();
       if (node.kind === "frame" && hasVisibleStroke(node)) yield* resolveLayerPaints(paintLayerStroke(target, node), document, depth, nesting, drawLayer);
     };
-    if (blended || node.blend === "normal" && node.children.length || (node.opacity ?? 1) < .999) {
-      const bounds = paintedGroupBounds(context, document, node);
-      if (bounds) yield* paintComposite(context, node, draw, bounds);
+    if (shadow || blended || node.blend === "normal" && node.children.length || (node.opacity ?? 1) < .999) {
+      const bounds = paintedGroupBounds(context, document, node, scale);
+      if (bounds) yield* paintComposite(context, node, draw, bounds, shadow);
     } else yield* draw(context);
+  } else if (shadow) {
+    const bounds = deviceBounds(context,document,node,scale);
+    yield* paintComposite(context,node,function* (target,shadows) {
+      yield* resolveLayerPaints(paintRectangle(target,node,1,false),document,depth,nesting,drawLayer,true);
+      shadows?.inner();
+      if (hasVisibleStroke(node)) yield* resolveLayerPaints(paintLayerStroke(target,node),document,depth,nesting,drawLayer);
+    },bounds,shadow);
   } else if (blended || hasShapePath(node) || hasVisibleStroke(node) || node.fills || node.opacity !== undefined && node.opacity !== 1) {
     const alpha = opacity(node.opacity ?? 1);
     const faded = alpha < .999;
@@ -306,33 +337,38 @@ function* paintPage(context: CanvasRenderingContext2D, document: Document, width
   context.fillRect(0, 0, width, height);
   context.save();
   context.scale(zoom, zoom); context.translate(-origin.x, -origin.y);
-  yield* drawChildren(context, document, page.children, 0, 0, { ...origin, width: width / zoom, height: height / zoom });
+  const device = context.getTransform();
+  yield* drawChildren(context, document, page.children, 0, 0, Math.sqrt(Math.abs(device.a*device.d-device.b*device.c)), { ...origin, width: width / zoom, height: height / zoom });
   context.restore();
 }
 
-function deviceBounds(context: CanvasRenderingContext2D, document: Document, node: LayerNode) {
-  if (!isLeaf(node)) return paintedGroupBounds(context, document, node);
+function deviceBounds(context: CanvasRenderingContext2D, document: Document, node: LayerNode, scale: number) {
+  if (!isLeaf(node)) return paintedGroupBounds(context, document, node, scale);
   const m = context.getTransform();
-  return strokeBounds(node, multiply([m.a,m.b,m.c,m.d,m.e,m.f], rectangleTransform(node)));
+  const matrix = multiply([m.a,m.b,m.c,m.d,m.e,m.f], rectangleTransform(node));
+  const bounds = strokeBounds(node,matrix);
+  if (!node.effects?.length) return bounds;
+  const reach = shadowReach(node);
+  return paddedRect(bounds,reach.page*scale+outlinePad(matrix,reach.local));
 }
 
 function* drawChildren(context: CanvasRenderingContext2D, document: Document, children: readonly string[],
-  depth: number, nesting: number, view?: Rectangle): PaintSteps {
+  depth: number, nesting: number, scale: number, view?: Rectangle): PaintSteps {
   for (let index = 0; index < children.length; index++) {
     const node = document.nodes[children[index]];
     if (!node || node.kind === "page" || node.visible === false) continue;
     if (node.isMask) {
       let end = index + 1;
       while (end < children.length && !document.nodes[children[end]]?.isMask) end++;
-      yield* drawMasked(context, document, node, children, index + 1, end, depth, nesting, drawLayer, deviceBounds);
+      yield* drawMasked(context, document, node, children, index + 1, end, depth, nesting, drawLayer, deviceBounds, scale);
       index = end - 1;
       continue;
     }
-    if (view && isLeaf(node)) {
+    if (view && isLeaf(node) && !hasShadows(node)) {
       const bounds = hasVisibleStroke(node) ? strokeBounds(node, rectangleTransform(node)) : node.transform ? transformBounds(node.transform, node.width, node.height) : node;
       if (bounds.x > view.x + view.width || bounds.y > view.y + view.height || bounds.x + bounds.width < view.x || bounds.y + bounds.height < view.y) continue;
     }
-    yield* drawLayer(context, document, node, depth, nesting);
+    yield* drawLayer(context, document, node, depth, nesting, scale);
   }
 }
 

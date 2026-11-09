@@ -3886,6 +3886,9 @@ test("mask actions, mixed types, hit testing, native downloads and recovery in t
 test("native effect stacks survive an editor change, device recovery and download", async ({page}) => {
   const engine = new EditorEngine();
   const id = String(engine.execute("shape.rectangle", {name:"Effect sample", x:40}).id);
+  engine.execute("shape.rectangle",{x:120,y:100,width:30,height:30,props:{
+    fill:"white",effects:[{type:"dropShadow",offset:[10,0],radius:0,color:"red"},
+      {type:"innerShadow",offset:[4,0],radius:0,color:"blue"}]}});
   const members = unzipSync(await encodeFigcraft(engine.getSnapshot().document));
   const native = JSON.parse(strFromU8(members["document.json"]));
   native.nodes[id].effects = [
@@ -3899,6 +3902,11 @@ test("native effect stacks survive an editor change, device recovery and downloa
     buffer:Buffer.from(zipSync({...members,"document.json":new TextEncoder().encode(JSON.stringify(native))})),
   });
   const layer = page.getByRole("region",{name:"Layers",exact:true}).getByRole("button",{name:"Effect sample",exact:true});
+  await expect(layer).toBeVisible();
+  await resetCanvasOrigin(page);
+  await expectCanvasPixel(page,122,115,[0,0,255,255]);
+  await expectCanvasPixel(page,137,115,[255,255,255,255]);
+  await expectCanvasPixel(page,155,115,[255,0,0,255]);
   await layer.click();
   await page.getByLabel("Design canvas",{exact:true}).focus();
   await page.keyboard.press("ArrowRight");

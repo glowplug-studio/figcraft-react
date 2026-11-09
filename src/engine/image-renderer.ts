@@ -54,13 +54,45 @@ export async function decodeVariant(entry: Pick<ImageVariant, "resource" | "widt
 
 type PaintRequest<P> = [context: CanvasRenderingContext2D, paint: P, width: number, height: number, space?: RegionPaintSpace];
 export type LayerPaintSteps = Generator<PaintRequest<ImagePaint | PatternPaint>, void>;
-export type PaintSteps = Generator<[...PaintRequest<ImagePaint>, magnifiedPixels?: boolean], void>;
+export type PaintSteps = Generator<[...PaintRequest<ImagePaint>, magnifiedPixels?: boolean, inspectOpacity?: boolean], void>;
 
 function coversBox(paint: ImagePaint, iw: number, ih: number, w: number, h: number): boolean {
   if (paint.scale_mode !== "crop") return paint.scale_mode === "fill";
   const crop = placementCrop(paint, iw, ih, w, h);
   const [x0,y0,x1,y1] = cropRect(crop);
   return crop[1] === 0 && crop[2] === 0 && Math.min(x0,x1) <= 0 && Math.min(y0,y1) <= 0 && Math.max(x0,x1) >= 1 && Math.max(y0,y1) >= 1;
+}
+
+// Filters and document colour conversion preserve source alpha. A resource is immutable.
+const opaqueImages = new WeakMap<ImageResource, boolean>();
+export function opaqueImageFill(resource: ImageResource | undefined, paint: ImagePaint, width: number, height: number) {
+  return !!resource && opaqueImages.get(resource) === true &&
+    (paint.scale_mode === "tile" || coversBox(paint,resource.width,resource.height,width,height));
+}
+
+async function sourceOpaque(resource: ImageResource, displayed: ImageBitmap, current: () => boolean) {
+  if (resource.bytes.type === "image/jpeg") return true;
+  const bitmap = displayed.width === resource.width && displayed.height === resource.height
+    ? displayed : await decodeImageBitmap(resource);
+  // Inspect original pixels: a small hole can disappear when downsampling for display.
+  const width = Math.min(bitmap.width,1024), height = Math.min(bitmap.height,Math.floor(262144/width));
+  const tile = new OffscreenCanvas(width,height);
+  try {
+    const ctx = tile.getContext("2d",{willReadFrequently:true})!;
+    for (let y=0;y<bitmap.height;y+=height) for (let x=0;x<bitmap.width;x+=width) {
+      if (x || y) await new Promise<void>(resolve=>setTimeout(resolve,0));
+      if (!current()) return false;
+      const w=Math.min(width,bitmap.width-x), h=Math.min(height,bitmap.height-y);
+      ctx.clearRect(0,0,w,h);
+      ctx.drawImage(bitmap,x,y,w,h,0,0,w,h);
+      const data = ctx.getImageData(0,0,w,h).data;
+      for (let i=3;i<data.length;i+=4) if (data[i] !== 255) return false;
+    }
+    return true;
+  } finally {
+    tile.width=tile.height=0;
+    if (bitmap !== displayed) bitmap.close();
+  }
 }
 
 // A file may contain finite coefficients whose products exceed JavaScript's numeric range.
@@ -132,8 +164,8 @@ export class CanvasImages {
 
   }
 
-  paint(ctx: CanvasRenderingContext2D, paint: ImagePaint, width: number, height: number, space?: RegionPaintSpace, magnifiedPixels = true) {
-    return this.#draw(ctx, paint, width, height, space, undefined, magnifiedPixels);
+  paint(ctx: CanvasRenderingContext2D, paint: ImagePaint, width: number, height: number, space?: RegionPaintSpace, magnifiedPixels = true, inspectOpacity = false) {
+    return this.#draw(ctx, paint, width, height, space, undefined, magnifiedPixels, inspectOpacity);
   }
 
   drawGhost(ctx:CanvasRenderingContext2D,paint:ImagePaint,width:number,height:number) {
@@ -148,7 +180,7 @@ export class CanvasImages {
     }
   }
 
-  #draw(ctx:CanvasRenderingContext2D,paint:ImagePaint,width:number,height:number,space?:RegionPaintSpace,maxSide?:number,magnifiedPixels = true): void | Promise<void> {
+  #draw(ctx:CanvasRenderingContext2D,paint:ImagePaint,width:number,height:number,space?:RegionPaintSpace,maxSide?:number,magnifiedPixels = true,inspectOpacity = false): void | Promise<void> {
     const resource = this.#resources?.[paint.image];
     if (!resource || !resource.width || !resource.height || resource.width * resource.height * 4 > PIXEL_BYTES) return;
     const w = space?.width ?? width, h = space?.height ?? height;
@@ -173,6 +205,14 @@ export class CanvasImages {
       if (cached.loading) return this.#loading;
       this.#entries.delete(key);
       this.#entries.set(key, cached);
+      if (cached.bitmap && inspectOpacity && !opaqueImages.has(resource)) {
+        if (this.#loading) return this.#loading;
+        const current = () => this.#entries.get(key) === cached;
+        this.#loading = sourceOpaque(resource,cached.bitmap,current).then(opaque=>{
+          if (current()) opaqueImages.set(resource,opaque);
+        },()=>{ if (current()) opaqueImages.set(resource,false); }).finally(()=>{this.#loading=undefined;});
+        return this.#loading;
+      }
       if (cached.bitmap) drawPixels(ctx, paint, cached.bitmap, width, height, space, magnifiedPixels);
       return;
     }
