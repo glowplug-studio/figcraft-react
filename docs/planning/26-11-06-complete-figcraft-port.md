@@ -8,13 +8,13 @@
 | Active slice | Paint and layer blend modes |
 | Active phase | Phase 4. [Blend mappings and implementation order](26-11-09-blend-modes.md). |
 | Upstream baseline | Closed-vector smoothing reference 3daa9d32. Paint bucket reference 8a7ebc24. Global supported baseline 8eb0b876. |
-| Branch and last verified commit | `prompt/full-figcraft-port`, layer blend compositing a3d7bc2, live native pattern paints 438cf6f. Earlier checkpoints are recorded below and in the dated plans. |
+| Branch and last verified commit | `prompt/full-figcraft-port`, paint blend compositing 13cfe42, layer blend compositing a3d7bc2, live native pattern paints 438cf6f. Earlier checkpoints are recorded below and in the dated plans. |
 | Completed slices | Rectangle/host-auth, bounded native persistence/recovery, supported-model pages, affine rectangle geometry/selection and solid appearance, plus nested group hierarchy, Frame containers, movement/transform gestures, rounded corners, ellipse/arc/ring and Polygon/Star editing verified locally; Line/Arrow and uniform solid strokes also verified; per-side Rectangle/Frame strokes, variable-width profiles and procedural brushes verified; vector networks, solid region/stroke rendering and Flatten/Reverse also verified; foundation commit `154f5a7` |
 | Remaining slices | Every row below except the integrated foundation; static inventory entries remain unverified until mapped and tested |
-| Tests last passed | At 438cf6f all 166 production Chromium workflows passed in 398.0 seconds with one worker and no retries, skips, failures or flakes. Both builds, strict types, 1,112 pure tests and two local Auth checks passed. Layer checkpoint a3d7bc2 adds 19 sampled modes, four focused browser checks and 1,114 pure tests. |
-| Files currently in progress | Per-paint blend rendering and the layer and paint blend menus. |
+| Tests last passed | At 438cf6f all 166 production Chromium workflows passed in 398.0 seconds with one worker and no retries, skips, failures or flakes. Both builds, strict types, 1,112 pure tests and two local Auth checks passed. Layer checkpoint a3d7bc2 adds 19 sampled modes, four focused browser checks and 1,114 pure tests. At 13cfe42 all 19 modes passed on three paint paths, with three focused Chromium workflows and 1,115 pure tests. |
+| Files currently in progress | Layer and paint blend menus and transient preview verification. |
 | Blockers | No blocker. Use local Graphify for all remaining slices. The scoped Supabase read succeeded. |
-| Exact next action | Continue from the [layer compositor checkpoint](26-11-09-blend-modes.md#layer-compositor-checkpoint). Per-paint compositing and menu preview are next. |
+| Exact next action | Continue from the [paint compositor checkpoint](26-11-09-blend-modes.md#paint-compositor-checkpoint). Implement layer and paint menus, then verify real interactions, timings and release gates. |
 | Last updated | 2026-11-09 |
 
 ## Scope and continuation
