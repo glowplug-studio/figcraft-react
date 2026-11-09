@@ -4,10 +4,10 @@
 
 | Field | Current value |
 |---|---|
-| Reference | Figcraft fork and original upstream at 3839fe4a0cb4897c1fed1fb03e0b60e191ff61cb. React 8aa940f on prompt/full-figcraft-port. The global supported baseline is 8eb0b876. |
-| Evidence | Local merged Graphify index has 31,845 nodes and 105,083 edges. The Rust index links the grid-placement tests to grid_place. The React index links resizeChildren to withLayerSize and hierarchy tests to setRectangleProperties. UI labels and JSON defaults were checked directly. |
+| Reference | Figcraft fork and original upstream at 3839fe4a0cb4897c1fed1fb03e0b60e191ff61cb. React ebfbaf6 on prompt/full-figcraft-port. The global supported baseline is 8eb0b876. |
+| Evidence | Local merged Graphify index has 31,851 nodes and 105,143 edges. The Rust index links the grid-placement tests to grid_place. The React index links resizeChildren to withLayerSize and hierarchy tests to setRectangleProperties. UI labels and JSON defaults were checked directly. |
 | Backend | The scoped Figcraft MCP read returned zero public tables. Layout settings are part of the native document and its existing local persistence. |
-| Next action | Measure dense and multi-frame auto-layout gestures, finish numeric field interactions and the open checks in the [property matrix](../reports/26-11-09-auto-layout-parity.html). |
+| Next action | Finish numeric field interactions and the open checks in the [property matrix](../reports/26-11-09-auto-layout-parity.html). |
 | Blockers | None. |
 
 ## Implementation and verification order
@@ -69,3 +69,9 @@ Signed-in Chromium verified the insertion line pixel, Escape, row reordering, a 
 At 88d2d7c, double-clicking selected frame edges set Hug contents on the local axis. Alt-double-click set Fill container on eligible children, including text. Three rotations passed in Vitest. Chromium also verified ordinary double-click text entry, frame sizing undo, touch text creation and pointer reordering. All 1,732 pure tests, two Auth tests, strict types and both builds passed.
 
 At 8aa940f, the two pinned upstream egui gap-handle tests passed headlessly. The browser port matched the 180-to-200 row gap and the 60-to-50-to-56 item gaps. Separate regressions cover paired padding, zoom, cancellation, grid outlines, independent grid gaps and rotated-frame exclusion. The signed-in browser exercised desktop and narrow touch dragging, modifier handling and saved layout values. An initial check used an exact label-text query that included the select options. The accessible combobox query passed. All 1,736 pure tests, both local Auth tests, strict types and both builds passed. [Interim property matrix](../reports/26-11-09-auto-layout-parity.html).
+
+## Dense layout performance at ebfbaf6
+
+Chromium exercised wrapping and grid spacing in a 10,000-node document arranged as either 100 frames or one frame with 9,998 children. The initial dense frame times at the 95th percentile were 23.5 ms for reordering and 31.1 ms for grid gaps. CPU profiles identified repeated affine checks, shared parent transforms and per-child grid allocations. The final build reuses parent geometry, takes a consecutive-placement path for unit cells, aggregates single-track requirements, and clips offscreen grid guides. All 3,840 native keyboard steps, 2,400 pointer snapshots, 200 nested grid documents and 1,250 mixed flow documents still matched.
+
+Two independent repetitions of all four Chromium scenarios passed. Each repetition measured 60 frames after warm-up. The multi-frame results ranged from 4.3 to 5.5 ms p95. Dense wrapped reordering took 10.3–10.4 ms and dense grid spacing took 15.3–16.1 ms. Retained JavaScript heap growth after collection was at most 987,576 bytes. Each gesture cancelled to the initial document with zero root publications. These are isolated gesture measurements on this machine. Whole-editor long-session profiling remains on the master roadmap. Strict types, both builds, 1,736 pure tests and two local Auth tests passed. Full production Chromium verification started on this build.
