@@ -124,6 +124,15 @@ function paintedGroupBounds(context: CanvasRenderingContext2D, document: Documen
   return screenBounds(bounds);
 }
 
+// A single normal solid stroke already combines its geometry into one coverage mask or path.
+// Applying node opacity there avoids a second 8-bit rounding at antialiased edges.
+function loneNormalStroke(node: LayerNode): boolean {
+  const paints = node.strokes;
+  if (paints?.length !== 1 || paints[0].type !== "solid" || paints[0].blend !== "normal") return false;
+  return node.kind === "vector" ? vectorPaintRegions(node).every(region => !region.paints.length)
+    : !rectanglePaints(node).length;
+}
+
 function* drawLayer(context: CanvasRenderingContext2D, document: Document, node: LayerNode, depth: number, nesting: number): PaintSteps {
   if (node.visible === false || (node.opacity ?? 1) <= 0 || depth > 256) return;
   if (node.kind === "booleanOp") {
@@ -149,9 +158,11 @@ function* drawLayer(context: CanvasRenderingContext2D, document: Document, node:
       if (bounds) yield* paintComposite(context, node, draw, bounds);
     } else yield* draw(context);
   } else if (blended || hasShapePath(node) || hasVisibleStroke(node) || node.fills || node.opacity !== undefined && node.opacity !== 1) {
-    if (blended || (node.opacity ?? 1) < .999) {
+    const alpha = opacity(node.opacity ?? 1);
+    const faded = alpha < .999;
+    if (blended || faded && !loneNormalStroke(node)) {
       yield* paintComposite(context,node,target=>resolveLayerPaints(paintRectangle(target,node),document,depth,nesting,drawLayer));
-    } else yield* resolveLayerPaints(paintRectangle(context,node),document,depth,nesting,drawLayer);
+    } else yield* resolveLayerPaints(paintRectangle(context,node,faded ? alpha : 1),document,depth,nesting,drawLayer);
   } else {
     context.fillStyle = node.fill;
     if (node.transform) {
