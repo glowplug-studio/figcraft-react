@@ -1,3 +1,4 @@
+import { clippedText, readVersionTime, validVersionId, versionByteLimit, versionIndexLimit, versionLimit, type FileVersion } from "./file-versions";
 import {readLibraryStore,readImportedRecords,readLibraryLinks,wireLibraryLinks,keepLibraryAssets,libraryImageKeys,readLibraryManifest,wireLibraryManifest,type PublishedLibrary} from "./published-library";
 import { emptyVariables, readVariables } from "./variables";
 import { readLayerStyles, readSharedStyles, wireSharedStyle } from "./shared-styles";
@@ -38,7 +39,7 @@ const MAX_DIRECTORY_READ = 16 * 1024 * 1024;
 export const FIGCRAFT_TREE_DEPTH_LIMIT = 256;
 type ObjectValue = Record<string, unknown>;
 const IMAGE_COUNT_LIMIT = 20_000;
-export interface DecodedFigcraft { document: Document; nextId: string; issues?: readonly string[] }
+export interface DecodedFigcraft { document: Document; nextId: string; versions?: readonly FileVersion[]; issues?: readonly string[] }
 
 function nativeEffects(value: unknown) {
   try { return readEffects(appearanceValue(value), "archive"); }
@@ -283,7 +284,7 @@ async function parseDocument(source: Uint8Array | Blob) {
   if (Array.isArray(root.imageIndex)) {
     for (const entry of root.imageIndex) if (typeof entry?.hash === "string") listed.add(entry.hash);
   }
-  return { decoded, listed };
+  return { decoded, listed, hasImageIndex: Array.isArray(root.imageIndex) };
 }
 
 async function readMember(file: FileEntry, source?: Blob, hash?: ReturnType<typeof sha256.create>): Promise<Blob> {
@@ -394,6 +395,57 @@ export async function decodePublishedLibrary(source:Uint8Array | Blob) {
   } finally { await reader.close(); }
 }
 
+async function readVersions(members: Map<string, FileEntry>, images: Readonly<Record<string, ImageResource>>,
+  budget: { remaining: number }, source: Blob | undefined, report: (message: string) => void) {
+  const versions: FileVersion[] = [];
+  const index = members.get("versions/index.json");
+  if (!index) return versions;
+  let entries: unknown;
+  try {
+    if (index.uncompressedSize > Math.min(versionIndexLimit, budget.remaining)) fail("version index exceeds its byte budget");
+    budget.remaining -= index.uncompressedSize;
+    const blob = await readMember(index, source);
+    entries = object(parse(await blob.text()), "version index").versions;
+  } catch (error) {
+    report("the version history was skipped: " + (error instanceof Error ? error.message : "invalid index"));
+    return versions;
+  }
+  if (!Array.isArray(entries)) return versions;
+  let remaining = versionByteLimit;
+  const ids = new Set<string>();
+  for (const entry of entries) {
+    if (versions.length === versionLimit) { report("only the first 100 versions were kept"); break; }
+    const key: unknown = entry?.id;
+    if (!validVersionId(key) || ids.has(key)) { report("a version with an invalid id was skipped"); continue; }
+    try {
+      const file = members.get("versions/" + key + ".json");
+      if (!file) fail("missing snapshot");
+      if (file.uncompressedSize > Math.min(remaining, budget.remaining, MAX_ARCHIVE_MEMBER)) fail("snapshot exceeds its byte budget");
+      remaining -= file.uncompressedSize;
+      budget.remaining -= file.uncompressedSize;
+      const json = await readMember(file, source);
+      const resources: Record<string, ImageResource> = Object.create(null);
+      if (Array.isArray(entry.images)) for (const hash of entry.images) {
+        if (typeof hash === "string" && Object.hasOwn(images, hash)) resources[hash] = images[hash];
+      }
+      versions.push(Object.freeze({ id: key, name: clippedText(entry.name, 200), description: clippedText(entry.description, 2000),
+        time: readVersionTime(entry.time), auto: entry.auto === true, snapshot: { json, images: Object.freeze(resources) } }));
+      ids.add(key);
+    } catch (error) {
+      report("version `" + key + "` was skipped: " + (error instanceof Error ? error.message : "invalid snapshot"));
+    }
+  }
+  return versions;
+}
+
+export async function readVersionDocument(version: FileVersion) {
+  const snapshot = version.snapshot;
+  if ("document" in snapshot) return snapshot;
+  const { decoded } = await parseDocument(snapshot.json);
+  return { nextId: decoded.nextId, document: Object.keys(snapshot.images).length
+    ? Object.freeze({ ...decoded.document, images: snapshot.images }) : decoded.document };
+}
+
 async function readArchive(bytes: Uint8Array | Blob): Promise<DecodedFigcraft> {
   // Keys are validated before reading image members. An unsafe key is a recoverable
   // image issue. No entry name is ever used as a filesystem path.
@@ -402,6 +454,7 @@ async function readArchive(bytes: Uint8Array | Blob): Promise<DecodedFigcraft> {
     let documentFile: FileEntry | undefined;
     const members = new Map<string, FileEntry>();
     const publicationMembers = new Map<string,FileEntry>();
+    const versionMembers = new Map<string,FileEntry>();
     const unreadKeys = new Set<string>();
     const issues: string[] = [];
     let issueCount = 0;
@@ -413,6 +466,11 @@ async function readArchive(bytes: Uint8Array | Blob): Promise<DecodedFigcraft> {
         documentFile = file;
       } else if (addLibraryMember(publicationMembers,file) || file.filename==="thumbnail.png" && !file.directory || file.filename==="library/" && file.directory) {
         continue;
+      } else if (file.filename === "versions/" && file.directory) {
+        continue;
+      } else if (/^versions\/[^/]+\.json$/.test(file.filename) && !file.directory) {
+        if (versionMembers.has(file.filename)) fail("duplicate version member");
+        versionMembers.set(file.filename, file);
       } else if (file.filename === "images/" && file.directory) {
         continue;
       } else if (file.filename.startsWith("images/")) {
@@ -424,12 +482,12 @@ async function readArchive(bytes: Uint8Array | Blob): Promise<DecodedFigcraft> {
           if (members.has(key)) fail("duplicate image member");
           members.set(key, file);
         }
-      } else fail("archives with history, branches or other members are not supported yet");
+      } else fail("archives with branches or other unsupported members cannot be opened yet");
     }
     if (!documentFile) fail("archive has no document.json");
     const archiveBytes = bytes instanceof Blob ? bytes.size : bytes.byteLength;
     if (documentFile.uncompressedSize > documentByteLimit(documentFile.compressedSize,archiveBytes)) fail("document exceeds the native browser inflation limit");
-    const { decoded, listed } = await parseDocument(await readMember(documentFile));
+    const { decoded, listed, hasImageIndex } = await parseDocument(await readMember(documentFile));
     const images: Record<string, ImageResource> = Object.create(null);
     let remaining = MAX_UNPACKED_BYTES - documentFile.uncompressedSize;
     let count = 0;
@@ -463,15 +521,23 @@ async function readArchive(bytes: Uint8Array | Blob): Promise<DecodedFigcraft> {
     for (const key of [...listed].sort()) {
       if (!members.has(key) && !unreadKeys.has(key)) report(`image ${key} is used by the file but its data is missing: it is left out, and saving this file again drops it`);
     }
+    const budget = { remaining };
+    const source = bytes instanceof Blob ? bytes : undefined;
+    const versions = await readVersions(versionMembers, images, budget, source, report);
     let published:PublishedLibrary | undefined;
     try {
-      published=await readPublished(publicationMembers,images,members,remaining,bytes instanceof Blob ? bytes : undefined);
+      published=await readPublished(publicationMembers,images,members,budget.remaining,source);
     } catch (error) {
       report("the published library was skipped: "+(error instanceof Error ? error.message : "invalid library"));
     }
     if (issueCount > issues.length) issues.push(`${issueCount - issues.length} more images couldn't be loaded`);
+    if (hasImageIndex) for (const version of versions) {
+      if ("images" in version.snapshot) for (const hash of Object.keys(version.snapshot.images)) {
+        if (!listed.has(hash)) delete images[hash];
+      }
+    }
     const document = Object.keys(images).length || published ? Object.freeze({ ...decoded.document, ...(published && {published}), ...(Object.keys(images).length && {images:Object.freeze(images)}) }) : decoded.document;
-    return { ...decoded, document, ...(issues.length ? { issues: Object.freeze(issues) } : {}) };
+    return { ...decoded, document, ...(versions.length && { versions: Object.freeze(versions) }), ...(issues.length ? { issues: Object.freeze(issues) } : {}) };
   } finally {
     await reader.close();
   }
@@ -554,22 +620,51 @@ export async function prepareArchive(document: Document, nextId?: string) {
   return {json, keys, resources};
 }
 
-export async function encodeFigcraftBlob(document: Document, nextId?: string): Promise<Blob> {
+export async function encodeFigcraftBlob(document: Document, nextId?: string, versions: readonly FileVersion[] = []): Promise<Blob> {
   const {json, keys, resources} = await prepareArchive(document, nextId);
   const writer = new ZipWriter(new BlobWriter("application/octet-stream"), {useWebWorkers: false, extendedTimestamp: false});
   // A very compressible document above the 512 MiB floor could exceed the native 16:1 read budget.
   await writer.add("document.json", new BlobReader(json), {level: json.size > MAX_ARCHIVE_MEMBER ? 0 : 3});
-  for (const key of keys) {
-    await writer.add(`images/${key}`, new BlobReader(resources[key]!.bytes), {level: 0});
+  const allImages: Record<string, ImageResource> = Object.assign(Object.create(null), resources);
+  let total = keys.reduce((n, key) => n + resources[key].bytes.size, json.size);
+  if (versions.length) {
+    if (versions.length > versionLimit) fail("version history exceeds 100 snapshots");
+    const index = [], ids = new Set<string>();
+    let versionBytes = 0;
+    for (const version of versions) {
+      if (!validVersionId(version.id) || ids.has(version.id)) fail("invalid or duplicate version id");
+      ids.add(version.id);
+      const snapshot = version.snapshot;
+      const stored = "json" in snapshot ? { json: snapshot.json, resources: snapshot.images }
+        : await prepareArchive(snapshot.document, snapshot.nextId);
+      versionBytes += stored.json.size;
+      total += stored.json.size;
+      if (stored.json.size > MAX_ARCHIVE_MEMBER || versionBytes > versionByteLimit) fail("version snapshots exceed the native byte budget");
+      const images = Object.keys(stored.resources).sort();
+      for (const key of images) if (!Object.hasOwn(allImages, key)) {
+        allImages[key] = stored.resources[key]; total += allImages[key].bytes.size;
+      }
+      if (total > MAX_UNPACKED_BYTES) fail("version history exceeds the archive budget");
+      await writer.add("versions/" + version.id + ".json", new BlobReader(stored.json), { level: 3 });
+      index.push({ id: version.id, name: version.name, description: version.description, time: wireId(version.time),
+        ...(version.auto && { auto: true }), images });
+    }
+    const metadata = new Blob([stringify({ versions: index })!]);
+    total += metadata.size;
+    if (metadata.size > versionIndexLimit || total > MAX_UNPACKED_BYTES) fail("version index exceeds the archive budget");
+    await writer.add("versions/index.json", new BlobReader(metadata), { level: 3 });
+  }
+  for (const [key, resource] of Object.entries(allImages)) {
+    await writer.add("images/" + key, new BlobReader(resource.bytes), { level: 0 });
   }
   if (document.published) {
     const published=document.published;
     const snapshot=await prepareArchive(published.document,published.nextId);
     const manifest=new Blob([stringify(wireLibraryManifest(published.manifest))!]);
     if (manifest.size>MAX_MANIFEST || snapshot.json.size>MAX_ARCHIVE_MEMBER) fail("published library exceeds the native member limit");
-    const extra=snapshot.keys.filter(key=>!Object.hasOwn(resources,key));
+    const extra=snapshot.keys.filter(key=>!Object.hasOwn(allImages,key));
     const imageBytes=extra.reduce((n,key)=>n+snapshot.resources[key].bytes.size,0);
-    const total=keys.reduce((n,key)=>n+resources[key].bytes.size,json.size+snapshot.json.size+manifest.size+imageBytes);
+    total += snapshot.json.size + manifest.size + imageBytes;
     if (total>MAX_UNPACKED_BYTES || imageBytes>1024 ** 3) fail("published library exceeds the archive budget");
     await writer.add(MANIFEST,new BlobReader(manifest),{level:3});
     await writer.add(SNAPSHOT,new BlobReader(snapshot.json),{level:3});
@@ -578,6 +673,6 @@ export async function encodeFigcraftBlob(document: Document, nextId?: string): P
   return writer.close();
 }
 
-export async function encodeFigcraft(document: Document, nextId?: string): Promise<Uint8Array<ArrayBuffer>> {
-  return new Uint8Array(await (await encodeFigcraftBlob(document, nextId)).arrayBuffer());
+export async function encodeFigcraft(document: Document, nextId?: string, versions?: readonly FileVersion[]): Promise<Uint8Array<ArrayBuffer>> {
+  return new Uint8Array(await (await encodeFigcraftBlob(document, nextId, versions)).arrayBuffer());
 }

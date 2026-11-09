@@ -176,7 +176,7 @@ describe("bounded native Figcraft file adapter", () => {
     await expect(decodeFigcraft(encodedFixture(change))).rejects.toThrow("Cannot open Figcraft file");
   });
 
-  it.each(["versions/index.json", "branches/index.json", "../document.json"])("refuses unsupported ZIP member %s", async (member) => {
+  it.each(["branches/index.json", "../document.json"])("refuses unsupported ZIP member %s", async (member) => {
     const archive = zipSync({ "document.json": bytes(fixtureText), [member]: bytes("{}") });
     await expect(decodeFigcraft(archive)).rejects.toThrow("Cannot open Figcraft file");
   });

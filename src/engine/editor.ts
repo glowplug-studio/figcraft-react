@@ -1,3 +1,4 @@
+import type { FileVersion } from "./file-versions";
 import {documentColours} from "./document-colours";
 import {swapLibrary} from "./library-swap";
 import {importLibraryComponents} from "./library-components";
@@ -304,6 +305,7 @@ export class EditorEngine {
   #vectorListeners = new Set<() => void>();
   #viewportAttached = false;
   #viewConfigured = false;
+  #versions: readonly FileVersion[] = [];
   #saved: Document | null = null;
   #downloaded = false;
   #saveSequence = 0;
@@ -856,10 +858,10 @@ export class EditorEngine {
   }
   subscribe = (listener: () => void): (() => void) => { this.#listeners.add(listener); return () => { this.#listeners.delete(listener); }; };
   captureNativeSnapshot() {
-    const document = this.#snapshot.document, nextId = String(this.#nextId);
-    return () => encodeFigcraftBlob(document, nextId);
+    const document = this.#snapshot.document, nextId = String(this.#nextId), versions = this.#versions;
+    return () => encodeFigcraftBlob(document, nextId, versions);
   }
-  nativeSnapshot = (): Promise<Uint8Array> => encodeFigcraft(this.#snapshot.document, String(this.#nextId));
+  nativeSnapshot = (): Promise<Uint8Array> => encodeFigcraft(this.#snapshot.document, String(this.#nextId), this.#versions);
   #cacheLibrary(path:string,source:PublishedLibrary) {
     if (this.#libraryFiles.size>=MAX_CACHED_LIBRARIES && !this.#libraryFiles.has(path)) this.#libraryFiles.clear();
     this.#libraryFiles.set(path,source);this.#libraryRevision++;
@@ -1462,7 +1464,7 @@ export class EditorEngine {
     if (!live) this.cancelInteraction();
     const {document,nextId} = live ? this.#prepareEdit(live.document,live.nextId) : {document:this.#snapshot.document,nextId:this.#nextId};
     const revision = ++this.#saveSequence, opening = this.#openSequence;
-    const archive = await encodeFigcraftBlob(document, String(nextId));
+    const archive = await encodeFigcraftBlob(document, String(nextId), this.#versions);
     const data = await output(archive);
     if (!this.#snapshot.editable || opening !== this.#openSequence) throw new Error("Save was cancelled because the document or identity changed");
     this.#pendingSaves.set(revision, document);
@@ -1595,6 +1597,7 @@ export class EditorEngine {
     checkCurrent();
     this.#documentIdentity = Symbol();
     this.#nextId = BigInt(decoded.nextId);
+    this.#versions = decoded.versions ?? [];
     this.#undo = []; this.#redo = []; this.#saved = null; this.#downloaded = false; this.#pendingSaves.clear();
     this.#vectorEdit = undefined;
     this.#publish({ document: decoded.document, profileDialog: false, libraryPanel:undefined, missingFonts: undefined, selection: Object.freeze([]), tool: "move" });
