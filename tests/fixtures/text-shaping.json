@@ -1,0 +1,9 @@
+[
+  {"axes":{},"features":{},"file":"inter/Inter-Regular.ttf","glyphs":[[2,0,1273,0,0],[456,1,1413,0,0]],"rtl":false,"text":"AV"},
+  {"axes":{},"features":{"kern":false},"file":"inter/Inter-Regular.ttf","glyphs":[[2,0,1413,0,0],[456,1,1413,0,0]],"rtl":false,"text":"AV"},
+  {"axes":{},"features":{"calt":true},"file":"inter/Inter-Regular.ttf","glyphs":[[1805,0,1954,0,0]],"rtl":false,"text":"->"},
+  {"axes":{},"features":{},"file":"inter/Inter-Regular.ttf","glyphs":[[618,0,1194,0,0],[0,2,1344,0,0],[993,3,1118,0,0]],"rtl":false,"text":"é😀x"},
+  {"axes":{},"features":{},"file":"inter/Inter-Regular.ttf","glyphs":[[1447,0,747,0,0],[1342,1,833,0,0],[1343,2,1249,0,0],[1446,3,747,0,0]],"rtl":true,"text":"(12)"},
+  {"axes":{},"features":{"sups":true},"file":"inter/Inter-Regular.ttf","glyphs":[[1603,0,623,0,0],[1605,1,905,0,0],[1606,2,913,0,0]],"rtl":false,"text":"123"},
+  {"axes":{"wght":900.0,"wdth":62.5},"features":{},"file":"noto-sans-georgian/NotoSansGeorgian.ttf","glyphs":[[112,0,496,0,0],[118,1,502,0,0],[138,2,517,0,0]],"rtl":false,"text":"აბგ"}
+]

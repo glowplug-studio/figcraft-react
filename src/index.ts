@@ -44,3 +44,6 @@ export { widthPresetIds, widthPresetLabels, widthPresetProfile, type WidthPoint,
 export { brushPresets, defaultBrush, type Brush } from "./engine/brush";
 export type { VectorNode } from "./engine/document";
 export type { VectorNetwork, VectorVertex, VectorSegment, VectorRegion, RegionPaintSpace, HandleMirroring } from "./engine/vector-network";
+
+export { readFontFaces } from "./engine/font-source";
+export type { ShapingFace, ShapingScalar, ShapedGlyph } from "./engine/shaping-face";

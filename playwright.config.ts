@@ -23,7 +23,11 @@ export default defineConfig({
   projects: [
     {
       name: "chromium",
-      use: { ...devices["Desktop Chrome"], viewport: { width: 1440, height: 900 }, deviceScaleFactor: 1 },
+      use: {
+        ...devices["Desktop Chrome"], viewport: { width: 1440, height: 900 }, deviceScaleFactor: 1,
+        // Fixed screenshot fixtures use classic scrollbar metrics for native select arrows.
+        launchOptions: { args: ["--disable-features=OverlayScrollbar"] },
+      },
     },
   ],
   webServer: externalBaseUrl

@@ -376,3 +376,5 @@ At Rust a4251ca8, doc::text TextStyle, TextData, StyleRun and ParaList map to th
 The native TextData layout_key, save_breaks and saved_breaks_for methods map to textLayoutKey, saveTextBreaks and savedBreaksFor. Six fixed keys from the native crate and 4,093 generated numeric cases matched. [Saved-line-break evidence](../planning/26-11-09-rich-text.md#saved-line-breaks).
 
 Native text/build.rs input_fonts and craft_fonts at a4251ca8 map to the five packaged font binaries, fonts/catalog.css and the Next.js editor host. Native Face::advance and advance_at supplied the static and variable metric fixtures in the authenticated browser font test. [Font evidence](../planning/26-11-09-rich-text.md#bundled-font-resources).
+
+The single-face HarfRust step inside text::layout::shape_segment maps to ShapingFace.shape. FontDb::add_bytes and Face::from_bytes supply the collection and face-reading contracts for readFontFaces. Seven sets of native output agree in Node and Chromium. Higher-level segment metrics, cluster selection and line placement remain open. [Glyph evidence](../planning/26-11-09-rich-text.md#opentype-glyph-shaping).

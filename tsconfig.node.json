@@ -8,5 +8,5 @@
     "strict": true,
     "target": "ES2022"
   },
-  "include": ["playwright.config.ts", "vite.config.ts", "vitest.config.ts"]
+  "include": ["scripts/build-text-runtime.ts", "playwright.config.ts", "vite.config.ts", "vitest.config.ts"]
 }
