@@ -15,7 +15,7 @@ export function localStyles(doc:Document) {
   return styles.filter(s=>!remote.has(s.id));
 }
 
-function styleLinks(node:DocumentNode) {
+export function styleLinks(node:DocumentNode) {
   const ids=new Set(Object.values(node.styles ?? {}).filter((id):id is string=>typeof id==="string"));
   if (node.kind==="text") {
     if (node.text.style.styleId) ids.add(node.text.style.styleId);

@@ -21,14 +21,13 @@ export function libraryVariableIds(data:Variables,seeds:Iterable<string>) {
   }
   return found;
 }
-function remapValue(value:VariableValue,ids:ReadonlyMap<string,string>):VariableValue | undefined {
-  if (references(value).some(id=>!ids.has(id))) return;
+export function remapVariableReferences(value:VariableValue,local:(id:string)=>string):VariableValue {
   switch (value.type) {
-    case "alias":return {type:"alias",value:ids.get(value.value)!};
-    case "colorAlpha":return {type:"colorAlpha",value:{...value.value,variable:ids.get(value.value.variable)!}};
+    case "alias":return {type:"alias",value:local(value.value)};
+    case "colorAlpha":return {type:"colorAlpha",value:{...value.value,variable:local(value.value.variable)}};
     case "colorMix":{
       const {from,to,t}=value.value;
-      return {type:"colorMix",value:{t,from:"variable" in from ? {variable:ids.get(from.variable)!} : from,to:"variable" in to ? {variable:ids.get(to.variable)!} : to}};
+      return {type:"colorMix",value:{t,from:"variable" in from ? {variable:local(from.variable)} : from,to:"variable" in to ? {variable:local(to.variable)} : to}};
     }
     default:return value;
   }
@@ -45,7 +44,7 @@ export function importLibraryVariables(doc:Document,lib:PublishedLibrary,keys:It
     const {extends:parent,overrides,...record}=index.variables.get(key)!;
     const values:Record<string,VariableValue>=Object.create(null);
     for (const [mode,source] of Object.entries(record.values)) {
-      const val=remapValue(source,vp.map);if (val) values[mode]=val;
+      if (references(source).every(id=>vp.map.has(id))) values[mode]=remapVariableReferences(source,id=>vp.map.get(id)!);
     }
     return {...record,id,collection:cp.map.get(record.collection)!,values};
   });

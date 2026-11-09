@@ -78,6 +78,7 @@ export function AssetsPanel({doc,editable,dispatch,place,start,end,source,addLib
   const [query,setQuery] = useState("");
   const [collapsed,setCollapsed] = useState<ReadonlySet<string>>(()=>new Set());
   const [libraryStatus,setLibraryStatus]=useState("");
+  const [swapping,setSwapping]=useState<string>();
   const [loadingLibrary,setLoadingLibrary]=useState(false);
   const picker=useRef<HTMLInputElement>(null);
   const [publish,setPublish] = useState(false);
@@ -94,7 +95,7 @@ export function AssetsPanel({doc,editable,dispatch,place,start,end,source,addLib
     }
     return folders;
   },[all,search]);
-  return <section className="figcraft-assets" aria-label="Assets" onKeyDown={e=>{if(e.key === "Escape") {setMenu(undefined);setQuery("");}}}>
+  return <section className="figcraft-assets" aria-label="Assets" onKeyDown={e=>{if(e.key === "Escape") {setMenu(undefined);setSwapping(undefined);setQuery("");}}}>
     <input aria-label="Search assets" placeholder="Search assets" type="search" value={query} onChange={e=>setQuery(e.target.value)}/>
     <button type="button" aria-expanded={publish} onClick={()=>setPublish(!publish)}>Publish library…</button>
     {publish && <LibraryPublishForm doc={doc} editable={editable} dispatch={dispatch} save={save}/>}
@@ -131,6 +132,22 @@ export function AssetsPanel({doc,editable,dispatch,place,start,end,source,addLib
               </button>)}
           {count>0 && <button type="button" disabled={!editable} onClick={()=>dispatch("library.acceptUpdates",{ids:[link.id]})}>
             Accept {count} {count===1 ? "update" : "updates"}</button>}
+          {doc.libraryLinks!.length>1 && <button type="button" disabled={!editable}
+            aria-label={"Swap library "+link.name} aria-expanded={swapping===link.id}
+            onClick={()=>setSwapping(swapping===link.id ? undefined : link.id)}>Swap…</button>}
+          {swapping===link.id && <div role="group" aria-label={"Swap "+link.name+" to"}>
+            {doc.libraryLinks!.filter(other=>other.id!==link.id).map(other=>
+              <button type="button" key={other.id} disabled={!editable || source(other.path)?.manifest.id!==other.id}
+                onClick={()=>{
+                  const result=dispatch("library.swap",{from:link.id,to:other.id});
+                  setSwapping(undefined);
+                  if (!result) return;
+                  const unmatched=Array.isArray(result.unmatched) ? result.unmatched : [];
+                  setLibraryStatus("Swapped "+link.name+" to "+other.name+" ("+result.components+" components, "+
+                    result.styles+" styles, "+result.variables+" variables)."+
+                    (unmatched.length ? " Unmatched assets include "+unmatched.join(", ")+".":""));
+                }}>{other.name}</button>)}
+          </div>}
           <button type="button" disabled={!editable} aria-label={"Remove library "+link.name}
             onClick={()=>dispatch("library.remove",{id:link.id})}>Remove</button></div>;
       })}</section>}

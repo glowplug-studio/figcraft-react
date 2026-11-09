@@ -238,6 +238,20 @@ function recordOverrides(before: Document, after: Document, node: LayerNode, cha
   return withOverrideSet(node, overrides);
 }
 
+/** Native history normalises a restored mirror against its restored main after a library swap. */
+export function restoreLibraryOverrides(before:Document,restored:Document) {
+  if (before.libraryStore?.components===restored.libraryStore?.components) return restored;
+  let draft:HierarchyDraft|undefined;
+  for (const node of Object.values(restored.nodes)) {
+    const old=before.nodes[node.id];
+    if (node.kind==="page" || !node.source || !old?.source || old.kind==="page" || old.source===node.source) continue;
+    const groups=differentComponentGroups(old,node);
+    const updated=recordOverrides(before,restored,node,groups);
+    if (updated!==node) (draft??=new HierarchyDraft(restored)).set(updated);
+  }
+  return draft?.finish() ?? restored;
+}
+
 function followsMainGeometry(document: Document, id: NodeId) {
   let below = document.nodes[id];
   for (const parentId of ancestors(document,id)) {

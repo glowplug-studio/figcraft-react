@@ -6370,3 +6370,29 @@ test("library component tiles place, swap, accept nested updates and recover the
   expect(placed).toMatchObject([{kind:"instance",component:mains.get("4")},{kind:"instance",component:mains.get("2")}]);
   expect(Object.values(document.nodes).filter(n=>n.name==="Dot")).toHaveLength(4);
 });
+
+test("whole-library swap reports unmatched assets and recovers the replacement after undo and redo",async({page})=>{
+  await login(page);
+  const file=(name:string)=>new URL("../fixtures/native-swap-"+name+".figcraft",import.meta.url).pathname;
+  const button=(name:string)=>page.getByRole("button",{name,exact:true});
+  await page.getByLabel("Open Figcraft file",{exact:true}).setInputFiles(file("partial-input"));
+  await button("Assets").click();
+  const enabled=page.getByRole("region",{name:"Enabled libraries"});
+  await expect(enabled).toContainText("Ocean");await expect(enabled).toContainText("Forest");
+  const picker=page.getByLabel("Choose published library");
+  await picker.setInputFiles(file("ocean"));await expect(button("Place Only in A")).toBeVisible();
+  await picker.setInputFiles(file("forest"));await expect(button("Place Button")).toHaveCount(2);
+  await button("Swap library Ocean").click();
+  await page.getByRole("group",{name:"Swap Ocean to"}).getByRole("button",{name:"Forest"}).click();
+  const message=page.getByRole("status").filter({hasText:"Swapped Ocean to Forest"});
+  await expect(message).toContainText("component Only in A, extended collection Theme (extended)");
+  await button("Undo").click();await button("Redo").click();
+  await expect(page.locator(".figcraft-recovery")).toHaveText("Recovery saved on this device");
+  await page.reload();
+  const downloading=page.waitForEvent("download");await button("Save as").click();
+  const {document}=await decodeFigcraft(await readFile((await (await downloading).path())!));
+  const native=(await decodeFigcraft(await readFile(file("partial-redo")))).document;
+  expect(document).toEqual({...native,name:document.name,libraryLinks:native.libraryLinks?.map(l=>({
+    ...l,path:document.libraryLinks?.find(other=>other.id===l.id)?.path
+  }))});
+});

@@ -1,3 +1,4 @@
+import {swapLibrary} from "./library-swap";
 import {importLibraryComponents} from "./library-components";
 import {publishedComponent} from "./library-component-source";
 import {guardLibraryStore,countLibraryInstances} from "./library-store";
@@ -20,7 +21,7 @@ import { editLayoutGuides, gridSpecs } from "./layout-guides";
 import { editStyleLinks } from "./style-application";
 import { editStylePaint, editStyleDefinition, orderStyles, styleEditSpecs, styleOrderSpecs } from "./style-commands";
 import { listStyles } from "./shared-styles";
-import { finishComponentEdit, markLoadedModeOverrides } from "./component-edits";
+import { restoreLibraryOverrides, finishComponentEdit, markLoadedModeOverrides } from "./component-edits";
 import { listComponents } from "./component-assets";
 import { executeInstanceCommand, instanceCommandSpecs } from "./instance-commands";
 import { createInstance } from "./component-instances";
@@ -127,6 +128,7 @@ export const commandSpecs = Object.freeze({
   ...gridSpecs,
   "library.import": {label:"Import library component",undo:true},
   "library.place": {label:"Place library component",undo:true},
+  "library.swap": {label:"Swap library",undo:true},
   "library.swapAt": {label:"Swap instance to library component",undo:true},
   "library.applyStyle": {label:"Apply library style",undo:true},
   "style.apply": {label:"Apply style",undo:true},
@@ -1252,6 +1254,13 @@ export class EditorEngine {
       }
       return next.result;
     }
+    if (command==="library.swap") {
+      const doc=this.#snapshot.document,from=findLibrary(doc,p.from),to=findLibrary(doc,p.to);
+      if (!from || !to) throw Error("no enabled library `"+(!from ? p.from : p.to)+"`");
+      const next=swapLibrary(doc,from.id,linkedPublication(to,path=>this.librarySource(path)),this.#nextId);
+      if (next.document!==doc) this.#commitEdit({document:next.document},{nextId:next.nextId,libraryEdit:true});
+      return next.result;
+    }
     if (command==="library.updates") return libraryUpdates(this.#snapshot.document,path=>this.librarySource(path));
     if (command==="library.acceptUpdates") {
       const before=this.#snapshot.document,next=acceptLibraryUpdates(before,path=>this.librarySource(path),p.ids,this.#nextId);
@@ -1347,7 +1356,7 @@ export class EditorEngine {
     if (entry) {
       this.#lastDuplicate = undefined;
       target.push({ document: this.#snapshot.document, selection: this.#snapshot.selection });
-      this.#publish(entry);
+      this.#publish({...entry,document:restoreLibraryOverrides(this.#snapshot.document,entry.document)});
     }
     return { [undo ? "undone" : "redone"]: Boolean(entry) };
   }
