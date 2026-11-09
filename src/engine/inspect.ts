@@ -60,6 +60,7 @@ function inspect(doc: Document, node: DocumentNode, depth: number, fields?: Set<
   const out: Record<string, unknown> = { id: inspectedId(node.id) };
   const wants = (key: string) => !fields || fields.has(key);
   const put = (key: string, value: unknown) => { if (wants(key) && value !== undefined) out[key] = value; };
+  if (node.styles) put("styles", node.styles);
   if (node.isMask) {put("isMask",true); put("maskType",node.maskType ?? "alpha");}
   if (wants("overrides")) {
     const overrides = componentOverrides(node);

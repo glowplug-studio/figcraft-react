@@ -5564,3 +5564,28 @@ test("mobile Assets places its component at the current viewport centre and retu
   expect(x+20).toBeCloseTo(centre.x,3);
   expect(y+16).toBeCloseTo(centre.y,3);
 });
+
+test("local shared styles and linked layers survive an edit, browser recovery and a native download", async ({page}) => {
+  await login(page);
+  const buffer = await readFile(new URL("../fixtures/native-shared-styles.json", import.meta.url));
+  const native = JSON.parse(buffer.toString("utf8"));
+  await page.getByLabel("Open Figcraft file", {exact:true}).setInputFiles({name:"styles.figcraft", mimeType:"application/octet-stream", buffer});
+  const surface = page.getByRole("region", {name:"Layers", exact:true}).getByRole("button", {name:"Surface", exact:true});
+  await surface.click();
+  const x = page.getByLabel("Edit X", {exact:true});
+  await x.fill("87");
+  await x.press("Enter");
+  await expect(x).toHaveValue("87");
+  await expect(page.locator(".figcraft-recovery")).toHaveText("Recovery saved on this device");
+  await page.reload();
+  await surface.click();
+  await expect(x).toHaveValue("87");
+  const saving = page.waitForEvent("download");
+  await page.getByRole("button", {name:"Save as", exact:true}).click();
+  const archive = await readFile((await (await saving).path())!);
+  const stored = JSON.parse(strFromU8(unzipSync(archive)["document.json"]));
+  expect(stored.styles).toEqual(native.styles);
+  expect(stored.nodes[2].grids).toEqual(native.nodes[2].grids);
+  expect(stored.nodes[3].styles).toEqual(native.nodes[3].styles);
+  expect(stored.nodes[4].runs).toEqual(native.nodes[4].runs);
+});

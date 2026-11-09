@@ -1,0 +1,585 @@
+{
+  "comments": [],
+  "current_page": 1,
+  "document_colors": [],
+  "format": "figcraft",
+  "imageIndex": [],
+  "name": "Untitled",
+  "next_id": 5,
+  "nodes": {
+    "1": {
+      "background": {
+        "a": 1.0,
+        "b": 0.9607843160629272,
+        "g": 0.9607843160629272,
+        "r": 0.9607843160629272
+      },
+      "children": [
+        2,
+        3,
+        4
+      ],
+      "flows": [],
+      "height": 0.0,
+      "id": 1,
+      "name": "Page 1",
+      "prototype": {
+        "background": {
+          "a": 1.0,
+          "b": 0.11764705926179886,
+          "g": 0.11764705926179886,
+          "r": 0.11764705926179886
+        },
+        "device": "None",
+        "rotation": "portrait"
+      },
+      "type": "page",
+      "width": 0.0
+    },
+    "2": {
+      "clip": true,
+      "fills": [
+        {
+          "blend": "normal",
+          "color": {
+            "a": 1.0,
+            "b": 1.0,
+            "g": 1.0,
+            "r": 1.0
+          },
+          "opacity": 1.0,
+          "type": "solid",
+          "visible": true
+        }
+      ],
+      "grids": [
+        {
+          "align": "center",
+          "color": {
+            "a": 0.25,
+            "b": 0.0,
+            "g": 0.0,
+            "r": 1.0
+          },
+          "count": 4,
+          "gutter": 9.0,
+          "kind": "columns",
+          "offset": -2.0,
+          "size": 28.0,
+          "visible": false
+        },
+        {
+          "align": "stretch",
+          "color": {
+            "a": 0.10000000149011612,
+            "b": 0.0,
+            "g": 0.0,
+            "r": 1.0
+          },
+          "count": 5,
+          "gutter": 20.0,
+          "kind": "grid",
+          "offset": 0.0,
+          "size": 10.0,
+          "visible": true
+        }
+      ],
+      "height": 100.0,
+      "id": 2,
+      "name": "Card",
+      "parent": 1,
+      "styles": {
+        "effect": null,
+        "fill": null,
+        "grid": "S:1",
+        "stroke": null,
+        "text": null
+      },
+      "type": "frame",
+      "width": 100.0
+    },
+    "3": {
+      "blend": "normal",
+      "effects": [
+        {
+          "blend": "normal",
+          "color": {
+            "a": 1.0,
+            "b": 0.0,
+            "g": 0.0,
+            "r": 1.0
+          },
+          "offset": [
+            3.0,
+            5.0
+          ],
+          "radius": 4.0,
+          "show_behind": false,
+          "spread": 0.0,
+          "type": "dropShadow",
+          "visible": true
+        }
+      ],
+      "fills": [
+        {
+          "blend": "normal",
+          "color": {
+            "a": 1.0,
+            "b": 0.0,
+            "g": 0.0,
+            "r": 1.0
+          },
+          "opacity": 1.0,
+          "type": "solid",
+          "visible": true
+        }
+      ],
+      "height": 100.0,
+      "id": 3,
+      "name": "Surface",
+      "parent": 1,
+      "strokes": [
+        {
+          "blend": "normal",
+          "color": {
+            "a": 1.0,
+            "b": 0.0,
+            "g": 0.0,
+            "r": 1.0
+          },
+          "opacity": 1.0,
+          "type": "solid",
+          "visible": true
+        }
+      ],
+      "styles": {
+        "effect": "S:3",
+        "fill": "S:2",
+        "grid": null,
+        "stroke": "S:2",
+        "text": null
+      },
+      "type": "rectangle",
+      "width": 100.0
+    },
+    "4": {
+      "blend": "normal",
+      "characters": "Label / detail",
+      "child_layout": {
+        "absolute": false,
+        "grid_column": null,
+        "grid_column_span": 0,
+        "grid_row": null,
+        "grid_row_span": 0,
+        "max_h": null,
+        "max_w": null,
+        "min_h": null,
+        "min_w": null,
+        "sizing_h": "hug",
+        "sizing_v": "hug"
+      },
+      "fills": [
+        {
+          "blend": "normal",
+          "color": {
+            "a": 1.0,
+            "b": 0.0,
+            "g": 0.0,
+            "r": 0.0
+          },
+          "opacity": 1.0,
+          "type": "solid",
+          "visible": true
+        }
+      ],
+      "height": 24.0,
+      "id": 4,
+      "name": "Label",
+      "parent": 1,
+      "runs": [
+        {
+          "end": 5,
+          "start": 0,
+          "style": {
+            "case": "original",
+            "decoration": "none",
+            "fills": null,
+            "font_family": "Inter",
+            "font_size": 20.0,
+            "font_style": "Bold",
+            "letter_spacing": {
+              "unit": "percent",
+              "value": 0.0
+            },
+            "line_height": {
+              "unit": "auto"
+            },
+            "link": null,
+            "style_id": "S:5"
+          }
+        },
+        {
+          "end": 14,
+          "start": 5,
+          "style": {
+            "case": "original",
+            "decoration": "none",
+            "fills": null,
+            "font_family": "Inter",
+            "font_size": 16.0,
+            "font_style": "Regular",
+            "letter_spacing": {
+              "unit": "percent",
+              "value": 0.0
+            },
+            "line_height": {
+              "unit": "auto"
+            },
+            "link": null
+          }
+        }
+      ],
+      "style": {
+        "case": "original",
+        "decoration": "none",
+        "fills": null,
+        "font_family": "Inter",
+        "font_size": 16.0,
+        "font_style": "Regular",
+        "letter_spacing": {
+          "unit": "percent",
+          "value": 0.0
+        },
+        "line_height": {
+          "unit": "auto"
+        },
+        "link": null,
+        "style_id": "S:4"
+      },
+      "type": "text",
+      "width": 109.0
+    }
+  },
+  "pages": [
+    1
+  ],
+  "styles": [
+    {
+      "description": "",
+      "grids": [
+        {
+          "align": "center",
+          "color": {
+            "a": 0.25,
+            "b": 0.0,
+            "g": 0.0,
+            "r": 1.0
+          },
+          "count": 4,
+          "gutter": 9.0,
+          "kind": "columns",
+          "offset": -2.0,
+          "size": 28.0,
+          "visible": false
+        },
+        {
+          "align": "stretch",
+          "color": {
+            "a": 0.10000000149011612,
+            "b": 0.0,
+            "g": 0.0,
+            "r": 1.0
+          },
+          "count": 5,
+          "gutter": 20.0,
+          "kind": "grid",
+          "offset": 0.0,
+          "size": 10.0,
+          "visible": true
+        }
+      ],
+      "id": "S:1",
+      "name": "Layout/Columns",
+      "type": "grid"
+    },
+    {
+      "description": "Local swatch",
+      "id": "S:2",
+      "name": "Palette/Surface",
+      "paints": [
+        {
+          "blend": "normal",
+          "color": {
+            "a": 1.0,
+            "b": 0.0,
+            "g": 0.0,
+            "r": 1.0
+          },
+          "opacity": 1.0,
+          "type": "solid",
+          "visible": true
+        }
+      ],
+      "type": "paint"
+    },
+    {
+      "description": "",
+      "effects": [
+        {
+          "blend": "normal",
+          "color": {
+            "a": 1.0,
+            "b": 0.0,
+            "g": 0.0,
+            "r": 1.0
+          },
+          "offset": [
+            3.0,
+            5.0
+          ],
+          "radius": 4.0,
+          "show_behind": false,
+          "spread": 0.0,
+          "type": "dropShadow",
+          "visible": true
+        }
+      ],
+      "id": "S:3",
+      "name": "Depth/Card",
+      "type": "effect"
+    },
+    {
+      "description": "",
+      "id": "S:4",
+      "name": "Type/Body",
+      "paragraph": {
+        "features": {
+          "liga": false
+        },
+        "list": "bulleted",
+        "paragraph_indent": 3.0,
+        "paragraph_spacing": 7.0
+      },
+      "style": {
+        "case": "original",
+        "decoration": "none",
+        "fills": null,
+        "font_family": "Inter",
+        "font_size": 16.0,
+        "font_style": "Regular",
+        "letter_spacing": {
+          "unit": "percent",
+          "value": 0.0
+        },
+        "line_height": {
+          "unit": "auto"
+        },
+        "link": null
+      },
+      "type": "text"
+    },
+    {
+      "description": "",
+      "id": "S:5",
+      "name": "Type/Emphasis",
+      "style": {
+        "case": "original",
+        "decoration": "none",
+        "fills": null,
+        "font_family": "Inter",
+        "font_size": 20.0,
+        "font_style": "Bold",
+        "letter_spacing": {
+          "unit": "percent",
+          "value": 0.0
+        },
+        "line_height": {
+          "unit": "auto"
+        },
+        "link": null
+      },
+      "type": "text"
+    },
+    {
+      "description": "",
+      "id": "S:6",
+      "name": "Surface/Stack",
+      "paints": [
+        {
+          "align": "start",
+          "blend": "normal",
+          "opacity": 1.0,
+          "scale": 1.0,
+          "source": 2,
+          "spacing": [
+            0.0,
+            0.0
+          ],
+          "tile": "grid",
+          "type": "pattern",
+          "visible": true
+        },
+        {
+          "blend": "normal",
+          "crop": null,
+          "filters": {
+            "contrast": 0.0,
+            "exposure": 0.0,
+            "highlights": 0.0,
+            "saturation": 0.0,
+            "shadows": 0.0,
+            "temperature": 0.0,
+            "tint": 0.0
+          },
+          "image": "placeholder",
+          "opacity": 1.0,
+          "rotation": 0,
+          "scale": 1.0,
+          "scale_mode": "fill",
+          "type": "image",
+          "visible": true
+        },
+        {
+          "blend": "normal",
+          "from": [
+            0.0,
+            0.0
+          ],
+          "kind": "radial",
+          "opacity": 1.0,
+          "stops": [
+            {
+              "color": {
+                "a": 1.0,
+                "b": 0.0,
+                "g": 0.0,
+                "r": 1.0
+              },
+              "position": 0.0
+            },
+            {
+              "color": {
+                "a": 1.0,
+                "b": 1.0,
+                "g": 0.0,
+                "r": 0.0
+              },
+              "position": 1.0
+            }
+          ],
+          "to": [
+            1.0,
+            0.0
+          ],
+          "type": "gradient",
+          "visible": true,
+          "width": [
+            0.0,
+            1.0
+          ]
+        }
+      ],
+      "type": "paint"
+    },
+    {
+      "description": "",
+      "effects": [
+        {
+          "blend": "normal",
+          "color": {
+            "a": 0.25,
+            "b": 0.0,
+            "g": 0.0,
+            "r": 0.0
+          },
+          "offset": [
+            0.0,
+            4.0
+          ],
+          "radius": 4.0,
+          "show_behind": false,
+          "spread": 0.0,
+          "type": "innerShadow",
+          "visible": true
+        },
+        {
+          "blur_type": "uniform",
+          "end": [
+            0.5,
+            1.0
+          ],
+          "radius": 4.0,
+          "start": [
+            0.5,
+            0.0
+          ],
+          "start_radius": 0.0,
+          "type": "backgroundBlur",
+          "visible": true
+        },
+        {
+          "blur_type": "uniform",
+          "end": [
+            0.5,
+            1.0
+          ],
+          "radius": 4.0,
+          "start": [
+            0.5,
+            0.0
+          ],
+          "start_radius": 0.0,
+          "type": "layerBlur",
+          "visible": true
+        },
+        {
+          "blend": "normal",
+          "color": {
+            "a": 0.25,
+            "b": 0.0,
+            "g": 0.0,
+            "r": 0.0
+          },
+          "density": 0.5,
+          "mode": "mono",
+          "opacity": 0.25,
+          "secondary": {
+            "a": 0.25,
+            "b": 1.0,
+            "g": 1.0,
+            "r": 1.0
+          },
+          "size": 0.5,
+          "type": "noise",
+          "visible": true
+        },
+        {
+          "clip_to_shape": false,
+          "radius": 4.0,
+          "size": 0.5,
+          "type": "texture",
+          "visible": true
+        },
+        {
+          "depth": 20.0,
+          "dispersion": 0.5,
+          "frost": 4.0,
+          "light_angle": -45.0,
+          "light_intensity": 0.8,
+          "refraction": 0.8,
+          "splay": 0.0,
+          "type": "glass",
+          "visible": true
+        }
+      ],
+      "id": "S:7",
+      "name": "Depth/Stack",
+      "type": "effect"
+    }
+  ],
+  "variables": {
+    "collections": [],
+    "variables": []
+  },
+  "version": 1
+}

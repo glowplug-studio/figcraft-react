@@ -1,3 +1,4 @@
+import type { LayerStyles, SharedStyle } from "./shared-styles";
 import type { ComponentLinks, ComponentMain, ComponentSet, ComponentInstance } from "./component-properties";
 import type { AutoLayout, ChildLayout, LayerSizing } from "./auto-layout";
 import { scaleTextPathData } from "./text-path-data";
@@ -35,7 +36,7 @@ export function withMaskProperties<T extends MaskProperties>(node:T, isMask = no
   const {isMask: priorMask, maskType: priorType, ...rest} = node;
   return Object.freeze({...rest,...(isMask && {isMask:true}),...(maskType !== "alpha" && {maskType})}) as T;
 }
-export interface PageNode extends MaskProperties, ComponentLinks {
+export interface PageNode extends MaskProperties, ComponentLinks, LayerStyles {
   readonly effects?: readonly Effect[];
   readonly id: NodeId;
   readonly kind: "page";
@@ -51,7 +52,7 @@ export interface Constraints {
   readonly vertical: "top" | "bottom" | "topBottom" | "center" | "scale";
 }
 export const defaultConstraints: Constraints = Object.freeze({ horizontal: "left", vertical: "top" });
-export interface LayerProperties extends MaskProperties, ComponentLinks {
+export interface LayerProperties extends MaskProperties, ComponentLinks, LayerStyles {
   readonly childLayout?: ChildLayout;
   readonly sizing?: LayerSizing;
   readonly effects?: readonly Effect[];
@@ -140,6 +141,7 @@ export const isDrawTool = (kind: unknown): kind is DrawShapeKind => isLeafKind(k
 export const isLeaf = (node: DocumentNode): node is LeafNode => isLeafKind(node.kind);
 export const layerBlend = (node: LayerNode): BlendMode => node.blend ?? (isLeaf(node) ? "normal" : "passThrough");
 export interface Document {
+  readonly styles?: readonly SharedStyle[];
   readonly colourProfile?: import("./colour-spaces").ColourProfile;
   readonly documentColours?: readonly Colour[];
   readonly imagePresets?: readonly ImagePreset[];
@@ -151,7 +153,7 @@ export interface Document {
 }
 // Current page is navigation state. It is persisted, but does not dirty document content.
 export function sameContent(a: Document, b: Document | null): boolean {
-  return b !== null && a.name === b.name && a.pages === b.pages && a.nodes === b.nodes && (a.colourProfile ?? "srgb") === (b.colourProfile ?? "srgb") && a.documentColours === b.documentColours && a.images === b.images && a.imagePresets === b.imagePresets;
+  return b !== null && a.name === b.name && a.pages === b.pages && a.styles === b.styles && a.nodes === b.nodes && (a.colourProfile ?? "srgb") === (b.colourProfile ?? "srgb") && a.documentColours === b.documentColours && a.images === b.images && a.imagePresets === b.imagePresets;
 }
 export function newDocument(name = "Untitled"): Document {
   const page: PageNode = Object.freeze({ id: "1", kind: "page", name: "Page 1", parent: null, children: Object.freeze([]), background: "#f5f5f5" });

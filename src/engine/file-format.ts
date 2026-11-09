@@ -1,3 +1,4 @@
+import { readLayerStyles, readSharedStyles, wireSharedStyle } from "./shared-styles";
 import { readComponentLinks, wireComponentLinks, readFrameKind, wireFrameKind } from "./component-properties";
 import { layerSizing, readAutoLayout, readChildLayout, wireAutoLayout, wireChildLayout } from "./auto-layout";
 import { U64_MAX, appearanceValue, fail, id, idString, number, wireId, wirePaints } from "./native-values";
@@ -78,7 +79,7 @@ function fields(value: ObjectValue, supported: string[], defaults: ObjectValue, 
   }
 }
 const documentDefaults = {
-  kind: "design", styles: [], variables: { collections: [], variables: [] },
+  kind: "design", variables: { collections: [], variables: [] },
   comments: [],
   libraries: { enabled: [], store: null, components: [], styles: [], collections: [], variables: [], detached: [], inserted: [] },
   annotation_categories: null, dev_snapshots: {}, timer: null,
@@ -89,8 +90,8 @@ const nodeDefaults = {
   stroke: { weight: 1, align: "inside", sides: null, cap_start: "none", cap_end: "none", join: "miter", miter_limit: 4, dashes: [], dash_cap: null, width_profile: null, brush: null },
   corners: { radii: [0, 0, 0, 0], smoothing: 0 }, constraints: { horizontal: "left", vertical: "top" }, layout: null,
   child_layout: { sizing_h: "fixed", sizing_v: "fixed", absolute: false, min_w: null, max_w: null, min_h: null, max_h: null, grid_column: null, grid_row: null, grid_column_span: 0, grid_row_span: 0, grid_align_h: null, grid_align_v: null },
-  clip: false, is_mask: false, mask_type: "alpha", grids: [], guides: [], exports: [], interactions: [],
-  overflow: "none", scroll_position: "scrolls", styles: { fill: null, stroke: null, effect: null, grid: null, text: null },
+  clip: false, is_mask: false, mask_type: "alpha", guides: [], exports: [], interactions: [],
+  overflow: "none", scroll_position: "scrolls",
   bound: {}, var_modes: {}, bool_op: null, constrain_proportions: false, source: null, exposed: false,
   dev_status: "none", dev_changed: false, dev_note: "", overrides: [], prop_refs: {}, plugin_data: {},
   annotations: [], code_links: [], dev_resources: [], measurements: [], board: null,
@@ -112,8 +113,8 @@ function readNode(key: string, value: unknown): DocumentNode {
   if (kind !== "page" && kind !== "group" && kind !== "booleanOp" && !isFrameLikeKind(kind) && !isLeafKind(kind)) fail(`node type ${String(kind)} is not supported yet`);
   const componentFields = kind === "component" ? ["description", "props", "prop_order"]
     : kind === "componentSet" ? ["description"] : kind === "instance" ? ["component", "props"] : [];
-  fields(n, [...componentFields, "overrides", "source", "prop_refs", "exposed", "id", "name", "type", "parent", "children", "transform", "width", "height", "fills", "blend", "effects", "is_mask", "mask_type", ...(kind === "page" ? ["background", "flows", "prototype"] : ["bool_op", "child_layout", ...(kind === "booleanOp" ? ["op"] : kind === "ellipse" ? ["start", "sweep", "inner"] : kind === "star" ? ["count", "inner_ratio"] : kind === "polygon" ? ["count"] : kind === "vector" ? ["network"] : kind === "text" ? textFields : []), "stroke", "strokes", "visible", "locked", "opacity", "corners", "constraints", "constrain_proportions", ...(isFrameLikeKind(kind) ? ["clip", "layout"] : [])])], nodeDefaults, `node ${key}`);
-  const links = readComponentLinks(n);
+  fields(n, [...componentFields, "styles", "grids", "overrides", "source", "prop_refs", "exposed", "id", "name", "type", "parent", "children", "transform", "width", "height", "fills", "blend", "effects", "is_mask", "mask_type", ...(kind === "page" ? ["background", "flows", "prototype"] : ["bool_op", "child_layout", ...(kind === "booleanOp" ? ["op"] : kind === "ellipse" ? ["start", "sweep", "inner"] : kind === "star" ? ["count", "inner_ratio"] : kind === "polygon" ? ["count"] : kind === "vector" ? ["network"] : kind === "text" ? textFields : []), "stroke", "strokes", "visible", "locked", "opacity", "corners", "constraints", "constrain_proportions", ...(isFrameLikeKind(kind) ? ["clip", "layout"] : [])])], nodeDefaults, `node ${key}`);
+  const links = { ...readComponentLinks(n), ...readLayerStyles(n) };
   if (n.is_mask !== undefined && typeof n.is_mask !== "boolean") fail("is_mask must be boolean");
   if (n.mask_type !== undefined && !isMaskType(n.mask_type)) fail("mask_type must be alpha, vector or luminance");
   const effects = n.effects === undefined ? undefined : nativeEffects(n.effects);
@@ -192,7 +193,7 @@ function decodeDocument(raw: unknown, parsedNodes?: Record<string,DocumentNode>)
   if (root.version !== undefined && number(root.version, "version") > 1) fail("this file needs a newer Figcraft format reader");
   if (root.version !== undefined && number(root.version, "version") !== 1) fail("unsupported format version");
   if (root.format !== undefined && root.format !== "figcraft") fail("unrecognised format");
-  fields(root, ["format", "version", "name", "pages", "nodes", "next_id", "current_page", "imageIndex", "image_presets", "document_colors", "color_profile"], documentDefaults, "document");
+  fields(root, ["styles", "format", "version", "name", "pages", "nodes", "next_id", "current_page", "imageIndex", "image_presets", "document_colors", "color_profile"], documentDefaults, "document");
   const profile = root.color_profile === undefined ? "srgb" : root.color_profile;
   if (profile !== "srgb" && profile !== "displayP3") fail("invalid document colour profile");
   const palette = root.document_colors === undefined ? [] : list(root.document_colors, "document colors").map(c => nativeColour(c, "document color"));
@@ -206,6 +207,7 @@ function decodeDocument(raw: unknown, parsedNodes?: Record<string,DocumentNode>)
       return fail(error instanceof Error ? error.message : "invalid image filters");
     }
   });
+  const styles = root.styles === undefined ? undefined : readSharedStyles(root.styles);
   const pages = list(root.pages, "pages").map((entry) => id(entry, "page ID"));
   if (!pages.length || new Set(pages).size !== pages.length) fail("pages must be non-empty and unique");
   const source = object(root.nodes,"nodes");
@@ -240,7 +242,7 @@ function decodeDocument(raw: unknown, parsedNodes?: Record<string,DocumentNode>)
   if (!pages.includes(currentPage)) fail("current page is not listed");
   const declared = BigInt(id(root.next_id, "next_id"));
   const minimum = maximum < U64_MAX ? maximum + 1n : U64_MAX;
-  return { document: Object.freeze({ ...(profile === "displayP3" && {colourProfile: "displayP3" as const}), ...(palette.length > 0 && {documentColours: Object.freeze(palette)}), ...(presets.length ? { imagePresets: Object.freeze(presets) } : {}), name: text(root.name, "document name"), pages: Object.freeze(pages), currentPage, nodes: parsedNodes ?? Object.freeze(nodes) }), nextId: (declared < minimum ? minimum : declared).toString() };
+  return { document: Object.freeze({ ...(styles?.length && { styles }), ...(profile === "displayP3" && {colourProfile: "displayP3" as const}), ...(palette.length > 0 && {documentColours: Object.freeze(palette)}), ...(presets.length ? { imagePresets: Object.freeze(presets) } : {}), name: text(root.name, "document name"), pages: Object.freeze(pages), currentPage, nodes: parsedNodes ?? Object.freeze(nodes) }), nextId: (declared < minimum ? minimum : declared).toString() };
 }
 
 async function parseDocument(source: Uint8Array | Blob) {
@@ -429,7 +431,7 @@ export async function decodeFigcraft(source: Uint8Array | Blob): Promise<Decoded
 function wireNode(key: string, node: DocumentNode) {
   const numericId = wireId(key);
   if (node.id !== key) fail("node map key and ID differ");
-  const common = { ...wireComponentLinks(node), ...(node.effects?.length && { effects: node.effects.map(wireEffect) }), ...(node.isMask && {is_mask:true}), ...(node.maskType && node.maskType !== "alpha" && {mask_type:node.maskType}), id: numericId, name: node.name, type: node.kind, ...(node.kind === "booleanOp" ? { op: node.op } : {}), ...(node.kind === "ellipse" ? { start: node.start, sweep: node.sweep, inner: node.inner } : node.kind === "star" ? { count: node.count, inner_ratio: node.innerRatio } : node.kind === "polygon" ? { count: node.count } : node.kind === "vector" ? { network: wireVectorNetwork(node.network, wirePaints) } : node.kind === "text" ? wireTextData(node.text) : {}) };
+  const common = { ...(node.styles && { styles: node.styles }), ...(node.grids?.length && { grids: node.grids }), ...wireComponentLinks(node), ...(node.effects?.length && { effects: node.effects.map(wireEffect) }), ...(node.isMask && {is_mask:true}), ...(node.maskType && node.maskType !== "alpha" && {mask_type:node.maskType}), id: numericId, name: node.name, type: node.kind, ...(node.kind === "booleanOp" ? { op: node.op } : {}), ...(node.kind === "ellipse" ? { start: node.start, sweep: node.sweep, inner: node.inner } : node.kind === "star" ? { count: node.count, inner_ratio: node.innerRatio } : node.kind === "polygon" ? { count: node.count } : node.kind === "vector" ? { network: wireVectorNetwork(node.network, wirePaints) } : node.kind === "text" ? wireTextData(node.text) : {}) };
   if (node.kind === "page") {
     return { ...common, width: 0, height: 0, children: node.children.map(wireId), background: pageColour(node), ...(node.prototypeBackground && { prototype: { device: "None", rotation: "portrait", background: node.prototypeBackground } }) };
   } else {
@@ -466,7 +468,7 @@ export async function prepareArchive(document: Document, nextId?: string) {
     if (bytes.size > MAX_ARCHIVE_MEMBER) fail("image exceeds the 512 MiB native member limit");
     return { hash, width, height };
   });
-  const root = { format: "figcraft", version: 1, imageIndex, ...(document.imagePresets?.length ? { image_presets: document.imagePresets } : {}), name: document.name, pages: document.pages.map(wireId), next_id: wireId((supplied < minimum ? minimum : supplied).toString()), current_page: wireId(document.currentPage), styles: [], variables: { collections: [], variables: [] }, document_colors: document.documentColours ?? [], ...(document.colourProfile === "displayP3" && {color_profile: document.colourProfile}), comments: [] };
+  const root = { format: "figcraft", version: 1, imageIndex, ...(document.imagePresets?.length ? { image_presets: document.imagePresets } : {}), name: document.name, pages: document.pages.map(wireId), next_id: wireId((supplied < minimum ? minimum : supplied).toString()), current_page: wireId(document.currentPage), styles: document.styles?.map(wireSharedStyle) ?? [], variables: { collections: [], variables: [] }, document_colors: document.documentColours ?? [], ...(document.colourProfile === "displayP3" && {color_profile: document.colourProfile}), comments: [] };
   // Validate relationships on the supplied domain graph after each individual wire record passed.
   decodeDocument({...root,nodes:document.nodes},document.nodes);
   const header = stringify(root)!;
