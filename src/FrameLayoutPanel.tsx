@@ -9,6 +9,13 @@ export function FrameLayoutPanel({document,selection,enabled,dispatch}: {
 }) {
   const [individual,setIndividual] = useState(false);
   const first = document.nodes[selection[0]], layout = first?.kind === "frame" ? first.layout : undefined;
+  if (!layout && selection.length && selection.every(id => {
+    const n = document.nodes[id];
+    return n?.kind === "group" || n?.kind === "frame" && !n.layout;
+  })) return <fieldset aria-label="Layout" disabled={!enabled}><legend>Layout</legend>
+    <button type="button" onClick={() => dispatch("layout.add",{ids:selection})}>Add auto layout</button>
+    <button type="button" onClick={() => dispatch("layout.suggest",{ids:selection})}>Suggest auto layout</button>
+  </fieldset>;
   if (!layout || !selection.every(id => {
     const n = document.nodes[id];
     return n?.kind === "frame" && sameAutoLayout(n.layout,layout);
@@ -22,6 +29,7 @@ export function FrameLayoutPanel({document,selection,enabled,dispatch}: {
       commit={(n,all) => set({...extra,[all && key.startsWith("padding") ? "padding" : key]:n})}/>;
   const positions = ["min","center","max"] as const;
   return <fieldset aria-label="Auto layout" disabled={!enabled}><legend>Auto layout</legend>
+    <button type="button" onClick={() => dispatch("layout.remove",{ids:selection})}>Remove auto layout</button>
     <div role="group" aria-label="Layout direction">
       {(["vertical","horizontal","grid"] as const).map(mode => <button key={mode} type="button" aria-pressed={layout.mode === mode}
         onClick={() => set({layout:mode})}>{mode[0].toUpperCase()+mode.slice(1)}</button>)}

@@ -126,7 +126,8 @@ export function Editor({ identity, capabilities, engine: suppliedEngine, recover
       const preserve = engine.pen.open && command === "tool.pen" || (engine.pen.open || engine.pencil.active) && (command.startsWith("view.") || command === "tool.scaleAnchor" || command === "tool.pencilBrush");
       if (!preserve) controller.current?.cancel();
       if (cancellingUndo) return;
-      engine.execute(command, params);
+      const result = engine.execute(command, params);
+      if (Array.isArray(result?.warnings)) setError(result.warnings.join("\n"));
     }
     catch (caught) { setError(caught instanceof Error ? caught.message : "Command failed"); }
   }
@@ -214,6 +215,11 @@ export function Editor({ identity, capabilities, engine: suppliedEngine, recover
     }
     if ((event.metaKey || event.ctrlKey) && !event.altKey && event.key.toLowerCase() === "o") { event.preventDefault(); fileInput.current?.click(); return; }
     if ((event.metaKey || event.ctrlKey) && !event.altKey && event.key.toLowerCase() === "j") command = event.shiftKey ? "vector.smoothJoin" : "vector.join";
+    if (event.shiftKey && event.code === "KeyA" && !event.metaKey && snapshot.selection.length) {
+      const mac = /Mac|iPhone|iPad/.test(navigator.platform);
+      if (event.ctrlKey && event.altKey !== mac) { event.preventDefault(); dispatch("layout.suggest"); return; }
+      if (!event.ctrlKey) { event.preventDefault(); dispatch(event.altKey ? "layout.remove" : "layout.add"); return; }
+    }
     if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "a") command = "select.all";
     if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "g") command = event.shiftKey ? "object.ungroup" : "object.group";
     if (!event.metaKey && !event.ctrlKey && event.altKey && event.shiftKey && event.code === "KeyF" || (event.metaKey || event.ctrlKey) && !event.altKey && !event.shiftKey && event.key.toLowerCase() === "e") command = "vector.flatten";
@@ -427,6 +433,10 @@ export function Editor({ identity, capabilities, engine: suppliedEngine, recover
               </button>)}</div>
             </details>}
             {canCrop && <button onClick={()=>{pasteMenu.current?.hidePopover();dispatch("image.crop");canvas.current?.focus();}}>Crop image</button>}
+            {snapshot.selection.length > 0 && <>
+              <button onClick={()=>{pasteMenu.current?.hidePopover();dispatch("layout.add");canvas.current?.focus();}}>Add auto layout</button>
+              <button onClick={()=>{pasteMenu.current?.hidePopover();dispatch("layout.removeAll");canvas.current?.focus();}}>Remove all auto layout</button>
+            </>}
             <button onClick={()=>{pasteMenu.current?.hidePopover();canvas.current?.focus();void paste(undefined,pasteAt.current);}}>Paste here</button>
           </div>
           <canvas ref={canvas} onContextMenu={event=>{

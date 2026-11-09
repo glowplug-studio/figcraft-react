@@ -4862,3 +4862,35 @@ test("grid child sizing, anchors and limits persist after recovery", async ({pag
   await panel.getByRole("button",{name:"Place automatically"}).click();
   await expect(column).toHaveValue("1");
 });
+
+test("suggest, remove and add auto layout through the inspector, keyboard and canvas menu", async ({page}) => {
+  const file=JSON.parse(await readFile(new URL("../fixtures/native-rectangle.json",import.meta.url),"utf8"));
+  file.name="Layout authoring";
+  Object.assign(file.nodes[2],{type:"frame",name:"Board",width:180,height:120,children:[3,4,5,6]});
+  [[8,6],[46,6],[8,28],[46,28]].forEach(([x,y],i)=>{
+    file.nodes[i+3]={id:i+3,parent:2,type:"rectangle",name:"Item "+i,width:24,height:12,transform:[1,0,0,1,x,y]};
+  });
+  file.next_id=7;
+  await login(page);
+  await page.getByLabel("Open Figcraft file",{exact:true}).setInputFiles({
+    name:"layout.figcraft",mimeType:"application/octet-stream",buffer:Buffer.from(JSON.stringify(file)),
+  });
+  await expect(page.getByRole("heading",{name:file.name,exact:true})).toBeVisible();
+  await page.getByRole("region",{name:"Layers"}).getByRole("button",{name:"Board",exact:true}).click();
+  await page.getByRole("button",{name:"Suggest auto layout",exact:true}).click();
+  const panel=page.getByRole("group",{name:"Auto layout",exact:true});
+  await expect(panel.getByRole("button",{name:"Vertical",exact:true})).toHaveAttribute("aria-pressed","true");
+  const canvas=page.getByLabel("Design canvas",{exact:true});
+  await canvas.focus(); await page.keyboard.press("Alt+Shift+A");
+  await expect(page.getByRole("button",{name:"Suggest auto layout",exact:true})).toBeVisible();
+  await page.keyboard.press("Shift+A"); await expect(panel).toBeVisible();
+  await canvas.click({button:"right",position:{x:25,y:25}});
+  await page.getByRole("group",{name:"Canvas actions"}).getByRole("button",{name:"Remove all auto layout",exact:true}).click();
+  await expect(panel).toHaveCount(0);
+  await page.getByRole("button",{name:"Undo",exact:true}).click();
+  const downloading=page.waitForEvent("download");
+  await page.getByRole("button",{name:"Save as",exact:true}).click();
+  const saved=await decodeFigcraft(await readFile((await (await downloading).path())!));
+  for (const id of ["2","7","8"]) expect(saved.document.nodes[id]).toHaveProperty("layout");
+  expect(saved.document.nodes["7"]).toMatchObject({kind:"frame",children:["3","4"],clip:false,layout:{mode:"horizontal",gap:14}});
+});
