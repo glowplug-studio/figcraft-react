@@ -1,3 +1,4 @@
+import { styleForLayer } from "./style-variables";
 import { withVariableModes } from "./variable-modes";
 import { applyStyleToNode } from "./style-application";
 import { readGrids, type StyleSlot } from "./shared-styles";
@@ -85,7 +86,7 @@ function writeProperties(draft: HierarchyDraft, document: Document, selection: r
   function styleProperties<T extends DocumentNode>(node: T): T {
     if ("variableModes" in props) node=withVariableModes(node,props.variableModes);
     if (grids) node = {...node, grids:grids.length ? grids : undefined};
-    for (const {slot,style} of links) node = applyStyleToNode(node, slot, style);
+    for (const {slot,style} of links) node = applyStyleToNode(node, slot, styleForLayer(draft.document,style,node.id));
     return node;
   }
   const textKeys = keys.filter(isTextKey).sort();

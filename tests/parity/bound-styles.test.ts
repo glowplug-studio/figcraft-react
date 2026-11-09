@@ -1,0 +1,63 @@
+import { readFileSync } from "node:fs";
+import { expect,it } from "vitest";
+import { EditorEngine } from "../../src/engine/editor";
+import { base64Bytes } from "../../src/engine/recovery";
+import { nodeFills } from "../../src/engine/style-application";
+import { resolveVariable } from "../../src/engine/variables";
+
+const fixture=readFileSync(new URL("../fixtures/native-style-mode-consumers.json",import.meta.url));
+const theme="VariableCollectionId:1";
+
+it("settles style definitions in the default mode and projects each linked slot through its consumer's modes",async()=>{
+  const e=new EditorEngine();
+  await e.executeAsync("file.open",{data:base64Bytes(fixture)});
+  const doc=()=>e.getSnapshot().document;
+  const bind=(style:string,field:string,variable:string|null)=>e.execute("style.bind",{style,field,variable});
+  bind("Surface","fills/0","Base");
+  bind("Shadow","effects/0/radius","Spacing");
+  bind("Caption","fontSize","Spacing");
+  bind("Columns","layoutGrids/0/size","Spacing");
+  const modes=(id:number,collection:string,mode:string|null)=>e.execute("variable.setMode",{id,collection,mode});
+  const colour=(n:number)=>nodeFills(doc().nodes[n])[0];
+  const light=resolveVariable(doc().variables!,"VariableID:1");
+  const dark=resolveVariable(doc().variables!,"VariableID:1",{[theme]:theme+"/mode2"});
+  expect(colour(2)).toMatchObject({color:dark?.value,colorAlpha:1,opacity:1});
+  expect(colour(5)).toMatchObject({color:light?.value,colorAlpha:1,opacity:1});
+  expect(doc().styles?.[0]).toMatchObject({bound:{"fills/0/color":"VariableID:1"},paints:[{color:light?.value}]});
+  modes(2,"Density","Comfortable");
+  expect(doc().nodes[2]).toMatchObject({grids:[{size:13.75}],effects:[{radius:13.75}]});
+  expect(doc().nodes[7]).toMatchObject({text:{style:{fontSize:13.75,styleId:"S:4"}}});
+  e.execute("node.set",{id:2,fill:"red"});
+  expect(doc().nodes[2].styles?.fill).toBeNull();
+  modes(5,"Theme","Dark");
+  expect(doc().nodes[6].strokes?.[0]).toMatchObject({color:dark?.value});
+  expect(()=>bind("Caption","fontSize","Base")).toThrow();
+  const archive=await e.nativeSnapshot();
+  await e.executeAsync("file.open",{data:base64Bytes(archive)});
+  expect(doc().nodes[2].styles?.fill).toBeNull();
+  expect(doc().nodes[6].strokes?.[0]).toMatchObject({color:dark?.value});
+  bind("Surface","fill",null);
+  expect(doc().styles?.[0]).toMatchObject({paints:[{color:{a:1},colorAlpha:light?.type==="color" ? light.value.a : 0}]});
+  expect(doc().styles?.[0].bound).toBeUndefined();
+  e.execute("edit.undo");
+  expect(doc().styles?.[0].bound).toEqual({"fills/0/color":"VariableID:1"});
+});
+
+it("resolves bound gradient stops and clamps glass and grid fields using native units",async()=>{
+  const e=new EditorEngine();
+  await e.executeAsync("file.open",{data:base64Bytes(fixture)});
+  const execute=(cmd:string,p:Record<string,unknown>)=>e.execute(cmd,p);
+  execute("style.create",{type:"effect",name:"Glass",value:[{type:"glass"}]});
+  execute("style.create",{type:"paint",name:"Gradient",value:[{type:"gradient",kind:"linear",stops:[{position:0,color:"red"},{position:1,color:"blue"}]}]});
+  const bind=(style:string,field:string,variable="Spacing")=>execute("style.bind",{style,field,variable});
+  bind("Gradient","fills/00/stops/1/color","Base");
+  bind("Glass","effects/0/lightAngle");bind("Glass","effects/0/radius");bind("Glass","effects/0/lightIntensity");
+  bind("Columns","layoutGrids/0/count");
+  execute("variable.set",{variable:"Spacing",value:270});
+  const styles=e.getSnapshot().document.styles!;
+  expect(styles.find(s=>s.name==="Glass")).toMatchObject({effects:[{lightAngle:-90,frost:100,lightIntensity:1}]});
+  expect(styles.find(s=>s.name==="Columns")).toMatchObject({grids:[{count:270}]});
+  const g=styles.find(s=>s.name==="Gradient");
+  expect(g?.bound).toEqual({"fills/0/stops/1/color":"VariableID:1"});
+  expect(()=>bind("Gradient","fills/0/stops/2/color","Base")).toThrow();
+});

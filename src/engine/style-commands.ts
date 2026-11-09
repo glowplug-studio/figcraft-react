@@ -1,3 +1,4 @@
+import { bindingItem, canonicalBinding, rebindPaintAlpha, resolveStyle, styleForLayer } from "./style-variables";
 import type { Paint } from "./solid-paint";
 import { HierarchyDraft } from "./hierarchy";
 import { sameComponentValue } from "./component-groups";
@@ -107,6 +108,7 @@ export function orderStyles(document: Document, command: string, params: Record<
 }
 
 export const styleEditSpecs = {
+  "style.bind": {label:"Bind variable in style",undo:true},
   "style.create": {label:"Create style",undo:true},
   "style.update": {label:"Edit style",undo:true},
   "style.delete": {label:"Delete style",undo:true},
@@ -140,7 +142,27 @@ export function editStyleDefinition(document: Document, selection: readonly stri
     const index = styleIndex(styles, requiredString(p,"style")), original = styles[index];
     id = original.id;
     if (command === "style.delete") next = next.filter(style => style.id !== id);
-    else if (command === "style.update") {
+    else if (command === "style.bind") {
+      for (const key of Object.keys(p)) if (!["style","field","variable"].includes(key)) throw new Error("Unknown style.bind parameter "+key);
+      const field=requiredString(p,"field");
+      const type=styleBindingType(original,field);
+      if (!type) throw new Error("The style has no field "+field+" to bind");
+      const key=canonicalBinding(field), ref=parseString(p.variable);
+      const variable=ref===undefined ? undefined : document.variables?.variables.find(v=>v.id===ref || v.name===ref);
+      if (ref!==undefined && !variable) throw new Error("No such variable");
+      if (variable && variable.resolvedType!==type) throw new Error(field+" takes a "+type+" variable");
+      const {bound:previous,...base}=original;
+      const bound={...previous};
+      const was=Object.hasOwn(bound,key) ? bound[key] : undefined;
+      if (variable) bound[key]=variable.id;
+      else delete bound[key];
+      let changed:SharedStyle={...base,...(Object.keys(bound).length>0 && {bound:Object.freeze(bound)})};
+      const item=bindingItem(key);
+      if (was!==variable?.id && changed.type==="paint" && item?.field==="color")
+        changed={...changed,paints:rebindPaintAlpha(changed.paints,item.index,!!variable)};
+      definition=resolveStyle(changed,document.variables);
+      next[index]=definition;
+    } else if (command === "style.update") {
       const slot = styleSlot(original.type), node = source === undefined ? undefined : document.nodes[source];
       const value = Object.hasOwn(p, "value") ? explicitDefinition(slot, p.value) : node && nodeDefinition(slot, node);
       const suppliedName = parseString(p.name);
@@ -150,6 +172,7 @@ export function editStyleDefinition(document: Document, selection: readonly stri
         const entries = Object.entries(original.bound).filter(([key]) => styleBindingType(updated, key) !== undefined);
         if (entries.length) updated = {...updated, bound:Object.freeze(Object.fromEntries(entries))};
       }
+      updated=resolveStyle(updated,document.variables);
       definition = sameComponentValue(original, updated) ? original : Object.freeze(updated);
       next[index] = definition;
     } else throw new Error("Unknown style command " + command);
@@ -159,7 +182,10 @@ export function editStyleDefinition(document: Document, selection: readonly stri
     Object.freeze({...content, ...(next.length && {styles:Object.freeze(next)})});
   const draft = new HierarchyDraft(catalogue);
   linkSource?.(draft);
-  for (const node of Object.values(draft.nodes)) draft.set(propagateStyle(node, id, definition));
+  for (const node of Object.values(draft.nodes)) {
+    if (!node.styles && (node.kind!=="text" || !node.text.style.styleId && !node.text.runs.some(r=>r.style.styleId))) continue;
+    draft.set(propagateStyle(node,id,styleForLayer(catalogue,definition,node.id)));
+  }
   return {document:draft.finish(), result};
 }
 

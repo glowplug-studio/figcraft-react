@@ -5757,10 +5757,10 @@ test("editing a shared text definition updates linked characters and preserves i
     await field.press("Enter");
     await expect(field).toHaveValue(result);
   }
-  await type.getByRole("button",{name:"Font family"}).click();
+  await type.getByRole("button",{name:"Font family",exact:true}).click();
   const fonts=type.getByRole("dialog",{name:"Choose font family"});
   await fonts.getByRole("option",{name:"Inter",exact:true}).first().click();
-  await type.getByLabel("Style font style").selectOption("Regular");
+  await type.getByRole("combobox",{name:"Style font style",exact:true}).selectOption("Regular");
   await catalogue.getByLabel("Style description").fill("Reviewed typography");
   await catalogue.getByRole("button",{name:"Back",exact:true}).click();
   await catalogue.getByRole("button",{name:"Edit Depth/Stack"}).click();
@@ -5932,4 +5932,42 @@ test("frame variable modes distinguish inherited main modes from mixed and expli
   const {document}=await decodeFigcraft(await readFile((await (await downloading).path())!));
   expect(document.nodes[2].variableModes).toEqual({"VariableCollectionId:1":"VariableCollectionId:1/mode1"});
   expect(document.nodes[5].variableModes).toBeUndefined();
+});
+
+test("shared style variable pickers filter by scope and retain per-layer mode colours after download",async({page})=>{
+  await login(page);
+  await page.getByLabel("Open Figcraft file",{exact:true}).setInputFiles(new URL("../fixtures/native-style-mode-consumers.json",import.meta.url).pathname);
+  const catalogue=page.getByRole("group",{name:"Local styles",exact:true});
+  await catalogue.getByRole("button",{name:"Edit Surface",exact:true}).click();
+  await catalogue.getByRole("button",{name:"Bind variable to Style paint 1 colour"}).click();
+  const picker=catalogue.getByRole("group",{name:"Variables for Style paint 1 colour"});
+  await expect(picker.getByRole("button",{name:"Spacing"})).toHaveCount(0);
+  await expect(picker.getByRole("button",{name:"Accent"})).toHaveCount(0);
+  await picker.getByRole("searchbox").fill("Bas");
+  await picker.getByRole("button",{name:"Base",exact:true}).click();
+  const chip=catalogue.getByRole("button",{name:"Detach variable from Style paint 1 colour"});
+  await expect(chip).toHaveText("Base");
+  await chip.click();
+  await catalogue.getByRole("button",{name:"Bind variable to Style paint 1 colour"}).click();
+  await picker.getByRole("button",{name:"Base",exact:true}).click();
+  await catalogue.getByRole("button",{name:"Back",exact:true}).click();
+  await catalogue.getByRole("button",{name:"Edit Columns",exact:true}).click();
+  await catalogue.getByRole("button",{name:"Bind variable to Style grid 1 size"}).click();
+  await catalogue.getByRole("group",{name:"Variables for Style grid 1 size"}).getByRole("button",{name:"Spacing"}).click();
+  await catalogue.getByRole("button",{name:"Back",exact:true}).click();
+  await catalogue.getByRole("button",{name:"Edit Caption",exact:true}).click();
+  await catalogue.getByRole("button",{name:"Bind variable to Style font size"}).click();
+  await catalogue.getByRole("group",{name:"Variables for Style font size"}).getByRole("button",{name:"Spacing"}).click();
+  await expect(catalogue.getByRole("textbox",{name:"Style font size",exact:true})).toHaveCount(0);
+  await expect(catalogue.getByRole("button",{name:"Detach variable from Style font size"})).toHaveText("Spacing");
+  await catalogue.getByRole("button",{name:"Back",exact:true}).click();
+  await expect(page.locator(".figcraft-recovery")).toHaveText("Recovery saved on this device");
+  await page.reload();
+  const downloading=page.waitForEvent("download");
+  await page.getByRole("button",{name:"Save as",exact:true}).click();
+  const {document}=await decodeFigcraft(await readFile((await (await downloading).path())!));
+  expect(document.styles?.[0]).toMatchObject({bound:{"fills/0/color":"VariableID:1"}});
+  expect(document.nodes[2].fills?.[0]).toMatchObject({color:{a:Math.fround(128/255),r:Math.fround(23/255)}});
+  expect(document.nodes[5].fills?.[0]).toMatchObject({color:{a:Math.fround(192/255),r:Math.fround(194/255)}});
+  expect(document.nodes[2].grids?.[0].size).toBe(6.5);
 });

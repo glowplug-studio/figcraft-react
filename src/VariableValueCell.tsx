@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { toCssHex } from "./engine/colour";
 import { variableScopes } from "./engine/variable-metadata";
-import { ownVariableValue, resolveVariable, variableIndex, type Variable, type Variables, type VariableValue } from "./engine/variables";
+import { inVariableScope, ownVariableValue, resolveVariable, variableIndex, type Variable, type Variables, type VariableValue } from "./engine/variables";
 
 export type VariableRun=(command:string,p:Record<string,unknown>)=>Record<string,unknown>|undefined;
 function describe(value:VariableValue|undefined, name:(id:string)=>string):string {
@@ -62,7 +62,7 @@ export function VariableDetails({v,run,close}:{v:Variable;run:VariableRun;close:
   const [name,setName]=useState(v.name), [description,setDescription]=useState(v.description);
   const [hidden,setHidden]=useState(!!v.hiddenFromPublishing);
   const [scopes,setScopes]=useState<readonly string[]|undefined>(v.scopes);
-  const includesScope=(k:string)=>scopes===undefined || scopes.includes("ALL_SCOPES") || scopes.includes(k) || scopes.includes("ALL_FILLS") && k.endsWith("_FILL");
+  const includesScope=(k:string)=>inVariableScope(scopes,k);
   const [code,setCode]=useState({...v.codeSyntax});
   return <form aria-label="Variable details" onSubmit={e=>{
     e.preventDefault();

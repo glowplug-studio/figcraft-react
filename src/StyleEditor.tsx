@@ -1,3 +1,4 @@
+import { StyleVariablePicker } from "./StyleVariablePicker";
 import { useEffect, useId, useState } from "react";
 import { PaintPicker } from "./PaintPicker";
 import { TypographyField } from "./TypographyField";
@@ -27,6 +28,9 @@ export function EditStyle({engine, style, run, back, source}:{engine:EditorEngin
   useEffect(()=>()=>{
     if (engine.getSnapshot().paintPicker?.styleId === style.id) engine.setPaintPicker();
   },[engine,style.id]);
+  function binding(field:string,label:string) {
+    return <StyleVariablePicker key={field} style={style} field={field} label={label} data={engine.getSnapshot().document.variables} run={run}/>;
+  }
   function finish() {
     const renamed=name.trim();
     const patch={...(renamed && renamed !== style.name && {name:renamed}), ...(description !== style.description && {description})};
@@ -55,14 +59,19 @@ export function EditStyle({engine, style, run, back, source}:{engine:EditorEngin
             const n=Number(s.replace(/%$/,""));
             if (Number.isFinite(n)) change({...paint,opacity:Math.min(1,Math.max(0,n/100)),colorAlpha:1});
           }}/>
+          {paint.type==="solid" && binding("fills/"+index+"/color",label+" colour")}
           <PaintPicker engine={engine} list="fill" index={index} label={label} styleId={style.id} paint={paint} change={change}/>
         </div>;
       }).reverse()}
     </div>}
-    {style.type === "text" && <StyleTypography value={style.style} change={value=>run("style.update",{style:style.id,value})}/>}
-    {style.type === "effect" && <ul aria-label="Effect properties">{style.effects.map((fx,i)=><li key={i}>{effectLabels[fx.type]}</li>).reverse()}</ul>}
+    {style.type === "text" && <StyleTypography isBound={key=>!!style.bound?.[key] && !!engine.getSnapshot().document.variables?.variables.some(v=>v.id===style.bound?.[key])} binding={binding} value={style.style} change={value=>run("style.update",{style:style.id,value})}/>}
+    {style.type === "effect" && <ul aria-label="Effect properties">{style.effects.map((fx,i)=><li key={i}>{effectLabels[fx.type]}
+      {(fx.type==="dropShadow" || fx.type==="innerShadow") && binding("effects/"+i+"/color","Style effect "+(i+1)+" colour")}
+      {(fx.type==="layerBlur" || fx.type==="backgroundBlur") && binding("effects/"+i+"/radius","Style effect "+(i+1)+" radius")}
+    </li>).reverse()}</ul>}
     {style.type === "grid" && <ul aria-label="Grid properties">{style.grids.map((g,i)=><li key={i}>
       {g.kind === "grid" ? "Grid "+g.size : (g.kind === "columns" ? "Columns " : "Rows ")+g.count}
+      {binding("layoutGrids/"+i+"/size","Style grid "+(i+1)+" size")}
     </li>)}</ul>}
     <div className="figcraft-style-actions">
       <button type="submit" form={metadataForm}>Save style</button><button type="button" onClick={finish}>Back</button>

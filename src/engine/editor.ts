@@ -1,3 +1,4 @@
+import { refreshBoundStyles } from "./style-application";
 import { removeLayerMode, setVariableMode } from "./variable-modes";
 import { editVariableMetadata, metadataSpecs } from "./variable-metadata";
 import { editVariableValue, valueSpecs } from "./variable-values";
@@ -794,7 +795,9 @@ export class EditorEngine {
   #prepareEdit(proposed: Document, allocator: bigint) {
     const base = this.#snapshot.document, previous = this.#preparedEdit;
     if (previous?.base === base && previous.proposed === proposed && previous.allocator === allocator) return previous.result;
-    const result = finishComponentEdit(base,proposed,allocator);
+    const projected=refreshBoundStyles(proposed,base);
+    const components=finishComponentEdit(base,projected,allocator);
+    const result=components.document===projected ? components : {...components,document:refreshBoundStyles(components.document,base)};
     this.#preparedEdit = {base,proposed,allocator,result};
     return result;
   }
@@ -1373,7 +1376,7 @@ export class EditorEngine {
       decoded = { document: opened.document, nextId: String(opened.nextId) };
     } else decoded = await decodeFigcraft(source?.file ?? fileData(p.data, MAX_UNPACKED_BYTES));
     if (!raster) {
-      decoded={...decoded,document:markLoadedModeOverrides(decoded.document)};
+      decoded={...decoded,document:refreshBoundStyles(markLoadedModeOverrides(decoded.document))};
       await prepareDocumentText(decoded.document);
     }
     checkCurrent();

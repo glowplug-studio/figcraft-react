@@ -18,6 +18,9 @@ export interface Variable extends Mode {
   readonly description:string; readonly scopes?:readonly string[]; readonly hiddenFromPublishing?:true;
   readonly extends?:string; readonly overrides?:readonly string[]; readonly codeSyntax?:Readonly<Record<string,string>>;
 }
+export function inVariableScope(scopes:readonly string[]|undefined,scope:string) {
+  return scopes===undefined || scopes.includes(scope) || scopes.includes("ALL_SCOPES") || scopes.includes("ALL_FILLS") && scope.endsWith("_FILL");
+}
 export interface Variables {readonly collections:readonly Collection[]; readonly variables:readonly Variable[]}
 export const emptyVariables:Variables = Object.freeze({collections:Object.freeze([]),variables:Object.freeze([])});
 

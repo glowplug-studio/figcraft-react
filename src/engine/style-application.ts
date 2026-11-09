@@ -1,7 +1,8 @@
+import { resolveStyle, styleForLayer } from "./style-variables";
 import { requiredTargets } from "./arrange";
 import { sameComponentValue } from "./component-groups";
 import { rectanglePaints, withRectanglePaints, type Document, type DocumentNode, type TextNode } from "./document";
-import { HierarchyDraft } from "./hierarchy";
+import { HierarchyDraft, subtreeIds } from "./hierarchy";
 import { parseNumber, parseString } from "./parameters";
 import { withStyleRef, type SharedStyle, type StyleSlot } from "./shared-styles";
 import { samePaints } from "./solid-paint";
@@ -175,6 +176,71 @@ export function editStyleLinks(doc: Document, selection: readonly string[], para
   const range: Range | undefined = start !== undefined || end !== undefined ? [start ?? 0, end ?? Number.MAX_SAFE_INTEGER] :
     live && live.start < live.end && ids.length === 1 && live.node.id === ids[0] ? [live.start, live.end] : undefined;
   const draft = new HierarchyDraft(doc);
-  for (const id of targets) draft.set(applyStyleToNode(draft.nodes[id], slot, style, slot === "text" ? range : undefined));
+  for (const id of targets) draft.set(applyStyleToNode(draft.nodes[id], slot, styleForLayer(doc,style,id), slot === "text" ? range : undefined));
   return draft.finish();
+}
+
+/** A parent or main mode change also invalidates its descendants and instance users. */
+function styleConsumers(doc:Document,before?:Document):Iterable<DocumentNode> {
+  if (!before || before.variables!==doc.variables) return Object.values(doc.nodes);
+  const affected=new Set<string>(), subtrees=new Set<string>(), mains=new Set<string>();
+  for (const id in doc.nodes) {
+    const node=doc.nodes[id],old=before.nodes[id];
+    if (old===node) continue;
+    affected.add(id);
+    const modes=!sameComponentValue(node.variableModes,old?.variableModes);
+    if (!old || modes || old.parent!==node.parent ||
+        (old.kind==="instance" ? old.component : undefined)!==(node.kind==="instance" ? node.component : undefined)) subtrees.add(id);
+    if (modes && node.kind==="component") mains.add(id);
+  }
+  if (mains.size) for (const node of Object.values(doc.nodes))
+    if (node.kind==="instance" && mains.has(node.component)) subtrees.add(node.id);
+  for (const root of subtrees) for (const id of subtreeIds(doc,root)) affected.add(id);
+  return Array.from(affected,id=>doc.nodes[id]);
+}
+
+/** A style stores its default-mode definition. Consumers keep the values in their own modes. */
+export function refreshBoundStyles(doc:Document,before?:Document):Document {
+  if (doc===before) return doc;
+  const bound=doc.styles?.filter(s=>s.bound);
+  if (!bound?.length) return doc;
+  const catalogue=new Map<string,SharedStyle>();
+  for (const style of bound) catalogue.set(style.id,before && doc.styles===before.styles && doc.variables===before.variables ? style : resolveStyle(style,doc.variables));
+  if (bound.some(s=>catalogue.get(s.id)!==s))
+    doc=Object.freeze({...doc,styles:Object.freeze(doc.styles!.map(s=>catalogue.get(s.id) ?? s))});
+  let draft:HierarchyDraft|undefined;
+  for (const node of styleConsumers(doc,before)) {
+    if (!node.styles && node.kind!=="text") continue;
+    const old=before?.nodes[node.id];
+    let next=node;
+    const modes=new Map<string,SharedStyle>();
+    const resolved=(id:string|null|undefined)=>{
+      if (id==null) return;
+      const style=catalogue.get(id);
+      if (!style) return;
+      const cached=modes.get(id);
+      if (cached) return cached;
+      const value=styleForLayer(doc,style,node.id)!;
+      modes.set(id,value);
+      return value;
+    };
+    if (node.styles) for (const slot of ["fill","stroke","effect","grid"] as const) {
+      const id=node.styles[slot];
+      if (!id || !catalogue.has(id)) continue;
+      const current=slot==="fill" ? nodeFills(node) : slot==="stroke" ? node.strokes : slot==="effect" ? node.effects : node.grids;
+      const prior=old && (slot==="fill" ? nodeFills(old) : slot==="stroke" ? old.strokes : slot==="effect" ? old.effects : old.grids);
+      if (!old || sameComponentValue(current,prior)) next=applyStyleToNode(next,slot,resolved(id));
+    }
+    const usesBoundText=node.kind==="text" && (node.styles?.text && catalogue.has(node.styles.text) ||
+      textSpans(node.text).some(span=>span.style.styleId!==undefined && catalogue.has(span.style.styleId)));
+    if (node.kind==="text" && usesBoundText && (!old || old.kind!=="text" || sameComponentValue(old.text,node.text))) {
+      const ids=new Set([node.text.style.styleId,...node.text.runs.map(r=>r.style.styleId)]);
+      for (const id of ids) {
+        const value=resolved(id);
+        if (id && value?.type==="text") next=propagateStyle(next,id,value);
+      }
+    }
+    if (next!==node) (draft??=new HierarchyDraft(doc)).set(next);
+  }
+  return draft?.finish() ?? doc;
 }
