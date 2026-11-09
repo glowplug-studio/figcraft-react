@@ -159,11 +159,12 @@ export function exportVariables(doc:Document,p:Record<string,unknown>):{text:str
   for (const key of Object.keys(p)) if (!["collections","format","path"].includes(key)) throw new Error("Unknown export parameter "+key);
   if (parseString(p.path)!==undefined) throw new Error("Use a browser download to save exported variables");
   const data=doc.variables ?? emptyVariables;
-  let collections=data.collections;
+  const remote=new Set(doc.libraryRecords?.collections.map(r=>r.local));
+  let collections=data.collections.filter(c=>!remote.has(c.id));
   if (p.collections!=null) {
     if (!Array.isArray(p.collections)) throw new Error("Expected collection IDs or names");
     collections=p.collections.map(key=>{
-      const found=typeof key==="string" && collections.find(c=>c.id===key || c.name===key);
+      const found=typeof key==="string" && (data.collections.find(c=>c.id===key) ?? data.collections.find(c=>c.name===key));
       if (!found) throw new Error("Unknown variable collection");
       return found;
     });

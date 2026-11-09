@@ -1,0 +1,381 @@
+{
+  "pending": {
+    "count": 3,
+    "errors": [],
+    "libraries": [
+      {
+        "collections": [
+          {
+            "id": "e36d4acf0f4beca8:VariableCollectionId:2",
+            "key": "VariableCollectionId:2",
+            "name": "Density"
+          }
+        ],
+        "components": [],
+        "id": "e36d4acf0f4beca8",
+        "name": "Kit",
+        "styles": [],
+        "variables": [
+          {
+            "id": "e36d4acf0f4beca8:VariableID:1",
+            "key": "VariableID:1",
+            "name": "Base"
+          },
+          {
+            "id": null,
+            "key": "VariableID:13",
+            "name": "New scale"
+          }
+        ],
+        "version": 2
+      }
+    ]
+  },
+  "accepted": {
+    "collections": 1,
+    "components": 0,
+    "skipped": [],
+    "styles": 0,
+    "variables": 2
+  },
+  "updated": {
+    "collections": [
+      {
+        "id": "VariableCollectionId:1",
+        "modes": [
+          {
+            "id": "VariableCollectionId:1/mode1",
+            "name": "Mode 1"
+          }
+        ],
+        "name": "Local"
+      },
+      {
+        "id": "e36d4acf0f4beca8:VariableCollectionId:1",
+        "modes": [
+          {
+            "id": "VariableCollectionId:1/mode1",
+            "name": "Light"
+          },
+          {
+            "id": "VariableCollectionId:1/mode2",
+            "name": "Dark"
+          }
+        ],
+        "name": "Theme"
+      },
+      {
+        "id": "e36d4acf0f4beca8:VariableCollectionId:2",
+        "modes": [
+          {
+            "id": "VariableCollectionId:2/mode1",
+            "name": "Compact"
+          },
+          {
+            "id": "VariableCollectionId:2/mode2",
+            "name": "Comfortable"
+          },
+          {
+            "id": "VariableCollectionId:2/mode3",
+            "name": "Large"
+          }
+        ],
+        "name": "Density"
+      },
+      {
+        "extends": "e36d4acf0f4beca8:VariableCollectionId:2",
+        "id": "VariableCollectionId:2",
+        "modes": [
+          {
+            "id": "VariableCollectionId:2/mode1",
+            "name": "Compact"
+          },
+          {
+            "id": "VariableCollectionId:2/mode2",
+            "name": "Comfortable"
+          },
+          {
+            "id": "VariableCollectionId:2/mode3",
+            "name": "Large"
+          }
+        ],
+        "name": "Extended"
+      }
+    ],
+    "variables": [
+      {
+        "collection": "VariableCollectionId:1",
+        "description": "",
+        "id": "VariableID:1",
+        "name": "Local fill",
+        "resolvedType": "color",
+        "values": {
+          "VariableCollectionId:1/mode1": {
+            "type": "alias",
+            "value": "e36d4acf0f4beca8:VariableID:1"
+          }
+        }
+      },
+      {
+        "collection": "e36d4acf0f4beca8:VariableCollectionId:1",
+        "description": "Native mode fixture",
+        "id": "e36d4acf0f4beca8:VariableID:1",
+        "name": "Base",
+        "resolvedType": "color",
+        "values": {
+          "VariableCollectionId:1/mode1": {
+            "type": "color",
+            "value": {
+              "a": 0.7529411911964417,
+              "b": 0.5058823823928833,
+              "g": 0.27450981736183167,
+              "r": 0.7607843279838562
+            }
+          },
+          "VariableCollectionId:1/mode2": {
+            "type": "color",
+            "value": {
+              "a": 1.0,
+              "b": 0.5215686559677124,
+              "g": 0.8745098114013672,
+              "r": 0.21960784494876862
+            }
+          }
+        }
+      },
+      {
+        "collection": "e36d4acf0f4beca8:VariableCollectionId:1",
+        "description": "Native mode fixture",
+        "id": "e36d4acf0f4beca8:VariableID:2",
+        "name": "Accent",
+        "resolvedType": "color",
+        "values": {
+          "VariableCollectionId:1/mode1": {
+            "type": "colorAlpha",
+            "value": {
+              "opacity": 0.375,
+              "variable": "e36d4acf0f4beca8:VariableID:1"
+            }
+          },
+          "VariableCollectionId:1/mode2": {
+            "type": "alias",
+            "value": "e36d4acf0f4beca8:VariableID:1"
+          }
+        }
+      },
+      {
+        "collection": "e36d4acf0f4beca8:VariableCollectionId:2",
+        "description": "",
+        "id": "e36d4acf0f4beca8:VariableID:13",
+        "name": "New scale",
+        "resolvedType": "number",
+        "values": {
+          "VariableCollectionId:2/mode1": {
+            "type": "number",
+            "value": 12.0
+          },
+          "VariableCollectionId:2/mode2": {
+            "type": "number",
+            "value": 12.0
+          },
+          "VariableCollectionId:2/mode3": {
+            "type": "number",
+            "value": 12.0
+          }
+        }
+      },
+      {
+        "collection": "VariableCollectionId:2",
+        "description": "",
+        "extends": "e36d4acf0f4beca8:VariableID:13",
+        "id": "VariableID:2",
+        "name": "New scale",
+        "resolvedType": "number",
+        "values": {
+          "VariableCollectionId:2/mode1": {
+            "type": "number",
+            "value": 12.0
+          },
+          "VariableCollectionId:2/mode2": {
+            "type": "number",
+            "value": 12.0
+          },
+          "VariableCollectionId:2/mode3": {
+            "type": "number",
+            "value": 12.0
+          }
+        }
+      }
+    ]
+  },
+  "removed": {
+    "collections": [
+      {
+        "id": "VariableCollectionId:1",
+        "modes": [
+          {
+            "id": "VariableCollectionId:1/mode1",
+            "name": "Mode 1"
+          }
+        ],
+        "name": "Local"
+      },
+      {
+        "id": "e36d4acf0f4beca8:VariableCollectionId:1",
+        "modes": [
+          {
+            "id": "VariableCollectionId:1/mode1",
+            "name": "Light"
+          },
+          {
+            "id": "VariableCollectionId:1/mode2",
+            "name": "Dark"
+          }
+        ],
+        "name": "Theme"
+      },
+      {
+        "id": "e36d4acf0f4beca8:VariableCollectionId:2",
+        "modes": [
+          {
+            "id": "VariableCollectionId:2/mode1",
+            "name": "Compact"
+          },
+          {
+            "id": "VariableCollectionId:2/mode2",
+            "name": "Comfortable"
+          },
+          {
+            "id": "VariableCollectionId:2/mode3",
+            "name": "Large"
+          }
+        ],
+        "name": "Density"
+      },
+      {
+        "extends": "e36d4acf0f4beca8:VariableCollectionId:2",
+        "id": "VariableCollectionId:2",
+        "modes": [
+          {
+            "id": "VariableCollectionId:2/mode1",
+            "name": "Compact"
+          },
+          {
+            "id": "VariableCollectionId:2/mode2",
+            "name": "Comfortable"
+          },
+          {
+            "id": "VariableCollectionId:2/mode3",
+            "name": "Large"
+          }
+        ],
+        "name": "Extended"
+      }
+    ],
+    "variables": [
+      {
+        "collection": "VariableCollectionId:1",
+        "description": "",
+        "id": "VariableID:1",
+        "name": "Local fill",
+        "resolvedType": "color",
+        "values": {
+          "VariableCollectionId:1/mode1": {
+            "type": "alias",
+            "value": "e36d4acf0f4beca8:VariableID:1"
+          }
+        }
+      },
+      {
+        "collection": "e36d4acf0f4beca8:VariableCollectionId:1",
+        "description": "Native mode fixture",
+        "id": "e36d4acf0f4beca8:VariableID:1",
+        "name": "Base",
+        "resolvedType": "color",
+        "values": {
+          "VariableCollectionId:1/mode1": {
+            "type": "color",
+            "value": {
+              "a": 0.7529411911964417,
+              "b": 0.5058823823928833,
+              "g": 0.27450981736183167,
+              "r": 0.7607843279838562
+            }
+          },
+          "VariableCollectionId:1/mode2": {
+            "type": "color",
+            "value": {
+              "a": 1.0,
+              "b": 0.5215686559677124,
+              "g": 0.8745098114013672,
+              "r": 0.21960784494876862
+            }
+          }
+        }
+      },
+      {
+        "collection": "e36d4acf0f4beca8:VariableCollectionId:1",
+        "description": "Native mode fixture",
+        "id": "e36d4acf0f4beca8:VariableID:2",
+        "name": "Accent",
+        "resolvedType": "color",
+        "values": {
+          "VariableCollectionId:1/mode1": {
+            "type": "colorAlpha",
+            "value": {
+              "opacity": 0.375,
+              "variable": "e36d4acf0f4beca8:VariableID:1"
+            }
+          },
+          "VariableCollectionId:1/mode2": {
+            "type": "alias",
+            "value": "e36d4acf0f4beca8:VariableID:1"
+          }
+        }
+      },
+      {
+        "collection": "e36d4acf0f4beca8:VariableCollectionId:2",
+        "description": "",
+        "id": "e36d4acf0f4beca8:VariableID:13",
+        "name": "New scale",
+        "resolvedType": "number",
+        "values": {
+          "VariableCollectionId:2/mode1": {
+            "type": "number",
+            "value": 12.0
+          },
+          "VariableCollectionId:2/mode2": {
+            "type": "number",
+            "value": 12.0
+          },
+          "VariableCollectionId:2/mode3": {
+            "type": "number",
+            "value": 12.0
+          }
+        }
+      },
+      {
+        "collection": "VariableCollectionId:2",
+        "description": "",
+        "extends": "e36d4acf0f4beca8:VariableID:13",
+        "id": "VariableID:2",
+        "name": "New scale",
+        "resolvedType": "number",
+        "values": {
+          "VariableCollectionId:2/mode1": {
+            "type": "number",
+            "value": 12.0
+          },
+          "VariableCollectionId:2/mode2": {
+            "type": "number",
+            "value": 12.0
+          },
+          "VariableCollectionId:2/mode3": {
+            "type": "number",
+            "value": 12.0
+          }
+        }
+      }
+    ]
+  }
+}

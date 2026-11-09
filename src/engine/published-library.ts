@@ -36,8 +36,16 @@ export function readLibraryLinks(value:unknown) {
     return {id:string(r.id),name:string(r.name),path,version:uint(r.version)};
   });
 }
-export function wireLibraryLinks(links:readonly LibraryLink[]) {
-  return {enabled:links.map(l=>({...l,version:wireId(l.version)})),store:null,components:[],styles:[]};
+export interface ImportedRecord {readonly library:string;readonly key:string;readonly local:string;readonly version:string}
+export interface ImportedRecords {readonly collections:readonly ImportedRecord[];readonly variables:readonly ImportedRecord[]}
+export function readImportedRecords(r:Record<string,unknown>):ImportedRecords | undefined {
+  const read=(value:unknown)=>entries(value,r=>({library:string(r.library),key:string(r.key),local:string(r.local),version:uint(r.version)}));
+  const collections=read(r.collections),variables=read(r.variables);
+  return collections.length || variables.length ? {collections,variables} : undefined;
+}
+export function wireLibraryLinks(links:readonly LibraryLink[],records?:ImportedRecords) {
+  const wire=(list:readonly ImportedRecord[])=>list.map(r=>({...r,version:wireId(r.version)}));
+  return {enabled:links.map(l=>({...l,version:wireId(l.version)})),store:null,components:[],styles:[],...(records?.collections.length && {collections:wire(records.collections)}),...(records?.variables.length && {variables:wire(records.variables)})};
 }
 export interface PublishedLibrary {
   readonly manifest:LibraryManifest;

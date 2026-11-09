@@ -1,3 +1,4 @@
+import {pendingVariables} from "./engine/library-variables";
 import type {PublishedLibrary} from "./engine/published-library";
 import {LibraryPublishForm} from "./LibraryPublishForm";
 import { StyleSwatch } from "./StyleEditor";
@@ -105,9 +106,13 @@ export function AssetsPanel({doc,editable,dispatch,place,start,end,source,addLib
     {libraryStatus && <p role="status">{libraryStatus}</p>}
     {!!doc.libraryLinks?.length && <section aria-label="Enabled libraries"><h3>Enabled libraries</h3>
       {doc.libraryLinks.map(link=>{
-        const manifest=source(link.path)?.manifest;
+        const publication=source(link.path),manifest=publication?.manifest;
+        const pending=publication && pendingVariables(doc,publication);
+        const count=pending ? pending.variables.length+pending.collections.length : 0;
         return <div key={link.id}><strong>{link.name}</strong>
           <p>{manifest?.id===link.id ? "Published version "+manifest.version : "Choose the library file to load its assets."}</p>
+          {count>0 && <button type="button" disabled={!editable} onClick={()=>dispatch("library.acceptUpdates",{ids:[link.id]})}>
+            Accept {count} {count===1 ? "update" : "updates"}</button>}
           <button type="button" disabled={!editable} aria-label={"Remove library "+link.name}
             onClick={()=>dispatch("library.remove",{id:link.id})}>Remove</button></div>;
       })}</section>}

@@ -1,3 +1,4 @@
+import {useLibraryVariables} from "./LibraryVariablesContext";
 import { useRef, useState } from "react";
 import { VariableTable } from "./VariableTable";
 import { emptyVariables, type Variables, type VariableType } from "./engine/variables";
@@ -36,11 +37,19 @@ export function VariablesPanel({data=emptyVariables,run,enabled,error,documentNa
   const [edit,setEdit]=useState<{id:string;mode?:string;value:string}>();
   const [editingVariable,setEditingVariable]=useState<string>();
   const [creating,setCreating]=useState(false);
-  const active=data.collections.find(c=>c.id===choice) ?? data.collections[0];
+  const {sources,remoteCollections,remoteVariables}=useLibraryVariables();
+  const local=data.collections.filter(c=>!remoteCollections.has(c.id));
+  const [library,setLibrary]=useState<string>();
+  const source=sources.find(s=>s.id===library) ?? (!local.length ? sources.find(s=>s.offered.collections.length) : undefined);
+  const visible=source?.offered.collections ?? local;
+  const active=visible.find(c=>c.id===choice) ?? visible[0];
+  function choose(id:string|undefined,library?:string) {
+    setChoice(id);setLibrary(library);setQuery("");setEdit(undefined);setCreating(false);setEditingVariable(undefined);
+  }
   function create() {
     const name=unique("Collection",new Set(data.collections.map(c=>c.name)));
     const made=run("variable.createCollection",{name});
-    if (typeof made?.id==="string") {setChoice(made.id); setEdit({id:made.id,value:name});setQuery("");}
+    if (typeof made?.id==="string") {choose(made.id); setEdit({id:made.id,value:name});setQuery("");}
   }
   function addMode(from?:string) {
     if (!active) return;
@@ -69,9 +78,9 @@ export function VariablesPanel({data=emptyVariables,run,enabled,error,documentNa
     const made=run("variable.create",{collection:active.id,name,type});
     if (typeof made?.id==="string") {setQuery("");setCreating(false);setEditingVariable(made.id);}
   }
-  const list=open && active ? data.variables.filter(v=>v.collection===active.id && v.name.toLowerCase().includes(query.trim().toLowerCase())) : [];
+  const list=open && active ? (source?.offered.variables ?? data.variables).filter(v=>v.collection===active.id && v.name.toLowerCase().includes(query.trim().toLowerCase())) : [];
   return <fieldset disabled={!enabled}><legend>Local variables</legend>
-    <button type="button" onClick={()=>{setOpen(true);dialog.current?.showModal();}}>Open variables ({data.variables.length})</button>
+    <button type="button" onClick={()=>{setOpen(true);dialog.current?.showModal();}}>Open variables ({data.variables.length-remoteVariables.size})</button>
     <dialog ref={dialog} aria-label="Local variables" className="figcraft-variables" onClose={()=>{setOpen(false);setEdit(undefined);setEditingVariable(undefined);setCreating(false);}}
       onKeyDown={e=>e.stopPropagation()}>
       {open && <>
@@ -87,27 +96,30 @@ export function VariablesPanel({data=emptyVariables,run,enabled,error,documentNa
         {transfer && <p role="status" style={{whiteSpace:"pre-line"}}>{transfer}</p>}
         {error && <p role="alert">{error}</p>}
         <aside aria-label="Variable collections">
-          {data.collections.map(c=><button type="button" key={c.id} aria-pressed={active===c} onClick={()=>{setChoice(c.id);setQuery("");setEdit(undefined);setCreating(false);setEditingVariable(undefined);}}>{c.name}</button>)}
+          {local.map(c=><button type="button" key={c.id} aria-pressed={active===c} onClick={()=>choose(c.id)}>{c.name}</button>)}
+          {sources.map(s=><div key={s.id} role="group" aria-label={s.name}><strong>{s.name}</strong>
+            {s.offered.collections.map(c=><button type="button" key={c.id} aria-pressed={source===s && active?.id===c.id}
+              onClick={()=>choose(c.id,s.id)}>{c.name}</button>)}</div>)}
           <button type="button" onClick={create}>Create collection</button>
         </aside>
         {active && <>
           <section aria-label="Collection controls">
-            <button type="button" onClick={()=>setEdit({id:active.id,value:active.name})}>Rename collection</button>
+            {!source && <button type="button" onClick={()=>setEdit({id:active.id,value:active.name})}>Rename collection</button>}
             <button type="button" onClick={()=>{
-              const made=run("variable.extendCollection",{collection:active.id});
-              if (typeof made?.id==="string") {setChoice(made.id);setEdit(undefined);setQuery("");}
+              const made=source ? run("library.extendCollection",{library:source.id,collection:active.id}) : run("variable.extendCollection",{collection:active.id});
+              if (typeof made?.id==="string") choose(made.id);
             }}>Extend collection</button>
-            {active.extends===undefined && <button type="button" onClick={()=>addMode()}>Add mode</button>}
-            <button type="button" onClick={()=>{if(run("variable.deleteCollection",{collection:active.id})){setChoice(undefined);setEdit(undefined);setQuery("");}}}>Delete collection</button>
-            {rename}
+            {!source && active.extends===undefined && <button type="button" onClick={()=>addMode()}>Add mode</button>}
+            {!source && <button type="button" onClick={()=>{if(run("variable.deleteCollection",{collection:active.id})){setChoice(undefined);setEdit(undefined);setQuery("");}}}>Delete collection</button>}
+            {!source && rename}
             <input type="search" aria-label="Search variables" value={query} onChange={e=>setQuery(e.target.value)}/>
           </section>
-          <VariableTable key={JSON.stringify([active.id,query])} collection={active} rows={list} data={data} run={run}
+          <VariableTable readOnly={!!source} key={JSON.stringify([source?.id,active.id,query])} collection={active} rows={list} data={source?.data ?? data} run={run}
             edit={setEditingVariable} rename={m=>setEdit({id:active.id,mode:m.id,value:m.name})} duplicate={addMode}/>
-          <button type="button" aria-expanded={creating} onClick={()=>setCreating(!creating)}>Create variable</button>
+          {!source && <button type="button" aria-expanded={creating} onClick={()=>setCreating(!creating)}>Create variable</button>}
           {creating && <div role="group" aria-label="Variable type">{(["color","number","string","boolean"] as const).map(t=>
             <button type="button" key={t} onClick={()=>createVariable(t)}>{t==="color" ? "Colour" : t[0].toUpperCase()+t.slice(1)}</button>)}</div>}
-          {selected && <VariableDetails key={selected.id} v={selected} run={run} close={()=>setEditingVariable(undefined)}/>}
+          {!source && selected && <VariableDetails key={selected.id} v={selected} run={run} close={()=>setEditingVariable(undefined)}/>}
           {!list.length && query && <p>No matching variables</p>}
         </>}
       </>}

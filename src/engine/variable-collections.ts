@@ -51,6 +51,7 @@ export function syncExtensions(data:Variables):Variables {
     return n;
   }
   const extended=collections.flatMap((c,i)=>c.extends!==undefined ? [{i,depth:depth(c)}] : []).sort((a,b)=>a.depth-b.depth);
+  let nextId:bigint|undefined;
   for (const entry of extended) {
     const c=collections[entry.i], parent=Number.isFinite(entry.depth) ? byId.get(c.extends!) : undefined;
     const parents=new Map(variables.filter(v=>parent && v.collection===parent.id).map(v=>[v.id,v]));
@@ -85,9 +86,13 @@ export function syncExtensions(data:Variables):Variables {
     byId.set(c.id,collections[entry.i]);
     for (const v of parents.values()) if (!inherited.has(v.id)) {
       const {overrides,hiddenFromPublishing,...base}=v;
-      variables.push(Object.freeze({...base,id:nextVariableId(variables,"VariableID:"),collection:c.id,extends:v.id}));
+      nextId??=BigInt(nextVariableId(variables,"VariableID:").slice("VariableID:".length));
+      variables.push(Object.freeze({...base,id:"VariableID:"+nextId,collection:c.id,extends:v.id}));
+      if (nextId<U64_MAX) nextId++;
     }
   }
+  if (variables.length===data.variables.length && variables.every((v,i)=>v===data.variables[i]) &&
+      collections.every((c,i)=>c===data.collections[i])) return data;
   return Object.freeze({collections:Object.freeze(collections),variables:Object.freeze(variables)});
 }
 

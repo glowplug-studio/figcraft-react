@@ -5,8 +5,8 @@ import {ancestors,subtreeIds,worldTransform} from "./hierarchy";
 import {U64_MAX} from "./native-values";
 import {parseNodeId,inspectedId,parseString} from "./parameters";
 import {libraryImageKeys,type LibraryManifest,type PublishedLibrary} from "./published-library";
-import {references} from "./variable-values";
-import {emptyVariables,variableIndex} from "./variables";
+import {libraryVariableIds} from "./library-variables";
+import {emptyVariables} from "./variables";
 
 const kinds=["components","styles","collections"] as const;
 type Kind=typeof kinds[number];
@@ -30,7 +30,8 @@ export function publishChoices(doc:Document) {
   };
   const components=Object.values(doc.nodes).filter(n=>asset(n) && !ancestors(doc,n.id).some(id=>asset(doc.nodes[id]) || doc.nodes[id].kind==="instance"))
     .sort((a,b)=>order(a.id,b.id));
-  return {components:choices("components",components),styles:choices("styles",doc.styles ?? []),collections:choices("collections",doc.variables?.collections ?? [])};
+  const remote=new Set(doc.libraryRecords?.collections.map(r=>r.local));
+  return {components:choices("components",components),styles:choices("styles",doc.styles ?? []),collections:choices("collections",doc.variables?.collections.filter(c=>!remote.has(c.id)) ?? [])};
 }
 function selection(doc:Document,p:Record<string,unknown>) {
   const all=publishChoices(doc), byKey={components:byId(all.components),styles:byId(all.styles),collections:byId(all.collections)};
@@ -115,13 +116,7 @@ function buildSnapshot(doc:Document,sel:Selection) {
   }
   const data=doc.variables ?? emptyVariables,offeredCollections=new Set(sel.collections);
   const offered=new Set(data.variables.filter(v=>offeredCollections.has(v.collection) && !v.hiddenFromPublishing).map(v=>v.id));
-  const vars=new Set<string>(),pending=[...offered,...bound],index=variableIndex(data);
-  while (pending.length && vars.size<100_000) {
-    const id=pending.pop()!,v=index.variables.get(id);
-    if (!v || vars.has(id)) continue;
-    vars.add(id);
-    for (const val of Object.values(v.values)) for (const ref of references(val)) pending.push(ref);
-  }
+  const vars=libraryVariableIds(data,[...offered,...bound]);
   const variables=data.variables.filter(v=>vars.has(v.id));
   for (const v of variables) colls.add(v.collection);
   const collections=data.collections.filter(c=>colls.has(c.id));

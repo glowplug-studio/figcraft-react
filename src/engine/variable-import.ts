@@ -9,7 +9,7 @@ function allocate(records:readonly {id:string}[],prefix:string) {
   let n=BigInt(nextVariableId(records,prefix).slice(prefix.length));
   return ()=>prefix+String(n++);
 }
-export function importVariables(data:Variables,p:Record<string,unknown>) {
+export function importVariables(data:Variables,p:Record<string,unknown>,remote?:ReadonlySet<string>) {
   if (Object.keys(p).some(k=>k!=="variables")) throw new Error("Unknown variable import parameter");
   const src=readRestVariables(p.variables);
   const result={collections:0,variables:0,updated:0,warnings:src.warnings};
@@ -20,7 +20,7 @@ export function importVariables(data:Variables,p:Record<string,unknown>) {
   const members=new Map<string,Map<string,Variable>>(),memberIds=new Map<string,string[]>();
   for (const c of data.collections) {
     allNames.add(c.name);
-    if (!c.extends && !localNames.has(c.name)) localNames.set(c.name,c.id);
+    if (!c.extends && !remote?.has(c.id) && !localNames.has(c.name)) localNames.set(c.name,c.id);
   }
   function register(v:Variable) {
     const ids=memberIds.get(v.collection);

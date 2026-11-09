@@ -22,10 +22,10 @@ function slots(count:number,start:number,length:number,focus?:number) {
 }
 
 interface Props {
-  collection:Collection; rows:readonly Variable[]; data:Variables; run:VariableRun;
+  readOnly?:boolean;collection:Collection; rows:readonly Variable[]; data:Variables; run:VariableRun;
   edit:(id:string)=>void;rename:(mode:Mode)=>void;duplicate:(id:string)=>void;
 }
-export function VariableTable({collection,rows,data,run,edit,rename,duplicate}:Props) {
+export function VariableTable({collection,rows,data,run,edit,rename,duplicate,readOnly}:Props) {
   const ref=useRef<HTMLDivElement>(null);
   const [viewport,setViewport]=useState({x:0,y:0,width:760,height:520});
   const [focus,setFocus]=useState<{row?:number;column?:number}>({});
@@ -58,7 +58,7 @@ export function VariableTable({collection,rows,data,run,edit,rename,duplicate}:P
         if (skip) return <th key={index} aria-hidden="true"/>;
         const m=collection.modes[index];
         return <th key={m.id} scope="col" aria-colindex={index+2}>{m.name}
-            {collection.extends===undefined && <details><summary aria-label={"Options for "+m.name}>⋯</summary>
+            {!readOnly && collection.extends===undefined && <details><summary aria-label={"Options for "+m.name}>⋯</summary>
               <button type="button" onClick={()=>rename(m)}>Rename mode</button>
               <button type="button" onClick={()=>duplicate(m.id)}>Duplicate mode</button>
               {([-1,1] as const).map(dir=><button type="button" key={dir} disabled={index+dir<0 || index+dir>=collection.modes.length}
@@ -72,13 +72,13 @@ export function VariableTable({collection,rows,data,run,edit,rename,duplicate}:P
         const v=rows[index];
         return <tr key={v.id} data-row={index} aria-rowindex={index+2} style={manyRows ? {height:rowHeight} : undefined}>
           <th scope="row" title={v.description}>
-            <button type="button" aria-label={"Edit variable "+v.name} onClick={()=>edit(v.id)}>{v.name}</button>
+            {readOnly ? v.name : <><button type="button" aria-label={"Edit variable "+v.name} onClick={()=>edit(v.id)}>{v.name}</button>
             <details><summary aria-label={"Options for variable "+v.name}>⋯</summary>
               <button type="button" onClick={()=>run("variable.duplicate",{variable:v.id})}>Duplicate variable</button>
               <button type="button" disabled={v.extends!==undefined} onClick={()=>run("variable.delete",{variable:v.id})}>Delete variable</button>
-            </details></th>
+            </details></>}</th>
           {columns.map(c=>c.skip ? <td key={c.index} aria-hidden="true"/> :
-            <VariableValueCell key={collection.modes[c.index].id} v={v} mode={collection.modes[c.index]} colIndex={c.index+2} data={data} run={run}/>)}
+            <VariableValueCell readOnly={readOnly} key={collection.modes[c.index].id} v={v} mode={collection.modes[c.index]} colIndex={c.index+2} data={data} run={run}/>)}
         </tr>;
       })}</tbody></table>
   </div>;

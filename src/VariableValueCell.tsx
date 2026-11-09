@@ -1,3 +1,4 @@
+import {useLibraryVariables} from "./LibraryVariablesContext";
 import { useState } from "react";
 import { toCssHex } from "./engine/colour";
 import { variableScopes } from "./engine/variable-metadata";
@@ -17,8 +18,9 @@ function describe(value:VariableValue|undefined, name:(id:string)=>string):strin
     default: return String(value.value);
   }
 }
-export function VariableValueCell({v,mode,data,run,colIndex}:{colIndex?:number;v:Variable;mode:{id:string;name:string};data:Variables;run:VariableRun}) {
+export function VariableValueCell({v,mode,data,run,colIndex,readOnly}:{readOnly?:boolean;colIndex?:number;v:Variable;mode:{id:string;name:string};data:Variables;run:VariableRun}) {
   const [editor,setEditor]=useState<"value"|"alias">(), [draft,setDraft]=useState("");
+  const {sources,remoteVariables}=useLibraryVariables();
   const value=ownVariableValue(v.values,mode.id), index=variableIndex(data);
   const resolved=resolveVariable(data,v.id,{[v.collection]:mode.id});
   const name=(id:string)=>index.variables.get(id)?.name ?? "Missing variable";
@@ -27,6 +29,7 @@ export function VariableValueCell({v,mode,data,run,colIndex}:{colIndex?:number;v
   function set(value:unknown) {
     if (run("variable.set",{variable:v.id,mode:mode.id,value})) setEditor(undefined);
   }
+  if (readOnly) return <td aria-colindex={colIndex} title={describe(resolved,name)}>{text}</td>;
   return <td aria-colindex={colIndex} title={describe(resolved,name)} onKeyDown={e=>{if (editor && e.key==="Escape") {e.preventDefault();e.stopPropagation();setEditor(undefined);}}}>
     {editor==="value" ? <form onSubmit={e=>{e.preventDefault();set(draft);}}>
       <input autoFocus aria-label={"Value for "+cell} value={draft} onFocus={e=>e.target.select()} onChange={e=>setDraft(e.target.value)}/>
@@ -38,11 +41,17 @@ export function VariableValueCell({v,mode,data,run,colIndex}:{colIndex?:number;v
     }}>
       {resolved?.type==="color" && <span aria-hidden="true" className="figcraft-style-swatch" style={{background:toCssHex(resolved.value)}}/>}{text}
     </button>}
-    {editor==="alias" ? <select autoFocus aria-label={"Alias for "+cell} value={value?.type==="alias" ? value.value : ""} onChange={e=>set({alias:e.target.value})}>
+    {editor==="alias" ? <select autoFocus aria-label={"Alias for "+cell} value={value?.type==="alias" ? value.value : ""} onChange={e=>{
+      const library=e.target.selectedOptions[0]?.dataset.library;
+      if (!library) set({alias:e.target.value});
+      else if (run("library.aliasVariable",{library,alias:e.target.selectedOptions[0].dataset.id,variable:v.id,mode:mode.id})) setEditor(undefined);
+    }}>
       <option value="" disabled>Choose variable</option>
-      {data.variables.filter(x=>x.resolvedType===v.resolvedType && x.id!==v.id).map(x=><option key={x.id} value={x.id}>
+      {data.variables.filter(x=>x.resolvedType===v.resolvedType && x.id!==v.id && !remoteVariables.has(x.id)).map(x=><option key={x.id} value={x.id}>
         {index.collections.get(x.collection)?.name ?? x.collection}/{x.name}
       </option>)}
+      {sources.map(s=><optgroup label={s.name} key={s.id}>{s.offered.variables.filter(x=>x.resolvedType===v.resolvedType).map(x=>
+        <option key={x.id} value={JSON.stringify([s.id,x.id])} data-library={s.id} data-id={x.id}>{x.name}</option>)}</optgroup>)}
     </select> : <button type="button" aria-label={"Choose alias for "+cell} onClick={()=>setEditor("alias")}>Alias</button>}
     {reference && resolved && <button type="button" onClick={()=>set(resolved.value)}>Detach {calculated ? "calculation" : "alias"}</button>}
     {v.overrides?.includes(mode.id) && <button type="button" onClick={()=>run("variable.resetOverride",{variable:v.id,mode:mode.id})}>Reset override</button>}

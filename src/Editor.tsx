@@ -1,3 +1,4 @@
+import {LibraryVariablesContext,libraryCatalogues} from "./LibraryVariablesContext";
 import {MAX_CACHED_LIBRARIES} from "./engine/library-links";
 import { GeometryPanel } from "./GeometryPanel";
 import { textShortcut } from "./engine/text-shortcuts";
@@ -20,7 +21,7 @@ import { framePresets } from "./engine/frame-presets";
 import { ChildLayoutPanel } from "./ChildLayoutPanel";
 import { FrameLayoutPanel } from "./FrameLayoutPanel";
 import { GridTrackPanel } from "./GridTrackPanel";
-import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type FormEvent, type KeyboardEvent } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type FormEvent, type KeyboardEvent } from "react";
 import type { DocumentCapability } from "./backends/access";
 import type { IdentityAdapter } from "./backends/identity";
 import { hitRectangle, type layersAt } from "./engine/selection";
@@ -383,7 +384,7 @@ export function Editor({ identity, capabilities, engine: suppliedEngine, recover
   const endAssetDrag = () => {draggedAsset.current = undefined; controller.current?.previewAsset();};
   useEffect(()=>{
     const principal=initialPrincipal.current;
-    if (!(assetsOpen || mobileAssetsOpen) || !editable || !principal || !recoveryStore?.readLibrary) return;
+    if (!editable || !principal || !recoveryStore?.readLibrary) return;
     let active=true;
     async function restore() {
       for (const link of snapshot.document.libraryLinks?.slice(0,MAX_CACHED_LIBRARIES) ?? []) {
@@ -394,7 +395,9 @@ export function Editor({ identity, capabilities, engine: suppliedEngine, recover
     }
     void restore();
     return ()=>{active=false;};
-  },[editable,engine,recoveryStore,snapshot.document.libraryLinks,assetsOpen,mobileAssetsOpen]);
+  },[editable,engine,recoveryStore,snapshot.document.libraryLinks]);
+  const libraryVariables=useMemo(()=>libraryCatalogues(snapshot.document.libraryLinks,snapshot.document.libraryRecords,path=>engine.librarySource(path)),
+    [engine,engine.libraryRevision,snapshot.document.libraryLinks,snapshot.document.libraryRecords]);
   const assetsPanel = <AssetsPanel key={engine.fileGeneration} save={save} doc={snapshot.document} editable={editable && !busy} dispatch={dispatch}
     source={path=>engine.librarySource(path)}
     addLibrary={async file=>{
@@ -410,7 +413,7 @@ export function Editor({ identity, capabilities, engine: suppliedEngine, recover
       if (mobile) mobile.open = false;
       canvas.current?.focus();
     }}/>;
-  return <div ref={root} className="figcraft-editor" onKeyDown={key} data-figcraft-editor=""
+  return <LibraryVariablesContext.Provider value={libraryVariables}><div ref={root} className="figcraft-editor" onKeyDown={key} data-figcraft-editor=""
     onKeyUp={e=>{if (e.key.toLowerCase()==="v") modifiedPaste.current=false;}} onBlurCapture={()=>{modifiedPaste.current=false;}}
     onDragOver={e=>{if (e.dataTransfer.types.includes("Files")) e.preventDefault();}}
     onDrop={e=>{
@@ -642,5 +645,5 @@ export function Editor({ identity, capabilities, engine: suppliedEngine, recover
           {!editingVector && <SharedStylesPanel engine={engine} enabled={editable && !busy} run={dispatch} leave={()=>controller.current?.finishText()}/>}
         </aside>
       </div>
-    </div>;
+    </div></LibraryVariablesContext.Provider>;
 }

@@ -1,3 +1,5 @@
+import {editLibraryVariable,guardLibraryVariables} from "./library-variables";
+import {acceptLibraryUpdates,findLibrary,libraryUpdates,linkedPublication} from "./library-updates";
 import {MAX_CACHED_LIBRARIES,describeLibrary,enableLibrary,removeLibrary} from "./library-links";
 import type {LibraryLink,PublishedLibrary} from "./published-library";
 import {publishLibrary,listLibraries} from "./library-publish";
@@ -121,6 +123,13 @@ export const commandSpecs = Object.freeze({
   ...gridSpecs,
   "style.apply": {label:"Apply style",undo:true},
   "style.detach": {label:"Detach style",undo:true},
+  "library.importVariable": {label:"Import library variable",undo:true},
+  "library.bindVariable": {label:"Bind library variable",undo:true},
+  "library.aliasVariable": {label:"Alias library variable",undo:true},
+  "library.setVariableMode": {label:"Set library variable mode",undo:true},
+  "library.extendCollection": {label:"Extend library collection",undo:true},
+  "library.updates": {label:"Library updates",undo:false},
+  "library.acceptUpdates": {label:"Accept library updates",undo:true},
   "library.add": {label:"Add library",undo:true},
   "library.remove": {label:"Remove library",undo:true},
   "library.publish": {label:"Publish library",undo:true},
@@ -267,6 +276,8 @@ export class EditorEngine {
   #documentIdentity = Symbol();
   #libraryFiles=new Map<string,PublishedLibrary>();
   #libraryPick=0;
+  #libraryRevision=0;
+  get libraryRevision() {return this.#libraryRevision;}
   #copiedEffect?: Effect;
   #copiedPaint?: CopiedPaint;
   hasCopiedEffect = (): boolean => !!this.#copiedEffect;
@@ -813,7 +824,7 @@ export class EditorEngine {
   nativeSnapshot = (): Promise<Uint8Array> => encodeFigcraft(this.#snapshot.document, String(this.#nextId));
   #cacheLibrary(path:string,source:PublishedLibrary) {
     if (this.#libraryFiles.size>=MAX_CACHED_LIBRARIES && !this.#libraryFiles.has(path)) this.#libraryFiles.clear();
-    this.#libraryFiles.set(path,source);
+    this.#libraryFiles.set(path,source);this.#libraryRevision++;
   }
   get fileGeneration() {return this.#openSequence;}
   librarySource(path:string) { return this.#libraryFiles.get(path); }
@@ -876,6 +887,7 @@ export class EditorEngine {
   } = {}) {
     const before = this.#snapshot;
     const {document,nextId} = this.#prepareEdit(patch.document, options.nextId ?? this.#nextId);
+    guardLibraryVariables(before.document,document);
     if (options.record !== false) {
       this.#undo.push({ document: before.document, selection: before.selection });
       this.#redo = [];
@@ -908,7 +920,7 @@ export class EditorEngine {
     if (!editable) this.pencil.cancel();
     if (!editable) this.pen.cancel();
     if (!editable) this.cancelInteraction();
-    if (!editable) {this.cancelPendingFiles();this.#libraryFiles.clear();}
+    if (!editable) {this.cancelPendingFiles();this.#libraryFiles.clear();this.#libraryRevision++;}
     if (!editable) { this.#vectorEdit = undefined; this.#copiedPaint = undefined; this.#copiedEffect = undefined; }
     if (editable !== this.#snapshot.editable) this.#publish({ editable, tool: "move", profileDialog: false, missingFonts: undefined });
   }
@@ -1208,7 +1220,7 @@ export class EditorEngine {
     }
     if (command==="variable.import" || Object.hasOwn(collectionSpecs,command) || Object.hasOwn(valueSpecs,command) || Object.hasOwn(metadataSpecs,command)) {
       const before=this.#snapshot.document, data=before.variables ?? emptyVariables;
-      const next=command==="variable.import" ? importVariables(data,p) : Object.hasOwn(collectionSpecs,command) ? editCollection(data,command,p) :
+      const next=command==="variable.import" ? importVariables(data,p,new Set(before.libraryRecords?.collections.map(r=>r.local))) : Object.hasOwn(collectionSpecs,command) ? editCollection(data,command,p) :
         Object.hasOwn(metadataSpecs,command) ? editVariableMetadata(data,command,p) : editVariableValue(data,command,p);
       if (next.data!==data) {
         let kept=command==="variable.deleteCollection" || command==="variable.removeMode"
@@ -1219,9 +1231,23 @@ export class EditorEngine {
       }
       return next.result;
     }
+    if (command==="library.updates") return libraryUpdates(this.#snapshot.document,path=>this.librarySource(path));
+    if (command==="library.acceptUpdates") {
+      const before=this.#snapshot.document,next=acceptLibraryUpdates(before,path=>this.librarySource(path),p.ids);
+      if (next.document!==before) this.#commitEdit({document:next.document});
+      return next.result;
+    }
+    if (["library.importVariable","library.bindVariable","library.aliasVariable","library.setVariableMode","library.extendCollection"].includes(command)) {
+      const before=this.#snapshot.document,link=findLibrary(before,parseString(p.library));
+      if (!link) throw Error("no enabled library `"+p.library+"`");
+      const lib=linkedPublication(link,path=>this.librarySource(path));
+      const next=editLibraryVariable(before,this.#snapshot.selection,lib,command,p);
+      if (next.document!==before) this.#commitEdit({document:next.document});
+      return next.result;
+    }
     if (command==="library.list") {
       const doc=this.#snapshot.document,assets=!!parseBoolean(p.assets);
-      return {...listLibraries(doc,assets),libraries:(doc.libraryLinks ?? []).map(l=>describeLibrary(l,this.librarySource(l.path),assets))};
+      return {...listLibraries(doc,assets),libraries:(doc.libraryLinks ?? []).map(l=>describeLibrary(doc,l,this.librarySource(l.path),assets))};
     }
     if (command==="library.add" || command==="library.remove") {
       const doc=this.#snapshot.document;

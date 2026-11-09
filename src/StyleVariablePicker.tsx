@@ -1,3 +1,4 @@
+import {useLibraryVariables} from "./LibraryVariablesContext";
 import { useRef, useState, type ReactNode } from "react";
 import type { SharedStyle } from "./engine/shared-styles";
 import { styleBindingType } from "./engine/style-definitions";
@@ -24,7 +25,8 @@ export function StyleVariablePicker({style,field,label,data,run}:{style:SharedSt
 }
 
 export function LayerVariablePicker({doc,ids,field,label,type,run,children}:{children?:ReactNode;doc:Document;ids:readonly string[];field?:string;label:string;type:VariableType;run:Run}) {
-  if (!field || !doc.variables?.variables.length || !ids.length) return children ?? null;
+  const {sources}=useLibraryVariables();
+  if (!field || (!doc.variables?.variables.length && !sources.some(s=>s.offered.variables.length)) || !ids.length) return children ?? null;
   const nodes=ids.map(id=>doc.nodes[id]);
   const bound=nodes[0].boundVariables;
   const key=bound && Object.keys(bound).sort(compareScalarKeys).find(k=>canonicalBinding(k)===field) || field;
@@ -32,12 +34,14 @@ export function LayerVariablePicker({doc,ids,field,label,type,run,children}:{chi
   const reference=nodes.every(n=>n.boundVariables?.[key]===ref) ? ref : undefined;
   const scopes=[...new Set(nodes.map(n=>layerFieldScope(n,field)).filter((s):s is string=>s!==undefined))];
   return <VariablePicker label={label} data={doc.variables} type={type} scopes={scopes} reference={reference} allScopes allowNumber={field==="characters"}
+    remote={(library,variable)=>!!run("library.bindVariable",{library,variable,ids,field:reference ? key : field})}
     apply={id=>!!run("variable.bind",{ids,field:reference ? key : field,variable:id ?? null})}>{children}</VariablePicker>;
 }
 
-function VariablePicker({label,data,type,scopes,reference,apply,children,allScopes,allowNumber}:{children?:ReactNode;allScopes?:boolean;allowNumber?:boolean;label:string;data?:Variables;type:VariableType;scopes:readonly string[];
+function VariablePicker({label,data,type,scopes,reference,apply,children,allScopes,allowNumber,remote}:{remote?:(library:string,variable:string)=>boolean;children?:ReactNode;allScopes?:boolean;allowNumber?:boolean;label:string;data?:Variables;type:VariableType;scopes:readonly string[];
   reference?:string;apply:(id?:string)=>boolean}) {
   const [open,setOpen]=useState(false),[query,setQuery]=useState("");
+  const {sources,remoteCollections}=useLibraryVariables();
   const trigger=useRef<HTMLButtonElement>(null);
   const variable=reference===undefined ? undefined : data?.variables.find(v=>v.id===reference);
   const needle=query.trim().toLowerCase();
@@ -47,8 +51,18 @@ function VariablePicker({label,data,type,scopes,reference,apply,children,allScop
     const inScope=(scope:string)=>inVariableScope(v.scopes,scope);
     return !scopes.length || (allScopes ? scopes.every(inScope) : scopes.some(inScope));
   }
-  const groups=open ? data?.collections.map(c=>({name:c.name,id:c.id,
-    rows:data.variables.filter(v=>v.collection===c.id && matches(v))})).filter(g=>g.rows.length) : undefined;
+  const groups:{name:string;id:string;library?:string;rows:Variable[]}[]=open && data ? data.collections.filter(c=>!remoteCollections.has(c.id)).map(c=>({name:c.name,id:c.id,
+    rows:data.variables.filter(v=>v.collection===c.id && matches(v))})).filter(g=>g.rows.length) : [];
+  if (open && remote) for (const source of sources) {
+    const byCollection=new Map<string,Variable[]>();
+    for (const v of source.offered.variables) if (matches(v)) {
+      const rows=byCollection.get(v.collection);if (rows) rows.push(v);else byCollection.set(v.collection,[v]);
+    }
+    for (const c of source.offered.collections) {
+      const rows=byCollection.get(c.id);
+      if (rows) groups.push({name:source.name+" / "+c.name,id:c.id,library:source.id,rows});
+    }
+  }
   function close() {
     setOpen(false);
     setQuery("");
@@ -67,7 +81,7 @@ function VariablePicker({label,data,type,scopes,reference,apply,children,allScop
       if (e.key==="Escape") {e.preventDefault();e.stopPropagation();close();}
     }}>
       <input type="search" aria-label="Search variables" autoFocus value={query} onChange={e=>setQuery(e.target.value)}/>
-      {groups?.map(g=><span role="group" aria-label={g.name} key={g.id}><small>{g.name}</small>{g.rows.map(v=><button type="button" key={v.id} onClick={()=>bind(v.id)}>{v.name}</button>)}</span>)}
+      {groups?.map(g=><span role="group" aria-label={g.name} key={JSON.stringify([g.library,g.id])}><small>{g.name}</small>{g.rows.map(v=><button type="button" key={v.id} onClick={()=>{if (!g.library) bind(v.id);else if (remote?.(g.library,v.id)) close();}}>{v.name}</button>)}</span>)}
       {!groups?.length && <span>No matching variables</span>}
     </span>}
   </span>;
