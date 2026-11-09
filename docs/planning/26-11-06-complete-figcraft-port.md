@@ -6,15 +6,15 @@
 |---|---|
 | Overall status | In progress. [Execution checkpoint](26-11-07-full-port-resume.md). |
 | Active slice | Shared styles, variables and linked libraries. [Dated plan](26-11-09-styles-variables-libraries.md). |
-| Active phase | Row 10 implementation. Local style editing, native variable collections, modes, values and metadata are verified. |
+| Active phase | Row 10 implementation. Local style editing, native variable values, metadata and inherited layer modes are verified. |
 | Upstream baseline | Styles reference a2e87433. Components reference 79c36346. Global supported baseline 8eb0b876. |
-| Branch and last verified commit | prompt/full-figcraft-port at b469f59. Full production Chromium at ad4014a passed 274/274. Last complete slice release is 0.51.0. |
+| Branch and last verified commit | prompt/full-figcraft-port at e32cc89. Full production Chromium at b469f59 passed 275/275. Last complete slice release is 0.51.0. |
 | Completed slices | Rectangle/host-auth, bounded native persistence/recovery, supported-model pages, affine rectangle geometry/selection and solid appearance, plus nested group hierarchy, Frame containers, movement/transform gestures, rounded corners, ellipse/arc/ring and Polygon/Star editing verified locally; Line/Arrow and uniform solid strokes also verified; per-side Rectangle/Frame strokes, variable-width profiles and procedural brushes verified; vector networks, solid region/stroke rendering and Flatten/Reverse also verified; foundation commit `154f5a7`. Gradient, image, pattern, blend and mask releases now have local property matrices. [Blend evidence](../reports/26-11-09-blend-modes-parity.html). Auto layout and constraints passed the local release gate. [Release evidence](../reports/26-11-09-auto-layout.md). [Local components, instances, variant properties, slots and Assets](../reports/26-11-09-components-instances.md) passed the 0.51.0 gate. |
 | Remaining slices | Continue incomplete roadmap rows, excluding the user-deferred plugin and widget family. See each slice matrix for outstanding integrations. |
-| Tests last passed | At b469f59 both builds, strict types, 1,898 pure tests, two local Auth checks and both focused production workflows passed. Variable authoring matched 3,456 native results. Variable resolution matched 11,420 Rust readbacks and collection commands matched 1,296 native results. [Browser and native evidence](26-11-09-styles-variables-libraries.md#local-style-editors-and-variable-collections). |
+| Tests last passed | At e32cc89 both builds, strict types, 1,900 pure tests, two local Auth checks and both focused production workflows passed. Layer mode and override records matched across 451 native command sequences. Variable authoring matched 3,456 native results. Variable resolution matched 11,420 Rust readbacks and collection commands matched 1,296 native results. [Browser and native evidence](26-11-09-styles-variables-libraries.md#local-style-editors-and-variable-collections). |
 | Files currently in progress | [Shared styles, variables and libraries](26-11-09-styles-variables-libraries.md). |
 | Blockers | No blocker. Use local Graphify for all remaining slices. The scoped Supabase read succeeded. |
-| Exact next action | Implement layer and style variable bindings with per-layer mode inheritance, native projections, manual detachment and archive recovery. Then verify interchange and linked libraries. |
+| Exact next action | Resolve shared style paint, text, effect and grid bindings in each consuming layer’s modes. Wire direct layer and component-property bindings, manual detachment and recovery. Then verify interchange and linked libraries. |
 | Last updated | 2026-11-10 |
 
 ## Scope and continuation

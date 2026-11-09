@@ -6,11 +6,11 @@
 |---|---|
 | Entry | Roadmap row 9 passed all 266 production Chromium workflows at 0dac4d7. This row starts with the existing local Assets panel and typed paints, effects, text, components and affine layout. |
 | Reference | React 0dac4d7. Fork and original upstream main both point to a2e87433d8bda2b0c909587da08cb27c51e3b17e. The single upstream change since 79c36346 updates Developer Mode naming documentation and moves a Rust doc comment. No document or engine behaviour changed. |
-| Local graph | At React b469f59 and Rust a2e87433 the combined local index has 32,281 nodes and 107,708 edges. The variable implementation follows doc/styles.rs, cmd/styles.rs, cmd/variables.rs and dialogs/variables_panel.rs. |
+| Local graph | At React e32cc89 and Rust a2e87433 the combined local index has 32,290 nodes and 107,773 edges. The variable implementation follows doc/styles.rs, cmd/styles.rs, cmd/variables.rs and dialogs/variables_panel.rs. |
 | Provider | The scoped Supabase MCP read returned the expected project, an active publishable key and zero public tables. Local Auth integrations and the production host passed at entry. |
-| Phase | Phase 4. Local style authoring, folders, typography and paint definitions, native variable records, typed resolution, collection and mode management, value authoring and variable metadata are verified. |
+| Phase | Phase 4. Local style authoring, folders, typography and paint definitions, native variable records, typed resolution, collection and mode management, value authoring, metadata and layer mode inheritance are verified. |
 | First independent boundary | Open, inspect, save and recover a native document with ordered local style definitions and linked layers. Cover fill and stroke links separately. Extend direct application, detachment and value propagation through the inspector and local Assets panel. |
-| Next action | Implement layer and style variable bindings with per-layer mode inheritance, native projections, manual detachment and archive recovery. Then verify interchange and linked libraries. |
+| Next action | Resolve shared style paint, text, effect and grid bindings in each consuming layer’s modes. Wire direct layer and component-property bindings, manual detachment and recovery. Then verify interchange and linked libraries. |
 | Rollback | Keep row 9’s 0dac4d7 implementation and its tests as the rollback point. Isolate document support, authoring, variable resolution and library interchange in verified commits. |
 
 ## Verified local style records and ordering
@@ -33,7 +33,13 @@ At `ad4014a`, native variable catalogues preserve literal values, typed aliases,
 
 ### Variable value authoring
 
-At b469f59 the browser supports creating, duplicating and deleting variables, changing typed values and aliases, editing metadata and overriding or resetting inherited modes. The command API supports colour mix and alpha expressions. The browser displays and detaches calculations. Across 64 independent native sessions, all 3,456 command results matched, including 938 refusals. The signed-in authoring workflow covered invalid-name feedback, literal and alias values, inherited overrides, detachment, metadata and native download after recovery. Both production builds, strict types, 1,898 pure tests, both local Auth checks and both focused Chromium workflows passed. The last completed full browser suite covers ad4014a.
+At b469f59 the browser supports creating, duplicating and deleting variables, changing typed values and aliases, editing metadata and overriding or resetting inherited modes. The command API supports colour mix and alpha expressions. The browser displays and detaches calculations. Across 64 independent native sessions, all 3,456 command results matched, including 938 refusals. The signed-in authoring workflow covered invalid-name feedback, literal and alias values, inherited overrides, detachment, metadata and native download after recovery. Both production builds, strict types, 1,898 pure tests, both local Auth checks and both focused Chromium workflows passed. The full production run passed 275/275 at b469f59 in 609.8 seconds with zero skips, failures or flaky results.
+
+### Layer mode inheritance
+
+At e32cc89, explicit page and layer mode choices survive archive recovery. An instance inherits its main’s own choice ahead of a container’s mode. Its own choice takes precedence over both. Children inherit these settings. Mirrored children follow their source until an explicit override. Detaching an instance preserves the main’s modes on the resulting frame. Legacy archives recover missing mode override groups. Deleting a mode or collection clears the affected explicit choices.
+
+The independent Rust run at a2e87433 supplied a six-node native fixture and 451 command sequences with 2,534 matching node mode and override records. This exposed native undo steps for repeated mode assignments and resetting an unchanged instance. The signed-in browser checked the Auto label, mixed frame selection, explicit choices, reload and downloaded native records. Both builds, strict TypeScript, 1,900 pure tests, two Auth checks and both focused browser tests passed. Direct edits of bound properties, per-layer projections and shared library sources are outstanding.
 
 ## Dependencies and acceptance
 
