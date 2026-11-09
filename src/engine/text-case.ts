@@ -1,11 +1,11 @@
 import type { TextCase } from "./text-style";
+import { extendsLetter } from "./text-graphemes";
 
-const graphemes = new Intl.Segmenter(undefined, {granularity:"grapheme"});
 const alphanumeric = /[\p{Alphabetic}\p{Number}]/u;
 function combining(c: string) {
   // Native is_combining_mark tests whether this scalar extends a preceding "a".
   if (c.codePointAt(0)! < 128 || alphanumeric.test(c)) return false;
-  return graphemes.segment("a" + c).containing(0)?.segment.length === 1 + c.length;
+  return extendsLetter(c);
 }
 const apostrophe = (c: string) => c === "'" || c === "’";
 
