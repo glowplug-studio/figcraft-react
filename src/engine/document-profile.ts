@@ -48,7 +48,8 @@ export function setDocumentProfile(document: Document, target: ColourProfile, co
       ...(original.effects?.length && {effects: Object.freeze(original.effects.map(effect))}),
     }) : original;
     if (node.kind === "page") {
-      const page = withPageColour(node, convertColour(pageColour(node), from, target));
+      const page = withPageColour({...node, ...(node.fills?.length && {fills:paints(node.fills)}),
+        ...(node.strokes?.length && {strokes:paints(node.strokes)})}, convertColour(pageColour(node), from, target));
       nodes[node.id] = node.prototypeBackground
         ? Object.freeze({ ...page, prototypeBackground: convertColour(node.prototypeBackground, from, target) }) : page;
       continue;

@@ -48,7 +48,7 @@ function stringValue(value: unknown, key: string) {
   return string;
 }
 
-function spacing(value: unknown): TextStyle["letterSpacing"] {
+export function textSpacing(value: unknown): TextStyle["letterSpacing"] {
   if (typeof value === "object" && value !== null) {
     const part = textRecord(value, "spacing");
     if ((part.unit !== "pixels" && part.unit !== "percent") || typeof part.value !== "number" || !Number.isFinite(part.value))
@@ -63,10 +63,10 @@ function spacing(value: unknown): TextStyle["letterSpacing"] {
   return Object.freeze({unit:"pixels", value:parseNumber(value)});
 }
 const auto = Object.freeze({unit:"auto"} as const);
-function length(value: unknown): TextStyle["lineHeight"] {
+export function textLength(value: unknown): TextStyle["lineHeight"] {
   if (typeof value === "string" && value.toLowerCase() === "auto" ||
     value && typeof value === "object" && "unit" in value && value.unit === "auto" && (!("value" in value) || value.value == null)) return auto;
-  return spacing(value);
+  return textSpacing(value);
 }
 function tagValues<T>(value: unknown, parse: (value: unknown, tag: string) => T) {
   const pairs = Object.entries(textRecord(value, "OpenType settings")).sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0);
@@ -120,7 +120,7 @@ function styleEdit(key: string, value: unknown): (style: TextStyle) => TextStyle
       return s => withLook(s, {style});
     }
     case "textDecorationThickness": case "textDecorationOffset": {
-      const measure = length(value);
+      const measure = textLength(value);
       if (measure.unit !== "auto" && Math.abs(measure.value) > 10000) throw new Error(key + " exceeds 10000");
       return s => withLook(s, key === "textDecorationOffset" ? {offset:measure} : {thickness:measure});
     }
@@ -138,8 +138,8 @@ function styleEdit(key: string, value: unknown): (style: TextStyle) => TextStyle
   const patch = (): Partial<TextStyle> => {
     switch (key) {
       case "fontSize": return {fontSize:clamp(parseNumber(value, key), 1, 5000)};
-      case "lineHeight": return {lineHeight:length(value)};
-      case "letterSpacing": return {letterSpacing:spacing(value)};
+      case "lineHeight": return {lineHeight:textLength(value)};
+      case "letterSpacing": return {letterSpacing:textSpacing(value)};
       case "textDecoration": return {decoration:propertyEnum(value, ["none", "underline", "strikethrough"] as const)};
       case "textCase": return {case:propertyEnum(value, ["original", "upper", "lower", "title", "smallCaps"] as const)};
       case "hyperlink": return {link:typeof value === "boolean" ? undefined : parseString(value)};

@@ -1,4 +1,5 @@
-import { orderStyles, styleOrderSpecs } from "./style-commands";
+import { editStyleLinks } from "./style-application";
+import { editStyleDefinition, orderStyles, styleEditSpecs, styleOrderSpecs } from "./style-commands";
 import { listStyles } from "./shared-styles";
 import { finishComponentEdit } from "./component-edits";
 import { listComponents } from "./component-assets";
@@ -97,6 +98,9 @@ export const commandSpecs = Object.freeze({
   ...structureSpecs,
   ...instanceCommandSpecs,
   ...styleOrderSpecs,
+  ...styleEditSpecs,
+  "style.apply": {label:"Apply style",undo:true},
+  "style.detach": {label:"Detach style",undo:true},
   "style.list": {label:"List styles",undo:false},
   "component.list": {label:"List components",undo:false},
   "instance.create": { label:"Create instance", undo:true },
@@ -892,7 +896,8 @@ export class EditorEngine {
     const preservePen = this.pen.open && command === "tool.pen" || (this.pen.open || this.pencil.active) && (command === "tool.scaleAnchor" || Object.hasOwn(viewSpecs, command));
     if (preservePen && command === "tool.pen") { if (Object.keys(p).length) throw new Error("tool.pen takes no parameters"); return {}; }
     const gesture = Object.hasOwn(smartSpecs, command) && command !== "arrange.roundToPixels" && parseBoolean(p.fromGesture) === true;
-    if (!gesture && !preservePen && !(command==="file.markSaved" && this.currentTextEdit())) { const interacting = this.interacting; this.pencil.cancel(); if (this.pen.open) this.pen.cancel(); else this.cancelInteraction(); if (interacting && command === "edit.undo") return { undone: true }; }
+    const preserveText = (command === "file.markSaved" || command.startsWith("style.")) && this.currentTextEdit();
+    if (!gesture && !preservePen && !preserveText) { const interacting = this.interacting; this.pencil.cancel(); if (this.pen.open) this.pen.cancel(); else this.cancelInteraction(); if (interacting && command === "edit.undo") return { undone: true }; }
     if (command === "text.missingFonts") {
       if (Object.keys(p).some(key=>key!=="ids" && key!=="id")) throw new Error("Unknown text.missingFonts option");
       const families=Object.freeze(missingFonts(this.#snapshot.document));
@@ -1076,13 +1081,26 @@ export class EditorEngine {
       }
       return { ok: true, ...(warnings.length ? { warnings } : {}) };
     }
-    if (Object.hasOwn(styleOrderSpecs, command)) {
-      const before = this.#snapshot.document;
-      const {document, result} = orderStyles(before, command, p);
-      if (document !== before) this.#commitEdit({document});
+    if (Object.hasOwn(styleEditSpecs, command) || command === "style.apply" || command === "style.detach") {
+      const live = this.getTextRange();
+      if (!live) this.cancelInteraction();
+      const before = this.getRenderDocument();
+      const selection = this.getRenderSelection();
+      const {document, result} = Object.hasOwn(styleEditSpecs, command) ? editStyleDefinition(before, selection, command, p, live) :
+        {document:editStyleLinks(before, selection, p, command === "style.detach", live), result:{ok:true}};
+      if (live) live.update(document, live.anchor, live.caret);
+      else if (document !== before) this.#commitEdit({document});
       return result;
     }
-    if (command === "style.list") return listStyles(this.#snapshot.document, p.type);
+    if (Object.hasOwn(styleOrderSpecs, command)) {
+      const live = this.getTextRange();
+      const before = this.getRenderDocument();
+      const {document, result} = orderStyles(before, command, p);
+      if (live) live.update(document, live.anchor, live.caret);
+      else if (document !== before) this.#commitEdit({document});
+      return result;
+    }
+    if (command === "style.list") return listStyles(this.getRenderDocument(), p.type);
     if (command === "component.list") return listComponents(this.#snapshot.document);
     if (command === "page.list") return listPages(this.#snapshot.document);
     if (Object.hasOwn(pageSpecs, command)) {

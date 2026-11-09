@@ -37,6 +37,8 @@ export function withMaskProperties<T extends MaskProperties>(node:T, isMask = no
   return Object.freeze({...rest,...(isMask && {isMask:true}),...(maskType !== "alpha" && {maskType})}) as T;
 }
 export interface PageNode extends MaskProperties, ComponentLinks, LayerStyles {
+  readonly fills?: readonly Paint[];
+  readonly strokes?: readonly Paint[];
   readonly effects?: readonly Effect[];
   readonly id: NodeId;
   readonly kind: "page";

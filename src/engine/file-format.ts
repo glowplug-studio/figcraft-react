@@ -113,7 +113,7 @@ function readNode(key: string, value: unknown): DocumentNode {
   if (kind !== "page" && kind !== "group" && kind !== "booleanOp" && !isFrameLikeKind(kind) && !isLeafKind(kind)) fail(`node type ${String(kind)} is not supported yet`);
   const componentFields = kind === "component" ? ["description", "props", "prop_order"]
     : kind === "componentSet" ? ["description"] : kind === "instance" ? ["component", "props"] : [];
-  fields(n, [...componentFields, "styles", "grids", "overrides", "source", "prop_refs", "exposed", "id", "name", "type", "parent", "children", "transform", "width", "height", "fills", "blend", "effects", "is_mask", "mask_type", ...(kind === "page" ? ["background", "flows", "prototype"] : ["bool_op", "child_layout", ...(kind === "booleanOp" ? ["op"] : kind === "ellipse" ? ["start", "sweep", "inner"] : kind === "star" ? ["count", "inner_ratio"] : kind === "polygon" ? ["count"] : kind === "vector" ? ["network"] : kind === "text" ? textFields : []), "stroke", "strokes", "visible", "locked", "opacity", "corners", "constraints", "constrain_proportions", ...(isFrameLikeKind(kind) ? ["clip", "layout"] : [])])], nodeDefaults, `node ${key}`);
+  fields(n, [...componentFields, "styles", "grids", "overrides", "source", "prop_refs", "exposed", "id", "name", "type", "parent", "children", "transform", "width", "height", "fills", "blend", "effects", "is_mask", "mask_type", ...(kind === "page" ? ["background", "flows", "prototype", "strokes"] : ["bool_op", "child_layout", ...(kind === "booleanOp" ? ["op"] : kind === "ellipse" ? ["start", "sweep", "inner"] : kind === "star" ? ["count", "inner_ratio"] : kind === "polygon" ? ["count"] : kind === "vector" ? ["network"] : kind === "text" ? textFields : []), "stroke", "strokes", "visible", "locked", "opacity", "corners", "constraints", "constrain_proportions", ...(isFrameLikeKind(kind) ? ["clip", "layout"] : [])])], nodeDefaults, `node ${key}`);
   const links = { ...readComponentLinks(n), ...readLayerStyles(n) };
   if (n.is_mask !== undefined && typeof n.is_mask !== "boolean") fail("is_mask must be boolean");
   if (n.mask_type !== undefined && !isMaskType(n.mask_type)) fail("mask_type must be alpha, vector or luminance");
@@ -129,7 +129,8 @@ function readNode(key: string, value: unknown): DocumentNode {
   if (kind === "page") {
     if (n.parent != null || width !== 0 || height !== 0 || transform.some((entry, index) => entry !== [1, 0, 0, 1, 0, 0][index])) fail("non-default page geometry is not supported yet");
     defaultValue(n.blend ?? "passThrough", "passThrough", "page blend");
-    defaultValue(n.fills ?? [], [], "page fills");
+    const fills = readPaints(appearanceValue(n.fills ?? []));
+    const strokes = readPaints(appearanceValue(n.strokes ?? []));
     defaultValue(n.flows ?? [], [], "page flows");
     let prototypeBackground: Colour | undefined;
     if (n.prototype !== undefined) {
@@ -140,7 +141,7 @@ function readNode(key: string, value: unknown): DocumentNode {
         if (Object.keys(expected).some(key => background[key as keyof Colour] !== expected[key as keyof Colour])) prototypeBackground = background;
       }
     }
-    return withPageColour({ ...links, ...mask, ...(effects?.length && { effects }), ...(prototypeBackground && {prototypeBackground}), id: key, kind, name, parent: null, children: Object.freeze(children), background: "#f5f5f5" }, nativeColour(n.background ?? "#f5f5f5", "page background"));
+    return withPageColour({ ...links, ...(fills.length && {fills}), ...(strokes.length && {strokes}), ...mask, ...(effects?.length && { effects }), ...(prototypeBackground && {prototypeBackground}), id: key, kind, name, parent: null, children: Object.freeze(children), background: "#f5f5f5" }, nativeColour(n.background ?? "#f5f5f5", "page background"));
   } else {
     if (isLeafKind(kind) && children.length) fail("leaf children are not supported");
     if (n.blend !== undefined && !isBlendMode(n.blend)) fail(`${kind} blend is not supported yet`);
@@ -433,7 +434,7 @@ function wireNode(key: string, node: DocumentNode) {
   if (node.id !== key) fail("node map key and ID differ");
   const common = { ...(node.styles && { styles: node.styles }), ...(node.grids?.length && { grids: node.grids }), ...wireComponentLinks(node), ...(node.effects?.length && { effects: node.effects.map(wireEffect) }), ...(node.isMask && {is_mask:true}), ...(node.maskType && node.maskType !== "alpha" && {mask_type:node.maskType}), id: numericId, name: node.name, type: node.kind, ...(node.kind === "booleanOp" ? { op: node.op } : {}), ...(node.kind === "ellipse" ? { start: node.start, sweep: node.sweep, inner: node.inner } : node.kind === "star" ? { count: node.count, inner_ratio: node.innerRatio } : node.kind === "polygon" ? { count: node.count } : node.kind === "vector" ? { network: wireVectorNetwork(node.network, wirePaints) } : node.kind === "text" ? wireTextData(node.text) : {}) };
   if (node.kind === "page") {
-    return { ...common, width: 0, height: 0, children: node.children.map(wireId), background: pageColour(node), ...(node.prototypeBackground && { prototype: { device: "None", rotation: "portrait", background: node.prototypeBackground } }) };
+    return { ...common, ...(node.fills?.length && {fills:wirePaints(node.fills)}), ...(node.strokes?.length && {strokes:wirePaints(node.strokes)}), width: 0, height: 0, children: node.children.map(wireId), background: pageColour(node), ...(node.prototypeBackground && { prototype: { device: "None", rotation: "portrait", background: node.prototypeBackground } }) };
   } else {
     return { ...common, child_layout: wireChildLayout(node.childLayout, layerSizing(node)), ...(node.boolOp ? { bool_op: node.boolOp } : {}), parent: wireId(node.parent), ...(!isLeaf(node) ? { children: node.children.map(wireId) } : {}), transform: layerTransform(node), width: node.width, height: node.height, ...(node.stroke ? { stroke: wireStroke(node.stroke) } : {}), ...(node.strokes ? { strokes: wirePaints(node.strokes) } : {}),
       ...(node.corners ? { corners: node.corners } : {}), ...(node.constraints ? { constraints: node.constraints } : {}), ...(node.constrainProportions ? { constrain_proportions: true } : {}), ...(isFrameLike(node) ? { ...wireFrameKind(node), clip: node.clip, ...(node.layout && {layout: wireAutoLayout(node.layout)}) } : {}), blend: layerBlend(node), visible: node.visible ?? true, locked: node.locked ?? false, opacity: node.opacity ?? 1, fills: wirePaints(rectanglePaints(node)) };

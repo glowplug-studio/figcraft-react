@@ -1,3 +1,4 @@
+import { reconcileNodeStyles } from "./style-application";
 import { adoptSlot, rebuildAffectedInstances, rebuildInstance, rebaseOwnedInstance } from "./component-sync";
 import { componentOverrides } from "./component-properties";
 import { autoSizeText } from "./text-node-layout";
@@ -96,16 +97,23 @@ function matchesInstanceStructure(doc: Document, root: NodeId, main: NodeId) {
 /** Validate the whole edit before the session records history, consumes ids or publishes a selection. */
 export function finishComponentEdit(before: Document, after: Document, nextId: bigint) {
   if (before.nodes === after.nodes) return {document:after,nextId};
+  let styled: HierarchyDraft | undefined;
+  const resolve = (id:string) => after.styles?.find(style => style.id === id || style.name === id);
   let hasInstance = false;
   const copies: NodeId[] = [], visibility: NodeId[] = [];
   for (const id in after.nodes) {
     const node = after.nodes[id];
     if (node.kind === "instance") hasInstance = true;
     const prior = before.nodes[id];
+    if (node !== prior && (node.styles || node.kind === "text" && (node.text.style.styleId !== undefined || node.text.runs.length))) {
+      const checked = reconcileNodeStyles(prior, node, resolve);
+      if (checked !== node) (styled ??= new HierarchyDraft(after)).set(checked);
+    }
     if (prior && prior !== node && prior.kind !== "page" && node.kind !== "page" && node.propRefs?.visible !== undefined &&
         (prior.visible !== false) !== (node.visible !== false)) visibility.push(id);
     if (!before.nodes[id] && node.kind !== "page" && (node.kind === "instance" || node.source || componentOverrides(node).length)) copies.push(id);
   }
+  if (styled) after = styled.finish();
   if (visibility.length) {
     const defaults = new HierarchyDraft(after);
     for (const id of visibility) {

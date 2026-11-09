@@ -60,7 +60,6 @@ function inspect(doc: Document, node: DocumentNode, depth: number, fields?: Set<
   const out: Record<string, unknown> = { id: inspectedId(node.id) };
   const wants = (key: string) => !fields || fields.has(key);
   const put = (key: string, value: unknown) => { if (wants(key) && value !== undefined) out[key] = value; };
-  if (node.styles) put("styles", node.styles);
   if (node.isMask) {put("isMask",true); put("maskType",node.maskType ?? "alpha");}
   if (wants("overrides")) {
     const overrides = componentOverrides(node);
@@ -73,6 +72,8 @@ function inspect(doc: Document, node: DocumentNode, depth: number, fields?: Set<
   if (node.kind === "page") {
     if (wants("background")) put("background", toCssHex(pageColour(node)));
   } else {
+    if (node.styles) put("styles", node.styles);
+    if (node.grids?.length) put("grids", node.grids);
     if (wants("x") || wants("y")) {
       const local = frameRelative(doc, node.id);
       put("x", round(local[4]));
@@ -168,6 +169,7 @@ function inspect(doc: Document, node: DocumentNode, depth: number, fields?: Set<
 }
 
 export function getNode(doc: Document, params: Record<string, unknown>) {
+  if (Object.keys(params).some(key => !["id","fields","outline"].includes(key))) throw new Error("Unknown node.get parameter");
   const id = parseNodeId(params.id);
   if (!id) throw new Error("node.get requires a node id");
   const fields = requestedFields(params);

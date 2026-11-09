@@ -22,12 +22,23 @@ export interface LayoutGrid {
 
 const slots = ["fill", "stroke", "effect", "grid", "text"] as const;
 export type StyleRefs = Readonly<Record<typeof slots[number], string | null>>;
+export type StyleSlot = keyof StyleRefs;
+const emptyRefs: StyleRefs = Object.freeze({fill:null, stroke:null, effect:null, grid:null, text:null});
+
+export function withStyleRef<T extends LayerStyles>(node: T, slot: StyleSlot, id: string | null): T {
+  const current = node.styles ?? emptyRefs;
+  if (current[slot] === id) return node;
+  const styles = Object.freeze({...current, [slot]:id});
+  const {styles:previous, ...rest} = node;
+  return Object.freeze(slots.some(key => styles[key] !== null) ? {...rest, styles} : rest) as T;
+}
+
 export interface LayerStyles {
   readonly styles?: StyleRefs;
   readonly grids?: readonly LayoutGrid[];
 }
 
-interface ParagraphStyle {
+export interface ParagraphStyle {
   readonly paragraph_spacing?: number;
   readonly paragraph_indent?: number;
   readonly list?: ListStyle;
@@ -59,11 +70,11 @@ function readMap<T>(value: unknown, field: string, read: (v: unknown, key: strin
   return entries.length ? Object.freeze(Object.fromEntries(entries.map(([k, v]) => [textString(k, field), read(v, k)]))) as Readonly<Record<string, T>> : undefined;
 }
 
-function readGrids(value: unknown): readonly LayoutGrid[] {
+export function readGrids(value: unknown, command = false): readonly LayoutGrid[] {
   if (!Array.isArray(value)) fail("grids must be an array");
   return Object.freeze(value.map(raw => {
     const v = textRecord(raw, "layout grid");
-    checkFields(v, ["kind", "size", "count", "gutter", "offset", "align", "color", "visible"], "layout grid");
+    if (!command) checkFields(v, ["kind", "size", "count", "gutter", "offset", "align", "color", "visible"], "layout grid");
     const count = v.count === undefined ? 5 : number(v.count, "grid count");
     if (!Number.isInteger(count) || count < 0 || count > 0xffffffff) fail("grid count must be an unsigned 32-bit integer");
     const color = v.color === undefined ? colour(1, 0, 0, 0.1) : parseColour(appearanceValue(v.color));
@@ -93,7 +104,7 @@ export function readLayerStyles(node: Record<string, unknown>): LayerStyles {
   return { ...(grids?.length && { grids }), ...(styles && { styles }) };
 }
 
-function readParagraph(value: unknown): ParagraphStyle | undefined {
+export function readParagraph(value: unknown): ParagraphStyle | undefined {
   if (value === undefined) return undefined;
   const v = textRecord(value, "style paragraph");
   checkFields(v, ["paragraph_spacing", "paragraph_indent", "list", "features"], "style paragraph");

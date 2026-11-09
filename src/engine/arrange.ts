@@ -19,7 +19,7 @@ export const arrangeSpecs = Object.freeze({
 });
 
 /** Native req_targets: explicit malformed identifiers never silently disappear. */
-export function arrangementTargets(document: Document, selection: readonly NodeId[], params: Record<string, unknown>, rootsOnly = true): NodeId[] {
+export function requiredTargets(document: Document, selection: readonly NodeId[], params: Record<string, unknown>): NodeId[] {
   if (params.ids != null && !Array.isArray(params.ids)) throw new Error("ids must be an array");
   const raw: unknown[] = Array.isArray(params.ids) ? params.ids : params.id != null ? [params.id] : [...selection];
   const ids = raw.map(value => {
@@ -27,10 +27,15 @@ export function arrangementTargets(document: Document, selection: readonly NodeI
     if (id === undefined) throw new Error("Every target must be a node id");
     const node = document.nodes[id];
     if (!node) throw new Error(`No node ${id}`);
-    if (node.kind === "page") throw new Error("Arrange layers, not pages");
     return id;
   });
   if (!ids.length) throw new Error("Nothing selected");
+  return ids;
+}
+
+export function arrangementTargets(document: Document, selection: readonly NodeId[], params: Record<string, unknown>, rootsOnly = true): NodeId[] {
+  const ids = requiredTargets(document, selection, params);
+  if (ids.some(id => document.nodes[id].kind === "page")) throw new Error("Arrange layers, not pages");
   return rootsOnly ? rootIds(document, ids) : ids;
 }
 function optionalNumber(value: unknown): number | undefined { try { return parseNumber(value); } catch { return undefined; } }

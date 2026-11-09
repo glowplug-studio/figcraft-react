@@ -1,5 +1,9 @@
+import { HierarchyDraft } from "./hierarchy";
+import { sameComponentValue } from "./component-groups";
+import { applyStyleToNode, propagateStyle, type ActiveStyleRange } from "./style-application";
+import { explicitDefinition, nodeDefinition, styleBindingType, styleSlot } from "./style-definitions";
 import type { Document } from "./document";
-import { parseString } from "./parameters";
+import { parseNodeId, parseString } from "./parameters";
 import type { SharedStyle } from "./shared-styles";
 
 export const styleOrderSpecs = {
@@ -99,4 +103,61 @@ export function orderStyles(document: Document, command: string, params: Record<
   }
   if (next.length === styles.length && next.every((style, index) => style === styles[index])) return { document, result };
   return {document:Object.freeze({...document, styles:Object.freeze(next)}), result};
+}
+
+export const styleEditSpecs = {
+  "style.create": {label:"Create style",undo:true},
+  "style.update": {label:"Edit style",undo:true},
+  "style.delete": {label:"Delete style",undo:true},
+} as const;
+
+export function editStyleDefinition(document: Document, selection: readonly string[], command: string,
+  p: Record<string, unknown>, live?: ActiveStyleRange) {
+  const styles = document.styles ?? [];
+  let next = [...styles], source = parseNodeId(p.from);
+  let definition: SharedStyle | undefined, id: string;
+  let result: Record<string, unknown> = {ok:true};
+  let linkSource: ((draft: HierarchyDraft) => void) | undefined;
+  if (command === "style.create") {
+    const slot = styleSlot(requiredString(p, "type")), name = cleanName(requiredString(p, "name"));
+    source ??= selection[0];
+    const range = slot === "text" && live && live.start < live.end && (!source || source === live.node.id) && !Object.hasOwn(p, "value") ? live : undefined;
+    if (range) source = range.node.id;
+    const node = source === undefined ? undefined : document.nodes[source];
+    const explicit = Object.hasOwn(p, "value");
+    const value = explicit ? explicitDefinition(slot, p.value) : node && nodeDefinition(slot, node, range);
+    if (!value) throw new Error("Pass a style value or select a layer with the requested property");
+    id = newStyleId(styles);
+    const created = Object.freeze({id, name, description:parseString(p.description) ?? "", ...value});
+    definition = created;
+    next.push(created);
+    result = {id};
+    if (!explicit && node) {
+      linkSource = draft => draft.set(applyStyleToNode(node, slot, created, range && [range.start,range.end]));
+    }
+  } else {
+    const index = styleIndex(styles, requiredString(p,"style")), original = styles[index];
+    id = original.id;
+    if (command === "style.delete") next = next.filter(style => style.id !== id);
+    else if (command === "style.update") {
+      const slot = styleSlot(original.type), node = source === undefined ? undefined : document.nodes[source];
+      const value = Object.hasOwn(p, "value") ? explicitDefinition(slot, p.value) : node && nodeDefinition(slot, node);
+      const suppliedName = parseString(p.name);
+      const name = suppliedName === undefined ? original.name : cleanName(suppliedName), description = parseString(p.description) ?? original.description;
+      let updated: SharedStyle = value ? {...value, id, name, description} : {...original, name, description};
+      if (value && original.bound) {
+        const entries = Object.entries(original.bound).filter(([key]) => styleBindingType(updated, key) !== undefined);
+        if (entries.length) updated = {...updated, bound:Object.freeze(Object.fromEntries(entries))};
+      }
+      definition = sameComponentValue(original, updated) ? original : Object.freeze(updated);
+      next[index] = definition;
+    } else throw new Error("Unknown style command " + command);
+  }
+  const {styles:previous, ...content} = document;
+  const catalogue = next.length === styles.length && next.every((style, i) => style === styles[i]) ? document :
+    Object.freeze({...content, ...(next.length && {styles:Object.freeze(next)})});
+  const draft = new HierarchyDraft(catalogue);
+  linkSource?.(draft);
+  for (const node of Object.values(draft.nodes)) draft.set(propagateStyle(node, id, definition));
+  return {document:draft.finish(), result};
 }

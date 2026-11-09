@@ -15,7 +15,7 @@ describe("local shared style records", () => {
     expect(engine.execute("style.list")).toEqual(native.styles);
     expect(await engine.executeAsync("style.list", {type:"text"})).toEqual(native.styles.filter((s: {type:string}) => s.type === "text"));
     for (const type of ["", "Text", false]) expect(engine.execute("style.list", {type})).toEqual([]);
-    for (const id of [2, 3]) expect(engine.execute("node.get", {id, fields:["styles"], depth:0})).toMatchObject({styles:native.nodes[id].styles});
+    for (const id of [2, 3]) expect(engine.execute("node.get", {id, fields:["styles"]})).toMatchObject({styles:native.nodes[id].styles});
     const archive = await engine.nativeSnapshot();
     const stored = JSON.parse(strFromU8(unzipSync(archive)["document.json"]));
     expect(stored.styles).toEqual(native.styles);
@@ -119,5 +119,72 @@ describe("shared style folders and order", () => {
     }
     expect(() => engine.execute("style.renameFolder", {folder:"Type/Body", name:"Other"})).toThrow();
     expect(engine.execute("style.duplicate", {style:"S:1"})).toEqual({id:"S:10"});
+  });
+});
+
+describe("native shared style authoring", () => {
+  it("keeps stroke and fill links independent, honours explicit style keys and updates every linked target", async () => {
+    const e = new EditorEngine();
+    e.execute("node.create", {type:"rectangle", props:{fill:"red", stroke:"blue"}});
+    expect(e.execute("style.create", {type:"stroke", name:"Palette / Outline"})).toEqual({id:"S:1"});
+    e.execute("style.create", {type:"fill", name:"Palette/Surface"});
+    e.execute("node.create", {type:"frame", props:{fillStyle:"Palette/Surface", fill:"black", strokeStyle:"S:1"}});
+    expect(e.execute("node.get", {id:3, fields:["styles","fills","strokes"]})).toMatchObject({
+      styles:{fill:"S:2",stroke:"S:1"}, fills:[{color:"#FF0000"}], strokes:[{color:"#0000FF"}],
+    });
+    e.execute("style.update", {style:"S:1", value:"green", name:"Palette/Stroke", description:"Outline"});
+    expect(e.execute("node.get", {id:2,fields:["strokes"]})).toMatchObject({strokes:[{color:"#008000"}]});
+    e.execute("node.set", {id:3,props:{stroke:"white"}});
+    expect(e.execute("node.get", {id:3,fields:["styles"]})).toMatchObject({styles:{fill:"S:2",stroke:null}});
+    e.execute("style.detach", {which:"fill",id:2});
+    e.execute("style.delete", {style:"S:2"});
+    expect(e.execute("node.get", {id:3,fields:["styles","fills"]})).toEqual({id:3,fills:[{type:"solid",color:"#FF0000"}]});
+    e.execute("edit.undo");
+    expect(e.execute("node.get", {id:3,fields:["styles"]})).toMatchObject({styles:{fill:"S:2",stroke:null}});
+    const before = e.getSnapshot().document;
+    expect(() => e.execute("style.apply", {style:"S:1",ids:[2,99]})).toThrow();
+    expect(() => e.execute("node.set", {id:2,props:{fill:"black",gridStyle:"S:1"}})).toThrow();
+    expect(e.getSnapshot().document).toBe(before);
+    expect((await e.executeAsync("style.list")).map(s=>s.name)).toEqual(["Palette/Stroke","Palette/Surface"]);
+  });
+
+  it("creates a text style from selected characters and keeps unrelated characters independent", async () => {
+    const e = new EditorEngine();
+    await e.executeAsync("text.create", {text:"One\nTwo"});
+    e.execute("text.style", {id:2, start:4, end:7, fontSize:22});
+    const edit = e.beginTextEdit({id:"2"});
+    edit.select(4,7);
+    expect(e.execute("style.create", {type:"text",name:"Type/Accent"})).toEqual({id:"S:1"});
+    expect(e.execute("style.list")[0]).toMatchObject({style:{font_size:22}});
+    expect(edit.node().text.runs[0]).toMatchObject({start:4,end:7,style:{styleId:"S:1"}});
+    edit.finish();
+    e.execute("style.update", {style:"S:1",value:{fontSize:19,listStyle:"numbered",paragraphIndent:7}});
+    expect(e.execute("node.get",{id:2,fields:["styledRuns"]})).toMatchObject({styledRuns:[
+      {start:4,end:7,style:{font_size:19,style_id:"S:1"}},
+    ]});
+    e.execute("style.detach",{id:2,which:"text",start:5,end:6});
+    e.execute("style.delete",{style:"Type/Accent"});
+    const layer = e.getSnapshot().document.nodes["2"];
+    if (layer.kind !== "text") throw new Error("Missing text");
+    expect(layer.text.runs).toHaveLength(1);
+    expect(layer.text.runs[0]).toMatchObject({start:4,end:7,style:{fontSize:19}});
+    expect(layer.text.runs[0].style.styleId).toBeUndefined();
+    expect(layer.text.paragraphs.map(p=>p.list)).toEqual(["none","numbered"]);
+    expect(layer.text.paragraphIndent).toBe(7);
+  });
+
+  it("propagates guide grids through component instances and restores overridden references", async () => {
+    const e = new EditorEngine();
+    await e.executeAsync("file.open",{data:base64Bytes(readFileSync(new URL("../fixtures/native-component-instance.json",import.meta.url)))});
+    e.execute("style.create",{type:"grid",name:"Columns",value:[{kind:"columns",count:3}]});
+    e.execute("node.set",{id:2,props:{gridStyle:"S:1"}});
+    const grid = (id:number) => e.execute("node.get",{id,fields:["grids","styles","overrides"]});
+    expect(grid(4)).toMatchObject({grids:[{count:3}],styles:{grid:"S:1"}});
+    e.execute("node.set",{id:4,props:{grids:[{kind:"rows",count:2}]}});
+    expect(grid(4)).toMatchObject({grids:[{kind:"rows",count:2}],overrides:["grids"]});
+    e.execute("style.update",{style:"S:1",value:[{kind:"columns",count:5}]});
+    expect(grid(4)).toMatchObject({grids:[{kind:"rows",count:2}]});
+    e.execute("component.resetOverride",{id:4,property:"grids"});
+    expect(grid(4)).toMatchObject({grids:[{kind:"columns",count:5}],styles:{grid:"S:1"}});
   });
 });

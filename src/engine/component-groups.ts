@@ -1,3 +1,4 @@
+import { withStyleRef } from "./shared-styles";
 import { componentOverrides } from "./component-properties";
 import { compareScalarKeys } from "./text-breaks";
 import { type LayerNode, isFrameLike, layerBlend, layerTransform, rectanglePaints, withLayerTransform } from "./document";
@@ -17,11 +18,11 @@ export function sameComponentValue(a: unknown, b: unknown): boolean {
 }
 
 const groups = ["fills", "strokes", "effects", "opacity", "visible", "name", "corners", "size", "resizing", "position",
-  "characters", "textStyle", "padding", "gap", "alignment", "component", "props"] as const;
+  "characters", "textStyle", "padding", "gap", "alignment", "grids", "component", "props"] as const;
 export type ComponentGroup = typeof groups[number];
 export const isComponentGroup = (name: string): name is ComponentGroup => groups.some(group => group === name);
 
-export const isOverrideGroup = (name: string) => isComponentGroup(name) || ["grids","exports","interactions","modes","slot"].includes(name);
+export const isOverrideGroup = (name: string) => isComponentGroup(name) || ["exports","interactions","modes","slot"].includes(name);
 
 function textStyle(text: TextData) {
   const {characters, path, savedBreaks, leadingTrim, ...style} = text;
@@ -30,6 +31,7 @@ function textStyle(text: TextData) {
 
 function groupValue(node: LayerNode, group: ComponentGroup): unknown {
   switch (group) {
+    case "grids": return [node.grids, node.styles?.grid ?? null];
     case "fills": return rectanglePaints(node);
     case "strokes": return [node.strokes ?? [], node.stroke ?? defaultStroke];
     case "effects": return node.effects ?? [];
@@ -63,9 +65,10 @@ export function differentComponentGroups(a: LayerNode, b: LayerNode): ComponentG
 
 export function copyComponentGroup(from: LayerNode, to: LayerNode, group: ComponentGroup): LayerNode {
   switch (group) {
-    case "fills": return {...to, fill:from.fill, fills:from.fills};
-    case "strokes": return {...to, strokes:from.strokes, stroke:from.stroke};
-    case "effects": return {...to, effects:from.effects};
+    case "grids": return {...withStyleRef(to, "grid", from.styles?.grid ?? null), grids:from.grids};
+    case "fills": return {...withStyleRef(to, "fill", from.styles?.fill ?? null), fill:from.fill, fills:from.fills};
+    case "strokes": return {...withStyleRef(to, "stroke", from.styles?.stroke ?? null), strokes:from.strokes, stroke:from.stroke};
+    case "effects": return {...withStyleRef(to, "effect", from.styles?.effect ?? null), effects:from.effects};
     case "opacity": return {...to, opacity:from.opacity, blend:from.blend};
     case "visible": return {...to, visible:from.visible};
     case "name": return {...to, name:from.name};
@@ -88,6 +91,7 @@ export function copyComponentGroup(from: LayerNode, to: LayerNode, group: Compon
     case "position": return withLayerTransform(to, layerTransform(from));
     case "characters":
     case "textStyle": {
+      if (group === "textStyle") to = withStyleRef(to, "text", from.styles?.text ?? null);
       if (from.kind !== "text" || to.kind !== "text") return to;
       const fields = group === "characters"
         ? {characters:from.text.characters, runs:from.text.runs, paragraphs:from.text.paragraphs} : textStyle(from.text);
@@ -121,9 +125,10 @@ export function withOverrideSet(node: LayerNode, groups: ReadonlySet<string>): L
 
 // Groups marked by node.set, including a user explicitly setting the current value.
 const propertyKeys: Partial<Record<ComponentGroup, string>> = {
-  fills:"fills fill",
-  strokes:"strokes stroke strokeWeight strokeAlign dashes dashCap strokeCap startCap endCap strokeJoin strokeSides strokeTopWeight strokeRightWeight strokeBottomWeight strokeLeftWeight miterLimit miterAngle widthProfile brush strokeBrush",
-  effects:"effects", opacity:"opacity blend blendMode", visible:"visible", name:"name", characters:"characters text",
+  grids:"grids layoutGrids gridStyle",
+  fills:"fills fill fillStyle",
+  strokes:"strokeStyle strokes stroke strokeWeight strokeAlign dashes dashCap strokeCap startCap endCap strokeJoin strokeSides strokeTopWeight strokeRightWeight strokeBottomWeight strokeLeftWeight miterLimit miterAngle widthProfile brush strokeBrush",
+  effects:"effects effectStyle", opacity:"opacity blend blendMode", visible:"visible", name:"name", characters:"characters text",
   textStyle:"features fontFeatures openTypeFeatures listStyle indentation listSpacing maxLines variationSettings hangingPunctuation hangingList wrapStyle textWrap textDirection direction",
   corners:"cornerRadius cornerSmoothing topLeftRadius topRightRadius bottomRightRadius bottomLeftRadius",
   size:"width height w h", resizing:"sizingH sizingV layoutSizingHorizontal layoutSizingVertical minWidth maxWidth minHeight maxHeight",
