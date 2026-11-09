@@ -62,6 +62,8 @@ export const commandSpecs = Object.freeze({
   ...strokeSpecs,
   ...textFormatSpecs,
   "text.missingFonts": {label:"Missing fonts",undo:false},
+  "text.preview": {label:"Preview a change",undo:false},
+  "text.endPreview": {label:"End text preview",undo:false},
   "text.refit": {label:"Fit text to fonts",undo:true},
   "text.onPath": {label:"Text on path",undo:true},
   "text.openLink": {label:"Open link",undo:false},
@@ -177,6 +179,7 @@ export class EditorEngine {
     preparedCopy?: { ids: readonly NodeId[]; result: ReturnType<typeof executeDuplicate> };
     baseVectorEdit?: VectorEditState; vectorEdit?: VectorEditState;
   };
+  #textPreview?:Document;
   #textRange?: {node:TextNode; start:number; end:number; active:() => boolean; update:(doc:Document,start:number,end:number)=>void};
   getTextRange = () => this.#textRange?.active() ? this.#textRange : undefined;
   #canvasListeners = new Set<() => void>();
@@ -202,12 +205,13 @@ export class EditorEngine {
   getVectorEdit = (): VectorEditState | undefined => this.#vectorEdit;
   getRenderVectorEdit = (): VectorEditState | undefined => this.#interaction ? this.#interaction.vectorEdit : this.#vectorEdit;
   subscribeVectorEdit = (listener: () => void): (() => void) => { this.#vectorListeners.add(listener); return () => { this.#vectorListeners.delete(listener); }; };
-  getRenderDocument = (): Document => this.#interaction?.document ?? this.#snapshot.document;
+  getRenderDocument = (): Document => this.#textPreview ?? this.#interaction?.document ?? this.#snapshot.document;
   getRenderSelection = (): readonly NodeId[] => this.#interaction?.selection ?? this.#snapshot.selection;
   getInteractionBase = (): Document => this.#interaction?.base.document ?? this.#snapshot.document;
   subscribeCanvas = (listener: () => void): (() => void) => { this.#canvasListeners.add(listener); return () => { this.#canvasListeners.delete(listener); }; };
   get interacting(): boolean { return this.#interaction !== undefined; }
   beginInteraction(): void {
+    this.endTextPreview();
     if (!this.#snapshot.editable) throw new Error("Sign in to edit this document");
     if (this.#interaction) throw new Error("An interaction is already active");
     this.#interaction = { base: this.#snapshot, document: this.#snapshot.document, selection: this.#snapshot.selection, nextId: this.#nextId, baseVectorEdit: this.#vectorEdit, vectorEdit: this.#vectorEdit };
@@ -241,6 +245,7 @@ export class EditorEngine {
     };
     const update = (next:Document, start:number, end:number) => {
       if (!active()) return;
+      this.endTextPreview();
       const edited = next.nodes[node.id];
       if (edited?.kind !== "text") throw new Error("Expected a text layer");
       owner.document = next;
@@ -397,7 +402,10 @@ export class EditorEngine {
         queued=false;
         if (disposed || this.interacting || !this.#snapshot.editable) return;
         needFit=false;
-        this.execute("text.refit");
+        // Font arrival can land while a menu is hovering a family. Remeasure both views.
+        if (this.#textPreview) this.#textPreview=refitText(this.#textPreview,{}).document;
+        this.#refitOpenText({});
+        this.invalidateCanvas();
       });
     };
     const detachCanvas=this.subscribeCanvas(schedule);
@@ -408,6 +416,43 @@ export class EditorEngine {
       schedule();
     });
     return ()=>{disposed=true;detachFonts();detachCanvas();};
+  }
+  #refitOpenText(params:Record<string,unknown>) {
+    const before=this.#snapshot, {document,refitted}=refitText(before.document,params);
+    if (document!==before.document) {
+      this.#undo.push({document:before.document,selection:before.selection});
+      this.#redo=[];
+      this.#publish({document});
+    }
+    return {refitted};
+  }
+
+  endTextPreview() {
+    if (!this.#textPreview) return false;
+    this.#textPreview=undefined;
+    this.#notifyCanvas();
+    return true;
+  }
+
+  #previewChange(params:Record<string,unknown>) {
+    for (const key of Object.keys(params)) if (!["id","ids","command","params"].includes(key)) throw new Error("Unknown text.preview option");
+    this.endTextPreview();
+    const command=parseString(params.command), nested=parameters(params.params ?? {});
+    const base=this.getRenderDocument(), selection=this.getRenderSelection();
+    let shown:Document;
+    if (command==="text.style" || command==="node.set") {
+      shown=setRectangleProperties(base,selection,nested,movedOrigin(base,selection,this.#origin),[],command==="text.style" ? command : undefined);
+    } else if (command==="text.setVariations") {
+      shown=executeTextFormat(command,base,selection,nested,this.getTextRange()).document;
+    } else if (command==="fill.set") {
+      shown=writeFill(command,base,selection,nested,this.#vectorEdit);
+    } else if (command==="stroke.set") {
+      shown=executeStrokeList(command,base,selection,nested);
+    } else throw new Error("Unsupported preview command: "+command);
+    // A successful native property write owns the preview even for an equal value.
+    this.#textPreview=shown;
+    this.#notifyCanvas();
+    return {previewing:true};
   }
   closeMissingFonts() { if (this.#snapshot.missingFonts) this.#publish({missingFonts:undefined}); }
   closeProfileDialog() { if (this.#snapshot.profileDialog) this.#publish({ profileDialog: false }); }
@@ -571,6 +616,7 @@ export class EditorEngine {
     this.#listeners.forEach(listener => listener());
   }
   setEditable(editable: boolean): void {
+    if (!editable) this.endTextPreview();
     if (!editable) this.pencil.cancel();
     if (!editable) this.pen.cancel();
     if (!editable) this.cancelInteraction();
@@ -589,6 +635,12 @@ export class EditorEngine {
     if (!Object.hasOwn(commandSpecs, command)) throw new Error(`Unsupported command: ${command}`);
     if (!this.#snapshot.editable) throw new Error("Sign in to edit this document");
     const p = parameters(input);
+    if (command==="text.preview") return this.#previewChange(p);
+    if (command==="text.endPreview") {
+      if (Object.keys(p).some(k=>k!=="id" && k!=="ids")) throw new Error("Unknown text.endPreview option");
+      return {ended:this.endTextPreview()};
+    }
+    this.endTextPreview();
     if (command === "text.openLink") {
       if (Object.keys(p).some(key=>key!=="id" && key!=="ids")) throw new Error("text.openLink takes no options");
       const active = this.getTextRange();
@@ -643,15 +695,7 @@ export class EditorEngine {
       this.#publish({missingFonts:families});
       return {families};
     }
-    if (command === "text.refit") {
-      const before=this.#snapshot, {document,refitted}=refitText(before.document,p);
-      if (document!==before.document) {
-        this.#undo.push({document:before.document,selection:before.selection});
-        this.#redo=[];
-        this.#publish({document});
-      }
-      return {refitted};
-    }
+    if (command === "text.refit") return this.#refitOpenText(p);
     if (command === "text.onPath") {
       const before = this.#snapshot;
       const {document,selection,result} = putTextOnPath(before.document,before.selection,p);
@@ -888,6 +932,7 @@ export class EditorEngine {
   async executeAsync(command: "node.get", input: unknown): Promise<ReturnType<typeof getNode>>;
   async executeAsync(command: string, input?: unknown): Promise<Record<string, unknown>>;
   async executeAsync(command: string, input: unknown = {}): Promise<Record<string, unknown> | null> {
+    if (command!=="text.preview" && command!=="text.endPreview") this.endTextPreview();
     if (command === "text.create" || command === "node.create" || command === "node.set" || command === "text.set") {
       const p = parameters(input);
       const props = command === "text.set" ? p : p.props && typeof p.props === "object" && !Array.isArray(p.props) ? p.props as Record<string, unknown> : command === "node.set" ? p : {};

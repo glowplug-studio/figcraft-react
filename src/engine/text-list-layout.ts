@@ -51,7 +51,7 @@ export class TextListLayout {
     const text=rtl && numbered ? "."+this.markers[para].slice(0,-1) : this.markers[para];
     const has=(f:ShapingFace)=>Array.from(text).every(c=>f.glyphFor(c.codePointAt(0)!));
     const preferred=own && has(own) ? own : undefined;
-    const fallback=preferred ? undefined : [...fonts.fallbacks("Regular"),...fonts.emojiFallbacks()].find(has);
+    const fallback=preferred ? undefined : fonts.fallbacks("Regular").find(has) ?? fonts.emojiFallbacks().find(has);
     const face=preferred ?? fallback ?? initial?.face ?? defaultFace;
     if (!face) return [];
     const coordinates=preferred ? face.axisValues(style) : fallback ? {} : initial?.coordinates ?? {};

@@ -1,7 +1,7 @@
 import { expectSolid } from "../fixtures/expect-solid";
 import { randomUUID } from "node:crypto";
 import { readFile, rm, writeFile } from "node:fs/promises";
-import { expect, test, type Page } from "@playwright/test";
+import { chromium, expect, test, type Page } from "@playwright/test";
 import { localSupabase } from "../support/localSupabase";
 import { decodeFigcraft, encodeFigcraft } from "../../src/engine/file-format";
 import { rectanglePaints, type RectangleNode, type VectorNode } from "../../src/engine/document";
@@ -4288,7 +4288,8 @@ test("missing fonts lists the document's families and uses a fallback until the 
   const dialog=page.getByRole("dialog",{name:"Missing fonts"});
   await show.click(); await expect(dialog).toContainText("Figcraft unavailable · 1 layer");
   await dialog.getByRole("button",{name:"Close",exact:true}).click();
-  await panel.getByLabel("Font family",{exact:true}).selectOption("Inter");
+  await panel.getByRole("button",{name:"Font family",exact:true}).click();
+  await page.getByRole("option",{name:"Inter",exact:true}).click();
   await show.click(); await expect(dialog).toContainText("All the fonts this file uses are installed.");
   await page.keyboard.press("Escape"); await expect(dialog).toHaveCount(0);
 });
@@ -4315,9 +4316,12 @@ test("local font access reads only the selected face, then repaints and refits t
   const reads=()=>page.evaluate(()=>(window as Window & {fontReads?:string[]}).fontReads);
   expect(await reads()).toEqual([]);
   const before=await page.locator("canvas").first().evaluate(el=>(el as HTMLCanvasElement).toDataURL());
+  await panel.getByRole("button",{name:"Font family",exact:true}).click();
   await panel.getByRole("button",{name:"Use fonts installed on this computer…"}).click();
   await expect.poll(reads).toEqual(["query","Figcraft Local Test"]);
+  await panel.getByRole("button",{name:"Font family",exact:true}).click();
   await expect(panel.getByRole("option",{name:"Figcraft Unused"})).toHaveCount(1);
+  await page.keyboard.press("Escape");
   await expect.poll(()=>page.locator("canvas").first().evaluate(el=>(el as HTMLCanvasElement).toDataURL())).not.toBe(before);
   const download=page.waitForEvent("download");await page.getByRole("button",{name:"Save as",exact:true}).click();
   const saved=await decodeFigcraft(await readFile((await (await download).path())!));
@@ -4334,33 +4338,82 @@ test("denied local font permission keeps the text editable and asks only once",a
   await page.getByLabel("Open Figcraft file",{exact:true}).setInputFiles({name:"deny.figcraft",mimeType:"application/octet-stream",buffer:Buffer.from(await encodeFigcraft(engine.getSnapshot().document))});
   await page.getByRole("region",{name:"Layers",exact:true}).getByRole("button",{name:"Local denial"}).click();
   const panel=page.getByRole("group",{name:"Typography",exact:true});
+  await panel.getByRole("button",{name:"Font family",exact:true}).click();
   const ask=panel.getByRole("button",{name:"Use fonts installed on this computer…"});
   await ask.click();await expect(ask).toHaveCount(0);
   await panel.getByLabel("Font size",{exact:true}).fill("20");await panel.getByLabel("Font size",{exact:true}).press("Enter");
   await expect(panel.getByLabel("Font size",{exact:true})).toHaveValue("20");
 });
 
-test("Chromium's granted system font catalogue supplies an actual face to the signed-in editor",async ({page})=>{
+test("Chromium's granted system font catalogue supplies an actual face to the signed-in editor",async ({baseURL,context})=>{
+  const browser=await chromium.launch({channel:"chromium"});
+  try {
+    const page=await browser.newPage({baseURL,storageState:await context.storageState(),viewport:{width:1440,height:900}});
+    test.setTimeout(60_000);
+    await login(page);
+    const client=await page.context().newCDPSession(page);
+    const {targetInfo:{browserContextId}}=await client.send("Target.getTargetInfo");
+    await client.send("Browser.setPermission",{browserContextId,origin:new URL(page.url()).origin,permission:{name:"local-fonts"},setting:"granted"});
+    const engine=new EditorEngine(), id=(await engine.executeAsync("text.create",{name:"System font",text:"iiiiiiiiiiii",x:20,y:50})).id;
+    const original=Number(engine.execute("node.get",{id})!.width);
+    await page.getByLabel("Open Figcraft file",{exact:true}).setInputFiles({name:"system.figcraft",mimeType:"application/octet-stream",buffer:Buffer.from(await encodeFigcraft(engine.getSnapshot().document))});
+    await page.getByRole("region",{name:"Layers",exact:true}).getByRole("button",{name:"System font"}).click();
+    const panel=page.getByRole("group",{name:"Typography",exact:true});
+    await panel.getByRole("button",{name:"Font family",exact:true}).click();
+    const ask=panel.getByRole("button",{name:"Use fonts installed on this computer…"});
+    await ask.click();await expect(ask).toHaveCount(0);
+    await panel.getByRole("button",{name:"Font family",exact:true}).click();
+    const search=page.getByRole("combobox",{name:"Search fonts"});
+    const available=await page.evaluate(async()=>{
+      const browser=window as Window & {queryLocalFonts?:()=>Promise<{family:string}[]>};
+      return [...new Set((await browser.queryLocalFonts!()).map(f=>f.family))];
+    });
+    const mono=["Courier New","DejaVu Sans Mono","Liberation Mono","Menlo","Courier"].find(f=>available.includes(f));
+    test.info().annotations.push({type:"real-font",description:mono ?? "No known system monospace face exposed"});
+    if (!mono) {await page.keyboard.press("Escape");await expect(panel.getByRole("button",{name:"Font family",exact:true})).toHaveText("Inter");return;}
+    await search.fill(mono);
+    await page.getByRole("option",{name:mono,exact:true}).click();
+    await expect.poll(async()=>Number(await page.getByLabel("Edit Width",{exact:true}).inputValue())).toBeGreaterThan(original*1.5);
+    const download=page.waitForEvent("download");await page.getByRole("button",{name:"Save as",exact:true}).click();
+    const saved=await decodeFigcraft(await readFile((await (await download).path())!));
+    expect(saved.document.nodes[String(id)]).toMatchObject({kind:"text",text:{style:{fontFamily:mono}}});
+  } finally {await browser.close();}
+});
+
+test("a 20000-family font menu virtualises rows, searches, previews, cancels and commits from the keyboard",async ({page})=>{
+  const bytes=await readFile(new URL("../../fonts/inter/Inter-Bold.ttf",import.meta.url));
+  await page.addInitScript(encoded=>Object.assign(window,{queryLocalFonts:async()=>Array.from({length:20_000},(_,i)=>({
+    family:"Catalogue "+String(i).padStart(5,"0"),style:"Regular",postscriptName:"Inter-Bold",
+    blob:async()=>new Blob([Uint8Array.from(atob(encoded),s=>s.charCodeAt(0))]),
+  }))}),bytes.toString("base64"));
+  const engine=new EditorEngine();
+  await engine.executeAsync("text.create",{name:"Menu sample",text:"Type preview",x:110,y:80});
   await login(page);
-  const client=await page.context().newCDPSession(page);
-  const {targetInfo:{browserContextId}}=await client.send("Target.getTargetInfo");
-  await client.send("Browser.setPermission",{browserContextId,origin:new URL(page.url()).origin,permission:{name:"local-fonts"},setting:"granted"});
-  const engine=new EditorEngine(), id=(await engine.executeAsync("text.create",{name:"System font",text:"iiiiiiiiiiii",x:20,y:50})).id;
-  const original=Number(engine.execute("node.get",{id})!.width);
-  await page.getByLabel("Open Figcraft file",{exact:true}).setInputFiles({name:"system.figcraft",mimeType:"application/octet-stream",buffer:Buffer.from(await encodeFigcraft(engine.getSnapshot().document))});
-  await page.getByRole("region",{name:"Layers",exact:true}).getByRole("button",{name:"System font"}).click();
-  const panel=page.getByRole("group",{name:"Typography",exact:true});
-  const ask=panel.getByRole("button",{name:"Use fonts installed on this computer…"});
-  await ask.click();await expect(ask).toHaveCount(0);
-  const choose=panel.getByLabel("Font family",{exact:true});
-  const families=await choose.locator("option").allTextContents();
-  const mono=["Courier New","DejaVu Sans Mono","Liberation Mono","Menlo","Courier"].find(f=>families.includes(f));
-  test.info().annotations.push({type:"real-font",description:mono ?? "No known system monospace face exposed"});
-  // Some headless OS images intentionally expose no installed fonts, even after permission.
-  if (!mono) {await expect(choose).toHaveValue("Inter");return;}
-  await choose.selectOption(mono);
-  await expect.poll(async()=>Number(await page.getByLabel("Edit Width",{exact:true}).inputValue())).toBeGreaterThan(original*1.5);
-  const download=page.waitForEvent("download");await page.getByRole("button",{name:"Save as",exact:true}).click();
-  const saved=await decodeFigcraft(await readFile((await (await download).path())!));
-  expect(saved.document.nodes[String(id)]).toMatchObject({kind:"text",text:{style:{fontFamily:mono}}});
+  await page.getByLabel("Open Figcraft file",{exact:true}).setInputFiles({name:"menu.figcraft",mimeType:"application/octet-stream",buffer:Buffer.from(await encodeFigcraft(engine.getSnapshot().document))});
+  await page.getByRole("region",{name:"Layers",exact:true}).getByRole("button",{name:"Menu sample"}).click();
+  const panel=page.getByRole("group",{name:"Typography",exact:true}),choose=panel.getByRole("button",{name:"Font family",exact:true});
+  await choose.click();await page.getByRole("button",{name:"Use fonts installed on this computer…"}).click();
+  await choose.click();const search=page.getByRole("combobox",{name:"Search fonts"});
+  await expect(page.getByRole("option",{name:"Catalogue 00000",exact:true})).toBeVisible();
+  expect(await page.getByRole("listbox",{name:"Font families"}).getByRole("option").count()).toBeLessThan(16);
+  await search.fill("unavailable family");await expect(page.getByText("No fonts match")).toBeVisible();
+  const canvas=page.getByLabel("Design canvas",{exact:true});
+  const pixels=()=>canvas.evaluate(el=>(el as HTMLCanvasElement).toDataURL());
+  const previous=await pixels();
+  await search.fill("19999");await search.press("ArrowDown");
+  await expect(page.getByRole("option",{name:"Catalogue 19999"})).toHaveAttribute("aria-selected","true");
+  await expect.poll(pixels).not.toBe(previous);
+  await search.press("Escape");await expect(choose).toHaveText("Inter");
+  await expect.poll(pixels).toBe(previous);
+  await choose.click();await search.fill("19999");await search.press("Enter");
+  await expect(choose).toHaveText("Catalogue 19999");
+  await choose.click();await expect(page.getByText("Recent",{exact:true})).toBeVisible();
+  await page.setViewportSize({width:390,height:700});
+  const menu=page.getByRole("dialog",{name:"Choose font family"});
+  await expect.poll(async()=>{
+    const box=await menu.boundingBox();
+    return !!box && box.x>=0 && box.y>=0 && box.x+box.width<=390 && box.y+box.height<=700;
+  }).toBe(true);
+  await search.press("Escape");await page.getByRole("button",{name:"Undo",exact:true}).click();
+  await expect(choose).toHaveText("Inter");
 });

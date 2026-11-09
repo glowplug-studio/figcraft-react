@@ -1,8 +1,9 @@
-import { useState, useSyncExternalStore, type RefObject } from "react";
+import { useMemo, useState, useSyncExternalStore, type RefObject } from "react";
+import { FontFamilyPicker } from "./FontFamilyPicker";
 import { fontGeneration, subscribeFonts } from "./engine/font-generation";
 import { canSupplyTextPath } from "./engine/text-path-commands";
 import type { EditorEngine } from "./engine/editor";
-import { askForLocalFonts, canAskForLocalFonts, familyStyles, fontFamilies } from "./engine/text-node-layout";
+import { familyStyles, fontFamilies } from "./engine/text-node-layout";
 import { paragraphList, paragraphSpan, scalarCount, textSpans } from "./engine/text-ranges";
 import type { TextStyle } from "./engine/text-style";
 
@@ -26,11 +27,13 @@ function Field({label, value, apply}: {label:string; value?:string; apply:(value
 
 export function TypographyPanel({engine, editable, apply, onLeave, linkDialog, link, run}: {engine:EditorEngine; linkDialog:RefObject<HTMLDialogElement|null>; link:(ids:string[],url:string)=>void; run:(command:string,params:Record<string,unknown>)=>void; editable:boolean;
   apply:(ids:string[], props:Record<string,unknown>) => void; onLeave:() => void}) {
-  useSyncExternalStore(subscribeFonts,fontGeneration,fontGeneration);
+  const catalogueVersion=useSyncExternalStore(subscribeFonts,fontGeneration,fontGeneration);
   const live = useSyncExternalStore(engine.subscribeCanvas, engine.getTextRange, engine.getTextRange);
   const {document, selection} = engine.getSnapshot();
   const nodes = live ? [live.node] : selection.flatMap(id => { const n=document.nodes[id]; return n?.kind === "text" ? [n] : []; });
-  if (!nodes.length) return null;
+  const hasText=nodes.length>0;
+  const families=useMemo(()=>hasText ? fontFamilies() : [],[hasText,catalogueVersion]);
+  if (!hasText) return null;
   const ids = nodes.map(n => n.id);
   const styles = nodes.flatMap(n => textSpans(n.text).filter(r => !live || live.start === live.end || r.end > live.start && r.start < live.end).map(r => r.style));
   const paragraphs = nodes.flatMap(n => {
@@ -59,8 +62,10 @@ export function TypographyPanel({engine, editable, apply, onLeave, linkDialog, l
       next.matches("textarea") && next.closest("[data-figcraft-editor]") === e.currentTarget.closest("[data-figcraft-editor]"))) return;
     onLeave();
   }}><legend>Typography</legend>
-    {select("fontFamily", "Font family", styles.map(s=>s.fontFamily), fontFamilies())}
-    {canAskForLocalFonts() && <button type="button" onClick={()=>{void askForLocalFonts().catch(()=>{});}}>Use fonts installed on this computer…</button>}
+    <FontFamilyPicker key={ids.join(",")} current={family} families={families}
+      preview={fontFamily=>run("text.preview",{command:"text.style",params:{ids,fontFamily,
+        ...(live && live.start!==live.end && {id:live.node.id,start:live.start,end:live.end})}})}
+      endPreview={()=>engine.endTextPreview()} apply={fontFamily=>apply(ids,{fontFamily})} />
     {select("fontStyle", "Font style", styles.map(s=>s.fontStyle), family ? familyStyles(family) : [])}
     {field("fontSize", "Font size", styles.map(s=>s.fontSize))}
     {field("lineHeight", "Line height", styles.map(s=>measure(s.lineHeight)))}

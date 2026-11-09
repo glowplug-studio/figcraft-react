@@ -1,6 +1,7 @@
 import { expect,it,vi } from "vitest";
 import { readFile } from "node:fs/promises";
 import { FontLibrary, type LocalFontName } from "../../src/engine/font-library";
+import { TextGraphemes } from "../../src/engine/text-graphemes";
 import { LocalFontAccess } from "../../src/engine/local-font-access";
 import { readFontFaces } from "../../src/engine/font-source";
 
@@ -88,4 +89,24 @@ it("caps discovery at 20,000 and refuses oversized files before allocating their
     expect(read).not.toHaveBeenCalled();
     expect(db.hasFamily("Family 0")).toBe(false);
   } finally {vi.unstubAllGlobals();}
+});
+
+it("does not request the large emoji font for covered Latin text",async ()=>{
+  const requests:number[]=[], db=new FontLibrary(f=>requests.push(f.id));
+  db.add((await readFontFaces(bytes))[0]);
+  db.offerLocal([local(0,"Regular","Apple Color Emoji"),local(1,"Regular","Hiragino Sans")]);
+  const shape=(s:string)=>[...db.segments([...s],new TextGraphemes(s),0,[...s].length,"Inter","Regular")];
+  shape("Latin");expect(requests).toEqual([]);
+  shape("🙂");expect(requests).toEqual([0,1]);
+});
+
+it("requests a closer pending fallback style even after the regular face is loaded",async ()=>{
+  const requests:number[]=[],db=new FontLibrary(f=>requests.push(f.id));
+  const regular=local(0,"Regular","Noto Sans Thai"),bold=local(1,"Bold","Noto Sans Thai");
+  db.offerLocal([regular,bold]);
+  db.fallbacks("Regular");db.fallbacks("Regular");
+  expect(requests).toEqual([0]);
+  db.finishLocal(0,(await readFontFaces(bytes,regular))[0]);
+  db.fallbacks("Regular");expect(requests).toEqual([0]);
+  db.fallbacks("Bold");db.fallbacks("Bold");expect(requests).toEqual([0,1]);
 });

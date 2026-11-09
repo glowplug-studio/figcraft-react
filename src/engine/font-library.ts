@@ -104,15 +104,17 @@ export class FontLibrary {
     this.#emoji=undefined;
   }
 
-  #requestNearest(key:string,style:string) {
+  #requestNearest(key:string,style:string,fallback=false) {
     if (!this.requestLocal) return;
     const pending=this.#pending.get(key);
     if (!pending?.length) return;
     let nearest=0, distance=pendingDistance(style,pending[0].style);
-    for (let i=1;distance>0 && i<pending.length;i++) {
+    for (let i=1;i<pending.length;i++) {
       const d=pendingDistance(style,pending[i].style);
-      if (d<distance) { nearest=i; distance=d; }
+      if (d<distance || (fallback && d===distance && this.#asked.has(pending[i].id) && !this.#asked.has(pending[nearest].id))) { nearest=i; distance=d; }
     }
+    if (fallback && (this.#asked.has(pending[nearest].id) ||
+        this.#families.get(key)?.some(f=>hasStyle(f,normaliseFontStyle(style)) || pendingDistance(style,f.style)<=distance))) return;
     // Native pending reads return to the back of the family, including repeated requests.
     const [best]=pending.splice(nearest,1);
     pending.push(best);
@@ -206,13 +208,13 @@ export class FontLibrary {
     });
   }
 
-  find(family: string,style: string, fallbackOnly=false) {
+  find(family: string,style: string, source:"family"|"fallback"|"emoji"="family") {
     const [key,requested] = this.#resolve(family,style), faces = this.#families.get(key);
-    if (!faces) { this.#requestNearest(key,requested); return undefined; }
+    if (!faces) { this.#requestNearest(key,requested,source==="fallback"); return undefined; }
     const normal = normaliseFontStyle(requested);
     const exact = faces.find(face=>normaliseFontStyle(face.style) === normal) ?? faces.find(face=>hasStyle(face,normal));
     if (exact) return exact;
-    if (!fallbackOnly) this.#requestNearest(key,requested);
+    if (source!=="emoji") this.#requestNearest(key,requested,source==="fallback");
     const weight = styleWeight(requested), italic = /italic/i.test(requested);
     let nearest: ShapingFace | undefined, best = Infinity;
     for (const face of faces) {
@@ -244,14 +246,14 @@ export class FontLibrary {
     return this.#families.values().next().value?.[0];
   }
 
-  #ordered(families: readonly string[],style: string) {
-    return families.flatMap(family=>this.find(family,style,true) ?? []);
+  #ordered(families: readonly string[],style: string,source:"fallback"|"emoji") {
+    return families.flatMap(family=>this.find(family,style,source) ?? []);
   }
 
   fallbacks(style: string): readonly ShapingFace[] {
     let fallbacks = this.#fallbacks.get(style);
     if (!fallbacks) {
-      fallbacks = this.#ordered(fallbackFamilies,style);
+      fallbacks = this.#ordered(fallbackFamilies,style,"fallback");
       if (this.#fallbacks.size >= 64) this.#fallbacks.clear();
       this.#fallbacks.set(style,fallbacks);
     }
@@ -259,7 +261,7 @@ export class FontLibrary {
   }
 
   emojiFallbacks(): readonly ShapingFace[] {
-    return this.#emoji ??= this.#ordered(emojiFamilies,"Regular");
+    return this.#emoji ??= this.#ordered(emojiFamilies,"Regular","emoji");
   }
 
   *segments(chars: readonly string[], bounds: TextGraphemes, start: number, end: number,
@@ -267,8 +269,6 @@ export class FontLibrary {
     const primary = this.find(family,style) ?? this.defaultFace();
     if (!primary || start<0 || end>chars.length || bounds.length!==chars.length ||
       !Number.isInteger(start) || !Number.isInteger(end)) return;
-    const fallbacks=this.fallbacks(style);
-    const emoji=this.emojiFallbacks();
-    yield* fontSegments(chars,bounds,start,end,primary,emoji,fallbacks,levels);
+    yield* fontSegments(chars,bounds,start,end,primary,()=>this.emojiFallbacks(),()=>this.fallbacks(style),levels);
   }
 }
