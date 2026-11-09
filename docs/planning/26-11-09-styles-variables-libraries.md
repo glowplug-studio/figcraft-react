@@ -10,7 +10,7 @@
 | Provider | The scoped Supabase MCP read returned the expected project, an active publishable key and zero public tables. Local Auth integrations and the production host passed at entry. |
 | Phase | Phase 4. Local style authoring, folders, typography and paint definitions, native variable records, typed resolution, collection and mode management, value authoring, metadata, layer mode inheritance and shared style bindings are verified. Direct layer binding commands and the paint picker passed the checks below. |
 | First independent boundary | Open, inspect, save and recover a native document with ordered local style definitions and linked layers. Cover fill and stroke links separately. Extend direct application, detachment and value propagation through the inspector and local Assets panel. |
-| Next action | Finish layer variable inspector controls, character fills, clipboard and preview interactions. Verify variant switches and large direct-binding documents. Continue with variable interchange and linked libraries. |
+| Next action | Implement variable import and export, verify cross-file merge and export text against native, then implement linked libraries. |
 | Rollback | Keep row 9’s 0dac4d7 implementation and its tests as the rollback point. Isolate document support, authoring, variable resolution and library interchange in verified commits. |
 
 ## Verified local style records and ordering
@@ -55,13 +55,23 @@ Two independent native comparisons used the pinned Rust engine with the five bun
 
 Both builds, strict TypeScript, 1,909 pure tests, two Auth integrations and the signed-in paint binding, recovery and native download workflow passed. The 278-test production run at the preceding style checkpoint had two frame-budget failures, at 18.2 ms for grid gap dragging and 18.9 ms for panning. Commit `0b2a789` culls clipped frames and contained rectangular primitives outside the viewport. All five layout and style benchmarks then passed three consecutive runs with unchanged limits. In the 10,000-consumer document, panning took 0.6–0.9 ms at p95 and switching modes took 41.8–44.3 ms. These timings cover the measured canvas and command paths. At `8512ea6` all 279 production Chromium workflows passed in 592.5 seconds with zero skips or retries.
 
-Open work includes numeric, text, component and effect inspector controls, variant and preview interactions, the large direct-binding benchmark, interchange and linked libraries.
+Subsequent checkpoints below cover inspector controls, character fills, variants and direct-binding performance.
 
 ## Character fills and paint copy
 
 At `cd2fe41`, Fill shows the paint stack shared by all characters. Differently styled characters show mixed content. A layer edit promotes any shared stack, then clears character fills so the edit appears across the text. Undo restores the runs. Copy takes the resolved paint value, including its non-unit alpha source, and leaves the original variable reference on its source. Native paint copy omits a unit alpha source. A crop uses the shared visible image paint.
 
 Across 72 sessions the port matched all 432 native command results, including 36 refusals, and all 144 final node records. Strict types, both builds, 1,910 pure tests and two local Auth checks passed. Signed-in production Chromium verified mixed content, replacement, undo, shared colour promotion, reload and native download. The combined local graph at this checkpoint and upstream `a2e87433` contains 32,358 nodes and 108,267 edges.
+
+## Inspector bindings and live previews
+
+At `4c7f505`, the inspector supports variable selection, replacement and detachment for width and height, sizing limits, layout gaps and padding, guide dimensions, opacity, visibility, radii, arc fields, stroke weights, typography, component properties, variants, shadows, blur and glass. Local paint choices respect the scopes of all selected layers. Text content also accepts a number. During character editing the native font and spacing inputs operate on the live range. The narrow Layers menu opens below the wrapped document toolbar, allowing its summary to close it. Escape returns keyboard focus to the field’s variable button.
+
+All 390 command results and 288 final node records matched across 36 native variant sessions. They covered mode changes, missing variants, manual swaps, reset, detach, descendant replacement and undo. A native shadow command established that changing spread retains the bound radius. Scrubs now project the bound result into the canvas before commit, with cancellation and undo restoring the document.
+
+Both builds, strict types, 1,912 pure tests, the two local Auth integrations and six focused production Chromium workflows passed. The desktop and narrow keyboard journeys checked scoped alternatives, mixed selection, component properties, undo, recovery and native download. The preceding `cd2fe41` checkpoint passed all 280 production workflows in 599.0 seconds. The new full suite is running.
+
+Three 10,000-layer runs changed both paint and radius on every direct consumer in 62.0–70.2 ms. Position scrubbing while panning measured 2.2–2.3 ms at p95 with zero UI publications. Cancellation and undo restored the exact documents. The local graph at this checkpoint and upstream `a2e87433` contains 32,366 nodes and 108,319 edges. Graphify extracts the benchmark fixture function, while the parameterised Playwright registration has no named symbol.
 
 ## Dependencies and acceptance
 
