@@ -4,10 +4,10 @@
 
 | Field | Current value |
 |---|---|
-| Reference | Figcraft fork and original upstream at 3839fe4a0cb4897c1fed1fb03e0b60e191ff61cb. React 9f911fb on prompt/full-figcraft-port. The global supported baseline is 8eb0b876. |
-| Evidence | Local merged Graphify index has 31,810 nodes and 104,861 edges. The Rust index links the grid-placement tests to grid_place. The React index links resizeChildren to withLayerSize and hierarchy tests to setRectangleProperties. UI labels and JSON defaults were checked directly. |
+| Reference | Figcraft fork and original upstream at 3839fe4a0cb4897c1fed1fb03e0b60e191ff61cb. React 984680e on prompt/full-figcraft-port. The global supported baseline is 8eb0b876. |
+| Evidence | Local merged Graphify index has 31,821 nodes and 104,939 edges. The Rust index links the grid-placement tests to grid_place. The React index links resizeChildren to withLayerSize and hierarchy tests to setRectangleProperties. UI labels and JSON defaults were checked directly. |
 | Backend | The scoped Figcraft MCP read returned zero public tables. Layout settings are part of the native document and its existing local persistence. |
-| Next action | Implement pointer reordering, live insertion guides, grid drops, sizing and spacing handles. |
+| Next action | Implement double-click sizing and canvas spacing handles, then complete the layout performance and acceptance checks. |
 | Blockers | None. |
 
 ## Implementation and verification order
@@ -57,3 +57,9 @@ All 1,680 native steps across 420 documents matched for add, remove, remove all 
 ## Keyboard reordering at 9f911fb
 
 The 4c42472 production host passed all 239 Chromium tests. At 9f911fb, 3,840 arrow commands in 480 generated documents matched the pinned native engine for child order, parents, grid anchors, selection, geometry and transforms. Regression tests cover hidden and absolute siblings, a block at a boundary with one undo, wrapped rows, grid anchor swaps, empty cells and entry into adjacent nested frames. A signed-in Chromium check moved a selected layer left then right and verified its inspector coordinates. All 1,725 pure tests, two local Auth checks, strict types and both builds passed. The local combined index contains nudgeFlow and native wrap_slot_rows. Pointer reordering is the next checkpoint.
+
+## Pointer reordering at 984680e
+
+All 2,400 native pointer and undo snapshots in 480 documents matched. Each comparison checked the preview and committed parents, child order, geometry, selection, grid anchors, insertion line, drop cell and target outline. Inputs included transfers, drops outside a frame, an eight-unit retention margin, multi-selection and Alt changes during the drag or on release. Drawing into a plain card and dropping an existing layer beside it use separate upstream targeting rules.
+
+Signed-in Chromium verified the insertion line pixel, Escape, row reordering, a drop into a grid, device recovery and native download. All 1,729 pure tests, two local Auth checks, strict types, both builds and four focused browser tests passed. In separate 10,000-node free-movement benchmarks the 95th percentile was 6.8 ms for movement and 6.2 ms for Alt-copy across 110 measured frames each. Large auto-layout documents still require a dedicated benchmark.

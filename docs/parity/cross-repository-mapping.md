@@ -444,3 +444,5 @@ Native apply_layout, the container track branch of apply_sizing, and layout_pane
 Native child sizing and grid properties in cmd/props.rs and explicit sizing in cmd/arrange.rs map to child-layout-properties.ts, sizing.ts and ChildLayoutPanel. Native layout.add, layout.remove, layout.removeAll and layout.suggest map to editLayoutStructure, FrameLayoutPanel and editor keyboard and context actions. [Sizing and structure comparisons](../planning/26-11-09-auto-layout.md#child-sizing-at-1702886).
 
 Native canvas/al_keys.rs, wrap_slot_rows and auto_layout_slot map to nudgeFlow and autoLayoutSlot. Native al_keys_tests.rs maps to [keyboard regression tests](../../tests/parity/layout-navigation.test.ts). [Native and Chromium comparisons](../planning/26-11-09-auto-layout.md#keyboard-reordering-at-9f911fb).
+
+Native canvas/tools/drag.rs, drop::grid_cell_at, drop::drag_parent and cmd/create::frame_at map to placeMove, gridCellAt, dragParent and frameAt. Native al_drag_tests map to [pointer regressions](../../tests/parity/layout-drop.test.ts). [Native event and Chromium pixel comparisons](../planning/26-11-09-auto-layout.md#pointer-reordering-at-984680e).
