@@ -150,3 +150,51 @@ it("uses character fills for copy and layer edits, retaining mixed text on inval
   e.execute("node.set",{id,fill:"#111"});
   expect(text().text.style.fills).toBeUndefined();
 });
+
+it("switches a bound component variant and its mirrored children across modes and undo",async()=>{
+  const e=await opened();
+  e.execute("variable.create",{collection:"Theme",name:"State",type:"string",values:{Light:"Default",Dark:"Variant2"}});
+  const {id:first}=e.execute("node.create",{type:"component",name:"Button/Off"});
+  e.execute("node.create",{type:"rectangle",name:"Icon",parent:first});
+  const {id:second}=e.execute("node.create",{type:"component",name:"Button/On"});
+  e.execute("node.create",{type:"ellipse",name:"Icon",parent:second});
+  e.execute("component.combineVariants",{ids:[first,second]});
+  const {id}=e.execute("instance.create",{component:first});
+  const field="componentProperties/Property 1";
+  e.execute("variable.bind",{id,field,variable:"State"});
+  const initial=e.getSnapshot().document;
+  e.execute("variable.setMode",{id,collection:"Theme",mode:"Dark"});
+  const switched=e.getSnapshot().document,instance=switched.nodes[String(id)];
+  if (instance.kind!=="instance") throw new Error("Expected an instance");
+  expect(instance.component).toBe(second);
+  expect(switched.nodes[instance.children[0]].kind).toBe("ellipse");
+  e.execute("edit.undo");
+  expect(e.getSnapshot().document).toBe(initial);
+  e.execute("variable.set",{variable:"State",mode:"Light",value:"Missing variant"});
+  expect(e.getSnapshot().document.nodes[String(id)]).toMatchObject({component:first,boundVariables:{[field]:initial.nodes[String(id)].boundVariables![field]}});
+});
+
+it("projects bound effect fields during a scrub, cancellation, commit and undo",async()=>{
+  const e=new EditorEngine();
+  const data=readFileSync(new URL("../fixtures/native-variable-inspectors.json",import.meta.url));
+  await e.executeAsync("file.open",{data:base64Bytes(data)});
+  e.execute("select.set",{ids:[2]});
+  e.execute("variable.bind",{id:2,field:"effects/0/radius",variable:"Blur size"});
+  const before=e.getSnapshot().document,depth=e.getUndoDepth(),shadow=before.nodes[2].effects![0];
+  if (shadow.type!=="dropShadow") throw new Error("Expected a drop shadow");
+  let publications=0;
+  const stop=e.subscribe(()=>publications++);
+  for (const commit of [false,true]) {
+    const gesture=e.beginEffectPreview(0)!;
+    gesture.preview({...shadow,radius:2,spread:5});
+    expect(e.getRenderDocument().nodes[2].effects![0]).toMatchObject({radius:18,spread:5});
+    expect(e.getSnapshot().document).toBe(before);
+    expect(publications).toBe(0);
+    if (commit) gesture.commit(); else gesture.cancel();
+  }
+  stop();
+  expect(e.getSnapshot().document.nodes[2].effects![0]).toMatchObject({radius:18,spread:5});
+  expect(e.getUndoDepth()).toBe(depth+1);
+  e.execute("edit.undo");
+  expect(e.getSnapshot().document).toBe(before);
+});

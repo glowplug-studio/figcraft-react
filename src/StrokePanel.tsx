@@ -1,3 +1,4 @@
+import { LayerVariablePicker, type InspectorDispatch } from "./StyleVariablePicker";
 import { usePaintActions } from "./PaintActions";
 import { PaintPicker } from "./PaintPicker";
 import type { EditorEngine } from "./engine/editor";
@@ -11,7 +12,7 @@ import { sanitiseWidthProfile, widthPresetIds, widthPresetLabels, widthProfileMa
 import { brushPreset, brushPresets, defaultBrush, type Brush } from "./engine/brush";
 import { brushOutline } from "./engine/brush-geometry";
 
-interface Props { engine: EditorEngine; nodes: readonly LayerNode[]; editable: boolean; dispatch: (command: string, params?: unknown) => void }
+interface Props { engine: EditorEngine; nodes: readonly LayerNode[]; editable: boolean; dispatch: InspectorDispatch }
 const capLabels = ["None", "Round", "Square", "Line arrow", "Triangle arrow", "Reversed triangle", "Circle", "Diamond"];
 function common<T>(values: readonly T[]): T | undefined { return values.length && values.every(v => JSON.stringify(v) === JSON.stringify(values[0])) ? values[0] : undefined; }
 function ProfileArt({ profile }: { profile?: WidthProfile }) {
@@ -37,10 +38,10 @@ function StrokeControls({ engine, nodes, editable, dispatch }: Props) {
   const customStyle = Boolean(pattern && (pattern.length > 2 || custom)), pair = pattern ? [pattern[0], pattern[1] ?? pattern[0]] : Array(2).fill(4 * Math.max(1, current?.weight ?? 1));
   const set = (values: Record<string, unknown>) => { setError(""); dispatch("node.set", { ids, props: values }); };
   const value = <K extends keyof StrokeProps>(key: K): StrokeProps[K] | undefined => common(props.map(p => p[key]));
-  const field = (label: string, key: string, shown: number | undefined, min = 0, max?: number) => <form key={`${key}:${shown}`} onSubmit={event => {
+  const field = (label: string, key: string, shown: number | undefined, min = 0, max?: number) => <LayerVariablePicker key={key} doc={engine.getSnapshot().document} ids={ids} field={key==="miterAngle" ? undefined : key} label={label} type="number" run={dispatch}><form key={`${key}:${shown}`} onSubmit={event => {
     event.preventDefault(); const input = event.currentTarget.elements.namedItem(key) as HTMLInputElement;
     if (input.value !== "" && Number.isFinite(Number(input.value))) set({ [key]: Number(input.value) });
-  }}><label>{label}<input name={key} type="number" min={min} max={max} step="any" defaultValue={shown ?? ""} placeholder={shown === undefined ? "Mixed" : undefined} /></label><button type="submit">Apply {label.toLowerCase()}</button></form>;
+  }}><label>{label}<input name={key} type="number" min={min} max={max} step="any" defaultValue={shown ?? ""} placeholder={shown === undefined ? "Mixed" : undefined} /></label><button type="submit">Apply {label.toLowerCase()}</button></form></LayerVariablePicker>;
   const select = (label: string, key: string, shown: string | undefined, options: readonly string[], labels = options) => <label>{label}<select aria-label={label} value={shown ?? ""} onChange={event => set({ [key]: event.currentTarget.value })}>
     {shown === undefined && <option value="" disabled>Mixed</option>}{options.map((option, i) => <option key={option} value={option}>{labels[i]}</option>)}
   </select></label>;

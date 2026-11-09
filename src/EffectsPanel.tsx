@@ -1,3 +1,4 @@
+import { LayerVariablePicker, type InspectorDispatch } from "./StyleVariablePicker";
 import { useRef } from "react";
 import { EffectSettings } from "./EffectSettings";
 import { usePaintActions } from "./PaintActions";
@@ -10,7 +11,7 @@ export const effectLabels: Record<Effect["type"], string> = {
 };
 
 export function EffectsPanel({engine, editable, dispatch}: {engine: EditorEngine; editable: boolean;
-  dispatch: (command: string, params?: unknown) => void}) {
+  dispatch: InspectorDispatch}) {
   const {document, selection: ids, openEffects} = engine.getSnapshot();
   const first = document.nodes[ids[0]], stack = first?.effects ?? [];
   const mixed = ids.length > 1 && ids.slice(1).some(id => {
@@ -49,7 +50,8 @@ export function EffectsPanel({engine, editable, dispatch}: {engine: EditorEngine
           <button type="button" disabled={!row} onClick={()=>move(index,index+1)}>Move up</button>
           <button type="button" disabled={!index} onClick={()=>move(index,index-1)}>Move down</button>
         </div>
-        {open && <EffectSettings key={ids.join(",") + "/" + e.type} effect={e} change={change} begin={()=>engine.beginEffectPreview(index)}/>}
+        {open && <EffectSettings key={ids.join(",") + "/" + e.type} effect={e} change={change} bind={(field,label,control)=>
+          <LayerVariablePicker doc={document} ids={ids} field={`effects/${index}/${field}`} label={label} type={field==="color" ? "color" : "number"} run={dispatch}>{control}</LayerVariablePicker>} begin={()=>engine.beginEffectPreview(index)}/>}
       </li>;
     })}</ol>}
     {popup}

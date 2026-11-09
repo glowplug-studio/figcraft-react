@@ -1,3 +1,4 @@
+import { LayerVariablePicker, type InspectorDispatch } from "./StyleVariablePicker";
 import { BlendMenu } from "./BlendMenu";
 import { PaintPicker } from "./PaintPicker";
 import { usePaintActions } from "./PaintActions";
@@ -16,7 +17,7 @@ interface AppearancePanelProps {
   page: PageNode;
   selected?: LayerNode;
   editable: boolean;
-  dispatch: (command: string, params?: unknown) => void;
+  dispatch: InspectorDispatch;
 }
 
 function AppearanceControls({ engine, page, selected, editable, dispatch, expanded, toggle }: AppearancePanelProps & {expanded:boolean; toggle:()=>void}) {
@@ -63,10 +64,11 @@ function AppearanceControls({ engine, page, selected, editable, dispatch, expand
     if (!selected) return;
     const form = event.currentTarget;
     const name = (form.elements.namedItem("name") as HTMLInputElement).value;
-    const opacity = Number((form.elements.namedItem("opacity") as HTMLInputElement).value);
+    const opacityInput = form.elements.namedItem("opacity") as HTMLInputElement | null;
+    const opacity = opacityInput?.valueAsNumber;
     const props: Record<string, unknown> = {};
     if (name !== selected.name) props.name = name;
-    if (opacity !== (selected.opacity ?? 1)) props.opacity = opacity;
+    if (opacity !== undefined && opacity !== (selected.opacity ?? 1)) props.opacity = opacity;
     if (Object.keys(props).length) dispatch("node.set", { id: selected.id, props });
   }
   return <section aria-label="Appearance">
@@ -90,8 +92,12 @@ function AppearanceControls({ engine, page, selected, editable, dispatch, expand
       <form key={`details:${selected.id}:${selected.name}:${selected.opacity ?? 1}`} onSubmit={details}>
         <fieldset disabled={!editable}><legend>Layer</legend>
           <label>Name<input name="name" type="text" defaultValue={selected.name} required /></label>
-          <label>Node opacity<input name="opacity" type="number" min="0" max="1" step="any" defaultValue={selected.opacity ?? 1} required /></label>
-          <label>Visible<input type="checkbox" checked={selected.visible !== false} onChange={event => dispatch("node.set", { id: selected.id, props: { visible: event.currentTarget.checked } })} /></label>
+          <LayerVariablePicker doc={snapshot.document} ids={ids} field="opacity" label="Node opacity" type="number" run={dispatch}>
+            <label>Node opacity<input name="opacity" type="number" min="0" max="1" step="any" defaultValue={selected.opacity ?? 1} required /></label>
+          </LayerVariablePicker>
+          <LayerVariablePicker doc={snapshot.document} ids={ids} field="visible" label="Visible" type="boolean" run={dispatch}>
+            <label>Visible<input type="checkbox" checked={selected.visible !== false} onChange={event => dispatch("node.set", { id: selected.id, props: { visible: event.currentTarget.checked } })} /></label>
+          </LayerVariablePicker>
           <label>Locked<input type="checkbox" checked={selected.locked === true} onChange={event => dispatch("node.set", { id: selected.id, props: { locked: event.currentTarget.checked } })} /></label>
           <button type="submit">Apply layer</button>
         </fieldset>

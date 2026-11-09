@@ -29,7 +29,7 @@ export function LayoutGuidesPanel({nodes,enabled,...host}:Props) {
       const cols = grid.kind === "columns", square = grid.kind === "grid";
       const fixed = grid.align !== "stretch";
       const field = (key:"size"|"count"|"gutter"|"offset",label:string,min:number) => <LayoutNumber {...host}
-        label={label} min={min} value={key === "count" && !grid.count && fixed ? undefined : grid[key]} placeholder={key === "count" ? "Auto" : undefined}
+        variableField={`layoutGrids/${i}/${key}`} label={label} min={min} value={key === "count" && !grid.count && fixed ? undefined : grid[key]} placeholder={key === "count" ? "Auto" : undefined}
         params={value=>params(i,{[key]:key === "count" ? Math.min(1000,Math.max(min,Math.round(value))) : Math.max(min,value)})}/>;
       return <div key={i} className="figcraft-layout-guide" role="group" aria-label={"Guide "+(i+1)}
         onDragOver={e=>{if(drag !== undefined)e.preventDefault();}} onDrop={e=>{

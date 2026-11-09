@@ -50,9 +50,10 @@ dd { margin: 0; }
 [role=alert] { color: #a21818; padding: 8px 16px; }
 .auth-page { max-width: 360px; margin: 12vh auto; padding: 24px; }
 @media (max-width: 800px) {
+  .figcraft-document-bar { position:relative; }
   .figcraft-mobile-pages, .figcraft-mobile-layers, .figcraft-mobile-assets { display: block; }
   :is(.figcraft-mobile-pages, .figcraft-mobile-layers, .figcraft-mobile-assets) > summary { cursor: pointer; }
-  :is(.figcraft-mobile-pages, .figcraft-mobile-layers, .figcraft-mobile-assets) > section { position: absolute; z-index: 2; top: 48px; left: 8px; width: min(300px, calc(100vw - 16px)); max-height: 70dvh; overflow: auto; background: #fff; border: 1px solid #ddd; padding: 16px; }
+  :is(.figcraft-mobile-pages, .figcraft-mobile-layers, .figcraft-mobile-assets) > section { position: absolute; z-index: 2; top: 100%; left: 8px; width: min(300px, calc(100vw - 16px)); max-height: 70dvh; overflow: auto; background: #fff; border: 1px solid #ddd; padding: 16px; }
   .figcraft-workspace { grid-template-columns: minmax(200px, 1fr) 190px; }
   .figcraft-layers { display: none; }
   .figcraft-document-bar span { display: none; }
@@ -115,6 +116,10 @@ dd { margin: 0; }
 .figcraft-variable-table { overflow:auto; }.figcraft-variable-table table { border-collapse:collapse; width:100%; }
 .figcraft-variable-table td,.figcraft-variable-table th { padding:6px; border:1px solid #ccc; text-align:start; }
 
+.figcraft-bindable-control { display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:center; gap:4px; min-width:0; }
+.figcraft-bindable-control:has([aria-expanded="true"]) { grid-template-columns:minmax(0,1fr); }
+.figcraft-bindable-control > .figcraft-variable-field { max-width:8rem; }
+.figcraft-bindable-control > .figcraft-variable-field:has([aria-expanded="true"]) { max-width:100%; }
 .figcraft-variable-field { display:inline-grid; max-width:100%; gap:3px; }
 .figcraft-variable-field > [role=group] { display:grid; gap:4px; max-height:15rem; overflow:auto; padding:4px; border:1px solid ButtonBorder; background:Canvas; }
 .figcraft-variable-field [role=group] [role=group] { display:grid; gap:2px; }

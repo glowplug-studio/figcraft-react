@@ -274,7 +274,13 @@ export class EditorEngine {
   getVectorEdit = (): VectorEditState | undefined => this.#vectorEdit;
   getRenderVectorEdit = (): VectorEditState | undefined => this.#interaction ? this.#interaction.vectorEdit : this.#vectorEdit;
   subscribeVectorEdit = (listener: () => void): (() => void) => { this.#vectorListeners.add(listener); return () => { this.#vectorListeners.delete(listener); }; };
-  getRenderDocument = (): Document => this.#textPreview ?? this.#interaction?.document ?? this.#snapshot.document;
+  getRenderDocument = (): Document => {
+    const live=this.#interaction;
+    const proposed=this.#textPreview ?? live?.document;
+    if (!proposed || proposed===this.#snapshot.document) return this.#snapshot.document;
+    if (!proposed.variables?.variables.length) return proposed;
+    return this.#prepareEdit(proposed,live?.nextId ?? this.#nextId).document;
+  };
   getRenderSelection = (): readonly NodeId[] => this.#interaction?.selection ?? this.#snapshot.selection;
   getInteractionBase = (): Document => this.#interaction?.base.document ?? this.#snapshot.document;
   subscribeCanvas = (listener: () => void): (() => void) => { this.#canvasListeners.add(listener); return () => { this.#canvasListeners.delete(listener); }; };

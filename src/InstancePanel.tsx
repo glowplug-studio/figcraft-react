@@ -1,5 +1,6 @@
+import { LayerVariablePicker, type InspectorDispatch } from "./StyleVariablePicker";
 import { variantOptions, variantProperties } from "./engine/component-variants";
-import { useMemo } from "react";
+import { useMemo, type ReactNode } from "react";
 import type { Document, FrameNode, InstanceNode, NodeId } from "./engine/document";
 import { isOverrideGroup } from "./engine/component-groups";
 import { componentOverrides, orderedComponentPropertyNames } from "./engine/component-properties";
@@ -10,7 +11,7 @@ interface InstancePanelProps {
   document: Document;
   selection: readonly NodeId[];
   enabled: boolean;
-  dispatch: (command: string, params?: unknown) => void;
+  dispatch: InspectorDispatch;
 }
 
 function SlotControls({document,frame,name,preferred,components,dispatch}: Pick<InstancePanelProps,"document"|"dispatch"> & {
@@ -39,23 +40,25 @@ function PropertyControls({document,node,components,dispatch}: Pick<InstancePane
   const options = (ids:readonly NodeId[]) => ids.map(id=><option key={id} value={id}>{document.nodes[id].name}</option>);
   const names = orderedComponentPropertyNames(main.props,main.propOrder);
   const slots = names.some(name=>main.props[name].type === "slot") ? componentSlots(document,node.id) : [];
+  const bind = (name:string, type:"string"|"boolean", label:string, control:ReactNode) =>
+    <LayerVariablePicker key={name} doc={document} ids={[node.id]} field={"componentProperties/"+name} label={label} type={type} run={dispatch}>{control}</LayerVariablePicker>;
   return <>
     {parent.kind === "componentSet" && [...variantOptions(document,parent)].map(([name,values])=>
-      <label key={name}>{name}<select aria-label={`Variant ${name}`} value={current.get(name) ?? ""}
+      bind(name,"string","Variant "+name,<label>{name}<select aria-label={`Variant ${name}`} value={current.get(name) ?? ""}
         onChange={event=>change(name,event.currentTarget.value)}>
         {!current.has(name) && <option value=""/>}
         {values.map(value=><option key={value}>{value}</option>)}
-      </select></label>)}
+      </select></label>))}
     {names.map(name=>{
       const def = main.props[name];
       const value = Object.hasOwn(node.props,name) ? node.props[name] : def.type !== "slot" ? def.default : undefined;
-      if (def.type === "boolean") return <label key={name}><input type="checkbox" checked={value === true}
-        onChange={event=>change(name,event.currentTarget.checked)}/>{name}</label>;
+      if (def.type === "boolean") return bind(name,"boolean",name,<label><input type="checkbox" checked={value === true}
+        onChange={event=>change(name,event.currentTarget.checked)}/>{name}</label>);
       if (def.type === "text") {
         const text = typeof value === "string" ? value : "";
-        return <label key={name}>{name}<input key={JSON.stringify([node.id,text])} defaultValue={text}
+        return bind(name,"string",name,<label>{name}<input key={JSON.stringify([node.id,text])} defaultValue={text}
           onKeyDown={event=>{if (event.key === "Enter") event.currentTarget.blur();}}
-          onBlur={event=>{if (event.currentTarget.value !== text) change(name,event.currentTarget.value);}}/></label>;
+          onBlur={event=>{if (event.currentTarget.value !== text) change(name,event.currentTarget.value);}}/></label>);
       }
       if (def.type === "slot") {
         const slot = slots.find(entry=>entry.name === name);

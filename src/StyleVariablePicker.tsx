@@ -1,13 +1,15 @@
-import { useState } from "react";
+import { useRef, useState, type ReactNode } from "react";
 import type { SharedStyle } from "./engine/shared-styles";
 import { styleBindingType } from "./engine/style-definitions";
 import { canonicalBinding } from "./engine/style-variables";
-import { inVariableScope, type Variables } from "./engine/variables";
+import { inVariableScope, type Variable, type Variables } from "./engine/variables";
 import type { Document } from "./engine/document";
 import { layerFieldScope } from "./engine/layer-variable-bindings";
 import { compareScalarKeys } from "./engine/text-breaks";
 import type { VariableType } from "./engine/variables";
 import type { Run } from "./StyleEditor";
+
+export type InspectorDispatch = (command:string, params?:unknown) => ReturnType<Run>;
 
 const textScopes:Record<string,string>={fontSize:"FONT_SIZE",fontFamily:"FONT_FAMILY",fontStyle:"FONT_STYLE",lineHeight:"LINE_HEIGHT",letterSpacing:"LETTER_SPACING"};
 
@@ -21,37 +23,54 @@ export function StyleVariablePicker({style,field,label,data,run}:{style:SharedSt
     apply={id=>!!run("style.bind",{style:style.id,field,variable:id ?? null})}/>;
 }
 
-export function LayerVariablePicker({doc,ids,field,label,type,run}:{doc:Document;ids:readonly string[];field:string;label:string;type:VariableType;run:Run}) {
-  if (!doc.variables?.variables.length || !ids.length) return null;
+export function LayerVariablePicker({doc,ids,field,label,type,run,children}:{children?:ReactNode;doc:Document;ids:readonly string[];field?:string;label:string;type:VariableType;run:Run}) {
+  if (!field || !doc.variables?.variables.length || !ids.length) return children ?? null;
   const nodes=ids.map(id=>doc.nodes[id]);
   const bound=nodes[0].boundVariables;
   const key=bound && Object.keys(bound).sort(compareScalarKeys).find(k=>canonicalBinding(k)===field) || field;
   const ref=bound && Object.hasOwn(bound,key) ? bound[key] : undefined;
   const reference=nodes.every(n=>n.boundVariables?.[key]===ref) ? ref : undefined;
   const scopes=[...new Set(nodes.map(n=>layerFieldScope(n,field)).filter((s):s is string=>s!==undefined))];
-  return <VariablePicker label={label} data={doc.variables} type={type} scopes={scopes} reference={reference}
-    apply={id=>!!run("variable.bind",{ids,field:reference ? key : field,variable:id ?? null})}/>;
+  return <VariablePicker label={label} data={doc.variables} type={type} scopes={scopes} reference={reference} allScopes allowNumber={field==="characters"}
+    apply={id=>!!run("variable.bind",{ids,field:reference ? key : field,variable:id ?? null})}>{children}</VariablePicker>;
 }
 
-function VariablePicker({label,data,type,scopes,reference,apply}:{label:string;data?:Variables;type:VariableType;scopes:readonly string[];
+function VariablePicker({label,data,type,scopes,reference,apply,children,allScopes,allowNumber}:{children?:ReactNode;allScopes?:boolean;allowNumber?:boolean;label:string;data?:Variables;type:VariableType;scopes:readonly string[];
   reference?:string;apply:(id?:string)=>boolean}) {
   const [open,setOpen]=useState(false),[query,setQuery]=useState("");
+  const trigger=useRef<HTMLButtonElement>(null);
   const variable=reference===undefined ? undefined : data?.variables.find(v=>v.id===reference);
   const needle=query.trim().toLowerCase();
-  const groups=open ? data?.collections.map(c=>({name:c.name,id:c.id,rows:data.variables.filter(v=>v.collection===c.id &&
-    v.resolvedType===type && (!scopes.length || scopes.some(s=>inVariableScope(v.scopes,s))) && v.name.toLowerCase().includes(needle))})).filter(g=>g.rows.length) : undefined;
-  function bind(id?:string) {
-    if (apply(id)) {setOpen(false);setQuery("");}
+  function matches(v:Variable) {
+    if (v.resolvedType!==type && !(allowNumber && v.resolvedType==="number")) return false;
+    if (!v.name.toLowerCase().includes(needle)) return false;
+    const inScope=(scope:string)=>inVariableScope(v.scopes,scope);
+    return !scopes.length || (allScopes ? scopes.every(inScope) : scopes.some(inScope));
   }
-  return <span className="figcraft-variable-field">
-    {variable ? <button type="button" aria-label={"Detach variable from "+label} onClick={()=>bind()}>{variable.name}</button> :
-      <button type="button" aria-label={"Bind variable to "+label} aria-expanded={open} onClick={()=>{setOpen(!open);setQuery("");}}>Bind variable</button>}
+  const groups=open ? data?.collections.map(c=>({name:c.name,id:c.id,
+    rows:data.variables.filter(v=>v.collection===c.id && matches(v))})).filter(g=>g.rows.length) : undefined;
+  function close() {
+    setOpen(false);
+    setQuery("");
+    trigger.current?.focus();
+  }
+  function bind(id?:string) {
+    if (apply(id)) close();
+  }
+  const picker = <span className="figcraft-variable-field" onBlur={event=>{
+    if (open && !event.currentTarget.contains(event.relatedTarget)) setOpen(false);
+  }}>
+    {variable && <button type="button" aria-label={"Detach variable from "+label} onClick={()=>bind()}>{variable.name}</button>}
+    <button ref={trigger} type="button" aria-label={(variable ? "Change variable for " : "Bind variable to ")+label} aria-expanded={open}
+      onClick={()=>{setOpen(!open);setQuery("");}}>{variable ? "Change variable" : "Bind variable"}</button>
     {open && <span role="group" aria-label={"Variables for "+label} onKeyDown={e=>{
-      if (e.key==="Escape") {e.preventDefault();e.stopPropagation();setOpen(false);}
+      if (e.key==="Escape") {e.preventDefault();e.stopPropagation();close();}
     }}>
       <input type="search" aria-label="Search variables" autoFocus value={query} onChange={e=>setQuery(e.target.value)}/>
       {groups?.map(g=><span role="group" aria-label={g.name} key={g.id}><small>{g.name}</small>{g.rows.map(v=><button type="button" key={v.id} onClick={()=>bind(v.id)}>{v.name}</button>)}</span>)}
       {!groups?.length && <span>No matching variables</span>}
     </span>}
   </span>;
+  if (!children) return picker;
+  return <div className="figcraft-bindable-control">{variable ? <span>{label}</span> : children}{picker}</div>;
 }

@@ -6034,3 +6034,84 @@ test("layer fills replace mixed character colours and promote a shared character
   expect(shared.text.style.fills).toBeUndefined();
   expect(shared.text.runs.every(run => run.style.fills === undefined)).toBe(true);
 });
+
+test("scoped layer fields bind, change and detach across geometry, text, layout, effects and instances", async ({page})=>{
+  await login(page);
+  await page.getByLabel("Open Figcraft file",{exact:true}).setInputFiles(new URL("../fixtures/native-variable-inspectors.json",import.meta.url).pathname);
+  const layers=page.getByRole("region",{name:"Layers",exact:true});
+  const select=(name:string)=>layers.getByRole("button",{name,exact:true}).click();
+  const button=(name:string)=>page.getByRole("button",{name,exact:true});
+  async function bind(field:string,name:string,excluded?:string,change=false) {
+    await button((change ? "Change variable for " : "Bind variable to ")+field).click();
+    const group=page.getByRole("group",{name:"Variables for "+field,exact:true});
+    if (excluded) await expect(group.getByRole("button",{name:excluded,exact:true})).toHaveCount(0);
+    await group.getByRole("searchbox").fill(name);
+    await group.getByRole("button",{name,exact:true}).click();
+    await expect(button("Detach variable from "+field)).toHaveText(name);
+  }
+
+  await select("Token swatch");
+  await bind("Edit Width","Size","Alpha");
+  const width=page.getByRole("spinbutton",{name:"Edit Width",exact:true});
+  await expect(width).toHaveCount(0);
+  await bind("Edit Width","Spacing",undefined,true);
+  await button("Detach variable from Edit Width").click();
+  await expect(width).toHaveValue("6.5");
+  await button("Undo").click();
+  await expect(button("Detach variable from Edit Width")).toHaveText("Spacing");
+  await bind("Node opacity","Alpha","Size");
+  await bind("Visible","Enabled","Spacing");
+  await button("Effect 1 settings").click();
+  await bind("Blur","Blur size","Alpha");
+  await select("Grid frame");
+  await bind("Gap between items","Spacing","Size");
+  await button("Guide 1 settings").click();
+  await bind("Grid size","Spacing");
+  await select("Editable text");
+  await bind("Font size","Spacing","Size");
+  await bind("Text content","Copy number","Alpha");
+  await select("Button instance");
+  await bind("Shown","Enabled","Spacing");
+  await bind("Caption","Action","Copy number");
+  await expect(page.locator(".figcraft-recovery")).toHaveText("Recovery saved on this device");
+  await page.reload();
+  await select("Button instance");
+  await expect(button("Detach variable from Caption")).toHaveText("Action");
+  const downloading=page.waitForEvent("download");
+  await button("Save as").click();
+  const {document}=await decodeFigcraft(await readFile((await (await downloading).path())!));
+  expect(document.nodes[2]).toMatchObject({width:6.5,opacity:Math.fround(0.4),effects:[{radius:18}],boundVariables:{width:"VariableID:6",visible:"VariableID:5"}});
+  expect(document.nodes[3]).toMatchObject({layout:{gap:6.5},grids:[{size:6.5}]});
+  expect(document.nodes[4]).toMatchObject({text:{characters:"23",style:{fontSize:6.5}}});
+  expect(document.nodes[6]).toMatchObject({props:{Caption:"Continue",Shown:true}});
+});
+
+test("a narrow multi-selection inspector restores keyboard focus and binds every selected width", async ({page})=>{
+  await page.setViewportSize({width:390,height:844});
+  await login(page);
+  await page.getByLabel("Open Figcraft file",{exact:true}).setInputFiles(new URL("../fixtures/native-variable-inspectors.json",import.meta.url).pathname);
+  const menu=page.locator(".figcraft-mobile-layers");
+  await menu.locator("summary").click();
+  const layers=menu.getByRole("region",{name:"Layers",exact:true});
+  await layers.getByRole("button",{name:"Token swatch",exact:true}).click();
+  await layers.getByRole("button",{name:"Grid frame",exact:true}).click({modifiers:["Shift"]});
+  await menu.locator("summary").click();
+  const trigger=page.getByRole("button",{name:"Bind variable to Edit Width",exact:true});
+  await trigger.focus();
+  await page.keyboard.press("Enter");
+  const group=page.getByRole("group",{name:"Variables for Edit Width",exact:true});
+  await expect(group.getByRole("searchbox")).toBeFocused();
+  await expect(group.getByRole("button",{name:"Alpha"})).toHaveCount(0);
+  await page.keyboard.press("Escape");
+  await expect(trigger).toBeFocused();
+  await page.keyboard.press("Enter");
+  const search=group.getByRole("searchbox");
+  await search.fill("Size");
+  await search.press("Tab");
+  await page.keyboard.press("Enter");
+  await expect(page.getByRole("button",{name:"Detach variable from Edit Width",exact:true})).toHaveText("Size");
+  const downloading=page.waitForEvent("download");
+  await page.getByRole("button",{name:"Save as",exact:true}).click();
+  const {document}=await decodeFigcraft(await readFile((await (await downloading).path())!));
+  for (const id of [2,3]) expect(document.nodes[id]).toMatchObject({width:48,boundVariables:{width:"VariableID:7"}});
+});

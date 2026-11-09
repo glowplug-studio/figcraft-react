@@ -1,4 +1,5 @@
-import { useMemo, useSyncExternalStore, type RefObject } from "react";
+import { LayerVariablePicker, type InspectorDispatch } from "./StyleVariablePicker";
+import { useMemo, useSyncExternalStore, type ReactNode, type RefObject } from "react";
 import { TypographyField as Field, textMeasure as measure } from "./TypographyField";
 import { TypographySettings } from "./TypographySettings";
 import { toCssHex } from "./engine/colour";
@@ -12,7 +13,7 @@ import { paragraphList, paragraphSpan, scalarCount, textSpans } from "./engine/t
 import type { TextStyle } from "./engine/text-style";
 
 const common = <T,>(values: T[]) => values.every(v => v === values[0]) ? values[0] : undefined;
-export function TypographyPanel({engine, editable, apply, onLeave, linkDialog, link, run}: {engine:EditorEngine; linkDialog:RefObject<HTMLDialogElement|null>; link:(ids:string[],url:string)=>void; run:(command:string,params:Record<string,unknown>)=>void; editable:boolean;
+export function TypographyPanel({engine, editable, apply, onLeave, linkDialog, link, run, bind}: {bind:InspectorDispatch;engine:EditorEngine; linkDialog:RefObject<HTMLDialogElement|null>; link:(ids:string[],url:string)=>void; run:(command:string,params:Record<string,unknown>)=>void; editable:boolean;
   apply:(ids:string[], props:Record<string,unknown>) => void; onLeave:() => void}) {
   const catalogueVersion=useSyncExternalStore(subscribeFonts,fontGeneration,fontGeneration);
   const live = useSyncExternalStore(engine.subscribeCanvas, engine.getTextRange, engine.getTextRange);
@@ -28,9 +29,15 @@ export function TypographyPanel({engine, editable, apply, onLeave, linkDialog, l
     const span = paragraphSpan(n.text, live?.start ?? 0, live?.end ?? end);
     return Array.from({length:span[1]-span[0]+1}, (_,index) => paragraphList(n.text,span[0]+index));
   });
+  function variable(field:string,label:string,type:"number"|"string",control?:ReactNode) {
+    if (live && field!=="characters") return control;
+    return <LayerVariablePicker doc={document} ids={ids} field={field} label={label} type={type}
+      run={(command,params)=>{if (live) onLeave(); return bind(command,params);}}>{control}</LayerVariablePicker>;
+  }
   function field(key:string, label:string, values:(number|string)[]) {
     const value = common(values.map(String));
-    return <Field key={ids.join(",") + ":" + key} label={label} value={value} apply={v => apply(ids, {[key]:v})} />;
+    const control = <Field key={ids.join(",") + ":" + key} label={label} value={value} apply={v => apply(ids, {[key]:v})} />;
+    return ["fontSize","lineHeight","letterSpacing"].includes(key) ? variable(key,label,"number",control) : control;
   }
   function select(key:string, label:string, values:string[], options:string[]) {
     const value = common(values);
@@ -66,11 +73,12 @@ export function TypographyPanel({engine, editable, apply, onLeave, linkDialog, l
       (next.matches("textarea") || next.closest("[data-figcraft-style-picker]")) && next.closest("[data-figcraft-editor]") === e.currentTarget.closest("[data-figcraft-editor]"))) return;
     onLeave();
   }}><legend>Typography</legend>
-    <FontFamilyPicker key={ids.join(",")} current={family} families={families}
+    {variable("characters","Text content","string")}
+    {variable("fontFamily","Font family","string",<FontFamilyPicker key={ids.join(",")} current={family} families={families}
       preview={fontFamily=>run("text.preview",{command:"text.style",params:{ids,fontFamily,
         ...(live && live.start!==live.end && {id:live.node.id,start:live.start,end:live.end})}})}
-      endPreview={()=>engine.endTextPreview()} apply={fontFamily=>apply(ids,{fontFamily})} />
-    {select("fontStyle", "Font style", styles.map(s=>s.fontStyle), family ? familyStyles(family) : [])}
+      endPreview={()=>engine.endTextPreview()} apply={fontFamily=>apply(ids,{fontFamily})} />)}
+    {variable("fontStyle","Font style","string",select("fontStyle", "Font style", styles.map(s=>s.fontStyle), family ? familyStyles(family) : []))}
     {field("fontSize", "Font size", styles.map(s=>s.fontSize))}
     {field("lineHeight", "Line height", styles.map(s=>measure(s.lineHeight)))}
     {field("letterSpacing", "Letter spacing", styles.map(s=>measure(s.letterSpacing)))}

@@ -26,7 +26,7 @@ export function FrameLayoutPanel({document,selection,enabled,...host}: LayoutFie
   const spread = !grid && layout.wrap && layout.contentAlign === "spaceBetween";
   const [top,right,bottom,left] = layout.padding;
   const number = (label: string, key: string, value?:number, min?:number, extra?:Record<string,unknown>, placeholder?:string) =>
-    <LayoutNumber {...host} key={[key,selection.join()].join("/")} label={label} value={value} min={min} placeholder={placeholder}
+    <LayoutNumber {...host} key={[key,selection.join()].join("/")} variableField={key==="gridColumns" || key==="gridRows" ? undefined : key} label={label} value={value} min={min} placeholder={placeholder}
       params={(n,all) => ({ids:selection,props:{...extra,[all && key.startsWith("padding") ? "padding" : key]:n}})}/>;
   const positions = ["min","center","max"] as const;
   return <fieldset aria-label="Auto layout" disabled={!enabled}><legend>Auto layout</legend>

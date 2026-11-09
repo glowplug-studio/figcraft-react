@@ -1,17 +1,19 @@
 import {useEffect, useRef, useState, type PointerEvent} from "react";
+import { LayerVariablePicker, type InspectorDispatch } from "./StyleVariablePicker";
 import type {EditorEngine} from "./engine/editor";
 import {fieldValue, parseFieldEdit, steppedField, type FieldEdit} from "./engine/field-math";
 import {pixelRound} from "./engine/geometry";
 
 export interface LayoutFieldHost {
   engine: EditorEngine;
-  dispatch: (command: string, params: unknown) => void;
+  dispatch: InspectorDispatch;
   onError: (message: string) => void;
 }
 
 interface LayoutFieldProps extends LayoutFieldHost {
   label: string;
   value?: number;
+  variableField?: string;
   min?: number;
   placeholder?: string;
   step?: number;
@@ -26,7 +28,14 @@ type Drag = {
   preview?: ReturnType<EditorEngine["beginLayoutField"]>;
 };
 
-export function LayoutNumber({engine, dispatch, onError, label, value, min, step = 1, suffix, placeholder, command = "node.set", onMixedRelative, params}: LayoutFieldProps) {
+export function LayoutNumber({variableField,...props}: LayoutFieldProps) {
+  const input = <NumberInput {...props}/>;
+  if (!variableField) return input;
+  const {document,selection} = props.engine.getSnapshot();
+  return <LayerVariablePicker doc={document} ids={selection} field={variableField} label={props.label} type="number" run={props.dispatch}>{input}</LayerVariablePicker>;
+}
+
+function NumberInput({engine, dispatch, onError, label, value, min, step = 1, suffix, placeholder, command = "node.set", onMixedRelative, params}: LayoutFieldProps) {
   const input = useRef<HTMLInputElement>(null);
   const drag = useRef<Drag | null>(null);
   const all = useRef(false);
