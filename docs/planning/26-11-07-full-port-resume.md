@@ -1,6 +1,6 @@
 # Full Figcraft port resume checkpoint
 
-At d12c2e6 the 0.52.0 local release passed all 292 production Chromium workflows in 659.6 seconds, strict types, both builds, 1,940 pure tests and two real local Auth integrations. The complete-port goal is active. Start [row 11](26-11-10-file-workspace-history.md) with the scoped Supabase MCP read following reauthorisation. Fork and upstream are synchronised at a2e87433. No publication has been performed for this release.
+At d12c2e6 the 0.52.0 local release passed all 292 production Chromium workflows in 659.6 seconds, strict types, both builds, 1,940 pure tests and two real local Auth integrations. The complete-port goal is active. The scoped Supabase MCP read passed after reauthorisation. [Row 11](26-11-10-file-workspace-history.md) is implementing the file workspace. Fork and upstream are synchronised at a2e87433. No publication has been performed for this release.
 
 At 88cc856 page-colour enumeration and reuse passed 216 native readbacks and focused production checks. Continue the [row audit](../reports/26-11-10-styles-variables-libraries.md), including the publication-form command, and verify the 292-workflow regression.
 

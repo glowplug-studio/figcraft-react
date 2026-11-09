@@ -1,0 +1,146 @@
+[
+  {
+    "command": "doc.list",
+    "params": {},
+    "expected": [
+      {
+        "active": true,
+        "dirty": false,
+        "id": 1,
+        "index": 0,
+        "name": "Untitled",
+        "path": null
+      }
+    ]
+  },
+  {
+    "command": "file.new",
+    "params": {
+      "name": "Second"
+    },
+    "expected": {
+      "index": 1,
+      "kind": "design"
+    }
+  },
+  {
+    "command": "doc.list",
+    "params": {},
+    "expected": [
+      {
+        "active": false,
+        "dirty": false,
+        "id": 1,
+        "index": 0,
+        "name": "Untitled",
+        "path": null
+      },
+      {
+        "active": true,
+        "dirty": false,
+        "id": 2,
+        "index": 1,
+        "name": "Second",
+        "path": null
+      }
+    ]
+  },
+  {
+    "command": "file.rename",
+    "params": {
+      "name": "Two"
+    },
+    "expected": {
+      "ok": true
+    }
+  },
+  {
+    "command": "doc.list",
+    "params": {},
+    "expected": [
+      {
+        "active": false,
+        "dirty": false,
+        "id": 1,
+        "index": 0,
+        "name": "Untitled",
+        "path": null
+      },
+      {
+        "active": true,
+        "dirty": true,
+        "id": 2,
+        "index": 1,
+        "name": "Two",
+        "path": null
+      }
+    ]
+  },
+  {
+    "command": "file.close",
+    "params": {},
+    "expected": {
+      "error": "command `file.close` is not available right now: the document has unsaved changes (pass force: true to discard)"
+    }
+  },
+  {
+    "command": "file.moveTab",
+    "params": {
+      "from": 0,
+      "to": 1
+    },
+    "expected": {
+      "index": 1
+    }
+  },
+  {
+    "command": "doc.list",
+    "params": {},
+    "expected": [
+      {
+        "active": true,
+        "dirty": true,
+        "id": 2,
+        "index": 0,
+        "name": "Two",
+        "path": null
+      },
+      {
+        "active": false,
+        "dirty": false,
+        "id": 1,
+        "index": 1,
+        "name": "Untitled",
+        "path": null
+      }
+    ]
+  },
+  {
+    "command": "doc.previousTab",
+    "params": {},
+    "expected": {
+      "index": 1
+    }
+  },
+  {
+    "command": "file.close",
+    "params": {},
+    "expected": {
+      "ok": true
+    }
+  },
+  {
+    "command": "doc.list",
+    "params": {},
+    "expected": [
+      {
+        "active": true,
+        "dirty": true,
+        "id": 2,
+        "index": 0,
+        "name": "Two",
+        "path": null
+      }
+    ]
+  }
+]

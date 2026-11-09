@@ -200,6 +200,7 @@ export const commandSpecs = Object.freeze({
   "image.place": { label: "Place image", undo: true },
   "file.import": { label: "Import", undo: true },
   "file.placeImage": { label: "Place image", undo: true },
+  "file.rename": { label: "Rename file", undo: true },
   "file.colorProfile": { label: "Color profile", undo: true },
   "file.open": { label: "Open", undo: false },
   "file.recover": { label: "Recover file", undo: false },
@@ -302,11 +303,27 @@ export class EditorEngine {
   #viewportAttached = false;
   #viewConfigured = false;
   #saved: Document | null = null;
+  #downloaded = false;
   #saveSequence = 0;
   #pendingSaves = new Map<number, Document>();
   #openSequence = 0;
-  constructor() {
-    this.#snapshot = Object.freeze({ document: newDocument(), selection: Object.freeze([]), tool: "move", builderMode: "merge", scaleAnchor: "tl", canUndo: false, canRedo: false, editable: true, dirty: true, hasSaved: false });
+  constructor(name?: string) {
+    this.#snapshot = Object.freeze({ document: newDocument(name), selection: Object.freeze([]), tool: "move", builderMode: "merge", scaleAnchor: "tl", canUndo: false, canRedo: false, editable: true, dirty: true, hasSaved: false });
+  }
+  static newTab(name?: string): EditorEngine {
+    const engine = new EditorEngine(name);
+    engine.#saved = engine.#snapshot.document;
+    engine.#publish({});
+    return engine;
+  }
+  duplicateTab(): EditorEngine {
+    const document = Object.freeze({ ...this.#snapshot.document, name: this.#snapshot.document.name + " (Copy)" });
+    const copy = EditorEngine.newTab();
+    copy.#saved = document;
+    copy.#nextId = this.#nextId;
+    copy.#publish({ document });
+    copy.updateView(fitPage(defaultViewport, document));
+    return copy;
   }
   getSnapshot = (): EditorSnapshot => this.#snapshot;
   getUndoDepth = (): number => this.#undo.length;
@@ -925,7 +942,7 @@ export class EditorEngine {
     const document = patch.document ?? this.#snapshot.document;
     if (document !== this.#snapshot.document) this.#preparedEdit = undefined;
     if (patch.editable === false || patch.selection && !sameIds(patch.selection, this.#snapshot.selection)) patch = { ...patch, paintPicker: undefined, openEffects: undefined };
-    this.#snapshot = Object.freeze({ ...this.#snapshot, ...patch, canUndo: this.#undo.length > 0, canRedo: this.#redo.length > 0, dirty: !sameContent(document, this.#saved), hasSaved: this.#saved !== null });
+    this.#snapshot = Object.freeze({ ...this.#snapshot, ...patch, canUndo: this.#undo.length > 0, canRedo: this.#redo.length > 0, dirty: !sameContent(document, this.#saved), hasSaved: this.#downloaded });
     if (this.#lastDuplicate && !duplicateSelection(this.#lastDuplicate, this.#snapshot.selection)) this.#lastDuplicate = undefined;
     if (this.#vectorEdit) this.#vectorEdit = pageForNode(document, this.#vectorEdit.id) === document.currentPage ? clampVectorEdit(document, this.#vectorEdit) : undefined;
     if (this.#snapshot.crop && (!this.#snapshot.editable || !this.pickedCrop())) {
@@ -1063,6 +1080,12 @@ export class EditorEngine {
         this.#publish({ scaleAnchor: anchor as ScaleAnchor });
       }
       return { anchor: this.#snapshot.scaleAnchor };
+    }
+    if (command === "file.rename") {
+      const name = parseString(p.name);
+      if (name === undefined) throw new Error("file.rename requires a name");
+      this.#commitEdit({ document: Object.freeze({ ...this.#snapshot.document, name }) });
+      return { ok: true };
     }
     if (command === "file.colorProfile") {
       const before = this.#snapshot, name = parseString(p.profile);
@@ -1349,6 +1372,7 @@ export class EditorEngine {
       const document = p.revision === undefined ? this.#interaction?.document ?? this.#snapshot.document : typeof p.revision === "number" ? this.#pendingSaves.get(p.revision) : undefined;
       if (!document) return { saved: false };
       this.#saved = document;
+      this.#downloaded = true;
       this.#pendingSaves.clear();
       this.#publish({});
       return { saved: true };
@@ -1560,7 +1584,7 @@ export class EditorEngine {
     checkCurrent();
     this.#documentIdentity = Symbol();
     this.#nextId = BigInt(decoded.nextId);
-    this.#undo = []; this.#redo = []; this.#saved = null; this.#pendingSaves.clear();
+    this.#undo = []; this.#redo = []; this.#saved = null; this.#downloaded = false; this.#pendingSaves.clear();
     this.#vectorEdit = undefined;
     this.#publish({ document: decoded.document, profileDialog: false, libraryPanel:undefined, missingFonts: undefined, selection: Object.freeze([]), tool: "move" });
     this.updateView(fitPage({ ...this.#view, proofSrgb: false }, decoded.document));
