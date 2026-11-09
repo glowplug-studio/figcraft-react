@@ -8,7 +8,7 @@
 | Active slice | Auto layout and constraints. [Dated plan](26-11-09-auto-layout.md). |
 | Active phase | Phase 4. Native container and child layout records. |
 | Upstream baseline | Auto layout reference 3839fe4a. Rich text reference a4251ca8. Global supported baseline 8eb0b876. |
-| Branch and last verified commit | prompt/full-figcraft-port, rich text 0.49.0 at a81127c. [Implementation history](26-11-09-rich-text.md). |
+| Branch and last verified commit | prompt/full-figcraft-port, frame records 4b17c70 passed 1,014 native comparisons and a focused browser check. Rich text 0.49.0 at a81127c. [Implementation history](26-11-09-rich-text.md). |
 | Completed slices | Rectangle/host-auth, bounded native persistence/recovery, supported-model pages, affine rectangle geometry/selection and solid appearance, plus nested group hierarchy, Frame containers, movement/transform gestures, rounded corners, ellipse/arc/ring and Polygon/Star editing verified locally; Line/Arrow and uniform solid strokes also verified; per-side Rectangle/Frame strokes, variable-width profiles and procedural brushes verified; vector networks, solid region/stroke rendering and Flatten/Reverse also verified; foundation commit `154f5a7`. Gradient, image, pattern, blend and mask releases now have local property matrices. [Blend evidence](../reports/26-11-09-blend-modes-parity.html). |
 | Remaining slices | Continue incomplete roadmap rows, excluding the user-deferred plugin and widget family. See each slice matrix for outstanding integrations. |
 | Tests last passed | a81127c passed 234/234 local production Chromium checks in 497.1 seconds, strict types, both builds, 1,675 pure tests and two Auth checks. [85-row matrix](../reports/26-11-09-rich-text-parity.html). |

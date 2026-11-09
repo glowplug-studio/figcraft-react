@@ -7,7 +7,7 @@
 | Reference | Figcraft fork and original upstream at 3839fe4a0cb4897c1fed1fb03e0b60e191ff61cb. React a81127c on prompt/full-figcraft-port. The global supported baseline is 8eb0b876. |
 | Evidence | Local merged Graphify index has 31,661 nodes and 104,168 edges. The Rust index links the grid-placement tests to grid_place. The React index links resizeChildren to withLayerSize and hierarchy tests to setRectangleProperties. UI labels and JSON defaults were checked directly. |
 | Backend | The scoped Figcraft MCP read returned zero public tables. Layout settings are part of the native document and its existing local persistence. |
-| Next action | Port native frame and child layout records through the file codec. Verify default and non-default fields, existing text sizing and rejection of unsupported data. Then exercise the same document through the layout engine and controls. |
+| Next action | Frame records passed at 4b17c70. Add child sizing, anchors, spans and limits to the same codec and reconcile existing text sizing. Then exercise layout reflow through the engine and controls. |
 | Blockers | None. |
 
 ## Implementation and verification order
@@ -27,3 +27,7 @@
 | [Measurement, flow, grid and constraints](../../original/figcraft/crates/layout/src/lib.rs), [occupancy](../../original/figcraft/crates/layout/src/occupancy.rs) and [layout rules](../../original/figcraft/docs/auto-layout-parity.md) | [Layer sizing](../../src/engine/sizing.ts), [text measurement](../../src/engine/text-sizing.ts), [frame constraints](../../src/engine/constraints.ts). Compare resolved local bounds, transforms and measured text heights. |
 | [Structure](../../original/figcraft/crates/engine/src/cmd/structure.rs), [properties](../../original/figcraft/crates/engine/src/cmd/props.rs) and [track edits](../../original/figcraft/crates/engine/src/cmd/layout.rs) | [Property commands](../../src/engine/properties.ts) and [hierarchy draft](../../src/engine/hierarchy.ts). Compare target selection, ordered writes, warnings, returned IDs and one-step undo. |
 | [Layout panel](../../original/figcraft/crates/ui-egui/src/panels/layout_panel.rs), [drag tests](../../original/figcraft/crates/engine/src/al_drag_tests.rs) and [key tests](../../original/figcraft/crates/engine/src/al_keys_tests.rs) | Signed-in Design controls, canvas hit-testing and keyboard dispatch. Compare actual pointer movement, selection, ghosts, saved values and cancellation. |
+
+## Frame records at 4b17c70
+
+The 51 native layout library tests passed against the pinned source. The React container codec matched the native Rust serialiser on 1,014 generated input records, including explicit nulls, omitted properties, tracks, negative gaps and unsigned counts. The browser opened a grid frame, recovered it after reload and downloaded its native layout fields. All 1,690 pure tests, strict types and both builds passed. Frame reflow and non-default child properties remain open. The refreshed local graph contains 31,673 nodes and 104,214 edges.

@@ -430,3 +430,7 @@ Native typography `variable_axes`, `named_instances` and `type_settings` map to 
 Upstream `canvas/textedit.rs` and its nine `cmd/text.rs` entries map to `executeTextEdit`, `EditorEngine.beginTextEdit`, `textKeyMotion` and `CanvasTextInput`. The comparison matched 443 native edit sequences. The installed package and signed-in Next.js host passed browser checks. [Editing matrix](../reports/26-11-09-text-edit-sessions-parity.html).
 
 Native `path_at` and `text_on_path_down` map to `textPathAt`, `hitPathLeaf`, `createTextOnPath` and the Text tool group. The 432 native probes include 162 hits. `collect_flatten_parts` and `TextLayout::to_path` map to `textNodePath`, `textToPath` and `vector.flatten`. All 108 geometry comparisons and the signed-in curved-text workflow passed. [Gesture matrix](../reports/26-11-09-text-gestures-parity.html).
+
+### Auto layout frame records
+
+At 3839fe4a the native AutoLayout and GridTrack serde values map to readAutoLayout and wireAutoLayout at 4b17c70. The node inspector returns camel-case layout fields, while the archive writer emits their native snake-case names. High confidence for container records from 1,014 native comparisons and a signed-in Chromium open, recovery and save. Layout computation and child placement are pending. [Frame record tests](../../tests/parity/auto-layout-records.test.ts) and [slice plan](../planning/26-11-09-auto-layout.md).
