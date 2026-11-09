@@ -2317,9 +2317,16 @@ function otTagToLanguage(tag) {
 }
 //#endregion
 //#region src/index.ts
-init(await createHarfBuzz());
 //#endregion
 export { AxisFlags, Blob, Buffer, BufferContentType, BufferFlag, BufferSerializeFlag, BufferSerializeFormat, ClusterLevel, ColorPaletteFlags, Direction, DrawFuncs, Face, Feature, Font, FontFuncs, GlyphClass, GlyphFlag, MetricsTag, PaintCompositeMode, PaintExtend, PaintFuncs, TracePhase, Variation, otTagToLanguage, otTagToScript, shape, shapeWithTrace, version, versionString };
+
+let initialising;
+export function initialiseShaper() {
+  return initialising ??= createHarfBuzz().then(init).catch(error => {
+    initialising = undefined;
+    throw error;
+  });
+}
 
 export function unhintedOutline(font, glyph) {
   const commands = [];

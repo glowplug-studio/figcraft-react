@@ -49,7 +49,17 @@ echo _figcraft_decode_font_png >> harfbuzz.symbols
 echo _figcraft_unhinted_outline >> harfbuzz.symbols
 make harfbuzz CXX="em++ -Iharfbuzz/src -I$ft/include" \
   HARFBUZZ_SRCS="harfbuzz/src/harfbuzz.cc /work-outline.cc /work/font-png.o /work/ft-build/libfreetype.a"
+# Defer Wasm initialisation until a font is requested; canvas consumers also build IIFEs.
+sed -i '/^init(await createHarfBuzz());$/d' ../package/dist/index.mjs
 cat >> ../package/dist/index.mjs <<'BINDING'
+
+let initialising;
+export function initialiseShaper() {
+  return initialising ??= createHarfBuzz().then(init).catch(error => {
+    initialising = undefined;
+    throw error;
+  });
+}
 
 export function unhintedOutline(font, glyph) {
   const commands = [];
@@ -90,6 +100,7 @@ sha256sum -c <<'CHECK'
 0a9eab77fd1f2c3678291ee51124f780ae258dd5336df4a83fef66e11d9f7180  dist/harfbuzz.js
 ce1ae9b15e52d8fec5b30f775521e8a8e49009b5600d40b448ed323483068b59  dist/harfbuzz.wasm
 CHECK
+echo 'export declare function initialiseShaper(): Promise<void>;' >> ../package/dist/index.d.mts
 install -m 0644 dist/harfbuzz.js dist/harfbuzz.wasm ../package/dist/index.mjs ../package/dist/index.d.mts /out/
 install -m 0644 /work/WUFFS-LICENCE.txt /out/WUFFS-LICENCE.txt
 install -m 0644 "$ft/docs/FTL.TXT" /out/FREETYPE-LICENCE.txt

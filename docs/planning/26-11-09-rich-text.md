@@ -180,3 +180,5 @@ The desktop-free Rust reference created [the native text fixture](../../tests/fi
 The local combined graph contains 31,333 nodes and 102,735 edges. It resolves React `autoSizeText` and `paintText` and upstream `auto_size`. Strict library, host and test types passed, both production builds passed, and the suite passed 1,556 pure checks plus two local Auth checks.
 
 Next complete the browser text tool, inline editing and IME, rich-text commands and inspector. Additional checks cover text strokes and effects by style, transformed bounds, font registration, text-path resizing, masks and vector operations. The rich-text slice remains open.
+
+The first full browser run after integrating document text exposed a consumer packaging regression. The standalone canvas fixtures compile a single immediately invoked script, which cannot contain top-level await. The shaper now initialises through a lazy, retryable promise when a font is read. Its JavaScript and declarations reproduce exactly from the pinned package and build script. The first affected standalone paint, geometry and frame-budget tests pass on the corrected build.

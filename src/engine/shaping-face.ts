@@ -7,6 +7,8 @@ import type { CurveElement } from "./curve-flatten";
 import type { PathCommand } from "./corners";
 import { validOpenTypeTag } from "./text-case";
 
+export const prepareShapingFace = hb.initialiseShaper;
+
 export interface ShapingScalar { readonly codePoint: number; readonly source: number }
 export interface ShapedGlyph {
   readonly id: number;
