@@ -2,6 +2,7 @@ import { readFile } from "node:fs/promises";
 import { expect, test } from "@playwright/test";
 import { build } from "vite";
 import pathCases from "../fixtures/text-on-path.json" with {type:"json"};
+import caretCases from "../fixtures/text-caret.json" with {type:"json"};
 import flow from "../fixtures/text-flow.json" with { type:"json" };
 import wordSamples from "../fixtures/text-word-starts.json" with { type:"json" };
 import outlines from "../fixtures/text-outlines.json" with { type:"json" };
@@ -114,6 +115,20 @@ test("Chromium shapes pinned font bytes with the native glyph IDs, positions and
     expect(actual).toHaveLength(pathCases[i].warps.length);
     actual.forEach((row,j)=>row!.forEach((v,k)=>expect(v).toBeCloseTo(pathCases[i].warps[j][k],8)));
   }
+  const carets=await page.evaluate(async cases=>{
+    const url="/shaper.js", api:typeof import("../fixtures/text-shaping-browser")=await import(url);
+    const fonts=new api.FontLibrary();
+    for (const file of ["inter/Inter-Regular","inter/Inter-Bold","noto-sans-georgian/NotoSansGeorgian"]) {
+      const bytes=await (await fetch("/fonts/"+file+".ttf")).arrayBuffer();
+      for (const face of await api.readFontFaces(new Uint8Array(bytes))) fonts.add(face);
+    }
+    return cases.map(({input,width,height})=>{
+      const text=api.readTextData(input);
+      const out=api.layoutTextFlow(text,fonts,{width:width ?? undefined,height:height ?? undefined},[]);
+      return api.caretProbes(api,out,Array.from(text.characters).length);
+    });
+  },caretCases);
+  expect(carets).toEqual(caretCases.map(({carets,steps,hits,selections})=>({carets,steps,hits,selections})));
   const masks = await page.evaluate(async samples => {
     const url = "/shaper.js";
     const api: typeof import("../fixtures/text-shaping-browser") = await import(url);

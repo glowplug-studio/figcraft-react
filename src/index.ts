@@ -52,6 +52,7 @@ export { TextGraphemes } from "./engine/text-graphemes";
 export { readTextData, type TextData } from "./engine/text-data";
 export { styledGlyphs, type StyledGlyph } from "./engine/styled-glyphs";
 export { glyphPath } from "./engine/text-glyph-path";
+export { textCaret, textHit, textSelectionRects, textVisualStep } from "./engine/text-caret";
 export { textWarpPoint, TextOnPath } from "./engine/text-on-path";
 export { layoutText, layoutTextFlow, type FlowGlyph, type FlowLine } from "./engine/text-flow";
 export { textWordStarts } from "./engine/text-word-starts";
