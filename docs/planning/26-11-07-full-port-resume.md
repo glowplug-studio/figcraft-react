@@ -1,6 +1,8 @@
 # Full Figcraft port resume checkpoint
 
-At 8f8791e native variable import and four export formats passed the focused gates, including large collections. The 285-test browser run is in progress. Continue with [published library archives](26-11-09-styles-variables-libraries.md#local-published-library-archive-boundary).
+At d2cd04a local library publication, version selection and archive compatibility passed native and focused production checks. The full 286-workflow regression is running. Next implement the consumer side in [row 10](26-11-09-styles-variables-libraries.md#local-published-library-archive-boundary).
+
+At 8f8791e native variable import and four export formats passed the focused gates, including large collections. All 285 production browser workflows passed. Continue with [published library archives](26-11-09-styles-variables-libraries.md#local-published-library-archive-boundary).
 
 At 4c7f505, scoped inspector controls, variant changes, live previews and 10,000 direct variable consumers passed the focused gates. The full production suite passed 283/283. Continue variable interchange from Rust `cmd/variables_io.rs` and `format/src/rest/variables.rs`, then linked libraries. [Evidence](26-11-09-styles-variables-libraries.md#inspector-bindings-and-live-previews).
 
