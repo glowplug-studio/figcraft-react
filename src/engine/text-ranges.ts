@@ -1,3 +1,4 @@
+import { isLosslessNumber } from "lossless-json";
 import type { ParaList, StyleRun, TextData } from "./text-data";
 import { textString, wireTextStyle, type TextStyle } from "./text-style";
 
@@ -29,7 +30,7 @@ const signatures = new WeakMap<TextStyle,string>();
 function signature(style: TextStyle) {
   let value = signatures.get(style);
   if (value === undefined) {
-    value = JSON.stringify(wireTextStyle(style));
+    value = JSON.stringify(wireTextStyle(style), (_key,v) => isLosslessNumber(v) ? (v.value === "-0.0" ? 0 : v.value) : v);
     signatures.set(style,value);
   }
   return value;

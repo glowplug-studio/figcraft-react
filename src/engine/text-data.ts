@@ -1,5 +1,5 @@
 import { isLosslessNumber, LosslessNumber } from "lossless-json";
-import { defaultTextStyle, readTextStyle, textBool, textEnum, textNumber, textRecord, textString, wireTextStyle, type TextStyle } from "./text-style";
+import { defaultTextStyle, readTextStyle, textBool, textEnum, textNumber, textRecord, textString, wireTextFloat, wireTextStyle, type TextStyle } from "./text-style";
 
 export interface StyleRun { readonly start: number; readonly end: number; readonly style: TextStyle }
 export type ListStyle = "none" | "bulleted" | "numbered";
@@ -65,7 +65,7 @@ export function readTextData(value: unknown): TextData {
   const number = (key: string) => v[key] === undefined ? 0 : textNumber(v[key],key);
   const flag = (key: string) => v[key] === undefined ? false : textBool(v[key],key);
   const features = v.features === undefined ? defaultFeatures : Object.freeze(Object.fromEntries(
-    Object.entries(textRecord(v.features,"features")).sort(([a],[b])=>a<b?-1:a>b?1:0).map(([k,b])=>[k,textBool(b,"feature")])));
+    Object.entries(textRecord(v.features,"features")).sort(([a],[b])=>a<b?-1:a>b?1:0).map(([k,b])=>[textString(k,"feature tag"),textBool(b,"feature")])));
   return Object.freeze({
     characters:v.characters === undefined ? "" : textString(v.characters,"characters"),
     style:v.style === undefined ? defaultTextStyle : readTextStyle(v.style),
@@ -97,6 +97,6 @@ export function wireTextData(t: TextData) {
     ...(t.hangingList && {hanging_list:true}),...(t.leadingTrim!=="none" && {leading_trim:t.leadingTrim}),
     ...(t.maxLines && {max_lines:t.maxLines}),...(t.wrapStyle!=="auto" && {wrap_style:t.wrapStyle}),
     ...(Object.keys(t.features).length && {features:t.features}),
-    ...(t.path && {path:{d:t.path.d,start:t.path.start,...(t.path.flip && {flip:true})}}),
+    ...(t.path && {path:{d:t.path.d,start:wireTextFloat(t.path.start),...(t.path.flip && {flip:true})}}),
     ...(t.savedBreaks && {saved_breaks:{starts:t.savedBreaks.starts,width:t.savedBreaks.width,for_text:new LosslessNumber(t.savedBreaks.forText)}})};
 }

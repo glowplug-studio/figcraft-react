@@ -27,4 +27,10 @@ The independent model reads and writes native styles, paints, variation axes, li
 
 Local Graphify indexed these source changes against Rust a4251ca8. The combined graph has 30,551 nodes and 100,990 edges, including both TextData models, readTextData, replaceTextRange and native layout. Graphify reported no extracted symbols from the two new test files. Vitest executed their cases directly.
 
-Next implement saved-break key generation and validation against native fixtures, then verify pinned font resources and shaping metrics. No publication gate has run for this slice.
+### Saved line breaks
+
+At Rust a4251ca8 and React model baseline 12b76c5, the layout key strips appearance and vertical-only fields, normalises the remaining style runs and hashes the UTF-8 serde representation with 64-bit FNV-1a. The independent browser implementation preserves negative zero in key-bearing native text fields, distinguishes float and integer types and writes dynamic map keys in native scalar order.
+
+A separately built read-only native doc crate supplied six fixed reference keys and a deterministic comparison of 4,093 finite binary64 cases. Every key matched. Tests also cover the width tolerance, strictly increasing scalar positions, empty line starts, appearance edits, shaping changes and native JSON reopen. Strict types, both production builds, 1,171 pure tests and two real local Auth checks passed. The latest full browser suite remains 204/204 from the effects release. Local Graphify has 30,565 nodes and 101,038 edges; it identifies textLayoutKey and savedBreaksFor. Rust method bodies and fixture hashes were checked in source and execution.
+
+Next package the exact web-build fonts from the pinned craft-fonts manifests and verify their bytes and metrics in Chromium. Browser text nodes and editing remain open.

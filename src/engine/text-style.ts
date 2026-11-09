@@ -1,4 +1,4 @@
-import { isLosslessNumber } from "lossless-json";
+import { isLosslessNumber, LosslessNumber } from "lossless-json";
 import { appearanceValue, wirePaints } from "./native-values";
 import { parseColour } from "./colour-css";
 import type { Colour } from "./colour";
@@ -77,7 +77,7 @@ export function readTextStyle(value: unknown): TextStyle {
   const v = textRecord(value,"style");
   const axes = v.variations === undefined ? noAxes : Object.freeze(Object.fromEntries(
     Object.entries(textRecord(v.variations,"variation axes")).sort(([a],[b])=>a<b?-1:a>b?1:0)
-      .map(([k,n])=>[k,textNumber(n,"axis value")])));
+      .map(([k,n])=>[textString(k,"axis tag"),textNumber(n,"axis value")])));
   return Object.freeze({
     fontFamily:v.font_family === undefined ? "Inter" : textString(v.font_family,"font family"),
     fontStyle:v.font_style === undefined ? "Regular" : textString(v.font_style,"font style"),
@@ -92,13 +92,23 @@ export function readTextStyle(value: unknown): TextStyle {
   });
 }
 
+// Preserve the native IEEE sign when saving a text field used by its layout key.
+export function wireTextFloat(value: number) {
+  return Object.is(value,-0) ? new LosslessNumber("-0.0") : value;
+}
+
+function wireLength(length: Length) {
+  return length.unit !== "auto" && Object.is(length.value,-0)
+    ? {...length,value:wireTextFloat(length.value)} : length;
+}
+
 export function wireTextStyle(s: TextStyle) {
   const d = s.decorationLook;
-  return {font_family:s.fontFamily,font_style:s.fontStyle,font_size:s.fontSize,line_height:s.lineHeight,
-    letter_spacing:s.letterSpacing,decoration:s.decoration,...(d && {decoration_look:{style:d.style,
+  return {font_family:s.fontFamily,font_style:s.fontStyle,font_size:wireTextFloat(s.fontSize),line_height:wireLength(s.lineHeight),
+    letter_spacing:wireLength(s.letterSpacing),decoration:s.decoration,...(d && {decoration_look:{style:d.style,
       thickness:d.thickness,offset:d.offset,skip_ink:d.skipInk,color:d.color ?? null}}),
     case:s.case,fills:s.fills ? wirePaints(s.fills) : null,link:s.link ?? null,
-    ...(Object.keys(s.variations).length > 0 && {variations:s.variations}),...(s.styleId !== undefined && {style_id:s.styleId})};
+    ...(Object.keys(s.variations).length > 0 && {variations:Object.fromEntries(Object.entries(s.variations).map(([k,v])=>[k,wireTextFloat(v)]))}),...(s.styleId !== undefined && {style_id:s.styleId})};
 }
 
 const namedWeights: readonly (readonly [string,number])[] = [
