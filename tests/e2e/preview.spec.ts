@@ -5943,6 +5943,8 @@ test("shared style variable pickers filter by scope and retain per-layer mode co
   const picker=catalogue.getByRole("group",{name:"Variables for Style paint 1 colour"});
   await expect(picker.getByRole("button",{name:"Spacing"})).toHaveCount(0);
   await expect(picker.getByRole("button",{name:"Accent"})).toHaveCount(0);
+  await page.evaluate(()=>window.document.fonts.ready.then(()=>true));
+  await expect(picker).toHaveScreenshot("style-paint-variable-picker.png",{animations:"disabled",caret:"hide"});
   await picker.getByRole("searchbox").fill("Bas");
   await picker.getByRole("button",{name:"Base",exact:true}).click();
   const chip=catalogue.getByRole("button",{name:"Detach variable from Style paint 1 colour"});
@@ -6395,4 +6397,36 @@ test("whole-library swap reports unmatched assets and recovers the replacement a
   expect(document).toEqual({...native,name:document.name,libraryLinks:native.libraryLinks?.map(l=>({
     ...l,path:document.libraryLinks?.find(other=>other.id===l.id)?.path
   }))});
+});
+
+test("page swatches apply the original alpha to a fill or selected gradient stop",async({page})=>{
+  const e=new EditorEngine();
+  for (const [i,fill] of ["#0033cc80","#ff0000"].entries()) {
+    e.execute("shape.rectangle",{x:i*80,y:40,width:60,height:60});
+    e.execute("node.set",{id:i+2,props:{name:i===0 ? "Sample" : "Target",fill}});
+  }
+  await login(page);
+  await page.getByLabel("Open Figcraft file",{exact:true}).setInputFiles({name:"Swatches.figcraft",
+    mimeType:"application/octet-stream",buffer:Buffer.from(await e.nativeSnapshot())});
+  await page.getByRole("region",{name:"Layers",exact:true}).getByRole("button",{name:"Target",exact:true}).click();
+  const picker=page.getByRole("group",{name:"fill 1 paint picker",exact:true});
+  const swatch=picker.getByRole("button",{name:"Use #0033CC80"});
+  await page.getByRole("button",{name:"Edit fill 1 paint"}).click();
+  await swatch.click();
+  const button=(name:string)=>page.getByRole("button",{name,exact:true});
+  const save=async()=>{
+    const download=page.waitForEvent("download");await button("Save as").click();
+    const {document}=await decodeFigcraft(await readFile((await (await download).path())!));
+    return rectanglePaints(document.nodes["3"] as RectangleNode)[0];
+  };
+  expect(await save()).toMatchObject({type:"solid",opacity:Math.fround(128/255)});
+  if (!await picker.isVisible()) await button("Edit fill 1 paint").click();
+  await picker.getByLabel("Paint type").selectOption("linear");
+  await picker.getByRole("button",{name:"Gradient stop 2",exact:true}).click();
+  await swatch.press("Enter");
+  const gradient=await save();
+  if (gradient.type!=="gradient") throw Error("Expected gradient");
+  expect(gradient.stops[1].color).toMatchObject({r:0,g:Math.fround(51/255),b:Math.fround(204/255),a:Math.fround(128/255)});
+  await button("Undo").click();
+  expect(await save()).not.toEqual(gradient);
 });

@@ -1,3 +1,4 @@
+import {documentColours} from "./document-colours";
 import {swapLibrary} from "./library-swap";
 import {importLibraryComponents} from "./library-components";
 import {publishedComponent} from "./library-component-source";
@@ -106,6 +107,7 @@ export const commandSpecs = Object.freeze({
   "text.onPath": {label:"Text on path",undo:true},
   "text.openLink": {label:"Open link",undo:false},
   ...fillSpecs,
+  "paint.documentColors": {label:"Document colours",undo:false},
   ...arrangeSpecs,
   ...sizingSpecs,
   "layout.setTrack": {label: "Set grid track size", undo: true},
@@ -957,6 +959,7 @@ export class EditorEngine {
     if (!this.#snapshot.editable) throw new Error("Sign in to edit this document");
     const p = command==="text.fonts" || command==="text.rescanFonts" || command==="text.loadFont"
       ? fontParams(command,input) : isTextEditCommand(command) ? namedParameters(input) : parameters(input);
+    if (command==="paint.documentColors") return documentColours(this.#snapshot.document,p);
     if (command==="text.preview") return this.#previewChange(p);
     if (command==="text.endPreview") {
       if (Object.keys(p).some(k=>k!=="id" && k!=="ids")) throw new Error("Unknown text.endPreview option");

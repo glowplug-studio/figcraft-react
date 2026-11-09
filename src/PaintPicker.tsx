@@ -1,3 +1,4 @@
+import {pageColours} from "./engine/document-colours";
 import { LayerVariablePicker } from "./StyleVariablePicker";
 import { BlendMenu } from "./BlendMenu";
 import { PatternPaintControls } from "./PatternPaintControls";
@@ -109,6 +110,7 @@ export function PaintPicker({engine,list,index,label,paint,change,region=false,s
   useEffect(()=>{if (paint.type==="image") setPending(undefined);},[paint.type]);
   const open = picker?.list === list && picker.index === index && picker.styleId === styleId;
   const {document: doc, selection} = engine.getSnapshot();
+  const swatches=open && !image && (paint.type==="solid" || paint.type==="gradient") ? pageColours(doc).slice(0,21) : [];
   const bindColour=(suffix:string,name:string)=>!region && styleId===undefined &&
     <LayerVariablePicker doc={doc} ids={selection} field={list+"s/"+index+"/"+suffix} label={name} type="color" run={(cmd,params)=>{
       try {setBindingError(""); return engine.execute(cmd,params);}
@@ -184,6 +186,20 @@ export function PaintPicker({engine,list,index,label,paint,change,region=false,s
         <p title="The canvas shows the nearest sRGB color.">Outside sRGB</p>}
       <span>Blend mode </span><BlendMenu engine={engine} label={label+" blend mode"} value={paint.blend} picker={picker}
         change={blend=>change({...paint,blend})}/>
+      {!!swatches.length && <div role="group" aria-label="On this page">
+        <small>On this page</small>
+        <div style={{display:"flex",flexWrap:"wrap",gap:4}}>{swatches.map(({hex,colour})=>
+          <button key={hex} type="button" aria-label={"Use "+hex} title={hex}
+            style={{width:18,height:18,padding:0,backgroundColor:renderColour(colour),border:"1px solid #888"}}
+            onClick={()=>{
+              if (paint.type==="solid") change({...paint,color:withAlpha(colour,1),opacity:colour.a});
+              else if (paint.type==="gradient" && paint.stops.length) {
+                const stop=Math.min(picker.stop,paint.stops.length-1);
+                change({...paint,stops:paint.stops.map((item,i)=>i===stop ? {...item,color:colour} : item)});
+              }
+            }}/>
+        )}</div>
+      </div>}
     </div>}
   </>;
 }
