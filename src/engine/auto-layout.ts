@@ -1,3 +1,4 @@
+import type { LayerNode } from "./document";
 import { isLosslessNumber } from "lossless-json";
 import { fail, number } from "./native-values";
 import { propertyEnum } from "./parameters";
@@ -77,4 +78,98 @@ export function wireAutoLayout(layout: AutoLayout) {
     main_align: layout.mainAlign, cross_align: layout.crossAlign, content_align: layout.contentAlign,
     grid_columns: layout.gridColumns, grid_rows: layout.gridRows, column_tracks: layout.columnTracks,
     row_tracks: layout.rowTracks, strokes_included: layout.strokesIncluded, reverse_z: layout.reverseZ };
+}
+
+export type Sizing = GridTrack["sizing"];
+export interface LayerSizing {
+  readonly horizontal: Sizing;
+  readonly vertical: Sizing;
+}
+export type CellAlign = "min" | "center" | "max";
+export interface ChildLayout {
+  readonly absolute?: true;
+  readonly minWidth?: number;
+  readonly maxWidth?: number;
+  readonly minHeight?: number;
+  readonly maxHeight?: number;
+  readonly gridColumn?: number;
+  readonly gridRow?: number;
+  readonly gridColumnSpan?: number;
+  readonly gridRowSpan?: number;
+  readonly gridAlignH?: CellAlign;
+  readonly gridAlignV?: CellAlign;
+}
+
+export const sizeLimitKeys = ["minWidth", "maxWidth", "minHeight", "maxHeight"] as const;
+const sizingModes = ["fixed", "hug", "fill"] as const;
+const cellAlignments = ["min", "center", "max"] as const;
+const childFields = ["sizing_h", "sizing_v", "absolute", "min_w", "max_w", "min_h", "max_h", "grid_column",
+  "grid_row", "grid_column_span", "grid_row_span", "grid_align_h", "grid_align_v"];
+export const fixedSizing: LayerSizing = Object.freeze({horizontal: "fixed", vertical: "fixed"});
+
+/** Text snapshots already expose textSizing. Keep one pair of axes per layer. */
+export function layerSizing(node: LayerNode) {
+  return (node.kind === "text" ? node.textSizing : node.sizing) ?? fixedSizing;
+}
+
+export function readChildLayout(raw: unknown, textLayer: boolean) {
+  const {sizing_h = "fixed", sizing_v = "fixed", absolute, min_w, max_w, min_h, max_h, grid_column, grid_row,
+    grid_column_span = 0, grid_row_span = 0, grid_align_h, grid_align_v} = record(raw, childFields, "child_layout");
+  const horizontal = propertyEnum(sizing_h, sizingModes, false);
+  const vertical = propertyEnum(sizing_v, sizingModes, false);
+  const sizing = Object.freeze({horizontal, vertical});
+  const columnSpan = unsigned(grid_column_span, "grid column span");
+  const rowSpan = unsigned(grid_row_span, "grid row span");
+  const childLayout: ChildLayout = {
+    ...(flag(absolute, false, "absolute") && {absolute: true}),
+    ...(min_w != null && {minWidth: number(min_w, "min width")}),
+    ...(max_w != null && {maxWidth: number(max_w, "max width")}),
+    ...(min_h != null && {minHeight: number(min_h, "min height")}),
+    ...(max_h != null && {maxHeight: number(max_h, "max height")}),
+    ...(grid_column != null && {gridColumn: unsigned(grid_column, "grid column")}),
+    ...(grid_row != null && {gridRow: unsigned(grid_row, "grid row")}),
+    ...(columnSpan !== 0 && {gridColumnSpan: columnSpan}), ...(rowSpan !== 0 && {gridRowSpan: rowSpan}),
+    ...(grid_align_h != null && {gridAlignH: propertyEnum(grid_align_h, cellAlignments, false)}),
+    ...(grid_align_v != null && {gridAlignV: propertyEnum(grid_align_v, cellAlignments, false)}),
+  };
+  return {
+    ...(Object.keys(childLayout).length && {childLayout: Object.freeze(childLayout)}),
+    ...(horizontal !== "fixed" || vertical !== "fixed" ? textLayer ? {textSizing: sizing} : {sizing} : {}),
+  };
+}
+
+export function wireChildLayout(child: ChildLayout | undefined, sizing: LayerSizing) {
+  if (!child && sizing.horizontal === "fixed" && sizing.vertical === "fixed") return undefined;
+  return {sizing_h: sizing.horizontal, sizing_v: sizing.vertical, absolute: child?.absolute ?? false,
+    min_w: child?.minWidth ?? null, max_w: child?.maxWidth ?? null, min_h: child?.minHeight ?? null,
+    max_h: child?.maxHeight ?? null, grid_column: child?.gridColumn ?? null, grid_row: child?.gridRow ?? null,
+    grid_column_span: child?.gridColumnSpan ?? 0, grid_row_span: child?.gridRowSpan ?? 0,
+    ...(child?.gridAlignH && {grid_align_h: child.gridAlignH}), ...(child?.gridAlignV && {grid_align_v: child.gridAlignV})};
+}
+
+export function scaleLayoutProperties(node: LayerNode, factor: number) {
+  const result: {childLayout?: ChildLayout; layout?: AutoLayout} = {};
+  const scale = (n: number) => {
+    const scaled = n * factor;
+    if (!Number.isFinite(scaled)) throw new Error("Scaled layout value must be finite");
+    return scaled;
+  };
+  if (node.childLayout) {
+    const limits: Partial<Record<typeof sizeLimitKeys[number], number>> = {};
+    for (const key of sizeLimitKeys) {
+      const value = node.childLayout[key];
+      if (value !== undefined) limits[key] = scale(value);
+    }
+    if (Object.keys(limits).length) result.childLayout = Object.freeze({...node.childLayout, ...limits});
+  }
+  if (node.kind === "frame" && node.layout) {
+    const layout = node.layout;
+    const tracks = (items: readonly GridTrack[]) => Object.freeze(items.map(t =>
+      t.sizing === "fixed" ? Object.freeze({...t, value: scale(t.value)}) : t));
+    const [top, right, bottom, left] = layout.padding;
+    result.layout = Object.freeze({...layout, gap: scale(layout.gap), crossGap: scale(layout.crossGap),
+      padding: Object.freeze([scale(top), scale(right), scale(bottom), scale(left)] as const),
+      columnTracks: tracks(layout.columnTracks), rowTracks: tracks(layout.rowTracks)});
+  }
+  return result;
 }

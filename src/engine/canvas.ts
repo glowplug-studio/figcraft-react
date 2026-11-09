@@ -185,7 +185,7 @@ function* drawLayer(context: CanvasRenderingContext2D, document: Document, node:
       if (node.kind === "frame") shadows?.inner();
       target.save(); target.transform(...rectangleTransform(node));
       if (node.kind === "frame" && node.clip) { target.beginPath(); tracePath(target, shapePath(node)); target.clip(); }
-      yield* drawChildren(target, document, node.children, depth + 1, nesting, scale);
+      yield* drawChildren(target, document, node.children, depth + 1, nesting, scale, undefined, node.kind === "frame" && node.layout?.reverseZ);
       target.restore();
       if (node.kind === "group") shadows?.inner();
       if (node.kind === "frame" && hasVisibleStroke(node)) yield* resolveLayerPaints(paintLayerStroke(target, node), document, depth, nesting, drawLayer);
@@ -378,16 +378,36 @@ function deviceBounds(context: CanvasRenderingContext2D, document: Document, nod
   return paddedRect(bounds,reach.page*scale+outlinePad(matrix,reach.local));
 }
 
+// Reverse the order of mask runs while preserving paint order inside each run.
+const reverseRunIndices = new WeakMap<Document, WeakMap<readonly string[], readonly number[]>>();
+function reversedRuns(document: Document, children: readonly string[]) {
+  let frames = reverseRunIndices.get(document);
+  if (!frames) reverseRunIndices.set(document, frames = new WeakMap());
+  const cached = frames.get(children);
+  if (cached) return cached;
+  const starts: number[] = [];
+  for (let i = 0; i < children.length;) {
+    starts.push(i);
+    const node = document.nodes[children[i++]];
+    if (node?.isMask && (node.kind === "page" || node.visible !== false))
+      while (i < children.length && !document.nodes[children[i]]?.isMask) i++;
+  }
+  frames.set(children, starts.reverse());
+  return starts;
+}
+
 function* drawChildren(context: CanvasRenderingContext2D, document: Document, children: readonly string[],
-  depth: number, nesting: number, scale: number, view?: Rectangle): PaintSteps {
-  for (let index = 0; index < children.length; index++) {
+  depth: number, nesting: number, scale: number, view?: Rectangle, reverseZ = false): PaintSteps {
+  const order = reverseZ ? reversedRuns(document, children) : undefined;
+  for (let cursor = 0, length = order?.length ?? children.length; cursor < length; cursor++) {
+    const index = order ? order[cursor] : cursor;
     const node = document.nodes[children[index]];
     if (!node || node.kind === "page" || node.visible === false) continue;
     if (node.isMask) {
       let end = index + 1;
       while (end < children.length && !document.nodes[children[end]]?.isMask) end++;
       yield* drawMasked(context, document, node, children, index + 1, end, depth, nesting, drawLayer, deviceBounds, scale);
-      index = end - 1;
+      if (!order) cursor = end - 1;
       continue;
     }
     if (view && isLeaf(node) && !usesPixelLayer(node)) {

@@ -23,6 +23,12 @@ test("page masks bound successive sibling runs including a hidden or offscreen m
   expect(r.hidden).toEqual([grey,grey,blue,blue,blue]);
   expect(r.offscreen).toEqual(Array(5).fill(grey));
 });
+test("auto layout reverses mask runs and frontmost hit order", async ({page}) => {
+  const r = await page.evaluate(() => window.FigcraftMasks.reversedFramePixels(document.querySelector("canvas")!));
+  expect(r.normal).toEqual({pixels: [black, black, black, black], hit: r.black});
+  expect(r.reverse).toEqual({pixels: [[255,0,0,255], blue, [0,255,0,255], black], hit: r.red});
+});
+
 test("encoded luminance weights, gradient and painted alpha apply once to overlapping siblings",async({page})=>{
   const r=await page.evaluate(()=>window.FigcraftMasks.luminancePixels(document.querySelector("canvas")!));
   expect(r.bytes).toEqual([blue,clear,[0,0,255,55],[0,0,255,183],[0,0,255,19],[0,0,255,128]]);

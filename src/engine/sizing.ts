@@ -1,3 +1,4 @@
+import { scaleLayoutProperties } from "./auto-layout";
 import { fixTextSize, refitResizedText, scaleTextData } from "./text-sizing";
 import { scaleEffect } from "./effects";
 import { freezeNetwork, transformNetwork } from "./vector-network";
@@ -56,7 +57,7 @@ export function scaleSubtree(draft: HierarchyDraft, root: NodeId, factor: number
     const network = node.kind === "vector" ? freezeNetwork({ ...transformNetwork(node.network, [factor, 0, 0, factor, 0, 0]), vertices: node.network.vertices.map(v => ({ ...v, x: v.x * factor, y: v.y * factor, radius: v.radius * factor })) }) : undefined;
     if (network?.vertices.some(v => ![v.x, v.y, v.radius].every(Number.isFinite))) throw new Error("Scaled vector values must be finite");
     const effects = node.effects?.map(effect => scaleEffect(effect, factor));
-    draft.set({ ...withLayerTransform(node, matrix), width, height, ...(node.kind==="text" && {text:scaleTextData(node.text,factor)}), ...(effects && { effects: Object.freeze(effects) }), ...(network ? { network } : {}), stroke: Object.freeze({ ...stroke, weight, dashes: Object.freeze(dashes), ...(sides ? { sides: Object.freeze(sides) as unknown as StrokeSides } : {}) }), ...(node.corners && radii ? { corners: Object.freeze({ ...node.corners, radii: Object.freeze(radii) as unknown as Radii }) } : {}) });
+    draft.set({ ...withLayerTransform(node, matrix), ...scaleLayoutProperties(node, factor), width, height, ...(node.kind==="text" && {text:scaleTextData(node.text,factor)}), ...(effects && { effects: Object.freeze(effects) }), ...(network ? { network } : {}), stroke: Object.freeze({ ...stroke, weight, dashes: Object.freeze(dashes), ...(sides ? { sides: Object.freeze(sides) as unknown as StrokeSides } : {}) }), ...(node.corners && radii ? { corners: Object.freeze({ ...node.corners, radii: Object.freeze(radii) as unknown as Radii }) } : {}) });
   }
 }
 

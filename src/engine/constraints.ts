@@ -38,6 +38,7 @@ export function resizeChildren(draft: HierarchyDraft, id: NodeId, oldWidth: numb
     for (const childId of container.children) {
       const child = draft.nodes[childId];
       if (!child || child.kind === "page") throw new Error("Invalid container child");
+      if (container.kind === "frame" && container.layout && !child.childLayout?.absolute) continue;
       const matrix = layerTransform(child), b = transformBounds(matrix, child.width, child.height);
       let x = b.x, y = b.y, x1 = b.x + b.width, y1 = b.y + b.height;
       const constraints = child.constraints ?? defaultConstraints;

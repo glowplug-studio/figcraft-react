@@ -1,4 +1,4 @@
-import type { AutoLayout } from "./auto-layout";
+import type { AutoLayout, ChildLayout, LayerSizing } from "./auto-layout";
 import { scaleTextPathData } from "./text-path-data";
 import type { TextData } from "./text-data";
 import type { Effect } from "./effects";
@@ -51,6 +51,8 @@ export interface Constraints {
 }
 export const defaultConstraints: Constraints = Object.freeze({ horizontal: "left", vertical: "top" });
 export interface LayerProperties extends MaskProperties {
+  readonly childLayout?: ChildLayout;
+  readonly sizing?: LayerSizing;
   readonly effects?: readonly Effect[];
   readonly boolOp?: BooleanOperation;
   readonly id: NodeId;
@@ -80,7 +82,7 @@ export interface EllipseNode extends LayerProperties { readonly kind: "ellipse";
 export interface PolygonNode extends LayerProperties { readonly kind: "polygon"; readonly count: number }
 export interface StarNode extends LayerProperties { readonly kind: "star"; readonly count: number; readonly innerRatio: number }
 export interface VectorNode extends LayerProperties { readonly kind: "vector"; readonly network: VectorNetwork }
-export interface TextNode extends LayerProperties { readonly kind: "text"; readonly text: TextData; readonly textSizing?: Readonly<{horizontal:"fixed"|"hug"; vertical:"fixed"|"hug"}>; readonly charactersOverridden?: true }
+export interface TextNode extends LayerProperties { readonly kind: "text"; readonly text: TextData; readonly textSizing?: LayerSizing; readonly charactersOverridden?: true }
 export type LeafNode = RectangleNode | EllipseNode | PolygonNode | StarNode | LineNode | VectorNode | TextNode;
 export type DrawShapeKind = Exclude<LeafNode["kind"], "vector" | "text"> | "arrow";
 export interface GroupNode extends LayerProperties {
@@ -107,7 +109,7 @@ export function commonProperties(node: LayerNode): LayerProperties {
     case "ellipse": { const { kind: _kind, start: _start, sweep: _sweep, inner: _inner, ...common } = node; return common; }
     case "polygon": { const { kind: _kind, count: _count, ...common } = node; return common; }
     case "star": { const { kind: _kind, count: _count, innerRatio: _inner, ...common } = node; return common; }
-    case "text": { const { kind: _kind, text: _text, textSizing: _sizing, charactersOverridden: _overridden, ...common } = node; return common; }
+    case "text": { const { kind: _kind, text: _text, textSizing: _sizing, charactersOverridden: _overridden, ...common } = node; return _sizing ? {...common, sizing: _sizing} : common; }
     case "vector": { const { kind: _kind, network: _network, ...common } = node; return common; }
     default: { const { kind: _kind, ...common } = node; return common; }
   }

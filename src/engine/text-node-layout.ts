@@ -91,15 +91,17 @@ function measure(text: TextData, box: { width?: number; height?: number }) {
   return layoutTextFlow(text, fonts, box, preparedWordStarts(text.characters));
 }
 
-const bothHug = Object.freeze({horizontal:"hug", vertical:"hug"} as const);
-const heightHug = Object.freeze({horizontal:"fixed", vertical:"hug"} as const);
 export function autoSizeText(node: TextNode): TextNode {
-  const { text } = node;
-  const sizing = text.autoResize === "widthAndHeight" ? bothHug : text.autoResize === "height"
-    ? (node.textSizing?.horizontal === "hug" ? bothHug : heightHug) : undefined;
-  if (sizing !== node.textSizing) {
+  const {text, textSizing} = node;
+  const h = textSizing?.horizontal ?? "fixed", v = textSizing?.vertical ?? "fixed";
+  const autoWidth = text.autoResize === "widthAndHeight";
+  const autoHeight = autoWidth || text.autoResize === "height";
+  const horizontal = h === "fill" ? h : autoWidth ? "hug" : autoHeight ? h : "fixed";
+  const vertical = v === "fill" ? v : autoHeight ? "hug" : "fixed";
+  if (horizontal !== h || vertical !== v) {
     const {textSizing: _previous, ...layer} = node;
-    node = Object.freeze(sizing ? {...layer, textSizing:sizing} : layer);
+    node = Object.freeze(horizontal === "fixed" && vertical === "fixed" ? layer :
+      {...layer, textSizing: Object.freeze({horizontal, vertical})});
   }
   if (text.path || text.autoResize === "none" || text.autoResize === "truncate") return node;
   const fixedWidth = text.autoResize === "height";

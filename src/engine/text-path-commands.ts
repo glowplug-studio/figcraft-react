@@ -77,6 +77,7 @@ export function createTextOnPath(document:Document,id:string,target:{pathId:stri
   const parent=document.nodes[source.parent];
   if (isLeaf(parent)) throw new Error("Invalid path parent");
   const node:TextNode={kind:"text",id,parent:parent.id,name:"",x:0,y:0,width:1,height:14,
+    ...(source.sizing && {textSizing: source.sizing}), ...(source.childLayout && {childLayout: source.childLayout}),
     fill:readableTextFill(document,parent.id),...(source.constraints && {constraints:source.constraints}),text:newTextData()};
   const path=Object.freeze({d:textPathData(strokeGeometry(source)),start:target.startFraction,flip:false});
   const text=placeText(node,source,path);

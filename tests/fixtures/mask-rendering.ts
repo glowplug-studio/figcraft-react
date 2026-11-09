@@ -1,3 +1,5 @@
+import { readAutoLayout } from "../../src/engine/auto-layout";
+import { hitRectangle } from "../../src/engine/selection";
 import { type Document as DesignDocument, type VectorNode } from "../../src/engine/document";
 import { type VectorRegion } from "../../src/engine/vector-network";
 import { renderDocument } from "../../src/engine/canvas";
@@ -37,6 +39,26 @@ export function siblingPixels(canvas:HTMLCanvasElement) {
   set(mask,{visible:true,x:300,maskType:"vector"});
   set(second,{visible:true,x:400});
   return {opaque,vector,transparent,hidden,offscreen:pixels()};
+}
+
+export function reversedFramePixels(canvas: HTMLCanvasElement) {
+  const {ctx, engine, rect, sample} = scene(canvas);
+  const frame = String(engine.execute("frame.create", {x: 0, y: 0, width: 120, height: 100, props: {fills: []}}).id);
+  const red = rect(0, 0, 20, 100, {fill: "red"}, frame);
+  rect(5, 0, 55, 100, {fill: "white", isMask: true}, frame);
+  rect(0, 0, 120, 100, {fill: "blue"}, frame);
+  rect(30, 0, 90, 100, {fill: "lime"}, frame);
+  rect(0, 0, 1, 1, {isMask: true, visible: false}, frame);
+  const black = rect(0, 0, 100, 100, {fill: "black"}, frame);
+  const base = engine.getSnapshot().document;
+  const f = base.nodes[frame];
+  if (f.kind !== "frame") throw new Error("Expected a frame");
+  const run = (reverse: boolean) => {
+    const doc = {...base, nodes: {...base.nodes, [frame]: {...f, layout: readAutoLayout({reverse_z: reverse})}}};
+    renderDocument(ctx, doc, 120, 100);
+    return {pixels: [10, 25, 40, 80].map(x => sample(x, 50)), hit: hitRectangle(doc, {x: 10, y: 50}, true)};
+  };
+  return {normal: run(false), reverse: run(true), red, black};
 }
 
 export function luminancePixels(canvas:HTMLCanvasElement) {

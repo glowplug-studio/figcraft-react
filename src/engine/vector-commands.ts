@@ -144,7 +144,8 @@ export function executeVector(command: string, document: Document, selection: re
       const vector = withRectanglePaints(withLayerTransform<VectorNode>({
         kind: "vector", id: vid, name: source.name, parent: parent.id, network: filled,
         x: 0, y: 0, width: box.width, height: box.height, fill: "transparent",
-        ...(!keepFill && { opacity: source.opacity, blend: source.blend, constraints: source.constraints, visible: source.visible, locked: source.locked }),
+        ...(!keepFill && { opacity: source.opacity, blend: source.blend, constraints: source.constraints, ...(source.childLayout && {childLayout: source.childLayout}),
+          ...((source.kind === "text" ? source.textSizing : source.sizing) && {sizing: source.kind === "text" ? source.textSizing : source.sizing}), visible: source.visible, locked: source.locked }),
       }, multiply(layerTransform(source), [1, 0, 0, 1, box.x, box.y])), source.strokes ?? []);
       draft.insert(vector, parent.id, index + 1);
       if (keepFill) {

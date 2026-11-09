@@ -4749,6 +4749,10 @@ test("native frame layout survives opening, recovery and a browser download", as
     column_tracks: [{sizing: "fixed", value: 24}, {sizing: "fill", value: 2}],
     padding: [4, 8, 12, 16], cross_gap: 7, reverse_z: true,
   }});
+  native.nodes["2"].children = [3];
+  native.nodes["3"] = {id: 3, parent: 2, name: "Spanning child", type: "rectangle", width: 40, height: 15,
+    child_layout: {sizing_h: "fill", min_w: 12, grid_column: 0, grid_row_span: 2, grid_align_v: "center"}};
+  native.next_id = 4;
   await login(page);
   await page.getByLabel("Open Figcraft file", {exact: true}).setInputFiles({
     name: "native-grid.figcraft", mimeType: "application/octet-stream", buffer: Buffer.from(JSON.stringify(native)),
@@ -4760,6 +4764,8 @@ test("native frame layout survives opening, recovery and a browser download", as
   const downloading = page.waitForEvent("download");
   await page.getByRole("button", {name: "Save as", exact: true}).click();
   const saved = await decodeFigcraft(await readFile((await (await downloading).path())!));
+  expect(saved.document.nodes["3"]).toMatchObject({sizing: {horizontal: "fill", vertical: "fixed"},
+    childLayout: {minWidth: 12, gridColumn: 0, gridRowSpan: 2, gridAlignV: "center"}});
   expect(saved.document.nodes["2"]).toMatchObject({kind: "frame", layout: {
     mode: "grid", gridColumns: 3, rowTracks: [{sizing: "hug", value: 0}],
     columnTracks: native.nodes["2"].layout.column_tracks, padding: [4, 8, 12, 16], crossGap: 7, reverseZ: true,

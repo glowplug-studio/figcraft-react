@@ -1,4 +1,4 @@
-import { readAutoLayout, wireAutoLayout } from "./auto-layout";
+import { layerSizing, readAutoLayout, readChildLayout, wireAutoLayout, wireChildLayout } from "./auto-layout";
 import { U64_MAX, appearanceValue, fail, id, idString, number, wireId, wirePaints } from "./native-values";
 import { readTextData, wireTextData } from "./text-data";
 import { readEffects, wireEffect } from "./effects";
@@ -100,27 +100,16 @@ function nativeColour(value: unknown, path: string): Colour {
   if (!result) fail(`${path}: invalid colour`);
   return result;
 }
-const textFields = ["child_layout", "overrides", "characters", "style", "runs", "auto_resize", "align_h", "align_v", "paragraph_spacing",
+const textFields = ["overrides", "characters", "style", "runs", "auto_resize", "align_h", "align_v", "paragraph_spacing",
   "paragraph_indent", "list", "paragraphs", "list_spacing", "hanging_punctuation", "hanging_list",
   "leading_trim", "max_lines", "wrap_style", "features", "path", "saved_breaks"];
-
-function readTextSizing(value: unknown) {
-  if (value === undefined) return {};
-  const layout = object(value, "text child_layout");
-  fields(layout, ["sizing_h", "sizing_v"], nodeDefaults.child_layout, "text child_layout");
-  const horizontal = layout.sizing_h ?? "fixed", vertical = layout.sizing_v ?? "fixed";
-  if ((horizontal !== "fixed" && horizontal !== "hug") || (vertical !== "fixed" && vertical !== "hug"))
-    return fail("text sizing requires an auto layout parent");
-  if (horizontal === "fixed" && vertical === "fixed") return {};
-  return {textSizing:Object.freeze({horizontal, vertical})};
-}
 
 function readNode(key: string, value: unknown): DocumentNode {
   idString(key, "node map key");
   const n = object(value, `node ${key}`), kind = n.type;
   if (id(n.id, "node ID") !== key) fail(`node ${key} has a mismatched ID`);
   if (kind !== "page" && kind !== "group" && kind !== "booleanOp" && kind !== "frame" && !isLeafKind(kind)) fail(`node type ${String(kind)} is not supported yet`);
-  fields(n, ["id", "name", "type", "parent", "children", "transform", "width", "height", "fills", "blend", "effects", "is_mask", "mask_type", ...(kind === "page" ? ["background", "flows", "prototype"] : ["bool_op", ...(kind === "booleanOp" ? ["op"] : kind === "ellipse" ? ["start", "sweep", "inner"] : kind === "star" ? ["count", "inner_ratio"] : kind === "polygon" ? ["count"] : kind === "vector" ? ["network"] : kind === "text" ? textFields : []), "stroke", "strokes", "visible", "locked", "opacity", "corners", "constraints", "constrain_proportions", ...(kind === "frame" ? ["clip", "layout"] : [])])], nodeDefaults, `node ${key}`);
+  fields(n, ["id", "name", "type", "parent", "children", "transform", "width", "height", "fills", "blend", "effects", "is_mask", "mask_type", ...(kind === "page" ? ["background", "flows", "prototype"] : ["bool_op", "child_layout", ...(kind === "booleanOp" ? ["op"] : kind === "ellipse" ? ["start", "sweep", "inner"] : kind === "star" ? ["count", "inner_ratio"] : kind === "polygon" ? ["count"] : kind === "vector" ? ["network"] : kind === "text" ? textFields : []), "stroke", "strokes", "visible", "locked", "opacity", "corners", "constraints", "constrain_proportions", ...(kind === "frame" ? ["clip", "layout"] : [])])], nodeDefaults, `node ${key}`);
   if (kind === "text" && n.overrides !== undefined && (!Array.isArray(n.overrides) || n.overrides.some(key => key !== "characters"))) fail("text override is not supported yet");
   if (n.is_mask !== undefined && typeof n.is_mask !== "boolean") fail("is_mask must be boolean");
   if (n.mask_type !== undefined && !isMaskType(n.mask_type)) fail("mask_type must be alpha, vector or luminance");
@@ -180,7 +169,7 @@ function readNode(key: string, value: unknown): DocumentNode {
     if (kind === "frame" && n.clip !== undefined && typeof n.clip !== "boolean") fail("frame clip must be boolean");
     if (n.bool_op != null && !isBooleanOperation(n.bool_op)) fail("invalid operand operation");
     const op = kind === "booleanOp" ? (isBooleanOperation(n.op) ? n.op : fail("invalid boolean group operation")) : undefined;
-    const layer = { ...(isBooleanOperation(n.bool_op) ? { boolOp: n.bool_op } : {}), id: key, kind, name, ...strokeData, ...(corners ? { corners } : {}), parent: id(n.parent, `${kind} parent`), x: transform[4]!, y: transform[5]!, width, height, fill: "transparent", ...(constraints.horizontal !== "left" || constraints.vertical !== "top" ? { constraints } : {}),
+    const layer = { ...(n.child_layout !== undefined && readChildLayout(n.child_layout, kind === "text")), ...(isBooleanOperation(n.bool_op) ? { boolOp: n.bool_op } : {}), id: key, kind, name, ...strokeData, ...(corners ? { corners } : {}), parent: id(n.parent, `${kind} parent`), x: transform[4]!, y: transform[5]!, width, height, fill: "transparent", ...(constraints.horizontal !== "left" || constraints.vertical !== "top" ? { constraints } : {}),
       ...mask, ...(effects?.length && { effects }), ...(n.constrain_proportions === true ? { constrainProportions: true } : {}), ...(n.visible === false ? { visible: false } : {}), ...(n.locked === true ? { locked: true } : {}), ...(opacity !== 1 ? { opacity } : {}),
       ...(n.blend !== undefined && n.blend !== (!isLeafKind(kind) ? "passThrough" : "normal") ? { blend: n.blend as BlendMode } : {}) };
     let count = 0;
@@ -191,7 +180,7 @@ function readNode(key: string, value: unknown): DocumentNode {
     }
     return !isLeafKind(kind)
       ? Object.freeze({ ...withRectanglePaints(withLayerTransform({ ...layer, ...(kind === "frame" ? { kind: "frame" as const, clip: n.clip === true, ...(n.layout != null && {layout: readAutoLayout(n.layout)}) } : op ? { kind: "booleanOp" as const, op } : { kind: "group" as const }), children: Object.freeze(children), blend: (n.blend ?? "passThrough") as BlendMode }, matrix), paints), fills: paints })
-      : withRectanglePaints(withLayerTransform(kind === "ellipse" ? { ...layer, kind, start: number(n.start === undefined ? 0 : n.start, "arc start"), sweep: number(n.sweep === undefined ? 2 * Math.PI : n.sweep, "arc sweep"), inner: number(n.inner === undefined ? 0 : n.inner, "arc inner") } : kind === "polygon" ? { ...layer, kind, count } : kind === "star" ? { ...layer, kind, count, innerRatio: number(n.inner_ratio, "inner ratio") } : kind === "vector" ? { ...layer, kind, network: nativeNetwork(n.network) } : kind === "text" ? { ...layer, kind, text: readTextData(n), ...readTextSizing(n.child_layout), ...(Array.isArray(n.overrides) && n.overrides.length > 0 && {charactersOverridden: true as const}) } : { ...layer, kind }, matrix), paints);
+      : withRectanglePaints(withLayerTransform(kind === "ellipse" ? { ...layer, kind, start: number(n.start === undefined ? 0 : n.start, "arc start"), sweep: number(n.sweep === undefined ? 2 * Math.PI : n.sweep, "arc sweep"), inner: number(n.inner === undefined ? 0 : n.inner, "arc inner") } : kind === "polygon" ? { ...layer, kind, count } : kind === "star" ? { ...layer, kind, count, innerRatio: number(n.inner_ratio, "inner ratio") } : kind === "vector" ? { ...layer, kind, network: nativeNetwork(n.network) } : kind === "text" ? { ...layer, kind, text: readTextData(n), ...(Array.isArray(n.overrides) && n.overrides.length > 0 && {charactersOverridden: true as const}) } : { ...layer, kind }, matrix), paints);
   }
 }
 
@@ -437,11 +426,11 @@ export async function decodeFigcraft(source: Uint8Array | Blob): Promise<Decoded
 function wireNode(key: string, node: DocumentNode) {
   const numericId = wireId(key);
   if (node.id !== key) fail("node map key and ID differ");
-  const common = { ...(node.effects?.length && { effects: node.effects.map(wireEffect) }), ...(node.isMask && {is_mask:true}), ...(node.maskType && node.maskType !== "alpha" && {mask_type:node.maskType}), id: numericId, name: node.name, type: node.kind, ...(node.kind === "booleanOp" ? { op: node.op } : {}), ...(node.kind === "ellipse" ? { start: node.start, sweep: node.sweep, inner: node.inner } : node.kind === "star" ? { count: node.count, inner_ratio: node.innerRatio } : node.kind === "polygon" ? { count: node.count } : node.kind === "vector" ? { network: wireVectorNetwork(node.network, wirePaints) } : node.kind === "text" ? {...wireTextData(node.text), ...(node.textSizing && {child_layout:{sizing_h:node.textSizing.horizontal,sizing_v:node.textSizing.vertical}}), ...(node.charactersOverridden && {overrides: ["characters"]})} : {}) };
+  const common = { ...(node.effects?.length && { effects: node.effects.map(wireEffect) }), ...(node.isMask && {is_mask:true}), ...(node.maskType && node.maskType !== "alpha" && {mask_type:node.maskType}), id: numericId, name: node.name, type: node.kind, ...(node.kind === "booleanOp" ? { op: node.op } : {}), ...(node.kind === "ellipse" ? { start: node.start, sweep: node.sweep, inner: node.inner } : node.kind === "star" ? { count: node.count, inner_ratio: node.innerRatio } : node.kind === "polygon" ? { count: node.count } : node.kind === "vector" ? { network: wireVectorNetwork(node.network, wirePaints) } : node.kind === "text" ? {...wireTextData(node.text), ...(node.charactersOverridden && {overrides: ["characters"]})} : {}) };
   if (node.kind === "page") {
     return { ...common, width: 0, height: 0, children: node.children.map(wireId), background: pageColour(node), ...(node.prototypeBackground && { prototype: { device: "None", rotation: "portrait", background: node.prototypeBackground } }) };
   } else {
-    return { ...common, ...(node.boolOp ? { bool_op: node.boolOp } : {}), parent: wireId(node.parent), ...(!isLeaf(node) ? { children: node.children.map(wireId) } : {}), transform: layerTransform(node), width: node.width, height: node.height, ...(node.stroke ? { stroke: wireStroke(node.stroke) } : {}), ...(node.strokes ? { strokes: wirePaints(node.strokes) } : {}),
+    return { ...common, child_layout: wireChildLayout(node.childLayout, layerSizing(node)), ...(node.boolOp ? { bool_op: node.boolOp } : {}), parent: wireId(node.parent), ...(!isLeaf(node) ? { children: node.children.map(wireId) } : {}), transform: layerTransform(node), width: node.width, height: node.height, ...(node.stroke ? { stroke: wireStroke(node.stroke) } : {}), ...(node.strokes ? { strokes: wirePaints(node.strokes) } : {}),
       ...(node.corners ? { corners: node.corners } : {}), ...(node.constraints ? { constraints: node.constraints } : {}), ...(node.constrainProportions ? { constrain_proportions: true } : {}), ...(node.kind === "frame" ? { clip: node.clip, ...(node.layout && {layout: wireAutoLayout(node.layout)}) } : {}), blend: layerBlend(node), visible: node.visible ?? true, locked: node.locked ?? false, opacity: node.opacity ?? 1, fills: wirePaints(rectanglePaints(node)) };
   }
 }

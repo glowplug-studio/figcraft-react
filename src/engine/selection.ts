@@ -177,8 +177,10 @@ function queryPoint(document:Document,point:Point,tolerance:number,selection:rea
   function visitChildren(children:readonly NodeId[],parent:NodeId,world:Affine,depth:number,output?:PointLayer[]):NodeId|undefined {
     let first:NodeId|undefined;
     const masks=masksBelow(document,children);
-    for(let i=children.length-1;i>=0;i--) {
-      const node=document.nodes[children[i]];
+    const container = document.nodes[parent];
+    const firstOnTop = container?.kind === "frame" && container.layout?.reverseZ;
+    for (let step = 0; step < children.length; step++) {
+      const node = document.nodes[children[firstOnTop ? step : children.length - 1 - step]];
       if (!node || node.kind==="page" || node.parent!==parent || node.locked || node.visible===false) continue;
       try {
         const mask=masks?.get(node.id);

@@ -1,3 +1,5 @@
+import { inspectedGridCell } from "./grid-placement";
+import { layerSizing, sizeLimitKeys } from "./auto-layout";
 import { inspectText } from "./inspect-text";
 import { rotationDegrees } from "./affine";
 import { toCssHex } from "./colour";
@@ -108,12 +110,24 @@ function inspect(doc: Document, node: DocumentNode, depth: number, fields?: Set<
       if (smoothing > 0) put("cornerSmoothing", smoothing);
     }
     const parent = doc.nodes[node.parent];
+    if (node.kind === "text" || node.kind === "frame" && node.layout || parent?.kind === "frame" && parent.layout) put("sizing", layerSizing(node));
+    if (node.childLayout) {
+      put("absolute", node.childLayout.absolute);
+      for (const key of sizeLimitKeys) put(key, node.childLayout[key]);
+    }
     if (node.kind === "frame" && node.layout) put("layout", node.layout);
-    if (parent?.kind === "frame") put("constraints", node.constraints ?? defaultConstraints);
+    if (parent?.kind === "frame") {
+      if (!parent.layout || node.childLayout?.absolute) put("constraints", node.constraints ?? defaultConstraints);
+      if (wants("gridCell") && parent.layout?.mode === "grid") {
+        const cell = inspectedGridCell(doc, parent, node.id);
+        const cl = node.childLayout;
+        if (cell) put("gridCell", {...cell, anchored: cl?.gridColumn !== undefined || cl?.gridRow !== undefined,
+          alignH: cl?.gridAlignH ?? null, alignV: cl?.gridAlignV ?? null});
+      }
+    }
     if (parent?.kind === "booleanOp") put("operandOperation", node.boolOp);
     if (node.kind === "text") {
       inspectText(node.text,outline,wants,put);
-      put("sizing", node.textSizing ?? {horizontal:"fixed", vertical:"fixed"});
       if (node.charactersOverridden) put("overrides", ["characters"]);
     }
     if (node.kind === "frame") put("clip", node.clip);
