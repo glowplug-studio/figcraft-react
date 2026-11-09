@@ -121,3 +121,32 @@ it("resolves instance property variables after rebuilds and clears the binding o
   e.execute("edit.undo");
   expect(instance().boundVariables).toEqual({"componentProperties/Shown":"VariableID:5"});
 });
+
+it("uses character fills for copy and layer edits, retaining mixed text on invalid removals and undo",async()=>{
+  const e=await opened();
+  const {id}=await e.executeAsync("text.create",{text:"Hello"});
+  const text=()=>{
+    const n=e.getSnapshot().document.nodes[String(id)];
+    if (n.kind!=="text") throw new Error("Expected text");
+    return n;
+  };
+  e.execute("text.style",{id,start:1,end:5,textFills:["#ffff00"]});
+  const mixed=text();
+  expect(()=>e.execute("fill.copy",{id})).toThrow();
+  e.execute("fill.remove",{id,index:0});
+  expect(text()).toBe(mixed);
+  e.execute("fill.set",{id,color:"#0000ff"});
+  expect(text().text.runs).toHaveLength(0);
+  e.execute("edit.undo");
+  expect(text()).toBe(mixed);
+  e.execute("text.style",{id,start:0,end:5,textFills:["#00ff00"]});
+  e.execute("fill.copy",{id});
+  e.execute("fill.paste",{id:2,index:0});
+  expect(e.getSnapshot().document.nodes[2].boundVariables).toBeUndefined();
+  e.execute("fill.add",{id,color:"#ff00ff"});
+  expect(nodeFills(text()).map(p=>p.type==="solid" && p.color.g)).toEqual([1,0]);
+  expect(text().text.style.fills).toBeUndefined();
+  e.execute("text.style",{id,start:0,end:5,textFills:["#ffaa11"]});
+  e.execute("node.set",{id,fill:"#111"});
+  expect(text().text.style.fills).toBeUndefined();
+});

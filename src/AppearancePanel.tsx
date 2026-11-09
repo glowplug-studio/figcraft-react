@@ -4,10 +4,11 @@ import { usePaintActions } from "./PaintActions";
 import { useState, useSyncExternalStore, type FormEvent } from "react";
 import { parseCssColour } from "./engine/colour-css";
 import { renderColour, withAlpha } from "./engine/colour";
-import { layerBlend, maskTypes, pageColour, rectanglePaints, type PageNode, type LayerNode } from "./engine/document";
+import { layerBlend, maskTypes, pageColour, type PageNode, type LayerNode } from "./engine/document";
 import { paintColour, samePaints, solidPaint, type Paint } from "./engine/solid-paint";
 
 import type { EditorEngine } from "./engine/editor";
+import { characterFills } from "./engine/text-layer-fills";
 import { selectedRegionFills } from "./engine/fill-commands";
 
 interface AppearancePanelProps {
@@ -33,13 +34,15 @@ function AppearanceControls({ engine, page, selected, editable, dispatch, expand
     return node.kind !== "page" && layerBlend(node) === firstBlend;
   }) ? firstBlend : undefined;
   const showBlend = expanded || !!blend && blend !== "normal" && blend !== "passThrough";
-  const inherited = selected ? rectanglePaints(selected) : [];
+  const inherited = selected ? characterFills(selected) : [];
   const regionPaints = selected && ids.length === 1 ? selectedRegionFills(selected, state) : undefined;
-  const mixed = regionPaints === null || ids.length > 1 && ids.some(id => {
+  const mixed = inherited === null || regionPaints === null || ids.length > 1 && ids.some(id => {
     const node = snapshot.document.nodes[id];
-    return node.kind !== "page" && !samePaints(inherited, rectanglePaints(node));
+    if (node.kind==="page") return false;
+    const shown=characterFills(node);
+    return shown===null || !samePaints(inherited,shown,false);
   });
-  const paints = mixed ? [] : regionPaints ?? inherited;
+  const paints = mixed ? [] : regionPaints ?? inherited ?? [];
   const updatePaint = (index: number, paint: Paint) => dispatch("fill.set", { ids, index, paint });
   const {openMenu, popup} = usePaintActions("fill", editable, engine.hasCopiedFill(), ids, dispatch);
   const parseInput = (input: string) => {

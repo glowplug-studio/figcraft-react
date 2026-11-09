@@ -1,3 +1,4 @@
+import { characterFills, takeCharacterFills } from "./text-layer-fills";
 import { editPaintBindings } from "./list-variable-bindings";
 import type { CopiedPaint } from "./paint-clipboard";
 import { arrangementTargets } from "./arrange";
@@ -53,7 +54,7 @@ export function copyPaint(list: CopiedPaint["list"], document: Document, selecti
   if (!node || node.kind === "page") throw new Error("Select a layer to copy a " + list);
   const selected = list === "fill" ? selectedRegionFills(node, state) : undefined;
   if (selected === null) throw new Error("The selected regions' fills differ");
-  const paints = list === "stroke" ? node.strokes ?? [] : selected ?? rectanglePaints(node);
+  const paints = list === "stroke" ? node.strokes ?? [] : selected ?? characterFills(node) ?? [];
   const at = params.index == null ? Math.max(0, paints.length - 1) : parseIndex(params.index);
   const paint = paints[at];
   if (!paint) throw new Error(`No ${list} at index ${at}`);
@@ -93,9 +94,19 @@ export function writeFill(command: WriteCommand, document: Document, selection: 
         draft.set({ ...node, network: Object.freeze({ ...node.network, regions: Object.freeze(next) }) });
       }
     } else {
-      const fills = apply(inherited, isFrameLike(node) && action === "add" ? white : grey);
-      const updated=editPaintBindings(node,"fills",action,params,inherited,fills);
-      if (!samePaints(inherited,fills)) draft.set(withRectanglePaints(updated, fills));
+      if (node.kind==="text" && (action==="remove" || action==="move")) {
+        const shown=characterFills(node);
+        const length=shown?.length ?? (action==="move" ? inherited.length : 0);
+        if (action==="remove" && (params.index==null ? !length : parseIndex(params.index)>=length)) continue;
+        if (action==="move") {
+          const from=parseIndex(params.from),to=parseIndex(params.to);
+          if (from>=length || to>=length || from===to) continue;
+        }
+      }
+      const layer=takeCharacterFills(node), prior=rectanglePaints(layer);
+      const fills = apply(prior, isFrameLike(layer) && action === "add" ? white : grey);
+      const updated=editPaintBindings(layer,"fills",action,params,prior,fills);
+      if (!samePaints(prior,fills)) draft.set(withRectanglePaints(updated, fills));
       else if (updated!==node) draft.set(updated);
     }
   }

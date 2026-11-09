@@ -91,7 +91,8 @@ describe("native effective region fill commands", () => {
     f.engine.execute("fill.set", { color: "rgba(255,0,0,.25)", opacity: "50%", visible: false, blend: "passThrough" });
     const paint = f.stack(1)![0], depth = f.engine.getUndoDepth();
     expect(paint).toMatchObject({ opacity: .5, colorAlpha: 1, visible: false, blend: "passThrough" });
-    expect(f.engine.execute("fill.copy")).toEqual(paint); expect(f.engine.getUndoDepth()).toBe(depth);
+    const {colorAlpha,...wire}=paint;
+    expect(f.engine.execute("fill.copy")).toEqual(wire); expect(f.engine.getUndoDepth()).toBe(depth);
     f.select([0, 1]); expect(() => f.engine.execute("fill.copy")).toThrow(/differ/);
     f.engine.execute("fill.paste", { regions: [0] }); expect(f.stack(0)![1]).toEqual(paint);
     f.engine.execute("fill.paste", { regions: [0], index: 0 }); expect(f.stack(0)).toEqual([paint, paint]);

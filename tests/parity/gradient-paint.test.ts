@@ -45,7 +45,7 @@ describe("native gradient command and document routes", () => {
     const value = engine.execute("fill.copy");
     expect(value).toMatchObject(paint);
     engine.execute("fill.paste",{regions:[0],index:0});
-    expect(node().network.regions.map(region => region.fills)).toEqual([[value],[value]]);
+    expect(node().network.regions.map(region => region.fills)).toEqual([[readPaint(value)],[readPaint(value)]]);
     const original = node(), bytes = await engine.nativeSnapshot();
     await engine.executeAsync("file.open",{data:base64Bytes(bytes)});
     expect(node().network.regions).toEqual(original.network.regions);

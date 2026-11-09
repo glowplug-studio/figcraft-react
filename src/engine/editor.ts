@@ -27,7 +27,8 @@ import { listKey } from "./text-list-edit";
 import { copyEffect, editEffects, effectSpecs } from "./effect-commands";
 import { wireEffect, type Effect } from "./effects";
 import type { BlendMode } from "./blend";
-import { isLeaf, isFrameLike, isGroupLike, rectanglePaints } from "./document";
+import { characterFills } from "./text-layer-fills";
+import { isLeaf, isFrameLike, isGroupLike } from "./document";
 import { editImagePaints, editImagePreset, imageEditSpecs, startImageCrop, type CropTarget } from "./image-commands";
 import { listImagePresets } from "./image-filters";
 import { getNode } from "./inspect";
@@ -59,7 +60,7 @@ import { boundsOf, defaultViewport, executeView, fitPage, fitView, viewSpecs, ty
 import { framePresets } from "./frame-presets";
 import { parseColourProfile } from "./colour-spaces";
 import { setDocumentProfile } from "./document-profile";
-import { parseBoolean, parseNumber, parseString } from "./parameters";
+import { inspectedId, parseBoolean, parseNumber, parseString } from "./parameters";
 import { arrangeSpecs, executeArrange } from "./arrange";
 import { anchors, sizingSpecs, executeSizing } from "./sizing";
 import { executeRotation, localOrigin, movedOrigin, originBoxPoints, originSpecs, rotationSpecs, sameIds, snappedOrigin, validateChangedGeometry, type OriginSnapshot, type RotationOrigin } from "./rotation";
@@ -553,7 +554,7 @@ export class EditorEngine {
     const node=this.getRenderDocument().nodes[ids[0]];
     if (!node || node.kind === "page") return;
     const regions=picker.list==="fill" ? selectedRegionFills(node,this.getRenderVectorEdit()) : undefined;
-    const stack=picker.list==="stroke" ? node.strokes : regions===undefined ? rectanglePaints(node) : regions;
+    const stack=picker.list==="stroke" ? node.strokes : regions===undefined ? characterFills(node) : regions;
     const paint=stack?.[picker.index];
     if (paint) return {node,paint,picker};
   }
@@ -1085,7 +1086,8 @@ export class EditorEngine {
       this.#copiedPaint = copyPaint(list, this.#snapshot.document, this.#snapshot.selection, p, this.#vectorEdit);
       if (this.#copiedPaint.paint.type === "pattern") this.#copiedPaint.documentIdentity = this.#documentIdentity;
       if (previous !== list) this.#publish({});
-      return { ...this.#copiedPaint.paint };
+      const {colorAlpha,...paint}=this.#copiedPaint.paint;
+      return {...paint,...(paint.type==="pattern" && {source:inspectedId(paint.source)}),...(colorAlpha!==1 && {colorAlpha})};
     }
     if (Object.hasOwn(fillSpecs, command) || command === "stroke.paste") {
       const before = this.#snapshot;

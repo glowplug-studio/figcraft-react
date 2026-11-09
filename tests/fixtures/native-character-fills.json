@@ -1,0 +1,218 @@
+{
+  "comments": [],
+  "current_page": 1,
+  "document_colors": [],
+  "format": "figcraft",
+  "imageIndex": [],
+  "name": "Untitled",
+  "next_id": 4,
+  "nodes": {
+    "1": {
+      "background": {
+        "a": 1.0,
+        "b": 0.9607843160629272,
+        "g": 0.9607843160629272,
+        "r": 0.9607843160629272
+      },
+      "children": [
+        2,
+        3
+      ],
+      "flows": [],
+      "height": 0.0,
+      "id": 1,
+      "name": "Page 1",
+      "prototype": {
+        "background": {
+          "a": 1.0,
+          "b": 0.11764705926179886,
+          "g": 0.11764705926179886,
+          "r": 0.11764705926179886
+        },
+        "device": "None",
+        "rotation": "portrait"
+      },
+      "type": "page",
+      "width": 0.0
+    },
+    "2": {
+      "blend": "normal",
+      "characters": "Mixed sample",
+      "child_layout": {
+        "absolute": false,
+        "grid_column": null,
+        "grid_column_span": 0,
+        "grid_row": null,
+        "grid_row_span": 0,
+        "max_h": null,
+        "max_w": null,
+        "min_h": null,
+        "min_w": null,
+        "sizing_h": "hug",
+        "sizing_v": "hug"
+      },
+      "fills": [
+        {
+          "blend": "normal",
+          "color": {
+            "a": 1.0,
+            "b": 0.0,
+            "g": 0.0,
+            "r": 0.0
+          },
+          "opacity": 1.0,
+          "type": "solid",
+          "visible": true
+        }
+      ],
+      "height": 15.0,
+      "id": 2,
+      "name": "Mixed sample",
+      "parent": 1,
+      "runs": [
+        {
+          "end": 5,
+          "start": 1,
+          "style": {
+            "case": "original",
+            "decoration": "none",
+            "fills": [
+              {
+                "blend": "normal",
+                "color": {
+                  "a": 1.0,
+                  "b": 0.0,
+                  "g": 0.800000011920929,
+                  "r": 1.0
+                },
+                "opacity": 1.0,
+                "type": "solid",
+                "visible": true
+              }
+            ],
+            "font_family": "Inter",
+            "font_size": 12.0,
+            "font_style": "Regular",
+            "letter_spacing": {
+              "unit": "percent",
+              "value": 0.0
+            },
+            "line_height": {
+              "unit": "auto"
+            },
+            "link": null
+          }
+        }
+      ],
+      "style": {
+        "case": "original",
+        "decoration": "none",
+        "fills": null,
+        "font_family": "Inter",
+        "font_size": 12.0,
+        "font_style": "Regular",
+        "letter_spacing": {
+          "unit": "percent",
+          "value": 0.0
+        },
+        "line_height": {
+          "unit": "auto"
+        },
+        "link": null
+      },
+      "transform": [
+        1.0,
+        0.0,
+        0.0,
+        1.0,
+        40.0,
+        30.0
+      ],
+      "type": "text",
+      "width": 79.0
+    },
+    "3": {
+      "blend": "normal",
+      "characters": "Shared sample",
+      "child_layout": {
+        "absolute": false,
+        "grid_column": null,
+        "grid_column_span": 0,
+        "grid_row": null,
+        "grid_row_span": 0,
+        "max_h": null,
+        "max_w": null,
+        "min_h": null,
+        "min_w": null,
+        "sizing_h": "hug",
+        "sizing_v": "hug"
+      },
+      "fills": [
+        {
+          "blend": "normal",
+          "color": {
+            "a": 1.0,
+            "b": 0.0,
+            "g": 0.0,
+            "r": 0.0
+          },
+          "opacity": 1.0,
+          "type": "solid",
+          "visible": true
+        }
+      ],
+      "height": 15.0,
+      "id": 3,
+      "name": "Shared sample",
+      "parent": 1,
+      "style": {
+        "case": "original",
+        "decoration": "none",
+        "fills": [
+          {
+            "blend": "normal",
+            "color": {
+              "a": 1.0,
+              "b": 0.0,
+              "g": 0.800000011920929,
+              "r": 1.0
+            },
+            "opacity": 1.0,
+            "type": "solid",
+            "visible": true
+          }
+        ],
+        "font_family": "Inter",
+        "font_size": 12.0,
+        "font_style": "Regular",
+        "letter_spacing": {
+          "unit": "percent",
+          "value": 0.0
+        },
+        "line_height": {
+          "unit": "auto"
+        },
+        "link": null
+      },
+      "transform": [
+        1.0,
+        0.0,
+        0.0,
+        1.0,
+        200.0,
+        30.0
+      ],
+      "type": "text",
+      "width": 85.0
+    }
+  },
+  "pages": [
+    1
+  ],
+  "styles": [],
+  "variables": {
+    "collections": [],
+    "variables": []
+  },
+  "version": 1
+}

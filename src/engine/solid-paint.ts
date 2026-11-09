@@ -98,11 +98,11 @@ export function paintColour(paint: SolidPaint): Colour {
 }
 
 const sameColour = (a: Colour, b: Colour) => a.r === b.r && a.g === b.g && a.b === b.b && a.a === b.a;
-export function samePaints(left: readonly Paint[], right: readonly Paint[]): boolean {
+export function samePaints(left: readonly Paint[], right: readonly Paint[], compareAlphaSource = true): boolean {
   return left.length === right.length && left.every((a, i) => {
     const b = right[i];
     if (a === b) return true;
-    if (a.opacity !== b.opacity || a.visible !== b.visible || a.blend !== b.blend || a.colorAlpha !== b.colorAlpha) return false;
+    if (a.opacity !== b.opacity || a.visible !== b.visible || a.blend !== b.blend || (compareAlphaSource && a.colorAlpha !== b.colorAlpha)) return false;
     if (a.type === "solid") return b.type === "solid" && sameColour(a.color,b.color);
     if (a.type === "pattern") return b.type === "pattern" && a.source === b.source && a.tile === b.tile && a.scale === b.scale
       && a.align === b.align && a.spacing[0] === b.spacing[0] && a.spacing[1] === b.spacing[1];

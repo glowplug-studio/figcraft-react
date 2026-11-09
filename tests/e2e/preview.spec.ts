@@ -5996,3 +5996,41 @@ test("layer paint variables detach, rebind and survive recovery and native downl
   expect(document.nodes[2].boundVariables).toEqual({"fills/0/color":"VariableID:1"});
   expect(document.nodes[2].fills?.[0]).toMatchObject({color:{a:Math.fround(192/255)},opacity:1});
 });
+
+test("layer fills replace mixed character colours and promote a shared character paint", async ({ page }) => {
+  await login(page);
+  await page.getByLabel("Open Figcraft file", { exact: true }).setInputFiles(new URL("../fixtures/native-character-fills.json", import.meta.url).pathname);
+  const layers = page.getByRole("region", { name: "Layers", exact: true });
+  const fills = page.getByRole("region", { name: "Appearance" }).getByRole("group", { name: "Fills", exact: true });
+  const mixed = fills.getByText("Click + to replace mixed content");
+  const colours = fills.getByRole("textbox", { name: /Fill \d+ CSS colour/ });
+
+  await layers.getByRole("button", { name: "Mixed sample", exact: true }).click();
+  await expect(mixed).toBeVisible();
+  await expect(colours).toHaveCount(0);
+  await fills.getByRole("button", { name: "Add fill", exact: true }).click();
+  await expect(mixed).toHaveCount(0);
+  await expect(colours).toHaveCount(2);
+  await page.getByRole("button", { name: "Undo", exact: true }).click();
+  await expect(mixed).toBeVisible();
+
+  await layers.getByRole("button", { name: "Shared sample", exact: true }).click();
+  await expect(colours).toHaveCount(1);
+  const yellow = await colours.inputValue();
+  expect(yellow).toMatch(/^rgba\(255,204[\d.]*,0,1\)$/);
+  await fills.getByRole("button", { name: "Add fill", exact: true }).click();
+  await expect(colours.nth(1)).toHaveValue(yellow);
+  await expect(page.locator(".figcraft-recovery")).toHaveText("Recovery saved on this device");
+  await page.reload();
+  await layers.getByRole("button", { name: "Shared sample", exact: true }).click();
+  await expect(colours.nth(1)).toHaveValue(yellow);
+  const downloading = page.waitForEvent("download");
+  await page.getByRole("button", { name: "Save as", exact: true }).click();
+  const { document } = await decodeFigcraft(await readFile((await (await downloading).path())!));
+  const shared = document.nodes[3];
+  expect(shared.kind).toBe("text");
+  if (shared.kind !== "text") throw new Error("Missing shared text layer");
+  expect(shared.fills).toHaveLength(2);
+  expect(shared.text.style.fills).toBeUndefined();
+  expect(shared.text.runs.every(run => run.style.fills === undefined)).toBe(true);
+});
