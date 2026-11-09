@@ -1,3 +1,4 @@
+import { fixTextSize } from "./text-sizing";
 import { isTextKey, setTextProperties, textCommandProperties } from "./text-properties";
 import { textSpans } from "./text-ranges";
 import { fitEditedText, fontStyleWarning } from "./text-node-layout";
@@ -158,6 +159,7 @@ export function setRectangleProperties(document: Document, selection: readonly N
         draft.set({ ...node, width, height });
         resizeChildren(draft, id, oldWidth, oldHeight);
       }
+      if (arcNode.kind === "text") arcNode = fixTextSize(arcNode,isWidth,!isWidth);
       if (arcNode.kind === "vector" && (width !== oldWidth || height !== oldHeight)) arcNode = withLayerSize(arcNode, width, height);
     }
     let transform = rectangleTransform(node);
@@ -176,7 +178,7 @@ export function setRectangleProperties(document: Document, selection: readonly N
       if (updated.kind !== "text") throw new Error("Text properties require a text layer");
       updated = setTextProperties(updated, props, textKeys);
     }
-    if (updated.kind === "text" && node.kind === "text" && (textKeys.length || width !== node.width || height !== node.height))
+    if (updated.kind === "text" && node.kind === "text" && (textKeys.length || arcNode !== node || width !== node.width || height !== node.height))
       updated = fitEditedText(updated, node);
     const changeBlend = blend !== undefined && blend !== layerBlend(node);
     if (changeBlend) {

@@ -1,3 +1,4 @@
+import { fixTextSize, refitResizedText } from "./text-sizing";
 import { placementCrop } from "./image-placement";
 import { rectanglePaints, withRectanglePaints, withLayerSize } from "./document";
 import { inverse, multiply, transformPoint, type Affine } from "./affine";
@@ -67,6 +68,11 @@ export function previewResize(document: Document, start: ResizeStart, point: Poi
         }
       }
       setWorld(id, world); size(id, Math.max(.01, width), Math.max(.01, height), preserve);
+      const resized=draft.nodes[id];
+      if (resized.kind==="text") {
+        const side=handle.kind==="edge" && (handle.index===1 || handle.index===3);
+        draft.set(fixTextSize(resized,side || handle.kind==="corner",!side,true));
+      }
       for (const child of kept) setWorld(child.id, child.world);
     } else {
       const sx = frame.width > 1e-9 ? (x1 - x0) / frame.width : 1, sy = frame.height > 1e-9 ? (y1 - y0) / frame.height : 1;
@@ -81,5 +87,6 @@ export function previewResize(document: Document, start: ResizeStart, point: Poi
       }
     }
   }
+  refitResizedText(draft,document);
   draft.normaliseGroups(); return { document: validateChangedGeometry(draft), hint };
 }

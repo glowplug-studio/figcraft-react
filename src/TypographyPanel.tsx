@@ -1,4 +1,5 @@
 import { useState, useSyncExternalStore, type RefObject } from "react";
+import { canSupplyTextPath } from "./engine/text-path-commands";
 import type { EditorEngine } from "./engine/editor";
 import { familyStyles, fontFamilies } from "./engine/text-node-layout";
 import { paragraphList, paragraphSpan, scalarCount, textSpans } from "./engine/text-ranges";
@@ -22,7 +23,7 @@ function Field({label, value, apply}: {label:string; value?:string; apply:(value
     }} /></label>;
 }
 
-export function TypographyPanel({engine, editable, apply, onLeave, linkDialog, link}: {engine:EditorEngine; linkDialog:RefObject<HTMLDialogElement|null>; link:(ids:string[],url:string)=>void; editable:boolean;
+export function TypographyPanel({engine, editable, apply, onLeave, linkDialog, link, run}: {engine:EditorEngine; linkDialog:RefObject<HTMLDialogElement|null>; link:(ids:string[],url:string)=>void; run:(command:string,params:Record<string,unknown>)=>void; editable:boolean;
   apply:(ids:string[], props:Record<string,unknown>) => void; onLeave:() => void}) {
   const live = useSyncExternalStore(engine.subscribeCanvas, engine.getTextRange, engine.getTextRange);
   const {document, selection} = engine.getSnapshot();
@@ -46,6 +47,9 @@ export function TypographyPanel({engine, editable, apply, onLeave, linkDialog, l
       {[...new Set([...options, ...values])].map(name => <option key={name} value={name}>{name}</option>)}
     </select></label>;
   }
+  const allOnPath = nodes.every(n=>n.text.path);
+  const source = !live && selection.length===2 && nodes.length===1 && selection.map(id=>document.nodes[id]).some(canSupplyTextPath);
+  const flipped = allOnPath && nodes.every(n=>n.text.path?.flip);
   const family = common(styles.map(s => s.fontFamily));
   return <fieldset aria-label="Typography" data-figcraft-typography="" disabled={!editable} onBlur={e => {
     const next = e.relatedTarget;
@@ -61,6 +65,12 @@ export function TypographyPanel({engine, editable, apply, onLeave, linkDialog, l
     {select("textAlign", "Text alignment", nodes.map(n=>n.text.alignH), ["left","center","right","justified"])}
     {select("textAlignVertical", "Vertical text alignment", nodes.map(n=>n.text.alignV), ["top","middle","bottom"])}
     {select("textAutoResize", "Text resizing", nodes.map(n=>n.text.autoResize), ["widthAndHeight","height","none","truncate"])}
+    {allOnPath ? <>
+      <Field label="Start on path (%)" value={common(nodes.map(n=>String(n.text.path!.start*100)))}
+        apply={v=>{ const n=Number(v); if (Number.isFinite(n)) run("text.pathOptions",{ids,start:n/100}); }} />
+      <button type="button" aria-pressed={flipped} onClick={()=>run("text.pathOptions",{ids,flip:!flipped})}>Flip text to the other side</button>
+      <button type="button" onClick={()=>run("text.removeFromPath",{ids})}>Remove text from path</button>
+    </> : source && <button type="button" onClick={()=>run("text.onPath",{ids:selection})}>Put text on path</button>}
     <dialog ref={linkDialog} aria-label="Create link" onClose={e=>e.currentTarget.querySelector("form")?.reset()}>
       <form method="dialog" onSubmit={e=>{
         const url = new FormData(e.currentTarget).get("url");

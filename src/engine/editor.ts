@@ -1,5 +1,6 @@
 import { executeTextFormat, isTextFormatCommand, textFormatSpecs } from "./text-format-commands";
 import { sameTextData, scalarCount } from "./text-ranges";
+import { putTextOnPath } from "./text-path-commands";
 import { textLinkAt } from "./text-link";
 import { listKey } from "./text-list-edit";
 import { copyEffect, editEffects, effectSpecs } from "./effect-commands";
@@ -58,6 +59,7 @@ export const commandSpecs = Object.freeze({
   ...effectSpecs,
   ...strokeSpecs,
   ...textFormatSpecs,
+  "text.onPath": {label:"Text on path",undo:true},
   "text.openLink": {label:"Open link",undo:false},
   ...fillSpecs,
   ...arrangeSpecs,
@@ -607,6 +609,14 @@ export class EditorEngine {
     if (preservePen && command === "tool.pen") { if (Object.keys(p).length) throw new Error("tool.pen takes no parameters"); return {}; }
     const gesture = Object.hasOwn(smartSpecs, command) && command !== "arrange.roundToPixels" && parseBoolean(p.fromGesture) === true;
     if (!gesture && !preservePen) { const interacting = this.interacting; this.pencil.cancel(); if (this.pen.open) this.pen.cancel(); else this.cancelInteraction(); if (interacting && command === "edit.undo") return { undone: true }; }
+    if (command === "text.onPath") {
+      const before = this.#snapshot;
+      const {document,selection,result} = putTextOnPath(before.document,before.selection,p);
+      this.#undo.push({document:before.document,selection:before.selection});
+      this.#redo = [];
+      this.#publish({document,selection});
+      return result;
+    }
     if (Object.hasOwn(vectorEditSpecs, command) || (this.#vectorEdit && isVectorJoin(command))) {
       const before = this.#snapshot, oldState = this.#vectorEdit, next = executeVectorEdit(isVectorJoin(command) ? command : command as VectorEditCommand, before.document, before.selection, oldState, p, this.#nextId);
       if (next.nextId !== undefined) this.#nextId = next.nextId;

@@ -4250,3 +4250,27 @@ test("create-link shortcuts retain the selected characters and Alt+Enter opens o
   const saved=await decodeFigcraft(await readFile((await (await download).path())!));
   expect(saved.document.nodes["2"]).toMatchObject({text:{characters:"A🙂BC",runs:[{start:1,end:2,style:{link:"javascript:alert(1)",decoration:"underline"}}]}});
 });
+
+test("attach text to a curved layer, change its offset and side, then detach and undo",async ({page})=>{
+  const engine=new EditorEngine();
+  await engine.executeAsync("text.create",{name:"Route label",text:"Curved text",x:65,y:50});
+  engine.execute("vector.create",{name:"Route path",x:120,y:90,path:"M0 0C40 50 90 50 140 0",props:{fill:"#c61f42"}});
+  await login(page);
+  await page.getByLabel("Open Figcraft file",{exact:true}).setInputFiles({name:"text-path.figcraft",mimeType:"application/octet-stream",buffer:Buffer.from(await encodeFigcraft(engine.getSnapshot().document))});
+  const tree=page.getByRole("region",{name:"Layers",exact:true});
+  const layer=(name:string)=>tree.getByRole("button",{name,exact:true});
+  await layer("Route label").click(); await layer("Route path").click({modifiers:["Shift"]});
+  const panel=page.getByRole("group",{name:"Typography",exact:true});
+  await panel.getByRole("button",{name:"Put text on path"}).click();
+  await expect(layer("Route path")).toHaveCount(0);
+  const offset=panel.getByLabel("Start on path (%)");
+  await offset.fill("25"); await offset.press("Enter");
+  const flip=panel.getByRole("button",{name:"Flip text to the other side"});
+  await flip.click(); await expect(flip).toHaveAttribute("aria-pressed","true");
+  const download=page.waitForEvent("download"); await page.getByRole("button",{name:"Save as",exact:true}).click();
+  const saved=await decodeFigcraft(await readFile((await (await download).path())!));
+  expect(saved.document.nodes["2"]).toMatchObject({kind:"text",fill:"#c61f42",text:{path:{start:.25,flip:true}}});
+  expect(saved.document.nodes["3"]).toBeUndefined();
+  await panel.getByRole("button",{name:"Remove text from path"}).click(); await expect(offset).toHaveCount(0);
+  await page.getByRole("button",{name:"Undo",exact:true}).click(); await expect(offset).toHaveValue("25");
+});

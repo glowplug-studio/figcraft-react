@@ -173,12 +173,12 @@ export function commonParagraphList(t: TextData, start: number, end: number) {
 
 export function sameTextData(a:TextData,b:TextData) {
   if (a===b) return true;
-  for (const k of Object.keys(a) as (keyof TextData)[]) {
+  for (const k of new Set([...Object.keys(a),...Object.keys(b)] as (keyof TextData)[])) {
     if (a[k]===b[k]) continue;
     if (k==="style") { if (!sameTextStyle(a.style,b.style)) return false; }
     else if (k==="runs") {
       if (a.runs.length!==b.runs.length || a.runs.some((r,i)=>r.start!==b.runs[i].start || r.end!==b.runs[i].end || !sameTextStyle(r.style,b.runs[i].style))) return false;
-    } else if (k==="paragraphs" || k==="features") {
+    } else if (k==="paragraphs" || k==="features" || k==="path") {
       if (JSON.stringify(a[k])!==JSON.stringify(b[k])) return false;
     } else return false;
   }

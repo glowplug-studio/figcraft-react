@@ -4,6 +4,7 @@ import { HierarchyDraft, subtreeIds } from "./hierarchy";
 import { parseBoolean, parseNodeId, parseNumber, parseString, propertyEnum } from "./parameters";
 import { validateChangedGeometry } from "./rotation";
 import type { TextData } from "./text-data";
+import { textPathOffset } from "./text-path-commands";
 import { listKey } from "./text-list-edit";
 import { fitEditedText } from "./text-node-layout";
 import { featureValues, variationValues, styledName, weightName } from "./text-properties";
@@ -12,6 +13,7 @@ import { lineHeightPx, setFontStyle, textItalic, textWeight, type TextStyle } fr
 import { stepFontWeight } from "./text-weight-step";
 
 const titles = {
+  pathOptions:"Text path options", removeFromPath:"Remove text from path",
   bold:"Bold", italic:"Italic", underline:"Underline", strikethrough:"Strikethrough", link:"Create link",
   alignLeft:"Align left", alignRight:"Align right", alignCenter:"Align centre", alignJustify:"Justify",
   sizeUp:"Increase font size", sizeDown:"Decrease font size", weightUp:"Increase font weight", weightDown:"Decrease font weight",
@@ -30,7 +32,7 @@ export const isTextFormatCommand = (id:string): id is TextFormatCommand => Objec
 type Params = Record<string,unknown>;
 type Range = {node:TextNode; start:number; end:number};
 const parameters: Partial<Record<Action, readonly string[]>> = {
-  link:["url"], case:["case"], decoration:["decoration"], listStyle:["style","list"], wrapStyle:["style"],
+  pathOptions:["start","flip"], link:["url"], case:["case"], decoration:["decoration"], listStyle:["style","list"], wrapStyle:["style"],
   direction:["direction"], paragraphSpacing:["spacing"], paragraphIndent:["indent"], maxLines:["lines"],
   setFeatures:["features","replace"], setVariations:["variations","replace"],
 };
@@ -43,6 +45,15 @@ function styleChange(edit:(s:TextStyle)=>TextStyle): Change {
 
 function formatChange(action:Action, p:Params, all:All, allListed:(l:"numbered"|"bulleted")=>boolean): Change {
   switch (action) {
+    case "pathOptions": {
+      const start = textPathOffset(p.start), flip = parseBoolean(p.flip);
+      return t => t.path ? {...t,path:Object.freeze({...t.path,start:start ?? t.path.start,flip:flip ?? t.path.flip})} : t;
+    }
+    case "removeFromPath": return t => {
+      if (!t.path) return t;
+      const {path, ...rest} = t;
+      return {...rest,autoResize:"widthAndHeight"};
+    };
     case "bold": {
       const bold = all(s=>textWeight(s)>=700);
       return styleChange(s=>setFontStyle(s,styledName(bold?"Regular":"Bold",textItalic(s))));

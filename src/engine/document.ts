@@ -1,3 +1,4 @@
+import { scaleTextPathData } from "./text-path-data";
 import type { TextData } from "./text-data";
 import type { Effect } from "./effects";
 import type { BlendMode } from "./blend";
@@ -162,6 +163,11 @@ export function withLayerSize(node: LayerNode, width: number, height: number): L
   if (node.kind === "vector" && (Math.abs(width - node.width) >= 1e-9 || Math.abs(height - node.height) >= 1e-9)) {
     const network = transformNetwork(node.network, [node.width > 1e-9 ? width / node.width : 1, 0, 0, node.height > 1e-9 ? height / node.height : 1, 0, 0]);
     return Object.freeze({ ...node, width, height, network });
+  }
+  if (node.kind === "text" && node.text.path && (Math.abs(width-node.width)>=1e-9 || Math.abs(height-node.height)>=1e-9)) {
+    const sx=node.width>1e-9 ? width/node.width : 1, sy=node.height>1e-9 ? height/node.height : 1;
+    const path=Object.freeze({...node.text.path,d:scaleTextPathData(node.text.path.d,sx,sy)});
+    return Object.freeze({...node,width,height,text:Object.freeze({...node.text,path})});
   }
   return Object.freeze({ ...node, width, height });
 }
