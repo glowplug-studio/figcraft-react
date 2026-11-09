@@ -138,8 +138,8 @@ function hitsLayer(node:LayerNode, world:Affine, point:Point, tolerance:number):
   if (node.kind==="group" || node.kind==="booleanOp") return false;
   const local=world[0]===1 && world[1]===0 && world[2]===0 && world[3]===1
     ? {x:point.x-world[4],y:point.y-world[5]} : transformPoint(inverse(world),point);
-  if (isFrameLike(node) || node.kind==="text") return local.x>=-tolerance && local.x<=node.width+tolerance
-    && local.y>=-tolerance && local.y<=node.height+tolerance;
+  if (isFrameLike(node) || node.kind==="text") return local.x>=-tolerance && local.x<node.width+tolerance
+    && local.y>=-tolerance && local.y<node.height+tolerance;
   if (node.kind==="line") {
     const half=Math.max(strokeMaxWeight(node.stroke??defaultStroke)/2,tolerance*2.5);
     return local.x>=-half && local.x<=node.width+half && Math.abs(local.y)<=half;

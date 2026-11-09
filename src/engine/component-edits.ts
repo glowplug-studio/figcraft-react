@@ -251,9 +251,6 @@ function followComponentValues(before: Document, after: Document, changed: reado
     if (!groups.length) continue;
     const recorded = recordOverrides(before,after,node,groups);
     if (recorded !== node) (draft ??= new HierarchyDraft(after)).set(recorded);
-    if (node.kind === "componentSet" && groups.includes("name")) {
-      for (const child of node.children) if (after.nodes[child].kind === "component") pending.push({id:child,groups:["name"]});
-    }
     if (main) pending.push({id:node.id,groups});
   }
   if (!pending.length && !rebuild.size && !structures.size && !resync.size) return {document:draft?.finish() ?? after,nextId};

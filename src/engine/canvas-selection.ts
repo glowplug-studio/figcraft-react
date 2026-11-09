@@ -1,10 +1,11 @@
 import { isFrameLike, isLeaf } from "./document";
 import type { Document, NodeId } from "./document";
-import { inverse, transformPoint } from "./affine";
+import { inverse, transformBounds, transformPoint } from "./affine";
 import type { Point, Rectangle } from "./geometry";
 import { worldTransform } from "./hierarchy";
 import { boundsOf } from "./viewport";
 import { selectionFrame } from "./rotation";
+import { slotName } from "./component-tree";
 import { targetForLeaf } from "./selection";
 
 export const containsPoint = (r: Rectangle, p: Point): boolean => p.x >= r.x && p.y >= r.y && p.x <= r.x + r.width && p.y <= r.y + r.height;
@@ -45,23 +46,31 @@ export function enterTarget(document: Document, leaf: NodeId, selected: readonly
 /** Native deepest eligible destination, excluding the complete moving branches. */
 export function frameAt(document: Document, point: Point, exclude: readonly NodeId[], intent: "create" | "drop" = "create"): NodeId | undefined {
   const omitted = new Set(exclude);
-  const visit = (id: NodeId, depth: number, inLayout: boolean): NodeId | undefined => {
+  const visit = (id: NodeId, depth: number, inLayout: boolean, insideInstance: boolean): NodeId | undefined => {
     const node = document.nodes[id];
     if (!node || node.kind === "page" || depth > 128 || omitted.has(id) || node.visible === false || node.locked) return;
     if (isLeaf(node)) return;
     if (isFrameLike(node)) {
       try {
-        if (!containsPoint({ x: 0, y: 0, width: node.width, height: node.height }, transformPoint(inverse(worldTransform(document, id)), point))) return;
+        const matrix = worldTransform(document,id);
+        const local = transformPoint(inverse(matrix),point);
+        if (local.x < 0 || local.y < 0 || local.x >= node.width || local.y >= node.height) return;
+        const box = transformBounds(matrix,node.width,node.height);
+        if (point.x < box.x || point.y < box.y || point.x >= box.x + box.width || point.y >= box.y + box.height) return;
       } catch { return; }
     }
+    const slot = (insideInstance || inLayout) && slotName(document,id) !== undefined;
+    const locked = node.kind === "instance" || (insideInstance && !slot);
+    const flow = inLayout || (intent === "drop" && isFrameLike(node) && Boolean(node.layout));
     for (const child of [...node.children].reverse()) {
-      const found = visit(child, depth + 1, inLayout || (intent === "drop" && isFrameLike(node) && Boolean(node.layout))); if (found) return found;
+      const found = visit(child, depth + 1, flow, locked);
+      if (found) return found;
     }
-    return isFrameLike(node) && (!inLayout || node.layout) ? id : undefined;
+    return isFrameLike(node) && !locked && (!inLayout || node.layout || slot) ? id : undefined;
   };
   const page = document.nodes[document.currentPage];
   if (page.kind !== "page") return;
-  for (const id of [...page.children].reverse()) { const found = visit(id, 0, false); if (found) return found; }
+  for (const id of [...page.children].reverse()) { const found = visit(id, 0, false, false); if (found) return found; }
   return;
 }
 export function dropParent(document: Document, point: Point, exclude: readonly NodeId[]) {
@@ -69,7 +78,7 @@ export function dropParent(document: Document, point: Point, exclude: readonly N
 }
 export function dragParent(document: Document, point: Point, moving: readonly NodeId[]): NodeId {
   const hit = dropParent(document, point, moving), home = document.nodes[moving[0]]?.parent;
-  if (home && isFrameLike(document.nodes[home]) && (!hit || hit !== home && ancestorIds(document, home).includes(hit))) {
+  if (home && isFrameLike(document.nodes[home]) && document.nodes[home].kind !== "instance" && (!hit || hit !== home && ancestorIds(document, home).includes(hit))) {
     const bounds = boundsOf(document, [home]);
     const frame = document.nodes[home];
     const margin = isFrameLike(frame) && frame.layout ? 8 : 0;

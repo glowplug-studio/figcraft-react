@@ -1,7 +1,8 @@
 import { definitionCommands, editDefinition } from "./property-authoring";
 import { addVariant, combineVariants } from "./variant-authoring";
 import { describeComponentProperties, withInstanceProperties } from "./component-variants";
-import { assertCanInstantiate, canExposeInstance, componentSlots, defaultMain, exposedCopies, outermostInstance, owningInstance, propertyNodeId, slotName } from "./component-tree";
+import { assetSwapTarget, hideAssets, keepTextOverrides, placeAsset, swapInstance } from "./component-assets";
+import { canExposeInstance, componentSlots, defaultMain, exposedCopies, outermostInstance, owningInstance, propertyNodeId, slotName } from "./component-tree";
 import { componentOverrides, newComponentKind, type ComponentProperty } from "./component-properties";
 import { copyComponentGroup, isComponentGroup, isOverrideGroup, sameComponentValue, withOverrideSet } from "./component-groups";
 import { defaultInstanceValues } from "./component-bindings";
@@ -9,11 +10,14 @@ import { insertInstance } from "./component-instances";
 import { rebaseOwnedInstance } from "./component-sync";
 import { isLeaf, type Document, type InstanceNode, type LayerNode, type NodeId } from "./document";
 import { ancestors, HierarchyDraft, pageForNode, subtreeIds } from "./hierarchy";
-import { inspectedId, parseBoolean, parseNodeId, parseString } from "./parameters";
+import { inspectedId, parseBoolean, parseNodeId, parseNumber, parseString } from "./parameters";
 import { remapPatternSources } from "./pattern-sources";
 
 export const instanceCommandSpecs = {
   ...definitionCommands,
+  "component.hideWhenPublishing": {label:"Hide when publishing",undo:true},
+  "instance.place": {label:"Place instance",undo:true},
+  "instance.swapAt": {label:"Swap instance at point",undo:true},
   "component.combineVariants": {label:"Combine as variants",undo:true},
   "component.addVariant": {label:"Add variant",undo:true},
   "component.goToMain": {label:"Go to main component",undo:false},
@@ -153,10 +157,11 @@ function resolveSlot(doc: Document, id: NodeId, name?: string): NodeId {
 }
 
 export function executeInstanceCommand(command: keyof typeof instanceCommandSpecs, document: Document, selection: readonly NodeId[], nextId: bigint, params: Record<string,unknown>) {
-  const multiple = command === "component.combineVariants" || command === "component.detach" || command === "component.resetInstance" || command === "instance.swap" || command === "instance.setProperties";
+  const multiple = command === "component.hideWhenPublishing" || command === "component.combineVariants" || command === "component.detach" || command === "component.resetInstance" || command === "instance.swap" || command === "instance.setProperties";
   const bindingLayer = command === "component.bindProperty" ? parseNodeId(params.layer) : undefined;
   const ids = bindingLayer !== undefined ? [bindingLayer] : requestedIds(selection,params,multiple);
-  if (!ids.length) throw new Error(command === "component.properties" ? "Select a component or instance" : "Select an instance");
+  const byPoint = command === "instance.place" || command === "instance.swapAt";
+  if (!ids.length && !byPoint) throw new Error(command === "component.properties" ? "Select a component or instance" : "Select an instance");
   if (multiple) for (const id of ids) if (!document.nodes[id]) throw new Error("No node "+id);
   const first = ids[0], draft = new HierarchyDraft(document);
   let selected = selection, result: Record<string,unknown> = {};
@@ -165,6 +170,9 @@ export function executeInstanceCommand(command: keyof typeof instanceCommandSpec
     return {document:draft.finish(),selection:edit.selection ?? selection,nextId:edit.nextId,result:edit.result};
   }
   switch (command) {
+    case "component.hideWhenPublishing":
+      result = hideAssets(draft,ids,parseBoolean(params.on));
+      break;
     case "component.combineVariants":
     case "component.addVariant": {
       const added = command === "component.combineVariants" ? combineVariants(draft,ids,nextId) : addVariant(draft,first,nextId,params);
@@ -297,18 +305,30 @@ export function executeInstanceCommand(command: keyof typeof instanceCommandSpec
       nextId = placed.nextId; selected = Object.freeze([placed.id]); result = {id:placed.id,slot};
       break;
     }
+    case "instance.place":
+    case "instance.swapAt":
     case "instance.swap": {
       const requested = parseNodeId(params.component), main = requested && defaultMain(document,requested);
       if (!main) throw new Error("component must be a component or component set");
-      const defaults = defaultInstanceValues(main.props);
-      for (const id of ids) {
-        const node = draft.nodes[id];
-        if (node?.kind !== "instance") throw new Error(id+" is not an instance");
-        assertCanInstantiate(draft.document,main,id);
-        const props = Object.fromEntries(Object.entries(defaults).map(([key,value])=>[key,Object.hasOwn(node.props,key) ? node.props[key] : value]));
-        if (node.component !== main.id || !sameComponentValue(props,node.props)) draft.set({...node,component:main.id,props:Object.freeze(props)});
+      if (command === "instance.swap") {
+        for (const id of ids) swapInstance(draft,id,main);
+        result = {ok:true};
+        break;
       }
-      result = {ok:true};
+      const point = {x:parseNumber(params.x,"x"),y:parseNumber(params.y,"y")};
+      if (command === "instance.place") {
+        const placed = placeAsset(draft,main,point,nextId);
+        nextId = placed.nextId;
+        selected = Object.freeze([placed.id]);
+        result = {id:placed.id,parent:placed.parent};
+      } else {
+        const target = assetSwapTarget(document,point,main);
+        if (!target) throw new Error("There is no instance at that point to swap");
+        keepTextOverrides(draft,target.id);
+        swapInstance(draft,target.id,main);
+        selected = Object.freeze([target.id]);
+        result = {id:target.id,component:main.id};
+      }
       break;
     }
   }

@@ -172,18 +172,23 @@ function componentDependencies(document: Document) {
   return graph;
 }
 
-export function assertCanInstantiate(document: Document, main: ComponentNode, parent: NodeId) {
+export function wouldContainItself(document: Document, main: ComponentNode, parent: NodeId): boolean {
   const hosts = new Set(componentAncestors(document, parent));
-  if (!hosts.size) return;
+  if (!hosts.size) return false;
   const graph = componentDependencies(document);
   const pending = [main.id], seen = new Set<NodeId>();
   while (pending.length) {
     const next = pending.pop()!;
-    if (hosts.has(next)) throw new Error(`An instance of "${main.name}" can't go inside "${main.name}" or a component it contains: a component can't contain itself`);
+    if (hosts.has(next)) return true;
     if (seen.has(next)) continue;
     seen.add(next);
     for (const child of graph.get(next) ?? []) pending.push(child);
   }
+  return false;
+}
+
+export function assertCanInstantiate(document: Document, main: ComponentNode, parent: NodeId) {
+  if (wouldContainItself(document,main,parent)) throw new Error(`An instance of "${main.name}" can't go inside "${main.name}" or a component it contains: a component can't contain itself`);
 }
 
 function componentCycle(document: Document): NodeId[] | undefined {

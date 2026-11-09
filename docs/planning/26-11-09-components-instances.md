@@ -4,10 +4,10 @@
 
 | Field | Evidence |
 |---|---|
-| Phase | Phase 5. Instance lifecycle, variant selection, property values, exposed nested instances and slot edits have native comparison coverage. Property definitions, bindings, editable slots and the authoring inspector passed local verification. Local asset discovery and placement are next. |
+| Phase | Phase 5. Local component discovery, publication names, click placement and Alt-swapping passed native and signed-in browser checks. Component performance and the scope-wide release matrix remain open. |
 | Reference | Upstream and the authorised fork both point to 79c363466a46b96f989b73c7cf20240bc168b7a2. The incoming commit changes the upstream Cloudflare packaging size limit only. The layout reference remains 3839fe4a. |
-| React | Commit 3bf7932 on prompt/full-figcraft-port passed all 258 production Chromium workflows in 563.1 seconds with zero skips, failures or flaky tests. The global supported baseline remains 8eb0b876. |
-| Graph | The combined local graph has 32,047 nodes and 106,466 edges. create_instance_at links to default_props and would_contain_itself. rebase_instance links to diff_groups and variable_groups. Native macro registrations and serde defaults were inspected in source. |
+| React | At 09eedfd, all 261 production Chromium workflows passed in 601.7 seconds. The subsequent tracker-only commit is 14bb4c0. The global supported baseline remains 8eb0b876. |
+| Graph | The merged local index has 32,072 nodes and 106,625 edges. It links React placeAsset to assetDropSlot, insertInstance and wouldContainItself, and Rust swap_target to swap_family. Macro registrations and serde defaults require source inspection. |
 | Backend | The scoped MCP read resolved the intended Figcraft project and returned zero public tables. This slice works on in-document component definitions and local instances. |
 | Native verification | All 15 upstream headless UI tests selected by the component filter passed. They cover panel and layer interactions. This filter does not cover the full engine family. |
 | First implementation | Preserve main component, component set, instance and descendant linkage records. Verify a real native component drawing survives open, render, recovery and download before adding authoring commands. |
@@ -129,3 +129,18 @@ The [Design inspector](../../src/ComponentPanel.tsx) supports typed defaults, cr
 All command outcomes, queried property descriptions, selections and inspected native fields matched. Comparisons include numeric-looking strings, Unicode names, `__proto__` and `constructor`. Three permanent model workflows cover ownership, slot undo and rollback. Strict TypeScript, package and production host builds, 1,871 pure tests, two local Auth tests and eight signed-in Chromium workflows passed. The full browser regression follows the local commit. Graphify connects `editDefinition` to boolean default propagation and the native declaration code to its default-value and binding functions.
 
 Next implement `component.list`, `component.hideWhenPublishing`, `instance.place` and `instance.swapAt` with local Assets UI, thumbnails, click/drag placement, slot targeting, auto-layout insertion and Alt-drop swap. Then complete the component property matrix, cross-feature/performance and release checks. Shared-library resolution and publication remain assigned to roadmap row 10.
+
+## Local Assets in the browser
+
+The Assets panel lists local mains and sets, searches the full component name, groups tiles under page, ancestor and slash-name folders, and opens matching folders during search. A thumbnail paints only its component. Clicking places the default main at the viewport centre. A drag previews the destination frame and auto-layout insertion line. Alt over an instance prefers one from the incoming component’s family. Alt elsewhere places normally. Keyboard activation and the narrow-screen Assets menu use the same commands.
+
+| Rust behaviour | Browser verification |
+|---|---|
+| `component.list`, `asset_folder`, `asset_root`, `with_hidden_name` | All component records include variants, numeric ID order and instance counts. The panel groups the set into one tile. Hiding a nested layer renames its outer asset. Renaming a set leaves existing instance names intact. |
+| `drop_parent`, `slot`, `would_contain_itself`, `place` | Tests place into frames, rotated slots and auto layout, exclude locked instance interiors and fall back to the page on containment cycles. Native bounds include the near edge and exclude the far edge. |
+| `swap_family`, `swap_target`, `keep_text_overrides`, `swap_at` | Tests distinguish innermost targets from matching outer families, retain edited slots and verify the undo boundary when swapping to the same main. |
+| `assets_panel::folders`, `tiles`, `drag_feedback` | Signed-in Chromium verifies thumbnail pixels, filtered and collapsed folders, context actions, drag placement, Alt-swap, undo, redo, recovery, download and mobile click placement. |
+
+Three native comparison batches covered 580 listing and placement sequences, 315 slot, layout and containment sequences and 80 overlapping-family and undo sequences. They compared 9,302 native node records. Rotated inverse-transform coefficients used an absolute tolerance of 1e-10. Outcomes, selection, hierarchy, properties and override groups matched. Strict types, package and production builds, 1,874 pure tests, two local Auth tests and two signed-in Assets workflows passed.
+
+Next finish the large component-tree performance fixture, compare thumbnail bounds across clipped children, masks and effects with native pixels, and complete the component property matrix and release checks. The full production browser regression for Assets is in progress. The style and linked-library sections belong to the next asset scope.

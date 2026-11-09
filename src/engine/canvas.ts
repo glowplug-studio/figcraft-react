@@ -1,5 +1,8 @@
 import { fontGeometryCache } from "./font-generation";
 import { prepareDocumentText, documentTextReady } from "./text-node-layout";
+import { assetDropSlot, assetSwapTarget } from "./component-assets";
+import { defaultMain } from "./component-tree";
+import { originBoxPoints } from "./rotation";
 import { CanvasTextInput } from "./canvas-text-input";
 import { paintText } from "./text-painter";
 import { beginGlassFrame } from "./glass-shape";
@@ -419,12 +422,59 @@ function* drawChildren(context: CanvasRenderingContext2D, document: Document, ch
   }
 }
 
+/** Paint an isolated asset on transparency using the same image, font and colour pipeline as the editor. */
+export async function renderAssetThumbnail(canvas: HTMLCanvasElement, doc: Document, id: string, pixels: number, signal: AbortSignal) {
+  const node = doc.nodes[id];
+  if (!node || node.kind === "page") return;
+  if (!documentTextReady(doc)) await prepareDocumentText(doc);
+  if (signal.aborted) return;
+  const scratch = canvas.ownerDocument.createElement("canvas");
+  const ctx = scratch.getContext("2d")!;
+  const parent = worldTransform(doc,node.parent);
+  ctx.setTransform(...parent);
+  const bound = isFrameLike(node) && node.clip ? paddedRect(strokeBounds(node,worldTransform(doc,id)),effectMargin(node,1)) : deviceBounds(ctx,doc,node,1);
+  if (!bound || !bound.width || !bound.height) return;
+  const scale = Math.min(2,pixels / Math.max(bound.width,bound.height));
+  scratch.width = Math.max(1,Math.ceil(scale*bound.width-1e-6));
+  scratch.height = Math.max(1,Math.ceil(scale*bound.height-1e-6));
+  ctx.scale(scale,scale);
+  ctx.translate(-bound.x,-bound.y);
+  ctx.transform(...parent);
+  beginGlassFrame();
+  const steps = drawLayer(ctx,doc,node,0,0,scale);
+  const images = new CanvasImages();
+  try {
+    if (doc.images) images.begin(doc.images,()=>{},doc.colourProfile);
+    for (const args of steps) {
+      let wait = images.paint(...args);
+      while (wait) {
+        await wait;
+        if (signal.aborted) return;
+        wait = images.paint(...args);
+      }
+    }
+    if (doc.colourProfile === "displayP3") {
+      const pixels = ctx.getImageData(0,0,scratch.width,scratch.height);
+      convertColourPixels(pixels.data,"displayP3","srgb");
+      ctx.putImageData(pixels,0,0);
+    }
+    canvas.width = scratch.width;
+    canvas.height = scratch.height;
+    canvas.getContext("2d")?.drawImage(scratch,0,0);
+  } finally {
+    steps.return();
+    images.clear();
+    scratch.width = scratch.height = 0;
+  }
+}
+
 /** Owns transient gesture state and a demand-driven render loop, outside React. */
 export class CanvasController {
   #frame = 0;
   #disposed = false;
   #pointer: number | null = null;
   #penPointer = false;
+  #assetDrop?: {id: string; line?: readonly [number,number,number,number]};
   #observer: ResizeObserver;
   #unsubscribe: () => void;
   #unsubscribeView: () => void;
@@ -809,6 +859,25 @@ export class CanvasController {
         context.stroke(); context.fillStyle = canvasAccent(this.engine.getRenderDocument());
         context.beginPath(); context.arc(point.x, point.y, 1.5, 0, Math.PI * 2); context.fill();
       }
+      if (this.#assetDrop) {
+        const {id,line} = this.#assetDrop, doc = this.engine.getRenderDocument();
+        const corners = doc.nodes[id] && id !== doc.currentPage && originBoxPoints(doc,[id]);
+        context.save();
+        context.strokeStyle = "#9747ff"; context.lineWidth = 2;
+        if (corners) {
+          context.beginPath();
+          corners.slice(0,4).forEach((point,i)=>{
+            const p = pageToScreen(view,point);
+            if (i) context.lineTo(p.x,p.y); else context.moveTo(p.x,p.y);
+          });
+          context.closePath(); context.stroke();
+        }
+        if (line) {
+          const a = pageToScreen(view,{x:line[0],y:line[1]}), b = pageToScreen(view,{x:line[2],y:line[3]});
+          context.beginPath(); context.moveTo(a.x,a.y); context.lineTo(b.x,b.y); context.stroke();
+        }
+        context.restore();
+      }
       if (this.#zoomArea) {
         context.strokeStyle = canvasAccent(this.engine.getRenderDocument()); context.lineWidth = 1;
         context.strokeRect(this.#zoomArea.x, this.#zoomArea.y, this.#zoomArea.width, this.#zoomArea.height);
@@ -820,6 +889,20 @@ export class CanvasController {
       if (performance.getEntriesByName("figcraft:pointer").length > 1200) performance.clearMeasures("figcraft:pointer");
     });
   }
+  previewAsset(id?: string, point?: Point, alt = false) {
+    const doc = this.engine.getRenderDocument();
+    const main = id && defaultMain(doc,id);
+    if (!main || !point) {
+      if (this.#assetDrop) { this.#assetDrop = undefined; this.invalidate(); }
+      return;
+    }
+    const swap = alt ? assetSwapTarget(doc,point,main) : undefined;
+    const slot = swap ? undefined : assetDropSlot(doc,point);
+    this.#assetDrop = {id:swap?.id ?? slot!.parent,line:slot?.line};
+    this.invalidate();
+    return swap?.id;
+  }
+
   dispose(): void {
     const context = this.canvas.getContext("2d");
     if (context) { imagePages.get(context)?.clear(); imagePages.delete(context); imageCaches.get(context)?.clear(); imageCaches.delete(context); }

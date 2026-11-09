@@ -32,6 +32,7 @@ import { availableBuilderArrangement } from "./engine/shape-builder";
 import { pageOf } from "./engine/document";
 import type { RecoveryStore } from "./backends/recovery";
 import { RecoveryController } from "./engine/recovery";
+import { AssetsPanel, componentDragType } from "./AssetsPanel";
 import { PagePanel } from "./PagePanel";
 import { EffectsPanel } from "./EffectsPanel";
 import { ComponentPanel } from "./ComponentPanel";
@@ -65,6 +66,9 @@ export function Editor({ identity, capabilities, engine: suppliedEngine, recover
   const [recoveryStatus, setRecoveryStatus] = useState(recoveryStore ? "loading" : "ready");
   const [recoveryError, setRecoveryError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [assetsOpen,setAssetsOpen] = useState(false);
+  const [mobileAssetsOpen,setMobileAssetsOpen] = useState(false);
+  const draggedAsset = useRef<string | undefined>(undefined);
   const [mobileLayersOpen, setMobileLayersOpen] = useState(false);
   const [pendingFile, setPendingFile] = useState<File | null>(null);
   const imageInput = useRef<HTMLInputElement>(null);
@@ -366,6 +370,16 @@ export function Editor({ identity, capabilities, engine: suppliedEngine, recover
   const selected = snapshot.document.nodes[snapshot.selection[0]];
   const canCrop = editable && snapshot.selection.length === 1 && selected && selected.kind !== "page" && topImageFill(selected)!==undefined;
   const relative = selected && selected.kind !== "page" ? frameRelative(snapshot.document, selected.id) : undefined;
+  const endAssetDrag = () => {draggedAsset.current = undefined; controller.current?.previewAsset();};
+  const assetsPanel = <AssetsPanel doc={snapshot.document} editable={editable && !busy} dispatch={dispatch}
+    start={(id,e)=>{draggedAsset.current = id; e.dataTransfer.setData(componentDragType,id); e.dataTransfer.effectAllowed = "copy";}}
+    end={endAssetDrag} place={component=>{
+      const {cx:x,cy:y} = engine.getView();
+      dispatch("instance.place",{component,x,y});
+      const mobile = root.current?.querySelector<HTMLDetailsElement>(".figcraft-mobile-assets[open]");
+      if (mobile) mobile.open = false;
+      canvas.current?.focus();
+    }}/>;
   return <div ref={root} className="figcraft-editor" onKeyDown={key} data-figcraft-editor=""
     onKeyUp={e=>{if (e.key.toLowerCase()==="v") modifiedPaste.current=false;}} onBlurCapture={()=>{modifiedPaste.current=false;}}
     onDragOver={e=>{if (e.dataTransfer.types.includes("Files")) e.preventDefault();}}
@@ -409,6 +423,9 @@ export function Editor({ identity, capabilities, engine: suppliedEngine, recover
         <details className="figcraft-mobile-layers" onToggle={event => setMobileLayersOpen(event.currentTarget.open)}><summary>Layers</summary>
           {mobileLayersOpen && <LayerPanel document={snapshot.document} selection={snapshot.selection} editable={editable && !busy} dispatch={dispatch} />}
         </details>
+        <details className="figcraft-mobile-assets" onToggle={e=>setMobileAssetsOpen(e.currentTarget.open)}><summary>Assets</summary>
+          {mobileAssetsOpen && assetsPanel}
+        </details>
       </header>
       {!signedIn && <p role="status">Sign in to edit this document.</p>}
       {error && <p role="alert">{error}</p>}
@@ -429,9 +446,15 @@ export function Editor({ identity, capabilities, engine: suppliedEngine, recover
         <button onClick={() => { if (pendingFile) void open(pendingFile); }}>Replace document</button>
       </dialog>
       <div className="figcraft-workspace">
-        <aside className="figcraft-layers" aria-label="Layers">
+        <aside className="figcraft-layers" aria-label={assetsOpen ? "Assets browser" : "Layers"}>
+          <div role="group" aria-label="Sidebar">
+            <button type="button" aria-pressed={!assetsOpen} onClick={()=>setAssetsOpen(false)}>Layers</button>
+            <button type="button" aria-pressed={assetsOpen} onClick={()=>setAssetsOpen(true)}>Assets</button>
+          </div>
+          {assetsOpen ? assetsPanel : <>
           <PagePanel document={snapshot.document} editable={editable && !busy} dispatch={dispatch} />
           <LayerPanel document={snapshot.document} selection={snapshot.selection} editable={editable && !busy} dispatch={dispatch} />
+          </>}
         </aside>
         <div className="figcraft-canvas-area">
           <div ref={pasteMenu} popover="auto" role="group" aria-label="Canvas actions" onToggle={positionCanvasMenu}
@@ -450,7 +473,21 @@ export function Editor({ identity, capabilities, engine: suppliedEngine, recover
             </>}
             <button onClick={()=>{pasteMenu.current?.hidePopover();canvas.current?.focus();void paste(undefined,pasteAt.current);}}>Paste here</button>
           </div>
-          <canvas ref={canvas} onContextMenu={event=>{
+          <canvas ref={canvas} onDragOver={e=>{
+            const id = draggedAsset.current;
+            if (!id || !editable || busy || !e.dataTransfer.types.includes(componentDragType)) return;
+            e.preventDefault(); e.dataTransfer.dropEffect = "copy";
+            controller.current?.previewAsset(id,pagePoint(e.clientX,e.clientY),e.altKey);
+          }} onDragLeave={()=>controller.current?.previewAsset()} onDrop={e=>{
+            const component = draggedAsset.current;
+            if (!component || !editable || busy || !e.dataTransfer.types.includes(componentDragType)) return;
+            e.preventDefault();
+            const point = pagePoint(e.clientX,e.clientY);
+            const swap = controller.current?.previewAsset(component,point,e.altKey);
+            endAssetDrag();
+            dispatch(swap ? "instance.swapAt" : "instance.place",{component,...point});
+            e.currentTarget.focus();
+          }} onContextMenu={event=>{
             // Chromium on macOS can emit contextmenu for the primary Control-drag used to resize.
             if (event.ctrlKey || engine.interacting) {event.preventDefault();return;}
             if (!editable || busy || !pasteMenu.current) return;

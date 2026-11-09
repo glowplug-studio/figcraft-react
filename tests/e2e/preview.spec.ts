@@ -5488,3 +5488,79 @@ test("variant property controls rename choices, reorder axes and save the chosen
   expect(document.nodes[5]).toMatchObject({name:"Size=Default, Mode=Active"});
   expect(document.nodes[2]).toMatchObject({name:"Size=Default, Mode=Off"});
 });
+
+async function openAssetDrawing(page: Page) {
+  const engine = new EditorEngine();
+  for (const [type,name,x,y,width,height,fill] of [
+    ["component","Controls / Red",10,10,40,32,"#ff0000"],
+    ["component","Controls / Blue",80,10,40,32,"#0000ff"],
+    ["frame","Shelf",220,80,200,160,"#ffffff"],
+  ]) engine.execute("node.create",{type,name,props:{x,y,width,height,fill}});
+  const buffer = Buffer.from(await encodeFigcraft(engine.getSnapshot().document));
+  await page.getByLabel("Open Figcraft file",{exact:true}).setInputFiles({name:"assets.figcraft",mimeType:"application/octet-stream",buffer});
+  await expect(page.getByRole("heading",{name:"Untitled",exact:true})).toBeVisible();
+}
+
+test("local Assets renders component thumbnails, filters folders, places into frames and Alt-swaps in one undo step",async({page})=>{
+  await login(page);
+  await openAssetDrawing(page);
+  await resetCanvasOrigin(page);
+  await page.getByRole("button",{name:"Assets",exact:true}).click();
+  const panel = page.getByRole("region",{name:"Assets",exact:true});
+  const red = panel.getByRole("button",{name:"Place Controls / Red",exact:true});
+  const blue = panel.getByRole("button",{name:"Place Controls / Blue",exact:true});
+  const folder = panel.getByRole("button",{name:"Page 1 / Controls"});
+  await expect.poll(()=>red.locator("canvas").evaluate((el:HTMLCanvasElement)=>Array.from(el.getContext("2d")!.getImageData(el.width>>1,el.height>>1,1,1).data))).toEqual([255,0,0,255]);
+  await folder.click();
+  await expect(red).toHaveCount(0);
+  await panel.getByRole("searchbox").fill(" red ");
+  await expect(red).toBeVisible(); await expect(blue).toHaveCount(0);
+  await panel.getByRole("searchbox").press("Escape");
+  await folder.click();
+  await red.click({button:"right"});
+  await panel.getByRole("button",{name:"Hide when publishing"}).click();
+  const hidden = panel.getByRole("button",{name:"Place .Controls / Red",exact:true});
+  await hidden.click({button:"right"});
+  await panel.getByRole("button",{name:"Hide when publishing"}).click();
+  const canvas = page.getByLabel("Design canvas",{exact:true});
+  const drop = await canvasPoint(page,300,140), box = (await canvas.boundingBox())!;
+  const targetPosition = {x:drop.x-box.x,y:drop.y-box.y};
+  await red.dragTo(canvas,{targetPosition});
+  await expect(page.getByRole("region",{name:"Selected instance"})).toBeVisible();
+  await page.keyboard.down("Alt");
+  try { await blue.dragTo(canvas,{targetPosition}); } finally { await page.keyboard.up("Alt"); }
+  await expectCanvasPixel(page,300,140,[0,0,255,255]);
+  await page.getByRole("button",{name:"Undo",exact:true}).click();
+  await expectCanvasPixel(page,300,140,[255,0,0,255]);
+  await page.getByRole("button",{name:"Redo",exact:true}).click();
+  await expect(page.locator(".figcraft-recovery")).toHaveText("Recovery saved on this device");
+  await page.reload();
+  const download = page.waitForEvent("download");
+  await page.getByRole("button",{name:"Save as",exact:true}).click();
+  const doc = (await decodeFigcraft(await readFile((await (await download).path())!))).document;
+  expect(doc.nodes["4"]).toMatchObject({children:["5"]});
+  expect(doc.nodes["5"]).toMatchObject({kind:"instance",component:"3",parent:"4",x:60,y:44});
+});
+
+test("mobile Assets places its component at the current viewport centre and returns focus to the drawing",async({page})=>{
+  await page.setViewportSize({width:390,height:844});
+  await login(page,false);
+  await openAssetDrawing(page);
+  const menu = page.locator(".figcraft-mobile-assets");
+  await menu.locator("summary").click();
+  await menu.getByRole("button",{name:"Place Controls / Red"}).click();
+  await expect(menu).not.toHaveAttribute("open","");
+  const canvas = page.getByLabel("Design canvas",{exact:true});
+  await expect(canvas).toBeFocused();
+  const download = page.waitForEvent("download");
+  await page.getByRole("button",{name:"Save as",exact:true}).click();
+  const doc = (await decodeFigcraft(await readFile((await (await download).path())!))).document;
+  expect(doc.nodes["5"]).toMatchObject({kind:"instance",component:"2"});
+  const centre = await canvas.evaluate((c:HTMLCanvasElement)=>{
+    const b = c.getBoundingClientRect(), z = Number(c.dataset.viewZoom);
+    return {x:Number(c.dataset.viewOriginX)+b.width/(2*z),y:Number(c.dataset.viewOriginY)+b.height/(2*z)};
+  });
+  const [,,,,x,y] = worldTransform(doc,"5");
+  expect(x+20).toBeCloseTo(centre.x,3);
+  expect(y+16).toBeCloseTo(centre.y,3);
+});
