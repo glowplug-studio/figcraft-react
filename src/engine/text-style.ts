@@ -133,9 +133,10 @@ export function setFontStyle(s: TextStyle, name: string): TextStyle {
   const {wght, ital, slnt, ...others} = s.variations;
   return Object.freeze({...s,fontStyle:name,variations:Object.freeze(others)});
 }
-export function lineHeightPx(s: TextStyle, naturalRatio: number) {
+export const textSize = (s: TextStyle) => Number.isFinite(s.fontSize) ? Math.max(0.5,Math.min(5000,s.fontSize)) : 12;
+export function lineHeightPx(s: TextStyle, naturalRatio: number, size=s.fontSize) {
   const h = s.lineHeight;
-  return h.unit === "auto" ? s.fontSize * naturalRatio : Math.max(0,h.value) * (h.unit === "pixels" ? 1 : s.fontSize/100);
+  return h.unit === "auto" ? size*naturalRatio : h.unit === "pixels" ? Math.max(0,h.value) : size*Math.max(0,h.value)/100;
 }
 export function letterSpacingPx(s: TextStyle, size = s.fontSize) {
   return s.letterSpacing.unit === "pixels" ? s.letterSpacing.value : size*s.letterSpacing.value/100;

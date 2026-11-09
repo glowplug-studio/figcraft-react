@@ -386,3 +386,5 @@ Native FontDb::find, default_face, fallbacks_for and pick_cluster_face map to Fo
 Native layout::shape_segment and glyph_at map to styledGlyphs and styledSegment for logical items, case mapping, glyph ranges, script synthesis, metrics and tracking. Fifteen single-line fixtures compare glyph coordinates using native baselines. Paragraph-level layout and rendering remain open. [Styled glyph evidence](../planning/26-11-09-rich-text.md#styled-glyph-positions).
 
 Native Bidi::of, visual_order and visual_gaps map to textBidi, resolveParagraph, visualOrder and visualGaps. styledGlyphs consumes automatically resolved levels. [Unicode and browser differential evidence](../planning/26-11-09-rich-text.md#bidirectional-paragraphs-and-visual-order).
+
+Native break_lines, wrapped_lines, restyle_breaks, list_markers, list_step, layout, truncate_layout and add_ellipsis map to TextLineBreaker, TextListLayout and layoutTextFlow for line, list and truncation geometry. Word-model inputs, glyph painting and text-path warping are separate. [Line flow evidence](../planning/26-11-09-rich-text.md#line-flow-list-markers-and-truncation).

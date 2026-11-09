@@ -103,18 +103,27 @@ export class FontLibrary {
     return families.flatMap(family=>this.find(family,style) ?? []);
   }
 
-  *segments(chars: readonly string[], bounds: TextGraphemes, start: number, end: number,
-    family: string, style: string, levels?: ArrayLike<number>) {
-    const primary = this.find(family,style) ?? this.defaultFace();
-    if (!primary || start<0 || end>chars.length || bounds.length!==chars.length ||
-      !Number.isInteger(start) || !Number.isInteger(end)) return;
+  fallbacks(style: string): readonly ShapingFace[] {
     let fallbacks = this.#fallbacks.get(style);
     if (!fallbacks) {
       fallbacks = this.#ordered(fallbackFamilies,style);
       if (this.#fallbacks.size >= 64) this.#fallbacks.clear();
       this.#fallbacks.set(style,fallbacks);
     }
-    this.#emoji ??= this.#ordered(emojiFamilies,"Regular");
-    yield* fontSegments(chars,bounds,start,end,primary,this.#emoji,fallbacks,levels);
+    return fallbacks;
+  }
+
+  emojiFallbacks(): readonly ShapingFace[] {
+    return this.#emoji ??= this.#ordered(emojiFamilies,"Regular");
+  }
+
+  *segments(chars: readonly string[], bounds: TextGraphemes, start: number, end: number,
+    family: string, style: string, levels?: ArrayLike<number>) {
+    const primary = this.find(family,style) ?? this.defaultFace();
+    if (!primary || start<0 || end>chars.length || bounds.length!==chars.length ||
+      !Number.isInteger(start) || !Number.isInteger(end)) return;
+    const fallbacks=this.fallbacks(style);
+    const emoji=this.emojiFallbacks();
+    yield* fontSegments(chars,bounds,start,end,primary,emoji,fallbacks,levels);
   }
 }

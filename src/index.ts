@@ -51,3 +51,4 @@ export { FontLibrary } from "./engine/font-library";
 export { TextGraphemes } from "./engine/text-graphemes";
 export { readTextData, type TextData } from "./engine/text-data";
 export { styledGlyphs, type StyledGlyph } from "./engine/styled-glyphs";
+export { layoutTextFlow, type FlowGlyph, type FlowLine } from "./engine/text-flow";

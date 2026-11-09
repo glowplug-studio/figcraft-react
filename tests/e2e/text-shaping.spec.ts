@@ -1,6 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { expect, test } from "@playwright/test";
 import { build } from "vite";
+import flow from "../fixtures/text-flow.json" with { type:"json" };
 import styled from "../fixtures/styled-glyphs.json" with { type:"json" };
 import selection from "../fixtures/font-selection.json" with { type:"json" };
 import cases from "../fixtures/text-shaping.json" with { type:"json" };
@@ -46,7 +47,7 @@ test("Chromium shapes pinned font bytes with the native glyph IDs, positions and
     return rows;
   },cases);
   expect(actual).toEqual(cases.map(c=>c.glyphs));
-  const selected = await page.evaluate(async ({inputs,selection,styled}) => {
+  const selected = await page.evaluate(async ({inputs,selection,styled,flow}) => {
     const url = "/shaper.js";
     const api: typeof import("../fixtures/text-shaping-browser") = await import(url);
     const library = new api.FontLibrary();
@@ -57,6 +58,12 @@ test("Chromium shapes pinned font bytes with the native glyph IDs, positions and
     const georgian = library.find("Noto Sans Georgian","Regular")!;
     const coordinates = (v: Readonly<Record<string,number>>) => [v.wght,v.wdth];
     return {
+      flow:flow.map(({input,boxWidth,boxHeight,savedBreaks})=>{
+        const text=api.readTextData(input);
+        const result=api.layoutTextFlow(savedBreaks ? {...text,savedBreaks} : text,library,{width:boxWidth ?? undefined,height:boxHeight ?? undefined},[]);
+        return {width:result.width,height:result.height,lines:result.lines,truncated:result.truncated,
+          glyphs:result.glyphs.map(g=>[g.face.postscript,g.id,g.start,g.end,g.x,g.y,g.advance,g.size,g.rtl])};
+      }),
       styled:styled.map(({input,baseline})=>{
         const items = [...api.styledGlyphs(api.readTextData(input),library,undefined)];
         let x = 0;
@@ -82,7 +89,7 @@ test("Chromium shapes pinned font bytes with the native glyph IDs, positions and
         })};
       }),
     };
-  },{inputs,selection,styled});
-  expect(selected).toEqual({...selection,styled:styled.map(({glyphs,width})=>({glyphs,width}))});
+  },{inputs,selection,styled,flow});
+  expect(selected).toEqual({...selection,flow:flow.map(({width,height,lines,glyphs,truncated})=>({width,height,lines,glyphs,truncated})),styled:styled.map(({glyphs,width})=>({glyphs,width}))});
   expect(requests.filter(path => path.endsWith(".wasm"))).toHaveLength(1);
 });

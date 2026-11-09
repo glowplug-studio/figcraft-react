@@ -1,6 +1,6 @@
 import { textBidi } from "./text-bidi";
 import type { TextData } from "./text-data";
-import { letterSpacingPx, type TextStyle } from "./text-style";
+import { textSize, letterSpacingPx, type TextStyle } from "./text-style";
 import type { FontLibrary } from "./font-library";
 import type { ShapingFace, ShapingScalar } from "./shaping-face";
 import { TextGraphemes } from "./text-graphemes";
@@ -37,7 +37,7 @@ interface FaceSegment {face:ShapingFace; start:number; end:number; level:number}
 function* styledSegment(chars: readonly string[], seg: FaceSegment, style: TextStyle,
   features: Readonly<Record<string,boolean>>): Generator<StyledGlyph> {
   const {face,start,end,level} = seg;
-  const size = Number.isFinite(style.fontSize) ? Math.max(0.5,Math.min(5000,style.fontSize)) : 12;
+  const size = textSize(style);
   if (chars[start] === "\n" || chars[start] === "\u2028") {
     yield {face,style,coordinates:{},id:0,start,end,level,size,advance:0,spacing:0,offsetX:0,offsetY:0};
     return;
@@ -94,6 +94,11 @@ function* styledSegment(chars: readonly string[], seg: FaceSegment, style: TextS
 /** Logical glyph items before line layout. Resolve paragraph direction automatically unless the caller supplies scalar-indexed levels. */
 export function* styledGlyphs(text: TextData, fonts: FontLibrary, levels: ArrayLike<number> | undefined = textBidi(text.characters,text.paragraphs)?.levels) {
   const chars = Array.from(text.characters), boundaries = new TextGraphemes(text.characters);
+  yield* shapeTextSpans(text,fonts,levels,chars,boundaries);
+}
+
+export function* shapeTextSpans(text:TextData, fonts:FontLibrary, levels:ArrayLike<number> | undefined,
+  chars:readonly string[], boundaries:TextGraphemes) {
   for (const {start,end,style} of textSpans(text)) {
     const segments = fonts.segments(chars,boundaries,start,end,style.fontFamily,style.fontStyle,levels);
     for (const segment of segments) yield* styledSegment(chars,segment,style,text.features);

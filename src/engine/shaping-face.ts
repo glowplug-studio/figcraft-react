@@ -41,6 +41,7 @@ export class ShapingFace {
   readonly postscript: string;
   readonly upem: number;
   readonly ascent: number;
+  readonly capHeight: number;
   readonly descent: number;
   readonly lineGap: number;
   readonly axes: Readonly<Record<string,Readonly<AxisInfo>>>;
@@ -77,6 +78,8 @@ export class ShapingFace {
     this.#font = new hb.Font(face);
     const metrics = this.#font.hExtents();
     this.ascent = metrics.ascender;
+    const cap = os2 && os2.byteLength>=90 && os2.getUint16(0)>=2 ? os2.getInt16(88) : 0;
+    this.capHeight = cap>0 ? cap : this.ascent*0.72;
     this.descent = -metrics.descender;
     this.lineGap = metrics.lineGap;
   }
@@ -117,15 +120,28 @@ export class ShapingFace {
 
   glyphFor(codePoint: number) { return this.#font.nominalGlyph(codePoint) ?? 0; }
 
-  /** Raw HarfBuzz positions in font units, in logical order as in native shape_segment. */
-  shape(scalars: readonly ShapingScalar[], rtl: boolean, features: Readonly<Record<string,boolean>>,
-    axes: Readonly<Record<string,number>>): readonly ShapedGlyph[] {
+  #applyAxes(axes: Readonly<Record<string,number>>) {
     const variations = Object.values(this.axes).map(axis => {
       const value = axes[axis.tag];
       return new hb.Variation(axis.tag,Number.isFinite(value)
         ? Math.min(axis.max,Math.max(axis.min,value)) : axis.default);
     });
     if (variations.length) this.#font.setVariations(variations);
+  }
+
+  nominalRun(text:string, axes:Readonly<Record<string,number>>, size:number) {
+    this.#applyAxes(axes);
+    const k=size/this.upem;
+    return Array.from(text,c=>{
+      const id=this.glyphFor(c.codePointAt(0)!);
+      return {id,advance:this.#font.glyphHAdvance(id)*k};
+    });
+  }
+
+  /** Raw HarfBuzz positions in font units, in logical order as in native shape_segment. */
+  shape(scalars: readonly ShapingScalar[], rtl: boolean, features: Readonly<Record<string,boolean>>,
+    axes: Readonly<Record<string,number>>): readonly ShapedGlyph[] {
+    this.#applyAxes(axes);
     const buffer = this.#buffer;
     buffer.reset();
     for (const scalar of scalars) buffer.add(scalar.codePoint,scalar.source);
