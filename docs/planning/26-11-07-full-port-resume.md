@@ -1,6 +1,8 @@
 # Full Figcraft port resume checkpoint
 
-At d2cd04a local library publication, version selection and archive compatibility passed native and focused production checks. The full 286-workflow regression is running. Next implement the consumer side in [row 10](26-11-09-styles-variables-libraries.md#local-published-library-archive-boundary).
+At e9cee6b a separate document can link and recover a published file. The 287-workflow run is in progress. Continue linked variable imports and updates from the [consumer reference](26-11-09-styles-variables-libraries.md#linked-consumer-files).
+
+At d2cd04a local library publication, version selection and archive compatibility passed native and focused production checks. All 286 production Chromium workflows passed. Next implement the consumer side in [row 10](26-11-09-styles-variables-libraries.md#local-published-library-archive-boundary).
 
 At 8f8791e native variable import and four export formats passed the focused gates, including large collections. All 285 production browser workflows passed. Continue with [published library archives](26-11-09-styles-variables-libraries.md#local-published-library-archive-boundary).
 
