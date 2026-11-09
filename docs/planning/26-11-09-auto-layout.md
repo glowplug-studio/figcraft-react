@@ -7,7 +7,7 @@
 | Reference | Figcraft fork and original upstream at 3839fe4a0cb4897c1fed1fb03e0b60e191ff61cb. React a81127c on prompt/full-figcraft-port. The global supported baseline is 8eb0b876. |
 | Evidence | Local merged Graphify index has 31,661 nodes and 104,168 edges. The Rust index links the grid-placement tests to grid_place. The React index links resizeChildren to withLayerSize and hierarchy tests to setRectangleProperties. UI labels and JSON defaults were checked directly. |
 | Backend | The scoped Figcraft MCP read returned zero public tables. Layout settings are part of the native document and its existing local persistence. |
-| Next action | Frame records passed at 4b17c70. Add child sizing, anchors, spans and limits to the same codec and reconcile existing text sizing. Then exercise layout reflow through the engine and controls. |
+| Next action | Child records, placement and stacking passed native and focused Chromium comparisons at 339a4f4. Verify grid track commands, geometry, text measurement and frame reflow, then finish horizontal and vertical flow. |
 | Blockers | None. |
 
 ## Implementation and verification order
@@ -31,3 +31,7 @@
 ## Frame records at 4b17c70
 
 The 51 native layout library tests passed against the pinned source. The React container codec matched the native Rust serialiser on 1,014 generated input records, including explicit nulls, omitted properties, tracks, negative gaps and unsigned counts. The browser opened a grid frame, recovered it after reload and downloaded its native layout fields. All 1,690 pure tests, strict types and both builds passed. Frame reflow and non-default child properties remain open. The refreshed local graph contains 31,673 nodes and 104,214 edges.
+
+## Child placement at 339a4f4
+
+The complete Chromium run at 4b17c70 passed 235/235. The next checkpoint matched 1,013 native child-layout records and 480 generated grids with 13,039 placed children. It preserves absolute position, sizing, limits, anchors, spans and cell alignment during native interchange. A browser download after recovery preserved a spanning fill child. A separate Chromium comparison covered reversed painting of adjacent mask runs, order within a run, a hidden mask, and the topmost hit. All 1,701 pure tests, two local Auth checks and both focused browser workflows passed. Local Graphify indexed 31,701 nodes and 104,297 edges.
