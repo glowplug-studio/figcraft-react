@@ -2,6 +2,11 @@
 
 All notable changes to the React port and its upstream compatibility baseline are recorded here.
 
+## [0.49.0] - 2026-11-09
+
+- Added editable native text layers, styled ranges, mixed-script shaping, curved text, font selection, browser composition and text flattening. Native save, recovery and undo retain the document text.
+- Compared glyphs, caret geometry and rendered text with upstream a4251ca8. Shared styles, variables, components and auto-layout integration remain on the roadmap. [Rich-text checkpoint](docs/planning/26-11-09-rich-text.md).
+
 ## [0.48.0] - 2026-11-09
 
 - Added native layer effects, ordered stack commands, Design settings and progressive blur handles. Shadows, blur, grain, texture and glass render on the canvas and survive native file recovery.
