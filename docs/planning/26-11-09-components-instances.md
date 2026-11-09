@@ -4,10 +4,10 @@
 
 | Field | Evidence |
 |---|---|
-| Phase | Phase 5. Instance lifecycle, variant selection, property values, exposed nested instances and slot edits have native comparison coverage. Variant set creation and addition have passed native comparison. Property definition authoring is next. |
+| Phase | Phase 5. Instance lifecycle, variant selection, property values, exposed nested instances and slot edits have native comparison coverage. Property definitions, bindings, editable slots and the authoring inspector passed local verification. Local asset discovery and placement are next. |
 | Reference | Upstream and the authorised fork both point to 79c363466a46b96f989b73c7cf20240bc168b7a2. The incoming commit changes the upstream Cloudflare packaging size limit only. The layout reference remains 3839fe4a. |
-| React | Commit 6960033 on prompt/full-figcraft-port passed all 256 production Chromium workflows in 540.2 seconds, with zero skips, failures or flaky tests. The global supported baseline remains 8eb0b876. |
-| Graph | The combined local graph has 32,020 nodes and 106,293 edges. create_instance_at links to default_props and would_contain_itself. rebase_instance links to diff_groups and variable_groups. Native macro registrations and serde defaults were inspected in source. |
+| React | Commit 3bf7932 on prompt/full-figcraft-port passed all 258 production Chromium workflows in 563.1 seconds with zero skips, failures or flaky tests. The global supported baseline remains 8eb0b876. |
+| Graph | The combined local graph has 32,047 nodes and 106,466 edges. create_instance_at links to default_props and would_contain_itself. rebase_instance links to diff_groups and variable_groups. Native macro registrations and serde defaults were inspected in source. |
 | Backend | The scoped MCP read resolved the intended Figcraft project and returned zero public tables. This slice works on in-document component definitions and local instances. |
 | Native verification | All 15 upstream headless UI tests selected by the component filter passed. They cover panel and layer interactions. This filter does not cover the full engine family. |
 | First implementation | Preserve main component, component set, instance and descendant linkage records. Verify a real native component drawing survives open, render, recovery and download before adding authoring commands. |
@@ -114,3 +114,18 @@ The next property-authoring comparison has 990 native command prefixes covering 
 For property authoring, compare mutations against every variant in the owner set and all of their placed instances. The captures include 30 rejected text bindings, 30 invalid preferred slot components and 30 duplicate variant-property names. Renaming a property must migrate existing values and layer references, including an own key named `__proto__`. Editing a boolean default updates bound main layers. Moving a variant default exchanges its coordinates with the top-left variant. Recheck deletion of an edited slot, expose/hide controls and user-visible undo before advancing to Assets.
 
 Variant authoring passed strict TypeScript, both builds, 1,868 pure tests, both local Auth checks and six signed-in production Chromium workflows. The new workflows combine a multi-selection and undo it, add variants to a standalone main, change an existing instance to the new variant, reload and inspect the downloaded native hierarchy. The local combined graph links `addVariant` to `duplicateInto` and `fitVariantSet`, and links native `add_variant` to `fit_set`. The complete regression is the next browser gate.
+
+## Authoring properties, bindings and slots
+
+Native `add_prop_for`, `bind`, `edit_prop`, `delete_prop`, `make_slot` and `remove_slot` map to [property authoring](../../src/engine/property-authoring.ts). Definitions follow their owner across variants. Ordered names, layer bindings and instance values survive renames and deletion. Boolean defaults follow direct main-layer visibility changes, even in a drawing without placed instances. Swap and slot preferences retain order and deduplicate component or set IDs. An edited slot loses its contents when the declaration is removed and undo restores the former subtree. Existing variable bindings on imported instances still depend on the variables and library work.
+
+The [Design inspector](../../src/ComponentPanel.tsx) supports typed defaults, creating properties from a selected layer, rename, remove, variant value editing and reordering, preferred components and component descriptions. Selected instance slots support local insert, select and reset. The default variant follows the native top-left position rule. Swapping the positions of two coincident variants leaves them coincident. The browser test now places the alternatives apart to verify that choosing the new default actually moves it.
+
+| Native comparison | Prefixes | Inspected node states |
+|---|---:|---:|
+| Set-wide declarations, binding, renaming, deletion, preferred components, editable slots and variant axes | 990 | 15,390 |
+| Owner resolution, direct visibility changes, unusual keys, sanitised slot names, type and duplicate refusals and atomic variant edits | 1,260 | 14,510 |
+
+All command outcomes, queried property descriptions, selections and inspected native fields matched. Comparisons include numeric-looking strings, Unicode names, `__proto__` and `constructor`. Three permanent model workflows cover ownership, slot undo and rollback. Strict TypeScript, package and production host builds, 1,871 pure tests, two local Auth tests and eight signed-in Chromium workflows passed. The full browser regression follows the local commit. Graphify connects `editDefinition` to boolean default propagation and the native declaration code to its default-value and binding functions.
+
+Next implement `component.list`, `component.hideWhenPublishing`, `instance.place` and `instance.swapAt` with local Assets UI, thumbnails, click/drag placement, slot targeting, auto-layout insertion and Alt-drop swap. Then complete the component property matrix, cross-feature/performance and release checks. Shared-library resolution and publication remain assigned to roadmap row 10.

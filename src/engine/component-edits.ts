@@ -4,7 +4,7 @@ import { autoSizeText } from "./text-node-layout";
 import { defaultConstraints, isFrameLike, isLeaf, layerTransform, type Document, type LayerNode, type NodeId } from "./document";
 import { ancestors, HierarchyDraft, subtreeIds } from "./hierarchy";
 import { boundCopy } from "./component-bindings";
-import { assertNoNewComponentCycle, outermostInstance, owningInstance, slotName } from "./component-tree";
+import { assertNoNewComponentCycle, outermostInstance, owningInstance, propertyMains, propertyOwner, setBooleanDefault, slotName } from "./component-tree";
 
 import { type ComponentGroup, copyComponentGroup, withOverrideSet, differentComponentGroups, sameComponentValue } from "./component-groups";
 
@@ -97,11 +97,24 @@ function matchesInstanceStructure(doc: Document, root: NodeId, main: NodeId) {
 export function finishComponentEdit(before: Document, after: Document, nextId: bigint) {
   if (before.nodes === after.nodes) return {document:after,nextId};
   let hasInstance = false;
-  const copies: NodeId[] = [];
+  const copies: NodeId[] = [], visibility: NodeId[] = [];
   for (const id in after.nodes) {
     const node = after.nodes[id];
     if (node.kind === "instance") hasInstance = true;
+    const prior = before.nodes[id];
+    if (prior && prior !== node && prior.kind !== "page" && node.kind !== "page" && node.propRefs?.visible !== undefined &&
+        (prior.visible !== false) !== (node.visible !== false)) visibility.push(id);
     if (!before.nodes[id] && node.kind !== "page" && (node.kind === "instance" || node.source || componentOverrides(node).length)) copies.push(id);
+  }
+  if (visibility.length) {
+    const defaults = new HierarchyDraft(after);
+    for (const id of visibility) {
+      const node = defaults.nodes[id], old = before.nodes[id];
+      if (node.kind === "page" || old.kind === "page" || (node.visible !== false) === (old.visible !== false) || owningInstance(defaults.document,id,false)) continue;
+      const owner = propertyOwner(defaults.document,id), key = node.propRefs?.visible;
+      if (owner && key !== undefined && node.kind !== "component") setBooleanDefault(defaults,propertyMains(defaults.document,owner),key,node.visible !== false);
+    }
+    after = defaults.finish();
   }
   if (!hasInstance) return {document:relinkNewCopies(after,copies),nextId};
   const changed: LayerNode[] = [];

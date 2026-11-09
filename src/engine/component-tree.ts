@@ -1,6 +1,6 @@
 import { isLosslessNumber } from "lossless-json";
-import { isLeaf, type ComponentNode, type Document, type InstanceNode, type NodeId } from "./document";
-import { ancestors } from "./hierarchy";
+import { isLeaf, type ComponentNode, type ComponentSetNode, type Document, type InstanceNode, type NodeId } from "./document";
+import { ancestors, HierarchyDraft, subtreeIds } from "./hierarchy";
 import { parseNodeId } from "./parameters";
 import type { InstanceValue } from "./component-properties";
 
@@ -24,18 +24,73 @@ export function outermostInstance(document: Document, id: NodeId): InstanceNode 
   }
 }
 
-export function slotName(document: Document, id: NodeId): string | undefined {
+export function localComponentChoices(document: Document) {
+  return document.pages.map(page=>({
+    page, options:subtreeIds(document,page).filter(id=>{
+      const node = document.nodes[id];
+      return (node.kind === "componentSet" || node.kind === "component" && document.nodes[node.parent].kind !== "componentSet") &&
+        !owningInstance(document,id,false);
+    }),
+  })).filter(group=>group.options.length);
+}
+
+export function owningMainComponent(document: Document, id: NodeId) {
+  const node = document.nodes[id];
+  if (!node) return undefined;
+  if (node.kind === "component") return node;
+  for (const parent of ancestors(document,id)) {
+    const main = document.nodes[parent];
+    if (main.kind === "component") return main;
+  }
+}
+
+export function propertyOwner(document: Document, id: NodeId) {
+  const node = document.nodes[id];
+  if (node?.kind === "componentSet") return node;
+  const main = owningMainComponent(document,id);
+  if (!main) return undefined;
+  const parent = document.nodes[main.parent];
+  return parent.kind === "componentSet" ? parent : main;
+}
+
+export function propertyMains(document: Document, owner: ComponentNode | ComponentSetNode) {
+  return owner.kind === "component" ? [owner] : owner.children.map(id=>document.nodes[id]).filter(n=>n.kind === "component");
+}
+
+export function setBooleanDefault(draft: HierarchyDraft, mains: readonly ComponentNode[], name: string, value: boolean) {
+  for (const {id} of mains) {
+    const main = draft.nodes[id];
+    if (main.kind !== "component" || !Object.hasOwn(main.props,name)) continue;
+    const def = main.props[name];
+    if (def.type !== "boolean") continue;
+    if (def.default !== value) draft.set({...main,props:{...main.props,[name]:{type:"boolean",default:value}}});
+    for (const child of subtreeIds(draft.document,id).slice(1)) {
+      const node = draft.nodes[child];
+      if (node.kind === "page" || node.propRefs?.visible !== name || (node.visible !== false) === value || owningInstance(draft.document,child,false)) continue;
+      draft.set({...node,visible:value ? undefined : false});
+    }
+  }
+}
+
+export function slotDefinition(document: Document, id: NodeId) {
   let layer = document.nodes[id];
   for (let depth = 0; depth <= 16 && layer?.kind === "frame"; depth++) {
     const name = layer.propRefs?.slot;
     if (name !== undefined) {
       const main = ancestors(document, layer.id).map(parent => document.nodes[parent]).find(node => node.kind === "component");
-      if (main && Object.hasOwn(main.props, name) && main.props[name].type === "slot") return name;
+      if (main && Object.hasOwn(main.props,name)) {
+        const def = main.props[name];
+        if (def.type === "slot") return {name,preferred:def.preferred};
+      }
       return;
     }
     if (layer.source === undefined) return;
     layer = document.nodes[layer.source];
   }
+}
+
+export function slotName(document: Document, id: NodeId) {
+  return slotDefinition(document,id)?.name;
 }
 
 export function canExposeInstance(document: Document, id: NodeId) {

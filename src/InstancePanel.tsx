@@ -1,16 +1,30 @@
 import { variantOptions, variantProperties } from "./engine/component-variants";
 import { useMemo } from "react";
-import type { Document, InstanceNode, NodeId } from "./engine/document";
+import type { Document, FrameNode, InstanceNode, NodeId } from "./engine/document";
 import { isOverrideGroup } from "./engine/component-groups";
 import { componentOverrides, orderedComponentPropertyNames } from "./engine/component-properties";
-import { canExposeInstance, componentSlots, exposedCopies, owningInstance, propertyNodeId } from "./engine/component-tree";
-import { ancestors, subtreeIds } from "./engine/hierarchy";
+import { canExposeInstance, componentSlots, exposedCopies, localComponentChoices, owningInstance, propertyNodeId, slotDefinition } from "./engine/component-tree";
+import { ancestors } from "./engine/hierarchy";
 
 interface InstancePanelProps {
   document: Document;
   selection: readonly NodeId[];
   enabled: boolean;
   dispatch: (command: string, params?: unknown) => void;
+}
+
+function SlotControls({document,frame,name,preferred,components,dispatch}: Pick<InstancePanelProps,"document"|"dispatch"> & {
+  frame:FrameNode; name:string; preferred:readonly NodeId[]; components:readonly NodeId[]
+}) {
+  const edited = frame.overrides?.includes("slot"), parents = new Set(ancestors(document,frame.id));
+  const options = (ids:readonly NodeId[])=>ids.filter(id=>document.nodes[id]).map(id=><option key={id} value={id}>{document.nodes[id].name}</option>);
+  return <div><label>{name}<select aria-label={name} value="" onChange={e=>dispatch("instance.slotInsert",{id:frame.id,component:e.currentTarget.value})}>
+    <option value="">{edited ? frame.children.length+" layers" : frame.children.length ? "Default content" : "Empty"}</option>
+    {preferred.length>0 && <optgroup label="Preferred">{options(preferred)}</optgroup>}
+    <optgroup label="All components">{options(components.filter(id=>!parents.has(id)))}</optgroup>
+  </select></label>
+  <button type="button" onClick={()=>dispatch("select.set",{ids:[frame.id]})}>Select {name} slot</button>
+  {edited && <button type="button" onClick={()=>dispatch("instance.resetSlot",{id:frame.id})}>Reset {name}</button>}</div>;
 }
 
 function PropertyControls({document,node,components,dispatch}: Pick<InstancePanelProps,"document"|"dispatch"> & {
@@ -43,39 +57,25 @@ function PropertyControls({document,node,components,dispatch}: Pick<InstancePane
           onKeyDown={event=>{if (event.key === "Enter") event.currentTarget.blur();}}
           onBlur={event=>{if (event.currentTarget.value !== text) change(name,event.currentTarget.value);}}/></label>;
       }
-      if (def.type !== "slot" && def.type !== "instanceSwap") return null;
-      const slot = slots.find(entry=>entry.name === name);
-      const frame = slot && document.nodes[slot.id];
-      if (def.type === "slot" && frame?.kind !== "frame") return null;
-      const edited = frame?.overrides?.includes("slot");
-      const selected = def.type === "instanceSwap" ? propertyNodeId(value) ?? "" : "";
-      const preferred = def.preferred.filter(id=>document.nodes[id]);
-      const parents = slot ? new Set(ancestors(document,slot.id)) : undefined;
-      const choices = parents ? components.filter(id=>!parents.has(id)) : components;
-      return <div key={name}><label>{name}<select aria-label={name} value={selected}
-        onChange={event=>{const component = event.currentTarget.value;
-          if (slot) dispatch("instance.slotInsert",{id:slot.id,component});
-          else change(name,component);
-        }}>
-        {frame?.kind === "frame" ? <option value="">{edited ? frame.children.length+" layers" : frame.children.length ? "Default content" : "Empty"}</option>
-          : !choices.includes(selected) && !preferred.includes(selected) && <option value={selected}>{document.nodes[selected]?.name ?? "None"}</option>}
+      if (def.type === "slot") {
+        const slot = slots.find(entry=>entry.name === name);
+        const frame = slot && document.nodes[slot.id];
+        return frame?.kind === "frame" ? <SlotControls key={name} document={document} frame={frame} name={name}
+          preferred={def.preferred} components={components} dispatch={dispatch}/> : null;
+      }
+      if (def.type !== "instanceSwap") return null;
+      const selected = propertyNodeId(value) ?? "", preferred = def.preferred.filter(id=>document.nodes[id]);
+      return <label key={name}>{name}<select aria-label={name} value={selected} onChange={e=>change(name,e.currentTarget.value)}>
+        {!components.includes(selected) && !preferred.includes(selected) && <option value={selected}>{document.nodes[selected]?.name ?? "None"}</option>}
         {preferred.length>0 && <optgroup label="Preferred">{options(preferred)}</optgroup>}
-        <optgroup label="All components">{options(choices)}</optgroup>
-      </select></label>
-      {slot && edited && <button type="button" onClick={()=>dispatch("instance.resetSlot",{id:slot.id})}>Reset {name}</button>}</div>;
+        <optgroup label="All components">{options(components)}</optgroup>
+      </select></label>;
     })}
   </>;
 }
 
 function InstanceActions({document,id,enabled,dispatch}: Omit<InstancePanelProps,"selection"> & {id:NodeId}) {
-  const choices = useMemo(() => document.pages.map(page => ({
-    page,
-    options:subtreeIds(document,page).filter(id => {
-      const layer = document.nodes[id];
-      return (layer.kind === "componentSet" || layer.kind === "component" && document.nodes[layer.parent].kind !== "componentSet") &&
-        !owningInstance(document,id,false);
-    }),
-  })).filter(group=>group.options.length), [document.nodes,document.pages]);
+  const choices = useMemo(()=>localComponentChoices(document),[document.nodes,document.pages]);
   const node = document.nodes[id];
   if (node.kind !== "instance") return null;
   const main = document.nodes[node.component], set = main?.parent ? document.nodes[main.parent] : undefined;
@@ -110,8 +110,12 @@ export function InstancePanel({document,selection,enabled,dispatch}: InstancePan
   const id = selection.length === 1 && selection[0], node = id ? document.nodes[id] : undefined;
   if (!node || node.kind === "page" || !owningInstance(document,node.id)) return null;
   const own = componentOverrides(node).filter(isOverrideGroup);
+  const slot = node.kind === "frame" && slotDefinition(document,node.id);
   return <>
     {node.kind === "instance" && <InstanceActions document={document} id={node.id} enabled={enabled} dispatch={dispatch}/>}
+    {slot && node.kind === "frame" && <fieldset disabled={!enabled}><legend>Slot</legend>
+      <SlotControls document={document} frame={node} name={slot.name} preferred={slot.preferred}
+        components={localComponentChoices(document).flatMap(g=>g.options)} dispatch={dispatch}/></fieldset>}
     {own.length>0 && <fieldset disabled={!enabled}><legend>Overrides</legend>
       {own.map(group=><button type="button" key={group} onClick={()=>dispatch("component.resetOverride",{id:node.id,group})}>Reset {group}</button>)}
       <button type="button" onClick={()=>dispatch("component.resetOverride",{id:node.id})}>Reset overrides</button>

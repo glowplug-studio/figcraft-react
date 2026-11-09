@@ -58,7 +58,7 @@ function jsonText(value: unknown): string {
   return JSON.stringify(value);
 }
 
-function coerce(doc: Document, name: string, def: ComponentProperty, value: unknown): InstanceValue {
+export function coerceComponentValue(doc: Document, name: string, def: ComponentProperty, value: unknown): InstanceValue {
   switch (def.type) {
     case "boolean":
       if (typeof value === "boolean") return value;
@@ -105,7 +105,7 @@ export function withInstanceProperties(doc: Document, instance: InstanceNode, pr
       const known = [...Object.keys(defs).sort(compareScalarKeys),...variants.keys()];
       throw new Error(`unknown property \`${name}\` (known: ${known.join(", ")})`);
     }
-    values.set(name,coerce(doc,name,defs[name],value));
+    values.set(name,coerceComponentValue(doc,name,defs[name],value));
   }
   const props = Object.freeze(Object.fromEntries(values));
   return component === instance.component && sameComponentValue(instance.props,props) ? instance : {...instance,component,props};

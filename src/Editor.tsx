@@ -34,6 +34,7 @@ import type { RecoveryStore } from "./backends/recovery";
 import { RecoveryController } from "./engine/recovery";
 import { PagePanel } from "./PagePanel";
 import { EffectsPanel } from "./EffectsPanel";
+import { ComponentPanel } from "./ComponentPanel";
 import { InstancePanel } from "./InstancePanel";
 import { AppearancePanel } from "./AppearancePanel";
 import { BooleanMenu } from "./BooleanMenu";
@@ -562,6 +563,7 @@ export function Editor({ identity, capabilities, engine: suppliedEngine, recover
               try { if (!controller.current?.formatText(props)) dispatch("node.set", {ids, props}); }
               catch (e) { setError(e instanceof Error ? e.message : "Could not format text"); }
             }} />}
+          {!editingVector && <ComponentPanel document={snapshot.document} selection={snapshot.selection} enabled={editable && !busy} dispatch={dispatch}/>}
           {!editingVector && <InstancePanel document={snapshot.document} selection={snapshot.selection} enabled={editable && !busy} dispatch={dispatch}/>}
           <AppearancePanel engine={engine} page={page} selected={selected && selected.kind !== "page" ? selected : undefined} editable={editable && !busy} dispatch={dispatch} />
           <StrokePanel engine={engine} nodes={snapshot.selection.flatMap(id => { const n = snapshot.document.nodes[id]; return n && n.kind !== "page" ? [n] : []; })} editable={editable && !busy} dispatch={dispatch} />

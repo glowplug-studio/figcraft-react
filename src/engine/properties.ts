@@ -30,7 +30,7 @@ import { moveWorld } from "./arrange";
 import type { Point } from "./geometry";
 
 const geometryKeys = new Set(["x", "y", "width", "height", "w", "h", "rotation"]);
-const appearanceKeys = new Set(["effects", "isMask", "maskType", "booleanOperation", "operandOperation", "name", "visible", "locked", "opacity", "blend", "blendMode", "fill", "fills", "clip", "constraints", "constrainProportions"]);
+const appearanceKeys = new Set(["description", "effects", "isMask", "maskType", "booleanOperation", "operandOperation", "name", "visible", "locked", "opacity", "blend", "blendMode", "fill", "fills", "clip", "constraints", "constrainProportions"]);
 
 /** The supported layer geometry and appearance subset of upstream `node.set`. No history is recorded here. */
 export function setRectangleProperties(document: Document, selection: readonly NodeId[], params: Record<string, unknown>, origin?: Point, warnings: string[] = [], textCommand?: "text.style" | "text.set", draft = new HierarchyDraft(document)): Document {
@@ -147,7 +147,7 @@ function writeProperties(draft: HierarchyDraft, document: Document, selection: r
   for (const id of ids) {
     const node = draft.nodes[id];
     if (textCommand && node?.kind !== "text") throw new Error("Expected a text layer");
-    if (node?.kind === "page" && keys.every(key => ["effects", "isMask", "maskType"].includes(key))) {
+    if (node?.kind === "page" && keys.every(key => ["description", "effects", "isMask", "maskType"].includes(key))) {
       const page = mask(node);
       draft.set(effects ? withEffects(page, effects) : page);
       continue;
@@ -242,6 +242,12 @@ function writeProperties(draft: HierarchyDraft, document: Document, selection: r
         updated = Object.freeze(rest);
       } else updated = Object.freeze({...updated,blend});
     }
+    if ("description" in props) {
+      if (updated.kind !== "component" && updated.kind !== "componentSet") throw new Error("Description applies to components");
+      const raw = props.description;
+      const description = typeof raw === "string" || typeof raw === "number" ? String(raw) : "";
+      if (description !== updated.description) updated = {...updated,description};
+    }
     if (effects) updated = withEffects(updated, effects);
     if ("isMask" in props || "maskType" in props) updated = mask(updated);
     if (cornersChanged) updated = Object.freeze({ ...updated, corners });
@@ -254,7 +260,7 @@ function writeProperties(draft: HierarchyDraft, document: Document, selection: r
     if ("constrainProportions" in props) updated = Object.freeze({ ...updated, constrainProportions: props.constrainProportions as boolean });
     if (opacity !== undefined && opacity !== (node.opacity ?? 1)) updated = Object.freeze({ ...updated, opacity });
     if (paints && !samePaints(rectanglePaints(node), paints)) updated = withRectanglePaints(updated, paints);
-    if (textKeys.length || updated.effects !== node.effects || updated.isMask !== node.isMask || updated.maskType !== node.maskType || changeBlend || arcNode !== node || updated.kind === "vector" && "cornerRadius" in props || cornersChanged || "constrainProportions" in props && props.constrainProportions !== (node.constrainProportions ?? false) || constraintsChanged || "clip" in props && isFrameLike(node) && props.clip !== node.clip || width !== node.width || height !== node.height || transform.some((value, index) => value !== rectangleTransform(node)[index])
+    if ("description" in props || textKeys.length || updated.effects !== node.effects || updated.isMask !== node.isMask || updated.maskType !== node.maskType || changeBlend || arcNode !== node || updated.kind === "vector" && "cornerRadius" in props || cornersChanged || "constrainProportions" in props && props.constrainProportions !== (node.constrainProportions ?? false) || constraintsChanged || "clip" in props && isFrameLike(node) && props.clip !== node.clip || width !== node.width || height !== node.height || transform.some((value, index) => value !== rectangleTransform(node)[index])
       || name !== undefined && name !== node.name || "visible" in props && props.visible !== (node.visible ?? true)
       || "locked" in props && props.locked !== (node.locked ?? false) || opacity !== undefined && opacity !== (node.opacity ?? 1)
       || paints && !samePaints(rectanglePaints(node), paints)) {

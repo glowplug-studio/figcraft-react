@@ -445,3 +445,61 @@ it("clears a newly created main text layer's transient override and keeps subseq
   e.execute("component.addVariant",{id:2});
   expect(e.getSnapshot().document.nodes[6]).not.toHaveProperty("charactersOverridden");
 });
+
+describe("component property definition authoring",()=>{
+  it("renames own keys across every variant, existing instance and layer binding, then undoes a deletion",async()=>{
+    const e=await open(capture("variant-overrides"));
+    e.execute("instance.create",{component:2});
+    expect(e.execute("component.addProperty",{id:3,type:"boolean",name:"__proto__",default:false})).toEqual({id:"8",name:"__proto__"});
+    e.execute("component.bindProperty",{layer:6,field:"visible",property:"__proto__"});
+    e.execute("node.set",{id:3,props:{visible:true}});
+    for (const id of [2,5]) expect(e.execute("component.properties",{id})).toMatchObject({properties:expect.arrayContaining([
+      {name:"__proto__",type:"boolean",default:true},
+    ])});
+    expect(e.getSnapshot().document.nodes[6]).not.toMatchObject({visible:false});
+    expect(e.getSnapshot().document.nodes[10]).toMatchObject({visible:false});
+    e.execute("component.editProperty",{id:8,name:"__proto__",newName:"constructor"});
+    e.execute("instance.setProperties",{id:9,properties:{constructor:true}});
+    const doc=e.getSnapshot().document;
+    expect(doc.nodes[3].propRefs).toEqual({visible:"constructor"});
+    expect(doc.nodes[6].propRefs).toEqual({visible:"constructor"});
+    expect(doc.nodes[10]).not.toMatchObject({visible:false});
+    const reopened=await open(await encodeFigcraft(doc));
+    expect(reopened.execute("component.properties",{id:9})).toEqual(e.execute("component.properties",{id:9}));
+    reopened.execute("component.deleteProperty",{id:8,name:"constructor"});
+    expect(reopened.getSnapshot().document.nodes[3].propRefs).toBeUndefined();
+    reopened.execute("edit.undo");
+    expect(reopened.getSnapshot().document.nodes[3].propRefs).toEqual({visible:"constructor"});
+  });
+
+  it("adds names to a lone main, renames and reorders a variant axis and moves the default to its top-left place",()=>{
+    const e=new EditorEngine();
+    const run=(c:string,p:Record<string,unknown>)=>e.execute("component."+c,p);
+    e.execute("node.create",{type:"component",name:"Card"});
+    run("addProperty",{id:2,type:"variant",name:"Size",default:"Small"});
+    run("addVariant",{id:3,property:"Size",value:"Large"});
+    run("addProperty",{id:3,type:"variant",name:"Mode",default:"Off"});
+    run("addVariant",{id:4,property:"Mode",value:"On"});
+    run("editProperty",{id:3,name:"Mode",newName:"State",value:"On",newValue:"Active",default:"Active",index:0});
+    expect(e.getSnapshot().document.nodes[5]).toMatchObject({name:"State=Active, Size=Large",x:20,y:20});
+    const state=e.getSnapshot(), depth=e.getUndoDepth();
+    expect(()=>run("editProperty",{id:3,name:"State",newName:"Size"})).toThrow(/already exists/);
+    expect(()=>run("editProperty",{id:3,name:"State",newName:"Disposable",default:"Missing"})).toThrow(/No variant/);
+    expect(e.getSnapshot()).toBe(state);expect(e.getUndoDepth()).toBe(depth);
+    run("deleteProperty",{id:3,name:"Size"});
+    expect(e.getSnapshot().document.nodes[5].name).toBe("State=Active");
+  });
+
+  it("removes an edited slot through its main frame and restores instance contents on undo",async()=>{
+    const e=await open(capture("typed"));
+    e.execute("instance.slotInsert",{id:7,slot:"Body",component:5});
+    e.execute("component.removeSlot",{id:6});
+    expect(e.getSnapshot().document.nodes[10]).toMatchObject({children:[]});
+    expect(e.getSnapshot().document.nodes[11]).toBeUndefined();
+    e.execute("edit.undo");
+    expect(e.getSnapshot().document.nodes[10]).toMatchObject({overrides:["slot"],children:["11"]});
+    const before=e.getSnapshot();
+    expect(()=>e.execute("component.removeSlot",{id:10})).toThrow(/main component/);
+    expect(e.getSnapshot()).toBe(before);
+  });
+});
