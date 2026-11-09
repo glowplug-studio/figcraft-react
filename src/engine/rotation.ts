@@ -92,7 +92,15 @@ export function validateChangedGeometry(draft: HierarchyDraft): Document {
       parent = worldTransform(result, node.parent);
       parents.set(node.parent, parent);
     }
-    transformBounds(multiply(parent, layerTransform(node)), node.width, node.height);
+    if (!node.transform && parent[0] === 1 && parent[1] === 0 && parent[2] === 0 && parent[3] === 1) {
+      // Translation-only siblings need two world corners. Verify their extents as well:
+      // subtracting two finite opposite-sign coordinates can overflow.
+      const x = parent[4]+node.x, y = parent[5]+node.y;
+      const right = x+node.width, bottom = y+node.height;
+      if (!Number.isFinite(right-x) || !Number.isFinite(bottom-y)) throw new Error("Affine geometry must be finite");
+    } else {
+      transformBounds(multiply(parent,layerTransform(node)),node.width,node.height);
+    }
   }
   return result;
 }

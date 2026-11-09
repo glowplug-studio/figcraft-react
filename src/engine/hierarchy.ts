@@ -78,18 +78,25 @@ export function subtreeIds(document: Document, id: NodeId): readonly NodeId[] {
     seen.add(current);
     const node = nodeOf(document, current);
     result.push(current);
-    stack.push(...[...childrenOf(node)].reverse());
+    const children = childrenOf(node);
+    for (let i=children.length-1; i>=0; i--) stack.push(children[i]);
   }
   return result;
 }
 
 export function rootIds(document: Document, ids: readonly NodeId[]): NodeId[] {
   const selected = new Set(ids), seen = new Set<NodeId>();
+  const coveredParents = new Map<NodeId | null, boolean>();
   return ids.filter(id => {
-    nodeOf(document, id);
+    const {parent} = nodeOf(document, id);
     if (seen.has(id)) return false;
     seen.add(id);
-    return !ancestors(document, id).some(parent => selected.has(parent));
+    let covered = coveredParents.get(parent);
+    if (covered === undefined) {
+      covered = ancestors(document,id).some(ancestor => selected.has(ancestor));
+      coveredParents.set(parent,covered);
+    }
+    return !covered;
   });
 }
 
