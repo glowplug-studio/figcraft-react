@@ -1,5 +1,5 @@
 import { blendFromName, type BlendMode } from "./blend";
-import { isBooleanOperation, isGroupLike } from "./document";
+import { layerBlend, isBooleanOperation, isGroupLike } from "./document";
 import { pathNetwork } from "./svg-path";
 import { freezeNetwork } from "./vector-network";
 import { isShapeKey, setShapeProperties } from "./shape-properties";
@@ -147,7 +147,7 @@ export function setRectangleProperties(document: Document, selection: readonly N
     }
     transformBounds(transform, width, height);
     let updated: LayerNode = withLayerSize(withRectangleTransform(arcNode, transform), width, height);
-    const changeBlend = blend !== undefined && blend !== (node.blend ?? (node.kind === "group" || node.kind === "frame" ? "passThrough" : "normal"));
+    const changeBlend = blend !== undefined && blend !== layerBlend(node);
     if (changeBlend) {
       if (isLeaf(node) && blend === "normal") {
         const {blend: previousBlend, ...rest} = updated;

@@ -1,3 +1,4 @@
+import { BlendMenu } from "./BlendMenu";
 import { PatternPaintControls } from "./PatternPaintControls";
 import { patternSources } from "./engine/pattern-sources";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type PointerEvent } from "react";
@@ -170,6 +171,8 @@ export function PaintPicker({engine,list,index,label,paint,change,region=false}:
       {!image && paint.type === "gradient" && <Stops engine={engine} paint={paint} picker={picker} change={change}/>}
       {!image && selectedColour && outsideSrgb(selectedColour, engine.getSnapshot().document.colourProfile ?? "srgb") &&
         <p title="The canvas shows the nearest sRGB color.">Outside sRGB</p>}
+      <span>Blend mode </span><BlendMenu engine={engine} label={label+" blend mode"} value={paint.blend} picker={picker}
+        change={blend=>change({...paint,blend})}/>
     </div>}
   </>;
 }

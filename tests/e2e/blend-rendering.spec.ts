@@ -63,3 +63,15 @@ test("gradients, images and patterns blend through clipped fills, strokes and fl
   expect(result.after).toEqual(result.before);
   await test.info().attach("paint source pixels",{body:JSON.stringify(result),contentType:"application/json"});
 });
+
+test("mixed blend preview and drawing stay within the frame budget with bounded readback",async({page})=>{
+  await loadFixture(page);
+  const measurement=await page.evaluate(()=>window.FigcraftBlend.blendFrames(document.querySelector("canvas")!));
+  await test.info().attach("blend frame timings",{body:JSON.stringify(measurement),contentType:"application/json"});
+  expect(measurement.frames).toBe(60);
+  expect(measurement.published).toBe(0);
+  expect(measurement.largestRead).toBeGreaterThan(0);
+  expect(measurement.largestRead).toBeLessThan(100*100);
+  expect(measurement.preview.p95).toBeLessThan(4);
+  expect(measurement.draw.p95).toBeLessThan(16.7);
+});

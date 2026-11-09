@@ -1,3 +1,4 @@
+import type { BlendMode } from "./blend";
 import { isGroupLike, rectanglePaints } from "./document";
 import { editImagePaints, editImagePreset, imageEditSpecs, startImageCrop, type CropTarget } from "./image-commands";
 import { listImagePresets } from "./image-filters";
@@ -278,6 +279,25 @@ export class EditorEngine {
   }
   closeProfileDialog() { if (this.#snapshot.profileDialog) this.#publish({ profileDialog: false }); }
   finishCrop() { if (this.#snapshot.crop) this.#publish({crop:undefined}); }
+  /** A menu may outlive its gesture after selection changes or edit access is revoked. */
+  beginBlendPreview(picker?: PaintPicker) {
+    if (this.interacting || !this.#snapshot.editable || !this.#snapshot.selection.length) return;
+    this.beginInteraction();
+    const owner = this.#interaction!;
+    const {document,selection} = owner.base;
+    return {
+      show: (blend:BlendMode) => {
+        if (this.#interaction !== owner) return;
+        if (picker) {
+          const params = {ids:selection,index:picker.index,blend};
+          owner.document = picker.list === "stroke" ? executeStrokeList("stroke.set",document,selection,params)
+            : writeFill("fill.set",document,selection,params,owner.baseVectorEdit);
+        } else owner.document = setRectangleProperties(document,selection,{ids:selection,props:{blend}});
+        this.#notifyCanvas();
+      },
+      cancel: () => { if (this.#interaction === owner) this.cancelInteraction(); },
+    };
+  }
   previewPaint(picker: PaintPicker, paint: Paint): void {
     const interaction = this.#interaction;
     if (!interaction) throw new Error("No active paint interaction");

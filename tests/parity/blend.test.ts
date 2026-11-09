@@ -63,3 +63,32 @@ it("preserves independent fill and stroke modes through commands, paint copy, un
   engine.execute("fill.set",{id:source,blend:"difference"});
   engine.execute("edit.undo"); expect(engine.getSnapshot().document).toBe(before);
 });
+
+it("previews blend on multiple targets without publishing or taking over a later interaction",()=>{
+  const e=new EditorEngine();
+  const a=String(e.execute("shape.rectangle",{props:{blend:"multiply"}}).id);
+  const b=String(e.execute("shape.rectangle",{props:{blend:"screen"}}).id);
+  e.execute("select.set",{ids:[a,b]});
+  const base=e.getSnapshot(), depth=e.getUndoDepth();
+  let ui=0,canvas=0;
+  e.subscribe(()=>ui++); e.subscribeCanvas(()=>canvas++);
+  const hover=e.beginBlendPreview()!;
+  for (const mode of ["overlay","hue"] as const) {
+    hover.show(mode);
+    for (const id of [a,b]) expect(e.getRenderDocument().nodes[id]).toMatchObject({blend:mode});
+    expect(e.getSnapshot()).toBe(base);
+  }
+  expect(ui).toBe(0); expect(canvas).toBeGreaterThanOrEqual(2);
+  hover.cancel();
+  expect(e.getRenderDocument()).toBe(base.document); expect(e.getUndoDepth()).toBe(depth);
+  e.beginInteraction(); e.previewProperties(a,{opacity:.4});
+  hover.show("difference"); hover.cancel();
+  expect(e.interacting).toBe(true); expect(e.getRenderDocument().nodes[a]).toMatchObject({blend:"multiply"});
+  e.cancelInteraction();
+  const paint=e.beginBlendPreview({list:"fill",index:0,stop:0})!;
+  paint.show("darken");
+  for (const id of [a,b]) expect(e.getRenderDocument().nodes[id]).toMatchObject({fills:[{blend:"darken"}]});
+  e.setEditable(false); paint.show("screen"); paint.cancel();
+  expect(e.getRenderDocument()).toBe(base.document); expect(e.getUndoDepth()).toBe(depth);
+  expect(e.beginBlendPreview()).toBeUndefined();
+});

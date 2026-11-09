@@ -93,6 +93,7 @@ export const isGroupLike = (node: DocumentNode | undefined): node is GroupNode |
 export const isLeafKind = (kind: unknown): kind is LeafNode["kind"] => kind === "rectangle" || kind === "ellipse" || kind === "polygon" || kind === "star" || kind === "line" || kind === "vector";
 export const isDrawTool = (kind: unknown): kind is DrawShapeKind => isLeafKind(kind) && kind !== "vector" || kind === "arrow";
 export const isLeaf = (node: DocumentNode): node is LeafNode => isLeafKind(node.kind);
+export const layerBlend = (node: LayerNode): BlendMode => node.blend ?? (isLeaf(node) ? "normal" : "passThrough");
 export interface Document {
   readonly colourProfile?: import("./colour-spaces").ColourProfile;
   readonly documentColours?: readonly Colour[];

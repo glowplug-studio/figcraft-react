@@ -3,7 +3,7 @@ import { sha256 } from "@noble/hashes/sha2.js";
 import { bytesToHex } from "@noble/hashes/utils.js";
 import { readNativeJson } from "./native-json";
 import { readVectorNetwork, wireVectorNetwork } from "./vector-codec";
-import { isBooleanOperation, isLeaf, isLeafKind } from "./document";
+import { layerBlend, isBooleanOperation, isLeaf, isLeafKind } from "./document";
 import { type Corners, type Radii } from "./corners";
 import { readImageFilters } from "./image-filters";
 import { archivedImage, validImageKey, type ImageResource } from "./image-resource";
@@ -448,7 +448,7 @@ function wireNode(key: string, node: DocumentNode) {
     return { ...common, width: 0, height: 0, children: node.children.map(wireId), background: pageColour(node), ...(node.prototypeBackground && { prototype: { device: "None", rotation: "portrait", background: node.prototypeBackground } }) };
   } else {
     return { ...common, ...(node.boolOp ? { bool_op: node.boolOp } : {}), parent: wireId(node.parent), ...(!isLeaf(node) ? { children: node.children.map(wireId) } : {}), transform: layerTransform(node), width: node.width, height: node.height, ...(node.stroke ? { stroke: wireStroke(node.stroke) } : {}), ...(node.strokes ? { strokes: wirePaints(node.strokes) } : {}),
-      ...(node.corners ? { corners: node.corners } : {}), ...(node.constraints ? { constraints: node.constraints } : {}), ...(node.constrainProportions ? { constrain_proportions: true } : {}), ...(node.kind === "frame" ? { clip: node.clip } : {}), blend: node.blend ?? (!isLeaf(node) ? "passThrough" : "normal"), visible: node.visible ?? true, locked: node.locked ?? false, opacity: node.opacity ?? 1, fills: wirePaints(rectanglePaints(node)) };
+      ...(node.corners ? { corners: node.corners } : {}), ...(node.constraints ? { constraints: node.constraints } : {}), ...(node.constrainProportions ? { constrain_proportions: true } : {}), ...(node.kind === "frame" ? { clip: node.clip } : {}), blend: layerBlend(node), visible: node.visible ?? true, locked: node.locked ?? false, opacity: node.opacity ?? 1, fills: wirePaints(rectanglePaints(node)) };
   }
 }
 

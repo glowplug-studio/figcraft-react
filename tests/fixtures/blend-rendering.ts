@@ -120,3 +120,52 @@ export async function paintSourcePixels(canvas: HTMLCanvasElement) {
   engine.execute("vector.flatten",{ids:[id,second]});
   return {sets,before,after:regionPixels()};
 }
+
+export async function blendFrames(canvas:HTMLCanvasElement) {
+  canvas.width=640; canvas.height=400;
+  const ctx=canvas.getContext("2d",{willReadFrequently:true})!;
+  const e=new EditorEngine();
+  e.execute("page.setBackground",{color:"#cc6633"});
+  const paints=["solid","gradient","pattern"] as const;
+  const source=e.execute("shape.rectangle",{x:900,y:0,width:8,height:8,props:{fill:"#66ccee"}}).id;
+  for (let i=0;i<48;i++) {
+    const blend=blendModes[i%blendModes.length], type=paints[i%3];
+    const paint=type==="solid"?{type,color:"#66ccee",blend}:type==="gradient"?{type,kind:"linear",stops:["red","blue"],blend}:{type,source,blend};
+    e.execute("shape.rectangle",{x:(i%8)*76,y:Math.floor(i/8)*60,width:64,height:48,
+      props:{fills:["#cc6633",paint],strokes:[{type:"solid",color:"cyan",blend}],
+        strokeWeight:4,dashes:i%2?[10,8]:[],blend:i%4===0?"multiply":"normal"}});
+  }
+  let readPixels=0,largestRead=0,readMs=0,published=0;
+  const get=ctx.getImageData.bind(ctx);
+  ctx.getImageData=(x,y,w,h,settings)=>{
+    const start=performance.now();
+    const result=get(x,y,w,h,settings);
+    readMs+=performance.now()-start; readPixels+=w*h; largestRead=Math.max(largestRead,w*h);
+    return result;
+  };
+  const unsubscribe=e.subscribe(()=>published++);
+  const interaction=e.beginBlendPreview()!;
+  const drawTimes:number[]=[],previewTimes:number[]=[],readTimes:number[]=[];
+  try {
+    for (let i=0;i<65;i++) {
+      await new Promise<void>(resolve=>requestAnimationFrame(()=>resolve()));
+      const start=performance.now();
+      interaction.show(blendModes[i%blendModes.length]);
+      const beforeDraw=performance.now();
+      readMs=0;
+      renderDocument(ctx,e.getRenderDocument(),640,400);
+      get(35,35,1,1);
+      if (i>=5) {
+        previewTimes.push(beforeDraw-start);
+        drawTimes.push(performance.now()-beforeDraw);
+        readTimes.push(readMs);
+      }
+    }
+  } finally {interaction.cancel(); unsubscribe(); ctx.getImageData=get;}
+  function stats(times:number[]) {
+    times.sort((a,b)=>a-b);
+    return {p50:times[29],p95:times[56],max:times[59]};
+  }
+  return {layers:48,frames:drawTimes.length,draw:stats(drawTimes),preview:stats(previewTimes),
+    readback:stats(readTimes),largestRead,readPixels,published};
+}

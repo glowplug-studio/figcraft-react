@@ -1,9 +1,10 @@
+import { BlendMenu } from "./BlendMenu";
 import { PaintPicker } from "./PaintPicker";
 import { usePaintActions } from "./PaintActions";
 import { useState, useSyncExternalStore, type FormEvent } from "react";
 import { parseCssColour } from "./engine/colour-css";
 import { renderColour, withAlpha } from "./engine/colour";
-import { pageColour, rectanglePaints, type PageNode, type LayerNode } from "./engine/document";
+import { layerBlend, pageColour, rectanglePaints, type PageNode, type LayerNode } from "./engine/document";
 import { paintColour, samePaints, solidPaint, type Paint } from "./engine/solid-paint";
 
 import type { EditorEngine } from "./engine/editor";
@@ -17,10 +18,16 @@ interface AppearancePanelProps {
   dispatch: (command: string, params?: unknown) => void;
 }
 
-function AppearanceControls({ engine, page, selected, editable, dispatch }: AppearancePanelProps) {
+function AppearanceControls({ engine, page, selected, editable, dispatch, expanded, toggle }: AppearancePanelProps & {expanded:boolean; toggle:()=>void}) {
   const [alert, setAlert] = useState("");
   const state = useSyncExternalStore(engine.subscribeVectorEdit, engine.getVectorEdit, engine.getVectorEdit);
   const snapshot = engine.getSnapshot(), ids = snapshot.selection;
+  const firstBlend = selected && layerBlend(selected);
+  const blend = ids.every(id=>{
+    const node = snapshot.document.nodes[id];
+    return node.kind !== "page" && layerBlend(node) === firstBlend;
+  }) ? firstBlend : undefined;
+  const showBlend = expanded || !!blend && blend !== "normal" && blend !== "passThrough";
   const inherited = selected ? rectanglePaints(selected) : [];
   const regionPaints = selected && ids.length === 1 ? selectedRegionFills(selected, state) : undefined;
   const mixed = regionPaints === null || ids.length > 1 && ids.some(id => {
@@ -56,6 +63,9 @@ function AppearanceControls({ engine, page, selected, editable, dispatch }: Appe
   }
   return <section aria-label="Appearance">
     <h3>Appearance</h3>
+    {selected && <button type="button" disabled={!editable} aria-expanded={showBlend} onClick={toggle}>Blend mode</button>}
+    {selected && editable && showBlend && <BlendMenu engine={engine} label="Layer blend mode" value={blend}
+      change={mode=>dispatch("node.set",{ids,props:{blend:mode}})}/>}
     {alert && <p role="alert">{alert}</p>}
     <form key={`background:${page.id}:${JSON.stringify(pageColour(page))}`} onSubmit={background}>
       <fieldset disabled={!editable}><legend>Page</legend>
@@ -111,5 +121,6 @@ function AppearanceControls({ engine, page, selected, editable, dispatch }: Appe
 }
 
 export function AppearancePanel(props: AppearancePanelProps) {
-  return <AppearanceControls key={`${props.page.id}:${props.selected?.id ?? "none"}`} {...props} />;
+  const [expanded,setExpanded] = useState(false);
+  return <AppearanceControls expanded={expanded} toggle={()=>setExpanded(previous=>!previous)} key={`${props.page.id}:${props.selected?.id ?? "none"}`} {...props} />;
 }
