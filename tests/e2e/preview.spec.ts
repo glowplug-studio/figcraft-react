@@ -4274,3 +4274,21 @@ test("attach text to a curved layer, change its offset and side, then detach and
   await panel.getByRole("button",{name:"Remove text from path"}).click(); await expect(offset).toHaveCount(0);
   await page.getByRole("button",{name:"Undo",exact:true}).click(); await expect(offset).toHaveValue("25");
 });
+
+test("missing fonts lists the document's families and uses a fallback until the font is available",async ({page})=>{
+  const engine=new EditorEngine();
+  const id=(await engine.executeAsync("text.create",{name:"Font sample",text:"Sample",x:30,y:50})).id;
+  engine.execute("node.set",{id,props:{fontFamily:"Figcraft unavailable"}});
+  await login(page);
+  await page.getByLabel("Open Figcraft file",{exact:true}).setInputFiles({name:"fonts.figcraft",mimeType:"application/octet-stream",buffer:Buffer.from(await encodeFigcraft(engine.getSnapshot().document))});
+  await page.getByRole("region",{name:"Layers",exact:true}).getByRole("button",{name:"Font sample"}).click();
+  const panel=page.getByRole("group",{name:"Typography",exact:true});
+  await panel.getByText("More typography options",{exact:true}).click();
+  const show=panel.getByRole("button",{name:"Missing fonts…"});
+  const dialog=page.getByRole("dialog",{name:"Missing fonts"});
+  await show.click(); await expect(dialog).toContainText("Figcraft unavailable · 1 layer");
+  await dialog.getByRole("button",{name:"Close",exact:true}).click();
+  await panel.getByLabel("Font family",{exact:true}).selectOption("Inter");
+  await show.click(); await expect(dialog).toContainText("All the fonts this file uses are installed.");
+  await page.keyboard.press("Escape"); await expect(dialog).toHaveCount(0);
+});

@@ -64,6 +64,8 @@ export function Editor({ identity, capabilities, engine: suppliedEngine, recover
   const imageInput = useRef<HTMLInputElement>(null);
   const fileInput = useRef<HTMLInputElement>(null);
   const linkDialog = useRef<HTMLDialogElement>(null);
+  const missingFontsDialog = useRef<HTMLDialogElement>(null);
+  useEffect(() => { if (snapshot.missingFonts) missingFontsDialog.current?.showModal(); }, [snapshot.missingFonts]);
   const replaceDialog = useRef<HTMLDialogElement>(null);
   const initialPrincipal = useRef(identity.getSnapshot().principal?.id);
   const canvas = useRef<HTMLCanvasElement>(null);
@@ -383,6 +385,14 @@ export function Editor({ identity, capabilities, engine: suppliedEngine, recover
       {!signedIn && <p role="status">Sign in to edit this document.</p>}
       {error && <p role="alert">{error}</p>}
       {recoveryError && <p role="alert">{recoveryStatus === "error" ? "Recovery unavailable" : "Recovery notice"}: {recoveryError}</p>}
+      {snapshot.missingFonts && editable && <dialog ref={missingFontsDialog} aria-label="Missing fonts" onCancel={()=>engine.closeMissingFonts()}>
+        <h2>Missing fonts</h2>
+        {snapshot.missingFonts.length ? <>
+          <p>Text using these families is drawn in a fallback font.</p>
+          <ul>{snapshot.missingFonts.map(({family,layers})=><li key={family}>{family} · {layers} {layers===1 ? "layer" : "layers"}</li>)}</ul>
+        </> : <p>All the fonts this file uses are installed.</p>}
+        <button type="button" onClick={()=>engine.closeMissingFonts()}>Close</button>
+      </dialog>}
       {snapshot.profileDialog && editable && <ColourProfileDialog current={snapshot.document.colourProfile ?? "srgb"}
         close={() => engine.closeProfileDialog()} apply={(profile, convert) => dispatch("file.colorProfile", {profile, convert})} />}
       <dialog ref={replaceDialog} aria-label="Replace unsaved document" onCancel={() => setPendingFile(null)}>

@@ -20,7 +20,7 @@ function nativeFloat(value: number): string {
   return Number.isInteger(value) ? value.toFixed(1) : String(value);
 }
 
-function compareScalarKeys(left: string, right: string): number {
+export function compareScalarKeys(left: string, right: string): number {
   let i = 0;
   while (i < left.length && i < right.length) {
     const a = left.codePointAt(i)!, b = right.codePointAt(i)!;

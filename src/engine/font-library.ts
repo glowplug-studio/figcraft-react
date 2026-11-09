@@ -74,6 +74,14 @@ export class FontLibrary {
     return [key,style];
   }
 
+  hasFamily(family:string):boolean {
+    const [resolved]=this.#resolve(family,"Regular");
+    if (this.#families.has(resolved)) return true;
+    const prefix=this.#key(family)+" ";
+    return this.#familyPrefixes.has(prefix.trimEnd()) && [...this.#families.keys()].some(key=>
+      key.startsWith(prefix) && weightsOnly(key.slice(prefix.length).split(/\s+/)));
+  }
+
   families(): string[] {
     return [...this.#families.keys()].sort().map(key => this.#families.get(key)![0].family);
   }

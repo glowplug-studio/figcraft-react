@@ -1,5 +1,6 @@
 import { executeTextFormat, isTextFormatCommand, textFormatSpecs } from "./text-format-commands";
 import { sameTextData, scalarCount } from "./text-ranges";
+import { missingFonts, refitText, type MissingFont } from "./text-refit";
 import { putTextOnPath } from "./text-path-commands";
 import { textLinkAt } from "./text-link";
 import { listKey } from "./text-list-edit";
@@ -59,6 +60,8 @@ export const commandSpecs = Object.freeze({
   ...effectSpecs,
   ...strokeSpecs,
   ...textFormatSpecs,
+  "text.missingFonts": {label:"Missing fonts",undo:false},
+  "text.refit": {label:"Fit text to fonts",undo:true},
   "text.onPath": {label:"Text on path",undo:true},
   "text.openLink": {label:"Open link",undo:false},
   ...fillSpecs,
@@ -131,6 +134,7 @@ export interface PaintPicker {
 }
 export interface EditorSnapshot {
   readonly profileDialog?: boolean;
+  readonly missingFonts?: readonly MissingFont[];
   readonly paintPicker?: PaintPicker;
   readonly openEffects?: readonly number[];
   readonly crop?: CropTarget;
@@ -382,6 +386,7 @@ export class EditorEngine {
     const resource=this.getRenderDocument().images?.[hit.paint.image];
     if (resource) return {...hit,paint:hit.paint,resource};
   }
+  closeMissingFonts() { if (this.#snapshot.missingFonts) this.#publish({missingFonts:undefined}); }
   closeProfileDialog() { if (this.#snapshot.profileDialog) this.#publish({ profileDialog: false }); }
   finishCrop() { if (this.#snapshot.crop) this.#publish({crop:undefined}); }
   /** A menu may outlive its gesture after selection changes or edit access is revoked. */
@@ -548,7 +553,7 @@ export class EditorEngine {
     if (!editable) this.cancelInteraction();
     if (!editable) this.cancelPendingFiles();
     if (!editable) { this.#vectorEdit = undefined; this.#copiedPaint = undefined; this.#copiedEffect = undefined; }
-    if (editable !== this.#snapshot.editable) this.#publish({ editable, tool: "move", profileDialog: false });
+    if (editable !== this.#snapshot.editable) this.#publish({ editable, tool: "move", profileDialog: false, missingFonts: undefined });
   }
   execute(command: "select.layersAt", input: unknown): ReturnType<typeof layersAt>;
   execute(command: "node.get", input: unknown): ReturnType<typeof getNode>;
@@ -609,6 +614,21 @@ export class EditorEngine {
     if (preservePen && command === "tool.pen") { if (Object.keys(p).length) throw new Error("tool.pen takes no parameters"); return {}; }
     const gesture = Object.hasOwn(smartSpecs, command) && command !== "arrange.roundToPixels" && parseBoolean(p.fromGesture) === true;
     if (!gesture && !preservePen) { const interacting = this.interacting; this.pencil.cancel(); if (this.pen.open) this.pen.cancel(); else this.cancelInteraction(); if (interacting && command === "edit.undo") return { undone: true }; }
+    if (command === "text.missingFonts") {
+      if (Object.keys(p).some(key=>key!=="ids" && key!=="id")) throw new Error("Unknown text.missingFonts option");
+      const families=Object.freeze(missingFonts(this.#snapshot.document));
+      this.#publish({missingFonts:families});
+      return {families};
+    }
+    if (command === "text.refit") {
+      const before=this.#snapshot, {document,refitted}=refitText(before.document,p);
+      if (document!==before.document) {
+        this.#undo.push({document:before.document,selection:before.selection});
+        this.#redo=[];
+        this.#publish({document});
+      }
+      return {refitted};
+    }
     if (command === "text.onPath") {
       const before = this.#snapshot;
       const {document,selection,result} = putTextOnPath(before.document,before.selection,p);
@@ -972,7 +992,7 @@ export class EditorEngine {
     this.#nextId = BigInt(decoded.nextId);
     this.#undo = []; this.#redo = []; this.#saved = null; this.#pendingSaves.clear();
     this.#vectorEdit = undefined;
-    this.#publish({ document: decoded.document, profileDialog: false, selection: Object.freeze([]), tool: "move" });
+    this.#publish({ document: decoded.document, profileDialog: false, missingFonts: undefined, selection: Object.freeze([]), tool: "move" });
     this.updateView(fitPage({ ...this.#view, proofSrgb: false }, decoded.document));
     return { repairs: decoded.issues ?? [], summary: { name: decoded.document.name, pages: decoded.document.pages.length, layers: Object.keys(decoded.document.nodes).length - decoded.document.pages.length, images: Object.keys(decoded.document.images ?? {}).length } };
   }

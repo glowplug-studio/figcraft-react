@@ -27,6 +27,7 @@ export async function prepareText(characters = "") {
   await Promise.all([loading, prepareWordSegmenter(characters)]);
 }
 
+export const hasFontFamily = (family:string) => fonts?.hasFamily(family) ?? false;
 export const fontFamilies = () => fonts?.families() ?? [];
 export const familyStyleWeights = (family:string) => fonts?.styleWeights(family) ?? [];
 export const familyStyles = (family: string) => fonts?.styles(family) ?? [];

@@ -82,6 +82,7 @@ export function TypographyPanel({engine, editable, apply, onLeave, linkDialog, l
       </form>
     </dialog>
     <details><summary>More typography options</summary>
+      <button type="button" onClick={()=>run("text.missingFonts",{})}>Missing fonts…</button>
       <button type="button" onClick={()=>linkDialog.current?.showModal()}>Create link</button>
       {select("textCase", "Letter case", styles.map(s=>s.case), ["original","upper","lower","title","smallCaps"])}
       {select("textDecoration", "Text decoration", styles.map(s=>s.decoration), ["none","underline","strikethrough"])}
