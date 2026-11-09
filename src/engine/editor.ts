@@ -723,7 +723,7 @@ export class EditorEngine {
       const next = replacing ? replaceImage(before, this.#nextId, image, p, source ? regionState : undefined) : placeImage(before, this.#nextId, image, source?.centre ? {...placement,...centrePastedImage(image,centre)} : placement);
       // Recovery uses this same bounded native archive. A placement that cannot be stored
       // must leave history, selection and the previous document intact.
-      prepareArchive(next.document, String(next.nextId));
+      await prepareArchive(next.document, String(next.nextId));
       checkCurrent();
       this.#undo.push({ document: before.document, selection: before.selection }); this.#redo = [];
       this.#nextId = next.nextId;
@@ -737,7 +737,7 @@ export class EditorEngine {
       const name = String(p.name).split(/[\\/]/).pop()!.replace(rasterFilename, "");
       const initial = { document: newDocument(name), selection: [] };
       const opened = placeImage(initial, 2n, image, { name, width: image.resource.width, height: image.resource.height });
-      prepareArchive(opened.document, String(opened.nextId));
+      await prepareArchive(opened.document, String(opened.nextId));
       decoded = { document: opened.document, nextId: String(opened.nextId) };
     } else decoded = await decodeFigcraft(source?.file ?? fileData(p.data, MAX_UNPACKED_BYTES));
     checkCurrent();

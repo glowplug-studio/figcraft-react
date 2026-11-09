@@ -1,9 +1,10 @@
+import { readNativeJson } from "./native-json";
 import { readVectorNetwork, wireVectorNetwork } from "./vector-codec";
 import { isBooleanOperation, isLeaf, isLeafKind } from "./document";
 import { type Corners, type Radii } from "./corners";
 import { readImageFilters } from "./image-filters";
 import { archivedImage, validImageKey, type ImageResource } from "./image-resource";
-import { BlobReader, BlobWriter, ZipWriter, ERR_INVALID_CRC32, ERR_INVALID_UNCOMPRESSED_SIZE, Reader, Uint8ArrayReader, ZipReader, type FileEntry } from "@zip.js/zip.js/lib/zip-core-native.js";
+import { BlobReader, BlobWriter, ZipWriter, ERR_INVALID_CRC32, ERR_INVALID_UNCOMPRESSED_SIZE, Reader, ZipReader, type FileEntry } from "@zip.js/zip.js/lib/zip-core-native.js";
 import { isLosslessNumber, LosslessNumber, parse, stringify } from "lossless-json";
 import { readConstraints } from "./constraints";
 import { layerTransform, withLayerTransform, rectanglePaints, withRectanglePaints, pageColour, withPageColour, type Document, type DocumentNode } from "./document";
@@ -16,10 +17,10 @@ import { transformBounds, type Affine } from "./affine";
 /** A deliberately bounded adapter for native format v1, not full archive parity.
  * Source: original/figcraft/crates/{format/src/lib.rs,doc/src/{lib,node,props}.rs}.
  * Unsupported data is rejected, never opened and silently discarded on save.
- * JSON materialisation is limited to 16 MiB and 10,000 nodes. Archive images have separate budgets.
+ * Root fields and node records are parsed separately for large JSON files. The layer panel currently supports 10,000 nodes.
  * zip.js checks metadata, bounds inflation and verifies CRC32 for each member.
  */
-export const MAX_DOCUMENT_BYTES = 16 * 1024 * 1024;
+export const MAX_DOCUMENT_BYTES = 1024 ** 3;
 export const MAX_ARCHIVE_MEMBER = 512 * 1024 * 1024;
 export const MAX_UNPACKED_BYTES = 2 * 1024 ** 3; // Native browser target.
 const MAX_DIRECTORY_READ = 16 * 1024 * 1024;
@@ -113,7 +114,82 @@ function nativeColour(value: unknown, path: string): Colour {
   if (!result) fail(`${path}: invalid colour`);
   return result;
 }
-function decodeDocument(raw: unknown): DecodedFigcraft {
+function readNode(key: string, value: unknown): DocumentNode {
+  idString(key, "node map key");
+  const n = object(value, `node ${key}`), kind = n.type;
+  if (id(n.id, "node ID") !== key) fail(`node ${key} has a mismatched ID`);
+  if (kind !== "page" && kind !== "group" && kind !== "booleanOp" && kind !== "frame" && !isLeafKind(kind)) fail(`node type ${String(kind)} is not supported yet`);
+  fields(n, ["id", "name", "type", "parent", "children", "transform", "width", "height", "fills", "blend", ...(kind === "page" ? ["background", "flows", "prototype"] : ["bool_op", ...(kind === "booleanOp" ? ["op"] : kind === "ellipse" ? ["start", "sweep", "inner"] : kind === "star" ? ["count", "inner_ratio"] : kind === "polygon" ? ["count"] : kind === "vector" ? ["network"] : []), "stroke", "strokes", "visible", "locked", "opacity", "corners", "constraints", "constrain_proportions", ...(kind === "frame" ? ["clip"] : [])])], nodeDefaults, `node ${key}`);
+  const name = text(n.name, "node name"), width = number(n.width, "width"), height = number(n.height, "height");
+  if (width < 0 || height < 0) fail("negative dimensions are not supported yet");
+  const transform = list(n.transform ?? [1, 0, 0, 1, 0, 0], "transform").map((entry) => number(entry, "transform"));
+  if (transform.length !== 6) fail("transform needs six coefficients");
+  const matrix = transform as unknown as Affine;
+  transformBounds(matrix, width, height);
+  const children = list(n.children ?? [], "children").map((entry) => id(entry, "child ID"));
+  if (kind === "page") {
+    if (n.parent != null || width !== 0 || height !== 0 || transform.some((entry, index) => entry !== [1, 0, 0, 1, 0, 0][index])) fail("non-default page geometry is not supported yet");
+    defaultValue(n.blend ?? "passThrough", "passThrough", "page blend");
+    defaultValue(n.fills ?? [], [], "page fills");
+    defaultValue(n.flows ?? [], [], "page flows");
+    let prototypeBackground: Colour | undefined;
+    if (n.prototype !== undefined) {
+      const prototype = object(n.prototype, "prototype");
+      fields(prototype, ["background"], { device: "None", rotation: "portrait", color: "", custom_size: [1280, 720], customSize: [1280, 720], responsive: false }, "prototype");
+      if (prototype.background !== undefined) {
+        const background = nativeColour(prototype.background, "prototype background"), expected = nativeColour("#1e1e1e", "prototype default");
+        if (Object.keys(expected).some(key => background[key as keyof Colour] !== expected[key as keyof Colour])) prototypeBackground = background;
+      }
+    }
+    return withPageColour({ ...(prototypeBackground && {prototypeBackground}), id: key, kind, name, parent: null, children: Object.freeze(children), background: "#f5f5f5" }, nativeColour(n.background ?? "#f5f5f5", "page background"));
+  } else {
+    if (isLeafKind(kind) && children.length) fail("leaf children are not supported");
+    if (n.blend !== undefined && n.blend !== "normal" && n.blend !== "passThrough") fail(`${kind} blend is not supported yet`);
+    if (n.visible !== undefined && typeof n.visible !== "boolean" || n.locked !== undefined && typeof n.locked !== "boolean") fail("node visibility/lock must be boolean");
+    if (n.constrain_proportions !== undefined && typeof n.constrain_proportions !== "boolean") fail("constrain_proportions must be boolean");
+    const opacity = Math.fround(number(n.opacity ?? 1, "node opacity"));
+    if (!Number.isFinite(opacity)) fail("node opacity is outside the native finite range");
+    const paints = (() => {
+      try { return readPaints(appearanceValue(n.fills ?? [])); }
+      catch (error) { return fail(error instanceof Error ? error.message : "Invalid paints"); }
+    })();
+    const strokeData = (() => {
+      try {
+        const stroke = readStroke(appearanceValue(n.stroke)), strokes = readPaints(appearanceValue(n.strokes ?? []));
+        return { ...(isDefaultStroke(stroke) ? {} : { stroke }), ...(strokes.length ? { strokes } : {}) };
+      }
+      catch (error) { return fail(error instanceof Error ? error.message : "Invalid stroke"); }
+    })();
+    let corners: Corners | undefined;
+    if (n.corners !== undefined) {
+      const value = object(n.corners, "corners");
+      fields(value, ["radii", "smoothing"], {}, "corners");
+      const rawRadii = value.radii === undefined ? [0, 0, 0, 0] : value.radii;
+      if (!Array.isArray(rawRadii) || rawRadii.length !== 4) fail("corners.radii must contain four numbers");
+      const radii = (rawRadii as unknown[]).map(v => number(v, "radius"));
+      const smoothing = number(value.smoothing === undefined ? 0 : value.smoothing, "smoothing");
+      if (smoothing !== 0 || radii.some(r => r !== 0)) corners = Object.freeze({ radii: Object.freeze(radii) as unknown as Radii, smoothing });
+    }
+    const constraints = readConstraints(n.constraints === undefined ? {} : n.constraints);
+    if (kind === "frame" && n.clip !== undefined && typeof n.clip !== "boolean") fail("frame clip must be boolean");
+    if (n.bool_op != null && !isBooleanOperation(n.bool_op)) fail("invalid operand operation");
+    const op = kind === "booleanOp" ? (isBooleanOperation(n.op) ? n.op : fail("invalid boolean group operation")) : undefined;
+    const layer = { ...(isBooleanOperation(n.bool_op) ? { boolOp: n.bool_op } : {}), id: key, kind, name, ...strokeData, ...(corners ? { corners } : {}), parent: id(n.parent, `${kind} parent`), x: transform[4]!, y: transform[5]!, width, height, fill: "transparent", ...(constraints.horizontal !== "left" || constraints.vertical !== "top" ? { constraints } : {}),
+      ...(n.constrain_proportions === true ? { constrainProportions: true } : {}), ...(n.visible === false ? { visible: false } : {}), ...(n.locked === true ? { locked: true } : {}), ...(opacity !== 1 ? { opacity } : {}),
+      ...(n.blend !== undefined && n.blend !== (!isLeafKind(kind) ? "passThrough" : "normal") ? { blend: n.blend as "normal" | "passThrough" } : {}) };
+    let count = 0;
+    if (kind === "polygon" || kind === "star") {
+      if (isLosslessNumber(n.count) && (!/^(0|[1-9][0-9]*)$/.test(n.count.value) || n.count.value.length > 10)) fail("point count must be a u32");
+      count = number(n.count, "point count");
+      if (!Number.isInteger(count) || count < 0 || count > 4294967295) fail("point count must be a u32");
+    }
+    return !isLeafKind(kind)
+      ? Object.freeze({ ...withRectanglePaints(withLayerTransform({ ...layer, ...(kind === "frame" ? { kind: "frame" as const, clip: n.clip === true } : op ? { kind: "booleanOp" as const, op } : { kind: "group" as const }), children: Object.freeze(children), blend: (n.blend ?? "passThrough") as "normal" | "passThrough" }, matrix), paints), fills: paints })
+      : withRectanglePaints(withLayerTransform(kind === "ellipse" ? { ...layer, kind, start: number(n.start === undefined ? 0 : n.start, "arc start"), sweep: number(n.sweep === undefined ? 2 * Math.PI : n.sweep, "arc sweep"), inner: number(n.inner === undefined ? 0 : n.inner, "arc inner") } : kind === "polygon" ? { ...layer, kind, count } : kind === "star" ? { ...layer, kind, count, innerRatio: number(n.inner_ratio, "inner ratio") } : kind === "vector" ? { ...layer, kind, network: nativeNetwork(n.network) } : { ...layer, kind }, matrix), paints);
+  }
+}
+
+function decodeDocument(raw: unknown, parsedNodes?: Record<string,DocumentNode>): DecodedFigcraft {
   const root = object(raw, "document");
   if (root.version !== undefined && number(root.version, "version") > 1) fail("this file needs a newer Figcraft format reader");
   if (root.version !== undefined && number(root.version, "version") !== 1) fail("unsupported format version");
@@ -134,84 +210,14 @@ function decodeDocument(raw: unknown): DecodedFigcraft {
   });
   const pages = list(root.pages, "pages").map((entry) => id(entry, "page ID"));
   if (!pages.length || new Set(pages).size !== pages.length) fail("pages must be non-empty and unique");
-  const source = object(root.nodes, "nodes"), entries = Object.entries(source);
-  if (entries.length > FIGCRAFT_NODE_LIMIT) fail(`more than ${FIGCRAFT_NODE_LIMIT} nodes`);
-  const nodes: Record<string, DocumentNode> = Object.create(null);
-  let maximum = 0n;
-  for (const [key, value] of entries) {
-    idString(key, "node map key");
-    maximum = BigInt(key) > maximum ? BigInt(key) : maximum;
-    const n = object(value, `node ${key}`), kind = n.type;
-    if (id(n.id, "node ID") !== key) fail(`node ${key} has a mismatched ID`);
-    if (kind !== "page" && kind !== "group" && kind !== "booleanOp" && kind !== "frame" && !isLeafKind(kind)) fail(`node type ${String(kind)} is not supported yet`);
-    fields(n, ["id", "name", "type", "parent", "children", "transform", "width", "height", "fills", "blend", ...(kind === "page" ? ["background", "flows", "prototype"] : ["bool_op", ...(kind === "booleanOp" ? ["op"] : kind === "ellipse" ? ["start", "sweep", "inner"] : kind === "star" ? ["count", "inner_ratio"] : kind === "polygon" ? ["count"] : kind === "vector" ? ["network"] : []), "stroke", "strokes", "visible", "locked", "opacity", "corners", "constraints", "constrain_proportions", ...(kind === "frame" ? ["clip"] : [])])], nodeDefaults, `node ${key}`);
-    const name = text(n.name, "node name"), width = number(n.width, "width"), height = number(n.height, "height");
-    if (width < 0 || height < 0) fail("negative dimensions are not supported yet");
-    const transform = list(n.transform ?? [1, 0, 0, 1, 0, 0], "transform").map((entry) => number(entry, "transform"));
-    if (transform.length !== 6) fail("transform needs six coefficients");
-    const matrix = transform as unknown as Affine;
-    transformBounds(matrix, width, height);
-    const children = list(n.children ?? [], "children").map((entry) => id(entry, "child ID"));
-    if (kind === "page") {
-      if (n.parent != null || width !== 0 || height !== 0 || transform.some((entry, index) => entry !== [1, 0, 0, 1, 0, 0][index])) fail("non-default page geometry is not supported yet");
-      defaultValue(n.blend ?? "passThrough", "passThrough", "page blend");
-      defaultValue(n.fills ?? [], [], "page fills");
-      defaultValue(n.flows ?? [], [], "page flows");
-      let prototypeBackground: Colour | undefined;
-      if (n.prototype !== undefined) {
-        const prototype = object(n.prototype, "prototype");
-        fields(prototype, ["background"], { device: "None", rotation: "portrait", color: "", custom_size: [1280, 720], customSize: [1280, 720], responsive: false }, "prototype");
-        if (prototype.background !== undefined) {
-          const background = nativeColour(prototype.background, "prototype background"), expected = nativeColour("#1e1e1e", "prototype default");
-          if (Object.keys(expected).some(key => background[key as keyof Colour] !== expected[key as keyof Colour])) prototypeBackground = background;
-        }
-      }
-      nodes[key] = withPageColour({ ...(prototypeBackground && {prototypeBackground}), id: key, kind, name, parent: null, children: Object.freeze(children), background: "#f5f5f5" }, nativeColour(n.background ?? "#f5f5f5", "page background"));
-    } else {
-      if (isLeafKind(kind) && children.length) fail("leaf children are not supported");
-      if (n.blend !== undefined && n.blend !== "normal" && n.blend !== "passThrough") fail(`${kind} blend is not supported yet`);
-      if (n.visible !== undefined && typeof n.visible !== "boolean" || n.locked !== undefined && typeof n.locked !== "boolean") fail("node visibility/lock must be boolean");
-      if (n.constrain_proportions !== undefined && typeof n.constrain_proportions !== "boolean") fail("constrain_proportions must be boolean");
-      const opacity = Math.fround(number(n.opacity ?? 1, "node opacity"));
-      if (!Number.isFinite(opacity)) fail("node opacity is outside the native finite range");
-      const paints = (() => {
-        try { return readPaints(appearanceValue(n.fills ?? [])); }
-        catch (error) { return fail(error instanceof Error ? error.message : "Invalid paints"); }
-      })();
-      const strokeData = (() => {
-        try {
-          const stroke = readStroke(appearanceValue(n.stroke)), strokes = readPaints(appearanceValue(n.strokes ?? []));
-          return { ...(isDefaultStroke(stroke) ? {} : { stroke }), ...(strokes.length ? { strokes } : {}) };
-        }
-        catch (error) { return fail(error instanceof Error ? error.message : "Invalid stroke"); }
-      })();
-      let corners: Corners | undefined;
-      if (n.corners !== undefined) {
-        const value = object(n.corners, "corners");
-        fields(value, ["radii", "smoothing"], {}, "corners");
-        const rawRadii = value.radii === undefined ? [0, 0, 0, 0] : value.radii;
-        if (!Array.isArray(rawRadii) || rawRadii.length !== 4) fail("corners.radii must contain four numbers");
-        const radii = (rawRadii as unknown[]).map(v => number(v, "radius"));
-        const smoothing = number(value.smoothing === undefined ? 0 : value.smoothing, "smoothing");
-        if (smoothing !== 0 || radii.some(r => r !== 0)) corners = Object.freeze({ radii: Object.freeze(radii) as unknown as Radii, smoothing });
-      }
-      const constraints = readConstraints(n.constraints === undefined ? {} : n.constraints);
-      if (kind === "frame" && n.clip !== undefined && typeof n.clip !== "boolean") fail("frame clip must be boolean");
-      if (n.bool_op != null && !isBooleanOperation(n.bool_op)) fail("invalid operand operation");
-      const op = kind === "booleanOp" ? (isBooleanOperation(n.op) ? n.op : fail("invalid boolean group operation")) : undefined;
-      const layer = { ...(isBooleanOperation(n.bool_op) ? { boolOp: n.bool_op } : {}), id: key, kind, name, ...strokeData, ...(corners ? { corners } : {}), parent: id(n.parent, `${kind} parent`), x: transform[4]!, y: transform[5]!, width, height, fill: "transparent", ...(constraints.horizontal !== "left" || constraints.vertical !== "top" ? { constraints } : {}),
-        ...(n.constrain_proportions === true ? { constrainProportions: true } : {}), ...(n.visible === false ? { visible: false } : {}), ...(n.locked === true ? { locked: true } : {}), ...(opacity !== 1 ? { opacity } : {}),
-        ...(n.blend !== undefined && n.blend !== (!isLeafKind(kind) ? "passThrough" : "normal") ? { blend: n.blend as "normal" | "passThrough" } : {}) };
-      let count = 0;
-      if (kind === "polygon" || kind === "star") {
-        if (isLosslessNumber(n.count) && (!/^(0|[1-9][0-9]*)$/.test(n.count.value) || n.count.value.length > 10)) fail("point count must be a u32");
-        count = number(n.count, "point count");
-        if (!Number.isInteger(count) || count < 0 || count > 4294967295) fail("point count must be a u32");
-      }
-      nodes[key] = !isLeafKind(kind)
-        ? Object.freeze({ ...withRectanglePaints(withLayerTransform({ ...layer, ...(kind === "frame" ? { kind: "frame" as const, clip: n.clip === true } : op ? { kind: "booleanOp" as const, op } : { kind: "group" as const }), children: Object.freeze(children), blend: (n.blend ?? "passThrough") as "normal" | "passThrough" }, matrix), paints), fills: paints })
-        : withRectanglePaints(withLayerTransform(kind === "ellipse" ? { ...layer, kind, start: number(n.start === undefined ? 0 : n.start, "arc start"), sweep: number(n.sweep === undefined ? 2 * Math.PI : n.sweep, "arc sweep"), inner: number(n.inner === undefined ? 0 : n.inner, "arc inner") } : kind === "polygon" ? { ...layer, kind, count } : kind === "star" ? { ...layer, kind, count, innerRatio: number(n.inner_ratio, "inner ratio") } : kind === "vector" ? { ...layer, kind, network: nativeNetwork(n.network) } : { ...layer, kind }, matrix), paints);
-    }
+  const source = object(root.nodes,"nodes");
+  const nodes: Record<string,DocumentNode> = parsedNodes ?? Object.create(null);
+  let maximum = 0n, count = 0;
+  for (const key of Object.keys(source)) {
+    if (++count > FIGCRAFT_NODE_LIMIT) fail(`more than ${FIGCRAFT_NODE_LIMIT} nodes`);
+    if (!parsedNodes) nodes[key] = readNode(key,source[key]);
+    const id = BigInt(key);
+    if (id > maximum) maximum = id;
   }
   const referenced = new Set<string>();
   for (const pageId of pages) {
@@ -229,18 +235,38 @@ function decodeDocument(raw: unknown): DecodedFigcraft {
       if (!isLeaf(child)) for (const grandchild of child.children) pending.push({ childId: grandchild, parentId: childId, depth: depth + 1 });
     }
   }
-  if (referenced.size !== entries.length) fail("unlisted pages or orphan nodes");
+  if (referenced.size !== count) fail("unlisted pages or orphan nodes");
   const currentPage = root.current_page == null ? pages[0]! : id(root.current_page, "current page");
   if (!pages.includes(currentPage)) fail("current page is not listed");
   const declared = BigInt(id(root.next_id, "next_id"));
   const minimum = maximum < U64_MAX ? maximum + 1n : U64_MAX;
-  return { document: Object.freeze({ ...(profile === "displayP3" && {colourProfile: "displayP3" as const}), ...(palette.length > 0 && {documentColours: Object.freeze(palette)}), ...(presets.length ? { imagePresets: Object.freeze(presets) } : {}), name: text(root.name, "document name"), pages: Object.freeze(pages), currentPage, nodes: Object.freeze(nodes) }), nextId: (declared < minimum ? minimum : declared).toString() };
+  return { document: Object.freeze({ ...(profile === "displayP3" && {colourProfile: "displayP3" as const}), ...(palette.length > 0 && {documentColours: Object.freeze(palette)}), ...(presets.length ? { imagePresets: Object.freeze(presets) } : {}), name: text(root.name, "document name"), pages: Object.freeze(pages), currentPage, nodes: parsedNodes ?? Object.freeze(nodes) }), nextId: (declared < minimum ? minimum : declared).toString() };
 }
 
-function parseDocument(bytes: Uint8Array) {
-  const source = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
-  const root = object(parse(source, undefined, { onDuplicateKey: ({ key }) => fail(`duplicate JSON key ${key}`) }), "document");
-  const decoded = decodeDocument(root);
+async function parseDocument(source: Uint8Array | Blob) {
+  const size = source instanceof Blob ? source.size : source.byteLength;
+  let root: ObjectValue, decoded: DecodedFigcraft;
+  if (size <= 1024 * 1024) {
+    const bytes = source instanceof Blob ? new Uint8Array(await source.arrayBuffer()) : source;
+    const json = new TextDecoder("utf-8", {fatal:true}).decode(bytes);
+    root = object(parse(json, undefined, {onDuplicateKey: ({key}) => fail(`duplicate JSON key ${key}`)}), "document");
+    decoded = decodeDocument(root);
+  } else {
+    let offset = 0, count = 0;
+    const stream = source instanceof Blob ? source.stream() : new ReadableStream<Uint8Array<ArrayBuffer>>({
+      pull(controller) {
+        if (offset === source.length) { controller.close(); return; }
+        const end = Math.min(source.length,offset + 65536);
+        controller.enqueue(new Uint8Array(source.subarray(offset,end)));
+        offset = end;
+      },
+    });
+    root = await readNativeJson(stream, (key,raw) => {
+      if (++count > FIGCRAFT_NODE_LIMIT) fail(`more than ${FIGCRAFT_NODE_LIMIT} nodes`);
+      return readNode(key,raw);
+    });
+    decoded = decodeDocument(root,Object.freeze(object(root.nodes,"nodes")) as Record<string,DocumentNode>);
+  }
   const listed = new Set<string>();
   if (Array.isArray(root.imageIndex)) {
     for (const entry of root.imageIndex) if (typeof entry?.hash === "string") listed.add(entry.hash);
@@ -282,6 +308,11 @@ class ArchiveReader extends Reader<Uint8Array | Blob> {
   }
 }
 
+/** Native wasm32 document_limit, applied before inflation. */
+export function documentByteLimit(packed: number, archiveBytes: number) {
+  return Math.min(MAX_DOCUMENT_BYTES, Math.max(MAX_ARCHIVE_MEMBER, 16 * Math.min(packed,archiveBytes)));
+}
+
 async function readArchive(bytes: Uint8Array | Blob): Promise<DecodedFigcraft> {
   // Keys are validated before reading image members. An unsafe key is a recoverable
   // image issue. No entry name is ever used as a filesystem path.
@@ -315,8 +346,9 @@ async function readArchive(bytes: Uint8Array | Blob): Promise<DecodedFigcraft> {
       } else fail("archives with history, branches or other members are not supported yet");
     }
     if (!documentFile) fail("archive has no document.json");
-    if (documentFile.uncompressedSize > MAX_DOCUMENT_BYTES) fail("document exceeds the 16 MiB browser limit");
-    const { decoded, listed } = parseDocument(new Uint8Array(await (await readMember(documentFile)).arrayBuffer()));
+    const archiveBytes = bytes instanceof Blob ? bytes.size : bytes.byteLength;
+    if (documentFile.uncompressedSize > documentByteLimit(documentFile.compressedSize,archiveBytes)) fail("document exceeds the native browser inflation limit");
+    const { decoded, listed } = await parseDocument(await readMember(documentFile));
     const images: Record<string, ImageResource> = Object.create(null);
     let remaining = MAX_UNPACKED_BYTES - documentFile.uncompressedSize;
     let count = 0;
@@ -374,8 +406,8 @@ export async function decodeFigcraft(source: Uint8Array | Blob): Promise<Decoded
   if (!size) fail("file is empty");
   try {
     if (await startsWithJson(source)) {
-      if (size > MAX_DOCUMENT_BYTES) fail("document exceeds the 16 MiB browser limit");
-      return parseDocument(source instanceof Blob ? new Uint8Array(await source.arrayBuffer()) : source).decoded;
+      if (size > MAX_DOCUMENT_BYTES) fail("document exceeds the 1 GiB browser limit");
+      return (await parseDocument(source)).decoded;
     }
     return await readArchive(source);
   } catch (error) {
@@ -384,21 +416,35 @@ export async function decodeFigcraft(source: Uint8Array | Blob): Promise<Decoded
   }
 }
 
-export function prepareArchive(document: Document, nextId?: string) {
-  const nodes: ObjectValue = Object.create(null);
-  let maximum = 0n;
-  for (const [key, node] of Object.entries(document.nodes)) {
-    const numericId = wireId(key);
-    maximum = BigInt(key) > maximum ? BigInt(key) : maximum;
-    if (node.id !== key) fail("node map key and ID differ");
-    const common = { id: numericId, name: node.name, type: node.kind, ...(node.kind === "booleanOp" ? { op: node.op } : {}), ...(node.kind === "ellipse" ? { start: node.start, sweep: node.sweep, inner: node.inner } : node.kind === "star" ? { count: node.count, inner_ratio: node.innerRatio } : node.kind === "polygon" ? { count: node.count } : node.kind === "vector" ? { network: wireVectorNetwork(node.network) } : {}) };
-    if (node.kind === "page") {
-      nodes[key] = { ...common, width: 0, height: 0, children: node.children.map(wireId), background: pageColour(node), ...(node.prototypeBackground && { prototype: { device: "None", rotation: "portrait", background: node.prototypeBackground } }) };
-    } else {
-      nodes[key] = { ...common, ...(node.boolOp ? { bool_op: node.boolOp } : {}), parent: wireId(node.parent), ...(!isLeaf(node) ? { children: node.children.map(wireId) } : {}), transform: layerTransform(node), width: node.width, height: node.height, ...(node.stroke ? { stroke: wireStroke(node.stroke) } : {}), ...(node.strokes ? { strokes: node.strokes } : {}),
-        ...(node.corners ? { corners: node.corners } : {}), ...(node.constraints ? { constraints: node.constraints } : {}), ...(node.constrainProportions ? { constrain_proportions: true } : {}), ...(node.kind === "frame" ? { clip: node.clip } : {}), blend: node.blend ?? (!isLeaf(node) ? "passThrough" : "normal"), visible: node.visible ?? true, locked: node.locked ?? false, opacity: node.opacity ?? 1, fills: rectanglePaints(node) };
-    }
+function wireNode(key: string, node: DocumentNode) {
+  const numericId = wireId(key);
+  if (node.id !== key) fail("node map key and ID differ");
+  const common = { id: numericId, name: node.name, type: node.kind, ...(node.kind === "booleanOp" ? { op: node.op } : {}), ...(node.kind === "ellipse" ? { start: node.start, sweep: node.sweep, inner: node.inner } : node.kind === "star" ? { count: node.count, inner_ratio: node.innerRatio } : node.kind === "polygon" ? { count: node.count } : node.kind === "vector" ? { network: wireVectorNetwork(node.network) } : {}) };
+  if (node.kind === "page") {
+    return { ...common, width: 0, height: 0, children: node.children.map(wireId), background: pageColour(node), ...(node.prototypeBackground && { prototype: { device: "None", rotation: "portrait", background: node.prototypeBackground } }) };
+  } else {
+    return { ...common, ...(node.boolOp ? { bool_op: node.boolOp } : {}), parent: wireId(node.parent), ...(!isLeaf(node) ? { children: node.children.map(wireId) } : {}), transform: layerTransform(node), width: node.width, height: node.height, ...(node.stroke ? { stroke: wireStroke(node.stroke) } : {}), ...(node.strokes ? { strokes: node.strokes } : {}),
+      ...(node.corners ? { corners: node.corners } : {}), ...(node.constraints ? { constraints: node.constraints } : {}), ...(node.constrainProportions ? { constrain_proportions: true } : {}), ...(node.kind === "frame" ? { clip: node.clip } : {}), blend: node.blend ?? (!isLeaf(node) ? "passThrough" : "normal"), visible: node.visible ?? true, locked: node.locked ?? false, opacity: node.opacity ?? 1, fills: rectanglePaints(node) };
   }
+}
+
+export async function prepareArchive(document: Document, nextId?: string) {
+  const parts: BlobPart[] = [];
+  let maximum = 0n, count = 0, batch = "", yielded = performance.now();
+  for (const key of Object.keys(document.nodes)) {
+    // Engine revisions are immutable. Yield between batches without reading a later revision.
+    if (count && count % 64 === 0 && Object.isFrozen(document.nodes) && performance.now()-yielded > 12) {
+      await new Promise<void>(resolve => setTimeout(resolve,0));
+      yielded = performance.now();
+    }
+    const wire = wireNode(key, document.nodes[key]);
+    readNode(key,wire);
+    const id = BigInt(key);
+    if (id > maximum) maximum = id;
+    batch += (count++ ? "," : "") + JSON.stringify(key) + ":" + stringify(wire);
+    if (batch.length >= 262144) { parts.push(new Blob([batch])); batch = ""; }
+  }
+  if (batch) parts.push(batch);
   const minimum = maximum < U64_MAX ? maximum + 1n : U64_MAX;
   const supplied = nextId === undefined ? minimum : BigInt(idString(nextId, "next_id"));
   const resources: Readonly<Record<string, ImageResource>> = document.images ?? {};
@@ -410,19 +456,21 @@ export function prepareArchive(document: Document, nextId?: string) {
     if (bytes.size > MAX_ARCHIVE_MEMBER) fail("image exceeds the 512 MiB native member limit");
     return { hash, width, height };
   });
-  const root = { format: "figcraft", version: 1, imageIndex, ...(document.imagePresets?.length ? { image_presets: document.imagePresets } : {}), name: document.name, pages: document.pages.map(wireId), nodes, next_id: wireId((supplied < minimum ? minimum : supplied).toString()), current_page: wireId(document.currentPage), styles: [], variables: { collections: [], variables: [] }, document_colors: document.documentColours ?? [], ...(document.colourProfile === "displayP3" && {color_profile: document.colourProfile}), comments: [] };
-  // Validate before serialisation (including finite geometry and graph integrity).
-  decodeDocument(root);
-  const json = new TextEncoder().encode(stringify(root));
-  if (json.length > MAX_DOCUMENT_BYTES) fail("document exceeds the 16 MiB browser limit");
-  if (keys.reduce((total, key) => total + resources[key]!.bytes.size, json.length) > MAX_UNPACKED_BYTES) fail("archive members exceed the 2 GiB browser unpacked limit");
+  const root = { format: "figcraft", version: 1, imageIndex, ...(document.imagePresets?.length ? { image_presets: document.imagePresets } : {}), name: document.name, pages: document.pages.map(wireId), next_id: wireId((supplied < minimum ? minimum : supplied).toString()), current_page: wireId(document.currentPage), styles: [], variables: { collections: [], variables: [] }, document_colors: document.documentColours ?? [], ...(document.colourProfile === "displayP3" && {color_profile: document.colourProfile}), comments: [] };
+  // Validate relationships on the supplied domain graph after each individual wire record passed.
+  decodeDocument({...root,nodes:document.nodes},document.nodes);
+  const header = stringify(root)!;
+  const json = new Blob([header.slice(0,-1), ',"nodes":{', ...parts, "}}"], {type:"application/json"});
+  if (json.size > MAX_DOCUMENT_BYTES) fail("document exceeds the 1 GiB browser limit");
+  if (keys.reduce((total, key) => total + resources[key]!.bytes.size, json.size) > MAX_UNPACKED_BYTES) fail("archive members exceed the 2 GiB browser unpacked limit");
   return {json, keys, resources};
 }
 
 export async function encodeFigcraftBlob(document: Document, nextId?: string): Promise<Blob> {
-  const {json, keys, resources} = prepareArchive(document, nextId);
+  const {json, keys, resources} = await prepareArchive(document, nextId);
   const writer = new ZipWriter(new BlobWriter("application/octet-stream"), {useWebWorkers: false, extendedTimestamp: false});
-  await writer.add("document.json", new Uint8ArrayReader(json), {level: 3});
+  // A very compressible document above the 512 MiB floor could exceed the native 16:1 read budget.
+  await writer.add("document.json", new BlobReader(json), {level: json.size > MAX_ARCHIVE_MEMBER ? 0 : 3});
   for (const key of keys) {
     await writer.add(`images/${key}`, new BlobReader(resources[key]!.bytes), {level: 0});
   }

@@ -2,7 +2,7 @@ import { expectSolid } from "../fixtures/expect-solid";
 import { readFileSync } from "node:fs";
 import { describe, expect, it, vi } from "vitest";
 import { strFromU8, unzipSync, zipSync } from "fflate";
-import { decodeFigcraft, encodeFigcraft, encodeFigcraftBlob, MAX_DOCUMENT_BYTES, MAX_ARCHIVE_MEMBER } from "../../src/engine/file-format";
+import { decodeFigcraft, encodeFigcraft, encodeFigcraftBlob, MAX_DOCUMENT_BYTES, MAX_ARCHIVE_MEMBER, documentByteLimit } from "../../src/engine/file-format";
 import { newDocument, type Document, type RectangleNode } from "../../src/engine/document";
 import { colour } from "../../src/engine/colour";
 
@@ -225,6 +225,16 @@ describe("bounded native Figcraft file adapter", () => {
     expect(document.images!.legacy!.bytes.size).toBe(payload.length);
   });
 
+  it("keeps the streamed raw and ZIP document equivalent and rejects a duplicate near the end", async () => {
+    const source = fixtureText.replace("Native rectangle","😀".repeat(300000));
+    const blob = new Blob([source]);
+    expect(blob.size).toBeGreaterThan(1024**2);
+    const fromFile = await decodeFigcraft(blob);
+    expect(fromFile).toEqual(await decodeFigcraft(zipSync({"document.json":bytes(source)})));
+    expect(await decodeFigcraft(await encodeFigcraft(fromFile.document,fromFile.nextId))).toEqual(fromFile);
+    await expect(decodeFigcraft(new Blob([source.trimEnd().slice(0,-1), ',"pages":[1]}']))).rejects.toThrow("duplicate JSON key pages");
+  });
+
   it("recognises raw JSON after a full whitespace chunk in a selected file", async () => {
     const padded = new File([" ".repeat(70000), fixtureText], "native.json");
     expect(await decodeFigcraft(padded)).toEqual(await decodeFigcraft(bytes(fixtureText)));
@@ -257,10 +267,15 @@ describe("bounded native Figcraft file adapter", () => {
     await expect(decodeFigcraft(bytes('{"version":1,"version":2}'))).rejects.toThrow("duplicate JSON key");
     const archive = await encodeFigcraft(newDocument());
     await expect(decodeFigcraft(archive.slice(0, -20))).rejects.toThrow("invalid JSON or ZIP");
-    const oversized = new Uint8Array(MAX_DOCUMENT_BYTES + 1); oversized[0] = 123;
-    await expect(decodeFigcraft(oversized)).rejects.toThrow("16 MiB");
-    const bomb = zipSync({ "document.json": new Uint8Array(MAX_DOCUMENT_BYTES + 1) });
-    await expect(decodeFigcraft(bomb)).rejects.toThrow("16 MiB");
+    expect(documentByteLimit(1,500)).toBe(MAX_ARCHIVE_MEMBER);
+    expect(documentByteLimit(48 * 2**20,64 * 2**20)).toBe(768 * 2**20);
+    expect(documentByteLimit(100 * 2**20,48 * 2**20)).toBe(768 * 2**20);
+    expect(documentByteLimit(100 * 2**20,100 * 2**20)).toBe(MAX_DOCUMENT_BYTES);
+    const bomb = zipSync({"document.json":bytes("{}")});
+    const contents = Buffer.from(bomb.buffer,bomb.byteOffset,bomb.byteLength);
+    contents.writeUInt32LE(MAX_ARCHIVE_MEMBER + 1,22);
+    contents.writeUInt32LE(MAX_ARCHIVE_MEMBER + 1,contents.lastIndexOf("document.json") - 46 + 24);
+    await expect(decodeFigcraft(bomb)).rejects.toThrow("native browser inflation limit");
   });
 
   it("refuses non-finite geometry instead of silently serialising it to null", async () => {

@@ -3483,3 +3483,35 @@ test("native archives stream through file selection, recovery and download witho
   await client.detach();
   await rm(input);
 });
+
+test("large native JSON records stream through open, device recovery and save", async ({page}) => {
+  const native = JSON.parse(await readFile(new URL("../fixtures/native-rectangle.json",import.meta.url),"utf8"));
+  const count = 256, longName = "ü🎨".repeat(12000);
+  native.name = "Streamed JSON"; native.pages.push(3);
+  native.nodes["3"] = {...native.nodes["1"],id:3,name:"Long layer labels",children:[]};
+  for (let i=0; i<count; i++) {
+    const id = 4+i;
+    native.nodes[id] = {...native.nodes["2"],id,parent:3,name:longName+i};
+    native.nodes["3"].children.push(id);
+  }
+  native.next_id = 4 + count;
+  const json = Buffer.from(JSON.stringify(native));
+  expect(json.length).toBeGreaterThan(16 * 1024 * 1024);
+  const path = test.info().outputPath("records.figcraft");
+  await writeFile(path,zipSync({"document.json":json}));
+  await login(page);
+  await page.getByLabel("Open Figcraft file",{exact:true}).setInputFiles(path);
+  await expect(page.getByRole("heading",{name:"Streamed JSON",exact:true,level:1})).toBeVisible();
+  await page.getByRole("button",{name:"Create rectangle",exact:true}).click();
+  await expect(page.getByText("Recovery saved on this device",{exact:true})).toBeVisible();
+  await page.reload();
+  await expect(page.getByText("2 layers",{exact:true})).toBeVisible();
+  const pending = page.waitForEvent("download");
+  await page.getByRole("button",{name:"Save as",exact:true}).click();
+  const saved = unzipSync(await readFile((await (await pending).path())!))["document.json"];
+  expect(saved.byteLength).toBeGreaterThan(16 * 1024 * 1024);
+  const root = JSON.parse(strFromU8(saved));
+  expect(root.nodes["3"].children).toEqual(native.nodes["3"].children);
+  expect(root.nodes[3+count].name === longName+(count-1)).toBe(true);
+  await rm(path);
+});

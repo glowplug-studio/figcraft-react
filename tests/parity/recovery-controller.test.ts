@@ -75,6 +75,7 @@ describe("host recovery lifecycle", () => {
   it("debounces document edits and ignores tool-only state changes", async () => {
     vi.useFakeTimers();
     const { engine, store, controller, notify } = setup();
+    const capture = vi.spyOn(engine,"captureNativeSnapshot");
     await controller.start();
     engine.execute("tool.rectangle");
     expect(notify.mock.calls).toEqual([["loading"], ["ready"]]);
@@ -82,9 +83,12 @@ describe("host recovery lifecycle", () => {
     await vi.advanceTimersByTimeAsync(200);
     engine.execute("shape.rectangle", { name: "Second" });
     await vi.advanceTimersByTimeAsync(249);
+    expect(capture).not.toHaveBeenCalled();
     expect(store.write).not.toHaveBeenCalled();
     await vi.advanceTimersByTimeAsync(1);
-    expect(store.write).toHaveBeenCalledTimes(1);
+    expect(capture).toHaveBeenCalledTimes(1);
+    vi.useRealTimers();
+    await vi.waitFor(() => expect(store.write).toHaveBeenCalledTimes(1));
     const recovered = await decodeFigcraft(store.write.mock.calls[0][1]);
     expect(recovered.document).toEqual(engine.getSnapshot().document);
     expect(notify).toHaveBeenLastCalledWith("stored");
