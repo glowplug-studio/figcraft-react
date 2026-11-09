@@ -85,8 +85,10 @@ export function LayerPanel({ document, selection, editable, dispatch }: LayerPan
       <button type="button" disabled={!editable || selection.length === 0} onClick={() => dispatch("vector.join")}>Join selection</button>
       <button type="button" disabled={!editable || selection.length === 0} onClick={() => dispatch("vector.smoothJoin")}>Smooth join selection</button>
       <button type="button" disabled={!editable || !selection.some(id => document.nodes[id]?.kind === "vector")} onClick={() => dispatch("vector.reverse")}>Reverse path direction</button>
-      <button type="button" disabled={!editable || !selection.some(id => ["group", "frame", "booleanOp"].includes(document.nodes[id]?.kind))} onClick={() => dispatch("select.children")}>Select children</button>
+      <button type="button" disabled={!editable || !selection.some(id => document.nodes[id] && document.nodes[id].kind !== "page" && !isLeaf(document.nodes[id]))} onClick={() => dispatch("select.children")}>Select children</button>
       <button type="button" disabled={!editable || !parent || parent.kind === "page"} onClick={() => dispatch("select.parent")}>Select parent</button>
+      <button type="button" disabled={!editable || !selection.length} onClick={() => dispatch("component.create")}>Create component</button>
+      <button type="button" disabled={!editable || !selection.length} onClick={() => dispatch("component.createMultiple")}>Create multiple components</button>
       <button type="button" disabled={!editable || selection.length === 0} onClick={() => dispatch("object.frameSelection", { ids: selection })}>Frame selection</button>
       <button type="button" disabled={!editable || !selection.some(id => document.nodes[id]?.kind === "frame")} onClick={() => dispatch("object.removeFrame", { ids: selection })}>Remove frame</button>
       <button type="button" disabled={!editable || !selection.some(id => document.nodes[id]?.kind === "group")} onClick={() => dispatch("object.convertToFrame", { ids: selection })}>Convert to frame</button>

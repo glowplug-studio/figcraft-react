@@ -1,7 +1,7 @@
 import { fontGeometryCache } from "./font-generation";
 import { transformPoint } from "./affine";
 import type { PathCommand } from "./corners";
-import { isLeaf, layerTransform, rectanglePaints, type BooleanNode, type BooleanOperation, type Document, type LayerNode, type VectorNode } from "./document";
+import { isFrameLike, isLeaf, layerTransform, rectanglePaints, type BooleanNode, type BooleanOperation, type Document, type LayerNode, type VectorNode } from "./document";
 import { booleanStep, normaliseBooleanPath, outlineBand } from "./path-boolean";
 import { BooleanComplexityError, BooleanFoldBudget } from "./path-budget";
 import { shapePath } from "./shape-path";
@@ -73,9 +73,9 @@ function transformed(node: LayerNode, path: Path): Path {
 }
 function subtreePath(doc: Document, node: LayerNode, depth: number, strokeOnly: boolean): Path | undefined {
   if (depth > 64 || node.visible === false) return;
-  if ((node.kind === "frame" || node.kind === "group") && node.children.length) {
+  if ((isFrameLike(node) && node.kind !== "componentSet" || node.kind === "group") && node.children.length) {
     const combined: PathCommand[] = [];
-    if (node.kind === "frame") {
+    if (isFrameLike(node)) {
       const path = shapePath(node);
       const frame = rectanglePaints(node).some(p=>p.visible) ? path : strokeOnly && hasVisibleStroke(node) ? strokeOutline(node,asVector(node,path)) : [];
       for (const c of frame) combined.push(c);

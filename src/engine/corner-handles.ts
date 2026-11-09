@@ -1,7 +1,7 @@
 import { polygonPoints, starPoints } from "./polygon";
 import { inverse, transformPoint } from "./affine";
 import { cornerKeys, zeroCorners } from "./corners";
-import type { Document, LayerNode, NodeId } from "./document";
+import { isFrameLike, type Document, type LayerNode, type NodeId } from "./document";
 import type { Point } from "./geometry";
 import { worldTransform } from "./hierarchy";
 import type { EditorEngine } from "./editor";
@@ -22,7 +22,7 @@ function corners(n: LayerNode) {
     const half = Math.acos(Math.max(-1, Math.min(1, u1.x * u2.x + u1.y * u2.y))) / 2;
     return length > 1e-9 && half > 1e-6 ? [{ at, into: { x: x / length, y: y / length }, half, max: Math.min(l1, l2) / 2 * Math.tan(half), radius: radii[0] }] : [];
   }
-  if (n.kind !== "rectangle" && n.kind !== "frame") return [];
+  if (n.kind !== "rectangle" && !isFrameLike(n)) return [];
   return radii.map((radius, i) => ({ at: { x: i === 0 || i === 3 ? 0 : n.width, y: i < 2 ? 0 : n.height }, into: { x: (i === 0 || i === 3 ? 1 : -1) * Math.SQRT1_2, y: (i < 2 ? 1 : -1) * Math.SQRT1_2 }, half: Math.PI / 4, max: Math.min(n.width, n.height) / 2, radius }));
 }
 export function cornerHandles(document: Document, ids: readonly NodeId[], zoom: number): readonly { index: CornerHandle; point: Point }[] {
@@ -49,7 +49,7 @@ export function cornerDrag(document: Document, id: NodeId, index: CornerHandle, 
     return Number.isFinite(ratio) ? { innerRadius: Math.max(.001, Math.min(1, ratio)) } : undefined;
   }
   const c = corners(n)[index]; if (!c) return;
-  const independent = n.kind === "rectangle" || n.kind === "frame";
+  const independent = n.kind === "rectangle" || isFrameLike(n);
   const dx = index === 0 || index === 3 ? q.x : n.width - q.x, dy = index < 2 ? q.y : n.height - q.y;
   const radius = independent ? (dx + dy) / 2 : ((q.x - c.at.x) * c.into.x + (q.y - c.at.y) * c.into.y) * Math.sin(c.half);
   if (!Number.isFinite(radius)) return;

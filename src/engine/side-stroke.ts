@@ -1,5 +1,5 @@
 import { flattenContours, roundedRect, zeroCorners, type PathCommand, type Radii } from "./corners";
-import type { LayerNode } from "./document";
+import { isFrameLike, type LayerNode } from "./document";
 import { ellipticalArcPath } from "./ellipse";
 import type { Point } from "./geometry";
 import type { StrokeAlign, StrokeSides } from "./stroke";
@@ -67,7 +67,7 @@ export function roundedSideStrokes(w: number, h: number, radii: Radii, smoothing
 }
 export function sideStrokeGeometry(node: LayerNode): SideStrokeGeometry | undefined {
   const sides = node.stroke?.sides;
-  if (!sides || node.kind !== "rectangle" && node.kind !== "frame") return undefined;
+  if (!sides || node.kind !== "rectangle" && (!isFrameLike(node) || node.kind === "componentSet")) return undefined;
   const corners = node.corners ?? zeroCorners, align = node.stroke!.align;
   return corners.radii.every(r => r === 0) ? { outer: rectSideStrokes(node.width, node.height, sides, align), hole: [], clip: false }
     : roundedSideStrokes(node.width, node.height, corners.radii, corners.smoothing, sides, align);

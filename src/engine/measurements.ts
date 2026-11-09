@@ -1,5 +1,4 @@
-import { isLeaf } from "./document";
-import type { Document, NodeId } from "./document";
+import { isLeaf, type Document, type NodeId } from "./document";
 import type { Point, Rectangle } from "./geometry";
 import { boundsOf, pageToScreen, type Viewport } from "./viewport";
 import { distanceLabel, type Guide } from "./snapping";

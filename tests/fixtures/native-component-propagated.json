@@ -1,0 +1,132 @@
+{
+  "format": "figcraft",
+  "version": 1,
+  "name": "component-propagated",
+  "pages": [
+    1
+  ],
+  "current_page": 1,
+  "next_id": 6,
+  "nodes": {
+    "1": {
+      "background": {
+        "a": 1.0,
+        "b": 0.9607843160629272,
+        "g": 0.9607843160629272,
+        "r": 0.9607843160629272
+      },
+      "children": [
+        3,
+        4
+      ],
+      "flows": [],
+      "height": 0.0,
+      "id": 1,
+      "name": "Page 1",
+      "prototype": {
+        "background": {
+          "a": 1.0,
+          "b": 0.11764705926179886,
+          "g": 0.11764705926179886,
+          "r": 0.11764705926179886
+        },
+        "device": "None",
+        "rotation": "portrait"
+      },
+      "type": "page",
+      "width": 0.0
+    },
+    "3": {
+      "children": [
+        2
+      ],
+      "clip": true,
+      "description": "",
+      "height": 20.0,
+      "id": 3,
+      "name": "Icon",
+      "parent": 1,
+      "props": {},
+      "transform": [
+        1.0,
+        0.0,
+        0.0,
+        1.0,
+        10.0,
+        5.0
+      ],
+      "type": "component",
+      "width": 25.0
+    },
+    "2": {
+      "blend": "normal",
+      "fills": [
+        {
+          "blend": "normal",
+          "color": {
+            "a": 1.0,
+            "b": 1.0,
+            "g": 0.0,
+            "r": 0.0
+          },
+          "opacity": 1.0,
+          "type": "solid",
+          "visible": true
+        }
+      ],
+      "height": 20.0,
+      "id": 2,
+      "name": "Updated",
+      "parent": 3,
+      "type": "rectangle",
+      "width": 25.0
+    },
+    "4": {
+      "children": [
+        5
+      ],
+      "clip": true,
+      "component": 3,
+      "height": 20.0,
+      "id": 4,
+      "name": "Icon",
+      "parent": 1,
+      "props": {},
+      "source": 3,
+      "transform": [
+        1.0,
+        0.0,
+        0.0,
+        1.0,
+        120.0,
+        0.0
+      ],
+      "type": "instance",
+      "width": 25.0
+    },
+    "5": {
+      "blend": "normal",
+      "fills": [
+        {
+          "blend": "normal",
+          "color": {
+            "a": 1.0,
+            "b": 1.0,
+            "g": 0.0,
+            "r": 0.0
+          },
+          "opacity": 1.0,
+          "type": "solid",
+          "visible": true
+        }
+      ],
+      "height": 20.0,
+      "id": 5,
+      "name": "Updated",
+      "parent": 4,
+      "source": 2,
+      "type": "rectangle",
+      "width": 25.0
+    }
+  }
+}

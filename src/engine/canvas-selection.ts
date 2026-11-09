@@ -1,4 +1,4 @@
-import { isLeaf } from "./document";
+import { isFrameLike, isLeaf } from "./document";
 import type { Document, NodeId } from "./document";
 import { inverse, transformPoint } from "./affine";
 import type { Point, Rectangle } from "./geometry";
@@ -49,15 +49,15 @@ export function frameAt(document: Document, point: Point, exclude: readonly Node
     const node = document.nodes[id];
     if (!node || node.kind === "page" || depth > 128 || omitted.has(id) || node.visible === false || node.locked) return;
     if (isLeaf(node)) return;
-    if (node.kind === "frame") {
+    if (isFrameLike(node)) {
       try {
         if (!containsPoint({ x: 0, y: 0, width: node.width, height: node.height }, transformPoint(inverse(worldTransform(document, id)), point))) return;
       } catch { return; }
     }
     for (const child of [...node.children].reverse()) {
-      const found = visit(child, depth + 1, inLayout || (intent === "drop" && node.kind === "frame" && Boolean(node.layout))); if (found) return found;
+      const found = visit(child, depth + 1, inLayout || (intent === "drop" && isFrameLike(node) && Boolean(node.layout))); if (found) return found;
     }
-    return node.kind === "frame" && (!inLayout || node.layout) ? id : undefined;
+    return isFrameLike(node) && (!inLayout || node.layout) ? id : undefined;
   };
   const page = document.nodes[document.currentPage];
   if (page.kind !== "page") return;
@@ -69,10 +69,10 @@ export function dropParent(document: Document, point: Point, exclude: readonly N
 }
 export function dragParent(document: Document, point: Point, moving: readonly NodeId[]): NodeId {
   const hit = dropParent(document, point, moving), home = document.nodes[moving[0]]?.parent;
-  if (home && document.nodes[home]?.kind === "frame" && (!hit || hit !== home && ancestorIds(document, home).includes(hit))) {
+  if (home && isFrameLike(document.nodes[home]) && (!hit || hit !== home && ancestorIds(document, home).includes(hit))) {
     const bounds = boundsOf(document, [home]);
     const frame = document.nodes[home];
-    const margin = frame.kind === "frame" && frame.layout ? 8 : 0;
+    const margin = isFrameLike(frame) && frame.layout ? 8 : 0;
     if (bounds && containsPoint({x: bounds.x - margin, y: bounds.y - margin,
       width: bounds.width + 2 * margin, height: bounds.height + 2 * margin}, point)) return home;
   }
@@ -92,7 +92,7 @@ export function marqueeSelection(document: Document, box: Rectangle, within: Nod
       if (!child || child.kind === "page" || child.visible === false || child.locked) continue;
       const bounds = boundsOf(document, [id]);
       if (!bounds || !touches(box, bounds)) continue;
-      if (!deep && !within && child.kind === "frame" && !containsBox(box, bounds)) continue;
+      if (!deep && !within && isFrameLike(child) && !containsBox(box, bounds)) continue;
       const count = hits.length;
       if (deep && !isLeaf(child) && depth < 256) walk(id, depth + 1);
       if (count === hits.length) hits.push(id);

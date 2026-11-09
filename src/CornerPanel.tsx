@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { LayerNode } from "./engine/document";
+import { isFrameLike, type LayerNode } from "./engine/document";
 import { cornerKeys, zeroCorners } from "./engine/corners";
 
 export function CornerPanel({ nodes, editable, dispatch }: { nodes: readonly LayerNode[]; editable: boolean; dispatch: (command: string, params?: unknown) => void }) {
@@ -8,7 +8,7 @@ export function CornerPanel({ nodes, editable, dispatch }: { nodes: readonly Lay
   const corners = nodes.map(n => n.corners ?? zeroCorners), ids = nodes.map(n => n.id);
   const common = (values: readonly number[]): number | undefined => values.every(n => n === values[0]) ? values[0] : undefined;
   const uniform = common(corners.flatMap(c => [...c.radii]));
-  const independent = nodes.every(n => n.kind === "rectangle" || n.kind === "frame");
+  const independent = nodes.every(n => n.kind === "rectangle" || isFrameLike(n));
   const smoothing = nodes.every(n => n.kind !== "vector" || n.network.regions.length > 0);
   const field = (label: string, key: string, value: number | undefined, percent = false) => <form style={{ minWidth: 0 }} key={`${key}:${ids.join()}:${value}`} onSubmit={event => {
     event.preventDefault(); const input = event.currentTarget.elements.namedItem(key) as HTMLInputElement;

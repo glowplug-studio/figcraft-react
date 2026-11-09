@@ -1,4 +1,4 @@
-import { isDrawTool } from "./document";
+import { isFrameLike, isDrawTool } from "./document";
 import { canvasAccent } from "./canvas-colours";
 import type { EditorEngine } from "./editor";
 import { lockedIn } from "./canvas-selection";
@@ -38,8 +38,8 @@ export class TransformInteraction {
     const node = document.nodes[selection[0]];
     if (node.kind === "page") return false;
     const parent = document.nodes[node.parent];
-    const applies = modifiers.altKey ? !node.childLayout?.absolute && parent.kind === "frame" && parent.layout
-      : node.kind === "frame" && node.layout;
+    const applies = modifiers.altKey ? !node.childLayout?.absolute && isFrameLike(parent) && parent.layout
+      : isFrameLike(node) && node.layout;
     if (!applies) return false;
     const frame = this.#frame();
     const edge = frame && handleAt(frameCorners(frame), point, this.engine.getView().zoom, this.#isLine());

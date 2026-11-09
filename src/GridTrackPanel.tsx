@@ -1,10 +1,10 @@
 import { LayoutNumber, type LayoutFieldHost } from "./LayoutNumber";
 import { useMemo } from "react";
 import { gridGeometry } from "./engine/grid-layout";
-import type { Document, FrameNode } from "./engine/document";
+import type { Document, FrameLikeNode } from "./engine/document";
 
 export function GridTrackPanel({document, frame, enabled, ...host}: LayoutFieldHost & {
-  document: Document; frame: FrameNode; enabled: boolean;
+  document: Document; frame: FrameLikeNode; enabled: boolean;
 }) {
   const {dispatch} = host;
   const geometry = useMemo(() => gridGeometry(document, frame), [document, frame]);

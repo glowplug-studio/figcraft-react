@@ -1,3 +1,4 @@
+import { newComponentKind } from "./component-properties";
 import { setChildProperty } from "./child-layout-properties";
 import { editLayoutStructure } from "./layout-structure";
 import { withMaskProperties, booleanOperations, isBooleanOperation, isLeaf, rectanglePaints, withRectanglePaints, type BooleanNode, type BooleanOperation } from "./document";
@@ -5,10 +6,12 @@ import { fromRgba8 } from "./colour";
 import { solidPaint } from "./solid-paint";
 import { inverse, transformBounds } from "./affine";
 import { type Document, type GroupNode, type FrameNode, type NodeId } from "./document";
-import { HierarchyDraft, pageForNode, rootIds, worldTransform, zSorted } from "./hierarchy";
+import { ancestors, HierarchyDraft, pageForNode, rootIds, worldTransform, zSorted } from "./hierarchy";
 import { parseIndex, parseNodeId, parseNumber, parseString } from "./parameters";
 
 export const structureSpecs = Object.freeze({
+  "component.create": { label: "Create component", undo: true },
+  "component.createMultiple": { label: "Create multiple components", undo: true },
   "layout.add": { label: "Add auto layout", undo: true },
   "layout.remove": { label: "Remove auto layout", undo: true },
   "layout.removeAll": { label: "Remove all auto layout", undo: true },
@@ -78,7 +81,8 @@ export function executeStructure(command: string, document: Document, selection:
   const operation = isBooleanOperation(suffix) ? suffix : undefined;
   const mask = command === "object.mask", releaseMask = command === "object.releaseMask";
   const layoutCommand = command.startsWith("layout.");
-  const strictTargets = !!operation || mask || releaseMask || layoutCommand;
+  const createComponent = command === "component.create" || command === "component.createMultiple";
+  const strictTargets = createComponent || !!operation || mask || releaseMask || layoutCommand;
   const wraps = mask || command === "object.group" || command === "object.frameSelection" || operation !== undefined;
   const allowed = command === "layout.add" || command === "layout.suggest" ? ["id","ids","direction"] : wraps && !mask ? ["ids", "id", "name"] : command === "node.reparent" ? ["ids", "id", "parent", "index"] : ["ids", "id"];
   if (!Object.hasOwn(structureSpecs, command)) throw new Error(`Unsupported structure command: ${command}`);
@@ -156,7 +160,28 @@ export function executeStructure(command: string, document: Document, selection:
       return { document: draft.finish(), selection, nextId, result: { ids: targets, operation } };
     }
   }
-  if (layoutCommand) {
+  if (createComponent) {
+    const make = (items: readonly NodeId[]): NodeId => {
+      const current = draft.document;
+      if (items.some(id => ancestors(current, id).some(parent => current.nodes[parent].kind === "instance")))
+        throw new Error("Layers inside an instance can't become components");
+      const roots = zSorted(current, rootIds(current, items));
+      const source = roots.length === 1 ? current.nodes[roots[0]] : undefined;
+      const direct = source?.kind === "group" || source?.kind === "frame";
+      const id = direct ? source.id : wrapLayers(roots, true);
+      const node = draft.nodes[id];
+      if (node.kind !== "frame" && node.kind !== "group") throw new Error("Expected a component container");
+      const clearFill = !direct || node.kind === "group";
+      draft.set({ ...node, ...newComponentKind,
+        name: !direct && source?.name ? source.name : node.name,
+        clip: node.kind === "frame" && node.clip,
+        ...(clearFill && {fill:"transparent",fills:Object.freeze([])}),
+        ...(node.kind === "group" && {blend:"passThrough"}) });
+      return id;
+    };
+    selected = command === "component.createMultiple" ? targets.map(id => make([id])) : [make(targets)];
+    result = command === "component.createMultiple" ? {ids:selected} : {id:selected[0]};
+  } else if (layoutCommand) {
     const edit = editLayoutStructure(command,draft,targets,params.direction,ids => {
       const id = wrapLayers(ids,true), frame = draft.nodes[id] as FrameNode;
       draft.set({...frame,clip:false,fill:"transparent",fills:Object.freeze([])});

@@ -1,0 +1,163 @@
+{
+  "format": "figcraft",
+  "version": 1,
+  "name": "component-variants",
+  "pages": [
+    1
+  ],
+  "current_page": 1,
+  "next_id": 5,
+  "nodes": {
+    "1": {
+      "background": {
+        "a": 1.0,
+        "b": 0.9607843160629272,
+        "g": 0.9607843160629272,
+        "r": 0.9607843160629272
+      },
+      "children": [
+        3
+      ],
+      "flows": [],
+      "height": 0.0,
+      "id": 1,
+      "name": "Page 1",
+      "prototype": {
+        "background": {
+          "a": 1.0,
+          "b": 0.11764705926179886,
+          "g": 0.11764705926179886,
+          "r": 0.11764705926179886
+        },
+        "device": "None",
+        "rotation": "portrait"
+      },
+      "type": "page",
+      "width": 0.0
+    },
+    "3": {
+      "children": [
+        2,
+        4
+      ],
+      "clip": true,
+      "corners": {
+        "radii": [
+          5.0,
+          5.0,
+          5.0,
+          5.0
+        ],
+        "smoothing": 0.0
+      },
+      "description": "",
+      "height": 260.0,
+      "id": 3,
+      "name": "Card",
+      "parent": 1,
+      "stroke": {
+        "align": "inside",
+        "cap_end": "none",
+        "cap_start": "none",
+        "dashes": [
+          10.0,
+          5.0
+        ],
+        "join": "miter",
+        "miter_limit": 4.0,
+        "sides": null,
+        "weight": 1.0
+      },
+      "strokes": [
+        {
+          "blend": "normal",
+          "color": {
+            "a": 1.0,
+            "b": 1.0,
+            "g": 0.27843138575553894,
+            "r": 0.5921568870544434
+          },
+          "opacity": 1.0,
+          "type": "solid",
+          "visible": true
+        }
+      ],
+      "transform": [
+        1.0,
+        0.0,
+        0.0,
+        1.0,
+        -20.0,
+        -20.0
+      ],
+      "type": "componentSet",
+      "width": 140.0
+    },
+    "2": {
+      "clip": true,
+      "description": "",
+      "fills": [
+        {
+          "blend": "normal",
+          "color": {
+            "a": 1.0,
+            "b": 1.0,
+            "g": 1.0,
+            "r": 1.0
+          },
+          "opacity": 1.0,
+          "type": "solid",
+          "visible": true
+        }
+      ],
+      "height": 100.0,
+      "id": 2,
+      "name": "Property 1=Default",
+      "parent": 3,
+      "props": {},
+      "transform": [
+        1.0,
+        0.0,
+        0.0,
+        1.0,
+        20.0,
+        20.0
+      ],
+      "type": "component",
+      "width": 100.0
+    },
+    "4": {
+      "clip": true,
+      "description": "",
+      "fills": [
+        {
+          "blend": "normal",
+          "color": {
+            "a": 1.0,
+            "b": 1.0,
+            "g": 1.0,
+            "r": 1.0
+          },
+          "opacity": 1.0,
+          "type": "solid",
+          "visible": true
+        }
+      ],
+      "height": 100.0,
+      "id": 4,
+      "name": "Property 1=Variant2",
+      "parent": 3,
+      "props": {},
+      "transform": [
+        1.0,
+        0.0,
+        0.0,
+        1.0,
+        20.0,
+        140.0
+      ],
+      "type": "component",
+      "width": 100.0
+    }
+  }
+}

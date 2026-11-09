@@ -2,7 +2,7 @@ import { withSizing } from "./child-layout-properties";
 import { layerSizing } from "./auto-layout";
 import { fixTextSize, refitResizedText } from "./text-sizing";
 import { placementCrop } from "./image-placement";
-import { rectanglePaints, withRectanglePaints, withLayerSize } from "./document";
+import { isFrameLike, rectanglePaints, withRectanglePaints, withLayerSize } from "./document";
 import { inverse, multiply, transformPoint, type Affine } from "./affine";
 import { axisFactors, resizeChildren } from "./constraints";
 import type { Document, NodeId } from "./document";
@@ -49,14 +49,14 @@ export function previewResize(document: Document, start: ResizeStart, point: Poi
     const single = ids.length === 1, node = document.nodes[ids[0]];
     const [x0, y0, x1, y1] = resizedBox(handle, q, frame.width, frame.height, keep || single && node.kind !== "page" && node.constrainProportions === true, centre);
     if (single) {
-      const id = ids[0], width = Math.abs(x1 - x0), height = Math.abs(y1 - y0), preserve = keepChildren && node.kind === "frame";
+      const id = ids[0], width = Math.abs(x1 - x0), height = Math.abs(y1 - y0), preserve = keepChildren && isFrameLike(node);
       const kept = preserve ? node.children.map(id => ({ id, world: worldTransform(document, id) })) : [];
       let world = multiply(worldTransform(document, id), [1, 0, 0, 1, Math.min(x0, x1), Math.min(y0, y1)]);
       if (x1 < x0) world = multiply(world, [-1, 0, 0, 1, width, 0]);
       if (y1 < y0) world = multiply(world, [1, 0, 0, -1, 0, height]);
       if (keepChildren && node.kind !== "page" && node.kind !== "text" && ![id,...ancestors(document,id)].some(id => {
         const layer = document.nodes[id];
-        return layer.kind === "frame" && layer.layout;
+        return isFrameLike(layer) && layer.layout;
       })) {
         const fills=rectanglePaints(node);
         if (fills.some(paint=>paint.type==="image" && paint.scale_mode!=="tile")) {

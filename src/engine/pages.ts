@@ -1,6 +1,5 @@
 import { remapPatternSources } from "./pattern-sources";
-import { isLeaf } from "./document";
-import { withPageColour, type Document, type DocumentNode, type LayerNode, type NodeId, type PageNode } from "./document";
+import { isLeaf, withPageColour, type Document, type DocumentNode, type LayerNode, type NodeId, type PageNode } from "./document";
 import { parseColour } from "./colour-css";
 import { parseNodeId as parseId, parseString as stringValue, parseIndex } from "./parameters";
 

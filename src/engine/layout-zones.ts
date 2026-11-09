@@ -1,5 +1,5 @@
 import { transformBounds, transformPoint } from "./affine";
-import { layerTransform, type Document, type FrameNode } from "./document";
+import { layerTransform, type Document, type FrameLikeNode } from "./document";
 import type { Point, Rectangle } from "./geometry";
 import { gridGeometry } from "./grid-layout";
 import { worldTransform } from "./hierarchy";
@@ -18,7 +18,7 @@ export interface LayoutZones {
   tracks: [Point, Point][];
 }
 
-export function layoutZones(doc: Document, frame: FrameNode, view: Viewport): LayoutZones | undefined {
+export function layoutZones(doc: Document, frame: FrameLikeNode, view: Viewport): LayoutZones | undefined {
   const layout = frame.layout, matrix = worldTransform(doc, frame.id);
   if (!layout || Math.abs(Math.atan2(matrix[1], matrix[0]) * 180 / Math.PI) > .01) return;
   const screen = (x: number, y: number) => pageToScreen(view, transformPoint(matrix, {x,y}));

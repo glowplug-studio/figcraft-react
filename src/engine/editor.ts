@@ -12,7 +12,7 @@ import { listKey } from "./text-list-edit";
 import { copyEffect, editEffects, effectSpecs } from "./effect-commands";
 import { wireEffect, type Effect } from "./effects";
 import type { BlendMode } from "./blend";
-import { isGroupLike, rectanglePaints } from "./document";
+import { isLeaf, isFrameLike, isGroupLike, rectanglePaints } from "./document";
 import { editImagePaints, editImagePreset, imageEditSpecs, startImageCrop, type CropTarget } from "./image-commands";
 import { listImagePresets } from "./image-filters";
 import { getNode } from "./inspect";
@@ -24,7 +24,6 @@ import { pastePaint, type CopiedPaint } from "./paint-clipboard";
 import { copyPaint, fillSpecs, selectedRegionFills, writeFill } from "./fill-commands";
 import type { Paint } from "./solid-paint";
 import { executeStrokeList, strokeSpecs } from "./stroke-commands";
-import { isLeaf } from "./document";
 import { newDocument, sameContent, withLayerTransform, type Document, type DrawShapeKind, type TextNode, type NodeId } from "./document";
 import { MAX_IMAGE_BYTES } from "./image-resource";
 import { fileData } from "./file-bytes";
@@ -670,7 +669,7 @@ export class EditorEngine {
     const moving = interaction.duplicated?.copies ?? ids, draft = new HierarchyDraft(interaction.document);
     const inLayout = moving.some(id => {
       const parent = draft.nodes[draft.nodes[id].parent!];
-      return parent.kind === "frame" && parent.layout;
+      return isFrameLike(parent) && parent.layout;
     });
     if (inLayout) interaction.duplicated = undefined;
     if (!inLayout && draft.nodes[moving[0]]?.parent !== target) for (const id of moving) {

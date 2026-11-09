@@ -7,7 +7,7 @@ import type { LayerPaintSteps } from "./image-renderer";
 import { drawGradient } from "./gradient-renderer";
 import { renderColour, withAlpha } from "./colour";
 import { flattenContours, tracePath, type PathCommand } from "./corners";
-import type { LayerNode } from "./document";
+import { isFrameLike, type LayerNode } from "./document";
 import type { Point, Rectangle } from "./geometry";
 import { lineArrowhead, lineStrokePath } from "./line-stroke";
 import { shapePath } from "./shape-path";
@@ -83,7 +83,7 @@ export function strokeReach(node: LayerNode): number {
   const props = node.stroke ?? defaultStroke, base = Math.min(props.weight, MAX_STROKE_WIDTH);
   // Rendering sanitises raw file profiles; use the same finite envelope for allocation/culling.
   const w = base * (props.widthProfile?.points.length ? Math.max(1, widthProfileMaxScale(sanitiseWidthProfile(props.widthProfile))) : 1) * (props.brush ? brushReachFactor(props.brush) : 1);
-  if (props.sides && (node.kind === "rectangle" || node.kind === "frame")) {
+  if (props.sides && (node.kind === "rectangle" || isFrameLike(node))) {
     const side = Math.max(0, ...props.sides.filter(Number.isFinite));
     return side * (props.align === "inside" ? 0 : props.align === "center" ? .5 : 1);
   }

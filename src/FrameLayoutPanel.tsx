@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { sameAutoLayout } from "./engine/auto-layout";
-import type { Document, NodeId } from "./engine/document";
+import { isFrameLike, type Document, type NodeId } from "./engine/document";
 
 import { LayoutNumber, type LayoutFieldHost } from "./LayoutNumber";
 
@@ -9,17 +9,17 @@ export function FrameLayoutPanel({document,selection,enabled,...host}: LayoutFie
 }) {
   const {dispatch} = host;
   const [individual,setIndividual] = useState(false);
-  const first = document.nodes[selection[0]], layout = first?.kind === "frame" ? first.layout : undefined;
+  const first = document.nodes[selection[0]], layout = isFrameLike(first) ? first.layout : undefined;
   if (!layout && selection.length && selection.every(id => {
     const n = document.nodes[id];
-    return n?.kind === "group" || n?.kind === "frame" && !n.layout;
+    return n?.kind === "group" || isFrameLike(n) && !n.layout;
   })) return <fieldset aria-label="Layout" disabled={!enabled}><legend>Layout</legend>
     <button type="button" onClick={() => dispatch("layout.add",{ids:selection})}>Add auto layout</button>
     <button type="button" onClick={() => dispatch("layout.suggest",{ids:selection})}>Suggest auto layout</button>
   </fieldset>;
   if (!layout || !selection.every(id => {
     const n = document.nodes[id];
-    return n?.kind === "frame" && sameAutoLayout(n.layout,layout);
+    return isFrameLike(n) && sameAutoLayout(n.layout,layout);
   })) return null;
   const set = (props: Record<string,unknown>) => dispatch("node.set",{ids:selection,props});
   const horizontal = layout.mode !== "vertical", grid = layout.mode === "grid", auto = layout.mainAlign.startsWith("space");

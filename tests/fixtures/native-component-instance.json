@@ -1,0 +1,152 @@
+{
+  "format": "figcraft",
+  "version": 1,
+  "name": "component-instance",
+  "pages": [
+    1
+  ],
+  "current_page": 1,
+  "next_id": 6,
+  "nodes": {
+    "1": {
+      "background": {
+        "a": 1.0,
+        "b": 0.9607843160629272,
+        "g": 0.9607843160629272,
+        "r": 0.9607843160629272
+      },
+      "children": [
+        2,
+        4
+      ],
+      "flows": [],
+      "height": 0.0,
+      "id": 1,
+      "name": "Page 1",
+      "prototype": {
+        "background": {
+          "a": 1.0,
+          "b": 0.11764705926179886,
+          "g": 0.11764705926179886,
+          "r": 0.11764705926179886
+        },
+        "device": "None",
+        "rotation": "portrait"
+      },
+      "type": "page",
+      "width": 0.0
+    },
+    "2": {
+      "children": [
+        3
+      ],
+      "clip": true,
+      "description": "",
+      "fills": [
+        {
+          "blend": "normal",
+          "color": {
+            "a": 1.0,
+            "b": 1.0,
+            "g": 1.0,
+            "r": 1.0
+          },
+          "opacity": 1.0,
+          "type": "solid",
+          "visible": true
+        }
+      ],
+      "height": 70.0,
+      "id": 2,
+      "name": "Card",
+      "parent": 1,
+      "props": {},
+      "type": "component",
+      "width": 120.0
+    },
+    "3": {
+      "blend": "normal",
+      "fills": [
+        {
+          "blend": "normal",
+          "color": {
+            "a": 1.0,
+            "b": 0.0,
+            "g": 0.0,
+            "r": 1.0
+          },
+          "opacity": 1.0,
+          "type": "solid",
+          "visible": true
+        }
+      ],
+      "height": 15.0,
+      "id": 3,
+      "name": "Marker",
+      "parent": 2,
+      "type": "rectangle",
+      "width": 12.0
+    },
+    "4": {
+      "children": [
+        5
+      ],
+      "clip": true,
+      "component": 2,
+      "fills": [
+        {
+          "blend": "normal",
+          "color": {
+            "a": 1.0,
+            "b": 1.0,
+            "g": 1.0,
+            "r": 1.0
+          },
+          "opacity": 1.0,
+          "type": "solid",
+          "visible": true
+        }
+      ],
+      "height": 70.0,
+      "id": 4,
+      "name": "Card",
+      "parent": 1,
+      "props": {},
+      "source": 2,
+      "transform": [
+        1.0,
+        0.0,
+        0.0,
+        1.0,
+        160.0,
+        20.0
+      ],
+      "type": "instance",
+      "width": 120.0
+    },
+    "5": {
+      "blend": "normal",
+      "fills": [
+        {
+          "blend": "normal",
+          "color": {
+            "a": 1.0,
+            "b": 0.0,
+            "g": 0.0,
+            "r": 1.0
+          },
+          "opacity": 1.0,
+          "type": "solid",
+          "visible": true
+        }
+      ],
+      "height": 15.0,
+      "id": 5,
+      "name": "Marker",
+      "parent": 4,
+      "source": 3,
+      "type": "rectangle",
+      "width": 12.0
+    }
+  }
+}

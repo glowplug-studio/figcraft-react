@@ -1,6 +1,5 @@
-import { isLeaf } from "./document";
 import { identity, inverse, multiply, transformBounds, transformPoint, type Affine } from "./affine";
-import type { Document, NodeId } from "./document";
+import { isLeaf, type Document, type NodeId } from "./document";
 import { pixelRound, type Point, type Rectangle } from "./geometry";
 import { worldTransform } from "./hierarchy";
 import { ancestorIds } from "./canvas-selection";

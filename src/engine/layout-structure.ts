@@ -1,7 +1,7 @@
 import { transformBounds } from "./affine";
 import { layerSizing, readAutoLayout, type AutoLayout } from "./auto-layout";
 import { withSizing } from "./child-layout-properties";
-import { layerTransform, type FrameNode, type NodeId } from "./document";
+import { isFrameLike, layerTransform, type FrameLikeNode, type NodeId } from "./document";
 import type { Rectangle } from "./geometry";
 import { HierarchyDraft, subtreeIds } from "./hierarchy";
 import { inspectedId, parseString } from "./parameters";
@@ -11,7 +11,7 @@ type Direction = AutoLayout["mode"];
 type Entry = {id: NodeId; box: Rectangle};
 type Band = {ids: NodeId[]; lo: number; hi: number; crossLo: number; crossHi: number};
 
-function frameEntries(draft: HierarchyDraft, frame: FrameNode) {
+function frameEntries(draft: HierarchyDraft, frame: FrameLikeNode) {
   return frame.children.map(id => {
     const layer = draft.nodes[id];
     if (layer.kind === "page") throw new Error("Invalid frame child");
@@ -19,7 +19,7 @@ function frameEntries(draft: HierarchyDraft, frame: FrameNode) {
   });
 }
 
-function sortChildren(draft: HierarchyDraft, frame: FrameNode, vertical: boolean) {
+function sortChildren(draft: HierarchyDraft, frame: FrameLikeNode, vertical: boolean) {
   const children: NodeId[] = [];
   let run: Entry[] = [], masked = false;
   const flush = () => {
@@ -35,7 +35,7 @@ function sortChildren(draft: HierarchyDraft, frame: FrameNode, vertical: boolean
   return Object.freeze(children);
 }
 
-function inferLayout(boxes: readonly Entry[], frame: FrameNode): AutoLayout {
+function inferLayout(boxes: readonly Entry[], frame: FrameLikeNode): AutoLayout {
   if (!boxes.length) return defaults;
   let x=Infinity,y=Infinity,right=-Infinity,bottom=-Infinity;
   for (const {box} of boxes) {
@@ -75,7 +75,7 @@ function warningNumber(value: number) {
   return Object.is(n,-0) ? "-0" : String(n);
 }
 
-function bandLayout(items: Band[], vertical: boolean, frame: FrameNode, warnings: string[]): AutoLayout {
+function bandLayout(items: Band[], vertical: boolean, frame: FrameLikeNode, warnings: string[]): AutoLayout {
   const gaps=items.slice(1).map((item,i)=>Math.max(0,item.lo-items[i].hi));
   const minGap=Math.min(...gaps),maxGap=Math.max(...gaps), what=vertical ? "rows" : "columns";
   const prefix='"'+frame.name+'": ';
@@ -90,17 +90,17 @@ function bandLayout(items: Band[], vertical: boolean, frame: FrameNode, warnings
 }
 
 function placeFrame(draft: HierarchyDraft, id: NodeId, layout: AutoLayout) {
-  const frame = draft.nodes[id] as FrameNode;
+  const frame = draft.nodes[id] as FrameLikeNode;
   draft.set({...frame,layout:Object.freeze(layout),children:sortChildren(draft,frame,layout.mode === "vertical")});
 }
 
 function hugFrame(draft: HierarchyDraft, id: NodeId, preserveFill=false) {
-  const frame=draft.nodes[id] as FrameNode, s=layerSizing(frame);
+  const frame=draft.nodes[id] as FrameLikeNode, s=layerSizing(frame);
   draft.set(withSizing(frame,preserveFill && s.horizontal === "fill" ? "fill" : "hug",preserveFill && s.vertical === "fill" ? "fill" : "hug"));
 }
 
 function split(draft: HierarchyDraft, id: NodeId, direction: Direction | undefined, depth: number, warnings: string[], wrap: (ids:NodeId[])=>NodeId): boolean {
-  const frame=draft.nodes[id] as FrameNode, entries=frameEntries(draft,frame);
+  const frame=draft.nodes[id] as FrameLikeNode, entries=frameEntries(draft,frame);
   const flow=entries.filter(e=>e.layer.visible !== false && !e.layer.childLayout?.absolute);
   const flat=()=>{const layout=inferLayout(flow,frame); placeFrame(draft,id,{...layout,mode:direction ?? layout.mode}); return true;};
   if (flow.length<2) return flat();
@@ -131,7 +131,7 @@ export function editLayoutStructure(command: string, draft: HierarchyDraft, ids:
     const all=command === "layout.removeAll", removed: NodeId[]=[];
     for (const root of ids) for (const id of all ? subtreeIds(draft.document,root) : [root]) {
       const n=draft.nodes[id];
-      if (n.kind === "frame" && n.layout) {
+      if (isFrameLike(n) && n.layout) {
         const {layout,...frame}=n;
         draft.set(frame); removed.push(id);
       }
@@ -141,7 +141,7 @@ export function editLayoutStructure(command: string, draft: HierarchyDraft, ids:
   const direction=parseString(rawDirection)?.toLowerCase();
   const mode=direction === undefined ? undefined : direction === "grid" ? "grid" :
     direction === "column" || direction === "vertical" ? "vertical" : "horizontal";
-  const allFrames=ids.every(id=>{const n=draft.nodes[id];return n.kind === "frame" && !n.layout;});
+  const allFrames=ids.every(id=>{const n=draft.nodes[id];return isFrameLike(n) && !n.layout;});
   const group=ids.length === 1 && draft.nodes[ids[0]].kind === "group";
   if (group) convertGroup(ids[0]);
   const targets=allFrames || group ? ids : [wrap(ids)], warnings:string[]=[];
@@ -149,7 +149,7 @@ export function editLayoutStructure(command: string, draft: HierarchyDraft, ids:
     if (command === "layout.suggest") {
       if (split(draft,id,mode,0,warnings,wrap) && !allFrames) hugFrame(draft,id,group);
     } else {
-      const frame=draft.nodes[id] as FrameNode, flow=frameEntries(draft,frame).filter(e=>e.layer.visible !== false && !e.layer.childLayout?.absolute);
+      const frame=draft.nodes[id] as FrameLikeNode, flow=frameEntries(draft,frame).filter(e=>e.layer.visible !== false && !e.layer.childLayout?.absolute);
       const inferred=inferLayout(flow,frame);
       placeFrame(draft,id,{...inferred,mode:mode ?? inferred.mode});
       if (flow.length || !allFrames && !group) hugFrame(draft,id,group);

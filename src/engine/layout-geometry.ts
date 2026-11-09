@@ -1,9 +1,9 @@
 import { transformBounds } from "./affine";
-import { layerTransform, withLayerSize, withLayerTransform, type FrameNode, type LayerNode } from "./document";
+import { layerTransform, withLayerSize, withLayerTransform, type FrameLikeNode, type LayerNode } from "./document";
 import { defaultStroke, hasVisibleStroke } from "./stroke";
 import type { HierarchyDraft } from "./hierarchy";
 
-export function frameInsets(frame: FrameNode): readonly [number, number, number, number] {
+export function frameInsets(frame: FrameLikeNode): readonly [number, number, number, number] {
   const layout = frame.layout!, stroke = frame.stroke ?? defaultStroke;
   const inside = layout.strokesIncluded && hasVisibleStroke(frame) && stroke.align === "inside";
   const inset = (i: number) => Math.max(0, layout.padding[i]) + (inside ? Math.max(0, stroke.sides?.[i] ?? stroke.weight) : 0);

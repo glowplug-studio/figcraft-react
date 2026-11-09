@@ -1,4 +1,4 @@
-import { layerTransform, type Document, type FrameNode, type LayerNode, type NodeId } from "./document";
+import { isFrameLike, layerTransform, type Document, type FrameLikeNode, type LayerNode, type NodeId } from "./document";
 import { multiply, transformBounds } from "./affine";
 import { placeGridCells } from "./grid-placement";
 import type { Point, Rectangle } from "./geometry";
@@ -9,11 +9,11 @@ type Direction = { horizontal: boolean; forward: boolean };
 type FlowBox = { id: NodeId; index: number; box: Rectangle };
 type Guide = readonly [number, number, number, number];
 
-export function flowingParent(doc: Document, id: NodeId): FrameNode | undefined {
+export function flowingParent(doc: Document, id: NodeId): FrameLikeNode | undefined {
   const n = doc.nodes[id];
   if (!n || n.kind === "page" || n.visible === false || n.childLayout?.absolute) return;
   const p = doc.nodes[n.parent];
-  return p.kind === "frame" && p.layout ? p : undefined;
+  return isFrameLike(p) && p.layout ? p : undefined;
 }
 
 const flip = (r: Rectangle, vertical: boolean) => (vertical ? { x: r.y, y: r.x, width: r.height, height: r.width } : r);
@@ -45,7 +45,7 @@ function wrapRows(items: FlowBox[]) {
 
 export function autoLayoutSlot(
   doc: Document,
-  frame: FrameNode,
+  frame: FrameLikeNode,
   point: Point,
   exclude: ReadonlySet<NodeId>,
 ): { index: number; line?: Guide } {
@@ -89,7 +89,7 @@ export function autoLayoutSlot(
   return { index: placed[index]?.index ?? kids.length, line: vertical ? [lo, at, hi, at] : [at, lo, at, hi] };
 }
 
-function writeFlow(draft: HierarchyDraft, parent: FrameNode, order: NodeId[]) {
+function writeFlow(draft: HierarchyDraft, parent: FrameLikeNode, order: NodeId[]) {
   const ids = new Set(order);
   let pos = 0;
   draft.set({ ...parent, children: Object.freeze(parent.children.map((id) => (ids.has(id) ? order[pos++] : id))) });
@@ -97,7 +97,7 @@ function writeFlow(draft: HierarchyDraft, parent: FrameNode, order: NodeId[]) {
 
 function moveAlong(
   draft: HierarchyDraft,
-  parent: FrameNode,
+  parent: FrameLikeNode,
   flow: NodeId[],
   block: ReadonlySet<NodeId>,
   forward: boolean,
@@ -116,7 +116,7 @@ function moveAlong(
   return moved;
 }
 
-function moveRow(draft: HierarchyDraft, parent: FrameNode, flow: NodeId[], block: NodeId[], forward: boolean) {
+function moveRow(draft: HierarchyDraft, parent: FrameLikeNode, flow: NodeId[], block: NodeId[], forward: boolean) {
   const vertical = parent.layout!.mode === "vertical",
     rows = wrapRows(flowBoxes(draft.document, flow, vertical));
   const lead = forward ? block.at(-1)! : block[0],
@@ -141,7 +141,7 @@ function moveRow(draft: HierarchyDraft, parent: FrameNode, flow: NodeId[], block
   return true;
 }
 
-function moveGrid(draft: HierarchyDraft, parent: FrameNode, block: NodeId[], dir: Direction) {
+function moveGrid(draft: HierarchyDraft, parent: FrameLikeNode, block: NodeId[], dir: Direction) {
   let moved = false;
   const delta = dir.forward ? 1 : -1,
     dc = dir.horizontal ? delta : 0,
@@ -155,7 +155,7 @@ function moveGrid(draft: HierarchyDraft, parent: FrameNode, block: NodeId[], dir
     draft.set({ ...n, childLayout: Object.freeze({ ...n.childLayout, gridColumn: c, gridRow: r }) });
   };
   for (const id of dir.forward ? [...block].reverse() : block) {
-    const frame = draft.nodes[parent.id] as FrameNode,
+    const frame = draft.nodes[parent.id] as FrameLikeNode,
       { cells, rows } = placeGridCells(draft.document, frame),
       cell = cells.get(id);
     if (!cell) continue;
@@ -184,14 +184,14 @@ function moveGrid(draft: HierarchyDraft, parent: FrameNode, block: NodeId[], dir
   return moved;
 }
 
-function moveNeighbour(draft: HierarchyDraft, parent: FrameNode, block: NodeId[], dir: Direction) {
+function moveNeighbour(draft: HierarchyDraft, parent: FrameLikeNode, block: NodeId[], dir: Direction) {
   const doc = draft.document,
     outer = flowingParent(doc, parent.id);
   if (!outer || outer.layout!.mode !== (dir.horizontal ? "horizontal" : "vertical")) return;
   const siblings = outer.children.filter((id) => flowingParent(doc, id)),
     next = siblings[siblings.indexOf(parent.id) + (dir.forward ? 1 : -1)],
     dest = doc.nodes[next];
-  if (dest?.kind !== "frame" || !dest.layout || dest.layout.mode === "grid" || dest.locked) return;
+  if (!isFrameLike(dest) || !dest.layout || dest.layout.mode === "grid" || dest.locked) return;
   const b = boundsOf(doc, [next])!,
     s = boundsOf(doc, block)!;
   const edge = (lo: number, length: number) =>
@@ -221,7 +221,7 @@ export function nudgeFlow(draft: HierarchyDraft, selection: readonly NodeId[], d
       set.add(id);
     }
     for (const [parentId, chosen] of [...groups].sort(([a], [b]) => (BigInt(a) < BigInt(b) ? -1 : 1))) {
-      const parent = draft.nodes[parentId] as FrameNode,
+      const parent = draft.nodes[parentId] as FrameLikeNode,
         layout = parent.layout!,
         flow = parent.children.filter((id) => flowingParent(draft.document, id));
       const block = flow.filter((id) => chosen.has(id));

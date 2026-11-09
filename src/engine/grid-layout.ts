@@ -1,6 +1,6 @@
 import { outerBox, frameInsets, clampSize } from "./layout-geometry";
 import { layerSizing, type GridTrack } from "./auto-layout";
-import { type Document, type FrameNode, type LayerNode } from "./document";
+import { type Document, type FrameLikeNode, type LayerNode } from "./document";
 import { placeGridCells, type GridCell } from "./grid-placement";
 
 
@@ -63,7 +63,7 @@ function resolveAxis(tracks: readonly GridTrack[], count: number, gap: number, h
   return {ranges, extent: sizes.reduce((sum, size) => sum + size, 0) + gap * (count - 1)};
 }
 
-export function gridGeometry(document: Document, frame: FrameNode) {
+export function gridGeometry(document: Document, frame: FrameLikeNode) {
   const layout = frame.layout!, grid = placeGridCells(document, frame);
   const [top,right,bottom,left] = frameInsets(frame);
   const sizing = layerSizing(frame);

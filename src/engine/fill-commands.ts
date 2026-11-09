@@ -1,7 +1,7 @@
 import type { CopiedPaint } from "./paint-clipboard";
 import { arrangementTargets } from "./arrange";
 import { fromRgba8 } from "./colour";
-import { rectanglePaints, withRectanglePaints, type Document, type LayerNode, type NodeId } from "./document";
+import { isFrameLike, rectanglePaints, withRectanglePaints, type Document, type LayerNode, type NodeId } from "./document";
 import { HierarchyDraft } from "./hierarchy";
 import { paintStackEdit } from "./paint-stack";
 import { checkPatternTarget } from "./pattern-sources";
@@ -92,7 +92,7 @@ export function writeFill(command: WriteCommand, document: Document, selection: 
         draft.set({ ...node, network: Object.freeze({ ...node.network, regions: Object.freeze(next) }) });
       }
     } else {
-      const fills = apply(inherited, node.kind === "frame" && action === "add" ? white : grey);
+      const fills = apply(inherited, isFrameLike(node) && action === "add" ? white : grey);
       if (!samePaints(inherited, fills)) draft.set(withRectanglePaints(node, fills));
     }
   }

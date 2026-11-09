@@ -1,7 +1,6 @@
 import { cohereEdits } from "./child-layout-properties";
 import { reflowChangedFrames } from "./layout-reflow";
-import { isGroupLike } from "./document";
-import { isLeaf } from "./document";
+import { isLeaf, isGroupLike } from "./document";
 import { identity, inverse, multiply, transformBounds, type Affine } from "./affine";
 import { layerTransform, withLayerTransform, type Document, type DocumentNode, type LayerNode, type NodeId } from "./document";
 

@@ -1,7 +1,7 @@
 import { inverse, multiply, transformBounds, transformPoint } from "./affine";
 import { moveWorld } from "./arrange";
 import { dragParent } from "./canvas-selection";
-import { isGroupLike, type Document, type FrameNode, type NodeId } from "./document";
+import { isFrameLike, isGroupLike, type Document, type FrameLikeNode, type NodeId } from "./document";
 import type { Point, Rectangle } from "./geometry";
 import { cellRect, gridGeometry } from "./grid-layout";
 import { HierarchyDraft, worldTransform } from "./hierarchy";
@@ -25,7 +25,7 @@ function nearestTrack(tracks: readonly (readonly [number, number])[], coordinate
   return nearest;
 }
 
-function gridCellAt(document: Document, frame: FrameNode, point: Point) {
+function gridCellAt(document: Document, frame: FrameLikeNode, point: Point) {
   const grid = gridGeometry(document, frame);
   const matrix = worldTransform(document, frame.id), local = transformPoint(inverse(matrix), point);
   const column = nearestTrack(grid.columns, local.x), row = nearestTrack(grid.rows, local.y);
@@ -44,7 +44,7 @@ export function placeMove(draft: HierarchyDraft, moving: readonly NodeId[], delt
   const target = flow ? dragParent(doc, point, moving) : home;
   const frame = doc.nodes[target];
   const drop: MoveDrop = { target, inFlow: false, outline: flow && target !== doc.currentPage ? target : undefined };
-  if (flow && frame.kind === "frame" && frame.layout) {
+  if (flow && isFrameLike(frame) && frame.layout) {
     const layout = frame.layout;
     const cell = layout.mode === "grid" ? gridCellAt(doc, frame, point) : undefined;
     const excluded = new Set(moving);
@@ -64,13 +64,13 @@ export function placeMove(draft: HierarchyDraft, moving: readonly NodeId[], delt
   } else {
     for (const id of moving) {
       const parent = draft.nodes[draft.nodes[id].parent!];
-      if (flow && parent.kind === "frame" && parent.layout) draft.reparent(id, doc.currentPage);
+      if (flow && isFrameLike(parent) && parent.layout) draft.reparent(id, doc.currentPage);
       moveWorld(draft, id, delta.x, delta.y);
     }
   }
   draft.normaliseGroups();
   const document = draft.finish();
-  if (drop.inFlow && !drop.cell && frame.kind === "frame" && frame.layout) {
+  if (drop.inFlow && !drop.cell && isFrameLike(frame) && frame.layout) {
     const box = boundsOf(document, moving)!;
     const offset = Math.max(3, Math.min(24, frame.layout.gap / 2));
     drop.line = frame.layout.mode === "vertical"

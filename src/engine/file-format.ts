@@ -1,4 +1,4 @@
-import { readComponentLinks, wireComponentLinks } from "./component-properties";
+import { readComponentLinks, wireComponentLinks, readFrameKind, wireFrameKind } from "./component-properties";
 import { layerSizing, readAutoLayout, readChildLayout, wireAutoLayout, wireChildLayout } from "./auto-layout";
 import { U64_MAX, appearanceValue, fail, id, idString, number, wireId, wirePaints } from "./native-values";
 import { readTextData, wireTextData } from "./text-data";
@@ -8,7 +8,7 @@ import { sha256 } from "@noble/hashes/sha2.js";
 import { bytesToHex } from "@noble/hashes/utils.js";
 import { readNativeJson } from "./native-json";
 import { readVectorNetwork, wireVectorNetwork } from "./vector-codec";
-import { isMaskType, layerBlend, isBooleanOperation, isLeaf, isLeafKind } from "./document";
+import { isFrameLikeKind, isFrameLike, isMaskType, layerBlend, isBooleanOperation, isLeaf, isLeafKind } from "./document";
 import { type Corners, type Radii } from "./corners";
 import { readImageFilters } from "./image-filters";
 import { archivedImage, validImageKey, type ImageResource } from "./image-resource";
@@ -109,8 +109,10 @@ function readNode(key: string, value: unknown): DocumentNode {
   idString(key, "node map key");
   const n = object(value, `node ${key}`), kind = n.type;
   if (id(n.id, "node ID") !== key) fail(`node ${key} has a mismatched ID`);
-  if (kind !== "page" && kind !== "group" && kind !== "booleanOp" && kind !== "frame" && !isLeafKind(kind)) fail(`node type ${String(kind)} is not supported yet`);
-  fields(n, ["overrides", "source", "prop_refs", "exposed", "id", "name", "type", "parent", "children", "transform", "width", "height", "fills", "blend", "effects", "is_mask", "mask_type", ...(kind === "page" ? ["background", "flows", "prototype"] : ["bool_op", "child_layout", ...(kind === "booleanOp" ? ["op"] : kind === "ellipse" ? ["start", "sweep", "inner"] : kind === "star" ? ["count", "inner_ratio"] : kind === "polygon" ? ["count"] : kind === "vector" ? ["network"] : kind === "text" ? textFields : []), "stroke", "strokes", "visible", "locked", "opacity", "corners", "constraints", "constrain_proportions", ...(kind === "frame" ? ["clip", "layout"] : [])])], nodeDefaults, `node ${key}`);
+  if (kind !== "page" && kind !== "group" && kind !== "booleanOp" && !isFrameLikeKind(kind) && !isLeafKind(kind)) fail(`node type ${String(kind)} is not supported yet`);
+  const componentFields = kind === "component" ? ["description", "props", "prop_order"]
+    : kind === "componentSet" ? ["description"] : kind === "instance" ? ["component", "props"] : [];
+  fields(n, [...componentFields, "overrides", "source", "prop_refs", "exposed", "id", "name", "type", "parent", "children", "transform", "width", "height", "fills", "blend", "effects", "is_mask", "mask_type", ...(kind === "page" ? ["background", "flows", "prototype"] : ["bool_op", "child_layout", ...(kind === "booleanOp" ? ["op"] : kind === "ellipse" ? ["start", "sweep", "inner"] : kind === "star" ? ["count", "inner_ratio"] : kind === "polygon" ? ["count"] : kind === "vector" ? ["network"] : kind === "text" ? textFields : []), "stroke", "strokes", "visible", "locked", "opacity", "corners", "constraints", "constrain_proportions", ...(isFrameLikeKind(kind) ? ["clip", "layout"] : [])])], nodeDefaults, `node ${key}`);
   const links = readComponentLinks(n);
   if (n.is_mask !== undefined && typeof n.is_mask !== "boolean") fail("is_mask must be boolean");
   if (n.mask_type !== undefined && !isMaskType(n.mask_type)) fail("mask_type must be alpha, vector or luminance");
@@ -167,7 +169,7 @@ function readNode(key: string, value: unknown): DocumentNode {
       if (smoothing !== 0 || radii.some(r => r !== 0)) corners = Object.freeze({ radii: Object.freeze(radii) as unknown as Radii, smoothing });
     }
     const constraints = readConstraints(n.constraints === undefined ? {} : n.constraints);
-    if (kind === "frame" && n.clip !== undefined && typeof n.clip !== "boolean") fail("frame clip must be boolean");
+    if (isFrameLikeKind(kind) && n.clip !== undefined && typeof n.clip !== "boolean") fail("frame clip must be boolean");
     if (n.bool_op != null && !isBooleanOperation(n.bool_op)) fail("invalid operand operation");
     const op = kind === "booleanOp" ? (isBooleanOperation(n.op) ? n.op : fail("invalid boolean group operation")) : undefined;
     const layer = { ...links, ...(n.child_layout !== undefined && readChildLayout(n.child_layout, kind === "text")), ...(isBooleanOperation(n.bool_op) ? { boolOp: n.bool_op } : {}), id: key, kind, name, ...strokeData, ...(corners ? { corners } : {}), parent: id(n.parent, `${kind} parent`), x: transform[4]!, y: transform[5]!, width, height, fill: "transparent", ...(constraints.horizontal !== "left" || constraints.vertical !== "top" ? { constraints } : {}),
@@ -180,7 +182,7 @@ function readNode(key: string, value: unknown): DocumentNode {
       if (!Number.isInteger(count) || count < 0 || count > 4294967295) fail("point count must be a u32");
     }
     return !isLeafKind(kind)
-      ? Object.freeze({ ...withRectanglePaints(withLayerTransform({ ...layer, ...(kind === "frame" ? { kind: "frame" as const, clip: n.clip === true, ...(n.layout != null && {layout: readAutoLayout(n.layout)}) } : op ? { kind: "booleanOp" as const, op } : { kind: "group" as const }), children: Object.freeze(children), blend: (n.blend ?? "passThrough") as BlendMode }, matrix), paints), fills: paints })
+      ? Object.freeze({ ...withRectanglePaints(withLayerTransform({ ...layer, ...(isFrameLikeKind(kind) ? { ...readFrameKind(kind, n), clip: n.clip === true, ...(n.layout != null && {layout: readAutoLayout(n.layout)}) } : op ? { kind: "booleanOp" as const, op } : { kind: "group" as const }), children: Object.freeze(children), blend: (n.blend ?? "passThrough") as BlendMode }, matrix), paints), fills: paints })
       : withRectanglePaints(withLayerTransform(kind === "ellipse" ? { ...layer, kind, start: number(n.start === undefined ? 0 : n.start, "arc start"), sweep: number(n.sweep === undefined ? 2 * Math.PI : n.sweep, "arc sweep"), inner: number(n.inner === undefined ? 0 : n.inner, "arc inner") } : kind === "polygon" ? { ...layer, kind, count } : kind === "star" ? { ...layer, kind, count, innerRatio: number(n.inner_ratio, "inner ratio") } : kind === "vector" ? { ...layer, kind, network: nativeNetwork(n.network) } : kind === "text" ? { ...layer, kind, text: readTextData(n), ...(Array.isArray(n.overrides) && n.overrides.includes("characters") && {charactersOverridden: true as const}) } : { ...layer, kind }, matrix), paints);
   }
 }
@@ -432,7 +434,7 @@ function wireNode(key: string, node: DocumentNode) {
     return { ...common, width: 0, height: 0, children: node.children.map(wireId), background: pageColour(node), ...(node.prototypeBackground && { prototype: { device: "None", rotation: "portrait", background: node.prototypeBackground } }) };
   } else {
     return { ...common, child_layout: wireChildLayout(node.childLayout, layerSizing(node)), ...(node.boolOp ? { bool_op: node.boolOp } : {}), parent: wireId(node.parent), ...(!isLeaf(node) ? { children: node.children.map(wireId) } : {}), transform: layerTransform(node), width: node.width, height: node.height, ...(node.stroke ? { stroke: wireStroke(node.stroke) } : {}), ...(node.strokes ? { strokes: wirePaints(node.strokes) } : {}),
-      ...(node.corners ? { corners: node.corners } : {}), ...(node.constraints ? { constraints: node.constraints } : {}), ...(node.constrainProportions ? { constrain_proportions: true } : {}), ...(node.kind === "frame" ? { clip: node.clip, ...(node.layout && {layout: wireAutoLayout(node.layout)}) } : {}), blend: layerBlend(node), visible: node.visible ?? true, locked: node.locked ?? false, opacity: node.opacity ?? 1, fills: wirePaints(rectanglePaints(node)) };
+      ...(node.corners ? { corners: node.corners } : {}), ...(node.constraints ? { constraints: node.constraints } : {}), ...(node.constrainProportions ? { constrain_proportions: true } : {}), ...(isFrameLike(node) ? { ...wireFrameKind(node), clip: node.clip, ...(node.layout && {layout: wireAutoLayout(node.layout)}) } : {}), blend: layerBlend(node), visible: node.visible ?? true, locked: node.locked ?? false, opacity: node.opacity ?? 1, fills: wirePaints(rectanglePaints(node)) };
   }
 }
 

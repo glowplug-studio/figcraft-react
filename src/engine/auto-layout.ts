@@ -1,4 +1,4 @@
-import type { LayerNode } from "./document";
+import { isFrameLike, type LayerNode } from "./document";
 import { isLosslessNumber } from "lossless-json";
 import { fail, number } from "./native-values";
 import { propertyEnum } from "./parameters";
@@ -162,7 +162,7 @@ export function scaleLayoutProperties(node: LayerNode, factor: number) {
     }
     if (Object.keys(limits).length) result.childLayout = Object.freeze({...node.childLayout, ...limits});
   }
-  if (node.kind === "frame" && node.layout) {
+  if (isFrameLike(node) && node.layout) {
     const layout = node.layout;
     const tracks = (items: readonly GridTrack[]) => Object.freeze(items.map(t =>
       t.sizing === "fixed" ? Object.freeze({...t, value: scale(t.value)}) : t));

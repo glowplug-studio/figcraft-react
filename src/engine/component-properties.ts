@@ -109,3 +109,77 @@ export function wireComponentLinks(node: ComponentLinks & { readonly charactersO
   return { ...(node.source !== undefined && {source:wireId(node.source)}), ...(node.exposed && {exposed:true}),
     ...(overrides.length && {overrides}), ...(node.propRefs && {prop_refs:node.propRefs}) };
 }
+
+export interface ComponentMain {
+  readonly kind: "component";
+  readonly description: string;
+  readonly props: ComponentProperties;
+  readonly propOrder: readonly string[];
+}
+
+export const newComponentKind: ComponentMain = Object.freeze({
+  kind:"component", description:"", props:Object.freeze({}), propOrder:Object.freeze([]),
+});
+
+export interface ComponentSet {
+  readonly kind: "componentSet";
+  readonly description: string;
+}
+
+export type InstanceValue = string | boolean | null | number | import("lossless-json").LosslessNumber
+  | readonly InstanceValue[] | { readonly [key: string]: InstanceValue };
+
+export interface ComponentInstance {
+  readonly kind: "instance";
+  readonly component: string;
+  readonly props: Readonly<Record<string, InstanceValue>>;
+}
+
+function instanceValue(value: unknown): InstanceValue {
+  if (isLosslessNumber(value)) {
+    if (!Number.isFinite(Number(value.value))) fail("instance property number is outside the native range");
+    return Object.freeze(value);
+  }
+  if (value === null || typeof value === "string" || typeof value === "boolean") return value;
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (Array.isArray(value)) return Object.freeze(value.map(instanceValue));
+  return readInstanceValues(value);
+}
+
+function readInstanceValues(value: unknown): ComponentInstance["props"] {
+  return Object.freeze(Object.fromEntries(Object.entries(record(value, "instance properties"))
+    .map(([key, member]) => [key, instanceValue(member)])));
+}
+
+export function readFrameKind(kind: "frame" | "component" | "componentSet" | "instance", node: Record<string, unknown>):
+  {kind: "frame"} | ComponentMain | ComponentSet | ComponentInstance {
+  if (kind === "frame") return {kind};
+  const props = node.props === undefined ? {} : node.props;
+  if (kind === "instance") return {kind, component:id(node.component, "instance component"), props:readInstanceValues(props)};
+  const description = text(node.description === undefined ? "" : node.description, "component description");
+  if (kind === "componentSet") return {kind, description};
+  const propOrder = array(node.prop_order === undefined ? [] : node.prop_order, "component property order", text);
+  return {kind, description, props:readComponentProperties(props), propOrder};
+}
+
+export function wireFrameKind(node: ComponentMain | ComponentSet | ComponentInstance | {kind:"frame"}) {
+  switch (node.kind) {
+    case "frame": return {};
+    case "instance": return {component:wireId(node.component), props:node.props};
+    case "componentSet": return {description:node.description};
+    case "component": return {description:node.description, props:wireComponentProperties(node.props),
+      ...(node.propOrder.length && {prop_order:node.propOrder})};
+  }
+}
+
+// The command API uses strings for integers that cannot be represented exactly in JavaScript.
+export function inspectedPropertyValues(value: unknown): unknown {
+  if (isLosslessNumber(value)) {
+    const numeric = Number(value.value);
+    return !Number.isSafeInteger(numeric) && /^-?\d+$/.test(value.value) ? value.value : numeric;
+  }
+  if (Array.isArray(value)) return value.map(inspectedPropertyValues);
+  if (value && typeof value === "object") return Object.fromEntries(Object.entries(value)
+    .map(([key, member]) => [key, inspectedPropertyValues(member)]));
+  return value;
+}

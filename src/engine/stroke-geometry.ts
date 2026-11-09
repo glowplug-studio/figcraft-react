@@ -1,5 +1,5 @@
 import { roundedRect, zeroCorners, type PathCommand, type Radii } from "./corners";
-import type { LayerNode } from "./document";
+import { isFrameLike, type LayerNode } from "./document";
 import { ellipsePath, fullSweep, TAU } from "./ellipse";
 import { defaultStroke } from "./stroke";
 
@@ -12,7 +12,7 @@ export function closedStrokeRing(node: LayerNode): readonly PathCommand[] | unde
   if (node.kind === "line" || node.kind === "group" || props.align === "center" || props.dashes.length || props.widthProfile?.points.length || props.brush) return undefined;
   if (!(props.weight > 0 && Number.isFinite(props.weight))) return [];
   if (props.align === "outside" && props.join !== "miter" && corners.radii.includes(0)) return undefined;
-  const rectangle = (node.kind === "rectangle" || node.kind === "frame") && corners.smoothing === 0;
+  const rectangle = (node.kind === "rectangle" || isFrameLike(node)) && corners.smoothing === 0;
   const ellipse = node.kind === "ellipse" && fullSweep(node.sweep) && node.inner === 0;
   if (!rectangle && !ellipse) return undefined;
   const ring = (inset: number): PathCommand[] | undefined => {

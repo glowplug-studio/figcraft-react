@@ -1,5 +1,5 @@
 import { layerSizing, sizeLimitKeys, type ChildLayout, type LayerSizing, type Sizing } from "./auto-layout";
-import { isLeaf, layerTransform, type DocumentNode, type LayerNode, type TextNode } from "./document";
+import { isFrameLike, isLeaf, layerTransform, type DocumentNode, type LayerNode, type TextNode } from "./document";
 import type { HierarchyDraft } from "./hierarchy";
 import { frameInsets } from "./layout-geometry";
 import { commandSizing } from "./layout-properties";
@@ -41,9 +41,9 @@ export function clearTextHeightLimit(node: TextNode) {
 
 function coherent(node: LayerNode, parent: DocumentNode | undefined) {
   if (node.kind !== "text" && !node.sizing) return node;
-  const layoutParent = parent?.kind === "frame" && parent.layout && !node.childLayout?.absolute ? layerSizing(parent) : undefined;
+  const layoutParent = isFrameLike(parent) && parent.layout && !node.childLayout?.absolute ? layerSizing(parent) : undefined;
   const sizing = layerSizing(node), text = node.kind === "text" ? node.text : undefined;
-  const canHug = !!text || node.kind === "frame" && !!node.layout;
+  const canHug = !!text || isFrameLike(node) && !!node.layout;
   const fix = (axis: Axis) => {
     let mode = sizing[axis];
     if (mode === "fill" && (!layoutParent || layoutParent[axis] === "hug") || mode === "hug" && !canHug) mode = "fixed";
@@ -77,11 +77,11 @@ export function cohereEdits(draft: HierarchyDraft) {
 function changeSizing(draft: HierarchyDraft, node: LayerNode, mode: Sizing, axis: Axis) {
   const parent = draft.nodes[node.parent];
   if (mode === "fill") {
-    if (parent.kind !== "frame" || !parent.layout) throw new Error("Fill needs an auto layout parent");
+    if (!isFrameLike(parent) || !parent.layout) throw new Error("Fill needs an auto layout parent");
     const s = layerSizing(parent);
     if (s[axis] === "hug") draft.set(withSizing(parent,axis === "horizontal" ? "fixed" : s.horizontal,axis === "vertical" ? "fixed" : s.vertical));
   }
-  if (mode === "hug" && node.kind !== "text" && !(node.kind === "frame" && node.layout)) throw new Error("Hug needs auto layout or text");
+  if (mode === "hug" && node.kind !== "text" && !(isFrameLike(node) && node.layout)) throw new Error("Hug needs auto layout or text");
   const s = layerSizing(coherent(node,draft.nodes[node.parent]));
   const h = axis === "horizontal" ? mode : s.horizontal, v = axis === "vertical" ? mode : s.vertical;
   const changed = withSizing(node,h,v);
@@ -95,7 +95,7 @@ function changeSizing(draft: HierarchyDraft, node: LayerNode, mode: Sizing, axis
 export function explicitAxis(draft: HierarchyDraft, node: LayerNode, axis: Axis, length: number) {
   const parent = draft.nodes[node.parent], horizontal = axis === "horizontal", sizing = layerSizing(node);
   let mode: Sizing = "fixed";
-  if (parent.kind === "frame" && parent.layout && !node.childLayout?.absolute && !parent.layout.wrap &&
+  if (isFrameLike(parent) && parent.layout && !node.childLayout?.absolute && !parent.layout.wrap &&
       parent.layout.mode !== "grid" && layerSizing(parent)[axis] !== "hug") {
     const [,b,c] = layerTransform(node);
     const mainAxis = (parent.layout.mode === "horizontal") === horizontal;

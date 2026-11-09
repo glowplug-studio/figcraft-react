@@ -1,7 +1,6 @@
 import { flowingParent, nudgeFlow } from "./layout-navigation";
-import { isLeaf } from "./document";
 import { inverse, multiply, transformBounds, type Affine } from "./affine";
-import { layerTransform, withLayerTransform, type Document, type NodeId } from "./document";
+import { isLeaf, layerTransform, withLayerTransform, type Document, type NodeId } from "./document";
 import { HierarchyDraft, rootIds, worldTransform, zSorted } from "./hierarchy";
 import { parseBoolean, parseNodeId, parseNumber } from "./parameters";
 import { boundsOf } from "./viewport";

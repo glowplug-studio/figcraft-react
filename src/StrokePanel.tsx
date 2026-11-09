@@ -2,7 +2,7 @@ import { usePaintActions } from "./PaintActions";
 import { PaintPicker } from "./PaintPicker";
 import type { EditorEngine } from "./engine/editor";
 import { useMemo, useState } from "react";
-import type { LayerNode } from "./engine/document";
+import { isFrameLike, type LayerNode } from "./engine/document";
 import { parseCssColour } from "./engine/colour-css";
 import { renderColour } from "./engine/colour";
 import { paintColour } from "./engine/solid-paint";
@@ -78,7 +78,7 @@ function StrokeControls({ engine, nodes, editable, dispatch }: Props) {
     {stack && stack.length > 0 && <>
       {field("Stroke weight", "strokeWeight", value("weight"))}
       {select("Stroke alignment", "strokeAlign", value("align"), ["inside", "center", "outside"], ["Inside", "Centre", "Outside"])}
-      {nodes.every(n => n.kind === "rectangle" || n.kind === "frame") && <label>Individual strokes<select aria-label="Individual strokes" value="" onChange={event => {
+      {nodes.every(n => n.kind === "rectangle" || isFrameLike(n)) && <label>Individual strokes<select aria-label="Individual strokes" value="" onChange={event => {
         const choice = event.currentTarget.value, weight = value("weight") ?? 1;
         set({ strokeSides: choice === "all" ? null : [0, 1, 2, 3].map(i => choice === "custom" || i === Number(choice) ? weight : 0) });
       }}><option value="" disabled>Choose sides</option><option value="all">All</option><option value="0">Top</option><option value="1">Right</option><option value="2">Bottom</option><option value="3">Left</option><option value="custom">Custom</option></select></label>}

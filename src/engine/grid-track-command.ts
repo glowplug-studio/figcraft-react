@@ -1,6 +1,6 @@
 import { arrangementTargets } from "./arrange";
 import { commandSizing } from "./layout-properties";
-import type { Document, NodeId } from "./document";
+import { isFrameLike, type Document, type NodeId } from "./document";
 import { gridGeometry } from "./grid-layout";
 import { HierarchyDraft } from "./hierarchy";
 import { parseNumber } from "./parameters";
@@ -17,7 +17,7 @@ export function setGridTrack(document: Document, selection: readonly NodeId[], p
   const draft = new HierarchyDraft(document);
   for (const id of ids) {
     const frame = draft.nodes[id];
-    if (frame.kind !== "frame" || frame.layout?.mode !== "grid") throw new Error(`Node ${id} is not a grid auto layout frame`);
+    if (!isFrameLike(frame) || frame.layout?.mode !== "grid") throw new Error(`Node ${id} is not a grid auto layout frame`);
     const geometry = gridGeometry(draft.document, frame);
     const ranges = columns ? geometry.columns : geometry.rows;
     if (!Number.isInteger(index) || index < 0 || index >= ranges.length) throw new Error(`index must be an integer in 0..${ranges.length}`);

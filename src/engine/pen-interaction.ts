@@ -1,4 +1,4 @@
-import type { NodeId } from "./document";
+import { isLeaf, type NodeId } from "./document";
 import type { EditorEngine } from "./editor";
 import type { Point } from "./geometry";
 import { frameAt } from "./canvas-selection";
@@ -8,7 +8,6 @@ import { penPathAction, penPathHandles, selectedVectorEnd, type PenAnchor } from
 import { PenSnapCache } from "./vector-point-snap";
 import type { Guide } from "./snapping";
 import { hitRectangle } from "./selection";
-import { isLeaf } from "./document";
 
 /** A new path owns one transaction across all clicks. Existing networks use VectorInteraction. */
 export class PenInteraction {

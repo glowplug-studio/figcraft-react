@@ -1,6 +1,6 @@
 import { transformPoint, type Affine } from "./affine";
 import { type PathCommand } from "./corners";
-import type { LayerNode } from "./document";
+import { isFrameLike, type LayerNode } from "./document";
 import { blurPixels } from "./effect-raster";
 import type { Effect } from "./effects";
 import { glassDepth, glassLensPixels } from "./glass-lens";
@@ -26,7 +26,7 @@ export function renderGlass(out: CanvasRenderingContext2D, source: CanvasRenderi
   const pane = out.canvas.ownerDocument.createElement("canvas");
   try {
     const depth = glassDepth(effect, scale), bevel = Math.min(1024, scale);
-    const rect = (node.kind === "frame" || node.kind === "rectangle") && !node.corners?.smoothing
+    const rect = (isFrameLike(node) || node.kind === "rectangle") && !node.corners?.smoothing
       ? glassRectangle(xf, node.width, node.height, node.corners?.radii ?? [0, 0, 0, 0], bevel, depth + bevel) : undefined;
     const geometry = rect ?? glassShape(out.canvas.ownerDocument, commands, path, rule, xf, width, height, depth, bevel);
     const bounds = pathBounds(commands);

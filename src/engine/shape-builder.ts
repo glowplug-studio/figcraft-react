@@ -2,7 +2,7 @@ import { fontGeometryCache } from "./font-generation";
 import { transformPoint } from "./affine";
 import { booleanResult, paintedStrokePath } from "./boolean-result";
 import { flattenContours, type PathCommand } from "./corners";
-import type { Document, LayerNode, NodeId } from "./document";
+import { isLeaf, type Document, type LayerNode, type NodeId } from "./document";
 import type { Point, Rectangle } from "./geometry";
 import { ancestors, rootIds, worldTransform, zSorted } from "./hierarchy";
 import { parseNodeId } from "./parameters";
@@ -45,8 +45,8 @@ function eligible(document: Document, ids: readonly NodeId[]) {
     const node = document.nodes[id];
     if (node.kind === "group") {
       if (depth < 64) for (const child of node.children) collect(child, depth + 1);
-    } else if (node.kind !== "page" && node.kind !== "frame" && node.visible !== false && !node.locked
-        && !ancestors(document, id).some(parent => document.nodes[parent].kind === "booleanOp")) {
+    } else if (node.kind !== "page" && (isLeaf(node) || node.kind === "booleanOp") && node.visible !== false && !node.locked
+        && !ancestors(document, id).some(parent => ["booleanOp","instance"].includes(document.nodes[parent].kind))) {
       layers.push(id);
     }
   };

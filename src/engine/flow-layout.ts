@@ -1,6 +1,6 @@
 import { layerSizing, type AutoLayout } from "./auto-layout";
 import { resizeChildren } from "./constraints";
-import { layerTransform, type Document, type FrameNode, type LayerNode, type NodeId } from "./document";
+import { isFrameLike, layerTransform, type Document, type FrameLikeNode, type LayerNode, type NodeId } from "./document";
 import type { HierarchyDraft } from "./hierarchy";
 import { clampSize, frameInsets, outerBox, placeLayer, size } from "./layout-geometry";
 import { textNodeLayout } from "./text-node-layout";
@@ -19,7 +19,7 @@ function baseline(doc: Document, node: LayerNode, depth = 0): number | undefined
     const measured = textNodeLayout(node), line = measured.layout.lines[0];
     if (line) return line.baseline + measured.dy;
   }
-  if (node.kind !== "frame" || !node.layout || depth >= 32) return;
+  if (!isFrameLike(node) || !node.layout || depth >= 32) return;
   for (const id of node.children) {
     const child = doc.nodes[id];
     if (child.kind === "page" || child.visible === false || child.childLayout?.absolute) continue;
@@ -92,7 +92,7 @@ function lineExtents(items: Item[], gap: number) {
   return {main,cross,items};
 }
 
-export function reflowFlow(draft: HierarchyDraft, frame: FrameNode, resize: Resize) {
+export function reflowFlow(draft: HierarchyDraft, frame: FrameLikeNode, resize: Resize) {
   const layout = frame.layout!, horizontal = layout.mode === "horizontal", sizing = layerSizing(frame);
   const [top,right,bottom,left] = frameInsets(frame), limits = frame.childLayout;
   const width = Math.max(left+right,clampSize(frame.width,limits?.minWidth,limits?.maxWidth));
@@ -108,7 +108,7 @@ export function reflowFlow(draft: HierarchyDraft, frame: FrameNode, resize: Resi
     const child = n(id), props = child.childLayout;
     if (child.visible === false || props?.absolute) continue;
     const box = outerBox(child), s = layerSizing(child);
-    const inset = child.kind === "frame" && child.layout ? frameInsets(child) : [0,0,0,0];
+    const inset = isFrameLike(child) && child.layout ? frameInsets(child) : [0,0,0,0];
     items.push({id, main: horizontal ? box.width : box.height, cross: horizontal ? box.height : box.width,
       fillMain: !hugMain && (horizontal ? s.horizontal : s.vertical) === "fill",
       fillCross: !hugCross && (horizontal ? s.vertical : s.horizontal) === "fill",

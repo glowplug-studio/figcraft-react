@@ -1,5 +1,5 @@
 import { remapPatternSources } from "./pattern-sources";
-import { isLeaf } from "./document";
+import { isFrameLike, isLeaf } from "./document";
 import type { Document, NodeId } from "./document";
 import { arrangementTargets, moveWorld } from "./arrange";
 import { HierarchyDraft, subtreeIds, zSorted } from "./hierarchy";
@@ -35,7 +35,7 @@ export function executeDuplicate(document: Document, selection: readonly NodeId[
     if (source.kind === "page") throw new Error("Pages are duplicated with page.duplicate");
     const parent = document.nodes[source.parent], copyId = duplicated.copies[i];
     // Explicit offsets are parent-space in native code; repeated steps are page-space.
-    const defaultX = source.kind === "frame" && parent.kind === "page" ? source.width + 100 : 0;
+    const defaultX = isFrameLike(source) && parent.kind === "page" ? source.width + 100 : 0;
     moveWorld(draft, copyId, repeat?.x ?? dx ?? (dy === undefined ? defaultX : 0), repeat?.y ?? dy ?? 0, !repeat);
   }
   draft.normaliseGroups();

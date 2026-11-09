@@ -2,7 +2,7 @@ import { blurRadius } from "./blur-renderer";
 import { compositeSurface } from "./blend-composite";
 import { maskOutline, paintedStrokePath } from "./boolean-result";
 import { tracePath, type PathCommand } from "./corners";
-import { isLeaf, layerTransform, rectanglePaints, type Document, type LayerNode } from "./document";
+import { isFrameLike, isLeaf, layerTransform, rectanglePaints, type Document, type LayerNode } from "./document";
 import { dropShadowPixels, innerShadowPadding, innerShadowPixels } from "./effect-raster";
 import type { Effect } from "./effects";
 import { opaqueImageFill } from "./image-renderer";
@@ -40,7 +40,7 @@ function outlines(doc: Document, node: LayerNode, includeZero: boolean): Outline
   if (node.kind === "group" || alphaFills(doc,node,includeZero)) return;
   const filled = rectanglePaints(node).some(p => p.visible && (includeZero || p.opacity > 0));
   if (!isLeaf(node) && node.children.some(id => { const child = doc.nodes[id]; return child && child.kind !== "page" && child.visible !== false; })
-    && !(node.kind === "frame" && node.clip && filled)) return;
+    && !(isFrameLike(node) && node.clip && filled)) return;
   const result: Outline[] = [];
   const shape = filled && isClosedShape(node) ? filledShape(doc,node) : undefined;
   if (shape) result.push(shape);

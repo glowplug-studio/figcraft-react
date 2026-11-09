@@ -1,5 +1,5 @@
 import { readAutoLayout, sameAutoLayout, wireAutoLayout, type AutoLayout, type GridTrack } from "./auto-layout";
-import type { FrameNode, LayerNode } from "./document";
+import { isFrameLike, type FrameLikeNode, type LayerNode } from "./document";
 import { parseNumber, propertyEnum } from "./parameters";
 
 export const frameTuning = new Set([
@@ -121,9 +121,9 @@ export function setFrameLayout(node: LayerNode, props: Record<string,unknown>, t
   const modes = ["layout","layoutMode"].filter(k => Object.hasOwn(props,k));
   const keys = skipTuning ? [] : tuning;
   if (!modes.length && !keys.length) return node;
-  if (node.kind !== "frame") throw new Error("Auto layout needs a frame");
+  if (!isFrameLike(node)) throw new Error("Auto layout needs a frame");
   validateLayoutSwitch(props,keys);
-  let layout: FrameNode["layout"] = node.layout;
+  let layout: FrameLikeNode["layout"] = node.layout;
   for (const k of modes) layout = commandMode(layout,props[k]);
   for (const k of keys) layout = tune(layout ?? defaultContainer,k,props[k]);
   if (sameAutoLayout(layout, node.layout)) return node;

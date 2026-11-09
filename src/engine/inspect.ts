@@ -1,10 +1,10 @@
-import { componentOverrides } from "./component-properties";
+import { componentOverrides, inspectedPropertyValues, wireComponentProperties } from "./component-properties";
 import { inspectedGridCell } from "./grid-placement";
 import { layerSizing, sizeLimitKeys } from "./auto-layout";
 import { inspectText } from "./inspect-text";
 import { rotationDegrees } from "./affine";
 import { toCssHex } from "./colour";
-import { defaultConstraints, isLeaf, nodeTypeName, layerTransform, pageColour, rectanglePaints, type Document, type DocumentNode } from "./document";
+import { isFrameLike, defaultConstraints, isLeaf, nodeTypeName, layerTransform, pageColour, rectanglePaints, type Document, type DocumentNode } from "./document";
 import { frameRelative } from "./hierarchy";
 import { inspectedId, parseNodeId } from "./parameters";
 import type { Paint } from "./solid-paint";
@@ -115,13 +115,13 @@ function inspect(doc: Document, node: DocumentNode, depth: number, fields?: Set<
       if (smoothing > 0) put("cornerSmoothing", smoothing);
     }
     const parent = doc.nodes[node.parent];
-    if (node.kind === "text" || node.kind === "frame" && node.layout || parent?.kind === "frame" && parent.layout) put("sizing", layerSizing(node));
+    if (node.kind === "text" || isFrameLike(node) && node.layout || isFrameLike(parent) && parent.layout) put("sizing", layerSizing(node));
     if (node.childLayout) {
       put("absolute", node.childLayout.absolute);
       for (const key of sizeLimitKeys) put(key, node.childLayout[key]);
     }
-    if (node.kind === "frame" && node.layout) put("layout", node.layout);
-    if (parent?.kind === "frame") {
+    if (isFrameLike(node) && node.layout) put("layout", node.layout);
+    if (isFrameLike(parent)) {
       if (!parent.layout || node.childLayout?.absolute) put("constraints", node.constraints ?? defaultConstraints);
       if (wants("gridCell") && parent.layout?.mode === "grid") {
         const cell = inspectedGridCell(doc, parent, node.id);
@@ -134,7 +134,18 @@ function inspect(doc: Document, node: DocumentNode, depth: number, fields?: Set<
     if (node.kind === "text") {
       inspectText(node.text,outline,wants,put);
     }
-    if (node.kind === "frame") put("clip", node.clip);
+    if (isFrameLike(node)) put("clip", node.clip);
+    if (node.kind === "component") {
+      if (node.description) put("description", node.description);
+      if (wants("componentPropertyDefinitions") && Object.keys(node.props).length)
+        put("componentPropertyDefinitions", inspectedPropertyValues(wireComponentProperties(node.props)));
+    }
+    if (node.kind === "instance") {
+      put("mainComponent", inspectedId(node.component));
+      put("mainComponentName", doc.nodes[node.component]?.name ?? null);
+      if (wants("componentProperties") && Object.keys(node.props).length)
+        put("componentProperties", inspectedPropertyValues(node.props));
+    }
     if (node.kind === "booleanOp") put("booleanOperation", node.op);
     if (node.kind === "polygon" || node.kind === "star") put("pointCount", node.count);
     if (node.kind === "star") put("innerRadius", node.innerRatio);

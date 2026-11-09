@@ -1,4 +1,4 @@
-import {defaultConstraints, type Document, type LayerNode, type NodeId} from "./engine/document";
+import { isFrameLike, defaultConstraints, type Document, type LayerNode, type NodeId } from "./engine/document";
 import {shownGeometry} from "./engine/geometry-fields";
 import {LayoutNumber, type LayoutFieldHost} from "./LayoutNumber";
 
@@ -11,7 +11,7 @@ export function GeometryPanel({document, selection, enabled, ...host}: LayoutFie
   const props = (properties: Record<string,unknown>) => host.dispatch("node.set",{ids:selection,props:properties});
   const canConstrain = layers.every(layer => {
     const parent = document.nodes[layer.parent];
-    return parent?.kind === "frame" && (!parent.layout || layer.childLayout?.absolute);
+    return isFrameLike(parent) && (!parent.layout || layer.childLayout?.absolute);
   });
   const firstConstraints = layers[0].constraints ?? defaultConstraints;
   const commonConstraints = canConstrain && layers.every(layer => {
@@ -37,7 +37,7 @@ export function GeometryPanel({document, selection, enabled, ...host}: LayoutFie
   </fieldset></form>
   <label><input type="checkbox" checked={layers.every(layer => layer.constrainProportions === true)} disabled={!enabled}
     onChange={e => props({constrainProportions:e.currentTarget.checked})}/>Constrain proportions</label>
-  {layers.every(layer => layer.kind === "frame") && <label><input type="checkbox" checked={layers.every(layer => layer.clip)} disabled={!enabled}
+  {layers.every(layer => isFrameLike(layer)) && <label><input type="checkbox" checked={layers.every(layer => layer.clip)} disabled={!enabled}
     onChange={e => props({clip:e.currentTarget.checked})}/>Clip content</label>}
   {canConstrain && <form onSubmit={event => {
     event.preventDefault();

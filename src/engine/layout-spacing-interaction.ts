@@ -1,5 +1,5 @@
 import { containsPoint } from "./canvas-selection";
-import type { Document } from "./document";
+import { isFrameLike, type Document } from "./document";
 import type { EditorEngine } from "./editor";
 import type { Point } from "./geometry";
 import { layoutZones, type LayoutZone } from "./layout-zones";
@@ -20,7 +20,7 @@ export class LayoutSpacingInteraction {
         (this.engine.interacting && !this.#drag)) { this.#cache = undefined; return; }
     const doc = this.engine.getRenderDocument(), selection = this.engine.getRenderSelection();
     const frame = selection.length === 1 ? doc.nodes[selection[0]] : undefined;
-    if (frame?.kind !== "frame" || !frame.layout) { this.#cache = undefined; return; }
+    if (!isFrameLike(frame) || !frame.layout) { this.#cache = undefined; return; }
     const view = this.engine.getView();
     if (!this.#cache || this.#cache.id !== frame.id || this.#cache.doc !== doc || this.#cache.view !== view)
       this.#cache = {doc, view, id:frame.id, zones:layoutZones(doc,frame,view)};
@@ -38,7 +38,7 @@ export class LayoutSpacingInteraction {
   down(at: Point): boolean {
     const zone = this.#zone(at);
     const {document,selection} = this.engine.getSnapshot(), frame = document.nodes[selection[0]];
-    if (!zone || frame?.kind !== "frame" || !frame.layout) return false;
+    if (!zone || !isFrameLike(frame) || !frame.layout) return false;
     this.engine.beginInteraction();
     this.#drag = {id:frame.id, zone, origin:at, padding:[...frame.layout.padding]};
     this.#pointer = at;
@@ -55,7 +55,7 @@ export class LayoutSpacingInteraction {
     const value = Math.max(0,Math.round(zone.value+delta/this.engine.getView().zoom));
     if (key === "gap" || key === "crossGap") {
       const frame = this.engine.getSnapshot().document.nodes[drag.id];
-      if (frame.kind !== "frame" || !frame.layout) return;
+      if (!isFrameLike(frame) || !frame.layout) return;
       const props: Record<string,unknown> = {[key]: value};
       if (key === "gap" && frame.layout.mode !== "grid" && frame.layout.mainAlign.startsWith("space")) props.mainAlign = "min";
       if (key === "crossGap" && frame.layout.contentAlign === "spaceBetween") props.contentAlign = "auto";

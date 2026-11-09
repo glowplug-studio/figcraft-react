@@ -1,5 +1,5 @@
 import { transformBounds } from "./affine";
-import { pageOf, type Document, type NodeId } from "./document";
+import { isFrameLike, pageOf, type Document, type NodeId } from "./document";
 import { worldTransform } from "./hierarchy";
 import { isDivider } from "./pages";
 import { parseBoolean, parseNumber } from "./parameters";
@@ -89,7 +89,7 @@ export function executeView(command: string, previous: Viewport, document: Docum
     if (box) view = fitView(view, box);
     result = { zoom: view.zoom };
   } else if (command === "view.nextFrame" || command === "view.prevFrame") {
-    const frames = pageOf(document).children.filter(id => document.nodes[id]?.kind === "frame").map(id => ({ id, box: boundsOf(document, [id])! })).sort((a, b) => a.box.y - b.box.y || a.box.x - b.box.x);
+    const frames = pageOf(document).children.filter(id => isFrameLike(document.nodes[id])).map(id => ({ id, box: boundsOf(document, [id])! })).sort((a, b) => a.box.y - b.box.y || a.box.x - b.box.x);
     if (frames.length) {
       let top = selection[0];
       while (top && document.nodes[top]?.parent && document.nodes[top].parent !== document.currentPage) top = document.nodes[top].parent!;

@@ -3,7 +3,7 @@ import { maskOutline } from "./boolean-result";
 import { applyBlur, blurRadius } from "./blur-renderer";
 import { readBackdrop } from "./backdrop-stack";
 import { tracePath } from "./corners";
-import type { Document, LayerNode } from "./document";
+import { isFrameLike, type Document, type LayerNode } from "./document";
 import { glassBackdropRadius, renderGlass } from "./glass-renderer";
 import { subtreeIds } from "./hierarchy";
 import { reserveLayerPixels } from "./mask-renderer";
@@ -23,7 +23,7 @@ export function nestedBackdrop(doc:Document,node:LayerNode) {
  * Each entry samples the same backdrop, then composites through the shape. */
 export function renderBackdrop(ctx:CanvasRenderingContext2D, doc:Document, node:LayerNode,
   left:number, top:number, width:number, height:number, xf:Affine, scale:number) {
-  const outline=node.kind==="frame" ? {path:shapePath(node),rule:"nonzero" as const} : maskOutline(doc,node,0);
+  const outline=isFrameLike(node) ? {path:shapePath(node),rule:"nonzero" as const} : maskOutline(doc,node,0);
   if (!outline?.path.length) return;
   let maxRadius=0;
   if (!hasBackdrop(node)) return;

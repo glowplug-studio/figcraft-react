@@ -1,7 +1,7 @@
 import type { MoveDrop } from "./layout-drop";
 import { canvasAccent } from "./canvas-colours";
 import type { EditorEngine } from "./editor";
-import { isLeaf, type Document, type NodeId } from "./document";
+import { isFrameLike, isLeaf, type Document, type NodeId } from "./document";
 import { isClosedShape } from "./shape-path";
 import type { Point, Rectangle } from "./geometry";
 import { ancestorIds, containsPoint, enterTarget, lockedIn, marqueeSelection, marqueeWithin, paintsBelow, selectionContains } from "./canvas-selection";
@@ -32,7 +32,7 @@ export class MoveInteraction {
       const deep = modifiers.metaKey || modifiers.ctrlKey;
       const leaf = hitRectangle(document, point, true, selection, 2 / this.engine.getView().zoom, deep);
       const node = leaf && document.nodes[leaf];
-      const background = node && node.kind === "frame" && node.parent === document.currentPage && node.children.length > 0 && !selection.includes(node.id);
+      const background = node && isFrameLike(node) && node.parent === document.currentPage && node.children.length > 0 && !selection.includes(node.id);
       const clicked = leaf && (deep || !background) ? deep ? leaf : targetForLeaf(document, leaf, selection) : undefined;
       let target = clicked;
       const behind = !target || selection.some(id => id !== target && (ancestorIds(document, id).includes(target!) || selectionContains(document, [id], point) && paintsBelow(document, target!, id)));
@@ -143,7 +143,7 @@ export class MoveInteraction {
     const drop = gesture?.kind === "move" && gesture.moved ? gesture.drop : undefined;
     if (drop?.outline) {
       const document = this.engine.getRenderDocument();
-      const points = document.nodes[drop.outline]?.kind === "frame" ? originBoxPoints(document, [drop.outline]) : undefined;
+      const points = isFrameLike(document.nodes[drop.outline]) ? originBoxPoints(document, [drop.outline]) : undefined;
       if (points) {
         context.beginPath(); points.slice(0, 4).forEach((point, index) => { const p = pageToScreen(view, point); if (index === 0) context.moveTo(p.x, p.y); else context.lineTo(p.x, p.y); }); context.closePath(); context.stroke();
       }

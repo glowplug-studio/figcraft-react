@@ -1,4 +1,4 @@
-import type { Document, FrameNode, NodeId } from "./document";
+import type { Document, FrameLikeNode, NodeId } from "./document";
 
 export interface GridCell {
   readonly column: number;
@@ -66,7 +66,7 @@ class Occupancy {
   }
 }
 
-export function placeGridCells(doc: Document, frame: FrameNode) {
+export function placeGridCells(doc: Document, frame: FrameLikeNode) {
   const layout = frame.layout!;
   const columns = Math.min(1000, Math.max(1, layout.gridColumns));
   const maxRows = Math.min(1000, Math.floor(1_000_000 / columns));
@@ -148,7 +148,7 @@ export function placeGridCells(doc: Document, frame: FrameNode) {
 }
 
 const inspected = new WeakMap<Document, Map<NodeId, ReturnType<typeof placeGridCells>>>();
-export function inspectedGridCell(doc: Document, frame: FrameNode, id: NodeId) {
+export function inspectedGridCell(doc: Document, frame: FrameLikeNode, id: NodeId) {
   let grids = inspected.get(doc);
   if (!grids) inspected.set(doc, grids = new Map());
   let grid = grids.get(frame.id);

@@ -1,4 +1,4 @@
-import type { ComponentLinks } from "./component-properties";
+import type { ComponentLinks, ComponentMain, ComponentSet, ComponentInstance } from "./component-properties";
 import type { AutoLayout, ChildLayout, LayerSizing } from "./auto-layout";
 import { scaleTextPathData } from "./text-path-data";
 import type { TextData } from "./text-data";
@@ -90,20 +90,33 @@ export interface GroupNode extends LayerProperties {
   readonly kind: "group";
   readonly children: readonly NodeId[];
 }
-export interface FrameNode extends LayerProperties {
-  readonly kind: "frame";
+interface FrameProperties extends LayerProperties {
   readonly layout?: AutoLayout;
   readonly children: readonly NodeId[];
   readonly clip: boolean;
+}
+export interface FrameNode extends FrameProperties { readonly kind: "frame" }
+export interface ComponentNode extends FrameProperties, ComponentMain {}
+export interface ComponentSetNode extends FrameProperties, ComponentSet {}
+export interface InstanceNode extends FrameProperties, ComponentInstance {}
+export type FrameLikeNode = FrameNode | ComponentNode | ComponentSetNode | InstanceNode;
+export function isFrameLikeKind(kind: unknown): kind is FrameLikeNode["kind"] {
+  return kind === "frame" || kind === "component" || kind === "componentSet" || kind === "instance";
+}
+export function isFrameLike(node: DocumentNode | undefined): node is FrameLikeNode {
+  return node !== undefined && isFrameLikeKind(node.kind);
 }
 export interface BooleanNode extends LayerProperties {
   readonly kind: "booleanOp";
   readonly op: BooleanOperation;
   readonly children: readonly NodeId[];
 }
-export type LayerNode = LeafNode | GroupNode | FrameNode | BooleanNode;
+export type LayerNode = LeafNode | GroupNode | FrameLikeNode | BooleanNode;
 export function commonProperties(node: LayerNode): LayerProperties {
   switch (node.kind) {
+    case "component": { const { description, props, propOrder, ...frame } = node; return commonProperties({ ...frame, kind: "frame" }); }
+    case "componentSet": { const { description, ...frame } = node; return commonProperties({ ...frame, kind: "frame" }); }
+    case "instance": { const { component, props, ...frame } = node; return commonProperties({ ...frame, kind: "frame" }); }
     case "frame": { const { kind: _kind, children: _children, clip: _clip, layout: _layout, ...common } = node; return common; }
     case "group": { const { kind: _kind, children: _children, ...common } = node; return common; }
     case "booleanOp": { const { kind: _kind, children: _children, op: _op, ...common } = node; return common; }
@@ -117,7 +130,9 @@ export function commonProperties(node: LayerNode): LayerProperties {
 }
 export type DocumentNode = PageNode | LayerNode;
 export function nodeTypeName(node: DocumentNode): string {
-  return node.kind === "booleanOp" ? "BOOLEAN_OPERATION" : node.kind.toUpperCase();
+  if (node.kind === "booleanOp") return "BOOLEAN_OPERATION";
+  if (node.kind === "componentSet") return "COMPONENT_SET";
+  return node.kind.toUpperCase();
 }
 export const isGroupLike = (node: DocumentNode | undefined): node is GroupNode | BooleanNode => node?.kind === "group" || node?.kind === "booleanOp";
 export const isLeafKind = (kind: unknown): kind is LeafNode["kind"] => kind === "rectangle" || kind === "ellipse" || kind === "polygon" || kind === "star" || kind === "line" || kind === "vector" || kind === "text";

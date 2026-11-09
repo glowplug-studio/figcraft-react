@@ -1,5 +1,5 @@
 import { layerSizing, sameAutoLayout } from "./engine/auto-layout";
-import type { Document, FrameNode, LayerNode, NodeId } from "./engine/document";
+import { isFrameLike, type Document, type FrameLikeNode, type LayerNode, type NodeId } from "./engine/document";
 import { inspectedGridCell } from "./engine/grid-placement";
 import { LayoutNumber, type LayoutFieldHost } from "./LayoutNumber";
 
@@ -17,8 +17,8 @@ export function ChildLayoutPanel({document,selection,enabled,...host}: LayoutFie
   if (!layers.length || layers.length !== selection.length) return null;
   const first = layers[0];
   const parents = layers.map(n => document.nodes[n.parent]);
-  const parentLayout = parents.every((p): p is FrameNode => p.kind === "frame" && !!p.layout);
-  const frameLayout = first.kind === "frame" && !!first.layout && layers.every(n => n.kind === "frame" && sameAutoLayout(first.layout,n.layout));
+  const parentLayout = parents.every((p): p is FrameLikeNode => isFrameLike(p) && !!p.layout);
+  const frameLayout = isFrameLike(first) && !!first.layout && layers.every(n => isFrameLike(n) && sameAutoLayout(first.layout,n.layout));
   const text = layers.every(n => n.kind === "text");
   if (!parentLayout && !frameLayout && !text) return null;
   const inFlow = parentLayout && layers.every(n => !n.childLayout?.absolute);

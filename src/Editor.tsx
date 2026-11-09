@@ -7,7 +7,7 @@ import { TypographyPanel } from "./TypographyPanel";
 import { PointsPanel } from "./PointsPanel";
 import { VectorPanel, VectorToolbar } from "./VectorPanel";
 import { StrokePanel } from "./StrokePanel";
-import { isLeaf } from "./engine/document";
+import { isFrameLike, isLeaf } from "./engine/document";
 import { CornerPanel } from "./CornerPanel";
 import { ViewControls, ViewMenu } from "./ViewControls";
 import { ArrangePanel } from "./ArrangePanel";
@@ -228,6 +228,7 @@ export function Editor({ identity, capabilities, engine: suppliedEngine, recover
       if (!event.ctrlKey) { event.preventDefault(); dispatch(event.altKey ? "layout.remove" : "layout.add"); return; }
     }
     if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "a") command = "select.all";
+    if ((event.metaKey || event.ctrlKey) && event.altKey && !event.shiftKey && event.code === "KeyK") command = "component.create";
     if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "g") command = event.shiftKey ? "object.ungroup" : "object.group";
     if (!event.metaKey && !event.ctrlKey && event.altKey && event.shiftKey && event.code === "KeyF" || (event.metaKey || event.ctrlKey) && !event.altKey && !event.shiftKey && event.key.toLowerCase() === "e") command = "vector.flatten";
     if ((event.metaKey || event.ctrlKey) && !event.shiftKey && !event.altKey && event.key.toLowerCase() === "d") command = "edit.duplicate";
@@ -535,7 +536,7 @@ export function Editor({ identity, capabilities, engine: suppliedEngine, recover
           </section>}
           {!editingVector && <ChildLayoutPanel engine={engine} onError={setError} document={snapshot.document} selection={snapshot.selection} enabled={editable && !busy} dispatch={dispatch}/>}
           {!editingVector && <FrameLayoutPanel engine={engine} onError={setError} document={snapshot.document} selection={snapshot.selection} enabled={editable && !busy} dispatch={dispatch}/>}
-          {!editingVector && snapshot.selection.length === 1 && selected?.kind === "frame" && selected.layout?.mode === "grid" &&
+          {!editingVector && snapshot.selection.length === 1 && isFrameLike(selected) && selected.layout?.mode === "grid" &&
             <GridTrackPanel engine={engine} onError={setError} document={snapshot.document} frame={selected} enabled={editable && !busy} dispatch={dispatch}/>}
           {!editingVector && <><ArrangePanel document={snapshot.document} selection={snapshot.selection} editable={editable && !busy} dispatch={dispatch} />
           <SmartSelectionPanel engine={engine} enabled={editable && !busy} dispatch={dispatch} onError={setError} />

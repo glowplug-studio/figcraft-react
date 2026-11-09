@@ -7,7 +7,7 @@ import { textSpans } from "./text-ranges";
 import { fitEditedText, fontStyleWarning } from "./text-node-layout";
 import { readEffects, withEffects } from "./effects";
 import { blendFromName, type BlendMode } from "./blend";
-import { isMaskType, withMaskProperties, layerBlend, isBooleanOperation, isGroupLike } from "./document";
+import { isFrameLike, isMaskType, withMaskProperties, layerBlend, isBooleanOperation, isGroupLike } from "./document";
 import { pathNetwork } from "./svg-path";
 import { freezeNetwork } from "./vector-network";
 import { isShapeKey, setShapeProperties } from "./shape-properties";
@@ -82,8 +82,8 @@ function writeProperties(draft: HierarchyDraft, document: Document, selection: r
       if (warning) warnings.push(warning);
     }
   }
-  const hasFrame = tuning.length > 0 && ids.some(id => document.nodes[id]?.kind === "frame");
-  const skippedLayout = hasFrame ? ids.filter(id => document.nodes[id]?.kind !== "frame") : [];
+  const hasFrame = tuning.length > 0 && ids.some(id => isFrameLike(document.nodes[id]));
+  const skippedLayout = hasFrame ? ids.filter(id => !isFrameLike(document.nodes[id])) : [];
   if (skippedLayout.length) {
     const names = skippedLayout.slice(0,10).flatMap(id => {
       const n = document.nodes[id];
@@ -151,7 +151,7 @@ function writeProperties(draft: HierarchyDraft, document: Document, selection: r
     }
     if (node?.kind === "page" && hasFrame && keys.every(k => frameTuning.has(k))) continue;
     if (!node || node.kind === "page") throw new Error(`node.set target ${id} is not an editable layer`);
-    if ("clip" in props && node.kind !== "frame") throw new Error("Clip content requires a frame");
+    if ("clip" in props && !isFrameLike(node)) throw new Error("Clip content requires a frame");
     let arcNode = setStrokeProperties(setShapeProperties(setArc(node, props), props), props);
     for (const key of ["booleanOperation", "operandOperation"] as const) {
       if (!(key in props)) continue;
@@ -195,7 +195,7 @@ function writeProperties(draft: HierarchyDraft, document: Document, selection: r
     }
     if ("width" in props || "w" in props) arcNode = explicitAxis(draft,arcNode,"horizontal",width);
     if ("height" in props || "h" in props) arcNode = explicitAxis(draft,arcNode,"vertical",height);
-    const skipTuning = hasFrame && node.kind !== "frame";
+    const skipTuning = hasFrame && !isFrameLike(node);
     if (tuning.length || "layout" in props || "layoutMode" in props) {
       if (!childKeys.length) arcNode = setFrameLayout(arcNode,props,tuning,skipTuning);
       else {
@@ -244,14 +244,14 @@ function writeProperties(draft: HierarchyDraft, document: Document, selection: r
     if (cornersChanged) updated = Object.freeze({ ...updated, corners });
     if (updated.kind === "vector" && "cornerRadius" in props) updated = Object.freeze({ ...updated, network: freezeNetwork({ ...updated.network, vertices: updated.network.vertices.map(v => ({ ...v, radius: corners.radii[0] })) }) });
     if (constraintsChanged) updated = Object.freeze({ ...updated, constraints });
-    if ("clip" in props && updated.kind === "frame") updated = Object.freeze({ ...updated, clip: props.clip as boolean });
+    if ("clip" in props && isFrameLike(updated)) updated = Object.freeze({ ...updated, clip: props.clip as boolean });
     if (name !== undefined && name !== node.name) updated = Object.freeze({ ...updated, name });
     if ("visible" in props && props.visible !== (node.visible ?? true)) updated = Object.freeze({ ...updated, visible: props.visible as boolean });
     if ("locked" in props && props.locked !== (node.locked ?? false)) updated = Object.freeze({ ...updated, locked: props.locked as boolean });
     if ("constrainProportions" in props) updated = Object.freeze({ ...updated, constrainProportions: props.constrainProportions as boolean });
     if (opacity !== undefined && opacity !== (node.opacity ?? 1)) updated = Object.freeze({ ...updated, opacity });
     if (paints && !samePaints(rectanglePaints(node), paints)) updated = withRectanglePaints(updated, paints);
-    if (textKeys.length || updated.effects !== node.effects || updated.isMask !== node.isMask || updated.maskType !== node.maskType || changeBlend || arcNode !== node || updated.kind === "vector" && "cornerRadius" in props || cornersChanged || "constrainProportions" in props && props.constrainProportions !== (node.constrainProportions ?? false) || constraintsChanged || "clip" in props && node.kind === "frame" && props.clip !== node.clip || width !== node.width || height !== node.height || transform.some((value, index) => value !== rectangleTransform(node)[index])
+    if (textKeys.length || updated.effects !== node.effects || updated.isMask !== node.isMask || updated.maskType !== node.maskType || changeBlend || arcNode !== node || updated.kind === "vector" && "cornerRadius" in props || cornersChanged || "constrainProportions" in props && props.constrainProportions !== (node.constrainProportions ?? false) || constraintsChanged || "clip" in props && isFrameLike(node) && props.clip !== node.clip || width !== node.width || height !== node.height || transform.some((value, index) => value !== rectangleTransform(node)[index])
       || name !== undefined && name !== node.name || "visible" in props && props.visible !== (node.visible ?? true)
       || "locked" in props && props.locked !== (node.locked ?? false) || opacity !== undefined && opacity !== (node.opacity ?? 1)
       || paints && !samePaints(rectanglePaints(node), paints)) {

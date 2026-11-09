@@ -11,7 +11,7 @@ import { drawMasked, reserveLayerPixels } from "./mask-renderer";
 import { booleanResult } from "./boolean-result";
 import { ArcInteraction } from "./arc-handles";
 import { DrawInteraction } from "./draw-interaction";
-import { isLeaf } from "./document";
+import { isFrameLike, isLeaf } from "./document";
 import { CornerInteraction } from "./corner-handles";
 import { tracePath, type PathCommand } from "./corners";
 import { shapePath, hasShapePath } from "./shape-path";
@@ -182,14 +182,14 @@ function* drawLayer(context: CanvasRenderingContext2D, document: Document, node:
   const blended = node.blend !== undefined && node.blend !== "normal" && node.blend !== "passThrough";
   if (!isLeaf(node)) {
     const draw = function* (target: CanvasRenderingContext2D, shadows?: ShadowLayer): PaintSteps {
-      if (node.kind === "frame") yield* resolveLayerPaints(paintRectangle(target, node, 1, false), document, depth, nesting, drawLayer, !!shadows);
-      if (node.kind === "frame") shadows?.inner();
+      if (isFrameLike(node)) yield* resolveLayerPaints(paintRectangle(target, node, 1, false), document, depth, nesting, drawLayer, !!shadows);
+      if (isFrameLike(node)) shadows?.inner();
       target.save(); target.transform(...rectangleTransform(node));
-      if (node.kind === "frame" && node.clip) { target.beginPath(); tracePath(target, shapePath(node)); target.clip(); }
-      yield* drawChildren(target, document, node.children, depth + 1, nesting, scale, undefined, node.kind === "frame" && node.layout?.reverseZ);
+      if (isFrameLike(node) && node.clip) { target.beginPath(); tracePath(target, shapePath(node)); target.clip(); }
+      yield* drawChildren(target, document, node.children, depth + 1, nesting, scale, undefined, isFrameLike(node) && node.layout?.reverseZ);
       target.restore();
       if (node.kind === "group") shadows?.inner();
-      if (node.kind === "frame" && hasVisibleStroke(node)) yield* resolveLayerPaints(paintLayerStroke(target, node), document, depth, nesting, drawLayer);
+      if (isFrameLike(node) && hasVisibleStroke(node)) yield* resolveLayerPaints(paintLayerStroke(target, node), document, depth, nesting, drawLayer);
     };
     if (effect || blended || node.blend === "normal" && node.children.length || (node.opacity ?? 1) < .999) {
       const bounds = paintedGroupBounds(context, document, node, scale);

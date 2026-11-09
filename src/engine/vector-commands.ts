@@ -1,7 +1,7 @@
 import { booleanResult, paintedStrokePath } from "./boolean-result";
 import { inverse, multiply, type Affine } from "./affine";
 import { fromRgba8 } from "./colour";
-import { layerTransform, withLayerTransform, isLeaf, rectanglePaints, withRectanglePaints, type Document, type LayerNode, type NodeId, type VectorNode } from "./document";
+import { isFrameLike, layerTransform, withLayerTransform, isLeaf, rectanglePaints, withRectanglePaints, type Document, type LayerNode, type NodeId, type VectorNode } from "./document";
 import { HierarchyDraft, rootIds, worldTransform, zSorted } from "./hierarchy";
 import { parseNodeId, parseNumber } from "./parameters";
 import { isClosedShape, shapePath } from "./shape-path";
@@ -49,7 +49,7 @@ function flattenedNetwork(document: Document, ids: readonly NodeId[], parent: No
       return;
     }
     if (!isLeaf(node) && node.children.length) {
-      if (node.kind === "frame" && rectanglePaints(node).some(p => p.visible)) append(node, networkFromPath(shapePath(node)), intoParent);
+      if (isFrameLike(node) && rectanglePaints(node).some(p => p.visible)) append(node, networkFromPath(shapePath(node)), intoParent);
       for (const child of node.children) { const item = document.nodes[child]; if (item && item.kind !== "page" && item.visible !== false) collect(child, depth + 1); }
       return;
     }

@@ -1,6 +1,6 @@
 import { fontGeometryCache } from "./font-generation";
 import { booleanResult } from "./boolean-result";
-import { isLeaf, nodeTypeName, type LayerNode, type LeafNode } from "./document";
+import { isFrameLike, isLeaf, nodeTypeName, type LayerNode, type LeafNode } from "./document";
 import { hitsPath } from "./corners";
 import { hasShapePath, shapePath } from "./shape-path";
 import { identity, inverse, multiply, transformPoint, type Affine } from "./affine";
@@ -111,7 +111,7 @@ export function targetForLeaf(document: Document, leaf: NodeId, selection: reado
     const at = chain.indexOf(parent);
     if (at >= 0 && at + 1 < chain.length) target = Math.max(target, at + 1);
   }
-  if (target === 0 && chain.length > 1 && document.nodes[chain[0]]?.kind === "frame") target = 1;
+  if (target === 0 && chain.length > 1 && isFrameLike(document.nodes[chain[0]])) target = 1;
   return chain[target] ?? leaf;
 }
 
@@ -138,7 +138,7 @@ function hitsLayer(node:LayerNode, world:Affine, point:Point, tolerance:number):
   if (node.kind==="group" || node.kind==="booleanOp") return false;
   const local=world[0]===1 && world[1]===0 && world[2]===0 && world[3]===1
     ? {x:point.x-world[4],y:point.y-world[5]} : transformPoint(inverse(world),point);
-  if (node.kind==="frame" || node.kind==="text") return local.x>=-tolerance && local.x<=node.width+tolerance
+  if (isFrameLike(node) || node.kind==="text") return local.x>=-tolerance && local.x<=node.width+tolerance
     && local.y>=-tolerance && local.y<=node.height+tolerance;
   if (node.kind==="line") {
     const half=Math.max(strokeMaxWeight(node.stroke??defaultStroke)/2,tolerance*2.5);
@@ -178,7 +178,7 @@ function queryPoint(document:Document,point:Point,tolerance:number,selection:rea
     let first:NodeId|undefined;
     const masks=masksBelow(document,children);
     const container = document.nodes[parent];
-    const firstOnTop = container?.kind === "frame" && container.layout?.reverseZ;
+    const firstOnTop = isFrameLike(container) && container.layout?.reverseZ;
     for (let step = 0; step < children.length; step++) {
       const node = document.nodes[children[firstOnTop ? step : children.length - 1 - step]];
       if (!node || node.kind==="page" || node.parent!==parent || node.locked || node.visible===false) continue;
@@ -199,7 +199,7 @@ function queryPoint(document:Document,point:Point,tolerance:number,selection:rea
   function visit(node:LayerNode,parent:Affine,depth:number,output?:PointLayer[]):NodeId|undefined {
     if (depth>512) return;
     const world=worldFrom(parent,node);
-    if (node.kind==="frame" && node.clip && !hitsLayer(node,world,point,0)) return;
+    if (isFrameLike(node) && node.clip && !hitsLayer(node,world,point,0)) return;
     if (pathHit) {
       if (node.kind==="booleanOp") return;
       if (!isLeaf(node)) return visitChildren(node.children,node.id,world,depth+1);
