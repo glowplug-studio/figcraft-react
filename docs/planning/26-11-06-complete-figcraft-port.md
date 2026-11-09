@@ -5,16 +5,16 @@
 | Field | Current value |
 |---|---|
 | Overall status | In progress. [Execution checkpoint](26-11-07-full-port-resume.md). |
-| Active slice | Image resources and paints |
-| Active phase | Phase 4. [Image source colour, rendering and archive verification](26-11-09-image-paints.md#raster-import-and-crop). |
+| Active slice | Live pattern paints |
+| Active phase | Phases 1–3 complete. [Pattern paint implementation sequence](26-11-09-pattern-paints.md). |
 | Upstream baseline | Closed-vector smoothing reference 3daa9d32. Paint bucket reference 8a7ebc24. Global supported baseline 8eb0b876. |
-| Branch and last verified commit | `prompt/full-figcraft-port`, wide native layer trees bc3f065, large native JSON c52be88. Earlier checkpoints are recorded below and in the dated plans. |
+| Branch and last verified commit | `prompt/full-figcraft-port`, image property clipboard 84df96d, wide native layer trees bc3f065. Earlier checkpoints are recorded below and in the dated plans. |
 | Completed slices | Rectangle/host-auth, bounded native persistence/recovery, supported-model pages, affine rectangle geometry/selection and solid appearance, plus nested group hierarchy, Frame containers, movement/transform gestures, rounded corners, ellipse/arc/ring and Polygon/Star editing verified locally; Line/Arrow and uniform solid strokes also verified; per-side Rectangle/Frame strokes, variable-width profiles and procedural brushes verified; vector networks, solid region/stroke rendering and Flatten/Reverse also verified; foundation commit `154f5a7` |
 | Remaining slices | Every row below except the integrated foundation; static inventory entries remain unverified until mapped and tested |
-| Tests last passed | At bc3f065, 162/162 production Chromium checks, 1,096 pure tests, two local Auth checks, strict types and both builds passed. A 10,322-node file passed keyboard navigation, reparent, device recovery and save. |
-| Files currently in progress | Image property clipboard, including cross-file keys, stroke settings and menu access. |
+| Tests last passed | At 84df96d, 163/163 production Chromium workflows, 1,102 pure tests, two local Auth checks, strict types and both production builds passed. |
+| Files currently in progress | Pattern cells, live layer references and rendering. |
 | Blockers | No blocker. Use local Graphify for all remaining slices. The scoped Supabase read succeeded. |
-| Exact next action | Verify copied image fills and strokes across native files, update the image property matrix, then continue with live patterns. |
+| Exact next action | Port grid and staggered pattern cells, lossless source ids and the native tile resolution limit. Continue through the renderer, command and picker gates. |
 | Last updated | 2026-11-09 |
 
 ## Scope and continuation
@@ -668,3 +668,5 @@ Gradient paints passed the [twelve-property matrix](../reports/26-11-09-gradient
 Image checkpoint 34a3e3d adds raster import, multi-file drops, clipboard image placement and crop gestures. All 146 production Chromium workflows passed. Image colour management, remaining decoder variants, cache pressure and performance remain open in the [image plan](26-11-09-image-paints.md#raster-import-and-crop).
 
 The image decoder checkpoint at 8ca195d passed 147/147 production Chromium workflows. See the image plan for TIFF float samples, progressive JPEG refusal, the static GIF editor and outstanding image properties.
+
+The editor image slice passed its [65-property matrix](../reports/26-11-09-image-paints-parity.html) for 64 properties. The remaining row belongs to presenter playback. The active slice is live pattern paints.

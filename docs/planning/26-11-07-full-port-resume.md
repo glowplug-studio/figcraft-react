@@ -4,7 +4,7 @@ Resumed on 8 November. The objective is still full browser-relevant parity and f
 
 ## Current checkpoint
 
-Raw two- and four-component JPEG TIFFs at f64eeb0 passed 156/156 Chromium checks. Streamed archive I/O and Blob recovery at 6bcdf5b passed three authenticated production browser flows. Archive image budgets at beb8ddc passed 157/157 Chromium workflows. Ordered image rendering at 17fabdd passed 160/160 production Chromium checks. At c52be88, large native JSON passed 161/161 production Chromium checks. Wide native layer trees passed 162/162 at bc3f065. Verify image property clipboard collision handling before starting live patterns. The active image work and exact next action are in the [master checkpoint](26-11-06-complete-figcraft-port.md#execution-checkpoint). The sections below record earlier restart points in chronological order.
+Raw two- and four-component JPEG TIFFs at f64eeb0 passed 156/156 Chromium checks. Streamed archive I/O and Blob recovery at 6bcdf5b passed three authenticated production browser flows. Archive image budgets at beb8ddc passed 157/157 Chromium workflows. Ordered image rendering at 17fabdd passed 160/160 production Chromium checks. At c52be88, large native JSON passed 161/161 production Chromium checks. Wide native layer trees passed 162/162 at bc3f065. At 84df96d, image clipboard collisions, fill and stroke recovery and download passed all 163 Chromium checks. Resume live pattern paints from the dated plan. The active image work and exact next action are in the [master checkpoint](26-11-06-complete-figcraft-port.md#execution-checkpoint). The sections below record earlier restart points in chronological order.
 
 ## Checkout and release state
 

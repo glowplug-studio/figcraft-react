@@ -1,12 +1,12 @@
 {
-  "react": "17fabdd",
+  "react": "84df96d",
   "upstream": "8a7ebc2484a6d64d80a13c19c18ffb814325e347",
   "environment": "Local production Next.js, Chromium, one worker, zero retries",
   "chromium": {
-    "passed": 160,
+    "passed": 163,
     "skipped": 0,
     "flaky": 0,
-    "durationSeconds": 371.05
+    "durationSeconds": 367.479
   },
   "image-pixels": {
     "fit": [
@@ -214,34 +214,34 @@
   },
   "archive-memory": {
     "beforeOpen": {
-      "usedSize": 11626024,
+      "usedSize": 11703076,
       "totalSize": 19628032,
-      "embedderHeapUsedSize": 5762872,
-      "backingStorageSize": 1751236
+      "embedderHeapUsedSize": 5759880,
+      "backingStorageSize": 1766704
     },
     "afterOpen": {
-      "usedSize": 9415236,
-      "totalSize": 24870912,
-      "embedderHeapUsedSize": 4727776,
-      "backingStorageSize": 37381585
+      "usedSize": 13083552,
+      "totalSize": 23560192,
+      "embedderHeapUsedSize": 5034320,
+      "backingStorageSize": 77508288
     },
     "afterRecoveryWrite": {
-      "usedSize": 11914196,
-      "totalSize": 24084480,
-      "embedderHeapUsedSize": 3464808,
-      "backingStorageSize": 52130639
+      "usedSize": 11906496,
+      "totalSize": 26181632,
+      "embedderHeapUsedSize": 3225688,
+      "backingStorageSize": 43952938
     },
     "afterRestore": {
-      "usedSize": 13799572,
-      "totalSize": 45203456,
-      "embedderHeapUsedSize": 3154648,
-      "backingStorageSize": 127794631
+      "usedSize": 12020484,
+      "totalSize": 45465600,
+      "embedderHeapUsedSize": 3075080,
+      "backingStorageSize": 119614849
     },
     "afterDownload": {
-      "usedSize": 11014680,
-      "totalSize": 42057728,
-      "embedderHeapUsedSize": 1856792,
-      "backingStorageSize": 77517635
+      "usedSize": 11316360,
+      "totalSize": 41795584,
+      "embedderHeapUsedSize": 1633176,
+      "backingStorageSize": 79614712
     }
   },
   "wide-native-page": {
@@ -257,5 +257,20 @@
       "afterRecovery": 42420784,
       "afterSave": 34796712
     }
+  },
+  "wide-page-heap": {
+    "beforeOpen": 11634856,
+    "afterOpen": 19510888,
+    "afterRecovery": 41980016,
+    "afterSave": 36354796
+  },
+  "working-space-pan": {
+    "pixel": [
+      128,
+      127,
+      0,
+      255
+    ],
+    "p95": 10.900000095367432
   }
 }

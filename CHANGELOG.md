@@ -2,6 +2,11 @@
 
 All notable changes to the React port and its upstream compatibility baseline are recorded here.
 
+## [0.44.0] - 2026-11-09
+
+- Added native image paints, fill and stroke copy across files, raster import, placement, crop, adjustments, presets and document colour profiles.
+- Streamed large native files and device recovery. Wide layer trees support keyboard navigation and bounded rendering above 10,000 nodes. The global upstream parity baseline remains `8eb0b876`.
+
 ## [0.43.0] - 2026-11-09
 
 - Added linear, radial, angular and diamond gradients for fills, strokes and vector regions, with editable stops, canvas handles and native file persistence.

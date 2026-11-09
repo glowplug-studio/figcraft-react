@@ -1148,8 +1148,8 @@
       "source": "crates/engine/src/cmd/create.rs",
       "line": 113,
       "status": "Partial",
-      "scope": "Decoded placement, density, target append, shared bytes, undo and native recovery. Verified PNG sRGB and gamma/chromaticity metadata and embedded RGB/grey ICC labels and sRGB pixels from PNG, JPEG, WebP and TIFF. Working-space filter ordering passed for embedded ICC, gamma and untagged PNG. Two- and four-channel JPEG TIFF browser pixels and exact native archive bytes passed at f64eeb0. Archive member and aggregate budgets passed at beb8ddc. Cache count, bytes, replacement and ordered painting passed at 17fabdd. Large JSON is in progress.",
-      "evidence": "docs/planning/26-11-09-image-paints.md"
+      "scope": "Decoded placement, density, target append, shared bytes, undo and native recovery. Verified PNG sRGB and gamma/chromaticity metadata and embedded RGB/grey ICC labels and sRGB pixels from PNG, JPEG, WebP and TIFF. Working-space filter ordering passed for embedded ICC, gamma and untagged PNG. Two- and four-channel JPEG TIFF browser pixels and exact native archive bytes passed at f64eeb0. Archive member and aggregate budgets passed at beb8ddc. Cache count, bytes, replacement and ordered painting passed at 17fabdd. Native JSON above 16 MiB and wide pages passed open, edit, recovery and save at bc3f065.",
+      "evidence": "docs/reports/26-11-09-image-paints-parity.html"
     },
     {
       "command": "frame.swapOrientation",
@@ -1650,28 +1650,36 @@
       "label": "Copy fill",
       "source": "crates/engine/src/cmd/edit.rs",
       "line": 339,
-      "status": "Not tested"
+      "status": "Partial",
+      "scope": "Solid, gradient, image and selected vector-region fills. Copy retains source image bytes. Text ranges, linked styles and pattern source identity remain in their respective slices.",
+      "evidence": "docs/reports/26-11-09-image-paints-parity.html"
     },
     {
       "command": "fill.paste",
       "label": "Paste fill",
       "source": "crates/engine/src/cmd/edit.rs",
       "line": 340,
-      "status": "Not tested"
+      "status": "Partial",
+      "scope": "Paste into a row or append, including independently painted vector regions, cross-file image restoration, occupied native keys, undo and recovery. Pattern and text range cases remain.",
+      "evidence": "docs/reports/26-11-09-image-paints-parity.html"
     },
     {
       "command": "stroke.copy",
       "label": "Copy stroke",
       "source": "crates/engine/src/cmd/edit.rs",
       "line": 341,
-      "status": "Not tested"
+      "status": "Partial",
+      "scope": "Context menu and keyboard copy retain the selected stroke paint, its source image bytes and node-wide settings. Pattern and linked style cases remain.",
+      "evidence": "docs/reports/26-11-09-image-paints-parity.html"
     },
     {
       "command": "stroke.paste",
       "label": "Paste stroke",
       "source": "crates/engine/src/cmd/edit.rs",
       "line": 348,
-      "status": "Not tested"
+      "status": "Partial",
+      "scope": "Append or replace in one undo. The copied image and weight survive cross-file recovery and download. Pattern and linked style cases remain.",
+      "evidence": "docs/reports/26-11-09-image-paints-parity.html"
     },
     {
       "command": "fill.pattern",
@@ -1831,7 +1839,7 @@
       "line": 76,
       "status": "Partial",
       "scope": "Supported native document subset and raster open at encoded dimensions. Chromium drew PNG, JPEG, WebP, GIF, BMP and TIFF. The full archive and import matrix remains open.",
-      "evidence": "docs/planning/26-11-09-image-paints.md"
+      "evidence": "docs/reports/26-11-09-image-paints-parity.html"
     },
     {
       "command": "file.openRecent",
@@ -1860,8 +1868,8 @@
       "source": "crates/engine/src/cmd/file.rs",
       "line": 104,
       "status": "Partial",
-      "scope": "Verified supported page/rectangle subset; full command and dependent-model parity remain incomplete.",
-      "evidence": "docs/planning/26-11-06-complete-figcraft-port.md"
+      "scope": "Supported native graph with image resources, colour profiles and wide pages. Stored and compressed image members, a 24 MiB BMP, JSON above 16 MiB and a 10,322-node file passed. Unsupported archive families remain.",
+      "evidence": "docs/reports/26-11-09-image-paints-parity.html"
     },
     {
       "command": "file.markSaved",
@@ -1915,8 +1923,8 @@
       "source": "crates/engine/src/cmd/file.rs",
       "line": 159,
       "status": "Partial",
-      "scope": "Authenticated file input and keyboard binding place at the viewport centre. Final picker and interaction comparisons remain open.",
-      "evidence": "docs/planning/26-11-09-image-paints.md"
+      "scope": "Browser file chooser, actual pixels, default placement, undo, device recovery and downloadable encoded source. Native OS path lookup is represented by a browser File.",
+      "evidence": "docs/reports/26-11-09-image-paints-parity.html"
     },
     {
       "command": "file.close",
@@ -1955,7 +1963,7 @@
       "line": 203,
       "status": "Partial",
       "scope": "Convert or assign sRGB and Display P3 in supported documents, preserve every supported colour, undo, save/open, device recovery and the file dialog. Additional colour-bearing native types follow their own slices.",
-      "evidence": "tests/parity/document-profile.test.ts"
+      "evidence": "docs/reports/26-11-09-image-paints-parity.html"
     },
     {
       "command": "file.duplicate",
@@ -2083,7 +2091,7 @@
       "line": 13,
       "status": "Partial",
       "scope": "Layer fill and stroke batches, saved and built-in presets, range sanitisation, explicit index, atomic refusal and undo. Desktop and narrow picker controls verified. Linked-style detachment remains open.",
-      "evidence": "docs/planning/26-11-09-image-paints.md"
+      "evidence": "docs/reports/26-11-09-image-paints-parity.html"
     },
     {
       "command": "image.replace",
@@ -2092,25 +2100,25 @@
       "line": 20,
       "status": "Partial",
       "scope": "Atomic layer fill or stroke replacement, default top image and explicit index, preserved appearance, deduplication and undo. Single-file picker replacement and isolated region upload verified. The picker consumes the first dropped image and places subsequent images on the canvas.",
-      "evidence": "docs/planning/26-11-09-image-paints.md"
+      "evidence": "docs/reports/26-11-09-image-paints-parity.html"
     },
     {
       "command": "image.savePreset",
       "label": "Save image preset",
       "source": "crates/engine/src/cmd/image.rs",
       "line": 27,
-      "status": "Partial",
+      "status": "Passed",
       "scope": "Explicit or selected filters, cleaned Unicode names, exact-name replacement, native cap, persistence and undo. Authenticated browser picker workflow verified.",
-      "evidence": "docs/planning/26-11-09-image-paints.md"
+      "evidence": "docs/reports/26-11-09-image-paints-parity.html"
     },
     {
       "command": "image.deletePreset",
       "label": "Delete image preset",
       "source": "crates/engine/src/cmd/image.rs",
       "line": 34,
-      "status": "Partial",
+      "status": "Passed",
       "scope": "Exact saved name, missing-name refusal and undo. Authenticated browser picker workflow verified.",
-      "evidence": "docs/planning/26-11-09-image-paints.md"
+      "evidence": "docs/reports/26-11-09-image-paints-parity.html"
     },
     {
       "command": "image.crop",
@@ -2119,16 +2127,16 @@
       "line": 44,
       "status": "Partial",
       "scope": "Single layer, visible or explicit fill, mode conversion, body and corner gestures, crop brackets, anchored resize, ghost pixels, undo and native save. Layout and linked-style interactions await their owning slices.",
-      "evidence": "docs/planning/26-11-09-image-paints.md"
+      "evidence": "docs/reports/26-11-09-image-paints-parity.html"
     },
     {
       "command": "image.presets",
       "label": "Image presets",
       "source": "crates/engine/src/cmd/image.rs",
       "line": 51,
-      "status": "Partial",
+      "status": "Passed",
       "scope": "Seven built-ins and ordered document presets verified through the engine and native file recovery.",
-      "evidence": "docs/planning/26-11-09-image-paints.md"
+      "evidence": "docs/reports/26-11-09-image-paints-parity.html"
     },
     {
       "command": "layout.setTrack",
