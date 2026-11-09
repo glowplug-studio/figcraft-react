@@ -71,15 +71,17 @@ export async function prepareImage(bytes: Uint8Array<ArrayBuffer>, existing?: Re
   const hash = await imageHash(bytes);
   const previous = existing?.[hash];
   // Native archives allow legacy member names, including a digest that does not match the contents.
-  if (previous && previous.bytes.size === bytes.length && await imageHash(previous.bytes) === hash) resource = previous;
+  if (previous && previous.bytes.size === bytes.length && (previous.digest ?? await imageHash(previous.bytes)) === hash) resource = previous;
+  if (!resource.digest) resource = Object.freeze({...resource, digest: hash});
   return { resource, hash, density: imagePixelDensity(bytes) };
 }
 
-function withImageResource(document: Document, {hash, resource}: Awaited<ReturnType<typeof prepareImage>>) {
+export function withImageResource(document: Document, {hash, resource}: {hash: string; resource: ImageResource}) {
+  if (document.images && Object.hasOwn(document.images,hash) && document.images[hash] === resource) return document;
+  if (document.images && !Object.hasOwn(document.images,hash) && Object.keys(document.images).length >= 20_000) throw new Error("Too many images for a native archive");
   const extraBytes = Object.entries(document.images ?? {}).reduce((total, [key, stored]) => key === hash ? total : total + stored.bytes.size, resource.bytes.size);
   if (extraBytes > MAX_UNPACKED_BYTES) throw new Error("Image resources exceed the 2 GiB browser unpacked limit");
-  const images = document.images?.[hash] === resource ? document.images : Object.freeze({ ...document.images, [hash]: resource });
-  return images === document.images ? document : Object.freeze({ ...document, images });
+  return Object.freeze({ ...document, images: Object.freeze({ ...document.images, [hash]: resource }) });
 }
 
 export function replaceImage(before: { document: Document; selection: readonly NodeId[] }, nextId: bigint,

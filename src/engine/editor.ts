@@ -4,7 +4,8 @@ import { listImagePresets } from "./image-filters";
 import { getNode } from "./inspect";
 import { centrePastedImage, rasterImportParams, fileData, placeImage, prepareImage, rasterFilename, replaceImage } from "./image-import";
 import { createLayer } from "./creation";
-import { copyFill, fillSpecs, selectedRegionFills, writeFill } from "./fill-commands";
+import { pastePaint, type CopiedPaint } from "./paint-clipboard";
+import { copyPaint, fillSpecs, selectedRegionFills, writeFill } from "./fill-commands";
 import type { Paint } from "./solid-paint";
 import { executeStrokeList, strokeSpecs } from "./stroke-commands";
 import { isLeaf } from "./document";
@@ -153,8 +154,9 @@ export class EditorEngine {
   };
   #canvasListeners = new Set<() => void>();
   #vectorEdit?: VectorEditState;
-  #copiedFill?: Paint;
-  hasCopiedFill = (): boolean => this.#copiedFill !== undefined;
+  #copiedPaint?: CopiedPaint;
+  hasCopiedFill = (): boolean => this.#copiedPaint?.list === "fill";
+  hasCopiedStroke = (): boolean => this.#copiedPaint?.list === "stroke";
   #vectorListeners = new Set<() => void>();
   #viewportAttached = false;
   #viewConfigured = false;
@@ -398,7 +400,7 @@ export class EditorEngine {
     if (!editable) this.pen.cancel();
     if (!editable) this.cancelInteraction();
     if (!editable) this.cancelPendingFiles();
-    if (!editable) { this.#vectorEdit = undefined; this.#copiedFill = undefined; }
+    if (!editable) { this.#vectorEdit = undefined; this.#copiedPaint = undefined; }
     if (editable !== this.#snapshot.editable) this.#publish({ editable, tool: "move", profileDialog: false });
   }
   execute(command: "node.get", input: unknown): ReturnType<typeof getNode>;
@@ -560,15 +562,18 @@ export class EditorEngine {
       this.#publish({ document: next.document, selection: next.selection });
       return next.result;
     }
-    if (command === "fill.copy") {
-      const wasEmpty = !this.#copiedFill;
-      this.#copiedFill = copyFill(this.#snapshot.document, this.#snapshot.selection, p, this.#vectorEdit);
-      if (wasEmpty) this.#publish({});
-      return { ...this.#copiedFill };
+    if (command === "fill.copy" || command === "stroke.copy") {
+      const list = command === "fill.copy" ? "fill" : "stroke";
+      const previous = this.#copiedPaint?.list;
+      this.#copiedPaint = copyPaint(list, this.#snapshot.document, this.#snapshot.selection, p, this.#vectorEdit);
+      if (previous !== list) this.#publish({});
+      return { ...this.#copiedPaint.paint };
     }
-    if (Object.hasOwn(fillSpecs, command)) {
+    if (Object.hasOwn(fillSpecs, command) || command === "stroke.paste") {
       const before = this.#snapshot;
-      const document = writeFill(command as Exclude<keyof typeof fillSpecs, "fill.copy">, before.document, before.selection, p, this.#vectorEdit, this.#copiedFill);
+      const document = command === "fill.paste" || command === "stroke.paste"
+        ? pastePaint(command === "fill.paste" ? "fill" : "stroke", before.document, before.selection, p, this.#copiedPaint, this.#vectorEdit)
+        : writeFill(command as Exclude<keyof typeof fillSpecs, "fill.copy" | "fill.paste">, before.document, before.selection, p, this.#vectorEdit);
       if (document !== before.document) {
         this.#undo.push({ document: before.document, selection: before.selection }); this.#redo = [];
         this.#publish({ document });

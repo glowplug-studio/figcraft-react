@@ -10,6 +10,8 @@ import { WEBP } from "image-size/types/webp";
 export const MAX_IMAGE_BYTES = 256 * 1024 * 1024;
 export interface ImageResource {
   readonly bytes: Blob;
+  /** Computed from incoming bytes. Archive member names may be arbitrary legacy keys. */
+  readonly digest?: string;
   readonly width: number;
   readonly height: number;
   readonly unsupportedJpegSampling?: true;

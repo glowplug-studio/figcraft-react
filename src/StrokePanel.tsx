@@ -1,3 +1,4 @@
+import { usePaintActions } from "./PaintActions";
 import { PaintPicker } from "./PaintPicker";
 import type { EditorEngine } from "./engine/editor";
 import { useMemo, useState } from "react";
@@ -28,8 +29,10 @@ function BrushArt({ preset }: { preset: string }) {
 }
 function StrokeControls({ engine, nodes, editable, dispatch }: Props) {
   const [custom, setCustom] = useState(false), [error, setError] = useState("");
+  const ids = nodes.map(n => n.id);
+  const {openMenu, popup} = usePaintActions("stroke", editable, engine.hasCopiedStroke(), ids, dispatch);
   if (!nodes.length) return null;
-  const ids = nodes.map(n => n.id), props = nodes.map(n => n.stroke ?? defaultStroke), stack = common(nodes.map(n => n.strokes ?? []));
+  const props = nodes.map(n => n.stroke ?? defaultStroke), stack = common(nodes.map(n => n.strokes ?? []));
   const current = common(props), pattern = current?.dashes.length ? current.dashes : undefined;
   const customStyle = Boolean(pattern && (pattern.length > 2 || custom)), pair = pattern ? [pattern[0], pattern[1] ?? pattern[0]] : Array(2).fill(4 * Math.max(1, current?.weight ?? 1));
   const set = (values: Record<string, unknown>) => { setError(""); dispatch("node.set", { ids, props: values }); };
@@ -50,9 +53,9 @@ function StrokeControls({ engine, nodes, editable, dispatch }: Props) {
     event.preventDefault(); const input = event.currentTarget.elements.namedItem(key) as HTMLInputElement;
     if (input.value !== "" && Number.isFinite(Number(input.value))) set({ brush: { ...brush, [key]: Number(input.value) / factor } });
   }}><label>{label}<input name={key} type="number" required min={min} max={max} step="any" defaultValue={brush[key] * factor} /></label><button type="submit">Apply {label.toLowerCase()}</button></form>;
-  return <fieldset className="figcraft-stroke" disabled={!editable} aria-label="Stroke"><legend>Stroke</legend>
+  return <fieldset className="figcraft-stroke" disabled={!editable} aria-label="Stroke"><legend tabIndex={0} onContextMenu={event => openMenu(event)} onKeyDown={event => openMenu(event)}>Stroke</legend>
     {error && <p role="alert">{error}</p>}
-    {stack === undefined ? <p>Mixed strokes</p> : <ol>{[...stack].map((paint, index) => ({ paint, index })).reverse().map(({ paint, index }, row) => <li key={index}>
+    {stack === undefined ? <p>Mixed strokes</p> : <ol>{[...stack].map((paint, index) => ({ paint, index })).reverse().map(({ paint, index }, row) => <li key={index} tabIndex={0} onContextMenu={event => openMenu(event,index)} onKeyDown={event => openMenu(event,index)}>
       <form key={JSON.stringify(paint)} onSubmit={event => {
         event.preventDefault(); const data = new FormData(event.currentTarget), colour = String(data.get("colour")), opacity = Number(data.get("opacity"));
         const update: Record<string, unknown> = { ids, index };
@@ -70,7 +73,8 @@ function StrokeControls({ engine, nodes, editable, dispatch }: Props) {
       </form>
       <PaintPicker engine={engine} list="stroke" label={`stroke ${row+1}`} index={index} paint={paint} change={next=>dispatch("stroke.set",{ids,index,paint:next})} />
     </li>)}</ol>}
-    <button type="button" onClick={() => dispatch("stroke.add", { ids })}>Add stroke</button>
+    <button type="button" onClick={() => dispatch("stroke.add", { ids })} onContextMenu={event => openMenu(event)} onKeyDown={event => openMenu(event)}>Add stroke</button>
+    {popup}
     {stack && stack.length > 0 && <>
       {field("Stroke weight", "strokeWeight", value("weight"))}
       {select("Stroke alignment", "strokeAlign", value("align"), ["inside", "center", "outside"], ["Inside", "Centre", "Outside"])}

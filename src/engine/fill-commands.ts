@@ -1,3 +1,4 @@
+import type { CopiedPaint } from "./paint-clipboard";
 import { arrangementTargets } from "./arrange";
 import { fromRgba8 } from "./colour";
 import { rectanglePaints, withRectanglePaints, type Document, type LayerNode, type NodeId } from "./document";
@@ -43,15 +44,19 @@ function fillRegions(document: Document, ids: readonly NodeId[], explicit: unkno
   return new Set(explicit);
 }
 
-export function copyFill(document: Document, selection: readonly NodeId[], params: Record<string, unknown>, state?: VectorEditState): Paint {
+export function copyPaint(list: CopiedPaint["list"], document: Document, selection: readonly NodeId[], params: Record<string, unknown>, state?: VectorEditState): CopiedPaint {
   const id = Array.isArray(params.ids) ? params.ids.map(parseNodeId).find(id => id !== undefined) : parseNodeId(params.id) ?? selection[0];
   const node = id && document.nodes[id];
-  if (!node || node.kind === "page") throw new Error("Select a layer to copy a fill");
-  const selected = selectedRegionFills(node, state);
+  if (!node || node.kind === "page") throw new Error("Select a layer to copy a " + list);
+  const selected = list === "fill" ? selectedRegionFills(node, state) : undefined;
   if (selected === null) throw new Error("The selected regions' fills differ");
-  const list = selected ?? rectanglePaints(node), at = params.index == null ? Math.max(0, list.length - 1) : parseIndex(params.index);
-  if (!list[at]) throw new Error(`No fill at index ${at}`);
-  return list[at];
+  const paints = list === "stroke" ? node.strokes ?? [] : selected ?? rectanglePaints(node);
+  const at = params.index == null ? Math.max(0, paints.length - 1) : parseIndex(params.index);
+  const paint = paints[at];
+  if (!paint) throw new Error(`No ${list} at index ${at}`);
+  const images = document.images;
+  const image = paint.type === "image" && images && Object.hasOwn(images,paint.image) ? images[paint.image] : undefined;
+  return {list, paint, image, stroke: list === "stroke" ? node.stroke : undefined};
 }
 
 export function writeFill(command: WriteCommand, document: Document, selection: readonly NodeId[], params: Record<string, unknown>,

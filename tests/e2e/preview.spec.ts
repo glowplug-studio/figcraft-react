@@ -3592,3 +3592,53 @@ test("wide native pages window layer rows and retain offscreen edits through rec
   await cdp.detach();
   await rm(input);
 });
+
+test("copied image fills and strokes survive a different file using the same image key", async ({page})=>{
+  const fixture = JSON.parse(await readFile(new URL("../fixtures/native-rectangle.json",import.meta.url),"utf8"));
+  const source = await readFile(new URL("../fixtures/images/six-pixels.png",import.meta.url));
+  const taken = await readFile(new URL("../fixtures/images/icc-lut.png",import.meta.url));
+  const archive = (sourceFile: boolean) => {
+    const doc = structuredClone(fixture);
+    doc.name = sourceFile ? "Clipboard source" : "Clipboard destination";
+    doc.nodes["2"].fills = [{type:"image",image:"legacy",scale_mode:"tile"}];
+    if (sourceFile) {
+      doc.nodes["2"].strokes = doc.nodes["2"].fills;
+      doc.nodes["2"].stroke = {weight:7,align:"inside"};
+    } else {
+      doc.nodes["3"] = {...doc.nodes["2"],id:3,name:"Destination picture",transform:[1,0,0,1,70,20]};
+      doc.nodes["1"].children.push(3); doc.next_id = 4;
+    }
+    return Buffer.from(zipSync({"document.json":Buffer.from(JSON.stringify(doc)),"images/legacy":sourceFile?source:taken}));
+  };
+  await login(page);
+  const open = async (sourceFile: boolean) => {
+    await page.getByLabel("Open Figcraft file",{exact:true}).setInputFiles({name:"Clipboard.figcraft",mimeType:"application/octet-stream",buffer:archive(sourceFile)});
+    const replace = page.getByRole("button",{name:"Replace document",exact:true});
+    if (await replace.isVisible()) await replace.click();
+    await expect(page.getByRole("heading",{name:sourceFile?"Clipboard source":"Clipboard destination",level:1})).toBeVisible();
+    await page.getByRole("list",{name:"Page layers",exact:true}).getByRole("button",{name:"Rectangle",exact:true}).click();
+  };
+  for (const list of ["fill","stroke"] as const) {
+    await open(true);
+    const label = list === "fill" ? "Fill" : "Stroke";
+    await page.getByLabel(label+" 1 opacity",{exact:true}).click({button:"right"});
+    await page.getByRole("button",{name:"Copy "+list,exact:true}).click();
+    await open(false);
+    const target = list === "fill" ? page.getByLabel("Fill 1 opacity",{exact:true}) : page.getByRole("button",{name:"Add stroke",exact:true});
+    await target.focus(); await target.press("Shift+F10");
+    await page.getByRole("button",{name:"Paste "+list,exact:true}).click();
+    await expect(page.getByText("Recovery saved on this device",{exact:true})).toBeVisible();
+    await page.reload(); await resetCanvasOrigin(page);
+    if (list === "fill") await expectCanvasPixel(page,13,22,[255,0,0,255]);
+    const pending = page.waitForEvent("download");
+    await page.getByRole("button",{name:"Save as",exact:true}).click();
+    const members = unzipSync(await readFile((await (await pending).path())!));
+    const root = JSON.parse(strFromU8(members["document.json"]));
+    const key = root.nodes["2"][list === "fill" ? "fills" : "strokes"][0].image;
+    expect(key).toMatch(/^[a-f0-9]{64}$/);
+    expect(root.nodes["3"].fills[0].image).toBe("legacy");
+    if (list === "stroke") expect(root.nodes["2"].stroke.weight).toBe(7);
+    expect(Buffer.from(members["images/"+key])).toEqual(source);
+    expect(Buffer.from(members["images/legacy"])).toEqual(taken);
+  }
+});

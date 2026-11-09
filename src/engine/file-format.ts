@@ -1,3 +1,5 @@
+import { sha256 } from "@noble/hashes/sha2.js";
+import { bytesToHex } from "@noble/hashes/utils.js";
 import { readNativeJson } from "./native-json";
 import { readVectorNetwork, wireVectorNetwork } from "./vector-codec";
 import { isBooleanOperation, isLeaf, isLeafKind } from "./document";
@@ -272,19 +274,31 @@ async function parseDocument(source: Uint8Array | Blob) {
   return { decoded, listed };
 }
 
-async function readMember(file: FileEntry, source?: Blob): Promise<Blob> {
+async function readMember(file: FileEntry, source?: Blob, hash?: ReturnType<typeof sha256.create>): Promise<Blob> {
   if (file.encrypted) fail("encrypted ZIP members are not supported yet");
   if (file.compressionMethod !== 0 && file.compressionMethod !== 8) fail("unsupported ZIP compression");
   if (file.crc32 === undefined) fail("ZIP member has no CRC32 checksum");
   try {
     if (source && file.compressionMethod === 0) {
       // Validate the streamed bytes and local header before keeping a slice of the original file.
-      await file.getData(new WritableStream<Uint8Array>());
+      await file.getData(new WritableStream<Uint8Array>({write(chunk) { hash?.update(chunk); }}));
       const at = file.localDirectory?.dataOffset;
       if (at === undefined || at < 0 || at + file.uncompressedSize > source.size) fail("invalid stored member offset");
       return source.slice(at, at + file.uncompressedSize);
     }
-    return await file.getData(new BlobWriter());
+    if (!hash) return await file.getData(new BlobWriter());
+    const writer = new BlobWriter();
+    const sink = writer.writable.getWriter();
+    try {
+      await file.getData(new WritableStream<Uint8Array<ArrayBuffer>>({
+        write(chunk) { hash.update(chunk); return sink.write(chunk); },
+      }));
+      await sink.close();
+      return await writer.getData();
+    } catch (error) {
+      await sink.abort(error);
+      throw error;
+    } finally { sink.releaseLock(); }
   } catch (error) {
     if (error instanceof Error && error.message === ERR_INVALID_CRC32) fail("ZIP CRC32 checksum mismatch");
     if (error instanceof Error && error.message === ERR_INVALID_UNCOMPRESSED_SIZE) fail("decompressed data exceeds its permitted size or is truncated");
@@ -364,16 +378,17 @@ async function readArchive(bytes: Uint8Array | Blob): Promise<DecodedFigcraft> {
       }
       // Charge failed reads too, so a series of damaged members cannot repeatedly inflate the budget.
       remaining -= member.uncompressedSize;
+      const hash = sha256.create();
       let encoded: Blob;
       try {
-        encoded = await readMember(member, bytes instanceof Blob ? bytes : undefined);
+        encoded = await readMember(member, bytes instanceof Blob ? bytes : undefined, hash);
       } catch (error) {
         const reason = error instanceof Error ? error.message.replace(/^Cannot open Figcraft file: /, "") : "invalid ZIP data";
         report(`image ${key} couldn't be read (${reason}): it is left out, and saving this file again drops it`);
         continue;
       }
       const {resource, profileUnavailable} = await archivedImage(encoded);
-      images[key] = resource;
+      images[key] = Object.freeze({...resource, digest:bytesToHex(hash.digest())});
       if (profileUnavailable) report(`image ${key} opened without colour conversion. Its original bytes are preserved.`);
     }
     for (const key of [...listed].sort()) {

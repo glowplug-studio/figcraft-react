@@ -1,5 +1,6 @@
 import { PaintPicker } from "./PaintPicker";
-import { useLayoutEffect, useRef, useState, useSyncExternalStore, type FormEvent, type KeyboardEvent, type MouseEvent } from "react";
+import { usePaintActions } from "./PaintActions";
+import { useState, useSyncExternalStore, type FormEvent } from "react";
 import { parseCssColour } from "./engine/colour-css";
 import { renderColour, withAlpha } from "./engine/colour";
 import { pageColour, rectanglePaints, type PageNode, type LayerNode } from "./engine/document";
@@ -28,29 +29,7 @@ function AppearanceControls({ engine, page, selected, editable, dispatch }: Appe
   });
   const paints = mixed ? [] : regionPaints ?? inherited;
   const updatePaint = (index: number, paint: Paint) => dispatch("fill.set", { ids, index, paint });
-  const [menu, setMenu] = useState<{ x: number; y: number; index?: number }>();
-  const popup = useRef<HTMLDivElement>(null);
-  useLayoutEffect(() => {
-    const element = popup.current;
-    if (!element || !menu) return;
-    element.showPopover();
-    const bounds = element.getBoundingClientRect();
-    element.style.left = Math.max(0, Math.min(menu.x, window.innerWidth - bounds.width)) + "px";
-    element.style.top = Math.max(0, Math.min(menu.y, window.innerHeight - bounds.height)) + "px";
-    element.querySelector("button")?.focus();
-  }, [menu]);
-  function openMenu(event: MouseEvent | KeyboardEvent, index?: number) {
-    if (!editable || ("key" in event && event.key !== "ContextMenu" && !(event.shiftKey && event.key === "F10"))) return;
-    if (index === undefined && !engine.hasCopiedFill()) return;
-    event.preventDefault(); event.stopPropagation();
-    const rect = event.currentTarget.getBoundingClientRect();
-    setMenu({ index, x: "clientX" in event ? event.clientX : rect.left, y: "clientY" in event ? event.clientY : rect.bottom });
-  }
-  function menuAction(command: string) {
-    popup.current?.hidePopover();
-    dispatch(command, { ids, index: menu?.index });
-    setMenu(undefined);
-  }
+  const {openMenu, popup} = usePaintActions("fill", editable, engine.hasCopiedFill(), ids, dispatch);
   const parseInput = (input: string) => {
     const value = parseCssColour(input);
     if (!value) setAlert("Enter a valid CSS colour.");
@@ -125,12 +104,7 @@ function AppearanceControls({ engine, page, selected, editable, dispatch }: Appe
           <PaintPicker engine={engine} region={regionPaints !== undefined} list="fill" label={`fill ${row+1}`} index={index} paint={paint} change={next=>updatePaint(index,next)} />
         </li>)}</ol>
         <button type="button" onClick={() => dispatch("fill.add", { ids })} onContextMenu={event => openMenu(event)} onKeyDown={event => openMenu(event)}>Add fill</button>
-        {menu && <div ref={popup} popover="auto" role="group" aria-label="Fill actions"
-          style={{ position: "fixed", inset: "auto", margin: 0 }}
-          onToggle={event => { if (event.newState === "closed") setMenu(undefined); }}>
-          {menu.index !== undefined && <button type="button" onClick={() => menuAction("fill.copy")}>Copy fill</button>}
-          {engine.hasCopiedFill() && <button type="button" onClick={() => menuAction("fill.paste")}>Paste fill</button>}
-        </div>}
+        {popup}
       </fieldset>}
     </>}
   </section>;

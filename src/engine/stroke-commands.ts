@@ -7,6 +7,8 @@ import { samePaints, solidPaint } from "./solid-paint";
 import { setStrokeProperties } from "./stroke";
 
 export const strokeSpecs = Object.freeze({
+  "stroke.copy": { label: "Copy stroke", undo: false },
+  "stroke.paste": { label: "Paste stroke", undo: true },
   "stroke.add": { label: "Add stroke", undo: true },
   "stroke.remove": { label: "Remove stroke", undo: true },
   "stroke.set": { label: "Set stroke", undo: true },

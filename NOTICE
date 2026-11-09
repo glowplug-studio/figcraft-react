@@ -101,3 +101,6 @@ Two- and four-component JPEG TIFF decompression uses GeoTIFF.js 3.0.5.
 GeoTIFF.js is Copyright (c) 2015 EOX IT Services GmbH, under the MIT
 permission notice above. Its JPEG decoder is Copyright 2011 notmasteryet,
 licensed under the Apache License, Version 2.0 (see LICENSE).
+
+Streaming SHA-256 uses @noble/hashes 2.4.0, Copyright (c) 2022 Paul Miller,
+under the MIT permission notice above.
