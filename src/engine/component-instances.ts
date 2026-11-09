@@ -37,7 +37,7 @@ function applyBinding(document: Document, layer: LayerNode, field: string, value
   return layer;
 }
 
-function boundCopy(document: Document, original: LayerNode, id: NodeId, values: readonly Values[]): LayerNode {
+export function boundCopy(document: Document, original: LayerNode, id: NodeId, values: readonly Values[]): LayerNode {
   const {overrides, propRefs, ...rest} = original;
   let copy: LayerNode = {...rest, id, source:original.id};
   if (copy.kind === "text" && copy.charactersOverridden) {

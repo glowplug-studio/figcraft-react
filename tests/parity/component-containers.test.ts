@@ -169,3 +169,97 @@ describe("native instance creation",() => {
     expect(engine.getSnapshot().document.nodes["7"].propRefs).toBeUndefined();
   });
 });
+
+describe("component edit transactions", () => {
+  it("propagates changes, keeps explicit same-value overrides, and clears a changed value set back to its main",async () => {
+    const engine = await open(capture("instance"));
+    const edit = (id: number, props: Record<string,unknown>) => engine.execute("node.set",{id,props});
+    edit(5,{name:"Marker"}); // Explicitly keeping the current value is significant to node.set.
+    edit(3,{name:"Dot",fill:"#224466"});
+    expect(engine.getSnapshot().document.nodes["5"]).toMatchObject({name:"Marker",fill:"#224466",overrides:["name"]});
+    edit(5,{name:"Dot"});
+    expect(engine.getSnapshot().document.nodes["5"].overrides).toBeUndefined();
+    edit(3,{name:"Moved"});
+    expect(engine.getSnapshot().document.nodes["5"].name).toBe("Moved");
+    engine.execute("edit.undo");
+    expect(engine.getSnapshot().document.nodes["5"].name).toBe("Dot");
+    engine.execute("edit.redo");
+    const openAgain=await open(await encodeFigcraft(engine.getSnapshot().document));
+    expect(openAgain.getSnapshot().document.nodes["5"]).toMatchObject({source:"3",name:"Moved"});
+  });
+
+  it("refuses a mixed edit, a duplicate and a rotation gesture inside an instance without consuming history or ids",async () => {
+    const engine=await open(capture("instance"));
+    engine.execute("node.set",{id:3,props:{opacity:0.5}});
+    engine.execute("edit.undo");
+    const before=engine.getSnapshot();
+    expect(()=>engine.execute("node.set",{ids:[3,5],props:{x:71}})).not.toThrow(); // Both main and copy moved together.
+    engine.execute("edit.undo");
+    const restored=engine.getSnapshot();
+    expect(restored.document).toBe(before.document);
+    expect(()=>engine.execute("node.set",{ids:[2,5],props:{x:17}})).toThrow(/position comes from the main/);
+    expect(()=>engine.execute("edit.duplicate",{ids:[5]})).toThrow(/inside the instance/);
+    engine.beginInteraction();
+    engine.previewRotate(["5"],45,{x:160,y:20});
+    expect(()=>engine.commitInteraction()).toThrow(/position comes from the main/);
+    expect(engine.interacting).toBe(false);
+    expect(engine.getUndoDepth()).toBe(0);
+    expect(engine.getSnapshot()).toBe(restored);
+    expect(engine.execute("edit.redo")).toEqual({redone:true});
+    expect(engine.execute("node.create",{type:"rectangle"})).toEqual({id:"6"});
+  });
+
+  it("retains mirror ids through reordering, propagates additions and removes main children while Delete hides a mirror",async () => {
+    const engine=await open(capture("instance"));
+    engine.execute("node.create",{type:"rectangle",name:"Second",parent:2});
+    expect(engine.getSnapshot().document.nodes["7"]).toMatchObject({source:"6",parent:"4"});
+    engine.execute("node.reparent",{ids:[6],parent:2,index:0});
+    expect(engine.getSnapshot().document.nodes["4"]).toMatchObject({children:["7","5"]});
+    expect(engine.execute("edit.delete",{id:5})).toEqual({deleted:[],hidden:["5"]});
+    expect(engine.getSnapshot().document.nodes["5"]).toMatchObject({visible:false,overrides:["visible"]});
+    expect(engine.execute("edit.delete",{id:3})).toEqual({deleted:["3"],hidden:[]});
+    expect(engine.getSnapshot().document.nodes["5"]).toBeUndefined();
+    expect(engine.getSnapshot().document.nodes["4"]).toMatchObject({children:["7"]});
+    engine.execute("edit.undo");
+    expect(engine.getSnapshot().document.nodes["5"]).toMatchObject({source:"3",visible:false});
+  });
+
+  it("allocates new mirrors through nested and standalone instances in native order",() => {
+    const engine = new EditorEngine();
+    engine.execute("node.create",{type:"component",name:"Outer"});
+    engine.execute("node.create",{type:"component",name:"Inner"});
+    engine.execute("node.create",{type:"rectangle",parent:3,name:"Mark"});
+    engine.execute("instance.create",{component:3,parent:2});
+    engine.execute("instance.create",{component:2});
+    engine.execute("instance.create",{component:2});
+    engine.execute("instance.create",{component:3});
+    expect(engine.execute("edit.duplicate",{ids:[4]})).toEqual({ids:["15"]});
+    const nodes = engine.getSnapshot().document.nodes;
+    for (const [id,parent,source] of [["16","5","15"],["17","13","15"],["18","8","16"],["19","11","16"]]) {
+      expect(nodes[id]).toMatchObject({name:"Mark",parent,source});
+    }
+    engine.execute("node.set",{id:4,props:{name:"Changed"}});
+    for (const id of ["6","9","12","14"]) expect(engine.getSnapshot().document.nodes[id].name).toBe("Changed");
+    engine.execute("edit.undo");
+    expect(engine.getSnapshot().document.nodes).toBe(nodes);
+  });
+
+  it("makes edited slot content independent and retains it when the main rebuilds",async () => {
+    const file=JSON.parse(capture("instance").toString("utf8"));
+    file.nodes[2].props={Body:{type:"slot"}};
+    file.nodes[3]={...file.nodes[3],type:"frame",prop_refs:{slot:"Body"},children:[6]};
+    file.nodes[5]={...file.nodes[5],type:"frame",children:[7]};
+    file.nodes[6]={id:6,parent:3,type:"rectangle",name:"Default",width:10,height:20};
+    file.nodes[7]={...file.nodes[6],id:7,parent:5,source:6};
+    file.next_id=8;
+    const engine=await open(Buffer.from(JSON.stringify(file)));
+    engine.execute("node.create",{type:"rectangle",parent:5,name:"Placed"});
+    expect(engine.getSnapshot().document.nodes["5"].overrides).toEqual(["slot"]);
+    expect(engine.getSnapshot().document.nodes["7"].source).toBeUndefined();
+    engine.execute("node.set",{id:6,props:{name:"New default"}});
+    engine.execute("node.set",{id:2,props:{name:"Changed main"}});
+    expect(engine.getSnapshot().document.nodes["5"]).toMatchObject({source:"3",children:["7","8"]});
+    expect(engine.getSnapshot().document.nodes["7"].name).toBe("Default");
+    expect(engine.execute("edit.delete",{id:7})).toEqual({deleted:["7"],hidden:[]});
+  });
+});

@@ -5233,3 +5233,32 @@ test("creating an instance from a native variant set saves its default main and 
   const {document} = await decodeFigcraft(await readFile((await (await downloading).path())!));
   expect(document.nodes["5"]).toMatchObject({kind:"instance", name:"Card", component:"2", source:"2", parent:"1", x:140, y:0});
 });
+
+test("component edits update linked layers and preserve a renamed instance child across reload and download", async ({page}) => {
+  await login(page);
+  const buffer = await readFile(new URL("../fixtures/native-component-instance.json",import.meta.url));
+  await page.getByLabel("Open Figcraft file",{exact:true}).setInputFiles({name:"linked.figcraft",mimeType:"application/octet-stream",buffer});
+  const layers = page.getByRole("region",{name:"Layers",exact:true});
+  const layer = (id: number, name: string) => layers.locator('[data-layer-id="'+id+'"]').getByRole("button",{name,exact:true});
+  async function rename(id: number, from: string, to: string) {
+    await layer(id,from).click();
+    await page.getByLabel("Name",{exact:true}).fill(to);
+    await page.getByRole("button",{name:"Apply layer",exact:true}).click();
+  }
+  await rename(3,"Marker","Indicator");
+  await expect(layer(5,"Indicator")).toBeVisible();
+  await rename(5,"Indicator","On hold");
+  await rename(3,"Indicator","Ready");
+  await expect(layer(5,"On hold")).toBeVisible();
+  await page.getByRole("button",{name:"Undo",exact:true}).click();
+  await expect(layer(3,"Indicator")).toBeVisible();
+  await page.getByRole("button",{name:"Redo",exact:true}).click();
+  await expect(page.locator(".figcraft-recovery")).toHaveText("Recovery saved on this device");
+  await page.reload();
+  await expect(layer(3,"Ready")).toBeVisible();
+  await expect(layer(5,"On hold")).toBeVisible();
+  const downloading = page.waitForEvent("download");
+  await page.getByRole("button",{name:"Save as",exact:true}).click();
+  const {document} = await decodeFigcraft(await readFile((await (await downloading).path())!));
+  expect(document.nodes["5"]).toMatchObject({parent:"4",source:"3",name:"On hold",overrides:["name"]});
+});

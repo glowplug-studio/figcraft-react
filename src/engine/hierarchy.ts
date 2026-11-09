@@ -225,6 +225,37 @@ export class HierarchyDraft {
     this.#changed = true;
   }
 
+  /** Replace a linked instance in one pass. Existing ids may only come from that subtree. */
+  replaceSubtree(root: LayerNode, descendants: readonly LayerNode[]): void {
+    const previous = this.nodes[root.id];
+    if (!previous || previous.parent !== root.parent) throw new Error("Invalid replacement root");
+    const old = new Set(subtreeIds(this.document, root.id));
+    const byId = new Map([root, ...descendants].map(node => [node.id,node]));
+    if (byId.size !== descendants.length + 1) throw new Error("Duplicate replacement id");
+    const seen = new Set<NodeId>(), stack = [root];
+    while (stack.length) {
+      const node = stack.pop()!;
+      if (seen.has(node.id) || this.nodes[node.id] && !old.has(node.id)) throw new Error("Invalid replacement id");
+      seen.add(node.id);
+      if (isLeaf(node)) continue;
+      for (const id of node.children) {
+        const child = byId.get(id);
+        if (!child || child.parent !== node.id) throw new Error("Invalid replacement child");
+        stack.push(child);
+      }
+    }
+    if (seen.size !== byId.size) throw new Error("Unreachable replacement layer");
+    for (const id of old) {
+      if (!byId.has(id)) delete this.nodes[id];
+      this.changedIds.add(id);
+    }
+    for (const node of byId.values()) {
+      this.nodes[node.id] = Object.freeze(node);
+      this.changedIds.add(node.id);
+    }
+    this.#changed = true;
+  }
+
   /** Upstream post-command maintenance: only touched groups and their ancestors refit. */
   normaliseGroups(): void {
     const document = this.document;

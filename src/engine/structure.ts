@@ -249,8 +249,19 @@ export function executeStructure(command: string, document: Document, selection:
     }
   } else {
     const ids = rootIds(document, targets);
-    for (const id of ids) if (draft.nodes[id].kind !== "page") draft.remove(id);
-    selected = []; result = { deleted: ids, hidden: [] };
+    const hidden: NodeId[] = [], deleted: NodeId[] = [];
+    for (const id of ids) {
+      const layer = draft.nodes[id];
+      if (layer.kind !== "page" && owningInstance(document,id,false)) {
+        hidden.push(id);
+        draft.set({...layer, visible:false});
+      } else {
+        deleted.push(id);
+        if (draft.nodes[id].kind !== "page") draft.remove(id);
+      }
+    }
+    if (deleted.length) selected = [];
+    result = {deleted, hidden};
   }
   draft.normaliseGroups();
   const updated = draft.finish();

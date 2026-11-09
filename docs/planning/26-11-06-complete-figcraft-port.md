@@ -6,15 +6,15 @@
 |---|---|
 | Overall status | In progress. [Execution checkpoint](26-11-07-full-port-resume.md). |
 | Active slice | Components, instances and variants. [Dated plan](26-11-09-components-instances.md). |
-| Active phase | Phase 5. Main and instance creation, default variants, main duplication and recursive containment checks verified. Synchronisation and override handling are active. |
+| Active phase | Phase 5. Main-to-instance propagation, override recording, hierarchy changes and transactional guards verified for the tested component families. Nested rebasing and instance commands are active. |
 | Upstream baseline | Components reference 79c36346. Auto layout reference 3839fe4a. Global supported baseline 8eb0b876. |
-| Branch and last verified commit | prompt/full-figcraft-port. Commit 97cb324 passed all 252 production Chromium workflows. The subsequent instance checkpoint passed five focused production workflows. |
+| Branch and last verified commit | prompt/full-figcraft-port. Commit 9f918ae passed all 253 production Chromium workflows. The subsequent synchronisation checkpoint passed six focused production workflows. |
 | Completed slices | Rectangle/host-auth, bounded native persistence/recovery, supported-model pages, affine rectangle geometry/selection and solid appearance, plus nested group hierarchy, Frame containers, movement/transform gestures, rounded corners, ellipse/arc/ring and Polygon/Star editing verified locally; Line/Arrow and uniform solid strokes also verified; per-side Rectangle/Frame strokes, variable-width profiles and procedural brushes verified; vector networks, solid region/stroke rendering and Flatten/Reverse also verified; foundation commit `154f5a7`. Gradient, image, pattern, blend and mask releases now have local property matrices. [Blend evidence](../reports/26-11-09-blend-modes-parity.html). Auto layout and constraints passed the local release gate. [Release evidence](../reports/26-11-09-auto-layout.md). |
 | Remaining slices | Continue incomplete roadmap rows, excluding the user-deferred plugin and widget family. See each slice matrix for outstanding integrations. |
-| Tests last passed | Instance creation passed 1,852 pure tests, two Auth checks, both builds and five signed-in browser workflows. All 540 instance commands in 180 sessions matched Rust. All 180 creation sessions and 500 declaration comparisons matched Rust. Layout 0.50.0 passed both builds, two local Auth checks and all 250 production Chromium tests. |
+| Tests last passed | Instance edits passed 1,857 pure tests, two Auth checks, both builds and six signed-in browser workflows. All 3,140 value and structure snapshots matched Rust. All 540 instance commands in 180 sessions matched Rust. All 180 creation sessions and 500 declaration comparisons matched Rust. Layout 0.50.0 passed both builds, two local Auth checks and all 250 production Chromium tests. |
 | Files currently in progress | [Component and instance plan](26-11-09-components-instances.md). |
 | Blockers | No blocker. Use local Graphify for all remaining slices. The scoped Supabase read succeeded. |
-| Exact next action | Implement transaction-wide edit guards, override capture, slot adoption and main-to-instance synchronisation. Compare nested instances after edits and undo. |
+| Exact next action | Compare nested instance rebasing, variant source matching and property binding changes. Implement instance reset, detach and restore with native and browser checks. |
 | Last updated | 2026-11-09 |
 
 ## Scope and continuation

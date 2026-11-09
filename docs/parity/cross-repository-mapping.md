@@ -457,3 +457,5 @@ The seven case tables in native layout/src/behaviour_tests.rs map to [65 referen
 
 
 Native NodeKind::is_frame_like maps to isFrameLike for components, component sets, instances and frames. Native ordered_props maps to orderedComponentPropertyNames. The component create command maps to executeStructure and node.create maps to createLayer. The [component checkpoint](../planning/26-11-09-components-instances.md) records the native tree, file round-trip, creation, selection and browser evidence.
+
+Native components/guard.rs, patch.rs, diff.rs, instances.rs and sync.rs map to the [component edit boundary](../../src/engine/component-edits.ts), [override groups](../../src/engine/component-groups.ts) and [instance rebuild](../../src/engine/component-sync.ts). The [dated comparison](../planning/26-11-09-components-instances.md#instance-edits-propagation-and-rollback) records the verified fields, native session counts and outstanding nested behaviours.

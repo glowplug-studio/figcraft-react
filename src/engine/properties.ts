@@ -1,3 +1,5 @@
+import { explicitOverrides } from "./component-groups";
+import { owningInstance } from "./component-tree";
 import type { GeometryField } from "./geometry-fields";
 import { childLayoutKeys, explicitAxis, setChildProperty } from "./child-layout-properties";
 import { frameTuning, setFrameLayout, validateLayoutSwitch } from "./layout-properties";
@@ -97,6 +99,7 @@ function writeProperties(draft: HierarchyDraft, document: Document, selection: r
   const skipped = hasPath ? ids.filter(id => document.nodes[id]?.kind !== "vector") : [];
   if (skipped.length) warnings.push(`\`path\` skipped on ${skipped.slice(0, 10).map(id => `${id} “${document.nodes[id]?.name ?? id}” (${document.nodes[id]?.kind ?? "missing"})`).join(", ")}${skipped.length > 10 ? ` and ${skipped.length - 10} more` : ""}: only vector layers have a path`);
   const shape = hasPath ? (() => {
+    if (vectors.some(id => owningInstance(document,id,false))) throw new Error("Vector path is inside an instance: edit its main component, or detach the instance");
     if (typeof props.path !== "string") throw new Error("path must be SVG path data (a string)");
     const size = (long: string, short: string) => Object.hasOwn(props, long) ? parseNumber(props[long], long) : Object.hasOwn(props, short) ? parseNumber(props[short], long) : undefined;
     return pathNetwork(props.path, size("width", "w"), size("height", "h"));
@@ -256,6 +259,12 @@ function writeProperties(draft: HierarchyDraft, document: Document, selection: r
       || "locked" in props && props.locked !== (node.locked ?? false) || opacity !== undefined && opacity !== (node.opacity ?? 1)
       || paints && !samePaints(rectanglePaints(node), paints)) {
       draft.set(updated);
+    }
+  }
+  for (const id of ids) {
+    const node = draft.nodes[id];
+    if (node.kind !== "page" && node.source) {
+      draft.set(explicitOverrides(node,keys,node.kind === "instance" && !owningInstance(draft.document,id,false)));
     }
   }
   if (pivot) for (const { id, point } of pinned) if (point) {

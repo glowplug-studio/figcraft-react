@@ -1,3 +1,4 @@
+import { finishComponentEdit } from "./component-edits";
 import { createInstance } from "./component-instances";
 import { fieldValue, type FieldEdit } from "./field-math";
 import { shownGeometry, type GeometryField } from "./geometry-fields";
@@ -566,9 +567,7 @@ export class EditorEngine {
   #refitOpenText(params:Record<string,unknown>, families?:readonly string[]) {
     const before=this.#snapshot, {document,refitted}=refitText(before.document,params,families);
     if (document!==before.document) {
-      this.#undo.push({document:before.document,selection:before.selection});
-      this.#redo=[];
-      this.#publish({document});
+      this.#commitEdit({document});
     }
     return {refitted};
   }
@@ -693,19 +692,24 @@ export class EditorEngine {
     this.#interaction = undefined; this.#editing=undefined;this.#textRange=undefined;
     const { base, document, selection } = interaction;
     const vectorChanged = interaction.vectorEdit !== interaction.baseVectorEdit;
-    if (vectorChanged) this.#vectorEdit = interaction.vectorEdit;
+
     // Moving back to the source adds no history; copies and parenting are content changes.
     const changed = document !== base.document && (Object.keys(document.nodes).length !== Object.keys(base.document.nodes).length || Object.keys(document.nodes).some(id => {
       const node = document.nodes[id], old = base.document.nodes[id];
       return node !== old && JSON.stringify(node) !== JSON.stringify(old);
     }));
     if (changed) {
-      this.#undo.push({ document: base.document, selection: base.selection }); this.#redo = [];
-      this.#nextId = interaction.nextId;
-      if (interaction.duplicated) this.#lastDuplicate = interaction.duplicated;
-      this.#publish({ document, selection });
-    } else if (!sameIds(base.selection, selection)) this.#publish({ selection });
-    else { if (vectorChanged) this.#vectorListeners.forEach(listener => listener()); this.#notifyCanvas(); }
+      try {
+        this.#commitEdit({ document, selection }, {nextId:interaction.nextId, duplicated:interaction.duplicated, vectorEdit:interaction.vectorEdit});
+      } catch (error) {
+        this.#notifyCanvas();
+        throw error;
+      }
+    } else {
+      if (vectorChanged) this.#vectorEdit = interaction.vectorEdit;
+      if (!sameIds(base.selection, selection)) this.#publish({ selection });
+      else { if (vectorChanged) this.#vectorListeners.forEach(listener => listener()); this.#notifyCanvas(); }
+    }
     return changed;
   }
   getView = (): Viewport => this.#view;
@@ -751,8 +755,36 @@ export class EditorEngine {
   }
   nativeSnapshot = (): Promise<Uint8Array> => encodeFigcraft(this.#snapshot.document, String(this.#nextId));
   cancelPendingFiles(): void { this.#openSequence++; this.#pendingSaves.clear(); }
+  #preparedEdit?: {base: Document; proposed: Document; allocator: bigint; result: ReturnType<typeof finishComponentEdit>};
+
+  #prepareEdit(proposed: Document, allocator: bigint) {
+    const base = this.#snapshot.document, previous = this.#preparedEdit;
+    if (previous?.base === base && previous.proposed === proposed && previous.allocator === allocator) return previous.result;
+    const result = finishComponentEdit(base,proposed,allocator);
+    this.#preparedEdit = {base,proposed,allocator,result};
+    return result;
+  }
+
+  #commitEdit(patch: Partial<EditorSnapshot> & { document: Document }, options: {
+    record?: boolean;
+    nextId?: bigint;
+    duplicated?: Duplicated;
+    vectorEdit?: VectorEditState;
+  } = {}) {
+    const before = this.#snapshot;
+    const {document,nextId} = this.#prepareEdit(patch.document, options.nextId ?? this.#nextId);
+    if (options.record !== false) {
+      this.#undo.push({ document: before.document, selection: before.selection });
+      this.#redo = [];
+    }
+    this.#nextId = nextId;
+    if (options.duplicated) this.#lastDuplicate = options.duplicated;
+    if ("vectorEdit" in options) this.#vectorEdit = options.vectorEdit;
+    this.#publish({...patch, document});
+  }
   #publish(patch: Partial<EditorSnapshot>): void {
     const document = patch.document ?? this.#snapshot.document;
+    if (document !== this.#snapshot.document) this.#preparedEdit = undefined;
     if (patch.editable === false || patch.selection && !sameIds(patch.selection, this.#snapshot.selection)) patch = { ...patch, paintPicker: undefined, openEffects: undefined };
     this.#snapshot = Object.freeze({ ...this.#snapshot, ...patch, canUndo: this.#undo.length > 0, canRedo: this.#redo.length > 0, dirty: !sameContent(document, this.#saved), hasSaved: this.#saved !== null });
     if (this.#lastDuplicate && !duplicateSelection(this.#lastDuplicate, this.#snapshot.selection)) this.#lastDuplicate = undefined;
@@ -816,9 +848,7 @@ export class EditorEngine {
       const {document,result} = executeTextFormat(command,this.getRenderDocument(),before.selection,p,live);
       if (live) live.update(document,live.anchor,live.caret);
       else if (document!==before.document) {
-        this.#undo.push({document:before.document,selection:before.selection});
-        this.#redo = [];
-        this.#publish({document});
+        this.#commitEdit({document});
       }
       return result;
     }
@@ -861,18 +891,18 @@ export class EditorEngine {
     if (command === "text.onPath") {
       const before = this.#snapshot;
       const {document,selection,result} = putTextOnPath(before.document,before.selection,p);
-      this.#undo.push({document:before.document,selection:before.selection});
-      this.#redo = [];
-      this.#publish({document,selection});
+      this.#commitEdit({document,selection});
       return result;
     }
     if (Object.hasOwn(vectorEditSpecs, command) || (this.#vectorEdit && isVectorJoin(command))) {
       const before = this.#snapshot, oldState = this.#vectorEdit, next = executeVectorEdit(isVectorJoin(command) ? command : command as VectorEditCommand, before.document, before.selection, oldState, p, this.#nextId);
-      if (next.nextId !== undefined) this.#nextId = next.nextId;
-      if (next.recordHistory) { this.#undo.push({ document: before.document, selection: before.selection }); this.#redo = []; }
-      this.#vectorEdit = next.state;
-      if (next.document !== before.document || !sameIds(next.selection, before.selection)) this.#publish({ document: next.document, selection: next.selection });
-      else if (next.state !== oldState) { this.#vectorListeners.forEach(listener => listener()); this.#notifyCanvas(); }
+      if (next.document !== before.document || !sameIds(next.selection, before.selection) || next.recordHistory || next.nextId !== undefined) {
+        this.#commitEdit({document:next.document, selection:next.selection}, {record:!!next.recordHistory, nextId:next.nextId, vectorEdit:next.state});
+      } else if (next.state !== oldState) {
+        this.#vectorEdit = next.state;
+        this.#vectorListeners.forEach(listener => listener());
+        this.#notifyCanvas();
+      }
       return next.result;
     }
     if (command === "tool.scaleAnchor") {
@@ -894,37 +924,27 @@ export class EditorEngine {
       if (!profile) throw new Error("file.colorProfile: profile must be srgb or displayP3");
       const document = setDocumentProfile(before.document, profile, parseBoolean(p.convert) ?? true);
       if (document !== before.document) {
-        this.#undo.push({ document: before.document, selection: before.selection });
-        this.#redo = [];
-        this.#publish({ document, profileDialog: false });
+        this.#commitEdit({ document, profileDialog: false });
       } else this.closeProfileDialog();
       return { profile, changed: document !== before.document };
     }
     if (command==="image.crop") {
       const before=this.#snapshot, {document,target}=startImageCrop(before.document,before.selection,p);
-      if (document!==before.document) {
-        this.#undo.push({document:before.document,selection:before.selection}); this.#redo=[];
-      }
-      this.#publish({document,crop:target,paintPicker:undefined});
+      this.#commitEdit({document,crop:target,paintPicker:undefined}, {record:document !== before.document});
       return {...target};
     }
     if (Object.hasOwn(imageEditSpecs, command)) {
       const before = this.#snapshot;
       const next = command === "image.adjust" ? editImagePaints(before.document, before.selection, p)
         : editImagePreset(command, before.document, before.selection, p);
-      this.#undo.push({ document: before.document, selection: before.selection });
-      this.#redo = [];
-      this.#publish({ document: next.document });
+      this.#commitEdit({ document: next.document });
       return next.result;
     }
     if (command === "frame.presets") return framePresets;
     if (command === "edit.duplicate") {
       const before = this.#snapshot;
       const next = executeDuplicate(before.document, before.selection, this.#nextId, p, this.#lastDuplicate);
-      this.#undo.push({ document: before.document, selection: before.selection }); this.#redo = [];
-      this.#nextId = next.nextId;
-      this.#lastDuplicate = next.duplicated;
-      this.#publish({ document: next.document, selection: next.duplicated.copies });
+      this.#commitEdit({document:next.document, selection:next.duplicated.copies}, {nextId:next.nextId, duplicated:next.duplicated});
       return next.result;
     }
     if (Object.hasOwn(smartSpecs, command)) {
@@ -932,8 +952,7 @@ export class EditorEngine {
       const document = executeSmartSelection(command, current, before.selection, p, this.#interaction?.base.document ?? current);
       if (this.#interaction) { this.#interaction.document = document; this.#notifyCanvas(); }
       else if (document !== before.document) {
-        this.#undo.push({ document: before.document, selection: before.selection }); this.#redo = [];
-        this.#publish({ document });
+        this.#commitEdit({ document });
       }
       return { ok: true };
     }
@@ -958,8 +977,7 @@ export class EditorEngine {
         ? executeRotation(command, before.document, before.selection, p, movedOrigin(before.document, before.selection, this.#origin), this.#vectorEdit)
         : (Object.hasOwn(sizingSpecs, command) ? executeSizing : executeArrange)(command, before.document, before.selection, p);
       if (document !== before.document) {
-        this.#undo.push({ document: before.document, selection: before.selection }); this.#redo = [];
-        this.#publish({ document });
+        this.#commitEdit({ document });
       }
       return { ok: true };
     }
@@ -975,11 +993,7 @@ export class EditorEngine {
       const execute = builderEdit ? applyBuilder : Object.hasOwn(vectorSpecs, command) ? executeVector : executeStructure;
       const next = command === "instance.create" ? createInstance(before.document, this.#nextId, p)
         : execute(command, before.document, before.selection, this.#nextId, p);
-      if (!sameContent(before.document, next.document)) {
-        this.#undo.push({ document: before.document, selection: before.selection }); this.#redo = [];
-      }
-      this.#nextId = next.nextId;
-      this.#publish({ document: next.document, selection: next.selection });
+      this.#commitEdit({document:next.document, selection:next.selection}, {record:!sameContent(before.document,next.document), nextId:next.nextId});
       return next.result;
     }
     if (Object.hasOwn(selectionSpecs, command)) {
@@ -998,8 +1012,6 @@ export class EditorEngine {
       const before = this.#snapshot;
       const document = editEffects(command, before.document, before.selection, p, this.#copiedEffect);
       if (document !== before.document) {
-        this.#undo.push({ document: before.document, selection: before.selection });
-        this.#redo = [];
         let openEffects = before.openEffects;
         const first = before.selection[0];
         if (first && openEffects?.length && before.document.nodes[first]?.effects !== document.nodes[first]?.effects) {
@@ -1011,7 +1023,7 @@ export class EditorEngine {
             openEffects = Object.freeze(openEffects.map(i => i === from ? to : i > from && i <= to ? i - 1 : i >= to && i < from ? i + 1 : i));
           }
         }
-        this.#publish({ document, openEffects });
+        this.#commitEdit({ document, openEffects });
       }
       return { ok: true };
     }
@@ -1029,8 +1041,7 @@ export class EditorEngine {
         ? pastePaint(command === "fill.paste" ? "fill" : "stroke", before.document, before.selection, p, this.#copiedPaint, this.#vectorEdit, this.#documentIdentity)
         : writeFill(command as Exclude<keyof typeof fillSpecs, "fill.copy" | "fill.paste">, before.document, before.selection, p, this.#vectorEdit);
       if (document !== before.document) {
-        this.#undo.push({ document: before.document, selection: before.selection }); this.#redo = [];
-        this.#publish({ document });
+        this.#commitEdit({ document });
       }
       return { ok: true };
     }
@@ -1042,9 +1053,7 @@ export class EditorEngine {
           command === "node.set" ? undefined : command)
         : executeStrokeList(command, before.document, before.selection, p);
       if (document !== before.document) {
-        this.#undo.push({ document: before.document, selection: before.selection });
-        this.#redo = [];
-        this.#publish({ document, selection: Object.freeze(before.selection.filter(id => document.nodes[id] && pageForNode(document, id) === document.currentPage)) });
+        this.#commitEdit({ document, selection: Object.freeze(before.selection.filter(id => document.nodes[id] && pageForNode(document, id) === document.currentPage)) });
       }
       return { ok: true, ...(warnings.length ? { warnings } : {}) };
     }
@@ -1052,12 +1061,9 @@ export class EditorEngine {
     if (Object.hasOwn(pageSpecs, command)) {
       const before = this.#snapshot;
       const changed = executePage(command, before.document, before.selection, this.#nextId, p);
-      if (command !== "page.select" && !sameContent(before.document, changed.document)) {
-        this.#undo.push({ document: before.document, selection: before.selection });
-        this.#redo = [];
+      if (changed.document !== before.document || changed.selection !== before.selection) {
+        this.#commitEdit({document:changed.document, selection:changed.selection}, {record:command !== "page.select" && !sameContent(before.document,changed.document), nextId:changed.nextId});
       }
-      this.#nextId = changed.nextId;
-      if (changed.document !== before.document || changed.selection !== before.selection) this.#publish({ document: changed.document, selection: changed.selection });
       if (command === "page.select" || command !== "page.duplicate" && changed.document.currentPage !== before.document.currentPage) this.updateView(fitPage(this.#view, changed.document));
       return changed.result;
     }
@@ -1145,9 +1151,9 @@ export class EditorEngine {
     this.pen.finish(); this.pencil.cancel();
     const live=this.currentTextEdit() && this.#interaction;
     if (!live) this.cancelInteraction();
-    const document=live?.document ?? this.#snapshot.document;
+    const {document,nextId} = live ? this.#prepareEdit(live.document,live.nextId) : {document:this.#snapshot.document,nextId:this.#nextId};
     const revision = ++this.#saveSequence, opening = this.#openSequence;
-    const archive = await encodeFigcraftBlob(document, String(live?.nextId ?? this.#nextId));
+    const archive = await encodeFigcraftBlob(document, String(nextId));
     const data = await output(archive);
     if (!this.#snapshot.editable || opening !== this.#openSequence) throw new Error("Save was cancelled because the document or identity changed");
     this.#pendingSaves.set(revision, document);
@@ -1230,11 +1236,10 @@ export class EditorEngine {
       const next = replacing ? replaceImage(before, this.#nextId, image, p, source ? regionState : undefined) : placeImage(before, this.#nextId, image, source?.centre ? {...placement,...centrePastedImage(image,centre)} : placement);
       // Recovery uses this same bounded native archive. A placement that cannot be stored
       // must leave history, selection and the previous document intact.
-      await prepareArchive(next.document, String(next.nextId));
+      const prepared = this.#prepareEdit(next.document,next.nextId);
+      await prepareArchive(prepared.document,String(prepared.nextId));
       checkCurrent();
-      this.#undo.push({ document: before.document, selection: before.selection }); this.#redo = [];
-      this.#nextId = next.nextId;
-      this.#publish({ document: next.document, selection: next.selection });
+      this.#commitEdit({document:next.document, selection:next.selection}, {nextId:next.nextId});
       return next.result;
     }
 
@@ -1259,7 +1264,6 @@ export class EditorEngine {
   }
   #create(command: string, p: Record<string, unknown>): Record<string, unknown> {
     const before = this.#snapshot, next = createLayer(before, this.#nextId, command, p, this.#view);
-    this.#undo.push({ document: before.document, selection: before.selection }); this.#redo = []; this.#nextId = next.nextId;
-    this.#publish({ document: next.document, selection: next.selection }); return { id: next.id };
+    this.#commitEdit({document:next.document, selection:next.selection}, {nextId:next.nextId}); return { id: next.id };
   }
 }
