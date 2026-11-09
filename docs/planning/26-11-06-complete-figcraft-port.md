@@ -6,15 +6,15 @@
 |---|---|
 | Overall status | In progress. [Execution checkpoint](26-11-07-full-port-resume.md). |
 | Active slice | Shared styles, variables and linked libraries. [Dated plan](26-11-09-styles-variables-libraries.md). |
-| Active phase | Row 10 implementation. Native local style records, authoring, propagation, inspector and Assets workflows and frame layout guides are verified. |
+| Active phase | Row 10 implementation. Local style editing and native variable collection and mode management are verified. |
 | Upstream baseline | Styles reference a2e87433. Components reference 79c36346. Global supported baseline 8eb0b876. |
-| Branch and last verified commit | prompt/full-figcraft-port at 8954761. The previous full production Chromium suite passed 269/269 at 0bf1eb6. The last complete slice release is 0.51.0. |
+| Branch and last verified commit | prompt/full-figcraft-port at ad4014a. Full production Chromium at 00d9e5e passed 273/273. Last complete slice release is 0.51.0. |
 | Completed slices | Rectangle/host-auth, bounded native persistence/recovery, supported-model pages, affine rectangle geometry/selection and solid appearance, plus nested group hierarchy, Frame containers, movement/transform gestures, rounded corners, ellipse/arc/ring and Polygon/Star editing verified locally; Line/Arrow and uniform solid strokes also verified; per-side Rectangle/Frame strokes, variable-width profiles and procedural brushes verified; vector networks, solid region/stroke rendering and Flatten/Reverse also verified; foundation commit `154f5a7`. Gradient, image, pattern, blend and mask releases now have local property matrices. [Blend evidence](../reports/26-11-09-blend-modes-parity.html). Auto layout and constraints passed the local release gate. [Release evidence](../reports/26-11-09-auto-layout.md). [Local components, instances, variant properties, slots and Assets](../reports/26-11-09-components-instances.md) passed the 0.51.0 gate. |
 | Remaining slices | Continue incomplete roadmap rows, excluding the user-deferred plugin and widget family. See each slice matrix for outstanding integrations. |
-| Tests last passed | At 8954761 strict TypeScript, both builds, 1,891 pure tests, two local Auth integrations and five focused Chromium tests passed. Native checks cover 1,536 catalogue comparisons, 3,600 style command/query comparisons and 320 guide fixtures. [Row 10 evidence](26-11-09-styles-variables-libraries.md#style-authoring-and-frame-guides). |
+| Tests last passed | At ad4014a both builds, strict types, 1,896 pure tests and two local Auth checks passed. Variable resolution matched 11,420 Rust readbacks and collection commands matched 1,296 native results. [Browser and native evidence](26-11-09-styles-variables-libraries.md#local-style-editors-and-variable-collections). |
 | Files currently in progress | [Shared styles, variables and libraries](26-11-09-styles-variables-libraries.md). |
 | Blockers | No blocker. Use local Graphify for all remaining slices. The scoped Supabase read succeeded. |
-| Exact next action | Finish local style folder and ordering controls and explicit definition editors. Then implement variable collections, modes and typed resolution against native fixtures. |
+| Exact next action | Implement variable creation and value edits, including typed aliases, alpha and mix expressions, inherited overrides and cycle refusal. Then cover bindings, interchange and linked libraries. |
 | Last updated | 2026-11-10 |
 
 ## Scope and continuation

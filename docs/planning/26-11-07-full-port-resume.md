@@ -1,6 +1,6 @@
 # Full Figcraft port resume checkpoint
 
-Current checkpoint at 8954761. Local style authoring, application, propagation and frame layout guides passed production browser checks, strict types, both builds, 1,891 pure tests and two local Auth integrations. The full Chromium run at 0bf1eb6 passed 269/269. Finish local style folder and ordering controls and explicit definition editors. Then implement variable collections, modes and typed resolution against native fixtures. [Row 10 evidence](26-11-09-styles-variables-libraries.md#style-authoring-and-frame-guides).
+Current checkpoint at ad4014a. Native variables, expressions, collections and modes passed the signed-in browser workflow, both builds, strict types, 1,896 pure tests and two local Auth checks. The full Chromium suite passed 273/273 at 00d9e5e. Implement variable creation and value edits, including typed aliases, alpha and mix expressions, inherited overrides and cycle refusal. Then cover bindings, interchange and linked libraries. [Row 10 evidence](26-11-09-styles-variables-libraries.md#local-style-editors-and-variable-collections).
 
 The 0.51.0 component candidate has passed both builds, strict TypeScript, 1,874 pure tests, two Auth integrations, native thumbnail comparisons and both 10,001-layer benchmarks. The subsequent full production browser run passed all 266 workflows. [Report and next action](../reports/26-11-09-components-instances.md).
 
