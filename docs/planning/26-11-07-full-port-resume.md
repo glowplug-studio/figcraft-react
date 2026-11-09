@@ -1,6 +1,8 @@
 # Full Figcraft port resume checkpoint
 
-At 425c44a remote variable imports and updates passed native and signed-in production checks. The 288-workflow regression is running. Next implement linked style imports and updates under [row 10](26-11-09-styles-variables-libraries.md#linked-variable-imports-and-updates).
+At a329a88 linked styles passed native file, command and signed-in browser verification. The 289-workflow regression is running. Continue the [linked component store and placement](26-11-09-styles-variables-libraries.md#linked-component-store-and-placement) on the same branch.
+
+At 425c44a remote variable imports and updates passed native and signed-in production checks. All 288 production Chromium workflows passed. Next implement linked style imports and updates under [row 10](26-11-09-styles-variables-libraries.md#linked-variable-imports-and-updates).
 
 At e9cee6b a separate document can link and recover a published file. All 287 production workflows passed. Continue linked variable imports and updates from the [consumer reference](26-11-09-styles-variables-libraries.md#linked-consumer-files).
 
