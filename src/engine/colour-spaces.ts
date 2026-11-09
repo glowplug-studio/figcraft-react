@@ -136,14 +136,24 @@ export function outsideSrgb(value: Colour, from: ColourProfile): boolean {
 export function convertColourPixels(pixels: Uint8ClampedArray, from: ColourProfile, to: ColourProfile, proof?: {width:number; y:number}): void {
   if (from === to) return;
   const [red, green, blue] = to === "displayP3" ? toP3 : toSrgb;
+  // Adjacent pixels in editor backgrounds and flat fills frequently have identical RGBA.
+  // The proof hatch depends on screen position, so reuse only the ordinary conversion.
+  const words = !proof && pixels.byteOffset % 4 === 0 && pixels.length % 4 === 0
+    ? new Uint32Array(pixels.buffer,pixels.byteOffset,pixels.length / 4) : undefined;
+  let lastInput = -1, lastOutput = 0;
   for (let i = 0; i < pixels.length; i += 4) {
     if (!pixels[i + 3]) continue;
+    const index = i / 4;
+    if (words) {
+      const input = words[index];
+      if (input === lastInput) { words[index] = lastOutput; continue; }
+      lastInput = input;
+    }
     const r = decoded8[pixels[i]], g = decoded8[pixels[i + 1]], b = decoded8[pixels[i + 2]];
     const rr = red[0] * r + red[1] * g + red[2] * b;
     const gg = green[0] * r + green[1] * g + green[2] * b;
     const bb = blue[0] * r + blue[1] * g + blue[2] * b;
     if (proof && (outside(rr) || outside(gg) || outside(bb))) {
-      const index = i / 4;
       if ((index % proof.width + Math.floor(index / proof.width) + proof.y) % 8 < 4) {
         pixels[i] = pixels[i + 1] = pixels[i + 2] = 128;
         pixels[i + 3] = 255;
@@ -153,6 +163,7 @@ export function convertColourPixels(pixels: Uint8ClampedArray, from: ColourProfi
     pixels[i] = encodedByte(rr);
     pixels[i + 1] = encodedByte(gg);
     pixels[i + 2] = encodedByte(bb);
+    if (words) lastOutput = words[index];
   }
 }
 

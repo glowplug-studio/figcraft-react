@@ -14,6 +14,18 @@ import { solidPaint, readPaint } from "../../src/engine/solid-paint";
 import { pathNetwork } from "../../src/engine/svg-path";
 
 describe("document working space", () => {
+  it("converts repeated packed colours identically to unaligned pixel views and keeps alpha",()=>{
+    const samples=Uint8ClampedArray.from([30,210,61,200,30,210,61,200,30,210,61,0,30,210,61,200,30,210,61,15,30,210,61,15,255,0,0,255]);
+    for (const from of ["displayP3","srgb"] as const) {
+      const to=from==="srgb" ? "displayP3" : "srgb";
+      const fast=samples.slice(), offset=new Uint8ClampedArray(samples.length+1).subarray(1);
+      offset.set(samples);
+      convertColourPixels(fast,from,to); convertColourPixels(offset,from,to);
+      expect(fast).toEqual(offset);
+      expect(fast.filter((_,i)=>i%4===3)).toEqual(samples.filter((_,i)=>i%4===3));
+    }
+  });
+
   it("converts D65 primaries and preserves alpha and identity", () => {
     for (const name of ["P3", "display-p3", "Display P3", "display_P3"]) expect(parseColourProfile(name)).toBe("displayP3");
     expect(parseColourProfile("Adobe RGB")).toBeUndefined();
