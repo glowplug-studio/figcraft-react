@@ -6,15 +6,15 @@
 |---|---|
 | Overall status | In progress. [Execution checkpoint](26-11-07-full-port-resume.md). |
 | Active slice | Auto layout and constraints. [Dated plan](26-11-09-auto-layout.md). |
-| Active phase | Phase 4. Auto layout canvas and keyboard interactions. |
+| Active phase | Phase 5. Auto layout inspector and cross-feature verification. |
 | Upstream baseline | Auto layout reference 3839fe4a. Rich text reference a4251ca8. Global supported baseline 8eb0b876. |
-| Branch and last verified commit | prompt/full-figcraft-port. ebfbaf6 passed all eight 10,000-node layout gesture and heap runs. Pointer reordering at 984680e matched 2,400 native snapshots. |
+| Branch and last verified commit | prompt/full-figcraft-port. 0306139 passed three dense grid gap rechecks after the first full run exposed a frame-budget failure. Pointer reordering at 984680e matched 2,400 native snapshots. |
 | Completed slices | Rectangle/host-auth, bounded native persistence/recovery, supported-model pages, affine rectangle geometry/selection and solid appearance, plus nested group hierarchy, Frame containers, movement/transform gestures, rounded corners, ellipse/arc/ring and Polygon/Star editing verified locally; Line/Arrow and uniform solid strokes also verified; per-side Rectangle/Frame strokes, variable-width profiles and procedural brushes verified; vector networks, solid region/stroke rendering and Flatten/Reverse also verified; foundation commit `154f5a7`. Gradient, image, pattern, blend and mask releases now have local property matrices. [Blend evidence](../reports/26-11-09-blend-modes-parity.html). |
 | Remaining slices | Continue incomplete roadmap rows, excluding the user-deferred plugin and widget family. See each slice matrix for outstanding integrations. |
-| Tests last passed | ebfbaf6 passed 1,736 pure tests, two local Auth checks, strict types, both builds and eight Chromium performance runs. Both upstream egui gap-handle tests passed. The 4c42472 host passed 239/239 Chromium tests. Further evidence in the [slice plan](26-11-09-auto-layout.md). |
-| Files currently in progress | Numeric field interactions and the [property matrix](../reports/26-11-09-auto-layout-parity.html). |
+| Tests last passed | At 0306139 strict types, both builds, 1,755 pure tests and two Auth checks passed. Four signed-in inspector workflows passed. The 3,200 generated numeric expressions matched Rust. Full Chromium at ebfbaf6 passed 245/246. Follow-up grid-gap timings were 11.2–12.8 ms p95. |
+| Files currently in progress | Mixed dimension editing and the [property matrix](../reports/26-11-09-auto-layout-parity.html). |
 | Blockers | No blocker. Use local Graphify for all remaining slices. The scoped Supabase read succeeded. |
-| Exact next action | Verify numeric inspector interactions, finish the layout property audit and check the full Chromium run at ebfbaf6. |
+| Exact next action | Verify mixed dimension editing, finish the layout property audit and check the 247-test production Chromium run at 0306139. |
 | Last updated | 2026-11-09 |
 
 ## Scope and continuation

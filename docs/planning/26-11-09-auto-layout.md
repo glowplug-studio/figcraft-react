@@ -4,10 +4,10 @@
 
 | Field | Current value |
 |---|---|
-| Reference | Figcraft fork and original upstream at 3839fe4a0cb4897c1fed1fb03e0b60e191ff61cb. React ebfbaf6 on prompt/full-figcraft-port. The global supported baseline is 8eb0b876. |
-| Evidence | Local merged Graphify index has 31,851 nodes and 105,143 edges. The Rust index links the grid-placement tests to grid_place. The React index links resizeChildren to withLayerSize and hierarchy tests to setRectangleProperties. UI labels and JSON defaults were checked directly. |
+| Reference | Figcraft fork and original upstream at 3839fe4a0cb4897c1fed1fb03e0b60e191ff61cb. React 0306139 on prompt/full-figcraft-port. The global supported baseline is 8eb0b876. |
+| Evidence | Local merged Graphify index has 31,869 nodes and 105,203 edges. The Rust index links the grid-placement tests to grid_place. The React index links resizeChildren to withLayerSize and hierarchy tests to setRectangleProperties. UI labels and JSON defaults were checked directly. |
 | Backend | The scoped Figcraft MCP read returned zero public tables. Layout settings are part of the native document and its existing local persistence. |
-| Next action | Finish numeric field interactions and the open checks in the [property matrix](../reports/26-11-09-auto-layout-parity.html). |
+| Next action | Verify mixed dimension editing and the open checks in the [property matrix](../reports/26-11-09-auto-layout-parity.html). |
 | Blockers | None. |
 
 ## Implementation and verification order
@@ -75,3 +75,11 @@ At 8aa940f, the two pinned upstream egui gap-handle tests passed headlessly. The
 Chromium exercised wrapping and grid spacing in a 10,000-node document arranged as either 100 frames or one frame with 9,998 children. The initial dense frame times at the 95th percentile were 23.5 ms for reordering and 31.1 ms for grid gaps. CPU profiles identified repeated affine checks, shared parent transforms and per-child grid allocations. The final build reuses parent geometry, takes a consecutive-placement path for unit cells, aggregates single-track requirements, and clips offscreen grid guides. All 3,840 native keyboard steps, 2,400 pointer snapshots, 200 nested grid documents and 1,250 mixed flow documents still matched.
 
 Two independent repetitions of all four Chromium scenarios passed. Each repetition measured 60 frames after warm-up. The multi-frame results ranged from 4.3 to 5.5 ms p95. Dense wrapped reordering took 10.3–10.4 ms and dense grid spacing took 15.3–16.1 ms. Retained JavaScript heap growth after collection was at most 987,576 bytes. Each gesture cancelled to the initial document with zero root publications. These are isolated gesture measurements on this machine. Whole-editor long-session profiling remains on the master roadmap. Strict types, both builds, 1,736 pure tests and two local Auth tests passed. Full production Chromium verification started on this build.
+
+## Numeric entry and dense-grid verification at 0306139
+
+The expression parser at 8acf532 matched 3,200 results from the pinned Rust field parser, including rejection, relative percentages, units, decimal commas and nested arithmetic. Chromium exercised frame gaps, paired and individual padding, modifier rates, keyboard stepping, fractional tracks, cancellation and undo. The four signed-in inspector workflows passed. A separate test verified preview ownership across cancelled gestures and multiple selected frames.
+
+The full browser run on ebfbaf6 passed 245/246. The dense grid gap measured 18.5 ms p95. At 0306139 validation reuses repeated sibling ancestry and tests translated bounds directly. Three independent Chromium runs measured 12.8, 11.2 and 11.6 ms p95 on 9,998 children, with no editor publications, correct cancellation and less than 1 MB retained. Strict types, both builds, 1,755 pure tests and two local Auth checks passed. The 247-test full-host rerun is in progress. The local graph includes React beginLayoutField and parseFieldEdit and native right.rs field_of. Two test files yielded no graph symbols and were verified directly.
+
+Continue with the Design inspector’s single and mixed width/height fields, per-layer relative edits, multi-frame clipping and the remaining property-by-property audit. Keep the global baseline unchanged.
