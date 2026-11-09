@@ -1,3 +1,4 @@
+import { fontGeometryCache } from "./font-generation";
 import { compositeSurface } from "./blend-composite";
 import { textNodeLayout } from "./text-node-layout";
 import { paintPath } from "./paint-path";
@@ -20,13 +21,13 @@ import { brushReachFactor } from "./brush";
 import { paintVectorStrokeMask } from "./vector-stroke";
 
 interface FilledStroke { readonly path: Path2D; readonly rule: CanvasFillRule }
-const paths = new WeakMap<LayerNode, FilledStroke | null>();
-const profiles = new WeakMap<LayerNode, Path2D | null>();
+const paths = fontGeometryCache<LayerNode, FilledStroke | null>();
+const profiles = fontGeometryCache<LayerNode, Path2D | null>();
 const shapes = new WeakMap<readonly PathCommand[], Path2D>();
 const surfaces = new WeakMap<CanvasRenderingContext2D, HTMLCanvasElement>();
-const boundsCache = new WeakMap<LayerNode, { matrix: Affine; bounds: Rectangle }>();
+const boundsCache = fontGeometryCache<LayerNode, { matrix: Affine; bounds: Rectangle }>();
 interface Mask { readonly surface: HTMLCanvasElement; readonly context: CanvasRenderingContext2D; readonly matrix: readonly number[]; readonly left: number; readonly top: number; readonly width: number; readonly height: number; readonly bytes: number }
-const masks = new WeakMap<CanvasRenderingContext2D, { entries: Map<LayerNode, Mask>; bytes: number }>();
+const masks = fontGeometryCache<CanvasRenderingContext2D, { entries: Map<LayerNode, Mask>; bytes: number }>();
 // Raster reuse is bounded by both pixel bytes and entry count; large masks use the scratch pool.
 const MASK_BUDGET = 16 * 1024 * 1024, MASK_COUNT = 256;
 const clampAlpha = (value: number): number => Math.max(0, Math.min(1, value));

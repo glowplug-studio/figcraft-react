@@ -1,3 +1,4 @@
+import { compareScalarKeys } from "./text-breaks";
 import type { ShapingFace } from "./shaping-face";
 import { normaliseFontStyle } from "./font-tables";
 import { fontSegments } from "./font-segments";
@@ -21,9 +22,25 @@ const weightsOnly = (words: readonly string[]) => words.length > 0 && words.ever
 const hasStyle = (face: ShapingFace, normal: string) => normaliseFontStyle(face.style) === normal ||
   face.instances.some(i=>normaliseFontStyle(i.name) === normal);
 
-/** The loaded portion of the native font database. Each editor can register its own fonts. */
+export interface LocalFontName {readonly id:number; readonly family:string; readonly style:string; readonly postscript:string}
+function pendingWeight(style:string) {
+  const weight=/^w([0-9])$/.exec(normaliseFontStyle(style));
+  return weight ? Number(weight[1])*100 : styleWeight(style);
+}
+function pendingDistance(want:string,have:string) {
+  if (normaliseFontStyle(want)===normaliseFontStyle(have)) return 0;
+  const slants=(s:string)=>/italic|oblique/i.test(s);
+  return 1+Math.abs(pendingWeight(want)-pendingWeight(have))+(slants(want)===slants(have) ? 0 : 1000);
+}
+
+/** Loaded faces and the names of browser fonts awaiting their first use. */
 export class FontLibrary {
   readonly #families = new Map<string,ShapingFace[]>();
+  readonly #names=new Map<string,string>();
+  readonly #pending=new Map<string,LocalFontName[]>();
+  readonly #offered=new Map<number,LocalFontName>();
+  readonly #asked=new Set<number>();
+  constructor(private readonly requestLocal?:(font:LocalFontName)=>void) {}
   readonly #familyPrefixes = new Set<string>();
   readonly #squashed = new Map<string,string>();
   readonly #fallbacks = new Map<string,readonly ShapingFace[]>();
@@ -33,40 +50,101 @@ export class FontLibrary {
     const key = face.family.toLowerCase(), group = this.#families.get(key);
     if (group?.includes(face)) return;
     if (group) group.push(face);
-    else {
-      this.#families.set(key,[face]);
-      for (let i=key.indexOf(" "); i>=0; i=key.indexOf(" ",i+1)) this.#familyPrefixes.add(key.slice(0,i));
-    }
+    else this.#families.set(key,[face]);
+    this.#name(key,face.family);
+    this.#fallbacks.clear();
+    this.#emoji=undefined;
+  }
+
+  #name(key:string,name:string) {
+    if (this.#names.has(key)) return;
+    this.#names.set(key,name);
+    for (let i=key.indexOf(" "); i>=0; i=key.indexOf(" ",i+1)) this.#familyPrefixes.add(key.slice(0,i));
     const compact = squash(key);
     if (!this.#squashed.has(compact)) this.#squashed.set(compact,key);
+  }
+
+  offerLocal(entries:readonly LocalFontName[]) {
+    const added:string[]=[];
+    for (const entry of entries) {
+      const family=entry.family.trim(), key=family.toLowerCase();
+      if (!family || this.#offered.has(entry.id)) continue;
+      if (this.#families.get(key)?.some(face=>hasStyle(face,normaliseFontStyle(entry.style)))) continue;
+      if (!this.#names.has(key)) added.push(family);
+      this.#name(key,family);
+      const pending=this.#pending.get(key);
+      if (pending) pending.push(entry);
+      else this.#pending.set(key,[entry]);
+      this.#offered.set(entry.id,entry);
+    }
     this.#fallbacks.clear();
-    this.#emoji = undefined;
+    this.#emoji=undefined;
+    return added.sort((a,b)=>compareScalarKeys(a.toLowerCase(),b.toLowerCase()));
+  }
+
+  finishLocal(id:number,face?:ShapingFace) {
+    const entry=this.#offered.get(id);
+    if (!entry) return;
+    const key=entry.family.trim().toLowerCase();
+    this.#offered.delete(id);
+    this.#asked.delete(id);
+    const remaining=this.#pending.get(key)!.filter(f=>f.id!==id);
+    if (remaining.length) this.#pending.set(key,remaining);
+    else this.#pending.delete(key);
+    if (face) this.add(face);
+    if (!this.#families.has(key) && !remaining.length) {
+      this.#names.delete(key);
+      const compact=squash(key);
+      if (this.#squashed.get(compact)===key) {
+        this.#squashed.delete(compact);
+        for (const other of this.#names.keys()) if (squash(other)===compact) { this.#squashed.set(compact,other); break; }
+      }
+    }
+    this.#fallbacks.clear();
+    this.#emoji=undefined;
+  }
+
+  #requestNearest(key:string,style:string) {
+    if (!this.requestLocal) return;
+    const pending=this.#pending.get(key);
+    if (!pending?.length) return;
+    let nearest=0, distance=pendingDistance(style,pending[0].style);
+    for (let i=1;distance>0 && i<pending.length;i++) {
+      const d=pendingDistance(style,pending[i].style);
+      if (d<distance) { nearest=i; distance=d; }
+    }
+    // Native pending reads return to the back of the family, including repeated requests.
+    const [best]=pending.splice(nearest,1);
+    pending.push(best);
+    if (this.#asked.has(best.id)) return;
+    this.#asked.add(best.id);
+    this.requestLocal(best);
   }
 
   #key(family: string) {
     const key = family.trim().toLowerCase();
-    if (this.#families.has(key)) return key;
+    if (this.#names.has(key)) return key;
     const alias = key.replace(/^\.+/,"");
-    if (systemAliases.has(alias) && this.#families.has("system font")) return "system font";
-    if ((alias === "sf compact text" || alias === "sf compact display") && this.#families.has("sf compact")) return "sf compact";
+    if (systemAliases.has(alias) && this.#names.has("system font")) return "system font";
+    if ((alias === "sf compact text" || alias === "sf compact display") && this.#names.has("sf compact")) return "sf compact";
     return this.#squashed.get(squash(key)) ?? key;
   }
 
   #resolve(family: string,style: string): readonly [string,string] {
     const key = this.#key(family), normal = normaliseFontStyle(style);
     const faces = this.#families.get(key);
-    if (faces && (!this.#familyPrefixes.has(key) || faces.some(face=>hasStyle(face,normal)))) return [key,style];
+    if (this.#names.has(key) && (!this.#familyPrefixes.has(key) || faces?.some(face=>hasStyle(face,normal)) || this.#pending.get(key)?.some(f=>normaliseFontStyle(f.style)===normal))) return [key,style];
     const words = style.trim().split(/\s+/).filter(w=>w && !/^(italic|oblique)$/i.test(w));
     if (weightsOnly(words) && normaliseFontStyle(words.join("")) !== "regular") {
       const whole = this.#key(key+" "+style), upright = this.#key(key+" "+words.join(" "));
-      if (this.#families.has(whole)) return [whole,"Regular"];
-      if (this.#families.has(upright)) return [upright,/italic/i.test(style) ? "Italic" : "Regular"];
+      if (this.#names.has(whole)) return [whole,"Regular"];
+      if (this.#names.has(upright)) return [upright,/italic/i.test(style) ? "Italic" : "Regular"];
     }
-    if (!faces) {
+    if (!this.#names.has(key)) {
       const parts = family.trim().split(/\s+/);
       for (let split=parts.length-1; split>0; split--) {
         const base = this.#key(parts.slice(0,split).join(" ")), rest = parts.slice(split);
-        if (this.#families.has(base) && weightsOnly(rest)) {
+        if (this.#names.has(base) && weightsOnly(rest)) {
           return [base,rest.join(" ")+(["","regular","normal"].includes(normal) ? "" : " "+style)];
         }
       }
@@ -76,14 +154,14 @@ export class FontLibrary {
 
   hasFamily(family:string):boolean {
     const [resolved]=this.#resolve(family,"Regular");
-    if (this.#families.has(resolved)) return true;
+    if (this.#names.has(resolved)) return true;
     const prefix=this.#key(family)+" ";
-    return this.#familyPrefixes.has(prefix.trimEnd()) && [...this.#families.keys()].some(key=>
+    return this.#familyPrefixes.has(prefix.trimEnd()) && [...this.#names.keys()].some(key=>
       key.startsWith(prefix) && weightsOnly(key.slice(prefix.length).split(/\s+/)));
   }
 
   families(): string[] {
-    return [...this.#families.keys()].sort().map(key => this.#families.get(key)![0].family);
+    return [...this.#names.keys()].sort(compareScalarKeys).map(key=>this.#names.get(key)!);
   }
 
   styles(family: string): string[] {
@@ -93,6 +171,9 @@ export class FontLibrary {
   styleWeights(family: string): {name:string; weight:number}[] {
     const key = this.#key(family);
     const entries: {weight:number; italic:boolean; index:number; name:string}[] = [];
+    for (const local of this.#pending.get(key) ?? []) {
+      entries.push({weight:Math.min(1000,Math.max(1,pendingWeight(local.style))),italic:/italic/i.test(local.style),index:0,name:local.style});
+    }
     for (const face of this.#families.get(key) ?? []) {
       if (!face.instances.length) entries.push({weight:face.weight, italic:face.italic, index:0, name:face.style});
       face.instances.forEach(({name, coordinates}, index) => {
@@ -101,13 +182,17 @@ export class FontLibrary {
       });
     }
     if (this.#familyPrefixes.has(key)) {
-      for (const [other, faces] of this.#families) {
+      for (const [other, display] of this.#names) {
         if (!other.startsWith(key + " ")) continue;
-        const suffix = faces[0].family.slice(key.length + 1).trim();
+        const suffix = display.slice(key.length + 1).trim();
         if (!weightsOnly(suffix.split(/\s+/))) continue;
         const italic = /italic|oblique/i.test(suffix);
-        for (const face of faces) entries.push({weight:face.weight, italic:face.italic || italic, index:0,
-          name:face.italic && !italic ? suffix + " Italic" : suffix});
+        const styles=[
+          ...(this.#families.get(other) ?? []).map(f=>({weight:f.weight,slanted:f.italic})),
+          ...(this.#pending.get(other) ?? []).map(f=>({weight:pendingWeight(suffix),slanted:/italic/i.test(f.style)})),
+        ];
+        for (const {weight,slanted} of styles) entries.push({weight,italic:slanted || italic,index:0,
+          name:slanted && !italic ? suffix + " Italic" : suffix});
       }
     }
     entries.sort((a,b) => a.weight-b.weight || Number(a.italic)-Number(b.italic) || a.index-b.index ||
@@ -121,12 +206,13 @@ export class FontLibrary {
     });
   }
 
-  find(family: string,style: string) {
+  find(family: string,style: string, fallbackOnly=false) {
     const [key,requested] = this.#resolve(family,style), faces = this.#families.get(key);
-    if (!faces) return undefined;
+    if (!faces) { this.#requestNearest(key,requested); return undefined; }
     const normal = normaliseFontStyle(requested);
     const exact = faces.find(face=>normaliseFontStyle(face.style) === normal) ?? faces.find(face=>hasStyle(face,normal));
     if (exact) return exact;
+    if (!fallbackOnly) this.#requestNearest(key,requested);
     const weight = styleWeight(requested), italic = /italic/i.test(requested);
     let nearest: ShapingFace | undefined, best = Infinity;
     for (const face of faces) {
@@ -159,7 +245,7 @@ export class FontLibrary {
   }
 
   #ordered(families: readonly string[],style: string) {
-    return families.flatMap(family=>this.find(family,style) ?? []);
+    return families.flatMap(family=>this.find(family,style,true) ?? []);
   }
 
   fallbacks(style: string): readonly ShapingFace[] {

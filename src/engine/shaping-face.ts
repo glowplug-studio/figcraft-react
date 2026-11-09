@@ -1,3 +1,4 @@
+import type { LocalFontName } from "./font-library";
 import * as hb from "#figcraft-harfbuzz";
 import { FontColourTables } from "./font-colour";
 import { fontTables, fontVariations, normaliseFontStyle, type FontAxis, type FontInstance } from "./font-tables";
@@ -111,18 +112,25 @@ export class ShapingFace {
     this.lineGap = metrics.lineGap;
   }
 
-  static read(bytes: Uint8Array): readonly ShapingFace[] {
+  static read(bytes: Uint8Array,local?:LocalFontName): readonly ShapingFace[] {
     const count = faceCount(bytes);
     if (!count) return [];
     const blob = new hb.Blob(bytes);
     const faces: ShapingFace[] = [];
-    for (let index = 0; index < count; index++) {
+    let first=0;
+    if (local?.postscript && count>1) {
+      for (let i=0;i<count;i++) {
+        if (faceName(new hb.Face(blob,i),6)===local.postscript) { first=i; break; }
+      }
+    }
+    const end=local ? first+1 : count;
+    for (let index = first; index < end; index++) {
       const tables = fontTables(bytes,index);
       if (!tables.has("head") || !tables.has("maxp")) continue;
       const face = new hb.Face(blob,index);
-      const family = faceName(face,16) || faceName(face,1);
+      const family = local?.family.trim() || faceName(face,16) || faceName(face,1);
       if (!family) continue;
-      const style = faceName(face,17) || faceName(face,2) || "Regular";
+      const style = local?.style.trim() || faceName(face,17) || faceName(face,2) || "Regular";
       faces.push(new ShapingFace(face,family,style,tables,blob,bytes.byteOffset));
     }
     return Object.freeze(faces);

@@ -1,3 +1,4 @@
+import { fontGeometryCache } from "./font-generation";
 import { transformPoint } from "./affine";
 import type { PathCommand } from "./corners";
 import { isLeaf, layerTransform, rectanglePaints, type BooleanNode, type BooleanOperation, type Document, type LayerNode, type VectorNode } from "./document";
@@ -15,13 +16,13 @@ import { vectorStrokePlan } from "./vector-stroke";
 
 type Path = readonly PathCommand[];
 type Prefix = { operand: Path; op: BooleanOperation; result: Path };
-const snapshots = new WeakMap<Document, Map<string, VectorNode | Error>>();
+const snapshots = fontGeometryCache<Document, Map<string, VectorNode | Error>>();
 const prefixes = new Map<string, Prefix[]>();
 
 // Keep a refusal while its immutable operand subtree is unchanged. A reference to a retired
 // document must not retain its vectors, undo history or unrelated pages.
 type Refusal = { snapshot: WeakRef<Document>; error: BooleanComplexityError };
-const refused = new WeakMap<BooleanNode, Map<number, Refusal>>();
+const refused = fontGeometryCache<BooleanNode, Map<number, Refusal>>();
 
 function sameSubtree(previous: Document, doc: Document, node: LayerNode, depth: number): boolean {
   if (previous.nodes[node.id] !== node) return false;

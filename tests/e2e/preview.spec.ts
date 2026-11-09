@@ -4292,3 +4292,75 @@ test("missing fonts lists the document's families and uses a fallback until the 
   await show.click(); await expect(dialog).toContainText("All the fonts this file uses are installed.");
   await page.keyboard.press("Escape"); await expect(dialog).toHaveCount(0);
 });
+
+test("local font access reads only the selected face, then repaints and refits the saved text box",async ({page})=>{
+  const bytes=await readFile(new URL("../../fonts/inter/Inter-Bold.ttf",import.meta.url));
+  const engine=new EditorEngine(), id=(await engine.executeAsync("text.create",{name:"Local font sample",text:"Wide WWW and iii",x:35,y:70})).id;
+  engine.execute("node.set",{id,props:{fontFamily:"Figcraft Local Test"}});
+  const initial=Number(engine.execute("node.get",{id})!.width);
+  await page.addInitScript(({encoded})=>{
+    const events:string[]=[];
+    Object.assign(window,{fontReads:events,queryLocalFonts:async ()=>{
+      events.push("query");
+      return ["Figcraft Local Test","Figcraft Unused"].map(family=>({
+        family,style:"Regular",postscriptName:"Inter-Bold",
+        async blob(){events.push(family); return new Blob([Uint8Array.from(atob(encoded),c=>c.charCodeAt(0))]);}
+      }));
+    }});
+  },{encoded:bytes.toString("base64")});
+  await login(page);
+  await page.getByLabel("Open Figcraft file",{exact:true}).setInputFiles({name:"local.figcraft",mimeType:"application/octet-stream",buffer:Buffer.from(await encodeFigcraft(engine.getSnapshot().document))});
+  await page.getByRole("region",{name:"Layers",exact:true}).getByRole("button",{name:"Local font sample"}).click();
+  const panel=page.getByRole("group",{name:"Typography",exact:true});
+  const reads=()=>page.evaluate(()=>(window as Window & {fontReads?:string[]}).fontReads);
+  expect(await reads()).toEqual([]);
+  const before=await page.locator("canvas").first().evaluate(el=>(el as HTMLCanvasElement).toDataURL());
+  await panel.getByRole("button",{name:"Use fonts installed on this computer…"}).click();
+  await expect.poll(reads).toEqual(["query","Figcraft Local Test"]);
+  await expect(panel.getByRole("option",{name:"Figcraft Unused"})).toHaveCount(1);
+  await expect.poll(()=>page.locator("canvas").first().evaluate(el=>(el as HTMLCanvasElement).toDataURL())).not.toBe(before);
+  const download=page.waitForEvent("download");await page.getByRole("button",{name:"Save as",exact:true}).click();
+  const saved=await decodeFigcraft(await readFile((await (await download).path())!));
+  const result=saved.document.nodes[String(id)];
+  expect(result).toMatchObject({kind:"text",text:{style:{fontFamily:"Figcraft Local Test"}}});
+  expect((result as {width:number}).width).toBeGreaterThan(initial);
+  expect(await reads()).toEqual(["query","Figcraft Local Test"]);
+});
+
+test("denied local font permission keeps the text editable and asks only once",async ({page})=>{
+  await page.addInitScript(()=>Object.assign(window,{queryLocalFonts:async ()=>{throw new DOMException("Denied","NotAllowedError");}}));
+  const engine=new EditorEngine();await engine.executeAsync("text.create",{name:"Local denial",text:"Sample",x:80,y:80});
+  await login(page);
+  await page.getByLabel("Open Figcraft file",{exact:true}).setInputFiles({name:"deny.figcraft",mimeType:"application/octet-stream",buffer:Buffer.from(await encodeFigcraft(engine.getSnapshot().document))});
+  await page.getByRole("region",{name:"Layers",exact:true}).getByRole("button",{name:"Local denial"}).click();
+  const panel=page.getByRole("group",{name:"Typography",exact:true});
+  const ask=panel.getByRole("button",{name:"Use fonts installed on this computer…"});
+  await ask.click();await expect(ask).toHaveCount(0);
+  await panel.getByLabel("Font size",{exact:true}).fill("20");await panel.getByLabel("Font size",{exact:true}).press("Enter");
+  await expect(panel.getByLabel("Font size",{exact:true})).toHaveValue("20");
+});
+
+test("Chromium's granted system font catalogue supplies an actual face to the signed-in editor",async ({page})=>{
+  await login(page);
+  const client=await page.context().newCDPSession(page);
+  const {targetInfo:{browserContextId}}=await client.send("Target.getTargetInfo");
+  await client.send("Browser.setPermission",{browserContextId,origin:new URL(page.url()).origin,permission:{name:"local-fonts"},setting:"granted"});
+  const engine=new EditorEngine(), id=(await engine.executeAsync("text.create",{name:"System font",text:"iiiiiiiiiiii",x:20,y:50})).id;
+  const original=Number(engine.execute("node.get",{id})!.width);
+  await page.getByLabel("Open Figcraft file",{exact:true}).setInputFiles({name:"system.figcraft",mimeType:"application/octet-stream",buffer:Buffer.from(await encodeFigcraft(engine.getSnapshot().document))});
+  await page.getByRole("region",{name:"Layers",exact:true}).getByRole("button",{name:"System font"}).click();
+  const panel=page.getByRole("group",{name:"Typography",exact:true});
+  const ask=panel.getByRole("button",{name:"Use fonts installed on this computer…"});
+  await ask.click();await expect(ask).toHaveCount(0);
+  const choose=panel.getByLabel("Font family",{exact:true});
+  const families=await choose.locator("option").allTextContents();
+  const mono=["Courier New","DejaVu Sans Mono","Liberation Mono","Menlo","Courier"].find(f=>families.includes(f));
+  test.info().annotations.push({type:"real-font",description:mono ?? "No known system monospace face exposed"});
+  // Some headless OS images intentionally expose no installed fonts, even after permission.
+  if (!mono) {await expect(choose).toHaveValue("Inter");return;}
+  await choose.selectOption(mono);
+  await expect.poll(async()=>Number(await page.getByLabel("Edit Width",{exact:true}).inputValue())).toBeGreaterThan(original*1.5);
+  const download=page.waitForEvent("download");await page.getByRole("button",{name:"Save as",exact:true}).click();
+  const saved=await decodeFigcraft(await readFile((await (await download).path())!));
+  expect(saved.document.nodes[String(id)]).toMatchObject({kind:"text",text:{style:{fontFamily:mono}}});
+});

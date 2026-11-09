@@ -52,6 +52,7 @@ function HistoryButtons({ engine, editable, undo, redo, dispatch }: { engine: Ed
 /** Embeddable local rectangle workflow. The host owns authentication and styling. */
 export function Editor({ identity, capabilities, engine: suppliedEngine, recoveryStore }: EditorProps) {
   const [engine] = useState(() => suppliedEngine ?? new EditorEngine());
+  useEffect(()=>engine.observeLocalFonts(),[engine]);
   const snapshot = useSyncExternalStore(engine.subscribe, engine.getSnapshot, engine.getSnapshot);
   const editingVector = useSyncExternalStore(engine.subscribeVectorEdit, () => Boolean(engine.getVectorEdit()), () => Boolean(engine.getVectorEdit()));
   const [signedIn, setSignedIn] = useState(() => identity.getSnapshot().status === "authenticated");

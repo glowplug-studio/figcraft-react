@@ -1,5 +1,6 @@
 import { executeTextFormat, isTextFormatCommand, textFormatSpecs } from "./text-format-commands";
 import { sameTextData, scalarCount } from "./text-ranges";
+import { subscribeFonts } from "./font-generation";
 import { missingFonts, refitText, type MissingFont } from "./text-refit";
 import { putTextOnPath } from "./text-path-commands";
 import { textLinkAt } from "./text-link";
@@ -385,6 +386,28 @@ export class EditorEngine {
     if (hit?.paint.type!=="image" || hit.paint.scale_mode!=="crop") return;
     const resource=this.getRenderDocument().images?.[hit.paint.image];
     if (resource) return {...hit,paint:hit.paint,resource};
+  }
+  /** Keep a mounted editor in step with asynchronous page-local font reads. */
+  observeLocalFonts() {
+    let needFit=false, queued=false, disposed=false;
+    const schedule=()=>{
+      if (!needFit || queued || this.interacting || !this.#snapshot.editable) return;
+      queued=true;
+      queueMicrotask(()=>{
+        queued=false;
+        if (disposed || this.interacting || !this.#snapshot.editable) return;
+        needFit=false;
+        this.execute("text.refit");
+      });
+    };
+    const detachCanvas=this.subscribeCanvas(schedule);
+    const detachFonts=subscribeFonts(loaded=>{
+      needFit ||= loaded;
+      if (this.#snapshot.missingFonts) this.#publish({missingFonts:missingFonts(this.#snapshot.document)});
+      else this.invalidateCanvas();
+      schedule();
+    });
+    return ()=>{disposed=true;detachFonts();detachCanvas();};
   }
   closeMissingFonts() { if (this.#snapshot.missingFonts) this.#publish({missingFonts:undefined}); }
   closeProfileDialog() { if (this.#snapshot.profileDialog) this.#publish({ profileDialog: false }); }

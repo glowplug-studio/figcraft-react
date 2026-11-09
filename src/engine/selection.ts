@@ -1,3 +1,4 @@
+import { fontGeometryCache } from "./font-generation";
 import { booleanResult } from "./boolean-result";
 import { isLeaf, nodeTypeName, type LayerNode } from "./document";
 import { hitsPath } from "./corners";
@@ -115,7 +116,7 @@ export function targetForLeaf(document: Document, leaf: NodeId, selection: reado
 }
 
 type MaskedChildren = Map<NodeId, LayerNode>;
-const siblingMasks = new WeakMap<Document,Map<readonly NodeId[],MaskedChildren | null>>();
+const siblingMasks = fontGeometryCache<Document,Map<readonly NodeId[],MaskedChildren | null>>();
 
 /** A hidden mask ends the preceding run. The boundary itself belongs to the run below for hits. */
 function masksBelow(document:Document, children:readonly NodeId[]) {

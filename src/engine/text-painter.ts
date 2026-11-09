@@ -1,3 +1,4 @@
+import { fontGeometryCache } from "./font-generation";
 import { tracePath } from "./corners";
 import { rectanglePaints, type TextNode } from "./document";
 import type { ColourBitmap } from "./font-bitmap";
@@ -39,7 +40,7 @@ function groupsFor(node: TextNode, scale: number) {
   return groups;
 }
 
-const groupsCache = new WeakMap<TextNode,{scale:number; groups: ReturnType<typeof groupsFor>}>();
+const groupsCache = fontGeometryCache<TextNode,{scale:number; groups: ReturnType<typeof groupsFor>}>();
 const bitmapCache = new WeakMap<ColourBitmap, HTMLCanvasElement>();
 function bitmapSurface(context: CanvasRenderingContext2D, bitmap: ColourBitmap) {
   let canvas = bitmapCache.get(bitmap);

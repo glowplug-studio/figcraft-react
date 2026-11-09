@@ -1,3 +1,4 @@
+import { fontGeometryCache } from "./font-generation";
 import { backdropParent } from "./backdrop-stack";
 import { multiply, transformBounds, type Affine } from "./affine";
 import { maskOutline } from "./boolean-result";
@@ -18,7 +19,7 @@ export function reserveLayerPixels(width:number,height:number,count:number) {
 }
 
 interface Outline {path:Path2D; rule:CanvasFillRule; bounds:Rectangle}
-const outlines=new WeakMap<Document,Map<string,Outline|undefined>>();
+const outlines=fontGeometryCache<Document,Map<string,Outline|undefined>>();
 
 function outlineFor(doc:Document,node:LayerNode,depth:number) {
   let cached=outlines.get(doc);

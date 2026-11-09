@@ -1,3 +1,4 @@
+import { fontGeneration } from "./font-generation";
 import type { Document } from "./document";
 import type { CanvasImages, PaintSteps } from "./image-renderer";
 
@@ -19,7 +20,7 @@ export class ImagePage {
     paint: (ctx: CanvasRenderingContext2D) => PaintSteps, invalidate: () => void) {
     this.#invalidate = invalidate;
     const matrix = target.getTransform();
-    const geometry = [target.canvas.width,target.canvas.height,width,height,origin.x,origin.y,zoom,
+    const geometry = [fontGeneration(),target.canvas.width,target.canvas.height,width,height,origin.x,origin.y,zoom,
       matrix.a,matrix.b,matrix.c,matrix.d,matrix.e,matrix.f];
     if (document !== this.#document || !this.#geometry.every((n,i) => n === geometry[i])) {
       const generation = ++this.#generation;

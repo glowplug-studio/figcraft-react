@@ -1,4 +1,6 @@
 /// <reference path="./text-font-assets.d.ts" />
+import { LocalFontAccess } from "./local-font-access";
+import { fontGeometryCache } from "./font-generation";
 import { multiply } from "./affine";
 import { rectangleTransform, withLayerTransform, type Document, type TextNode } from "./document";
 import type { TextData } from "./text-data";
@@ -9,19 +11,25 @@ import { preparedWordStarts, prepareWordSegmenter, wordSegmenterReady } from "./
 import { textInkBounds, textToPath } from "./text-decorations";
 import { mapVectorPath } from "./corners";
 
+const localFonts=new LocalFontAccess();
+export const canAskForLocalFonts=()=>localFonts.canAsk();
+export async function askForLocalFonts() {
+  if (fonts) await localFonts.ask(fonts);
+}
+
 let fonts: FontLibrary | undefined;
 let loading: Promise<void> | undefined;
 
 async function loadCatalogue() {
   const { readBundledFonts } = await import("#figcraft-font-assets");
-  const library = new FontLibrary();
+  const library:FontLibrary = new FontLibrary(font=>{void localFonts.load(library,font);});
   for (const bytes of await readBundledFonts()) {
     for (const face of await readFontFaces(bytes)) library.add(face);
   }
   fonts = library;
 }
 
-/** Prepare the shared, immutable bundled catalogue outside the synchronous edit and paint paths. */
+/** Prepare the bundled catalogue outside the synchronous edit and paint paths. */
 export async function prepareText(characters = "") {
   loading ??= loadCatalogue().catch(error => { loading = undefined; throw error; });
   await Promise.all([loading, prepareWordSegmenter(characters)]);
@@ -73,13 +81,13 @@ function layoutNode(node: TextNode) {
   return {layout, dy, ink: ink && {...ink, y: ink.y + dy}};
 }
 
-const layouts = new WeakMap<TextNode, ReturnType<typeof layoutNode>>();
+const layouts = fontGeometryCache<TextNode, ReturnType<typeof layoutNode>>();
 export function textNodeLayout(node: TextNode) {
   let result = layouts.get(node);
   if (!result) { result = layoutNode(node); layouts.set(node, result); }
   return result;
 }
-const paths = new WeakMap<TextNode, ReturnType<typeof textToPath>>();
+const paths = fontGeometryCache<TextNode, ReturnType<typeof textToPath>>();
 export function textNodePath(node: TextNode) {
   let path = paths.get(node);
   if (!path) {

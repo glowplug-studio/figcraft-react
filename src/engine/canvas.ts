@@ -1,3 +1,4 @@
+import { fontGeometryCache } from "./font-generation";
 import { prepareDocumentText, documentTextReady } from "./text-node-layout";
 import { CanvasTextInput } from "./canvas-text-input";
 import { paintText } from "./text-painter";
@@ -48,7 +49,7 @@ const imagePages = new WeakMap<CanvasRenderingContext2D, ImagePage>();
 const imageCaches = new WeakMap<CanvasRenderingContext2D, CanvasImages>();
 const compositeSurfaces = new WeakMap<CanvasRenderingContext2D, HTMLCanvasElement>();
 // Immutable document snapshots invalidate these derived bounds after any edit.
-const groupBounds = new WeakMap<Document, Map<string, { box: Rectangle; margin: number } | undefined>>();
+const groupBounds = fontGeometryCache<Document, Map<string, { box: Rectangle; margin: number } | undefined>>();
 const opacity = (value: number) => Math.max(0, Math.min(1, value));
 
 const fillPaths = new WeakMap<readonly PathCommand[],Path2D>();

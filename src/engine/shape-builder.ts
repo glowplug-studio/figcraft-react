@@ -1,3 +1,4 @@
+import { fontGeometryCache } from "./font-generation";
 import { transformPoint } from "./affine";
 import { booleanResult, paintedStrokePath } from "./boolean-result";
 import { flattenContours, type PathCommand } from "./corners";
@@ -119,7 +120,7 @@ function build(document: Document, ids: readonly NodeId[]): BuilderArrangement {
   return { parts, sources, regions };
 }
 
-const cache = new WeakMap<Document, { ids: readonly NodeId[]; result: BuilderArrangement | Error }>();
+const cache = fontGeometryCache<Document, { ids: readonly NodeId[]; result: BuilderArrangement | Error }>();
 export function builderArrangement(document: Document, ids: readonly NodeId[]): BuilderArrangement {
   const prior = cache.get(document);
   if (prior && prior.ids.length === ids.length && ids.every((id, index) => id === prior.ids[index])) {
