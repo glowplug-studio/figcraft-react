@@ -182,3 +182,23 @@ The local combined graph contains 31,333 nodes and 102,735 edges. It resolves Re
 Next complete the browser text tool, inline editing and IME, rich-text commands and inspector. Additional checks cover text strokes and effects by style, transformed bounds, font registration, text-path resizing, masks and vector operations. The rich-text slice remains open.
 
 The first full browser run after integrating document text exposed a consumer packaging regression. The standalone canvas fixtures compile a single immediately invoked script, which cannot contain top-level await. The shaper now initialises through a lazy, retryable promise when a font is read. Its JavaScript and declarations reproduce exactly from the pinned package and build script. The first affected standalone paint, geometry and frame-budget tests pass on the corrected build.
+
+### Canvas creation, editing and input methods
+
+The corrected standalone and Next.js builds passed 209/209 production Chromium cases in 412.5 seconds with one worker, zero retries and zero skips.
+
+The Text tool and T shortcut create native layers at the rounded click offset. Dragging at least three screen pixels creates a fixed box. Parent transforms and readable fill selection follow the native frame and page rules. Double-clicking enters an existing layer and selects its contents. While editing, a double-click selects the word, script, whitespace or punctuation at the pointer. A comparison against the pinned Rust word-selection logic matched 69,156 scalar positions across 1,355 strings.
+
+Typing and range replacement update the canvas preview without publishing a React document snapshot per keystroke. Authored names survive edits. Auto-named layers follow their first line. A session commits one undo step. Discarding a blank new layer preserves redo. The browser text control handles ordinary typing, clipboard and composition. The canvas paints the temporary composition in its own document view and underlines its range. CDP drove an actual Chromium composition, checked the temporary pixels, committed different text, downloaded the result and undid the session.
+
+The new focused workflows passed in the authenticated production host. Strict types, both production builds, 1,559 pure checks and the two local Auth checks passed. Local Graphify resolves the React editor and upstream word-selection symbols in the combined graph. The package dry run included both runtime loaders, all five bundled fonts and the shaping binary.
+
+The complete canvas editing build passed 211/211 production Chromium workflows in 416.6 seconds with one worker and zero failures, skips or retries. Fourteen reference screenshots changed to show the new Text tool. Decoded pixel comparisons confined every accepted difference to the toolbar rectangle (x 86–914, y 727–788 in 1,000 × 804 images).
+
+Continue with the remaining upstream editing commands, native keyboard and list behaviour, input-method edge cases and typography inspector. Full rich-text parity, cross-feature verification and final publication remain open.
+
+### Text property inspection
+
+Native `node.get` text inspection now returns base typography, spacing labels, truncation, path, decoration settings, list and direction fields, OpenType axis values, native styled runs and linked style ranges. Field filters keep expensive array construction off unrelated queries. Outline output takes at most 120 Unicode scalars before adding an ellipsis.
+
+The pinned Rust `automation::inspect::text_props` supplied 480 full and outline results across 240 distinct inputs. Each returned property matched the React command data. Four representative records run through the normal `node.get` entry in the [inspection tests](../../tests/parity/text-inspection.test.ts). Strict types and 1,563 pure tests passed. The combined local graph contains 31,372 nodes and 103,010 edges. Typography editing and the inspector controls remain open.

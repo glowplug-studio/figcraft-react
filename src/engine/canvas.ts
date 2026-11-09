@@ -1,4 +1,5 @@
 import { prepareDocumentText, documentTextReady } from "./text-node-layout";
+import { CanvasTextInput } from "./canvas-text-input";
 import { paintText } from "./text-painter";
 import { beginGlassFrame } from "./glass-shape";
 import { backdropParent } from "./backdrop-stack";
@@ -415,6 +416,7 @@ export class CanvasController {
   #gradients: GradientInteraction;
   #blurHandles: BlurInteraction;
   #crop: ImageCropInteraction;
+  #text: CanvasTextInput;
   #arcs: ArcInteraction;
   #vectors: VectorInteraction;
   #builder: ShapeBuilderInteraction;
@@ -433,6 +435,7 @@ export class CanvasController {
     this.#moving = new MoveInteraction(engine, onError);
     this.#transforming = new TransformInteraction(engine, onError);
     this.#rounding = new CornerInteraction(engine, onError);
+    this.#text = new CanvasTextInput(canvas,engine,()=>this.invalidate(),onError,this.#abort.signal);
     this.#drawing = new DrawInteraction(engine, onError);
     this.#gradients = new GradientInteraction(engine);
     this.#blurHandles = new BlurInteraction(engine);
@@ -746,10 +749,11 @@ export class CanvasController {
       const vectorEdit = this.engine.getRenderVectorEdit(), pen = this.engine.getSnapshot().tool === "pen";
       const builder = snapshot.tool === "shapeBuilder";
       const crop = this.engine.pickedCrop();
-      drawDocumentFrame(context, this.engine.getRenderDocument(), this.#width, this.#height, vectorEdit || pen || builder ? [] : this.engine.getRenderSelection(), undefined, view, vectorEdit?.id, () => this.invalidate(), crop ? images => this.#crop.draw(context, images) : undefined);
-      if (!crop && !builder && !pen && !vectorEdit && !this.#moving.active && !this.#transforming.active && !this.#rounding.active && !this.#arcs.active && !this.#drawing.active) this.#smart.draw(context);
-      if (!crop && !builder && !pen && !vectorEdit && !this.#moving.active && !this.#transforming.active && !this.#smart.active && !this.#drawing.active) { this.#rounding.draw(context); this.#arcs.draw(context); }
-      if (!crop && !builder && !pen && !vectorEdit && !this.#moving.active && !this.#smart.active) this.#transforming.draw(context);
+      drawDocumentFrame(context, this.#text.preeditDocument ?? this.engine.getRenderDocument(), this.#width, this.#height, vectorEdit || pen || builder || this.#text.active ? [] : this.engine.getRenderSelection(), undefined, view, vectorEdit?.id, () => this.invalidate(), crop ? images => this.#crop.draw(context, images) : undefined);
+      if (!this.#text.active && !crop && !builder && !pen && !vectorEdit && !this.#moving.active && !this.#transforming.active && !this.#rounding.active && !this.#arcs.active && !this.#drawing.active) this.#smart.draw(context);
+      if (!this.#text.active && !crop && !builder && !pen && !vectorEdit && !this.#moving.active && !this.#transforming.active && !this.#smart.active && !this.#drawing.active) { this.#rounding.draw(context); this.#arcs.draw(context); }
+      if (!this.#text.active && !crop && !builder && !pen && !vectorEdit && !this.#moving.active && !this.#smart.active) this.#transforming.draw(context);
+      this.#text.draw(context);
       this.#moving.draw(context); this.#drawing.draw(context);
       if (vectorEdit) drawVectorEdit(context, this.engine.getRenderDocument(), vectorEdit, view, this.#vectors.overlay);
       if (pen) drawPen(context, this.engine.getRenderDocument(), view, this.engine.pen.overlay);

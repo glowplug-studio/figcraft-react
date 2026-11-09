@@ -2,6 +2,18 @@ import { isLosslessNumber } from "lossless-json";
 import type { ParaList, StyleRun, TextData } from "./text-data";
 import { textString, wireTextStyle, type TextStyle } from "./text-style";
 
+/** Native layer names use the first non-blank line prefix, capped at 64 Unicode scalars. */
+export function textLayerName(value: string) {
+  let name = "", length = 0;
+  for (const c of value) {
+    if (c === "\n" || length === 64) break;
+    name += c; length++;
+  }
+  // Rust lines() removes CR when it immediately precedes the newline.
+  if (name.endsWith("\r") && value[name.length] === "\n") name = name.slice(0,-1);
+  return name.trim() ? name : "";
+}
+
 export function scalarCount(value: string) {
   let count = 0;
   for (const _ of value) count++;

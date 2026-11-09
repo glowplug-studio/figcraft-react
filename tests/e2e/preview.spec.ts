@@ -4115,3 +4115,59 @@ test("a Rust rich-text layer paints separate run colours, downloads and restores
   await expect(page.getByRole("heading",{name:"Native text",exact:true})).toBeVisible();
   await expect.poll(ink).toBe(true);
 });
+
+test("the Text tool types on canvas, drags a fixed box and commits each edit as one undo",async ({page})=>{
+  await login(page);
+  const input=page.getByRole("textbox",{name:"Edit text layer"});
+  const canvas=page.getByLabel("Design canvas",{exact:true});
+  await canvas.focus(); await page.keyboard.press("t");
+  const point=await canvasPoint(page,110,95);
+  await page.mouse.click(point.x,point.y); await expect(input).toBeFocused();
+  await page.keyboard.insertText("Native"); await page.keyboard.press("Enter"); await page.keyboard.insertText("ქართული");
+  await page.keyboard.press("Escape"); await expect(input).toHaveCount(0);
+  await expect(page.getByText("1 layer",{exact:true})).toBeVisible();
+  await page.getByRole("button",{name:"Undo",exact:true}).click();
+  await expect(page.getByText("0 layers",{exact:true})).toBeVisible();
+  await page.getByRole("button",{name:"Redo",exact:true}).click();
+  await page.getByRole("button",{name:"Text",exact:true}).click();
+  const a=await canvasPoint(page,220,120), b=await canvasPoint(page,295,174);
+  await page.mouse.move(a.x,a.y); await page.mouse.down(); await page.mouse.move(b.x,b.y,{steps:3}); await page.mouse.up();
+  await expect(input).toBeFocused();
+  await page.keyboard.insertText("box"); await page.keyboard.press("Control+Enter");
+  const downloading=page.waitForEvent("download"); await page.getByRole("button",{name:"Save as",exact:true}).click();
+  const downloaded=await downloading, saved=await decodeFigcraft(await readFile((await downloaded.path())!));
+  expect(saved.document.nodes["2"]).toMatchObject({kind:"text",name:"Native",x:110,y:88,text:{characters:"Native\nქართული",autoResize:"widthAndHeight"}});
+  expect(saved.document.nodes["3"]).toMatchObject({kind:"text",name:"box",x:220,y:120,width:75,height:54,text:{characters:"box",autoResize:"none"}});
+  await page.mouse.dblclick(a.x+8,a.y+6); await expect(input).toHaveValue("box");
+  await input.press("ControlOrMeta+a"); await page.keyboard.insertText("Revised"); await page.keyboard.press("Escape");
+  await page.getByRole("button",{name:"Undo",exact:true}).click();
+  await page.mouse.dblclick(a.x+8,a.y+6); await expect(input).toHaveValue("box");
+  await page.keyboard.press("Escape"); await page.keyboard.press("t");
+  await page.mouse.click(b.x+25,b.y+25); await expect(input).toBeFocused();
+  await page.keyboard.press("Escape"); await expect(page.getByText("2 layers",{exact:true})).toBeVisible();
+});
+
+test("native Chromium IME pre-edit paints temporary glyphs and commits once on the canvas",async ({page})=>{
+  await login(page);
+  const canvas=page.getByLabel("Design canvas",{exact:true});
+  await page.getByRole("button",{name:"Text",exact:true}).click();
+  const point=await canvasPoint(page,160,105); await page.mouse.click(point.x,point.y);
+  const input=page.getByRole("textbox",{name:"Edit text layer"}); await expect(input).toBeFocused();
+  const hash=()=>canvas.evaluate((n:HTMLCanvasElement)=>{
+    const bytes=n.getContext("2d")!.getImageData(0,0,n.width,n.height).data;
+    let black=0; for (let i=0;i<bytes.length;i+=4) if (!bytes[i] && !bytes[i+1] && !bytes[i+2]) black++;
+    return black;
+  });
+  const cdp=await page.context().newCDPSession(page);
+  await cdp.send("Input.imeSetComposition",{text:"temporary",selectionStart:9,selectionEnd:9});
+  await expect(input).toHaveValue("temporary");
+  await expect.poll(hash).toBeGreaterThan(4);
+  await cdp.send("Input.insertText",{text:"final"});
+  await expect(input).toHaveValue("final");
+  await input.press("Escape");
+  const downloading=page.waitForEvent("download"); await page.getByRole("button",{name:"Save as",exact:true}).click();
+  const saved=await decodeFigcraft(await readFile((await (await downloading).path())!));
+  expect(saved.document.nodes["2"]).toMatchObject({name:"final",text:{characters:"final"}});
+  await page.getByRole("button",{name:"Undo",exact:true}).click();
+  await expect(page.getByText("0 layers",{exact:true})).toBeVisible();
+});

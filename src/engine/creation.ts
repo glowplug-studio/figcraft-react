@@ -1,4 +1,5 @@
 import { isGroupLike } from "./document";
+import { textLayerName } from "./text-ranges";
 import { newTextData, normaliseTextLines } from "./text-data";
 import { autoSizeText } from "./text-node-layout";
 import { emptyNetwork, freezeNetwork } from "./vector-network";
@@ -43,8 +44,7 @@ export function createLayer(before: { document: Document; selection: readonly No
     if (textLayer) {
       const characters = creationCharacters(p);
       const text = newTextData(characters);
-      const first = Array.from(characters.split("\n", 1)[0]).slice(0, 64).join("");
-      node = autoSizeText(Object.freeze({...base, name: parseString(p.name) ?? (first.trim() ? first : "Text"),
+      node = autoSizeText(Object.freeze({...base, name: parseString(p.name) ?? (textLayerName(characters) || "Text"),
         kind: "text", text: base.width > 0 ? Object.freeze({...text, autoResize: "height" as const}) : text, fill: "#000000"}));
     }
     if (kind === "line") node = Object.freeze({ ...base, kind, fill: "transparent", strokes: Object.freeze([solidPaint(fromRgba8(0, 0, 0, 255))]), stroke: Object.freeze({ ...defaultStroke, align: "center", capEnd: requested === "arrow" ? "lineArrow" : "none" }) });

@@ -1,0 +1,401 @@
+[
+  {
+    "text": {
+      "characters": "abc🙂אבგ",
+      "style": {
+        "font_size": 15.25,
+        "letter_spacing": {
+          "unit": "percent",
+          "value": 0.985
+        },
+        "line_height": {
+          "unit": "pixels",
+          "value": 17.999
+        },
+        "variations": {
+          "wght": 500
+        },
+        "style_id": "local.base"
+      },
+      "runs": [
+        {
+          "start": 1,
+          "end": 2,
+          "style": {
+            "style_id": "local.em",
+            "font_style": "Bold",
+            "font_size": 18
+          }
+        }
+      ],
+      "align_h": "left",
+      "auto_resize": "widthAndHeight",
+      "wrap_style": "auto",
+      "leading_trim": "capHeight",
+      "hanging_list": false,
+      "hanging_punctuation": false,
+      "list_spacing": 0,
+      "max_lines": 2,
+      "list": "numbered"
+    },
+    "outline": false,
+    "expected": {
+      "characters": "abc🙂אבგ",
+      "fontFamily": "Inter",
+      "fontSize": 15.25,
+      "fontStyle": "Regular",
+      "fontVariations": {
+        "wght": 500.0
+      },
+      "leadingTrim": "capHeight",
+      "letterSpacing": "0.99%",
+      "lineHeight": "18",
+      "listStyle": "numbered",
+      "maxLines": 2,
+      "styledRuns": [
+        {
+          "end": 2,
+          "start": 1,
+          "style": {
+            "case": "original",
+            "decoration": "none",
+            "fills": null,
+            "font_family": "Inter",
+            "font_size": 18.0,
+            "font_style": "Bold",
+            "letter_spacing": {
+              "unit": "percent",
+              "value": 0.0
+            },
+            "line_height": {
+              "unit": "auto"
+            },
+            "link": null,
+            "style_id": "local.em"
+          }
+        }
+      ],
+      "textAlign": "left",
+      "textAutoResize": "widthAndHeight",
+      "textStyleRanges": [
+        [
+          0,
+          1,
+          "local.base"
+        ],
+        [
+          1,
+          2,
+          "local.em"
+        ],
+        [
+          2,
+          7,
+          "local.base"
+        ]
+      ]
+    }
+  },
+  {
+    "text": {
+      "characters": "abc🙂אבგabc🙂אבგ",
+      "style": {
+        "font_size": 15.25,
+        "letter_spacing": {
+          "unit": "percent",
+          "value": -0.675
+        },
+        "line_height": {
+          "unit": "pixels",
+          "value": 17.999
+        },
+        "variations": {
+          "wght": 500
+        },
+        "style_id": "local.base"
+      },
+      "runs": [
+        {
+          "start": 1,
+          "end": 2,
+          "style": {
+            "style_id": "local.em",
+            "font_style": "Bold",
+            "font_size": 18
+          }
+        }
+      ],
+      "align_h": "right",
+      "auto_resize": "height",
+      "wrap_style": "balance",
+      "leading_trim": "capHeight",
+      "hanging_list": true,
+      "hanging_punctuation": true,
+      "list_spacing": 3,
+      "max_lines": 0,
+      "path": {
+        "d": "M0,0 L40,20",
+        "start": 0.25,
+        "flip": true
+      },
+      "paragraphs": [
+        {
+          "direction": "rtl",
+          "list": "numbered",
+          "indent": 2,
+          "start_offset": 3
+        },
+        {
+          "direction": "auto",
+          "list": "none"
+        }
+      ]
+    },
+    "outline": false,
+    "expected": {
+      "characters": "abc🙂אבგabc🙂אבგ",
+      "fontFamily": "Inter",
+      "fontSize": 15.25,
+      "fontStyle": "Regular",
+      "fontVariations": {
+        "wght": 500.0
+      },
+      "hangingList": true,
+      "hangingPunctuation": true,
+      "leadingTrim": "capHeight",
+      "letterSpacing": "-0.68%",
+      "lineDirections": [
+        "rtl",
+        "auto"
+      ],
+      "lineHeight": "18",
+      "lineIndentations": [
+        2,
+        0
+      ],
+      "lineTypes": [
+        "numbered",
+        "none"
+      ],
+      "listSpacing": 3.0,
+      "listStartOffsets": [
+        3,
+        0
+      ],
+      "styledRuns": [
+        {
+          "end": 2,
+          "start": 1,
+          "style": {
+            "case": "original",
+            "decoration": "none",
+            "fills": null,
+            "font_family": "Inter",
+            "font_size": 18.0,
+            "font_style": "Bold",
+            "letter_spacing": {
+              "unit": "percent",
+              "value": 0.0
+            },
+            "line_height": {
+              "unit": "auto"
+            },
+            "link": null,
+            "style_id": "local.em"
+          }
+        }
+      ],
+      "textAlign": "right",
+      "textAutoResize": "height",
+      "textPath": {
+        "d": "M0,0 L40,20",
+        "flip": true,
+        "start": 0.25
+      },
+      "textStyleRanges": [
+        [
+          0,
+          1,
+          "local.base"
+        ],
+        [
+          1,
+          2,
+          "local.em"
+        ],
+        [
+          2,
+          14,
+          "local.base"
+        ]
+      ],
+      "wrapStyle": "balance"
+    }
+  },
+  {
+    "text": {
+      "characters": "abc🙂אבგabc🙂אבგabc🙂אבგ",
+      "style": {
+        "font_size": 15.25,
+        "letter_spacing": {
+          "unit": "percent",
+          "value": 0.985
+        },
+        "line_height": {
+          "unit": "pixels",
+          "value": 17.999
+        },
+        "variations": {
+          "wght": 500
+        },
+        "style_id": "local.base"
+      },
+      "runs": [
+        {
+          "start": 1,
+          "end": 2,
+          "style": {
+            "style_id": "local.em",
+            "font_style": "Bold",
+            "font_size": 18
+          }
+        }
+      ],
+      "align_h": "center",
+      "auto_resize": "none",
+      "wrap_style": "pretty",
+      "leading_trim": "capHeight",
+      "hanging_list": false,
+      "hanging_punctuation": true,
+      "list_spacing": 1,
+      "max_lines": 0,
+      "paragraphs": [
+        {
+          "direction": "rtl",
+          "list": "numbered",
+          "indent": 2,
+          "start_offset": 3
+        },
+        {
+          "direction": "rtl",
+          "list": "none"
+        }
+      ]
+    },
+    "outline": false,
+    "expected": {
+      "characters": "abc🙂אבგabc🙂אבგabc🙂אבგ",
+      "fontFamily": "Inter",
+      "fontSize": 15.25,
+      "fontStyle": "Regular",
+      "fontVariations": {
+        "wght": 500.0
+      },
+      "hangingPunctuation": true,
+      "leadingTrim": "capHeight",
+      "letterSpacing": "0.99%",
+      "lineHeight": "18",
+      "lineIndentations": [
+        2,
+        0
+      ],
+      "lineTypes": [
+        "numbered",
+        "none"
+      ],
+      "listSpacing": 1.0,
+      "listStartOffsets": [
+        3,
+        0
+      ],
+      "styledRuns": [
+        {
+          "end": 2,
+          "start": 1,
+          "style": {
+            "case": "original",
+            "decoration": "none",
+            "fills": null,
+            "font_family": "Inter",
+            "font_size": 18.0,
+            "font_style": "Bold",
+            "letter_spacing": {
+              "unit": "percent",
+              "value": 0.0
+            },
+            "line_height": {
+              "unit": "auto"
+            },
+            "link": null,
+            "style_id": "local.em"
+          }
+        }
+      ],
+      "textAlign": "center",
+      "textAutoResize": "none",
+      "textDirection": "rtl",
+      "textStyleRanges": [
+        [
+          0,
+          1,
+          "local.base"
+        ],
+        [
+          1,
+          2,
+          "local.em"
+        ],
+        [
+          2,
+          21,
+          "local.base"
+        ]
+      ],
+      "wrapStyle": "pretty"
+    }
+  },
+  {
+    "text": {
+      "characters": "abc🙂אבგabc🙂אבგabc🙂אבგabc🙂אבგabc🙂אבგabc🙂אבგabc🙂אבგabc🙂אבგabc🙂אבგabc🙂אבგabc🙂אבგabc🙂אבგabc🙂אבგabc🙂אבგabc🙂אבგabc🙂אבგabc🙂אבგabc🙂אבგabc🙂אבგabc🙂אבგabc🙂אבგabc🙂אבგabc🙂אבგabc🙂אבგabc🙂אבგ",
+      "style": {
+        "font_size": 15.25,
+        "letter_spacing": {
+          "unit": "percent",
+          "value": 0.985
+        },
+        "line_height": {
+          "unit": "pixels",
+          "value": 17.999
+        },
+        "variations": {
+          "wght": 500
+        },
+        "style_id": "local.base"
+      },
+      "runs": [
+        {
+          "start": 1,
+          "end": 24,
+          "style": {
+            "style_id": "local.em",
+            "font_style": "Bold",
+            "font_size": 18
+          }
+        }
+      ],
+      "align_h": "left",
+      "auto_resize": "widthAndHeight",
+      "wrap_style": "auto",
+      "leading_trim": "capHeight",
+      "hanging_list": false,
+      "hanging_punctuation": false,
+      "list_spacing": 2,
+      "max_lines": 2,
+      "list": "numbered"
+    },
+    "outline": true,
+    "expected": {
+      "characters": "abc🙂אבგabc🙂אבგabc🙂אבგabc🙂אבგabc🙂אבგabc🙂אבგabc🙂אבგabc🙂אבგabc🙂אבგabc🙂אבგabc🙂אבგabc🙂אבგabc🙂אבგabc🙂אבგabc🙂אבგabc🙂אבგabc🙂אבგa..."
+    }
+  }
+]

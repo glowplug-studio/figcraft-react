@@ -1,3 +1,4 @@
+import { inspectText } from "./inspect-text";
 import { rotationDegrees } from "./affine";
 import { toCssHex } from "./colour";
 import { defaultConstraints, isLeaf, nodeTypeName, layerTransform, pageColour, rectanglePaints, type Document, type DocumentNode } from "./document";
@@ -109,15 +110,7 @@ function inspect(doc: Document, node: DocumentNode, depth: number, fields?: Set<
     const parent = doc.nodes[node.parent];
     if (parent?.kind === "frame") put("constraints", node.constraints ?? defaultConstraints);
     if (parent?.kind === "booleanOp") put("operandOperation", node.boolOp);
-    if (node.kind === "text") {
-      const {characters, style} = node.text;
-      if (wants("characters")) {
-        const first = outline ? Array.from(characters).slice(0, 120).join("") : characters;
-        put("characters", first.length < characters.length ? first + "..." : first);
-      }
-      put("fontFamily", style.fontFamily); put("fontStyle", style.fontStyle); put("fontSize", style.fontSize);
-      put("textAlign", node.text.alignH); put("textAutoResize", node.text.autoResize);
-    }
+    if (node.kind === "text") inspectText(node.text,outline,wants,put);
     if (node.kind === "frame") put("clip", node.clip);
     if (node.kind === "booleanOp") put("booleanOperation", node.op);
     if (node.kind === "polygon" || node.kind === "star") put("pointCount", node.count);

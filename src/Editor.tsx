@@ -201,6 +201,7 @@ export function Editor({ identity, capabilities, engine: suppliedEngine, recover
     else if (!event.metaKey && !event.ctrlKey && !event.altKey) {
       if (event.key.toLowerCase() === "o") command = "tool.ellipse";
       if (event.key.toLowerCase() === "l") command = event.shiftKey ? "tool.arrow" : "tool.line";
+      if (event.key.toLowerCase() === "t") command = "tool.text";
       if (event.key.toLowerCase() === "r") command = "tool.rectangle";
       if (event.shiftKey && event.key.toLowerCase() === "m") command = "tool.shapeBuilder";
       if (event.key.toLowerCase() === "p") command = event.shiftKey ? "tool.pencil" : "tool.pen";
@@ -414,6 +415,7 @@ export function Editor({ identity, capabilities, engine: suppliedEngine, recover
             <button disabled={!editable || busy} onClick={() => { dispatch("tool.move"); canvas.current?.focus(); }}>Done</button>
           </div> : editingVector ? <VectorToolbar engine={engine} editable={editable && !busy} dispatch={(command, params) => { dispatch(command, params); canvas.current?.focus(); }} /> : <div className="figcraft-toolbar" role="toolbar" aria-label="Tools">
             <button disabled={!editable} aria-pressed={snapshot.tool === "move"} onClick={() => { dispatch("tool.move"); canvas.current?.focus(); }}>Move</button>
+            <button disabled={!editable} aria-pressed={snapshot.tool === "text"} title="Text · T" onClick={() => { dispatch("tool.text"); canvas.current?.focus(); }}>Text</button>
             <button disabled={!editable} aria-pressed={snapshot.tool === "pen"} title="Pen · P" onClick={() => { dispatch("tool.pen"); canvas.current?.focus(); }}>Pen</button>
             <button disabled={!editable} aria-pressed={snapshot.tool === "pencil"} title="Pencil · Shift+P" onClick={() => { dispatch("tool.pencil"); canvas.current?.focus(); }}>Pencil</button>
             <button disabled={!editable} aria-pressed={snapshot.tool === "scale"} onClick={() => { dispatch("tool.scale"); canvas.current?.focus(); }}>Scale</button>

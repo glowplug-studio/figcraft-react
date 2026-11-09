@@ -6,6 +6,7 @@ import { editImagePaints, editImagePreset, imageEditSpecs, startImageCrop, type 
 import { listImagePresets } from "./image-filters";
 import { getNode } from "./inspect";
 import { centrePastedImage, rasterImportParams, fileData, placeImage, prepareImage, rasterFilename, replaceImage } from "./image-import";
+import { createCanvasText, editTextRange, publishTextNode, type TextTarget } from "./text-edit";
 import { prepareText, prepareDocumentText } from "./text-node-layout";
 import { creationCharacters, createLayer } from "./creation";
 import { pastePaint, type CopiedPaint } from "./paint-clipboard";
@@ -95,6 +96,7 @@ export const commandSpecs = Object.freeze({
   "tool.rectangle": { label: "Rectangle", undo: false },
   "tool.move": { label: "Move", undo: false },
   "tool.scale": { label: "Scale", undo: false },
+  "tool.text": { label: "Text", undo: false },
   "tool.pen": { label: "Pen", undo: false },
   "tool.pencil": { label: "Pencil", undo: false },
   "tool.pencilBrush": { label: "Pencil brush", undo: false },
@@ -124,7 +126,7 @@ export interface EditorSnapshot {
   readonly crop?: CropTarget;
   readonly document: Document;
   readonly selection: readonly NodeId[];
-  readonly tool: "move" | DrawShapeKind | "scale" | "pen" | "pencil" | "shapeBuilder";
+  readonly tool: "move" | DrawShapeKind | "scale" | "text" | "pen" | "pencil" | "shapeBuilder";
   readonly builderMode: "merge" | "remove";
   readonly scaleAnchor: ScaleAnchor;
   readonly canUndo: boolean;
@@ -192,6 +194,45 @@ export class EditorEngine {
     if (!this.#snapshot.editable) throw new Error("Sign in to edit this document");
     if (this.#interaction) throw new Error("An interaction is already active");
     this.#interaction = { base: this.#snapshot, document: this.#snapshot.document, selection: this.#snapshot.selection, nextId: this.#nextId, baseVectorEdit: this.#vectorEdit, vectorEdit: this.#vectorEdit };
+  }
+  beginTextEdit(target: TextTarget) {
+    const before = this.#snapshot.document;
+    const created = !("id" in target);
+    if (created && (this.#nextId > 18446744073709551615n || before.nodes[String(this.#nextId)])) throw new Error("Document identifiers are exhausted");
+    const initial = "id" in target ? before.nodes[target.id] : createCanvasText(before,String(this.#nextId),target);
+    if (initial?.kind !== "text") throw new Error("Expected a text layer");
+    this.beginInteraction();
+    const owner = this.#interaction!;
+    let node = initial;
+    owner.selection = Object.freeze([node.id]);
+    if (created) {
+      owner.document = publishTextNode(before,node);
+      owner.nextId = this.#nextId < 18446744073709551615n ? this.#nextId + 1n : this.#nextId;
+    }
+    this.#notifyCanvas();
+    return {
+      active: () => this.#interaction === owner,
+      node: () => node,
+      replace: (from: number, to: number, insertion: string) => {
+        if (this.#interaction !== owner) return;
+        const edited = editTextRange(node, from, to, insertion);
+        if (edited === node) return;
+        owner.document = publishTextNode(owner.document, edited);
+        node = edited;
+        this.#notifyCanvas();
+      },
+      finish: () => {
+        if (this.#interaction !== owner) return;
+        if (!node.text.characters.trim()) {
+          if (created) { this.cancelInteraction(); return; }
+          const draft = new HierarchyDraft(owner.document);
+          draft.remove(node.id); draft.normaliseGroups();
+          owner.document = draft.finish(); owner.selection = [];
+        }
+        this.commitInteraction();
+      },
+      cancel: () => { if (this.#interaction === owner) this.cancelInteraction(); },
+    };
   }
   setVectorRegionHover(regionHover: number | undefined): void {
     const state = this.#vectorEdit;
@@ -696,10 +737,10 @@ export class EditorEngine {
     if (command.startsWith("file.") || command === "image.place" || command === "image.replace") throw new Error(`${command} requires executeAsync`);
     if (command === "text.create" || command === "vector.create" || command === "shape.line" || command === "shape.arrow" || command === "shape.polygon" || command === "shape.star" || command === "shape.ellipse" || command === "shape.rectangle" || command === "frame.create" || command === "node.create") return this.#create(command, p);
     if (Object.keys(p).length) throw new Error(`${command} takes no parameters`);
-    if (command === "tool.shapeBuilder" || command === "tool.pencil" || command === "tool.pen" || command === "tool.line" || command === "tool.arrow" || command === "tool.polygon" || command === "tool.star" || command === "tool.ellipse" || command === "tool.rectangle" || command === "tool.move" || command === "tool.scale") {
+    if (command === "tool.text" || command === "tool.shapeBuilder" || command === "tool.pencil" || command === "tool.pen" || command === "tool.line" || command === "tool.arrow" || command === "tool.polygon" || command === "tool.star" || command === "tool.ellipse" || command === "tool.rectangle" || command === "tool.move" || command === "tool.scale") {
       const end = this.#vectorEdit && command !== "tool.move" && command !== "tool.scale" ? executeVectorEdit("vector.edit.end", this.#snapshot.document, this.#snapshot.selection, this.#vectorEdit, {}) : undefined;
       if (end) this.#vectorEdit = undefined;
-      this.#publish({ ...(end ? { document: end.document, selection: end.selection } : {}), tool: command === "tool.shapeBuilder" ? "shapeBuilder" : command === "tool.pencil" ? "pencil" : command === "tool.pen" ? "pen" : command === "tool.line" ? "line" : command === "tool.arrow" ? "arrow" : command === "tool.polygon" ? "polygon" : command === "tool.star" ? "star" : command === "tool.ellipse" ? "ellipse" : command === "tool.rectangle" ? "rectangle" : command === "tool.scale" ? "scale" : "move" });
+      this.#publish({ ...(end ? { document: end.document, selection: end.selection } : {}), tool: command === "tool.text" ? "text" : command === "tool.shapeBuilder" ? "shapeBuilder" : command === "tool.pencil" ? "pencil" : command === "tool.pen" ? "pen" : command === "tool.line" ? "line" : command === "tool.arrow" ? "arrow" : command === "tool.polygon" ? "polygon" : command === "tool.star" ? "star" : command === "tool.ellipse" ? "ellipse" : command === "tool.rectangle" ? "rectangle" : command === "tool.scale" ? "scale" : "move" });
       return {};
     }
     const undo = command === "edit.undo";
