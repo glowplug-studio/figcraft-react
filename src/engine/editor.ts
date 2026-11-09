@@ -1,3 +1,4 @@
+import {applyLibraryStyle} from "./library-styles";
 import {editLibraryVariable,guardLibraryVariables} from "./library-variables";
 import {acceptLibraryUpdates,findLibrary,libraryUpdates,linkedPublication} from "./library-updates";
 import {MAX_CACHED_LIBRARIES,describeLibrary,enableLibrary,removeLibrary} from "./library-links";
@@ -121,6 +122,7 @@ export const commandSpecs = Object.freeze({
   "variable.bind": {label:"Bind variable",undo:true},
   "variable.setMode": {label:"Set variable mode",undo:true},
   ...gridSpecs,
+  "library.applyStyle": {label:"Apply library style",undo:true},
   "style.apply": {label:"Apply style",undo:true},
   "style.detach": {label:"Detach style",undo:true},
   "library.importVariable": {label:"Import library variable",undo:true},
@@ -1000,7 +1002,7 @@ export class EditorEngine {
     const preservePen = this.pen.open && command === "tool.pen" || (this.pen.open || this.pencil.active) && (command === "tool.scaleAnchor" || Object.hasOwn(viewSpecs, command));
     if (preservePen && command === "tool.pen") { if (Object.keys(p).length) throw new Error("tool.pen takes no parameters"); return {}; }
     const gesture = Object.hasOwn(smartSpecs, command) && command !== "arrange.roundToPixels" && parseBoolean(p.fromGesture) === true;
-    const preserveText = (command === "file.markSaved" || command.startsWith("style.")) && this.currentTextEdit();
+    const preserveText = (command === "file.markSaved" || command === "library.applyStyle" || command.startsWith("style.")) && this.currentTextEdit();
     if (!gesture && !preservePen && !preserveText) { const interacting = this.interacting; this.pencil.cancel(); if (this.pen.open) this.pen.cancel(); else this.cancelInteraction(); if (interacting && command === "edit.undo") return { undone: true }; }
     if (command === "text.missingFonts") {
       if (Object.keys(p).some(key=>key!=="ids" && key!=="id")) throw new Error("Unknown text.missingFonts option");
@@ -1192,12 +1194,17 @@ export class EditorEngine {
       if (document !== before) this.#commitEdit({document});
       return {ok:true};
     }
-    if (Object.hasOwn(styleEditSpecs, command) || command === "style.apply" || command === "style.detach") {
+    if (Object.hasOwn(styleEditSpecs, command) || command === "library.applyStyle" || command === "style.apply" || command === "style.detach") {
       const live = this.getTextRange();
       if (!live) this.cancelInteraction();
       const before = this.getRenderDocument();
       const selection = this.getRenderSelection();
-      const {document, result} = Object.hasOwn(styleEditSpecs, command) ? editStyleDefinition(before, selection, command, p, live) :
+      const libraryStyle=()=>{
+        const link=findLibrary(before,p.library);
+        if (!link) throw Error("no enabled library `"+p.library+"`");
+        return applyLibraryStyle(before,selection,linkedPublication(link,path=>this.librarySource(path)),p,live);
+      };
+      const {document, result} = command==="library.applyStyle" ? libraryStyle() : Object.hasOwn(styleEditSpecs, command) ? editStyleDefinition(before, selection, command, p, live) :
         {document:editStyleLinks(before, selection, p, command === "style.detach", live), result:{ok:true}};
       if (live) live.update(document, live.anchor, live.caret);
       else if (document !== before) this.#commitEdit({document});

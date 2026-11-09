@@ -1,3 +1,4 @@
+import {readOnlyLibraryMessage} from "./library-variables";
 import { compareScalarKeys } from "./text-breaks";
 import { bindingItem, canonicalBinding, rebindPaintAlpha, resolveStyle, styleForLayer } from "./style-variables";
 import type { Paint } from "./solid-paint";
@@ -31,9 +32,10 @@ function cleanName(name: string): string {
   return Array.from(joined).slice(0, 500).join("");
 }
 
-function styleIndex(styles: readonly SharedStyle[], key: string): number {
+function styleIndex(styles: readonly SharedStyle[], key: string, remote?:ReadonlySet<string>): number {
   const index = styles.findIndex(style => style.id === key || style.name === key);
   if (index < 0) throw new Error("no style `" + key + "`");
+  if (remote?.has(styles[index].id)) throw Error(readOnlyLibraryMessage);
   return index;
 }
 
@@ -55,9 +57,9 @@ function copyName(styles: readonly SharedStyle[], name: string) {
   return base;
 }
 
-function moveStyles(styles: readonly SharedStyle[], p: Record<string, unknown>) {
+function moveStyles(styles: readonly SharedStyle[], p: Record<string, unknown>, remote:ReadonlySet<string>) {
   if (!Array.isArray(p.styles)) throw new Error("styles must be a list of style ids");
-  const picked = new Set(p.styles.filter((key): key is string => typeof key === "string").map(key => styleIndex(styles, key)));
+  const picked = new Set(p.styles.filter((key): key is string => typeof key === "string").map(key => styleIndex(styles, key, remote)));
   if (!picked.size) throw new Error("no styles to move");
   const folder = parseString(p.folder), before = parseString(p.before);
   const destination = folder === undefined ? undefined : Array.from(normalisePath(folder)).slice(0, 500).join("");
@@ -77,31 +79,32 @@ function moveStyles(styles: readonly SharedStyle[], p: Record<string, unknown>) 
   return [...rest.slice(0, split), ...moved, ...rest.slice(split)];
 }
 
-function renameFolder(styles: readonly SharedStyle[], p: Record<string, unknown>) {
+function renameFolder(styles: readonly SharedStyle[], p: Record<string, unknown>, remote:ReadonlySet<string>) {
   const folder = cleanName(requiredString(p, "folder")), destination = cleanName(requiredString(p, "name"));
   const prefix = folder + "/";
-  if (!styles.some(style => style.name.startsWith(prefix))) throw new Error("no styles in folder `" + folder + "`");
+  if (!styles.some(style => !remote.has(style.id) && style.name.startsWith(prefix))) throw new Error("no styles in folder `" + folder + "`");
   return styles.map(style => {
-    if (folder === destination || !style.name.startsWith(prefix)) return style;
+    if (remote.has(style.id) || folder === destination || !style.name.startsWith(prefix)) return style;
     return Object.freeze({...style, name: destination + "/" + style.name.slice(prefix.length)});
   });
 }
 
 export function orderStyles(document: Document, command: string, params: Record<string, unknown>) {
   const styles = document.styles ?? [];
+  const remote=new Set(document.libraryRecords?.styles?.map(r=>r.local));
   let result: Record<string, unknown> = {ok:true};
   let next: SharedStyle[];
   switch (command) {
     case "style.duplicate": {
-      const index = styleIndex(styles, requiredString(params, "style"));
+      const index = styleIndex(styles, requiredString(params, "style"), remote);
       const original = styles[index], id = newStyleId(styles);
       const copy = Object.freeze({...original, id, name:copyName(styles, original.name)});
       next = [...styles.slice(0, index + 1), copy, ...styles.slice(index + 1)];
       result = {id};
       break;
     }
-    case "style.move": next = moveStyles(styles, params); break;
-    case "style.renameFolder": next = renameFolder(styles, params); break;
+    case "style.move": next = moveStyles(styles, params, remote); break;
+    case "style.renameFolder": next = renameFolder(styles, params, remote); break;
     default: throw new Error("Unknown style command " + command);
   }
   if (next.length === styles.length && next.every((style, index) => style === styles[index])) return { document, result };
@@ -118,6 +121,7 @@ export const styleEditSpecs = {
 export function editStyleDefinition(document: Document, selection: readonly string[], command: string,
   p: Record<string, unknown>, live?: ActiveStyleRange) {
   const styles = document.styles ?? [];
+  const remote=new Set(document.libraryRecords?.styles?.map(r=>r.local));
   let next = [...styles], source = parseNodeId(p.from);
   let definition: SharedStyle | undefined, id: string;
   let result: Record<string, unknown> = {ok:true};
@@ -150,7 +154,7 @@ export function editStyleDefinition(document: Document, selection: readonly stri
       linkSource = draft => draft.set(applyStyleToNode(node, slot, created, range && [range.start,range.end]));
     }
   } else {
-    const index = styleIndex(styles, requiredString(p,"style")), original = styles[index];
+    const index = styleIndex(styles, requiredString(p,"style"), remote), original = styles[index];
     id = original.id;
     if (command === "style.delete") next = next.filter(style => style.id !== id);
     else if (command === "style.bind") {

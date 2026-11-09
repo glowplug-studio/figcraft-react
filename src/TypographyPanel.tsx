@@ -17,7 +17,8 @@ export function TypographyPanel({engine, editable, apply, onLeave, linkDialog, l
   apply:(ids:string[], props:Record<string,unknown>) => void; onLeave:() => void}) {
   const catalogueVersion=useSyncExternalStore(subscribeFonts,fontGeneration,fontGeneration);
   const live = useSyncExternalStore(engine.subscribeCanvas, engine.getTextRange, engine.getTextRange);
-  const {document, selection} = engine.getSnapshot();
+  const snapshot=engine.getSnapshot(),selection=snapshot.selection;
+  const document=live ? engine.getRenderDocument() : snapshot.document;
   const nodes = live ? [live.node] : selection.flatMap(id => { const n=document.nodes[id]; return n?.kind === "text" ? [n] : []; });
   const hasText=nodes.length>0;
   const families=useMemo(()=>hasText ? fontFamilies() : [],[hasText,catalogueVersion]);

@@ -1,7 +1,8 @@
 import type {Document} from "./document";
 import {inspectedId} from "./parameters";
 import type {LibraryLink,PublishedLibrary} from "./published-library";
-import {importLibraryVariables,pendingVariables,pruneLibraryVariables} from "./library-variables";
+import {importLibraryStyles,pruneLibraryAssets} from "./library-styles";
+import {importLibraryVariables,pendingVariables} from "./library-variables";
 import {syncExtensions} from "./variable-collections";
 
 export function findLibrary(doc:Document,key:unknown) {
@@ -14,6 +15,13 @@ export function linkedPublication(link:LibraryLink,source:(path:string)=>Publish
   if (lib.manifest.id!==link.id) throw Error('The file now holds another library ("'+lib.manifest.name+'")');
   return lib;
 }
+export function pendingLibraryAssets(doc:Document,lib:PublishedLibrary) {
+  const versions=new Map(lib.manifest.styles.map(s=>[s.id,s.version]));
+  const locals=new Set(doc.styles?.map(s=>s.id));
+  const styles=(doc.libraryRecords?.styles ?? []).filter(r=>r.library===lib.manifest.id && locals.has(r.local) &&
+    BigInt(versions.get(r.key) ?? 0)>BigInt(r.version));
+  return {...pendingVariables(doc,lib),styles};
+}
 export function libraryUpdates(doc:Document,source:(path:string)=>PublishedLibrary|undefined) {
   let count=0;
   const libraries=[],errors=[];
@@ -21,15 +29,15 @@ export function libraryUpdates(doc:Document,source:(path:string)=>PublishedLibra
     let lib;
     try {lib=linkedPublication(link,source);}
     catch (e) {errors.push({id:link.id,name:link.name,error:(e as Error).message});continue;}
-    const pending=pendingVariables(doc,lib),total=pending.variables.length+pending.collections.length;
+    const pending=pendingLibraryAssets(doc,lib),total=pending.styles.length+pending.variables.length+pending.collections.length;
     if (!total) continue;
     const m=lib.manifest;
-    const rows=(kind:"variables"|"collections")=>{
+    const rows=(kind:"styles"|"variables"|"collections")=>{
       const names=new Map(m[kind].map(a=>[a.id,a.name]));
       return pending[kind].map(r=>({id:r.local || null,key:r.key,name:names.get(r.key) ?? null}));
     };
     count+=total;
-    libraries.push({id:m.id,name:m.name,version:inspectedId(m.version),components:[],styles:[],collections:rows("collections"),variables:rows("variables")});
+    libraries.push({id:m.id,name:m.name,version:inspectedId(m.version),components:[],styles:rows("styles"),collections:rows("collections"),variables:rows("variables")});
   }
   return {count,libraries,errors};
 }
@@ -37,13 +45,15 @@ export function acceptLibraryUpdates(doc:Document,source:(path:string)=>Publishe
   const keys=Array.isArray(ids) ? ids.filter((v):v is string=>typeof v==="string") : typeof ids==="string" ? [ids] : undefined;
   if (ids!==undefined && !keys) throw Error("ids must be an array of library ids");
   const links=keys ? keys.map(k=>{const l=findLibrary(doc,k);if (!l) throw Error("no enabled library `"+k+"`");return l;}) : doc.libraryLinks ?? [];
-  let document=doc,variables=0,collections=0;
+  let document=doc,styles=0,variables=0,collections=0;
   const skipped=[];
   for (const link of links) {
     let lib;
     try {lib=linkedPublication(link,source);}
     catch (e) {if(keys) throw e;skipped.push({id:link.id,name:link.name,error:(e as Error).message});continue;}
-    const pending=pendingVariables(document,lib);
+    const pending=pendingLibraryAssets(document,lib);
+    styles+=pending.styles.length;
+    if (pending.styles.length) document=importLibraryStyles(document,lib,pending.styles.map(s=>s.key),true).document;
     variables+=pending.variables.length;collections+=pending.collections.length;
     if (pending.variables.length || pending.collections.length) {
       document=importLibraryVariables(document,lib,pending.variables.map(v=>v.key),pending.collections.map(c=>c.key),true).document;
@@ -54,7 +64,7 @@ export function acceptLibraryUpdates(doc:Document,source:(path:string)=>Publishe
     }
     if (link.version!==lib.manifest.version || link.name!==lib.manifest.name) document={...document,
       libraryLinks:document.libraryLinks!.map(l=>l.id===link.id ? {...l,name:lib.manifest.name,version:lib.manifest.version} : l)};
-    document=pruneLibraryVariables(document,link.id);
+    document=pruneLibraryAssets(document,link.id);
   }
-  return {document,result:{components:0,styles:0,collections,variables,skipped}};
+  return {document,result:{components:0,styles,collections,variables,skipped}};
 }

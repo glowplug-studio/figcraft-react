@@ -1,4 +1,6 @@
-import {pendingVariables} from "./engine/library-variables";
+import {useLibraryVariables} from "./LibraryVariablesContext";
+import {pendingLibraryAssets} from "./engine/library-updates";
+import {localStyles} from "./engine/library-styles";
 import type {PublishedLibrary} from "./engine/published-library";
 import {LibraryPublishForm} from "./LibraryPublishForm";
 import { StyleSwatch } from "./StyleEditor";
@@ -71,6 +73,8 @@ interface AssetProps {
 }
 
 export function AssetsPanel({doc,editable,dispatch,place,start,end,source,addLibrary,save}:AssetProps) {
+  const {sources}=useLibraryVariables();
+  const catalogues=useMemo(()=>new Map(sources.map(s=>[s.id,s])),[sources]);
   const [query,setQuery] = useState("");
   const [collapsed,setCollapsed] = useState<ReadonlySet<string>>(()=>new Set());
   const [libraryStatus,setLibraryStatus]=useState("");
@@ -80,7 +84,7 @@ export function AssetsPanel({doc,editable,dispatch,place,start,end,source,addLib
   const [menu,setMenu] = useState<string>();
   const all = useMemo(()=>localAssets(doc),[doc]);
   const search = query.trim().toLowerCase();
-  const styles = (doc.styles ?? []).filter(style=>style.name.toLowerCase().includes(search));
+  const styles = localStyles(doc).filter(style=>style.name.toLowerCase().includes(search));
   const groups = useMemo(()=>{
     const folders = new Map<string,typeof all>();
     for (const asset of all) {
@@ -107,10 +111,15 @@ export function AssetsPanel({doc,editable,dispatch,place,start,end,source,addLib
     {!!doc.libraryLinks?.length && <section aria-label="Enabled libraries"><h3>Enabled libraries</h3>
       {doc.libraryLinks.map(link=>{
         const publication=source(link.path),manifest=publication?.manifest;
-        const pending=publication && pendingVariables(doc,publication);
-        const count=pending ? pending.variables.length+pending.collections.length : 0;
+        const pending=publication && manifest?.id===link.id && pendingLibraryAssets(doc,publication);
+        const count=pending ? pending.styles.length+pending.variables.length+pending.collections.length : 0;
         return <div key={link.id}><strong>{link.name}</strong>
           <p>{manifest?.id===link.id ? "Published version "+manifest.version : "Choose the library file to load its assets."}</p>
+          {catalogues.get(link.id)?.styles.filter(s=>s.name.toLowerCase().includes(search)).map(style=>
+              <button key={style.id} type="button" disabled={!editable} className="figcraft-style-asset"
+                title={style.description || style.name} onClick={()=>dispatch("library.applyStyle",{library:link.id,style:style.id})}>
+                <StyleSwatch style={style}/>{style.name}
+              </button>)}
           {count>0 && <button type="button" disabled={!editable} onClick={()=>dispatch("library.acceptUpdates",{ids:[link.id]})}>
             Accept {count} {count===1 ? "update" : "updates"}</button>}
           <button type="button" disabled={!editable} aria-label={"Remove library "+link.name}

@@ -5,6 +5,7 @@ import {ancestors,subtreeIds,worldTransform} from "./hierarchy";
 import {U64_MAX} from "./native-values";
 import {parseNodeId,inspectedId,parseString} from "./parameters";
 import {libraryImageKeys,type LibraryManifest,type PublishedLibrary} from "./published-library";
+import {localStyles} from "./library-styles";
 import {libraryVariableIds} from "./library-variables";
 import {emptyVariables} from "./variables";
 
@@ -31,7 +32,7 @@ export function publishChoices(doc:Document) {
   const components=Object.values(doc.nodes).filter(n=>asset(n) && !ancestors(doc,n.id).some(id=>asset(doc.nodes[id]) || doc.nodes[id].kind==="instance"))
     .sort((a,b)=>order(a.id,b.id));
   const remote=new Set(doc.libraryRecords?.collections.map(r=>r.local));
-  return {components:choices("components",components),styles:choices("styles",doc.styles ?? []),collections:choices("collections",doc.variables?.collections.filter(c=>!remote.has(c.id)) ?? [])};
+  return {components:choices("components",components),styles:choices("styles",localStyles(doc)),collections:choices("collections",doc.variables?.collections.filter(c=>!remote.has(c.id)) ?? [])};
 }
 function selection(doc:Document,p:Record<string,unknown>) {
   const all=publishChoices(doc), byKey={components:byId(all.components),styles:byId(all.styles),collections:byId(all.collections)};

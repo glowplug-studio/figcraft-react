@@ -2,7 +2,8 @@ import {sameComponentValue} from "./component-groups";
 import type {Document} from "./document";
 import {bindLayerVariable} from "./layer-variable-bindings";
 import {parseString} from "./parameters";
-import type {ImportedRecord,PublishedLibrary} from "./published-library";
+import {planLibraryRecords} from "./library-records";
+import type {PublishedLibrary} from "./published-library";
 import {compareScalarKeys} from "./text-breaks";
 import {editCollection} from "./variable-collections";
 import {setVariableMode} from "./variable-modes";
@@ -19,12 +20,6 @@ export function libraryVariableIds(data:Variables,seeds:Iterable<string>) {
     for (const value of Object.values(v.values)) for (const ref of references(value)) pending.push(ref);
   }
   return found;
-}
-function localKey(lib:string,key:string,taken:Set<string>) {
-  const base=lib+":"+key;
-  let name=base;
-  for (let n=2;taken.has(name) && n<10000;n++) name=base+"#"+n;
-  return taken.has(name) ? base : name;
 }
 function remapValue(value:VariableValue,ids:ReadonlyMap<string,string>):VariableValue | undefined {
   if (references(value).some(id=>!ids.has(id))) return;
@@ -43,34 +38,8 @@ export function importLibraryVariables(doc:Document,lib:PublishedLibrary,keys:It
   const data=doc.variables ?? emptyVariables,source=lib.document.variables ?? emptyVariables,index=variableIndex(source);
   const vars=[...libraryVariableIds(source,keys)].sort(compareScalarKeys),colls=new Set(collections);
   for (const key of vars) colls.add(index.variables.get(key)!.collection);
-  function plan<T extends {id:string}>(list:readonly T[],rows:readonly ImportedRecord[],assets:readonly {id:string;version:string}[],wanted:readonly string[]) {
-    const taken=new Set(list.map(x=>x.id)),versions=new Map(assets.map(a=>[a.id,a.version]));
-    const previous=new Map(rows.filter(r=>r.library===lib.manifest.id).map(r=>[r.key,r]));
-    const map=new Map<string,string>(),pending=new Map<string,ImportedRecord>();
-    for (const key of wanted) {
-      const record=previous.get(key),exists=record && taken.has(record.local),version=versions.get(key) ?? lib.manifest.version;
-      const local=exists ? record.local : localKey(lib.manifest.id,key,taken);
-      map.set(key,local);taken.add(local);
-      if (!exists || update && BigInt(version)>BigInt(record.version)) pending.set(key,{library:lib.manifest.id,key,local,version});
-    }
-    function write(make:(key:string,local:string)=>T) {
-      if (!pending.size) return {list,rows};
-      const items=new Map([...pending].map(([key,r])=>[r.local,make(key,r.local)]));
-      const next=list.map(x=>{const replacement=items.get(x.id);items.delete(x.id);return replacement ?? x;});
-      for (const value of items.values()) next.push(value);
-      const remaining=new Map(pending);
-      const records=rows.map(r=>{
-        const replacement=r.library===lib.manifest.id && remaining.get(r.key);
-        if (replacement) {remaining.delete(r.key);return replacement;}
-        return r;
-      });
-      for (const r of remaining.values()) records.push(r);
-      return {list:next,rows:records};
-    }
-    return {map,write};
-  }
-  const cp=plan(data.collections,doc.libraryRecords?.collections ?? [],lib.manifest.collections,[...colls].filter(k=>index.collections.has(k)).sort(compareScalarKeys));
-  const vp=plan(data.variables,doc.libraryRecords?.variables ?? [],lib.manifest.variables,vars.filter(k=>cp.map.has(index.variables.get(k)!.collection)));
+  const cp=planLibraryRecords(lib,data.collections,doc.libraryRecords?.collections ?? [],lib.manifest.collections,[...colls].filter(k=>index.collections.has(k)).sort(compareScalarKeys),update);
+  const vp=planLibraryRecords(lib,data.variables,doc.libraryRecords?.variables ?? [],lib.manifest.variables,vars.filter(k=>cp.map.has(index.variables.get(k)!.collection)),update);
   const c=cp.write((key,id)=>{const {extends:parent,...record}=index.collections.get(key)!;return {...record,id};});
   const v=vp.write((key,id)=>{
     const {extends:parent,overrides,...record}=index.variables.get(key)!;
@@ -81,7 +50,7 @@ export function importLibraryVariables(doc:Document,lib:PublishedLibrary,keys:It
     return {...record,id,collection:cp.map.get(record.collection)!,values};
   });
   return {document:c.list===data.collections && v.list===data.variables ? doc : Object.freeze({...doc,variables:{collections:c.list,variables:v.list},
-    libraryRecords:{collections:c.rows,variables:v.rows}}),variables:vp.map,collections:cp.map};
+    libraryRecords:{...doc.libraryRecords,collections:c.rows,variables:v.rows}}),variables:vp.map,collections:cp.map};
 }
 export function guardLibraryVariables(before:Document,after:Document) {
   const records=before.libraryRecords;
@@ -146,10 +115,10 @@ export function pruneLibraryVariables(doc:Document,library:string):Document {
   const unused=new Set(records.collections.filter(r=>r.library===library && !usedCollections.has(r.local)).map(r=>r.local));
   if (!gone.size && !unused.size) return doc;
   const collections=unused.size ? data.collections.filter(c=>!unused.has(c.id)) : data.collections;
-  const remaining={variables:records.variables.filter(r=>!gone.has(r.local)),collections:records.collections.filter(r=>!unused.has(r.local))};
+  const remaining={...records,variables:records.variables.filter(r=>!gone.has(r.local)),collections:records.collections.filter(r=>!unused.has(r.local))};
   const {variables:previous,libraryRecords:old,...rest}=doc;
   return Object.freeze({...rest,...((variables.length || collections.length) && {variables:{variables,collections}}),
-    ...((remaining.variables.length || remaining.collections.length) && {libraryRecords:remaining})});
+    ...((remaining.variables.length || remaining.collections.length || remaining.styles?.length) && {libraryRecords:remaining})});
 }
 export function pendingVariables(doc:Document,lib:PublishedLibrary) {
   const m=lib.manifest,data=doc.variables ?? emptyVariables,records=doc.libraryRecords,index=variableIndex(data);

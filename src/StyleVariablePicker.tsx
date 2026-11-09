@@ -38,6 +38,26 @@ export function LayerVariablePicker({doc,ids,field,label,type,run,children}:{chi
     apply={id=>!!run("variable.bind",{ids,field:reference ? key : field,variable:id ?? null})}>{children}</VariablePicker>;
 }
 
+export function variableGroups(data:Variables|undefined,remoteCollections:ReadonlySet<string>,
+  sources:ReturnType<typeof useLibraryVariables>["sources"],matches:(variable:Variable)=>boolean) {
+  const groups:{name:string;id:string;library?:string;rows:Variable[]}[]=[];
+  function collect(all:Variables,source?:{id:string;name:string}) {
+    const byCollection=new Map<string,Variable[]>();
+    for (const variable of all.variables) {
+      if (!matches(variable) || (!source && remoteCollections.has(variable.collection))) continue;
+      const rows=byCollection.get(variable.collection);
+      if (rows) rows.push(variable); else byCollection.set(variable.collection,[variable]);
+    }
+    for (const c of all.collections) {
+      const rows=byCollection.get(c.id);
+      if (rows) groups.push({name:source ? source.name+" / "+c.name : c.name,id:c.id,library:source?.id,rows});
+    }
+  }
+  if (data) collect(data);
+  for (const source of sources) collect(source.offered,source);
+  return groups;
+}
+
 function VariablePicker({label,data,type,scopes,reference,apply,children,allScopes,allowNumber,remote}:{remote?:(library:string,variable:string)=>boolean;children?:ReactNode;allScopes?:boolean;allowNumber?:boolean;label:string;data?:Variables;type:VariableType;scopes:readonly string[];
   reference?:string;apply:(id?:string)=>boolean}) {
   const [open,setOpen]=useState(false),[query,setQuery]=useState("");
@@ -51,18 +71,7 @@ function VariablePicker({label,data,type,scopes,reference,apply,children,allScop
     const inScope=(scope:string)=>inVariableScope(v.scopes,scope);
     return !scopes.length || (allScopes ? scopes.every(inScope) : scopes.some(inScope));
   }
-  const groups:{name:string;id:string;library?:string;rows:Variable[]}[]=open && data ? data.collections.filter(c=>!remoteCollections.has(c.id)).map(c=>({name:c.name,id:c.id,
-    rows:data.variables.filter(v=>v.collection===c.id && matches(v))})).filter(g=>g.rows.length) : [];
-  if (open && remote) for (const source of sources) {
-    const byCollection=new Map<string,Variable[]>();
-    for (const v of source.offered.variables) if (matches(v)) {
-      const rows=byCollection.get(v.collection);if (rows) rows.push(v);else byCollection.set(v.collection,[v]);
-    }
-    for (const c of source.offered.collections) {
-      const rows=byCollection.get(c.id);
-      if (rows) groups.push({name:source.name+" / "+c.name,id:c.id,library:source.id,rows});
-    }
-  }
+  const groups=open ? variableGroups(data,remoteCollections,remote ? sources : [],matches) : [];
   function close() {
     setOpen(false);
     setQuery("");

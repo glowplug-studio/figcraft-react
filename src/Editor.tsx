@@ -136,7 +136,7 @@ export function Editor({ identity, capabilities, engine: suppliedEngine, recover
       }
       if (engine.pen.open && command.startsWith("tool.") && !["tool.pen", "tool.scaleAnchor", "tool.pencilBrush"].includes(command)) engine.pen.finish();
       const preserve = engine.pen.open && command === "tool.pen" || (engine.pen.open || engine.pencil.active) && (command.startsWith("view.") || command === "tool.scaleAnchor" || command === "tool.pencilBrush");
-      if (!preserve && !(command.startsWith("style.") && engine.currentTextEdit())) controller.current?.cancel();
+      if (!preserve && !((command.startsWith("style.") || command==="library.applyStyle") && engine.currentTextEdit())) controller.current?.cancel();
       if (cancellingUndo) return;
       const result = engine.execute(command, params);
       if (Array.isArray(result?.warnings)) setError(result.warnings.join("\n"));

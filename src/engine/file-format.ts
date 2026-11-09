@@ -202,7 +202,7 @@ function decodeDocument(raw: unknown, parsedNodes?: Record<string,DocumentNode>)
   if (root.format !== undefined && root.format !== "figcraft") fail("unrecognised format");
   fields(root, ["libraries", "variables", "styles", "format", "version", "name", "pages", "nodes", "next_id", "current_page", "imageIndex", "image_presets", "document_colors", "color_profile"], documentDefaults, "document");
   const libraries=root.libraries===undefined ? {} : object(root.libraries,"libraries");
-  fields(libraries,["enabled","variables","collections"],documentDefaults.libraries,"libraries");
+  fields(libraries,["enabled","variables","collections","styles"],documentDefaults.libraries,"libraries");
   const libraryRecords=readImportedRecords(libraries);
   const libraryLinks=readLibraryLinks(libraries.enabled);
   const profile = root.color_profile === undefined ? "srgb" : root.color_profile;
