@@ -309,6 +309,13 @@ export class EditorEngine {
         }
         const range=this.#textRange!;
         if (!text && !preedit) return;
+        const localCursor=Math.max(0,Math.min(count,cursor ?? count));
+        if (composed && preedit?.text===text) {
+          if (preedit.cursor!==localCursor) {
+            preedit={text,cursor:localCursor};composed={...composed,cursor:composed.start+localCursor};this.#notifyCanvas();
+          }
+          return;
+        }
         if (text && !preedit && range.start!==range.end) {
           const edited=editTextRange(node,range.start,range.end,"");
           update(publishTextNode(owner.document,edited),range.start,range.start);
@@ -316,7 +323,6 @@ export class EditorEngine {
         const at=this.#textRange!.caret;
         if (text) {
           const rendered=editTextRange(node,at,at,text);
-          const localCursor=Math.max(0,Math.min(count,cursor ?? count));
           composed={node:rendered,document:publishTextNode(owner.document,rendered),start:at,end:at+count,cursor:at+localCursor};
           preedit={text,cursor:localCursor};
         } else {composed=undefined;preedit=null;}

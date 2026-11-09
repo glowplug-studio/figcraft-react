@@ -4710,3 +4710,33 @@ test("Flatten text preserves curved glyph counters and decoration ink in editabl
   await canvas.press("Escape");await page.getByRole("button",{name:"Undo",exact:true}).click();
   await layer.click();await expect(page.getByRole("group",{name:"Typography",exact:true})).toBeVisible();
 });
+
+test("a narrow touch viewport creates, composes and saves a Unicode text layer",async ({page})=>{
+  await login(page);
+  await page.setViewportSize({width:390,height:844});
+  const cdp=await page.context().newCDPSession(page);
+  await cdp.send("Emulation.setTouchEmulationEnabled",{enabled:true,maxTouchPoints:1});
+  const tap=async (point:{x:number;y:number})=>{
+    await cdp.send("Input.dispatchTouchEvent",{type:"touchStart",touchPoints:[point]});
+    await cdp.send("Input.dispatchTouchEvent",{type:"touchEnd",touchPoints:[]});
+  };
+  const text=page.getByRole("button",{name:"Text",exact:true});
+  await text.scrollIntoViewIfNeeded();
+  const button=await text.boundingBox();
+  await tap({x:button!.x+button!.width/2,y:button!.y+button!.height/2});
+  const canvas=page.getByLabel("Design canvas",{exact:true});
+  const b=await canvas.boundingBox();
+  const point={x:b!.x+b!.width/3,y:b!.y+b!.height/2};
+  expect(await canvas.evaluate((el,p)=>document.elementFromPoint(p.x,p.y)===el,point)).toBe(true);
+  await tap(point);
+  const input=page.getByRole("textbox",{name:"Edit text layer"});
+  await expect(input).toBeFocused();
+  await cdp.send("Input.imeSetComposition",{text:"に",selectionStart:1,selectionEnd:1});
+  await cdp.send("Input.insertText",{text:"日本🙂"});
+  await expect(input).toHaveValue("日本🙂");
+  await input.press("Escape");
+  const download=page.waitForEvent("download");
+  await page.getByRole("button",{name:"Save as",exact:true}).click();
+  const archive=await decodeFigcraft(await readFile((await (await download).path())!));
+  expect(archive.document.nodes["2"]).toMatchObject({kind:"text",text:{characters:"日本🙂"}});
+});

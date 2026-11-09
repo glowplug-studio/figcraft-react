@@ -1,0 +1,9 @@
+[
+{"title":"plain","commands":[["text.create",{"text":"Bé Og","name":"Ink","x":44,"y":45}],["node.set",{"id":2,"props":{"fontSize":38,"fill":"#173fa4"}}]]},
+{"title":"rotated styled","commands":[["text.create",{"text":"Bé Og","name":"Ink","x":44,"y":45}],["node.set",{"id":2,"props":{"fontSize":38,"fill":"#173fa4"}}],["node.set",{"id":2,"props":{"start":1,"end":3,"fontStyle":"Bold","textDecoration":"underline","textFills":["#9f1b54"]}}],["node.set",{"id":2,"props":{"rotation":16}}]]},
+{"title":"outside stroke","commands":[["text.create",{"text":"Bé Og","name":"Ink","x":44,"y":45}],["node.set",{"id":2,"props":{"fontSize":38,"fill":"#173fa4"}}],["node.set",{"id":2,"props":{"strokes":["#c82136"],"strokeWeight":3,"strokeAlign":"outside"}}]]},
+{"title":"drop shadow","commands":[["text.create",{"text":"Bé Og","name":"Ink","x":44,"y":45}],["node.set",{"id":2,"props":{"fontSize":38,"fill":"#173fa4"}}],["node.set",{"id":2,"props":{"start":1,"end":3,"fontStyle":"Bold","textDecoration":"underline","textFills":["#9f1b54"]}}],["node.set",{"id":2,"props":{"effects":[{"type":"dropShadow","offset":[8,5],"radius":2,"color":"#0c8747"}]}}]]},
+{"title":"inner shadow","commands":[["text.create",{"text":"Bé Og","name":"Ink","x":44,"y":45}],["node.set",{"id":2,"props":{"fontSize":38,"fill":"#173fa4"}}],["node.set",{"id":2,"props":{"effects":[{"type":"innerShadow","offset":[2,1],"radius":0,"color":"#d98b46"}]}}]]},
+{"title":"text mask","commands":[["text.create",{"text":"Bé Og","name":"Ink","x":44,"y":45}],["node.set",{"id":2,"props":{"fontSize":38,"fill":"#173fa4"}}],["shape.rectangle",{"x":35,"y":30,"width":150,"height":70,"props":{"fill":"#207f3f"}}],["object.mask",{"ids":[2,3]}]]},
+{"title":"clipped frame","commands":[["frame.create",{"x":40,"y":20,"width":70,"height":55,"props":{"clip":true,"fill":"#ffe8ca"}}],["text.create",{"parent":2,"text":"Bé Og","x":-8,"y":18}],["node.set",{"id":3,"props":{"fontSize":38,"fill":"#173fa4"}}]]}
+]

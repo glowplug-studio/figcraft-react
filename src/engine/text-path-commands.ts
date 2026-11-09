@@ -4,10 +4,8 @@ import { withEffects } from "./effects";
 import { ancestors, HierarchyDraft } from "./hierarchy";
 import { inspectedId, parseBoolean, parseNodeId, parseNumber } from "./parameters";
 import { validateChangedGeometry } from "./rotation";
-import { shapePath } from "./shape-path";
+import { strokeGeometry } from "./shape-path";
 import { textPathData } from "./text-path-data";
-import { drawnVectorNetwork } from "./vector-rounded";
-import { vectorStrokePath } from "./vector-path";
 
 import {transformBounds} from "./affine";
 import {measurePath, nearestOnPolylines, type MeasuredPolyline} from "./path-measure";
@@ -15,10 +13,6 @@ import {hitPathLeaf} from "./selection";
 import type {Point} from "./geometry";
 import {newTextData} from "./text-data";
 import {readableTextFill} from "./text-edit";
-
-function pathElements(source:LayerNode) {
-  return source.kind==="vector" ? vectorStrokePath(drawnVectorNetwork(source)) : shapePath(source);
-}
 
 const firstSubpaths=new WeakMap<LeafNode,readonly MeasuredPolyline[]>();
 export function textPathAt(document:Document,point:Point,zoom:number) {
@@ -30,7 +24,7 @@ export function textPathAt(document:Document,point:Point,zoom:number) {
     if (point.x<b.x-reach || point.x>b.x+b.width+reach || point.y<b.y-reach || point.y>b.y+b.height+reach) return false;
     let lines=firstSubpaths.get(node);
     if (!lines) {
-      lines=measurePath(pathElements(node))?.slice(0,1) ?? [];
+      lines=measurePath(strokeGeometry(node))?.slice(0,1) ?? [];
       firstSubpaths.set(node,lines);
     }
     const hit=nearestOnPolylines(lines,point,world);
@@ -56,7 +50,7 @@ export function putTextOnPath(document:Document, selection:readonly NodeId[], pa
   const source = pathId && document.nodes[pathId], node = textId && document.nodes[textId];
   if (!source || source.kind==="page" || !canSupplyTextPath(source)) throw new Error("Select a layer with a path");
   if (!node || node.kind!=="text" || ancestors(document,node.id).includes(source.id)) throw new Error("Select a text layer outside the path layer");
-  const elements = pathElements(source);
+  const elements = strokeGeometry(source);
   if (!elements.length) throw new Error("The selected layer has an empty path");
   const path = Object.freeze({d:textPathData(elements),start:textPathOffset(params.start) ?? 0,flip:parseBoolean(params.flip) ?? false});
   const parent=document.nodes[source.parent];
@@ -84,7 +78,7 @@ export function createTextOnPath(document:Document,id:string,target:{pathId:stri
   if (isLeaf(parent)) throw new Error("Invalid path parent");
   const node:TextNode={kind:"text",id,parent:parent.id,name:"",x:0,y:0,width:1,height:14,
     fill:readableTextFill(document,parent.id),...(source.constraints && {constraints:source.constraints}),text:newTextData()};
-  const path=Object.freeze({d:textPathData(pathElements(source)),start:target.startFraction,flip:false});
+  const path=Object.freeze({d:textPathData(strokeGeometry(source)),start:target.startFraction,flip:false});
   const text=placeText(node,source,path);
   const draft=new HierarchyDraft(document);
   draft.insert(text,parent.id,parent.children.indexOf(source.id));

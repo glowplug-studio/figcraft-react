@@ -9,7 +9,7 @@ import { worldTransform } from "./hierarchy";
 import type { Point } from "./geometry";
 import { hitRectangle } from "./selection";
 import { textCaret, textHit, textSelectionRects } from "./text-caret";
-import { textWordRange, type TextTarget } from "./text-edit";
+import { cleanInsertedText, textWordRange, type TextTarget } from "./text-edit";
 import { prepareText, textNodeLayout } from "./text-node-layout";
 import { scalarToUtf16, utf16ToScalar } from "./text-ranges";
 import { wordSegmenterReady } from "./text-word-starts";
@@ -24,9 +24,9 @@ export class CanvasTextInput {
   #session?: Session;
   #input?: HTMLTextAreaElement;
   #generation = 0;
-  #selection?: [number,number];
+  #selection?: [number,number,("forward"|"backward"|"none")?];
   #composing = false;
-  #composition?: {start:number; end:number; text:string; generation:number};
+  #composition?: {start:number; end:number; text:string; generation:number; cursor?:number};
   get preeditDocument() { return this.#session?.active() ? this.#session.compositionPreview()?.document : undefined; }
   #pending?: Promise<void>;
 
@@ -189,8 +189,15 @@ export class CanvasTextInput {
     input.style.cssText="position:fixed;width:1px;height:1em;padding:0;border:0;opacity:0;pointer-events:none;resize:none;font-size:16px";
     input.value=this.#session.node().text.characters;
     this.canvas.after(input);
-    input.addEventListener("beforeinput",()=>{ this.#selection=[input.selectionStart,input.selectionEnd]; });
-    input.addEventListener("input",()=>{ if (!this.#composing) this.#sync(); });
+    input.addEventListener("beforeinput",()=>{ this.#selection=[input.selectionStart,input.selectionEnd,input.selectionDirection]; });
+    input.addEventListener("input",()=>{
+      if (!this.#composing) {this.#sync();return;}
+      const state=this.#composition;
+      if (!state) return;
+      const base=scalarToUtf16(session.node().text.characters,state.start);
+      state.cursor=utf16ToScalar(state.text,Math.max(0,input.selectionStart-base));
+      if (session.composition()?.text===state.text) session.compose(state.text,state.cursor);
+    });
     input.addEventListener("compositionstart",()=>{
       this.#updateRange();this.#composing=true;
       this.#composition={start:utf16ToScalar(input.value,input.selectionStart),end:utf16ToScalar(input.value,input.selectionEnd),text:"",generation:0};
@@ -229,11 +236,11 @@ export class CanvasTextInput {
     const state=this.#composition, session=this.#session;
     if (!state || !session?.active()) return;
     const version=++state.generation;
-    state.text=data;
+    state.text=data;state.cursor=undefined;
     try {
       if (!wordSegmenterReady(data)) await prepareText(data);
       if (this.#composition!==state || state.generation!==version || !session.active()) return;
-      session.compose(data);
+      session.compose(data,state.cursor);
       const range=this.engine.getTextRange();
       if (range && session.composition()) state.start=state.end=range.caret;
       this.invalidate();
@@ -254,7 +261,7 @@ export class CanvasTextInput {
     const session=this.#session, input=this.#input;
     if (!session?.active() || !input) return;
     const value=input.value, before=session.node().text.characters;
-    if (value === before) return;
+    if (value === before) {this.#selection=undefined;return;}
     if (!wordSegmenterReady(value)) {
       const pending=prepareText(value).then(()=>{ if (session===this.#session && session.active()) this.#sync(); })
         .catch(e=>{ if (session===this.#session) this.onError(e instanceof Error ? e.message : "Could not prepare text"); });
@@ -274,15 +281,24 @@ export class CanvasTextInput {
       if (to<before.length && /[\uDC00-\uDFFF]/.test(before[to])) { to++;end++; }
     }
     const start = utf16ToScalar(before,from), stop = utf16ToScalar(before,to), insertion = value.slice(from,end);
-    const caret = session.marker(start,stop,insertion);
-    if (caret === undefined) session.replace(start,stop,insertion);
+    const accepted=cleanInsertedText(insertion);
+    if (insertion && !accepted) {
+      input.value=before;
+      input.setSelectionRange(from,to,this.#selection?.[2]);
+      this.#selection=undefined;this.#updateRange();return;
+    }
+    const caret = session.marker(start,stop,accepted);
+    if (caret === undefined) session.replace(start,stop,accepted);
     else {
       input.value = session.node().text.characters;
       const offset = scalarToUtf16(input.value,caret);
       input.setSelectionRange(offset,offset);
     }
     this.#selection=undefined;
-    if (input.value !== session.node().text.characters) input.value=session.node().text.characters;
+    if (input.value !== session.node().text.characters) {
+      input.value=session.node().text.characters;
+      input.setSelectionRange(from+accepted.length,from+accepted.length);
+    }
     this.#updateRange();
   }
   #key = (e: KeyboardEvent) => {
