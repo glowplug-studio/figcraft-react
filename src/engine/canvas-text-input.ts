@@ -3,13 +3,12 @@ import { textShortcut } from "./text-shortcuts";
 import { inverse, transformPoint } from "./affine";
 import { dropParent, lockedIn } from "./canvas-selection";
 import { canvasAccent } from "./canvas-colours";
-import type { Document, TextNode } from "./document";
 import type { EditorEngine } from "./editor";
 import { worldTransform } from "./hierarchy";
 import type { Point } from "./geometry";
 import { hitRectangle } from "./selection";
 import { textCaret, textHit, textSelectionRects } from "./text-caret";
-import { editTextRange, publishTextNode, textWordRange, type TextTarget } from "./text-edit";
+import { textWordRange, type TextTarget } from "./text-edit";
 import { prepareText, textNodeLayout } from "./text-node-layout";
 import { scalarToUtf16, utf16ToScalar } from "./text-ranges";
 import { wordSegmenterReady } from "./text-word-starts";
@@ -27,8 +26,7 @@ export class CanvasTextInput {
   #selection?: [number,number];
   #composing = false;
   #composition?: {start:number; end:number; text:string; generation:number};
-  #preedit?: {document:Document; node:TextNode; start:number; end:number};
-  get preeditDocument() { return this.#session?.active() ? this.#preedit?.document : undefined; }
+  get preeditDocument() { return this.#session?.active() ? this.#session.compositionPreview()?.document : undefined; }
   #pending?: Promise<void>;
 
   constructor(private canvas: HTMLCanvasElement, private engine: EditorEngine, private invalidate: () => void,
@@ -40,12 +38,30 @@ export class CanvasTextInput {
     canvas.addEventListener("pointercancel",this.#cancelDrag,options);
     canvas.addEventListener("lostpointercapture",this.#cancelDrag,options);
     canvas.addEventListener("dblclick",this.#double,options);
+    const unsubscribe=engine.subscribeTextCommands(()=>{
+      const session=engine.currentTextEdit();
+      if (this.#session && this.#session!==session) this.#close(false);
+      if (!session) return;
+      if (this.#session!==session) this.#attach(session);
+      const input=this.#input!, range=engine.getTextRange()!;
+      this.#composition=undefined;this.#composing=false;this.#selection=undefined;
+      input.value=session.node().text.characters;
+      input.setSelectionRange(scalarToUtf16(input.value,range.start),scalarToUtf16(input.value,range.end),
+        range.caret<range.anchor ? "backward" : "forward");
+      this.invalidate();
+    });
+    signal.addEventListener("abort",unsubscribe,{once:true});
     signal.addEventListener("abort",() => { this.#generation++; this.#close(false); },{once:true});
   }
   get active() { return !!this.#session?.active(); }
   #updateRange = () => {
     const input = this.#input;
-    if (input) this.#session?.select(utf16ToScalar(input.value,input.selectionStart), utf16ToScalar(input.value,input.selectionEnd));
+    if (input && !this.#composing) {
+      const a=utf16ToScalar(input.value,input.selectionStart), b=utf16ToScalar(input.value,input.selectionEnd);
+      const back=input.selectionDirection==="backward", range=this.engine.getTextRange();
+      if (range?.anchor!==(back ? b : a) || range?.caret!==(back ? a : b))
+        this.#session?.select(back ? b : a,back ? a : b);
+    }
     this.invalidate();
   };
   format(props: Record<string,unknown>) {
@@ -138,79 +154,77 @@ export class CanvasTextInput {
       await prepareText();
       if (version !== this.#generation || this.engine.getSnapshot() !== before) return;
       if (before.tool === "text") this.engine.execute("tool.move");
-      this.#session=this.engine.beginTextEdit(target);
-      const input=this.canvas.ownerDocument.createElement("textarea");
-      this.#input=input;
-      input.dataset.figcraftTextInput = "";
-      input.setAttribute("aria-label","Edit text layer"); input.spellcheck=false;
-      input.style.cssText="position:fixed;width:1px;height:1em;padding:0;border:0;opacity:0;pointer-events:none;resize:none;font-size:16px";
-      input.value=this.#session.node().text.characters;
-      this.canvas.after(input);
-      input.addEventListener("beforeinput",()=>{ this.#selection=[input.selectionStart,input.selectionEnd]; });
-      input.addEventListener("input",()=>{ if (!this.#composing) this.#sync(); });
-      input.addEventListener("compositionstart",()=>{
-        this.#composing=true;
-        this.#composition={start:utf16ToScalar(input.value,input.selectionStart),end:utf16ToScalar(input.value,input.selectionEnd),text:"",generation:0};
-      });
-      input.addEventListener("compositionupdate",e=>{ void this.#showComposition(e.data); });
-      input.addEventListener("compositionend",e=>this.#endComposition(e.data));
-      input.addEventListener("select",this.#updateRange);
-      input.addEventListener("keyup",this.#updateRange);
-      input.addEventListener("keydown",this.#key);
-      // Chromium restores focus after a modal, but can reset the textarea selection to zero.
-      let inspectorRange: {start:number; end:number; direction:"forward"|"backward"|"none"; value:string} | undefined;
-      input.addEventListener("focus", () => {
-        const saved = inspectorRange;
-        inspectorRange = undefined;
-        if (saved && saved.value === input.value) {
-          input.setSelectionRange(saved.start,saved.end,saved.direction);
-          this.#updateRange();
-        }
-      });
-      input.addEventListener("blur", event => {
-        const next = event.relatedTarget;
-        if (next instanceof Element && next.closest("[data-figcraft-typography]") &&
-          next.closest("[data-figcraft-editor]") === this.canvas.closest("[data-figcraft-editor]")) {
-          inspectorRange = {start:input.selectionStart,end:input.selectionEnd,direction:input.selectionDirection,value:input.value};
-          return;
-        }
-        if (this.#input === input) this.finish();
-      });
-      input.focus({preventScroll:true});
+      const input=this.#attach(this.engine.beginTextEdit(target));
       if (selectAll) { input.select(); this.invalidate(); }
       else { this.#select(point,false); if (extend) this.#select(extend,true); }
       this.#updateRange();
     } catch (e) { this.#close(false); this.onError(e instanceof Error ? e.message : "Could not edit text"); }
   }
+  #attach(session:Session) {
+    this.#session=session;
+    const input=this.canvas.ownerDocument.createElement("textarea");
+    this.#input=input;
+    input.dataset.figcraftTextInput = "";
+    input.setAttribute("aria-label","Edit text layer"); input.spellcheck=false;
+    input.style.cssText="position:fixed;width:1px;height:1em;padding:0;border:0;opacity:0;pointer-events:none;resize:none;font-size:16px";
+    input.value=this.#session.node().text.characters;
+    this.canvas.after(input);
+    input.addEventListener("beforeinput",()=>{ this.#selection=[input.selectionStart,input.selectionEnd]; });
+    input.addEventListener("input",()=>{ if (!this.#composing) this.#sync(); });
+    input.addEventListener("compositionstart",()=>{
+      this.#updateRange();this.#composing=true;
+      this.#composition={start:utf16ToScalar(input.value,input.selectionStart),end:utf16ToScalar(input.value,input.selectionEnd),text:"",generation:0};
+    });
+    input.addEventListener("compositionupdate",e=>{ void this.#showComposition(e.data); });
+    input.addEventListener("compositionend",e=>this.#endComposition(e.data));
+    input.addEventListener("select",this.#updateRange);
+    input.addEventListener("keyup",this.#updateRange);
+    input.addEventListener("keydown",this.#key);
+    // Chromium restores focus after a modal, but can reset the textarea selection to zero.
+    let inspectorRange: {start:number; end:number; direction:"forward"|"backward"|"none"; value:string} | undefined;
+    input.addEventListener("focus", () => {
+      const saved = inspectorRange;
+      inspectorRange = undefined;
+      const range=this.engine.getTextRange();
+      if (saved && range && saved.value === input.value &&
+        saved.start===scalarToUtf16(input.value,range.start) && saved.end===scalarToUtf16(input.value,range.end) &&
+        (saved.direction==="backward")===(range.caret<range.anchor)) {
+        input.setSelectionRange(saved.start,saved.end,saved.direction);
+        this.#updateRange();
+      }
+    });
+    input.addEventListener("blur", event => {
+      const next = event.relatedTarget;
+      if (next instanceof Element && next.closest("[data-figcraft-typography]") &&
+        next.closest("[data-figcraft-editor]") === this.canvas.closest("[data-figcraft-editor]")) {
+        inspectorRange = {start:input.selectionStart,end:input.selectionEnd,direction:input.selectionDirection,value:input.value};
+        return;
+      }
+      if (this.#input === input) this.finish();
+    });
+    input.focus({preventScroll:true});
+    return input;
+  }
   async #showComposition(data: string) {
     const state=this.#composition, session=this.#session;
     if (!state || !session?.active()) return;
     const version=++state.generation;
-    let text="", length=0;
-    for (const c of data) {
-      if (/\p{Cc}/u.test(c)) continue;
-      if (length++ === 1000) break;
-      text+=c;
-    }
-    state.text=text;
-    if (!text) { this.#preedit=undefined; this.invalidate(); return; }
-    if (state.end!==state.start) {
-      session.replace(state.start,state.end,"");
-      state.end=state.start;
-    }
+    state.text=data;
     try {
-      if (!wordSegmenterReady(text)) await prepareText(text);
+      if (!wordSegmenterReady(data)) await prepareText(data);
       if (this.#composition!==state || state.generation!==version || !session.active()) return;
-      const node=editTextRange(session.node(),state.start,state.start,text);
-      this.#preedit={node,document:publishTextNode(this.engine.getRenderDocument(),node),start:state.start,end:state.start+Math.min(length,1000)};
+      session.compose(data);
+      const range=this.engine.getTextRange();
+      if (range && session.composition()) state.start=state.end=range.caret;
       this.invalidate();
     } catch (error) { if (this.#composition===state) this.onError(error instanceof Error ? error.message : "Could not display composition"); }
   }
   #endComposition(data: string) {
     const state=this.#composition, input=this.#input, session=this.#session;
-    this.#composing=false; this.#preedit=undefined; this.#composition=undefined;
+    this.#composing=false;  this.#composition=undefined;
     if (!state || !input || !session?.active()) return;
     const before=session.node().text.characters, from=scalarToUtf16(before,state.start), to=scalarToUtf16(before,state.end);
+    session.compose("");
     const insertion=data==="\r" || data==="\n" ? "" : data;
     input.value=before.slice(0,from)+insertion+before.slice(to);
     input.setSelectionRange(from+insertion.length,from+insertion.length);
@@ -316,7 +330,7 @@ export class CanvasTextInput {
   }
   #close(commit: boolean) {
     const session=this.#session, input=this.#input;
-    this.#session=undefined; this.#input=undefined; this.#selection=undefined; this.#composing=false; this.#composition=undefined; this.#preedit=undefined; this.#pending=undefined;
+    this.#session=undefined; this.#input=undefined; this.#selection=undefined; this.#composing=false; this.#composition=undefined;  this.#pending=undefined;
     input?.remove();
     if (commit) session?.finish(); else session?.cancel();
     this.invalidate();
@@ -330,7 +344,7 @@ export class CanvasTextInput {
     const session=this.#session, input=this.#input;
     if (!session || !input) return;
     if (!session.active()) { this.#close(false); return; }
-    const shown=this.#preedit, node=shown?.node ?? session.node(), doc=shown?.document ?? this.engine.getRenderDocument(), {layout,dy}=textNodeLayout(node);
+    const shown=this.#session?.compositionPreview(), node=shown?.node ?? session.node(), doc=shown?.document ?? this.engine.getRenderDocument(), {layout,dy}=textNodeLayout(node);
     const matrix=worldTransform(doc,node.id), origin=pageToScreen(view,{x:0,y:0});
     context.save(); context.translate(origin.x,origin.y); context.scale(view.zoom,view.zoom); context.transform(...matrix); context.translate(0,dy);
     const a=utf16ToScalar(node.text.characters,input.selectionStart), b=utf16ToScalar(node.text.characters,input.selectionEnd);
@@ -339,8 +353,8 @@ export class CanvasTextInput {
       context.fillStyle=canvasAccent(doc);
       for (const box of textSelectionRects(layout,shown.start,shown.end)) context.fillRect(box.x,box.y+box.height-1/view.zoom,box.width,1/view.zoom);
     } else for (const box of textSelectionRects(layout,a,b)) context.fillRect(box.x,box.y,box.width,box.height);
-    const caret=textCaret(layout,input.selectionDirection==="backward"?a:b), line=layout.lines[caret.line];
-    if (a===b) {
+    const caret=textCaret(layout,shown?.cursor ?? (input.selectionDirection==="backward"?a:b)), line=layout.lines[caret.line];
+    if (a===b || shown) {
       context.fillStyle=canvasAccent(doc); context.fillRect(caret.x,line?.top ?? 0,1/view.zoom,line?.height ?? node.height);
     }
     context.restore();

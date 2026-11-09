@@ -1,3 +1,4 @@
+import { editTextSpecs, executeTextEdit, isTextEditCommand, type EditSelection } from "./text-edit-commands";
 import { executeTextFormat, isTextFormatCommand, textFormatSpecs } from "./text-format-commands";
 import { sameTextData, scalarCount } from "./text-ranges";
 import { subscribeFonts } from "./font-generation";
@@ -63,6 +64,7 @@ export const commandSpecs = Object.freeze({
   ...effectSpecs,
   ...strokeSpecs,
   ...textFormatSpecs,
+  ...editTextSpecs,
   "text.fonts": {label:"List fonts",undo:false},
   "text.loadFont": {label:"Load font file",undo:true},
   "text.rescanFonts": {label:"Rescan installed fonts",undo:true},
@@ -167,9 +169,12 @@ const fontOptions={
   "text.loadFont":["data","path"],
   "text.rescanFonts":[],
 } as const;
-function fontParams(command:keyof typeof fontOptions,input:unknown) {
+function namedParameters(input:unknown):Record<string,unknown> {
   // Native registry queries treat a non-object payload as having no named parameters.
-  const p=input && typeof input==="object" && !Array.isArray(input) ? input as Record<string,unknown> : {};
+  return input && typeof input==="object" && !Array.isArray(input) ? input as Record<string,unknown> : {};
+}
+function fontParams(command:keyof typeof fontOptions,input:unknown) {
+  const p=namedParameters(input);
   const allowed:readonly string[]=fontOptions[command];
   for (const key of Object.keys(p)) if (key!=="ids" && key!=="id" && !allowed.includes(key))
     throw new Error("Unknown "+command+" option: "+key);
@@ -198,7 +203,16 @@ export class EditorEngine {
     baseVectorEdit?: VectorEditState; vectorEdit?: VectorEditState;
   };
   #textPreview?:Document;
-  #textRange?: {node:TextNode; start:number; end:number; active:() => boolean; update:(doc:Document,start:number,end:number)=>void};
+  #textOwner?:symbol;
+  #textCreated=false;
+  #editing?:ReturnType<EditorEngine["beginTextEdit"]>;
+  currentTextEdit=()=>this.#editing?.active() ? this.#editing : undefined;
+  readonly #textCommandListeners=new Set<()=>void>();
+  subscribeTextCommands(listener:()=>void) {
+    this.#textCommandListeners.add(listener);
+    return ()=>{this.#textCommandListeners.delete(listener);};
+  }
+  #textRange?: {node:TextNode; start:number; end:number; anchor:number; caret:number; active:() => boolean; update:(doc:Document,start:number,end:number)=>void};
   getTextRange = () => this.#textRange?.active() ? this.#textRange : undefined;
   #canvasListeners = new Set<() => void>();
   #vectorEdit?: VectorEditState;
@@ -235,30 +249,37 @@ export class EditorEngine {
     this.#interaction = { base: this.#snapshot, document: this.#snapshot.document, selection: this.#snapshot.selection, nextId: this.#nextId, baseVectorEdit: this.#vectorEdit, vectorEdit: this.#vectorEdit };
   }
   beginTextEdit(target: TextTarget) {
-    const before = this.#snapshot.document;
-    const created = !("id" in target);
-    if (created && (this.#nextId > 18446744073709551615n || before.nodes[String(this.#nextId)])) throw new Error("Document identifiers are exhausted");
+    const existing=this.currentTextEdit();
+    const before = existing ? this.#interaction!.document : this.#snapshot.document;
+    const creating = !("id" in target);
+    const created = creating || (this.getTextRange()?.node.id===target.id && this.#textCreated);
+    if (creating && (this.#nextId > 18446744073709551615n || before.nodes[String(this.#nextId)])) throw new Error("Document identifiers are exhausted");
     const initial = "id" in target ? before.nodes[target.id] : createCanvasText(before,String(this.#nextId),target);
     if (initial?.kind !== "text") throw new Error("Expected a text layer");
-    this.beginInteraction();
+    if (!existing) this.beginInteraction();
     const owner = this.#interaction!;
     let node = initial;
     owner.selection = Object.freeze([node.id]);
-    if (created) {
+    if (creating) {
       owner.document = publishTextNode(before,node);
       owner.nextId = this.#nextId < 18446744073709551615n ? this.#nextId + 1n : this.#nextId;
     }
-    const active = () => this.#interaction === owner;
+    const token=Symbol();
+    this.#textOwner=token;
+    this.#textCreated=created;
+    const active = () => this.#interaction === owner && this.#textOwner===token;
+    let preedit:{text:string;cursor:number}|null=null;
+    let composed:{node:TextNode;document:Document;start:number;end:number;cursor:number}|undefined;
     let measured = node.text.characters, length = scalarCount(measured);
-    const select = (start:number, end:number) => {
+    const select = (anchor:number, caret:number, clearComposition=true) => {
       if (!active()) return;
       if (measured !== node.text.characters) { measured = node.text.characters; length = scalarCount(measured); }
-      start = Math.max(0, Math.min(length, Math.trunc(start)));
-      end = Math.max(0, Math.min(length, Math.trunc(end)));
-      if (end < start) [start,end] = [end,start];
-      const previous = this.#textRange;
-      if (previous?.node === node && previous.start === start && previous.end === end) return;
-      this.#textRange = {node, start, end, active, update};
+      anchor=Math.max(0,Math.min(length,Math.trunc(anchor)));
+      caret=Math.max(0,Math.min(length,Math.trunc(caret)));
+      const previous=this.#textRange, changed=clearComposition && preedit!==null;
+      if (clearComposition) {preedit=null;composed=undefined;}
+      if (!changed && previous?.node===node && previous.anchor===anchor && previous.caret===caret && previous.active===active) return;
+      this.#textRange={node,start:Math.min(anchor,caret),end:Math.max(anchor,caret),anchor,caret,active,update};
       this.#notifyCanvas();
     };
     const update = (next:Document, start:number, end:number) => {
@@ -271,13 +292,40 @@ export class EditorEngine {
       select(start,end);
     };
     select(0, 0);
-    return {
+    const session={
       select,
+      composition:()=>preedit && {...preedit},
+      compositionPreview:()=>composed,
+      compose:(raw:string,cursor?:number)=>{
+        if (!active()) return;
+        let text="", count=0;
+        for (const ch of raw) {
+          if (/\p{Cc}/u.test(ch)) continue;
+          if (count===1000) break;
+          text+=ch;count++;
+        }
+        const range=this.#textRange!;
+        if (!text && !preedit) return;
+        if (text && !preedit && range.start!==range.end) {
+          const edited=editTextRange(node,range.start,range.end,"");
+          update(publishTextNode(owner.document,edited),range.start,range.start);
+        }
+        const at=this.#textRange!.caret;
+        if (text) {
+          const rendered=editTextRange(node,at,at,text);
+          const localCursor=Math.max(0,Math.min(count,cursor ?? count));
+          composed={node:rendered,document:publishTextNode(owner.document,rendered),start:at,end:at+count,cursor:at+localCursor};
+          preedit={text,cursor:localCursor};
+        } else {composed=undefined;preedit=null;}
+        this.#notifyCanvas();
+      },
       format: (props: Record<string,unknown>, start:number, end:number) => {
         if (!active()) return;
         const range = start === end ? {} : {start, end};
         const next = setRectangleProperties(owner.document, [node.id], {id:node.id, props:{...props, ...range}});
-        update(next,start,end);
+        const rangeBefore=this.#textRange!;
+        const backwards=rangeBefore.caret<rangeBefore.anchor && start===rangeBefore.start && end===rangeBefore.end;
+        update(next,backwards ? end : start,backwards ? start : end);
       },
       listKey: (key:string, shift:boolean, start:number, end:number) => {
         if (!active()) return false;
@@ -296,16 +344,16 @@ export class EditorEngine {
       active,
       node: () => node,
       replace: (from: number, to: number, insertion: string) => {
-        if (this.#interaction !== owner) return;
+        if (!active()) return;
         const edited = editTextRange(node, from, to, insertion);
         if (edited === node) return;
         owner.document = publishTextNode(owner.document, edited);
         node = edited;
-        select(this.#textRange?.start ?? 0, this.#textRange?.end ?? 0);
+        select(this.#textRange?.anchor ?? 0, this.#textRange?.caret ?? 0);
       },
       finish: () => {
-        if (this.#interaction !== owner) return;
-        this.#textRange = undefined;
+        if (!active()) return;
+        this.#textRange = undefined;this.#editing=undefined;
         if (!node.text.characters.trim()) {
           if (created) { this.cancelInteraction(); return; }
           const draft = new HierarchyDraft(owner.document);
@@ -314,8 +362,10 @@ export class EditorEngine {
         }
         this.commitInteraction();
       },
-      cancel: () => { if (active()) { this.#textRange = undefined; this.cancelInteraction(); } },
+      cancel: () => { if (active()) { this.#textRange = undefined; this.#editing=undefined; this.cancelInteraction(); } },
     };
+    this.#editing=session;
+    return session;
   }
   setVectorRegionHover(regionHover: number | undefined): void {
     const state = this.#vectorEdit;
@@ -552,12 +602,12 @@ export class EditorEngine {
   #notifyCanvas(): void { if (this.#textRange && !this.#textRange.active()) this.#textRange = undefined; this.#refreshOrigin(); this.#canvasListeners.forEach(listener => listener()); }
   cancelInteraction(): boolean {
     if (!this.#interaction) return false;
-    this.#interaction = undefined; this.#notifyCanvas(); return true;
+    this.#interaction = undefined; this.#editing=undefined;this.#textRange=undefined; this.#notifyCanvas(); return true;
   }
   commitInteraction(): boolean {
     const interaction = this.#interaction;
     if (!interaction) return false;
-    this.#interaction = undefined;
+    this.#interaction = undefined; this.#editing=undefined;this.#textRange=undefined;
     const { base, document, selection } = interaction;
     const vectorChanged = interaction.vectorEdit !== interaction.baseVectorEdit;
     if (vectorChanged) this.#vectorEdit = interaction.vectorEdit;
@@ -642,6 +692,7 @@ export class EditorEngine {
     if (!editable) { this.#vectorEdit = undefined; this.#copiedPaint = undefined; this.#copiedEffect = undefined; }
     if (editable !== this.#snapshot.editable) this.#publish({ editable, tool: "move", profileDialog: false, missingFonts: undefined });
   }
+  execute(command:"text.edit.selection",input?:unknown):EditSelection|null;
   execute(command:"text.fonts",input?:unknown):ReturnType<typeof queryFonts>;
   execute(command: "select.layersAt", input: unknown): ReturnType<typeof layersAt>;
   execute(command: "node.get", input: unknown): ReturnType<typeof getNode>;
@@ -654,13 +705,18 @@ export class EditorEngine {
     if (!Object.hasOwn(commandSpecs, command)) throw new Error(`Unsupported command: ${command}`);
     if (!this.#snapshot.editable) throw new Error("Sign in to edit this document");
     const p = command==="text.fonts" || command==="text.rescanFonts" || command==="text.loadFont"
-      ? fontParams(command,input) : parameters(input);
+      ? fontParams(command,input) : isTextEditCommand(command) ? namedParameters(input) : parameters(input);
     if (command==="text.preview") return this.#previewChange(p);
     if (command==="text.endPreview") {
       if (Object.keys(p).some(k=>k!=="id" && k!=="ids")) throw new Error("Unknown text.endPreview option");
       return {ended:this.endTextPreview()};
     }
     this.endTextPreview();
+    if (isTextEditCommand(command)) {
+      const result=executeTextEdit(this,command,p);
+      if (command!=="text.edit.selection") for (const listener of this.#textCommandListeners) listener();
+      return result;
+    }
     if (command === "text.fonts") return queryFonts(p);
     if (command === "text.loadFont") throw new Error("text.loadFont requires executeAsync");
     if (command === "text.rescanFonts") return {added:[],refitted:[]};
@@ -675,7 +731,7 @@ export class EditorEngine {
       if (!live) this.cancelInteraction();
       const before = this.#snapshot;
       const {document,result} = executeTextFormat(command,this.getRenderDocument(),before.selection,p,live);
-      if (live) live.update(document,live.start,live.end);
+      if (live) live.update(document,live.anchor,live.caret);
       else if (document!==before.document) {
         this.#undo.push({document:before.document,selection:before.selection});
         this.#redo = [];
@@ -711,7 +767,7 @@ export class EditorEngine {
     const preservePen = this.pen.open && command === "tool.pen" || (this.pen.open || this.pencil.active) && (command === "tool.scaleAnchor" || Object.hasOwn(viewSpecs, command));
     if (preservePen && command === "tool.pen") { if (Object.keys(p).length) throw new Error("tool.pen takes no parameters"); return {}; }
     const gesture = Object.hasOwn(smartSpecs, command) && command !== "arrange.roundToPixels" && parseBoolean(p.fromGesture) === true;
-    if (!gesture && !preservePen) { const interacting = this.interacting; this.pencil.cancel(); if (this.pen.open) this.pen.cancel(); else this.cancelInteraction(); if (interacting && command === "edit.undo") return { undone: true }; }
+    if (!gesture && !preservePen && !(command==="file.markSaved" && this.currentTextEdit())) { const interacting = this.interacting; this.pencil.cancel(); if (this.pen.open) this.pen.cancel(); else this.cancelInteraction(); if (interacting && command === "edit.undo") return { undone: true }; }
     if (command === "text.missingFonts") {
       if (Object.keys(p).some(key=>key!=="ids" && key!=="id")) throw new Error("Unknown text.missingFonts option");
       const families=Object.freeze(missingFonts(this.#snapshot.document));
@@ -923,7 +979,7 @@ export class EditorEngine {
     }
     if (command === "file.markSaved") {
       if (Object.keys(p).some(key => key !== "revision")) throw new Error("Unsupported save acknowledgement parameter");
-      const document = p.revision === undefined ? this.#snapshot.document : typeof p.revision === "number" ? this.#pendingSaves.get(p.revision) : undefined;
+      const document = p.revision === undefined ? this.#interaction?.document ?? this.#snapshot.document : typeof p.revision === "number" ? this.#pendingSaves.get(p.revision) : undefined;
       if (!document) return { saved: false };
       this.#saved = document;
       this.#pendingSaves.clear();
@@ -951,12 +1007,21 @@ export class EditorEngine {
     return { [undo ? "undone" : "redone"]: Boolean(entry) };
   }
   /** Native file commands run outside pointer rendering and retain atomic document replacement. */
+  async executeAsync(command:"text.edit.selection",input?:unknown):Promise<EditSelection|null>;
   async executeAsync(command:"text.fonts",input?:unknown):Promise<ReturnType<typeof queryFonts>>;
   async executeAsync(command: "file.open" | "file.recover", input: unknown): Promise<OpenResult>;
   async executeAsync(command: "node.get", input: unknown): Promise<ReturnType<typeof getNode>>;
   async executeAsync(command: string, input?: unknown): Promise<Record<string, unknown>>;
   async executeAsync(command: string, input: unknown = {}): Promise<Record<string, unknown> | ReturnType<typeof queryFonts> | null> {
     if (command!=="text.preview" && command!=="text.endPreview") this.endTextPreview();
+    if (command==="text.edit.insert" || command==="text.edit.preedit") {
+      const p=namedParameters(input), session=this.currentTextEdit(), revision=this.#openSequence;
+      if (!this.#snapshot.editable) throw new Error("Sign in to edit this document");
+      const value=parseString(p.text) ?? "";
+      await prepareText(value);
+      if (session!==this.currentTextEdit() || revision!==this.#openSequence) throw new Error("The active text edit changed");
+      return this.execute(command,p);
+    }
     if (command==="text.fonts" || command==="text.loadFont") {
       if (!this.#snapshot.editable) throw new Error("Sign in to edit this document");
       const revision=this.#openSequence, identity=this.#documentIdentity;
@@ -993,10 +1058,12 @@ export class EditorEngine {
   }
   async #prepareSave<T>(output: (archive: Blob) => Promise<T>) {
     if (!this.#snapshot.editable) throw new Error("Sign in to edit this document");
-    this.pen.finish(); this.pencil.cancel(); this.cancelInteraction();
-    const document = this.#snapshot.document;
+    this.pen.finish(); this.pencil.cancel();
+    const live=this.currentTextEdit() && this.#interaction;
+    if (!live) this.cancelInteraction();
+    const document=live?.document ?? this.#snapshot.document;
     const revision = ++this.#saveSequence, opening = this.#openSequence;
-    const archive = await encodeFigcraftBlob(document, String(this.#nextId));
+    const archive = await encodeFigcraftBlob(document, String(live?.nextId ?? this.#nextId));
     const data = await output(archive);
     if (!this.#snapshot.editable || opening !== this.#openSequence) throw new Error("Save was cancelled because the document or identity changed");
     this.#pendingSaves.set(revision, document);

@@ -35,9 +35,13 @@ export function createCanvasText(document: Document, id: string, target: Exclude
   return withLayerTransform(node, multiply(inverse(worldTransform(document,parent)),placement));
 }
 
+export function cleanInsertedText(insertion:string) {
+  return normaliseTextLines(insertion).replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f-\u009f]/g,"");
+}
+
 /** Replace only the selected scalars so surrounding style runs and paragraph lists survive. */
 export function editTextRange(node: TextNode, start: number, end: number, insertion: string) {
-  const value = normaliseTextLines(insertion).replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f-\u009f]/g,"");
+  const value=cleanInsertedText(insertion);
   if (insertion && !value || !value && start === end) return node;
   const text = replaceTextRange(node.text,start,end,value);
   const previous = textLayerName(node.text.characters);
