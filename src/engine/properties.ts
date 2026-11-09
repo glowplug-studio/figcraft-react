@@ -1,3 +1,4 @@
+import { blendFromName, type BlendMode } from "./blend";
 import { isBooleanOperation, isGroupLike } from "./document";
 import { pathNetwork } from "./svg-path";
 import { freezeNetwork } from "./vector-network";
@@ -19,7 +20,7 @@ import { moveWorld } from "./arrange";
 import type { Point } from "./geometry";
 
 const geometryKeys = new Set(["x", "y", "width", "height", "w", "h", "rotation"]);
-const appearanceKeys = new Set(["booleanOperation", "operandOperation", "name", "visible", "locked", "opacity", "fill", "fills", "clip", "constraints", "constrainProportions"]);
+const appearanceKeys = new Set(["booleanOperation", "operandOperation", "name", "visible", "locked", "opacity", "blend", "blendMode", "fill", "fills", "clip", "constraints", "constrainProportions"]);
 
 /** The supported layer geometry and appearance subset of upstream `node.set`. No history is recorded here. */
 export function setRectangleProperties(document: Document, selection: readonly NodeId[], params: Record<string, unknown>, origin?: Point, warnings: string[] = []): Document {
@@ -72,6 +73,11 @@ export function setRectangleProperties(document: Document, selection: readonly N
     if (!Number.isFinite(result)) throw new Error("opacity exceeds the finite native range");
     return result;
   })() : undefined;
+  let blend: BlendMode | undefined;
+  for (const key of ["blend","blendMode"] as const) if (key in props) {
+    blend = blendFromName(props[key]);
+    if (!blend) throw new Error("Unknown blend mode");
+  }
   let paints: readonly Paint[] | undefined;
   // Rust sorts equal-priority keys by name: `fills` replaces `fill` when both are present.
   if ("fill" in props) {
@@ -141,6 +147,13 @@ export function setRectangleProperties(document: Document, selection: readonly N
     }
     transformBounds(transform, width, height);
     let updated: LayerNode = withLayerSize(withRectangleTransform(arcNode, transform), width, height);
+    const changeBlend = blend !== undefined && blend !== (node.blend ?? (node.kind === "group" || node.kind === "frame" ? "passThrough" : "normal"));
+    if (changeBlend) {
+      if (isLeaf(node) && blend === "normal") {
+        const {blend: previousBlend, ...rest} = updated;
+        updated = Object.freeze(rest);
+      } else updated = Object.freeze({...updated,blend});
+    }
     if (cornersChanged) updated = Object.freeze({ ...updated, corners });
     if (updated.kind === "vector" && "cornerRadius" in props) updated = Object.freeze({ ...updated, network: freezeNetwork({ ...updated.network, vertices: updated.network.vertices.map(v => ({ ...v, radius: corners.radii[0] })) }) });
     if (constraintsChanged) updated = Object.freeze({ ...updated, constraints });
@@ -151,7 +164,7 @@ export function setRectangleProperties(document: Document, selection: readonly N
     if ("constrainProportions" in props) updated = Object.freeze({ ...updated, constrainProportions: props.constrainProportions as boolean });
     if (opacity !== undefined && opacity !== (node.opacity ?? 1)) updated = Object.freeze({ ...updated, opacity });
     if (paints && !samePaints(rectanglePaints(node), paints)) updated = withRectanglePaints(updated, paints);
-    if (arcNode !== node || updated.kind === "vector" && "cornerRadius" in props || cornersChanged || "constrainProportions" in props && props.constrainProportions !== (node.constrainProportions ?? false) || constraintsChanged || "clip" in props && node.kind === "frame" && props.clip !== node.clip || width !== node.width || height !== node.height || transform.some((value, index) => value !== rectangleTransform(node)[index])
+    if (changeBlend || arcNode !== node || updated.kind === "vector" && "cornerRadius" in props || cornersChanged || "constrainProportions" in props && props.constrainProportions !== (node.constrainProportions ?? false) || constraintsChanged || "clip" in props && node.kind === "frame" && props.clip !== node.clip || width !== node.width || height !== node.height || transform.some((value, index) => value !== rectangleTransform(node)[index])
       || name !== undefined && name !== node.name || "visible" in props && props.visible !== (node.visible ?? true)
       || "locked" in props && props.locked !== (node.locked ?? false) || opacity !== undefined && opacity !== (node.opacity ?? 1)
       || paints && !samePaints(rectanglePaints(node), paints)) {

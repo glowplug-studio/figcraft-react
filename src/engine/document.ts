@@ -1,3 +1,4 @@
+import type { BlendMode } from "./blend";
 import type { ImagePreset } from "./image-filters";
 import type { ImageResource } from "./image-resource";
 import type { Corners } from "./corners";
@@ -47,7 +48,7 @@ export interface LayerProperties {
   readonly visible?: boolean;
   readonly locked?: boolean;
   readonly opacity?: number;
-  readonly blend?: "normal" | "passThrough";
+  readonly blend?: BlendMode;
   readonly constraints?: Constraints;
   readonly constrainProportions?: boolean;
   readonly corners?: Corners;

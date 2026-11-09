@@ -80,6 +80,7 @@ function inspect(doc: Document, node: DocumentNode, depth: number, fields?: Set<
     }
     if (node.visible === false) put("visible", false);
     if (node.locked) put("locked", true);
+    if (node.blend && node.blend !== "normal" && node.blend !== "passThrough") put("blend", node.blend);
     if (node.opacity !== undefined && node.opacity < 1) put("opacity", node.opacity);
     if (wants("fills")) {
       const fills = rectanglePaints(node);

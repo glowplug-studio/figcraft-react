@@ -156,7 +156,7 @@ describe("bounded native Figcraft file adapter", () => {
     ["text", (value: ReturnType<typeof fixture>) => { value.nodes["2"].type = "text"; }],
     ["custom metadata", (value: ReturnType<typeof fixture>) => { value.nodes["2"].plugin_data = { key: "preserve me" }; }],
     ["paint blend", (value: ReturnType<typeof fixture>) => { value.nodes["2"].fills = [{ type: "solid", color: "#ffffff", blend: "multiply" }]; }],
-    ["node blend", (value: ReturnType<typeof fixture>) => { value.nodes["2"].blend = "multiply"; }],
+    ["node blend", (value: ReturnType<typeof fixture>) => { value.nodes["2"].blend = "futureBlendMode"; }],
     ["unknown properties", (value: ReturnType<typeof fixture>) => { value.nodes["2"].future = null; }],
   ])("refuses unsupported %s without dropping it", async (_label, change) => {
     await expect(decodeFigcraft(encodedFixture(change))).rejects.toThrow(/not supported|newer/);

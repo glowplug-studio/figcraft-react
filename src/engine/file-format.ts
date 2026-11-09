@@ -1,3 +1,4 @@
+import { isBlendMode, type BlendMode } from "./blend";
 import { sha256 } from "@noble/hashes/sha2.js";
 import { bytesToHex } from "@noble/hashes/utils.js";
 import { readNativeJson } from "./native-json";
@@ -149,7 +150,7 @@ function readNode(key: string, value: unknown): DocumentNode {
     return withPageColour({ ...(prototypeBackground && {prototypeBackground}), id: key, kind, name, parent: null, children: Object.freeze(children), background: "#f5f5f5" }, nativeColour(n.background ?? "#f5f5f5", "page background"));
   } else {
     if (isLeafKind(kind) && children.length) fail("leaf children are not supported");
-    if (n.blend !== undefined && n.blend !== "normal" && n.blend !== "passThrough") fail(`${kind} blend is not supported yet`);
+    if (n.blend !== undefined && !isBlendMode(n.blend)) fail(`${kind} blend is not supported yet`);
     if (n.visible !== undefined && typeof n.visible !== "boolean" || n.locked !== undefined && typeof n.locked !== "boolean") fail("node visibility/lock must be boolean");
     if (n.constrain_proportions !== undefined && typeof n.constrain_proportions !== "boolean") fail("constrain_proportions must be boolean");
     const opacity = Math.fround(number(n.opacity ?? 1, "node opacity"));
@@ -181,7 +182,7 @@ function readNode(key: string, value: unknown): DocumentNode {
     const op = kind === "booleanOp" ? (isBooleanOperation(n.op) ? n.op : fail("invalid boolean group operation")) : undefined;
     const layer = { ...(isBooleanOperation(n.bool_op) ? { boolOp: n.bool_op } : {}), id: key, kind, name, ...strokeData, ...(corners ? { corners } : {}), parent: id(n.parent, `${kind} parent`), x: transform[4]!, y: transform[5]!, width, height, fill: "transparent", ...(constraints.horizontal !== "left" || constraints.vertical !== "top" ? { constraints } : {}),
       ...(n.constrain_proportions === true ? { constrainProportions: true } : {}), ...(n.visible === false ? { visible: false } : {}), ...(n.locked === true ? { locked: true } : {}), ...(opacity !== 1 ? { opacity } : {}),
-      ...(n.blend !== undefined && n.blend !== (!isLeafKind(kind) ? "passThrough" : "normal") ? { blend: n.blend as "normal" | "passThrough" } : {}) };
+      ...(n.blend !== undefined && n.blend !== (!isLeafKind(kind) ? "passThrough" : "normal") ? { blend: n.blend as BlendMode } : {}) };
     let count = 0;
     if (kind === "polygon" || kind === "star") {
       if (isLosslessNumber(n.count) && (!/^(0|[1-9][0-9]*)$/.test(n.count.value) || n.count.value.length > 10)) fail("point count must be a u32");
@@ -189,7 +190,7 @@ function readNode(key: string, value: unknown): DocumentNode {
       if (!Number.isInteger(count) || count < 0 || count > 4294967295) fail("point count must be a u32");
     }
     return !isLeafKind(kind)
-      ? Object.freeze({ ...withRectanglePaints(withLayerTransform({ ...layer, ...(kind === "frame" ? { kind: "frame" as const, clip: n.clip === true } : op ? { kind: "booleanOp" as const, op } : { kind: "group" as const }), children: Object.freeze(children), blend: (n.blend ?? "passThrough") as "normal" | "passThrough" }, matrix), paints), fills: paints })
+      ? Object.freeze({ ...withRectanglePaints(withLayerTransform({ ...layer, ...(kind === "frame" ? { kind: "frame" as const, clip: n.clip === true } : op ? { kind: "booleanOp" as const, op } : { kind: "group" as const }), children: Object.freeze(children), blend: (n.blend ?? "passThrough") as BlendMode }, matrix), paints), fills: paints })
       : withRectanglePaints(withLayerTransform(kind === "ellipse" ? { ...layer, kind, start: number(n.start === undefined ? 0 : n.start, "arc start"), sweep: number(n.sweep === undefined ? 2 * Math.PI : n.sweep, "arc sweep"), inner: number(n.inner === undefined ? 0 : n.inner, "arc inner") } : kind === "polygon" ? { ...layer, kind, count } : kind === "star" ? { ...layer, kind, count, innerRatio: number(n.inner_ratio, "inner ratio") } : kind === "vector" ? { ...layer, kind, network: nativeNetwork(n.network) } : { ...layer, kind }, matrix), paints);
   }
 }

@@ -1,3 +1,4 @@
+import { compositeSurface } from "./blend-composite";
 import { booleanResult } from "./boolean-result";
 import { ArcInteraction } from "./arc-handles";
 import { DrawInteraction } from "./draw-interaction";
@@ -88,8 +89,7 @@ function* paintComposite(context: CanvasRenderingContext2D, node: LayerNode, dra
   scratch.resetTransform(); scratch.clearRect(0, 0, width, height);
   scratch.setTransform(matrix.a, matrix.b, matrix.c, matrix.d, matrix.e - left, matrix.f - top);
   yield* draw(scratch);
-  context.save(); context.resetTransform(); context.globalAlpha = opacity(node.opacity ?? 1);
-  context.drawImage(surface, 0, 0, width, height, left, top, width, height); context.restore();
+  compositeSurface(context, scratch, left, top, width, height, node.blend ?? "normal", opacity(node.opacity ?? 1));
 }
 
 function paintedGroupBounds(context: CanvasRenderingContext2D, document: Document, node: LayerNode): Rectangle | undefined {
@@ -130,6 +130,7 @@ function* drawLayer(context: CanvasRenderingContext2D, document: Document, node:
     if (result) yield* drawLayer(context, document, result, depth, nesting);
     return;
   }
+  const blended = node.blend !== undefined && node.blend !== "normal" && node.blend !== "passThrough";
   if (!isLeaf(node)) {
     const draw = function* (target: CanvasRenderingContext2D): PaintSteps {
       if (node.kind === "frame") yield* resolveLayerPaints(paintRectangle(target, node, 1, false), document, depth, nesting, drawLayer);
@@ -142,13 +143,13 @@ function* drawLayer(context: CanvasRenderingContext2D, document: Document, node:
       target.restore();
       if (node.kind === "frame" && hasVisibleStroke(node)) yield* resolveLayerPaints(paintLayerStroke(target, node), document, depth, nesting, drawLayer);
     };
-    if (opacity(node.opacity ?? 1) < 1) {
+    if (blended || node.blend === "normal" && node.children.length || opacity(node.opacity ?? 1) < 1) {
       const bounds = paintedGroupBounds(context, document, node);
       if (bounds) yield* paintComposite(context, node, draw, bounds);
     } else yield* draw(context);
-  } else if (hasShapePath(node) || hasVisibleStroke(node) || node.fills || node.opacity !== undefined && node.opacity !== 1) {
+  } else if (blended || hasShapePath(node) || hasVisibleStroke(node) || node.fills || node.opacity !== undefined && node.opacity !== 1) {
     const fillCount = node.kind === "vector" ? vectorPaintRegions(node).reduce((sum, region) => sum + region.paints.length, 0) : rectanglePaints(node).length;
-    if (fillCount + (node.strokes?.length ?? 0) > 1 && opacity(node.opacity ?? 1) < 1) yield* paintComposite(context, node, target => resolveLayerPaints(paintRectangle(target, node, 1, true), document, depth, nesting, drawLayer));
+    if (blended || fillCount + (node.strokes?.length ?? 0) > 1 && opacity(node.opacity ?? 1) < 1) yield* paintComposite(context, node, target => resolveLayerPaints(paintRectangle(target, node, 1, true), document, depth, nesting, drawLayer));
     else yield* resolveLayerPaints(paintRectangle(context, node, opacity(node.opacity ?? 1), true), document, depth, nesting, drawLayer);
   } else {
     context.fillStyle = node.fill;
