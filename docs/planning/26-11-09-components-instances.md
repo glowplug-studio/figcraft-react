@@ -4,7 +4,7 @@
 
 | Field | Evidence |
 |---|---|
-| Phase | Source investigation and implementation plan. |
+| Phase | Phase 5. Property definitions, property ordering and per-layer linkage verified. The three native component node kinds and mirrored tree editing are next. |
 | Reference | Upstream and the authorised fork both point to 79c363466a46b96f989b73c7cf20240bc168b7a2. The incoming commit changes the upstream Cloudflare packaging size limit only. The layout reference remains 3839fe4a. |
 | React | Geometry and layout implementation dbc35f4 on prompt/full-figcraft-port. The global supported baseline remains 8eb0b876. |
 | Graph | The combined local graph has 31,884 nodes and 105,277 edges. create_instance_at links to default_props and would_contain_itself. rebase_instance links to diff_groups and variable_groups. Native macro registrations and serde defaults were inspected in source. |
@@ -40,3 +40,11 @@ The rollback point for component product code is dbc35f4. The reference fast-for
 Three independent engine sessions were run against the source. Converting frame 2 in place preserved child 3. Creating its instance at (160, 20) allocated root 4 and mirrored child 5, with source IDs 2 and 3 respectively. Converting a single rectangle wrapped it under a new component and kept its prior origin on the wrapper. Editing the main rectangle’s name and fill afterwards propagated to the instance copy. Adding a variant to a standalone main created set 3 and variant 4. The original main became Property 1=Default and the new main Property 1=Variant2. The native component list returned all three assets with their folders, page and instance counts.
 
 Use these records as the first comparator for the public open, inspect, edit and save paths. The current React decoder rejects all three component kinds, and its per-layer override support is limited to the text characters marker. Forty-four source files currently contain an exact frame-kind comparison. Check every one against the corresponding native predicate when extending frame-like behaviour.
+
+## Property records and descendant links
+
+All five native property declaration kinds are implemented in component-properties.ts. Of 500 generated native inputs, both implementations accepted 317 and rejected 183. Every accepted definition, default, preferred ID list and displayed name order matched the Rust output. Cases include maximum unsigned 64-bit IDs, repeated and unknown names, integer-like keys, prototype names and Unicode outside the BMP.
+
+The native file adapter now preserves descendant source IDs, property references, exposure and override groups on supported node types. Node inspection reports the ordered groups. Text's existing characters override remains compatible with older in-memory documents. The archive test saves and reopens a layer with a maximum-width ID and an own __proto__ property reference. Strict TypeScript and 1,837 pure tests passed. The new fixture file was tested directly because the code graph extractor yielded no test symbols for it. The merged local graph has 31,900 nodes and 105,342 edges including the React and Rust ordering functions.
+
+Next, extend the document union with component, componentSet and instance. Use the native frame-like predicate for shared geometry and rendering. Compare open/render/recovery/save with the three captured native sessions, then implement creation and instance propagation. The full component release gate is open.

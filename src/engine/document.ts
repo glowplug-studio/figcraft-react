@@ -1,3 +1,4 @@
+import type { ComponentLinks } from "./component-properties";
 import type { AutoLayout, ChildLayout, LayerSizing } from "./auto-layout";
 import { scaleTextPathData } from "./text-path-data";
 import type { TextData } from "./text-data";
@@ -34,7 +35,7 @@ export function withMaskProperties<T extends MaskProperties>(node:T, isMask = no
   const {isMask: priorMask, maskType: priorType, ...rest} = node;
   return Object.freeze({...rest,...(isMask && {isMask:true}),...(maskType !== "alpha" && {maskType})}) as T;
 }
-export interface PageNode extends MaskProperties {
+export interface PageNode extends MaskProperties, ComponentLinks {
   readonly effects?: readonly Effect[];
   readonly id: NodeId;
   readonly kind: "page";
@@ -50,7 +51,7 @@ export interface Constraints {
   readonly vertical: "top" | "bottom" | "topBottom" | "center" | "scale";
 }
 export const defaultConstraints: Constraints = Object.freeze({ horizontal: "left", vertical: "top" });
-export interface LayerProperties extends MaskProperties {
+export interface LayerProperties extends MaskProperties, ComponentLinks {
   readonly childLayout?: ChildLayout;
   readonly sizing?: LayerSizing;
   readonly effects?: readonly Effect[];

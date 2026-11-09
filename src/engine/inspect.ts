@@ -1,3 +1,4 @@
+import { componentOverrides } from "./component-properties";
 import { inspectedGridCell } from "./grid-placement";
 import { layerSizing, sizeLimitKeys } from "./auto-layout";
 import { inspectText } from "./inspect-text";
@@ -59,6 +60,10 @@ function inspect(doc: Document, node: DocumentNode, depth: number, fields?: Set<
   const wants = (key: string) => !fields || fields.has(key);
   const put = (key: string, value: unknown) => { if (wants(key) && value !== undefined) out[key] = value; };
   if (node.isMask) {put("isMask",true); put("maskType",node.maskType ?? "alpha");}
+  if (wants("overrides")) {
+    const overrides = componentOverrides(node);
+    if (overrides.length) put("overrides", overrides);
+  }
   put("name", node.name);
   put("type", nodeTypeName(node));
   if (fields?.has("visible")) put("visible", node.kind === "page" || node.visible !== false);
@@ -128,7 +133,6 @@ function inspect(doc: Document, node: DocumentNode, depth: number, fields?: Set<
     if (parent?.kind === "booleanOp") put("operandOperation", node.boolOp);
     if (node.kind === "text") {
       inspectText(node.text,outline,wants,put);
-      if (node.charactersOverridden) put("overrides", ["characters"]);
     }
     if (node.kind === "frame") put("clip", node.clip);
     if (node.kind === "booleanOp") put("booleanOperation", node.op);

@@ -6,15 +6,15 @@
 |---|---|
 | Overall status | In progress. [Execution checkpoint](26-11-07-full-port-resume.md). |
 | Active slice | Components, instances and variants. [Dated plan](26-11-09-components-instances.md). |
-| Active phase | Native component records, property definitions and ordering. Source investigation and planning complete. |
+| Active phase | Phase 5. Component property definitions, display order and per-layer linkage verified. Native component container kinds are next. |
 | Upstream baseline | Components reference 79c36346. Auto layout reference 3839fe4a. Global supported baseline 8eb0b876. |
 | Branch and last verified commit | prompt/full-figcraft-port. Layout implementation dbc35f4 passed the 0.50.0 local release gate. |
 | Completed slices | Rectangle/host-auth, bounded native persistence/recovery, supported-model pages, affine rectangle geometry/selection and solid appearance, plus nested group hierarchy, Frame containers, movement/transform gestures, rounded corners, ellipse/arc/ring and Polygon/Star editing verified locally; Line/Arrow and uniform solid strokes also verified; per-side Rectangle/Frame strokes, variable-width profiles and procedural brushes verified; vector networks, solid region/stroke rendering and Flatten/Reverse also verified; foundation commit `154f5a7`. Gradient, image, pattern, blend and mask releases now have local property matrices. [Blend evidence](../reports/26-11-09-blend-modes-parity.html). Auto layout and constraints passed the local release gate. [Release evidence](../reports/26-11-09-auto-layout.md). |
 | Remaining slices | Continue incomplete roadmap rows, excluding the user-deferred plugin and widget family. See each slice matrix for outstanding integrations. |
-| Tests last passed | Strict types, library and host builds, 1,823 pure tests, two local Auth checks and 250 production Chromium tests. All 65 native layout rules matched over two passes. |
+| Tests last passed | Component records passed 1,837 pure tests and strict types. All 500 declaration comparisons matched Rust. Layout 0.50.0 passed both builds, two local Auth checks and all 250 production Chromium tests. |
 | Files currently in progress | [Component and instance plan](26-11-09-components-instances.md). |
 | Blockers | No blocker. Use local Graphify for all remaining slices. The scoped Supabase read succeeded. |
-| Exact next action | Compare component property records and ordering against Rust, then verify frame-like native component trees through open, render, recovery and download. |
+| Exact next action | Implement native component, set and instance container records. Compare open, render, recovery and download with three native sessions. |
 | Last updated | 2026-11-09 |
 
 ## Scope and continuation
