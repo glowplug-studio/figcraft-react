@@ -1,24 +1,8 @@
-import { transformBounds } from "./affine";
+import { outerBox, frameInsets, clampSize } from "./layout-geometry";
 import { layerSizing, type GridTrack } from "./auto-layout";
-import { layerTransform, type Document, type FrameNode, type LayerNode } from "./document";
+import { type Document, type FrameNode, type LayerNode } from "./document";
 import { placeGridCells, type GridCell } from "./grid-placement";
-import { defaultStroke, hasVisibleStroke } from "./stroke";
 
-export function frameInsets(frame: FrameNode): readonly [number, number, number, number] {
-  const layout = frame.layout!, stroke = frame.stroke ?? defaultStroke;
-  const inside = layout.strokesIncluded && hasVisibleStroke(frame) && stroke.align === "inside";
-  const inset = (i: number) => Math.max(0, layout.padding[i]) + (inside ? Math.max(0, stroke.sides?.[i] ?? stroke.weight) : 0);
-  return [inset(0), inset(1), inset(2), inset(3)];
-}
-
-export function outerBox(node: LayerNode) {
-  const [a,b,c,d] = layerTransform(node);
-  return transformBounds([a,b,c,d,0,0], node.width, node.height);
-}
-
-export function clampSize(value: number, min?: number, max?: number) {
-  return Math.max(min ?? -Infinity, Math.min(max ?? Infinity, Number.isFinite(value) ? Math.max(0, value) : 0));
-}
 
 function resolveAxis(tracks: readonly GridTrack[], count: number, gap: number, hug: boolean, room: number,
   offset: number, requirements: readonly {index: number; span: number; size: number}[]) {

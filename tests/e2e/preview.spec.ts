@@ -4779,3 +4779,30 @@ test("native frame layout survives opening, recovery and a browser download", as
     columnTracks: [{sizing: "fixed", value: 36}, {sizing: "fill", value: 2}], padding: [4, 8, 12, 16], crossGap: 7, reverseZ: true,
   }});
 });
+
+test("editing a child rewraps horizontal flow and an undo restores the previous row", async ({page}) => {
+  const file = JSON.parse(await readFile(new URL("../fixtures/native-rectangle.json", import.meta.url), "utf8"));
+  file.name = "Wrapped flow";
+  Object.assign(file.nodes["2"], {type: "frame", name: "Flow frame", width: 120, height: 100, children: [3,4,5],
+    layout: {mode: "horizontal", wrap: true, gap: 10, cross_gap: 5, padding: [0,0,0,0]}});
+  for (const [i,x] of [0,40,80].entries()) file.nodes[3+i] = {id: 3+i, parent: 2, type: "rectangle",
+    name: ["First","Second","Third"][i], width: 30, height: 20, transform: [1,0,0,1,x,0]};
+  file.next_id = 6;
+  await login(page);
+  await page.getByLabel("Open Figcraft file", {exact:true}).setInputFiles({
+    name:"flow.figcraft", mimeType:"application/octet-stream", buffer:Buffer.from(JSON.stringify(file)),
+  });
+  await expect(page.getByRole("heading",{name:"Wrapped flow",exact:true})).toBeVisible();
+  const layers = page.getByRole("region",{name:"Layers"});
+  const third = layers.getByRole("button",{name:"Third",exact:true});
+  if (!await third.isVisible()) await layers.getByRole("button",{name:"Expand frame Flow frame",exact:true}).click();
+  await layers.getByRole("button",{name:"First",exact:true}).click();
+  await page.getByLabel("Edit Width",{exact:true}).fill("70");
+  await page.getByRole("button",{name:"Apply geometry",exact:true}).click();
+  await third.click();
+  await expect(page.getByLabel("Edit X",{exact:true})).toHaveValue("0");
+  await expect(page.getByLabel("Edit Y",{exact:true})).toHaveValue("25");
+  await page.getByRole("button",{name:"Undo",exact:true}).click(); await third.click();
+  await expect(page.getByLabel("Edit X",{exact:true})).toHaveValue("80");
+  await expect(page.getByLabel("Edit Y",{exact:true})).toHaveValue("0");
+});

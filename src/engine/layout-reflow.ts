@@ -1,18 +1,15 @@
 import { layerSizing } from "./auto-layout";
 import { resizeChildren } from "./constraints";
-import { isLeaf, layerTransform, withLayerSize, withLayerTransform, type DocumentNode, type FrameNode, type LayerNode } from "./document";
-import { cellRect, clampSize, frameInsets, gridGeometry, outerBox } from "./grid-layout";
+import { isLeaf, type DocumentNode, type FrameNode, type LayerNode } from "./document";
+import { cellRect, gridGeometry } from "./grid-layout";
+import { clampSize, frameInsets, outerBox, placeLayer, size } from "./layout-geometry";
+import { reflowFlow } from "./flow-layout";
 import type { HierarchyDraft } from "./hierarchy";
 import { measureLayoutText } from "./text-node-layout";
 
 // A fill child can be visited in both grid passes and again by each ancestor. Keep only
 // frames already settled at these dimensions during this synchronous document edit.
 type SettledFrames = Map<string, readonly [number, number]>;
-
-function size(draft: HierarchyDraft, node: LayerNode, width: number, height: number) {
-  if (Math.abs(node.width-width) < 1e-9 && Math.abs(node.height-height) < 1e-9) return;
-  draft.set(withLayerSize(node, Math.max(0, width), Math.max(0, height)));
-}
 
 function resizeChild(draft: HierarchyDraft, node: LayerNode, width: number, height: number, depth: number, settled: SettledFrames) {
   if (node.kind === "text" && node.text.autoResize !== "none" && node.text.autoResize !== "truncate") {
@@ -26,7 +23,7 @@ function resizeChild(draft: HierarchyDraft, node: LayerNode, width: number, heig
     if (node.kind === "frame") {
       resizeChildren(draft, node.id, node.width, node.height);
       const resized = draft.nodes[node.id] as FrameNode;
-      if (resized.layout?.mode === "grid") reflowGrid(draft, resized, depth+1, settled);
+      if (resized.layout) reflowFrame(draft, resized, depth+1, settled);
     }
   }
 }
@@ -59,16 +56,24 @@ function alignOffset(align: string, free: number) {
   return align === "center" ? free/2 : align === "max" ? free : 0;
 }
 
-function reflowGrid(draft: HierarchyDraft, frame: FrameNode, depth: number, settled: SettledFrames) {
+function reflowFrame(draft: HierarchyDraft, frame: FrameNode, depth: number, settled: SettledFrames) {
   if (depth >= 256) return;
   const prior = settled.get(frame.id);
   if (prior && prior[0] === frame.width && prior[1] === frame.height) return;
-  const layout = frame.layout!, limits = frame.childLayout, sizing = layerSizing(frame);
-  const [top,right,bottom,left] = frameInsets(frame);
+  const layout = frame.layout!;
   for (const id of frame.children) {
     const n = draft.nodes[id];
     if (n.kind !== "page" && n.visible !== false && !n.childLayout?.absolute) prepareChild(draft, n, depth, settled);
   }
+  if (layout.mode === "grid") reflowGrid(draft, frame, depth, settled);
+  else reflowFlow(draft, frame, (child, width, height) => resizeChild(draft, child, width, height, depth, settled));
+  const final = draft.nodes[frame.id] as FrameNode;
+  settled.set(frame.id, [final.width, final.height]);
+}
+
+function reflowGrid(draft: HierarchyDraft, frame: FrameNode, depth: number, settled: SettledFrames) {
+  const layout = frame.layout!, limits = frame.childLayout, sizing = layerSizing(frame);
+  const [top,right,bottom,left] = frameInsets(frame);
   const hugW = sizing.horizontal === "hug", hugH = sizing.vertical === "hug";
   size(draft, frame, hugW ? frame.width : Math.max(left+right, clampSize(frame.width, limits?.minWidth, limits?.maxWidth)),
     hugH ? frame.height : Math.max(top+bottom, clampSize(frame.height, limits?.minHeight, limits?.maxHeight)));
@@ -95,13 +100,10 @@ function reflowGrid(draft: HierarchyDraft, frame: FrameNode, depth: number, sett
         fillH ? clampSize(rect.height, cl?.minHeight, cl?.maxHeight) : box.height, depth, settled);
       node = draft.nodes[id] as LayerNode;
     }
-    const box = outerBox(node), m = layerTransform(node);
-    const x = rect.x + alignOffset(cl?.gridAlignH ?? layout.mainAlign, rect.width-box.width) - box.x;
-    const y = rect.y + alignOffset(cl?.gridAlignV ?? layout.crossAlign, rect.height-box.height) - box.y;
-    if (x !== m[4] || y !== m[5]) draft.set(withLayerTransform(node, [m[0],m[1],m[2],m[3],x,y]));
+    const box = outerBox(node);
+    placeLayer(draft, node, rect.x + alignOffset(cl?.gridAlignH ?? layout.mainAlign, rect.width-box.width),
+      rect.y + alignOffset(cl?.gridAlignV ?? layout.crossAlign, rect.height-box.height));
   }
-  const final = current();
-  settled.set(frame.id, [final.width, final.height]);
 }
 
 function reshaped(a: DocumentNode | undefined, b: LayerNode) {
@@ -121,10 +123,10 @@ export function reflowChangedFrames(draft: HierarchyDraft) {
     const a = draft.originalDocument.nodes[id];
     const shape = reshaped(a, n);
     if (!shape && a && a.kind !== "page" && a.x === n.x && a.y === n.y && a.transform === n.transform) continue;
-    if (shape && n.kind === "frame" && n.layout?.mode === "grid") frames.add(n);
+    if (shape && n.kind === "frame" && n.layout) frames.add(n);
     let parent = draft.nodes[n.parent];
     while (parent && parent.kind !== "page") {
-      if (parent.kind === "frame" && parent.layout?.mode === "grid") frames.add(parent);
+      if (parent.kind === "frame" && parent.layout) frames.add(parent);
       parent = draft.nodes[parent.parent];
     }
   }
@@ -135,5 +137,5 @@ export function reflowChangedFrames(draft: HierarchyDraft) {
     return d;
   };
   const settled: SettledFrames = new Map();
-  for (const f of [...frames].sort((a,b) => depth(b)-depth(a))) reflowGrid(draft, draft.nodes[f.id] as FrameNode, 0, settled);
+  for (const f of [...frames].sort((a,b) => depth(b)-depth(a))) reflowFrame(draft, draft.nodes[f.id] as FrameNode, 0, settled);
 }
