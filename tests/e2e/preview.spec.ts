@@ -6115,3 +6115,81 @@ test("a narrow multi-selection inspector restores keyboard focus and binds every
   const {document}=await decodeFigcraft(await readFile((await (await downloading).path())!));
   for (const id of [2,3]) expect(document.nodes[id]).toMatchObject({width:48,boundVariables:{width:"VariableID:7"}});
 });
+
+test("variable files download in native formats and merge through the signed-in picker, undo and recovery",async({page})=>{
+  const golden=JSON.parse(await readFile(new URL("../fixtures/native-variable-exports.json",import.meta.url),"utf8")) as Record<string,string>;
+  await login(page);
+  await page.getByLabel("Open Figcraft file",{exact:true}).setInputFiles(new URL("../fixtures/native-variable-inspectors.json",import.meta.url).pathname);
+  const open=page.getByRole("button",{name:"Open variables (12)",exact:true});
+  await open.click();
+  const panel=page.getByRole("dialog",{name:"Local variables"});
+  const format=panel.getByRole("combobox",{name:"Export format"});
+  for (const [kind,text] of Object.entries(golden)) {
+    await format.selectOption(kind);
+    const saving=page.waitForEvent("download");
+    await panel.getByRole("button",{name:"Export variables",exact:true}).click();
+    const file=await saving;
+    expect(file.suggestedFilename()).toBe("Untitled.variables."+kind);
+    expect(await readFile((await file.path())!,"utf8")).toBe(text);
+  }
+  const input=panel.getByLabel("Import variables JSON",{exact:true});
+  await input.setInputFiles({name:"invalid.json",mimeType:"application/json",buffer:Buffer.from("{}")});
+  await expect(panel.getByRole("status")).toContainText("Expected variableCollections");
+  const incoming=JSON.parse(golden.json);
+  const raw=incoming.meta.variables["VariableID:4"];
+  raw.name="Imported caption";raw.valuesByMode["VariableCollectionId:1/mode1"]="Browser import";
+  const upload=()=>input.setInputFiles({name:"variables.json",mimeType:"application/json",buffer:Buffer.from(JSON.stringify(incoming))});
+  await upload();
+  await expect(panel.getByRole("status")).toHaveText("Imported 1 new variables, updated 11.");
+  await panel.getByRole("button",{name:"Close variables"}).click();
+  await page.getByRole("button",{name:"Undo",exact:true}).click();
+  await open.click();
+  await upload();
+  await expect(panel.getByRole("status")).toHaveText("Imported 1 new variables, updated 11.");
+  await upload();
+  await expect(panel.getByRole("status")).toHaveText("Imported 0 new variables, updated 12.");
+  await panel.getByRole("button",{name:"Close variables"}).click();
+  await expect(page.locator(".figcraft-recovery")).toHaveText("Recovery saved on this device");
+  await page.reload();
+  await page.getByRole("button",{name:"Open variables (13)",exact:true}).click();
+  await expect(panel.getByRole("button",{name:"Edit variable Imported caption",exact:true})).toBeVisible();
+});
+
+test("a 10,000-variable import keeps the catalogue bounded and edits the last row and mode",async({page})=>{
+  await login(page);
+  const wideModes=Array.from({length:50},(_,i)=>({name:"Mode "+i,modeId:"m"+i}));
+  const variables:Record<string,unknown>={wide:{name:"Wide value",variableCollectionId:"wide",resolvedType:"FLOAT",valuesByMode:{m0:5}}};
+  for (let i=0;i<10000;i++) {
+    const key=String(i).padStart(5,"0");
+    variables[key]={name:"Value "+key,variableCollectionId:"lengths",resolvedType:"FLOAT",valuesByMode:{light:i || 0.4,dark:i+1}};
+  }
+  const bytes=Buffer.from(JSON.stringify({variableCollections:{lengths:{name:"Lengths",modes:[{name:"Light",modeId:"light"},{name:"Dark",modeId:"dark"}]},
+    wide:{name:"Wide",modes:wideModes}},variables}));
+  await page.getByRole("button",{name:"Open variables (0)"}).click();
+  const panel=page.getByRole("dialog",{name:"Local variables"});
+  const start=Date.now();
+  await panel.getByLabel("Import variables JSON").setInputFiles({name:"large.json",mimeType:"application/json",buffer:bytes});
+  await expect(panel.getByRole("status")).toHaveText("Imported 10001 new variables, updated 0.");
+  const importMs=Date.now()-start;
+  const table=panel.getByRole("table",{name:"Lengths variables"});
+  await expect(table).toHaveAttribute("aria-rowcount","10001");
+  expect(await table.getByRole("row").count()).toBeLessThan(30);
+  const scroller=panel.locator(".figcraft-variable-table");
+  await scroller.evaluate(el=>{el.scrollTop=el.scrollHeight;});
+  await panel.getByRole("button",{name:"Edit Value 09999 · Light",exact:true}).click();
+  const value=panel.getByRole("textbox",{name:"Value for Value 09999 · Light",exact:true});
+  await value.fill("1234");
+  await scroller.evaluate(el=>{el.scrollTop=0;});
+  await expect(value).toBeAttached();
+  await value.press("Enter");
+  const search=panel.getByRole("searchbox",{name:"Search variables"});
+  await search.fill("09999");
+  await expect(panel.getByRole("button",{name:"Edit Value 09999 · Light",exact:true})).toHaveText("1234");
+  await panel.getByRole("button",{name:"Wide",exact:true}).click();
+  const wide=panel.getByRole("table",{name:"Wide variables"});
+  await expect(wide).toHaveAttribute("aria-colcount","51");
+  expect(await wide.getByRole("columnheader").count()).toBeLessThan(15);
+  await scroller.evaluate(el=>{el.scrollLeft=el.scrollWidth;});
+  await expect(panel.getByRole("button",{name:"Edit Wide value · Mode 49",exact:true})).toHaveText("5");
+  await test.info().attach("variable-import-time",{body:JSON.stringify({variables:10001,inputBytes:bytes.length,importMs}),contentType:"application/json"});
+});

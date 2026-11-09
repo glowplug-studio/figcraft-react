@@ -17,7 +17,7 @@ function describe(value:VariableValue|undefined, name:(id:string)=>string):strin
     default: return String(value.value);
   }
 }
-export function VariableValueCell({v,mode,data,run}:{v:Variable;mode:{id:string;name:string};data:Variables;run:VariableRun}) {
+export function VariableValueCell({v,mode,data,run,colIndex}:{colIndex?:number;v:Variable;mode:{id:string;name:string};data:Variables;run:VariableRun}) {
   const [editor,setEditor]=useState<"value"|"alias">(), [draft,setDraft]=useState("");
   const value=ownVariableValue(v.values,mode.id), index=variableIndex(data);
   const resolved=resolveVariable(data,v.id,{[v.collection]:mode.id});
@@ -27,7 +27,7 @@ export function VariableValueCell({v,mode,data,run}:{v:Variable;mode:{id:string;
   function set(value:unknown) {
     if (run("variable.set",{variable:v.id,mode:mode.id,value})) setEditor(undefined);
   }
-  return <td title={describe(resolved,name)} onKeyDown={e=>{if (editor && e.key==="Escape") {e.preventDefault();e.stopPropagation();setEditor(undefined);}}}>
+  return <td aria-colindex={colIndex} title={describe(resolved,name)} onKeyDown={e=>{if (editor && e.key==="Escape") {e.preventDefault();e.stopPropagation();setEditor(undefined);}}}>
     {editor==="value" ? <form onSubmit={e=>{e.preventDefault();set(draft);}}>
       <input autoFocus aria-label={"Value for "+cell} value={draft} onFocus={e=>e.target.select()} onChange={e=>setDraft(e.target.value)}/>
       <button type="submit">Apply value</button>

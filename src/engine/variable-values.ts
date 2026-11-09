@@ -18,7 +18,7 @@ function str(v:unknown) {
   if (s===undefined) throw new Error("Expected a string");
   return s;
 }
-const defaults:Record<VariableType,VariableValue>={
+export const variableDefaults:Record<VariableType,VariableValue>={
   color:{type:"color",value:colour(0,0,0)},number:{type:"number",value:0},boolean:{type:"boolean",value:true},string:{type:"string",value:""},
 };
 function kind(v:unknown):VariableType {
@@ -41,19 +41,21 @@ function target(data:Variables,name:unknown,type:VariableType,owner:string|undef
   const index=variableIndex(data).variables;
   const v=typeof name==="string" && (index.get(name) ?? data.variables.find(v=>v.name===name));
   if (!v || v.resolvedType!==type) throw new Error("Reference requires an existing "+type+" variable");
-  if (owner!==undefined) {
-    const seen=new Set<string>(), stack=[v.id];
-    while (stack.length) {
-      const id=stack.pop()!;
-      if (id===owner) throw new Error("Variable would refer back to itself");
-      if (seen.has(id)) continue;
-      seen.add(id);
-      if (seen.size>10000) continue;
-      const next=index.get(id);
-      if (next) for (const val of Object.values(next.values)) stack.push(...references(val));
-    }
-  }
+  if (owner!==undefined && refersBack(index,v.id,owner)) throw new Error("Variable would refer back to itself");
   return v.id;
+}
+export function refersBack(index:ReadonlyMap<string,Variable>,target:string,owner:string) {
+  const seen=new Set<string>(),stack=[target];
+  while (stack.length) {
+    const id=stack.pop()!;
+    if (id===owner) return true;
+    if (seen.has(id)) continue;
+    seen.add(id);
+    if (seen.size>10000) continue;
+    const v=index.get(id);
+    if (v) for (const value of Object.values(v.values)) stack.push(...references(value));
+  }
+  return false;
 }
 function checked(raw:unknown,keys:readonly string[]) {
   if (!object(raw) || Object.keys(raw).length!==keys.length || keys.some(k=>!Object.hasOwn(raw,k))) throw new Error("Invalid colour expression");
@@ -127,7 +129,7 @@ export function editVariableValue(data:Variables,command:string,p:Record<string,
       if (!m) throw new Error("No such mode");
       values[m.id]=inputValue(data,type,p.values[k]);
     }
-    const fallback=p.value==null ? Object.freeze(defaults[type]) : inputValue(data,type,p.value);
+    const fallback=p.value==null ? Object.freeze(variableDefaults[type]) : inputValue(data,type,p.value);
     for (const m of coll.modes) if (!Object.hasOwn(values,m.id)) values[m.id]=fallback;
     for (const [mode,v] of Object.entries(values)) values[mode]=verify(v,mode);
   } else {

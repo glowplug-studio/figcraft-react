@@ -113,7 +113,10 @@ dd { margin: 0; }
 .figcraft-variables { width:min(760px,94vw); max-height:85dvh; padding:16px; background:Canvas; color:CanvasText; }
 .figcraft-variables header,.figcraft-variables aside,.figcraft-variables section { display:flex; flex-wrap:wrap; align-items:center; gap:6px; margin-bottom:10px; }
 .figcraft-variables header { justify-content:space-between; }
-.figcraft-variable-table { overflow:auto; }.figcraft-variable-table table { border-collapse:collapse; width:100%; }
+.figcraft-variable-table { overflow:auto; }
+.figcraft-variable-table[data-windowed] { max-height:52dvh; overflow-anchor:none; }
+.figcraft-variable-table[data-windowed] th,.figcraft-variable-table[data-windowed] td { overflow-wrap:anywhere; }
+.figcraft-variable-table table { border-collapse:collapse; width:100%; }
 .figcraft-variable-table td,.figcraft-variable-table th { padding:6px; border:1px solid #ccc; text-align:start; }
 
 .figcraft-bindable-control { display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:center; gap:4px; min-width:0; }

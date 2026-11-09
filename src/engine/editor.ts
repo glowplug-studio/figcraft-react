@@ -1,3 +1,5 @@
+import { importVariables } from "./variable-import";
+import { exportVariables } from "./variable-export";
 import { bindLayerVariable, forgetLayerVariables, refreshLayerBindings } from "./layer-variable-bindings";
 import { refreshBoundStyles } from "./style-application";
 import { removeLayerMode, setVariableMode } from "./variable-modes";
@@ -116,6 +118,8 @@ export const commandSpecs = Object.freeze({
   ...gridSpecs,
   "style.apply": {label:"Apply style",undo:true},
   "style.detach": {label:"Detach style",undo:true},
+  "variable.import": {label:"Import variables",undo:true},
+  "variable.export": {label:"Export variables",undo:false},
   "variable.list": {label:"List variables",undo:false},
   "style.list": {label:"List styles",undo:false},
   "component.list": {label:"List components",undo:false},
@@ -798,6 +802,14 @@ export class EditorEngine {
     return () => encodeFigcraftBlob(document, nextId);
   }
   nativeSnapshot = (): Promise<Uint8Array> => encodeFigcraft(this.#snapshot.document, String(this.#nextId));
+  async importVariableFile(file:Blob) {
+    if (!this.#snapshot.editable) throw new Error("Sign in to edit this document");
+    if (file.size>256*1024*1024) throw new Error("Variable files must be at most 256 MiB");
+    const document=this.#documentIdentity,opening=this.#openSequence;
+    const text=await file.text();
+    if (document!==this.#documentIdentity || opening!==this.#openSequence) throw new Error("The open document changed during import");
+    return this.execute("variable.import",{variables:text});
+  }
   cancelPendingFiles(): void { this.#openSequence++; this.#pendingSaves.clear(); }
   #preparedEdit?: {base: Document; proposed: Document; allocator: bigint; result: ReturnType<typeof finishComponentEdit>};
 
@@ -1149,9 +1161,9 @@ export class EditorEngine {
       this.#commitEdit({document});
       return {ok:true};
     }
-    if (Object.hasOwn(collectionSpecs,command) || Object.hasOwn(valueSpecs,command) || Object.hasOwn(metadataSpecs,command)) {
+    if (command==="variable.import" || Object.hasOwn(collectionSpecs,command) || Object.hasOwn(valueSpecs,command) || Object.hasOwn(metadataSpecs,command)) {
       const before=this.#snapshot.document, data=before.variables ?? emptyVariables;
-      const next=Object.hasOwn(collectionSpecs,command) ? editCollection(data,command,p) :
+      const next=command==="variable.import" ? importVariables(data,p) : Object.hasOwn(collectionSpecs,command) ? editCollection(data,command,p) :
         Object.hasOwn(metadataSpecs,command) ? editVariableMetadata(data,command,p) : editVariableValue(data,command,p);
       if (next.data!==data) {
         let kept=command==="variable.deleteCollection" || command==="variable.removeMode"
@@ -1162,6 +1174,7 @@ export class EditorEngine {
       }
       return next.result;
     }
+    if (command === "variable.export") return exportVariables(this.getRenderDocument(),p);
     if (command === "variable.list") {
       if (Object.keys(p).length) throw new Error("variable.list takes no parameters");
       return structuredClone(this.getRenderDocument().variables ?? emptyVariables);
