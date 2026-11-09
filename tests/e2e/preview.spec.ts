@@ -3770,6 +3770,8 @@ test("layer and paint blend menus preview without history, commit once and recov
   await page.getByRole("heading",{name:"Appearance",exact:true}).click();
   await expect(paintMenu).toHaveCount(0); await expectCanvasPixel(page,150,130,[0,255,255,255]);
   await edit.click(); await paintButton.click();
+  // Inspect the first mobile layout before JavaScript receives its resize notification.
+  await page.evaluate(()=>window.addEventListener("resize",event=>event.stopImmediatePropagation(),{capture:true,once:true}));
   await page.setViewportSize({width:390,height:700});
   const bounds=(await paintMenu.boundingBox())!;
   expect(bounds.x).toBeGreaterThanOrEqual(0); expect(bounds.x+bounds.width).toBeLessThanOrEqual(390);

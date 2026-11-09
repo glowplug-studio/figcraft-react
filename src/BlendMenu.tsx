@@ -39,15 +39,18 @@ export function BlendMenu({engine,label,value,picker,change}: Props) {
   useLayoutEffect(()=>{
     const popup=menu.current, anchor=trigger.current;
     if (!open || !popup || !anchor) return;
+    popup.style.setProperty("--blend-menu-width","min(200px, calc(100vw - 8px))");
     popup.showPopover();
     function position() {
       if (!popup || !anchor) return;
       const box=anchor.getBoundingClientRect();
       const above=Math.max(0,box.top-8), below=Math.max(0,window.innerHeight-box.bottom-8);
       const up=below<popup.scrollHeight && above>below;
-      popup.style.maxHeight=Math.max(48,up?above:below)+"px";
-      popup.style.top=Math.max(4,Math.min(window.innerHeight-popup.offsetHeight-4,up?box.top-popup.offsetHeight-2:box.bottom+2))+"px";
-      popup.style.left=Math.max(4,Math.min(window.innerWidth-popup.offsetWidth-4,box.left))+"px";
+      // Clamp in CSS so the popup stays in the new viewport before the resize event fires.
+      popup.style.maxHeight=`min(${Math.max(48,up?above:below)}px, calc(100dvh - 8px))`;
+      const top=up?box.top-popup.offsetHeight-2:box.bottom+2;
+      popup.style.top=`clamp(4px, ${top}px, calc(100dvh - ${popup.offsetHeight+4}px))`;
+      popup.style.left=`clamp(4px, ${box.left}px, calc(100vw - var(--blend-menu-width) - 4px))`;
     }
     function outside(event:PointerEvent) {
       if (event.target instanceof Node && !popup?.contains(event.target) && !anchor?.contains(event.target)) {
@@ -90,7 +93,7 @@ export function BlendMenu({engine,label,value,picker,change}: Props) {
       {value ? blendLabel(value) : "Mixed"}
     </button>
     {open && <div id={id} ref={menu} popover="manual" role="menu" aria-label={label} tabIndex={-1}
-      style={{position:"fixed",inset:"auto",margin:0,padding:4,width:"min(200px, calc(100vw - 8px))",overflowY:"auto",boxSizing:"border-box",background:"Canvas",color:"CanvasText",border:"1px solid GrayText",borderRadius:4}}
+      style={{position:"fixed",inset:"auto",margin:0,padding:4,width:"var(--blend-menu-width)",overflowY:"auto",boxSizing:"border-box",background:"Canvas",color:"CanvasText",border:"1px solid GrayText",borderRadius:4}}
       onKeyDown={navigate} onPointerLeave={restore} onBlur={event=>{
         if (!event.currentTarget.contains(event.relatedTarget) && event.relatedTarget!==trigger.current) close(false);
       }}>
