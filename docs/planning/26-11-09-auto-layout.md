@@ -4,10 +4,10 @@
 
 | Field | Current value |
 |---|---|
-| Reference | Figcraft fork and original upstream at 3839fe4a0cb4897c1fed1fb03e0b60e191ff61cb. React 5a709e9 on prompt/full-figcraft-port. The global supported baseline is 8eb0b876. |
-| Evidence | Local merged Graphify index has 31,740 nodes and 104,528 edges. The Rust index links the grid-placement tests to grid_place. The React index links resizeChildren to withLayerSize and hierarchy tests to setRectangleProperties. UI labels and JSON defaults were checked directly. |
+| Reference | Figcraft fork and original upstream at 3839fe4a0cb4897c1fed1fb03e0b60e191ff61cb. React fd736f1 on prompt/full-figcraft-port. The global supported baseline is 8eb0b876. |
+| Evidence | Local merged Graphify index has 31,755 nodes and 104,585 edges. The Rust index links the grid-placement tests to grid_place. The React index links resizeChildren to withLayerSize and hierarchy tests to setRectangleProperties. UI labels and JSON defaults were checked directly. |
 | Backend | The scoped Figcraft MCP read returned zero public tables. Layout settings are part of the native document and its existing local persistence. |
-| Next action | Implement layout property commands, child sizing coherence and frame authoring. Verify against native command sequences and the signed-in inspector. |
+| Next action | Verify the 237-case production Chromium run at fd736f1. Implement child property commands and sizing coherence, then add/remove/suggest and canvas handles. |
 | Blockers | None. |
 
 ## Implementation and verification order
@@ -41,3 +41,7 @@ The complete Chromium run at 4b17c70 passed 235/235. The next checkpoint matched
 Grid placement at 339a4f4 passed 236/236 Chromium checks. At f07279d, all 25,394 coordinates and dimensions from 420 native grids matched within 1.8e-13. All 200 nested grid/text documents matched. A 192-level fill chain settled after a track resize. The grid inspector passed signed-in edit, undo, recovery and download. Its full browser run passed 235/236 on the first attempt. One vector benchmark could not resolve the generated font asset module during a concurrent build and passed individually afterwards.
 
 At 5a709e9, all 1,250 mixed flow, wrapped, grid and text documents matched native layout_page for child dimensions, position and automatic text resize mode. Four representative six-layer fixtures are retained in the parity suite. The 1,709 pure tests, two local Auth checks, strict types and both builds passed. Chromium verified editing a child's width, wrapping its sibling and undoing the edit. Local Graphify indexed both React 5a709e9 and the pinned native layout sources. Command-level sizing, frame authoring and canvas handles still require verification.
+
+## Container editing at fd736f1
+
+All 1,300 command steps in 260 native sessions matched for resulting frame properties, layer names and dimensions, success or rejection, and mixed-selection warnings. The comparison includes whole layout replacement, aliases, numeric coercion, overlapping property edits, invalid tracks, rollback and removing a layout. The signed-in inspector switches direction, preserves wrapping, edits paired and individual padding, switches canvas stacking, enters grid mode and restores vertical flow with Undo. All 1,713 pure tests, both local Auth checks, strict types, library and host builds, and two focused Chromium workflows passed. The full 237-test Chromium run was started on this build. Numeric scrubbing, child sizing and structural commands remain open.

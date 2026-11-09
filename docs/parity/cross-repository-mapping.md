@@ -438,3 +438,5 @@ At 3839fe4a the native AutoLayout and GridTrack serde values map to readAutoLayo
 ### Auto layout placement, grid tracks and flow
 
 Native grid_place, grid_geometry and layout_frame map to placeGridCells, gridGeometry and reflowChangedFrames. Native flow distribution, wrapped lines and first baselines map to reflowFlow. Native layout.setTrack maps to setGridTrack and GridTrackPanel. Comparisons cover 480 placement grids, 420 track geometries, 200 nested grids and 1,250 nested flow documents. The browser exercised track editing, wrapped siblings and undo. [Verification and fixtures](../planning/26-11-09-auto-layout.md#grid-and-flow-geometry).
+
+Native apply_layout, the container track branch of apply_sizing, and layout_panel direction, alignment, spacing and advanced controls map to setFrameLayout and FrameLayoutPanel. Mixed selection, undo and command validation matched across 1,300 native command steps. [Verification](../planning/26-11-09-auto-layout.md#container-editing-at-fd736f1).
