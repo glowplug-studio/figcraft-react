@@ -1,0 +1,43 @@
+# Styles, variables and linked libraries
+
+## Execution checkpoint
+
+| Field | Current evidence |
+|---|---|
+| Entry | Roadmap row 9 passed all 266 production Chromium workflows at 0dac4d7. This row starts with the existing local Assets panel and typed paints, effects, text, components and affine layout. |
+| Reference | React 0dac4d7. Fork and original upstream main both point to a2e87433d8bda2b0c909587da08cb27c51e3b17e. The single upstream change since 79c36346 updates Developer Mode naming documentation and moves a Rust doc comment. No document or engine behaviour changed. |
+| Local graph | Combined graph, 32,091 nodes and 106,735 edges. Rust apply_style_ref calls style_sets. Variables.resolve_memo reads the active mode through value_in. React readTextStyle calls readPaints and wirePaints preserves native IDs. Inspect macro command declarations, serde defaults and focus-dependent UI behaviour directly in source. |
+| Provider | The scoped Supabase MCP read returned the expected project, an active publishable key and zero public tables. Local Auth integrations and the production host passed at entry. |
+| Phase | Native evidence and plan. Thirteen sessions exercised four style kinds, source links, explicit application, duplicate/order, folder rename, undo and the initial variable collection. The native document uses separate string IDs for shared assets. |
+| First independent boundary | Open, inspect, save and recover a native document with ordered local style definitions and linked layers. Cover fill and stroke links separately. Extend direct application, detachment and value propagation through the inspector and local Assets panel. |
+| Next action | Capture the full native document for each style kind. Implement typed document records, per-layer style refs and the read-only style.list query. Verify old files and malformed imports before authoring styles. |
+| Rollback | Keep row 9’s 0dac4d7 implementation and its tests as the rollback point. Isolate document support, authoring, variable resolution and library interchange in verified commits. |
+
+## Dependencies and acceptance
+
+1. **Ordered style records.** A native style carries its ID, slash name, description, one of four typed values and optional field bindings. Preserve paint stacks on fill and stroke, effects, text and paragraph fields, frame guide grids, unset references, colour precision and native defaults. Existing auto-layout grid tracks describe child placement. A grid style instead holds layout guides. Verify distinct records and normalise only as upstream does.
+2. **Local style authoring.** Create from selected layers or explicit values. Apply by ID or name, duplicate, move, rename folders, redefine, detach and delete. Preserve the layer’s visual values after detachment or deletion. Explicit style links win over direct edits in the same command. Preserve character-range links and paragraph application. Cover mixed selections, instance edits and atomic refusals. Verify the inspector and Assets style picker with signed-in Chromium, keyboard, a narrow viewport, undo, recovery and download.
+3. **Variables and modes.** Port literal values, aliases, alpha replacement, non-premultiplied colour mixing, typed operands, scopes, collections, extensions, mode defaults and overrides. Distinguish human ID/name lookup from stored references that only resolve by ID. Test alias cycles, unknown IDs, shared subexpressions, malformed types, rename collisions and deletion. Preserve f32 expression weights, f64 numeric values and the document colour profile. Check both source and resolved values in native comparisons.
+4. **Bindings.** Bind supported variable fields on layers and styles and resolve at each consuming layer’s active modes. Include text ranges, paints and gradient stops, effects, layout guide fields, nested instance properties and slot content. The authored binding and the resolved display value must both survive save/reopen. Check partial detach, instance overrides, undo and a 10,000-layer propagation/interaction fixture.
+5. **Style and variable interchange.** Derive accepted input, export shape, extension/import resolution and error results from the native import/export commands. Use browser file selection and downloads. Test round trips, duplicate names, unknown references, cancellation and failure without consuming IDs or modifying the open document.
+6. **Linked libraries.** Map library manifests, published asset keys, enabled revisions, dependency snapshots, imported copies and detach/update semantics before choosing the browser persistence mechanism. Preserve source identity across renames, read-only copies, removal and re-import. Support explicit user-selected file access or the provider-neutral workspace repository when its capabilities exist. Verify a two-document publication, update and detach journey. Record cross-row dependencies individually, including workspace storage if needed.
+7. **Release.** Compare complete native command sequences, field values and file round trips. Verify real Auth, performance, the production browser suite, a fixed visual sample for applicable pickers, and the per-property HTML report. Cross-file work that still depends on another roadmap slice stays open in the master inventory until its release gate passes.
+
+## Cross-repository evidence
+
+| Upstream symbol or test | TypeScript target | Verification |
+|---|---|---|
+| doc/styles.rs Style, StyleKind, StyleRefs and format::to_json | Document and layer style fields, native file codec | Ordered native records, optional defaults and per-layer links across open, edit and download |
+| cmd/styles.rs create, apply_style_ref, detach, update and style_sets | Engine style command dispatch and appearance/text inspectors | Source-derived values, fill versus stroke, live updates, detach/delete, mixed targets and one-step undo |
+| doc/ids.rs new_style_id_avoiding and new_variable_id_avoiding | Document asset allocation | Native ID prefixes, collisions, holes and separate collaborative allocation domains |
+| Variables::resolve, resolve_memo, flattened_as and ColorOperand | Variable records, deterministic resolver and mode lookup | Native colour expression and alias fixtures, bound-source cycles and fallback results |
+| cmd/styles.rs apply_bindings_to and apply_paint_bindings_on_load | Engine edit boundary, paint projection and native load | Resolved styles on different modes and preservation of authored references after recovery |
+| cmd/variables.rs and cmd/variables_io.rs | Collection and mode authoring and browser file interchange | Native command and file fixtures followed by signed-in import, error, undo and export |
+| assets/library.rs, library_swap.rs, library_server.rs and cmd/library.rs | Provider-neutral library source and linked asset implementation | Reproduce linked-file read-only guards, revision changes, imports, updates and detach against native source |
+| ui-egui/widgets/style_picker.rs, variables_panel.rs and panels/assets_panel.rs | React Assets and Design controls | Local source/target selection, search, edit, keyboard and pointer routes, accessibility and narrow viewport |
+
+## Host, persistence and security
+
+The local style and variable document records need no Supabase table, ownership grant, profile, retention policy or Realtime publication. The embedding Next.js host continues to validate the session and protect the editor. React receives capabilities from the existing adapter. Undo and local recovery stay in the editor and device recovery store. File-picker cancellation and bad content must leave the current document intact.
+
+Before adding a networked library source, establish the native sharing semantics and the workspace resource it uses. A hosted library requires an explicit owner, membership or valid share grant, resource lifecycle, indexed lookups, Storage and database authorisation checks, expiry/revocation and a retention decision in the workspace plan. The durable identity, grants and collaboration rules belong to the provider-neutral workspace contract. Never infer write permission from a client-side role or a published asset key. Comments and collaboration transport remain assigned to their roadmap rows.

@@ -1,5 +1,7 @@
 # Full Figcraft port resume checkpoint
 
+Current checkpoint: React 0.51.0 at 0dac4d7 passed 266/266 production Chromium workflows. Styles, variables and linked libraries on upstream a2e87433 are the active slice. The fork is synchronised, the local graph contains both codebases and scoped Supabase access is verified. Continue from [the row 10 plan](26-11-09-styles-variables-libraries.md).
+
 The 0.51.0 component candidate has passed both builds, strict TypeScript, 1,874 pure tests, two Auth integrations, native thumbnail comparisons and both 10,001-layer benchmarks. Check the full production browser result before recording release completion. [Report and next action](../reports/26-11-09-components-instances.md).
 
 Local Assets now supports component discovery, publishing visibility, centre placement, drag and Alt-swap. At 09eedfd the previous full browser run passed all 261 workflows. The new code passed 975 native sequences, both builds, strict TypeScript, 1,874 pure tests, two local Auth checks and the two signed-in Assets tests. Continue from the [component checkpoint](26-11-09-components-instances.md#local-assets-in-the-browser) for performance, complex thumbnail bounds and the release matrix.
