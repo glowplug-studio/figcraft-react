@@ -1,0 +1,9 @@
+# Font catalogue and typography inspector
+
+React commits `52177ad`, `4078268` and `a5bd87c` implement the font commands, variable-font inspector, OpenType switches, font row samples, decoration and paragraph controls. The reference is upstream `a4251ca89e253ab69a5ee4135bc30bc5f82725ab`. This checkpoint is local on `prompt/full-figcraft-port`. Global release metadata remains at the layer-effects baseline.
+
+The independent comparison matched 218 font-query and import results and 222 preview, axis, OpenType and decoration sequences. In a signed-in browser, an uninstalled font refitted the saved file. A variable font preview cancelled or committed in one step. Range formatting retained Unicode scalar boundaries. A four-face collection reported its families in file order and refitted the matching layers. The browser accepts a user-selected file in place of a desktop filesystem path. Its rescan command matches the empty upstream browser result.
+
+At the inspector checkpoint, 224/225 workflows passed. Vector stroke pan measured 17.0 ms against the 16.7 ms limit. Three isolated repeats measured 14.9, 11.7 and 11.5 ms. The subsequent keyboard build at 5568cb2 passed 226/226 Chromium workflows in 476.0 seconds, one worker with zero skips, retries or failures. Strict types, both production builds, 1,640 pure tests and two local Auth integration tests passed. The scoped hosted Supabase read found zero public tables. The work uses browser memory and native drawing files. Existing Supabase Auth protects the host. The keyboard checkpoint’s combined local graph contained 31,579 nodes and 103,947 edges.
+
+Native editing commands, further clipboard and IME behaviour, cross-feature checks and release verification remain open. The native file-open result includes a tab index that belongs with the multi-document host. No user action is required. [Property matrix](26-11-09-font-catalogue-inspector-parity.html).

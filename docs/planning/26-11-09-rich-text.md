@@ -266,3 +266,21 @@ The production Chromium suite passed 221/221 in 457.8 seconds with one worker an
 ### Advanced typography inspector plan
 
 Use `panels/typography/fields.rs::type_settings` for the displayed font, the twelve standard feature switches, their mixed state and default-clearing rules. Use `axes.rs::variable_axes` for the visible axes, current face coordinates, named instances, live preview, Escape, reset and one history entry on release. The inspector must act on selected Unicode ranges through the existing text commands. Verify mouse and keyboard edits, mixed styles, variable and static fonts, persistence and undo in the authenticated preview.
+
+#### Advanced inspector verification
+
+Implementation `4078268` passed all 224 local production Chromium workflows in 463.6 seconds. The focused tests cover live axis preview, Escape, release and undo, named instances, reset, mixed feature states and a selected Unicode range. The independent reference compared 222 variable-axis, OpenType and decoration sequences, including provisional geometry and saved character runs. All matched.
+
+### Font row samples and remaining basic inspector fields
+
+Upstream `font_preview::family` skips local-only families, chooses Regular or the first style, and requires a real glyph for every non-space letter of the family name. Render visible names with the editor glyph painter. Retain the four-per-frame budget, session cache, 400 by 60 point limit and 1–3× raster scale. Keep the searchable accessible name and ordinary text fallback. Verify actual mask pixels and that scrolling over pending fonts causes no file reads.
+
+Map decoration length, colour, skip ink, hanging punctuation and list, paragraph indent availability, conditional direction, and truncation in `panels/typography/fields.rs` to the basic inspector. Verify document and range edits through normal commands and saved native files.
+
+#### Basic inspector and sample verification
+
+Implementation `a5bd87c` passed all eight affected Chromium workflows. Its full run had one vector pan at 17.0 ms against the 16.7 ms limit. Three isolated repeats measured 14.9, 11.7 and 11.5 ms. The subsequent keyboard build at 5568cb2 passed 226/226 production Chromium workflows in 476.0 seconds. The Inter sample contained visible glyph pixels. A pending local-only family retained the ordinary label. Chromium toggled all twelve OpenType switches, restored their defaults, saved the decoration and paragraph properties, and checked conditional field availability. Strict types, both builds, 1,640 pure tests and two local Auth tests passed. [Property matrix](../reports/26-11-09-font-catalogue-inspector-parity.html).
+
+### Text editing command evidence and execution order
+
+The nine `text.edit.*` entries in `crates/engine/src/cmd/text.rs` delegate to `canvas/textedit.rs`. The native session keeps a directed scalar caret and anchor, a provisional IME string, and a single undoable interaction. Text input currently uses a DOM textarea with sorted formatting ranges. Share the word, grapheme, line and visual caret movement with the keyboard controller first. Then connect the command session and native textarea to one directed selection and composition owner. Compare commands both during live canvas editing and in an independent embedded engine. Preserve default select-all, cancellation, replacement of selected characters on first composition, filtered empty commits, list markers, derived names, access revocation and undo. The separate upstream reference captured 443 command sequences against the pinned revision.

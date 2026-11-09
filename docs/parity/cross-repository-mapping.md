@@ -424,3 +424,5 @@ Native browser `ask`, `load_wanted`, `FontDb::add_local` and `load_local` map to
 Native typography’s font picker maps to `FontFamilyPicker`. Native preview and end-preview map to the editor’s transient render document. Native cluster-face fallback maps to `fontSegments` and `FontLibrary`. [Scope and comparisons](../planning/26-11-09-rich-text.md#font-picker-and-transient-previews).
 
 Native `text.fonts`, `text.loadFont`, the browser branch of `rescan_system_fonts`, and `fonts::refit` map to `queryFonts`, `importFontBytes`, the browser rescan result and family-filtered `refitText`. [Catalogue, collection and browser evidence](../planning/26-11-09-rich-text.md#font-catalogue-verification).
+
+Native typography `variable_axes`, `named_instances` and `type_settings` map to `TypographySettings`, `AxisControl` and `TypographyPanel`. Browser `familySample` uses the editor’s glyph painter for the native `font_preview::family` path. [Inspector property matrix](../reports/26-11-09-font-catalogue-inspector-parity.html).
