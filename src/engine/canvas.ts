@@ -30,6 +30,7 @@ import { TransformInteraction } from "./transform-interaction";
 import { paintStroke, strokeBounds } from "./stroke-renderer";
 import { hasVisibleStroke } from "./stroke";
 import { ImageCropInteraction } from "./image-crop-interaction";
+import { LayoutSpacingInteraction } from "./layout-spacing-interaction";
 import { BlurInteraction } from "./blur-interaction";
 import { GradientInteraction } from "./gradient-interaction";
 import { ImagePage } from "./image-page";
@@ -435,6 +436,7 @@ export class CanvasController {
   #rounding: CornerInteraction;
   #drawing: DrawInteraction;
   #gradients: GradientInteraction;
+  #spacing: LayoutSpacingInteraction;
   #blurHandles: BlurInteraction;
   #crop: ImageCropInteraction;
   #text: CanvasTextInput;
@@ -460,6 +462,7 @@ export class CanvasController {
     this.#drawing = new DrawInteraction(engine, onError);
     this.#gradients = new GradientInteraction(engine);
     this.#blurHandles = new BlurInteraction(engine);
+    this.#spacing = new LayoutSpacingInteraction(engine);
     this.#crop = new ImageCropInteraction(engine);
     this.#arcs = new ArcInteraction(engine, onError);
     this.#builder = new ShapeBuilderInteraction(engine);
@@ -467,7 +470,7 @@ export class CanvasController {
     const options = { signal: this.#abort.signal };
     canvas.addEventListener("pointerdown", this.#down, options);
     canvas.addEventListener("pointermove", this.#move, options);
-    canvas.addEventListener("pointerleave", event => { if (this.#pointer === null) { this.#builder.cancel(); this.engine.pen.hover(undefined, event); this.#smart.hover(undefined, event); this.#rounding.hover(undefined); this.#arcs.hover(undefined); this.#vectors.hover(undefined); this.invalidate(); } }, options);
+    canvas.addEventListener("pointerleave", event => { if (this.#pointer === null) { this.#builder.cancel(); this.engine.pen.hover(undefined, event); this.#smart.hover(undefined, event); this.#spacing.hover(undefined); this.#rounding.hover(undefined); this.#arcs.hover(undefined); this.#vectors.hover(undefined); this.invalidate(); } }, options);
     canvas.addEventListener("pointerup", this.#up, options);
     canvas.addEventListener("dblclick", this.#doubleClick, options);
     canvas.addEventListener("pointercancel", this.#cancelEvent, options);
@@ -510,7 +513,7 @@ export class CanvasController {
       if (crop===true || crop==="layer" && this.#transforming.down(this.#point(event))) {
         event.preventDefault(); this.#pointer=event.pointerId; this.canvas.setPointerCapture(event.pointerId); this.invalidate(); return;
       }
-      if (this.#gradients.down(this.#screenPoint(event)) || this.#blurHandles.down(this.#screenPoint(event))) {
+      if (this.#gradients.down(this.#screenPoint(event)) || this.#blurHandles.down(this.#screenPoint(event)) || this.#spacing.down(this.#screenPoint(event))) {
         event.preventDefault(); this.#pointer = event.pointerId; this.canvas.setPointerCapture(event.pointerId); this.invalidate(); return;
       }
       if (this.engine.getSnapshot().paintPicker) this.engine.setPaintPicker();
@@ -547,6 +550,12 @@ export class CanvasController {
       try {this.#crop.move(this.#screenPoint(event),event.shiftKey);} catch (e) {this.cancel();this.onError(e instanceof Error ? e.message : "Crop failed");}
       this.invalidate();return;
     }
+    if (event.pointerId === this.#pointer && this.#spacing.active) {
+      try { this.#spacing.move(this.#screenPoint(event), event.shiftKey); } catch (error) {
+        this.cancel(); this.onError(error instanceof Error ? error.message : "Could not change layout spacing");
+      }
+      this.canvas.style.cursor = "grabbing"; this.invalidate(); return;
+    }
     if (event.pointerId === this.#pointer && (this.#gradients.active || this.#blurHandles.active)) {
       const started = performance.now();
       try { (this.#blurHandles.active ? this.#blurHandles : this.#gradients).move(this.#screenPoint(event)); } catch (error) { this.cancel(); this.onError(error instanceof Error ? error.message : "Could not move effect or gradient handle"); }
@@ -579,7 +588,7 @@ export class CanvasController {
       return;
     }
     if (this.#pointer === null) {
-      this.canvas.style.cursor = this.#crop.cursor(this.#screenPoint(event)) ?? this.#gradients.cursor(this.#screenPoint(event)) ?? this.#blurHandles.cursor(this.#screenPoint(event)) ?? (this.engine.getVectorEdit() ? this.#vectors.hover(this.#point(event), event) ?? "default" : this.#onOrigin(this.#point(event)) ? "move" : this.#arcs.hover(this.#point(event)) ?? this.#rounding.hover(this.#point(event)) ?? this.#transforming.hover(this.#point(event)) ?? this.#smart.hover(this.#screenPoint(event), event));
+      this.canvas.style.cursor = this.#crop.cursor(this.#screenPoint(event)) ?? this.#gradients.cursor(this.#screenPoint(event)) ?? this.#blurHandles.cursor(this.#screenPoint(event)) ?? this.#spacing.hover(this.#screenPoint(event)) ?? (this.engine.getVectorEdit() ? this.#vectors.hover(this.#point(event), event) ?? "default" : this.#onOrigin(this.#point(event)) ? "move" : this.#arcs.hover(this.#point(event)) ?? this.#rounding.hover(this.#point(event)) ?? this.#transforming.hover(this.#point(event)) ?? this.#smart.hover(this.#screenPoint(event), event));
       this.invalidate();
     }
     if (event.pointerId === this.#pointer && this.#vectors.active) {
@@ -631,6 +640,7 @@ export class CanvasController {
 
   #up = (event: PointerEvent): void => {
     if (event.pointerId===this.#pointer && this.#crop.active) {this.#crop.up();this.cancel();return;}
+    if (event.pointerId === this.#pointer && this.#spacing.active) { this.#spacing.up(); this.cancel(); return; }
     if (event.pointerId === this.#pointer && this.#blurHandles.active) { this.#blurHandles.up(); this.cancel(); return; }
     if (event.pointerId === this.#pointer && this.#gradients.active) { this.#gradients.up(); this.cancel(); return; }
     if (event.pointerId === this.#pointer && this.#builder.active) {
@@ -730,7 +740,7 @@ export class CanvasController {
   cancel(preservePen = false): void {
     if (!preservePen) {
       this.#crop.cancel();
-      this.#gradients.cancel(); this.#blurHandles.cancel();
+      this.#gradients.cancel(); this.#blurHandles.cancel(); this.#spacing.cancel();
       this.#builder.cancel();
       this.engine.pencil.cancel();
       this.engine.pen.cancel();
@@ -786,7 +796,7 @@ export class CanvasController {
       if (pen) drawPen(context, this.engine.getRenderDocument(), view, this.engine.pen.overlay);
       this.engine.pencil.draw(context);
       if (builder) this.#builder.draw(context);
-      this.#gradients.draw(context); this.#blurHandles.draw(context);
+      this.#gradients.draw(context); this.#blurHandles.draw(context); this.#spacing.draw(context);
       const rotationOrigin = this.engine.getRotationOrigin();
       if (!vectorEdit && rotationOrigin.editing && rotationOrigin.point) {
         const point = pageToScreen(view, rotationOrigin.point);

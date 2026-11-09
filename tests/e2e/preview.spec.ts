@@ -4971,3 +4971,45 @@ test("double-clicking a layout edge hugs the frame and Alt-double-click fills it
   const filled = await canvasPoint(page,439,190); await page.mouse.dblclick(filled.x,filled.y);
   await expect(page.getByRole("textbox",{name:"Edit text layer"})).toBeFocused();
 });
+
+test("canvas layout handles fix spread row gaps, pair padding and support a narrow touch drag", async ({page}) => {
+  const file = JSON.parse(await readFile(new URL("../fixtures/native-rectangle.json", import.meta.url), "utf8"));
+  file.name = "Spacing handles";
+  const base = file.nodes[2];
+  file.nodes[2] = {...base, type:"frame", name:"Wrapped rows", width:300, height:300, children:[3,4,5],
+    transform:[1,0,0,1,190,170], layout:{mode:"horizontal",wrap:true,padding:[0,0,0,0],gap:10,cross_gap:10,content_align:"spaceBetween"}};
+  for (const [i,[x,y]] of [[0,0],[130,0],[0,240]].entries()) file.nodes[3+i] = {...base,id:3+i,parent:2,
+    width:120,height:60,name:"Card "+i,transform:[1,0,0,1,x,y]};
+  file.next_id=6;
+  await login(page);
+  await page.getByLabel("Open Figcraft file",{exact:true}).setInputFiles({
+    name:"spacing.figcraft", mimeType:"application/octet-stream", buffer:Buffer.from(JSON.stringify(file)),
+  });
+  await expect(page.getByRole("heading",{name:file.name,exact:true})).toBeVisible();
+  await resetCanvasOrigin(page);
+  await page.getByRole("region",{name:"Layers"}).getByRole("button",{name:"Wrapped rows",exact:true}).click();
+  const start = await canvasPoint(page,340,320), end = await canvasPoint(page,340,340);
+  await page.mouse.move(start.x,start.y);
+  await expect(page.getByLabel("Design canvas",{exact:true})).toHaveCSS("cursor","ns-resize");
+  await page.mouse.down(); await page.mouse.move(end.x,end.y,{steps:6}); await page.mouse.up();
+  const panel=page.getByRole("group",{name:"Auto layout",exact:true});
+  await expect(panel.getByLabel("Gap between rows",{exact:true})).toHaveValue("200");
+  await page.getByRole("button",{name:"Undo",exact:true}).click();
+  await expect(panel.getByRole("combobox",{name:"Row gap",exact:true})).toHaveValue("spaceBetween");
+  const left=await canvasPoint(page,192,295);
+  await page.mouse.move(left.x,left.y); await page.keyboard.down("Shift"); await page.mouse.down();
+  await page.mouse.move(left.x+16,left.y,{steps:4}); await page.mouse.up(); await page.keyboard.up("Shift");
+  await expect(panel.getByLabel("Horizontal padding",{exact:true})).toHaveValue("16");
+  await page.setViewportSize({width:390,height:844});
+  await page.getByRole("button",{name:"Fit page",exact:true}).click();
+  const cdp=await page.context().newCDPSession(page);
+  await cdp.send("Emulation.setTouchEmulationEnabled",{enabled:true,maxTouchPoints:1});
+  const from=await canvasPoint(page,340,320), to=await canvasPoint(page,340,340);
+  await cdp.send("Input.dispatchTouchEvent",{type:"touchStart",touchPoints:[from]});
+  await cdp.send("Input.dispatchTouchEvent",{type:"touchMove",touchPoints:[to]});
+  await cdp.send("Input.dispatchTouchEvent",{type:"touchEnd",touchPoints:[]});
+  const downloading=page.waitForEvent("download");
+  await page.getByRole("button",{name:"Save as",exact:true}).click();
+  const saved=await decodeFigcraft(await readFile((await (await downloading).path())!));
+  expect(saved.document.nodes[2]).toMatchObject({layout:{contentAlign:"auto",crossGap:200,padding:[0,16,0,16]}});
+});
