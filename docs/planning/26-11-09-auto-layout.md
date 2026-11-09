@@ -4,10 +4,10 @@
 
 | Field | Current value |
 |---|---|
-| Reference | Figcraft fork and original upstream at 3839fe4a0cb4897c1fed1fb03e0b60e191ff61cb. React 984680e on prompt/full-figcraft-port. The global supported baseline is 8eb0b876. |
-| Evidence | Local merged Graphify index has 31,821 nodes and 104,939 edges. The Rust index links the grid-placement tests to grid_place. The React index links resizeChildren to withLayerSize and hierarchy tests to setRectangleProperties. UI labels and JSON defaults were checked directly. |
+| Reference | Figcraft fork and original upstream at 3839fe4a0cb4897c1fed1fb03e0b60e191ff61cb. React 8aa940f on prompt/full-figcraft-port. The global supported baseline is 8eb0b876. |
+| Evidence | Local merged Graphify index has 31,845 nodes and 105,083 edges. The Rust index links the grid-placement tests to grid_place. The React index links resizeChildren to withLayerSize and hierarchy tests to setRectangleProperties. UI labels and JSON defaults were checked directly. |
 | Backend | The scoped Figcraft MCP read returned zero public tables. Layout settings are part of the native document and its existing local persistence. |
-| Next action | Implement double-click sizing and canvas spacing handles, then complete the layout performance and acceptance checks. |
+| Next action | Measure dense and multi-frame auto-layout gestures, finish numeric field interactions and the open checks in the [property matrix](../reports/26-11-09-auto-layout-parity.html). |
 | Blockers | None. |
 
 ## Implementation and verification order
@@ -63,3 +63,9 @@ The 4c42472 production host passed all 239 Chromium tests. At 9f911fb, 3,840 arr
 All 2,400 native pointer and undo snapshots in 480 documents matched. Each comparison checked the preview and committed parents, child order, geometry, selection, grid anchors, insertion line, drop cell and target outline. Inputs included transfers, drops outside a frame, an eight-unit retention margin, multi-selection and Alt changes during the drag or on release. Drawing into a plain card and dropping an existing layer beside it use separate upstream targeting rules.
 
 Signed-in Chromium verified the insertion line pixel, Escape, row reordering, a drop into a grid, device recovery and native download. All 1,729 pure tests, two local Auth checks, strict types, both builds and four focused browser tests passed. In separate 10,000-node free-movement benchmarks the 95th percentile was 6.8 ms for movement and 6.2 ms for Alt-copy across 110 measured frames each. Large auto-layout documents still require a dedicated benchmark.
+
+## Canvas sizing and spacing
+
+At 88d2d7c, double-clicking selected frame edges set Hug contents on the local axis. Alt-double-click set Fill container on eligible children, including text. Three rotations passed in Vitest. Chromium also verified ordinary double-click text entry, frame sizing undo, touch text creation and pointer reordering. All 1,732 pure tests, two Auth tests, strict types and both builds passed.
+
+At 8aa940f, the two pinned upstream egui gap-handle tests passed headlessly. The browser port matched the 180-to-200 row gap and the 60-to-50-to-56 item gaps. Separate regressions cover paired padding, zoom, cancellation, grid outlines, independent grid gaps and rotated-frame exclusion. The signed-in browser exercised desktop and narrow touch dragging, modifier handling and saved layout values. An initial check used an exact label-text query that included the select options. The accessible combobox query passed. All 1,736 pure tests, both local Auth tests, strict types and both builds passed. [Interim property matrix](../reports/26-11-09-auto-layout-parity.html).

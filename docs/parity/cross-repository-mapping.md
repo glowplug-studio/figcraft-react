@@ -446,3 +446,5 @@ Native child sizing and grid properties in cmd/props.rs and explicit sizing in c
 Native canvas/al_keys.rs, wrap_slot_rows and auto_layout_slot map to nudgeFlow and autoLayoutSlot. Native al_keys_tests.rs maps to [keyboard regression tests](../../tests/parity/layout-navigation.test.ts). [Native and Chromium comparisons](../planning/26-11-09-auto-layout.md#keyboard-reordering-at-9f911fb).
 
 Native canvas/tools/drag.rs, drop::grid_cell_at, drop::drag_parent and cmd/create::frame_at map to placeMove, gridCellAt, dragParent and frameAt. Native al_drag_tests map to [pointer regressions](../../tests/parity/layout-drop.test.ts). [Native event and Chromium pixel comparisons](../planning/26-11-09-auto-layout.md#pointer-reordering-at-984680e).
+
+Native edge_double_click and handle_at map to TransformInteraction.doubleClickEdge. Native ui-egui canvas/handles.rs al_zones and padding/gap apply branches map to layoutZones and LayoutSpacingInteraction. [Native headless fixtures and browser results](../planning/26-11-09-auto-layout.md#canvas-sizing-and-spacing).
