@@ -1,3 +1,4 @@
+import type { GeometryField } from "./geometry-fields";
 import { childLayoutKeys, explicitAxis, setChildProperty } from "./child-layout-properties";
 import { frameTuning, setFrameLayout, validateLayoutSwitch } from "./layout-properties";
 import { fixTextSize } from "./text-sizing";
@@ -31,6 +32,22 @@ const appearanceKeys = new Set(["effects", "isMask", "maskType", "booleanOperati
 
 /** The supported layer geometry and appearance subset of upstream `node.set`. No history is recorded here. */
 export function setRectangleProperties(document: Document, selection: readonly NodeId[], params: Record<string, unknown>, origin?: Point, warnings: string[] = [], textCommand?: "text.style" | "text.set", draft = new HierarchyDraft(document)): Document {
+  writeProperties(draft,document,selection,params,origin,warnings,textCommand);
+  draft.normaliseGroups();
+  return validateChangedGeometry(draft);
+}
+
+/** Each page child owns its subtree. These writes may share a draft and a validation pass. */
+export function setPageGeometryFields(document: Document, selection: readonly NodeId[], key: GeometryField,
+  values: ReadonlyMap<NodeId,number>, origin?: Point): Document {
+  const draft = new HierarchyDraft(document);
+  for (const [id,value] of values) writeProperties(draft,document,selection,{id,props:{[key]:value}},origin,[]);
+  draft.normaliseGroups();
+  return validateChangedGeometry(draft);
+}
+
+function writeProperties(draft: HierarchyDraft, document: Document, selection: readonly NodeId[], params: Record<string,unknown>,
+  origin: Point | undefined, warnings: string[], textCommand?: "text.style" | "text.set"): void {
   if (params.ids != null && !Array.isArray(params.ids)) throw new Error("node.set ids must be an array");
   const rawTargets = params.ids ?? params.id;
   const suppliedTargets = rawTargets == null ? selection : Array.isArray(rawTargets) ? rawTargets : [rawTargets];
@@ -245,6 +262,4 @@ export function setRectangleProperties(document: Document, selection: readonly N
     const after = transformPoint(worldTransform(draft.document, id), point);
     moveWorld(draft, id, pivot.x - after.x, pivot.y - after.y);
   }
-  draft.normaliseGroups();
-  return validateChangedGeometry(draft);
 }

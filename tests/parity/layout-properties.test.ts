@@ -67,3 +67,54 @@ it("scrubs multiple frames from one snapshot and ignores releases from an expire
   second.cancel(); expect(engine.getUndoDepth()).toBe(depth+1);
   engine.execute("edit.undo"); expect(engine.getSnapshot().document).toBe(base);
 });
+
+it("applies native mixed geometry edits to each layer's own value in one step", () => {
+  const engine=new EditorEngine();
+  for (const [x,y,width,height] of [[10,20,40,30],[100,50,20,20]]) {
+    engine.execute("node.create",{type:"rectangle",props:{x,y,width,height}});
+  }
+  engine.execute("select.set",{ids:[2,3]});
+  const values = () => [2,3].map(id => {
+    const node=engine.getSnapshot().document.nodes[id];
+    if (node.kind==="page") throw Error("Missing layer");
+    return [node.x,node.y,node.width,node.height];
+  });
+  let depth=engine.getUndoDepth();
+  for (const [key,kind,operand,expected] of [
+    ["x","add",10,[[20,20,40,30],[110,50,20,20]]],
+    ["width","multiply",2,[[20,20,80,30],[110,50,40,20]]],
+    ["width","divide",4,[[20,20,20,30],[110,50,10,20]]],
+    ["height","multiply",.5,[[20,20,20,15],[110,50,10,10]]],
+    ["y","add",6,[[20,26,20,15],[110,56,10,10]]],
+  ] as const) {
+    expect(engine.editMixedGeometry(key,{kind,value:operand})).toEqual([]);
+    expect(values()).toEqual(expected); expect(engine.getUndoDepth()).toBe(++depth);
+  }
+  expect(engine.editMixedGeometry("y",{kind:"divide",value:0})).toEqual([]);
+  expect(engine.getUndoDepth()).toBe(depth);
+  engine.execute("edit.undo"); expect(values()).toEqual([[20,20,20,15],[110,50,10,10]]);
+});
+
+it("keeps successful geometry edits when another page child would overflow",() => {
+  const engine = new EditorEngine();
+  engine.execute("node.create",{type:"rectangle",props:{width:4,x:0}});
+  engine.execute("node.create",{type:"rectangle",props:{width:1.5e308,x:0}});
+  engine.execute("select.set",{ids:[2,3]});
+  const before = engine.getSnapshot().document;
+  expect(engine.editMixedGeometry("x",{kind:"add",value:5e307})).toHaveLength(1);
+  expect(engine.getSnapshot().document.nodes[2]).toMatchObject({x:5e307});
+  expect(engine.getSnapshot().document.nodes[3]).toBe(before.nodes[3]);
+  engine.execute("edit.undo"); expect(engine.getSnapshot().document).toBe(before);
+});
+
+it("takes mixed widths before a selected parent's resize changes its pinned child",() => {
+  const engine = new EditorEngine();
+  engine.execute("node.create",{type:"frame",props:{width:100,height:50}});
+  engine.execute("node.create",{type:"rectangle",parent:2,props:{width:20,height:10,constraints:{horizontal:"scale"}}});
+  engine.execute("select.set",{ids:[2,3]});
+  const before=engine.getSnapshot().document;
+  expect(engine.editMixedGeometry("width",{kind:"add",value:10})).toEqual([]);
+  expect(engine.getSnapshot().document.nodes[2]).toMatchObject({width:110});
+  expect(engine.getSnapshot().document.nodes[3]).toMatchObject({width:30});
+  engine.execute("edit.undo"); expect(engine.getSnapshot().document).toBe(before);
+});

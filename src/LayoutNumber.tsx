@@ -1,6 +1,6 @@
 import {useEffect, useRef, useState, type PointerEvent} from "react";
 import type {EditorEngine} from "./engine/editor";
-import {fieldValue, parseFieldEdit, steppedField} from "./engine/field-math";
+import {fieldValue, parseFieldEdit, steppedField, type FieldEdit} from "./engine/field-math";
 import {pixelRound} from "./engine/geometry";
 
 export interface LayoutFieldHost {
@@ -17,6 +17,7 @@ interface LayoutFieldProps extends LayoutFieldHost {
   step?: number;
   suffix?: string;
   command?: "node.set" | "layout.setTrack";
+  onMixedRelative?: (edit: FieldEdit) => void;
   params: (n: number, all: boolean) => Record<string,unknown>;
 }
 
@@ -25,7 +26,7 @@ type Drag = {
   preview?: ReturnType<EditorEngine["beginLayoutField"]>;
 };
 
-export function LayoutNumber({engine, dispatch, onError, label, value, min, step = 1, suffix, placeholder, command = "node.set", params}: LayoutFieldProps) {
+export function LayoutNumber({engine, dispatch, onError, label, value, min, step = 1, suffix, placeholder, command = "node.set", onMixedRelative, params}: LayoutFieldProps) {
   const input = useRef<HTMLInputElement>(null);
   const drag = useRef<Drag | null>(null);
   const all = useRef(false);
@@ -104,7 +105,7 @@ export function LayoutNumber({engine, dispatch, onError, label, value, min, step
   };
   return <label><span style={{cursor:"ew-resize",touchAction:"none",userSelect:"none"}}
     onPointerDown={e => start(e,true)} {...pointer}>{label}</span>
-    <input ref={input} type="text" role="spinbutton" inputMode="decimal" aria-label={label} aria-valuenow={drag.current?.preview ? Number(shown) : value} aria-valuemin={min}
+    <input ref={input} data-figcraft-number="" type="text" role="spinbutton" inputMode="decimal" aria-label={label} aria-valuenow={drag.current?.preview ? Number(shown) : value} aria-valuemin={min}
       placeholder={placeholder} value={shown} onChange={e => setDraft(e.target.value)}
       onPointerDown={e => { all.current = e.metaKey || e.ctrlKey; start(e,false); }} {...pointer}
       onFocus={e => e.currentTarget.select()}
@@ -119,12 +120,17 @@ export function LayoutNumber({engine, dispatch, onError, label, value, min, step
           e.preventDefault(); e.currentTarget.blur();
         } else if (e.key === "ArrowUp" || e.key === "ArrowDown") {
           e.preventDefault();
-          const current = draft === undefined ? value : fieldValue(parseFieldEdit(draft),value);
-          if (current === undefined && value !== undefined) return;
-          const by = (e.key === "ArrowUp" ? 1 : -1)*(e.shiftKey ? 10 : 1);
-          const next = clamp(steppedField(current ?? 0,by,step));
-          setDraft(undefined);
-          dispatch(command,params(next,all.current));
+          const typed = draft === undefined ? undefined : parseFieldEdit(draft);
+          const by = (e.key === "ArrowUp" ? 1 : -1)*(e.shiftKey ? 10 : 1)*step;
+          if (value === undefined && typed?.kind !== "set" && onMixedRelative) {
+            setDraft(undefined);
+            onMixedRelative({kind:"add",value:by});
+          } else {
+            const current = draft === undefined ? value : fieldValue(typed,value);
+            if (current === undefined && value !== undefined) return;
+            setDraft(undefined);
+            dispatch(command,params(clamp(steppedField(current ?? 0,1,by)),all.current));
+          }
           requestAnimationFrame(() => input.current?.select());
         }
       }}
@@ -132,8 +138,12 @@ export function LayoutNumber({engine, dispatch, onError, label, value, min, step
         if (drag.current) { end(false); return; }
         const raw = e.currentTarget.value;
         if (draft !== undefined && (raw !== String(value ?? "") || all.current)) {
-          const n = fieldValue(parseFieldEdit(raw),value);
-          if (n !== undefined) dispatch(command,params(clamp(n),all.current));
+          const edit = parseFieldEdit(raw);
+          if (value === undefined && edit && edit.kind !== "set" && onMixedRelative) onMixedRelative(edit);
+          else {
+            const n = fieldValue(edit,value);
+            if (n !== undefined) dispatch(command,params(clamp(n),all.current));
+          }
         }
         setDraft(undefined); all.current = false;
       }}/>{suffix}{notice && <small role="status">{notice}</small>}</label>;

@@ -1,3 +1,5 @@
+import { fieldValue, type FieldEdit } from "./field-math";
+import { shownGeometry, type GeometryField } from "./geometry-fields";
 import { setGridTrack } from "./grid-track-command";
 import { editTextSpecs, executeTextEdit, isTextEditCommand, type EditSelection } from "./text-edit-commands";
 import { executeTextFormat, isTextFormatCommand, textFormatSpecs } from "./text-format-commands";
@@ -31,7 +33,7 @@ import { base64Bytes } from "./recovery";
 import { decodeFigcraft, encodeFigcraft, encodeFigcraftBlob, prepareArchive, MAX_UNPACKED_BYTES } from "./file-format";
 import { executePage, listPages, pageSpecs } from "./pages";
 import { executeSelection, layersAt, selectionSpecs } from "./selection";
-import { setRectangleProperties } from "./properties";
+import { setRectangleProperties, setPageGeometryFields } from "./properties";
 import { HierarchyDraft, pageForNode, worldTransform } from "./hierarchy";
 import { applyBuilder } from "./shape-builder-commands";
 import { builderArrangement, builderTargets, readBuilderRegions } from "./shape-builder";
@@ -454,6 +456,44 @@ export class EditorEngine {
     const interaction = this.#interaction; if (!interaction) throw new Error("No active interaction");
     interaction.document = setRectangleProperties(interaction.base.document, [id], { id, props }); this.#notifyCanvas();
   }
+  editMixedGeometry(key: GeometryField, edit: FieldEdit): string[] {
+    this.beginInteraction();
+    const owner = this.#interaction!, {document,selection} = owner.base;
+    const errors: string[] = [];
+    const edits = new Map<NodeId,number>();
+    try {
+      let independent = true;
+      for (const id of selection) {
+        const layer = document.nodes[id];
+        if (!layer || layer.kind === "page") continue;
+        const next = fieldValue(edit,shownGeometry(document,layer,key));
+        if (next === undefined) continue;
+        edits.set(id,next);
+        independent &&= document.nodes[layer.parent]?.kind === "page";
+      }
+      const origin = movedOrigin(document,selection,this.#origin);
+      if (independent && edits.size) {
+        try {
+          owner.document = setPageGeometryFields(document,selection,key,edits,origin);
+          edits.clear();
+        } catch { /* Retry individually to retain the native successes and per-layer errors. */ }
+      }
+      // An earlier edit can reflow a selected descendant. Read old values from the original
+      // selection, then apply them in selection order to each successive document.
+      for (const [id,next] of edits) {
+        try {
+          owner.document = setRectangleProperties(owner.document,selection,{id,props:{[key]:next}},origin);
+        } catch (error) {
+          errors.push(error instanceof Error ? error.message : "Could not edit the geometry");
+        }
+      }
+      this.commitInteraction();
+    } catch (error) {
+      if (this.#interaction === owner) this.cancelInteraction();
+      throw error;
+    }
+    return errors;
+  }
   beginLayoutField(command: "node.set" | "layout.setTrack") {
     this.beginInteraction();
     const owner = this.#interaction!;
@@ -462,7 +502,7 @@ export class EditorEngine {
       preview: (params: Record<string,unknown>) => {
         if (this.#interaction !== owner) return;
         owner.document = command === "node.set"
-          ? setRectangleProperties(document,selection,params)
+          ? setRectangleProperties(document,selection,params,movedOrigin(document,selection,this.#origin))
           : setGridTrack(document,selection,params);
         this.#notifyCanvas();
       },

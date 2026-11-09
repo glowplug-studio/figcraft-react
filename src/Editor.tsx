@@ -1,3 +1,4 @@
+import { GeometryPanel } from "./GeometryPanel";
 import { textShortcut } from "./engine/text-shortcuts";
 import { subtreeIds } from "./engine/hierarchy";
 import { ColourProfileDialog } from "./ColourProfileDialog";
@@ -28,8 +29,7 @@ import type { Point } from "./engine/geometry";
 import { CanvasController } from "./engine/canvas";
 import { EditorEngine } from "./engine/editor";
 import { availableBuilderArrangement } from "./engine/shape-builder";
-import { defaultConstraints, pageOf, rectangleTransform } from "./engine/document";
-import { rotationDegrees } from "./engine/affine";
+import { pageOf } from "./engine/document";
 import type { RecoveryStore } from "./backends/recovery";
 import { RecoveryController } from "./engine/recovery";
 import { PagePanel } from "./PagePanel";
@@ -142,6 +142,13 @@ export function Editor({ identity, capabilities, engine: suppliedEngine, recover
       if (event.code==="KeyK" && !event.shiftKey || event.code==="KeyU" && event.shiftKey) {
         event.preventDefault(); linkDialog.current?.showModal(); return;
       }
+    }
+    if (event.key.toLowerCase() === "s" && (event.ctrlKey || event.metaKey) && !event.altKey &&
+        event.target instanceof HTMLInputElement && event.target.hasAttribute("data-figcraft-number")) {
+      event.preventDefault();
+      event.target.blur();
+      void save();
+      return;
     }
     if (event.key.toLowerCase() === "v") modifiedPaste.current = (event.ctrlKey || event.metaKey) && (event.shiftKey || event.altKey);
     if (event.target instanceof HTMLElement && event.target.closest("input,textarea,select,dialog,[contenteditable=true]")) return;
@@ -523,33 +530,9 @@ export function Editor({ identity, capabilities, engine: suppliedEngine, recover
           <dl>
             <dt>X</dt><dd>{relative[4]}</dd><dt>Y</dt><dd>{relative[5]}</dd><dt>Width</dt><dd>{selected.width}</dd><dt>Height</dt><dd>{selected.height}</dd>
           </dl>
-          <form key={[selected.id, relative[4], relative[5], selected.width, selected.height, ...(selected.transform ?? [])].join(",")} onSubmit={event => {
-            event.preventDefault();
-            const data = new FormData(event.currentTarget);
-            const previous = { x: relative[4], y: relative[5], width: selected.width, height: selected.height, rotation: rotationDegrees(rectangleTransform(selected)) };
-            const props = Object.fromEntries(Object.entries(previous).map(([name, value]) => [name, Number(data.get(name)), value]).filter(([, value, old]) => value !== old).map(([name, value]) => [name, value]));
-            if (Object.keys(props).length) dispatch("node.set", { props });
-          }}>
-            <fieldset disabled={!editable}><legend>Geometry</legend>
-              {(["x", "y", "width", "height", "rotation"] as const).map(name => <label key={name}>{name === "rotation" ? "Rotation" : `Edit ${name === "x" || name === "y" ? name.toUpperCase() : name[0].toUpperCase() + name.slice(1)}`}
-                <input name={name} type="number" step="any" required defaultValue={name === "rotation" ? rotationDegrees(rectangleTransform(selected)) : name === "x" ? relative[4] : name === "y" ? relative[5] : selected[name]} />
-              </label>)}
-              <button type="submit">Apply geometry</button>
-            </fieldset>
-          </form>
-          <label><input type="checkbox" checked={selected.constrainProportions ?? false} disabled={!editable} onChange={event => dispatch("node.set", { props: { constrainProportions: event.currentTarget.checked } })} />Constrain proportions</label>
-          {selected.kind === "frame" && <label><input type="checkbox" checked={selected.clip} disabled={!editable} onChange={event => dispatch("node.set", { id: selected.id, props: { clip: event.currentTarget.checked } })} />Clip content</label>}
-          <form key={`${selected.id}:${selected.constraints?.horizontal}:${selected.constraints?.vertical}`} onSubmit={event => {
-            event.preventDefault(); const data = new FormData(event.currentTarget);
-            dispatch("node.set", { id: selected.id, props: { constraints: { horizontal: data.get("horizontal"), vertical: data.get("vertical") } } });
-          }}><fieldset disabled={!editable}><legend>Constraints</legend>
-            <label>Horizontal constraint<select aria-label="Horizontal constraint" name="horizontal" defaultValue={(selected.constraints ?? defaultConstraints).horizontal}>
-              {["left", "right", "leftRight", "center", "scale"].map(value => <option key={value} value={value}>{({ left: "Left", right: "Right", leftRight: "Left and right", center: "Centre", scale: "Scale" })[value]}</option>)}
-            </select></label>
-            <label>Vertical constraint<select aria-label="Vertical constraint" name="vertical" defaultValue={(selected.constraints ?? defaultConstraints).vertical}>
-              {["top", "bottom", "topBottom", "center", "scale"].map(value => <option key={value} value={value}>{({ top: "Top", bottom: "Bottom", topBottom: "Top and bottom", center: "Centre", scale: "Scale" })[value]}</option>)}
-            </select></label><button type="submit">Apply constraints</button>
-          </fieldset></form></section>}
+          <GeometryPanel key={snapshot.selection.join(",")} document={snapshot.document} selection={snapshot.selection}
+            enabled={editable && !busy} engine={engine} dispatch={dispatch} onError={setError}/>
+          </section>}
           {!editingVector && <ChildLayoutPanel engine={engine} onError={setError} document={snapshot.document} selection={snapshot.selection} enabled={editable && !busy} dispatch={dispatch}/>}
           {!editingVector && <FrameLayoutPanel engine={engine} onError={setError} document={snapshot.document} selection={snapshot.selection} enabled={editable && !busy} dispatch={dispatch}/>}
           {!editingVector && snapshot.selection.length === 1 && selected?.kind === "frame" && selected.layout?.mode === "grid" &&

@@ -1090,23 +1090,25 @@ test("smart canvas gaps preview without root renders and cancel on Escape", asyn
 test("smart reorder rings insert, swap, cancel undo and commit outside the canvas", async ({ page }) => {
   await smartRow(page);
   const panel = page.locator(".figcraft-smart-selection"), canvas = page.getByLabel("Design canvas", { exact: true });
+  const firstX = page.getByRole("region",{name:"Selected rectangle",exact:true}).locator("dt").filter({hasText:/^X$/}).locator("+ dd");
   const a = await canvasPoint(page, 225, 230), c = await canvasPoint(page, 385, 230);
   const root = page.locator("[data-figcraft-editor]"), commits = await root.getAttribute("data-commits");
   await page.mouse.move(a.x, a.y); await page.mouse.down(); await page.mouse.move(c.x, c.y, { steps: 12 });
   expect(await root.getAttribute("data-commits")).toBe(commits);
   await page.keyboard.press("ControlOrMeta+z"); await page.mouse.up();
-  await expect(page.getByLabel("Edit X", { exact: true })).toHaveValue("200");
+  await expect(page.getByLabel("Edit X",{exact:true})).toHaveValue("");
+  await expect(firstX).toHaveText("200");
   await page.mouse.move(a.x, a.y); await page.mouse.down(); await page.mouse.move(c.x, c.y, { steps: 12 });
   const bounds = (await canvas.boundingBox())!; await page.mouse.move(bounds.x + bounds.width + 20, c.y); await page.mouse.up();
-  await expect(page.getByLabel("Edit X", { exact: true })).toHaveValue("360");
+  await expect(firstX).toHaveText("360");
   await page.getByRole("button", { name: "Undo", exact: true }).click();
   await page.mouse.move(a.x, a.y); await page.mouse.down(); await page.keyboard.down("ControlOrMeta"); await page.mouse.move(c.x, c.y, { steps: 10 });
   await page.mouse.up(); await page.keyboard.up("ControlOrMeta");
-  await expect(page.getByLabel("Edit X", { exact: true })).toHaveValue("360");
+  await expect(firstX).toHaveText("360");
   await page.getByRole("button", { name: "Undo", exact: true }).click();
   await panel.getByLabel("Source layer", { exact: true }).selectOption({ label: "A" }); await panel.getByLabel("Target slot", { exact: true }).selectOption({ label: "C" });
   await panel.getByLabel("Swap only these two", { exact: true }).check(); await panel.getByRole("button", { name: "Reorder selection", exact: true }).click();
-  await expect(page.getByLabel("Edit X", { exact: true })).toHaveValue("360");
+  await expect(firstX).toHaveText("360");
   await page.getByRole("button", { name: "Undo", exact: true }).click();
   await page.mouse.click(a.x, a.y); await expect(panel.getByLabel("Horizontal spacing", { exact: true })).toHaveCount(0);
   await page.getByLabel("Edit X", { exact: true }).fill("200.5"); await page.getByRole("button", { name: "Apply geometry", exact: true }).click();
@@ -5054,4 +5056,98 @@ test("layout numeric fields apply arithmetic, arrow steps and cancellable live s
   await track.fill("*1,5"); await track.press("Enter"); await expect(track).toHaveValue("1.5");
   await track.press("ArrowUp"); await expect(track).toHaveValue("1.6");
   await track.press("Shift+ArrowDown"); await expect(track).toHaveValue("0.6");
+});
+
+test("mixed geometry preserves each layer's value, groups undo and saves the focused field",async ({page}) => {
+  const file=JSON.parse(await readFile(new URL("../fixtures/native-rectangle.json",import.meta.url),"utf8"));
+  file.nodes["1"].children=[2,3]; file.next_id=4;
+  for (const [id,x,y,width,height] of [[2,10,20,40,30],[3,100,50,20,20]]) {
+    file.nodes[id]={id,parent:1,type:"frame",name:"Board "+id,children:[],clip:id===2,
+      transform:[1,0,0,1,x,y],width,height};
+  }
+  await login(page);
+  await page.getByLabel("Open Figcraft file",{exact:true}).setInputFiles({
+    name:"mixed.figcraft",mimeType:"application/octet-stream",buffer:Buffer.from(JSON.stringify(file)),
+  });
+  const layer = (id: number) => page.getByRole("region",{name:"Layers"}).getByRole("button",{name:"Board "+id,exact:true});
+  await layer(2).click(); await layer(3).click({modifiers:["Shift"]});
+  const width=page.getByLabel("Edit Width",{exact:true}), x=page.getByLabel("Edit X",{exact:true});
+  await expect(width).toHaveAttribute("placeholder","Mixed"); await expect(width).toHaveValue("");
+  await width.fill("*2"); await width.press("Enter");
+  await width.fill("/4"); await width.press("Tab");
+  const undo=page.getByRole("button",{name:"Undo",exact:true});
+  await undo.click(); await expect(width).toHaveValue("");
+  await x.focus(); await x.press("ArrowUp"); await x.press("Shift+ArrowUp");
+  const clip=page.getByLabel("Clip content",{exact:true});
+  await expect(clip).not.toBeChecked(); await clip.check(); await expect(clip).toBeChecked();
+  await layer(2).click(); await expect(width).toHaveValue("80"); await expect(x).toHaveValue("21"); await expect(clip).toBeChecked();
+  await layer(3).click(); await expect(width).toHaveValue("40"); await expect(x).toHaveValue("111"); await expect(clip).toBeChecked();
+  await layer(2).click({modifiers:["Shift"]});
+  const height=page.getByLabel("Edit Height",{exact:true});
+  await height.fill("50%");
+  const downloading=page.waitForEvent("download");
+  await height.press("ControlOrMeta+s");
+  const saved=await decodeFigcraft(await readFile((await (await downloading).path())!));
+  expect(saved.document.nodes["2"]).toMatchObject({x:21,width:80,height:15,clip:true});
+  expect(saved.document.nodes["3"]).toMatchObject({x:111,width:40,height:10,clip:true});
+});
+
+test("constraints follow frame eligibility and preserve each mixed layer's other axis",async ({page}) => {
+  const file=JSON.parse(await readFile(new URL("../fixtures/native-rectangle.json",import.meta.url),"utf8"));
+  file.nodes[2]={id:2,parent:1,name:"Container",type:"frame",width:220,height:90,children:[3,4]};
+  for (const id of [3,4]) file.nodes[id]={id,parent:2,type:"rectangle",name:"Box "+id,width:30,height:20,
+    constraints:{horizontal:"left",vertical:id===3 ? "top" : "bottom"}};
+  file.next_id=5;
+  await login(page);
+  await page.getByLabel("Open Figcraft file",{exact:true}).setInputFiles({
+    name:"pins.figcraft",mimeType:"application/octet-stream",buffer:Buffer.from(JSON.stringify(file)),
+  });
+  const layer=(name: string) => page.getByRole("region",{name:"Layers"}).getByRole("button",{name,exact:true});
+  const frame=layer("Container"), a=layer("Box 3"), b=layer("Box 4");
+  await frame.click();
+  const controls=page.getByRole("group",{name:"Constraints",exact:true});
+  await expect(controls).toHaveCount(0);
+  if (!await a.isVisible()) await layer("Expand frame Container").click();
+  await a.click(); await b.click({modifiers:["Shift"]});
+  const horizontal=page.getByLabel("Horizontal constraint"),vertical=page.getByLabel("Vertical constraint");
+  await expect(horizontal).toHaveValue(""); await expect(vertical).toHaveValue("");
+  await horizontal.selectOption("right");
+  await a.click(); await expect(horizontal).toHaveValue("right"); await expect(vertical).toHaveValue("top");
+  await b.click(); await expect(horizontal).toHaveValue("right"); await expect(vertical).toHaveValue("bottom");
+  await frame.click(); await page.getByRole("button",{name:"Add auto layout",exact:true}).click();
+  await a.click(); await expect(controls).toHaveCount(0);
+  await page.getByRole("button",{name:"Ignore auto layout (absolute position)"}).click();
+  await expect(horizontal).toHaveValue("right"); await vertical.selectOption("center");
+  await page.getByRole("button",{name:"Undo",exact:true}).click(); await expect(vertical).toHaveValue("top");
+});
+
+test("negative layout gaps preserve paint and hit order when stacking is reversed",async ({page}) => {
+  const file=JSON.parse(await readFile(new URL("../fixtures/native-rectangle.json",import.meta.url),"utf8"));
+  file.nodes[2]={id:2,parent:1,type:"frame",name:"Stack",children:[3,4],width:140,height:100,
+    transform:[1,0,0,1,190,170],layout:{mode:"horizontal",gap:-20,padding:[0,0,0,0]}};
+  for (const id of [3,4]) file.nodes[id]={id,parent:2,type:"rectangle",name:id===3 ? "Red" : "Blue",width:50,height:40,
+    transform:[1,0,0,1,(id-3)*30,0],fills:[{type:"solid",color:{r:id===3 ? 1 : 0,g:0,b:id===4 ? 1 : 0,a:1}}]};
+  file.next_id=5;
+  await login(page);
+  await page.getByLabel("Open Figcraft file",{exact:true}).setInputFiles({
+    name:"stack.figcraft",mimeType:"application/octet-stream",buffer:Buffer.from(JSON.stringify(file)),
+  });
+  const frame=page.getByRole("region",{name:"Layers"}).getByRole("button",{name:"Stack",exact:true});
+  await frame.click(); await resetCanvasOrigin(page);
+  const pick = async () => {
+    await page.getByLabel("Design canvas",{exact:true}).scrollIntoViewIfNeeded();
+    const empty=await canvasPoint(page,370,300);
+    await page.mouse.click(empty.x,empty.y);
+    const point=await canvasPoint(page,230,190);
+    await page.mouse.click(point.x,point.y);
+  };
+  await expectCanvasPixel(page,230,190,[0,0,255,255]);
+  await pick();
+  await expect(page.getByRole("region",{name:"Selected rectangle"}).getByRole("heading",{name:"Blue",exact:true})).toBeVisible();
+  await frame.click(); await page.getByLabel("Canvas stacking").selectOption("true");
+  await expectCanvasPixel(page,230,190,[255,0,0,255]);
+  await pick();
+  await expect(page.getByRole("region",{name:"Selected rectangle"}).getByRole("heading",{name:"Red",exact:true})).toBeVisible();
+  await page.getByRole("button",{name:"Undo",exact:true}).click();
+  await expectCanvasPixel(page,230,190,[0,0,255,255]);
 });
