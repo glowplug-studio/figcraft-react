@@ -20,6 +20,7 @@ async function createSegmenter() {
   const api=instance.exports as IcuExports;
   return {api,segmenter:api.icu4x_LineSegmenter_create_lstm_mv1()};
 }
+let ready: Awaited<ReturnType<typeof createSegmenter>> | undefined;
 let loading:ReturnType<typeof createSegmenter> | undefined;
 
 function markRun(runtime:Awaited<ReturnType<typeof createSegmenter>>, run:string, start:number, flags:Uint8Array) {
@@ -47,10 +48,23 @@ function markRun(runtime:Awaited<ReturnType<typeof createSegmenter>>, run:string
 }
 
 /** Native browser word boundaries for Thai, Lao, Khmer and Burmese, indexed by Unicode scalar. */
-export async function textWordStarts(text:string):Promise<Uint8Array> {
-  if (!complexRun.test(text)) return new Uint8Array();
+export const wordSegmenterReady = (text:string) => !!ready || !complexRun.test(text);
+
+export async function prepareWordSegmenter(text:string) {
+  if (ready || !complexRun.test(text)) return;
   loading ??= createSegmenter().catch(error=>{ loading=undefined; throw error; });
-  const runtime=await loading;
+  ready=await loading;
+}
+
+export async function textWordStarts(text:string):Promise<Uint8Array> {
+  await prepareWordSegmenter(text);
+  return preparedWordStarts(text);
+}
+
+export function preparedWordStarts(text:string):Uint8Array {
+  if (!complexRun.test(text)) return new Uint8Array();
+  if (!ready) throw new Error("Prepare the word segmenter before laying out complex text");
+  const runtime=ready;
   const flags=new Uint8Array(scalarCount(text));
   let scalar=0, utf16=0;
   for (const match of text.matchAll(new RegExp(complexRun,"gu"))) {

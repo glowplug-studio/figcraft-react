@@ -27,7 +27,7 @@ export function utf16ToScalar(value: string, offset: number) {
 }
 
 const signatures = new WeakMap<TextStyle,string>();
-function signature(style: TextStyle) {
+export function textStyleKey(style: TextStyle) {
   let value = signatures.get(style);
   if (value === undefined) {
     value = JSON.stringify(wireTextStyle(style), (_key,v) => isLosslessNumber(v) ? (v.value === "-0.0" ? 0 : v.value) : v);
@@ -35,7 +35,7 @@ function signature(style: TextStyle) {
   }
   return value;
 }
-export const sameTextStyle = (a: TextStyle,b: TextStyle) => a === b || signature(a) === signature(b);
+export const sameTextStyle = (a: TextStyle,b: TextStyle) => a === b || textStyleKey(a) === textStyleKey(b);
 const run = (start: number,end: number,style: TextStyle) => Object.freeze({start,end,style});
 
 export function normaliseRuns(runs: readonly StyleRun[], base: TextStyle, length: number): readonly StyleRun[] {

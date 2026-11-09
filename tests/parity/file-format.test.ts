@@ -153,7 +153,7 @@ describe("bounded native Figcraft file adapter", () => {
   it.each([
     ["future version", (value: ReturnType<typeof fixture>) => { value.version = 2; }],
     ["comments", (value: ReturnType<typeof fixture>) => { value.comments = [{ text: "preserve me" }]; }],
-    ["text", (value: ReturnType<typeof fixture>) => { value.nodes["2"].type = "text"; }],
+    ["section", (value: ReturnType<typeof fixture>) => { value.nodes["2"].type = "section"; }],
     ["custom metadata", (value: ReturnType<typeof fixture>) => { value.nodes["2"].plugin_data = { key: "preserve me" }; }],
     ["paint blend", (value: ReturnType<typeof fixture>) => { value.nodes["2"].fills = [{ type: "solid", color: "#ffffff", blend: "unknownMode" }]; }],
     ["node blend", (value: ReturnType<typeof fixture>) => { value.nodes["2"].blend = "futureBlendMode"; }],

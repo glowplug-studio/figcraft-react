@@ -51,7 +51,7 @@ function inspectPaint(paint: Paint) {
   };
 }
 
-function inspect(doc: Document, node: DocumentNode, depth: number, fields?: Set<string>) {
+function inspect(doc: Document, node: DocumentNode, depth: number, fields?: Set<string>, outline = false) {
   const out: Record<string, unknown> = { id: inspectedId(node.id) };
   const wants = (key: string) => !fields || fields.has(key);
   const put = (key: string, value: unknown) => { if (wants(key) && value !== undefined) out[key] = value; };
@@ -109,6 +109,15 @@ function inspect(doc: Document, node: DocumentNode, depth: number, fields?: Set<
     const parent = doc.nodes[node.parent];
     if (parent?.kind === "frame") put("constraints", node.constraints ?? defaultConstraints);
     if (parent?.kind === "booleanOp") put("operandOperation", node.boolOp);
+    if (node.kind === "text") {
+      const {characters, style} = node.text;
+      if (wants("characters")) {
+        const first = outline ? Array.from(characters).slice(0, 120).join("") : characters;
+        put("characters", first.length < characters.length ? first + "..." : first);
+      }
+      put("fontFamily", style.fontFamily); put("fontStyle", style.fontStyle); put("fontSize", style.fontSize);
+      put("textAlign", node.text.alignH); put("textAutoResize", node.text.autoResize);
+    }
     if (node.kind === "frame") put("clip", node.clip);
     if (node.kind === "booleanOp") put("booleanOperation", node.op);
     if (node.kind === "polygon" || node.kind === "star") put("pointCount", node.count);
@@ -122,7 +131,7 @@ function inspect(doc: Document, node: DocumentNode, depth: number, fields?: Set<
     }
   }
   if (!isLeaf(node) && node.children.length) {
-    if (depth) out.children = node.children.map(id => inspect(doc, doc.nodes[id], depth - 1, fields));
+    if (depth) out.children = node.children.map(id => inspect(doc, doc.nodes[id], depth - 1, fields, outline));
     else out.childCount = node.children.length;
   }
   return out;
@@ -132,5 +141,5 @@ export function getNode(doc: Document, params: Record<string, unknown>) {
   const id = parseNodeId(params.id);
   if (!id) throw new Error("node.get requires a node id");
   const fields = requestedFields(params);
-  return doc.nodes[id] ? inspect(doc, doc.nodes[id], 1, fields) : null;
+  return doc.nodes[id] ? inspect(doc, doc.nodes[id], 1, fields, params.outline === true) : null;
 }

@@ -23,6 +23,9 @@ export interface TextData {
 }
 const empty = Object.freeze([]);
 const defaultFeatures: Readonly<Record<string,boolean>> = Object.freeze(Object.create(null));
+export function normaliseTextLines(value: string) {
+  return value.replace(/\r\n|[\r\u2028\u2029]/g, "\n");
+}
 export function newTextData(characters = ""): TextData {
   return Object.freeze({characters:textString(characters,"characters"),style:defaultTextStyle,runs:empty,
     autoResize:"widthAndHeight",alignH:"left",alignV:"top",paragraphSpacing:0,paragraphIndent:0,

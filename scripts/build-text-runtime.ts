@@ -21,8 +21,9 @@ try {
 // Preserve the module-relative asset URL when another bundler consumes the browser export.
 await cp(new URL("../src/engine/icu/",import.meta.url),new URL("icu/",output),{recursive:true});
 for (const platform of ["browser","node"] as const) {
-  const name="icu-"+platform;
-  const module=await rolldown({input:fileURLToPath(new URL("../src/engine/"+name+".ts",import.meta.url)),platform});
-  try { await module.write({file:fileURLToPath(new URL(name+".js",output)),format:"es"}); }
-  finally { await module.close(); }
+  for (const [name,source] of [["icu-"+platform,"../src/engine/icu-"+platform], ["font-assets-"+platform,"./font-assets-"+platform]]) {
+    const module=await rolldown({input:fileURLToPath(new URL(source+".ts",import.meta.url)),platform});
+    try { await module.write({file:fileURLToPath(new URL(name+".js",output)),format:"es"}); }
+    finally { await module.close(); }
+  }
 }

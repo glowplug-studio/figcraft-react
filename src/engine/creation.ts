@@ -1,4 +1,6 @@
 import { isGroupLike } from "./document";
+import { newTextData, normaliseTextLines } from "./text-data";
+import { autoSizeText } from "./text-node-layout";
 import { emptyNetwork, freezeNetwork } from "./vector-network";
 import { pathNetwork, pointsNetwork } from "./svg-path";
 import { isLeaf, withLayerTransform, type Document, type LayerNode, type NodeId } from "./document";
@@ -17,13 +19,17 @@ const number = (p: Record<string, unknown>, key: string, fallback: number): numb
   if (typeof p[key] === "number" && !Number.isFinite(p[key])) throw new Error(`${key} must be finite`);
   try { return parseNumber(p[key], key); } catch { return fallback; }
 };
+export function creationCharacters(p: Record<string, unknown>) {
+  return normaliseTextLines(parseString(p.text) ?? parseString(p.characters) ?? "");
+}
 /** Shared native creation reducer for commands and captured drawing previews. */
 export function createLayer(before: { document: Document; selection: readonly NodeId[] }, nextId: bigint, command: string, p: Record<string, unknown>, view: Viewport, placement?: Affine) {
     if (command === "frame.create") p = presetParameters(before.document, view, p);
-    const allowed = ["x", "y", "width", "height", "parent", "index", "name", "select", "props", "path", "points", "closed", ...(command === "node.create" ? ["type"] : [])];
+    const textLayer = command === "text.create" || command === "node.create" && parseString(p.type)?.toLowerCase() === "text";
+    const allowed = ["x", "y", "width", "height", "parent", "index", "name", "select", "props", "path", "points", "closed", ...(textLayer ? ["text", "characters"] : []), ...(command === "node.create" ? ["type"] : [])];
     for (const key of Object.keys(p)) if (!allowed.includes(key)) throw new Error(`Unsupported creation parameter: ${key}`);
-    if (command === "node.create" && (typeof p.type !== "string" || !["rectangle", "rect", "group", "frame", "ellipse", "circle", "oval", "polygon", "triangle", "star", "line", "arrow", "vector", "path"].includes(p.type.toLowerCase()))) throw new Error("Only rectangle, ellipse, polygon, star, line, arrow, vector, group and frame nodes are supported");
-    const requested = command === "node.create" ? String(p.type).toLowerCase() : command === "frame.create" ? "frame" : command === "vector.create" ? "vector" : command.slice("shape.".length);
+    if (command === "node.create" && (typeof p.type !== "string" || !["text", "rectangle", "rect", "group", "frame", "ellipse", "circle", "oval", "polygon", "triangle", "star", "line", "arrow", "vector", "path"].includes(p.type.toLowerCase()))) throw new Error("Only rectangle, ellipse, polygon, star, line, arrow, vector, text, group and frame nodes are supported");
+    const requested = command === "node.create" ? String(p.type).toLowerCase() : command === "text.create" ? "text" : command === "frame.create" ? "frame" : command === "vector.create" ? "vector" : command.slice("shape.".length);
     const kind = requested === "rect" ? "rectangle" : requested === "path" ? "vector" : ["circle", "oval"].includes(requested) ? "ellipse" : requested === "triangle" ? "polygon" : requested === "arrow" ? "line" : requested;
     if (nextId > 18446744073709551615n || before.document.nodes[String(nextId)]) throw new Error("Document identifiers are exhausted");
     const parentId = p.parent == null ? before.document.currentPage : parseNodeId(p.parent);
@@ -31,9 +37,16 @@ export function createLayer(before: { document: Document; selection: readonly No
     if (!parent || isLeaf(parent)) throw new Error("The parent must be a container");
     const index = p.index == null ? parent.children.length : parseNumber(p.index, "index");
     if (!Number.isInteger(index) || index < 0 || index >= 1e9) throw new Error("index must be a whole number from 0 to less than 1e9");
-    const base = { id: String(nextId), name: parseString(p.name) ?? (kind === "line" ? requested === "arrow" ? "Arrow" : "Line" : kind === "ellipse" ? "Ellipse" : kind === "polygon" ? "Polygon" : kind === "star" ? "Star" : kind === "vector" ? "Vector" : kind !== "rectangle" ? nextLayerName(before.document, kind === "frame" ? "Frame" : "Group") : "Rectangle"), parent: parent.id,
-      x: number(p, "x", 0), y: number(p, "y", 0), width: Math.max(0, number(p, "width", 100)), height: kind === "line" ? 0 : Math.max(0, number(p, "height", 100)) };
+    const base = { id: String(nextId), name: parseString(p.name) ?? (kind === "text" ? "Text" : kind === "line" ? requested === "arrow" ? "Arrow" : "Line" : kind === "ellipse" ? "Ellipse" : kind === "polygon" ? "Polygon" : kind === "star" ? "Star" : kind === "vector" ? "Vector" : kind !== "rectangle" ? nextLayerName(before.document, kind === "frame" ? "Frame" : "Group") : "Rectangle"), parent: parent.id,
+      x: number(p, "x", 0), y: number(p, "y", 0), width: Math.max(0, number(p, "width", textLayer ? 0 : 100)), height: kind === "line" ? 0 : Math.max(0, number(p, "height", textLayer ? 0 : 100)) };
     let node: LayerNode = kind === "frame" ? Object.freeze({ ...base, kind, children: Object.freeze([]), fill: "#ffffff", blend: "passThrough", clip: true }) : kind === "group" ? Object.freeze({ ...base, kind, children: Object.freeze([]), fill: "transparent", blend: "passThrough" }) : kind === "ellipse" ? Object.freeze({ ...base, kind, start: 0, sweep: 2 * Math.PI, inner: 0, fill: "#d9d9d9" }) : kind === "polygon" ? Object.freeze({ ...base, kind, count: 3, fill: "#d9d9d9" }) : kind === "star" ? Object.freeze({ ...base, kind, count: 5, innerRatio: .38, fill: "#d9d9d9" }) : Object.freeze({ ...base, kind: "rectangle", fill: "#d9d9d9" });
+    if (textLayer) {
+      const characters = creationCharacters(p);
+      const text = newTextData(characters);
+      const first = Array.from(characters.split("\n", 1)[0]).slice(0, 64).join("");
+      node = autoSizeText(Object.freeze({...base, name: parseString(p.name) ?? (first.trim() ? first : "Text"),
+        kind: "text", text: base.width > 0 ? Object.freeze({...text, autoResize: "height" as const}) : text, fill: "#000000"}));
+    }
     if (kind === "line") node = Object.freeze({ ...base, kind, fill: "transparent", strokes: Object.freeze([solidPaint(fromRgba8(0, 0, 0, 255))]), stroke: Object.freeze({ ...defaultStroke, align: "center", capEnd: requested === "arrow" ? "lineArrow" : "none" }) });
     if (kind === "vector") {
       const optional = (key: string) => { try { return parseNumber(p[key]); } catch { return undefined; } };

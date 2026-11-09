@@ -1,0 +1,129 @@
+{
+  "comments": [],
+  "current_page": 1,
+  "document_colors": [],
+  "name": "Native text",
+  "next_id": 3,
+  "nodes": {
+    "1": {
+      "background": {
+        "a": 1.0,
+        "b": 0.9607843160629272,
+        "g": 0.9607843160629272,
+        "r": 0.9607843160629272
+      },
+      "children": [
+        2
+      ],
+      "flows": [],
+      "height": 0.0,
+      "id": 1,
+      "name": "Page 1",
+      "prototype": {
+        "background": {
+          "a": 1.0,
+          "b": 0.11764705926179886,
+          "g": 0.11764705926179886,
+          "r": 0.11764705926179886
+        },
+        "device": "None",
+        "rotation": "portrait"
+      },
+      "type": "page",
+      "width": 0.0
+    },
+    "2": {
+      "align_v": "middle",
+      "auto_resize": "height",
+      "blend": "normal",
+      "characters": "Inter ქართული\nsecond line",
+      "fills": [
+        {
+          "blend": "normal",
+          "color": {
+            "a": 1.0,
+            "b": 0.0,
+            "g": 0.0,
+            "r": 0.0
+          },
+          "opacity": 1.0,
+          "type": "solid",
+          "visible": true
+        }
+      ],
+      "height": 145.0,
+      "id": 2,
+      "name": "Styled native text",
+      "parent": 1,
+      "runs": [
+        {
+          "end": 5,
+          "start": 0,
+          "style": {
+            "case": "original",
+            "decoration": "none",
+            "fills": [
+              {
+                "blend": "normal",
+                "color": {
+                  "a": 1.0,
+                  "b": 0.25882354378700256,
+                  "g": 0.12156862765550613,
+                  "r": 0.7764706015586853
+                },
+                "opacity": 1.0,
+                "type": "solid",
+                "visible": true
+              }
+            ],
+            "font_family": "Inter",
+            "font_size": 24.0,
+            "font_style": "Bold",
+            "letter_spacing": {
+              "unit": "percent",
+              "value": 0.0
+            },
+            "line_height": {
+              "unit": "auto"
+            },
+            "link": null
+          }
+        }
+      ],
+      "saved_breaks": {
+        "for_text": 18446744073709551610,
+        "starts": [
+          0,
+          6
+        ],
+        "width": 91.0
+      },
+      "style": {
+        "case": "original",
+        "decoration": "none",
+        "fills": null,
+        "font_family": "Inter",
+        "font_size": 24.0,
+        "font_style": "Regular",
+        "letter_spacing": {
+          "unit": "percent",
+          "value": 0.0
+        },
+        "line_height": {
+          "unit": "auto"
+        },
+        "link": null
+      },
+      "type": "text",
+      "width": 91.0
+    }
+  },
+  "pages": [
+    1
+  ],
+  "styles": [],
+  "variables": {
+    "collections": [],
+    "variables": []
+  }
+}

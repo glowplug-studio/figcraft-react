@@ -6,7 +6,8 @@ import { editImagePaints, editImagePreset, imageEditSpecs, startImageCrop, type 
 import { listImagePresets } from "./image-filters";
 import { getNode } from "./inspect";
 import { centrePastedImage, rasterImportParams, fileData, placeImage, prepareImage, rasterFilename, replaceImage } from "./image-import";
-import { createLayer } from "./creation";
+import { prepareText, prepareDocumentText } from "./text-node-layout";
+import { creationCharacters, createLayer } from "./creation";
 import { pastePaint, type CopiedPaint } from "./paint-clipboard";
 import { copyPaint, fillSpecs, selectedRegionFills, writeFill } from "./fill-commands";
 import type { Paint } from "./solid-paint";
@@ -87,6 +88,7 @@ export const commandSpecs = Object.freeze({
   "tool.star": { label: "Star", undo: false },
   "shape.ellipse": { label: "Ellipse", undo: true },
   "shape.rectangle": { label: "Rectangle", undo: true },
+  "text.create": { label: "Text", undo: true },
   "node.create": { label: "Create layer", undo: true },
   "vector.create": { label: "Vector", undo: true },
   "tool.ellipse": { label: "Ellipse", undo: false },
@@ -692,7 +694,7 @@ export class EditorEngine {
       return { saved: true };
     }
     if (command.startsWith("file.") || command === "image.place" || command === "image.replace") throw new Error(`${command} requires executeAsync`);
-    if (command === "vector.create" || command === "shape.line" || command === "shape.arrow" || command === "shape.polygon" || command === "shape.star" || command === "shape.ellipse" || command === "shape.rectangle" || command === "frame.create" || command === "node.create") return this.#create(command, p);
+    if (command === "text.create" || command === "vector.create" || command === "shape.line" || command === "shape.arrow" || command === "shape.polygon" || command === "shape.star" || command === "shape.ellipse" || command === "shape.rectangle" || command === "frame.create" || command === "node.create") return this.#create(command, p);
     if (Object.keys(p).length) throw new Error(`${command} takes no parameters`);
     if (command === "tool.shapeBuilder" || command === "tool.pencil" || command === "tool.pen" || command === "tool.line" || command === "tool.arrow" || command === "tool.polygon" || command === "tool.star" || command === "tool.ellipse" || command === "tool.rectangle" || command === "tool.move" || command === "tool.scale") {
       const end = this.#vectorEdit && command !== "tool.move" && command !== "tool.scale" ? executeVectorEdit("vector.edit.end", this.#snapshot.document, this.#snapshot.selection, this.#vectorEdit, {}) : undefined;
@@ -716,6 +718,20 @@ export class EditorEngine {
   async executeAsync(command: "node.get", input: unknown): Promise<ReturnType<typeof getNode>>;
   async executeAsync(command: string, input?: unknown): Promise<Record<string, unknown>>;
   async executeAsync(command: string, input: unknown = {}): Promise<Record<string, unknown> | null> {
+    if (command === "text.create" || command === "node.create" || command === "node.set") {
+      const p = parameters(input);
+      const props = p.props && typeof p.props === "object" && !Array.isArray(p.props) ? p.props as Record<string, unknown> : command === "node.set" ? p : {};
+      const creating = command === "text.create" || command === "node.create" && parseString(p.type)?.toLowerCase() === "text";
+      const content = [props.characters, props.text].filter(value => value !== undefined).map(value => parseString(value) ?? "");
+      if (creating || content.length) {
+        if (!this.#snapshot.editable) throw new Error("Sign in to edit this document");
+        const identity = this.#documentIdentity, opening = this.#openSequence;
+        if (creating) content.push(creationCharacters(p));
+        await Promise.all(content.map(value => prepareText(value)));
+        if (identity !== this.#documentIdentity || opening !== this.#openSequence) throw new Error("The document changed during the text edit");
+        return this.execute(command, p);
+      }
+    }
     return this.#executeFileCommand(command, input);
   }
   async #prepareSave<T>(output: (archive: Blob) => Promise<T>) {
@@ -823,6 +839,7 @@ export class EditorEngine {
       await prepareArchive(opened.document, String(opened.nextId));
       decoded = { document: opened.document, nextId: String(opened.nextId) };
     } else decoded = await decodeFigcraft(source?.file ?? fileData(p.data, MAX_UNPACKED_BYTES));
+    if (!raster) await prepareDocumentText(decoded.document);
     checkCurrent();
     this.#documentIdentity = Symbol();
     this.#nextId = BigInt(decoded.nextId);

@@ -42,13 +42,14 @@ export type { PolygonNode, StarNode, LineNode, LeafNode, DrawShapeKind } from ".
 export { defaultStroke, strokeCaps, miterAngle, miterLimitFor, type StrokeProps, type StrokeSides, type StrokeCap, type StrokeAlign, type StrokeJoin } from "./engine/stroke";
 export { widthPresetIds, widthPresetLabels, widthPresetProfile, type WidthPoint, type WidthProfile, type WidthPreset } from "./engine/width-profile";
 export { brushPresets, defaultBrush, type Brush } from "./engine/brush";
-export type { VectorNode } from "./engine/document";
+export type { TextNode, VectorNode } from "./engine/document";
 export type { VectorNetwork, VectorVertex, VectorSegment, VectorRegion, RegionPaintSpace, HandleMirroring } from "./engine/vector-network";
 
 export { readFontFaces } from "./engine/font-source";
 export type { ShapingFace, ShapingScalar, ShapedGlyph } from "./engine/shaping-face";
 export { FontLibrary } from "./engine/font-library";
 export { TextGraphemes } from "./engine/text-graphemes";
+export { prepareText } from "./engine/text-node-layout";
 export { readTextData, type TextData } from "./engine/text-data";
 export { styledGlyphs, type StyledGlyph } from "./engine/styled-glyphs";
 export { glyphPath } from "./engine/text-glyph-path";

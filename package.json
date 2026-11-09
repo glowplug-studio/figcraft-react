@@ -15,6 +15,11 @@
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "imports": {
+    "#figcraft-font-assets": {
+      "browser": "./dist/font-assets-browser.js",
+      "node": "./dist/font-assets-node.js",
+      "default": "./dist/font-assets-browser.js"
+    },
     "#figcraft-harfbuzz": {
       "types": [
         "./src/engine/harfbuzz/index.d.mts",

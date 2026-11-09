@@ -4086,3 +4086,32 @@ test("bundled web fonts load on demand and match native glyph metrics", async ({
   await page.evaluate(() => document.fonts.load('600 16px "Figcraft Inter"', "A").then(() => undefined));
   expect(fonts).toHaveLength(count);
 });
+
+test("a Rust rich-text layer paints separate run colours, downloads and restores after reload", async ({page}) => {
+  const raw = await readFile(new URL("../fixtures/native-text.json", import.meta.url));
+  await login(page);
+  await page.getByLabel("Open Figcraft file", {exact:true}).setInputFiles({
+    name:"native-text.figcraft", mimeType:"application/octet-stream", buffer:raw,
+  });
+  await expect(page.getByRole("heading",{name:"Native text",exact:true})).toBeVisible();
+  const canvas = page.getByLabel("Design canvas",{exact:true});
+  const ink = () => canvas.evaluate((node:HTMLCanvasElement) => {
+    const pixels = node.getContext("2d")!.getImageData(0,0,node.width,node.height).data;
+    let red=0,black=0;
+    for (let i=0;i<pixels.length;i+=4) {
+      if (pixels[i]===198 && pixels[i+1]===31 && pixels[i+2]===66) red++;
+      if (pixels[i]===0 && pixels[i+1]===0 && pixels[i+2]===0) black++;
+    }
+    return red>10 && black>10;
+  });
+  await expect.poll(ink).toBe(true);
+  const saving = page.waitForEvent("download");
+  await page.getByRole("button",{name:"Save as",exact:true}).click();
+  const download = await saving;
+  const saved = await decodeFigcraft(await readFile((await download.path())!));
+  expect(saved.document).toEqual((await decodeFigcraft(raw)).document);
+  await expect(page.getByText("Recovery saved on this device",{exact:true})).toBeVisible();
+  await page.reload();
+  await expect(page.getByRole("heading",{name:"Native text",exact:true})).toBeVisible();
+  await expect.poll(ink).toBe(true);
+});

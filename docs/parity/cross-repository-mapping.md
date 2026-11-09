@@ -404,3 +404,5 @@ Native Decoration::path, ink_cuts, TextLayout::ink_bounds and to_path map to dec
 Native Face::color_layers and read_layers map to ShapingFace.colourLayers and FontColourTables.layers. [COLR palette and browser verification](../planning/26-11-09-rich-text.md#layered-colour-glyphs).
 
 Native Face::color_bitmap, read_bitmap, placement, scaled and Glyph::color map to ShapingFace.colourBitmap, readStrikeBitmap and glyphColour. [Bitmap geometry, pixels, ownership and limits](../planning/26-11-09-rich-text.md#bitmap-colour-glyphs).
+
+Native `NodeKind::Text`, `layout_node`, `auto_size` and the text arm of `render::draw` map to `TextNode`, `textNodeLayout`, `autoSizeText` and `paintText`. [Rust and browser interchange, measured geometry and remaining editor work](../planning/26-11-09-rich-text.md#native-text-layers-and-file-interchange).

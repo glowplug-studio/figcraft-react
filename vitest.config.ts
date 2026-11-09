@@ -3,7 +3,8 @@ import { defineConfig } from "vitest/config";
 
 export default defineConfig({
   test: {
-    alias: {"#figcraft-harfbuzz":fileURLToPath(new URL("./src/engine/harfbuzz/index.mjs",import.meta.url)),
+    alias: {"#figcraft-font-assets":fileURLToPath(new URL("./scripts/font-assets-node.ts",import.meta.url)),
+      "#figcraft-harfbuzz":fileURLToPath(new URL("./src/engine/harfbuzz/index.mjs",import.meta.url)),
       "#figcraft-word-segmenter":fileURLToPath(new URL("./src/engine/icu-node.ts",import.meta.url)),
       "#figcraft-icc-runtime": fileURLToPath(new URL("./src/engine/icc-node.ts",import.meta.url))},
     include: [

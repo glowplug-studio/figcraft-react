@@ -1,4 +1,5 @@
 import { compositeSurface } from "./blend-composite";
+import { textNodeLayout } from "./text-node-layout";
 import { paintPath } from "./paint-path";
 import { multiply, transformBounds, type Affine } from "./affine";
 import type { LayerPaintSteps } from "./image-renderer";
@@ -92,6 +93,13 @@ export function strokeReach(node: LayerNode): number {
   return spread * (props.join === "miter" ? Math.max(1, Math.min(100, props.miterLimit)) : 1);
 }
 export function strokeBounds(node: LayerNode, matrix: Affine): Rectangle {
+  if (node.kind === "text") {
+    const ink = textNodeLayout(node).ink;
+    if (ink) {
+      const reach = hasVisibleStroke(node) ? strokeReach(node) : 0;
+      return transformBounds(multiply(matrix, [1, 0, 0, 1, ink.x - reach, ink.y - reach]), ink.width + 2 * reach, ink.height + 2 * reach);
+    }
+  }
   if (!hasVisibleStroke(node)) return transformBounds(matrix, node.width, node.height);
   const prior = boundsCache.get(node);
   if (prior && matrix.every((value, i) => value === prior.matrix[i])) return prior.bounds;

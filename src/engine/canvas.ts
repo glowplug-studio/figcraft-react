@@ -1,3 +1,5 @@
+import { prepareDocumentText, documentTextReady } from "./text-node-layout";
+import { paintText } from "./text-painter";
 import { beginGlassFrame } from "./glass-shape";
 import { backdropParent } from "./backdrop-stack";
 import { effectMargin, effectReach, usesPixelLayer, drawLayerEffects } from "./layer-effects-renderer";
@@ -59,6 +61,12 @@ function* paintRectangle(context: CanvasRenderingContext2D, node: LayerNode, alp
   context.save();
   if (node.transform) context.transform(...node.transform);
   else context.translate(node.x, node.y);
+  if (node.kind === "text") {
+    yield* paintText(context, node, alpha);
+    if (strokes) yield* paintStroke(context, node, alpha);
+    context.restore();
+    return;
+  }
   const regions = node.kind === "vector" ? vectorPaintRegions(node) : [{ paints: rectanglePaints(node), path: hasShapePath(node) ? shapePath(node) : undefined, rule: "nonzero" as const }];
   for (const region of regions) for (const paint of region.paints) {
     if (!paint.visible || paint.opacity <= 0) continue;
@@ -205,8 +213,25 @@ function* drawLayer(context: CanvasRenderingContext2D, document: Document, node:
   }
 }
 
+const pendingTextFrames = new WeakMap<CanvasRenderingContext2D, object>();
+
 /** Only this module paints editable geometry; React never renders canvas layers. */
-export function renderDocument(context: CanvasRenderingContext2D, document: Document, width: number, height: number, selection: readonly string[] = [], preview?: Rectangle, view?: Viewport, editingId?: string, invalidate?: () => void): void {
+export function renderDocument(context: CanvasRenderingContext2D, document: Document, width: number, height: number, selection: readonly string[] = [], preview?: Rectangle, view?: Viewport, editingId?: string, invalidate?: () => void): void | Promise<void> {
+  if (!documentTextReady(document)) {
+    const frame = {}, matrix = context.getTransform();
+    pendingTextFrames.set(context, frame);
+    return prepareDocumentText(document).then(() => {
+      if (pendingTextFrames.get(context) !== frame) return;
+      pendingTextFrames.delete(context);
+      if (invalidate) return invalidate();
+      context.save();
+      try {
+        context.setTransform(matrix);
+        drawDocumentFrame(context, document, width, height, selection, preview, view, editingId);
+      } finally { context.restore(); }
+    });
+  }
+  pendingTextFrames.delete(context);
   drawDocumentFrame(context, document, width, height, selection, preview, view, editingId, invalidate);
 }
 

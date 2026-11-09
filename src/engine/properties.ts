@@ -1,3 +1,6 @@
+import { normaliseTextLines } from "./text-data";
+import { autoSizeText } from "./text-node-layout";
+import { replaceTextRange, scalarCount } from "./text-ranges";
 import { readEffects, withEffects } from "./effects";
 import { blendFromName, type BlendMode } from "./blend";
 import { isMaskType, withMaskProperties, layerBlend, isBooleanOperation, isGroupLike } from "./document";
@@ -11,7 +14,7 @@ import { isCornerKey, setCorners, zeroCorners } from "./corners";
 import { identity, inverse, multiply, setRotationAboutCenter, transformBounds, transformPoint, withTranslation } from "./affine";
 import { defaultConstraints, rectanglePaints, rectangleTransform, withRectanglePaints, withRectangleTransform, type Document, type DocumentNode, type NodeId, type LayerNode } from "./document";
 import { HierarchyDraft, frameRelative, rootIds, worldTransform } from "./hierarchy";
-import { parseNodeId, parseNumber } from "./parameters";
+import { parseNodeId, parseNumber, parseString } from "./parameters";
 import { parseColour } from "./colour-css";
 import { samePaints, readPaints, solidPaint, type Paint } from "./solid-paint";
 
@@ -44,7 +47,8 @@ export function setRectangleProperties(document: Document, selection: readonly N
     : rawProps as Record<string, unknown>;
   const keys = Object.keys(props);
   if (keys.length === 0) throw new Error("node.set requires properties");
-  const unsupported = keys.filter(key => key !== "path" && !geometryKeys.has(key) && !appearanceKeys.has(key) && !isCornerKey(key) && !isArcKey(key) && !isShapeKey(key) && !isStrokeKey(key));
+  const characterKeys = keys.filter(key => key === "text" || key === "characters").sort();
+  const unsupported = keys.filter(key => key !== "path" && key !== "characters" && key !== "text" && !geometryKeys.has(key) && !appearanceKeys.has(key) && !isCornerKey(key) && !isArcKey(key) && !isShapeKey(key) && !isStrokeKey(key));
   if (unsupported.length) throw new Error(`node.set unsupported properties: ${unsupported.join(", ")}`);
   const hasPath = Object.hasOwn(props, "path"), vectors = ids.filter(id => document.nodes[id]?.kind === "vector");
   if (hasPath && !vectors.length) { const node = document.nodes[ids[0]]; throw new Error(`path applies to vector layers; ${node?.name ?? ids[0]} is not a vector`); }
@@ -157,6 +161,18 @@ export function setRectangleProperties(document: Document, selection: readonly N
     }
     transformBounds(transform, width, height);
     let updated: LayerNode = withLayerSize(withRectangleTransform(arcNode, transform), width, height);
+    for (const key of characterKeys) {
+      if (updated.kind !== "text") throw new Error("Characters require a text layer");
+      const value = parseString(props[key]);
+      if (value === undefined) throw new Error("Characters must be a string");
+      const text = replaceTextRange(updated.text, 0, scalarCount(updated.text.characters), normaliseTextLines(value));
+      updated = Object.freeze({...updated, text, charactersOverridden: true});
+    }
+    if (updated.kind === "text" && (characterKeys.length || width !== node.width || height !== node.height)) {
+      const fitted = autoSizeText(updated);
+      updated = fitted.text.autoResize === "widthAndHeight" && fitted.text.alignH === "right" && fitted.width !== width
+        ? withRectangleTransform(fitted, multiply(transform, [1, 0, 0, 1, width - fitted.width, 0])) : fitted;
+    }
     const changeBlend = blend !== undefined && blend !== layerBlend(node);
     if (changeBlend) {
       if (isLeaf(node) && blend === "normal") {
@@ -176,7 +192,7 @@ export function setRectangleProperties(document: Document, selection: readonly N
     if ("constrainProportions" in props) updated = Object.freeze({ ...updated, constrainProportions: props.constrainProportions as boolean });
     if (opacity !== undefined && opacity !== (node.opacity ?? 1)) updated = Object.freeze({ ...updated, opacity });
     if (paints && !samePaints(rectanglePaints(node), paints)) updated = withRectanglePaints(updated, paints);
-    if (updated.effects !== node.effects || updated.isMask !== node.isMask || updated.maskType !== node.maskType || changeBlend || arcNode !== node || updated.kind === "vector" && "cornerRadius" in props || cornersChanged || "constrainProportions" in props && props.constrainProportions !== (node.constrainProportions ?? false) || constraintsChanged || "clip" in props && node.kind === "frame" && props.clip !== node.clip || width !== node.width || height !== node.height || transform.some((value, index) => value !== rectangleTransform(node)[index])
+    if (characterKeys.length || updated.effects !== node.effects || updated.isMask !== node.isMask || updated.maskType !== node.maskType || changeBlend || arcNode !== node || updated.kind === "vector" && "cornerRadius" in props || cornersChanged || "constrainProportions" in props && props.constrainProportions !== (node.constrainProportions ?? false) || constraintsChanged || "clip" in props && node.kind === "frame" && props.clip !== node.clip || width !== node.width || height !== node.height || transform.some((value, index) => value !== rectangleTransform(node)[index])
       || name !== undefined && name !== node.name || "visible" in props && props.visible !== (node.visible ?? true)
       || "locked" in props && props.locked !== (node.locked ?? false) || opacity !== undefined && opacity !== (node.opacity ?? 1)
       || paints && !samePaints(rectanglePaints(node), paints)) {
