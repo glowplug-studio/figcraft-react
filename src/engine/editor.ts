@@ -1,3 +1,4 @@
+import { editLayoutGuides, gridSpecs } from "./layout-guides";
 import { editStyleLinks } from "./style-application";
 import { editStyleDefinition, orderStyles, styleEditSpecs, styleOrderSpecs } from "./style-commands";
 import { listStyles } from "./shared-styles";
@@ -99,6 +100,7 @@ export const commandSpecs = Object.freeze({
   ...instanceCommandSpecs,
   ...styleOrderSpecs,
   ...styleEditSpecs,
+  ...gridSpecs,
   "style.apply": {label:"Apply style",undo:true},
   "style.detach": {label:"Detach style",undo:true},
   "style.list": {label:"List styles",undo:false},
@@ -310,6 +312,8 @@ export class EditorEngine {
       this.endTextPreview();
       const edited = next.nodes[node.id];
       if (edited?.kind !== "text") throw new Error("Expected a text layer");
+      // A catalogue edit can leave the selected characters and their layer unchanged.
+      if (owner.document.styles !== next.styles) this.#textRange = undefined;
       owner.document = next;
       node = edited;
       select(start,end);
@@ -751,7 +755,7 @@ export class EditorEngine {
   }
   subscribeView = (listener: () => void): (() => void) => { this.#viewListeners.add(listener); return () => { this.#viewListeners.delete(listener); }; };
   updateView(view: Viewport): void {
-    if ([view.cx, view.cy, view.zoom, view.vw, view.vh].some(value => !Number.isFinite(value)) || [view.snapObjects, view.snapPixel, view.proofSrgb].some(value => value !== undefined && typeof value !== "boolean") || view.zoom < 0.02 || view.zoom > 256 || view.vw <= 0 || view.vh <= 0) throw new Error("Invalid viewport");
+    if ([view.cx, view.cy, view.zoom, view.vw, view.vh].some(value => !Number.isFinite(value)) || [view.snapObjects, view.snapPixel, view.proofSrgb, view.layoutGrids].some(value => value !== undefined && typeof value !== "boolean") || view.zoom < 0.02 || view.zoom > 256 || view.vw <= 0 || view.vh <= 0) throw new Error("Invalid viewport");
     if ((Object.keys(view) as (keyof Viewport)[]).every(key => view[key] === this.#view[key])) return;
     this.#view = Object.freeze({ ...view }); this.#viewListeners.forEach(listener => listener());
   }
@@ -1080,6 +1084,12 @@ export class EditorEngine {
         this.#commitEdit({ document, selection: Object.freeze(before.selection.filter(id => document.nodes[id] && pageForNode(document, id) === document.currentPage)) });
       }
       return { ok: true, ...(warnings.length ? { warnings } : {}) };
+    }
+    if (Object.hasOwn(gridSpecs, command)) {
+      const before = this.#snapshot.document;
+      const document = editLayoutGuides(before, this.#snapshot.selection, command, p);
+      if (document !== before) this.#commitEdit({document});
+      return {ok:true};
     }
     if (Object.hasOwn(styleEditSpecs, command) || command === "style.apply" || command === "style.detach") {
       const live = this.getTextRange();

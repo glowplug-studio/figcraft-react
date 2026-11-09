@@ -5,12 +5,13 @@ import { isDivider } from "./pages";
 import { parseBoolean, parseNumber } from "./parameters";
 import type { Point, Rectangle } from "./geometry";
 
-export interface Viewport { readonly cx: number; readonly cy: number; readonly zoom: number; readonly vw: number; readonly vh: number; readonly snapObjects?: boolean; readonly snapPixel?: boolean; readonly proofSrgb?: boolean }
+export interface Viewport { readonly cx: number; readonly cy: number; readonly zoom: number; readonly vw: number; readonly vh: number; readonly layoutGrids?: boolean; readonly snapObjects?: boolean; readonly snapPixel?: boolean; readonly proofSrgb?: boolean }
 export const defaultViewport: Viewport = Object.freeze({ cx: 0, cy: 0, zoom: 1, vw: 1200, vh: 800 });
 export const minimumZoom = 0.02, maximumZoom = 256;
 const steps = [0.02, 0.03, 0.06, 0.13, 0.25, 0.5, 1, 2, 4, 8, 16, 32, 64, 128, 256];
 export const viewSpecs = Object.freeze({
   "view.proofSrgb": { label: "Soft-proof sRGB", undo: false },
+  "view.layoutGrids": { label:"Layout grids", undo:false },
   "view.snapObjects": { label: "Snap to objects", undo: false }, "view.snapPixel": { label: "Snap to pixel grid", undo: false },
   "view.zoomIn": { label: "Zoom in", undo: false }, "view.zoomOut": { label: "Zoom out", undo: false },
   "view.zoom100": { label: "Zoom to 100%", undo: false }, "view.zoom50": { label: "Zoom to 50%", undo: false },
@@ -59,12 +60,12 @@ function step(zoom: number, up: boolean): number { return up ? steps.find(value 
 
 export function executeView(command: string, previous: Viewport, document: Document, selection: readonly NodeId[], params: Record<string, unknown>) {
   if (!Object.hasOwn(viewSpecs, command)) throw new Error(`Unsupported view command: ${command}`);
-  const toggle = command === "view.snapObjects" || command === "view.snapPixel" || command === "view.proofSrgb";
+  const toggle = command === "view.layoutGrids" || command === "view.snapObjects" || command === "view.snapPixel" || command === "view.proofSrgb";
   const allowed = toggle ? ["on"] : command === "view.set" ? ["zoom", "cx", "cy", "vw", "vh"] : command === "view.zoomAt" ? ["x", "y", "out", "width", "height"] : command === "view.pan" ? ["dx", "dy", "big"] : [];
   for (const key of Object.keys(params)) if (!allowed.includes(key)) throw new Error(`Unsupported ${command} parameter: ${key}`);
   let view = previous, current = document, selected = selection, result: Record<string, unknown> = {};
   if (toggle) {
-    const key = command === "view.snapObjects" ? "snapObjects" : command === "view.snapPixel" ? "snapPixel" : "proofSrgb";
+    const key = command === "view.layoutGrids" ? "layoutGrids" : command === "view.snapObjects" ? "snapObjects" : command === "view.snapPixel" ? "snapPixel" : "proofSrgb";
     const on = parseBoolean(params.on) ?? !(view[key] ?? (key !== "proofSrgb"));
     view = Object.freeze({ ...view, [key]: on }); result = { on };
   } else if (command === "view.set") {

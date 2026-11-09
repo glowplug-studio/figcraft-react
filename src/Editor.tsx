@@ -35,6 +35,7 @@ import { RecoveryController } from "./engine/recovery";
 import { AssetsPanel, componentDragType } from "./AssetsPanel";
 import { PagePanel } from "./PagePanel";
 import { EffectsPanel } from "./EffectsPanel";
+import { LayoutGuidesPanel } from "./LayoutGuidesPanel";
 import { SharedStylesPanel } from "./SharedStylesPanel";
 import { ComponentPanel } from "./ComponentPanel";
 import { InstancePanel } from "./InstancePanel";
@@ -239,6 +240,10 @@ export function Editor({ identity, capabilities, engine: suppliedEngine, recover
     if ((event.metaKey || event.ctrlKey) && event.altKey && !event.shiftKey && event.code === "KeyB") command = "component.detach";
     if ((event.metaKey || event.ctrlKey) && event.altKey && !event.shiftKey && event.code === "KeyK") command = "component.create";
     if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "g") command = event.shiftKey ? "object.ungroup" : "object.group";
+    const macGrid = /Mac|iPhone|iPad/.test(navigator.platform);
+    if (!event.altKey && !event.metaKey && (event.code === "KeyG" && event.shiftKey && !event.ctrlKey ||
+        macGrid && event.code === "KeyG" && event.ctrlKey && !event.shiftKey ||
+        !macGrid && event.code === "Digit4" && event.ctrlKey && event.shiftKey)) command = "view.layoutGrids";
     if (!event.metaKey && !event.ctrlKey && event.altKey && event.shiftKey && event.code === "KeyF" || (event.metaKey || event.ctrlKey) && !event.altKey && !event.shiftKey && event.key.toLowerCase() === "e") command = "vector.flatten";
     if ((event.metaKey || event.ctrlKey) && !event.shiftKey && !event.altKey && event.key.toLowerCase() === "d") command = "edit.duplicate";
     if (event.key === "Delete" || event.key === "Backspace") command = "edit.delete";
@@ -607,6 +612,8 @@ export function Editor({ identity, capabilities, engine: suppliedEngine, recover
           <AppearancePanel engine={engine} page={page} selected={selected && selected.kind !== "page" ? selected : undefined} editable={editable && !busy} dispatch={dispatch} />
           <StrokePanel engine={engine} nodes={snapshot.selection.flatMap(id => { const n = snapshot.document.nodes[id]; return n && n.kind !== "page" ? [n] : []; })} editable={editable && !busy} dispatch={dispatch} />
           <EffectsPanel engine={engine} editable={editable && !busy} dispatch={dispatch} />
+          {!editingVector && <LayoutGuidesPanel key={snapshot.selection.join(",")} nodes={snapshot.selection.map(id=>snapshot.document.nodes[id])}
+            engine={engine} enabled={editable && !busy} dispatch={dispatch} onError={setError}/>}
           {!editingVector && <SharedStylesPanel engine={engine} enabled={editable && !busy} run={dispatch} leave={()=>controller.current?.finishText()}/>}
         </aside>
       </div>

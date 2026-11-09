@@ -1,3 +1,4 @@
+import { drawLayoutGuides } from "./layout-guides";
 import { fontGeometryCache } from "./font-generation";
 import { prepareDocumentText, documentTextReady } from "./text-node-layout";
 import { assetDropSlot, assetSwapTarget } from "./component-assets";
@@ -308,6 +309,7 @@ function drawDocumentFrame(context: CanvasRenderingContext2D, document: Document
   }
   context.save();
   context.scale(zoom, zoom); context.translate(-origin.x, -origin.y);
+  if (view && view.layoutGrids !== false) drawLayoutGuides(context, document, {...origin, width:width/zoom, height:height/zoom}, zoom);
   context.strokeStyle = canvasAccent(document);
   context.lineWidth = 1 / zoom;
   const neighbours = new Set<string>();

@@ -1,3 +1,4 @@
+import { guideRects, showsGuides } from "./layout-guides";
 import { identity, inverse, multiply, transformBounds, transformPoint, type Affine } from "./affine";
 import { isLeaf, type Document, type NodeId } from "./document";
 import { pixelRound, type Point, type Rectangle } from "./geometry";
@@ -50,7 +51,27 @@ export class SnapTargets {
       else { const x = Math.min(union.x, b.x), y = Math.min(union.y, b.y); union = { x, y, width: Math.max(right(union), right(b)) - x, height: Math.max(bottom(union), bottom(b)) - y }; }
     }
     this.moving = union;
-    if (parentId !== document.currentPage) { const b = box(parentId); if (b) { const [xs, ys] = spans(b); this.xs.push(...xs); this.ys.push(...ys); } }
+    if (parent.kind !== "page") {
+      const bounds = box(parentId)!;
+      const [xs, ys] = spans(bounds);
+      this.xs.push(...xs); this.ys.push(...ys);
+      if (parent.grids?.length && showsGuides(world)) {
+        const matrix = multiply(this.toSpace,world);
+        for (const grid of parent.grids) {
+          if (!grid.visible) continue;
+          for (const [x0,y0,x1,y1] of guideRects(grid,parent.width,parent.height)) {
+            const a = transformPoint(matrix,{x:x0,y:y0}), b = transformPoint(matrix,{x:x1,y:y1});
+            if (grid.kind === "columns" || grid.kind === "grid" && Math.abs(x0-x1)<1e-9) {
+              this.xs.push([a.x,bounds.y,bottom(bounds)]);
+              if (grid.kind === "columns") this.xs.push([b.x,bounds.y,bottom(bounds)]);
+            } else {
+              this.ys.push([a.y,bounds.x,right(bounds)]);
+              if (grid.kind === "rows") this.ys.push([b.y,bounds.x,right(bounds)]);
+            }
+          }
+        }
+      }
+    }
     if (parent && !isLeaf(parent)) for (const id of parent.children) {
       const node = document.nodes[id];
       if (moving.includes(id) || !node || node.kind === "page" || node.visible === false) continue;

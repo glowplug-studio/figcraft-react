@@ -157,6 +157,10 @@ describe("native shared style authoring", () => {
     expect(e.execute("style.create", {type:"text",name:"Type/Accent"})).toEqual({id:"S:1"});
     expect(e.execute("style.list")[0]).toMatchObject({style:{font_size:22}});
     expect(edit.node().text.runs[0]).toMatchObject({start:4,end:7,style:{styleId:"S:1"}});
+    const range = e.getTextRange();
+    e.execute("style.update", {style:"S:1",description:"Accent characters"});
+    expect(e.getTextRange()).not.toBe(range);
+    expect(e.getTextRange()).toMatchObject({start:4,end:7});
     edit.finish();
     e.execute("style.update", {style:"S:1",value:{fontSize:19,listStyle:"numbered",paragraphIndent:7}});
     expect(e.execute("node.get",{id:2,fields:["styledRuns"]})).toMatchObject({styledRuns:[

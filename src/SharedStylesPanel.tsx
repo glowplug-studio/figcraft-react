@@ -88,7 +88,7 @@ function SelectedStyles({nodes, styles, live, enabled, run, leave}:{nodes:Docume
   const [slot,setSlot] = useState<StyleSlot>();
   const triggers = useRef(new Map<StyleSlot,HTMLButtonElement>());
   const slots: StyleSlot[] = ["fill","stroke","effect"];
-  if (nodes.some(isFrameLike)) slots.push("grid");
+  if (nodes.every(isFrameLike)) slots.push("grid");
   if (nodes.some(n=>n.kind === "text")) slots.push("text");
   const link = slot ? linkedStyle(nodes,slot,live) : null;
   function close() { if (slot) triggers.current.get(slot)?.focus(); setSlot(undefined); }

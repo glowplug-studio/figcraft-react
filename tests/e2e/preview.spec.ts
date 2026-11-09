@@ -5657,3 +5657,44 @@ test("creating a shared text style in Design retains the selected Unicode charac
   expect(layer.text.runs).toMatchObject([{start:1,end:2,style:{styleId:"S:1"}}]);
   expect(layer.styles?.text).toBeFalsy();
 });
+
+test("frame layout guides render, toggle, reorder and survive browser recovery", async ({page}) => {
+  const engine = new EditorEngine();
+  engine.execute("node.create",{type:"frame",name:"Guided board",x:20,y:20,width:100,height:100,props:{fill:"white"}});
+  await login(page);
+  await page.getByLabel("Open Figcraft file",{exact:true}).setInputFiles({
+    name:"guides.figcraft",mimeType:"application/octet-stream",buffer:Buffer.from(await engine.nativeSnapshot())
+  });
+  await page.getByRole("region",{name:"Layers",exact:true}).getByRole("button",{name:"Guided board",exact:true}).click();
+  await resetCanvasOrigin(page);
+  const panel = page.getByRole("group",{name:"Layout guides",exact:true});
+  await panel.getByRole("button",{name:"Add layout grid"}).click();
+  const first=panel.getByRole("group",{name:"Guide 1",exact:true});
+  await first.getByLabel("Guide type").selectOption("columns");
+  await first.getByRole("button",{name:"Guide 1 settings"}).click();
+  for (const [label,value] of [["Guide count","2"],["Guide gutter","10"],["Guide margin","10"],["Guide opacity","100"]]) {
+    const input=first.getByRole("spinbutton",{name:label,exact:true});
+    await input.fill(value);
+    await input.press("Enter");
+  }
+  await expectCanvasPixel(page,40,60,[255,0,0,255]);
+  await expectCanvasPixel(page,70,60,[255,255,255,255]);
+  const canvas=page.getByLabel("Design canvas",{exact:true});
+  await canvas.focus();
+  await page.keyboard.press("Shift+g");
+  await expectCanvasPixel(page,40,60,[255,255,255,255]);
+  await page.locator("summary").getByText("View",{exact:true}).click();
+  await page.getByRole("button",{name:"Layout grids",exact:true}).click();
+  await expectCanvasPixel(page,40,60,[255,0,0,255]);
+  await panel.getByRole("button",{name:"Add layout grid"}).click();
+  await first.getByRole("button",{name:"Move guide up"}).click();
+  await expect(first.getByLabel("Guide type")).toHaveValue("grid");
+  await first.getByRole("button",{name:"Remove guide"}).click();
+  await expect(first.getByLabel("Guide type")).toHaveValue("columns");
+  await expect(page.locator(".figcraft-recovery")).toHaveText("Recovery saved on this device");
+  await page.reload();
+  const downloading=page.waitForEvent("download");
+  await page.getByRole("button",{name:"Save as",exact:true}).click();
+  const {document}=await decodeFigcraft(await readFile((await (await downloading).path())!));
+  expect(document.nodes[2].grids).toMatchObject([{kind:"columns",count:2,offset:10,gutter:10,color:{r:1,g:0,b:0,a:1}}]);
+});
