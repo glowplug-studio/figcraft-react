@@ -416,3 +416,5 @@ Native `apply_text`, `apply_text_style`, `font_style_warnings`, `fontdb::styles`
 Native text formatting, `toggle_bold`, `list_key` and link activation map to `executeTextFormat`, `textShortcut`, `listKey` and `textLinkAt`. [Target selection, list typing and URL evidence](../planning/26-11-09-rich-text.md#formatting-commands-lists-and-links).
 
 Native `on_path`, `stroke_geometry`, `resize_cmd`, `nudge_size` and text scaling map to `putTextOnPath`, `textPathData`, `fixTextSize`, `refitResizedText` and `scaleTextData`. [Path coordinates, saved records and text sizing](../planning/26-11-09-rich-text.md#attaching-and-resizing-text-on-paths).
+
+Native `fonts::missing`, `fonts::refit` and `FontDb::has_family` map to `missingFonts`, `refitText` and `FontLibrary.hasFamily` for supported text layers. [Family counts, stale boxes, undo and deferred style inputs](../planning/26-11-09-rich-text.md#missing-families-and-text-refitting).
