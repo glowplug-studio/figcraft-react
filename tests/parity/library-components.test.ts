@@ -63,3 +63,37 @@ it("reuses dependency copies and rolls back failed placement and swap atomically
   e.execute("edit.duplicate",{ids:[result.id]});
   expect(e.getSnapshot().document.libraryStore?.inserted).toMatchObject([{key:"4",count:1},{key:"2",count:1}]);
 });
+
+it("opens the editable author file and returns to its existing tab using native source IDs", async () => {
+  const { EditorWorkspace, LibrarySourceNeeded } = await import("../../src/engine/workspace");
+  const workspace = new EditorWorkspace(), consumer = workspace.activeEngine!;
+  const source = edition(1), link = await consumer.pickLibrary(source);
+  expect(consumer.execute("library.place", { library: link.id, component: "Button", x: 10, y: 20 })).toEqual({ component: 3, id: 5, parent: 1 });
+  await expect(workspace.goToMain()).rejects.toBeInstanceOf(LibrarySourceNeeded);
+  workspace.rememberLibrarySource(String(link.path), source);
+  expect(await workspace.goToMain()).toEqual({ id: 2, index: 1 });
+  const author = workspace.activeEngine!;
+  expect(author.getSnapshot().selection).toEqual(["2"]);
+  author.execute("node.set", { id: 2, props: { name: "Revised button" } });
+  workspace.execute("doc.switch", { index: 0 });
+  expect(await workspace.goToMain()).toEqual({ id: 2, index: 1 });
+  expect(workspace.activeEngine).toBe(author);
+  expect(author.getSnapshot().document.nodes["2"].name).toBe("Revised button");
+  author.execute("edit.delete", { ids: [2] });
+  workspace.execute("doc.switch", { index: 0 });
+  expect(await workspace.goToMain()).toEqual({ id: null, index: 1 });
+  expect(workspace.getSnapshot()).toHaveLength(2);
+  workspace.execute("doc.switch", { index: 0 });
+  consumer.execute("library.remove", { id: link.id });
+  await expect(workspace.goToMain()).rejects.toThrow(/removed/);
+});
+
+it("never selects the same numeric component in a replacement library", async () => {
+  const { EditorWorkspace } = await import("../../src/engine/workspace");
+  const workspace = new EditorWorkspace(), consumer = workspace.activeEngine!;
+  const link = await consumer.pickLibrary(edition(1));
+  consumer.execute("library.place", { library: link.id, component: "Button", x: 0, y: 0 });
+  const wrongFile = new File([bytes("native-swap-forest")], "Kit1.figcraft");
+  expect(await workspace.goToMain({}, wrongFile)).toEqual({ id: null, index: 1 });
+  expect(workspace.activeEngine!.getSnapshot().selection).toEqual([]);
+});

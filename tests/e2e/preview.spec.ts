@@ -6146,6 +6146,7 @@ test("a narrow multi-selection inspector restores keyboard focus and binds every
   await page.setViewportSize({width:390,height:844});
   await login(page);
   await page.getByLabel("Open Figcraft file",{exact:true}).setInputFiles(new URL("../fixtures/native-variable-inspectors.json",import.meta.url).pathname);
+  await expect(page.getByRole("tablist", { name: "Open files" }).getByRole("tab")).toHaveCount(2);
   const menu=page.locator(".figcraft-mobile-layers");
   await menu.locator("summary").click();
   const layers=menu.getByRole("region",{name:"Layers",exact:true});
@@ -6519,4 +6520,31 @@ test("page swatches apply the original alpha to a fill or selected gradient stop
   expect(gradient.stops[1].color).toMatchObject({r:0,g:Math.fround(51/255),b:Math.fround(204/255),a:Math.fround(128/255)});
   await button("Undo").click();
   expect(await save()).not.toEqual(gradient);
+});
+
+test("linked main opens its author tab, retains uncommitted edits and reuses the tab after reload", async ({ page }) => {
+  await login(page);
+  await page.getByRole("button", { name: "Assets", exact: true }).click();
+  const kit = new URL("../fixtures/native-component-library-v1.figcraft", import.meta.url).pathname;
+  await page.getByLabel("Choose published library").setInputFiles(kit);
+  await page.getByRole("region", { name: "Enabled libraries" }).getByRole("button", { name: "Place Button", exact: true }).click();
+  const go = page.getByRole("button", { name: "Go to main component", exact: true });
+  await go.click();
+  const tabs = page.getByRole("tablist", { name: "Open files" }).getByRole("tab");
+  await expect(tabs).toHaveCount(2);
+  await expect(page.getByRole("region", { name: "Selected component", exact: true })).toBeVisible();
+  const name = page.getByLabel("Name", { exact: true });
+  await expect(name).toHaveValue("Button");
+  await name.fill("Author edit");
+  await page.getByRole("button", { name: "Apply layer", exact: true }).click();
+  await tabs.first().click();
+  await go.click();
+  await expect(tabs).toHaveCount(2);
+  await expect(name).toHaveValue("Author edit");
+  await expect(page.locator(".figcraft-recovery")).toHaveText("Recovery saved on this device");
+  await page.reload();
+  await tabs.first().click();
+  await page.getByRole("list", { name: "Page layers" }).getByRole("button", { name: "Button", exact: true }).click();
+  await go.click();
+  await expect(name).toHaveValue("Author edit");
 });

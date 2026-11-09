@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import type { WorkspaceRecoveryState } from "./engine/workspace-recovery";
-import type { EditorWorkspace } from "./engine/workspace";
+import { LibrarySourceNeeded, type EditorWorkspace } from "./engine/workspace";
 import {componentRoot} from "./engine/library-component-source";
 import type {PublishedLibrary} from "./engine/published-library";
 import {LibraryVariablesContext,libraryCatalogues} from "./LibraryVariablesContext";
@@ -86,6 +86,7 @@ export function DocumentEditor({ identity, capabilities, engine: suppliedEngine,
   const recoveryStatus = workspaceRecovery?.status ?? localStatus;
   const recoveryError = workspaceRecovery ? workspaceRecovery.message : localError;
   const [busy, setBusy] = useState(false);
+  const [openingTab, setOpeningTab] = useState(false);
   const [assetsOpen,setAssetsOpen] = useState(false);
   const [mobileAssetsOpen,setMobileAssetsOpen] = useState(false);
   const mobileAssets=useRef<HTMLDetailsElement>(null);
@@ -98,6 +99,7 @@ export function DocumentEditor({ identity, capabilities, engine: suppliedEngine,
   const draggedAsset = useRef<{id:string;library?:PublishedLibrary} | undefined>(undefined);
   const [mobileLayersOpen, setMobileLayersOpen] = useState(false);
   const [pendingFile, setPendingFile] = useState<File | null>(null);
+  const [sourceRequest, setSourceRequest] = useState<Record<string, unknown>>();
   const imageInput = useRef<HTMLInputElement>(null);
   const fileInput = useRef<HTMLInputElement>(null);
   const linkDialog = useRef<HTMLDialogElement>(null);
@@ -148,6 +150,16 @@ export function DocumentEditor({ identity, capabilities, engine: suppliedEngine,
     controller.current = instance;
     return () => { controller.current = null; instance.dispose(); };
   }, [engine, recoveryStatus === "loading"]);
+  async function visitMain(params: Record<string, unknown>, file?: File) {
+    try {
+      setSourceRequest(undefined);
+      const result = await workspace!.goToMain(params, file);
+      onWorkspaceNotice?.(result.id === null ? "The main component is no longer in this file" : "");
+    } catch (error) {
+      if (error instanceof LibrarySourceNeeded) setSourceRequest(params);
+      setError(error instanceof Error ? error.message : "Could not open the library source");
+    }
+  }
   function dispatch(command: string, params: unknown = {}) {
     const cancellingUndo = command === "edit.undo" && engine.interacting;
     setError("");
@@ -159,6 +171,10 @@ export function DocumentEditor({ identity, capabilities, engine: suppliedEngine,
       const preserve = engine.pen.open && command === "tool.pen" || (engine.pen.open || engine.pencil.active) && (command.startsWith("view.") || command === "tool.scaleAnchor" || command === "tool.pencilBrush");
       if (!preserve && !((command.startsWith("style.") || command==="library.applyStyle") && engine.currentTextEdit())) controller.current?.cancel();
       if (cancellingUndo) return;
+      if (command === "component.goToMain" && workspace) {
+        void visitMain(params as Record<string, unknown>);
+        return;
+      }
       const result = engine.execute(command, params);
       if (Array.isArray(result?.warnings)) setError(result.warnings.join("\n"));
       return result;
@@ -377,13 +393,13 @@ export function DocumentEditor({ identity, capabilities, engine: suppliedEngine,
     finally { setBusy(false); }
   }
   async function open(file: File) {
-    controller.current?.cancel(); setPendingFile(null); setBusy(true); setError("");
+    controller.current?.cancel(); setPendingFile(null); setBusy(true); setOpeningTab(!!workspace); setError("");
     try {
       const { repairs } = workspace ? await workspace.open(file) : await engine.openFile(file);
       if (workspace) onWorkspaceNotice?.(repairs.join("\n"));
       else if (repairs.length) setError(repairs.join("\n"));
     } catch (caught) { setError(caught instanceof Error ? caught.message : "File could not be opened"); }
-    finally { setBusy(false); }
+    finally { setBusy(false); setOpeningTab(false); }
   }
   async function save() {
     setBusy(true); setError("");
@@ -429,8 +445,9 @@ export function DocumentEditor({ identity, capabilities, engine: suppliedEngine,
     source={path=>engine.librarySource(path)}
     addLibrary={async file=>{
       const principal=initialPrincipal.current;
-      await engine.pickLibrary(file,principal && recoveryStore?.writeLibrary ?
+      const result = await engine.pickLibrary(file,principal && recoveryStore?.writeLibrary ?
         (path,archive)=>recoveryStore.writeLibrary!(principal,path,archive) : undefined);
+      if (typeof result.path === "string") workspace?.rememberLibrarySource(result.path, file);
     }}
     start={(id,e,library)=>{draggedAsset.current = {id,library}; e.dataTransfer.setData(componentDragType,id); e.dataTransfer.effectAllowed = "copy";}}
     end={endAssetDrag} place={(component,library)=>{
@@ -440,7 +457,7 @@ export function DocumentEditor({ identity, capabilities, engine: suppliedEngine,
       if (mobile) mobile.open = false;
       canvas.current?.focus();
     }}/>;
-  return <LibraryVariablesContext.Provider value={libraryVariables}><div ref={root} className="figcraft-editor" onKeyDown={key} data-figcraft-editor=""
+  return <LibraryVariablesContext.Provider value={libraryVariables}><div ref={root} className="figcraft-editor" inert={openingTab || undefined} aria-busy={openingTab || undefined} onKeyDown={key} data-figcraft-editor=""
     onKeyUp={e=>{if (e.key.toLowerCase()==="v") modifiedPaste.current=false;}} onBlurCapture={()=>{modifiedPaste.current=false;}}
     onDragOver={e=>{if (e.dataTransfer.types.includes("Files")) e.preventDefault();}}
     onDrop={e=>{
@@ -501,6 +518,10 @@ export function DocumentEditor({ identity, capabilities, engine: suppliedEngine,
       </header>
       {!signedIn && <p role="status">Sign in to edit this document.</p>}
       {error && <p role="alert">{error}</p>}
+      {sourceRequest && <label>Choose library source<input type="file" accept=".figcraft" disabled={!editable} onChange={event => {
+        const file = event.currentTarget.files?.[0];
+        if (file) void visitMain(sourceRequest, file);
+      }} /></label>}
       {recoveryError && <p role="alert">{recoveryStatus === "error" ? "Recovery unavailable" : "Recovery notice"}: {recoveryError}</p>}
       {snapshot.missingFonts && editable && <dialog ref={missingFontsDialog} aria-label="Missing fonts" onCancel={()=>engine.closeMissingFonts()}>
         <h2>Missing fonts</h2>
