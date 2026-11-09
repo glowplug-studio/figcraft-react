@@ -2,6 +2,10 @@
 
 All notable changes to the React port and its upstream compatibility baseline are recorded here.
 
+## [0.45.0] - 2026-11-09
+
+- Added live tiled layer sources to fill, stroke and vector-region paints, with grid and staggered layouts, editable scale and gaps, native recovery and document-scoped source IDs.
+
 ## [0.44.0] - 2026-11-09
 
 - Added native image paints, fill and stroke copy across files, raster import, placement, crop, adjustments, presets and document colour profiles.

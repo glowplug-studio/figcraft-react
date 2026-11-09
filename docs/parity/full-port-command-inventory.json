@@ -1651,8 +1651,11 @@
       "source": "crates/engine/src/cmd/edit.rs",
       "line": 339,
       "status": "Partial",
-      "scope": "Solid, gradient, image and selected vector-region fills. Copy retains source image bytes. Text ranges, linked styles and pattern source identity remain in their respective slices.",
-      "evidence": "docs/reports/26-11-09-image-paints-parity.html"
+      "scope": "Solid, gradient, image and selected vector-region fills. Copy retains source image bytes. Pattern clipboard stores file identity. Text ranges and linked styles remain.",
+      "evidence": [
+        "docs/reports/26-11-09-image-paints-parity.html",
+        "docs/reports/26-11-09-pattern-paints-parity.html"
+      ]
     },
     {
       "command": "fill.paste",
@@ -1660,8 +1663,11 @@
       "source": "crates/engine/src/cmd/edit.rs",
       "line": 340,
       "status": "Partial",
-      "scope": "Paste into a row or append, including independently painted vector regions, cross-file image restoration, occupied native keys, undo and recovery. Pattern and text range cases remain.",
-      "evidence": "docs/reports/26-11-09-image-paints-parity.html"
+      "scope": "Paste into a row or append, including independently painted vector regions, cross-file image restoration, occupied native keys, undo and recovery. Pattern paste is file-scoped and guards self/descendants. Text range cases remain.",
+      "evidence": [
+        "docs/reports/26-11-09-image-paints-parity.html",
+        "docs/reports/26-11-09-pattern-paints-parity.html"
+      ]
     },
     {
       "command": "stroke.copy",
@@ -1669,8 +1675,11 @@
       "source": "crates/engine/src/cmd/edit.rs",
       "line": 341,
       "status": "Partial",
-      "scope": "Context menu and keyboard copy retain the selected stroke paint, its source image bytes and node-wide settings. Pattern and linked style cases remain.",
-      "evidence": "docs/reports/26-11-09-image-paints-parity.html"
+      "scope": "Context menu and keyboard copy retain the selected stroke paint, its source image bytes and node-wide settings. The shared clipboard guards pattern file identity. Linked styles remain.",
+      "evidence": [
+        "docs/reports/26-11-09-image-paints-parity.html",
+        "docs/reports/26-11-09-pattern-paints-parity.html"
+      ]
     },
     {
       "command": "stroke.paste",
@@ -1678,15 +1687,20 @@
       "source": "crates/engine/src/cmd/edit.rs",
       "line": 348,
       "status": "Partial",
-      "scope": "Append or replace in one undo. The copied image and weight survive cross-file recovery and download. Pattern and linked style cases remain.",
-      "evidence": "docs/reports/26-11-09-image-paints-parity.html"
+      "scope": "Append or replace in one undo. The copied image and weight survive cross-file recovery and download. The shared clipboard guards pattern file identity. Linked styles remain.",
+      "evidence": [
+        "docs/reports/26-11-09-image-paints-parity.html",
+        "docs/reports/26-11-09-pattern-paints-parity.html"
+      ]
     },
     {
       "command": "fill.pattern",
       "label": "Pattern fill",
       "source": "crates/engine/src/cmd/edit.rs",
       "line": 355,
-      "status": "Not tested"
+      "status": "Partial",
+      "scope": "Verified native layer targets, slot updates, validation, scale, region isolation, live pixels and persistence. Component and text targets await their node models.",
+      "evidence": "docs/reports/26-11-09-pattern-paints-parity.html"
     },
     {
       "command": "stroke.widthProfile",

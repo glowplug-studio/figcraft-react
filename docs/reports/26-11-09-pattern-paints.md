@@ -1,0 +1,11 @@
+# Live layer patterns
+
+Patterns can use a layer as the source for a repeating fill, stroke or vector region. Editing the source updates the tile. The picker supports three tile layouts, three alignments, independent gaps and scale. The command, native file and clipboard paths preserve the source identity, including unsigned 64-bit IDs above JavaScript’s safe-integer range. A copied page remaps all internal sources. Duplicating separately selected roots remaps each root independently. [Property matrix](26-11-09-pattern-paints-parity.html).
+
+The independent renderer follows upstream 8a7ebc2484a6d64d80a13c19c18ffb814325e347. The working global baseline remains 8eb0b876. Canvas 2D renders a transparent repeating cell, suspends for image decoding, clips strokes and regions and carries layer depth into the source tree. Cell dimensions have a 2,048-pixel maximum side. Two levels of patterns can nest. A missing source or deeper reference contributes transparent pixels.
+
+At 438cf6f all 166 production Chromium workflows passed in 398.0 seconds with one worker and no retries, skips, failures or flakes. Strict types, the package and production Next.js builds, 1,112 pure tests and two real local Auth checks passed. One unconstrained Vitest run timed out on the existing thousand-entry image-key collision case while builds and Auth checks competed for CPU. The complete suite passed at four workers with the original timeout. The database MCP read returned zero public tables. Authenticated editing uses the existing host identity and local device recovery. The slice added no database objects.
+
+The large-source fixture captured a 2,048 × 5 cell for an 8,000 × 16 source. The measured warm fixture drew 60 frames including readback at p50 0.50 ms, p95 0.90 ms and maximum 1.20 ms. All fixture cell surfaces released their backing stores. The result applies to that scene and browser. [Pixel and frame measurements](26-11-09-pattern-paints-measurements.json).
+
+React 0.45.0 records local implementation commit 438cf6f on `prompt/full-figcraft-port`. The full editor, cumulative release and hosted publication remain in progress. Component sources, rich text range authoring, timed GIF playback and vector exports have explicit downstream acceptance rows. The next slice is paint and layer blend modes. No user action is required.

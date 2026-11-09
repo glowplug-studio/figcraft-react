@@ -5,16 +5,16 @@
 | Field | Current value |
 |---|---|
 | Overall status | In progress. [Execution checkpoint](26-11-07-full-port-resume.md). |
-| Active slice | Live pattern paints |
-| Active phase | Phase 4. [Pattern geometry and integration checkpoint](26-11-09-pattern-paints.md#geometry-checkpoint). |
+| Active slice | Paint and layer blend modes |
+| Active phase | Phase 4. [Blend mappings and implementation order](26-11-09-blend-modes.md). |
 | Upstream baseline | Closed-vector smoothing reference 3daa9d32. Paint bucket reference 8a7ebc24. Global supported baseline 8eb0b876. |
-| Branch and last verified commit | `prompt/full-figcraft-port`, pattern cell geometry 67b16e6, image property clipboard 84df96d. Earlier checkpoints are recorded below and in the dated plans. |
+| Branch and last verified commit | `prompt/full-figcraft-port`, live native pattern paints 438cf6f, pattern cell geometry 67b16e6, image property clipboard 84df96d. Earlier checkpoints are recorded below and in the dated plans. |
 | Completed slices | Rectangle/host-auth, bounded native persistence/recovery, supported-model pages, affine rectangle geometry/selection and solid appearance, plus nested group hierarchy, Frame containers, movement/transform gestures, rounded corners, ellipse/arc/ring and Polygon/Star editing verified locally; Line/Arrow and uniform solid strokes also verified; per-side Rectangle/Frame strokes, variable-width profiles and procedural brushes verified; vector networks, solid region/stroke rendering and Flatten/Reverse also verified; foundation commit `154f5a7` |
 | Remaining slices | Every row below except the integrated foundation; static inventory entries remain unverified until mapped and tested |
-| Tests last passed | At 84df96d, 163/163 production Chromium workflows, 1,102 pure tests, two local Auth checks, strict types and both production builds passed. |
-| Files currently in progress | Pattern fill, stroke and region native wire mapping and live source rendering. |
+| Tests last passed | At 438cf6f all 166 production Chromium workflows passed in 398.0 seconds with one worker and no retries, skips, failures or flakes. Both builds, strict types, 1,112 pure tests and two local Auth checks passed. |
+| Files currently in progress | Blend mode vocabulary, parser and compositing fixtures. |
 | Blockers | No blocker. Use local Graphify for all remaining slices. The scoped Supabase read succeeded. |
-| Exact next action | Connect pattern paints to native fills, strokes and regions, preserve full u64 source references, then verify live source pixels and picker operations. |
+| Exact next action | Implement the 19 native modes, command aliases and premultiplied plus-darker formula, then verify real paint and layer pixels against upstream. |
 | Last updated | 2026-11-09 |
 
 ## Scope and continuation
@@ -45,7 +45,7 @@ Full-host performance obligation: the user specifically asks about browser RAM, 
 | 3 | Selection/hit testing, move/resize/rotate, arrange/align/distribute, duplicate/delete/reparent/group, clipboard; `engine/src/cmd/{edit,structure,arrange}.rs`, tools and document geometry | 2 | Partial: hierarchy and numeric movement/arrangement verified; gestures, transforms and clipboard remain |
 | 4 | Pan/zoom, rulers, guides/grids, snapping, measurement, layer panel, pages/tabs and navigation; `cmd/{view,page}.rs`, keymap/catalog and UI canvas/panels | 2–3 | Partial: pages, layer tree and viewport verified; grids/guides/snapping and remaining navigation UI remain |
 | 5 | Shapes, vectors, pen/pencil, booleans, shape builder, stroke geometry; `doc/src/vector.rs`, `geom`, `pathops`, engine tools | 2–4 | Partial: rounded Rectangle/Frame, Ellipse/arc/ring and Polygon/Star paths verified; Line/Arrow and uniform solid strokes verified; per-side Rectangle/Frame strokes verified; variable-width profiles, procedural brushes and vector foundation/Flatten verified; point/handle authoring verified; point transforms/snapping verified; Pen creation and edit-mode continuation verified; Pencil verified; width-point editing, regions and remaining vector tools required; vector faces and solid Paint bucket [verified](../reports/26-11-09-vector-paint-bucket.md). Regional selection, edit tools, booleans, outline, offset, simplify and Shape Builder now have verified supported-layer matrices below. Non-solid paints and text outlines carry their own milestones. |
-| 6 | Paints, gradients, images/crops/adjustments, masks, blending and effects; `color`, `render`, `cmd/{props,image}.rs` | 2–5 | Partial: solid colours, opacity and four gradient kinds verified; remaining appearance families required |
+| 6 | Paints, gradients, images/crops/adjustments, masks, blending and effects; `color`, `render`, `cmd/{props,image}.rs` | 2–5 | Partial: solid colours, gradients, image resources and live layer patterns verified. Blend modes, masks and effects remain |
 | 7 | Rich text editing/shaping, fonts, spans, typography, lists, bidi and outlines; `text`, `doc/src/text.rs`, `cmd/{text,lists}.rs` | 2, 4, 6 | Not implemented |
 | 8 | Auto layout horizontal/vertical/wrap/grid, hug/fill/min/max, constraints and resize propagation; `layout`, `cmd/layout.rs`, document props | 2–7 | Partial: Frame constraints verified; auto-layout still required |
 | 9 | Components, instances/overrides, variants/properties/slots and sync; `engine/src/assets/components`, `cmd/component/` | 2–8 | Not implemented |

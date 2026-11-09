@@ -340,3 +340,13 @@ At bc3f065, ui-egui panels/layers.rs::show_viewport and reveal_selection map to 
 At 84df96d native paint_copy and paint_paste map to copyPaint, pastePaint and usePaintActions. The copied image retains its encoded source. Occupied legacy names use the SHA-256 digest and numbered suffixes. Source hash computation shares the archive member validation stream. The [image property matrix](../reports/26-11-09-image-paints-parity.html) links the collision, missing-data, access, stroke settings and authenticated download fixtures.
 
 At 67b16e6, PatternPaint::cell and the integer raster sizing in render::pattern::cell_pixmap map to patternCell and patternResolution. The native colour pattern tests supply exact grid, half-shift, origin and gap fixtures. Live pixel comparisons remain in the active [pattern plan](../planning/26-11-09-pattern-paints.md).
+
+## Live pattern paints
+
+| Upstream at 8a7ebc24 | React at 438cf6f | Verified behaviour |
+|---|---|---|
+| PatternPaint::cell, render::pattern::{prepare,cell_pixmap}, draw_node | patternCell, patternResolution, resolveLayerPaints, drawLayer | Live local source, grid and hex offsets, nesting, cross-page depth, image decode, clips and bounded pixel surfaces. |
+| pattern_fill, paint_set_in, paint_paste, Document::paste_nodes | writeFill, pastePaint, remapPatternSources, native codec | Layer-only command, separate regional stacks, file identity, numeric u64 round trips and subtree-specific remapping. |
+| colorpicker::{pattern_sources,pattern_controls} | patternSources, PaintPicker, PatternPaintControls | Eligible sources, scale, gaps, layout, alignment, scrub undo and recovery. Component and text-range targets await their respective node models. |
+
+[Property-level evidence](../reports/26-11-09-pattern-paints-parity.html).
