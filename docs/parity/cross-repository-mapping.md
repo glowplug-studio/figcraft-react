@@ -412,3 +412,7 @@ Native canvas `text_down`, `text_box_drag`, `textedit::begin/end`, `select_word`
 Native `automation::inspect::text_props` maps to `inspectText` through `node.get`. [Independent native field comparison](../planning/26-11-09-rich-text.md#text-property-inspection).
 
 Native `apply_text`, `apply_text_style`, `font_style_warnings`, `fontdb::styles` and the typography panel map to `setTextProperties`, `FontLibrary` and `TypographyPanel`. The inspector retains the canvas scalar selection and formats it in the open history transaction. [Native command and document comparisons](../planning/26-11-09-rich-text.md#typography-commands-and-inspector).
+
+Native text formatting, `toggle_bold`, `list_key` and link activation map to `executeTextFormat`, `textShortcut`, `listKey` and `textLinkAt`. [Target selection, list typing and URL evidence](../planning/26-11-09-rich-text.md#formatting-commands-lists-and-links).
+
+Native `on_path`, `stroke_geometry`, `resize_cmd`, `nudge_size` and text scaling map to `putTextOnPath`, `textPathData`, `fixTextSize`, `refitResizedText` and `scaleTextData`. [Path coordinates, saved records and text sizing](../planning/26-11-09-rich-text.md#attaching-and-resizing-text-on-paths).
