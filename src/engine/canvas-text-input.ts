@@ -1,3 +1,4 @@
+import { textKeyMotion } from "./text-key-motion";
 import { textShortcut } from "./text-shortcuts";
 import { inverse, transformPoint } from "./affine";
 import { dropParent, lockedIn } from "./canvas-selection";
@@ -7,7 +8,7 @@ import type { EditorEngine } from "./editor";
 import { worldTransform } from "./hierarchy";
 import type { Point } from "./geometry";
 import { hitRectangle } from "./selection";
-import { textCaret, textHit, textSelectionRects, textVisualStep } from "./text-caret";
+import { textCaret, textHit, textSelectionRects } from "./text-caret";
 import { editTextRange, publishTextNode, textWordRange, type TextTarget } from "./text-edit";
 import { prepareText, textNodeLayout } from "./text-node-layout";
 import { scalarToUtf16, utf16ToScalar } from "./text-ranges";
@@ -282,15 +283,28 @@ export class CanvasTextInput {
     if (e.key === "Escape" || e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
       e.preventDefault(); e.stopPropagation(); this.finish(); this.canvas.focus(); return;
     }
-    const node=session.node();
-    if ((e.key==="ArrowLeft" || e.key==="ArrowRight") && !e.altKey && !e.metaKey && !e.ctrlKey && input.selectionStart===input.selectionEnd) {
-      const next=textVisualStep(textNodeLayout(node).layout,utf16ToScalar(node.text.characters,input.selectionEnd),e.key==="ArrowRight");
-      if (next!==undefined) {
-        e.preventDefault();
-        const end=scalarToUtf16(node.text.characters,next), anchor=e.shiftKey ? input.selectionStart : end;
-        input.setSelectionRange(Math.min(end,anchor),Math.max(end,anchor),end<anchor?"backward":"forward"); this.invalidate();
-      }
+    if (this.#pending) return;
+    const key=(e.ctrlKey || e.metaKey) && e.code==="KeyA" ? "SelectAll" : e.key;
+    if (!["ArrowLeft","ArrowRight","ArrowUp","ArrowDown","Home","End","Backspace","Delete","SelectAll"].includes(key)) return;
+    const mac=/Mac|iPhone|iPad/.test(navigator.platform);
+    const homeEnd=e.key==="Home" || e.key==="End";
+    const word=mac ? e.altKey : !homeEnd && (e.ctrlKey || e.metaKey);
+    const line=mac ? e.metaKey : homeEnd && (e.ctrlKey || e.metaKey);
+    const a=utf16ToScalar(input.value,input.selectionStart), b=utf16ToScalar(input.value,input.selectionEnd);
+    const range=input.selectionDirection==="backward" ? {anchor:b,caret:a} : {anchor:a,caret:b};
+    const motion=textKeyMotion(session.node(),range,key,{word,line,shift:e.shiftKey});
+    if (!motion) return;
+    e.preventDefault();e.stopPropagation();
+    if ("remove" in motion) {
+      const start=scalarToUtf16(input.value,motion.remove[0]), end=scalarToUtf16(input.value,motion.remove[1]);
+      this.#selection=[start,end];
+      input.setRangeText("",start,end,"start");this.#sync();
+    } else {
+      const {anchor,caret}=motion.selection;
+      input.setSelectionRange(scalarToUtf16(input.value,Math.min(anchor,caret)),scalarToUtf16(input.value,Math.max(anchor,caret)),
+        caret<anchor ? "backward" : "forward");
     }
+    this.#updateRange();
   };
   finish() {
     if (!this.#input) return;

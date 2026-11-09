@@ -70,9 +70,8 @@ export function publishTextNode(document: Document, node: TextNode) {
   return draft.finish();
 }
 
-/** Native double-click groups words by script, and keeps spaces and punctuation on one line. */
-export function textWordRange(value: string, index: number): [number,number] {
-  const chars = Array.from(value), groups = new Uint8Array(chars.length);
+function wordClasses(chars:readonly string[]) {
+  const groups = new Uint8Array(chars.length);
   for (let i=0;i<chars.length;i++) {
     const c=chars[i];
     if (i && /[\u0300-\u036f\u1ab0-\u1aff\u1dc0-\u1dff\u20d0-\u20ff\u3099-\u309a\ufe20-\ufe2f]/u.test(c)) groups[i]=groups[i-1];
@@ -82,6 +81,27 @@ export function textWordRange(value: string, index: number): [number,number] {
     else if (/[\u1100-\u11ff\u3130-\u318f\uac00-\ud7af]/u.test(c)) groups[i]=5;
     else if (/[\p{Alphabetic}\p{Number}_]/u.test(c)) groups[i]=1;
   }
+  return groups;
+}
+
+/** Native word motion skips separators, then moves across a single script class. */
+export function textWordStep(chars:readonly string[],index:number,right:boolean) {
+  const groups=wordClasses(chars);
+  if (right) {
+    while (index<chars.length && !groups[index]) index++;
+    const group=groups[index];
+    while (index<chars.length && groups[index]===group) index++;
+  } else {
+    while (index>0 && !groups[index-1]) index--;
+    const group=groups[index-1];
+    while (index>0 && groups[index-1]===group) index--;
+  }
+  return index;
+}
+
+/** Native double-click groups words by script, and keeps spaces and punctuation on one line. */
+export function textWordRange(value: string, index: number): [number,number] {
+  const chars=Array.from(value), groups=wordClasses(chars);
   let a=Math.min(chars.length,Math.max(0,index));
   if (a && !groups[a] && groups[a-1]) a--;
   let b=a;

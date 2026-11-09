@@ -4592,3 +4592,28 @@ test("typography basics save underline metrics, skip ink, hanging text and parag
   await expect(panel.getByLabel("Skip ink",{exact:true})).toHaveCount(0);
   await expect(panel.getByLabel("Underline offset",{exact:true})).toHaveCount(0);
 });
+
+test("canvas keyboard navigation preserves backwards selection, native word boundaries and grapheme deletion",async ({page})=>{
+  await login(page);
+  const canvas=page.getByLabel("Design canvas",{exact:true});await canvas.focus();await page.keyboard.press("t");
+  const at=await canvasPoint(page,130,105);await page.mouse.click(at.x,at.y);
+  const input=page.getByRole("textbox",{name:"Edit text layer"});
+  await expect(input).toBeFocused();await page.keyboard.insertText("Latin中文字 é🙂");await input.press("Enter");await page.keyboard.insertText("second");
+  const select=()=>input.evaluate((el:HTMLTextAreaElement)=>[el.selectionStart,el.selectionEnd,el.selectionDirection]);
+  await input.press("Home");await input.press("Shift+End");
+  const start="Latin中文字 é🙂\n".length;
+  expect((await select()).slice(0,2)).toEqual([start,start+6]);
+  await input.press("ArrowLeft");await input.press("Shift+ArrowLeft");
+  expect(await select()).toEqual([start-1,start,"backward"]);
+  const mac=await page.evaluate(()=>/Mac|iPhone|iPad/.test(navigator.platform));
+  await input.evaluate((el:HTMLTextAreaElement)=>el.setSelectionRange(8,8));
+  await input.press((mac ? "Alt" : "Control")+"+Shift+ArrowLeft");
+  expect(await select()).toEqual([5,8,"backward"]);
+  await input.press("Backspace");await expect(input).toHaveValue("Latin é🙂\nsecond");
+  await input.evaluate((el:HTMLTextAreaElement)=>el.setSelectionRange("Latin é🙂".length,"Latin é🙂".length));
+  await input.press("Backspace");await expect(input).toHaveValue("Latin é\nsecond");
+  await input.press("Escape");
+  const save=page.waitForEvent("download");await page.getByRole("button",{name:"Save as",exact:true}).click();
+  const doc=await decodeFigcraft(await readFile((await (await save).path())!));
+  expect(doc.document.nodes["2"]).toMatchObject({text:{characters:"Latin é\nsecond"}});
+});
