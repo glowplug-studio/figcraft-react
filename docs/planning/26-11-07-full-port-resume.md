@@ -1,6 +1,6 @@
 # Full Figcraft port resume checkpoint
 
-Active source 87ced5f on `prompt/full-figcraft-port`. The mask renderer and editor are implemented. The first full run exposed three opacity rounding regressions, fixed at 1a6c8ef. The second full run passed the original assertions and exposed a mobile blend-menu resize race. Its fix passed three targeted runs at 87ced5f, plus strict types, 1,124 pure tests, two Auth checks and both production builds. A third full production run of 183 Chromium workflows is in progress. Inspect its result before closing the [mask release gate](26-11-09-masks.md#mobile-menu-regression-checkpoint).
+Mask release 0.47.0 passed all 183 production Chromium workflows at 87ced5f in 355.0 seconds. Strict types, both production builds, 1,124 pure tests and two real Auth checks passed. [Mask matrix](../reports/26-11-09-masks-parity.html). Phase 4 of [layer effects](26-11-09-layer-effects.md) is active. The upstream fork and local reference agree at 8a7ebc24, the local graph covers the React and Rust sources, and the scoped Supabase read succeeded. Start native effect records and their archive/command boundary.
 
 
 The user deferred Figcraft plugins and their widgets on 9 November. They are excluded from this run’s publication gate.

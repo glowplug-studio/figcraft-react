@@ -516,5 +516,20 @@
       0,
       0
     ]
-  ]
+  ],
+  "verifiedReact": "87ced5f",
+  "suite": {
+    "startTime": "2026-11-09T02:20:28.656Z",
+    "duration": 355041.701,
+    "expected": 183,
+    "skipped": 0,
+    "unexpected": 0,
+    "flaky": 0
+  },
+  "maskFrameTimings": {
+    "frames": 60,
+    "changes": 0,
+    "drawP95": 1.8000000715255737,
+    "hitP95": 0.10000002384185791
+  }
 }

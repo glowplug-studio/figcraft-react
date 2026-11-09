@@ -2,6 +2,11 @@
 
 All notable changes to the React port and its upstream compatibility baseline are recorded here.
 
+## [0.47.0] - 2026-11-09
+
+- Added native alpha, vector and luminance masks, mask-aware layer selection and the Select layer context menu. Mask properties survive device recovery and native file exchange.
+- Corrected half-opacity raster rounding and kept blend menus within resized viewports.
+
 ## [0.46.0] - 2026-11-09
 
 - Added native layer and paint blending, including isolated groups, clipped fills and strokes, Plus darker, live hover previews, keyboard editing and native recovery.

@@ -360,3 +360,7 @@ At 67b16e6, PatternPaint::cell and the integer raster sizing in render::pattern:
 | panels/right/menu::{blend_menu,preview_blend}, widgets/colorpicker::preview_blend | BlendMenu, beginBlendPreview, AppearancePanel and PaintPicker | Pointer hover, keyboard focus, dismissal, one history entry, role loss, stroke/region independence, mobile recovery and download. |
 
 [Property-level evidence](../reports/26-11-09-blend-modes-parity.html).
+
+## Alpha, vector and luminance masks
+
+At Rust 8a7ebc24 and React 87ced5f, doc::Node mask flags and engine::cmd::structure map to immutable node records, executeStructure and fitToChildren. Render draw_children, mask_pixels and draw_masked map to drawChildren, maskOutline, drawMasked and reserveLayerPixels. Doc::geometry masked_out, covers and layers_at map to masksBelow, covers and queryPoint. The command and canvas context menu use the same layersAt ordering. Typed archive, pixel, memory and authenticated acceptance evidence passed. [Mask matrix](../reports/26-11-09-masks-parity.html).
