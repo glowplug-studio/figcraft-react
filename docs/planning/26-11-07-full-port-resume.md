@@ -1,6 +1,8 @@
 # Full Figcraft port resume checkpoint
 
-At e9cee6b a separate document can link and recover a published file. The 287-workflow run is in progress. Continue linked variable imports and updates from the [consumer reference](26-11-09-styles-variables-libraries.md#linked-consumer-files).
+At 425c44a remote variable imports and updates passed native and signed-in production checks. The 288-workflow regression is running. Next implement linked style imports and updates under [row 10](26-11-09-styles-variables-libraries.md#linked-variable-imports-and-updates).
+
+At e9cee6b a separate document can link and recover a published file. All 287 production workflows passed. Continue linked variable imports and updates from the [consumer reference](26-11-09-styles-variables-libraries.md#linked-consumer-files).
 
 At d2cd04a local library publication, version selection and archive compatibility passed native and focused production checks. All 286 production Chromium workflows passed. Next implement the consumer side in [row 10](26-11-09-styles-variables-libraries.md#local-published-library-archive-boundary).
 
