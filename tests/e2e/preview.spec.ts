@@ -4042,3 +4042,45 @@ test("mobile effect settings edit native noise, texture and blur properties", as
   expect(layer.effects).toMatchObject([{type:"noise",mode:"multi",density:.35},{type:"texture",clip_to_shape:true,size:.01},
     {type:"layerBlur",blur_type:"progressive",radius:17}]);
 });
+
+test("bundled web fonts load on demand and match native glyph metrics", async ({page}) => {
+  const fonts: string[] = [];
+  page.on("request", request => { if (new URL(request.url()).pathname.endsWith(".ttf")) fonts.push(request.url()); });
+  await login(page);
+  expect(fonts).toEqual([]);
+  // Face::from_bytes and Face::advance from the pinned native crate, measured at one em.
+  const cases = [
+    ["Figcraft Inter","normal",400,2048,"A",1413,1984,494],
+    ["Figcraft Inter","italic",400,2048,"A",1413,1984,494],
+    ["Figcraft Inter","normal",600,2048,"A",1490,1984,494],
+    ["Figcraft Inter","normal",700,2048,"A",1529,1984,494],
+    ["Figcraft Noto Sans Georgian","normal",400,1000,"ა",549,1068,292],
+  ] as const;
+  for (const [family,style,weight,size,character,width,ascent,descent] of cases) {
+    const result = await page.evaluate(async ({family,style,weight,size,character}) => {
+      const ctx = document.createElement("canvas").getContext("2d")!;
+      ctx.font = style + " " + weight + " " + size + 'px "' + family + '"';
+      const faces = await document.fonts.load(ctx.font, character);
+      const metrics = ctx.measureText(character);
+      return [faces.length, metrics.width, metrics.fontBoundingBoxAscent, metrics.fontBoundingBoxDescent];
+    }, {family,style,weight,size,character});
+    expect(result).toEqual([1,width,ascent,descent]);
+  }
+  const variableAdvances = await page.evaluate(() => {
+    const sample = document.createElement("span");
+    sample.style.cssText = 'position:fixed;display:inline-block;white-space:pre;font:1000px "Figcraft Noto Sans Georgian"';
+    sample.textContent = "ა";
+    document.body.append(sample);
+    const widths = ['"wght" 900, "wdth" 100','"wght" 400, "wdth" 62.5'].map(axes => {
+      sample.style.fontVariationSettings = axes;
+      return sample.getBoundingClientRect().width;
+    });
+    sample.remove();
+    return widths;
+  });
+  expect(variableAdvances).toEqual([608,413]);
+  expect(new Set(fonts).size).toBe(5);
+  const count = fonts.length;
+  await page.evaluate(() => document.fonts.load('600 16px "Figcraft Inter"', "A").then(() => undefined));
+  expect(fonts).toHaveLength(count);
+});

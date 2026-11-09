@@ -1,5 +1,6 @@
 "use client";
 
+import "@glowplug-studio/figcraft-react/fonts.css";
 import { useEffect, useState } from "react";
 import { Editor, FigcraftRoot, IndexedDbRecoveryStore, type IdentitySnapshot, type DocumentCapability } from "@glowplug-studio/figcraft-react";
 import { SupabaseIdentityAdapter } from "@glowplug-studio/figcraft-react/backends/supabase";

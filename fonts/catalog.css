@@ -1,0 +1,32 @@
+/* Private family names keep an installed face from changing document metrics. */
+@font-face {
+  font-family: "Figcraft Inter";
+  font-style: normal;
+  font-weight: 400;
+  src: url("./inter/Inter-Regular.ttf") format("truetype");
+}
+@font-face {
+  font-family: "Figcraft Inter";
+  font-style: italic;
+  font-weight: 400;
+  src: url("./inter/Inter-Italic.ttf") format("truetype");
+}
+@font-face {
+  font-family: "Figcraft Inter";
+  font-style: normal;
+  font-weight: 600;
+  src: url("./inter/Inter-SemiBold.ttf") format("truetype");
+}
+@font-face {
+  font-family: "Figcraft Inter";
+  font-style: normal;
+  font-weight: 700;
+  src: url("./inter/Inter-Bold.ttf") format("truetype");
+}
+@font-face {
+  font-family: "Figcraft Noto Sans Georgian";
+  font-style: normal;
+  font-weight: 100 900;
+  font-stretch: 62.5% 100%;
+  src: url("./noto-sans-georgian/NotoSansGeorgian.ttf") format("truetype");
+}

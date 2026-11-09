@@ -104,3 +104,13 @@ licensed under the Apache License, Version 2.0 (see LICENSE).
 
 Streaming SHA-256 uses @noble/hashes 2.4.0, Copyright (c) 2022 Paul Miller,
 under the MIT permission notice above.
+
+The unmodified Inter Regular, Italic, SemiBold and Bold faces and Noto Sans
+Georgian are distributed under the SIL Open Font License, Version 1.1.
+They are from the craft-fonts catalogue at revision
+37827adc41fd165f9a9234ac40f94dbad353aa69.
+
+Inter: Copyright (c) 2016 The Inter Project Authors.
+Noto Sans Georgian: Copyright 2022 The Noto Project Authors.
+The complete licences accompany the files in fonts/inter/OFL.txt and
+fonts/noto-sans-georgian/OFL.txt.
