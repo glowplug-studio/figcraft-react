@@ -364,3 +364,7 @@ At 67b16e6, PatternPaint::cell and the integer raster sizing in render::pattern:
 ## Alpha, vector and luminance masks
 
 At Rust 8a7ebc24 and React 87ced5f, doc::Node mask flags and engine::cmd::structure map to immutable node records, executeStructure and fitToChildren. Render draw_children, mask_pixels and draw_masked map to drawChildren, maskOutline, drawMasked and reserveLayerPixels. Doc::geometry masked_out, covers and layers_at map to masksBelow, covers and queryPoint. The command and canvas context menu use the same layersAt ordering. Typed archive, pixel, memory and authenticated acceptance evidence passed. [Mask matrix](../reports/26-11-09-masks-parity.html).
+
+## Layer effect rendering
+
+At Rust 8a7ebc24, render::shadow and render::fx map to shadow-renderer and effect-raster. Render::blur and render::backdrop map to blur-renderer, backdrop-stack and backdrop-renderer. Render::grain maps to grain-renderer. Render::glass distance and nearest-site transforms, AnalyticRect, shape_fields and glass map to glass-fields, glass-rectangle, glass-shape, glass-lens and glass-renderer. [Dated checkpoint and pixel evidence](../planning/26-11-09-layer-effects.md#glass). The Effects inspector, bindings and downstream export surfaces remain open.

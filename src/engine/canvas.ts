@@ -1,3 +1,4 @@
+import { beginGlassFrame } from "./glass-shape";
 import { backdropParent } from "./backdrop-stack";
 import { effectMargin, effectReach, usesPixelLayer, drawLayerEffects } from "./layer-effects-renderer";
 import type { ShadowLayer } from "./shadow-renderer";
@@ -209,6 +210,7 @@ export function renderDocument(context: CanvasRenderingContext2D, document: Docu
 }
 
 function drawDocumentFrame(context: CanvasRenderingContext2D, document: Document, width: number, height: number, selection: readonly string[], preview?: Rectangle, view?: Viewport, editingId?: string, invalidate?: () => void, drawImageOverlay?: (images?: CanvasImages) => void): void {
+  beginGlassFrame();
   let images = imageCaches.get(context);
   let redraw = invalidate;
   if (document.images) {

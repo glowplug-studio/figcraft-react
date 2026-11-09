@@ -21,7 +21,7 @@ export function effectReach(node: LayerNode) {
 }
 
 export function usesPixelLayer(node: LayerNode) {
-  return node.effects?.some(e => e.visible && (e.type === "dropShadow" || e.type === "innerShadow" || e.type === "noise" || e.type === "texture" ||
+  return node.effects?.some(e => e.visible && (e.type === "dropShadow" || e.type === "innerShadow" || e.type === "glass" || e.type === "noise" || e.type === "texture" ||
     (e.type === "layerBlur" || e.type === "backgroundBlur") && blurRadius(e) > 0));
 }
 

@@ -4,12 +4,13 @@ import { applyBlur, blurRadius } from "./blur-renderer";
 import { readBackdrop } from "./backdrop-stack";
 import { tracePath } from "./corners";
 import type { Document, LayerNode } from "./document";
+import { glassBackdropRadius, renderGlass } from "./glass-renderer";
 import { subtreeIds } from "./hierarchy";
 import { reserveLayerPixels } from "./mask-renderer";
 import { shapePath } from "./shape-path";
 
 export function hasBackdrop(node: LayerNode) {
-  return node.effects?.some(e=>e.visible && e.type==="backgroundBlur" && blurRadius(e)>0);
+  return node.effects?.some(e=>e.visible && (e.type==="glass" || e.type==="backgroundBlur" && blurRadius(e)>0));
 }
 export function nestedBackdrop(doc:Document,node:LayerNode) {
   return "children" in node && subtreeIds(doc,node.id).some(id=>{
@@ -25,9 +26,13 @@ export function renderBackdrop(ctx:CanvasRenderingContext2D, doc:Document, node:
   const outline=node.kind==="frame" ? {path:shapePath(node),rule:"nonzero" as const} : maskOutline(doc,node,0);
   if (!outline?.path.length) return;
   let maxRadius=0;
-  for(const e of node.effects ?? []) if(e.visible && e.type==="backgroundBlur") maxRadius=Math.max(maxRadius,blurRadius(e));
-  if (!maxRadius) return;
-  const pad=Math.min(2048,Math.ceil(1.5*maxRadius*scale+3)), w=width+pad*2,h=height+pad*2;
+  if (!hasBackdrop(node)) return;
+  for (const e of node.effects ?? []) {
+    if (!e.visible) continue;
+    if (e.type === "backgroundBlur") maxRadius = Math.max(maxRadius, blurRadius(e));
+    if (e.type === "glass") maxRadius = Math.max(maxRadius, glassBackdropRadius(e));
+  }
+  const pad=maxRadius ? Math.min(2048,Math.ceil(1.5*maxRadius*scale+3)) : 0, w=width+pad*2,h=height+pad*2;
   const release=reserveLayerPixels(w,h,3);
   if (!release) return;
   const make=()=>ctx.canvas.ownerDocument.createElement("canvas");
@@ -39,14 +44,19 @@ export function renderBackdrop(ctx:CanvasRenderingContext2D, doc:Document, node:
     const back=source.getContext("2d")!, work=filtered.getContext("2d",{willReadFrequently:true})!, out=output.getContext("2d")!;
     readBackdrop(back,ctx,left-pad,top-pad);
     const path=new Path2D(); tracePath(path,outline.path);
-    out.save(); out.setTransform(...xf); out.clip(path,outline.rule); out.resetTransform();
     const padded:Affine=[xf[0],xf[1],xf[2],xf[3],xf[4]+pad,xf[5]+pad];
-    for(const e of node.effects ?? []) if(e.visible && e.type==="backgroundBlur" && blurRadius(e)>0) {
-      work.clearRect(0,0,w,h); work.drawImage(source,0,0);
-      applyBlur(work,e,node.width,node.height,padded,scale);
-      out.drawImage(filtered,-pad,-pad);
+    for (const e of node.effects ?? []) {
+      if (!e.visible) continue;
+      if (e.type === "glass") {
+        renderGlass(out,back,node,outline.path,path,outline.rule,xf,e,scale,pad);
+      } else if (e.type === "backgroundBlur" && blurRadius(e)>0) {
+        work.clearRect(0,0,w,h); work.drawImage(source,0,0);
+        applyBlur(work,e,node.width,node.height,padded,scale);
+        out.save(); out.setTransform(...xf); out.clip(path,outline.rule); out.resetTransform();
+        out.drawImage(filtered,-pad,-pad); out.restore();
+      }
     }
-    out.restore(); complete=true;
+    complete=true;
     return out;
   } finally {
     filtered.width=filtered.height=source.width=source.height=0;
