@@ -2331,3 +2331,10 @@ export function unhintedOutline(font, glyph) {
   }
   return commands;
 }
+// Read the original font bytes in the current Wasm memory. A later Wasm allocation can
+// replace this view, so callers consume the table synchronously and retain only offsets.
+export function fontTableView(blob, offset, length) {
+  const size = exports.hb_blob_get_length(blob.ptr);
+  if (!Number.isSafeInteger(offset) || !Number.isSafeInteger(length) || offset < 0 || length < 0 || offset + length > size) return;
+  return new DataView(Module.HEAPU8.buffer, exports.hb_blob_get_data(blob.ptr, 0) + offset, length);
+}

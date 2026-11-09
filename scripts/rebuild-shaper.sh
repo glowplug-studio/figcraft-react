@@ -52,8 +52,16 @@ export function unhintedOutline(font, glyph) {
   }
   return commands;
 }
+// Read the original font bytes in the current Wasm memory. A later Wasm allocation can
+// replace this view, so callers consume the table synchronously and retain only offsets.
+export function fontTableView(blob, offset, length) {
+  const size = exports.hb_blob_get_length(blob.ptr);
+  if (!Number.isSafeInteger(offset) || !Number.isSafeInteger(length) || offset < 0 || length < 0 || offset + length > size) return;
+  return new DataView(Module.HEAPU8.buffer, exports.hb_blob_get_data(blob.ptr, 0) + offset, length);
+}
 BINDING
 echo 'export declare function unhintedOutline(font: Font, glyph: number): SvgPathCommand[];' >> ../package/dist/index.d.mts
+echo 'export declare function fontTableView(blob: Blob, offset: number, length: number): DataView | undefined;' >> ../package/dist/index.d.mts
 sha256sum -c <<'CHECK'
 822dd8cc84a85ad527c03a0bb201dc7fad8f8134a2923576b5fb2ecbbb3afa54  dist/harfbuzz.js
 8d71a81409a002b39adbe3566d5d6b88fd145648f8ddb8e3ae8cf2cdb9fd36f1  dist/harfbuzz.wasm

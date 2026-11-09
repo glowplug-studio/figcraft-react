@@ -2915,7 +2915,9 @@ test("gradient picker edits fills, canvas handles and stops with one-step undo a
   expect(after.stops.map(s=>s.position)).toEqual(before.stops.map(s=>Math.fround(1-s.position)));
   expect(after.to).toEqual([0,.5]); expect(after.width).toEqual([.5,1]);
   await expect(page.locator(".figcraft-recovery")).toHaveText("Recovery saved on this device");
-  await page.reload(); expect(await save()).toEqual(after);
+  await page.reload();
+  await expect(page.getByRole("region",{name:"Layers",exact:true}).getByRole("button",{name:"Gradient",exact:true})).toBeVisible();
+  expect(await save()).toEqual(after);
 });
 
 test("stroke picker preserves stops across kinds and commits a captured stop-bar drag once",async({page})=>{

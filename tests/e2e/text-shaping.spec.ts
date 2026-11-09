@@ -22,6 +22,7 @@ test("Chromium shapes pinned font bytes with the native glyph IDs, positions and
   const fontFiles = new Map(await Promise.all(inputs.map(async file =>
     ["/fonts/"+file,await readFile(new URL("../../fonts/"+file,import.meta.url))] as const)));
   fontFiles.set("/fonts/outline-cff.ttc", await readFile(new URL("../fixtures/outline-cff.ttc", import.meta.url)));
+  fontFiles.set("/fonts/colour-reference.ttf",await readFile(new URL("../fixtures/colour-reference.ttf",import.meta.url)));
   let failFirstWordRequest = true;
   await page.route("https://shaper.test/**", async route => {
     const path = new URL(route.request().url()).pathname, font = fontFiles.get(path), chunk = files.get(path);
@@ -130,6 +131,29 @@ test("Chromium shapes pinned font bytes with the native glyph IDs, positions and
     });
   },caretCases);
   expect(carets).toEqual(caretCases.map(({carets,steps,hits,selections})=>({carets,steps,hits,selections})));
+  const colour=await page.evaluate(async ()=>{
+    const url="/shaper.js",api:typeof import("../fixtures/text-shaping-browser")=await import(url);
+    const bytes=await (await fetch("/fonts/colour-reference.ttf")).arrayBuffer();
+    const [face]=await api.readFontFaces(new Uint8Array(bytes));
+    const ctx=new OffscreenCanvas(124,110).getContext("2d")!;
+    const layers=face.colourLayers(face.glyphFor(65))!;
+    for (const {id,rgba:[r,g,b,a]} of layers) {
+      ctx.fillStyle=`rgba(${r},${g},${b},${a/255})`;
+      ctx.beginPath();
+      const path=api.glyphPath({face,id,coordinates:{},x:8,y:90,size:102.4});
+      for (const el of path) {
+        if (el[0]==="M") ctx.moveTo(el[1],el[2]);
+        else if (el[0]==="L") ctx.lineTo(el[1],el[2]);
+        else if (el[0]==="C") ctx.bezierCurveTo(el[1],el[2],el[3],el[4],el[5],el[6]);
+        else ctx.closePath();
+      }
+      ctx.fill();
+    }
+    return {layers,triangle:Array.from(ctx.getImageData(48,33,1,1).data),square:Array.from(ctx.getImageData(32,67,1,1).data)};
+  });
+  expect(colour.layers).toEqual([{id:3,rgba:[0,128,255,128]},{id:4,rgba:[255,0,64,255]}]);
+  expect(colour.triangle).toEqual([0,128,255,128]);
+  expect(colour.square).toEqual([255,0,64,255]);
   const decorationPixels=await page.evaluate(async cases=>{
     const url="/shaper.js",api:typeof import("../fixtures/text-shaping-browser")=await import(url);
     const fonts=new api.FontLibrary();

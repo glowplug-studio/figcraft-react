@@ -1,4 +1,5 @@
 import * as hb from "#figcraft-harfbuzz";
+import { FontColourTables } from "./font-colour";
 import { fontTables, fontVariations, normaliseFontStyle, type FontAxis, type FontInstance } from "./font-tables";
 import { styleWeight, type TextStyle } from "./text-style";
 import { fontOutlinePath } from "./text-glyph-path";
@@ -57,13 +58,14 @@ export class ShapingFace {
   readonly hasColour: boolean;
   readonly weight: number;
   readonly features: readonly string[];
+  readonly #colour?:FontColourTables;
   readonly #glyphCount: number;
   readonly #outlines = new Map<string,readonly CurveElement[]>();
   #outlineCommands = 0;
   readonly #font: hb.Font;
   readonly #buffer = new hb.Buffer();
 
-  private constructor(face: hb.Face, family: string, style: string, tables: ReadonlyMap<string,DataView>) {
+  private constructor(face: hb.Face, family: string, style: string, tables: ReadonlyMap<string,DataView>, blob:hb.Blob, byteOffset:number) {
     this.family = family;
     this.style = style;
     this.postscript = faceName(face,6);
@@ -84,6 +86,13 @@ export class ShapingFace {
     this.italic = italicFlag || style.toLowerCase().includes("italic");
     this.weight = (os2 && os2.byteLength >= 6 && os2.getUint16(4)) || styleWeight(style);
     this.hasColour = ["sbix","CBDT","EBDT","COLR"].some(tag=>tables.has(tag));
+    if (this.hasColour) {
+      const ranges=new Map(Array.from(tables,([tag,view])=>[tag,[view.byteOffset-byteOffset,view.byteLength] as const]));
+      this.#colour=new FontColourTables(tag=>{
+        const range=ranges.get(tag);
+        return range && hb.fontTableView(blob,range[0],range[1]);
+      });
+    }
     this.features = Object.freeze([...new Set(face.getTableFeatureTags("GSUB"))].sort());
     this.#font = new hb.Font(face);
     const metrics = this.#font.hExtents();
@@ -110,7 +119,7 @@ export class ShapingFace {
       const family = faceName(face,16) || faceName(face,1);
       if (!family) continue;
       const style = faceName(face,17) || faceName(face,2) || "Regular";
-      faces.push(new ShapingFace(face,family,style,tables));
+      faces.push(new ShapingFace(face,family,style,tables,blob,bytes.byteOffset));
     }
     return Object.freeze(faces);
   }
@@ -131,6 +140,8 @@ export class ShapingFace {
       return [axis.tag,Number.isFinite(value) ? Math.max(axis.min,Math.min(axis.max,value)) : axis.default];
     }));
   }
+
+  colourLayers(id:number) { return this.#colour?.layers(id); }
 
   glyphFor(codePoint: number) { return this.#font.nominalGlyph(codePoint) ?? 0; }
 
