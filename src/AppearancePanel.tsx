@@ -4,7 +4,7 @@ import { usePaintActions } from "./PaintActions";
 import { useState, useSyncExternalStore, type FormEvent } from "react";
 import { parseCssColour } from "./engine/colour-css";
 import { renderColour, withAlpha } from "./engine/colour";
-import { layerBlend, pageColour, rectanglePaints, type PageNode, type LayerNode } from "./engine/document";
+import { layerBlend, maskTypes, pageColour, rectanglePaints, type PageNode, type LayerNode } from "./engine/document";
 import { paintColour, samePaints, solidPaint, type Paint } from "./engine/solid-paint";
 
 import type { EditorEngine } from "./engine/editor";
@@ -22,6 +22,11 @@ function AppearanceControls({ engine, page, selected, editable, dispatch, expand
   const [alert, setAlert] = useState("");
   const state = useSyncExternalStore(engine.subscribeVectorEdit, engine.getVectorEdit, engine.getVectorEdit);
   const snapshot = engine.getSnapshot(), ids = snapshot.selection;
+  const hasMasks = ids.some(id => snapshot.document.nodes[id].isMask);
+  const allMasks = hasMasks && ids.every(id => snapshot.document.nodes[id].isMask);
+  const firstMaskType = selected?.maskType ?? "alpha";
+  const maskType = allMasks && ids.every(id => (snapshot.document.nodes[id].maskType ?? "alpha") === firstMaskType)
+    ? firstMaskType : "";
   const firstBlend = selected && layerBlend(selected);
   const blend = ids.every(id=>{
     const node = snapshot.document.nodes[id];
@@ -66,6 +71,11 @@ function AppearanceControls({ engine, page, selected, editable, dispatch, expand
     {selected && <button type="button" disabled={!editable} aria-expanded={showBlend} onClick={toggle}>Blend mode</button>}
     {selected && editable && showBlend && <BlendMenu engine={engine} label="Layer blend mode" value={blend}
       change={mode=>dispatch("node.set",{ids,props:{blend:mode}})}/>}
+    {allMasks && <label>Mask type<select value={maskType} disabled={!editable}
+      onChange={event=>dispatch("node.set",{ids,props:{maskType:event.currentTarget.value}})}>
+      {!maskType && <option value="" disabled>Mixed</option>}
+      {maskTypes.map(type=><option key={type} value={type}>{type[0].toUpperCase()+type.slice(1)}</option>)}
+    </select></label>}
     {alert && <p role="alert">{alert}</p>}
     <form key={`background:${page.id}:${JSON.stringify(pageColour(page))}`} onSubmit={background}>
       <fieldset disabled={!editable}><legend>Page</legend>
@@ -117,6 +127,8 @@ function AppearanceControls({ engine, page, selected, editable, dispatch, expand
         {popup}
       </fieldset>}
     </>}
+    {selected && <button type="button" disabled={!editable} onClick={()=>dispatch("object.mask",{ids})}>Use as mask</button>}
+    {hasMasks && <button type="button" disabled={!editable} onClick={()=>dispatch("object.releaseMask",{ids})}>Release mask</button>}
   </section>;
 }
 

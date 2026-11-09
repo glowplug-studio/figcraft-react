@@ -2,6 +2,7 @@ import { expect, it } from "vitest";
 import { unzipSync, zipSync, strFromU8, strToU8 } from "fflate";
 import { EditorEngine } from "../../src/engine/editor";
 import { decodeFigcraft, encodeFigcraft } from "../../src/engine/file-format";
+import { hitRectangle } from "../../src/engine/selection";
 import { worldTransform } from "../../src/engine/hierarchy";
 
 it("uses the lowest selected sibling as the mask and keeps the wrapper on release",()=>{
@@ -72,4 +73,61 @@ it("retains mask types across release and native files, validates tags and omits
       expect(()=>e.execute(cmd,params)).toThrow(); expect(e.getSnapshot().document).toBe(before);
     }
   }
+});
+
+it("passes clicks through a masked-out group and lists only the visible hit stack",()=>{
+  const e=new EditorEngine();
+  const rect=(x:number,size:number)=>String(e.execute("shape.rectangle",{x,y:x,width:size,height:size}).id);
+  const back=rect(60,40),mask=rect(0,50),content=rect(0,100);
+  const hit=(x:number,y:number,deep=true)=>hitRectangle(e.getSnapshot().document,{x,y},deep);
+  const stack=(x:number,y:number)=>e.execute("select.layersAt",{x,y}).layers.map(n=>[String(n.id),n.type,n.depth]);
+  expect(hit(75,75)).toBe(content);
+  const group=String(e.execute("object.mask",{ids:[mask,content]}).id);
+  expect(hit(75,75)).toBe(back); expect(hit(75,10)).toBeUndefined();
+  expect(hit(25,25)).toBe(content); expect(hit(25,25,false)).toBe(group);
+  expect(stack(75,75)).toEqual([[back,"RECTANGLE",0]]);
+  expect(stack(25,25)).toEqual([[group,"GROUP",0],[content,"RECTANGLE",1],[mask,"RECTANGLE",1]]);
+  e.execute("node.set",{id:mask,props:{locked:true,opacity:0,maskType:"luminance",fill:"black"}});
+  expect(hit(25,25)).toBe(content);expect(stack(25,25)).toEqual([[group,"GROUP",0],[content,"RECTANGLE",1]]);
+  e.execute("node.set",{id:mask,props:{visible:false}});
+  expect(hit(75,75)).toBe(content);
+  expect(()=>e.execute("select.layersAt",{x:"left",y:0})).toThrow();
+  expect(stack(2000,2000)).toEqual([]);
+});
+
+it("uses exact ellipse coverage, transformed subtrees and hidden mask boundaries at page level",()=>{
+  const e=new EditorEngine(), hit=(x:number,y:number)=>hitRectangle(e.getSnapshot().document,{x,y},true);
+  const rect=(x:number,y:number,size:number,props:Record<string,unknown>={})=>String(e.execute("shape.rectangle",{x,y,width:size,height:size,props}).id);
+  const back=rect(0,0,200);
+  const a=String(e.execute("shape.ellipse",{x:20,y:20,width:20,height:20}).id);
+  const b=rect(60,20,20);
+  const g=String(e.execute("object.group",{ids:[a,b]}).id);
+  e.execute("node.set",{id:g,props:{isMask:true}});
+  const c=rect(0,0,200);
+  expect([hit(30,30),hit(20,20),hit(47,30),hit(70,30)]).toEqual([c,back,back,c]);
+  e.execute("transform.move",{id:g,dx:0,dy:25});
+  expect([hit(30,30),hit(30,55),hit(47,55),hit(70,55)]).toEqual([back,c,back,c]);
+  e.execute("node.set",{id:b,props:{isMask:true}});
+  expect(hit(70,55)).toBe(b); // The nested mask is selectable, but cannot supply coverage to its parent.
+  e.execute("node.set",{id:g,props:{locked:true}});
+  expect(hit(70,55)).toBe(back);
+  const boundary=rect(120,20,20,{isMask:true,visible:false});
+  const top=rect(0,0,200);
+  expect(hit(150,150)).toBe(top);
+  e.execute("node.set",{id:boundary,props:{visible:true}});
+  expect(hit(150,150)).toBe(back);expect(hit(130,30)).toBe(top);
+});
+
+it("lists a clipped frame and its overlapping children in native tree order without publishing selection",()=>{
+  const e=new EditorEngine();
+  const frame=String(e.execute("frame.create",{x:10,y:10,width:50,height:50,props:{clip:true,name:"Board"}}).id);
+  const rect=(x:number)=>String(e.execute("shape.rectangle",{parent:frame,x,y:0,width:80,height:30}).id);
+  const a=rect(0), b=rect(10);
+  const g=String(e.execute("object.group",{ids:[a,b]}).id),top=rect(0);
+  const before=e.getSnapshot();
+  const stack=e.execute("select.layersAt",{x:30,y:25}).layers;
+  expect(stack.map(n=>[String(n.id),n.depth])).toEqual([[frame,0],[top,1],[g,1],[b,2],[a,2]]);
+  expect(stack[0]).toMatchObject({id:Number(frame),type:"FRAME",name:"Board"});
+  expect(e.execute("select.layersAt",{x:75,y:25})).toEqual({layers:[]});
+  expect(e.getSnapshot()).toBe(before);
 });

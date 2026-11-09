@@ -15,7 +15,7 @@ import { framePresets } from "./engine/frame-presets";
 import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type FormEvent, type KeyboardEvent } from "react";
 import type { DocumentCapability } from "./backends/access";
 import type { IdentityAdapter } from "./backends/identity";
-import { hitRectangle } from "./engine/selection";
+import { hitRectangle, type layersAt } from "./engine/selection";
 import { topImageFill } from "./engine/image-commands";
 import { screenToPage } from "./engine/viewport";
 import type { Point } from "./engine/geometry";
@@ -65,6 +65,8 @@ export function Editor({ identity, capabilities, engine: suppliedEngine, recover
   const root = useRef<HTMLDivElement>(null);
   const controller = useRef<CanvasController | null>(null);
   const pasteMenu = useRef<HTMLDivElement>(null);
+  const [pointLayers, setPointLayers] = useState<ReturnType<typeof layersAt>["layers"]>([]);
+  const menuOrigin = useRef<Point>({x:0,y:0});
   const pasteAt = useRef<Point | undefined>(undefined);
   const modifiedPaste = useRef(false);
   useEffect(() => {
@@ -175,6 +177,10 @@ export function Editor({ identity, capabilities, engine: suppliedEngine, recover
     } else if (event.key === "Enter" && snapshot.selection.length && snapshot.selection.every(id => { const n = snapshot.document.nodes[id]; return n && isLeaf(n); })) {
       event.preventDefault(); dispatch("vector.edit.begin"); return;
     }
+    if (event.code === "KeyM" && event.ctrlKey && !event.shiftKey && snapshot.selection.length) {
+      const mac = /Mac|iPhone|iPad/.test(navigator.platform);
+      if (mac ? event.metaKey && !event.altKey : event.altKey && !event.metaKey) command = "object.mask";
+    }
     if (!event.metaKey && !event.ctrlKey && event.altKey && event.code === "KeyR") command = "transform.rotationOrigin";
     if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "s") { event.preventDefault(); void save(); return; }
     if ((event.metaKey || event.ctrlKey) && event.altKey && !event.shiftKey && event.code === "KeyO") {
@@ -234,6 +240,13 @@ export function Editor({ identity, capabilities, engine: suppliedEngine, recover
   function pagePoint(x: number, y: number) {
     const bounds = canvas.current!.getBoundingClientRect();
     return screenToPage(engine.getView(), {x:x-bounds.left,y:y-bounds.top});
+  }
+  function positionCanvasMenu() {
+    const menu=pasteMenu.current;
+    if (!menu?.matches(":popover-open")) return;
+    const bounds=menu.getBoundingClientRect(), {x,y}=menuOrigin.current;
+    menu.style.left=Math.max(0,Math.min(x,window.innerWidth-bounds.width))+"px";
+    menu.style.top=Math.max(0,Math.min(y,window.innerHeight-bounds.height))+"px";
   }
   function requestOpen(file:File) {
     if (snapshot.dirty && Object.keys(snapshot.document.nodes).length > snapshot.document.pages.length) setPendingFile(file);
@@ -363,7 +376,15 @@ export function Editor({ identity, capabilities, engine: suppliedEngine, recover
           <LayerPanel document={snapshot.document} selection={snapshot.selection} editable={editable && !busy} dispatch={dispatch} />
         </aside>
         <div className="figcraft-canvas-area">
-          <div ref={pasteMenu} popover="auto" role="group" aria-label="Canvas actions" style={{position:"fixed",inset:"auto",margin:0}}>
+          <div ref={pasteMenu} popover="auto" role="group" aria-label="Canvas actions" onToggle={positionCanvasMenu}
+            style={{position:"fixed",inset:"auto",margin:0,maxHeight:"95dvh",maxWidth:"95vw",overflow:"auto"}}>
+            {pointLayers.length>0 && <details onToggle={positionCanvasMenu}><summary>Select layer</summary>
+              <div role="group" aria-label="Layers at point">{pointLayers.map(layer=><button key={layer.id}
+                style={{display:"block",paddingInlineStart:8+12*Math.min(8,layer.depth)}} aria-pressed={snapshot.selection.includes(String(layer.id))}
+                onClick={()=>{pasteMenu.current?.hidePopover();dispatch("select.set",{ids:[layer.id]});canvas.current?.focus();}}>
+                {layer.name || layer.type.toLowerCase()}
+              </button>)}</div>
+            </details>}
             {canCrop && <button onClick={()=>{pasteMenu.current?.hidePopover();dispatch("image.crop");canvas.current?.focus();}}>Crop image</button>}
             <button onClick={()=>{pasteMenu.current?.hidePopover();canvas.current?.focus();void paste(undefined,pasteAt.current);}}>Paste here</button>
           </div>
@@ -376,11 +397,13 @@ export function Editor({ identity, capabilities, engine: suppliedEngine, recover
             pasteAt.current = pagePoint(event.clientX,event.clientY);
             const target=hitRectangle(snapshot.document,pasteAt.current,event.metaKey,snapshot.selection,2/engine.getView().zoom);
             if (target && !snapshot.selection.includes(target)) dispatch("select.set",{ids:[target]});
+            setPointLayers(engine.execute("select.layersAt",pasteAt.current).layers.slice(0,40));
+            const submenu=menu.querySelector("details");
+            if (submenu) submenu.open=false;
+            menuOrigin.current={x:event.clientX,y:event.clientY};
             menu.showPopover();
-            const bounds = menu.getBoundingClientRect();
-            menu.style.left = Math.max(0,Math.min(event.clientX,window.innerWidth-bounds.width))+"px";
-            menu.style.top = Math.max(0,Math.min(event.clientY,window.innerHeight-bounds.height))+"px";
-            menu.querySelector("button")?.focus();
+            positionCanvasMenu();
+            menu.querySelector<HTMLElement>("summary,button")?.focus();
           }} aria-label="Design canvas" tabIndex={0} aria-describedby="canvas-instructions" />
           <ViewControls engine={engine} editable={editable && !busy} dispatch={dispatch} />
           <p id="canvas-instructions" className="figcraft-instructions">R: rectangle · O: ellipse · Space/middle drag: pan · Z: zoom · Ctrl/⌘ wheel: zoom · Escape: cancel</p>

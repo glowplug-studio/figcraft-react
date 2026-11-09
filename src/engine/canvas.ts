@@ -1,4 +1,5 @@
 import { compositeSurface } from "./blend-composite";
+import { drawMasked, reserveLayerPixels } from "./mask-renderer";
 import { booleanResult } from "./boolean-result";
 import { ArcInteraction } from "./arc-handles";
 import { DrawInteraction } from "./draw-interaction";
@@ -78,19 +79,23 @@ function* paintComposite(context: CanvasRenderingContext2D, node: LayerNode, dra
   const width = Math.min(context.canvas.width, Math.ceil(bounds.x + bounds.width)) - left;
   const height = Math.min(context.canvas.height, Math.ceil(bounds.y + bounds.height)) - top;
   if (width <= 0 || height <= 0) return;
-  let surface = compositeSurfaces.get(context);
-  if (!surface) {
-    surface = context.canvas.ownerDocument.createElement("canvas");
-    compositeSurfaces.set(context, surface);
-  }
-  if (surface.width < width) surface.width = width;
-  if (surface.height < height) surface.height = height;
-  const scratch = surface.getContext("2d");
-  if (!scratch) throw new Error("Canvas compositing is unavailable");
-  scratch.resetTransform(); scratch.clearRect(0, 0, width, height);
-  scratch.setTransform(matrix.a, matrix.b, matrix.c, matrix.d, matrix.e - left, matrix.f - top);
-  yield* draw(scratch);
-  compositeSurface(context, scratch, left, top, width, height, node.blend ?? "normal", opacity(node.opacity ?? 1));
+  const release = reserveLayerPixels(width, height, 1);
+  if (!release) return;
+  try {
+    let surface = compositeSurfaces.get(context);
+    if (!surface) {
+      surface = context.canvas.ownerDocument.createElement("canvas");
+      compositeSurfaces.set(context, surface);
+    }
+    if (surface.width !== width) surface.width = width;
+    if (surface.height !== height) surface.height = height;
+    const scratch = surface.getContext("2d");
+    if (!scratch) throw new Error("Canvas compositing is unavailable");
+    scratch.resetTransform(); scratch.clearRect(0, 0, width, height);
+    scratch.setTransform(matrix.a, matrix.b, matrix.c, matrix.d, matrix.e - left, matrix.f - top);
+    yield* draw(scratch);
+    compositeSurface(context, scratch, left, top, width, height, node.blend ?? "normal", opacity(node.opacity ?? 1));
+  } finally { release(); }
 }
 
 function paintedGroupBounds(context: CanvasRenderingContext2D, document: Document, node: LayerNode): Rectangle | undefined {
@@ -134,10 +139,10 @@ function loneNormalStroke(node: LayerNode): boolean {
 }
 
 function* drawLayer(context: CanvasRenderingContext2D, document: Document, node: LayerNode, depth: number, nesting: number): PaintSteps {
-  if (node.visible === false || (node.opacity ?? 1) <= 0 || depth > 256) return;
+  if (node.isMask || node.visible === false || (node.opacity ?? 1) <= 0 || depth > 256) return;
   if (node.kind === "booleanOp") {
     const result = booleanResult(document, node);
-    if (result) yield* drawLayer(context, document, result, depth, nesting);
+    if (result) yield* drawLayer(context, document, result.isMask || result.blend !== node.blend ? { ...result, isMask: false, blend: node.blend } : result, depth, nesting);
     return;
   }
   const blended = node.blend !== undefined && node.blend !== "normal" && node.blend !== "passThrough";
@@ -146,10 +151,7 @@ function* drawLayer(context: CanvasRenderingContext2D, document: Document, node:
       if (node.kind === "frame") yield* resolveLayerPaints(paintRectangle(target, node, 1, false), document, depth, nesting, drawLayer);
       target.save(); target.transform(...rectangleTransform(node));
       if (node.kind === "frame" && node.clip) { target.beginPath(); tracePath(target, shapePath(node)); target.clip(); }
-      for (const id of node.children) {
-        const child = document.nodes[id];
-        if (child && child.kind !== "page") yield* drawLayer(target, document, child, depth + 1, nesting);
-      }
+      yield* drawChildren(target, document, node.children, depth + 1, nesting);
       target.restore();
       if (node.kind === "frame" && hasVisibleStroke(node)) yield* resolveLayerPaints(paintLayerStroke(target, node), document, depth, nesting, drawLayer);
     };
@@ -301,16 +303,34 @@ function* paintPage(context: CanvasRenderingContext2D, document: Document, width
   context.fillRect(0, 0, width, height);
   context.save();
   context.scale(zoom, zoom); context.translate(-origin.x, -origin.y);
-  for (const id of page.children) {
-    const node = document.nodes[id];
-    if (!node || node.kind === "page") continue;
-    if (isLeaf(node)) {
-      const bounds = hasVisibleStroke(node) ? strokeBounds(node, rectangleTransform(node)) : node.transform ? transformBounds(node.transform, node.width, node.height) : node;
-      if (bounds.x > origin.x + width / zoom || bounds.y > origin.y + height / zoom || bounds.x + bounds.width < origin.x || bounds.y + bounds.height < origin.y) continue;
-    }
-    yield* drawLayer(context, document, node, 0, 0);
-  }
+  yield* drawChildren(context, document, page.children, 0, 0, { ...origin, width: width / zoom, height: height / zoom });
   context.restore();
+}
+
+function deviceBounds(context: CanvasRenderingContext2D, document: Document, node: LayerNode) {
+  if (!isLeaf(node)) return paintedGroupBounds(context, document, node);
+  const m = context.getTransform();
+  return strokeBounds(node, multiply([m.a,m.b,m.c,m.d,m.e,m.f], rectangleTransform(node)));
+}
+
+function* drawChildren(context: CanvasRenderingContext2D, document: Document, children: readonly string[],
+  depth: number, nesting: number, view?: Rectangle): PaintSteps {
+  for (let index = 0; index < children.length; index++) {
+    const node = document.nodes[children[index]];
+    if (!node || node.kind === "page" || node.visible === false) continue;
+    if (node.isMask) {
+      let end = index + 1;
+      while (end < children.length && !document.nodes[children[end]]?.isMask) end++;
+      yield* drawMasked(context, document, node, children, index + 1, end, depth, nesting, drawLayer, deviceBounds);
+      index = end - 1;
+      continue;
+    }
+    if (view && isLeaf(node)) {
+      const bounds = hasVisibleStroke(node) ? strokeBounds(node, rectangleTransform(node)) : node.transform ? transformBounds(node.transform, node.width, node.height) : node;
+      if (bounds.x > view.x + view.width || bounds.y > view.y + view.height || bounds.x + bounds.width < view.x || bounds.y + bounds.height < view.y) continue;
+    }
+    yield* drawLayer(context, document, node, depth, nesting);
+  }
 }
 
 /** Owns transient gesture state and a demand-driven render loop, outside React. */

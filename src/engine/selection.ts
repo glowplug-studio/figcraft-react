@@ -1,5 +1,5 @@
 import { booleanResult } from "./boolean-result";
-import { isLeaf } from "./document";
+import { isLeaf, nodeTypeName, type LayerNode } from "./document";
 import { hitsPath } from "./corners";
 import { hasShapePath, shapePath } from "./shape-path";
 import { identity, inverse, multiply, transformPoint, type Affine } from "./affine";
@@ -7,7 +7,7 @@ import { layerTransform, pageOf, rectanglePaints, type Document, type NodeId } f
 import { defaultStroke, hasVisibleStroke, strokeMaxWeight } from "./stroke";
 import { ancestors, pageForNode } from "./hierarchy";
 import type { Point } from "./geometry";
-import { parseNodeId } from "./parameters";
+import { inspectedId, parseNodeId } from "./parameters";
 import { hitsVector } from "./vector-presentation";
 
 /** Upstream cmd/edit.rs selection commands; selection does not enter document history. */
@@ -114,60 +114,116 @@ export function targetForLeaf(document: Document, leaf: NodeId, selection: reado
   return chain[target] ?? leaf;
 }
 
-/** Hit frontmost visible layer; container selection follows native level_target. */
-export function hitRectangle(document: Document, point: Point, deep = false, selection: readonly NodeId[] = [], tolerance = 0, enterBooleans = deep): NodeId | undefined {
-  if (!Number.isFinite(point.x) || !Number.isFinite(point.y)) return undefined;
-  const nearRectangle = (x: number, y: number, width: number, height: number): boolean => Math.hypot(Math.max(0, -x, x - width), Math.max(0, -y, y - height)) <= tolerance;
-  const page = pageOf(document);
-  const hit = (id: NodeId, parent: NodeId, world: Affine, depth: number): NodeId | undefined => {
-    const node = document.nodes[id];
-    if (depth > 256 || !node || node.kind === "page" || node.parent !== parent || node.visible === false || node.locked === true) return undefined;
-    try {
-      const transform = world === identity ? layerTransform(node) : multiply(world, layerTransform(node));
-      if (node.kind === "booleanOp") {
-        const editing = enterBooleans || selection.some(selected => selected === id || ancestors(document, selected).includes(id));
-        if (editing) return hitGroup(node.children, id, transform, depth + 1);
-        const result = booleanResult(document, node);
-        return result && hitsVector(result, transformPoint(inverse(transform), point), tolerance) ? id : undefined;
-      }
-      if (node.kind === "group") return hitGroup(node.children, id, transform, depth + 1);
-      if (node.kind === "frame") {
-        const local = transformPoint(inverse(transform), point);
-        const inside = local.x >= 0 && local.x <= node.width && local.y >= 0 && local.y <= node.height;
-        if (node.clip && !inside) return undefined;
-        const near = local.x >= -tolerance && local.x <= node.width + tolerance && local.y >= -tolerance && local.y <= node.height + tolerance;
-        return hitGroup(node.children, id, transform, depth + 1) ?? (near ? id : undefined);
-      }
-      if (node.kind === "line") {
-        const local = transformPoint(inverse(transform), point), half = Math.max(strokeMaxWeight(node.stroke ?? defaultStroke) / 2, tolerance * 2.5);
-        return local.x >= -half && local.x <= node.width + half && Math.abs(local.y) <= half ? id : undefined;
-      }
-      if (node.kind === "vector") return hitsVector(node, transformPoint(inverse(transform), point), tolerance) ? id : undefined;
-      if (hasShapePath(node) || node.stroke || node.strokes) {
-        const local = transformPoint(inverse(transform), point);
-        const visible = hasVisibleStroke(node), filled = rectanglePaints(node).some(p => p.visible), reach = Math.max(strokeMaxWeight(node.stroke ?? defaultStroke) / 2, visible && !filled ? tolerance * 2.5 : tolerance);
-        if (local.x < -reach || local.y < -reach || local.x > node.width + reach || local.y > node.height + reach) return;
-        return hitsPath(shapePath(node), local, reach, filled || !visible) ? id : undefined;
-      }
-      if (world === identity && !node.transform) {
-        return nearRectangle(point.x - node.x, point.y - node.y, node.width, node.height) ? id : undefined;
-      }
-      const local = transformPoint(inverse(transform), point);
-      return nearRectangle(local.x, local.y, node.width, node.height) ? id : undefined;
-    } catch {
-      return undefined;
-    }
-  };
-  const hitGroup = (children: readonly NodeId[], parent: NodeId, world: Affine, depth: number): NodeId | undefined => {
-    for (let index = children.length - 1; index >= 0; index--) {
-      const leaf = hit(children[index]!, parent, world, depth);
-      if (leaf !== undefined) return leaf;
-    }
-    return undefined;
-  };
-  for (let index = page.children.length - 1; index >= 0; index--) {
-    const leaf = hit(page.children[index]!, page.id, identity, 0);
-    if (leaf !== undefined) return deep ? leaf : targetForLeaf(document, leaf, selection);
+type MaskedChildren = Map<NodeId, LayerNode>;
+const siblingMasks = new WeakMap<Document,Map<readonly NodeId[],MaskedChildren | null>>();
+
+/** A hidden mask ends the preceding run. The boundary itself belongs to the run below for hits. */
+function masksBelow(document:Document, children:readonly NodeId[]) {
+  let parents=siblingMasks.get(document);
+  if (!parents) {parents=new Map(); siblingMasks.set(document,parents);}
+  const cached=parents.get(children);
+  if (cached!==undefined) return cached;
+  let result:MaskedChildren|null=null, mask:LayerNode|undefined;
+  for (const id of children) {
+    if (mask) (result??=new Map()).set(id,mask);
+    const child=document.nodes[id];
+    if (child && child.kind!=="page" && child.isMask) mask=child.visible===false ? undefined : child;
   }
-  return undefined;
+  parents.set(children,result);
+  return result;
+}
+
+function hitsLayer(node:LayerNode, world:Affine, point:Point, tolerance:number):boolean {
+  if (node.kind==="group" || node.kind==="booleanOp") return false;
+  const local=world[0]===1 && world[1]===0 && world[2]===0 && world[3]===1
+    ? {x:point.x-world[4],y:point.y-world[5]} : transformPoint(inverse(world),point);
+  if (node.kind==="frame") return local.x>=-tolerance && local.x<=node.width+tolerance
+    && local.y>=-tolerance && local.y<=node.height+tolerance;
+  if (node.kind==="line") {
+    const half=Math.max(strokeMaxWeight(node.stroke??defaultStroke)/2,tolerance*2.5);
+    return local.x>=-half && local.x<=node.width+half && Math.abs(local.y)<=half;
+  }
+  if (node.kind==="vector") return hitsVector(node,local,tolerance);
+  if (hasShapePath(node) || node.stroke || node.strokes) {
+    const visible=hasVisibleStroke(node), filled=rectanglePaints(node).some(p=>p.visible);
+    const reach=Math.max(strokeMaxWeight(node.stroke??defaultStroke)/2,visible && !filled ? tolerance*2.5 : tolerance);
+    if (local.x < -reach || local.y < -reach || local.x > node.width+reach || local.y > node.height+reach) return false;
+    return hitsPath(shapePath(node),local,reach,filled || !visible);
+  }
+  return Math.hypot(Math.max(0,-local.x,local.x-node.width),Math.max(0,-local.y,local.y-node.height))<=tolerance;
+}
+
+function worldFrom(parent:Affine,node:LayerNode):Affine {
+  return parent===identity ? layerTransform(node) : multiply(parent,layerTransform(node));
+}
+
+function covers(document:Document,node:LayerNode,parent:Affine,point:Point,depth:number):boolean {
+  if (depth>=512) return false;
+  const world=worldFrom(parent,node);
+  if (hitsLayer(node,world,point,0)) return true;
+  return !isLeaf(node) && node.children.some(id=>{
+    const child=document.nodes[id];
+    return child && child.kind!=="page" && child.visible!==false && !child.isMask && covers(document,child,world,point,depth+1);
+  });
+}
+
+interface PointLayer {id:number|string; name:string; type:string; depth:number}
+
+function queryPoint(document:Document,point:Point,tolerance:number,selection:readonly NodeId[],enterBooleans:boolean,stack?:PointLayer[]) {
+  if (!Number.isFinite(point.x) || !Number.isFinite(point.y)) return;
+  const coverage=new Map<NodeId,boolean>();
+  function visitChildren(children:readonly NodeId[],parent:NodeId,world:Affine,depth:number,output?:PointLayer[]):NodeId|undefined {
+    let first:NodeId|undefined;
+    const masks=masksBelow(document,children);
+    for(let i=children.length-1;i>=0;i--) {
+      const node=document.nodes[children[i]];
+      if (!node || node.kind==="page" || node.parent!==parent || node.locked || node.visible===false) continue;
+      try {
+        const mask=masks?.get(node.id);
+        if (mask) {
+          let inside=coverage.get(mask.id);
+          if (inside===undefined) {inside=covers(document,mask,world,point,0);coverage.set(mask.id,inside);}
+          if (!inside) continue;
+        }
+        const hit=visit(node,world,depth,output);
+        if (hit && !output) return hit;
+        first??=hit;
+      } catch { /* Singular transforms have no selectable area. */ }
+    }
+    return first;
+  }
+  function visit(node:LayerNode,parent:Affine,depth:number,output?:PointLayer[]):NodeId|undefined {
+    if (depth>512) return;
+    const world=worldFrom(parent,node);
+    if (node.kind==="frame" && node.clip && !hitsLayer(node,world,point,0)) return;
+    let leaf:NodeId|undefined;
+    const at=output?.length??0;
+    if (node.kind==="booleanOp") {
+      const editing=enterBooleans || selection.some(id=>(!stack && id===node.id) || ancestors(document,id).includes(node.id));
+      const result=editing ? undefined : booleanResult(document,node);
+      if (result) {
+        if (hitsLayer(result,world,point,tolerance)) leaf=node.id;
+      } else leaf=visitChildren(node.children,node.id,world,depth+1);
+    } else {
+      if (!isLeaf(node)) leaf=visitChildren(node.children,node.id,world,depth+1,output);
+      if (!leaf && hitsLayer(node,world,point,tolerance)) leaf=node.id;
+    }
+    if (leaf && output) output.splice(at,0,{id:inspectedId(node.id),name:node.name,type:nodeTypeName(node),depth});
+    return leaf;
+  }
+  const page=pageOf(document);
+  return visitChildren(page.children,page.id,identity,0,stack);
+}
+
+/** Hit frontmost visible layer; container selection follows native level_target. */
+export function hitRectangle(document:Document,point:Point,deep=false,selection:readonly NodeId[]=[],tolerance=0,enterBooleans=deep) {
+  const leaf=queryPoint(document,point,tolerance,selection,enterBooleans);
+  return leaf && !deep ? targetForLeaf(document,leaf,selection) : leaf;
+}
+
+/** Select layer menu order: front-most siblings first, each parent before its descendants. */
+export function layersAt(document:Document,point:Point,tolerance:number,selection:readonly NodeId[]) {
+  const layers:PointLayer[]=[];
+  queryPoint(document,point,tolerance,selection,false,layers);
+  return {layers};
 }

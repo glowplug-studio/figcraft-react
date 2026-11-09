@@ -103,6 +103,9 @@ export function commonProperties(node: LayerNode): LayerProperties {
   }
 }
 export type DocumentNode = PageNode | LayerNode;
+export function nodeTypeName(node: DocumentNode): string {
+  return node.kind === "booleanOp" ? "BOOLEAN_OPERATION" : node.kind.toUpperCase();
+}
 export const isGroupLike = (node: DocumentNode | undefined): node is GroupNode | BooleanNode => node?.kind === "group" || node?.kind === "booleanOp";
 export const isLeafKind = (kind: unknown): kind is LeafNode["kind"] => kind === "rectangle" || kind === "ellipse" || kind === "polygon" || kind === "star" || kind === "line" || kind === "vector";
 export const isDrawTool = (kind: unknown): kind is DrawShapeKind => isLeafKind(kind) && kind !== "vector" || kind === "arrow";

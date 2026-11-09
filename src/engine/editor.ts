@@ -15,7 +15,7 @@ import { MAX_IMAGE_BYTES } from "./image-resource";
 import { base64Bytes } from "./recovery";
 import { decodeFigcraft, encodeFigcraft, encodeFigcraftBlob, prepareArchive, MAX_UNPACKED_BYTES } from "./file-format";
 import { executePage, listPages, pageSpecs } from "./pages";
-import { executeSelection, selectionSpecs } from "./selection";
+import { executeSelection, layersAt, selectionSpecs } from "./selection";
 import { setRectangleProperties } from "./properties";
 import { HierarchyDraft, pageForNode, worldTransform } from "./hierarchy";
 import { applyBuilder } from "./shape-builder-commands";
@@ -70,6 +70,7 @@ export const commandSpecs = Object.freeze({
   "image.crop": { label:"Crop image", undo:true },
   "image.replace": { label: "Replace image", undo: true },
   "image.presets": { label: "Image presets", undo: false },
+  "select.layersAt": { label: "Layers at a point", undo: false },
   "node.get": { label: "Get layer", undo: false },
   "node.set": { label: "Set properties", undo: true },
   "frame.create": { label: "Frame", undo: true },
@@ -424,6 +425,7 @@ export class EditorEngine {
     if (!editable) { this.#vectorEdit = undefined; this.#copiedPaint = undefined; }
     if (editable !== this.#snapshot.editable) this.#publish({ editable, tool: "move", profileDialog: false });
   }
+  execute(command: "select.layersAt", input: unknown): ReturnType<typeof layersAt>;
   execute(command: "node.get", input: unknown): ReturnType<typeof getNode>;
   execute(command: "shapeBuilder.regions", input?: unknown): ReturnType<typeof readBuilderRegions>;
   execute(command: "frame.presets", input?: unknown): typeof framePresets;
@@ -441,6 +443,7 @@ export class EditorEngine {
     }
     if (command === "shapeBuilder.regions") return readBuilderRegions(builderArrangement(this.#snapshot.document, builderTargets(p, this.#snapshot.selection)));
     if (command === "image.presets") return listImagePresets(this.#snapshot.document.imagePresets);
+    if (command === "select.layersAt") return layersAt(this.getRenderDocument(), {x:parseNumber(p.x,"x"),y:parseNumber(p.y,"y")}, 2/Math.max(this.getView().zoom,1e-6), this.getRenderSelection());
     if (command === "node.get") return getNode(this.getRenderDocument(), p);
     if (this.pen.open && (command === "edit.undo" || command === "edit.redo")) {
       if (Object.keys(p).length) throw new Error(`${command} takes no parameters`);

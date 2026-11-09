@@ -9,6 +9,11 @@ export function parseNodeId(value: unknown): NodeId | undefined {
   const id = BigInt(suffix);
   return id <= 18446744073709551615n ? String(id) : undefined;
 }
+/** Automation serialises small native ids as numbers and retains every digit of larger u64s. */
+export function inspectedId(id: NodeId): number | string {
+  const numeric = Number(id);
+  return Number.isSafeInteger(numeric) ? numeric : id;
+}
 export function parseString(value: unknown): string | undefined {
   if (typeof value === "string" || typeof value === "boolean") return String(value);
   return typeof value === "number" && Number.isFinite(value) ? String(value) : undefined;

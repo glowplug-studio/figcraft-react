@@ -70,18 +70,18 @@ function transformed(node: LayerNode, path: Path): Path {
   const matrix = layerTransform(node);
   return mapVectorPath(path, p => transformPoint(matrix,p));
 }
-function operandPath(doc: Document, node: LayerNode, depth: number): Path | undefined {
+function subtreePath(doc: Document, node: LayerNode, depth: number, strokeOnly: boolean): Path | undefined {
   if (depth > 64 || node.visible === false) return;
   if ((node.kind === "frame" || node.kind === "group") && node.children.length) {
     const combined: PathCommand[] = [];
     if (node.kind === "frame") {
       const path = shapePath(node);
-      const frame = rectanglePaints(node).some(p=>p.visible) ? path : hasVisibleStroke(node) ? strokeOutline(node,asVector(node,path)) : [];
+      const frame = rectanglePaints(node).some(p=>p.visible) ? path : strokeOnly && hasVisibleStroke(node) ? strokeOutline(node,asVector(node,path)) : [];
       for (const c of frame) combined.push(c);
     }
     for (const id of node.children) {
       const child = doc.nodes[id]; if (!child || child.kind === "page") continue;
-      const path = operandPath(doc,child,depth+1);
+      const path = subtreePath(doc,child,depth+1,strokeOnly);
       if (path) for (const c of transformed(child,path)) combined.push(c);
     }
     return combined;
@@ -89,18 +89,32 @@ function operandPath(doc: Document, node: LayerNode, depth: number): Path | unde
   if (node.kind === "group") return;
   const vector = node.kind === "booleanOp" ? booleanResult(doc,node,depth) : node.kind === "vector" ? node : undefined;
   if (node.kind === "booleanOp" && !vector) return;
-  if (!rectanglePaints(node).some(p=>p.visible) && hasVisibleStroke(node)) return strokeOutline(node,vector ?? asVector(node,shapePath(node)));
+  if (strokeOnly && !rectanglePaints(node).some(p=>p.visible) && hasVisibleStroke(node)) return strokeOutline(node,vector ?? asVector(node,shapePath(node)));
   if (vector) {
     if (hasRegionPaints(vector)) {
       const areas: PathCommand[] = [];
       for (const area of vectorPaintRegions(vector)) if (area.paints.some(p=>p.visible)) {
-        for (const c of normaliseBooleanPath(area.path,area.rule === "evenodd")) areas.push(c);
+        for (const c of normaliseArea(area.path,area.rule === "evenodd",strokeOnly)) areas.push(c);
       }
-      return normaliseBooleanPath(areas);
+      return normaliseArea(areas,false,strokeOnly);
     }
     return vectorFillPath(drawnVectorNetwork(vector));
   }
   return shapePath(node);
+}
+
+function normaliseArea(path:Path, evenOdd:boolean, strokeOnly:boolean): Path {
+  // The native mask retains its best-effort contours if path simplification fails.
+  if (strokeOnly) return normaliseBooleanPath(path,evenOdd);
+  try {return normaliseBooleanPath(path,evenOdd);} catch {return path;}
+}
+
+export function maskOutline(doc: Document, node: LayerNode, depth:number) {
+  const path = subtreePath(doc,node,depth,false);
+  if (!path?.length) return;
+  const evenOdd = node.kind === "booleanOp" || node.kind === "vector" && !hasRegionPaints(node)
+    && node.network.regions.some(region=>region.winding === "evenOdd");
+  return {path,rule:evenOdd ? "evenodd" as const : "nonzero" as const};
 }
 
 /** The last prefixes for a group can survive an immutable snapshot, including a captured drag. */
@@ -110,7 +124,7 @@ function resultPath(doc: Document, node: BooleanNode, depth: number): Path {
   for (const id of node.children) {
     const child = doc.nodes[id];
     if (!child || child.kind === "page") continue;
-    const local = operandPath(doc,child,depth+1); if (!local) continue;
+    const local = subtreePath(doc,child,depth+1,true); if (!local) continue;
     const path = transformed(child,local), op = child.boolOp ?? node.op, index = operandCount++, prior = old[index];
     matching = matching && !!prior && (!index || prior.op === op) && samePath(prior.operand,path);
     if (matching) current = prior.result;

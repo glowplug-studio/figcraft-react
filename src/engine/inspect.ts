@@ -1,8 +1,8 @@
 import { rotationDegrees } from "./affine";
 import { toCssHex } from "./colour";
-import { defaultConstraints, isLeaf, layerTransform, pageColour, rectanglePaints, type Document, type DocumentNode } from "./document";
+import { defaultConstraints, isLeaf, nodeTypeName, layerTransform, pageColour, rectanglePaints, type Document, type DocumentNode } from "./document";
 import { frameRelative } from "./hierarchy";
-import { parseNodeId } from "./parameters";
+import { inspectedId, parseNodeId } from "./parameters";
 import type { Paint } from "./solid-paint";
 import { defaultStroke, miterAngle } from "./stroke";
 import { boundsOf } from "./viewport";
@@ -52,14 +52,12 @@ function inspectPaint(paint: Paint) {
 }
 
 function inspect(doc: Document, node: DocumentNode, depth: number, fields?: Set<string>) {
-  // Native identifiers are u64. Retain all digits when the host cannot represent one as a number.
-  const numeric = Number(node.id);
-  const out: Record<string, unknown> = { id: Number.isSafeInteger(numeric) ? numeric : node.id };
+  const out: Record<string, unknown> = { id: inspectedId(node.id) };
   const wants = (key: string) => !fields || fields.has(key);
   const put = (key: string, value: unknown) => { if (wants(key) && value !== undefined) out[key] = value; };
   if (node.isMask) {put("isMask",true); put("maskType",node.maskType ?? "alpha");}
   put("name", node.name);
-  put("type", node.kind === "booleanOp" ? "BOOLEAN_OPERATION" : node.kind.toUpperCase());
+  put("type", nodeTypeName(node));
   if (fields?.has("visible")) put("visible", node.kind === "page" || node.visible !== false);
   if (node.kind === "page") {
     if (wants("background")) put("background", toCssHex(pageColour(node)));
