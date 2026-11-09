@@ -1,6 +1,6 @@
 # Full Figcraft port resume checkpoint
 
-Current checkpoint at ad4014a. Native variables, expressions, collections and modes passed the signed-in browser workflow, both builds, strict types, 1,896 pure tests and two local Auth checks. The full Chromium suite passed 273/273 at 00d9e5e. Implement variable creation and value edits, including typed aliases, alpha and mix expressions, inherited overrides and cycle refusal. Then cover bindings, interchange and linked libraries. [Row 10 evidence](26-11-09-styles-variables-libraries.md#local-style-editors-and-variable-collections).
+Current checkpoint at b469f59. Native variables, aliases, colour expressions, metadata, collection modes and overrides passed both focused production workflows, both builds, strict types, 1,898 pure tests and two local Auth checks. All 3,456 native variable-authoring comparisons matched. The full Chromium suite passed 274/274 at ad4014a. Implement layer and style variable bindings with per-layer mode inheritance, native projections, manual detachment and archive recovery. Then verify interchange and linked libraries. [Row 10 evidence](26-11-09-styles-variables-libraries.md#local-style-editors-and-variable-collections).
 
 The 0.51.0 component candidate has passed both builds, strict TypeScript, 1,874 pure tests, two Auth integrations, native thumbnail comparisons and both 10,001-layer benchmarks. The subsequent full production browser run passed all 266 workflows. [Report and next action](../reports/26-11-09-components-instances.md).
 
