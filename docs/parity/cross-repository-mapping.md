@@ -428,3 +428,5 @@ Native `text.fonts`, `text.loadFont`, the browser branch of `rescan_system_fonts
 Native typography `variable_axes`, `named_instances` and `type_settings` map to `TypographySettings`, `AxisControl` and `TypographyPanel`. Browser `familySample` uses the editor’s glyph painter for the native `font_preview::family` path. [Inspector property matrix](../reports/26-11-09-font-catalogue-inspector-parity.html).
 
 Upstream `canvas/textedit.rs` and its nine `cmd/text.rs` entries map to `executeTextEdit`, `EditorEngine.beginTextEdit`, `textKeyMotion` and `CanvasTextInput`. The comparison matched 443 native edit sequences. The installed package and signed-in Next.js host passed browser checks. [Editing matrix](../reports/26-11-09-text-edit-sessions-parity.html).
+
+Native `path_at` and `text_on_path_down` map to `textPathAt`, `hitPathLeaf`, `createTextOnPath` and the Text tool group. The 432 native probes include 162 hits. `collect_flatten_parts` and `TextLayout::to_path` map to `textNodePath`, `textToPath` and `vector.flatten`. All 108 geometry comparisons and the signed-in curved-text workflow passed. [Gesture matrix](../reports/26-11-09-text-gestures-parity.html).

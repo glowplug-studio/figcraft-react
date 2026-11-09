@@ -298,3 +298,17 @@ Map `canvas/tools/click.rs::path_at`, `text_on_path_down`, `handles.rs::path_can
 ### Text flattening and vector boundaries
 
 Trace `cmd/structure.rs::collect_flatten_parts` through `render::node_outline` and native `TextLayout::to_path`. Compare the vector vertices, handles, winding, region loops, dimensions and placement for glyphs with counters, curves, decorations, variable axes, multiple scripts, rotations and text attached to paths. Exercise the existing Flatten command, native export, Undo and an editable vector in the signed-in host.
+
+The gesture and flatten checkpoints at 12c1b6e and a80bacf passed 230/230 Chromium checks in 507.8 seconds. An idle smart-handle cancellation and a floating toolbar screenshot regression were corrected before this result. All 432 native pointer probes and 108 native flatten cases matched. [Gesture matrix](../reports/26-11-09-text-gestures-parity.html).
+
+### Browser input and composition replacement
+
+The upstream model filters controls, normalises line separators and places the scalar caret immediately after the accepted insertion. Empty filtered input leaves a directed selection unchanged. The IME preedit caret follows the start of the platform's active composition range. An independent Chromium DevTools Protocol probe exposed three discrepancies at the textarea boundary. A control-only replacement moved a reverse selection to the end, a normalised paste into the middle moved the caret past the suffix, and composition always displayed its caret after the last candidate scalar. Exercise the real input, composition replacement and cancellation events with a UTF-16 surrogate pair before completing this checkpoint.
+
+### Cross-feature text rendering
+
+Compare the upstream raster for transformed styled glyphs with strokes, drop and inner shadows, a text mask and a clipped frame against Canvas 2D. Use a fixed viewport and bundled faces. Compare interior coverage and antialiased edge differences separately. Record actual substitutions or gaps before closing the rich-text slice.
+
+### Large-document editing
+
+Measure a 10,000-node native drawing with 100 visible text layers. Time real scalar input, directed selection and the resulting canvas frame, including clipping and culling. Check root subscriptions, restored contents and retained browser heap after Chromium collects garbage. Use the same 16.7 ms p95 frame budget as the other editor performance fixtures.
