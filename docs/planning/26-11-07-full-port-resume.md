@@ -1,6 +1,8 @@
 # Full Figcraft port resume checkpoint
 
-At 4c7f505, scoped inspector controls, variant changes, live previews and 10,000 direct variable consumers passed the focused gates. The full production suite is running. Continue variable interchange from Rust `cmd/variables_io.rs` and `format/src/rest/variables.rs`, then linked libraries. [Evidence](26-11-09-styles-variables-libraries.md#inspector-bindings-and-live-previews).
+At 8f8791e native variable import and four export formats passed the focused gates, including large collections. The 285-test browser run is in progress. Continue with [published library archives](26-11-09-styles-variables-libraries.md#local-published-library-archive-boundary).
+
+At 4c7f505, scoped inspector controls, variant changes, live previews and 10,000 direct variable consumers passed the focused gates. The full production suite passed 283/283. Continue variable interchange from Rust `cmd/variables_io.rs` and `format/src/rest/variables.rs`, then linked libraries. [Evidence](26-11-09-styles-variables-libraries.md#inspector-bindings-and-live-previews).
 
 At cd2fe41, the layer inspector and clipboard handle shared and mixed character fills. All 279 Chromium workflows passed at 8512ea6. The additional signed-in character fill workflow passed on the new production build. Continue scoped field controls, variant preview and direct binding performance in [row 10](26-11-09-styles-variables-libraries.md#character-fills-and-paint-copy).
 

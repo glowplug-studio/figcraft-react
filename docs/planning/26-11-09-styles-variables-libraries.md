@@ -6,12 +6,28 @@
 |---|---|
 | Entry | Roadmap row 9 passed all 266 production Chromium workflows at 0dac4d7. This row starts with the existing local Assets panel and typed paints, effects, text, components and affine layout. |
 | Reference | React 0dac4d7. Fork and original upstream main both point to a2e87433d8bda2b0c909587da08cb27c51e3b17e. The single upstream change since 79c36346 updates Developer Mode naming documentation and moves a Rust doc comment. No document or engine behaviour changed. |
-| Local graph | At React 4c7f505 and Rust a2e87433 the combined local index has 32,366 nodes and 108,319 edges. The new Playwright benchmark is registered directly in source and has no AST symbol in Graphify. The variable implementation follows doc/styles.rs, cmd/styles.rs, cmd/variables.rs and dialogs/variables_panel.rs. |
+| Local graph | At React 8f8791e and Rust a2e87433 the combined local index has 32,421 nodes and 108,523 edges. The new Playwright benchmark is registered directly in source and has no AST symbol in Graphify. The variable implementation follows doc/styles.rs, cmd/styles.rs, cmd/variables.rs and dialogs/variables_panel.rs. |
 | Provider | The scoped Supabase MCP read returned the expected project, an active publishable key and zero public tables. Local Auth integrations and the production host passed at entry. |
-| Phase | Phase 4. Local style authoring, folders, typography and paint definitions, native variable records, typed resolution, collection and mode management, value authoring, metadata, layer mode inheritance and shared style bindings are verified. Direct layer fields, scoped inspector controls, live previews, variant switching and 10,000 bound consumers passed the checks below. Variable interchange is active. |
+| Phase | Phase 4. Local style authoring, folders, typography and paint definitions, native variable records, typed resolution, collection and mode management, value authoring, metadata, layer mode inheritance and shared style bindings are verified. Direct layer fields, scoped inspector controls, live previews, variant switching and 10,000 bound consumers passed the checks below. Variable file interchange passed focused verification. Linked library archives are active. |
 | First independent boundary | Open, inspect, save and recover a native document with ordered local style definitions and linked layers. Cover fill and stroke links separately. Extend direct application, detachment and value propagation through the inspector and local Assets panel. |
-| Next action | Implement variable import and export, verify cross-file merge and export text against native, then implement linked libraries. |
+| Next action | Read and write published library archives, then expose publication, linking, read-only remote assets and update workflows. |
 | Rollback | Keep row 9’s 0dac4d7 implementation and its tests as the rollback point. Isolate document support, authoring, variable resolution and library interchange in verified commits. |
+
+## Variable file exchange
+
+At 8f8791e, 560 native JSON, CSS, Tailwind and Dart exports matched byte for byte. 135 native merge scenarios matched 675 command results and readbacks across first import, repeat import and JSON export. The signed-in picker, all four downloads, undo and recovery passed in production Chromium. A second workflow imported 10,001 variables, edited the final row and inspected mode 50. Both builds, strict TypeScript, 1,916 pure tests and two local Auth integrations passed. The full inspector checkpoint passed 283/283 in 743 seconds. The 285-workflow run is in progress.
+
+## Local published library archive boundary
+
+The native format stores the manifest and the published document separately from the editable document. A later unpublished edit must survive saving alongside the previous publication. The archive reader must resolve shared images from the author's file, load snapshot-only images, enforce the per-member and total inflation limits, filter absent manifest assets and distinguish a damaged library from a damaged author document. Verify large integer IDs and versions without converting them to JavaScript doubles. Native evidence comes from `format/src/library.rs`, `format/src/library_tests.rs` and `doc/src/library.rs`. Browser recovery uses the same ZIP reader and writer as file open and download.
+
+| Native source | React target | Verification |
+|---|---|---|
+| `read_library_within`, `read`, `write`, `used_images` | Published manifest and snapshot types, bounded native file reader and writer | Real published archive, snapshot-only and shared image, invalid manifest, missing snapshot, save and reopen |
+| `assets/library.rs::publish`, `default_selection`, `cmd/library.rs::publish_args` | Immutable engine publication, Assets publication selection | Two-file version, hidden dependencies, unchanged publish, native version counts |
+| `library.add`, `pending`, `acceptUpdates`, `check_read_only` | Browser file selection and cached library source, local imported records | Stable local IDs, preserved overrides, update, detach, reopen and recovery |
+
+A local file grants access to a specific publication. The file chooser supplies updates when the source changes. Server-linked files and verified access grants depend on the online workspace and retain their own acceptance checks.
 
 ## Verified local style records and ordering
 
