@@ -8,13 +8,13 @@
 | Active slice | Image resources and paints |
 | Active phase | Phase 4. [Image source colour, rendering and archive verification](26-11-09-image-paints.md#raster-import-and-crop). |
 | Upstream baseline | Closed-vector smoothing reference 3daa9d32. Paint bucket reference 8a7ebc24. Global supported baseline 8eb0b876. |
-| Branch and last verified commit | `prompt/full-figcraft-port`, ordered image rendering 17fabdd, archive image budgets beb8ddc. Earlier checkpoints are recorded below and in the dated plans. |
+| Branch and last verified commit | `prompt/full-figcraft-port`, wide native layer trees bc3f065, large native JSON c52be88. Earlier checkpoints are recorded below and in the dated plans. |
 | Completed slices | Rectangle/host-auth, bounded native persistence/recovery, supported-model pages, affine rectangle geometry/selection and solid appearance, plus nested group hierarchy, Frame containers, movement/transform gestures, rounded corners, ellipse/arc/ring and Polygon/Star editing verified locally; Line/Arrow and uniform solid strokes also verified; per-side Rectangle/Frame strokes, variable-width profiles and procedural brushes verified; vector networks, solid region/stroke rendering and Flatten/Reverse also verified; foundation commit `154f5a7` |
 | Remaining slices | Every row below except the integrated foundation; static inventory entries remain unverified until mapped and tested |
-| Tests last passed | At 17fabdd, 160/160 production Chromium workflows, 1,081 pure tests, two local Auth checks, strict types and both builds passed. The 264-image page passed all pixel and cache checks. |
-| Files currently in progress | Large native JSON parsing, writing and layer-count checks. |
+| Tests last passed | At bc3f065, 162/162 production Chromium checks, 1,096 pure tests, two local Auth checks, strict types and both builds passed. A 10,322-node file passed keyboard navigation, reparent, device recovery and save. |
+| Files currently in progress | Image property clipboard, including cross-file keys, stroke settings and menu access. |
 | Blockers | No blocker. Use local Graphify for all remaining slices. The scoped Supabase read succeeded. |
-| Exact next action | Verify streamed native JSON above 16 MiB on the production host, then audit the layer panel and document-count ceiling. Finish the image parity report and continue the roadmap. |
+| Exact next action | Verify copied image fills and strokes across native files, update the image property matrix, then continue with live patterns. |
 | Last updated | 2026-11-09 |
 
 ## Scope and continuation
@@ -23,7 +23,7 @@ The user explicitly requests one autonomous full-port run. Slices are implementa
 
 The existing production rectangle demo is a previous release, not evidence of complete parity. No Vercel changes occur during implementation. The roadmap expands whenever inspection finds an omitted feature. Completion requires a fresh audit against the pinned tree, commands, menus, data format, assets, tests and UI.
 
-Full-host performance obligation: the user specifically asks about browser RAM, lag and crashes. Current isolated renderer fixtures do not establish total host memory or long-session stability. `LayerPanel` currently mounts every expanded row; its large-document behaviour must be measured and corrected in the complete layer/UI slice, preserving selection, keyboard access and tree semantics. Final verification must cover the authenticated host with large visible documents, images/text/effects, repeated edits/undo/open/close, viewport changes and sustained sessions. Record total memory where measurable separately from JavaScript heap and bounded raster-cache bytes; do not present the 100-visible stroke fixture as proof of unrestricted scale.
+Full-host performance obligation: the user specifically asks about browser RAM, lag and crashes. Current isolated renderer fixtures do not establish total host memory or long-session stability. At bc3f065 the authenticated layer panel mounted fewer than 20 rows for a 10,322-node native file. The complete layer/UI slice retains the remaining search, rename and drag behaviours. Final verification must cover the authenticated host with large visible documents, images/text/effects, repeated edits/undo/open/close, viewport changes and sustained sessions. Record total memory where measurable separately from JavaScript heap and bounded raster-cache bytes; do not present the 100-visible stroke fixture as proof of unrestricted scale.
 
 ## Evidence and inventory
 

@@ -243,5 +243,19 @@
       "embedderHeapUsedSize": 1856792,
       "backingStorageSize": 77517635
     }
+  },
+  "wide-native-page": {
+    "react": "bc3f065",
+    "nodes": 10322,
+    "mountedLayerRowsUpperBoundExclusive": 20,
+    "destinationOptionsLimit": 64,
+    "chromiumWorkflows": 162,
+    "chromiumDurationSeconds": 375.04,
+    "rendererHeapUsedBytes": {
+      "beforeOpen": 12238504,
+      "afterOpen": 19544868,
+      "afterRecovery": 42420784,
+      "afterSave": 34796712
+    }
   }
 }
