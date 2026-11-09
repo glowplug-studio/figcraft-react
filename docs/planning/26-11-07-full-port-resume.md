@@ -1,6 +1,6 @@
 # Full Figcraft port resume checkpoint
 
-Active source 1a6c8ef on `prompt/full-figcraft-port`. The first mask regression run passed 180/183. Three half-opacity pixel regressions shared one cause. All four focused opacity checks passed after the correction. Strict types, 1,124 pure tests, two real Auth tests and both production builds passed. A second 183-workflow production Chromium run is in progress. Inspect its result before closing the [mask verification gate](26-11-09-masks.md#opacity-correction-and-full-regression-gate).
+Active source 87ced5f on `prompt/full-figcraft-port`. The mask renderer and editor are implemented. The first full run exposed three opacity rounding regressions, fixed at 1a6c8ef. The second full run passed the original assertions and exposed a mobile blend-menu resize race. Its fix passed three targeted runs at 87ced5f, plus strict types, 1,124 pure tests, two Auth checks and both production builds. A third full production run of 183 Chromium workflows is in progress. Inspect its result before closing the [mask release gate](26-11-09-masks.md#mobile-menu-regression-checkpoint).
 
 
 The user deferred Figcraft plugins and their widgets on 9 November. They are excluded from this run’s publication gate.
