@@ -6,15 +6,15 @@
 |---|---|
 | Overall status | In progress. [Execution checkpoint](26-11-07-full-port-resume.md). |
 | Active slice | Live pattern paints |
-| Active phase | Phases 1–3 complete. [Pattern paint implementation sequence](26-11-09-pattern-paints.md). |
+| Active phase | Phase 4. [Pattern geometry and integration checkpoint](26-11-09-pattern-paints.md#geometry-checkpoint). |
 | Upstream baseline | Closed-vector smoothing reference 3daa9d32. Paint bucket reference 8a7ebc24. Global supported baseline 8eb0b876. |
-| Branch and last verified commit | `prompt/full-figcraft-port`, image property clipboard 84df96d, wide native layer trees bc3f065. Earlier checkpoints are recorded below and in the dated plans. |
+| Branch and last verified commit | `prompt/full-figcraft-port`, pattern cell geometry 67b16e6, image property clipboard 84df96d. Earlier checkpoints are recorded below and in the dated plans. |
 | Completed slices | Rectangle/host-auth, bounded native persistence/recovery, supported-model pages, affine rectangle geometry/selection and solid appearance, plus nested group hierarchy, Frame containers, movement/transform gestures, rounded corners, ellipse/arc/ring and Polygon/Star editing verified locally; Line/Arrow and uniform solid strokes also verified; per-side Rectangle/Frame strokes, variable-width profiles and procedural brushes verified; vector networks, solid region/stroke rendering and Flatten/Reverse also verified; foundation commit `154f5a7` |
 | Remaining slices | Every row below except the integrated foundation; static inventory entries remain unverified until mapped and tested |
 | Tests last passed | At 84df96d, 163/163 production Chromium workflows, 1,102 pure tests, two local Auth checks, strict types and both production builds passed. |
-| Files currently in progress | Pattern cells, live layer references and rendering. |
+| Files currently in progress | Pattern fill, stroke and region native wire mapping and live source rendering. |
 | Blockers | No blocker. Use local Graphify for all remaining slices. The scoped Supabase read succeeded. |
-| Exact next action | Port grid and staggered pattern cells, lossless source ids and the native tile resolution limit. Continue through the renderer, command and picker gates. |
+| Exact next action | Connect pattern paints to native fills, strokes and regions, preserve full u64 source references, then verify live source pixels and picker operations. |
 | Last updated | 2026-11-09 |
 
 ## Scope and continuation
