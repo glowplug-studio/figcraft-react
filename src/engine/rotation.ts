@@ -1,6 +1,6 @@
 import { identity, inverse, multiply, rotateAbout, transformBounds, transformPoint, type Affine } from "./affine";
 import { arrangementTargets } from "./arrange";
-import { withLayerTransform, type Document, type NodeId } from "./document";
+import { layerTransform, withLayerTransform, type Document, type NodeId } from "./document";
 import type { Point } from "./geometry";
 import { HierarchyDraft, rootIds, subtreeIds, worldTransform } from "./hierarchy";
 import { parseNumber } from "./parameters";
@@ -83,9 +83,16 @@ export function snappedOrigin(document: Document, selection: readonly NodeId[], 
 
 export function validateChangedGeometry(draft: HierarchyDraft): Document {
   const result = draft.finish();
+  const parents = new Map<NodeId, Affine>();
   for (const id of rootIds(result, [...draft.changedIds].filter(id => result.nodes[id]))) for (const child of subtreeIds(result, id)) {
     const node = result.nodes[child];
-    if (node.kind !== "page") transformBounds(worldTransform(result, child), node.width, node.height);
+    if (node.kind === "page") continue;
+    let parent = parents.get(node.parent);
+    if (!parent) {
+      parent = worldTransform(result, node.parent);
+      parents.set(node.parent, parent);
+    }
+    transformBounds(multiply(parent, layerTransform(node)), node.width, node.height);
   }
   return result;
 }

@@ -16,7 +16,7 @@ function matrix(a: number, b: number, c: number, d: number, e: number, f: number
 
 function checked(transform: Affine): Affine {
   if (transform.length !== 6) throw new Error("Affine geometry needs six coefficients");
-  transform.forEach(finite);
+  for (let i = 0; i < 6; i++) finite(transform[i]);
   return transform;
 }
 

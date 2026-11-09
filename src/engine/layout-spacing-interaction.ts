@@ -17,7 +17,7 @@ export class LayoutSpacingInteraction {
   #zones() {
     const {tool, editable, paintPicker, crop} = this.engine.getSnapshot();
     if (tool !== "move" || !editable || paintPicker || crop || this.engine.currentTextEdit() || this.engine.getVectorEdit() ||
-        (this.engine.interacting && !this.#drag)) return;
+        (this.engine.interacting && !this.#drag)) { this.#cache = undefined; return; }
     const doc = this.engine.getRenderDocument(), selection = this.engine.getRenderSelection();
     const frame = selection.length === 1 ? doc.nodes[selection[0]] : undefined;
     if (frame?.kind !== "frame" || !frame.layout) { this.#cache = undefined; return; }
@@ -67,14 +67,18 @@ export class LayoutSpacingInteraction {
       this.engine.previewProperties(drag.id,{padding:[...drag.padding]});
     }
   }
-  up() { if (this.#drag) this.engine.commitInteraction(); this.#drag = undefined; }
-  cancel() { if (this.#drag) this.engine.cancelInteraction(); this.#drag = undefined; }
+  up() { if (this.#drag) this.engine.commitInteraction(); this.#drag = undefined; this.#cache = undefined; }
+  cancel() { if (this.#drag) this.engine.cancelInteraction(); this.#drag = undefined; this.#cache = undefined; }
   draw(ctx: CanvasRenderingContext2D) {
     const zones = this.#zones();
     if (!zones) return;
     ctx.save(); ctx.strokeStyle = pink; ctx.lineWidth = 1; ctx.globalAlpha = .6;
     ctx.setLineDash([3,3]); ctx.beginPath();
-    for (const [a,b] of zones.tracks) { ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y); }
+    const {vw,vh} = this.engine.getView();
+    for (const [a,b] of zones.tracks) {
+      if (Math.max(a.x,b.x)<-1 || Math.min(a.x,b.x)>vw+1 || Math.max(a.y,b.y)<-1 || Math.min(a.y,b.y)>vh+1) continue;
+      ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y);
+    }
     ctx.stroke(); ctx.setLineDash([]); ctx.globalAlpha = 1;
     const drawBand = (zone: LayoutZone, isGap: boolean) => {
       if (zone.key !== this.#drag?.zone.key && (!this.#pointer || !containsPoint(zone.rect,this.#pointer))) return;

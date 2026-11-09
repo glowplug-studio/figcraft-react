@@ -11,7 +11,8 @@ export function frameInsets(frame: FrameNode): readonly [number, number, number,
 }
 
 export function outerBox(node: LayerNode) {
-  const [a,b,c,d] = layerTransform(node);
+  if (!node.transform) return {x: 0, y: 0, width: node.width, height: node.height};
+  const [a,b,c,d] = node.transform;
   return transformBounds([a,b,c,d,0,0], node.width, node.height);
 }
 
@@ -25,6 +26,10 @@ export function size(draft: HierarchyDraft, node: LayerNode, width: number, heig
 }
 
 export function placeLayer(draft: HierarchyDraft, node: LayerNode, x: number, y: number) {
+  if (!node.transform && Number.isFinite(x) && Number.isFinite(y)) {
+    if (node.x !== x || node.y !== y) draft.set({...node, x, y});
+    return;
+  }
   const box = outerBox(node), m = layerTransform(node);
   const tx = x - box.x, ty = y - box.y;
   if (m[4] !== tx || m[5] !== ty) draft.set(withLayerTransform(node, [m[0],m[1],m[2],m[3],tx,ty]));

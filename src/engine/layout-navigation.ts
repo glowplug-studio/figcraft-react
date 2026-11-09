@@ -1,7 +1,8 @@
-import type { Document, FrameNode, LayerNode, NodeId } from "./document";
+import { layerTransform, type Document, type FrameNode, type LayerNode, type NodeId } from "./document";
+import { multiply, transformBounds } from "./affine";
 import { placeGridCells } from "./grid-placement";
 import type { Point, Rectangle } from "./geometry";
-import type { HierarchyDraft } from "./hierarchy";
+import { worldTransform, type HierarchyDraft } from "./hierarchy";
 import { boundsOf } from "./viewport";
 
 type Direction = { horizontal: boolean; forward: boolean };
@@ -17,7 +18,16 @@ export function flowingParent(doc: Document, id: NodeId): FrameNode | undefined 
 
 const flip = (r: Rectangle, vertical: boolean) => (vertical ? { x: r.y, y: r.x, width: r.height, height: r.width } : r);
 function flowBoxes(doc: Document, ids: readonly NodeId[], vertical: boolean): FlowBox[] {
-  return ids.map((id, index) => ({ id, index, box: flip(boundsOf(doc, [id])!, vertical) }));
+  if (!ids.length) return [];
+  const parent = worldTransform(doc, doc.nodes[ids[0]].parent!);
+  const translated = parent[0] === 1 && parent[1] === 0 && parent[2] === 0 && parent[3] === 1;
+  return ids.map((id, index) => {
+    const n = doc.nodes[id] as LayerNode;
+    const box = translated && !n.transform
+      ? {x: parent[4]+n.x, y: parent[5]+n.y, width: n.width, height: n.height}
+      : transformBounds(multiply(parent, layerTransform(n)), n.width, n.height);
+    return {id, index, box: flip(box, vertical)};
+  });
 }
 
 function wrapRows(items: FlowBox[]) {

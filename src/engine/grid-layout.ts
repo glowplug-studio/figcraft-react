@@ -4,16 +4,21 @@ import { type Document, type FrameNode, type LayerNode } from "./document";
 import { placeGridCells, type GridCell } from "./grid-placement";
 
 
+type Requirement = {index: number; span: number; size: number};
+type AxisRequirements = {minimum: Float64Array; spans: Requirement[]};
+
+function addRequirement(axis: AxisRequirements, index: number, span: number, size: number) {
+  if (span === 1) axis.minimum[index] = Math.max(axis.minimum[index], size);
+  else axis.spans.push({index, span, size});
+}
+
 function resolveAxis(tracks: readonly GridTrack[], count: number, gap: number, hug: boolean, room: number,
-  offset: number, requirements: readonly {index: number; span: number; size: number}[]) {
+  offset: number, requirements: AxisRequirements) {
   const sizing = (i: number) => tracks[i]?.sizing ?? "fill";
   const value = (i: number) => Math.min(1e6, Math.max(0, tracks[i]?.value ?? 1));
-  const sizes = Array.from({length: count}, (_, i) => sizing(i) === "fixed" ? value(i) : 0);
-  for (const {index, span, size} of requirements)
-    if (span === 1 && sizing(index) !== "fixed") sizes[index] = Math.max(size, sizes[index]);
+  const sizes = Array.from(requirements.minimum, (minimum, i) => sizing(i) === "fixed" ? value(i) : minimum);
 
-  for (const {index, span, size} of requirements) {
-    if (span === 1) continue;
+  for (const {index, span, size} of requirements.spans) {
     const growing: number[] = [];
     let room = gap * (span - 1), flexible = false;
     for (let i = index; i < index + span; i++) {
@@ -63,14 +68,12 @@ export function gridGeometry(document: Document, frame: FrameNode) {
   const [top,right,bottom,left] = frameInsets(frame);
   const sizing = layerSizing(frame);
   const hugW = sizing.horizontal === "hug", hugH = sizing.vertical === "hug";
-  type Requirement = {index: number; span: number; size: number};
-  const widths: Requirement[] = [], heights: Requirement[] = [];
+  const widths: AxisRequirements = {minimum: new Float64Array(grid.columns), spans: []};
+  const heights: AxisRequirements = {minimum: new Float64Array(grid.rows), spans: []};
   for (const [id, cell] of grid.cells) {
     const node = document.nodes[id] as LayerNode, child = layerSizing(node), box = outerBox(node);
-    widths.push({index: cell.column, span: cell.columnSpan,
-      size: child.horizontal === "fill" && !hugW ? node.childLayout?.minWidth ?? 0 : box.width});
-    heights.push({index: cell.row, span: cell.rowSpan,
-      size: child.vertical === "fill" && !hugH ? node.childLayout?.minHeight ?? 0 : box.height});
+    addRequirement(widths, cell.column, cell.columnSpan, child.horizontal === "fill" && !hugW ? node.childLayout?.minWidth ?? 0 : box.width);
+    addRequirement(heights, cell.row, cell.rowSpan, child.vertical === "fill" && !hugH ? node.childLayout?.minHeight ?? 0 : box.height);
   }
   const x = resolveAxis(layout.columnTracks, grid.columns, Math.max(0, layout.gap), hugW, frame.width-left-right, left, widths);
   const y = resolveAxis(layout.rowTracks, grid.rows, Math.max(0, layout.crossGap), hugH, frame.height-top-bottom, top, heights);

@@ -71,6 +71,25 @@ export function placeGridCells(doc: Document, frame: FrameNode) {
   const columns = Math.min(1000, Math.max(1, layout.gridColumns));
   const maxRows = Math.min(1000, Math.floor(1_000_000 / columns));
   let rows = Math.min(1000, Math.max(1, layout.gridRows));
+  // Unanchored unit cells occupy consecutive slots, including when hidden siblings are skipped.
+  const plain = frame.children.every(id => {
+    const child = doc.nodes[id];
+    if (!child || child.kind === "page" || child.visible === false || child.childLayout?.absolute) return true;
+    const cl = child.childLayout;
+    return !cl || (cl.gridColumn === undefined && cl.gridRow === undefined &&
+      (cl.gridColumnSpan ?? 0) <= 1 && (cl.gridRowSpan ?? 0) <= 1);
+  });
+  if (plain) {
+    const cells = new Map<NodeId, GridCell>();
+    const capacity = columns * maxRows;
+    for (const id of frame.children) {
+      const child = doc.nodes[id];
+      if (!child || child.kind === "page" || child.visible === false || child.childLayout?.absolute) continue;
+      const at = cells.size, row = Math.min(maxRows-1, Math.floor(at / columns));
+      cells.set(id, {column: at < capacity ? at % columns : 0, row, columnSpan: 1, rowSpan: 1});
+    }
+    return {columns, rows: Math.max(rows, Math.min(maxRows, Math.ceil(cells.size / columns))), cells};
+  }
   const occupancy = new Occupancy(columns);
   const cells = new Map<NodeId, GridCell>();
   const pending: PendingCell[] = [];
