@@ -1,7 +1,6 @@
-import { BooleanIcon } from "./BooleanMenu";
-import { booleanLabel } from "./engine/structure";
+import { LayerList } from "./LayerList";
 import { isGroupLike, isLeaf } from "./engine/document";
-import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import type { Document, NodeId, PageNode } from "./engine/document";
 
 export interface LayerPanelProps {
@@ -14,56 +13,43 @@ export interface LayerPanelProps {
 /** Top-first layer tree; document children remain in bottom-to-top paint order. */
 export function LayerPanel({ document, selection, editable, dispatch }: LayerPanelProps) {
   const offsetDialog = useRef<HTMLDialogElement>(null);
-  const [collapsed, setCollapsed] = useState<ReadonlySet<NodeId>>(() => new Set());
+  const [filter, setFilter] = useState("");
+  const [offset, setOffset] = useState(0);
   const [target, setTarget] = useState<NodeId>(document.currentPage);
-  useEffect(() => setTarget(document.currentPage), [document.currentPage]);
+  useEffect(() => {
+    setTarget(document.currentPage);
+    setFilter("");
+    setOffset(0);
+  }, [document.currentPage]);
   const page = document.nodes[document.currentPage] as PageNode;
-  const selected = new Set(selection);
-  const containers: { id: NodeId; name: string; depth: number }[] = [{ id: page.id, name: page.name, depth: 0 }];
-  const seen = new Set<NodeId>();
-  const collect = (ids: readonly NodeId[], depth: number): void => {
-    for (const id of [...ids].reverse()) {
-      if (seen.has(id)) continue;
-      seen.add(id);
-      const node = document.nodes[id];
-      if (node && !isLeaf(node) && node.kind !== "page") {
-        containers.push({ id, name: node.name, depth });
-        collect(node.children, depth + 1);
+  const containers = useMemo(() => {
+    const result = [{ id: page.id, name: page.name, depth: 0 }];
+    function collect(ids: readonly NodeId[], depth: number) {
+      for (let i = ids.length - 1; i >= 0; i--) {
+        const node = document.nodes[ids[i]];
+        if (node && !isLeaf(node) && node.kind !== "page") {
+          result.push({id: node.id, name: node.name, depth});
+          collect(node.children, depth + 1);
+        }
       }
     }
-  };
-  collect(page.children, 1);
-  const destination = containers.some(container => container.id === target) ? target : page.id;
+    collect(page.children, 1);
+    return result;
+  }, [document.nodes, page]);
+  const pageSize = 64, paged = containers.length > pageSize;
+  const matches = useMemo(() => paged && filter ? containers.filter(item =>
+    item.name.toLocaleLowerCase().includes(filter.trim().toLocaleLowerCase()) || item.id === filter.trim()) : containers, [containers, filter, paged]);
+  const first = Math.min(offset, Math.max(0, Math.floor((matches.length - 1) / pageSize) * pageSize));
+  const choices = paged ? matches.slice(first, first + pageSize) : containers;
+  const destination = choices.find(item => item.id === target)?.id ?? choices[0]?.id;
   const active = selection.length === 1 ? document.nodes[selection[0]] : undefined;
   const parent = active && active.kind !== "page" ? document.nodes[active.parent] : undefined;
   const siblings = parent && !isLeaf(parent) ? parent.children : [];
   const position = active ? siblings.indexOf(active.id) : -1;
 
-  const toggle = (id: NodeId): void => setCollapsed(previous => {
-    const next = new Set(previous);
-    if (next.has(id)) next.delete(id); else next.add(id);
-    return next;
-  });
-  const rows = (ids: readonly NodeId[], depth: number): ReactNode => [...ids].reverse().map(id => {
-    const node = document.nodes[id];
-    if (!node || node.kind === "page") return null;
-    const parent = document.nodes[node.parent];
-    const own = parent?.kind === "booleanOp" && parent.children[0] !== id && node.boolOp !== parent.op ? node.boolOp : undefined;
-    const group = !isLeaf(node) ? node : undefined;
-    const expanded = group !== undefined && !collapsed.has(id);
-    return <li key={id} aria-current={selected.has(id) ? "true" : undefined} data-layer-id={id} style={{ paddingInlineStart: `${depth * 1.1}rem` }}>
-      {group && <button type="button" aria-label={`${expanded ? "Collapse" : "Expand"} ${group.kind} ${group.name}`} aria-expanded={expanded}
-        onClick={() => toggle(id)}>{expanded ? "▾" : "▸"}</button>}
-      <button type="button" disabled={!editable} onClick={event => dispatch("select.set", {
-        ids: event.shiftKey ? selected.has(id) ? selection.filter(current => current !== id) : [...selection, id] : [id],
-      })}>{node.kind === "booleanOp" && <BooleanIcon op={node.op}/>} {node.name}</button>
-      {own && <span aria-label={booleanLabel(own) + " operand"} title={booleanLabel(own)}><BooleanIcon op={own} /></span>}
-      {group && expanded && <ul aria-label={`Children of ${group.name}`}>{rows(group.children, depth + 1)}</ul>}
-    </li>;
-  });
   function move(event: FormEvent<HTMLFormElement>): void {
     event.preventDefault();
-    if (editable && selection.length) dispatch("node.reparent", { ids: selection, parent: destination });
+    if (editable && selection.length && destination) dispatch("node.reparent", { ids: selection, parent: destination });
   }
   const reorder = (index: number): void => {
     if (editable && active) dispatch("node.reorder", { id: active.id, index });
@@ -71,7 +57,7 @@ export function LayerPanel({ document, selection, editable, dispatch }: LayerPan
 
   return <section aria-label="Layers">
     <h2>{page.name}</h2><p>{page.children.length} {page.children.length === 1 ? "layer" : "layers"}</p>
-    <ul aria-label="Page layers">{rows(page.children, 0)}</ul>
+    <LayerList key={page.id} document={document} selection={selection} editable={editable} dispatch={dispatch}/>
     <div role="group" aria-label="Layer actions">
       <button type="button" disabled={!editable || selection.length === 0} onClick={() => dispatch("edit.duplicate")}>Duplicate layers</button>
       <button type="button" disabled={!editable || selection.length === 0} onClick={() => dispatch("object.group", { ids: selection })}>Group</button>
@@ -110,12 +96,20 @@ export function LayerPanel({ document, selection, editable, dispatch }: LayerPan
       <button type="button" disabled={!editable || position <= 0} onClick={() => reorder(position - 1)}>Move layer down</button>
     </div>
     <form onSubmit={move}>
+      {paged && <label>Find destination<input type="search" value={filter} onChange={event => {
+        setFilter(event.currentTarget.value); setOffset(0);
+      }}/></label>}
       <label>Move selection into
-        <select value={destination} onChange={event => setTarget(event.currentTarget.value)} disabled={!editable || selection.length === 0}>
-          {containers.map(container => <option key={container.id} value={container.id}>{"  ".repeat(container.depth)}{container.name}</option>)}
+        <select value={destination ?? ""} onChange={event => setTarget(event.currentTarget.value)} disabled={!editable || selection.length === 0}>
+          {choices.map(container => <option key={container.id} value={container.id}>{"  ".repeat(container.depth)}{container.name}</option>)}
         </select>
       </label>
-      <button type="submit" disabled={!editable || selection.length === 0}>Move selection</button>
+      {paged && <div>
+        <button type="button" disabled={!first} onClick={() => setOffset(first - pageSize)}>Previous destinations</button>
+        <button type="button" disabled={first + pageSize >= matches.length} onClick={() => setOffset(first + pageSize)}>Next destinations</button>
+        <span aria-live="polite">{matches.length ? `${first + 1}–${first + choices.length} of ${matches.length}` : "No matching destinations"}</span>
+      </div>}
+      <button type="submit" disabled={!editable || !destination || selection.length === 0}>Move selection</button>
     </form>
   </section>;
 }

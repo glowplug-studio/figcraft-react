@@ -319,9 +319,16 @@ describe("bounded native Figcraft file adapter", () => {
     await expect(decodeFigcraft(archive)).rejects.toThrow("CRC32 checksum mismatch");
   });
 
-  it("rejects documents over the browser node count limit before graph traversal", async () => {
+  it("opens wide native pages and still checks every child relationship", async () => {
     const native = fixture();
-    for (let index = 3; index <= 10_001; index++) native.nodes[String(index)] = { ...native.nodes["2"], id: index };
-    await expect(decodeFigcraft(bytes(JSON.stringify(native)))).rejects.toThrow("more than 10000 nodes");
+    const children = native.nodes["1"].children as number[];
+    for (let index = 3; index <= 10_001; index++) {
+      native.nodes[String(index)] = { ...native.nodes["2"], id: index };
+      children.push(index);
+    }
+    const file = () => bytes(JSON.stringify(native));
+    expect(Object.keys((await decodeFigcraft(file())).document.nodes)).toHaveLength(10_001);
+    children.push(2);
+    await expect(decodeFigcraft(file())).rejects.toThrow("invalid, repeated or cyclic child relationship");
   });
 });

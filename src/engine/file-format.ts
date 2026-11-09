@@ -17,14 +17,13 @@ import { transformBounds, type Affine } from "./affine";
 /** A deliberately bounded adapter for native format v1, not full archive parity.
  * Source: original/figcraft/crates/{format/src/lib.rs,doc/src/{lib,node,props}.rs}.
  * Unsupported data is rejected, never opened and silently discarded on save.
- * Root fields and node records are parsed separately for large JSON files. The layer panel currently supports 10,000 nodes.
+ * Root fields and node records are parsed separately for large JSON files.
  * zip.js checks metadata, bounds inflation and verifies CRC32 for each member.
  */
 export const MAX_DOCUMENT_BYTES = 1024 ** 3;
 export const MAX_ARCHIVE_MEMBER = 512 * 1024 * 1024;
 export const MAX_UNPACKED_BYTES = 2 * 1024 ** 3; // Native browser target.
 const MAX_DIRECTORY_READ = 16 * 1024 * 1024;
-export const FIGCRAFT_NODE_LIMIT = 10_000;
 export const FIGCRAFT_TREE_DEPTH_LIMIT = 256;
 const U64_MAX = 18_446_744_073_709_551_615n;
 type ObjectValue = Record<string, unknown>;
@@ -214,7 +213,7 @@ function decodeDocument(raw: unknown, parsedNodes?: Record<string,DocumentNode>)
   const nodes: Record<string,DocumentNode> = parsedNodes ?? Object.create(null);
   let maximum = 0n, count = 0;
   for (const key of Object.keys(source)) {
-    if (++count > FIGCRAFT_NODE_LIMIT) fail(`more than ${FIGCRAFT_NODE_LIMIT} nodes`);
+    count++;
     if (!parsedNodes) nodes[key] = readNode(key,source[key]);
     const id = BigInt(key);
     if (id > maximum) maximum = id;
@@ -225,14 +224,16 @@ function decodeDocument(raw: unknown, parsedNodes?: Record<string,DocumentNode>)
     if (!page || page.kind !== "page") fail("page list refers to a missing or non-page node");
     if (referenced.has(pageId)) fail("duplicate page root");
     referenced.add(pageId);
-    const pending = page.children.map(childId => ({ childId, parentId: pageId, depth: 1 }));
+    // One cursor per ancestor keeps wide pages from allocating a second list of all their children.
+    const pending = [{ parent: page.id, children: page.children, index: 0 }];
     while (pending.length) {
-      const { childId, parentId, depth } = pending.pop()!;
-      if (depth > FIGCRAFT_TREE_DEPTH_LIMIT) fail(`layer tree exceeds the maximum depth of ${FIGCRAFT_TREE_DEPTH_LIMIT}`);
-      const child = nodes[childId];
-      if (!child || child.kind === "page" || child.parent !== parentId || referenced.has(childId)) fail("invalid, repeated or cyclic child relationship");
+      const cursor = pending[pending.length - 1];
+      if (cursor.index === cursor.children.length) { pending.pop(); continue; }
+      if (pending.length > FIGCRAFT_TREE_DEPTH_LIMIT) fail(`layer tree exceeds the maximum depth of ${FIGCRAFT_TREE_DEPTH_LIMIT}`);
+      const childId = cursor.children[cursor.index++], child = nodes[childId];
+      if (!child || child.kind === "page" || child.parent !== cursor.parent || referenced.has(childId)) fail("invalid, repeated or cyclic child relationship");
       referenced.add(childId);
-      if (!isLeaf(child)) for (const grandchild of child.children) pending.push({ childId: grandchild, parentId: childId, depth: depth + 1 });
+      if (!isLeaf(child)) pending.push({parent: childId, children: child.children, index: 0});
     }
   }
   if (referenced.size !== count) fail("unlisted pages or orphan nodes");
@@ -252,7 +253,7 @@ async function parseDocument(source: Uint8Array | Blob) {
     root = object(parse(json, undefined, {onDuplicateKey: ({key}) => fail(`duplicate JSON key ${key}`)}), "document");
     decoded = decodeDocument(root);
   } else {
-    let offset = 0, count = 0;
+    let offset = 0;
     const stream = source instanceof Blob ? source.stream() : new ReadableStream<Uint8Array<ArrayBuffer>>({
       pull(controller) {
         if (offset === source.length) { controller.close(); return; }
@@ -261,10 +262,7 @@ async function parseDocument(source: Uint8Array | Blob) {
         offset = end;
       },
     });
-    root = await readNativeJson(stream, (key,raw) => {
-      if (++count > FIGCRAFT_NODE_LIMIT) fail(`more than ${FIGCRAFT_NODE_LIMIT} nodes`);
-      return readNode(key,raw);
-    });
+    root = await readNativeJson(stream, readNode);
     decoded = decodeDocument(root,Object.freeze(object(root.nodes,"nodes")) as Record<string,DocumentNode>);
   }
   const listed = new Set<string>();
