@@ -1,5 +1,6 @@
 /// <reference path="./text-font-assets.d.ts" />
-import type { Document, TextNode } from "./document";
+import { multiply } from "./affine";
+import { rectangleTransform, withLayerTransform, type Document, type TextNode } from "./document";
 import type { TextData } from "./text-data";
 import { FontLibrary } from "./font-library";
 import { readFontFaces } from "./font-source";
@@ -27,6 +28,7 @@ export async function prepareText(characters = "") {
 }
 
 export const fontFamilies = () => fonts?.families() ?? [];
+export const familyStyleWeights = (family:string) => fonts?.styleWeights(family) ?? [];
 export const familyStyles = (family: string) => fonts?.styles(family) ?? [];
 
 export const fontStyleWarning = (family:string, style:string) => fonts?.styleWarning(family, style);
@@ -50,6 +52,14 @@ export function autoSizeText(node: TextNode): TextNode {
   const fixedWidth = text.autoResize === "height";
   const layout = measure(text, fixedWidth ? {width: node.width} : {});
   return Object.freeze({...node, width: fixedWidth ? node.width : Math.max(1, Math.ceil(layout.width)), height: Math.max(1, layout.height)});
+}
+
+export function fitEditedText(node:TextNode, previous:TextNode) {
+  const fitted = autoSizeText(node);
+  const right = (n:TextNode) => n.text.autoResize === "widthAndHeight" && n.text.alignH === "right";
+  if (right(previous) && right(fitted) && fitted.width !== node.width)
+    return withLayerTransform(fitted,multiply(rectangleTransform(node),[1,0,0,1,node.width-fitted.width,0]));
+  return fitted;
 }
 
 function layoutNode(node: TextNode) {

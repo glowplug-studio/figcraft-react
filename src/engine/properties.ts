@@ -1,6 +1,6 @@
 import { isTextKey, setTextProperties, textCommandProperties } from "./text-properties";
 import { textSpans } from "./text-ranges";
-import { autoSizeText, fontStyleWarning } from "./text-node-layout";
+import { fitEditedText, fontStyleWarning } from "./text-node-layout";
 import { readEffects, withEffects } from "./effects";
 import { blendFromName, type BlendMode } from "./blend";
 import { isMaskType, withMaskProperties, layerBlend, isBooleanOperation, isGroupLike } from "./document";
@@ -176,12 +176,8 @@ export function setRectangleProperties(document: Document, selection: readonly N
       if (updated.kind !== "text") throw new Error("Text properties require a text layer");
       updated = setTextProperties(updated, props, textKeys);
     }
-    if (updated.kind === "text" && (textKeys.length || width !== node.width || height !== node.height)) {
-      const fitted = autoSizeText(updated);
-      const keepRight = node.kind === "text" && node.text.alignH === "right" && node.text.autoResize === "widthAndHeight";
-      updated = keepRight && fitted.text.autoResize === "widthAndHeight" && fitted.text.alignH === "right" && fitted.width !== width
-        ? withRectangleTransform(fitted, multiply(transform, [1, 0, 0, 1, width - fitted.width, 0])) : fitted;
-    }
+    if (updated.kind === "text" && node.kind === "text" && (textKeys.length || width !== node.width || height !== node.height))
+      updated = fitEditedText(updated, node);
     const changeBlend = blend !== undefined && blend !== layerBlend(node);
     if (changeBlend) {
       if (isLeaf(node) && blend === "normal") {

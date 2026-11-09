@@ -1,0 +1,1024 @@
+[
+  {
+    "index": 0,
+    "commands": [
+      {
+        "command": "text.bold",
+        "params": {}
+      },
+      {
+        "command": "text.bold",
+        "params": {}
+      }
+    ],
+    "result": {
+      "ok": true
+    },
+    "expected": {
+      "absoluteBounds": {
+        "height": 30.0,
+        "width": 61.0,
+        "x": 0.0,
+        "y": 0.0
+      },
+      "characters": "A🙂bc\nქართული",
+      "fills": [
+        {
+          "color": "#000000",
+          "type": "solid"
+        }
+      ],
+      "fontFamily": "Inter",
+      "fontSize": 12.0,
+      "fontStyle": "Regular",
+      "height": 30.0,
+      "id": 2,
+      "letterSpacing": "0%",
+      "lineHeight": "Auto",
+      "name": "A🙂bc",
+      "sizing": {
+        "horizontal": "hug",
+        "vertical": "hug"
+      },
+      "textAlign": "left",
+      "textAutoResize": "widthAndHeight",
+      "type": "TEXT",
+      "width": 61.0,
+      "x": 0.0,
+      "y": 0.0
+    }
+  },
+  {
+    "index": 7,
+    "commands": [
+      {
+        "command": "node.set",
+        "params": {
+          "props": {
+            "fontFamily": "Absent",
+            "fontStyle": "W6 Italic"
+          }
+        }
+      },
+      {
+        "command": "text.strikethrough",
+        "params": {}
+      },
+      {
+        "command": "text.strikethrough",
+        "params": {}
+      }
+    ],
+    "result": {
+      "ok": true
+    },
+    "expected": {
+      "absoluteBounds": {
+        "height": 30.0,
+        "width": 61.0,
+        "x": 0.0,
+        "y": 0.0
+      },
+      "characters": "A🙂bc\nქართული",
+      "fills": [
+        {
+          "color": "#000000",
+          "type": "solid"
+        }
+      ],
+      "fontFamily": "Absent",
+      "fontSize": 12.0,
+      "fontStyle": "W6 Italic",
+      "height": 30.0,
+      "id": 2,
+      "letterSpacing": "0%",
+      "lineHeight": "Auto",
+      "name": "A🙂bc",
+      "sizing": {
+        "horizontal": "hug",
+        "vertical": "hug"
+      },
+      "textAlign": "left",
+      "textAutoResize": "widthAndHeight",
+      "type": "TEXT",
+      "width": 61.0,
+      "x": 0.0,
+      "y": 0.0
+    }
+  },
+  {
+    "index": 23,
+    "commands": [
+      {
+        "command": "node.set",
+        "params": {
+          "props": {
+            "fontFamily": "Noto Sans Georgian",
+            "fontVariations": {
+              "wght": 570,
+              "wdth": 86
+            }
+          }
+        }
+      },
+      {
+        "command": "text.weightDown",
+        "params": {}
+      },
+      {
+        "command": "text.weightDown",
+        "params": {}
+      }
+    ],
+    "result": {
+      "ok": true
+    },
+    "expected": {
+      "absoluteBounds": {
+        "height": 32.0,
+        "width": 55.0,
+        "x": 0.0,
+        "y": 0.0
+      },
+      "characters": "A🙂bc\nქართული",
+      "fills": [
+        {
+          "color": "#000000",
+          "type": "solid"
+        }
+      ],
+      "fontFamily": "Noto Sans Georgian",
+      "fontSize": 12.0,
+      "fontStyle": "Regular",
+      "fontVariations": {
+        "wdth": 86.0
+      },
+      "height": 32.0,
+      "id": 2,
+      "letterSpacing": "0%",
+      "lineHeight": "Auto",
+      "name": "A🙂bc",
+      "sizing": {
+        "horizontal": "hug",
+        "vertical": "hug"
+      },
+      "textAlign": "left",
+      "textAutoResize": "widthAndHeight",
+      "type": "TEXT",
+      "width": 55.0,
+      "x": 0.0,
+      "y": 0.0
+    }
+  },
+  {
+    "index": 108,
+    "commands": [
+      {
+        "command": "text.setVariations",
+        "params": {
+          "variations": null,
+          "replace": true
+        }
+      },
+      {
+        "command": "text.setVariations",
+        "params": {
+          "variations": null,
+          "replace": true
+        }
+      }
+    ],
+    "result": {
+      "error": true
+    },
+    "expected": {
+      "absoluteBounds": {
+        "height": 30.0,
+        "width": 61.0,
+        "x": 0.0,
+        "y": 0.0
+      },
+      "characters": "A🙂bc\nქართული",
+      "fills": [
+        {
+          "color": "#000000",
+          "type": "solid"
+        }
+      ],
+      "fontFamily": "Inter",
+      "fontSize": 12.0,
+      "fontStyle": "Regular",
+      "height": 30.0,
+      "id": 2,
+      "letterSpacing": "0%",
+      "lineHeight": "Auto",
+      "name": "A🙂bc",
+      "sizing": {
+        "horizontal": "hug",
+        "vertical": "hug"
+      },
+      "textAlign": "left",
+      "textAutoResize": "widthAndHeight",
+      "type": "TEXT",
+      "width": 61.0,
+      "x": 0.0,
+      "y": 0.0
+    }
+  },
+  {
+    "index": 129,
+    "commands": [
+      {
+        "command": "node.set",
+        "params": {
+          "props": {
+            "fontStyle": "SemiBold",
+            "textDecoration": "underline"
+          }
+        }
+      },
+      {
+        "command": "node.set",
+        "params": {
+          "props": {
+            "start": 1,
+            "end": 5,
+            "fontStyle": "Italic",
+            "fontSize": 19
+          }
+        }
+      },
+      {
+        "command": "text.edit.begin",
+        "params": {
+          "caret": 1
+        }
+      },
+      {
+        "command": "text.edit.caret",
+        "params": {
+          "index": 5,
+          "extend": true
+        }
+      },
+      {
+        "command": "text.wrapStyle",
+        "params": {
+          "style": "pretty"
+        }
+      },
+      {
+        "command": "text.bulletList",
+        "params": {}
+      },
+      {
+        "command": "text.setFeatures",
+        "params": {
+          "features": {
+            "kern": null
+          },
+          "replace": false
+        }
+      },
+      {
+        "command": "text.direction",
+        "params": {
+          "direction": "rtl"
+        }
+      },
+      {
+        "command": "text.case",
+        "params": {
+          "case": "small caps"
+        }
+      }
+    ],
+    "result": {
+      "ok": true
+    },
+    "expected": {
+      "absoluteBounds": {
+        "height": 38.0,
+        "width": 63.0,
+        "x": 0.0,
+        "y": 0.0
+      },
+      "characters": "A🙂bc\nქართული",
+      "fills": [
+        {
+          "color": "#000000",
+          "type": "solid"
+        }
+      ],
+      "fontFamily": "Inter",
+      "fontSize": 12.0,
+      "fontStyle": "SemiBold",
+      "height": 38.0,
+      "id": 2,
+      "letterSpacing": "0%",
+      "lineDirections": [
+        "rtl",
+        "auto"
+      ],
+      "lineHeight": "Auto",
+      "lineIndentations": [
+        0,
+        0
+      ],
+      "lineTypes": [
+        "bulleted",
+        "none"
+      ],
+      "name": "A🙂bc",
+      "sizing": {
+        "horizontal": "hug",
+        "vertical": "hug"
+      },
+      "styledRuns": [
+        {
+          "end": 5,
+          "start": 1,
+          "style": {
+            "case": "smallCaps",
+            "decoration": "underline",
+            "fills": null,
+            "font_family": "Inter",
+            "font_size": 19.0,
+            "font_style": "Italic",
+            "letter_spacing": {
+              "unit": "percent",
+              "value": 0.0
+            },
+            "line_height": {
+              "unit": "auto"
+            },
+            "link": null
+          }
+        }
+      ],
+      "textAlign": "left",
+      "textAutoResize": "widthAndHeight",
+      "textDecoration": "underline",
+      "type": "TEXT",
+      "width": 63.0,
+      "wrapStyle": "pretty",
+      "x": 0.0,
+      "y": 0.0
+    }
+  },
+  {
+    "index": 159,
+    "commands": [
+      {
+        "command": "node.set",
+        "params": {
+          "props": {
+            "fontFamily": "Absent",
+            "fontStyle": "W6 Italic"
+          }
+        }
+      },
+      {
+        "command": "text.caseSmallCaps",
+        "params": {}
+      },
+      {
+        "command": "text.maxLines",
+        "params": {
+          "lines": 2.5
+        }
+      },
+      {
+        "command": "text.trackingUp",
+        "params": {}
+      },
+      {
+        "command": "text.paragraphSpacing",
+        "params": {
+          "spacing": 6
+        }
+      },
+      {
+        "command": "text.lineHeightUp",
+        "params": {}
+      },
+      {
+        "command": "text.link",
+        "params": {
+          "url": ""
+        }
+      }
+    ],
+    "result": {
+      "ok": true
+    },
+    "expected": {
+      "absoluteBounds": {
+        "height": 38.0,
+        "width": 48.0,
+        "x": 0.0,
+        "y": 0.0
+      },
+      "characters": "A🙂bc\nქართული",
+      "fills": [
+        {
+          "color": "#000000",
+          "type": "solid"
+        }
+      ],
+      "fontFamily": "Absent",
+      "fontSize": 12.0,
+      "fontStyle": "W6 Italic",
+      "height": 38.0,
+      "id": 2,
+      "letterSpacing": "1%",
+      "lineHeight": "16",
+      "maxLines": 2,
+      "name": "A🙂bc",
+      "sizing": {
+        "horizontal": "hug",
+        "vertical": "hug"
+      },
+      "textAlign": "left",
+      "textAutoResize": "widthAndHeight",
+      "textDecoration": "underline",
+      "type": "TEXT",
+      "width": 48.0,
+      "x": 0.0,
+      "y": 0.0
+    }
+  },
+  {
+    "index": 173,
+    "commands": [
+      {
+        "command": "node.set",
+        "params": {
+          "props": {
+            "fontFamily": "Absent",
+            "fontStyle": "W6 Italic"
+          }
+        }
+      },
+      {
+        "command": "text.edit.begin",
+        "params": {
+          "caret": 5
+        }
+      },
+      {
+        "command": "text.edit.caret",
+        "params": {
+          "index": 10,
+          "extend": true
+        }
+      },
+      {
+        "command": "text.listStyle",
+        "params": {
+          "list": "bulleted"
+        }
+      },
+      {
+        "command": "text.direction",
+        "params": {
+          "direction": "AUTO"
+        }
+      },
+      {
+        "command": "text.caseSmallCaps",
+        "params": {}
+      },
+      {
+        "command": "text.setVariations",
+        "params": {
+          "variations": null,
+          "replace": true
+        }
+      },
+      {
+        "command": "text.lineHeightDown",
+        "params": {}
+      },
+      {
+        "command": "text.alignCenter",
+        "params": {}
+      }
+    ],
+    "result": {
+      "error": true
+    },
+    "expected": {
+      "absoluteBounds": {
+        "height": 30.0,
+        "width": 70.0,
+        "x": 0.0,
+        "y": 0.0
+      },
+      "characters": "A🙂bc\nქართული",
+      "fills": [
+        {
+          "color": "#000000",
+          "type": "solid"
+        }
+      ],
+      "fontFamily": "Absent",
+      "fontSize": 12.0,
+      "fontStyle": "W6 Italic",
+      "height": 30.0,
+      "id": 2,
+      "letterSpacing": "0%",
+      "lineHeight": "Auto",
+      "lineIndentations": [
+        0,
+        0
+      ],
+      "lineTypes": [
+        "none",
+        "bulleted"
+      ],
+      "name": "A🙂bc",
+      "sizing": {
+        "horizontal": "hug",
+        "vertical": "hug"
+      },
+      "styledRuns": [
+        {
+          "end": 10,
+          "start": 5,
+          "style": {
+            "case": "smallCaps",
+            "decoration": "none",
+            "fills": null,
+            "font_family": "Absent",
+            "font_size": 12.0,
+            "font_style": "W6 Italic",
+            "letter_spacing": {
+              "unit": "percent",
+              "value": 0.0
+            },
+            "line_height": {
+              "unit": "auto"
+            },
+            "link": null
+          }
+        }
+      ],
+      "textAlign": "left",
+      "textAutoResize": "widthAndHeight",
+      "type": "TEXT",
+      "width": 70.0,
+      "x": 0.0,
+      "y": 0.0
+    }
+  },
+  {
+    "index": 189,
+    "commands": [
+      {
+        "command": "text.edit.begin",
+        "params": {
+          "caret": 9
+        }
+      },
+      {
+        "command": "text.edit.caret",
+        "params": {
+          "index": 10,
+          "extend": true
+        }
+      },
+      {
+        "command": "text.setFeatures",
+        "params": {
+          "features": {
+            "liga": 0,
+            "tnum": true
+          }
+        }
+      },
+      {
+        "command": "text.directionAuto",
+        "params": {}
+      },
+      {
+        "command": "text.weightDown",
+        "params": {}
+      },
+      {
+        "command": "text.setVariations",
+        "params": {
+          "variations": {
+            "wght": 630,
+            "wdth": 95
+          }
+        }
+      },
+      {
+        "command": "text.setFeatures",
+        "params": {
+          "features": {
+            "kern": null
+          },
+          "replace": false
+        }
+      }
+    ],
+    "result": {
+      "ok": true
+    },
+    "expected": {
+      "absoluteBounds": {
+        "height": 30.0,
+        "width": 62.0,
+        "x": 0.0,
+        "y": 0.0
+      },
+      "characters": "A🙂bc\nქართული",
+      "fills": [
+        {
+          "color": "#000000",
+          "type": "solid"
+        }
+      ],
+      "fontFamily": "Inter",
+      "fontSize": 12.0,
+      "fontStyle": "Regular",
+      "height": 30.0,
+      "id": 2,
+      "letterSpacing": "0%",
+      "lineHeight": "Auto",
+      "name": "A🙂bc",
+      "sizing": {
+        "horizontal": "hug",
+        "vertical": "hug"
+      },
+      "styledRuns": [
+        {
+          "end": 10,
+          "start": 9,
+          "style": {
+            "case": "original",
+            "decoration": "none",
+            "fills": null,
+            "font_family": "Inter",
+            "font_size": 12.0,
+            "font_style": "Regular",
+            "letter_spacing": {
+              "unit": "percent",
+              "value": 0.0
+            },
+            "line_height": {
+              "unit": "auto"
+            },
+            "link": null,
+            "variations": {
+              "wdth": 95.0,
+              "wght": 630.0
+            }
+          }
+        }
+      ],
+      "textAlign": "left",
+      "textAutoResize": "widthAndHeight",
+      "type": "TEXT",
+      "width": 62.0,
+      "x": 0.0,
+      "y": 0.0
+    }
+  },
+  {
+    "index": 214,
+    "commands": [
+      {
+        "command": "node.set",
+        "params": {
+          "props": {
+            "fontSize": 1,
+            "lineHeight": "25%",
+            "letterSpacing": 2
+          }
+        }
+      },
+      {
+        "command": "node.set",
+        "params": {
+          "props": {
+            "fontStyle": "SemiBold",
+            "textDecoration": "underline"
+          }
+        }
+      },
+      {
+        "command": "text.direction",
+        "params": {
+          "direction": "rtl"
+        }
+      },
+      {
+        "command": "text.link",
+        "params": {
+          "url": ""
+        }
+      },
+      {
+        "command": "text.setVariations",
+        "params": {
+          "variations": {
+            "wght": null,
+            "slnt": -9
+          }
+        }
+      },
+      {
+        "command": "text.wrapStyle",
+        "params": {
+          "style": "pretty"
+        }
+      },
+      {
+        "command": "text.listStyle",
+        "params": {
+          "list": "none"
+        }
+      }
+    ],
+    "result": {
+      "ok": true
+    },
+    "expected": {
+      "absoluteBounds": {
+        "height": 1.0,
+        "width": 18.0,
+        "x": 0.0,
+        "y": 0.0
+      },
+      "characters": "A🙂bc\nქართული",
+      "fills": [
+        {
+          "color": "#000000",
+          "type": "solid"
+        }
+      ],
+      "fontFamily": "Inter",
+      "fontSize": 1.0,
+      "fontStyle": "SemiBold",
+      "fontVariations": {
+        "slnt": -9.0
+      },
+      "height": 1.0,
+      "id": 2,
+      "letterSpacing": "2",
+      "lineHeight": "25%",
+      "lineIndentations": [
+        0,
+        0
+      ],
+      "lineTypes": [
+        "none",
+        "none"
+      ],
+      "name": "A🙂bc",
+      "sizing": {
+        "horizontal": "hug",
+        "vertical": "hug"
+      },
+      "textAlign": "left",
+      "textAutoResize": "widthAndHeight",
+      "textDecoration": "underline",
+      "textDirection": "rtl",
+      "type": "TEXT",
+      "width": 18.0,
+      "wrapStyle": "pretty",
+      "x": 0.0,
+      "y": 0.0
+    }
+  },
+  {
+    "index": 323,
+    "commands": [
+      {
+        "command": "node.set",
+        "params": {
+          "props": {
+            "fontFamily": "Noto Sans Georgian",
+            "fontVariations": {
+              "wght": 570,
+              "wdth": 86
+            }
+          }
+        }
+      },
+      {
+        "command": "node.set",
+        "params": {
+          "props": {
+            "fontFamily": "Absent",
+            "fontStyle": "W6 Italic"
+          }
+        }
+      },
+      {
+        "command": "text.directionAuto",
+        "params": {}
+      },
+      {
+        "command": "text.maxLines",
+        "params": {
+          "lines": -2
+        }
+      }
+    ],
+    "result": {
+      "ok": true
+    },
+    "expected": {
+      "absoluteBounds": {
+        "height": 30.0,
+        "width": 55.0,
+        "x": 0.0,
+        "y": 0.0
+      },
+      "characters": "A🙂bc\nქართული",
+      "fills": [
+        {
+          "color": "#000000",
+          "type": "solid"
+        }
+      ],
+      "fontFamily": "Absent",
+      "fontSize": 12.0,
+      "fontStyle": "W6 Italic",
+      "fontVariations": {
+        "wdth": 86.0
+      },
+      "height": 30.0,
+      "id": 2,
+      "letterSpacing": "0%",
+      "lineHeight": "Auto",
+      "name": "A🙂bc",
+      "sizing": {
+        "horizontal": "hug",
+        "vertical": "hug"
+      },
+      "textAlign": "left",
+      "textAutoResize": "widthAndHeight",
+      "type": "TEXT",
+      "width": 55.0,
+      "x": 0.0,
+      "y": 0.0
+    }
+  },
+  {
+    "index": 480,
+    "commands": [
+      {
+        "command": "text.paragraphIndent",
+        "params": {
+          "indent": -3
+        }
+      },
+      {
+        "command": "text.setFeatures",
+        "params": {
+          "features": {
+            "bad": 4
+          }
+        }
+      },
+      {
+        "command": "text.link",
+        "params": {
+          "url": "https://example.org"
+        }
+      },
+      {
+        "command": "text.decoration",
+        "params": {
+          "decoration": "none"
+        }
+      },
+      {
+        "command": "text.case",
+        "params": {
+          "case": "small caps"
+        }
+      },
+      {
+        "command": "text.italic",
+        "params": {}
+      }
+    ],
+    "result": {
+      "error": true
+    },
+    "expected": {
+      "absoluteBounds": {
+        "height": 30.0,
+        "width": 61.0,
+        "x": 0.0,
+        "y": 0.0
+      },
+      "characters": "A🙂bc\nქართული",
+      "fills": [
+        {
+          "color": "#000000",
+          "type": "solid"
+        }
+      ],
+      "fontFamily": "Inter",
+      "fontSize": 12.0,
+      "fontStyle": "Regular",
+      "height": 30.0,
+      "id": 2,
+      "letterSpacing": "0%",
+      "lineHeight": "Auto",
+      "name": "A🙂bc",
+      "sizing": {
+        "horizontal": "hug",
+        "vertical": "hug"
+      },
+      "textAlign": "left",
+      "textAutoResize": "widthAndHeight",
+      "type": "TEXT",
+      "width": 61.0,
+      "x": 0.0,
+      "y": 0.0
+    }
+  },
+  {
+    "index": 519,
+    "commands": [
+      {
+        "command": "node.set",
+        "params": {
+          "props": {
+            "fontFamily": "Absent",
+            "fontStyle": "W6 Italic"
+          }
+        }
+      },
+      {
+        "command": "node.set",
+        "params": {
+          "props": {
+            "fontFamily": "Absent",
+            "fontStyle": "W6 Italic"
+          }
+        }
+      },
+      {
+        "command": "text.listStyle",
+        "params": {
+          "list": "none"
+        }
+      },
+      {
+        "command": "text.maxLines",
+        "params": {
+          "lines": -2
+        }
+      },
+      {
+        "command": "text.weightDown",
+        "params": {}
+      }
+    ],
+    "result": {
+      "ok": true
+    },
+    "expected": {
+      "absoluteBounds": {
+        "height": 30.0,
+        "width": 60.0,
+        "x": 0.0,
+        "y": 0.0
+      },
+      "characters": "A🙂bc\nქართული",
+      "fills": [
+        {
+          "color": "#000000",
+          "type": "solid"
+        }
+      ],
+      "fontFamily": "Absent",
+      "fontSize": 12.0,
+      "fontStyle": "Light Italic",
+      "height": 30.0,
+      "id": 2,
+      "letterSpacing": "0%",
+      "lineHeight": "Auto",
+      "name": "A🙂bc",
+      "sizing": {
+        "horizontal": "hug",
+        "vertical": "hug"
+      },
+      "textAlign": "left",
+      "textAutoResize": "widthAndHeight",
+      "type": "TEXT",
+      "width": 60.0,
+      "x": 0.0,
+      "y": 0.0
+    }
+  }
+]

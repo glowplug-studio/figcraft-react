@@ -1,3 +1,4 @@
+import { textShortcut } from "./text-shortcuts";
 import { inverse, transformPoint } from "./affine";
 import { dropParent, lockedIn } from "./canvas-selection";
 import { canvasAccent } from "./canvas-colours";
@@ -139,6 +140,7 @@ export class CanvasTextInput {
       this.#session=this.engine.beginTextEdit(target);
       const input=this.canvas.ownerDocument.createElement("textarea");
       this.#input=input;
+      input.dataset.figcraftTextInput = "";
       input.setAttribute("aria-label","Edit text layer"); input.spellcheck=false;
       input.style.cssText="position:fixed;width:1px;height:1em;padding:0;border:0;opacity:0;pointer-events:none;resize:none;font-size:16px";
       input.value=this.#session.node().text.characters;
@@ -154,10 +156,23 @@ export class CanvasTextInput {
       input.addEventListener("select",this.#updateRange);
       input.addEventListener("keyup",this.#updateRange);
       input.addEventListener("keydown",this.#key);
+      // Chromium restores focus after a modal, but can reset the textarea selection to zero.
+      let inspectorRange: {start:number; end:number; direction:"forward"|"backward"|"none"; value:string} | undefined;
+      input.addEventListener("focus", () => {
+        const saved = inspectorRange;
+        inspectorRange = undefined;
+        if (saved && saved.value === input.value) {
+          input.setSelectionRange(saved.start,saved.end,saved.direction);
+          this.#updateRange();
+        }
+      });
       input.addEventListener("blur", event => {
         const next = event.relatedTarget;
         if (next instanceof Element && next.closest("[data-figcraft-typography]") &&
-          next.closest("[data-figcraft-editor]") === this.canvas.closest("[data-figcraft-editor]")) return;
+          next.closest("[data-figcraft-editor]") === this.canvas.closest("[data-figcraft-editor]")) {
+          inspectorRange = {start:input.selectionStart,end:input.selectionEnd,direction:input.selectionDirection,value:input.value};
+          return;
+        }
         if (this.#input === input) this.finish();
       });
       input.focus({preventScroll:true});
@@ -223,17 +238,51 @@ export class CanvasTextInput {
       if (from && /[\uD800-\uDBFF]/.test(before[from-1])) from--;
       if (to<before.length && /[\uDC00-\uDFFF]/.test(before[to])) { to++;end++; }
     }
-    session.replace(utf16ToScalar(before,from),utf16ToScalar(before,to),value.slice(from,end));
+    const start = utf16ToScalar(before,from), stop = utf16ToScalar(before,to), insertion = value.slice(from,end);
+    const caret = session.marker(start,stop,insertion);
+    if (caret === undefined) session.replace(start,stop,insertion);
+    else {
+      input.value = session.node().text.characters;
+      const offset = scalarToUtf16(input.value,caret);
+      input.setSelectionRange(offset,offset);
+    }
     this.#selection=undefined;
     if (input.value !== session.node().text.characters) input.value=session.node().text.characters;
     this.#updateRange();
   }
   #key = (e: KeyboardEvent) => {
     if (e.isComposing || this.#composing) return;
+    if (e.key==="Enter" && e.altKey && !e.shiftKey && !e.ctrlKey && !e.metaKey) {
+      e.preventDefault(); e.stopPropagation(); this.#updateRange();
+      try {
+        const {url}=this.engine.execute("text.openLink");
+        if (typeof url==="string") this.canvas.ownerDocument.defaultView?.open(url,"_blank","noopener,noreferrer");
+      } catch (error) { this.onError(error instanceof Error ? error.message : "Could not open link"); }
+      return;
+    }
+    const shortcut = textShortcut(e,true);
+    if (shortcut) {
+      e.preventDefault(); e.stopPropagation();
+      if (this.#pending) return;
+      this.#updateRange();
+      try { this.engine.execute(shortcut); } catch (error) { this.onError(error instanceof Error ? error.message : "Formatting failed"); }
+      return;
+    }
+    const input = this.#input!, session = this.#session!;
+    if (!e.altKey && !e.ctrlKey && !e.metaKey && ["Tab","Backspace","Delete","Enter"].includes(e.key) && !this.#pending) {
+      const start = utf16ToScalar(input.value,input.selectionStart), end = utf16ToScalar(input.value,input.selectionEnd);
+      if (session.listKey(e.key,e.shiftKey,start,end)) { e.preventDefault(); e.stopPropagation(); this.invalidate(); return; }
+      if (e.key === "Tab") {
+        e.preventDefault(); e.stopPropagation();
+        this.#selection = [input.selectionStart,input.selectionEnd];
+        input.setRangeText("\t",input.selectionStart,input.selectionEnd,"end");
+        this.#sync(); return;
+      }
+    }
     if (e.key === "Escape" || e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
       e.preventDefault(); e.stopPropagation(); this.finish(); this.canvas.focus(); return;
     }
-    const input=this.#input!, node=this.#session!.node();
+    const node=session.node();
     if ((e.key==="ArrowLeft" || e.key==="ArrowRight") && !e.altKey && !e.metaKey && !e.ctrlKey && input.selectionStart===input.selectionEnd) {
       const next=textVisualStep(textNodeLayout(node).layout,utf16ToScalar(node.text.characters,input.selectionEnd),e.key==="ArrowRight");
       if (next!==undefined) {

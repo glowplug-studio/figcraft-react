@@ -1,3 +1,5 @@
+import { textShortcut } from "./engine/text-shortcuts";
+import { subtreeIds } from "./engine/hierarchy";
 import { ColourProfileDialog } from "./ColourProfileDialog";
 import { ArcPanel } from "./ArcPanel";
 import { TypographyPanel } from "./TypographyPanel";
@@ -61,6 +63,7 @@ export function Editor({ identity, capabilities, engine: suppliedEngine, recover
   const [pendingFile, setPendingFile] = useState<File | null>(null);
   const imageInput = useRef<HTMLInputElement>(null);
   const fileInput = useRef<HTMLInputElement>(null);
+  const linkDialog = useRef<HTMLDialogElement>(null);
   const replaceDialog = useRef<HTMLDialogElement>(null);
   const initialPrincipal = useRef(identity.getSnapshot().principal?.id);
   const canvas = useRef<HTMLCanvasElement>(null);
@@ -125,8 +128,17 @@ export function Editor({ identity, capabilities, engine: suppliedEngine, recover
     if (snapshot.crop && !event.altKey && !event.ctrlKey && !event.metaKey && !event.shiftKey && (event.key==="Escape" || event.key==="Enter") && !(event.target instanceof Element && event.target.closest("input,textarea,select,[contenteditable=true]"))) {
       event.preventDefault(); engine.finishCrop(); canvas.current?.focus(); return;
     }
+    if (event.target instanceof HTMLTextAreaElement && event.target.hasAttribute("data-figcraft-text-input") &&
+      !event.nativeEvent.isComposing && !event.altKey && (event.ctrlKey || event.metaKey) &&
+      (event.code==="KeyK" && !event.shiftKey || event.code==="KeyU" && event.shiftKey)) {
+      event.preventDefault(); linkDialog.current?.showModal(); return;
+    }
     if (event.key.toLowerCase() === "v") modifiedPaste.current = (event.ctrlKey || event.metaKey) && (event.shiftKey || event.altKey);
     if (event.target instanceof HTMLElement && event.target.closest("input,textarea,select,dialog,[contenteditable=true]")) return;
+    const formatting = textShortcut(event,false);
+    if (formatting && snapshot.selection.some(id=>subtreeIds(snapshot.document,id).some(child=>snapshot.document.nodes[child].kind==="text"))) {
+      event.preventDefault(); dispatch(formatting); return;
+    }
     if ((event.key === "Enter" || event.key === " ") && event.target instanceof HTMLElement && event.target.closest("button,summary,a[href]")) return;
     let command: string | undefined;
     if (engine.pen.open && !event.altKey && !event.metaKey && !event.ctrlKey && (event.key === "Escape" || event.key === "Enter")) {
@@ -206,7 +218,12 @@ export function Editor({ identity, capabilities, engine: suppliedEngine, recover
       if (event.key.toLowerCase() === "r") command = "tool.rectangle";
       if (event.shiftKey && event.key.toLowerCase() === "m") command = "tool.shapeBuilder";
       if (event.key.toLowerCase() === "p") command = event.shiftKey ? "tool.pencil" : "tool.pen";
-      if (event.key.toLowerCase() === "v") command = "tool.move";
+      if (event.target instanceof HTMLTextAreaElement && event.target.hasAttribute("data-figcraft-text-input") &&
+      !event.nativeEvent.isComposing && !event.altKey && (event.ctrlKey || event.metaKey) &&
+      (event.code==="KeyK" && !event.shiftKey || event.code==="KeyU" && event.shiftKey)) {
+      event.preventDefault(); linkDialog.current?.showModal(); return;
+    }
+    if (event.key.toLowerCase() === "v") command = "tool.move";
       if (event.key.toLowerCase() === "k") command = "tool.scale";
       if (event.shiftKey && event.key.toLowerCase() === "h") command = "object.flipH";
       if (event.shiftKey && event.key.toLowerCase() === "v") command = "object.flipV";
@@ -493,7 +510,9 @@ export function Editor({ identity, capabilities, engine: suppliedEngine, recover
           <ArcPanel nodes={snapshot.selection.flatMap(id => { const n = snapshot.document.nodes[id]; return n && n.kind !== "page" ? [n] : []; })} editable={editable && !busy} dispatch={dispatch} />
           <PointsPanel nodes={snapshot.selection.flatMap(id => { const n = snapshot.document.nodes[id]; return n && n.kind !== "page" ? [n] : []; })} editable={editable && !busy} dispatch={dispatch} />
           <CornerPanel nodes={snapshot.selection.flatMap(id => { const n = snapshot.document.nodes[id]; return n && n.kind !== "page" ? [n] : []; })} editable={editable && !busy} dispatch={dispatch} /></>}
-          {!editingVector && <TypographyPanel engine={engine} editable={editable && !busy} onLeave={() => controller.current?.finishText()}
+          {!editingVector && <TypographyPanel engine={engine} linkDialog={linkDialog} link={(ids,url) => {
+            try { engine.execute("text.link",{ids,url}); } catch (e) { setError(e instanceof Error ? e.message : "Could not create link"); }
+          }} editable={editable && !busy} onLeave={() => controller.current?.finishText()}
             apply={(ids, props) => {
               try { if (!controller.current?.formatText(props)) dispatch("node.set", {ids, props}); }
               catch (e) { setError(e instanceof Error ? e.message : "Could not format text"); }

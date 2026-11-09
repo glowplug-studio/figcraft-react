@@ -1,11 +1,11 @@
 import { inverse, multiply, type Affine } from "./affine";
-import { pageColour, rectanglePaints, rectangleTransform, withLayerTransform, type Document, type TextNode } from "./document";
+import { pageColour, rectanglePaints, withLayerTransform, type Document, type TextNode } from "./document";
 import { ancestors, HierarchyDraft, worldTransform } from "./hierarchy";
 import { pixelRound, type Point } from "./geometry";
 import { paintColour } from "./solid-paint";
 import { newTextData, normaliseTextLines } from "./text-data";
-import { autoSizeText } from "./text-node-layout";
-import { replaceTextRange, textLayerName } from "./text-ranges";
+import { autoSizeText, fitEditedText } from "./text-node-layout";
+import { editParagraphLists, paragraphList, paragraphSpan, replaceTextRange, scalarToUtf16, textLayerName } from "./text-ranges";
 
 export type TextTarget = {id: string} | {parent: string; start: Point; end?: Point};
 
@@ -42,9 +42,24 @@ export function editTextRange(node: TextNode, start: number, end: number, insert
   const text = replaceTextRange(node.text,start,end,value);
   const previous = textLayerName(node.text.characters);
   const derived = node.name === previous || !previous && node.name === "Text";
-  const fitted = autoSizeText(Object.freeze({...node,text,name:derived ? textLayerName(text.characters) : node.name}));
-  return text.alignH === "right" && text.autoResize === "widthAndHeight" && fitted.width !== node.width
-    ? withLayerTransform(fitted, multiply(rectangleTransform(node),[1,0,0,1,node.width-fitted.width,0])) : fitted;
+  return fitEditedText(Object.freeze({...node,text,name:derived ? textLayerName(text.characters) : node.name}),node);
+}
+
+/** A space after a native list marker starts the list and consumes the marker. */
+export function typedListMarker(node:TextNode, start:number, end:number, insertion:string) {
+  if (start !== end || insertion !== " ") return;
+  const span = paragraphSpan(node.text,start,end);
+  if (paragraphList(node.text,span[0]).list !== "none") return;
+  const at = scalarToUtf16(node.text.characters,start);
+  const line = at ? node.text.characters.lastIndexOf("\n",at-1)+1 : 0;
+  if (at-line > 2) return;
+  const prefix = node.text.characters.slice(line,at);
+  const list = prefix==="-" || prefix==="*" ? "bulleted" : prefix==="1." || prefix==="1)" ? "numbered" : undefined;
+  if (!list) return;
+  const caret = start-prefix.length;
+  const replaced = editTextRange(node,caret,start,"");
+  const text = editParagraphLists(replaced.text,span,p=>({...p,list}));
+  return {node:fitEditedText({...replaced,text},replaced), caret};
 }
 
 export function publishTextNode(document: Document, node: TextNode) {

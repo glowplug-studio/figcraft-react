@@ -4200,3 +4200,53 @@ test("Typography formats selected Unicode characters and saves the edit as one u
   expect(saved.document.nodes["2"]).toMatchObject({text:{characters:"A🙂BC",style:{fontSize:12},
     runs:[{start:1,end:3,style:{fontSize:32,decoration:"underline"}}]}});
 });
+
+test("text shortcuts style a scalar selection and create, nest and exit native lists",async ({page})=>{
+  await login(page);
+  const canvas=page.getByLabel("Design canvas",{exact:true});
+  await canvas.focus(); await page.keyboard.press("t");
+  const point=await canvasPoint(page,180,130); await page.mouse.click(point.x,point.y);
+  const input=page.getByRole("textbox",{name:"Edit text layer"}); await expect(input).toBeFocused();
+  await page.keyboard.insertText("1."); await page.keyboard.press("Space");
+  await expect(input).toHaveValue("");
+  await page.keyboard.insertText("A🙂B"); await input.press("Enter"); await page.keyboard.insertText("Two");
+  await input.press("Tab"); await input.press("Enter"); await input.press("Enter");
+  await input.press("Backspace"); await page.keyboard.insertText("Plain");
+  await input.evaluate((el:HTMLTextAreaElement)=>el.setSelectionRange(1,3));
+  await input.press("ControlOrMeta+b"); await input.press("ControlOrMeta+i"); await input.press("ControlOrMeta+u");
+  await input.press("Escape"); await expect(input).toHaveCount(0);
+  await canvas.focus(); await page.keyboard.press("ControlOrMeta+Shift+Period");
+  const download=page.waitForEvent("download"); await page.getByRole("button",{name:"Save as",exact:true}).click();
+  const saved=await decodeFigcraft(await readFile((await (await download).path())!));
+  expect(saved.document.nodes["2"]).toMatchObject({text:{characters:"A🙂B\nTwo\nPlain",style:{fontSize:13},
+    runs:[{start:1,end:2,style:{fontStyle:"Bold Italic",decoration:"underline",fontSize:13}}],
+    paragraphs:[{list:"numbered",indent:0},{list:"numbered",indent:1},{list:"none",indent:0}]}});
+  await page.getByRole("button",{name:"Undo",exact:true}).click(); await page.getByRole("button",{name:"Undo",exact:true}).click();
+  await expect(page.getByText("0 layers",{exact:true})).toBeVisible();
+});
+
+test("create-link shortcuts retain the selected characters and Alt+Enter opens only web or mail links",async ({page,context})=>{
+  await context.route("https://example.test/figcraft-link",route=>route.fulfill({contentType:"text/plain",body:"Figcraft link"}));
+  await login(page);
+  const canvas=page.getByLabel("Design canvas",{exact:true});
+  await canvas.focus(); await page.keyboard.press("t");
+  const point=await canvasPoint(page,155,105); await page.mouse.click(point.x,point.y);
+  const input=page.getByRole("textbox",{name:"Edit text layer"}); await expect(input).toBeFocused();
+  await page.keyboard.insertText("A🙂BC");
+  await input.evaluate((el:HTMLTextAreaElement)=>el.setSelectionRange(1,3));
+  await input.press("ControlOrMeta+k");
+  const dialog=page.getByRole("dialog",{name:"Create link"}); await expect(dialog).toBeVisible();
+  await dialog.getByLabel("URL").fill("  https://example.test/figcraft-link  "); await dialog.getByRole("button",{name:"Apply link"}).click();
+  await expect(input).toBeFocused();
+  expect(await input.evaluate((el:HTMLTextAreaElement)=>[el.selectionStart,el.selectionEnd])).toEqual([1,3]);
+  const opened=context.waitForEvent("page"); await input.press("Alt+Enter");
+  const tab=await opened; await tab.waitForLoadState(); expect(tab.url()).toBe("https://example.test/figcraft-link");
+  expect(await tab.evaluate(()=>window.opener===null)).toBe(true); await tab.close();
+  await input.press("ControlOrMeta+Shift+u"); await expect(dialog).toBeVisible();
+  await dialog.getByLabel("URL").fill("javascript:alert(1)"); await dialog.getByRole("button",{name:"Apply link"}).click();
+  await input.press("Alt+Enter"); await expect(page.getByText("Only web and mail links can be opened",{exact:true})).toBeVisible();
+  await input.press("Escape");
+  const download=page.waitForEvent("download"); await page.getByRole("button",{name:"Save as",exact:true}).click();
+  const saved=await decodeFigcraft(await readFile((await (await download).path())!));
+  expect(saved.document.nodes["2"]).toMatchObject({text:{characters:"A🙂BC",runs:[{start:1,end:2,style:{link:"javascript:alert(1)",decoration:"underline"}}]}});
+});

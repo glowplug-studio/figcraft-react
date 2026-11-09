@@ -1,4 +1,4 @@
-import { useState, useSyncExternalStore } from "react";
+import { useState, useSyncExternalStore, type RefObject } from "react";
 import type { EditorEngine } from "./engine/editor";
 import { familyStyles, fontFamilies } from "./engine/text-node-layout";
 import { paragraphList, paragraphSpan, scalarCount, textSpans } from "./engine/text-ranges";
@@ -22,7 +22,7 @@ function Field({label, value, apply}: {label:string; value?:string; apply:(value
     }} /></label>;
 }
 
-export function TypographyPanel({engine, editable, apply, onLeave}: {engine:EditorEngine; editable:boolean;
+export function TypographyPanel({engine, editable, apply, onLeave, linkDialog, link}: {engine:EditorEngine; linkDialog:RefObject<HTMLDialogElement|null>; link:(ids:string[],url:string)=>void; editable:boolean;
   apply:(ids:string[], props:Record<string,unknown>) => void; onLeave:() => void}) {
   const live = useSyncExternalStore(engine.subscribeCanvas, engine.getTextRange, engine.getTextRange);
   const {document, selection} = engine.getSnapshot();
@@ -61,7 +61,18 @@ export function TypographyPanel({engine, editable, apply, onLeave}: {engine:Edit
     {select("textAlign", "Text alignment", nodes.map(n=>n.text.alignH), ["left","center","right","justified"])}
     {select("textAlignVertical", "Vertical text alignment", nodes.map(n=>n.text.alignV), ["top","middle","bottom"])}
     {select("textAutoResize", "Text resizing", nodes.map(n=>n.text.autoResize), ["widthAndHeight","height","none","truncate"])}
+    <dialog ref={linkDialog} aria-label="Create link" onClose={e=>e.currentTarget.querySelector("form")?.reset()}>
+      <form method="dialog" onSubmit={e=>{
+        const url = new FormData(e.currentTarget).get("url");
+        if (typeof url !== "string" || !url.trim()) { e.preventDefault(); return; }
+        link(ids,url.trim());
+      }}>
+        <label>URL<input name="url" autoFocus required /></label>
+        <button type="submit">Apply link</button><button type="button" onClick={()=>linkDialog.current?.close()}>Cancel</button>
+      </form>
+    </dialog>
     <details><summary>More typography options</summary>
+      <button type="button" onClick={()=>linkDialog.current?.showModal()}>Create link</button>
       {select("textCase", "Letter case", styles.map(s=>s.case), ["original","upper","lower","title","smallCaps"])}
       {select("textDecoration", "Text decoration", styles.map(s=>s.decoration), ["none","underline","strikethrough"])}
       {select("textDecorationStyle", "Decoration style", styles.map(s=>s.decorationLook?.style ?? "solid"), ["solid","dotted","wavy"])}

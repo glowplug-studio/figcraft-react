@@ -79,6 +79,10 @@ export class FontLibrary {
   }
 
   styles(family: string): string[] {
+    return this.styleWeights(family).map(style => style.name);
+  }
+
+  styleWeights(family: string): {name:string; weight:number}[] {
     const key = this.#key(family);
     const entries: {weight:number; italic:boolean; index:number; name:string}[] = [];
     for (const face of this.#families.get(key) ?? []) {
@@ -101,11 +105,11 @@ export class FontLibrary {
     entries.sort((a,b) => a.weight-b.weight || Number(a.italic)-Number(b.italic) || a.index-b.index ||
       (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
     const seen = new Set<string>();
-    return entries.flatMap(({name}) => {
+    return entries.flatMap(({name,weight}) => {
       const normal = normaliseFontStyle(name);
       if (seen.has(normal)) return [];
       seen.add(normal);
-      return [name];
+      return [{name,weight}];
     });
   }
 

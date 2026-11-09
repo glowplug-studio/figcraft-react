@@ -12,6 +12,12 @@ const weightNames = ["Thin", "Extra Light", "Light", "Regular", "Medium", "Semi 
 const styleKeys = new Set(("fontFamily fontStyle fontWeight fontSize lineHeight letterSpacing textDecoration textCase hyperlink " +
   "textFills fontVariations variationSettings textDecorationStyle textDecorationThickness textDecorationOffset textDecorationSkipInk " +
   "textDecorationColor").split(" "));
+export function weightName(weight:number) {
+  return weightNames[Math.max(0, Math.min(8, Math.floor((weight + 50) / 100) - 1))];
+}
+export function styledName(name:string, italic:boolean) {
+  return italic ? name === "Regular" ? "Italic" : name + " Italic" : name;
+}
 const textKeys = new Set([...styleKeys, ...("characters text textAlign textAlignHorizontal textAlignVertical textAutoResize paragraphSpacing " +
   "paragraphIndent listStyle indentation textDirection direction listSpacing hangingPunctuation hangingList leadingTrim wrapStyle textWrap " +
   "maxLines features textFeatures fontFeatures openTypeFeatures").split(" ")]);
@@ -70,6 +76,16 @@ function tagValues<T>(value: unknown, parse: (value: unknown, tag: string) => T)
   }
   return Object.freeze(result);
 }
+export function featureValues(value:unknown) {
+  return tagValues(value, (raw, tag) => typeof raw === "boolean" ? raw : parseNumber(raw, tag) !== 0);
+}
+export function variationValues(value:unknown) {
+  return tagValues(value === null ? {} : value, (raw, tag) => {
+    const n = parseNumber(raw, tag);
+    if (Math.abs(n) > 1e6) throw new Error("Axis value exceeds native range");
+    return n;
+  });
+}
 type Look = NonNullable<TextStyle["decorationLook"]>;
 const defaultLook: Look = Object.freeze({style:"solid", thickness:auto, offset:auto, skipInk:false});
 function withLook(style: TextStyle, patch: Partial<Look>): TextStyle {
@@ -95,8 +111,8 @@ function styleEdit(key: string, value: unknown): (style: TextStyle) => TextStyle
     }
     case "fontWeight": {
       const weight = Math.trunc(clamp(parseNumber(value, key), 1, 1000));
-      const name = weightNames[clamp(Math.floor((weight + 50) / 100) - 1, 0, 8)];
-      return s => setFontStyle(s, textItalic(s) ? name === "Regular" ? "Italic" : name + " Italic" : name);
+      const name = weightName(weight);
+      return s => setFontStyle(s, styledName(name, textItalic(s)));
     }
     case "textDecorationStyle": {
       const style = propertyEnum(value, ["solid", "dotted", "wavy"] as const);
@@ -128,11 +144,7 @@ function styleEdit(key: string, value: unknown): (style: TextStyle) => TextStyle
       case "hyperlink": return {link:typeof value === "boolean" ? undefined : parseString(value)};
       case "textFills": return {fills:value === null ? undefined : readPaints(value, true)};
       case "fontVariations": case "variationSettings":
-        return {variations:tagValues(value === null ? {} : value, (raw, tag) => {
-          const n = parseNumber(raw, tag);
-          if (Math.abs(n) > 1e6) throw new Error("Axis value exceeds native range");
-          return n;
-        })};
+        return {variations:variationValues(value)};
       default: throw new Error("Unsupported text property " + key);
     }
   };
@@ -165,7 +177,7 @@ function applyProperty(t: TextData, key: string, value: unknown, start: number, 
       return editParagraphLists(t, paragraphSpan(t,start,end), p => ({...p, direction}));
     }
     case "features": case "textFeatures": case "fontFeatures": case "openTypeFeatures":
-      return {...t, features:tagValues(value, (raw, tag) => typeof raw === "boolean" ? raw : parseNumber(raw, tag) !== 0)};
+      return {...t, features:featureValues(value)};
     default: {
       const apply = styleEdit(key, value);
       return restyleRange(t, start, end, style => Object.freeze(apply(style)));

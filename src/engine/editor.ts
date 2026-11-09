@@ -1,3 +1,7 @@
+import { executeTextFormat, isTextFormatCommand, textFormatSpecs } from "./text-format-commands";
+import { sameTextData, scalarCount } from "./text-ranges";
+import { textLinkAt } from "./text-link";
+import { listKey } from "./text-list-edit";
 import { copyEffect, editEffects, effectSpecs } from "./effect-commands";
 import { wireEffect, type Effect } from "./effects";
 import type { BlendMode } from "./blend";
@@ -6,8 +10,8 @@ import { editImagePaints, editImagePreset, imageEditSpecs, startImageCrop, type 
 import { listImagePresets } from "./image-filters";
 import { getNode } from "./inspect";
 import { centrePastedImage, rasterImportParams, fileData, placeImage, prepareImage, rasterFilename, replaceImage } from "./image-import";
-import { createCanvasText, editTextRange, publishTextNode, type TextTarget } from "./text-edit";
-import { prepareText, prepareDocumentText } from "./text-node-layout";
+import { createCanvasText, editTextRange, publishTextNode, typedListMarker, type TextTarget } from "./text-edit";
+import { fitEditedText, prepareText, prepareDocumentText } from "./text-node-layout";
 import { creationCharacters, createLayer } from "./creation";
 import { pastePaint, type CopiedPaint } from "./paint-clipboard";
 import { copyPaint, fillSpecs, selectedRegionFills, writeFill } from "./fill-commands";
@@ -53,6 +57,8 @@ type OpenResult = { repairs: readonly string[]; summary: {name:string; pages:num
 export const commandSpecs = Object.freeze({
   ...effectSpecs,
   ...strokeSpecs,
+  ...textFormatSpecs,
+  "text.openLink": {label:"Open link",undo:false},
   ...fillSpecs,
   ...arrangeSpecs,
   ...sizingSpecs,
@@ -164,7 +170,7 @@ export class EditorEngine {
     preparedCopy?: { ids: readonly NodeId[]; result: ReturnType<typeof executeDuplicate> };
     baseVectorEdit?: VectorEditState; vectorEdit?: VectorEditState;
   };
-  #textRange?: {node:TextNode; start:number; end:number; active:() => boolean};
+  #textRange?: {node:TextNode; start:number; end:number; active:() => boolean; update:(doc:Document,start:number,end:number)=>void};
   getTextRange = () => this.#textRange?.active() ? this.#textRange : undefined;
   #canvasListeners = new Set<() => void>();
   #vectorEdit?: VectorEditState;
@@ -214,12 +220,25 @@ export class EditorEngine {
       owner.nextId = this.#nextId < 18446744073709551615n ? this.#nextId + 1n : this.#nextId;
     }
     const active = () => this.#interaction === owner;
+    let measured = node.text.characters, length = scalarCount(measured);
     const select = (start:number, end:number) => {
       if (!active()) return;
+      if (measured !== node.text.characters) { measured = node.text.characters; length = scalarCount(measured); }
+      start = Math.max(0, Math.min(length, Math.trunc(start)));
+      end = Math.max(0, Math.min(length, Math.trunc(end)));
+      if (end < start) [start,end] = [end,start];
       const previous = this.#textRange;
       if (previous?.node === node && previous.start === start && previous.end === end) return;
-      this.#textRange = {node, start, end, active};
+      this.#textRange = {node, start, end, active, update};
       this.#notifyCanvas();
+    };
+    const update = (next:Document, start:number, end:number) => {
+      if (!active()) return;
+      const edited = next.nodes[node.id];
+      if (edited?.kind !== "text") throw new Error("Expected a text layer");
+      owner.document = next;
+      node = edited;
+      select(start,end);
     };
     select(0, 0);
     return {
@@ -228,13 +247,23 @@ export class EditorEngine {
         if (!active()) return;
         const range = start === end ? {} : {start, end};
         const next = setRectangleProperties(owner.document, [node.id], {id:node.id, props:{...props, ...range}});
-        const edited = next.nodes[node.id];
-        if (edited?.kind !== "text") throw new Error("Expected a text layer");
-        owner.document = next;
-        node = edited;
-        select(start, end);
+        update(next,start,end);
       },
-      active: () => this.#interaction === owner,
+      listKey: (key:string, shift:boolean, start:number, end:number) => {
+        if (!active()) return false;
+        const text = listKey(node.text,start,end,key,shift);
+        if (!text) return false;
+        if (!sameTextData(node.text,text)) update(publishTextNode(owner.document,fitEditedText({...node,text},node)),start,end);
+        return true;
+      },
+      marker: (start:number, end:number, value:string) => {
+        if (!active()) return;
+        const transformed = typedListMarker(node,start,end,value);
+        if (!transformed) return;
+        update(publishTextNode(owner.document,transformed.node),transformed.caret,transformed.caret);
+        return transformed.caret;
+      },
+      active,
       node: () => node,
       replace: (from: number, to: number, insertion: string) => {
         if (this.#interaction !== owner) return;
@@ -530,6 +559,25 @@ export class EditorEngine {
     if (!Object.hasOwn(commandSpecs, command)) throw new Error(`Unsupported command: ${command}`);
     if (!this.#snapshot.editable) throw new Error("Sign in to edit this document");
     const p = parameters(input);
+    if (command === "text.openLink") {
+      if (Object.keys(p).some(key=>key!=="id" && key!=="ids")) throw new Error("text.openLink takes no options");
+      const active = this.getTextRange();
+      if (!active) throw new Error("No text is being edited");
+      return {url:textLinkAt(active.node.text,active.start)};
+    }
+    if (isTextFormatCommand(command)) {
+      const live = this.getTextRange();
+      if (!live) this.cancelInteraction();
+      const before = this.#snapshot;
+      const {document,result} = executeTextFormat(command,this.getRenderDocument(),before.selection,p,live);
+      if (live) live.update(document,live.start,live.end);
+      else if (document!==before.document) {
+        this.#undo.push({document:before.document,selection:before.selection});
+        this.#redo = [];
+        this.#publish({document});
+      }
+      return result;
+    }
     if (command === "shapeBuilder.mode") {
       if (p.mode !== "merge" && p.mode !== "remove") throw new Error("shapeBuilder.mode: mode must be merge or remove");
       this.#publish({builderMode:p.mode});
