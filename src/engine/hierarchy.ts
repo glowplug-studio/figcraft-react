@@ -113,6 +113,14 @@ export class HierarchyDraft {
 
   get document(): Document { return { ...this.originalDocument, nodes: this.nodes }; }
 
+  /** Restart a preview after its shared preparation, retaining pending layout changes. */
+  fork(): HierarchyDraft {
+    const draft = new HierarchyDraft(this.document, this.layoutBaseline);
+    draft.#changed = this.#changed;
+    for (const id of this.changedIds) draft.changedIds.add(id);
+    return draft;
+  }
+
   set(node: DocumentNode): void {
     if (!this.nodes[node.id]) throw new Error(`No node ${node.id}`);
     if (node === this.nodes[node.id]) return;

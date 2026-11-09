@@ -1,10 +1,10 @@
-import { isGroupLike } from "./document";
+import type { MoveDrop } from "./layout-drop";
 import { canvasAccent } from "./canvas-colours";
 import type { EditorEngine } from "./editor";
 import { isLeaf, type Document, type NodeId } from "./document";
 import { isClosedShape } from "./shape-path";
 import type { Point, Rectangle } from "./geometry";
-import { ancestorIds, containsPoint, dragParent, enterTarget, lockedIn, marqueeSelection, marqueeWithin, paintsBelow, selectionContains } from "./canvas-selection";
+import { ancestorIds, containsPoint, enterTarget, lockedIn, marqueeSelection, marqueeWithin, paintsBelow, selectionContains } from "./canvas-selection";
 import { hitRectangle, targetForLeaf } from "./selection";
 import { rootIds } from "./hierarchy";
 import { boundsOf, pageToScreen } from "./viewport";
@@ -14,9 +14,9 @@ import { originBoxPoints } from "./rotation";
 
 export interface MoveModifiers { shiftKey: boolean; altKey: boolean; ctrlKey: boolean; metaKey: boolean }
 type Gesture = { kind: "marquee"; document: Document; start: Point; base: readonly NodeId[]; toggle: boolean; within?: NodeId }
-  | { kind: "move"; start: Point; ids: readonly NodeId[]; targets: SnapTargets; duplicate: boolean; moved: boolean; deselect?: NodeId; keep?: NodeId; drop?: NodeId };
+  | { kind: "move"; start: Point; ids: readonly NodeId[]; targets: SnapTargets; duplicate: boolean; moved: boolean; deselect?: NodeId; keep?: NodeId; drop?: MoveDrop };
 
-/** Native move tool's supported free-layout path. Preview state never lives in React. */
+/** Native free and auto-layout move gestures. Preview state never lives in React. */
 export class MoveInteraction {
   #gesture?: Gesture;
   #marquee?: Rectangle;
@@ -86,11 +86,9 @@ export class MoveInteraction {
         const snapped = gesture.targets.snapMove(delta, 5 / this.engine.getView().zoom);
         delta = { x: delta.x + snapped.correction.x, y: delta.y + snapped.correction.y }; this.#guides = snapped.guides;
       }
-      this.engine.previewMove(gesture.ids, delta, gesture.duplicate);
-      const document = this.engine.getRenderDocument(), moving = gesture.duplicate ? this.engine.getRenderSelection() : gesture.ids;
-      const home = document.nodes[moving[0]]?.parent;
-      gesture.drop = home && isGroupLike(document.nodes[home]) ? home : dragParent(document, point, moving);
-      if (gesture.duplicate) this.#guides = neighbourGuides(document, moving);
+      gesture.drop = this.engine.previewMove(gesture.ids, delta, gesture.duplicate, point);
+      if (gesture.drop.inFlow) this.#guides = [];
+      else if (gesture.duplicate) this.#guides = neighbourGuides(this.engine.getRenderDocument(), this.engine.getRenderSelection());
       gesture.moved = true;
     } catch (error) { this.#fail(error); }
   }
@@ -104,7 +102,7 @@ export class MoveInteraction {
     if (!gesture || !this.engine.interacting) return;
     try {
       if (gesture.kind === "marquee") { this.engine.commitInteraction(); return; }
-      if (gesture.moved) this.engine.finishMove(gesture.ids, gesture.drop ?? this.engine.getSnapshot().document.currentPage);
+      if (gesture.moved) this.engine.finishMove(gesture.ids, gesture.drop?.target ?? this.engine.getSnapshot().document.currentPage);
       else {
         this.engine.cancelInteraction();
         if (gesture.deselect) this.engine.execute("select.remove", { ids: [gesture.deselect] });
@@ -142,12 +140,27 @@ export class MoveInteraction {
       const b = this.#marquee, p = pageToScreen(view, b); context.fillStyle = `${canvasAccent(this.engine.getRenderDocument())}1a`;
       context.fillRect(p.x, p.y, b.width * view.zoom, b.height * view.zoom); context.strokeRect(p.x, p.y, b.width * view.zoom, b.height * view.zoom);
     }
-    if (gesture?.kind === "move" && gesture.moved && gesture.drop && gesture.drop !== this.engine.getSnapshot().document.currentPage) {
+    const drop = gesture?.kind === "move" && gesture.moved ? gesture.drop : undefined;
+    if (drop?.outline) {
       const document = this.engine.getRenderDocument();
-      const points = document.nodes[gesture.drop]?.kind === "frame" ? originBoxPoints(document, [gesture.drop]) : undefined;
+      const points = document.nodes[drop.outline]?.kind === "frame" ? originBoxPoints(document, [drop.outline]) : undefined;
       if (points) {
         context.beginPath(); points.slice(0, 4).forEach((point, index) => { const p = pageToScreen(view, point); if (index === 0) context.moveTo(p.x, p.y); else context.lineTo(p.x, p.y); }); context.closePath(); context.stroke();
       }
+    }
+    if (drop?.line) {
+      const [start, end] = drop.line.map(point => pageToScreen(view, point));
+      context.lineWidth = 2; context.beginPath(); context.moveTo(start.x, start.y);
+      context.lineTo(end.x, end.y); context.stroke();
+    }
+    if (drop?.cell) {
+      const cell = drop.cell, at = pageToScreen(view, cell);
+      const width = cell.width * view.zoom, height = cell.height * view.zoom;
+      context.fillStyle = canvasAccent(this.engine.getRenderDocument());
+      context.globalAlpha = 0.12;
+      context.beginPath(); context.roundRect(at.x, at.y, width, height, 2); context.fill();
+      context.globalAlpha = 1; context.lineWidth = 1.5; context.setLineDash([4,3]);
+      context.strokeRect(at.x, at.y, width, height);
     }
     context.restore();
   }

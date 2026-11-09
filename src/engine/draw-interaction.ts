@@ -1,7 +1,7 @@
 import { isDrawTool, type DrawShapeKind } from "./document";
 import type { EditorEngine } from "./editor";
 import { drawnLine, drawnRectangle, pixelRound, type Point } from "./geometry";
-import { dropParent } from "./canvas-selection";
+import { frameAt } from "./canvas-selection";
 import { SnapTargets, type Guide } from "./snapping";
 import { drawGuides } from "./measurements";
 import type { MoveModifiers } from "./move-interaction";
@@ -15,7 +15,7 @@ export class DrawInteraction {
   down(point: Point): boolean {
     const s = this.engine.getSnapshot(); if (!s.editable || !isDrawTool(s.tool)) return false;
     this.engine.beginInteraction();
-    this.#gesture = { start: point, parent: dropParent(s.document, point, []) ?? s.document.currentPage, kind: s.tool, targets: new SnapTargets(s.document, []), moved: false }; return true;
+    this.#gesture = { start: point, parent: frameAt(s.document, point, []) ?? s.document.currentPage, kind: s.tool, targets: new SnapTargets(s.document, []), moved: false }; return true;
   }
   move(point: Point, modifiers: MoveModifiers): void {
     const g = this.#gesture; if (!g) return;

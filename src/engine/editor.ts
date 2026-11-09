@@ -49,7 +49,8 @@ import { anchors, sizingSpecs, executeSizing } from "./sizing";
 import { executeRotation, localOrigin, movedOrigin, originBoxPoints, originSpecs, rotationSpecs, sameIds, snappedOrigin, validateChangedGeometry, type OriginSnapshot, type RotationOrigin } from "./rotation";
 import type { Point } from "./geometry";
 import { executeSmartSelection, smartSpecs } from "./smart-selection";
-import { duplicateSelection, executeDuplicate, type Duplicated } from "./duplicate";
+import { placeMove, type MoveDrop } from "./layout-drop";
+import { copyLayers, duplicateSelection, executeDuplicate, type Duplicated } from "./duplicate";
 import { ancestorIds } from "./canvas-selection";
 import { previewResize, type ResizeStart } from "./transform-preview";
 import type { ScaleAnchor } from "./transform-handles";
@@ -202,7 +203,7 @@ export class EditorEngine {
   #originListeners = new Set<() => void>();
   #interaction?: {
     base: EditorSnapshot; document: Document; selection: readonly NodeId[]; nextId: bigint; duplicated?: Duplicated;
-    preparedCopy?: { ids: readonly NodeId[]; result: ReturnType<typeof executeDuplicate> };
+    preparedCopy?: { ids: readonly NodeId[]; draft: HierarchyDraft; result: ReturnType<typeof copyLayers> };
     baseVectorEdit?: VectorEditState; vectorEdit?: VectorEditState;
   };
   #textPreview?:Document;
@@ -410,22 +411,29 @@ export class EditorEngine {
     this.#notifyCanvas();
   }
   /** Absolute move preview always derives from the captured source and allocator. */
-  previewMove(ids: readonly NodeId[], delta: Point, duplicate: boolean): void {
+  previewMove(ids: readonly NodeId[], delta: Point, duplicate: boolean, point: Point): MoveDrop {
     const interaction = this.#interaction;
     if (!interaction) throw new Error("No active interaction");
     if (!Number.isFinite(delta.x) || !Number.isFinite(delta.y)) throw new Error("Move delta must be finite");
-    let document = interaction.base.document, selection = interaction.base.selection, nextId = this.#nextId;
+    let draft: HierarchyDraft, nextId = this.#nextId;
     let duplicated: Duplicated | undefined;
     if (duplicate) {
       if (!interaction.preparedCopy || !sameIds(interaction.preparedCopy.ids, ids)) {
-        interaction.preparedCopy = { ids: Object.freeze([...ids]), result: executeDuplicate(document, ids, nextId, { ids, dx: 0, dy: 0 }) };
+        const source = new HierarchyDraft(interaction.base.document);
+        interaction.preparedCopy = { ids: Object.freeze([...ids]), draft: source, result: copyLayers(source, ids, nextId) };
       }
-      const copy = interaction.preparedCopy.result;
-      document = copy.document; duplicated = copy.duplicated; selection = duplicated.copies; nextId = copy.nextId;
-    }
-    document = executeArrange("transform.move", document, selection, { ids: duplicated?.copies ?? ids, dx: delta.x, dy: delta.y });
-    interaction.document = document; interaction.selection = selection; interaction.nextId = nextId; interaction.duplicated = duplicated;
+      const copy = interaction.preparedCopy;
+      draft = copy.draft.fork();
+      duplicated = copy.result.duplicated;
+      nextId = copy.result.nextId;
+    } else draft = new HierarchyDraft(interaction.base.document);
+    const {document, drop} = placeMove(draft, duplicated?.copies ?? ids, delta, point);
+    interaction.document = document;
+    interaction.selection = duplicated?.copies ?? interaction.base.selection;
+    interaction.nextId = nextId;
+    interaction.duplicated = duplicated;
     this.#notifyCanvas();
+    return drop;
   }
   previewDraw(kind: DrawShapeKind, box: import("./geometry").Rectangle & { angle?: number }, parent: NodeId): void {
     const interaction = this.#interaction; if (!interaction) throw new Error("No active interaction");
@@ -604,7 +612,12 @@ export class EditorEngine {
     const interaction = this.#interaction;
     if (!interaction) return;
     const moving = interaction.duplicated?.copies ?? ids, draft = new HierarchyDraft(interaction.document);
-    if (draft.nodes[moving[0]]?.parent !== target) for (const id of moving) {
+    const inLayout = moving.some(id => {
+      const parent = draft.nodes[draft.nodes[id].parent!];
+      return parent.kind === "frame" && parent.layout;
+    });
+    if (inLayout) interaction.duplicated = undefined;
+    if (!inLayout && draft.nodes[moving[0]]?.parent !== target) for (const id of moving) {
       const node = draft.nodes[id];
       if (!node || node.kind === "page" || isGroupLike(draft.nodes[node.parent]) || id === target || ancestorIds(draft.document, target).includes(id)) continue;
       draft.reparent(id, target);

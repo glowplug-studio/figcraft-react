@@ -42,10 +42,10 @@ export function enterTarget(document: Document, leaf: NodeId, selected: readonly
   return targetForLeaf(document, leaf, selected);
 }
 
-/** Native deepest free-layout destination, excluding the complete moving branches. */
-export function dropParent(document: Document, point: Point, exclude: readonly NodeId[]): NodeId | undefined {
+/** Native deepest eligible destination, excluding the complete moving branches. */
+export function frameAt(document: Document, point: Point, exclude: readonly NodeId[], intent: "create" | "drop" = "create"): NodeId | undefined {
   const omitted = new Set(exclude);
-  const visit = (id: NodeId, depth: number): NodeId | undefined => {
+  const visit = (id: NodeId, depth: number, inLayout: boolean): NodeId | undefined => {
     const node = document.nodes[id];
     if (!node || node.kind === "page" || depth > 128 || omitted.has(id) || node.visible === false || node.locked) return;
     if (isLeaf(node)) return;
@@ -55,25 +55,31 @@ export function dropParent(document: Document, point: Point, exclude: readonly N
       } catch { return; }
     }
     for (const child of [...node.children].reverse()) {
-      const found = visit(child, depth + 1); if (found) return found;
+      const found = visit(child, depth + 1, inLayout || (intent === "drop" && node.kind === "frame" && Boolean(node.layout))); if (found) return found;
     }
-    return node.kind === "frame" ? id : undefined;
+    return node.kind === "frame" && (!inLayout || node.layout) ? id : undefined;
   };
   const page = document.nodes[document.currentPage];
   if (page.kind !== "page") return;
-  for (const id of [...page.children].reverse()) { const found = visit(id, 0); if (found) return found; }
+  for (const id of [...page.children].reverse()) { const found = visit(id, 0, false); if (found) return found; }
   return;
+}
+export function dropParent(document: Document, point: Point, exclude: readonly NodeId[]) {
+  return frameAt(document, point, exclude, "drop");
 }
 export function dragParent(document: Document, point: Point, moving: readonly NodeId[]): NodeId {
   const hit = dropParent(document, point, moving), home = document.nodes[moving[0]]?.parent;
   if (home && document.nodes[home]?.kind === "frame" && (!hit || hit !== home && ancestorIds(document, home).includes(hit))) {
     const bounds = boundsOf(document, [home]);
-    if (bounds && containsPoint(bounds, point)) return home;
+    const frame = document.nodes[home];
+    const margin = frame.kind === "frame" && frame.layout ? 8 : 0;
+    if (bounds && containsPoint({x: bounds.x - margin, y: bounds.y - margin,
+      width: bounds.width + 2 * margin, height: bounds.height + 2 * margin}, point)) return home;
   }
   return hit ?? document.currentPage;
 }
 export function marqueeWithin(document: Document, point: Point): NodeId | undefined {
-  const frame = dropParent(document, point, []);
+  const frame = frameAt(document, point, []);
   return frame && document.nodes[frame]?.parent === document.currentPage ? frame : undefined;
 }
 export function marqueeSelection(document: Document, box: Rectangle, within: NodeId | undefined, deep: boolean, base: readonly NodeId[], toggle: boolean): readonly NodeId[] {

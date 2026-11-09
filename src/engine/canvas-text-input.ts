@@ -2,7 +2,7 @@ import { textPathAt } from "./text-path-commands";
 import { textKeyMotion } from "./text-key-motion";
 import { textShortcut } from "./text-shortcuts";
 import { inverse, transformPoint } from "./affine";
-import { dropParent, lockedIn } from "./canvas-selection";
+import { frameAt, lockedIn } from "./canvas-selection";
 import { canvasAccent } from "./canvas-colours";
 import type { EditorEngine } from "./editor";
 import { worldTransform } from "./hierarchy";
@@ -121,7 +121,7 @@ export class CanvasTextInput {
     }
     if (this.engine.getSnapshot().tool !== "text") return;
     const doc = this.engine.getRenderDocument();
-    const target: TextTarget = id ? {id} : {start,parent:dropParent(doc,start,[]) ?? doc.currentPage};
+    const target: TextTarget = id ? {id} : {start,parent:frameAt(doc,start,[]) ?? doc.currentPage};
     e.preventDefault(); e.stopImmediatePropagation(); this.canvas.focus();
     this.#drag = {pointer:e.pointerId,start,end:start,target,selecting:false};
     this.canvas.setPointerCapture(e.pointerId);

@@ -28,7 +28,25 @@ export function executeDuplicate(document: Document, selection: readonly NodeId[
   const sources = zSorted(document, arrangementTargets(document, selection, params));
   const dx = optionalNumber(params.dx), dy = optionalNumber(params.dy);
   const repeat = dx === undefined && dy === undefined && previous && duplicateSelection(previous, sources) ? repeatOffset(document, previous) : undefined;
-  const draft = new HierarchyDraft(document), map: Record<NodeId, NodeId> = {}, copies: NodeId[] = [];
+  const draft = new HierarchyDraft(document);
+  const { duplicated, nextId: allocator, map } = copyLayers(draft, sources, nextId);
+  for (const [i, sourceId] of sources.entries()) {
+    const source = document.nodes[sourceId];
+    if (source.kind === "page") throw new Error("Pages are duplicated with page.duplicate");
+    const parent = document.nodes[source.parent], copyId = duplicated.copies[i];
+    // Explicit offsets are parent-space in native code; repeated steps are page-space.
+    const defaultX = source.kind === "frame" && parent.kind === "page" ? source.width + 100 : 0;
+    moveWorld(draft, copyId, repeat?.x ?? dx ?? (dy === undefined ? defaultX : 0), repeat?.y ?? dy ?? 0, !repeat);
+  }
+  draft.normaliseGroups();
+  const updated = validateChangedGeometry(draft);
+  return { document: updated, nextId: allocator, duplicated, result: parseBoolean(params.map) === true ? { ids: duplicated.copies, map } : { ids: duplicated.copies } };
+}
+
+/** Copy in caller order so a pointer drag can place the new layers before layout reflows. */
+export function copyLayers(draft: HierarchyDraft, sources: readonly NodeId[], nextId: bigint) {
+  const document = draft.originalDocument;
+  const map: Record<NodeId, NodeId> = {}, copies: NodeId[] = [];
   let allocator = nextId;
   for (const sourceId of sources) {
     const source = document.nodes[sourceId];
@@ -55,13 +73,8 @@ export function executeDuplicate(document: Document, selection: readonly NodeId[
       if (copy !== node) draft.set(copy);
     }
     const copyId = map[sourceId];
-    // Explicit offsets are parent-space in native code; repeated steps are page-space.
-    const defaultX = source.kind === "frame" && parent.kind === "page" ? source.width + 100 : 0;
-    moveWorld(draft, copyId, repeat?.x ?? dx ?? (dy === undefined ? defaultX : 0), repeat?.y ?? dy ?? 0, !repeat);
     copies.push(copyId);
   }
-  draft.normaliseGroups();
-  const updated = validateChangedGeometry(draft);
-  const duplicated: Duplicated = Object.freeze({ sources: Object.freeze(sources), copies: Object.freeze(copies) });
-  return { document: updated, nextId: allocator, duplicated, result: parseBoolean(params.map) === true ? { ids: duplicated.copies, map: Object.freeze(map) } : { ids: duplicated.copies } };
+  const duplicated: Duplicated = Object.freeze({ sources: Object.freeze([...sources]), copies: Object.freeze(copies) });
+  return { duplicated, nextId: allocator, map: Object.freeze(map) };
 }

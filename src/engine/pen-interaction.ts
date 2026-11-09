@@ -1,7 +1,7 @@
 import type { NodeId } from "./document";
 import type { EditorEngine } from "./editor";
 import type { Point } from "./geometry";
-import { dropParent } from "./canvas-selection";
+import { frameAt } from "./canvas-selection";
 import type { MoveModifiers } from "./move-interaction";
 import { penAt45 } from "./vector-pen";
 import { penPathAction, penPathHandles, selectedVectorEnd, type PenAnchor } from "./pen-path";
@@ -53,7 +53,7 @@ export class PenInteraction {
       if (end) { this.#edit(end.id, "pen", end.vertex); return true; }
     }
     const at = modifiers.shiftKey ? point : this.#snap(point, modifiers);
-    const path = this.#path ??= { points: [], undone: [], parent: dropParent(snapshot.document, at, []) ?? snapshot.document.currentPage, closed: false };
+    const path = this.#path ??= { points: [], undone: [], parent: frameAt(snapshot.document, at, []) ?? snapshot.document.currentPage, closed: false };
     const action = penPathAction(path.points, at, this.engine.getView().zoom, modifiers.shiftKey);
     if (action.kind === "ignore") return true;
     if (action.kind === "close" || action.kind === "join") {

@@ -1,6 +1,6 @@
 import type { EditorEngine } from "./editor";
 import type { Point } from "./geometry";
-import { dropParent } from "./canvas-selection";
+import { frameAt } from "./canvas-selection";
 import { worldTransform } from "./hierarchy";
 import { pencilPressureProfile, shouldSamplePencil } from "./pencil-samples";
 import { pencilPath } from "./pencil-path";
@@ -30,7 +30,7 @@ export class PencilInteraction {
     try {
       this.move(point, pressure); const gesture = this.#gesture; this.#gesture = undefined; this.engine.cancelInteraction();
       if (!gesture || gesture.points.length < 2) return;
-      const document = this.engine.getSnapshot().document, parent = dropParent(document, gesture.points[0], []) ?? document.currentPage;
+      const document = this.engine.getSnapshot().document, parent = frameAt(document, gesture.points[0], []) ?? document.currentPage;
       const path = pencilPath(gesture.points, worldTransform(document, parent)); if (!path) return;
       const profile = pencilPressureProfile(gesture.points, gesture.pressure), brush = this.engine.getPencilBrush();
       this.engine.execute("node.create", { type: "vector", path, closed: false, parent, name: "Vector", props: {

@@ -4899,3 +4899,44 @@ test("suggest, remove and add auto layout through the inspector, keyboard and ca
   for (const id of ["2","7","8"]) expect(saved.document.nodes[id]).toHaveProperty("layout");
   expect(saved.document.nodes["7"]).toMatchObject({kind:"frame",children:["3","4"],clip:false,layout:{mode:"horizontal",gap:14}});
 });
+
+test("pointer reordering previews wrapped rows, cancels and saves a drop into a grid", async ({page}) => {
+  const file = JSON.parse(await readFile(new URL("../fixtures/native-rectangle.json", import.meta.url), "utf8"));
+  file.name = "Pointer layouts";
+  const rectangle = file.nodes[2];
+  file.nodes[1].children = [2, 9];
+  file.nodes[2] = {...rectangle, type: "frame", name: "Rows", transform: [1,0,0,1,190,170], width: 200, height: 200,
+    children: [3,4,5,6,7,8], layout: {mode: "horizontal", wrap: true, gap: 10, cross_gap: 10, padding: [0,0,0,0]}};
+  for (let i=0; i<6; i++) file.nodes[i+3] = {...rectangle, id: i+3, parent: 2, name: "Item "+i,
+    width: 50, height: 30, transform: [1,0,0,1,(i%3)*60,Math.floor(i/3)*40]};
+  file.nodes[9] = {...rectangle, id: 9, type: "frame", name: "Grid", width: 150, height: 140, children: [],
+    transform: [1,0,0,1,430,170], layout: {mode: "grid", grid_columns: 2, grid_rows: 2, padding: [0,0,0,0]}};
+  file.next_id = 10;
+  await login(page);
+  await page.getByLabel("Open Figcraft file",{exact:true}).setInputFiles({
+    name:"pointer-layouts.figcraft", mimeType:"application/octet-stream", buffer: Buffer.from(JSON.stringify(file)),
+  });
+  await expect(page.getByRole("heading",{name:file.name,exact:true})).toBeVisible();
+  await resetCanvasOrigin(page);
+  const start = await canvasPoint(page,215,185), secondRow = await canvasPoint(page,315,225);
+  const mouseDown = async (p: {x:number; y:number}) => { await page.mouse.move(p.x,p.y); await page.mouse.down(); };
+  await mouseDown(start); await page.mouse.move(secondRow.x,secondRow.y,{steps:6});
+  await expectCanvasPixel(page,245,225,[0,135,95,255]);
+  await page.keyboard.press("Escape"); await page.mouse.up();
+  await expect(page.getByLabel("Edit X",{exact:true})).toHaveValue("0");
+  await mouseDown(start); await page.mouse.move(secondRow.x,secondRow.y,{steps:6}); await page.mouse.up();
+  await expect(page.getByLabel("Edit X",{exact:true})).toHaveValue("60");
+  await expect(page.getByLabel("Edit Y",{exact:true})).toHaveValue("40");
+  const middle = await canvasPoint(page,275,225), target = await canvasPoint(page,540,265);
+  await mouseDown(middle); await page.mouse.move(target.x,target.y,{steps:8}); await page.mouse.up();
+  const panel = page.getByRole("group",{name:"Layout sizing",exact:true});
+  await expect(panel.getByLabel("Column",{exact:true})).toHaveValue("2");
+  await expect(panel.getByLabel("Row",{exact:true})).toHaveValue("2");
+  await expect(page.getByText("Recovery saved on this device",{exact:true})).toBeVisible();
+  await page.reload(); await expect(page.getByRole("heading",{name:file.name,exact:true})).toBeVisible();
+  const downloading = page.waitForEvent("download");
+  await page.getByRole("button",{name:"Save as",exact:true}).click();
+  const saved = await decodeFigcraft(await readFile((await (await downloading).path())!));
+  expect(saved.document.nodes[2]).toMatchObject({children: ["4","5","6","7","8"]});
+  expect(saved.document.nodes[3]).toMatchObject({parent: "9", childLayout: {gridColumn: 1,gridRow: 1}});
+});
