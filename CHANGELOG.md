@@ -2,6 +2,11 @@
 
 All notable changes to the React port and its upstream compatibility baseline are recorded here.
 
+## [0.50.0] - 2026-11-09
+
+- Added native flow and grid layout, sizing and constraints, wrapped lines, baselines, grid tracks and child placement. Layout survives native save, local recovery and undo.
+- Added layout commands, pointer and keyboard reordering, canvas gap and padding handles, edge sizing and mixed-value inspector edits. The layout reference is upstream 3839fe4a. [Auto layout verification](docs/planning/26-11-09-auto-layout.md).
+
 ## [0.49.0] - 2026-11-09
 
 - Added editable native text layers, styled ranges, mixed-script shaping, curved text, font selection, browser composition and text flattening. Native save, recovery and undo retain the document text.

@@ -448,3 +448,9 @@ Native canvas/al_keys.rs, wrap_slot_rows and auto_layout_slot map to nudgeFlow a
 Native canvas/tools/drag.rs, drop::grid_cell_at, drop::drag_parent and cmd/create::frame_at map to placeMove, gridCellAt, dragParent and frameAt. Native al_drag_tests map to [pointer regressions](../../tests/parity/layout-drop.test.ts). [Native event and Chromium pixel comparisons](../planning/26-11-09-auto-layout.md#pointer-reordering-at-984680e).
 
 Native edge_double_click and handle_at map to TransformInteraction.doubleClickEdge. Native ui-egui canvas/handles.rs al_zones and padding/gap apply branches map to layoutZones and LayoutSpacingInteraction. [Native headless fixtures and browser results](../planning/26-11-09-auto-layout.md#canvas-sizing-and-spacing).
+
+### Layout field and sizing verification
+
+Native widgets/field_math.rs and widgets.rs map to [field-math](../../src/engine/field-math.ts) and [LayoutNumber](../../src/LayoutNumber.tsx). Native right.rs field_of, position_values and layout_panel.rs dimensions map to [GeometryPanel](../../src/GeometryPanel.tsx), [shownGeometry](../../src/engine/geometry-fields.ts) and EditorEngine.editMixedGeometry. The two implementations matched through 1,440 edit and undo snapshots including rotations, constraints, nested frames and proportional resizing. Independent sibling writes share validation. Nested writes preserve selection order and read their starting values from the original document.
+
+The seven case tables in native layout/src/behaviour_tests.rs map to [65 reference rules](../../tests/fixtures/native-layout-rules.json) and [two-pass layout checks](../../tests/parity/layout-rules.test.ts). The fixtures include the native synthetic text measurements. Separate signed-in Chromium checks cover actual shaped text, clipping, save from a focused field, mixed constraints, and overlapping paint and hit order. [Property matrix](../reports/26-11-09-auto-layout-parity.html).

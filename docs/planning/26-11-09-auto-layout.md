@@ -4,10 +4,10 @@
 
 | Field | Current value |
 |---|---|
-| Reference | Figcraft fork and original upstream at 3839fe4a0cb4897c1fed1fb03e0b60e191ff61cb. React 0306139 on prompt/full-figcraft-port. The global supported baseline is 8eb0b876. |
-| Evidence | Local merged Graphify index has 31,869 nodes and 105,203 edges. The Rust index links the grid-placement tests to grid_place. The React index links resizeChildren to withLayerSize and hierarchy tests to setRectangleProperties. UI labels and JSON defaults were checked directly. |
+| Reference | Figcraft fork and original upstream at 3839fe4a0cb4897c1fed1fb03e0b60e191ff61cb. React dbc35f4 on prompt/full-figcraft-port. The global supported baseline is 8eb0b876. |
+| Evidence | Local merged Graphify index has 31,884 nodes and 105,277 edges. The Rust index links the grid-placement tests to grid_place. The React index links resizeChildren to withLayerSize and hierarchy tests to setRectangleProperties. UI labels and JSON defaults were checked directly. |
 | Backend | The scoped Figcraft MCP read returned zero public tables. Layout settings are part of the native document and its existing local persistence. |
-| Next action | Verify mixed dimension editing and the open checks in the [property matrix](../reports/26-11-09-auto-layout-parity.html). |
+| Next action | Continue with [components and instances](26-11-09-components-instances.md). The [layout release report](../reports/26-11-09-auto-layout.md) records the final gates. |
 | Blockers | None. |
 
 ## Implementation and verification order
@@ -83,3 +83,9 @@ The expression parser at 8acf532 matched 3,200 results from the pinned Rust fiel
 The full browser run on ebfbaf6 passed 245/246. The dense grid gap measured 18.5 ms p95. At 0306139 validation reuses repeated sibling ancestry and tests translated bounds directly. Three independent Chromium runs measured 12.8, 11.2 and 11.6 ms p95 on 9,998 children, with no editor publications, correct cancellation and less than 1 MB retained. Strict types, both builds, 1,755 pure tests and two local Auth checks passed. The 247-test full-host rerun is in progress. The local graph includes React beginLayoutField and parseFieldEdit and native right.rs field_of. Two test files yielded no graph symbols and were verified directly.
 
 Continue with the Design inspector’s single and mixed width/height fields, per-layer relative edits, multi-frame clipping and the remaining property-by-property audit. Keep the global baseline unchanged.
+
+## Local release 0.50.0
+
+The 247-test suite passed at 0306139. At dbc35f4 the geometry inspector preserves per-layer relative values, both constraint axes, clipping and proportions through a single undo. The local graph identifies editMixedGeometry and the native field_of implementation. The 26 native field tests passed. Across 240 generated sessions, all 1,440 snapshots matched within 1.14 × 10⁻¹³. All 65 pinned layout rules matched on two successive reflows, including native synthetic text metrics.
+
+The first 0.50.0 browser run stopped after 130 passes on a stale smart-reorder assertion. The corrected test checks the mixed field and the first layer’s actual X position independently. The complete production rerun passed 250/250 in 515.8 seconds. The [release report](../reports/26-11-09-auto-layout.md) records build, Auth and performance results. The offline matrix contains 103 properties and 65 downloadable native drawings.
