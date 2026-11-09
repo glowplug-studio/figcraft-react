@@ -392,3 +392,5 @@ Native break_lines, wrapped_lines, restyle_breaks, list_markers, list_step, layo
 Native breaks::word_breaks and the wasm32 segmenter map to textWordStarts and layoutText. The browser loads the four ICU4X 2.4.0 LSTM models on demand. The independent TypeScript implementation matched 6,000 native word-boundary masks. [Word and layout evidence](../planning/26-11-09-rich-text.md#complex-script-word-boundaries).
 
 Native shape_segment uses HarfRust 0.13.3. ShapingFace now uses matching HarfBuzz 14.3.1 fallback shaping and Unicode 17 properties. The 19 previously failing mixed-script cases passed alongside the additional 10,000 layouts. [Shaper evidence](../planning/26-11-09-rich-text.md#shaping-fallback-and-unicode-tables).
+
+Native Face::outline_at, FlipPen and Glyph::layer_path map to ShapingFace.outline, fontOutlinePath and glyphPath. The independent FreeType reader shares the shaper’s font buffer and uses the normalised axis location. [Outline and browser evidence](../planning/26-11-09-rich-text.md#browser-glyph-outlines).

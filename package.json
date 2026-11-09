@@ -17,8 +17,8 @@
   "imports": {
     "#figcraft-harfbuzz": {
       "types": [
-        "./dist/engine/harfbuzz/index.d.mts",
-        "./src/engine/harfbuzz/index.d.mts"
+        "./src/engine/harfbuzz/index.d.mts",
+        "./dist/engine/harfbuzz/index.d.mts"
       ],
       "browser": "./dist/engine/harfbuzz/browser.js",
       "node": "./dist/engine/harfbuzz/index.mjs",

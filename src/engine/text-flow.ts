@@ -1,3 +1,4 @@
+import type { Affine } from "./affine";
 import { textWordStarts } from "./text-word-starts";
 import type { FontLibrary } from "./font-library";
 import type { ShapingFace } from "./shaping-face";
@@ -13,7 +14,7 @@ import { isWrapSpace, justifyBetween } from "./text-wrap-boundaries";
 
 export interface FlowGlyph {
   face:ShapingFace; coordinates:Readonly<Record<string,number>>; style:TextStyle; id:number;
-  start:number; end:number; x:number; y:number; advance:number; size:number; rtl:boolean;
+  start:number; end:number; x:number; y:number; advance:number; size:number; rtl:boolean; warp?:Affine;
 }
 export interface FlowLine {
   first:number; last:number; start:number; end:number; width:number; height:number; top:number;

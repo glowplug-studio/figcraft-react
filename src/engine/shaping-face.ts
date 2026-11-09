@@ -1,6 +1,8 @@
 import * as hb from "#figcraft-harfbuzz";
 import { fontTables, fontVariations, normaliseFontStyle, type FontAxis, type FontInstance } from "./font-tables";
 import { styleWeight, type TextStyle } from "./text-style";
+import { fontOutlinePath } from "./text-glyph-path";
+import type { PathCommand } from "./corners";
 import { validOpenTypeTag } from "./text-case";
 
 export interface ShapingScalar { readonly codePoint: number; readonly source: number }
@@ -51,6 +53,9 @@ export class ShapingFace {
   readonly hasColour: boolean;
   readonly weight: number;
   readonly features: readonly string[];
+  readonly #glyphCount: number;
+  readonly #outlines = new Map<string,readonly PathCommand[]>();
+  #outlineCommands = 0;
   readonly #font: hb.Font;
   readonly #buffer = new hb.Buffer();
 
@@ -59,6 +64,8 @@ export class ShapingFace {
     this.style = style;
     this.postscript = faceName(face,6);
     this.upem = face.upem;
+    const maxp = tables.get("maxp")!;
+    this.#glyphCount = maxp.byteLength >= 6 ? maxp.getUint16(4) : 0;
     const variation = fontVariations(tables.get("fvar"), id => faceName(face,id));
     this.axes = variation.axes;
     this.instances = variation.instances;
@@ -126,6 +133,29 @@ export class ShapingFace {
         ? Math.min(axis.max,Math.max(axis.min,value)) : axis.default);
     });
     if (variations.length) this.#font.setVariations(variations);
+  }
+
+  /** Unhinted outlines in font units, with the same downward Y axis as the canvas. */
+  outline(id: number, axes: Readonly<Record<string,number>> = {}): readonly PathCommand[] {
+    if (!Number.isInteger(id) || id < 0 || id >= this.#glyphCount) return [];
+    const values = Object.values(this.axes).map(axis => Number.isFinite(axes[axis.tag])
+      ? Math.max(axis.min, Math.min(axis.max, axes[axis.tag])) : axis.default);
+    const key = id + ":" + values.join(",");
+    const cached = this.#outlines.get(key);
+    if (cached) return cached;
+    this.#applyAxes(axes);
+    const raw = hb.unhintedOutline(this.#font, id);
+    const path = fontOutlinePath(raw);
+    // Axes can be continuously dragged. Bound both the map and retained path geometry.
+    if (this.#outlines.size >= 20_000 || this.#outlineCommands + path.length > 128_000) {
+      this.#outlines.clear();
+      this.#outlineCommands = 0;
+    }
+    if (path.length <= 128_000) {
+      this.#outlines.set(key, path);
+      this.#outlineCommands += path.length;
+    }
+    return path;
   }
 
   nominalRun(text:string, axes:Readonly<Record<string,number>>, size:number) {

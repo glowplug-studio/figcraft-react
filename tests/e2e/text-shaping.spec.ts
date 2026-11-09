@@ -3,6 +3,7 @@ import { expect, test } from "@playwright/test";
 import { build } from "vite";
 import flow from "../fixtures/text-flow.json" with { type:"json" };
 import wordSamples from "../fixtures/text-word-starts.json" with { type:"json" };
+import outlines from "../fixtures/text-outlines.json" with { type:"json" };
 import styled from "../fixtures/styled-glyphs.json" with { type:"json" };
 import selection from "../fixtures/font-selection.json" with { type:"json" };
 import cases from "../fixtures/text-shaping.json" with { type:"json" };
@@ -17,6 +18,7 @@ test("Chromium shapes pinned font bytes with the native glyph IDs, positions and
   const inputs = [...new Set([...cases.map(c=>c.file),...["Regular","Bold","Italic","SemiBold"].map(s=>"inter/Inter-"+s+".ttf")])];
   const fontFiles = new Map(await Promise.all(inputs.map(async file =>
     ["/fonts/"+file,await readFile(new URL("../../fonts/"+file,import.meta.url))] as const)));
+  fontFiles.set("/fonts/outline-cff.ttc", await readFile(new URL("../fixtures/outline-cff.ttc", import.meta.url)));
   let failFirstWordRequest = true;
   await page.route("https://shaper.test/**", async route => {
     const path = new URL(route.request().url()).pathname, font = fontFiles.get(path), chunk = files.get(path);
@@ -97,6 +99,57 @@ test("Chromium shapes pinned font bytes with the native glyph IDs, positions and
     };
   },{inputs,selection,styled,flow});
   expect(selected).toEqual({...selection,flow:flow.map(({width,height,lines,glyphs,truncated})=>({width,height,lines,glyphs,truncated})),styled:styled.map(({glyphs,width})=>({glyphs,width}))});
+  const masks = await page.evaluate(async samples => {
+    const url = "/shaper.js";
+    const api: typeof import("../fixtures/text-shaping-browser") = await import(url);
+    const fonts = new Map<string,Awaited<ReturnType<typeof api.readFontFaces>>>();
+    const results = [];
+    for (const {file,index,id,axes,path} of samples) {
+      if (!fonts.has(file)) {
+        const bytes = await (await fetch("/fonts/"+file)).arrayBuffer();
+        fonts.set(file, await api.readFontFaces(new Uint8Array(bytes)));
+      }
+      const face = fonts.get(file)![index];
+      const size = 110, x = 42, y = 126;
+      const warp = [1,0.14,-0.18,0.97,12,2] as const;
+      const target = new OffscreenCanvas(240,190).getContext("2d")!;
+      const native = new OffscreenCanvas(240,190).getContext("2d")!;
+      native.transform(...warp);
+      native.translate(x,y);
+      native.scale(size/face.upem,size/face.upem);
+      for (const [kind,...v] of path) {
+        const [a,b,c,d,e,f] = v as number[];
+        if (kind==="M") native.moveTo(a,b);
+        else if (kind==="L") native.lineTo(a,b);
+        else if (kind==="Q") native.quadraticCurveTo(a,b,c,d);
+        else if (kind==="C") native.bezierCurveTo(a,b,c,d,e,f);
+        else native.closePath();
+      }
+      const placed = api.glyphPath({face,id,size,x,y,warp,coordinates:axes as Record<string,number>});
+      for (const c of placed) {
+        if (c[0]==="M") target.moveTo(c[1],c[2]);
+        else if (c[0]==="L") target.lineTo(c[1],c[2]);
+        else if (c[0]==="C") target.bezierCurveTo(c[1],c[2],c[3],c[4],c[5],c[6]);
+        else target.closePath();
+      }
+      native.fill();
+      target.fill();
+      const a = native.getImageData(0,0,240,190).data;
+      const b = target.getImageData(0,0,240,190).data;
+      let ink = 0, error = 0, interior = 0;
+      for (let i=3;i<a.length;i+=4) {
+        ink += a[i];
+        error += Math.abs(a[i]-b[i]);
+        if ((a[i]===255 && b[i]===0) || (a[i]===0 && b[i]===255)) interior++;
+      }
+      results.push({file,id,interior,relativeError:error / Math.max(ink,1)});
+    }
+    return results;
+  }, outlines);
+  for (const mask of masks) {
+    expect(mask.interior,JSON.stringify(mask)).toBe(0);
+    expect(mask.relativeError,JSON.stringify(mask)).toBeLessThan(0.015);
+  }
   const plain = await page.evaluate(async () => {
     const url = "/shaper.js";
     const api: typeof import("../fixtures/text-shaping-browser") = await import(url);

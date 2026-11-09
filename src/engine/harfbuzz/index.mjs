@@ -2320,3 +2320,14 @@ function otTagToLanguage(tag) {
 init(await createHarfBuzz());
 //#endregion
 export { AxisFlags, Blob, Buffer, BufferContentType, BufferFlag, BufferSerializeFlag, BufferSerializeFormat, ClusterLevel, ColorPaletteFlags, Direction, DrawFuncs, Face, Feature, Font, FontFuncs, GlyphClass, GlyphFlag, MetricsTag, PaintCompositeMode, PaintExtend, PaintFuncs, TracePhase, Variation, otTagToLanguage, otTagToScript, shape, shapeWithTrace, version, versionString };
+
+export function unhintedOutline(font, glyph) {
+  const commands = [];
+  const data = register_callback_data_pointer(commands);
+  try {
+    exports.figcraft_unhinted_outline(font.ptr, glyph, getJsonDrawFuncs().ptr, data);
+  } finally {
+    remove_callback_data_pointer(data);
+  }
+  return commands;
+}

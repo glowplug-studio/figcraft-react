@@ -1,5 +1,5 @@
 import { inverse, transformPoint, type Affine } from "./affine";
-import { flattenContours, tracePath, type PathCommand } from "./corners";
+import { flattenContours, mapVectorPath, type PathCommand } from "./corners";
 import { nearestCubic } from "./cubic-nearest";
 import { rectanglePaints, type Document, type NodeId } from "./document";
 import type { Point, Rectangle } from "./geometry";
@@ -38,15 +38,7 @@ export function regionHatchSpacing(zoom: number): number | undefined {
   return Number.isFinite(spacing) && spacing > 0 ? spacing : undefined;
 }
 
-export function mapVectorPath(path: readonly PathCommand[], map: (p: Point) => Point): PathCommand[] {
-  const mapped: PathCommand[] = [];
-  tracePath({
-    moveTo: (x, y) => mapped.push(["M", x, y]), lineTo: (x, y) => mapped.push(["L", x, y]),
-    bezierCurveTo: (a, b, c, d, x, y) => mapped.push(["C", a, b, c, d, x, y]),
-    closePath: () => mapped.push(["Z"]),
-  }, path, map);
-  return mapped;
-}
+export { mapVectorPath } from "./corners";
 
 type Line = readonly [Point, Point];
 const normal = (p: Point) => (p.x + p.y) * Math.SQRT1_2;

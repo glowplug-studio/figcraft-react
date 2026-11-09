@@ -78,6 +78,16 @@ export function tracePath(sink: PathSink, path: readonly PathCommand[], map: (p:
     else { const p = map({ x: c[1], y: c[2] }); if (c[0] === "M") sink.moveTo(p.x, p.y); else sink.lineTo(p.x, p.y); }
   }
 }
+export function mapVectorPath(path: readonly PathCommand[], map: (p: Point) => Point): PathCommand[] {
+  const mapped: PathCommand[] = [];
+  tracePath({
+    moveTo: (x, y) => mapped.push(["M", x, y]), lineTo: (x, y) => mapped.push(["L", x, y]),
+    bezierCurveTo: (a, b, c, d, x, y) => mapped.push(["C", a, b, c, d, x, y]),
+    closePath: () => mapped.push(["Z"]),
+  }, path, map);
+  return mapped;
+}
+
 const paths = new WeakMap<Corners, Map<string, readonly PathCommand[]>>();
 export const hasRoundedCorners = (n: LayerNode): boolean => (n.kind === "rectangle" || n.kind === "frame") && Boolean(n.corners?.radii.some(r => r > 0));
 export function cornerPath(node: LayerNode): readonly PathCommand[] {

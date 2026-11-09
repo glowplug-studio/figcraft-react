@@ -229,3 +229,8 @@ ICU4X 2.4.0 C API, its compiled LSTM models and a Rust standard-library runtime.
 The distributed icu directory contains THIRD-PARTY-NOTICES.txt and the
 compressed RUST-LIBRARY-LICENCES.html.gz. The reproducible build links selected
 exports from the unmodified public icu_capi crate under its own Cargo.lock.
+
+The optional glyph outline reader uses FreeType 2.15.0 under the FreeType
+Project Licence. Portions of this software are copyright © 1996–2026 The
+FreeType Project (www.freetype.org). All rights reserved. The distributed
+shaper directory includes FREETYPE-LICENCE.txt.
