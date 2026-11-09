@@ -79,6 +79,7 @@ export function executeSelection(command: string, document: Document, selection:
       for (const id of targets) if (!Object.hasOwn(document.nodes, id)) throw new Error(`No node ${id}`);
       const first = targets[0];
       const targetPage = first === undefined ? undefined : pageForNode(document, first);
+      if (first!==undefined && targetPage===undefined && document.libraryStore?.root) throw Error(first+" isn't on a page (it is a library component)");
       if (targetPage !== undefined && targetPage !== document.currentPage) {
         if (!document.pages.includes(targetPage)) throw new Error(`${first} isn't on a page`);
         current = Object.freeze({ ...document, currentPage: targetPage });

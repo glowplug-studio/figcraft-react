@@ -28,6 +28,6 @@ export function describeLibrary(doc:Document,link:LibraryLink,source:PublishedLi
   if (!source) return {...info,error:"Choose the published library file to read its assets."};
   if (source.manifest.id!==link.id) return {...info,error:'the file now holds another library ("'+source.manifest.name+'")'};
   const pending=pendingLibraryAssets(doc,source);
-  return {...info,version:inspectedId(source.manifest.version),description:source.manifest.description,updates:pending.styles.length+pending.variables.length+pending.collections.length,
+  return {...info,version:inspectedId(source.manifest.version),description:source.manifest.description,updates:pending.components.length+pending.styles.length+pending.variables.length+pending.collections.length,
     ...(withAssets && publishedSummary(source,true).assets)};
 }

@@ -6337,3 +6337,36 @@ test("linked styles apply from Assets and Design, update a selected text range a
   if (layer.kind!=="text") throw Error("Missing text");
   expect(layer.text.runs).toMatchObject([{start:1,end:2,style:{fontSize:32,styleId:document.libraryRecords?.styles?.find(r=>r.key==="S:4")?.local}}]);
 });
+
+test("library component tiles place, swap, accept nested updates and recover their hidden mains",async({page})=>{
+  await login(page);
+  const button=(name:string)=>page.getByRole("button",{name,exact:true});
+  await button("Assets").click();
+  const enabled=page.getByRole("region",{name:"Enabled libraries"});
+  const source=page.getByLabel("Choose published library");
+  const kit=(v:number)=>new URL("../fixtures/native-component-library-v"+v+".figcraft",import.meta.url).pathname;
+  await source.setInputFiles(kit(1));
+  const tile=(name:string)=>enabled.getByRole("button",{name:"Place "+name,exact:true});
+  await expect(tile("_Draft")).toHaveCount(0);
+  const canvas=page.getByLabel("Design canvas",{exact:true}),drop=await canvasPoint(page,180,125),box=(await canvas.boundingBox())!;
+  const targetPosition={x:drop.x-box.x,y:drop.y-box.y};
+  await tile("Button").dragTo(canvas,{targetPosition});
+  await expect(page.getByRole("region",{name:"Selected instance"})).toBeVisible();
+  await page.keyboard.down("Alt");
+  try {await tile("Card").dragTo(canvas,{targetPosition});} finally {await page.keyboard.up("Alt");}
+  await tile("Button").click();
+  await source.setInputFiles(kit(3));
+  await enabled.getByRole("button",{name:"Accept 3 updates",exact:true}).click();
+  await enabled.getByRole("button",{name:"Remove library Untitled",exact:true}).click();
+  await expect(page.locator(".figcraft-recovery")).toHaveText("Recovery saved on this device");
+  await page.reload();
+  const downloading=page.waitForEvent("download");await button("Save as").click();
+  const {document}=await decodeFigcraft(await readFile((await (await downloading).path())!));
+  const store=document.libraryStore!;
+  expect(document.pages).toEqual(["1"]);expect(document.libraryLinks).toBeUndefined();
+  expect(store.components.map(r=>r.version)).toEqual(["3","3"]);
+  const mains=new Map(store.components.map(r=>[r.key,r.root]));
+  const placed=Object.values(document.nodes).filter(n=>n.parent==="1");
+  expect(placed).toMatchObject([{kind:"instance",component:mains.get("4")},{kind:"instance",component:mains.get("2")}]);
+  expect(Object.values(document.nodes).filter(n=>n.name==="Dot")).toHaveLength(4);
+});

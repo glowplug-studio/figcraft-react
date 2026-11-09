@@ -896,14 +896,14 @@ export class CanvasController {
       if (performance.getEntriesByName("figcraft:pointer").length > 1200) performance.clearMeasures("figcraft:pointer");
     });
   }
-  previewAsset(id?: string, point?: Point, alt = false) {
+  previewAsset(id?: string, point?: Point, alt = false, source?:Document) {
     const doc = this.engine.getRenderDocument();
-    const main = id && defaultMain(doc,id);
+    const main = id && defaultMain(source ?? doc,id);
     if (!main || !point) {
       if (this.#assetDrop) { this.#assetDrop = undefined; this.invalidate(); }
       return;
     }
-    const swap = alt ? assetSwapTarget(doc,point,main) : undefined;
+    const swap = alt ? assetSwapTarget(doc,point,main,source ?? doc) : undefined;
     const slot = swap ? undefined : assetDropSlot(doc,point);
     this.#assetDrop = {id:swap?.id ?? slot!.parent,line:slot?.line};
     this.invalidate();

@@ -1,3 +1,4 @@
+import {libraryComponent} from "./library-store";
 import { remapBindings } from "./list-variable-bindings";
 import { definitionCommands, editDefinition } from "./property-authoring";
 import { addVariant, combineVariants } from "./variant-authoring";
@@ -215,7 +216,14 @@ export function executeInstanceCommand(command: keyof typeof instanceCommandSpec
       const instance = owningInstance(document,first);
       if (!instance) throw new Error("Not an instance");
       const main = instance.component, page = pageForNode(document,main);
-      if (!page) throw new Error("The main component was deleted (use component.restoreMain)");
+      if (!page) {
+        const remote=libraryComponent(document,main);
+        if (remote) {
+          const name=document.libraryLinks?.find(l=>l.id===remote.library)?.name ?? remote.library;
+          throw new Error('Open the library file "'+name+'" to edit this main component');
+        }
+        throw new Error("The main component was deleted (use component.restoreMain)");
+      }
       const shown = document.currentPage === page ? document : Object.freeze({...document,currentPage:page});
       return {document:shown, selection:Object.freeze([main]), nextId, result:{id:main}};
     }

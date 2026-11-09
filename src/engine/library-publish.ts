@@ -1,7 +1,7 @@
-import {isLosslessNumber} from "lossless-json";
+import {collectNodeAssets,libraryComponentUnits} from "./library-component-source";
 import {sameComponentValue} from "./component-groups";
 import {newDocument,withLayerTransform,layerTransform,type Document,type DocumentNode} from "./document";
-import {ancestors,subtreeIds,worldTransform} from "./hierarchy";
+import {ancestors,worldTransform} from "./hierarchy";
 import {U64_MAX} from "./native-values";
 import {parseNodeId,inspectedId,parseString} from "./parameters";
 import {libraryImageKeys,type LibraryManifest,type PublishedLibrary} from "./published-library";
@@ -29,7 +29,7 @@ export function publishChoices(doc:Document) {
       return {id,name,selected:!(/^[._]/.test(name)) && (!last || last.published || /^[._]/.test(last.name))};
     });
   };
-  const components=Object.values(doc.nodes).filter(n=>asset(n) && !ancestors(doc,n.id).some(id=>asset(doc.nodes[id]) || doc.nodes[id].kind==="instance"))
+  const components=Object.values(doc.nodes).filter(n=>asset(n) && !ancestors(doc,n.id).some(id=>id===doc.libraryStore?.root || asset(doc.nodes[id]) || doc.nodes[id].kind==="instance"))
     .sort((a,b)=>order(a.id,b.id));
   const remote=new Set(doc.libraryRecords?.collections.map(r=>r.local));
   return {components:choices("components",components),styles:choices("styles",localStyles(doc)),collections:choices("collections",doc.variables?.collections.filter(c=>!remote.has(c.id)) ?? [])};
@@ -63,50 +63,14 @@ function selection(doc:Document,p:Record<string,unknown>) {
   }
   return selected;
 }
-function componentDependencies(doc:Document,ids:readonly string[]) {
-  const needed=new Set<string>();
-  for (const id of ids) {
-    const n=doc.nodes[id];
-    if (n.kind==="component") for (const prop of Object.values(n.props)) {
-      if (prop.type==="instanceSwap") needed.add(prop.default);
-      if (prop.type==="instanceSwap" || prop.type==="slot") for (const other of prop.preferred) needed.add(other);
-    }
-    if (n.kind==="instance") {
-      needed.add(n.component);
-      const main=doc.nodes[n.component];
-      if (main?.kind==="component") for (const [key,prop] of Object.entries(main.props)) if (prop.type==="instanceSwap") {
-        const v=n.props[key],target=parseNodeId(isLosslessNumber(v) ? v.value : v);
-        if (target) needed.add(target);
-      }
-    }
-  }
-  return [...needed].sort(order);
-}
 function buildSnapshot(doc:Document,sel:Selection) {
-  const stack=sel.components.slice().reverse(),units=new Map<string,readonly string[]>(),nodes:Record<string,DocumentNode>=Object.create(null);
+  const units=libraryComponentUnits(doc,sel.components),nodes:Record<string,DocumentNode>=Object.create(null);
   const styles=new Set(sel.styles),colls=new Set(sel.collections),bound=new Set<string>();
   let max=1n;
-  while (stack.length && units.size<100_000) {
-    const root=stack.pop()!;
-    if (units.has(root)) continue;
-    const ids=subtreeIds(doc,root);
-    units.set(root,ids);
-    for (const id of ids) {
-      const n=doc.nodes[id];nodes[id]=n;
-      const numeric=BigInt(id);if (numeric>max) max=numeric;
-      for (const link of Object.values(n.styles ?? {})) if (link) styles.add(link);
-      if (n.kind==="text") {
-        if (n.text.style.styleId) styles.add(n.text.style.styleId);
-        for (const r of n.text.runs) if (r.style.styleId) styles.add(r.style.styleId);
-      }
-      for (const v of Object.values(n.boundVariables ?? {})) bound.add(v);
-      for (const c of Object.keys(n.variableModes ?? {})) colls.add(c);
-    }
-    for (const dep of componentDependencies(doc,ids)) {
-      if (!doc.nodes[dep]) continue;
-      const owner=[dep,...ancestors(doc,dep)].filter(id=>asset(doc.nodes[id])).at(-1);
-      if (owner && !units.has(owner)) stack.push(owner);
-    }
+  for (const ids of units.values()) for (const id of ids) {
+    const n=doc.nodes[id];nodes[id]=n;
+    const numeric=BigInt(id);if (numeric>max) max=numeric;
+    collectNodeAssets(n,styles,bound,colls);
   }
   if (max===U64_MAX) throw Error("No node id is available for the library page");
   const page=String(max+1n),base=newDocument(doc.name),roots=[...units.keys()];

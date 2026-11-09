@@ -1,4 +1,5 @@
 import type {Document,DocumentNode} from "./document";
+import {pruneLibraryComponents} from "./library-store";
 import {HierarchyDraft} from "./hierarchy";
 import {planLibraryRecords} from "./library-records";
 import {importLibraryVariables,pruneLibraryVariables} from "./library-variables";
@@ -82,6 +83,7 @@ export function applyLibraryStyle(doc:Document,selection:readonly string[],lib:P
 }
 
 export function pruneLibraryAssets(doc:Document,library:string) {
+  doc=pruneLibraryComponents(doc,library);
   const records=doc.libraryRecords;
   if (records?.styles?.some(r=>r.library===library)) {
     const linked=new Set<string>();

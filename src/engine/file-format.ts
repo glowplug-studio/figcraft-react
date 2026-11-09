@@ -1,4 +1,4 @@
-import {readImportedRecords,readLibraryLinks,wireLibraryLinks,keepLibraryAssets,libraryImageKeys,readLibraryManifest,wireLibraryManifest,type PublishedLibrary} from "./published-library";
+import {readLibraryStore,readImportedRecords,readLibraryLinks,wireLibraryLinks,keepLibraryAssets,libraryImageKeys,readLibraryManifest,wireLibraryManifest,type PublishedLibrary} from "./published-library";
 import { emptyVariables, readVariables } from "./variables";
 import { readLayerStyles, readSharedStyles, wireSharedStyle } from "./shared-styles";
 import { readComponentLinks, wireComponentLinks, readFrameKind, wireFrameKind } from "./component-properties";
@@ -202,7 +202,8 @@ function decodeDocument(raw: unknown, parsedNodes?: Record<string,DocumentNode>)
   if (root.format !== undefined && root.format !== "figcraft") fail("unrecognised format");
   fields(root, ["libraries", "variables", "styles", "format", "version", "name", "pages", "nodes", "next_id", "current_page", "imageIndex", "image_presets", "document_colors", "color_profile"], documentDefaults, "document");
   const libraries=root.libraries===undefined ? {} : object(root.libraries,"libraries");
-  fields(libraries,["enabled","variables","collections","styles"],documentDefaults.libraries,"libraries");
+  fields(libraries,["enabled","variables","collections","styles","store","components","detached","inserted"],documentDefaults.libraries,"libraries");
+  const libraryStore=readLibraryStore(libraries);
   const libraryRecords=readImportedRecords(libraries);
   const libraryLinks=readLibraryLinks(libraries.enabled);
   const profile = root.color_profile === undefined ? "srgb" : root.color_profile;
@@ -232,7 +233,7 @@ function decodeDocument(raw: unknown, parsedNodes?: Record<string,DocumentNode>)
     if (id > maximum) maximum = id;
   }
   const referenced = new Set<string>();
-  for (const pageId of pages) {
+  for (const pageId of libraryStore?.root ? [...pages,libraryStore.root] : pages) {
     const page = nodes[pageId];
     if (!page || page.kind !== "page") fail("page list refers to a missing or non-page node");
     if (referenced.has(pageId)) fail("duplicate page root");
@@ -254,7 +255,7 @@ function decodeDocument(raw: unknown, parsedNodes?: Record<string,DocumentNode>)
   if (!pages.includes(currentPage)) fail("current page is not listed");
   const declared = BigInt(id(root.next_id, "next_id"));
   const minimum = maximum < U64_MAX ? maximum + 1n : U64_MAX;
-  return { document: Object.freeze({ ...(libraryRecords && {libraryRecords}), ...(libraryLinks.length && {libraryLinks}), ...(variables !== emptyVariables && {variables}), ...(styles?.length && { styles }), ...(profile === "displayP3" && {colourProfile: "displayP3" as const}), ...(palette.length > 0 && {documentColours: Object.freeze(palette)}), ...(presets.length ? { imagePresets: Object.freeze(presets) } : {}), name: text(root.name, "document name"), pages: Object.freeze(pages), currentPage, nodes: parsedNodes ?? Object.freeze(nodes) }), nextId: (declared < minimum ? minimum : declared).toString() };
+  return { document: Object.freeze({ ...(libraryStore && {libraryStore}), ...(libraryRecords && {libraryRecords}), ...(libraryLinks.length && {libraryLinks}), ...(variables !== emptyVariables && {variables}), ...(styles?.length && { styles }), ...(profile === "displayP3" && {colourProfile: "displayP3" as const}), ...(palette.length > 0 && {documentColours: Object.freeze(palette)}), ...(presets.length ? { imagePresets: Object.freeze(presets) } : {}), name: text(root.name, "document name"), pages: Object.freeze(pages), currentPage, nodes: parsedNodes ?? Object.freeze(nodes) }), nextId: (declared < minimum ? minimum : declared).toString() };
 }
 
 async function parseDocument(source: Uint8Array | Blob) {
@@ -543,7 +544,7 @@ export async function prepareArchive(document: Document, nextId?: string) {
     if (bytes.size > MAX_ARCHIVE_MEMBER) fail("image exceeds the 512 MiB native member limit");
     return { hash, width, height };
   });
-  const root = { format: "figcraft", version: 1, imageIndex, ...((document.libraryLinks?.length || document.libraryRecords) && {libraries:wireLibraryLinks(document.libraryLinks ?? [],document.libraryRecords)}), ...(document.imagePresets?.length ? { image_presets: document.imagePresets } : {}), name: document.name, pages: document.pages.map(wireId), next_id: wireId((supplied < minimum ? minimum : supplied).toString()), current_page: wireId(document.currentPage), styles: document.styles?.map(wireSharedStyle) ?? [], variables: document.variables ?? emptyVariables, document_colors: document.documentColours ?? [], ...(document.colourProfile === "displayP3" && {color_profile: document.colourProfile}), comments: [] };
+  const root = { format: "figcraft", version: 1, imageIndex, ...((document.libraryLinks?.length || document.libraryRecords || document.libraryStore) && {libraries:wireLibraryLinks(document.libraryLinks ?? [],document.libraryRecords,document.libraryStore)}), ...(document.imagePresets?.length ? { image_presets: document.imagePresets } : {}), name: document.name, pages: document.pages.map(wireId), next_id: wireId((supplied < minimum ? minimum : supplied).toString()), current_page: wireId(document.currentPage), styles: document.styles?.map(wireSharedStyle) ?? [], variables: document.variables ?? emptyVariables, document_colors: document.documentColours ?? [], ...(document.colourProfile === "displayP3" && {color_profile: document.colourProfile}), comments: [] };
   // Validate relationships on the supplied domain graph after each individual wire record passed.
   decodeDocument({...root,nodes:document.nodes},document.nodes);
   const header = stringify(root)!;

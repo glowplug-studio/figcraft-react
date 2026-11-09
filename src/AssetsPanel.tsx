@@ -53,7 +53,7 @@ function AssetThumbnail({doc,id}:{doc:Document;id:string}) {
 function localAssets(doc: Document) {
   return listComponents(doc).filter(asset=>{
     const id = String(asset.id), node = doc.nodes[id];
-    return !(node.kind === "component" && doc.nodes[node.parent].kind === "componentSet") && !owningInstance(doc,id,false);
+    return !asset.library && !(node.kind === "component" && doc.nodes[node.parent].kind === "componentSet") && !owningInstance(doc,id,false);
   }).map(asset=>({...asset,path:asset.folder.join(" / ")})).sort((a,b)=>{
     const compare = (x:string,y:string)=>x<y ? -1 : x>y ? 1 : 0;
     return compare(a.path.toLowerCase(),b.path.toLowerCase()) || compare(a.label.toLowerCase(),b.label.toLowerCase());
@@ -67,8 +67,8 @@ interface AssetProps {
   save():Promise<void>;
   source(path:string):PublishedLibrary|undefined;
   addLibrary(file:File):Promise<void>;
-  place(id: string): void;
-  start(id: string, event: DragEvent<HTMLButtonElement>): void;
+  place(id:string,library?:string):void;
+  start(id: string, event: DragEvent<HTMLButtonElement>,library?:PublishedLibrary): void;
   end(): void;
 }
 
@@ -112,9 +112,18 @@ export function AssetsPanel({doc,editable,dispatch,place,start,end,source,addLib
       {doc.libraryLinks.map(link=>{
         const publication=source(link.path),manifest=publication?.manifest;
         const pending=publication && manifest?.id===link.id && pendingLibraryAssets(doc,publication);
-        const count=pending ? pending.styles.length+pending.variables.length+pending.collections.length : 0;
+        const count=pending ? pending.components.length+pending.styles.length+pending.variables.length+pending.collections.length : 0;
         return <div key={link.id}><strong>{link.name}</strong>
           <p>{manifest?.id===link.id ? "Published version "+manifest.version : "Choose the library file to load its assets."}</p>
+          {publication && manifest?.id===link.id && <div className="figcraft-asset-grid">
+            {manifest.components.filter(c=>c.published && c.name.toLowerCase().includes(search)).map(c=>
+              <button type="button" key={c.id} className="figcraft-asset-tile" aria-label={"Place "+c.name}
+                disabled={!editable} draggable={editable} onDragStart={e=>start(c.id,e,publication)} onDragEnd={end}
+                onClick={()=>place(c.id,link.id)}>
+                <span className="figcraft-asset-preview"><AssetThumbnail doc={publication.document} id={c.id}/></span>
+                <span>{c.name}</span>
+              </button>)}
+          </div>}
           {catalogues.get(link.id)?.styles.filter(s=>s.name.toLowerCase().includes(search)).map(style=>
               <button key={style.id} type="button" disabled={!editable} className="figcraft-style-asset"
                 title={style.description || style.name} onClick={()=>dispatch("library.applyStyle",{library:link.id,style:style.id})}>

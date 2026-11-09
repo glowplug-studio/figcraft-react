@@ -1,3 +1,6 @@
+import {importLibraryComponents} from "./library-components";
+import {publishedComponent} from "./library-component-source";
+import {guardLibraryStore,countLibraryInstances} from "./library-store";
 import {applyLibraryStyle} from "./library-styles";
 import {editLibraryVariable,guardLibraryVariables} from "./library-variables";
 import {acceptLibraryUpdates,findLibrary,libraryUpdates,linkedPublication} from "./library-updates";
@@ -122,6 +125,9 @@ export const commandSpecs = Object.freeze({
   "variable.bind": {label:"Bind variable",undo:true},
   "variable.setMode": {label:"Set variable mode",undo:true},
   ...gridSpecs,
+  "library.import": {label:"Import library component",undo:true},
+  "library.place": {label:"Place library component",undo:true},
+  "library.swapAt": {label:"Swap instance to library component",undo:true},
   "library.applyStyle": {label:"Apply library style",undo:true},
   "style.apply": {label:"Apply style",undo:true},
   "style.detach": {label:"Detach style",undo:true},
@@ -843,6 +849,7 @@ export class EditorEngine {
     if (!source) throw Error("This file has no published library");
     const path="library-file:"+source.manifest.id+"/"+encodeURIComponent(file.name);
     if (this.#snapshot.document.published?.manifest.id===source.manifest.id) throw Error('this file is the library "'+source.manifest.name+'"');
+    await prepareDocumentText(source.document);current();
     if (remember) {
       const archive=await encodeFigcraftBlob({...newDocument(),published:source});
       current();await remember(path,archive);current();
@@ -858,7 +865,9 @@ export class EditorEngine {
     const file=await read(link.path);
     if (!file || !current()) return;
     const source=await decodePublishedLibrary(file);
-    if (source && current()) { this.#cacheLibrary(link.path,source);this.#publish({}); }
+    if (!source || !current()) return;
+    await prepareDocumentText(source.document);
+    if (current()) { this.#cacheLibrary(link.path,source);this.#publish({}); }
   }
   async importVariableFile(file:Blob) {
     if (!this.#snapshot.editable) throw new Error("Sign in to edit this document");
@@ -883,13 +892,16 @@ export class EditorEngine {
 
   #commitEdit(patch: Partial<EditorSnapshot> & { document: Document }, options: {
     record?: boolean;
+    libraryEdit?:boolean;
     nextId?: bigint;
     duplicated?: Duplicated;
     vectorEdit?: VectorEditState;
   } = {}) {
     const before = this.#snapshot;
-    const {document,nextId} = this.#prepareEdit(patch.document, options.nextId ?? this.#nextId);
+    const proposed=options.duplicated ? countLibraryInstances(patch.document,options.duplicated.copies,"inserted") : patch.document;
+    const {document,nextId} = this.#prepareEdit(proposed, options.nextId ?? this.#nextId);
     guardLibraryVariables(before.document,document);
+    if (!options.libraryEdit) guardLibraryStore(before.document,document);
     if (options.record !== false) {
       this.#undo.push({ document: before.document, selection: before.selection });
       this.#redo = [];
@@ -1119,7 +1131,9 @@ export class EditorEngine {
         : command === "instance.create" ? createInstance(before.document, this.#nextId, p)
         : execute(command, before.document, before.selection, this.#nextId, p);
       if (command === "component.properties" || command === "instance.exposed") return next.result;
-      this.#commitEdit({document:next.document, selection:next.selection}, {record:command==="component.resetInstance" || !sameContent(before.document,next.document), nextId:next.nextId});
+      const document=command==="instance.create" || command==="instance.place" ? countLibraryInstances(next.document,next.selection,"inserted") :
+        command==="component.detach" ? countLibraryInstances(next.document,next.selection,"detached",before.document) : next.document;
+      this.#commitEdit({document, selection:next.selection}, {record:command==="component.resetInstance" || !sameContent(before.document,next.document), nextId:next.nextId});
       if (command === "component.goToMain") {
         const bounds = boundsOf(next.document,next.selection);
         if (bounds) this.updateView(fitView(this.#view,bounds,2));
@@ -1240,9 +1254,28 @@ export class EditorEngine {
     }
     if (command==="library.updates") return libraryUpdates(this.#snapshot.document,path=>this.librarySource(path));
     if (command==="library.acceptUpdates") {
-      const before=this.#snapshot.document,next=acceptLibraryUpdates(before,path=>this.librarySource(path),p.ids);
-      if (next.document!==before) this.#commitEdit({document:next.document});
+      const before=this.#snapshot.document,next=acceptLibraryUpdates(before,path=>this.librarySource(path),p.ids,this.#nextId);
+      if (next.document!==before) this.#commitEdit({document:next.document},{nextId:next.nextId,libraryEdit:true});
       return next.result;
+    }
+    if (command==="library.import" || command==="library.place" || command==="library.swapAt") {
+      const before=this.#snapshot,link=findLibrary(before.document,p.library);
+      if (!link) throw Error("no enabled library `"+p.library+"`");
+      const lib=linkedPublication(link,path=>this.librarySource(path)),key=publishedComponent(lib,p.component);
+      const imported=importLibraryComponents(before.document,lib,[key],this.#nextId),id=imported.ids.get(key);
+      if (!id) throw Error("the component didn't import");
+      if (command==="library.import") {
+        if (imported.document!==before.document) this.#commitEdit({document:imported.document},{nextId:imported.nextId,libraryEdit:true});
+        return {component:inspectedId(id)};
+      }
+      const place=command==="library.place",params={component:id,x:p.x ?? (place ? this.#view.cx : undefined),y:p.y ?? (place ? this.#view.cy : undefined)};
+      const next=executeInstanceCommand(place ? "instance.place" : "instance.swapAt",imported.document,before.selection,imported.nextId,params);
+      const document=place ? countLibraryInstances(next.document,next.selection,"inserted") : next.document;
+      this.#commitEdit({document,selection:next.selection},{nextId:next.nextId,libraryEdit:true});
+      const result:Record<string,unknown>={...next.result};
+      for (const key of ["id","parent","component"]) if (typeof result[key]==="string") result[key]=inspectedId(result[key]);
+      if (place) result.component=inspectedId(id);
+      return result;
     }
     if (["library.importVariable","library.bindVariable","library.aliasVariable","library.setVariableMode","library.extendCollection"].includes(command)) {
       const before=this.#snapshot.document,link=findLibrary(before,parseString(p.library));
@@ -1263,7 +1296,7 @@ export class EditorEngine {
       const source=this.librarySource(key);
       if (command==="library.add" && !source) throw Error("Choose the published library file first");
       const next=command==="library.add" ? enableLibrary(doc,key,source!) : removeLibrary(doc,key);
-      if (next.document!==doc) this.#commitEdit({document:next.document});
+      if (next.document!==doc) this.#commitEdit({document:next.document},{libraryEdit:true});
       else this.#publish({});
       return next.result;
     }
@@ -1509,7 +1542,7 @@ export class EditorEngine {
     this.#vectorEdit = undefined;
     this.#publish({ document: decoded.document, profileDialog: false, missingFonts: undefined, selection: Object.freeze([]), tool: "move" });
     this.updateView(fitPage({ ...this.#view, proofSrgb: false }, decoded.document));
-    return { repairs: decoded.issues ?? [], summary: { name: decoded.document.name, pages: decoded.document.pages.length, layers: Object.keys(decoded.document.nodes).length - decoded.document.pages.length, images: Object.keys(decoded.document.images ?? {}).length } };
+    return { repairs: decoded.issues ?? [], summary: { name: decoded.document.name, pages: decoded.document.pages.length, layers: Object.keys(decoded.document.nodes).length - decoded.document.pages.length - (decoded.document.libraryStore?.root ? 1 : 0), images: Object.keys(decoded.document.images ?? {}).length } };
   }
   #create(command: string, p: Record<string, unknown>): Record<string, unknown> {
     const before = this.#snapshot, next = createLayer(before, this.#nextId, command, p, this.#view);

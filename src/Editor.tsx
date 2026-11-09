@@ -1,3 +1,4 @@
+import type {PublishedLibrary} from "./engine/published-library";
 import {LibraryVariablesContext,libraryCatalogues} from "./LibraryVariablesContext";
 import {MAX_CACHED_LIBRARIES} from "./engine/library-links";
 import { GeometryPanel } from "./GeometryPanel";
@@ -74,7 +75,7 @@ export function Editor({ identity, capabilities, engine: suppliedEngine, recover
   const [busy, setBusy] = useState(false);
   const [assetsOpen,setAssetsOpen] = useState(false);
   const [mobileAssetsOpen,setMobileAssetsOpen] = useState(false);
-  const draggedAsset = useRef<string | undefined>(undefined);
+  const draggedAsset = useRef<{id:string;library?:PublishedLibrary} | undefined>(undefined);
   const [mobileLayersOpen, setMobileLayersOpen] = useState(false);
   const [pendingFile, setPendingFile] = useState<File | null>(null);
   const imageInput = useRef<HTMLInputElement>(null);
@@ -405,10 +406,10 @@ export function Editor({ identity, capabilities, engine: suppliedEngine, recover
       await engine.pickLibrary(file,principal && recoveryStore?.writeLibrary ?
         (path,archive)=>recoveryStore.writeLibrary!(principal,path,archive) : undefined);
     }}
-    start={(id,e)=>{draggedAsset.current = id; e.dataTransfer.setData(componentDragType,id); e.dataTransfer.effectAllowed = "copy";}}
-    end={endAssetDrag} place={component=>{
+    start={(id,e,library)=>{draggedAsset.current = {id,library}; e.dataTransfer.setData(componentDragType,id); e.dataTransfer.effectAllowed = "copy";}}
+    end={endAssetDrag} place={(component,library)=>{
       const {cx:x,cy:y} = engine.getView();
-      dispatch("instance.place",{component,x,y});
+      dispatch(library ? "library.place" : "instance.place",{component,x,y,...(library && {library})});
       const mobile = root.current?.querySelector<HTMLDetailsElement>(".figcraft-mobile-assets[open]");
       if (mobile) mobile.open = false;
       canvas.current?.focus();
@@ -507,18 +508,19 @@ export function Editor({ identity, capabilities, engine: suppliedEngine, recover
             <button onClick={()=>{pasteMenu.current?.hidePopover();canvas.current?.focus();void paste(undefined,pasteAt.current);}}>Paste here</button>
           </div>
           <canvas ref={canvas} onDragOver={e=>{
-            const id = draggedAsset.current;
-            if (!id || !editable || busy || !e.dataTransfer.types.includes(componentDragType)) return;
+            const asset = draggedAsset.current;
+            if (!asset || !editable || busy || !e.dataTransfer.types.includes(componentDragType)) return;
             e.preventDefault(); e.dataTransfer.dropEffect = "copy";
-            controller.current?.previewAsset(id,pagePoint(e.clientX,e.clientY),e.altKey);
+            controller.current?.previewAsset(asset.id,pagePoint(e.clientX,e.clientY),e.altKey,asset.library?.document);
           }} onDragLeave={()=>controller.current?.previewAsset()} onDrop={e=>{
-            const component = draggedAsset.current;
-            if (!component || !editable || busy || !e.dataTransfer.types.includes(componentDragType)) return;
+            const asset = draggedAsset.current;
+            if (!asset || !editable || busy || !e.dataTransfer.types.includes(componentDragType)) return;
             e.preventDefault();
             const point = pagePoint(e.clientX,e.clientY);
-            const swap = controller.current?.previewAsset(component,point,e.altKey);
+            const swap = controller.current?.previewAsset(asset.id,point,e.altKey,asset.library?.document);
             endAssetDrag();
-            dispatch(swap ? "instance.swapAt" : "instance.place",{component,...point});
+            const command=asset.library ? (swap ? "library.swapAt" : "library.place") : (swap ? "instance.swapAt" : "instance.place");
+            dispatch(command,{component:asset.id,...point,...(asset.library && {library:asset.library.manifest.id})});
             e.currentTarget.focus();
           }} onContextMenu={event=>{
             // Chromium on macOS can emit contextmenu for the primary Control-drag used to resize.

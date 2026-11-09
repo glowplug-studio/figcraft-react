@@ -1,3 +1,4 @@
+import {libraryComponent} from "./library-store";
 import { inverse, transformPoint } from "./affine";
 import { dropParent } from "./canvas-selection";
 import { defaultInstanceValues } from "./component-bindings";
@@ -24,7 +25,8 @@ export function listComponents(doc: Document) {
       const chain = ancestors(doc,node.id).reverse();
       const parts = node.name.split("/").map(part=>part.trim()).filter(Boolean);
       const label = parts.pop() ?? node.name;
-      return {id:inspectedId(node.id),name:node.name,type:nodeTypeName(node),page:chain.length ? inspectedId(chain[0]) : null,
+      const remote=doc.libraryStore?.root===chain[0] && chain.length ? libraryComponent(doc,node.id) : undefined;
+      return {...(remote && {library:remote.library}),id:inspectedId(node.id),name:node.name,type:nodeTypeName(node),page:chain.length && chain[0]!==doc.libraryStore?.root ? inspectedId(chain[0]) : null,
         instances:counts.get(node.id) ?? 0, folder:[...chain.map(id=>doc.nodes[id].name.trim()),...parts], label};
     });
 }
@@ -68,13 +70,13 @@ function family(doc: Document, id: NodeId) {
   return parent && parent.kind === "componentSet" ? parent.name : undefined;
 }
 
-export function assetSwapTarget(doc: Document, point: Point, main: ComponentNode) {
+export function assetSwapTarget(doc: Document, point: Point, main: ComponentNode, source=doc) {
   const hit = hitRectangle(doc,point,true,[],0,false);
   if (!hit) return;
   const chain = [hit,...ancestors(doc,hit)];
-  const excluded = chain.indexOf(main.id);
+  const excluded = source===doc ? chain.indexOf(main.id) : -1;
   const candidates = (excluded === -1 ? chain : chain.slice(excluded)).map(id=>doc.nodes[id]).filter(node=>node.kind === "instance");
-  const targetFamily = family(doc,main.id);
+  const targetFamily = family(source,main.id);
   return (targetFamily === undefined ? undefined : candidates.find(node=>family(doc,node.component) === targetFamily)) ?? candidates[0];
 }
 

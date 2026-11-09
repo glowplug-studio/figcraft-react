@@ -146,6 +146,8 @@ export function finishComponentEdit(before: Document, after: Document, nextId: b
   const structures = new Map<NodeId,NodeId>();
   const covered = new Set<NodeId>();
   let cycleHost: NodeId | undefined;
+  const refreshedStore=after.libraryStore?.root && before.libraryStore?.components!==after.libraryStore.components ?
+    new Set(subtreeIds(after,after.libraryStore.root)) : undefined;
   for (const id in after.nodes) {
     const a = before.nodes[id], b = after.nodes[id];
     if (a === b) continue;
@@ -153,13 +155,13 @@ export function finishComponentEdit(before: Document, after: Document, nextId: b
       const owner = owningInstance(after,id);
       const slot = owner && instanceSlot(after,id);
       if (slot) slots.add(slot);
-      if (owner && owningInstance(before,id) && !instanceSlot(before,id) && !slot) {
+      if (owner && !refreshedStore?.has(id) && owningInstance(before,id) && !instanceSlot(before,id) && !slot) {
         throw new Error(`Layers can't be added, removed or reordered inside the instance "${owner.name}": edit its main component, or detach the instance first`);
       }
     }
     if (a && a.kind !== "page" && b.kind !== "page") {
       changed.push(b);
-      const refused = forbiddenOverride(before,after,a,b);
+      const refused = !refreshedStore?.has(id) && forbiddenOverride(before,after,a,b);
       if (refused) throw new Error(`${refused} comes from the main component in an instance: edit the main component, or detach the instance`);
     }
     if (b.kind !== "page") {

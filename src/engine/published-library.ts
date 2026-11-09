@@ -1,5 +1,6 @@
 import type {Document} from "./document";
-import {fail,id,wireId} from "./native-values";
+import type {ComponentCount,LibraryStore} from "./library-store";
+import {fail,id,idString,wireId} from "./native-values";
 import type {Paint} from "./solid-paint";
 import {isLosslessNumber} from "lossless-json";
 
@@ -43,9 +44,28 @@ export function readImportedRecords(r:Record<string,unknown>):ImportedRecords | 
   const collections=read(r.collections),variables=read(r.variables),styles=read(r.styles);
   return collections.length || variables.length || styles.length ? {collections,variables,...(styles.length && {styles})} : undefined;
 }
-export function wireLibraryLinks(links:readonly LibraryLink[],records?:ImportedRecords) {
+export function readLibraryStore(r:Record<string,unknown>):LibraryStore | undefined {
+  const root=r.store==null ? undefined : id(r.store,"library store");
+  const components=entries(r.components,row=>{
+    const ids:Record<string,string>=Object.create(null);
+    for (const [key,local] of Object.entries(row.ids===undefined ? {} : record(row.ids)))
+      ids[idString(key,"library source layer")]=id(local,"imported library layer");
+    return {library:string(row.library),key:id(row.key,"library component"),root:id(row.root,"imported main"),version:uint(row.version),ids};
+  });
+  const counts=(raw:unknown)=>entries(raw,row=>{
+    const count=Number(id(row.count,"component usage count"));
+    if (count>0xffffffff) fail("component usage count must be a u32");
+    return {library:string(row.library),key:id(row.key,"library component"),count};
+  });
+  const inserted=counts(r.inserted),detached=counts(r.detached);
+  return root!==undefined || components.length || inserted.length || detached.length ? {root,components,inserted,detached} : undefined;
+}
+export function wireLibraryLinks(links:readonly LibraryLink[],records?:ImportedRecords,store?:LibraryStore) {
   const wire=(list:readonly ImportedRecord[])=>list.map(r=>({...r,version:wireId(r.version)}));
-  return {enabled:links.map(l=>({...l,version:wireId(l.version)})),store:null,components:[],styles:wire(records?.styles ?? []),...(records?.collections.length && {collections:wire(records.collections)}),...(records?.variables.length && {variables:wire(records.variables)})};
+  const counts=(list:readonly ComponentCount[])=>list.map(r=>({...r,key:wireId(r.key),count:wireId(String(r.count))}));
+  const components=(store?.components ?? []).map(r=>({...r,key:wireId(r.key),root:wireId(r.root),version:wireId(r.version),
+    ids:Object.fromEntries(Object.entries(r.ids).map(([key,local])=>[key,wireId(local)]))}));
+  return {...(store?.inserted.length && {inserted:counts(store.inserted)}),...(store?.detached.length && {detached:counts(store.detached)}),enabled:links.map(l=>({...l,version:wireId(l.version)})),store:store?.root ? wireId(store.root) : null,components,styles:wire(records?.styles ?? []),...(records?.collections.length && {collections:wire(records.collections)}),...(records?.variables.length && {variables:wire(records.variables)})};
 }
 export interface PublishedLibrary {
   readonly manifest:LibraryManifest;
