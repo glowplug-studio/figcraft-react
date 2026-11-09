@@ -5,7 +5,8 @@ import type {PublishedLibrary} from "./engine/published-library";
 import {LibraryPublishForm} from "./LibraryPublishForm";
 import { StyleSwatch } from "./StyleEditor";
 import { useEffect, useMemo, useRef, useState, type DragEvent } from "react";
-import { listComponents } from "./engine/component-assets";
+import {compareScalarKeys} from "./engine/text-breaks";
+import { assetFolder, listComponents } from "./engine/component-assets";
 import { owningInstance } from "./engine/component-tree";
 import { renderAssetThumbnail } from "./engine/canvas";
 import type { Document } from "./engine/document";
@@ -50,14 +51,38 @@ function AssetThumbnail({doc,id}:{doc:Document;id:string}) {
   return <canvas ref={ref} aria-hidden="true" width="1" height="1"/>;
 }
 
-function localAssets(doc: Document) {
-  return listComponents(doc).filter(asset=>{
-    const id = String(asset.id), node = doc.nodes[id];
-    return !asset.library && !(node.kind === "component" && doc.nodes[node.parent].kind === "componentSet") && !owningInstance(doc,id,false);
-  }).map(asset=>({...asset,path:asset.folder.join(" / ")})).sort((a,b)=>{
-    const compare = (x:string,y:string)=>x<y ? -1 : x>y ? 1 : 0;
-    return compare(a.path.toLowerCase(),b.path.toLowerCase()) || compare(a.label.toLowerCase(),b.label.toLowerCase());
+interface Tile {id:string;name:string;label:string;path:string}
+function orderTiles(tiles:Tile[]) {
+  return tiles.sort((a,b)=>compareScalarKeys(a.path.toLowerCase(),b.path.toLowerCase()) ||
+    compareScalarKeys(a.label.toLowerCase(),b.label.toLowerCase()) || a.id.length-b.id.length || compareScalarKeys(a.id,b.id));
+}
+function localAssets(doc:Document) {
+  const tiles=listComponents(doc).filter(asset=>{
+    const id=String(asset.id),node=doc.nodes[id];
+    return !asset.library && !(node.kind==="component" && doc.nodes[node.parent].kind==="componentSet") && !owningInstance(doc,id,false);
+  }).map(asset=>({id:String(asset.id),name:asset.name,label:asset.label,path:asset.folder.join(" / ")}));
+  return orderTiles(tiles);
+}
+const libraryTiles=new WeakMap<PublishedLibrary,Tile[]>();
+function publishedTiles(library:PublishedLibrary) {
+  const cached=libraryTiles.get(library);
+  if (cached) return cached;
+  const tiles=library.manifest.components.filter(c=>c.published).map(({id,name})=>{
+    const node=library.document.nodes[id];
+    const {label,folder}=node ? assetFolder(library.document,id) : {label:name,folder:[]};
+    return {id,name,label,path:folder.join(" / ")};
   });
+  libraryTiles.set(library,orderTiles(tiles));
+  return tiles;
+}
+function folders(tiles:readonly Tile[],search:string) {
+  const result=new Map<string,Tile[]>();
+  for (const tile of tiles) {
+    if (!tile.name.toLowerCase().includes(search)) continue;
+    const list=result.get(tile.path);
+    if (list) list.push(tile);else result.set(tile.path,[tile]);
+  }
+  return result;
 }
 
 interface AssetProps {
@@ -86,15 +111,39 @@ export function AssetsPanel({doc,editable,dispatch,place,start,end,source,addLib
   const all = useMemo(()=>localAssets(doc),[doc]);
   const search = query.trim().toLowerCase();
   const styles = localStyles(doc).filter(style=>style.name.toLowerCase().includes(search));
-  const groups = useMemo(()=>{
-    const folders = new Map<string,typeof all>();
-    for (const asset of all) {
-      if (!asset.name.toLowerCase().includes(search)) continue;
-      const list = folders.get(asset.path);
-      if (list) list.push(asset); else folders.set(asset.path,[asset]);
-    }
-    return folders;
-  },[all,search]);
+  const groups=useMemo(()=>folders(all,search),[all,search]);
+  function toggle(key:string) {
+    setCollapsed(previous=>{
+      const next=new Set(previous);
+      if (next.has(key)) next.delete(key);else next.add(key);
+      return next;
+    });
+  }
+  function renderFolders(groups:Map<string,Tile[]>,library?:PublishedLibrary) {
+    return [...groups].map(([path,assets])=>{
+      const key=JSON.stringify([library?.manifest.id ?? null,path]),open=!!search || !collapsed.has(key);
+      return <div key={path}>
+        {path && <button type="button" className="figcraft-asset-folder" aria-expanded={open} onClick={()=>toggle(key)}>{path}</button>}
+        {(open || !path) && <div className="figcraft-asset-grid">{assets.map(asset=>{
+          const id = asset.id, hidden = /^[._]/.test(asset.name);
+          return <div key={id} onBlur={e=>{if (!e.currentTarget.contains(e.relatedTarget)) setMenu(v=>v === id ? undefined : v);}}>
+            <button type="button" className="figcraft-asset-tile" aria-label={"Place "+asset.name} disabled={!editable}
+              title={asset.name+" · Click to place in the centre. Drag to place, or hold Alt over an instance to swap."}
+              draggable={editable} onDragStart={e=>start(id,e,library)} onDragEnd={end} onClick={()=>place(id,library?.manifest.id)}
+              onContextMenu={library ? undefined : e=>{e.preventDefault();setMenu(id);}}>
+              <span className="figcraft-asset-preview"><AssetThumbnail doc={library?.document ?? doc} id={id}/></span>
+              <span>{asset.label}</span>
+            </button>
+            {!library && <button type="button" className="figcraft-asset-options" aria-expanded={menu === id} aria-label={"Options for "+asset.name}
+              onClick={()=>setMenu(menu === id ? undefined : id)}>{hidden ? "◌" : "⋯"}</button>}
+            {!library && menu === id && <button type="button" className="figcraft-asset-hide" disabled={!editable} aria-pressed={hidden} onClick={()=>{
+              dispatch("component.hideWhenPublishing",{id,on:!hidden});setMenu(undefined);
+            }}>Hide when publishing</button>}
+          </div>;
+        })}</div>}
+      </div>;
+    });
+  }
   return <section className="figcraft-assets" aria-label="Assets" onKeyDown={e=>{if(e.key === "Escape") {setMenu(undefined);setSwapping(undefined);setQuery("");}}}>
     <input aria-label="Search assets" placeholder="Search assets" type="search" value={query} onChange={e=>setQuery(e.target.value)}/>
     <button type="button" aria-expanded={publish} onClick={()=>dispatch(publish ? "libraries.open" : "libraries.publish",{})}>Publish library…</button>
@@ -114,18 +163,16 @@ export function AssetsPanel({doc,editable,dispatch,place,start,end,source,addLib
         const publication=source(link.path),manifest=publication?.manifest;
         const pending=publication && manifest?.id===link.id && pendingLibraryAssets(doc,publication);
         const count=pending ? pending.components.length+pending.styles.length+pending.variables.length+pending.collections.length : 0;
-        return <div key={link.id}><strong>{link.name}</strong>
-          <p>{manifest?.id===link.id ? "Published version "+manifest.version : "Choose the library file to load its assets."}</p>
-          {publication && manifest?.id===link.id && <div className="figcraft-asset-grid">
-            {manifest.components.filter(c=>c.published && c.name.toLowerCase().includes(search)).map(c=>
-              <button type="button" key={c.id} className="figcraft-asset-tile" aria-label={"Place "+c.name}
-                disabled={!editable} draggable={editable} onDragStart={e=>start(c.id,e,publication)} onDragEnd={end}
-                onClick={()=>place(c.id,link.id)}>
-                <span className="figcraft-asset-preview"><AssetThumbnail doc={publication.document} id={c.id}/></span>
-                <span>{c.name}</span>
-              </button>)}
-          </div>}
-          {catalogues.get(link.id)?.styles.filter(s=>s.name.toLowerCase().includes(search)).map(style=>
+        const loaded=publication && manifest?.id===link.id ? publication : undefined;
+        const tiles=folders(loaded ? publishedTiles(loaded) : [],search);
+        const styles=catalogues.get(link.id)?.styles.filter(s=>s.name.toLowerCase().includes(search)) ?? [];
+        if (search && !tiles.size && !styles.length) return null;
+        const key=JSON.stringify([link.id]),expanded=!!search || !collapsed.has(key);
+        return <div key={link.id} role="group" aria-label={link.name+" assets"}>
+          <button type="button" aria-expanded={expanded} onClick={()=>toggle(key)}>{link.name}</button>
+          <p>{loaded ? "Published version "+loaded.manifest.version : "Choose the library file to load its assets."}</p>
+          {expanded && loaded && renderFolders(tiles,loaded)}
+          {expanded && styles.map(style=>
               <button key={style.id} type="button" disabled={!editable} className="figcraft-style-asset"
                 title={style.description || style.name} onClick={()=>dispatch("library.applyStyle",{library:link.id,style:style.id})}>
                 <StyleSwatch style={style}/>{style.name}
@@ -153,31 +200,7 @@ export function AssetsPanel({doc,editable,dispatch,place,start,end,source,addLib
       })}</section>}
     <h3>Local components</h3>
     {!groups.size && <p>{search ? "No matching components" : "No components yet."}</p>}
-    {[...groups].map(([path,assets])=>{
-      const open = !!search || !collapsed.has(path);
-      return <div key={path}>
-        {path && <button type="button" className="figcraft-asset-folder" aria-expanded={open} onClick={()=>{
-          setCollapsed(previous=>{const next = new Set(previous); if (next.has(path)) next.delete(path); else next.add(path); return next;});
-        }}>{path}</button>}
-        {(open || !path) && <div className="figcraft-asset-grid">{assets.map(asset=>{
-          const id = String(asset.id), hidden = /^[._]/.test(asset.name);
-          return <div key={id} onBlur={e=>{if (!e.currentTarget.contains(e.relatedTarget)) setMenu(v=>v === id ? undefined : v);}}>
-            <button type="button" className="figcraft-asset-tile" aria-label={"Place "+asset.name} disabled={!editable}
-              title={asset.name+" · Click to place in the centre. Drag to place, or hold Alt over an instance to swap."}
-              draggable={editable} onDragStart={e=>start(id,e)} onDragEnd={end} onClick={()=>place(id)}
-              onContextMenu={e=>{e.preventDefault();setMenu(id);}}>
-              <span className="figcraft-asset-preview"><AssetThumbnail doc={doc} id={id}/></span>
-              <span>{asset.label}</span>
-            </button>
-            <button type="button" className="figcraft-asset-options" aria-expanded={menu === id} aria-label={"Options for "+asset.name}
-              onClick={()=>setMenu(menu === id ? undefined : id)}>{hidden ? "◌" : "⋯"}</button>
-            {menu === id && <button type="button" className="figcraft-asset-hide" disabled={!editable} aria-pressed={hidden} onClick={()=>{
-              dispatch("component.hideWhenPublishing",{id,on:!hidden});setMenu(undefined);
-            }}>Hide when publishing</button>}
-          </div>;
-        })}</div>}
-      </div>;
-    })}
+    {renderFolders(groups)}
     <h3>Local styles</h3>
     {!styles.length && <p>{search ? "No matching styles" : "No styles yet."}</p>}
     {styles.map(style => <button key={style.id} type="button" disabled={!editable} className="figcraft-style-asset"

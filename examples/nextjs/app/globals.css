@@ -50,7 +50,7 @@ dd { margin: 0; }
 [role=alert] { color: #a21818; padding: 8px 16px; }
 .auth-page { max-width: 360px; margin: 12vh auto; padding: 24px; }
 @media (max-width: 800px) {
-  .figcraft-document-bar { position:relative; }
+  .figcraft-document-bar { position:relative; flex-wrap:wrap; height:auto; gap:6px; }
   .figcraft-mobile-pages, .figcraft-mobile-layers, .figcraft-mobile-assets { display: block; }
   :is(.figcraft-mobile-pages, .figcraft-mobile-layers, .figcraft-mobile-assets) > summary { cursor: pointer; }
   :is(.figcraft-mobile-pages, .figcraft-mobile-layers, .figcraft-mobile-assets) > section { position: absolute; z-index: 2; top: 100%; left: 8px; width: min(300px, calc(100vw - 16px)); max-height: 70dvh; overflow: auto; background: #fff; border: 1px solid #ddd; padding: 16px; }

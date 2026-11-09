@@ -13,6 +13,12 @@ import { autoLayoutSlot } from "./layout-navigation";
 import { inspectedId } from "./parameters";
 import { hitRectangle } from "./selection";
 
+export function assetFolder(doc:Document,id:NodeId,chain=ancestors(doc,id).reverse()) {
+  const name=doc.nodes[id].name,parts=name.split("/").map(part=>part.trim()).filter(Boolean);
+  const label=parts.pop() ?? name;
+  return {folder:[...chain.map(parent=>doc.nodes[parent].name.trim()),...parts],label};
+}
+
 export function listComponents(doc: Document) {
   const nodes = Object.values(doc.nodes);
   const counts = new Map<NodeId,number>();
@@ -23,11 +29,9 @@ export function listComponents(doc: Document) {
     .sort((a,b)=>a.id.length-b.id.length || (a.id<b.id ? -1 : a.id>b.id ? 1 : 0))
     .map(node=>{
       const chain = ancestors(doc,node.id).reverse();
-      const parts = node.name.split("/").map(part=>part.trim()).filter(Boolean);
-      const label = parts.pop() ?? node.name;
       const remote=doc.libraryStore?.root===chain[0] && chain.length ? libraryComponent(doc,node.id) : undefined;
       return {...(remote && {library:remote.library}),id:inspectedId(node.id),name:node.name,type:nodeTypeName(node),page:chain.length && chain[0]!==doc.libraryStore?.root ? inspectedId(chain[0]) : null,
-        instances:counts.get(node.id) ?? 0, folder:[...chain.map(id=>doc.nodes[id].name.trim()),...parts], label};
+        instances:counts.get(node.id) ?? 0, ...assetFolder(doc,node.id,chain)};
     });
 }
 
