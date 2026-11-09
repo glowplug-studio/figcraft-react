@@ -1,3 +1,4 @@
+import { orderStyles, styleOrderSpecs } from "./style-commands";
 import { listStyles } from "./shared-styles";
 import { finishComponentEdit } from "./component-edits";
 import { listComponents } from "./component-assets";
@@ -95,6 +96,7 @@ export const commandSpecs = Object.freeze({
   ...selectionSpecs,
   ...structureSpecs,
   ...instanceCommandSpecs,
+  ...styleOrderSpecs,
   "style.list": {label:"List styles",undo:false},
   "component.list": {label:"List components",undo:false},
   "instance.create": { label:"Create instance", undo:true },
@@ -1073,6 +1075,12 @@ export class EditorEngine {
         this.#commitEdit({ document, selection: Object.freeze(before.selection.filter(id => document.nodes[id] && pageForNode(document, id) === document.currentPage)) });
       }
       return { ok: true, ...(warnings.length ? { warnings } : {}) };
+    }
+    if (Object.hasOwn(styleOrderSpecs, command)) {
+      const before = this.#snapshot.document;
+      const {document, result} = orderStyles(before, command, p);
+      if (document !== before) this.#commitEdit({document});
+      return result;
     }
     if (command === "style.list") return listStyles(this.#snapshot.document, p.type);
     if (command === "component.list") return listComponents(this.#snapshot.document);

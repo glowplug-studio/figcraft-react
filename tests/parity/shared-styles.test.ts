@@ -81,3 +81,43 @@ describe("local shared style records", () => {
     expect(engine.getSnapshot().document).toBe(before);
   });
 });
+
+describe("shared style folders and order", () => {
+  it("duplicates below the original, preserves catalogue order on moves, renames nested folders and undoes each edit", async () => {
+    const engine = new EditorEngine();
+    await engine.executeAsync("file.open", {data:base64Bytes(capture)});
+    engine.execute("file.markSaved");
+    const originalStyles = engine.execute("style.list");
+    expect(engine.execute("style.duplicate", {style:"Type/Body"})).toEqual({id:"S:8"});
+    expect(engine.execute("style.duplicate", {style:"S:4"})).toEqual({id:"S:9"});
+    const styles = () => engine.execute("style.list");
+    expect(styles().slice(3,6).map(s => s.name)).toEqual(["Type/Body","Type/Body copy 2","Type/Body copy"]);
+    const copies = styles();
+    engine.execute("style.move", {styles:["S:8", "S:4", false, "S:4"], before:"S:1", folder:" Brand // Type / "});
+    expect(styles().slice(0,2).map(s => [s.id,s.name])).toEqual([["S:4","Brand/Type/Body"],["S:8","Brand/Type/Body copy"]]);
+    engine.execute("style.renameFolder", {folder:" /Brand",name:" Product / Mobile "});
+    expect(styles()[0].name).toBe("Product/Mobile/Type/Body");
+    engine.execute("style.move", {styles:["S:4"],before:"S:4",folder:" / "});
+    expect(styles().at(-1)?.name).toBe("Body");
+    for (let i = 0; i < 3; i++) engine.execute("edit.undo");
+    expect(styles()).toEqual(copies);
+    engine.execute("edit.undo"); engine.execute("edit.undo");
+    expect(styles()).toEqual(originalStyles);
+    expect(engine.getSnapshot().dirty).toBe(false);
+    engine.execute("edit.redo");
+    expect(styles()).toHaveLength(8);
+  });
+
+  it("rejects invalid batch moves atomically and allocates around style ID and name collisions", async () => {
+    const engine = new EditorEngine(), file = original();
+    file.styles[0].name = "S:8"; file.styles[1].id = "S:9";
+    await engine.executeAsync("file.open", bytes(JSON.stringify(file)));
+    const before = engine.getSnapshot().document;
+    for (const p of [{styles:["S:1","missing"]}, {styles:["S:1"],before:"missing"}, {styles:[]}, {styles:[false]}, {}]) {
+      expect(() => engine.execute("style.move",p)).toThrow();
+      expect(engine.getSnapshot().document).toBe(before);
+    }
+    expect(() => engine.execute("style.renameFolder", {folder:"Type/Body", name:"Other"})).toThrow();
+    expect(engine.execute("style.duplicate", {style:"S:1"})).toEqual({id:"S:10"});
+  });
+});
