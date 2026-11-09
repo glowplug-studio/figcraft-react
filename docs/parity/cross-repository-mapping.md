@@ -442,3 +442,5 @@ Native grid_place, grid_geometry and layout_frame map to placeGridCells, gridGeo
 Native apply_layout, the container track branch of apply_sizing, and layout_panel direction, alignment, spacing and advanced controls map to setFrameLayout and FrameLayoutPanel. Mixed selection, undo and command validation matched across 1,300 native command steps. [Verification](../planning/26-11-09-auto-layout.md#container-editing-at-fd736f1).
 
 Native child sizing and grid properties in cmd/props.rs and explicit sizing in cmd/arrange.rs map to child-layout-properties.ts, sizing.ts and ChildLayoutPanel. Native layout.add, layout.remove, layout.removeAll and layout.suggest map to editLayoutStructure, FrameLayoutPanel and editor keyboard and context actions. [Sizing and structure comparisons](../planning/26-11-09-auto-layout.md#child-sizing-at-1702886).
+
+Native canvas/al_keys.rs, wrap_slot_rows and auto_layout_slot map to nudgeFlow and autoLayoutSlot. Native al_keys_tests.rs maps to [keyboard regression tests](../../tests/parity/layout-navigation.test.ts). [Native and Chromium comparisons](../planning/26-11-09-auto-layout.md#keyboard-reordering-at-9f911fb).

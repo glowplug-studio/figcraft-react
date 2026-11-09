@@ -4,10 +4,10 @@
 
 | Field | Current value |
 |---|---|
-| Reference | Figcraft fork and original upstream at 3839fe4a0cb4897c1fed1fb03e0b60e191ff61cb. React 4c42472 on prompt/full-figcraft-port. The global supported baseline is 8eb0b876. |
-| Evidence | Local merged Graphify index has 31,791 nodes and 104,790 edges. The Rust index links the grid-placement tests to grid_place. The React index links resizeChildren to withLayerSize and hierarchy tests to setRectangleProperties. UI labels and JSON defaults were checked directly. |
+| Reference | Figcraft fork and original upstream at 3839fe4a0cb4897c1fed1fb03e0b60e191ff61cb. React 9f911fb on prompt/full-figcraft-port. The global supported baseline is 8eb0b876. |
+| Evidence | Local merged Graphify index has 31,810 nodes and 104,861 edges. The Rust index links the grid-placement tests to grid_place. The React index links resizeChildren to withLayerSize and hierarchy tests to setRectangleProperties. UI labels and JSON defaults were checked directly. |
 | Backend | The scoped Figcraft MCP read returned zero public tables. Layout settings are part of the native document and its existing local persistence. |
-| Next action | Finish keyboard navigation tests, then implement pointer reordering, sizing and spacing handles. The 239-case production Chromium run at 4c42472 is in progress. |
+| Next action | Implement pointer reordering, live insertion guides, grid drops, sizing and spacing handles. |
 | Blockers | None. |
 
 ## Implementation and verification order
@@ -44,7 +44,7 @@ At 5a709e9, all 1,250 mixed flow, wrapped, grid and text documents matched nativ
 
 ## Container editing at fd736f1
 
-All 1,300 command steps in 260 native sessions matched for resulting frame properties, layer names and dimensions, success or rejection, and mixed-selection warnings. The comparison includes whole layout replacement, aliases, numeric coercion, overlapping property edits, invalid tracks, rollback and removing a layout. The signed-in inspector switches direction, preserves wrapping, edits paired and individual padding, switches canvas stacking, enters grid mode and restores vertical flow with Undo. All 1,713 pure tests, both local Auth checks, strict types, library and host builds, and two focused Chromium workflows passed. The full 237-test Chromium run was started on this build. Numeric scrubbing, child sizing and structural commands remain open.
+All 1,300 command steps in 260 native sessions matched for resulting frame properties, layer names and dimensions, success or rejection, and mixed-selection warnings. The comparison includes whole layout replacement, aliases, numeric coercion, overlapping property edits, invalid tracks, rollback and removing a layout. The signed-in inspector switches direction, preserves wrapping, edits paired and individual padding, switches canvas stacking, enters grid mode and restores vertical flow with Undo. All 1,713 pure tests, both local Auth checks, strict types, library and host builds, and two focused Chromium workflows passed. The full Chromium run on this build passed 237/237. Numeric scrubbing, child sizing and structural commands remain open.
 
 ## Child sizing at 1702886
 
@@ -53,3 +53,7 @@ The complete Chromium run on the fd736f1 host passed 237/237. At 1702886, 5,400 
 ## Adding and removing layouts at 4c42472
 
 All 1,680 native steps across 420 documents matched for add, remove, remove all and suggest, including selection, warning text, inferred gaps and padding, layer order, bounds and undo. The browser exercised the inspector, shortcuts and context menu. All 1,721 pure tests, two local Auth checks, strict types, both builds and four focused Chromium checks passed. Pointer reordering and canvas handles remain open.
+
+## Keyboard reordering at 9f911fb
+
+The 4c42472 production host passed all 239 Chromium tests. At 9f911fb, 3,840 arrow commands in 480 generated documents matched the pinned native engine for child order, parents, grid anchors, selection, geometry and transforms. Regression tests cover hidden and absolute siblings, a block at a boundary with one undo, wrapped rows, grid anchor swaps, empty cells and entry into adjacent nested frames. A signed-in Chromium check moved a selected layer left then right and verified its inspector coordinates. All 1,725 pure tests, two local Auth checks, strict types and both builds passed. The local combined index contains nudgeFlow and native wrap_slot_rows. Pointer reordering is the next checkpoint.
