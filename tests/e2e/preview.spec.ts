@@ -5013,3 +5013,45 @@ test("canvas layout handles fix spread row gaps, pair padding and support a narr
   const saved=await decodeFigcraft(await readFile((await (await downloading).path())!));
   expect(saved.document.nodes[2]).toMatchObject({layout:{contentAlign:"auto",crossGap:200,padding:[0,16,0,16]}});
 });
+
+test("layout numeric fields apply arithmetic, arrow steps and cancellable live scrubs",async ({page}) => {
+  const file = JSON.parse(await readFile(new URL("../fixtures/native-rectangle.json",import.meta.url),"utf8"));
+  Object.assign(file.nodes[2],{type:"frame",name:"Field grid",width:240,height:100,children:[],
+    layout:{mode:"grid",grid_columns:2,grid_rows:1,gap:10,padding:[2,3,4,5]}});
+  await login(page);
+  await page.getByLabel("Open Figcraft file",{exact:true}).setInputFiles({
+    name:"fields.figcraft",mimeType:"application/octet-stream",buffer:Buffer.from(JSON.stringify(file)),
+  });
+  await page.getByRole("region",{name:"Layers"}).getByRole("button",{name:"Field grid",exact:true}).click();
+  const layout = page.getByRole("group",{name:"Auto layout",exact:true});
+  const gap = layout.getByRole("spinbutton",{name:"Column gap",exact:true});
+  await gap.fill("+(2,5 px * 4)"); await gap.press("Tab"); await expect(gap).toHaveValue("20");
+  await gap.fill("50%"); await gap.press("Shift+ArrowUp"); await expect(gap).toHaveValue("20");
+  await gap.press("ArrowDown"); await expect(gap).toHaveValue("19"); await expect(gap).toBeFocused();
+  await gap.fill("19/0"); await gap.press("Enter"); await expect(gap).toHaveValue("19");
+  await gap.fill("99"); await gap.press("Escape"); await expect(gap).toHaveValue("19");
+  const lead = layout.getByText("Column gap",{exact:true});
+  await lead.scrollIntoViewIfNeeded();
+  const box = (await lead.boundingBox())!;
+  const x = box.x+4, y = box.y+box.height/2;
+  await page.mouse.move(x,y); await page.mouse.down(); await page.mouse.move(x+10,y);
+  await expect(gap).toHaveValue("29");
+  await page.keyboard.down("Shift"); await page.mouse.move(x+12,y); await page.keyboard.up("Shift");
+  await expect(gap).toHaveValue("49");
+  await page.keyboard.press("Escape"); await page.mouse.up(); await expect(gap).toHaveValue("19");
+  await page.mouse.move(x,y); await page.mouse.down(); await page.mouse.move(x+10,y);
+  await page.keyboard.down("Alt"); await page.mouse.move(x+15,y); await page.keyboard.up("Alt");
+  await expect(gap).toHaveValue("29.5"); await page.mouse.up(); await expect(gap).toHaveValue("30");
+  await page.getByRole("button",{name:"Undo",exact:true}).click(); await expect(gap).toHaveValue("19");
+  await layout.getByRole("button",{name:"Individual padding"}).click();
+  const left=layout.getByRole("spinbutton",{name:"Left padding"});
+  await left.click({modifiers:["Control"]}); await left.press("Tab");
+  const right=layout.getByRole("spinbutton",{name:"Right padding"});
+  await expect(right).toHaveValue("3");
+  await left.click({modifiers:["Control"]}); await left.fill("5.0"); await left.press("Enter");
+  await expect(right).toHaveValue("5"); await expect(layout.getByLabel("Top padding")).toHaveValue("5");
+  const track=page.getByRole("spinbutton",{name:"Column 1 size",exact:true});
+  await track.fill("*1,5"); await track.press("Enter"); await expect(track).toHaveValue("1.5");
+  await track.press("ArrowUp"); await expect(track).toHaveValue("1.6");
+  await track.press("Shift+ArrowDown"); await expect(track).toHaveValue("0.6");
+});

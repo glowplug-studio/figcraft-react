@@ -1,10 +1,12 @@
+import { LayoutNumber, type LayoutFieldHost } from "./LayoutNumber";
 import { useMemo } from "react";
 import { gridGeometry } from "./engine/grid-layout";
 import type { Document, FrameNode } from "./engine/document";
 
-export function GridTrackPanel({document, frame, enabled, dispatch}: {
-  document: Document; frame: FrameNode; enabled: boolean; dispatch: (id: string, params: unknown) => void;
+export function GridTrackPanel({document, frame, enabled, ...host}: LayoutFieldHost & {
+  document: Document; frame: FrameNode; enabled: boolean;
 }) {
+  const {dispatch} = host;
   const geometry = useMemo(() => gridGeometry(document, frame), [document, frame]);
   return <section aria-label="Grid tracks"><fieldset disabled={!enabled}><legend>Grid tracks</legend>
     {(["columns", "rows"] as const).map(axis => {
@@ -17,17 +19,9 @@ export function GridTrackPanel({document, frame, enabled, dispatch}: {
           const value = fill ? track.value : Math.round((end-start)*100)/100;
           const label = `${word} ${index+1}`;
           const set = (sizing: string, value?: number) => dispatch("layout.setTrack", {ids: [frame.id], axis, index, sizing, value});
-          return <div key={index}><label>{index+1}
-            <input key={`${frame.id}/${track.sizing}/${value}`} aria-label={`${label} size`} type="number" min="0" step={fill ? "0.1" : "any"}
-              defaultValue={value} onKeyDown={e => {
-                if (e.key === "Enter") { e.preventDefault(); e.currentTarget.blur(); }
-                if (e.key === "Escape") { e.currentTarget.value = String(value); e.currentTarget.blur(); }
-              }} onBlur={e => {
-                const n = e.currentTarget.valueAsNumber;
-                if (!Number.isFinite(n)) e.currentTarget.value = String(value);
-                else if (n !== value) set(fill ? "fill" : "fixed", Math.max(0,n));
-              }}/>
-            {fill ? "fr" : "px"}</label>
+          return <div key={index}><LayoutNumber {...host} key={frame.id+"/"+track.sizing} label={label+" size"}
+            value={value} step={fill ? .1 : 1} min={0} suffix={fill ? "fr" : "px"} command="layout.setTrack"
+            params={n => ({ids:[frame.id],axis,index,sizing:fill ? "fill" : "fixed",value:n})}/>
             <select aria-label={`${label} sizing`} value={track.sizing} onChange={e => set(e.target.value)}>
               <option value="fixed">Fixed</option><option value="hug">Hug</option><option value="fill">Fill</option>
             </select></div>;

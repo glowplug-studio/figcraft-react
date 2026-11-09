@@ -2,11 +2,12 @@ import { useState } from "react";
 import { sameAutoLayout } from "./engine/auto-layout";
 import type { Document, NodeId } from "./engine/document";
 
-import { LayoutNumber } from "./LayoutNumber";
+import { LayoutNumber, type LayoutFieldHost } from "./LayoutNumber";
 
-export function FrameLayoutPanel({document,selection,enabled,dispatch}: {
-  document: Document; selection: readonly NodeId[]; enabled: boolean; dispatch: (command:string, params:unknown) => void;
+export function FrameLayoutPanel({document,selection,enabled,...host}: LayoutFieldHost & {
+  document: Document; selection: readonly NodeId[]; enabled: boolean;
 }) {
+  const {dispatch} = host;
   const [individual,setIndividual] = useState(false);
   const first = document.nodes[selection[0]], layout = first?.kind === "frame" ? first.layout : undefined;
   if (!layout && selection.length && selection.every(id => {
@@ -25,8 +26,8 @@ export function FrameLayoutPanel({document,selection,enabled,dispatch}: {
   const spread = !grid && layout.wrap && layout.contentAlign === "spaceBetween";
   const [top,right,bottom,left] = layout.padding;
   const number = (label: string, key: string, value?:number, min?:number, extra?:Record<string,unknown>, placeholder?:string) =>
-    <LayoutNumber key={[key,selection.join(),value].join("/")} label={label} value={value} min={min} placeholder={placeholder}
-      commit={(n,all) => set({...extra,[all && key.startsWith("padding") ? "padding" : key]:n})}/>;
+    <LayoutNumber {...host} key={[key,selection.join()].join("/")} label={label} value={value} min={min} placeholder={placeholder}
+      params={(n,all) => ({ids:selection,props:{...extra,[all && key.startsWith("padding") ? "padding" : key]:n}})}/>;
   const positions = ["min","center","max"] as const;
   return <fieldset aria-label="Auto layout" disabled={!enabled}><legend>Auto layout</legend>
     <button type="button" onClick={() => dispatch("layout.remove",{ids:selection})}>Remove auto layout</button>

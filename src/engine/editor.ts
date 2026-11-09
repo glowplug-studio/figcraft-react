@@ -454,6 +454,22 @@ export class EditorEngine {
     const interaction = this.#interaction; if (!interaction) throw new Error("No active interaction");
     interaction.document = setRectangleProperties(interaction.base.document, [id], { id, props }); this.#notifyCanvas();
   }
+  beginLayoutField(command: "node.set" | "layout.setTrack") {
+    this.beginInteraction();
+    const owner = this.#interaction!;
+    const {document,selection} = owner.base;
+    return {
+      preview: (params: Record<string,unknown>) => {
+        if (this.#interaction !== owner) return;
+        owner.document = command === "node.set"
+          ? setRectangleProperties(document,selection,params)
+          : setGridTrack(document,selection,params);
+        this.#notifyCanvas();
+      },
+      commit: () => { if (this.#interaction === owner) this.commitInteraction(); },
+      cancel: () => { if (this.#interaction === owner) this.cancelInteraction(); },
+    };
+  }
   setPaintPicker(paintPicker?: PaintPicker): void {
     if (paintPicker && !this.#snapshot.editable) return;
     this.#publish(paintPicker ? {paintPicker,crop:undefined} : {paintPicker});

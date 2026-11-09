@@ -47,3 +47,23 @@ describe("native frame layout property editing", () => {
     expect(engine.getSnapshot().document.nodes[2]).not.toHaveProperty("layout");
   });
 });
+
+it("scrubs multiple frames from one snapshot and ignores releases from an expired field gesture", () => {
+  const engine = new EditorEngine();
+  for (let i=0;i<2;i++) engine.execute("node.create",{type:"frame", props:{layout:"grid",gap:7}});
+  const base=engine.getSnapshot().document, depth=engine.getUndoDepth();
+  const first=engine.beginLayoutField("node.set");
+  for (const n of [10,12,18]) first.preview({ids:[2,3],props:{gap:n}});
+  expect(engine.getSnapshot().document).toBe(base);
+  for (const id of [2,3]) expect(engine.getRenderDocument().nodes[id]).toMatchObject({layout:{gap:18}});
+  expect(engine.getUndoDepth()).toBe(depth);
+  first.commit();
+  expect(engine.getUndoDepth()).toBe(depth+1);
+  const second=engine.beginLayoutField("layout.setTrack");
+  first.cancel(); first.preview({ids:[2,3],props:{gap:40}}); first.commit();
+  expect(engine.interacting).toBe(true);
+  second.preview({id:2,axis:"columns",index:0,sizing:"fixed",value:30});
+  expect(engine.getRenderDocument().nodes[2]).toMatchObject({layout:{columnTracks:[{sizing:"fixed",value:30}]}});
+  second.cancel(); expect(engine.getUndoDepth()).toBe(depth+1);
+  engine.execute("edit.undo"); expect(engine.getSnapshot().document).toBe(base);
+});
