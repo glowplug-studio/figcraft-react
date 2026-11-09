@@ -1,3 +1,4 @@
+import type {PublishedLibrary} from "./engine/published-library";
 import {LibraryPublishForm} from "./LibraryPublishForm";
 import { StyleSwatch } from "./StyleEditor";
 import { useEffect, useMemo, useRef, useState, type DragEvent } from "react";
@@ -59,15 +60,21 @@ function localAssets(doc: Document) {
 interface AssetProps {
   doc: Document;
   editable: boolean;
-  dispatch(command: string, params: unknown): void;
+  dispatch(command: string, params: unknown): Record<string,unknown>|undefined;
+  save():Promise<void>;
+  source(path:string):PublishedLibrary|undefined;
+  addLibrary(file:File):Promise<void>;
   place(id: string): void;
   start(id: string, event: DragEvent<HTMLButtonElement>): void;
   end(): void;
 }
 
-export function AssetsPanel({doc,editable,dispatch,place,start,end}:AssetProps) {
+export function AssetsPanel({doc,editable,dispatch,place,start,end,source,addLibrary,save}:AssetProps) {
   const [query,setQuery] = useState("");
   const [collapsed,setCollapsed] = useState<ReadonlySet<string>>(()=>new Set());
+  const [libraryStatus,setLibraryStatus]=useState("");
+  const [loadingLibrary,setLoadingLibrary]=useState(false);
+  const picker=useRef<HTMLInputElement>(null);
   const [publish,setPublish] = useState(false);
   const [menu,setMenu] = useState<string>();
   const all = useMemo(()=>localAssets(doc),[doc]);
@@ -85,7 +92,25 @@ export function AssetsPanel({doc,editable,dispatch,place,start,end}:AssetProps) 
   return <section className="figcraft-assets" aria-label="Assets" onKeyDown={e=>{if(e.key === "Escape") {setMenu(undefined);setQuery("");}}}>
     <input aria-label="Search assets" placeholder="Search assets" type="search" value={query} onChange={e=>setQuery(e.target.value)}/>
     <button type="button" aria-expanded={publish} onClick={()=>setPublish(!publish)}>Publish library…</button>
-    {publish && <LibraryPublishForm doc={doc} editable={editable} dispatch={dispatch}/>}
+    {publish && <LibraryPublishForm doc={doc} editable={editable} dispatch={dispatch} save={save}/>}
+    <button type="button" disabled={!editable || loadingLibrary} onClick={()=>picker.current?.click()}>Add library…</button>
+    <input type="file" ref={picker} hidden aria-label="Choose published library" accept=".figcraft" onChange={async e=>{
+      const file=e.currentTarget.files?.[0];e.currentTarget.value="";
+      if (!file) return;
+      setLoadingLibrary(true);setLibraryStatus("Reading library…");
+      try {await addLibrary(file);setLibraryStatus("");}
+      catch (error) {setLibraryStatus(error instanceof Error ? error.message : "Could not add library");}
+      finally {setLoadingLibrary(false);}
+    }}/>
+    {libraryStatus && <p role="status">{libraryStatus}</p>}
+    {!!doc.libraryLinks?.length && <section aria-label="Enabled libraries"><h3>Enabled libraries</h3>
+      {doc.libraryLinks.map(link=>{
+        const manifest=source(link.path)?.manifest;
+        return <div key={link.id}><strong>{link.name}</strong>
+          <p>{manifest?.id===link.id ? "Published version "+manifest.version : "Choose the library file to load its assets."}</p>
+          <button type="button" disabled={!editable} aria-label={"Remove library "+link.name}
+            onClick={()=>dispatch("library.remove",{id:link.id})}>Remove</button></div>;
+      })}</section>}
     <h3>Local components</h3>
     {!groups.size && <p>{search ? "No matching components" : "No components yet."}</p>}
     {[...groups].map(([path,assets])=>{

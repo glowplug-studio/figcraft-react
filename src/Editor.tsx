@@ -1,3 +1,4 @@
+import {MAX_CACHED_LIBRARIES} from "./engine/library-links";
 import { GeometryPanel } from "./GeometryPanel";
 import { textShortcut } from "./engine/text-shortcuts";
 import { subtreeIds } from "./engine/hierarchy";
@@ -380,7 +381,27 @@ export function Editor({ identity, capabilities, engine: suppliedEngine, recover
   const canCrop = editable && snapshot.selection.length === 1 && selected && selected.kind !== "page" && topImageFill(selected)!==undefined;
   const relative = selected && selected.kind !== "page" ? frameRelative(snapshot.document, selected.id) : undefined;
   const endAssetDrag = () => {draggedAsset.current = undefined; controller.current?.previewAsset();};
-  const assetsPanel = <AssetsPanel doc={snapshot.document} editable={editable && !busy} dispatch={dispatch}
+  useEffect(()=>{
+    const principal=initialPrincipal.current;
+    if (!(assetsOpen || mobileAssetsOpen) || !editable || !principal || !recoveryStore?.readLibrary) return;
+    let active=true;
+    async function restore() {
+      for (const link of snapshot.document.libraryLinks?.slice(0,MAX_CACHED_LIBRARIES) ?? []) {
+        if (!active) return;
+        try {await engine.restoreLibrary(link,path=>recoveryStore!.readLibrary!(principal!,path));}
+        catch (error) {if (active) setError(error instanceof Error ? error.message : "Could not restore local library");}
+      }
+    }
+    void restore();
+    return ()=>{active=false;};
+  },[editable,engine,recoveryStore,snapshot.document.libraryLinks,assetsOpen,mobileAssetsOpen]);
+  const assetsPanel = <AssetsPanel key={engine.fileGeneration} save={save} doc={snapshot.document} editable={editable && !busy} dispatch={dispatch}
+    source={path=>engine.librarySource(path)}
+    addLibrary={async file=>{
+      const principal=initialPrincipal.current;
+      await engine.pickLibrary(file,principal && recoveryStore?.writeLibrary ?
+        (path,archive)=>recoveryStore.writeLibrary!(principal,path,archive) : undefined);
+    }}
     start={(id,e)=>{draggedAsset.current = id; e.dataTransfer.setData(componentDragType,id); e.dataTransfer.effectAllowed = "copy";}}
     end={endAssetDrag} place={component=>{
       const {cx:x,cy:y} = engine.getView();

@@ -23,6 +23,22 @@ export interface LibraryManifest {
   readonly collections:readonly LibraryEntry[];
   readonly variables:readonly LibraryVariable[];
 }
+export interface LibraryLink {
+  readonly id:string;
+  readonly name:string;
+  readonly path:string;
+  readonly version:string;
+}
+export function readLibraryLinks(value:unknown) {
+  return entries(value,r=>{
+    const path=string(r.path);
+    if (/^(?:figcraft|wss?):\/\//i.test(path.trimStart())) fail("team library share links require online workspace support");
+    return {id:string(r.id),name:string(r.name),path,version:uint(r.version)};
+  });
+}
+export function wireLibraryLinks(links:readonly LibraryLink[]) {
+  return {enabled:links.map(l=>({...l,version:wireId(l.version)})),store:null,components:[],styles:[]};
+}
 export interface PublishedLibrary {
   readonly manifest:LibraryManifest;
   readonly document:Document;

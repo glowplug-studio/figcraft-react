@@ -6203,7 +6203,10 @@ test("Assets publishes a native library revision, undoes it and preserves the sn
   const form=page.getByRole("form",{name:"Publish library",exact:true});
   await expect(form.getByRole("status")).toContainText("published version 1");
   await form.getByRole("textbox",{name:"Description (optional)"}).fill("Consumer release");
+  const publishing=page.waitForEvent("download");
   await form.getByRole("button",{name:"Publish changes"}).click();
+  const published=await decodeFigcraft(await readFile((await (await publishing).path())!));
+  expect(published.document.published?.manifest.description).toBe("Consumer release");
   await expect(form.getByRole("status")).toContainText("published version 2");
   await page.getByRole("button",{name:"Undo",exact:true}).click();
   await expect(form.getByRole("status")).toContainText("published version 1");
@@ -6218,4 +6221,26 @@ test("Assets publishes a native library revision, undoes it and preserves the sn
   const saved=await readFile((await (await download).path())!);
   const {document}=await decodeFigcraft(saved);
   expect(document.published?.manifest.components).toEqual([{id:"5",name:"Unpublished rename",set:false,version:"2",published:true}]);
+});
+
+test("a consumer adds a local published file, restores the source after reload and removes the link with undo",async({page})=>{
+  await login(page);
+  const assets=page.getByRole("button",{name:"Assets",exact:true});
+  await assets.click();
+  await page.getByLabel("Choose published library").setInputFiles(new URL("../fixtures/native-published-library.figcraft",import.meta.url).pathname);
+  const enabled=page.getByRole("region",{name:"Enabled libraries"});
+  await expect(enabled).toContainText("Published version 1");
+  await expect(page.locator(".figcraft-recovery")).toHaveText("Recovery saved on this device");
+  await page.reload();await assets.click();
+  await expect(enabled).toContainText("Published version 1");
+  const download=page.waitForEvent("download");
+  await page.getByRole("button",{name:"Save as",exact:true}).click();
+  const saved=await readFile((await (await download).path())!);
+  const {document}=await decodeFigcraft(saved);
+  expect(document.libraryLinks).toHaveLength(1);expect(document.published).toBeUndefined();
+  expect(Object.keys(document.nodes)).toEqual(["1"]);
+  await enabled.getByRole("button",{name:"Remove library Untitled"}).click();
+  await expect(enabled).toHaveCount(0);
+  await page.getByRole("button",{name:"Undo",exact:true}).click();
+  await expect(enabled).toContainText("Published version 1");
 });

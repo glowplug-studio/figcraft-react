@@ -1,3 +1,5 @@
+import {MAX_CACHED_LIBRARIES,describeLibrary,enableLibrary,removeLibrary} from "./library-links";
+import type {LibraryLink,PublishedLibrary} from "./published-library";
 import {publishLibrary,listLibraries} from "./library-publish";
 import { importVariables } from "./variable-import";
 import { exportVariables } from "./variable-export";
@@ -48,7 +50,7 @@ import { MAX_IMAGE_BYTES } from "./image-resource";
 import { fileData } from "./file-bytes";
 import { readFontInput } from "./font-source";
 import { base64Bytes } from "./recovery";
-import { decodeFigcraft, encodeFigcraft, encodeFigcraftBlob, prepareArchive, MAX_UNPACKED_BYTES } from "./file-format";
+import { decodePublishedLibrary, decodeFigcraft, encodeFigcraft, encodeFigcraftBlob, prepareArchive, MAX_UNPACKED_BYTES } from "./file-format";
 import { executePage, listPages, pageSpecs } from "./pages";
 import { executeSelection, layersAt, selectionSpecs } from "./selection";
 import { setRectangleProperties, setPageGeometryFields } from "./properties";
@@ -119,6 +121,8 @@ export const commandSpecs = Object.freeze({
   ...gridSpecs,
   "style.apply": {label:"Apply style",undo:true},
   "style.detach": {label:"Detach style",undo:true},
+  "library.add": {label:"Add library",undo:true},
+  "library.remove": {label:"Remove library",undo:true},
   "library.publish": {label:"Publish library",undo:true},
   "library.list": {label:"List libraries",undo:false},
   "variable.import": {label:"Import variables",undo:true},
@@ -261,6 +265,8 @@ export class EditorEngine {
   #canvasListeners = new Set<() => void>();
   #vectorEdit?: VectorEditState;
   #documentIdentity = Symbol();
+  #libraryFiles=new Map<string,PublishedLibrary>();
+  #libraryPick=0;
   #copiedEffect?: Effect;
   #copiedPaint?: CopiedPaint;
   hasCopiedEffect = (): boolean => !!this.#copiedEffect;
@@ -805,6 +811,42 @@ export class EditorEngine {
     return () => encodeFigcraftBlob(document, nextId);
   }
   nativeSnapshot = (): Promise<Uint8Array> => encodeFigcraft(this.#snapshot.document, String(this.#nextId));
+  #cacheLibrary(path:string,source:PublishedLibrary) {
+    if (this.#libraryFiles.size>=MAX_CACHED_LIBRARIES && !this.#libraryFiles.has(path)) this.#libraryFiles.clear();
+    this.#libraryFiles.set(path,source);
+  }
+  get fileGeneration() {return this.#openSequence;}
+  librarySource(path:string) { return this.#libraryFiles.get(path); }
+  async pickLibrary(file:File,remember?:(path:string,publication:Blob)=>Promise<void>) {
+    const identity=this.#documentIdentity,opening=this.#openSequence,pick=++this.#libraryPick;
+    const current=()=>{
+      if (!this.#snapshot.editable || identity!==this.#documentIdentity || opening!==this.#openSequence || pick!==this.#libraryPick) {
+        throw Error("The destination or library selection changed");
+      }
+    };
+    current();
+    if (file.size>1024 ** 3) throw Error("The library file exceeds 1 GiB");
+    const source=await decodePublishedLibrary(file);current();
+    if (!source) throw Error("This file has no published library");
+    const path="library-file:"+source.manifest.id+"/"+encodeURIComponent(file.name);
+    if (this.#snapshot.document.published?.manifest.id===source.manifest.id) throw Error('this file is the library "'+source.manifest.name+'"');
+    if (remember) {
+      const archive=await encodeFigcraftBlob({...newDocument(),published:source});
+      current();await remember(path,archive);current();
+    }
+    this.#cacheLibrary(path,source);
+    return this.execute("library.add",{path});
+  }
+  async restoreLibrary(link:LibraryLink,read:(path:string)=>Promise<Blob|null>) {
+    const identity=this.#documentIdentity,opening=this.#openSequence;
+    const current=()=>this.#snapshot.editable && identity===this.#documentIdentity && opening===this.#openSequence &&
+      !this.#libraryFiles.has(link.path) && this.#snapshot.document.libraryLinks?.some(l=>l.id===link.id && l.path===link.path);
+    if (!current()) return;
+    const file=await read(link.path);
+    if (!file || !current()) return;
+    const source=await decodePublishedLibrary(file);
+    if (source && current()) { this.#cacheLibrary(link.path,source);this.#publish({}); }
+  }
   async importVariableFile(file:Blob) {
     if (!this.#snapshot.editable) throw new Error("Sign in to edit this document");
     if (file.size>256*1024*1024) throw new Error("Variable files must be at most 256 MiB");
@@ -866,7 +908,7 @@ export class EditorEngine {
     if (!editable) this.pencil.cancel();
     if (!editable) this.pen.cancel();
     if (!editable) this.cancelInteraction();
-    if (!editable) this.cancelPendingFiles();
+    if (!editable) {this.cancelPendingFiles();this.#libraryFiles.clear();}
     if (!editable) { this.#vectorEdit = undefined; this.#copiedPaint = undefined; this.#copiedEffect = undefined; }
     if (editable !== this.#snapshot.editable) this.#publish({ editable, tool: "move", profileDialog: false, missingFonts: undefined });
   }
@@ -1177,7 +1219,21 @@ export class EditorEngine {
       }
       return next.result;
     }
-    if (command==="library.list") return listLibraries(this.#snapshot.document,!!parseBoolean(p.assets));
+    if (command==="library.list") {
+      const doc=this.#snapshot.document,assets=!!parseBoolean(p.assets);
+      return {...listLibraries(doc,assets),libraries:(doc.libraryLinks ?? []).map(l=>describeLibrary(l,this.librarySource(l.path),assets))};
+    }
+    if (command==="library.add" || command==="library.remove") {
+      const doc=this.#snapshot.document;
+      const key=parseString(command==="library.add" ? p.path : p.id)?.trim();
+      if (!key) throw Error(command==="library.add" ? "Choose a published library file" : "An enabled library id is required");
+      const source=this.librarySource(key);
+      if (command==="library.add" && !source) throw Error("Choose the published library file first");
+      const next=command==="library.add" ? enableLibrary(doc,key,source!) : removeLibrary(doc,key);
+      if (next.document!==doc) this.#commitEdit({document:next.document});
+      else this.#publish({});
+      return next.result;
+    }
     if (command==="library.publish") {
       const next=publishLibrary(this.#snapshot.document,p);
       this.#commitEdit({document:next.document});

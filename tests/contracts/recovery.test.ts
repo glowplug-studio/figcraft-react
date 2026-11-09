@@ -106,3 +106,12 @@ describe("browser recovery contract", () => {
     await expect(pending).rejects.toThrow("closed");
   });
 });
+
+it("isolates selected library publications by principal and filename from document recovery",async()=>{
+  const store=open();
+  await store.writeLibrary("first","Kit",new Blob(["public"]));
+  expect(await (await store.readLibrary("first","Kit"))?.text()).toBe("public");
+  expect(await store.readLibrary("second","Kit")).toBeNull();
+  expect(await store.readLibrary("first","Other")).toBeNull();
+  expect(await store.read("first")).toBeNull();
+});

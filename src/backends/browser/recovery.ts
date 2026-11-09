@@ -108,6 +108,17 @@ export class IndexedDbRecoveryStore implements RecoveryStore {
     return stored instanceof ArrayBuffer ? new Blob([stored]) : stored;
   }
 
+  readLibrary(principalId:string,path:string):Promise<Blob|null> {
+    return this.#transaction(principalId,"readonly",store=>store.get([principalId,"library",path]),value=>{
+      if (value===undefined) return null;
+      if (!(value instanceof Blob)) throw Error("Invalid stored publication");
+      return value;
+    });
+  }
+  writeLibrary(principalId:string,path:string,publication:Blob):Promise<void> {
+    return this.#transaction(principalId,"readwrite",store=>store.put(publication,[principalId,"library",path]),()=>undefined);
+  }
+
   writeBlob(principalId: string, archive: Blob): Promise<void> {
     return this.#transaction(principalId, "readwrite", store => store.put(archive, principalId), () => undefined);
   }

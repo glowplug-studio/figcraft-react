@@ -92,3 +92,40 @@ it("preserves the native choice precedence, hidden names and empty selection ref
   expect(engine.execute("library.publish",{include:["5",".Hidden","Theme"],exclude:["Theme"]})).toMatchObject({version:2,components:2,collections:0});
   expect(engine.getSnapshot().document.published!.manifest.components).toHaveLength(1);
 });
+
+it("links the chosen publication across documents and restores only its published assets",async()=>{
+  const engine=new EditorEngine(),file=new File([fixture],"Kit.figcraft");
+  let stored!:Blob;
+  const added=await engine.pickLibrary(file,async(_path,blob)=>{stored=blob;});
+  const path=String(added.path),source=engine.librarySource(path)!;
+  expect(added).toMatchObject({id:source.manifest.id,name:"Untitled",version:1,components:[{name:"Button",id:5}]});
+  expect(await decodeFigcraft(stored)).toMatchObject({document:{nodes:{"1":{children:[]}},published:{document:{nodes:{"5":{name:"Button"}}}}}});
+  expect(Object.keys((await decodeFigcraft(stored)).document.nodes)).toEqual(["1"]);
+  const depth=engine.getUndoDepth();
+  await engine.pickLibrary(file);
+  expect(engine.getUndoDepth()).toBe(depth);
+  const archive=await engine.nativeSnapshot(),fresh=new EditorEngine();
+  await fresh.executeAsync("file.open",{data:base64Bytes(archive)});
+  let info=fresh.execute("library.list",{assets:true});expect(info).toMatchObject({libraries:[{seenVersion:1,error:expect.any(String)}]});
+  const link=fresh.getSnapshot().document.libraryLinks![0];
+  await fresh.restoreLibrary(link,async()=>stored);
+  info=fresh.execute("library.list",{assets:true});expect(info).toMatchObject({libraries:[{path,version:1,seenVersion:1,components:[{id:5,name:"Button",set:false,version:1}]}]});
+  const moved=await fresh.pickLibrary(new File([fixture],"Moved.figcraft"));
+  expect(moved.path).not.toBe(path);expect(fresh.getSnapshot().document.libraryLinks).toHaveLength(1);
+  expect(fresh.execute("library.remove",{id:"Untitled"})).toEqual({removed:source.manifest.id});
+  fresh.execute("edit.undo");expect(fresh.getSnapshot().document.libraryLinks?.[0].path).toBe(moved.path);
+  fresh.setEditable(false);expect(fresh.librarySource(String(moved.path))).toBeUndefined();
+});
+it("rejects a self-link, unpublished source or obsolete file selection without creating history",async()=>{
+  const engine=new EditorEngine(),file=new File([fixture],"Kit.figcraft");
+  await engine.executeAsync("file.open",{data:base64Bytes(fixture)});
+  await expect(engine.pickLibrary(file)).rejects.toThrow("this file is the library");
+  await expect(engine.pickLibrary(new File([zipSync({}) as Uint8Array<ArrayBuffer>],"Empty.figcraft"))).rejects.toThrow("no published library");
+  expect(engine.getUndoDepth()).toBe(0);
+  const other=new EditorEngine();let began!:()=>void,release!:()=>void;
+  const started=new Promise<void>(resolve=>{began=resolve;});
+  const pending=other.pickLibrary(file,async()=>{began();await new Promise<void>(resolve=>{release=resolve;});});
+  await started;other.cancelPendingFiles();release();
+  await expect(pending).rejects.toThrow("destination or library selection changed");
+  expect(other.getSnapshot().document.libraryLinks).toBeUndefined();
+});
