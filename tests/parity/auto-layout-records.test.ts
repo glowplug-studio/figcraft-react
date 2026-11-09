@@ -110,3 +110,16 @@ describe("native grid children", () => {
       await expect(gridWithChildren([{child_layout}])).rejects.toThrow();
     });
 });
+
+it("reuses large grid occupancy during spacing changes and drops it for hidden or anchored children", async () => {
+  const { document } = await gridWithChildren(Array.from({ length: 140 }, () => ({})));
+  const frame = document.nodes["2"], first = document.nodes["3"];
+  if (frame.kind !== "frame" || !frame.layout || first.kind === "page") throw new Error("Expected grid");
+  const original = placeGridCells(document, frame);
+  expect(placeGridCells(document, { ...frame, layout: { ...frame.layout, gap: frame.layout.gap + 8 } })).toBe(original);
+  const hidden = { ...document, nodes: { ...document.nodes, "3": { ...first, visible: false } } };
+  expect(placeGridCells(hidden, frame).cells.has("3")).toBe(false);
+  const anchored = { ...document, nodes: { ...document.nodes, "3": { ...first, childLayout: { ...first.childLayout, gridColumn: 1, gridRow: 4 } } } };
+  expect(placeGridCells(anchored, frame).cells.get("3")).toMatchObject({ column: 1, row: 4 });
+  expect(placeGridCells(document, frame).cells.get("3")).toEqual(original.cells.get("3"));
+});

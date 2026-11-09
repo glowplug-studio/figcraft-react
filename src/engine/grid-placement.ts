@@ -1,4 +1,4 @@
-import type { Document, FrameLikeNode, NodeId } from "./document";
+import type { Document, DocumentNode, FrameLikeNode, NodeId } from "./document";
 
 export interface GridCell {
   readonly column: number;
@@ -66,7 +66,7 @@ class Occupancy {
   }
 }
 
-export function placeGridCells(doc: Document, frame: FrameLikeNode) {
+function computeGridCells(doc: Document, frame: FrameLikeNode) {
   const layout = frame.layout!;
   const columns = Math.min(1000, Math.max(1, layout.gridColumns));
   const maxRows = Math.min(1000, Math.floor(1_000_000 / columns));
@@ -145,6 +145,31 @@ export function placeGridCells(doc: Document, frame: FrameLikeNode) {
     if (cell) ordered.set(id, cell);
   }
   return {columns, rows, cells: ordered};
+}
+
+// Gap and track previews change positions and sizes, but not occupancy. Retain one placement
+// per immutable child order and check the placement-relevant inputs before reusing it.
+function placementState(node: DocumentNode | undefined) {
+  if (!node || node.kind === "page" || node.visible === false || node.childLayout?.absolute) return false;
+  return node.childLayout ?? true;
+}
+
+const placements = new WeakMap<readonly NodeId[], {
+  columns: number; rows: number;
+  states: readonly ReturnType<typeof placementState>[];
+  grid: ReturnType<typeof computeGridCells>;
+}>();
+
+export function placeGridCells(doc: Document, frame: FrameLikeNode) {
+  const { children, layout } = frame;
+  if (children.length < 128) return computeGridCells(doc, frame);
+  const previous = placements.get(children);
+  if (previous && previous.columns === layout!.gridColumns && previous.rows === layout!.gridRows
+    && children.every((id, index) => previous.states[index] === placementState(doc.nodes[id]))) return previous.grid;
+  const grid = computeGridCells(doc, frame);
+  placements.set(children, { columns: layout!.gridColumns, rows: layout!.gridRows,
+    states: children.map(id => placementState(doc.nodes[id])), grid });
+  return grid;
 }
 
 const inspected = new WeakMap<Document, Map<NodeId, ReturnType<typeof placeGridCells>>>();
