@@ -2338,3 +2338,17 @@ export function fontTableView(blob, offset, length) {
   if (!Number.isSafeInteger(offset) || !Number.isSafeInteger(length) || offset < 0 || length < 0 || offset + length > size) return;
   return new DataView(Module.HEAPU8.buffer, exports.hb_blob_get_data(blob.ptr, 0) + offset, length);
 }
+export function decodeFontPng(data, width, height) {
+  if (data.buffer !== Module.HEAPU8.buffer || !Number.isInteger(width) || !Number.isInteger(height) ||
+      width < 1 || height < 1 || width > 1024 || height > 1024) return;
+  const input = data.byteOffset, length = data.byteLength, size = width * height * 4;
+  const output = exports.malloc(size);
+  if (!output) return;
+  try {
+    if (exports.figcraft_decode_font_png(input, length, width, height, output)) {
+      return Module.HEAPU8.slice(output, output + size);
+    }
+  } finally {
+    exports.free(output);
+  }
+}

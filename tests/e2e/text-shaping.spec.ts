@@ -4,6 +4,7 @@ import { build } from "vite";
 import pathCases from "../fixtures/text-on-path.json" with {type:"json"};
 import caretCases from "../fixtures/text-caret.json" with {type:"json"};
 import decorationCases from "../fixtures/text-decorations.json" with {type:"json"};
+import bitmapCases from "../fixtures/text-bitmaps.json" with {type:"json"};
 import flow from "../fixtures/text-flow.json" with { type:"json" };
 import wordSamples from "../fixtures/text-word-starts.json" with { type:"json" };
 import outlines from "../fixtures/text-outlines.json" with { type:"json" };
@@ -23,6 +24,7 @@ test("Chromium shapes pinned font bytes with the native glyph IDs, positions and
     ["/fonts/"+file,await readFile(new URL("../../fonts/"+file,import.meta.url))] as const)));
   fontFiles.set("/fonts/outline-cff.ttc", await readFile(new URL("../fixtures/outline-cff.ttc", import.meta.url)));
   fontFiles.set("/fonts/colour-reference.ttf",await readFile(new URL("../fixtures/colour-reference.ttf",import.meta.url)));
+  fontFiles.set("/fonts/bitmap-reference.ttc",await readFile(new URL("../fixtures/bitmap-reference.ttc",import.meta.url)));
   let failFirstWordRequest = true;
   await page.route("https://shaper.test/**", async route => {
     const path = new URL(route.request().url()).pathname, font = fontFiles.get(path), chunk = files.get(path);
@@ -154,6 +156,20 @@ test("Chromium shapes pinned font bytes with the native glyph IDs, positions and
   expect(colour.layers).toEqual([{id:3,rgba:[0,128,255,128]},{id:4,rgba:[255,0,64,255]}]);
   expect(colour.triangle).toEqual([0,128,255,128]);
   expect(colour.square).toEqual([255,0,64,255]);
+  const bitmaps=await page.evaluate(async cases=>{
+    const url="/shaper.js",api:typeof import("../fixtures/text-shaping-browser")=await import(url);
+    const read=async(file:string)=>api.readFontFaces(new Uint8Array(await (await fetch("/fonts/"+file)).arrayBuffer()));
+    const [sbix]=await read("colour-reference.ttf"),[cbdt,ebdt,png]=await read("bitmap-reference.ttc");
+    return Promise.all(cases.map(async ({id,face,size})=>{
+      const b=(face==="sbix" ? sbix : face==="cbdt" ? cbdt : face==="ebdt" ? ebdt : png).colourBitmap(id,size);
+      if (!b) return null;
+      const {width,height,left,top,rgba}=b;
+      const digest=await crypto.subtle.digest("SHA-256",new Uint8Array(rgba));
+      const hash=Array.from(new Uint8Array(digest),v=>v.toString(16).padStart(2,"0")).join("");
+      return {width,height,left,top,hash};
+    }));
+  },bitmapCases);
+  expect(bitmaps).toEqual(bitmapCases.map(c=>c.bitmap));
   const decorationPixels=await page.evaluate(async cases=>{
     const url="/shaper.js",api:typeof import("../fixtures/text-shaping-browser")=await import(url);
     const fonts=new api.FontLibrary();

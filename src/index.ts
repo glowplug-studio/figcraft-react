@@ -52,6 +52,8 @@ export { TextGraphemes } from "./engine/text-graphemes";
 export { readTextData, type TextData } from "./engine/text-data";
 export { styledGlyphs, type StyledGlyph } from "./engine/styled-glyphs";
 export { glyphPath } from "./engine/text-glyph-path";
+export { glyphColour } from "./engine/text-glyph-colour";
+export type { ColourBitmap } from "./engine/font-bitmap";
 export type { ColourGlyphLayer } from "./engine/font-colour";
 export { decorationPath, textInkBounds, textToPath, type TextDecoration } from "./engine/text-decorations";
 export { textCaret, textHit, textSelectionRects, textVisualStep } from "./engine/text-caret";

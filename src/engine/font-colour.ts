@@ -1,9 +1,11 @@
+import { readStrikeBitmap, type ColourBitmap, type FontTableReader } from "./font-bitmap";
+import type { CurveElement } from "./curve-flatten";
+
 /** OpenType CPAL palette zero and the v0 base/layer records shared by COLR versions 0 and 1. */
 export interface ColourGlyphLayer {
   readonly id:number;
   readonly rgba:readonly [number,number,number,number];
 }
-type TableReader=(tag:string)=>DataView | undefined;
 const black=Object.freeze([0,0,0,255] as const);
 
 function paletteColour(table:DataView | undefined,index:number):ColourGlyphLayer["rgba"] {
@@ -16,9 +18,11 @@ function paletteColour(table:DataView | undefined,index:number):ColourGlyphLayer
 }
 
 export class FontColourTables {
-  readonly #read:TableReader;
+  readonly #read:FontTableReader;
+  readonly #rasters=new Map<string,ColourBitmap | undefined>();
+  #bytes=0;
   readonly #layers=new Map<number,readonly ColourGlyphLayer[] | undefined>();
-  constructor(read:TableReader) { this.#read=read; }
+  constructor(read:FontTableReader) { this.#read=read; }
 
   layers(id:number):readonly ColourGlyphLayer[] | undefined {
     if (!Number.isInteger(id) || id<0 || id>65535) return undefined;
@@ -26,6 +30,23 @@ export class FontColourTables {
     const result=this.readLayers(id);
     if (this.#layers.size>=4096) this.#layers.clear();
     this.#layers.set(id,result);
+    return result;
+  }
+
+  bitmap(id:number,upem:number,size:number,outline:()=>readonly CurveElement[],
+    png:(data:DataView,width:number,height:number)=>Uint8Array | undefined) {
+    if (!Number.isFinite(size) || size<=0) return undefined;
+    size=Math.min(512,Math.max(1,size));
+    const key=id+":"+size;
+    if (this.#rasters.has(key)) return this.#rasters.get(key);
+    const result=readStrikeBitmap(this.#read,id,upem,size,outline,png);
+    const bytes=result?.rgba.byteLength ?? 0;
+    if (this.#rasters.size>=8192 || this.#bytes+bytes>32*1024*1024) {
+      this.#rasters.clear();
+      this.#bytes=0;
+    }
+    this.#bytes+=bytes;
+    this.#rasters.set(key,result);
     return result;
   }
 

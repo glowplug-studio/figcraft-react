@@ -56,6 +56,7 @@ export class ShapingFace {
   readonly instances: readonly FontInstance[];
   readonly italic: boolean;
   readonly hasColour: boolean;
+  readonly hasBitmaps:boolean;
   readonly weight: number;
   readonly features: readonly string[];
   readonly #colour?:FontColourTables;
@@ -85,7 +86,8 @@ export class ShapingFace {
       : !!head && head.byteLength >= 46 && (head.getUint16(44) & 2) !== 0;
     this.italic = italicFlag || style.toLowerCase().includes("italic");
     this.weight = (os2 && os2.byteLength >= 6 && os2.getUint16(4)) || styleWeight(style);
-    this.hasColour = ["sbix","CBDT","EBDT","COLR"].some(tag=>tables.has(tag));
+    this.hasBitmaps=["sbix","CBDT","EBDT"].some(tag=>tables.has(tag));
+    this.hasColour=this.hasBitmaps || tables.has("COLR");
     if (this.hasColour) {
       const ranges=new Map(Array.from(tables,([tag,view])=>[tag,[view.byteOffset-byteOffset,view.byteLength] as const]));
       this.#colour=new FontColourTables(tag=>{
@@ -142,6 +144,11 @@ export class ShapingFace {
   }
 
   colourLayers(id:number) { return this.#colour?.layers(id); }
+
+  colourBitmap(id:number,size:number) {
+    if (!this.hasBitmaps || !Number.isInteger(id) || id<0 || id>=this.#glyphCount) return undefined;
+    return this.#colour?.bitmap(id,this.upem,size,()=>this.outline(id,{},true),hb.decodeFontPng);
+  }
 
   glyphFor(codePoint: number) { return this.#font.nominalGlyph(codePoint) ?? 0; }
 

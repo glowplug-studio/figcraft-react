@@ -4,3 +4,4 @@ export { FontLibrary, TextGraphemes, readTextData, styledGlyphs, layoutTextFlow,
 export { textCaret, textHit, textSelectionRects, textVisualStep } from "@glowplug-studio/figcraft-react";
 export { caretProbes } from "./text-caret-probes";
 export { decorationPath, textInkBounds } from "@glowplug-studio/figcraft-react";
+export { glyphColour } from "@glowplug-studio/figcraft-react";

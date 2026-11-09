@@ -234,3 +234,8 @@ The optional glyph outline reader uses FreeType 2.15.0 under the FreeType
 Project Licence. Portions of this software are copyright © 1996–2026 The
 FreeType Project (www.freetype.org). All rights reserved. The distributed
 shaper directory includes FREETYPE-LICENCE.txt.
+
+The text shaper includes the Wuffs PNG decoder for embedded colour font strikes,
+from Wuffs v0.4.0-alpha.12, revision 7f70dda95c77b10c087c0908790837b5e9c15713.
+Copyright 2023 The Wuffs Authors. Distributed under its MIT option. The
+complete licence is included in the shaper directory as WUFFS-LICENCE.txt.

@@ -402,3 +402,5 @@ Native TextLayout::caret, visual_step, hit and selection_rects map to textCaret,
 Native Decoration::path, ink_cuts, TextLayout::ink_bounds and to_path map to decorationPath, the skip-ink band intersection, textInkBounds and textToPath. [Decoration and ink verification](../planning/26-11-09-rich-text.md#decoration-paths-and-paint-bounds).
 
 Native Face::color_layers and read_layers map to ShapingFace.colourLayers and FontColourTables.layers. [COLR palette and browser verification](../planning/26-11-09-rich-text.md#layered-colour-glyphs).
+
+Native Face::color_bitmap, read_bitmap, placement, scaled and Glyph::color map to ShapingFace.colourBitmap, readStrikeBitmap and glyphColour. [Bitmap geometry, pixels, ownership and limits](../planning/26-11-09-rich-text.md#bitmap-colour-glyphs).
