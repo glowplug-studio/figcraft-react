@@ -312,3 +312,7 @@ Compare the upstream raster for transformed styled glyphs with strokes, drop and
 ### Large-document editing
 
 Measure a 10,000-node native drawing with 100 visible text layers. Time real scalar input, directed selection and the resulting canvas frame, including clipping and culling. Check root subscriptions, restored contents and retained browser heap after Chromium collects garbage. Use the same 16.7 ms p95 frame budget as the other editor performance fixtures.
+
+## Versioned milestone
+
+0.49.0 at a81127c passed 234/234 local production Chromium workflows, 1,675 pure tests, two local Auth checks, both builds and strict types. Seven native raster scenes matched at all stable interior pixels. The 10,000-node edit measured 4.0 ms p95 including paint. The [85-row matrix](../reports/26-11-09-rich-text-parity.html) lists the four integrations pending on other feature rows. Continue with [auto layout](26-11-09-auto-layout.md).

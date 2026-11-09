@@ -67,7 +67,7 @@ Upstream test evidence: [`fx_behaviour_tests`](../../original/figcraft/crates/en
 
 ### 6. Text and fonts
 
-Status: **In progress**. [Dated plan](../planning/26-11-09-rich-text.md).
+**Text and fonts verified at 0.49.0.** Four cross-feature integrations remain open. [Property matrix](../reports/26-11-09-rich-text-parity.html).
 
 Unicode/bidi/graphemes/IME, shaping/fallback and rich runs; lists/links, paragraph settings, wrapping/trim, OpenType/variable fonts, text on paths; live preview, missing-font report/import/download/refit. Dependencies: font resources, measurement/shaping, geometry, renderer and editing transactions.
 
@@ -76,7 +76,7 @@ Upstream test evidence: [`text_behaviour_tests`](../../original/figcraft/crates/
 
 ### 7. Auto layout and constraints
 
-Status: **Partial**. Frame constraints and bounded resizing verified in the [Frame](../reports/26-11-07-frames-parity.html) and [sizing](../reports/26-11-07-sizing-parity.html) reports; auto layout remains required.
+Status: **Partial**. Frame constraints and bounded resizing verified in the [Frame](../reports/26-11-07-frames-parity.html) and [sizing](../reports/26-11-07-sizing-parity.html) reports; auto layout is in progress. [Implementation plan](../planning/26-11-09-auto-layout.md).
 
 Horizontal/vertical/wrap/grid; hug/fill/fixed, min/max, absolute children and constraints; tracks, alignment/baselines; drag reorder and gap/padding controls; suggested layout. Dependencies: stable text measurement, hierarchy and geometry.
 
