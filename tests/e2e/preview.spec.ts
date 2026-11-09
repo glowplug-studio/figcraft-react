@@ -5208,3 +5208,28 @@ test("creating a component through the layer action and shortcut retains the ori
   expect(document.nodes["4"]).toMatchObject({kind:"component",name:"Rectangle",children:["2"],x:10,y:20});
   expect(document.nodes["2"]).toMatchObject({kind:"rectangle",parent:"4",x:0,y:0});
 });
+
+test("creating an instance from a native variant set saves its default main and restores it after reload", async ({page}) => {
+  await login(page);
+  const buffer = await readFile(new URL("../fixtures/native-component-variants.json", import.meta.url));
+  await page.getByLabel("Open Figcraft file", {exact:true}).setInputFiles({
+    name:"variants.figcraft", mimeType:"application/octet-stream", buffer,
+  });
+  const layers = page.getByRole("region", {name:"Layers", exact:true});
+  const cards = layers.getByRole("button", {name:"Card", exact:true});
+  await cards.click();
+  await layers.getByRole("button", {name:"Create instance", exact:true}).click();
+  await expect(page.getByRole("region", {name:"Selected instance"})).toBeVisible();
+  await expect(cards).toHaveCount(2);
+  await page.getByRole("button", {name:"Undo", exact:true}).click();
+  await expect(cards).toHaveCount(1);
+  await page.getByRole("button", {name:"Redo", exact:true}).click();
+  await expect(cards).toHaveCount(2);
+  await expect(page.locator(".figcraft-recovery")).toHaveText("Recovery saved on this device");
+  await page.reload();
+  await expect(cards).toHaveCount(2);
+  const downloading = page.waitForEvent("download");
+  await page.getByRole("button", {name:"Save as", exact:true}).click();
+  const {document} = await decodeFigcraft(await readFile((await (await downloading).path())!));
+  expect(document.nodes["5"]).toMatchObject({kind:"instance", name:"Card", component:"2", source:"2", parent:"1", x:140, y:0});
+});

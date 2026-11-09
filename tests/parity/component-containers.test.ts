@@ -89,3 +89,83 @@ describe("native component containers", () => {
     expect(engine.getSnapshot().document).toBe(before.document);
   });
 });
+
+describe("native instance creation",() => {
+  it("places the instance beside the main when either coordinate is absent and preserves mirror IDs on redo",async () => {
+    const engine=await open(capture("instance")), initial=engine.getSnapshot().document;
+    expect(engine.execute("instance.create",{component:2,x:999})).toEqual({id:"6"});
+    expect(engine.getSnapshot().document.nodes["6"]).toMatchObject({kind:"instance",component:"2",source:"2",x:160,y:0,children:["7"]});
+    expect(engine.getSnapshot().document.nodes["7"]).toMatchObject({kind:"rectangle",parent:"6",source:"3",width:12});
+    const created=engine.getSnapshot().document;
+    expect(engine.getSnapshot().selection).toEqual(["6"]);
+    engine.execute("edit.undo"); expect(engine.getSnapshot().document).toBe(initial);
+    engine.execute("edit.redo"); expect(engine.getSnapshot().document).toBe(created);
+  });
+
+  it("chooses the nearest top-left variant and names its instance after the set",async () => {
+    const file=JSON.parse(capture("variants").toString("utf8"));
+    file.nodes[4].transform=[1,0,0,1,10,5];
+    const engine=await open(Buffer.from(JSON.stringify(file)));
+    expect(engine.execute("instance.create",{component:3,x:-14,y:26})).toEqual({id:"5"});
+    expect(engine.getSnapshot().document.nodes["5"]).toMatchObject({kind:"instance",component:"4",source:"4",x:-14,y:26,name:"Card"});
+  });
+
+  it("rejects directly and transitively recursive instances before publishing any edits",() => {
+    const engine=new EditorEngine();
+    for(const name of ["A","B","C"]) engine.execute("node.create",{type:"component",name});
+    engine.execute("instance.create",{component:3,parent:2});
+    engine.execute("instance.create",{component:4,parent:3});
+    const initial=engine.getSnapshot(), depth=engine.getUndoDepth();
+    for(const [component,parent] of [[2,4],[3,3],[2,2]]) {
+      expect(()=>engine.execute("instance.create",{component,parent})).toThrow(/can't contain itself/);
+      expect(engine.getSnapshot()).toBe(initial); expect(engine.getUndoDepth()).toBe(depth);
+    }
+    expect(()=>engine.execute("instance.create",{component:4,parent:5})).toThrow(/edit its main component/);
+    expect(engine.getSnapshot()).toBe(initial);
+  });
+
+  it("rolls back swap defaults that would make a host contain itself and leaves its next id free",async () => {
+    const file=JSON.parse(capture("variants").toString("utf8"));
+    file.nodes[2].props={Icon:{type:"instanceSwap",default:4}};
+    const engine=await open(Buffer.from(JSON.stringify(file)));
+    const before=engine.getSnapshot();
+    expect(()=>engine.execute("instance.create",{component:2,parent:4})).toThrow(/"Property 1=Variant2" → "Property 1=Variant2"/);
+    expect(engine.getSnapshot()).toBe(before);
+    expect(engine.getUndoDepth()).toBe(0);
+    expect(engine.execute("instance.create",{component:2})).toEqual({id:"5"});
+  });
+
+  it("breaks equal corner distances by the top-most variant and exact ties by child order",async () => {
+    const file=JSON.parse(capture("variants").toString("utf8"));
+    file.nodes[2].transform=[1,0,0,1,10,20];
+    for(const [x,y,expected] of [[15,15,"4"],[10,20,"2"]] as const) {
+      file.nodes[4].transform=[1,0,0,1,x,y];
+      const engine=await open(Buffer.from(JSON.stringify(file)));
+      engine.execute("instance.create",{component:3});
+      expect(engine.getSnapshot().document.nodes["5"]).toMatchObject({component:expected});
+    }
+  });
+
+  it("duplicates a main as a linked instance with the native descendant map but keeps a variant copy as a main",async () => {
+    const engine=await open(capture("instance"));
+    expect(engine.execute("edit.duplicate",{ids:[2],map:true})).toEqual({ids:["6"],map:{"2":"6","3":"7"}});
+    expect(engine.getSnapshot().document.nodes["6"]).toMatchObject({kind:"instance",name:"Card",component:"2",source:"2",x:220});
+    expect(engine.getSnapshot().document.nodes["7"]).toMatchObject({source:"3",parent:"6"});
+    const variants=await open(capture("variants"));
+    expect(variants.execute("edit.duplicate",{ids:[4],map:true})).toEqual({ids:["5"],map:{"4":"5"}});
+    expect(variants.getSnapshot().document.nodes["5"]).toMatchObject({kind:"component",name:"Property 1=Variant2",parent:"3"});
+    expect(variants.getSnapshot().document.nodes["5"].source).toBeUndefined();
+  });
+
+  it("binds visible and text defaults and excludes slots from the instance's value map",async () => {
+    const file=JSON.parse(capture("instance").toString("utf8"));
+    file.nodes[2].props={Show:{type:"boolean",default:false},Caption:{type:"text",default:"New\r\nlabel"},Content:{type:"slot"}};
+    file.nodes[3]={...file.nodes[3],type:"text",characters:"Original",prop_refs:{visible:"Show",characters:"Caption"}};
+    const engine=await open(Buffer.from(JSON.stringify(file)));
+    engine.execute("instance.create",{component:2});
+    expect(engine.getSnapshot().document.nodes["6"]).toMatchObject({props:{Show:false,Caption:"New\r\nlabel"}});
+    expect(Object.keys((engine.getSnapshot().document.nodes["6"] as import("../../src/engine/document").InstanceNode).props)).toEqual(["Show","Caption"]);
+    expect(engine.getSnapshot().document.nodes["7"]).toMatchObject({visible:false,text:{characters:"New\nlabel"},source:"3"});
+    expect(engine.getSnapshot().document.nodes["7"].propRefs).toBeUndefined();
+  });
+});

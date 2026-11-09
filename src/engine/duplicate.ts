@@ -1,5 +1,6 @@
 import { remapPatternSources } from "./pattern-sources";
-import { isFrameLike, isLeaf } from "./document";
+import { insertInstance } from "./component-instances";
+import { isFrameLike, isLeaf, layerTransform } from "./document";
 import type { Document, NodeId } from "./document";
 import { arrangementTargets, moveWorld } from "./arrange";
 import { HierarchyDraft, subtreeIds, zSorted } from "./hierarchy";
@@ -55,6 +56,17 @@ export function copyLayers(draft: HierarchyDraft, sources: readonly NodeId[], ne
     if (isLeaf(parent)) throw new Error("Invalid layer parent");
     const index = parent.children.indexOf(sourceId) + 1;
     const subtree = subtreeIds(document, sourceId);
+    if (source.kind === "component" && parent.kind !== "componentSet") {
+      const instance = insertInstance(draft, source, parent.id, layerTransform(source), allocator, index);
+      allocator = instance.nextId;
+      copies.push(instance.id);
+      const mirrored = subtreeIds(draft.document, instance.id);
+      map[sourceId] = instance.id;
+      if (subtree.length === mirrored.length) {
+        subtree.forEach((id, index) => { map[id] = mirrored[index]; });
+      }
+      continue;
+    }
     const localMap = new Map<NodeId,NodeId>();
     for (const oldId of subtree) {
       const node = document.nodes[oldId];

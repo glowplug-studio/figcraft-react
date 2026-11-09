@@ -1,3 +1,4 @@
+import { owningInstance } from "./component-tree";
 import { newComponentKind } from "./component-properties";
 import { setChildProperty } from "./child-layout-properties";
 import { editLayoutStructure } from "./layout-structure";
@@ -6,7 +7,7 @@ import { fromRgba8 } from "./colour";
 import { solidPaint } from "./solid-paint";
 import { inverse, transformBounds } from "./affine";
 import { type Document, type GroupNode, type FrameNode, type NodeId } from "./document";
-import { ancestors, HierarchyDraft, pageForNode, rootIds, worldTransform, zSorted } from "./hierarchy";
+import { HierarchyDraft, pageForNode, rootIds, worldTransform, zSorted } from "./hierarchy";
 import { parseIndex, parseNodeId, parseNumber, parseString } from "./parameters";
 
 export const structureSpecs = Object.freeze({
@@ -163,7 +164,7 @@ export function executeStructure(command: string, document: Document, selection:
   if (createComponent) {
     const make = (items: readonly NodeId[]): NodeId => {
       const current = draft.document;
-      if (items.some(id => ancestors(current, id).some(parent => current.nodes[parent].kind === "instance")))
+      if (items.some(id => owningInstance(current, id, false)))
         throw new Error("Layers inside an instance can't become components");
       const roots = zSorted(current, rootIds(current, items));
       const source = roots.length === 1 ? current.nodes[roots[0]] : undefined;

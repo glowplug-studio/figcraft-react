@@ -1,3 +1,4 @@
+import { createInstance } from "./component-instances";
 import { fieldValue, type FieldEdit } from "./field-math";
 import { shownGeometry, type GeometryField } from "./geometry-fields";
 import { setGridTrack } from "./grid-track-command";
@@ -89,6 +90,7 @@ export const commandSpecs = Object.freeze({
   "frame.presets": { label: "List frame presets", undo: false },
   ...selectionSpecs,
   ...structureSpecs,
+  "instance.create": { label:"Create instance", undo:true },
   "tool.shapeBuilder": { label: "Shape builder", undo: false },
   "shapeBuilder.mode": { label: "Shape builder mode", undo: false },
   "shapeBuilder.regions": { label: "Shape builder regions", undo: false },
@@ -968,10 +970,11 @@ export class EditorEngine {
       return next.result;
     }
     const builderEdit = command === "shapeBuilder.merge" || command === "shapeBuilder.remove";
-    if (builderEdit || Object.hasOwn(structureSpecs, command) || Object.hasOwn(vectorSpecs, command)) {
+    if (command === "instance.create" || builderEdit || Object.hasOwn(structureSpecs, command) || Object.hasOwn(vectorSpecs, command)) {
       const before = this.#snapshot;
       const execute = builderEdit ? applyBuilder : Object.hasOwn(vectorSpecs, command) ? executeVector : executeStructure;
-      const next = execute(command, before.document, before.selection, this.#nextId, p);
+      const next = command === "instance.create" ? createInstance(before.document, this.#nextId, p)
+        : execute(command, before.document, before.selection, this.#nextId, p);
       if (!sameContent(before.document, next.document)) {
         this.#undo.push({ document: before.document, selection: before.selection }); this.#redo = [];
       }

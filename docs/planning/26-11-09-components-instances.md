@@ -4,10 +4,10 @@
 
 | Field | Evidence |
 |---|---|
-| Phase | Phase 5. Native file records, component containers, component creation and local browser recovery verified. Instance creation and synchronisation are next. |
+| Phase | Phase 5. Native component and instance creation, main duplication, default selection and containment checks verified. Main-to-instance synchronisation is next. |
 | Reference | Upstream and the authorised fork both point to 79c363466a46b96f989b73c7cf20240bc168b7a2. The incoming commit changes the upstream Cloudflare packaging size limit only. The layout reference remains 3839fe4a. |
-| React | Geometry and layout implementation dbc35f4 on prompt/full-figcraft-port. The global supported baseline remains 8eb0b876. |
-| Graph | The combined local graph has 31,884 nodes and 105,277 edges. create_instance_at links to default_props and would_contain_itself. rebase_instance links to diff_groups and variable_groups. Native macro registrations and serde defaults were inspected in source. |
+| React | Commit 97cb324 on prompt/full-figcraft-port passed all 252 production Chromium checks. The global supported baseline remains 8eb0b876. |
+| Graph | The combined local graph has 31,939 nodes and 105,643 edges. create_instance_at links to default_props and would_contain_itself. rebase_instance links to diff_groups and variable_groups. Native macro registrations and serde defaults were inspected in source. |
 | Backend | The scoped MCP read resolved the intended Figcraft project and returned zero public tables. This slice works on in-document component definitions and local instances. |
 | Native verification | All 15 upstream headless UI tests selected by the component filter passed. They cover panel and layer interactions. This filter does not cover the full engine family. |
 | First implementation | Preserve main component, component set, instance and descendant linkage records. Verify a real native component drawing survives open, render, recovery and download before adding authoring commands. |
@@ -58,3 +58,13 @@ The layer actions and native keyboard shortcut create components. A frame or gro
 The exact production build passed six signed-in Chromium workflows in 17.3 seconds. They cover opening an existing instance, canvas picking, original and copied pixels, editing its position, recovery after reload, intact source IDs on download, creation through the layer action and keyboard, undo and existing frame and grid behaviour. The complete pure suite passed 1,845 tests with a 30-second per-test timeout. Under concurrent machine load the 1,001-image clipboard fixture had exceeded Vitest’s five-second default twice. Its isolated rerun passed. Both local Auth integrations passed separately. Strict TypeScript, the library and the production host built successfully. The merged local graph has 31,921 nodes and 105,520 edges and links readNode to readFrameKind.
 
 Next implement instance.create, choose the default variant by position and reject direct and transitive containment. Compare the results and generated child source IDs with native sessions. Main-to-instance change propagation, override tracking and slot ownership remain open.
+
+## Create and duplicate instances
+
+At 97cb324 all 252 production Chromium checks passed in 9.5 minutes. The subsequent implementation adds instance.create, the Layers action and main-component duplication. Native set geometry determines the default variant. Creation preserves the source IDs and child order, applies boolean and text bindings, and allocates one undoable tree. The containment checks reject direct cycles, indirect cycles and cycles introduced by default swap properties. Native duplication returns the descendant ID map and keeps a variant duplicated inside its set as a main.
+
+Across 180 generated sessions, 540 instance commands and 2,575 final nodes matched the native command outcomes, IDs, selection, tree order, geometry, link targets, clipping and paint counts. Separate Rust sessions confirmed duplicate maps and rollback of an instance whose default swap would close a cycle. The rejected allocation remained available for the next command.
+
+Strict TypeScript, library and production-host builds, 1,852 pure tests and both local Auth tests passed. Five signed-in production Chromium workflows passed in 14.6 seconds, including default variant selection through Layers, undo, redo, reload and native download. An initial browser invocation selected the hosted login fixture through its base URL argument and stopped before executing a workflow. The successful run used the configured local Auth fixture. The combined local graph includes insertInstance and assertNoNewComponentCycle on the React side and would_contain_itself and sync_instance_depth on the Rust side.
+
+Next implement transaction-wide edit guards, override capture, adopting slot content and propagation to existing mirrors. Compare edits to a main and its nested instances after each command and after undo. Nested swap rebuilding, copy/paste, variants, property authoring, Assets and the full component release gate remain open.

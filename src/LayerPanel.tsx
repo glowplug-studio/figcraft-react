@@ -87,6 +87,8 @@ export function LayerPanel({ document, selection, editable, dispatch }: LayerPan
       <button type="button" disabled={!editable || !selection.some(id => document.nodes[id]?.kind === "vector")} onClick={() => dispatch("vector.reverse")}>Reverse path direction</button>
       <button type="button" disabled={!editable || !selection.some(id => document.nodes[id] && document.nodes[id].kind !== "page" && !isLeaf(document.nodes[id]))} onClick={() => dispatch("select.children")}>Select children</button>
       <button type="button" disabled={!editable || !parent || parent.kind === "page"} onClick={() => dispatch("select.parent")}>Select parent</button>
+      {selection.length === 1 && ["component","componentSet"].includes(document.nodes[selection[0]]?.kind) &&
+        <button type="button" disabled={!editable} onClick={() => dispatch("instance.create",{component:selection[0]})}>Create instance</button>}
       <button type="button" disabled={!editable || !selection.length} onClick={() => dispatch("component.create")}>Create component</button>
       <button type="button" disabled={!editable || !selection.length} onClick={() => dispatch("component.createMultiple")}>Create multiple components</button>
       <button type="button" disabled={!editable || selection.length === 0} onClick={() => dispatch("object.frameSelection", { ids: selection })}>Frame selection</button>

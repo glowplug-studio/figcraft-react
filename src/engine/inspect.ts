@@ -1,3 +1,4 @@
+import { slotName } from "./component-tree";
 import { componentOverrides, inspectedPropertyValues, wireComponentProperties } from "./component-properties";
 import { inspectedGridCell } from "./grid-placement";
 import { layerSizing, sizeLimitKeys } from "./auto-layout";
@@ -64,6 +65,7 @@ function inspect(doc: Document, node: DocumentNode, depth: number, fields?: Set<
     const overrides = componentOverrides(node);
     if (overrides.length) put("overrides", overrides);
   }
+  if (node.kind === "frame" && wants("slot")) put("slot", slotName(doc, node.id));
   put("name", node.name);
   put("type", nodeTypeName(node));
   if (fields?.has("visible")) put("visible", node.kind === "page" || node.visible !== false);
