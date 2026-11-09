@@ -6,15 +6,15 @@
 |---|---|
 | Overall status | In progress. [Execution checkpoint](26-11-07-full-port-resume.md). |
 | Active slice | Auto layout and constraints. [Dated plan](26-11-09-auto-layout.md). |
-| Active phase | Phase 4. Auto layout property commands and sizing coherence. |
+| Active phase | Phase 4. Auto layout canvas and keyboard interactions. |
 | Upstream baseline | Auto layout reference 3839fe4a. Rich text reference a4251ca8. Global supported baseline 8eb0b876. |
-| Branch and last verified commit | prompt/full-figcraft-port. Container inspector fd736f1 matched 1,300 native command steps. Flow layout 5a709e9 matched 1,250 native documents. |
+| Branch and last verified commit | prompt/full-figcraft-port. Layout creation and removal at 4c42472 matched 1,680 native steps. Child sizing at 1702886 matched 11,880 steps. |
 | Completed slices | Rectangle/host-auth, bounded native persistence/recovery, supported-model pages, affine rectangle geometry/selection and solid appearance, plus nested group hierarchy, Frame containers, movement/transform gestures, rounded corners, ellipse/arc/ring and Polygon/Star editing verified locally; Line/Arrow and uniform solid strokes also verified; per-side Rectangle/Frame strokes, variable-width profiles and procedural brushes verified; vector networks, solid region/stroke rendering and Flatten/Reverse also verified; foundation commit `154f5a7`. Gradient, image, pattern, blend and mask releases now have local property matrices. [Blend evidence](../reports/26-11-09-blend-modes-parity.html). |
 | Remaining slices | Continue incomplete roadmap rows, excluding the user-deferred plugin and widget family. See each slice matrix for outstanding integrations. |
-| Tests last passed | fd736f1 passed 1,713 pure tests, two local Auth checks, strict types, both builds and two signed-in Chromium workflows. Full grid run and isolated rerun recorded in the [slice plan](26-11-09-auto-layout.md). |
-| Files currently in progress | Child layout properties, sizing coherence and native command fixtures. |
+| Tests last passed | 4c42472 passed 1,721 pure tests, two local Auth checks, strict types, both builds and four focused signed-in Chromium workflows. The preceding fd736f1 host passed 237/237 Chromium tests. Further evidence in the [slice plan](26-11-09-auto-layout.md). |
+| Files currently in progress | Auto-layout arrow keys in arrange.ts and layout-navigation.ts, with keyboard regression fixtures. |
 | Blockers | No blocker. Use local Graphify for all remaining slices. The scoped Supabase read succeeded. |
-| Exact next action | Check the full Chromium run, then finish child sizing commands, frame authoring and canvas interactions. |
+| Exact next action | Verify the 239-case Chromium run and keyboard navigation. Continue pointer reordering, sizing and spacing handles. |
 | Last updated | 2026-11-09 |
 
 ## Scope and continuation
