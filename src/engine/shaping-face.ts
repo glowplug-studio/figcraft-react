@@ -1,6 +1,5 @@
 import * as hb from "#figcraft-harfbuzz";
-import type { AxisInfo } from "harfbuzzjs";
-import { fontTables, fontVariations, normaliseFontStyle, type FontInstance } from "./font-tables";
+import { fontTables, fontVariations, normaliseFontStyle, type FontAxis, type FontInstance } from "./font-tables";
 import { styleWeight, type TextStyle } from "./text-style";
 import { validOpenTypeTag } from "./text-case";
 
@@ -44,7 +43,7 @@ export class ShapingFace {
   readonly capHeight: number;
   readonly descent: number;
   readonly lineGap: number;
-  readonly axes: Readonly<Record<string,Readonly<AxisInfo>>>;
+  readonly axes: Readonly<Record<string,FontAxis>>;
   readonly superscript: readonly [number,number];
   readonly subscript: readonly [number,number];
   readonly instances: readonly FontInstance[];

@@ -1,3 +1,2 @@
-// The browser build emits the upstream shaper and its separate WASM file.
-// Node resolves the original package and reads its WASM file from disk.
-export { Blob, Buffer, Direction, Face, Feature, Font, Variation, shape } from "harfbuzzjs";
+// The browser entry removes the generated Node filesystem branch.
+export { Blob, Buffer, Direction, Face, Feature, Font, Variation, shape } from "./harfbuzz/index.mjs";

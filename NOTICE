@@ -115,7 +115,9 @@ Noto Sans Georgian: Copyright 2022 The Noto Project Authors.
 The complete licences accompany the files in fonts/inter/OFL.txt and
 fonts/noto-sans-georgian/OFL.txt.
 
-The optional text shaper uses harfbuzzjs 1.6.4 and its HarfBuzz WebAssembly build.
+The optional text shaper uses harfbuzzjs 1.6.0 and HarfBuzz 14.3.1, built with Emscripten
+4.0.13. scripts/rebuild-shaper.sh reproduces its Unicode 17 tables, fallback
+shaping, AAT and bitmap support. Both libraries retain their original licences.
 
 Copyright (c) 2019-2026 The harfbuzzjs project authors
 

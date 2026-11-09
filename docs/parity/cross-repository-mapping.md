@@ -390,3 +390,5 @@ Native Bidi::of, visual_order and visual_gaps map to textBidi, resolveParagraph,
 Native break_lines, wrapped_lines, restyle_breaks, list_markers, list_step, layout, truncate_layout and add_ellipsis map to TextLineBreaker, TextListLayout and layoutTextFlow for line, list and truncation geometry. Word-model inputs, glyph painting and text-path warping are separate. [Line flow evidence](../planning/26-11-09-rich-text.md#line-flow-list-markers-and-truncation).
 
 Native breaks::word_breaks and the wasm32 segmenter map to textWordStarts and layoutText. The browser loads the four ICU4X 2.4.0 LSTM models on demand. The independent TypeScript implementation matched 6,000 native word-boundary masks. [Word and layout evidence](../planning/26-11-09-rich-text.md#complex-script-word-boundaries).
+
+Native shape_segment uses HarfRust 0.13.3. ShapingFace now uses matching HarfBuzz 14.3.1 fallback shaping and Unicode 17 properties. The 19 previously failing mixed-script cases passed alongside the additional 10,000 layouts. [Shaper evidence](../planning/26-11-09-rich-text.md#shaping-fallback-and-unicode-tables).

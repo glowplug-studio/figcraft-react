@@ -106,3 +106,13 @@ Verified against the actual wasm32 builds of Figcraft’s word_breaks and layout
 In a separate stress test using Inter Regular, 981 of 1,000 mixed-script layouts matched. The 19 mismatches reduce to glyph-cluster or advance differences for mixed scripts and uncovered marks. All 19 had the correct word boundaries. Resolve the shaping configuration against these reproductions before glyph painting and editable text layers.
 
 The complete local production Chromium run passed 208/208 in 383.8 seconds with one worker and zero failures, skips or retries.
+
+### Shaping fallback and Unicode tables
+
+The 19 failing layouts at 6770c2c reduced to missing-glyph mark positioning, clusters at unassigned code points, and Thai decomposition in mixed-script text. The distributed minimal HarfBuzz build disables legacy fallback shaping and simplifies Unicode properties for unassigned characters. HarfRust 0.13.3 targets HarfBuzz 14.3.1 with Unicode 17. The package now uses that public HarfBuzz release with the harfbuzzjs 1.6.0 bindings, full unassigned properties and legacy shaping enabled. AAT and bitmap font support are compiled in. The reusable engine still owns case mapping, styled runs, logical layout and browser word segmentation.
+
+The pinned Emscripten rebuild produced byte-identical JavaScript and Wasm on two runs. The shaper is 534,101 bytes and shares its Wasm file between the browser and Node. Package builds clean their generated directory before emitting declarations and runtime assets. An npm pack dry run found one shaper and one word model.
+
+The original 1,000 layout cases now match upstream wasm32 Figcraft. A second seed added 10,000 exact full layout comparisons. Together the two runs compared 16,000 word-boundary masks and 11,000 layouts. Fourteen reduced regressions compare wrapped geometry, and eight unwrapped native fixtures compare glyph IDs, positions and ranges for Hebrew, Arabic, Thai, Lao, Khmer, Myanmar and mixed marks. Node and the generated Chromium consumer passed all 35 word fixtures and 41 full glyph-flow fixtures. Strict types, both production builds, 1,322 pure tests, two local Auth tests and three focused Chromium workflows passed. The last complete Chromium run was 208/208 at 6770c2c.
+
+Local Graphify merged the React changes over 6770c2c with Rust a4251ca8, yielding 31,155 nodes and 102,146 edges. The next step is glyph outlines and layout-space ink, followed by decorations, text paths and editable browser text nodes.

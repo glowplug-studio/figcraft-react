@@ -1,4 +1,3 @@
-import type { AxisInfo } from "harfbuzzjs";
 import { validOpenTypeTag } from "./text-case";
 
 /** Table offsets in both sfnt files and TrueType collections are relative to the file. */
@@ -20,13 +19,23 @@ export function fontTables(bytes: Uint8Array, faceIndex: number) {
 }
 
 export const normaliseFontStyle = (name: string) => name.toLowerCase().replace(/[ _-]/g,"");
+export interface FontAxis {
+  readonly axisIndex: number;
+  readonly tag: string;
+  readonly nameId: number;
+  readonly flags: number;
+  readonly min: number;
+  readonly default: number;
+  readonly max: number;
+}
+
 export interface FontInstance {
   readonly name: string;
   readonly coordinates: Readonly<Record<string,number>>;
 }
 
 export function fontVariations(table: DataView | undefined, nameOf: (id: number)=>string) {
-  const axes: Record<string,Readonly<AxisInfo>> = Object.create(null);
+  const axes: Record<string,FontAxis> = Object.create(null);
   const instances: FontInstance[] = [];
   const result = () => ({axes:Object.freeze(axes),instances:Object.freeze(instances)});
   if (!table || table.byteLength < 16 || table.getUint16(0) !== 1) return result();

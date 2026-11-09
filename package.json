@@ -16,10 +16,13 @@
   "types": "./dist/index.d.ts",
   "imports": {
     "#figcraft-harfbuzz": {
-      "types": "harfbuzzjs",
-      "browser": "./dist/harfbuzz-browser.js",
-      "node": "harfbuzzjs",
-      "default": "./dist/harfbuzz-browser.js"
+      "types": [
+        "./dist/engine/harfbuzz/index.d.mts",
+        "./src/engine/harfbuzz/index.d.mts"
+      ],
+      "browser": "./dist/engine/harfbuzz/browser.js",
+      "node": "./dist/engine/harfbuzz/index.mjs",
+      "default": "./dist/engine/harfbuzz/browser.js"
     },
     "#figcraft-icc-runtime": {
       "browser": "./dist/icc-browser.js",
@@ -49,7 +52,7 @@
     }
   },
   "scripts": {
-    "build": "tsc -b --force && node scripts/build-text-runtime.ts && vite build",
+    "build": "vite build && tsc -b --force && node scripts/build-text-runtime.ts",
     "playwright:install": "playwright install chromium",
     "preview:build": "npm run build && npm run build --workspace @glowplug-studio/figcraft-react-preview",
     "preview:dev": "npm run build && npm run dev --workspace @glowplug-studio/figcraft-react-preview",
@@ -91,7 +94,6 @@
     "@zip.js/zip.js": "2.24.0",
     "fflate": "0.8.3",
     "geotiff": "3.0.5",
-    "harfbuzzjs": "1.6.4",
     "image-size": "2.1.0",
     "lcms-wasm": "1.0.5",
     "lossless-json": "4.3.3",
