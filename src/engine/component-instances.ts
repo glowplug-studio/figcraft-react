@@ -8,7 +8,7 @@ import { parseNodeId, parseNumber } from "./parameters";
 import { boundsOf } from "./viewport";
 
 function rootInstance(document: Document, main: ComponentNode, id: NodeId, transform: Affine): InstanceNode {
-  const {description, props, propOrder, overrides, propRefs, ...frame} = main;
+  const {description, props, propOrder, overrides, propRefs, variableModes, ...frame} = main;
   return withLayerTransform({...frame, kind:"instance", component:main.id, id, source:main.id,
     name:defaultInstanceName(document, main), props:defaultInstanceValues(props), children:Object.freeze([])}, transform);
 }

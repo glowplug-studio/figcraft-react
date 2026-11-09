@@ -1,3 +1,4 @@
+import type { LayerVariableModes } from "./variable-modes";
 import type { Variables } from "./variables";
 import type { LayerStyles, SharedStyle } from "./shared-styles";
 import type { ComponentLinks, ComponentMain, ComponentSet, ComponentInstance } from "./component-properties";
@@ -37,7 +38,7 @@ export function withMaskProperties<T extends MaskProperties>(node:T, isMask = no
   const {isMask: priorMask, maskType: priorType, ...rest} = node;
   return Object.freeze({...rest,...(isMask && {isMask:true}),...(maskType !== "alpha" && {maskType})}) as T;
 }
-export interface PageNode extends MaskProperties, ComponentLinks, LayerStyles {
+export interface PageNode extends MaskProperties, ComponentLinks, LayerStyles, LayerVariableModes {
   readonly fills?: readonly Paint[];
   readonly strokes?: readonly Paint[];
   readonly effects?: readonly Effect[];
@@ -55,7 +56,7 @@ export interface Constraints {
   readonly vertical: "top" | "bottom" | "topBottom" | "center" | "scale";
 }
 export const defaultConstraints: Constraints = Object.freeze({ horizontal: "left", vertical: "top" });
-export interface LayerProperties extends MaskProperties, ComponentLinks, LayerStyles {
+export interface LayerProperties extends MaskProperties, ComponentLinks, LayerStyles, LayerVariableModes {
   readonly childLayout?: ChildLayout;
   readonly sizing?: LayerSizing;
   readonly effects?: readonly Effect[];

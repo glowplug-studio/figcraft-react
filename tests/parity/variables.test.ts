@@ -3,6 +3,7 @@ import { expect, it } from "vitest";
 import { strFromU8, unzipSync } from "fflate";
 import { EditorEngine } from "../../src/engine/editor";
 import { base64Bytes } from "../../src/engine/recovery";
+import { layerModes } from "../../src/engine/variable-modes";
 import { readVariables, resolveVariable } from "../../src/engine/variables";
 
 const bytes=readFileSync(new URL("../fixtures/native-variables.json",import.meta.url));
@@ -114,4 +115,51 @@ it("copies inherited variables, resets a single mode override and validates meta
   expect(e.getSnapshot().document).toBe(before);
   e.execute("variable.deleteCollection",{collection:cid});
   expect(list().find(v=>v.id===inherited.id)?.extends).toBeUndefined();
+});
+
+it("inherits native page and main modes, preserves explicit choices and follows collection removal",async()=>{
+  const file=readFileSync(new URL("../fixtures/native-variable-modes.json",import.meta.url));
+  const e=new EditorEngine();
+  await e.executeAsync("file.open",{data:base64Bytes(file)});
+  const doc=()=>e.getSnapshot().document;
+  const light=cid+"/mode1", dark=cid+"/mode2";
+  expect(layerModes(doc(),"2")[cid]).toBe(dark);
+  expect(doc().nodes[5].variableModes).toBeUndefined();
+  expect(layerModes(doc(),"6")[cid]).toBe(light);
+  e.execute("variable.setMode",{id:5,collection:"Theme",mode:"Dark"});
+  expect(doc().nodes[5].overrides).toBeUndefined();
+  expect(layerModes(doc(),"6")[cid]).toBe(dark);
+  e.execute("variable.setMode",{id:5,collection:"Theme",mode:null});
+  e.execute("variable.setMode",{id:4,collection:"Theme",mode:"Dark"});
+  expect(doc().nodes[6].variableModes?.[cid]).toBe(dark);
+  e.execute("variable.setMode",{id:6,collection:"Theme",mode:"Light"});
+  expect(doc().nodes[6].overrides).toContain("modes");
+  const explicit=doc();
+  expect(()=>e.execute("variable.setMode",{ids:[6,99999],collection:"Theme",mode:null})).toThrow();
+  expect(doc()).toBe(explicit);
+  e.execute("component.resetInstance",{id:5});
+  expect(layerModes(doc(),"6")[cid]).toBe(dark);
+  e.execute("component.resetInstance",{id:5}); e.execute("edit.undo");
+  expect(layerModes(doc(),"6")[cid]).toBe(dark);
+  e.execute("edit.undo"); expect(layerModes(doc(),"6")[cid]).toBe(light);
+  e.execute("variable.removeMode",{collection:"Theme",mode:"Light"});
+  expect(doc().nodes[3].variableModes?.[cid]).toBeUndefined();
+  const raw=JSON.parse(strFromU8(unzipSync(await e.nativeSnapshot())["document.json"]));
+  expect(raw.nodes["1"].var_modes).toEqual({[cid]:dark});
+  e.execute("variable.deleteCollection",{collection:"Theme"});
+  expect(Object.values(doc().nodes).every(node=>!node.variableModes?.[cid])).toBe(true);
+});
+
+it("restores legacy instance mode overrides and preserves file-supplied collection identifiers",async()=>{
+  const file=JSON.parse(readFileSync(new URL("../fixtures/native-variable-modes.json",import.meta.url),"utf8"));
+  file.nodes["6"].var_modes=JSON.parse('{"__proto__":"own-mode"}');
+  const e=new EditorEngine();
+  await e.executeAsync("file.open",{data:base64Bytes(new TextEncoder().encode(JSON.stringify(file)))});
+  const nodes=()=>e.getSnapshot().document.nodes;
+  expect(nodes()[6].overrides).toEqual(["modes"]);
+  e.execute("node.set",{id:6,variableModes:{constructor:"unknown"}});
+  expect(nodes()[6].variableModes?.["__proto__"]).toBe("own-mode");
+  expect(nodes()[6].variableModes?.["constructor"]).toBe("unknown");
+  e.execute("component.detach",{id:5});
+  expect(nodes()[5]).toMatchObject({kind:"frame",variableModes:{[cid]:cid+"/mode1"}});
 });

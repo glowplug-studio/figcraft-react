@@ -72,7 +72,7 @@ function refreshRoot(doc: Document, main: ComponentNode, placed: InstanceNode): 
   }
   const actual = withLayerTransform({...template, kind:"instance" as const, id:placed.id, parent:placed.parent,
     name:named ? placed.name : defaultInstanceName(doc, main), component:main.id, props:placed.props, source:nested ? placed.source : main.id,
-    childLayout, sizing, constraints:placed.constraints, propRefs:placed.propRefs,
+    childLayout, sizing, variableModes:placed.variableModes, constraints:placed.constraints, propRefs:placed.propRefs,
     visible:placed.visible, locked:placed.locked, isMask:placed.isMask, exposed:placed.exposed,
     constrainProportions:placed.constrainProportions, boolOp:placed.boolOp,
     overrides:own}, layerTransform(placed));
@@ -305,9 +305,9 @@ export function rebaseOwnedInstance(draft: HierarchyDraft, placed: InstanceNode,
     draft.set(withOverrideSet({...child,source:target},own));
   }
   const own = new Set(componentOverrides(placed));
-  for (const group of ["component","props","position","resizing"]) own.delete(group);
+  for (const group of ["component","props","position","resizing","modes"]) own.delete(group);
   for (const group of differentComponentGroups(main,placed)) {
-    if (!["component","props","name","resizing","position","size"].includes(group)) own.add(group);
+    if (!["component","props","name","resizing","position","size","modes"].includes(group)) own.add(group);
   }
   if (placed.name !== defaultInstanceName(doc,main)) own.add("name");
   draft.set(withOverrideSet({...placed,source:main.id,propRefs:undefined},own));

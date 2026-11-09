@@ -18,11 +18,11 @@ export function sameComponentValue(a: unknown, b: unknown): boolean {
 }
 
 const groups = ["fills", "strokes", "effects", "opacity", "visible", "name", "corners", "size", "resizing", "position",
-  "characters", "textStyle", "padding", "gap", "alignment", "grids", "component", "props"] as const;
+  "characters", "textStyle", "padding", "gap", "alignment", "grids", "modes", "component", "props"] as const;
 export type ComponentGroup = typeof groups[number];
 export const isComponentGroup = (name: string): name is ComponentGroup => groups.some(group => group === name);
 
-export const isOverrideGroup = (name: string) => isComponentGroup(name) || ["exports","interactions","modes","slot"].includes(name);
+export const isOverrideGroup = (name: string) => isComponentGroup(name) || ["exports","interactions","slot"].includes(name);
 
 function textStyle(text: TextData) {
   const {characters, path, savedBreaks, leadingTrim, ...style} = text;
@@ -31,6 +31,7 @@ function textStyle(text: TextData) {
 
 function groupValue(node: LayerNode, group: ComponentGroup): unknown {
   switch (group) {
+    case "modes": return node.variableModes;
     case "grids": return [node.grids, node.styles?.grid ?? null];
     case "fills": return rectanglePaints(node);
     case "strokes": return [node.strokes ?? [], node.stroke ?? defaultStroke];
@@ -65,6 +66,7 @@ export function differentComponentGroups(a: LayerNode, b: LayerNode): ComponentG
 
 export function copyComponentGroup(from: LayerNode, to: LayerNode, group: ComponentGroup): LayerNode {
   switch (group) {
+    case "modes": return {...to,variableModes:from.variableModes};
     case "grids": return {...withStyleRef(to, "grid", from.styles?.grid ?? null), grids:from.grids};
     case "fills": return {...withStyleRef(to, "fill", from.styles?.fill ?? null), fill:from.fill, fills:from.fills};
     case "strokes": return {...withStyleRef(to, "stroke", from.styles?.stroke ?? null), strokes:from.strokes, stroke:from.stroke};

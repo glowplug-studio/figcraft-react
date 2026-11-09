@@ -77,7 +77,8 @@ function detach(draft: HierarchyDraft, root: InstanceNode) {
   }
   const {source,overrides,component,props,propRefs,...frame} = root;
   const refs = Object.fromEntries(Object.entries(propRefs ?? {}).filter(([key])=>key !== "mainComponent"));
-  draft.set({...frame,kind:"frame",...(Object.keys(refs).length && {propRefs:Object.freeze(refs)})});
+  const modes={...doc.nodes[root.component]?.variableModes,...root.variableModes};
+  draft.set({...frame,...(Object.keys(modes).length>0 && {variableModes:Object.freeze(modes)}),kind:"frame",...(Object.keys(refs).length && {propRefs:Object.freeze(refs)})});
   for (const id of nested) {
     const node = draft.nodes[id];
     if (node.kind !== "instance") continue;

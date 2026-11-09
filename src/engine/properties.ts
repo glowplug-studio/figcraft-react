@@ -1,3 +1,4 @@
+import { withVariableModes } from "./variable-modes";
 import { applyStyleToNode } from "./style-application";
 import { readGrids, type StyleSlot } from "./shared-styles";
 import { explicitOverrides } from "./component-groups";
@@ -35,7 +36,7 @@ const geometryKeys = new Set(["x", "y", "width", "height", "w", "h", "rotation"]
 const styleSlots = new Map<string, StyleSlot>([
   ["effectStyle","effect"], ["fillStyle","fill"], ["gridStyle","grid"], ["strokeStyle","stroke"], ["textStyle","text"],
 ]);
-const appearanceKeys = new Set([...styleSlots.keys(), "grids", "layoutGrids", "description", "effects", "isMask", "maskType", "booleanOperation", "operandOperation", "name", "visible", "locked", "opacity", "blend", "blendMode", "fill", "fills", "clip", "constraints", "constrainProportions"]);
+const appearanceKeys = new Set([...styleSlots.keys(), "variableModes", "grids", "layoutGrids", "description", "effects", "isMask", "maskType", "booleanOperation", "operandOperation", "name", "visible", "locked", "opacity", "blend", "blendMode", "fill", "fills", "clip", "constraints", "constrainProportions"]);
 
 /** The supported layer geometry and appearance subset of upstream `node.set`. No history is recorded here. */
 export function setRectangleProperties(document: Document, selection: readonly NodeId[], params: Record<string, unknown>, origin?: Point, warnings: string[] = [], textCommand?: "text.style" | "text.set", draft = new HierarchyDraft(document)): Document {
@@ -82,6 +83,7 @@ function writeProperties(draft: HierarchyDraft, document: Document, selection: r
   });
   const grids = keys.includes("layoutGrids") ? readGrids(props.layoutGrids,true) : keys.includes("grids") ? readGrids(props.grids,true) : undefined;
   function styleProperties<T extends DocumentNode>(node: T): T {
+    if ("variableModes" in props) node=withVariableModes(node,props.variableModes);
     if (grids) node = {...node, grids:grids.length ? grids : undefined};
     for (const {slot,style} of links) node = applyStyleToNode(node, slot, style);
     return node;
@@ -164,7 +166,7 @@ function writeProperties(draft: HierarchyDraft, document: Document, selection: r
   for (const id of ids) {
     const node = draft.nodes[id];
     if (textCommand && node?.kind !== "text") throw new Error("Expected a text layer");
-    if (node?.kind === "page" && keys.every(key => styleSlots.has(key) || ["description", "fill", "fills", "stroke", "strokes", "effects", "isMask", "maskType", "grids", "layoutGrids"].includes(key))) {
+    if (node?.kind === "page" && keys.every(key => styleSlots.has(key) || ["variableModes", "description", "fill", "fills", "stroke", "strokes", "effects", "isMask", "maskType", "grids", "layoutGrids"].includes(key))) {
       let page = mask(node);
       if (paints && !samePaints(page.fills ?? [], paints)) page = {...page, fills:paints.length ? paints : undefined};
       let strokes: readonly Paint[] | undefined;
@@ -286,7 +288,7 @@ function writeProperties(draft: HierarchyDraft, document: Document, selection: r
     if (opacity !== undefined && opacity !== (node.opacity ?? 1)) updated = Object.freeze({ ...updated, opacity });
     if (paints && !samePaints(rectanglePaints(node), paints)) updated = withRectanglePaints(updated, paints);
     updated = styleProperties(updated);
-    if (links.length || grids || "description" in props || textKeys.length || updated.effects !== node.effects || updated.isMask !== node.isMask || updated.maskType !== node.maskType || changeBlend || arcNode !== node || updated.kind === "vector" && "cornerRadius" in props || cornersChanged || "constrainProportions" in props && props.constrainProportions !== (node.constrainProportions ?? false) || constraintsChanged || "clip" in props && isFrameLike(node) && props.clip !== node.clip || width !== node.width || height !== node.height || transform.some((value, index) => value !== rectangleTransform(node)[index])
+    if (updated.variableModes!==node.variableModes || links.length || grids || "description" in props || textKeys.length || updated.effects !== node.effects || updated.isMask !== node.isMask || updated.maskType !== node.maskType || changeBlend || arcNode !== node || updated.kind === "vector" && "cornerRadius" in props || cornersChanged || "constrainProportions" in props && props.constrainProportions !== (node.constrainProportions ?? false) || constraintsChanged || "clip" in props && isFrameLike(node) && props.clip !== node.clip || width !== node.width || height !== node.height || transform.some((value, index) => value !== rectangleTransform(node)[index])
       || name !== undefined && name !== node.name || "visible" in props && props.visible !== (node.visible ?? true)
       || "locked" in props && props.locked !== (node.locked ?? false) || opacity !== undefined && opacity !== (node.opacity ?? 1)
       || paints && !samePaints(rectanglePaints(node), paints)) {

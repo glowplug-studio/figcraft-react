@@ -5906,3 +5906,30 @@ test("variable authoring preserves aliases, metadata and collection overrides th
   expect(values(child)).toEqual([{type:"number",value:72},{type:"number",value:6.5}]);
   expect(child.overrides).toHaveLength(2);
 });
+
+test("frame variable modes distinguish inherited main modes from mixed and explicit choices",async({page})=>{
+  await login(page);
+  await page.getByLabel("Open Figcraft file",{exact:true}).setInputFiles(new URL("../fixtures/native-variable-modes.json",import.meta.url).pathname);
+  const layers=page.getByRole("region",{name:"Layers",exact:true});
+  const pick=(id:number,name:string)=>layers.locator('[data-layer-id="'+id+'"]').getByRole("button",{name,exact:true});
+  const mode=page.getByRole("group",{name:"Variable modes"}).getByRole("combobox",{name:"Theme",exact:true});
+  await pick(2,"Container").click();
+  await expect(mode.locator("option:checked")).toHaveText("Auto (Dark)");
+  await pick(5,"Card").click();
+  await expect(mode.locator("option:checked")).toHaveText("Auto (Light)");
+  await mode.selectOption({label:"Dark"});
+  await pick(2,"Container").click({modifiers:["Shift"]});
+  await expect(mode.locator("option:checked")).toHaveText("Mixed");
+  await mode.selectOption({label:"Light"});
+  await expect(page.locator(".figcraft-recovery")).toHaveText("Recovery saved on this device");
+  await page.reload();
+  await pick(5,"Card").click();
+  await expect(mode.locator("option:checked")).toHaveText("Light");
+  await mode.selectOption("auto");
+  await expect(mode.locator("option:checked")).toHaveText("Auto (Light)");
+  const downloading=page.waitForEvent("download");
+  await page.getByRole("button",{name:"Save as",exact:true}).click();
+  const {document}=await decodeFigcraft(await readFile((await (await downloading).path())!));
+  expect(document.nodes[2].variableModes).toEqual({"VariableCollectionId:1":"VariableCollectionId:1/mode1"});
+  expect(document.nodes[5].variableModes).toBeUndefined();
+});

@@ -36,6 +36,7 @@ import { AssetsPanel, componentDragType } from "./AssetsPanel";
 import { PagePanel } from "./PagePanel";
 import { EffectsPanel } from "./EffectsPanel";
 import { LayoutGuidesPanel } from "./LayoutGuidesPanel";
+import { VariableModesPanel } from "./VariableModesPanel";
 import { VariablesPanel } from "./VariablesPanel";
 import { SharedStylesPanel } from "./SharedStylesPanel";
 import { ComponentPanel } from "./ComponentPanel";
@@ -615,6 +616,7 @@ export function Editor({ identity, capabilities, engine: suppliedEngine, recover
           <EffectsPanel engine={engine} editable={editable && !busy} dispatch={dispatch} />
           {!editingVector && <LayoutGuidesPanel key={snapshot.selection.join(",")} nodes={snapshot.selection.map(id=>snapshot.document.nodes[id])}
             engine={engine} enabled={editable && !busy} dispatch={dispatch} onError={setError}/>}
+          {!editingVector && <VariableModesPanel document={snapshot.document} selection={snapshot.selection} enabled={editable && !busy} run={dispatch}/>}
           {!editingVector && !snapshot.selection.length && <VariablesPanel error={error} data={snapshot.document.variables} enabled={editable && !busy} run={dispatch}/>}
           {!editingVector && <SharedStylesPanel engine={engine} enabled={editable && !busy} run={dispatch} leave={()=>controller.current?.finishText()}/>}
         </aside>

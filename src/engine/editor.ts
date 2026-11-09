@@ -1,3 +1,4 @@
+import { removeLayerMode, setVariableMode } from "./variable-modes";
 import { editVariableMetadata, metadataSpecs } from "./variable-metadata";
 import { editVariableValue, valueSpecs } from "./variable-values";
 import { collectionSpecs, editCollection } from "./variable-collections";
@@ -6,7 +7,7 @@ import { editLayoutGuides, gridSpecs } from "./layout-guides";
 import { editStyleLinks } from "./style-application";
 import { editStylePaint, editStyleDefinition, orderStyles, styleEditSpecs, styleOrderSpecs } from "./style-commands";
 import { listStyles } from "./shared-styles";
-import { finishComponentEdit } from "./component-edits";
+import { finishComponentEdit, markLoadedModeOverrides } from "./component-edits";
 import { listComponents } from "./component-assets";
 import { executeInstanceCommand, instanceCommandSpecs } from "./instance-commands";
 import { createInstance } from "./component-instances";
@@ -107,6 +108,7 @@ export const commandSpecs = Object.freeze({
   ...collectionSpecs,
   ...valueSpecs,
   ...metadataSpecs,
+  "variable.setMode": {label:"Set variable mode",undo:true},
   ...gridSpecs,
   "style.apply": {label:"Apply style",undo:true},
   "style.detach": {label:"Detach style",undo:true},
@@ -1034,7 +1036,7 @@ export class EditorEngine {
         : command === "instance.create" ? createInstance(before.document, this.#nextId, p)
         : execute(command, before.document, before.selection, this.#nextId, p);
       if (command === "component.properties" || command === "instance.exposed") return next.result;
-      this.#commitEdit({document:next.document, selection:next.selection}, {record:!sameContent(before.document,next.document), nextId:next.nextId});
+      this.#commitEdit({document:next.document, selection:next.selection}, {record:command==="component.resetInstance" || !sameContent(before.document,next.document), nextId:next.nextId});
       if (command === "component.goToMain") {
         const bounds = boundsOf(next.document,next.selection);
         if (bounds) this.updateView(fitView(this.#view,bounds,2));
@@ -1127,12 +1129,20 @@ export class EditorEngine {
       else if (document !== before) this.#commitEdit({document});
       return result;
     }
+    if (command==="variable.setMode") {
+      const before=this.#snapshot;
+      const document=setVariableMode(before.document,before.selection,p);
+      this.#commitEdit({document});
+      return {ok:true};
+    }
     if (Object.hasOwn(collectionSpecs,command) || Object.hasOwn(valueSpecs,command) || Object.hasOwn(metadataSpecs,command)) {
       const before=this.#snapshot.document, data=before.variables ?? emptyVariables;
       const next=Object.hasOwn(collectionSpecs,command) ? editCollection(data,command,p) :
         Object.hasOwn(metadataSpecs,command) ? editVariableMetadata(data,command,p) : editVariableValue(data,command,p);
       if (next.data!==data) {
-        const {variables:old,...rest}=before;
+        const kept=command==="variable.deleteCollection" || command==="variable.removeMode"
+          ? removeLayerMode(before,data,p,command==="variable.deleteCollection") : before;
+        const {variables:old,...rest}=kept;
         this.#commitEdit({document:Object.freeze({...rest,...(next.data!==emptyVariables && {variables:next.data})})});
       }
       return next.result;
@@ -1362,7 +1372,10 @@ export class EditorEngine {
       await prepareArchive(opened.document, String(opened.nextId));
       decoded = { document: opened.document, nextId: String(opened.nextId) };
     } else decoded = await decodeFigcraft(source?.file ?? fileData(p.data, MAX_UNPACKED_BYTES));
-    if (!raster) await prepareDocumentText(decoded.document);
+    if (!raster) {
+      decoded={...decoded,document:markLoadedModeOverrides(decoded.document)};
+      await prepareDocumentText(decoded.document);
+    }
     checkCurrent();
     this.#documentIdentity = Symbol();
     this.#nextId = BigInt(decoded.nextId);

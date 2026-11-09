@@ -9,6 +9,20 @@ import { assertNoNewComponentCycle, outermostInstance, owningInstance, propertyM
 
 import { type ComponentGroup, copyComponentGroup, withOverrideSet, differentComponentGroups, sameComponentValue } from "./component-groups";
 
+/** Legacy documents can predate the explicit mode override group on instance descendants. */
+export function markLoadedModeOverrides(document:Document):Document {
+  let draft:HierarchyDraft|undefined;
+  for (const node of Object.values(document.nodes)) {
+    if (!node.source || node.kind==="page" || node.overrides?.includes("modes")) continue;
+    const source=document.nodes[node.source];
+    if (!source || sameComponentValue(source.variableModes,node.variableModes) || !owningInstance(document,node.id,false)) continue;
+    const own=new Set(componentOverrides(node));
+    own.add("modes");
+    (draft??=new HierarchyDraft(document)).set(withOverrideSet(node,own));
+  }
+  return draft?.finish() ?? document;
+}
+
 function sizeChanged(a: LayerNode, b: LayerNode) {
   return Math.abs(a.width - b.width) > 1e-6 || Math.abs(a.height - b.height) > 1e-6;
 }
@@ -206,7 +220,7 @@ function recordOverrides(before: Document, after: Document, node: LayerNode, cha
   }
   const overrides = new Set(componentOverrides(node));
   for (const group of changed) {
-    if (top && (group === "component" || group === "props" || group === "resizing" || group === "position")) continue;
+    if (top && (group === "modes" || group === "component" || group === "props" || group === "resizing" || group === "position")) continue;
     if ((group === "size" || group === "position") && derivedGeometry(before, after, node, group)) continue;
     if (!differs || differs.has(group)) overrides.add(group);
     else if (group !== "size" && group !== "position") overrides.delete(group);
@@ -299,7 +313,7 @@ function followComponentValues(before: Document, after: Document, changed: reado
           const main = [id,...ancestors(targets.document,id)].find(key=>targets.nodes[key].kind === "component");
           if (main) rebuild.add(main);
         }
-        if (source.kind === "component" && (group === "position" || group === "visible" || group === "resizing")) continue;
+        if (source.kind === "component" && (group === "modes" || group === "position" || group === "visible" || group === "resizing")) continue;
         if (source.kind === "component" && group === "name") {
           const parent = targets.nodes[source.parent];
           next = {...next, name:parent.kind === "componentSet" ? parent.name : source.name};
