@@ -82,7 +82,7 @@ export function TypographyPanel({engine, editable, apply, onLeave, linkDialog, l
   return <fieldset aria-label="Typography" data-figcraft-typography="" disabled={!editable} onBlur={e => {
     const next = e.relatedTarget;
     if (next instanceof Element && (e.currentTarget.contains(next) ||
-      next.matches("textarea") && next.closest("[data-figcraft-editor]") === e.currentTarget.closest("[data-figcraft-editor]"))) return;
+      (next.matches("textarea") || next.closest("[data-figcraft-style-picker]")) && next.closest("[data-figcraft-editor]") === e.currentTarget.closest("[data-figcraft-editor]"))) return;
     onLeave();
   }}><legend>Typography</legend>
     <FontFamilyPicker key={ids.join(",")} current={family} families={families}

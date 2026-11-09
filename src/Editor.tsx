@@ -35,6 +35,7 @@ import { RecoveryController } from "./engine/recovery";
 import { AssetsPanel, componentDragType } from "./AssetsPanel";
 import { PagePanel } from "./PagePanel";
 import { EffectsPanel } from "./EffectsPanel";
+import { SharedStylesPanel } from "./SharedStylesPanel";
 import { ComponentPanel } from "./ComponentPanel";
 import { InstancePanel } from "./InstancePanel";
 import { AppearancePanel } from "./AppearancePanel";
@@ -130,10 +131,11 @@ export function Editor({ identity, capabilities, engine: suppliedEngine, recover
       }
       if (engine.pen.open && command.startsWith("tool.") && !["tool.pen", "tool.scaleAnchor", "tool.pencilBrush"].includes(command)) engine.pen.finish();
       const preserve = engine.pen.open && command === "tool.pen" || (engine.pen.open || engine.pencil.active) && (command.startsWith("view.") || command === "tool.scaleAnchor" || command === "tool.pencilBrush");
-      if (!preserve) controller.current?.cancel();
+      if (!preserve && !(command.startsWith("style.") && engine.currentTextEdit())) controller.current?.cancel();
       if (cancellingUndo) return;
       const result = engine.execute(command, params);
       if (Array.isArray(result?.warnings)) setError(result.warnings.join("\n"));
+      return result;
     }
     catch (caught) { setError(caught instanceof Error ? caught.message : "Command failed"); }
   }
@@ -605,6 +607,7 @@ export function Editor({ identity, capabilities, engine: suppliedEngine, recover
           <AppearancePanel engine={engine} page={page} selected={selected && selected.kind !== "page" ? selected : undefined} editable={editable && !busy} dispatch={dispatch} />
           <StrokePanel engine={engine} nodes={snapshot.selection.flatMap(id => { const n = snapshot.document.nodes[id]; return n && n.kind !== "page" ? [n] : []; })} editable={editable && !busy} dispatch={dispatch} />
           <EffectsPanel engine={engine} editable={editable && !busy} dispatch={dispatch} />
+          {!editingVector && <SharedStylesPanel engine={engine} enabled={editable && !busy} run={dispatch} leave={()=>controller.current?.finishText()}/>}
         </aside>
       </div>
     </div>;

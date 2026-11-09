@@ -1,3 +1,4 @@
+import { StyleSwatch } from "./SharedStylesPanel";
 import { useEffect, useMemo, useRef, useState, type DragEvent } from "react";
 import { listComponents } from "./engine/component-assets";
 import { owningInstance } from "./engine/component-tree";
@@ -69,6 +70,7 @@ export function AssetsPanel({doc,editable,dispatch,place,start,end}:AssetProps) 
   const [menu,setMenu] = useState<string>();
   const all = useMemo(()=>localAssets(doc),[doc]);
   const search = query.trim().toLowerCase();
+  const styles = (doc.styles ?? []).filter(style=>style.name.toLowerCase().includes(search));
   const groups = useMemo(()=>{
     const folders = new Map<string,typeof all>();
     for (const asset of all) {
@@ -107,5 +109,11 @@ export function AssetsPanel({doc,editable,dispatch,place,start,end}:AssetProps) 
         })}</div>}
       </div>;
     })}
+    <h3>Local styles</h3>
+    {!styles.length && <p>{search ? "No matching styles" : "No styles yet."}</p>}
+    {styles.map(style => <button key={style.id} type="button" disabled={!editable} className="figcraft-style-asset"
+      title={style.description || style.name} onClick={()=>dispatch("style.apply",{style:style.id})}>
+      <StyleSwatch style={style}/>{style.name}
+    </button>)}
   </section>;
 }

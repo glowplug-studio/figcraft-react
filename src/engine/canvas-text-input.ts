@@ -221,7 +221,7 @@ export class CanvasTextInput {
     });
     input.addEventListener("blur", event => {
       const next = event.relatedTarget;
-      if (next instanceof Element && next.closest("[data-figcraft-typography]") &&
+      if (next instanceof Element && next.closest("[data-figcraft-typography], [data-figcraft-style-picker]") &&
         next.closest("[data-figcraft-editor]") === this.canvas.closest("[data-figcraft-editor]")) {
         inspectorRange = {start:input.selectionStart,end:input.selectionEnd,direction:input.selectionDirection,value:input.value};
         return;
