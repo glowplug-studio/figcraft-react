@@ -1,23 +1,12 @@
 import { useRef, useState, useSyncExternalStore } from "react";
 import type { EditorEngine } from "./engine/editor";
 import { isFrameLike, type DocumentNode } from "./engine/document";
-import { renderColour } from "./engine/colour";
-import { paintColour } from "./engine/solid-paint";
+import { EditStyle, StyleSwatch, type Run } from "./StyleEditor";
+import { LocalStyleCatalogue, groupStyles, styleLeaf } from "./LocalStyleCatalogue";
 import type { SharedStyle, StyleSlot } from "./engine/shared-styles";
 import { textSpans, textStyleAt } from "./engine/text-ranges";
 import type { ActiveStyleRange } from "./engine/style-application";
 
-export function StyleSwatch({style}:{style:SharedStyle}) {
-  const paint = style.type === "paint" ? style.paints[0] : undefined;
-  const background = paint?.type === "solid" ? renderColour(paintColour(paint)) :
-    paint?.type === "gradient" && paint.stops.length ? 'linear-gradient(90deg,' +
-      paint.stops.map(stop => renderColour(stop.color) + ' ' + stop.position * 100 + '%').join(',') + ')' : undefined;
-  return <span className="figcraft-style-swatch" aria-hidden="true" style={{background}}>
-    {background ? "" : style.type === "text" ? "T" : style.type === "effect" ? "◐" : style.type === "grid" ? "▦" : "◇"}
-  </span>;
-}
-
-type Run = (cmd:string, p:Record<string,unknown>) => Record<string,unknown> | undefined;
 const titles: Record<StyleSlot,string> = {fill:"Fill", stroke:"Stroke", effect:"Effect", grid:"Grid", text:"Text"};
 
 function linkedStyle(nodes: DocumentNode[], slot:StyleSlot, range?: ActiveStyleRange) {
@@ -31,29 +20,26 @@ function linkedStyle(nodes: DocumentNode[], slot:StyleSlot, range?: ActiveStyleR
   return ids.every(id => id === ids[0]) ? ids[0] ?? null : undefined;
 }
 
-function EditStyle({style, run, back, source}:{style:SharedStyle;run:Run;back:()=>void;source:string}) {
-  const [name, setName] = useState(style.name), [description,setDescription] = useState(style.description);
-  return <form onSubmit={event => {
-    event.preventDefault();
-    if (run("style.update", {style:style.id,name,description})) back();
-  }}>
-    <label>Name<input aria-label="Style name" autoFocus required value={name} onChange={e=>setName(e.target.value)}/></label>
-    <label>Description<input aria-label="Style description" value={description} onChange={e=>setDescription(e.target.value)}/></label>
-    <div className="figcraft-style-actions">
-      <button type="submit">Save style</button><button type="button" onClick={back}>Back</button>
-      <button type="button" onClick={()=>run("style.update",{style:style.id,from:source})}>Update from selection</button>
-      <button type="button" onClick={()=>{if (run("style.duplicate",{style:style.id})) back();}}>Duplicate style</button>
-      <button type="button" onClick={()=>{if (run("style.delete",{style:style.id})) back();}}>Delete style</button>
-    </div>
-  </form>;
+function useStyleView() {
+  const [grid,setGrid] = useState(false);
+  const [folded,setFolded] = useState<ReadonlySet<string>>(()=>new Set());
+  function toggle(folder:string) {
+    setFolded(previous=>{
+      const next = new Set(previous);
+      if (next.has(folder)) next.delete(folder); else next.add(folder);
+      return next;
+    });
+  }
+  return {grid,setGrid,folded,toggle};
 }
 
-function SlotPicker({slot, styles, ids, link, run, close}:{slot:StyleSlot;styles:readonly SharedStyle[];ids:string[];
-  link:string|null|undefined;run:Run;close:()=>void}) {
+function SlotPicker({slot, styles, ids, link, run, close, view}:{slot:StyleSlot;styles:readonly SharedStyle[];ids:string[];
+  link:string|null|undefined;run:Run;close:()=>void;view:ReturnType<typeof useStyleView>}) {
   const [query,setQuery] = useState(""), [edit,setEdit] = useState<string>();
   const edited = styles.find(s=>s.id === edit);
   const type = slot === "fill" || slot === "stroke" ? "paint" : slot;
   const choices = styles.filter(s=>s.type === type && s.name.toLowerCase().includes(query.trim().toLowerCase()));
+  const hasGrid = type === "paint" || type === "text";
   function create() {
     const base = type === "paint" ? "Color" : titles[slot];
     const names = new Set(styles.map(s=>s.name));
@@ -66,15 +52,26 @@ function SlotPicker({slot, styles, ids, link, run, close}:{slot:StyleSlot;styles
     {edited ? <EditStyle key={edited.id} style={edited} run={run} source={ids[0]} back={()=>setEdit(undefined)}/> : <>
       <input autoFocus type="search" aria-label="Search styles" placeholder="Search styles" value={query} onChange={e=>setQuery(e.target.value)}/>
       <div className="figcraft-style-choices">
-        {choices.map(style => <div className="figcraft-style-option" key={style.id}>
-          <button type="button" aria-pressed={link === style.id} onClick={()=>{
-            if (run("style.apply",{ids,style:style.id,target:slot})) close();
-          }}><StyleSwatch style={style}/>{style.name}</button>
-          <button type="button" aria-label={"Edit "+style.name} onClick={()=>setEdit(style.id)}>Edit</button>
-        </div>)}
+        {groupStyles(choices).map(([folder,items])=>{
+          const open = !folder || !!query.trim() || !view.folded.has(folder);
+          return <div key={folder}>
+            {folder && <button type="button" aria-expanded={open} aria-label={"Style folder "+folder}
+              onClick={()=>{if (!query.trim()) view.toggle(folder);}}>{folder.split("/").map(part=>part.trim()).join(" / ")}</button>}
+            {open && <div className={hasGrid && view.grid ? "figcraft-style-grid" : undefined}>
+              {items.map(style=><div className="figcraft-style-option" key={style.id}>
+                <button type="button" aria-label={style.name} title={style.description || style.name} aria-pressed={link === style.id}
+                  onClick={()=>{if (run("style.apply",{ids,style:style.id,target:slot})) close();}}>
+                  <StyleSwatch style={style}/>{styleLeaf(style.name)}
+                </button>
+                <button type="button" aria-label={"Edit "+style.name} onClick={()=>setEdit(style.id)}>Edit</button>
+              </div>)}
+            </div>}
+          </div>;
+        })}
         {!choices.length && <p>{query ? "No matching styles" : "No local styles"}</p>}
       </div>
       <div className="figcraft-style-actions">
+        {hasGrid && <button type="button" onClick={()=>view.setGrid(!view.grid)}>{view.grid ? "Show as list" : "Show as grid"}</button>}
         <button type="button" onClick={create}>Create style</button>
         {link !== null && <button type="button" onClick={()=>{if (run("style.detach",{ids,which:slot})) close();}}>Detach style</button>}
         <button type="button" onClick={close}>Close</button>
@@ -83,8 +80,8 @@ function SlotPicker({slot, styles, ids, link, run, close}:{slot:StyleSlot;styles
   </div>;
 }
 
-function SelectedStyles({nodes, styles, live, enabled, run, leave}:{nodes:DocumentNode[];styles:readonly SharedStyle[];
-  live?:ActiveStyleRange;enabled:boolean;run:Run;leave:()=>void}) {
+function SelectedStyles({nodes, styles, live, enabled, run, leave, view}:{nodes:DocumentNode[];styles:readonly SharedStyle[];
+  live?:ActiveStyleRange;enabled:boolean;run:Run;leave:()=>void;view:ReturnType<typeof useStyleView>}) {
   const [slot,setSlot] = useState<StyleSlot>();
   const triggers = useRef(new Map<StyleSlot,HTMLButtonElement>());
   const slots: StyleSlot[] = ["fill","stroke","effect"];
@@ -109,15 +106,16 @@ function SelectedStyles({nodes, styles, live, enabled, run, leave}:{nodes:Docume
         {titles[key]}{name && " · "+name}
       </button>;
     })}</div>
-    {slot && <SlotPicker key={slot} slot={slot} ids={nodes.map(n=>n.id)} link={link} styles={styles} run={run} close={close}/>}
+    {slot && <SlotPicker view={view} key={slot} slot={slot} ids={nodes.map(n=>n.id)} link={link} styles={styles} run={run} close={close}/>}
   </fieldset>;
 }
 
 export function SharedStylesPanel({engine,enabled,run,leave}:{engine:EditorEngine;enabled:boolean;run:Run;leave:()=>void}) {
+  const view = useStyleView();
   const snapshot = useSyncExternalStore(engine.subscribe,engine.getSnapshot,engine.getSnapshot);
   const live = useSyncExternalStore(engine.subscribeCanvas,engine.getTextRange,engine.getTextRange);
   const doc = live ? engine.getRenderDocument() : snapshot.document;
   const nodes = live ? [live.node] : snapshot.selection.map(id=>doc.nodes[id]).filter(n=>n && n.kind !== "page");
-  if (!nodes.length) return null;
-  return <SelectedStyles key={nodes.map(n=>n.id).join(",")} nodes={nodes} live={live} enabled={enabled} styles={doc.styles ?? []} run={run} leave={leave}/>;
+  if (!nodes.length) return doc.styles?.length ? <LocalStyleCatalogue styles={doc.styles} enabled={enabled} run={run}/> : null;
+  return <SelectedStyles view={view} key={nodes.map(n=>n.id).join(",")} nodes={nodes} live={live} enabled={enabled} styles={doc.styles ?? []} run={run} leave={leave}/>;
 }

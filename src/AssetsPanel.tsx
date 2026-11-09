@@ -1,4 +1,4 @@
-import { StyleSwatch } from "./SharedStylesPanel";
+import { StyleSwatch } from "./StyleEditor";
 import { useEffect, useMemo, useRef, useState, type DragEvent } from "react";
 import { listComponents } from "./engine/component-assets";
 import { owningInstance } from "./engine/component-tree";

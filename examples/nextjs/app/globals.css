@@ -104,3 +104,7 @@ dd { margin: 0; }
 .figcraft-style-swatch { display:inline-grid; place-items:center; vertical-align:middle; width:1em; height:1em; margin-inline-end:.45em; border-radius:2px; }
 .figcraft-layout-guide { border-block-start:1px solid #ddd; margin-top:5px; padding-top:5px; }
 .figcraft-guide-fields { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:4px; margin-block:6px; }
+
+.figcraft-style-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(min(6rem,100%),1fr)); gap:4px; }
+.figcraft-style-grid .figcraft-style-option { grid-template-columns:minmax(0,1fr); }
+.figcraft-style-option > .figcraft-style-actions { grid-column:1/-1; }
