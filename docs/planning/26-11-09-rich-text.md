@@ -252,3 +252,17 @@ All 240 preview sequences matched pinned Rust for command results, transient tex
 The production Chromium suite passed 220/220 in 458.1 seconds with one worker, zero retries and zero skips. After the final keyboard highlight, narrow-viewport positioning and static Node font asset references, all six affected Chromium workflows passed again. Strict types, both builds, 1,629 pure tests and two local Auth tests passed. All five packaged font digests matched. The combined local graph contains 31,532 nodes and 103,767 edges.
 
 Next, port the native catalogue commands `text.fonts`, `text.loadFont` and the browser behaviour of `text.rescanFonts`. Remaining work includes variation controls, font-row samples, nine native text editing command entry points, clipboard and IME parity, and cross-feature rendering checks.
+
+### Font catalogue command plan
+
+Map the three registry entries in `crates/engine/src/cmd/text.rs` to the editor dispatcher. List the page catalogue, ordered styles, GSUB features, variable axes and named instances using the existing shaping faces. Use `fontdb::load_font_bytes` and `fonts::refit` as references for duplicate files, collection faces and family-scoped refitting. Accept base64 and a user-selected browser file. The pinned browser implementation of `rescan_system_fonts` returns empty lists. Exercise the commands with malformed data, repeated loads, stale saved boxes, undo and the signed-in browser file chooser.
+
+#### Font catalogue verification
+
+Implementation `52177ad` passed all 152 native catalogue, option and invalid-input comparisons. A four-face collection, repeated loads and catalogue queries produced 66 further matching font-command results. Both editors reported the same three refitted IDs and retained the unrelated stale layer. The setup command `file.open` also returns a tab index in native Figcraft. That result field belongs with the multi-document host.
+
+The production Chromium suite passed 221/221 in 457.8 seconds with one worker and zero skips, retries or failures. The new signed-in workflow rejected an invalid file, loaded an uninstalled font, cleared the missing-family diagnostic and downloaded the refitted box. Strict types, package and Next.js builds, 1,633 pure tests and two local Auth tests passed. The authenticated Supabase check returned zero public tables. Local Graphify contained 31,546 nodes and 103,822 edges. The test-file callbacks require direct source inspection. [Command tests](../../tests/parity/font-commands.test.ts).
+
+### Advanced typography inspector plan
+
+Use `panels/typography/fields.rs::type_settings` for the displayed font, the twelve standard feature switches, their mixed state and default-clearing rules. Use `axes.rs::variable_axes` for the visible axes, current face coordinates, named instances, live preview, Escape, reset and one history entry on release. The inspector must act on selected Unicode ranges through the existing text commands. Verify mouse and keyboard edits, mixed styles, variable and static fonts, persistence and undo in the authenticated preview.

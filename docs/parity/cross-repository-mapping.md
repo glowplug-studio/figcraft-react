@@ -422,3 +422,5 @@ Native `fonts::missing`, `fonts::refit` and `FontDb::has_family` map to `missing
 Native browser `ask`, `load_wanted`, `FontDb::add_local` and `load_local` map to `LocalFontAccess`, `FontLibrary.offerLocal`, `finishLocal` and `observeLocalFonts`. [Registration, permissions, native selection and file sizes](../planning/26-11-09-rich-text.md#browser-installed-fonts).
 
 Native typography’s font picker maps to `FontFamilyPicker`. Native preview and end-preview map to the editor’s transient render document. Native cluster-face fallback maps to `fontSegments` and `FontLibrary`. [Scope and comparisons](../planning/26-11-09-rich-text.md#font-picker-and-transient-previews).
+
+Native `text.fonts`, `text.loadFont`, the browser branch of `rescan_system_fonts`, and `fonts::refit` map to `queryFonts`, `importFontBytes`, the browser rescan result and family-filtered `refitText`. [Catalogue, collection and browser evidence](../planning/26-11-09-rich-text.md#font-catalogue-verification).
