@@ -99,3 +99,7 @@ At 8cdfd22 all 201 production Chromium workflows passed in 373.9 seconds with on
 A live glass scrub in a 10,000-node document measured 5.3 ms frame and 2.1 ms input p95 over 110 measured frames on the focused run. The scene has 100 visible background shapes and one 76 × 48 effect layer. No root document publications occurred while scrubbing. Post-GC JavaScript use grew 30,608 bytes on the second pass and backing-store use stayed at 2,624,157 bytes. Two small runs do not measure long-session peak process memory. The seven-kind fixed Chromium screenshot was generated and visually checked. Both builds, strict types, 1,153 pure tests and two separately gated Auth tests passed. The local graph has 30,474 nodes and 100,757 edges. Verified glassCoverage and cutGlass alongside native shape_fields and cut_diffs by source path.
 
 The local package version is 0.48.0. Run the full Chromium suite against this revision, compare the fixed screenshot, record the measured outcomes and finish both reports. Advance to rich text and font handling after local slice verification.
+
+## Release checkpoint
+
+At f278b1b all 204 Chromium workflows passed in 379.9 seconds, with zero retries, skips, flakes or failures. [Release report](../reports/26-11-09-layer-effects.md) and [property matrix](../reports/26-11-09-layer-effects-parity.html). Continue the [text and fonts slice](26-11-09-rich-text.md).

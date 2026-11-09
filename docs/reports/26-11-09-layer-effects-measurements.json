@@ -1,0 +1,68 @@
+{
+  "react": "f278b1b",
+  "upstream": "8a7ebc2484a6d64d80a13c19c18ffb814325e347",
+  "playwright": "1.65.0",
+  "chromium": "158.0.8127.18",
+  "viewport": "1440 × 900",
+  "deviceScaleFactor": 1,
+  "productionChromium": {
+    "startTime": "2026-11-09T03:42:36.204Z",
+    "duration": 379875.865,
+    "expected": 204,
+    "skipped": 0,
+    "unexpected": 0,
+    "flaky": 0
+  },
+  "pureTests": 1153,
+  "localAuthTests": 2,
+  "timings": {
+    "effect editing": {
+      "edit": {
+        "nodes": 10000,
+        "frames": 110,
+        "inputP95": 1.9000000953674316,
+        "frameP95": 4.900000095367432,
+        "publications": 0,
+        "restored": true,
+        "pixel": [
+          245,
+          241,
+          232,
+          255
+        ]
+      },
+      "before": {
+        "usedSize": 6761016,
+        "totalSize": 7798784,
+        "embedderHeapUsedSize": 390664,
+        "backingStorageSize": 2624157
+      },
+      "after": {
+        "usedSize": 6793540,
+        "totalSize": 7536640,
+        "embedderHeapUsedSize": 347168,
+        "backingStorageSize": 2624157
+      }
+    },
+    "glass frame timings": {
+      "frames": 40,
+      "p95": 3.9000000953674316
+    },
+    "grain frame timings": {
+      "frames": 40,
+      "p95": 1.399999976158142,
+      "changes": 0
+    }
+  },
+  "cutComparison": {
+    "panes": [
+      "rounded analytic",
+      "smoothed coverage",
+      "oversized smoothed coverage"
+    ],
+    "bandsPerPane": 3,
+    "width": 330,
+    "rowsPerBand": 32,
+    "differingChannels": 0
+  }
+}

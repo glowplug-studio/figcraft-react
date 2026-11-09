@@ -54,7 +54,7 @@ Upstream test evidence: [`vector_behaviour_tests`](../../original/figcraft/crate
 
 ### 5. Paints, images, strokes and effects
 
-Native alpha, vector and luminance masks, mask-aware selection and signed-in native file recovery passed at 87ced5f. Layer effects are the next appearance dependency. [Mask matrix](../reports/26-11-09-masks-parity.html).
+Native alpha, vector and luminance masks, mask-aware selection and signed-in native file recovery passed at 87ced5f. The seven effect kinds, stack inspector, progressive canvas handles and file recovery passed at f278b1b. [Effects matrix](../reports/26-11-09-layer-effects-parity.html). [Mask matrix](../reports/26-11-09-masks-parity.html).
 
 [Gradient evidence](../reports/26-11-09-gradient-paints-parity.html) covers four kinds, handle and stop editing, regional coordinates and native recovery at 113507a. The [image property matrix](../reports/26-11-09-image-paints-parity.html) covers raster formats, native archive recovery, crop, cache pressure, colour profiles and cross-file image paste. The [pattern matrix](../reports/26-11-09-pattern-paints-parity.html) covers editable live layer fills, strokes and regions. The [blend matrix](../reports/26-11-09-blend-modes-parity.html) covers all 19 layer and paint modes, container isolation and hover editing. Masks and effects remain open.
 
@@ -67,7 +67,7 @@ Upstream test evidence: [`fx_behaviour_tests`](../../original/figcraft/crates/en
 
 ### 6. Text and fonts
 
-Status: **Not implemented / Not tested**.
+Status: **In progress**. [Dated plan](../planning/26-11-09-rich-text.md).
 
 Unicode/bidi/graphemes/IME, shaping/fallback and rich runs; lists/links, paragraph settings, wrapping/trim, OpenType/variable fonts, text on paths; live preview, missing-font report/import/download/refit. Dependencies: font resources, measurement/shaping, geometry, renderer and editing transactions.
 
