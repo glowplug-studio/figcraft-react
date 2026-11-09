@@ -10,7 +10,7 @@ import { freezeNetwork } from "../../src/engine/vector-network";
 import { transformPoint } from "../../src/engine/affine";
 import { worldTransform } from "../../src/engine/hierarchy";
 import { starPoints } from "../../src/engine/polygon";
-import { strFromU8, unzipSync, zipSync } from "fflate";
+import { strFromU8, strToU8, unzipSync, zipSync } from "fflate";
 
 test.describe.configure({ mode: "serial" });
 let email: string;
@@ -6547,4 +6547,102 @@ test("linked main opens its author tab, retains uncommitted edits and reuses the
   await page.getByRole("list", { name: "Page layers" }).getByRole("button", { name: "Button", exact: true }).click();
   await go.click();
   await expect(name).toHaveValue("Author edit");
+});
+
+test("version history previews read-only designs, restores in one undo and persists named versions", async ({ page }) => {
+  await login(page);
+  const button = (name: string) => page.getByRole("button", { name, exact: true });
+  const fileMenu = page.locator(".figcraft-document-bar").getByText("File", { exact: true });
+  const panel = page.getByRole("complementary", { name: "Version history" });
+  await button("Create rectangle").click();
+  await fileMenu.click(); await button("Save to version history…").click();
+  await panel.getByLabel("Version name").fill("First drawing");
+  await panel.getByLabel("Description").fill("One rectangle");
+  await panel.getByRole("button", { name: "Save version", exact: true }).click();
+  const first = panel.getByRole("listitem", { name: "First drawing", exact: true });
+  await expect(first).toContainText("One rectangle");
+  await page.getByRole("group", { name: "Create layer", exact: true }).getByRole("spinbutton", { name: "X", exact: true }).fill("200");
+  await button("Create rectangle").click();
+  await first.getByRole("button", { name: "First drawing" }).click();
+  await expectCanvasPixel(page, 250, 90, [245, 245, 245, 255]);
+  await expect(button("Create rectangle")).toBeDisabled();
+  await panel.getByRole("button", { name: "Current version" }).click();
+  await expectCanvasPixel(page, 250, 90, [217, 217, 217, 255]);
+  await first.getByRole("button", { name: "Restore" }).click();
+  await expectCanvasPixel(page, 250, 90, [245, 245, 245, 255]);
+  await button("Undo").click();
+  await expectCanvasPixel(page, 250, 90, [217, 217, 217, 255]);
+  await first.getByRole("button", { name: "Rename" }).click();
+  await panel.getByLabel("Version name").fill("Milestone");
+  await panel.getByRole("button", { name: "Save version" }).click();
+  await expect(page.locator(".figcraft-recovery")).toHaveText("Recovery saved on this device");
+  await page.reload();
+  await fileMenu.click(); await button("Version history").click();
+  const saved = panel.getByRole("listitem", { name: "Milestone" });
+  await expect(saved).toBeVisible();
+  await saved.getByRole("button", { name: "Duplicate" }).click();
+  await expect(page.getByRole("heading", { name: "Untitled (Milestone)", exact: true })).toBeVisible();
+  await page.getByRole("tablist", { name: "Open files" }).getByRole("tab").first().click();
+  await page.setViewportSize({ width: 390, height: 844 });
+  await saved.getByRole("button", { name: "Delete", exact: true }).click();
+  await saved.getByRole("button", { name: "Confirm delete" }).click();
+  await expect(saved).toHaveCount(0);
+  await expect(panel.getByRole("listitem", { name: "Autosave" })).toBeVisible();
+});
+
+test("three 10,000-layer tabs reuse their drawings and mount one canvas during repeated switches", async ({ page }) => {
+  test.setTimeout(90_000);
+  await login(page);
+  const cdp = await page.context().newCDPSession(page);
+  const heap = async () => {
+    await cdp.send("HeapProfiler.collectGarbage");
+    return (await cdp.send("Runtime.getHeapUsage")).usedSize;
+  };
+  const base = await heap();
+  const engine = new EditorEngine();
+  engine.execute("shape.rectangle");
+  const sample = JSON.parse(strFromU8(unzipSync(await engine.nativeSnapshot())["document.json"]));
+  for (let i = 3; i <= 10_001; i++) {
+    sample.nodes[i] = { ...sample.nodes[2], id: i, name: "Rectangle " + i, transform: [1, 0, 0, 1, (i % 100) * 140, Math.floor(i / 100) * 140] };
+    sample.nodes[1].children.push(i);
+  }
+  sample.next_id = 10_002;
+  let bytes = 0;
+  for (const name of ["Large A", "Large B", "Large C"]) {
+    sample.name = name;
+    const buffer = Buffer.from(zipSync({ "document.json": strToU8(JSON.stringify(sample)) }));
+    bytes += buffer.length;
+    await page.getByLabel("Open Figcraft file", { exact: true }).setInputFiles({ name: name + ".figcraft", buffer, mimeType: "application/octet-stream" });
+    await expect(page.getByRole("heading", { level: 1, name, exact: true })).toBeVisible();
+  }
+  await expect(page.locator(".figcraft-recovery")).toHaveText("Recovery saved on this device");
+  const openHeap = await heap();
+  const samples = await page.evaluate(async () => {
+    const tabs = Array.from(document.querySelectorAll<HTMLButtonElement>('[role=tab]')).slice(1);
+    const timings: number[] = [];
+    for (let i = 0; i < 18; i++) {
+      const now = performance.now();
+      const tab = tabs[i % tabs.length];
+      tab.click();
+      await new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
+      if (document.querySelectorAll('canvas[aria-label="Design canvas"]').length !== 1 ||
+        document.querySelector(".figcraft-document-bar h1")?.textContent !== tab.textContent) throw Error("The active canvas did not switch");
+      timings.push(performance.now() - now);
+    }
+    return timings.sort((a, b) => a - b);
+  });
+  const afterSwitch = await heap();
+  for (let i = 0; i < 3; i++) {
+    await page.locator(".figcraft-document-bar").getByText("File", { exact: true }).click();
+    await page.getByRole("button", { name: "Close file", exact: true }).click();
+  }
+  await expect(page.getByRole("heading", { name: "Untitled", exact: true })).toBeVisible();
+  await expect(page.locator(".figcraft-recovery")).toHaveText("Recovery saved on this device");
+  const afterClose = await heap();
+  await test.info().attach("file-workspace-memory", { contentType: "application/json", body: JSON.stringify({
+    documents: 3, layersPerDocument: 10_000, nativeBytes: bytes, base, openHeap, afterSwitch, afterClose,
+    switchMedianMs: samples[9], switchP95Ms: samples[17],
+  }) });
+  expect(afterSwitch - openHeap).toBeLessThan(8 * 1024 * 1024);
+  expect(afterClose).toBeLessThan(openHeap);
 });

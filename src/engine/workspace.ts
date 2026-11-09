@@ -65,11 +65,11 @@ export class EditorWorkspace {
 
   #attach(engine: EditorEngine) {
     let { document: { name }, dirty } = engine.getSnapshot();
-    let last = engine.getSnapshot().document;
+    let last = engine.archiveRevision;
     const unsubscribe = engine.subscribe(() => {
       const state = engine.getSnapshot();
-      if (last !== state.document) {
-        last = state.document;
+      if (last !== engine.archiveRevision) {
+        last = engine.archiveRevision;
         for (const listener of this.#documentListeners) listener();
       }
       if (name === state.document.name && dirty === state.dirty) return;
@@ -160,6 +160,14 @@ export class EditorWorkspace {
     return { id: inspectedId(key), index };
   }
 
+  async duplicateVersion(params: Record<string, unknown>) {
+    const active = this.#active, generation = this.#generation;
+    if (!active || !this.#editable) throw new Error("No editable document");
+    const copy = await active.engine.duplicateVersion(params);
+    if (generation !== this.#generation || this.#active !== active) throw new Error("The active file changed");
+    return this.#append(copy);
+  }
+
   open(file: File) { return this.#openFile(file); }
 
   async #openFile(file: File, stillWanted?: () => boolean) {
@@ -206,6 +214,7 @@ export class EditorWorkspace {
     if (command === "file.close") {
       const index = "index" in params ? tabIndex("index") : this.#tabs.indexOf(active);
       const tab = this.#tabs[index];
+      tab.engine.exitVersionPreview();
       if (tab.engine.getSnapshot().dirty && !parseBoolean(params.force)) {
         throw new Error("command `file.close` is not available right now: the document has unsaved changes (pass force: true to discard)");
       }

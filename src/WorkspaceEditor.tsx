@@ -42,6 +42,13 @@ export function WorkspaceEditor({ identity, capabilities, recoveryStore }: Works
       unsubscribe(); controller?.dispose(); workspace.setEditable(false);
     };
   }, [identity, principal, capabilities, recoveryStore, workspace]);
+  useEffect(() => {
+    if (!enabled) return;
+    const timer = window.setInterval(() => {
+      for (const engine of workspace.engines) engine.execute("version.autosave");
+    }, 30 * 60 * 1000);
+    return () => window.clearInterval(timer);
+  }, [enabled, workspace]);
   useEffect(() => { if (closeId !== undefined) closeDialog.current?.showModal(); }, [closeId]);
   useEffect(() => { if (renaming) renameDialog.current?.showModal(); }, [renaming]);
 

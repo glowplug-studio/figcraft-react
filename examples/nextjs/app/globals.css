@@ -131,3 +131,13 @@ dd { margin: 0; }
 .figcraft-file-tabs { display: flex; gap: 2px; overflow-x: auto; border-bottom: 1px solid #ddd; padding: 2px 8px; }
 .figcraft-file-tabs > button { flex: none; max-width: 18rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .figcraft-file-tabs > [aria-selected=true] { border-color: #0d99ff; }
+
+.figcraft-version-panel { min-width: 0; overflow: auto; padding: 0.75rem; border-right: 1px solid #ccc; background: #fff; }
+@media (max-width: 800px) {
+  .figcraft-version-panel { position: fixed; top: 7rem; left: 0.5rem; width: min(19rem, calc(100vw - 1rem)); max-height: calc(100dvh - 8rem); z-index: 5; border: 1px solid #ccc; }
+}
+.figcraft-version-panel h2 { font-size: 1rem; margin-top: 0; }
+.figcraft-version-panel ol { padding-left: 1.2rem; }
+.figcraft-version-panel li { margin: 0.75rem 0; }
+.figcraft-version-panel time { display: block; font-size: 0.8rem; }
+.figcraft-version-panel textarea { display: block; width: 100%; }

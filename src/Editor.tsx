@@ -1,3 +1,4 @@
+import { VersionPanel } from "./VersionPanel";
 import type { ReactNode } from "react";
 import type { WorkspaceRecoveryState } from "./engine/workspace-recovery";
 import { LibrarySourceNeeded, type EditorWorkspace } from "./engine/workspace";
@@ -86,6 +87,7 @@ export function DocumentEditor({ identity, capabilities, engine: suppliedEngine,
   const recoveryStatus = workspaceRecovery?.status ?? localStatus;
   const recoveryError = workspaceRecovery ? workspaceRecovery.message : localError;
   const [busy, setBusy] = useState(false);
+  const [newVersionForm, setNewVersionForm] = useState(false);
   const [openingTab, setOpeningTab] = useState(false);
   const [assetsOpen,setAssetsOpen] = useState(false);
   const [mobileAssetsOpen,setMobileAssetsOpen] = useState(false);
@@ -474,7 +476,13 @@ export function DocumentEditor({ identity, capabilities, engine: suppliedEngine,
       if (file) { e.preventDefault(); void paste(file); }
     }}>
       <header className="figcraft-document-bar"><h1>{snapshot.document.name}</h1><span>{snapshot.dirty ? "Unsaved" : snapshot.hasSaved ? "Downloaded" : "Unmodified"} · Local document</span>
-        <details><summary>File</summary>{fileMenu}<button disabled={!editable || busy} type="button" onClick={event => {
+        <details><summary>File</summary>{fileMenu}
+          {(["Version history", "Save to version history…"] as const).map((label, index) => <button key={label} type="button"
+            disabled={!signedIn || busy || recoveryStatus === "loading" || !capabilities.includes("document.edit")} onClick={event => {
+              event.currentTarget.closest("details")?.removeAttribute("open"); setNewVersionForm(index === 1);
+              dispatch("file.versionHistory");
+            }}>{label}</button>)}
+          <button disabled={!editable || busy} type="button" onClick={event => {
           event.currentTarget.closest("details")?.removeAttribute("open"); dispatch("file.colorProfile");
         }}>Color profile</button></details>
         <details><summary>Libraries</summary>
@@ -496,7 +504,7 @@ export function DocumentEditor({ identity, capabilities, engine: suppliedEngine,
           const file = event.currentTarget.files?.[0]; event.currentTarget.value = "";
           if (file) void place(file);
         }} />
-        <button disabled={!editable || busy} onClick={() => void save()}>Save as</button>
+        <button disabled={(!editable && !snapshot.previewVersionId) || !signedIn || busy} onClick={() => void save()}>Save as</button>
         <input ref={fileInput} aria-label="Open Figcraft file" type="file" accept=".figcraft,.json,.png,.jpg,.jpeg,.webp,.gif,.bmp,.tif,.tiff" hidden onChange={event => {
           const file = event.currentTarget.files?.[0]; event.currentTarget.value = "";
           if (!file) return;
@@ -539,7 +547,7 @@ export function DocumentEditor({ identity, capabilities, engine: suppliedEngine,
         <button onClick={() => { if (pendingFile) void open(pendingFile); }}>Replace document</button>
       </dialog>
       <div className="figcraft-workspace">
-        <aside className="figcraft-layers" aria-label={assetsOpen ? "Assets browser" : "Layers"}>
+        {snapshot.versionPanel && signedIn ? <VersionPanel key={String(newVersionForm)} engine={engine} workspace={workspace} initialForm={newVersionForm} /> : <aside className="figcraft-layers" aria-label={assetsOpen ? "Assets browser" : "Layers"}>
           <div role="group" aria-label="Sidebar">
             <button type="button" aria-pressed={!assetsOpen} onClick={()=>{setAssetsOpen(false);engine.closeLibraryPanel();}}>Layers</button>
             <button type="button" aria-pressed={assetsOpen} onClick={()=>setAssetsOpen(true)}>Assets</button>
@@ -548,7 +556,7 @@ export function DocumentEditor({ identity, capabilities, engine: suppliedEngine,
           <PagePanel document={snapshot.document} editable={editable && !busy} dispatch={dispatch} />
           <LayerPanel document={snapshot.document} selection={snapshot.selection} editable={editable && !busy} dispatch={dispatch} />
           </>}
-        </aside>
+        </aside>}
         <div className="figcraft-canvas-area">
           <div ref={pasteMenu} popover="auto" role="group" aria-label="Canvas actions" onToggle={positionCanvasMenu}
             style={{position:"fixed",inset:"auto",margin:0,maxHeight:"95dvh",maxWidth:"95vw",overflow:"auto"}}>

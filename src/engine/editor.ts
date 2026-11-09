@@ -1,4 +1,4 @@
-import type { FileVersion } from "./file-versions";
+import { VersionHistory, versionDetails, type FileVersion } from "./file-versions";
 import {documentColours} from "./document-colours";
 import {swapLibrary} from "./library-swap";
 import {importLibraryComponents} from "./library-components";
@@ -59,7 +59,7 @@ import { MAX_IMAGE_BYTES } from "./image-resource";
 import { fileData } from "./file-bytes";
 import { readFontInput } from "./font-source";
 import { base64Bytes } from "./recovery";
-import { decodePublishedLibrary, decodeFigcraft, encodeFigcraft, encodeFigcraftBlob, prepareArchive, MAX_UNPACKED_BYTES } from "./file-format";
+import { readVersionDocument, decodePublishedLibrary, decodeFigcraft, encodeFigcraft, encodeFigcraftBlob, prepareArchive, MAX_UNPACKED_BYTES } from "./file-format";
 import { executePage, listPages, pageSpecs } from "./pages";
 import { executeSelection, layersAt, selectionSpecs } from "./selection";
 import { setRectangleProperties, setPageGeometryFields } from "./properties";
@@ -201,6 +201,15 @@ export const commandSpecs = Object.freeze({
   "image.place": { label: "Place image", undo: true },
   "file.import": { label: "Import", undo: true },
   "file.placeImage": { label: "Place image", undo: true },
+  "file.saveVersion": { label: "Save to version history", undo: false },
+  "file.versionHistory": { label: "Show version history", undo: false },
+  "version.list": { label: "List versions", undo: false },
+  "version.autosave": { label: "Autosave version", undo: false },
+  "version.rename": { label: "Rename version", undo: false },
+  "version.preview": { label: "View version", undo: false },
+  "version.restore": { label: "Restore version", undo: true },
+  "version.exitPreview": { label: "Return to current version", undo: false },
+  "version.delete": { label: "Delete version", undo: false },
   "file.rename": { label: "Rename file", undo: true },
   "file.colorProfile": { label: "Color profile", undo: true },
   "file.open": { label: "Open", undo: false },
@@ -232,6 +241,8 @@ export interface EditorSnapshot {
   readonly editable: boolean;
   readonly dirty: boolean;
   readonly hasSaved: boolean;
+  readonly versionPanel?: boolean;
+  readonly previewVersionId?: string;
 }
 interface HistoryEntry { document: Document; selection: readonly NodeId[] }
 function parameters(input: unknown): Record<string, unknown> {
@@ -305,11 +316,74 @@ export class EditorEngine {
   #vectorListeners = new Set<() => void>();
   #viewportAttached = false;
   #viewConfigured = false;
-  #versions: readonly FileVersion[] = [];
+  #hostEditable = true;
+  #preview?: { id: string; document: Document; selection: readonly NodeId[] };
+  #versionRead = 0;
+  #history = new VersionHistory();
+  get versions() { return this.#history.records; }
+  #fileDocument() { return this.#preview?.document ?? this.#snapshot.document; }
+  exitVersionPreview() {
+    this.#versionRead++;
+    const previous = this.#preview;
+    if (!previous) return false;
+    this.#preview = undefined;
+    this.#vectorEdit = undefined;
+    this.#publish({ document: previous.document, selection: previous.selection, editable: this.#hostEditable, previewVersionId: undefined });
+    return true;
+  }
+  async #readVersion(params: Record<string, unknown>) {
+    if (!this.#hostEditable) throw new Error("Sign in to open a version");
+    const index = this.#history.index(params), version = this.versions[index], sequence = ++this.#versionRead;
+    const before = this.#fileDocument(), opening = this.#openSequence;
+    const loaded = await readVersionDocument(version);
+    await prepareDocumentText(loaded.document);
+    if (!this.#hostEditable || sequence !== this.#versionRead || opening !== this.#openSequence || before !== this.#fileDocument() || this.versions[index] !== version || this.interacting) {
+      throw new Error("The document or selected version changed during loading");
+    }
+    return { ...loaded, version, index };
+  }
+  async duplicateVersion(params: Record<string, unknown>) {
+    const { document, nextId, version } = await this.#readVersion(params);
+    return this.#copyTab(document, BigInt(nextId), this.#snapshot.document.name + " (" + version.name + ")");
+  }
+  async #showVersion(command: "version.restore" | "version.preview", params: Record<string, unknown>) {
+    this.pencil.cancel(); this.pen.cancel(); this.cancelInteraction();
+    const { document, nextId, version, index } = await this.#readVersion(params);
+    this.exitVersionPreview();
+    const current = this.#snapshot;
+    const currentPage = document.pages.includes(current.document.currentPage) ? current.document.currentPage : document.currentPage;
+    const shown = currentPage === document.currentPage ? document : Object.freeze({ ...document, currentPage });
+    this.#vectorEdit = undefined;
+    if (command === "version.preview") {
+      this.#preview = { id: version.id, document: current.document, selection: current.selection };
+      this.#publish({ document: shown, selection: Object.freeze([]), editable: false, previewVersionId: version.id });
+      return versionDetails(version, index);
+    }
+    if (this.#history.changed(current.document)) this.#history.add(current.document, String(this.#nextId), {}, true);
+    const restored = Object.freeze({ ...shown, name: current.document.name, published: current.document.published });
+    this.#undo.push({ document: current.document, selection: current.selection }); this.#redo = [];
+    this.#nextId = this.#nextId > BigInt(nextId) ? this.#nextId : BigInt(nextId);
+    this.#history.mark(restored);
+    this.#publish({ document: restored, selection: Object.freeze([]) });
+    const restoredIndex = this.versions.findIndex(v => v.id === version.id);
+    return restoredIndex < 0 ? null : versionDetails(version, restoredIndex);
+  }
+
+  #savedVersions = this.#history.records;
+  #archiveRevision?: { document: Document; versions: readonly FileVersion[]; nextId: bigint };
+  get archiveRevision() {
+    const document = this.#fileDocument(), versions = this.#history.records;
+    if (this.#archiveRevision?.document !== document || this.#archiveRevision.versions !== versions || this.#archiveRevision.nextId !== this.#nextId) {
+      this.#archiveRevision = { document, versions, nextId: this.#nextId };
+    }
+    return this.#archiveRevision;
+  }
+  closeVersionPanel() { if (this.#snapshot.versionPanel) this.#publish({ versionPanel: false }); }
+
   #saved: Document | null = null;
   #downloaded = false;
   #saveSequence = 0;
-  #pendingSaves = new Map<number, Document>();
+  #pendingSaves = new Map<number, { document: Document; versions: readonly FileVersion[] }>();
   #openSequence = 0;
   constructor(name?: string) {
     this.#snapshot = Object.freeze({ document: newDocument(name), selection: Object.freeze([]), tool: "move", builderMode: "merge", scaleAnchor: "tl", canUndo: false, canRedo: false, editable: true, dirty: true, hasSaved: false });
@@ -323,10 +397,14 @@ export class EditorEngine {
   }
   closeTab() { this.#clipboard = {}; this.setEditable(false); }
   duplicateTab(): EditorEngine {
-    const document = Object.freeze({ ...this.#snapshot.document, name: this.#snapshot.document.name + " (Copy)" });
+    this.exitVersionPreview();
+    return this.#copyTab(this.#snapshot.document, this.#nextId, this.#snapshot.document.name + " (Copy)");
+  }
+  #copyTab(source: Document, nextId: bigint, name: string) {
+    const document = Object.freeze({ ...source, name });
     const copy = EditorEngine.newTab(undefined, this.#clipboard);
     copy.#saved = document;
-    copy.#nextId = this.#nextId;
+    copy.#nextId = nextId;
     copy.#publish({ document });
     copy.updateView(fitPage(defaultViewport, document));
     return copy;
@@ -858,10 +936,10 @@ export class EditorEngine {
   }
   subscribe = (listener: () => void): (() => void) => { this.#listeners.add(listener); return () => { this.#listeners.delete(listener); }; };
   captureNativeSnapshot() {
-    const document = this.#snapshot.document, nextId = String(this.#nextId), versions = this.#versions;
-    return () => encodeFigcraftBlob(document, nextId, versions);
+    const { document, nextId, versions } = this.archiveRevision;
+    return () => encodeFigcraftBlob(document, String(nextId), versions);
   }
-  nativeSnapshot = (): Promise<Uint8Array> => encodeFigcraft(this.#snapshot.document, String(this.#nextId), this.#versions);
+  nativeSnapshot = (): Promise<Uint8Array> => encodeFigcraft(this.#fileDocument(), String(this.#nextId), this.#history.records);
   #cacheLibrary(path:string,source:PublishedLibrary) {
     if (this.#libraryFiles.size>=MAX_CACHED_LIBRARIES && !this.#libraryFiles.has(path)) this.#libraryFiles.clear();
     this.#libraryFiles.set(path,source);this.#libraryRevision++;
@@ -949,7 +1027,7 @@ export class EditorEngine {
     const document = patch.document ?? this.#snapshot.document;
     if (document !== this.#snapshot.document) this.#preparedEdit = undefined;
     if (patch.editable === false || patch.selection && !sameIds(patch.selection, this.#snapshot.selection)) patch = { ...patch, paintPicker: undefined, openEffects: undefined };
-    this.#snapshot = Object.freeze({ ...this.#snapshot, ...patch, canUndo: this.#undo.length > 0, canRedo: this.#redo.length > 0, dirty: !sameContent(document, this.#saved), hasSaved: this.#downloaded });
+    this.#snapshot = Object.freeze({ ...this.#snapshot, ...patch, canUndo: this.#undo.length > 0, canRedo: this.#redo.length > 0, dirty: !sameContent(this.#preview?.document ?? document, this.#saved) || this.#history.records !== this.#savedVersions, hasSaved: this.#downloaded });
     if (this.#lastDuplicate && !duplicateSelection(this.#lastDuplicate, this.#snapshot.selection)) this.#lastDuplicate = undefined;
     if (this.#vectorEdit) this.#vectorEdit = pageForNode(document, this.#vectorEdit.id) === document.currentPage ? clampVectorEdit(document, this.#vectorEdit) : undefined;
     if (this.#snapshot.crop && (!this.#snapshot.editable || !this.pickedCrop())) {
@@ -962,6 +1040,9 @@ export class EditorEngine {
     this.#listeners.forEach(listener => listener());
   }
   setEditable(editable: boolean): void {
+    this.#hostEditable = editable;
+    if (!editable) this.exitVersionPreview();
+    if (editable && this.#preview) return;
     if (!editable) this.endTextPreview();
     if (!editable) this.pencil.cancel();
     if (!editable) this.pen.cancel();
@@ -970,6 +1051,7 @@ export class EditorEngine {
     if (!editable) { this.#vectorEdit = undefined; this.#clipboard.paint = undefined; this.#clipboard.effect = undefined; }
     if (editable !== this.#snapshot.editable) this.#publish({ editable, tool: "move", profileDialog: false, libraryPanel:undefined, missingFonts: undefined });
   }
+  execute(command: "file.versionHistory" | "version.list", input?: unknown): ReturnType<typeof versionDetails>[];
   execute(command:"text.edit.selection",input?:unknown):EditSelection|null;
   execute(command:"text.fonts",input?:unknown):ReturnType<typeof queryFonts>;
   execute(command: "select.layersAt", input: unknown): ReturnType<typeof layersAt>;
@@ -982,9 +1064,18 @@ export class EditorEngine {
   execute(command: "component.list", input?: unknown): ReturnType<typeof listComponents>;
   execute(command: "page.list", input?: unknown): ReturnType<typeof listPages>;
   execute(command: string, input?: unknown): Record<string, unknown>;
-  execute(command: string, input: unknown = {}): Record<string, unknown> | Variables | ReturnType<typeof listStyles> | ReturnType<typeof listComponents> | ReturnType<typeof listPages> | typeof framePresets | ReturnType<typeof queryFonts> | null {
+  execute(command: string, input: unknown = {}): Record<string, unknown> | Variables | ReturnType<typeof listStyles> | ReturnType<typeof listComponents> | ReturnType<typeof listPages> | typeof framePresets | ReturnType<typeof versionDetails>[] | ReturnType<typeof queryFonts> | null {
     if (!Object.hasOwn(commandSpecs, command)) throw new Error(`Unsupported command: ${command}`);
-    if (!this.#snapshot.editable) throw new Error("Sign in to edit this document");
+    if (!this.#hostEditable) throw new Error("Sign in to edit this document");
+    if (command === "version.exitPreview") return { ended: this.exitVersionPreview() };
+    if (this.#preview) {
+      if (command === "file.markSaved" || command === "file.saveVersion") this.exitVersionPreview();
+      else if (command === "version.autosave") return { saved: false };
+      else if (!command.startsWith("version.") && command !== "file.versionHistory" && !Object.hasOwn(viewSpecs, command)
+        && !Object.hasOwn(selectionSpecs, command) && command !== "node.get") {
+        throw new Error("command `" + command + "` is not available right now: you're viewing an earlier version: restore it or go back to the current version to edit");
+      }
+    }
     const p = command==="text.fonts" || command==="text.rescanFonts" || command==="text.loadFont"
       ? fontParams(command,input) : isTextEditCommand(command) ? namedParameters(input) : parameters(input);
     if (command==="libraries.open" || command==="libraries.publish") {
@@ -1087,6 +1178,25 @@ export class EditorEngine {
         this.#publish({ scaleAnchor: anchor as ScaleAnchor });
       }
       return { anchor: this.#snapshot.scaleAnchor };
+    }
+    if (command === "version.list" || command === "file.versionHistory") {
+      if (command === "file.versionHistory") this.#publish({ versionPanel: true });
+      return this.versions.map((v, i) => ({ ...versionDetails(v, i), ...(this.#preview?.id === v.id && { previewing: true }) }));
+    }
+    if (command === "file.saveVersion" || command === "version.autosave") {
+      const auto = command === "version.autosave", { document, dirty } = this.#snapshot;
+      if (auto && (!dirty || !this.#history.changed(document))) return { saved: false };
+      const version = this.#history.add(document, String(this.#nextId), p, auto);
+      if (!version) return { saved: false };
+      this.#publish({});
+      return auto ? { saved: true, version } : version;
+    }
+    if (command === "version.rename" || command === "version.delete") {
+      const removed = command === "version.delete" ? this.versions[this.#history.index(p)].id : undefined;
+      const result = command === "version.rename" ? this.#history.rename(p) : this.#history.remove(p);
+      if (removed && this.#preview?.id === removed) this.exitVersionPreview();
+      this.#publish({});
+      return result;
     }
     if (command === "file.rename") {
       const name = parseString(p.name);
@@ -1376,9 +1486,11 @@ export class EditorEngine {
     }
     if (command === "file.markSaved") {
       if (Object.keys(p).some(key => key !== "revision")) throw new Error("Unsupported save acknowledgement parameter");
-      const document = p.revision === undefined ? this.#interaction?.document ?? this.#snapshot.document : typeof p.revision === "number" ? this.#pendingSaves.get(p.revision) : undefined;
-      if (!document) return { saved: false };
-      this.#saved = document;
+      const saved = p.revision === undefined ? { document: this.#interaction?.document ?? this.#snapshot.document, versions: this.#history.records }
+        : typeof p.revision === "number" ? this.#pendingSaves.get(p.revision) : undefined;
+      if (!saved) return { saved: false };
+      this.#saved = saved.document;
+      this.#savedVersions = saved.versions;
       this.#downloaded = true;
       this.#pendingSaves.clear();
       this.#publish({});
@@ -1414,6 +1526,8 @@ export class EditorEngine {
   async executeAsync(command: "node.get", input: unknown): Promise<ReturnType<typeof getNode>>;
   async executeAsync(command: string, input?: unknown): Promise<Record<string, unknown>>;
   async executeAsync(command: string, input: unknown = {}): Promise<Record<string, unknown> | Variables | ReturnType<typeof listStyles> | ReturnType<typeof listComponents> | ReturnType<typeof queryFonts> | null> {
+    if (command === "version.restore" || command === "version.preview") return this.#showVersion(command, parameters(input));
+    if (command.startsWith("version.") || command === "file.saveVersion" || command === "file.versionHistory") return this.execute(command, input);
     if (command!=="text.preview" && command!=="text.endPreview") this.endTextPreview();
     if (command==="text.edit.insert" || command==="text.edit.preedit") {
       const p=namedParameters(input), session=this.currentTextEdit(), revision=this.#openSequence;
@@ -1458,16 +1572,18 @@ export class EditorEngine {
     return this.#executeFileCommand(command, input);
   }
   async #prepareSave<T>(output: (archive: Blob) => Promise<T>) {
+    this.exitVersionPreview();
     if (!this.#snapshot.editable) throw new Error("Sign in to edit this document");
     this.pen.finish(); this.pencil.cancel();
     const live=this.currentTextEdit() && this.#interaction;
     if (!live) this.cancelInteraction();
     const {document,nextId} = live ? this.#prepareEdit(live.document,live.nextId) : {document:this.#snapshot.document,nextId:this.#nextId};
     const revision = ++this.#saveSequence, opening = this.#openSequence;
-    const archive = await encodeFigcraftBlob(document, String(nextId), this.#versions);
+    const versions = this.#history.records;
+    const archive = await encodeFigcraftBlob(document, String(nextId), versions);
     const data = await output(archive);
     if (!this.#snapshot.editable || opening !== this.#openSequence) throw new Error("Save was cancelled because the document or identity changed");
-    this.#pendingSaves.set(revision, document);
+    this.#pendingSaves.set(revision, { document, versions });
     while (this.#pendingSaves.size > 16) this.#pendingSaves.delete(this.#pendingSaves.keys().next().value!);
     return {name: `${document.name}.figcraft`, bytes: archive.size, data, revision};
   }
@@ -1597,7 +1713,8 @@ export class EditorEngine {
     checkCurrent();
     this.#documentIdentity = Symbol();
     this.#nextId = BigInt(decoded.nextId);
-    this.#versions = decoded.versions ?? [];
+    this.#history = new VersionHistory(decoded.versions);
+    this.#savedVersions = this.#history.records;
     this.#undo = []; this.#redo = []; this.#saved = null; this.#downloaded = false; this.#pendingSaves.clear();
     this.#vectorEdit = undefined;
     this.#publish({ document: decoded.document, profileDialog: false, libraryPanel:undefined, missingFonts: undefined, selection: Object.freeze([]), tool: "move" });

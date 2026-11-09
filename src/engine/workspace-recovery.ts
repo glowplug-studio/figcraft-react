@@ -1,5 +1,4 @@
 import type { WorkspaceRecoveryStore } from "../backends/recovery";
-import type { Document } from "./document";
 import type { EditorWorkspace } from "./workspace";
 
 export interface WorkspaceRecoveryState {
@@ -14,7 +13,7 @@ export class WorkspaceRecovery {
   #timer?: ReturnType<typeof setTimeout>;
   #running?: Promise<void>;
   #detach: (() => void)[] = [];
-  #archives = new WeakMap<Document, Blob>();
+  #archives = new WeakMap<object, Blob>();
   constructor(private workspace: EditorWorkspace, private store: WorkspaceRecoveryStore, private principal: string,
     private notify: (state: WorkspaceRecoveryState) => void) {}
 
@@ -25,7 +24,7 @@ export class WorkspaceRecovery {
       const repairs = saved && await this.workspace.restore(saved.files, saved.active, () => this.#disposed);
       if (this.#disposed) return;
       // Keep original archives, including repaired data, until this particular drawing changes.
-      if (saved && repairs) this.workspace.engines.forEach((engine, i) => this.#archives.set(engine.getSnapshot().document, saved.files[i]));
+      if (saved && repairs) this.workspace.engines.forEach((engine, i) => this.#archives.set(engine.archiveRevision, saved.files[i]));
       this.notify({ status: "ready", message: repairs?.join("\n") });
     } catch (error) {
       if (this.#disposed) return;
@@ -56,7 +55,7 @@ export class WorkspaceRecovery {
         attempted = this.#revision;
         const active = Math.max(0, this.workspace.getSnapshot().findIndex(tab => tab.active));
         const pending = this.workspace.engines.map(engine => ({
-          doc: engine.getSnapshot().document, encode: engine.captureNativeSnapshot(),
+          doc: engine.archiveRevision, encode: engine.captureNativeSnapshot(),
         }));
         const files: Blob[] = [];
         for (const { doc, encode } of pending) {

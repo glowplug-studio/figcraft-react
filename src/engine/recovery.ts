@@ -17,7 +17,7 @@ export class RecoveryController {
   #unsubscribe?: () => void;
   #timer?: ReturnType<typeof setTimeout>;
   #queue: Promise<void> = Promise.resolve();
-  #last?: Document;
+  #last?: object;
   #partialRestore?: Document;
   constructor(private engine: EditorEngine, private store: RecoveryStore, private principal: string,
     private notify: (status: "loading" | "ready" | "pending" | "stored" | "error", message?: string) => void) {}
@@ -37,11 +37,11 @@ export class RecoveryController {
       if (this.#disposed) return;
       this.notify("error", error instanceof Error ? error.message : "Recovery could not be restored");
     }
-    this.#last = this.engine.getSnapshot().document;
+    this.#last = this.engine.archiveRevision;
     this.#unsubscribe = this.engine.subscribe(() => {
       const snapshot = this.engine.getSnapshot();
-      if (!snapshot.editable || this.#disposed || snapshot.document === this.#last) return;
-      this.#last = snapshot.document;
+      if (!snapshot.editable || this.#disposed || this.engine.archiveRevision === this.#last) return;
+      this.#last = this.engine.archiveRevision;
       if (this.#partialRestore && sameContent(snapshot.document, this.#partialRestore)) return;
       this.#partialRestore = undefined;
       this.notify("pending");
