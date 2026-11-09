@@ -1,9 +1,11 @@
 /// <reference path="./text-font-assets.d.ts" />
 import { LocalFontAccess } from "./local-font-access";
-import { fontGeometryCache } from "./font-generation";
+import { fontsChanged, fontGeometryCache } from "./font-generation";
 import { multiply } from "./affine";
 import { rectangleTransform, withLayerTransform, type Document, type TextNode } from "./document";
 import type { TextData } from "./text-data";
+import { bytesToHex } from "@noble/hashes/utils.js";
+import { parseBoolean, parseString } from "./parameters";
 import { FontLibrary } from "./font-library";
 import { readFontFaces } from "./font-source";
 import { layoutTextFlow } from "./text-flow";
@@ -39,6 +41,46 @@ export const hasFontFamily = (family:string) => fonts?.hasFamily(family) ?? fals
 export const fontFamilies = () => fonts?.families() ?? [];
 export const familyStyleWeights = (family:string) => fonts?.styleWeights(family) ?? [];
 export const familyStyles = (family: string) => fonts?.styles(family) ?? [];
+
+export function queryFonts(params:Record<string,unknown>) {
+  if (!fonts) throw new Error("Prepare the font catalogue with executeAsync first");
+  const family=parseString(params.family);
+  if (family===undefined) return fonts.families();
+  const features=parseBoolean(params.features), axes=parseBoolean(params.axes);
+  if (!features && !axes) return fonts.styles(family);
+  const face=fonts.find(family,parseString(params.style) ?? "Regular") ?? fonts.defaultFace();
+  if (features) return face ? [...face.features] : [];
+  if (!face) return null;
+  return {
+    family:face.family,
+    axes:Object.values(face.axes).sort((a,b)=>a.axisIndex-b.axisIndex).map(a=>({
+      tag:a.tag,name:a.name,min:a.min,default:a.default,max:a.max,hidden:(a.flags & 1)!==0,
+    })),
+    instances:face.instances.map(i=>({name:i.name,variations:{...i.coordinates}})),
+  };
+}
+
+const importedFonts=new Map<string,readonly string[]>();
+export async function importFontBytes(bytes:Uint8Array<ArrayBuffer>, checkCurrent:()=>void) {
+  const digest=bytesToHex(new Uint8Array(await crypto.subtle.digest("SHA-256",bytes)));
+  checkCurrent();
+  const existing=importedFonts.get(digest);
+  if (existing) return existing;
+  const faces=await readFontFaces(bytes);
+  checkCurrent();
+  // Another import may have finished while the shaper was initialising.
+  const concurrent=importedFonts.get(digest);
+  if (concurrent) return concurrent;
+  if (!faces.length) throw new Error("Not a font file");
+  const families:string[]=[];
+  for (const face of faces) {
+    fonts!.add(face);
+    if (families.at(-1)!==face.family) families.push(face.family);
+  }
+  importedFonts.set(digest,Object.freeze(families));
+  fontsChanged();
+  return families;
+}
 
 export const fontStyleWarning = (family:string, style:string) => fonts?.styleWarning(family, style);
 

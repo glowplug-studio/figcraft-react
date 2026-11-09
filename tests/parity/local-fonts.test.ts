@@ -1,4 +1,5 @@
 import { expect,it,vi } from "vitest";
+import { fontCollection } from "../support/renamedFont";
 import { readFile } from "node:fs/promises";
 import { FontLibrary, type LocalFontName } from "../../src/engine/font-library";
 import { TextGraphemes } from "../../src/engine/text-graphemes";
@@ -55,17 +56,7 @@ it("offers legacy weight families as styles before reading their files",()=>{
 
 it("uses a collection's matching PostScript face and falls back to face zero for unknown names",async ()=>{
   const bold=await readFile(new URL("../../fonts/inter/Inter-Bold.ttf",import.meta.url));
-  const start=20, second=start+Math.ceil(bytes.byteLength/4)*4;
-  const collection=Buffer.alloc(second+bold.byteLength);
-  collection.write("ttcf"); collection.writeUInt32BE(0x10000,4); collection.writeUInt32BE(2,8);
-  collection.writeUInt32BE(start,12); collection.writeUInt32BE(second,16);
-  for (const [offset,ttf] of [[start,bytes],[second,bold]] as const) {
-    ttf.copy(collection,offset);
-    for (let i=0;i<ttf.readUInt16BE(4);i++) {
-      const pos=12+i*16+8;
-      collection.writeUInt32BE(ttf.readUInt32BE(pos)+offset,offset+pos);
-    }
-  }
+  const collection=fontCollection([bytes,bold]);
   const name=local(0,"Regular");
   const read=async(ps:string)=>(await readFontFaces(collection,{...name,postscript:ps}))[0];
   expect(await read("Inter-Bold")).toMatchObject({family:"Shop Sans",style:"Regular",postscript:"Inter-Bold",weight:700});

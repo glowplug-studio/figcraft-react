@@ -522,7 +522,13 @@ export function Editor({ identity, capabilities, engine: suppliedEngine, recover
           <PointsPanel nodes={snapshot.selection.flatMap(id => { const n = snapshot.document.nodes[id]; return n && n.kind !== "page" ? [n] : []; })} editable={editable && !busy} dispatch={dispatch} />
           <CornerPanel nodes={snapshot.selection.flatMap(id => { const n = snapshot.document.nodes[id]; return n && n.kind !== "page" ? [n] : []; })} editable={editable && !busy} dispatch={dispatch} /></>}
           {!editingVector && <TypographyPanel engine={engine} linkDialog={linkDialog} run={(command,params) => {
-            try { engine.execute(command,params); } catch (e) { setError(e instanceof Error ? e.message : "Could not edit text path"); }
+            setError("");
+            if (command==="text.loadFont") {
+              controller.current?.finishText();
+              void engine.executeAsync(command,params).catch(e=>setError(e instanceof Error ? e.message : "Could not load font"));
+            } else {
+              try { engine.execute(command,params); } catch (e) { setError(e instanceof Error ? e.message : "Could not edit text"); }
+            }
           }} link={(ids,url) => {
             try { engine.execute("text.link",{ids,url}); } catch (e) { setError(e instanceof Error ? e.message : "Could not create link"); }
           }} editable={editable && !busy} onLeave={() => controller.current?.finishText()}

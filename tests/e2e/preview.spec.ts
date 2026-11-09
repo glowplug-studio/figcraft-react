@@ -4417,3 +4417,34 @@ test("a 20000-family font menu virtualises rows, searches, previews, cancels and
   await search.press("Escape");await page.getByRole("button",{name:"Undo",exact:true}).click();
   await expect(choose).toHaveText("Inter");
 });
+
+test("loading a browser font file resolves a missing family and saves its refitted box",async ({page})=>{
+  const {renamedFont}=await import("../support/renamedFont");
+  const e=new EditorEngine(), id=String((await e.executeAsync("text.create",{text:"ABC",name:"Import face",x:20,y:30})).id);
+  e.execute("node.set",{id,props:{fontFamily:"Proof"}});
+  const doc=e.getSnapshot().document;
+  const native={...doc,nodes:{...doc.nodes,[id]:{...doc.nodes[id],width:999}}};
+  await login(page);
+  await page.getByLabel("Open Figcraft file",{exact:true}).setInputFiles({name:"import-font.figcraft",mimeType:"application/octet-stream",buffer:Buffer.from(await encodeFigcraft(native))});
+  await page.getByRole("region",{name:"Layers",exact:true}).getByRole("button",{name:"Import face"}).click();
+  const panel=page.getByRole("group",{name:"Typography",exact:true});
+  await panel.getByText("More typography options",{exact:true}).click();
+  const input=panel.getByLabel("Load font file",{exact:true});
+  await input.setInputFiles({name:"bad.ttf",mimeType:"font/ttf",buffer:Buffer.from("not a font")});
+  await expect(page.getByRole("alert").filter({hasText:"Not a font file"})).toBeVisible();
+  await input.setInputFiles({name:"proof.ttf",mimeType:"font/ttf",buffer:await renamedFont()});
+  await expect(panel.getByLabel("Font style",{exact:true}).locator("option")).toHaveText(["Regular"]);
+  const show=panel.getByRole("button",{name:"Missing fonts…"}), dialog=page.getByRole("dialog",{name:"Missing fonts"});
+  await expect.poll(async()=>{
+    await show.click();
+    const text=await dialog.innerText();
+    await dialog.getByRole("button",{name:"Close",exact:true}).click();
+    return text;
+  }).toContain("All the fonts this file uses are installed.");
+  const download=page.waitForEvent("download");
+  await page.getByRole("button",{name:"Save as",exact:true}).click();
+  const saved=await decodeFigcraft(await readFile((await (await download).path())!));
+  const node=saved.document.nodes[id];
+  expect(node.kind).toBe("text");
+  if (node.kind==="text") { expect(node.width).toBeGreaterThan(1); expect(node.width).toBeLessThan(999); }
+});

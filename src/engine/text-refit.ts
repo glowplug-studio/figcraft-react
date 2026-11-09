@@ -12,8 +12,9 @@ function compareIds(a:NodeId,b:NodeId) {
 }
 
 /** Explicit refitting measures stale boxes even when the stored text itself has not changed. */
-export function refitText(document:Document, params:Record<string,unknown>) {
+export function refitText(document:Document, params:Record<string,unknown>, families?:readonly string[]) {
   if (Object.keys(params).some(key=>key!=="ids" && key!=="id")) throw new Error("Unknown text.refit option");
+  const wanted=families && new Set(families.map(f=>f.trim().toLowerCase()));
   let scope:Set<NodeId>|undefined;
   if (params.ids!=null) {
     if (!Array.isArray(params.ids) || !params.ids.length) throw new Error("Pass a non-empty array of layer ids");
@@ -28,6 +29,8 @@ export function refitText(document:Document, params:Record<string,unknown>) {
   for (const node of Object.values(document.nodes)) {
     if (node.kind!=="text" || (scope && !scope.has(node.id))) continue;
     if (node.text.path || node.text.autoResize==="truncate" || node.text.autoResize==="none") continue;
+    if (wanted && !wanted.has(node.text.style.fontFamily.trim().toLowerCase()) &&
+        !textSpans(node.text).some(s=>wanted.has(s.style.fontFamily.trim().toLowerCase()))) continue;
     const updated=fitEditedText(node,node);
     if (Math.abs(updated.width-node.width)<=1e-6 && Math.abs(updated.height-node.height)<=1e-6) continue;
     draft.set(updated);

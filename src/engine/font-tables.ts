@@ -23,6 +23,7 @@ export interface FontAxis {
   readonly axisIndex: number;
   readonly tag: string;
   readonly nameId: number;
+  readonly name: string;
   readonly flags: number;
   readonly min: number;
   readonly default: number;
@@ -42,6 +43,7 @@ export function fontVariations(table: DataView | undefined, nameOf: (id: number)
   const start = table.getUint16(4), count = table.getUint16(8), stride = table.getUint16(10);
   const instanceStart = start+count*stride;
   if (start < 16 || stride < 20 || !count || instanceStart > table.byteLength) return result();
+  const labels: Readonly<Record<string,string>> = {wght:"Weight",wdth:"Width",slnt:"Slant",ital:"Italic",opsz:"Optical size"};
   const tags: string[] = [];
   for (let index=0; index<count; index++) {
     const pos = start+index*stride;
@@ -52,7 +54,8 @@ export function fontVariations(table: DataView | undefined, nameOf: (id: number)
       return result();
     }
     tags.push(tag);
-    axes[tag] = Object.freeze({axisIndex:index,tag,nameId:table.getUint16(pos+18),flags:table.getUint16(pos+16),
+    const nameId = table.getUint16(pos+18);
+    axes[tag] = Object.freeze({axisIndex:index,tag,nameId,name:nameOf(nameId) || labels[tag] || tag,flags:table.getUint16(pos+16),
       min,default:Math.max(min,Math.min(max,def)),max});
   }
   const size = table.getUint16(14);

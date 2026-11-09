@@ -1,5 +1,5 @@
 import type { FontLibrary, LocalFontName } from "./font-library";
-import { readFontFaces } from "./font-source";
+import { maxFontBytes, readFontFaces } from "./font-source";
 import { fontsChanged } from "./font-generation";
 
 interface BrowserFace {
@@ -10,7 +10,6 @@ interface BrowserFace {
 }
 type FontWindow=Window & {queryLocalFonts?:()=>Promise<BrowserFace[]>};
 const maxFonts=20_000;
-const maxFileBytes=256*1024*1024;
 
 /** One permission request per page. Names are listed first and only requested faces are read. */
 export class LocalFontAccess {
@@ -44,7 +43,7 @@ export class LocalFontAccess {
     let face;
     try {
       const file=await source.blob();
-      if (file.size<=maxFileBytes) [face]=await readFontFaces(new Uint8Array(await file.arrayBuffer()),font);
+      if (file.size<=maxFontBytes) [face]=await readFontFaces(new Uint8Array(await file.arrayBuffer()),font);
     } catch { /* An unreadable local face falls back and disappears from the catalogue. */ }
     library.finishLocal(font.id,face);
     fontsChanged(!!face);

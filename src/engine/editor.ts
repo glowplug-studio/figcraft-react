@@ -12,9 +12,9 @@ import { isGroupLike, rectanglePaints } from "./document";
 import { editImagePaints, editImagePreset, imageEditSpecs, startImageCrop, type CropTarget } from "./image-commands";
 import { listImagePresets } from "./image-filters";
 import { getNode } from "./inspect";
-import { centrePastedImage, rasterImportParams, fileData, placeImage, prepareImage, rasterFilename, replaceImage } from "./image-import";
+import { centrePastedImage, rasterImportParams, placeImage, prepareImage, rasterFilename, replaceImage } from "./image-import";
 import { createCanvasText, editTextRange, publishTextNode, typedListMarker, type TextTarget } from "./text-edit";
-import { fitEditedText, prepareText, prepareDocumentText } from "./text-node-layout";
+import { fitEditedText, importFontBytes, prepareText, prepareDocumentText, queryFonts } from "./text-node-layout";
 import { creationCharacters, createLayer } from "./creation";
 import { pastePaint, type CopiedPaint } from "./paint-clipboard";
 import { copyPaint, fillSpecs, selectedRegionFills, writeFill } from "./fill-commands";
@@ -23,6 +23,8 @@ import { executeStrokeList, strokeSpecs } from "./stroke-commands";
 import { isLeaf } from "./document";
 import { newDocument, sameContent, withLayerTransform, type Document, type DrawShapeKind, type TextNode, type NodeId } from "./document";
 import { MAX_IMAGE_BYTES } from "./image-resource";
+import { fileData } from "./file-bytes";
+import { readFontInput } from "./font-source";
 import { base64Bytes } from "./recovery";
 import { decodeFigcraft, encodeFigcraft, encodeFigcraftBlob, prepareArchive, MAX_UNPACKED_BYTES } from "./file-format";
 import { executePage, listPages, pageSpecs } from "./pages";
@@ -61,6 +63,9 @@ export const commandSpecs = Object.freeze({
   ...effectSpecs,
   ...strokeSpecs,
   ...textFormatSpecs,
+  "text.fonts": {label:"List fonts",undo:false},
+  "text.loadFont": {label:"Load font file",undo:true},
+  "text.rescanFonts": {label:"Rescan installed fonts",undo:true},
   "text.missingFonts": {label:"Missing fonts",undo:false},
   "text.preview": {label:"Preview a change",undo:false},
   "text.endPreview": {label:"End text preview",undo:false},
@@ -156,6 +161,19 @@ interface HistoryEntry { document: Document; selection: readonly NodeId[] }
 function parameters(input: unknown): Record<string, unknown> {
   if (typeof input !== "object" || input === null || Array.isArray(input)) throw new Error("Command parameters must be an object");
   return input as Record<string, unknown>;
+}
+const fontOptions={
+  "text.fonts":["family","style","axes","features"],
+  "text.loadFont":["data","path"],
+  "text.rescanFonts":[],
+} as const;
+function fontParams(command:keyof typeof fontOptions,input:unknown) {
+  // Native registry queries treat a non-object payload as having no named parameters.
+  const p=input && typeof input==="object" && !Array.isArray(input) ? input as Record<string,unknown> : {};
+  const allowed:readonly string[]=fontOptions[command];
+  for (const key of Object.keys(p)) if (key!=="ids" && key!=="id" && !allowed.includes(key))
+    throw new Error("Unknown "+command+" option: "+key);
+  return p;
 }
 /** React-free command transactions. Snapshots share immutable nodes and document references. */
 export class EditorEngine {
@@ -417,8 +435,8 @@ export class EditorEngine {
     });
     return ()=>{disposed=true;detachFonts();detachCanvas();};
   }
-  #refitOpenText(params:Record<string,unknown>) {
-    const before=this.#snapshot, {document,refitted}=refitText(before.document,params);
+  #refitOpenText(params:Record<string,unknown>, families?:readonly string[]) {
+    const before=this.#snapshot, {document,refitted}=refitText(before.document,params,families);
     if (document!==before.document) {
       this.#undo.push({document:before.document,selection:before.selection});
       this.#redo=[];
@@ -624,6 +642,7 @@ export class EditorEngine {
     if (!editable) { this.#vectorEdit = undefined; this.#copiedPaint = undefined; this.#copiedEffect = undefined; }
     if (editable !== this.#snapshot.editable) this.#publish({ editable, tool: "move", profileDialog: false, missingFonts: undefined });
   }
+  execute(command:"text.fonts",input?:unknown):ReturnType<typeof queryFonts>;
   execute(command: "select.layersAt", input: unknown): ReturnType<typeof layersAt>;
   execute(command: "node.get", input: unknown): ReturnType<typeof getNode>;
   execute(command: "shapeBuilder.regions", input?: unknown): ReturnType<typeof readBuilderRegions>;
@@ -631,16 +650,20 @@ export class EditorEngine {
   execute(command: "image.presets", input?: unknown): ReturnType<typeof listImagePresets>;
   execute(command: "page.list", input?: unknown): ReturnType<typeof listPages>;
   execute(command: string, input?: unknown): Record<string, unknown>;
-  execute(command: string, input: unknown = {}): Record<string, unknown> | ReturnType<typeof listPages> | typeof framePresets | null {
+  execute(command: string, input: unknown = {}): Record<string, unknown> | ReturnType<typeof listPages> | typeof framePresets | ReturnType<typeof queryFonts> | null {
     if (!Object.hasOwn(commandSpecs, command)) throw new Error(`Unsupported command: ${command}`);
     if (!this.#snapshot.editable) throw new Error("Sign in to edit this document");
-    const p = parameters(input);
+    const p = command==="text.fonts" || command==="text.rescanFonts" || command==="text.loadFont"
+      ? fontParams(command,input) : parameters(input);
     if (command==="text.preview") return this.#previewChange(p);
     if (command==="text.endPreview") {
       if (Object.keys(p).some(k=>k!=="id" && k!=="ids")) throw new Error("Unknown text.endPreview option");
       return {ended:this.endTextPreview()};
     }
     this.endTextPreview();
+    if (command === "text.fonts") return queryFonts(p);
+    if (command === "text.loadFont") throw new Error("text.loadFont requires executeAsync");
+    if (command === "text.rescanFonts") return {added:[],refitted:[]};
     if (command === "text.openLink") {
       if (Object.keys(p).some(key=>key!=="id" && key!=="ids")) throw new Error("text.openLink takes no options");
       const active = this.getTextRange();
@@ -928,11 +951,30 @@ export class EditorEngine {
     return { [undo ? "undone" : "redone"]: Boolean(entry) };
   }
   /** Native file commands run outside pointer rendering and retain atomic document replacement. */
+  async executeAsync(command:"text.fonts",input?:unknown):Promise<ReturnType<typeof queryFonts>>;
   async executeAsync(command: "file.open" | "file.recover", input: unknown): Promise<OpenResult>;
   async executeAsync(command: "node.get", input: unknown): Promise<ReturnType<typeof getNode>>;
   async executeAsync(command: string, input?: unknown): Promise<Record<string, unknown>>;
-  async executeAsync(command: string, input: unknown = {}): Promise<Record<string, unknown> | null> {
+  async executeAsync(command: string, input: unknown = {}): Promise<Record<string, unknown> | ReturnType<typeof queryFonts> | null> {
     if (command!=="text.preview" && command!=="text.endPreview") this.endTextPreview();
+    if (command==="text.fonts" || command==="text.loadFont") {
+      if (!this.#snapshot.editable) throw new Error("Sign in to edit this document");
+      const revision=this.#openSequence, identity=this.#documentIdentity;
+      const checkCurrent=()=>{
+        if (!this.#snapshot.editable || revision!==this.#openSequence || identity!==this.#documentIdentity ||
+            command==="text.loadFont" && this.interacting)
+          throw new Error("The document or identity changed during the font command");
+      };
+      const p=fontParams(command,input);
+      await prepareText();
+      checkCurrent();
+      if (command==="text.fonts") return this.execute("text.fonts",p);
+      const bytes=await readFontInput(p);
+      checkCurrent();
+      const families=await importFontBytes(bytes,checkCurrent);
+      checkCurrent();
+      return {families:[...families],...this.#refitOpenText({},families)};
+    }
     if (command === "text.create" || command === "node.create" || command === "node.set" || command === "text.set") {
       const p = parameters(input);
       const props = command === "text.set" ? p : p.props && typeof p.props === "object" && !Array.isArray(p.props) ? p.props as Record<string, unknown> : command === "node.set" ? p : {};
@@ -1022,7 +1064,7 @@ export class EditorEngine {
     const opening = ++this.#openSequence;
     const regionState = this.#vectorEdit;
     const centre = this.#view;
-    const inputBytes = () => source ? source.file.arrayBuffer().then(buffer => new Uint8Array(buffer)) : fileData(p.data);
+    const inputBytes = () => source ? source.file.arrayBuffer().then(buffer => new Uint8Array(buffer)) : fileData(p.data, MAX_IMAGE_BYTES);
     const checkCurrent = () => {
       if (source?.picker && (this.#snapshot.paintPicker !== source.picker || this.#vectorEdit !== regionState)) throw new Error("Image picker target changed");
       if ((replacing || source?.paste) && !sameIds(before.selection, this.#snapshot.selection)) throw new Error("Image edit was cancelled because the selection changed");

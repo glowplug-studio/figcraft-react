@@ -37,23 +37,6 @@ export function centrePastedImage(image: Awaited<ReturnType<typeof prepareImage>
   return {x:pixelRound(centre.cx-width/2), y:pixelRound(centre.cy-height/2)};
 }
 
-export function fileData(data: unknown, limit = MAX_IMAGE_BYTES): Uint8Array<ArrayBuffer> {
-  if (typeof data !== "string") throw new Error("A base64 file is required");
-  const start = data.indexOf(",") + 1;
-  const encoded = data.slice(start).replace(/[ \t\r\n\f]/g, "");
-  const padding = encoded.indexOf("=");
-  if (padding >= 0 && padding < encoded.length - 2) throw new Error("Invalid base64 padding");
-  const length = Math.floor((padding < 0 ? encoded.length : padding) * 3 / 4);
-  if (length > limit) throw new Error("File exceeds the browser import limit");
-  const bytes = new Uint8Array(length);
-  let offset = 0;
-  for (let i = 0; i < encoded.length; i += 65536) {
-    const chunk = atob(encoded.slice(i, i + 65536));
-    for (let j = 0; j < chunk.length; j++) bytes[offset++] = chunk.charCodeAt(j);
-  }
-  return bytes;
-}
-
 /** Pixel validation is required only when introducing new data. Native archives retain damaged images. */
 export async function prepareImage(bytes: Uint8Array<ArrayBuffer>, existing?: Readonly<Record<string, ImageResource>>, maxPixels = 512 * 1024 * 1024 / 4, original?: Blob) {
   if (bytes.length > MAX_IMAGE_BYTES) throw new Error("Image exceeds the 256 MiB external input limit");

@@ -90,6 +90,11 @@ export function TypographyPanel({engine, editable, apply, onLeave, linkDialog, l
       </form>
     </dialog>
     <details><summary>More typography options</summary>
+      <label>Load font file<input type="file" aria-label="Load font file" accept=".ttf,.otf,.ttc,.otc" onChange={event=>{
+        const file=event.currentTarget.files?.[0];
+        event.currentTarget.value="";
+        if (file) run("text.loadFont",{path:file});
+      }} /></label>
       <button type="button" onClick={()=>run("text.missingFonts",{})}>Missing fonts…</button>
       <button type="button" onClick={()=>linkDialog.current?.showModal()}>Create link</button>
       {select("textCase", "Letter case", styles.map(s=>s.case), ["original","upper","lower","title","smallCaps"])}

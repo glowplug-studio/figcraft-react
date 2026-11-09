@@ -1,0 +1,129 @@
+{
+  "interFeatures": [
+    "aalt",
+    "calt",
+    "case",
+    "ccmp",
+    "cv01",
+    "cv02",
+    "cv03",
+    "cv04",
+    "cv05",
+    "cv06",
+    "cv07",
+    "cv08",
+    "cv09",
+    "cv10",
+    "cv11",
+    "cv12",
+    "cv13",
+    "cv14",
+    "dlig",
+    "dnom",
+    "frac",
+    "locl",
+    "numr",
+    "ordn",
+    "pnum",
+    "salt",
+    "sinf",
+    "ss01",
+    "ss02",
+    "ss03",
+    "ss04",
+    "ss05",
+    "ss06",
+    "ss07",
+    "ss08",
+    "subs",
+    "sups",
+    "tnum",
+    "zero"
+  ],
+  "georgianAxes": {
+    "axes": [
+      {
+        "default": 400.0,
+        "hidden": false,
+        "max": 900.0,
+        "min": 100.0,
+        "name": "Weight",
+        "tag": "wght"
+      },
+      {
+        "default": 100.0,
+        "hidden": false,
+        "max": 100.0,
+        "min": 62.5,
+        "name": "Width",
+        "tag": "wdth"
+      }
+    ],
+    "family": "Noto Sans Georgian",
+    "instances": [
+      {
+        "name": "Thin",
+        "variations": {
+          "wdth": 100.0,
+          "wght": 100.0
+        }
+      },
+      {
+        "name": "ExtraLight",
+        "variations": {
+          "wdth": 100.0,
+          "wght": 200.0
+        }
+      },
+      {
+        "name": "Light",
+        "variations": {
+          "wdth": 100.0,
+          "wght": 300.0
+        }
+      },
+      {
+        "name": "Regular",
+        "variations": {
+          "wdth": 100.0,
+          "wght": 400.0
+        }
+      },
+      {
+        "name": "Medium",
+        "variations": {
+          "wdth": 100.0,
+          "wght": 500.0
+        }
+      },
+      {
+        "name": "SemiBold",
+        "variations": {
+          "wdth": 100.0,
+          "wght": 600.0
+        }
+      },
+      {
+        "name": "Bold",
+        "variations": {
+          "wdth": 100.0,
+          "wght": 700.0
+        }
+      },
+      {
+        "name": "ExtraBold",
+        "variations": {
+          "wdth": 100.0,
+          "wght": 800.0
+        }
+      },
+      {
+        "name": "Black",
+        "variations": {
+          "wdth": 100.0,
+          "wght": 900.0
+        }
+      }
+    ]
+  }
+}
