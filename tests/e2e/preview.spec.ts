@@ -4392,9 +4392,22 @@ test("a 20000-family font menu virtualises rows, searches, previews, cancels and
   await page.getByLabel("Open Figcraft file",{exact:true}).setInputFiles({name:"menu.figcraft",mimeType:"application/octet-stream",buffer:Buffer.from(await encodeFigcraft(engine.getSnapshot().document))});
   await page.getByRole("region",{name:"Layers",exact:true}).getByRole("button",{name:"Menu sample"}).click();
   const panel=page.getByRole("group",{name:"Typography",exact:true}),choose=panel.getByRole("button",{name:"Font family",exact:true});
-  await choose.click();await page.getByRole("button",{name:"Use fonts installed on this computer…"}).click();
+  await choose.click();
+  const sample=page.getByRole("option",{name:"Inter",exact:true}).locator("[data-font-sample]");
+  await expect(sample).toBeVisible();
+  const ink=await sample.evaluate(async el=>{
+    const src=getComputedStyle(el).maskImage.match(/url\(["']?(data:image\/png[^"')]+)/)?.[1];
+    if (!src) return 0;
+    const img=new Image();img.src=src;await img.decode();
+    const canvas=document.createElement("canvas");canvas.width=img.width;canvas.height=img.height;
+    const ctx=canvas.getContext("2d")!;ctx.drawImage(img,0,0);
+    return ctx.getImageData(0,0,img.width,img.height).data.filter((n,i)=>i%4===3 && n>0).length;
+  });
+  expect(ink).toBeGreaterThan(20);
+  await page.getByRole("button",{name:"Use fonts installed on this computer…"}).click();
   await choose.click();const search=page.getByRole("combobox",{name:"Search fonts"});
   await expect(page.getByRole("option",{name:"Catalogue 00000",exact:true})).toBeVisible();
+  await expect(page.getByRole("option",{name:"Catalogue 00000",exact:true}).locator("[data-font-sample]")).toHaveCount(0);
   expect(await page.getByRole("listbox",{name:"Font families"}).getByRole("option").count()).toBeLessThan(16);
   await search.fill("unavailable family");await expect(page.getByText("No fonts match")).toBeVisible();
   const canvas=page.getByLabel("Design canvas",{exact:true});
@@ -4504,6 +4517,13 @@ test("OpenType feature switches expose mixed selections, record overrides and cl
   const tabular=panel.getByRole("checkbox",{name:"Tabular numbers"}), liga=panel.getByRole("checkbox",{name:"Standard ligatures"});
   await expect(tabular).toHaveAttribute("aria-checked","mixed");
   await expect(liga).toBeChecked();await expect(liga).toHaveAttribute("title","Not in this font");
+  for (const label of ["Contextual alternates","Fractions","Case-sensitive forms","Slashed zero",
+    "Stylistic set 1","Stylistic set 2","Stylistic set 3","Stylistic set 4","Stylistic set 5","Small capitals"]) {
+    const control=panel.getByRole("checkbox",{name:label,exact:true});
+    const initial=await control.isChecked();
+    await control.click();await expect(control).toHaveAttribute("aria-checked",String(!initial));
+    await control.click();await expect(control).toHaveAttribute("aria-checked",String(initial));
+  }
   await tabular.click();await expect(tabular).toBeChecked();
   await tabular.click();await expect(tabular).not.toBeChecked();
   await liga.click();await expect(liga).not.toBeChecked();
@@ -4537,4 +4557,38 @@ test("variable axes change only the selected Unicode characters during live text
   expect(node).toMatchObject({text:{characters:"ა🙂ბგ",style:{variations:{}},runs:expect.arrayContaining([
     expect.objectContaining({start:1,end:3,style:expect.objectContaining({variations:{wght:575}})}),
   ])}});
+});
+
+test("typography basics save underline metrics, skip ink, hanging text and paragraph direction",async ({page})=>{
+  const e=new EditorEngine(), id=String((await e.executeAsync("text.create",{text:"مثال",name:"Arabic sample",x:80,y:80})).id);
+  await login(page);
+  await page.getByLabel("Open Figcraft file",{exact:true}).setInputFiles({name:"decoration.figcraft",mimeType:"application/octet-stream",buffer:Buffer.from(await encodeFigcraft(e.getSnapshot().document))});
+  await page.getByRole("region",{name:"Layers",exact:true}).getByRole("button",{name:"Arabic sample"}).click();
+  const panel=page.getByRole("group",{name:"Typography",exact:true});
+  await panel.getByText("More typography options",{exact:true}).click();
+  await panel.getByLabel("Text decoration",{exact:true}).selectOption("underline");
+  async function enter(label:string,value:string) {
+    const field=panel.getByLabel(label,{exact:true});await field.fill(value);await field.press("Enter");
+  }
+  await enter("Decoration thickness","2");await enter("Underline offset","12%");await enter("Decoration colour","#336699");
+  await panel.getByLabel("Decoration style",{exact:true}).selectOption("wavy");
+  for (const label of ["Skip ink","Hanging punctuation","Hanging list"]) await panel.getByLabel(label,{exact:true}).check();
+  await panel.getByLabel("Text direction",{exact:true}).selectOption("rtl");
+  const max=panel.getByLabel("Maximum lines",{exact:true});
+  await expect(max).toHaveCount(0);
+  await panel.getByLabel("Truncate text",{exact:true}).selectOption("on");await expect(max).toHaveValue("Auto");
+  await enter("Maximum lines","3");await expect(max).toHaveValue("3");
+  await panel.getByLabel("Text alignment",{exact:true}).selectOption("center");
+  await expect(panel.getByLabel("Paragraph indent",{exact:true})).toBeDisabled();
+  const download=page.waitForEvent("download");await page.getByRole("button",{name:"Save as",exact:true}).click();
+  const reopened=await decodeFigcraft(await readFile((await (await download).path())!));
+  expect(reopened.document.nodes[id]).toMatchObject({text:{hangingPunctuation:true,hangingList:true,maxLines:3,autoResize:"truncate",
+    paragraphs:[expect.objectContaining({direction:"rtl"})],style:{decoration:"underline",decorationLook:{
+      skipInk:true,style:"wavy",thickness:{unit:"pixels",value:2},offset:{unit:"percent",value:12},color:{a:1},
+    }}}});
+  await enter("Decoration thickness","0");await expect(panel.getByLabel("Decoration thickness",{exact:true})).toHaveValue("Auto");
+  await enter("Decoration colour","");await expect(panel.getByLabel("Decoration colour",{exact:true})).toHaveValue("Auto");
+  await panel.getByLabel("Text decoration",{exact:true}).selectOption("strikethrough");
+  await expect(panel.getByLabel("Skip ink",{exact:true})).toHaveCount(0);
+  await expect(panel.getByLabel("Underline offset",{exact:true})).toHaveCount(0);
 });

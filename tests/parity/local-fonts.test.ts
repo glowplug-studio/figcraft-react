@@ -101,3 +101,14 @@ it("requests a closer pending fallback style even after the regular face is load
   db.fallbacks("Regular");expect(requests).toEqual([0]);
   db.fallbacks("Bold");db.fallbacks("Bold");expect(requests).toEqual([0,1]);
 });
+
+it("distinguishes pending local-only family names from loaded faces without requesting them for previews",async ()=>{
+  const reads:number[]=[],db=new FontLibrary(font=>reads.push(font.id));
+  const regular=local(0,"Regular"), bold=local(1,"Bold");
+  db.offerLocal([regular,bold]);
+  expect(db.localOnly("ShopSans")).toBe(true);
+  expect(db.localOnly("Missing")).toBe(false);
+  db.finishLocal(0,(await readFontFaces(bytes,regular))[0]);
+  expect(db.localOnly("ShopSans")).toBe(false);
+  expect(reads).toEqual([]);
+});

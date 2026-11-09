@@ -154,6 +154,11 @@ export class FontLibrary {
     return [key,style];
   }
 
+  localOnly(family:string) {
+    const key=this.#key(family);
+    return !this.#families.has(key) && this.#pending.has(key);
+  }
+
   hasFamily(family:string):boolean {
     const [resolved]=this.#resolve(family,"Regular");
     if (this.#names.has(resolved)) return true;

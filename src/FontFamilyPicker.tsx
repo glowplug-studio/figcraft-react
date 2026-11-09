@@ -1,4 +1,5 @@
 import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { familySample, type FamilySample } from "./engine/font-family-sample";
 import { askForLocalFonts, canAskForLocalFonts } from "./engine/text-node-layout";
 
 type Row={family:string} | {heading:string};
@@ -86,6 +87,27 @@ export function FontFamilyPicker({families,current,preview,endPreview,apply}:Pro
     }
   }
   const first=Math.max(0,Math.floor(scroll/rowHeight)-1);
+  const visible=useMemo(()=>rows.slice(first,first+visibleRows+3),[rows,first]);
+  const [samples,setSamples]=useState<ReadonlyMap<string,FamilySample>>(new Map());
+  useEffect(()=>{
+    if (!open) return;
+    let cancelled=false, frame=0, index=0;
+    const prepared=new Map<string,FamilySample>();
+    const families=visible.flatMap(row=>"family" in row ? [row.family] : []);
+    async function render() {
+      const end=Math.min(index+4,families.length);
+      while (index<end && !cancelled) {
+        const family=families[index++];
+        const sample=await familySample(family,window.devicePixelRatio).catch(()=>null);
+        if (sample) prepared.set(family,sample);
+      }
+      if (cancelled) return;
+      setSamples(new Map(prepared));
+      if (index<families.length) frame=requestAnimationFrame(()=>void render());
+    }
+    frame=requestAnimationFrame(()=>void render());
+    return ()=>{cancelled=true;cancelAnimationFrame(frame);};
+  },[open,visible]);
   return <div>
     <span>Font family</span><button type="button" ref={anchor} aria-label="Font family" aria-haspopup="dialog" aria-expanded={open} onClick={show}>{current ?? "Mixed"}</button>
     <dialog ref={dialog} aria-label="Choose font family" style={{position:"fixed",margin:0,padding:8,maxHeight:"90vh",maxWidth:"calc(100vw - 16px)"}}
@@ -108,13 +130,17 @@ export function FontFamilyPicker({families,current,preview,endPreview,apply}:Pro
           const row=rows[hi ?? -1];if (row && "family" in row) preview(row.family);else endPreview();
         }}>
         <div style={{height:rows.length*rowHeight,position:"relative"}}>
-          {rows.slice(first,first+visibleRows+3).map((row,slot)=>{
+          {visible.map((row,slot)=>{
             const i=first+slot, style={position:"absolute" as const,left:0,top:i*rowHeight,width:"100%",height:rowHeight,textAlign:"left" as const};
-            return "family" in row ? <button key={i} id={listId+"-"+i} role="option" type="button" tabIndex={-1}
+            const sample="family" in row && samples.get(row.family);
+            return "family" in row ? <button key={i} id={listId+"-"+i} aria-label={row.family} role="option" type="button" tabIndex={-1}
               style={{...style,background:hi===i ? "Highlight" : undefined,color:hi===i ? "HighlightText" : undefined,
-                fontWeight:row.family===current ? 700 : undefined}}
+                fontWeight:row.family.toLowerCase()===current?.toLowerCase() ? 700 : undefined}}
               aria-selected={hi===i || hi===undefined && row.family===current} onMouseEnter={()=>preview(row.family)}
-              onMouseDown={e=>e.preventDefault()} onClick={()=>choose(row.family)}>{row.family}</button>
+              onMouseDown={e=>e.preventDefault()} onClick={()=>choose(row.family)}>
+              {sample ? <span aria-hidden="true" data-font-sample="" style={{display:"block",maxWidth:"100%",width:sample.width,height:sample.height,
+                backgroundColor:"currentColor",maskImage:"url("+sample.url+")",maskSize:sample.width+"px "+sample.height+"px",maskRepeat:"no-repeat"}} /> : row.family}
+            </button>
               : <strong key={i} style={style}>{row.heading}</strong>;
           })}
         </div>

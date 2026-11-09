@@ -3,11 +3,12 @@ import { bidiClass, resolveParagraph } from "./bidi-resolve";
 import type { ParaList } from "./text-data";
 
 const rtlCandidate=/[\u0590-\u08ff\ufb1d-\ufdff\ufe70-\ufeff\u{10800}-\u{10fff}\u{1e800}-\u{1efff}\u200f\u202b\u202e\u2067]/u;
+export const hasRtlText=(text:string)=>rtlCandidate.test(text);
 export interface TextBidi {levels:Uint8Array; paragraphRtl:Uint8Array}
 
 /** Scalar-indexed paragraph directions include one entry for the caret after the final character. */
 export function textBidi(text: string, paragraphs: readonly Pick<ParaList,"direction">[]=[]): TextBidi | undefined {
-  if (!rtlCandidate.test(text)) {
+  if (!hasRtlText(text)) {
     const first=paragraphs.findIndex(p=>p.direction!=="auto");
     if (first<0) return undefined;
     let pos=-1;

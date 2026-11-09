@@ -1,5 +1,7 @@
 import { useMemo, useState, useSyncExternalStore, type RefObject } from "react";
 import { TypographySettings } from "./TypographySettings";
+import { toCssHex } from "./engine/colour";
+import { hasRtlText } from "./engine/text-bidi";
 import { FontFamilyPicker } from "./FontFamilyPicker";
 import { fontGeneration, subscribeFonts } from "./engine/font-generation";
 import { canSupplyTextPath } from "./engine/text-path-commands";
@@ -11,10 +13,13 @@ import type { TextStyle } from "./engine/text-style";
 const common = <T,>(values: T[]) => values.every(v => v === values[0]) ? values[0] : undefined;
 const measure = (v: TextStyle["lineHeight"]) => v.unit === "auto" ? "Auto" : String(v.value) + (v.unit === "percent" ? "%" : "");
 
-function Field({label, value, apply}: {label:string; value?:string; apply:(value:string) => void}) {
+function Field({label, value, apply, empty}: {label:string; value?:string; empty?:string; apply:(value:string) => void}) {
   const [draft, setDraft] = useState<string>();
   function commit() {
-    if (draft !== undefined && draft !== value && draft.trim()) apply(draft);
+    if (draft !== undefined && draft !== value) {
+      const next=draft.trim() || empty;
+      if (next!==undefined) apply(next);
+    }
     setDraft(undefined);
   }
   return <label>{label}<input aria-label={label} value={draft ?? value ?? ""} placeholder={value === undefined ? "Mixed" : undefined}
@@ -53,6 +58,23 @@ export function TypographyPanel({engine, editable, apply, onLeave, linkDialog, l
       {[...new Set([...options, ...values])].map(name => <option key={name} value={name}>{name}</option>)}
     </select></label>;
   }
+  const decoration=common(styles.map(s=>s.decoration));
+  const underline=decoration==="underline";
+  function decorationLength(key:"thickness"|"offset",label:string) {
+    const prop=key==="thickness" ? "textDecorationThickness" : "textDecorationOffset";
+    const value=common(styles.map(s=>measure(s.decorationLook?.[key] ?? {unit:"auto"})));
+    return <Field key={prop} label={label} value={value} empty="Auto" apply={raw=>{
+      const numeric=Number(raw.replace(/%$/,""));
+      if (raw.toLowerCase()==="auto" || (key==="thickness" && numeric<=0)) {apply(ids,{[prop]:"auto"});return;}
+      if (!Number.isFinite(numeric)) return;
+      const clamped=Math.max(-1000,Math.min(1000,numeric));
+      apply(ids,{[prop]:raw.endsWith("%") ? clamped+"%" : clamped});
+    }} />;
+  }
+  const startAligned=nodes.some(n=>n.text.alignH!=="center" && n.text.alignH!=="justified");
+  const truncating=common(nodes.map(n=>n.text.autoResize==="truncate" || n.text.autoResize!=="none" && n.text.maxLines>0));
+  const resizing=common(nodes.map(n=>n.text.autoResize));
+  const showDirection=nodes.some(n=>hasRtlText(n.text.characters) || n.text.paragraphs.some(p=>p.direction!=="auto"));
   const allOnPath = nodes.every(n=>n.text.path);
   const source = !live && selection.length===2 && nodes.length===1 && selection.map(id=>document.nodes[id]).some(canSupplyTextPath);
   const flipped = allOnPath && nodes.every(n=>n.text.path?.flip);
@@ -101,16 +123,40 @@ export function TypographyPanel({engine, editable, apply, onLeave, linkDialog, l
       <button type="button" onClick={()=>linkDialog.current?.showModal()}>Create link</button>
       {select("textCase", "Letter case", styles.map(s=>s.case), ["original","upper","lower","title","smallCaps"])}
       {select("textDecoration", "Text decoration", styles.map(s=>s.decoration), ["none","underline","strikethrough"])}
-      {select("textDecorationStyle", "Decoration style", styles.map(s=>s.decorationLook?.style ?? "solid"), ["solid","dotted","wavy"])}
+      {(underline || decoration==="strikethrough") && <>
+        {select("textDecorationStyle", "Decoration style", styles.map(s=>s.decorationLook?.style ?? "solid"), ["solid","dotted","wavy"])}
+        {decorationLength("thickness","Decoration thickness")}
+        {underline && <>
+          {decorationLength("offset","Underline offset")}
+          <label><input type="checkbox" checked={styles.every(s=>s.decorationLook?.skipInk)}
+            onChange={e=>apply(ids,{textDecorationSkipInk:e.target.checked})} />Skip ink</label>
+        </>}
+        <Field label="Decoration colour" value={common(styles.map(s=>s.decorationLook?.color ? toCssHex(s.decorationLook.color) : "Auto"))}
+          empty="auto" apply={value=>apply(ids,{textDecorationColor:value})} />
+      </>}
       {select("listStyle", "List style", paragraphs.map(p=>p.list), ["none","bulleted","numbered"])}
       {field("indentation", "List indentation", paragraphs.map(p=>p.indent))}
-      {select("textDirection", "Text direction", paragraphs.map(p=>p.direction), ["auto","ltr","rtl"])}
+      {showDirection && select("textDirection", "Text direction", paragraphs.map(p=>p.direction), ["auto","ltr","rtl"])}
       {field("paragraphSpacing", "Paragraph spacing", nodes.map(n=>n.text.paragraphSpacing))}
-      {field("paragraphIndent", "Paragraph indent", nodes.map(n=>n.text.paragraphIndent))}
+      <fieldset disabled={!startAligned}>{field("paragraphIndent", "Paragraph indent", nodes.map(n=>n.text.paragraphIndent))}</fieldset>
+      {(["hangingPunctuation","hangingList"] as const).map(key=><label key={key}><input type="checkbox" checked={nodes.every(n=>n.text[key])}
+        onChange={e=>apply(ids,{[key]:e.target.checked})} />{key==="hangingList" ? "Hanging list" : "Hanging punctuation"}</label>)}
       {field("listSpacing", "List spacing", nodes.map(n=>n.text.listSpacing))}
       {select("leadingTrim", "Leading trim", nodes.map(n=>n.text.leadingTrim), ["none","capHeight"])}
       {select("wrapStyle", "Text wrap", nodes.map(n=>n.text.wrapStyle), ["auto","balance","pretty"])}
-      {field("maxLines", "Maximum lines", nodes.map(n=>n.text.maxLines))}
+      <label>Truncate text<select aria-label="Truncate text" value={truncating===undefined ? "" : truncating ? "on" : "off"} onChange={e=>{
+        if (e.target.value==="on") apply(ids,{textAutoResize:"truncate"});
+        else if (resizing==="height") { if (truncating) apply(ids,{maxLines:0}); }
+        else if (resizing!=="widthAndHeight") apply(ids,{textAutoResize:"none"});
+      }}>
+        {truncating===undefined && <option value="" disabled>Mixed</option>}
+        <option value="off">Off</option><option value="on">Truncate with an ellipsis</option>
+      </select></label>
+      {truncating && <Field label="Maximum lines" value={common(nodes.map(n=>n.text.maxLines ? String(n.text.maxLines) : "Auto"))} empty="Auto"
+        apply={raw=>{
+          const lines=raw.toLowerCase()==="auto" ? 0 : Math.round(Number(raw));
+          if (Number.isFinite(lines)) run("text.maxLines",{ids,lines:Math.max(0,Math.min(10000,lines))});
+        }} />}
     </TypographySettings>
   </fieldset>;
 }

@@ -38,6 +38,7 @@ export async function prepareText(characters = "") {
 }
 
 export const hasFontFamily = (family:string) => fonts?.hasFamily(family) ?? false;
+export const localOnlyFont = (family:string) => fonts?.localOnly(family) ?? false;
 export const fontFamilies = () => fonts?.families() ?? [];
 export const textFace = (family:string,style:string) => fonts?.find(family,style) ?? fonts?.defaultFace();
 export const familyStyleWeights = (family:string) => fonts?.styleWeights(family) ?? [];
