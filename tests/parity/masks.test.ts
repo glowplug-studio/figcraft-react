@@ -131,3 +131,27 @@ it("lists a clipped frame and its overlapping children in native tree order with
   expect(e.execute("select.layersAt",{x:75,y:25})).toEqual({layers:[]});
   expect(e.getSnapshot()).toBe(before);
 });
+
+it("retains large native identifiers in the layer stack and clips each geometry traversal at its own depth",async()=>{
+  const {layersAt}=await import("../../src/engine/selection");
+  const {maskOutline}=await import("../../src/engine/boolean-result");
+  const engine=new EditorEngine();
+  const id=String(engine.execute("shape.rectangle",{width:10,height:10}).id);
+  const doc=engine.getSnapshot().document, leaf=doc.nodes[id];
+  if(leaf.kind!=="rectangle") throw Error("Expected a rectangle");
+  const large="18446744073709551614";
+  const page=doc.nodes[doc.currentPage];
+  if(page.kind!=="page") throw Error("Expected a page");
+  const base={...doc,nodes:{...doc.nodes,[page.id]:{...page,children:[large]},[large]:{...leaf,id:large}}};
+  expect(layersAt(base,{x:5,y:5},0,[]).layers[0].id).toBe(large);
+  expect(maskOutline(base,leaf,64)?.path.length).toBeGreaterThan(0);
+  expect(maskOutline(base,leaf,65)).toBeUndefined();
+  const nodes={...base.nodes};
+  for(let depth=0;depth<2000;depth++){
+    const group=String(depth+100);
+    nodes[group]={...leaf,id:group,parent:depth===0?page.id:String(depth+99),kind:"group",children:[depth===1999?large:String(depth+101)]};
+  }
+  nodes[large]={...leaf,id:large,parent:"2099"};
+  nodes[page.id]={...page,children:["100"]};
+  expect(layersAt({...doc,nodes},{x:5,y:5},0,[]).layers).toEqual([]);
+});

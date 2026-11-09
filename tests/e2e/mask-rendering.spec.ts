@@ -64,8 +64,7 @@ test("repeated masked drawing and layer inspection stay inside the local frame b
 
 test("a masked run and nested opacity layer share the live byte budget",async({page})=>{
   const r=await page.evaluate(()=>window.FigcraftMasks.nestedBudget(document.querySelector("canvas")!));
-  expect(Math.abs(r.unrestricted[0]-127)).toBeLessThanOrEqual(1);
-  expect(r.unrestricted.slice(1)).toEqual([0,128,255]);
+  expect(r.unrestricted).toEqual([127,0,128,255]);
   expect(r.limited).toEqual([255,0,0,255]);
   expect(r.restored).toEqual(r.unrestricted);
 });

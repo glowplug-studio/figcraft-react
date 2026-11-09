@@ -79,7 +79,10 @@ function* paintComposite(context: CanvasRenderingContext2D, node: LayerNode, dra
   const width = Math.min(context.canvas.width, Math.ceil(bounds.x + bounds.width)) - left;
   const height = Math.min(context.canvas.height, Math.ceil(bounds.y + bounds.height)) - top;
   if (width <= 0 || height <= 0) return;
-  const release = reserveLayerPixels(width, height, 1);
+  // Chromium rounds half-opacity compositing differently on its whole-image fast path.
+  // Crop the exact paint rectangle from a padded surface to retain native byte rounding.
+  const surfaceWidth = (node.opacity ?? 1) < 1 ? width + 1 : width;
+  const release = reserveLayerPixels(surfaceWidth, height, 1);
   if (!release) return;
   try {
     let surface = compositeSurfaces.get(context);
@@ -87,7 +90,7 @@ function* paintComposite(context: CanvasRenderingContext2D, node: LayerNode, dra
       surface = context.canvas.ownerDocument.createElement("canvas");
       compositeSurfaces.set(context, surface);
     }
-    if (surface.width !== width) surface.width = width;
+    if (surface.width !== surfaceWidth) surface.width = surfaceWidth;
     if (surface.height !== height) surface.height = height;
     const scratch = surface.getContext("2d");
     if (!scratch) throw new Error("Canvas compositing is unavailable");
