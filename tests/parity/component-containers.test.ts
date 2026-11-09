@@ -263,3 +263,151 @@ describe("component edit transactions", () => {
     expect(engine.execute("edit.delete",{id:7})).toEqual({deleted:["7"],hidden:[]});
   });
 });
+
+describe("instance commands",() => {
+  it("resets a child group, resets the whole instance while keeping its size, and pushes only supported overrides",async () => {
+    const e = await open(capture("instance"));
+    const edit = (id: number,props: Record<string,unknown>)=>e.execute("node.set",{id,props});
+    edit(4,{width:230,name:"Custom card"});
+    edit(5,{fill:"#776611",name:"Mine"});
+    expect(e.execute("component.resetOverride",{id:5,group:"name"})).toEqual({changed:true});
+    expect(e.getSnapshot().document.nodes[5]).toMatchObject({name:"Marker",fill:"#776611",overrides:["fills"]});
+    expect(e.execute("component.pushChanges",{id:5})).toEqual({layers:1});
+    expect(e.getSnapshot().document.nodes[3]).toMatchObject({fill:"#776611"});
+    expect(e.getSnapshot().document.nodes[5].overrides).toBeUndefined();
+    expect(e.execute("component.resetInstance",{ids:[5,4]})).toEqual({ids:["4","4"]});
+    expect(e.getSnapshot().document.nodes[4]).toMatchObject({name:"Card",width:230,overrides:["size"]});
+    expect(e.execute("component.resetOverride",{id:4,group:"size"})).toEqual({changed:true});
+    expect(e.getSnapshot().document.nodes[4]).toMatchObject({width:120});
+    expect(e.execute("component.resetOverride",{id:4,group:"size"})).toEqual({changed:false});
+  });
+
+  it("restores a missing main at the instance position with its old ids and relinks the other instances",async () => {
+    const e = await open(capture("instance"));
+    e.execute("instance.create",{component:2,x:300,y:90});
+    e.execute("node.set",{id:5,props:{name:"Independent"}});
+    e.execute("edit.delete",{id:2});
+    expect(()=>e.execute("component.goToMain",{id:5})).toThrow(/deleted/);
+    expect(e.execute("component.restoreMain",{id:6})).toEqual({id:"2"});
+    expect(e.getSnapshot().selection).toEqual(["2"]);
+    expect(e.getSnapshot().document.nodes[2]).toMatchObject({kind:"component",children:["3"],x:300,y:90});
+    expect(e.getSnapshot().document.nodes[4]).toMatchObject({kind:"instance",component:"2"});
+    expect(e.getSnapshot().document.nodes[5]).toMatchObject({name:"Independent",source:"3"});
+    expect(e.getSnapshot().document.nodes[6]).toBeUndefined();
+    e.execute("edit.undo");
+    expect(e.getSnapshot().document.nodes[6].kind).toBe("instance");
+    expect(e.getSnapshot().document.nodes[2]).toBeUndefined();
+  });
+
+  it("detaches the outer instance in place, rebases nested sources onto their own main and rolls back rejected nested detaches",() => {
+    const e = new EditorEngine();
+    for (const name of ["First","Outer"]) e.execute("node.create",{type:"component",name});
+    e.execute("node.create",{type:"rectangle",parent:2,name:"Marker"});
+    e.execute("instance.create",{component:2,parent:3});
+    e.execute("instance.create",{component:3});
+    const before = e.getSnapshot(), depth = e.getUndoDepth();
+    expect(()=>e.execute("component.detach",{ids:[8]})).toThrow(/outer instance first/);
+    expect(e.getSnapshot()).toBe(before); expect(e.getUndoDepth()).toBe(depth);
+    expect(e.execute("component.detach",{ids:[2,7]})).toEqual({ids:["7"]});
+    const nodes = e.getSnapshot().document.nodes;
+    expect(nodes[7]).toMatchObject({kind:"frame",children:["8"]});
+    expect(nodes[7].source).toBeUndefined();
+    expect(nodes[8]).toMatchObject({kind:"instance",source:"2",component:"2"});
+    expect(nodes[9]).toMatchObject({source:"4"});
+    e.execute("node.set",{id:4,props:{name:"Changed"}});
+    expect(e.getSnapshot().document.nodes[9].name).toBe("Changed");
+  });
+
+  it("locates a main across pages and fits the viewport without recording a history entry",async () => {
+    const file = JSON.parse(capture("instance").toString("utf8"));
+    file.pages.push(6); file.next_id=7;
+    file.nodes[1].children=[4];
+    file.nodes[2].parent=6;
+    file.nodes[6]={...file.nodes[1],id:6,name:"Assets",children:[2]};
+    const e=await open(Buffer.from(JSON.stringify(file)));
+    expect(e.execute("component.goToMain",{id:5})).toEqual({id:"2"});
+    expect(e.getSnapshot()).toMatchObject({selection:["2"],document:{currentPage:"6"}});
+    expect(e.getView()).toMatchObject({cx:60,cy:35,zoom:2});
+    expect(e.getUndoDepth()).toBe(0);
+  });
+
+  it("restores a slot's default content and clears a selection removed by the rebuild",async () => {
+    const file=JSON.parse(capture("instance").toString("utf8"));
+    file.nodes[2].props={Body:{type:"slot"}};
+    file.nodes[3]={...file.nodes[3],type:"frame",prop_refs:{slot:"Body"},children:[]};
+    file.nodes[5]={...file.nodes[5],type:"frame",children:[]};
+    const e=await open(Buffer.from(JSON.stringify(file)));
+    e.execute("node.create",{type:"component",name:"Badge"});
+    expect(e.execute("instance.slotInsert",{id:4,slot:"Body",component:6})).toEqual({id:"7",slot:"5"});
+    expect(e.execute("instance.resetSlot",{id:4,slot:"Body"})).toEqual({id:"5",changed:true});
+    expect(e.getSnapshot().selection).toEqual([]);
+    expect(e.getSnapshot().document.nodes[7]).toBeUndefined();
+    expect(e.execute("instance.resetSlot",{id:5})).toEqual({id:"5",changed:false});
+  });
+});
+
+it("drops differing variant paint overrides, preserves text overrides and matches renamed copies by their source names",async () => {
+  const e = await open(capture("variant-overrides"));
+  e.execute("instance.create",{component:2,x:450,y:30});
+  e.execute("node.set",{id:10,props:{fill:"#ff0000",name:"Renamed"}});
+  e.execute("node.set",{id:11,props:{characters:"Custom caption"}});
+  e.execute("instance.swap",{id:9,component:5});
+  expect(e.getSnapshot().document.nodes[9]).toMatchObject({component:"5",source:"5",x:450,y:30,children:["10","11"]});
+  expect(e.getSnapshot().document.nodes[10]).toMatchObject({source:"6",fill:"#33ff99",name:"Renamed",overrides:["name"]});
+  expect(e.getSnapshot().document.nodes[11]).toMatchObject({source:"7",text:{characters:"Custom caption"}});
+  const reopened=await open(await encodeFigcraft(e.getSnapshot().document));
+  expect(reopened.getSnapshot().document.nodes[11]).toMatchObject({source:"7",text:{characters:"Custom caption"}});
+});
+
+it("applies typed values to bound layers and describes native slots without changing history",async () => {
+  const e=await open(capture("typed"));
+  const before=e.getSnapshot(), depth=e.getUndoDepth();
+  expect(e.execute("component.properties",{id:7})).toEqual({component:2,set:null,conflicts:[],properties:[
+    {name:"Shown",type:"boolean",default:true,value:true},
+    {name:"Caption",type:"text",default:"",value:""},
+    {name:"Icon",type:"instanceSwap",default:5,value:5,preferred:[]},
+    {name:"Body",type:"slot",preferred:[5],value:{layer:10,edited:false,layers:0}},
+  ]});
+  expect(e.getSnapshot()).toBe(before);
+  expect(e.getUndoDepth()).toBe(depth);
+  e.execute("instance.setProperties",{id:7,properties:{Shown:"false",Caption:42,Icon:"1:5"}});
+  expect(e.getSnapshot().document.nodes[8]).toMatchObject({visible:false});
+  expect(e.getSnapshot().document.nodes[9]).toMatchObject({text:{characters:"42"}});
+  const edited=e.getSnapshot();
+  expect(()=>e.execute("instance.setProperties",{ids:[7,2],properties:{Shown:true}})).toThrow(/not an instance/);
+  expect(()=>e.execute("instance.setProperties",{id:7,properties:{Shown:"yes"}})).toThrow(/boolean/);
+  expect(()=>e.execute("instance.setProperties",{id:7,properties:{Body:"text"}})).toThrow(/slot/);
+  expect(e.getSnapshot()).toBe(edited);
+  e.execute("instance.slotInsert",{id:7,slot:"Body",component:5});
+  expect(e.execute("component.properties",{id:7})).toMatchObject({properties:expect.arrayContaining([
+    {name:"Body",type:"slot",preferred:[5],value:{layer:10,edited:true,layers:1}},
+  ])});
+});
+
+it("exposes visible nested instances, accepts their own properties and restores exposure on undo",async () => {
+  const e=await open(capture("typed"));
+  e.execute("node.create",{type:"component",name:"Outer"});
+  e.execute("instance.create",{component:2,parent:11});
+  e.execute("instance.create",{component:11});
+  expect(e.execute("component.exposeInstance",{id:12})).toEqual({id:12,exposed:true});
+  expect(e.execute("instance.exposed",{id:16})).toEqual({instances:[{id:17,name:"Card"}]});
+  e.execute("instance.setProperties",{id:17,properties:{Caption:"Nested"}});
+  expect(e.getSnapshot().document.nodes[19]).toMatchObject({text:{characters:"Nested"}});
+  e.execute("node.set",{id:12,props:{visible:false}});
+  expect(e.execute("instance.exposed",{id:16})).toEqual({instances:[]});
+  e.execute("edit.undo");
+  expect(e.execute("instance.exposed",{id:16})).toEqual({instances:[{id:17,name:"Card"}]});
+  expect(()=>e.execute("component.exposeInstance",{id:17})).toThrow(/main component/);
+});
+
+it("builds a bound nested swap through its placing main before matching descendants by name",async () => {
+  const e=await open(capture("bound-swap"));
+  expect(e.execute("instance.create",{component:8})).toEqual({id:"12"});
+  const nodes=e.getSnapshot().document.nodes;
+  expect(nodes[13]).toMatchObject({kind:"instance",name:"B",component:"5",source:"9",children:["16","15"]});
+  expect(nodes[14]).toBeUndefined();
+  expect(nodes[15]).toMatchObject({source:"7",text:{characters:"Alpha"}});
+  expect(nodes[16]).toMatchObject({source:"6",name:"Mark"});
+  e.execute("instance.setProperties",{id:12,properties:{Type:2}});
+  expect(e.getSnapshot().document.nodes[13]).toMatchObject({component:"2"});
+});

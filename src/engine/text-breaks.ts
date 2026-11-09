@@ -12,7 +12,7 @@ function layoutStyle(style: TextStyle): TextStyle {
 
 // serde_json 1.0.154 uses zmij for f64. Its fixed notation covers decimal
 // exponents -5 through 15 and retains a decimal point on whole values.
-function nativeFloat(value: number): string {
+export function nativeFloat(value: number): string {
   if (Object.is(value, -0)) return "-0.0";
   if (value === 0) return "0.0";
   const magnitude = Math.abs(value);

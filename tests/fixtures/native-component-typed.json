@@ -1,0 +1,374 @@
+{
+  "format": "figcraft",
+  "version": 1,
+  "name": "Typed properties",
+  "pages": [
+    1
+  ],
+  "current_page": 1,
+  "next_id": 11,
+  "nodes": {
+    "1": {
+      "background": {
+        "a": 1.0,
+        "b": 0.9607843160629272,
+        "g": 0.9607843160629272,
+        "r": 0.9607843160629272
+      },
+      "children": [
+        2,
+        5,
+        7
+      ],
+      "flows": [],
+      "height": 0.0,
+      "id": 1,
+      "name": "Page 1",
+      "prototype": {
+        "background": {
+          "a": 1.0,
+          "b": 0.11764705926179886,
+          "g": 0.11764705926179886,
+          "r": 0.11764705926179886
+        },
+        "device": "None",
+        "rotation": "portrait"
+      },
+      "type": "page",
+      "width": 0.0
+    },
+    "2": {
+      "children": [
+        3,
+        4,
+        6
+      ],
+      "clip": true,
+      "description": "",
+      "fills": [
+        {
+          "blend": "normal",
+          "color": {
+            "a": 1.0,
+            "b": 1.0,
+            "g": 1.0,
+            "r": 1.0
+          },
+          "opacity": 1.0,
+          "type": "solid",
+          "visible": true
+        }
+      ],
+      "height": 100.0,
+      "id": 2,
+      "name": "Card",
+      "parent": 1,
+      "prop_order": [
+        "Shown",
+        "Caption",
+        "Icon",
+        "Body"
+      ],
+      "props": {
+        "Body": {
+          "preferred": [
+            5
+          ],
+          "type": "slot"
+        },
+        "Caption": {
+          "default": "",
+          "type": "text"
+        },
+        "Icon": {
+          "default": 5,
+          "type": "instanceSwap"
+        },
+        "Shown": {
+          "default": true,
+          "type": "boolean"
+        }
+      },
+      "type": "component",
+      "width": 100.0
+    },
+    "3": {
+      "blend": "normal",
+      "fills": [
+        {
+          "blend": "normal",
+          "color": {
+            "a": 1.0,
+            "b": 0.8509804010391235,
+            "g": 0.8509804010391235,
+            "r": 0.8509804010391235
+          },
+          "opacity": 1.0,
+          "type": "solid",
+          "visible": true
+        }
+      ],
+      "height": 100.0,
+      "id": 3,
+      "name": "Dot",
+      "parent": 2,
+      "prop_refs": {
+        "visible": "Shown"
+      },
+      "type": "rectangle",
+      "width": 100.0
+    },
+    "4": {
+      "blend": "normal",
+      "characters": "",
+      "child_layout": {
+        "absolute": false,
+        "grid_column": null,
+        "grid_column_span": 0,
+        "grid_row": null,
+        "grid_row_span": 0,
+        "max_h": null,
+        "max_w": null,
+        "min_h": null,
+        "min_w": null,
+        "sizing_h": "hug",
+        "sizing_v": "hug"
+      },
+      "fills": [
+        {
+          "blend": "normal",
+          "color": {
+            "a": 1.0,
+            "b": 0.0,
+            "g": 0.0,
+            "r": 0.0
+          },
+          "opacity": 1.0,
+          "type": "solid",
+          "visible": true
+        }
+      ],
+      "height": 15.0,
+      "id": 4,
+      "name": "Label",
+      "parent": 2,
+      "prop_refs": {
+        "characters": "Caption"
+      },
+      "style": {
+        "case": "original",
+        "decoration": "none",
+        "fills": null,
+        "font_family": "Inter",
+        "font_size": 12.0,
+        "font_style": "Regular",
+        "letter_spacing": {
+          "unit": "percent",
+          "value": 0.0
+        },
+        "line_height": {
+          "unit": "auto"
+        },
+        "link": null
+      },
+      "type": "text",
+      "width": 1.0
+    },
+    "6": {
+      "clip": true,
+      "fills": [
+        {
+          "blend": "normal",
+          "color": {
+            "a": 1.0,
+            "b": 1.0,
+            "g": 1.0,
+            "r": 1.0
+          },
+          "opacity": 1.0,
+          "type": "solid",
+          "visible": true
+        }
+      ],
+      "height": 100.0,
+      "id": 6,
+      "name": "Body",
+      "parent": 2,
+      "prop_refs": {
+        "slot": "Body"
+      },
+      "type": "frame",
+      "width": 100.0
+    },
+    "5": {
+      "clip": true,
+      "description": "",
+      "fills": [
+        {
+          "blend": "normal",
+          "color": {
+            "a": 1.0,
+            "b": 1.0,
+            "g": 1.0,
+            "r": 1.0
+          },
+          "opacity": 1.0,
+          "type": "solid",
+          "visible": true
+        }
+      ],
+      "height": 100.0,
+      "id": 5,
+      "name": "Icon",
+      "parent": 1,
+      "props": {},
+      "type": "component",
+      "width": 100.0
+    },
+    "7": {
+      "children": [
+        8,
+        9,
+        10
+      ],
+      "clip": true,
+      "component": 2,
+      "fills": [
+        {
+          "blend": "normal",
+          "color": {
+            "a": 1.0,
+            "b": 1.0,
+            "g": 1.0,
+            "r": 1.0
+          },
+          "opacity": 1.0,
+          "type": "solid",
+          "visible": true
+        }
+      ],
+      "height": 100.0,
+      "id": 7,
+      "name": "Card",
+      "parent": 1,
+      "props": {
+        "Caption": "",
+        "Icon": 5,
+        "Shown": true
+      },
+      "source": 2,
+      "transform": [
+        1.0,
+        0.0,
+        0.0,
+        1.0,
+        140.0,
+        0.0
+      ],
+      "type": "instance",
+      "width": 100.0
+    },
+    "8": {
+      "blend": "normal",
+      "fills": [
+        {
+          "blend": "normal",
+          "color": {
+            "a": 1.0,
+            "b": 0.8509804010391235,
+            "g": 0.8509804010391235,
+            "r": 0.8509804010391235
+          },
+          "opacity": 1.0,
+          "type": "solid",
+          "visible": true
+        }
+      ],
+      "height": 100.0,
+      "id": 8,
+      "name": "Dot",
+      "parent": 7,
+      "source": 3,
+      "type": "rectangle",
+      "width": 100.0
+    },
+    "9": {
+      "blend": "normal",
+      "characters": "",
+      "child_layout": {
+        "absolute": false,
+        "grid_column": null,
+        "grid_column_span": 0,
+        "grid_row": null,
+        "grid_row_span": 0,
+        "max_h": null,
+        "max_w": null,
+        "min_h": null,
+        "min_w": null,
+        "sizing_h": "hug",
+        "sizing_v": "hug"
+      },
+      "fills": [
+        {
+          "blend": "normal",
+          "color": {
+            "a": 1.0,
+            "b": 0.0,
+            "g": 0.0,
+            "r": 0.0
+          },
+          "opacity": 1.0,
+          "type": "solid",
+          "visible": true
+        }
+      ],
+      "height": 15.0,
+      "id": 9,
+      "name": "Label",
+      "parent": 7,
+      "source": 4,
+      "style": {
+        "case": "original",
+        "decoration": "none",
+        "fills": null,
+        "font_family": "Inter",
+        "font_size": 12.0,
+        "font_style": "Regular",
+        "letter_spacing": {
+          "unit": "percent",
+          "value": 0.0
+        },
+        "line_height": {
+          "unit": "auto"
+        },
+        "link": null
+      },
+      "type": "text",
+      "width": 1.0
+    },
+    "10": {
+      "clip": true,
+      "fills": [
+        {
+          "blend": "normal",
+          "color": {
+            "a": 1.0,
+            "b": 1.0,
+            "g": 1.0,
+            "r": 1.0
+          },
+          "opacity": 1.0,
+          "type": "solid",
+          "visible": true
+        }
+      ],
+      "height": 100.0,
+      "id": 10,
+      "name": "Body",
+      "parent": 7,
+      "source": 6,
+      "type": "frame",
+      "width": 100.0
+    }
+  }
+}

@@ -1,5 +1,5 @@
 import { isLosslessNumber } from "lossless-json";
-import type { ComponentNode, Document, InstanceNode, NodeId } from "./document";
+import { isLeaf, type ComponentNode, type Document, type InstanceNode, type NodeId } from "./document";
 import { ancestors } from "./hierarchy";
 import { parseNodeId } from "./parameters";
 import type { InstanceValue } from "./component-properties";
@@ -15,6 +15,15 @@ export function owningInstance(document: Document, id: NodeId, includeSelf = tru
   }
 }
 
+export function outermostInstance(document: Document, id: NodeId): InstanceNode | undefined {
+  let owner = owningInstance(document,id);
+  while (owner) {
+    const outer = owningInstance(document,owner.id,false);
+    if (!outer) return owner;
+    owner = outer;
+  }
+}
+
 export function slotName(document: Document, id: NodeId): string | undefined {
   let layer = document.nodes[id];
   for (let depth = 0; depth <= 16 && layer?.kind === "frame"; depth++) {
@@ -27,6 +36,42 @@ export function slotName(document: Document, id: NodeId): string | undefined {
     if (layer.source === undefined) return;
     layer = document.nodes[layer.source];
   }
+}
+
+export function canExposeInstance(document: Document, id: NodeId) {
+  return document.nodes[id]?.kind === "instance" && !owningInstance(document,id,false) &&
+    ancestors(document,id).some(parent=>document.nodes[parent].kind === "component");
+}
+
+export function exposedCopies(document: Document, root: NodeId) {
+  const node = document.nodes[root];
+  const pending = !node || isLeaf(node) ? [] : [...node.children].reverse();
+  const exposed: InstanceNode[] = [];
+  for (let visited=0; pending.length && visited<100_000; visited++) {
+    const layer = document.nodes[pending.pop()!];
+    if (isLeaf(layer)) continue;
+    if (layer.kind === "instance") {
+      if (layer.visible === false || !layer.source || !document.nodes[layer.source]?.exposed) continue;
+      exposed.push(layer);
+    }
+    for (let i=layer.children.length-1; i>=0; i--) pending.push(layer.children[i]);
+  }
+  return exposed;
+}
+
+export function componentSlots(document: Document, root: NodeId) {
+  const node = document.nodes[root];
+  const pending = !node || isLeaf(node) ? [] : [...node.children].reverse();
+  const slots: {id:NodeId; name:string}[] = [];
+  for (let visited=0; pending.length && visited<1_000_000; visited++) {
+    const id = pending.pop()!, layer = document.nodes[id];
+    const name = slotName(document,id);
+    if (name !== undefined) slots.push({id,name});
+    if (!isLeaf(layer) && layer.kind !== "instance" && !layer.overrides?.includes("slot")) {
+      for (let i=layer.children.length-1; i>=0; i--) pending.push(layer.children[i]);
+    }
+  }
+  return slots;
 }
 
 export function defaultMain(document: Document, id: NodeId): ComponentNode | undefined {

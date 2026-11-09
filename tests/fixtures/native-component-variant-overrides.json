@@ -1,0 +1,323 @@
+{
+  "format": "figcraft",
+  "version": 1,
+  "name": "variant-overrides",
+  "pages": [
+    1
+  ],
+  "current_page": 1,
+  "next_id": 9,
+  "nodes": {
+    "1": {
+      "background": {
+        "a": 1.0,
+        "b": 0.9607843160629272,
+        "g": 0.9607843160629272,
+        "r": 0.9607843160629272
+      },
+      "children": [
+        8
+      ],
+      "flows": [],
+      "height": 0.0,
+      "id": 1,
+      "name": "Page 1",
+      "prototype": {
+        "background": {
+          "a": 1.0,
+          "b": 0.11764705926179886,
+          "g": 0.11764705926179886,
+          "r": 0.11764705926179886
+        },
+        "device": "None",
+        "rotation": "portrait"
+      },
+      "type": "page",
+      "width": 0.0
+    },
+    "8": {
+      "children": [
+        2,
+        5
+      ],
+      "clip": true,
+      "corners": {
+        "radii": [
+          5.0,
+          5.0,
+          5.0,
+          5.0
+        ],
+        "smoothing": 0.0
+      },
+      "description": "",
+      "height": 140.0,
+      "id": 8,
+      "name": "Component 1",
+      "parent": 1,
+      "stroke": {
+        "align": "inside",
+        "cap_end": "none",
+        "cap_start": "none",
+        "dashes": [
+          10.0,
+          5.0
+        ],
+        "join": "miter",
+        "miter_limit": 4.0,
+        "sides": null,
+        "weight": 1.0
+      },
+      "strokes": [
+        {
+          "blend": "normal",
+          "color": {
+            "a": 1.0,
+            "b": 1.0,
+            "g": 0.27843138575553894,
+            "r": 0.5921568870544434
+          },
+          "opacity": 1.0,
+          "type": "solid",
+          "visible": true
+        }
+      ],
+      "transform": [
+        1.0,
+        0.0,
+        0.0,
+        1.0,
+        -20.0,
+        -20.0
+      ],
+      "type": "componentSet",
+      "width": 200.0
+    },
+    "2": {
+      "children": [
+        3,
+        4
+      ],
+      "clip": true,
+      "description": "",
+      "fills": [
+        {
+          "blend": "normal",
+          "color": {
+            "a": 1.0,
+            "b": 1.0,
+            "g": 1.0,
+            "r": 1.0
+          },
+          "opacity": 1.0,
+          "type": "solid",
+          "visible": true
+        }
+      ],
+      "height": 100.0,
+      "id": 2,
+      "name": "State=Off",
+      "parent": 8,
+      "props": {},
+      "transform": [
+        1.0,
+        0.0,
+        0.0,
+        1.0,
+        20.0,
+        20.0
+      ],
+      "type": "component",
+      "width": 110.0
+    },
+    "3": {
+      "blend": "normal",
+      "fills": [
+        {
+          "blend": "normal",
+          "color": {
+            "a": 1.0,
+            "b": 0.6000000238418579,
+            "g": 0.4000000059604645,
+            "r": 0.20000000298023224
+          },
+          "opacity": 1.0,
+          "type": "solid",
+          "visible": true
+        }
+      ],
+      "height": 100.0,
+      "id": 3,
+      "name": "Mark",
+      "parent": 2,
+      "type": "rectangle",
+      "width": 100.0
+    },
+    "4": {
+      "blend": "normal",
+      "characters": "First",
+      "child_layout": {
+        "absolute": false,
+        "grid_column": null,
+        "grid_column_span": 0,
+        "grid_row": null,
+        "grid_row_span": 0,
+        "max_h": null,
+        "max_w": null,
+        "min_h": null,
+        "min_w": null,
+        "sizing_h": "hug",
+        "sizing_v": "hug"
+      },
+      "fills": [
+        {
+          "blend": "normal",
+          "color": {
+            "a": 1.0,
+            "b": 0.0,
+            "g": 0.0,
+            "r": 0.0
+          },
+          "opacity": 1.0,
+          "type": "solid",
+          "visible": true
+        }
+      ],
+      "height": 15.0,
+      "id": 4,
+      "name": "Label",
+      "parent": 2,
+      "style": {
+        "case": "original",
+        "decoration": "none",
+        "fills": null,
+        "font_family": "Inter",
+        "font_size": 12.0,
+        "font_style": "Regular",
+        "letter_spacing": {
+          "unit": "percent",
+          "value": 0.0
+        },
+        "line_height": {
+          "unit": "auto"
+        },
+        "link": null
+      },
+      "type": "text",
+      "width": 25.0
+    },
+    "5": {
+      "children": [
+        6,
+        7
+      ],
+      "clip": true,
+      "description": "",
+      "fills": [
+        {
+          "blend": "normal",
+          "color": {
+            "a": 1.0,
+            "b": 1.0,
+            "g": 1.0,
+            "r": 1.0
+          },
+          "opacity": 1.0,
+          "type": "solid",
+          "visible": true
+        }
+      ],
+      "height": 100.0,
+      "id": 5,
+      "name": "State=On",
+      "parent": 8,
+      "props": {},
+      "transform": [
+        1.0,
+        0.0,
+        0.0,
+        1.0,
+        20.0,
+        20.0
+      ],
+      "type": "component",
+      "width": 160.0
+    },
+    "6": {
+      "blend": "normal",
+      "fills": [
+        {
+          "blend": "normal",
+          "color": {
+            "a": 1.0,
+            "b": 0.6000000238418579,
+            "g": 1.0,
+            "r": 0.20000000298023224
+          },
+          "opacity": 1.0,
+          "type": "solid",
+          "visible": true
+        }
+      ],
+      "height": 100.0,
+      "id": 6,
+      "name": "Mark",
+      "parent": 5,
+      "type": "rectangle",
+      "width": 100.0
+    },
+    "7": {
+      "blend": "normal",
+      "characters": "Second",
+      "child_layout": {
+        "absolute": false,
+        "grid_column": null,
+        "grid_column_span": 0,
+        "grid_row": null,
+        "grid_row_span": 0,
+        "max_h": null,
+        "max_w": null,
+        "min_h": null,
+        "min_w": null,
+        "sizing_h": "hug",
+        "sizing_v": "hug"
+      },
+      "fills": [
+        {
+          "blend": "normal",
+          "color": {
+            "a": 1.0,
+            "b": 0.0,
+            "g": 0.0,
+            "r": 0.0
+          },
+          "opacity": 1.0,
+          "type": "solid",
+          "visible": true
+        }
+      ],
+      "height": 15.0,
+      "id": 7,
+      "name": "Label",
+      "parent": 5,
+      "style": {
+        "case": "original",
+        "decoration": "none",
+        "fills": null,
+        "font_family": "Inter",
+        "font_size": 12.0,
+        "font_style": "Regular",
+        "letter_spacing": {
+          "unit": "percent",
+          "value": 0.0
+        },
+        "line_height": {
+          "unit": "auto"
+        },
+        "link": null
+      },
+      "type": "text",
+      "width": 44.0
+    }
+  }
+}

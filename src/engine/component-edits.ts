@@ -1,10 +1,10 @@
-import { adoptSlot, rebuildAffectedInstances } from "./component-sync";
+import { adoptSlot, rebuildAffectedInstances, rebuildInstance } from "./component-sync";
 import { componentOverrides } from "./component-properties";
 import { autoSizeText } from "./text-node-layout";
 import { defaultConstraints, isFrameLike, isLeaf, layerTransform, type Document, type LayerNode, type NodeId } from "./document";
 import { ancestors, HierarchyDraft, subtreeIds } from "./hierarchy";
-import { boundCopy } from "./component-instances";
-import { assertNoNewComponentCycle, owningInstance, slotName } from "./component-tree";
+import { boundCopy } from "./component-bindings";
+import { assertNoNewComponentCycle, outermostInstance, owningInstance, slotName } from "./component-tree";
 
 import { type ComponentGroup, copyComponentGroup, withOverrideSet, differentComponentGroups, sameComponentValue } from "./component-groups";
 
@@ -91,6 +91,7 @@ export function finishComponentEdit(before: Document, after: Document, nextId: b
         !isLeaf(a) && !isLeaf(b) && !sameComponentValue(a.children,b.children);
       if (structural) {
         const main = [id,...ancestors(after,id)].find(key => after.nodes[key].kind === "component");
+        if (!a && b.kind === "component") rebuild.add(b.id);
         if (main && a && !isLeaf(a) && !isLeaf(b) && !owningInstance(after,id) &&
             sameComponentValue({...b,children:a.children,overrides:a.overrides}, {...a,overrides:a.overrides})) {
           const gained = b.children.filter(child => !a.children.includes(child)).flatMap(child=>subtreeIds(after,child));
@@ -171,6 +172,7 @@ function followsMainGeometry(document: Document, id: NodeId) {
 
 function followComponentValues(before: Document, after: Document, changed: readonly LayerNode[], rebuild: Set<NodeId>, structures: ReadonlyMap<NodeId,NodeId>, nextId: bigint) {
   const pending: {id: NodeId; groups: readonly ComponentGroup[]}[] = [];
+  const resync = new Set<NodeId>();
   let draft: HierarchyDraft | undefined;
   for (const candidate of changed) {
     const node = after.nodes[candidate.id];
@@ -178,6 +180,11 @@ function followComponentValues(before: Document, after: Document, changed: reado
     const old = before.nodes[node.id];
     if (old.kind === "page") continue;
     const groups = differentComponentGroups(old, node);
+    const lost = componentOverrides(old).some(group=>!componentOverrides(node).includes(group));
+    if (lost || node.kind === "instance" && (groups.includes("props") || groups.includes("component"))) {
+      const root = outermostInstance(after,node.id);
+      if (root) resync.add(root.id);
+    }
     const main = node.kind === "component" ? node.id : ancestors(after,node.id).find(id => after.nodes[id].kind === "component");
     if (main && !structures.has(node.id)) {
       const nonPatchable = (!groups.length && !sameComponentValue(old,node)) ||
@@ -196,7 +203,7 @@ function followComponentValues(before: Document, after: Document, changed: reado
     }
     if (main) pending.push({id:node.id,groups});
   }
-  if (!pending.length && !rebuild.size && !structures.size) return {document:draft?.finish() ?? after,nextId};
+  if (!pending.length && !rebuild.size && !structures.size && !resync.size) return {document:draft?.finish() ?? after,nextId};
   const copies = new Map<NodeId, NodeId[]>();
   for (const node of Object.values(after.nodes)) {
     if (!node.source) continue;
@@ -205,11 +212,16 @@ function followComponentValues(before: Document, after: Document, changed: reado
     copies.set(node.source,list);
   }
   const targets = draft ??= new HierarchyDraft(after);
+  for (const root of [...resync].sort((a,b)=>a.length-b.length || (a<b?-1:a>b?1:0))) {
+    nextId = rebuildInstance(targets,root,nextId);
+    const main = ancestors(targets.document,root).find(id=>targets.nodes[id].kind === "component");
+    if (main) rebuild.add(main);
+  }
   // A malformed imported source chain can loop. Each source/group only propagates once per edit.
   const propagated = new Map<NodeId,Set<ComponentGroup>>();
   for (let index = 0; index < pending.length; index++) {
     const {id,groups} = pending[index], source = targets.nodes[id];
-    if (source.kind === "page") continue;
+    if (!source || source.kind === "page") continue;
     const seen = propagated.get(id) ?? new Set<ComponentGroup>();
     const fresh = groups.filter(group => !seen.has(group));
     if (!fresh.length) continue;
@@ -217,7 +229,7 @@ function followComponentValues(before: Document, after: Document, changed: reado
     propagated.set(id,seen);
     for (const copyId of copies.get(id) ?? []) {
       const copy = targets.nodes[copyId];
-      if (copy.kind === "page" || !owningInstance(targets.document,copyId)) continue;
+      if (!copy || copy.kind === "page" || !owningInstance(targets.document,copyId)) continue;
       if (source.kind === "instance" && copy.kind === "instance" && source.component !== copy.component) continue;
       const own = componentOverrides(copy);
       const applied: ComponentGroup[] = [];

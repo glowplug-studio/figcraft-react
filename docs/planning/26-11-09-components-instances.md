@@ -4,10 +4,10 @@
 
 | Field | Evidence |
 |---|---|
-| Phase | Phase 5. Main edits, instance overrides, structural propagation, slot ownership and transaction rollback verified for the cases below. Nested swapping and reset commands are next. |
+| Phase | Phase 5. Instance lifecycle, variant selection, property values, exposed nested instances and slot edits have native comparison coverage. Variant and property definition authoring are next. |
 | Reference | Upstream and the authorised fork both point to 79c363466a46b96f989b73c7cf20240bc168b7a2. The incoming commit changes the upstream Cloudflare packaging size limit only. The layout reference remains 3839fe4a. |
-| React | Commit 9f918ae on prompt/full-figcraft-port passed all 253 production Chromium checks. The global supported baseline remains 8eb0b876. |
-| Graph | The combined local graph has 31,975 nodes and 105,897 edges. create_instance_at links to default_props and would_contain_itself. rebase_instance links to diff_groups and variable_groups. Native macro registrations and serde defaults were inspected in source. |
+| React | Commit 3da21b6 on prompt/full-figcraft-port passed all 254 production Chromium checks in 9.3 minutes. The global supported baseline remains 8eb0b876. |
+| Graph | The combined local graph has 32,009 nodes and 106,184 edges. create_instance_at links to default_props and would_contain_itself. rebase_instance links to diff_groups and variable_groups. Native macro registrations and serde defaults were inspected in source. |
 | Backend | The scoped MCP read resolved the intended Figcraft project and returned zero public tables. This slice works on in-document component definitions and local instances. |
 | Native verification | All 15 upstream headless UI tests selected by the component filter passed. They cover panel and layer interactions. This filter does not cover the full engine family. |
 | First implementation | Preserve main component, component set, instance and descendant linkage records. Verify a real native component drawing survives open, render, recovery and download before adding authoring commands. |
@@ -82,3 +82,23 @@ The native comparisons caught three distinct behaviours before verification pass
 The prior implementation at 9f918ae passed all 253 production Chromium tests in 9.1 minutes. This checkpoint passed strict TypeScript, the library and production host builds, 1,857 pure tests, both local Auth integrations and six signed-in production Chromium workflows in 16.2 seconds. The new browser workflow renames a main child, verifies that its mirror follows, overrides the mirror, changes the main again, undoes and redoes, reloads and downloads the native archive. The archive retained source 3 and the name override. The combined graph links rebuildAffectedInstances to rebuildInstance in React and sync_after_edit to record_overrides in Rust.
 
 Next compare nested swap rebasing, source matching across variants, property binding changes and default propagation. Implement instance reset, detach and restore using the verified edit boundary and extend the Assets and component controls. Deep slot rebasing, scaled text/vector geometry and the full component release gate remain open.
+
+## Instance lifecycle and property controls
+
+The instance inspector opens the local main (including on another page), swaps components, resets field groups or the whole instance, pushes eligible overrides, detaches, and restores a deleted local main. Nested copies retain their own sources when the outer instance detaches. Reset preserves the outer size override. A restored main reuses free source identifiers and relinks surviving instances. Entering or resetting slot content updates selection, hierarchy, history and recovery. Shared-library navigation still depends on the library and workspace slices.
+
+Variant selection reads comma-separated property/value pairs from sibling names. The first exact match wins. Partial matches use the last highest-scoring sibling. Boolean, text and swap properties use the selected variant’s definitions. Slots expose their editable contents separately. Main and instance property queries include defaults, value order, editable slots and conflicting variant combinations. Exposed visible nested instances show their own property controls. The engine commits multi-target edits atomically.
+
+Native comparisons used the pinned engine and the same five repository fonts in both renderers. The first text-bound comparison had used a fontless native harness. Repeating with matched fonts removed that geometry difference. Native comparisons also identified two implementation errors. Slot reset left a removed selection behind, and creating an instance with a bound nested swap skipped the placing main’s override and ID matching. Instance creation now invokes the same rebuild as subsequent synchronisation. Permanent fixtures exercise both repairs.
+
+| Generated command prefixes | Cases | Inspected node states |
+|---|---:|---:|
+| Nested detach, restore, reset, navigation and push | 1,400 | 21,954 |
+| Slot insertion/reset and variant-specific override carry | 600 | 6,192 |
+| Typed properties, query results, conflicts, exposure and refusal rollback | 820 | 7,440 |
+| Bound nested swaps with shared and renamed children and text bindings | 675 | 10,125 |
+| Previous main-edit and structural regressions | 3,140 | 27,509 |
+
+Every row matched the native command outcomes, selection and inspected node fields. The 180 earlier three-command creation sessions also matched. The local merged graph links React instance creation to the rebuild and native synchronisation to cycle-aware expansion. These cases cover local components. Remaining work includes set and property definition authoring, spatial placement and swaps, local Assets discovery, component performance and the full release matrix.
+
+Local verification passed strict TypeScript, the package and production Next.js builds, 1,866 pure tests, both real local Auth checks and eight signed-in Chromium workflows. The browser replay exposed a slot selector whose accessible label included its option text. An explicit property label fixed it. The replay now switches a variant, navigates to its actual main, resets an override, detaches and undoes, edits a bound caption and visibility, resets/refills a slot, reloads and verifies the downloaded native document. The complete browser regression for this checkpoint follows the local commit.

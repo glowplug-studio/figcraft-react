@@ -1,4 +1,5 @@
 import { finishComponentEdit } from "./component-edits";
+import { executeInstanceCommand, instanceCommandSpecs } from "./instance-commands";
 import { createInstance } from "./component-instances";
 import { fieldValue, type FieldEdit } from "./field-math";
 import { shownGeometry, type GeometryField } from "./geometry-fields";
@@ -42,7 +43,7 @@ import { executeStructure, structureSpecs } from "./structure";
 import { executeVector, isVectorJoin, vectorSpecs } from "./vector-commands";
 import { executeVectorEdit, vectorEditSpecs, type VectorEditCommand } from "./vector-edit-commands";
 import { clampVectorEdit, vectorNetwork, type VectorEditState } from "./vector-edit";
-import { defaultViewport, executeView, fitPage, viewSpecs, type Viewport } from "./viewport";
+import { boundsOf, defaultViewport, executeView, fitPage, fitView, viewSpecs, type Viewport } from "./viewport";
 import { framePresets } from "./frame-presets";
 import { parseColourProfile } from "./colour-spaces";
 import { setDocumentProfile } from "./document-profile";
@@ -91,6 +92,7 @@ export const commandSpecs = Object.freeze({
   "frame.presets": { label: "List frame presets", undo: false },
   ...selectionSpecs,
   ...structureSpecs,
+  ...instanceCommandSpecs,
   "instance.create": { label:"Create instance", undo:true },
   "tool.shapeBuilder": { label: "Shape builder", undo: false },
   "shapeBuilder.mode": { label: "Shape builder mode", undo: false },
@@ -780,7 +782,9 @@ export class EditorEngine {
     this.#nextId = nextId;
     if (options.duplicated) this.#lastDuplicate = options.duplicated;
     if ("vectorEdit" in options) this.#vectorEdit = options.vectorEdit;
-    this.#publish({...patch, document});
+    const selection = patch.selection ?? before.selection;
+    const surviving = selection.every(id=>document.nodes[id]) ? selection : Object.freeze(selection.filter(id=>document.nodes[id]));
+    this.#publish({...patch, document, selection:surviving});
   }
   #publish(patch: Partial<EditorSnapshot>): void {
     const document = patch.document ?? this.#snapshot.document;
@@ -988,12 +992,19 @@ export class EditorEngine {
       return next.result;
     }
     const builderEdit = command === "shapeBuilder.merge" || command === "shapeBuilder.remove";
-    if (command === "instance.create" || builderEdit || Object.hasOwn(structureSpecs, command) || Object.hasOwn(vectorSpecs, command)) {
+    const instanceCommand = Object.hasOwn(instanceCommandSpecs,command);
+    if (instanceCommand || command === "instance.create" || builderEdit || Object.hasOwn(structureSpecs, command) || Object.hasOwn(vectorSpecs, command)) {
       const before = this.#snapshot;
       const execute = builderEdit ? applyBuilder : Object.hasOwn(vectorSpecs, command) ? executeVector : executeStructure;
-      const next = command === "instance.create" ? createInstance(before.document, this.#nextId, p)
+      const next = instanceCommand ? executeInstanceCommand(command as keyof typeof instanceCommandSpecs,before.document,before.selection,this.#nextId,p)
+        : command === "instance.create" ? createInstance(before.document, this.#nextId, p)
         : execute(command, before.document, before.selection, this.#nextId, p);
+      if (command === "component.properties" || command === "instance.exposed") return next.result;
       this.#commitEdit({document:next.document, selection:next.selection}, {record:!sameContent(before.document,next.document), nextId:next.nextId});
+      if (command === "component.goToMain") {
+        const bounds = boundsOf(next.document,next.selection);
+        if (bounds) this.updateView(fitView(this.#view,bounds,2));
+      }
       return next.result;
     }
     if (Object.hasOwn(selectionSpecs, command)) {

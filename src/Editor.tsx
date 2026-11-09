@@ -34,6 +34,7 @@ import type { RecoveryStore } from "./backends/recovery";
 import { RecoveryController } from "./engine/recovery";
 import { PagePanel } from "./PagePanel";
 import { EffectsPanel } from "./EffectsPanel";
+import { InstancePanel } from "./InstancePanel";
 import { AppearancePanel } from "./AppearancePanel";
 import { BooleanMenu } from "./BooleanMenu";
 import { LayerPanel } from "./LayerPanel";
@@ -228,6 +229,7 @@ export function Editor({ identity, capabilities, engine: suppliedEngine, recover
       if (!event.ctrlKey) { event.preventDefault(); dispatch(event.altKey ? "layout.remove" : "layout.add"); return; }
     }
     if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "a") command = "select.all";
+    if ((event.metaKey || event.ctrlKey) && event.altKey && !event.shiftKey && event.code === "KeyB") command = "component.detach";
     if ((event.metaKey || event.ctrlKey) && event.altKey && !event.shiftKey && event.code === "KeyK") command = "component.create";
     if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "g") command = event.shiftKey ? "object.ungroup" : "object.group";
     if (!event.metaKey && !event.ctrlKey && event.altKey && event.shiftKey && event.code === "KeyF" || (event.metaKey || event.ctrlKey) && !event.altKey && !event.shiftKey && event.key.toLowerCase() === "e") command = "vector.flatten";
@@ -560,6 +562,7 @@ export function Editor({ identity, capabilities, engine: suppliedEngine, recover
               try { if (!controller.current?.formatText(props)) dispatch("node.set", {ids, props}); }
               catch (e) { setError(e instanceof Error ? e.message : "Could not format text"); }
             }} />}
+          {!editingVector && <InstancePanel document={snapshot.document} selection={snapshot.selection} enabled={editable && !busy} dispatch={dispatch}/>}
           <AppearancePanel engine={engine} page={page} selected={selected && selected.kind !== "page" ? selected : undefined} editable={editable && !busy} dispatch={dispatch} />
           <StrokePanel engine={engine} nodes={snapshot.selection.flatMap(id => { const n = snapshot.document.nodes[id]; return n && n.kind !== "page" ? [n] : []; })} editable={editable && !busy} dispatch={dispatch} />
           <EffectsPanel engine={engine} editable={editable && !busy} dispatch={dispatch} />

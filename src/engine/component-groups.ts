@@ -21,6 +21,8 @@ const groups = ["fills", "strokes", "effects", "opacity", "visible", "name", "co
 export type ComponentGroup = typeof groups[number];
 export const isComponentGroup = (name: string): name is ComponentGroup => groups.some(group => group === name);
 
+export const isOverrideGroup = (name: string) => isComponentGroup(name) || ["grids","exports","interactions","modes","slot"].includes(name);
+
 function textStyle(text: TextData) {
   const {characters, path, savedBreaks, leadingTrim, ...style} = text;
   return style;
