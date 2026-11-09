@@ -350,3 +350,13 @@ At 67b16e6, PatternPaint::cell and the integer raster sizing in render::pattern:
 | colorpicker::{pattern_sources,pattern_controls} | patternSources, PaintPicker, PatternPaintControls | Eligible sources, scale, gaps, layout, alignment, scrub undo and recovery. Component and text-range targets await their respective node models. |
 
 [Property-level evidence](../reports/26-11-09-pattern-paints-parity.html).
+
+## Layer and paint blending
+
+| Upstream at 8a7ebc24 | React at 9c678db | Verified behaviour |
+|---|---|---|
+| color::BlendMode, render::paint::{ts_blend,composite}, fx::plus_darker | blendModes, canvasBlend, plusDarkerPixels and compositeSurface | All 19 opaque reference colours, partial alpha, native aliases and file tags. |
+| draw::{fill_with,needs_layer,draw_layer} | paintPath, paintMask, paintComposite and loneNormalStroke | Cropped gradient, image and pattern coverage, transformed regions, clipped frames, isolated groups and matching translucent arrow edges. |
+| panels/right/menu::{blend_menu,preview_blend}, widgets/colorpicker::preview_blend | BlendMenu, beginBlendPreview, AppearancePanel and PaintPicker | Pointer hover, keyboard focus, dismissal, one history entry, role loss, stroke/region independence, mobile recovery and download. |
+
+[Property-level evidence](../reports/26-11-09-blend-modes-parity.html).

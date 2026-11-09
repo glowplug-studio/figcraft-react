@@ -5,16 +5,16 @@
 | Field | Current value |
 |---|---|
 | Overall status | In progress. [Execution checkpoint](26-11-07-full-port-resume.md). |
-| Active slice | Paint and layer blend modes |
-| Active phase | Phases 5–6. [Blend mappings and implementation order](26-11-09-blend-modes.md). |
+| Active slice | Alpha, vector and luminance masks |
+| Active phase | Phase 4. [Mask mappings and implementation order](26-11-09-masks.md). |
 | Upstream baseline | Closed-vector smoothing reference 3daa9d32. Paint bucket reference 8a7ebc24. Global supported baseline 8eb0b876. |
-| Branch and last verified commit | `prompt/full-figcraft-port`, Display P3 conversion 9c678db, arrow edge coverage dc9a8ed, blend menus ae3786a, paint blend compositing 13cfe42, layer blend compositing a3d7bc2, live native pattern paints 438cf6f. Earlier checkpoints are recorded below and in the dated plans. |
-| Completed slices | Rectangle/host-auth, bounded native persistence/recovery, supported-model pages, affine rectangle geometry/selection and solid appearance, plus nested group hierarchy, Frame containers, movement/transform gestures, rounded corners, ellipse/arc/ring and Polygon/Star editing verified locally; Line/Arrow and uniform solid strokes also verified; per-side Rectangle/Frame strokes, variable-width profiles and procedural brushes verified; vector networks, solid region/stroke rendering and Flatten/Reverse also verified; foundation commit `154f5a7` |
+| Branch and last verified commit | `prompt/full-figcraft-port`, blend release implementation 9c678db. Prior source checkpoints and corrections are recorded in the dated plans. |
+| Completed slices | Rectangle/host-auth, bounded native persistence/recovery, supported-model pages, affine rectangle geometry/selection and solid appearance, plus nested group hierarchy, Frame containers, movement/transform gestures, rounded corners, ellipse/arc/ring and Polygon/Star editing verified locally; Line/Arrow and uniform solid strokes also verified; per-side Rectangle/Frame strokes, variable-width profiles and procedural brushes verified; vector networks, solid region/stroke rendering and Flatten/Reverse also verified; foundation commit `154f5a7`. Gradient, image, pattern and blend releases now have local property matrices. [Blend evidence](../reports/26-11-09-blend-modes-parity.html). |
 | Remaining slices | Every row below except the integrated foundation; static inventory entries remain unverified until mapped and tested |
-| Tests last passed | At 438cf6f all 166 production Chromium workflows passed in 398.0 seconds with one worker and no retries, skips, failures or flakes. Both builds, strict types, 1,112 pure tests and two local Auth checks passed. Layer checkpoint a3d7bc2 adds 19 sampled modes, four focused browser checks and 1,114 pure tests. At 13cfe42 all 19 modes passed on three paint paths, with three focused Chromium workflows and 1,115 pure tests. At ae3786a both builds, strict types, 1,116 pure tests, two local Auth tests and focused editor checks passed. Full runs at ae3786a and dc9a8ed both passed 171/172. The corrected arrow passed. The 10,000-node P3 pan at 9c678db passed three repetitions at 4.9–5.4 ms p95. Strict types, both builds, 1,117 pure tests and two local Auth checks passed. Full production run in progress. |
-| Files currently in progress | Blend property evidence and full production regression verification. |
+| Tests last passed | At 9c678db all 172 local production Chromium workflows passed in 393.1 seconds with one worker and no retries, skips, flakes or failures. Strict types, package and Next.js builds, 1,117 pure tests and two real local Auth checks passed. |
+| Files currently in progress | Mask properties, native records, structural command and mask-aware group bounds. |
 | Blockers | No blocker. Use local Graphify for all remaining slices. The scoped Supabase read succeeded. |
-| Exact next action | Continue from the [Display P3 pan correction](26-11-09-blend-modes.md#display-p3-pan-correction). Inspect the completed production suite, resolve failures and record the property matrix. |
+| Exact next action | Implement step 1 of the [mask plan](26-11-09-masks.md), then the grouping and geometry contracts. Include the masked drawing and hit-test paths before accepting this slice. |
 | Last updated | 2026-11-09 |
 
 ## Scope and continuation

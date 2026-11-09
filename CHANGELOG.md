@@ -2,6 +2,10 @@
 
 All notable changes to the React port and its upstream compatibility baseline are recorded here.
 
+## [0.46.0] - 2026-11-09
+
+- Added native layer and paint blending, including isolated groups, clipped fills and strokes, Plus darker, live hover previews, keyboard editing and native recovery.
+
 ## [0.45.0] - 2026-11-09
 
 - Added live tiled layer sources to fill, stroke and vector-region paints, with grid and staggered layouts, editable scale and gaps, native recovery and document-scoped source IDs.
