@@ -6,15 +6,15 @@
 |---|---|
 | Overall status | In progress. [Execution checkpoint](26-11-07-full-port-resume.md). |
 | Active slice | Auto layout and constraints. [Dated plan](26-11-09-auto-layout.md). |
-| Active phase | Phase 4. Grid tracks and frame reflow. |
+| Active phase | Phase 4. Auto layout property commands and sizing coherence. |
 | Upstream baseline | Auto layout reference 3839fe4a. Rich text reference a4251ca8. Global supported baseline 8eb0b876. |
-| Branch and last verified commit | prompt/full-figcraft-port. Frame records 4b17c70 passed all 235 Chromium checks. Child placement 339a4f4 matched 480 native grids. Rich text 0.49.0 at a81127c. [Implementation history](26-11-09-rich-text.md). |
+| Branch and last verified commit | prompt/full-figcraft-port. Flow layout 5a709e9 matched 1,250 native documents. Grid tracks f07279d matched 420 generated grids and 200 nested grid/text documents. |
 | Completed slices | Rectangle/host-auth, bounded native persistence/recovery, supported-model pages, affine rectangle geometry/selection and solid appearance, plus nested group hierarchy, Frame containers, movement/transform gestures, rounded corners, ellipse/arc/ring and Polygon/Star editing verified locally; Line/Arrow and uniform solid strokes also verified; per-side Rectangle/Frame strokes, variable-width profiles and procedural brushes verified; vector networks, solid region/stroke rendering and Flatten/Reverse also verified; foundation commit `154f5a7`. Gradient, image, pattern, blend and mask releases now have local property matrices. [Blend evidence](../reports/26-11-09-blend-modes-parity.html). |
 | Remaining slices | Continue incomplete roadmap rows, excluding the user-deferred plugin and widget family. See each slice matrix for outstanding integrations. |
-| Tests last passed | a81127c passed 234/234 local production Chromium checks in 497.1 seconds, strict types, both builds, 1,675 pure tests and two Auth checks. [85-row matrix](../reports/26-11-09-rich-text-parity.html). |
-| Files currently in progress | Grid track commands, grid geometry, layout normalisation and inspector. |
+| Tests last passed | 5a709e9 passed 1,709 pure tests, two local Auth checks, strict types, both builds and two signed-in Chromium workflows. Full grid run and isolated rerun recorded in the [slice plan](26-11-09-auto-layout.md). |
+| Files currently in progress | Layout property command integration and native command fixtures. |
 | Blockers | No blocker. Use local Graphify for all remaining slices. The scoped Supabase read succeeded. |
-| Exact next action | Verify grid track reflow in the signed-in inspector and match text, nested frames and limits to upstream. Continue horizontal and vertical layout. |
+| Exact next action | Implement and verify layout property editing and child sizing coherence, then frame authoring and canvas interactions. |
 | Last updated | 2026-11-09 |
 
 ## Scope and continuation

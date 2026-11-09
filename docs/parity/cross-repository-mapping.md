@@ -434,3 +434,7 @@ Native `path_at` and `text_on_path_down` map to `textPathAt`, `hitPathLeaf`, `cr
 ### Auto layout frame records
 
 At 3839fe4a the native AutoLayout and GridTrack serde values map to readAutoLayout and wireAutoLayout at 4b17c70. The node inspector returns camel-case layout fields, while the archive writer emits their native snake-case names. High confidence for container records from 1,014 native comparisons and a signed-in Chromium open, recovery and save. Layout computation and child placement are pending. [Frame record tests](../../tests/parity/auto-layout-records.test.ts) and [slice plan](../planning/26-11-09-auto-layout.md).
+
+### Auto layout placement, grid tracks and flow
+
+Native grid_place, grid_geometry and layout_frame map to placeGridCells, gridGeometry and reflowChangedFrames. Native flow distribution, wrapped lines and first baselines map to reflowFlow. Native layout.setTrack maps to setGridTrack and GridTrackPanel. Comparisons cover 480 placement grids, 420 track geometries, 200 nested grids and 1,250 nested flow documents. The browser exercised track editing, wrapped siblings and undo. [Verification and fixtures](../planning/26-11-09-auto-layout.md#grid-and-flow-geometry).

@@ -4,10 +4,10 @@
 
 | Field | Current value |
 |---|---|
-| Reference | Figcraft fork and original upstream at 3839fe4a0cb4897c1fed1fb03e0b60e191ff61cb. React a81127c on prompt/full-figcraft-port. The global supported baseline is 8eb0b876. |
-| Evidence | Local merged Graphify index has 31,661 nodes and 104,168 edges. The Rust index links the grid-placement tests to grid_place. The React index links resizeChildren to withLayerSize and hierarchy tests to setRectangleProperties. UI labels and JSON defaults were checked directly. |
+| Reference | Figcraft fork and original upstream at 3839fe4a0cb4897c1fed1fb03e0b60e191ff61cb. React 5a709e9 on prompt/full-figcraft-port. The global supported baseline is 8eb0b876. |
+| Evidence | Local merged Graphify index has 31,740 nodes and 104,528 edges. The Rust index links the grid-placement tests to grid_place. The React index links resizeChildren to withLayerSize and hierarchy tests to setRectangleProperties. UI labels and JSON defaults were checked directly. |
 | Backend | The scoped Figcraft MCP read returned zero public tables. Layout settings are part of the native document and its existing local persistence. |
-| Next action | Child records, placement and stacking passed native and focused Chromium comparisons at 339a4f4. Verify grid track commands, geometry, text measurement and frame reflow, then finish horizontal and vertical flow. |
+| Next action | Implement layout property commands, child sizing coherence and frame authoring. Verify against native command sequences and the signed-in inspector. |
 | Blockers | None. |
 
 ## Implementation and verification order
@@ -35,3 +35,9 @@ The 51 native layout library tests passed against the pinned source. The React c
 ## Child placement at 339a4f4
 
 The complete Chromium run at 4b17c70 passed 235/235. The next checkpoint matched 1,013 native child-layout records and 480 generated grids with 13,039 placed children. It preserves absolute position, sizing, limits, anchors, spans and cell alignment during native interchange. A browser download after recovery preserved a spanning fill child. A separate Chromium comparison covered reversed painting of adjacent mask runs, order within a run, a hidden mask, and the topmost hit. All 1,701 pure tests, two local Auth checks and both focused browser workflows passed. Local Graphify indexed 31,701 nodes and 104,297 edges.
+
+## Grid and flow geometry
+
+Grid placement at 339a4f4 passed 236/236 Chromium checks. At f07279d, all 25,394 coordinates and dimensions from 420 native grids matched within 1.8e-13. All 200 nested grid/text documents matched. A 192-level fill chain settled after a track resize. The grid inspector passed signed-in edit, undo, recovery and download. Its full browser run passed 235/236 on the first attempt. One vector benchmark could not resolve the generated font asset module during a concurrent build and passed individually afterwards.
+
+At 5a709e9, all 1,250 mixed flow, wrapped, grid and text documents matched native layout_page for child dimensions, position and automatic text resize mode. Four representative six-layer fixtures are retained in the parity suite. The 1,709 pure tests, two local Auth checks, strict types and both builds passed. Chromium verified editing a child's width, wrapping its sibling and undoing the edit. Local Graphify indexed both React 5a709e9 and the pinned native layout sources. Command-level sizing, frame authoring and canvas handles still require verification.
