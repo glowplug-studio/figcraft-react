@@ -176,7 +176,7 @@ function loneNormalStroke(node: LayerNode): boolean {
     : !rectanglePaints(node).length;
 }
 
-function* drawLayer(context: CanvasRenderingContext2D, document: Document, node: LayerNode, depth: number, nesting: number, scale: number): PaintSteps {
+function* drawLayer(context: CanvasRenderingContext2D, document: Document, node: LayerNode, depth: number, nesting: number, scale: number, view?: Rectangle): PaintSteps {
   if (node.isMask || node.visible === false || (node.opacity ?? 1) <= 0 || depth > 256) return;
   if (node.kind === "booleanOp") {
     const result = booleanResult(document, node);
@@ -186,17 +186,20 @@ function* drawLayer(context: CanvasRenderingContext2D, document: Document, node:
   const effect = usesPixelLayer(node) ? { doc: document, scale } : undefined;
   const blended = node.blend !== undefined && node.blend !== "normal" && node.blend !== "passThrough";
   if (!isLeaf(node)) {
+    const composite = effect || blended || node.blend === "normal" && node.children.length || (node.opacity ?? 1) < .999;
+    const childView = view && !composite && !node.transform
+      ? {x:view.x-node.x, y:view.y-node.y, width:view.width, height:view.height} : undefined;
     const draw = function* (target: CanvasRenderingContext2D, shadows?: ShadowLayer): PaintSteps {
       if (isFrameLike(node)) yield* resolveLayerPaints(paintRectangle(target, node, 1, false), document, depth, nesting, drawLayer, !!shadows);
       if (isFrameLike(node)) shadows?.inner();
       target.save(); target.transform(...rectangleTransform(node));
       if (isFrameLike(node) && node.clip) { target.beginPath(); tracePath(target, shapePath(node)); target.clip(); }
-      yield* drawChildren(target, document, node.children, depth + 1, nesting, scale, undefined, isFrameLike(node) && node.layout?.reverseZ);
+      yield* drawChildren(target, document, node.children, depth + 1, nesting, scale, childView, isFrameLike(node) && node.layout?.reverseZ);
       target.restore();
       if (node.kind === "group") shadows?.inner();
       if (isFrameLike(node) && hasVisibleStroke(node)) yield* resolveLayerPaints(paintLayerStroke(target, node), document, depth, nesting, drawLayer);
     };
-    if (effect || blended || node.blend === "normal" && node.children.length || (node.opacity ?? 1) < .999) {
+    if (composite) {
       const bounds = paintedGroupBounds(context, document, node, scale);
       if (bounds) yield* paintComposite(context, node, draw, bounds, effect);
     } else yield* draw(context);
@@ -417,11 +420,13 @@ function* drawChildren(context: CanvasRenderingContext2D, document: Document, ch
       if (!order) cursor = end - 1;
       continue;
     }
-    if (view && isLeaf(node) && !usesPixelLayer(node)) {
+    // A clipped frame confines every child to its outline. Its own stroke can extend beyond it.
+    const confined = (depth===0 ? isLeaf(node) : node.kind==="rectangle") || isFrameLike(node) && node.clip;
+    if (view && confined && !usesPixelLayer(node)) {
       const bounds = hasVisibleStroke(node) ? strokeBounds(node, rectangleTransform(node)) : node.transform ? transformBounds(node.transform, node.width, node.height) : node;
       if (bounds.x > view.x + view.width || bounds.y > view.y + view.height || bounds.x + bounds.width < view.x || bounds.y + bounds.height < view.y) continue;
     }
-    yield* drawLayer(context, document, node, depth, nesting, scale);
+    yield* drawLayer(context, document, node, depth, nesting, scale, view);
   }
 }
 
