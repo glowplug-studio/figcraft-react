@@ -1,15 +1,9 @@
+import { blendFromName } from "./blend";
 import { withAlpha } from "./colour";
 import { parseColour } from "./colour-css";
-import { parseBoolean, parseIndex, parseNumber, parseString } from "./parameters";
+import { parseBoolean, parseIndex, parseNumber } from "./parameters";
 import { readPaint, type Paint } from "./solid-paint";
 
-const unsupportedBlends = new Set(["darken", "multiply", "plusdarker", "colorburn", "lighten", "screen", "pluslighter", "colordodge", "overlay", "softlight", "hardlight", "difference", "exclusion", "hue", "saturation", "color", "luminosity"]);
-function blend(value: unknown): Paint["blend"] | undefined {
-  const key = parseString(value)?.replace(/[^a-z0-9]/gi, "").toLowerCase();
-  if (key === "normal") return "normal"; if (key === "passthrough") return "passThrough";
-  if (key && unsupportedBlends.has(key)) throw new Error("This paint blend mode is not supported yet");
-  return undefined;
-}
 /** Parse once per command. Every target receives the edit on its own effective stack. */
 export function paintStackEdit(action: "add" | "set" | "move" | "remove", params: Record<string, unknown>) {
   if (action === "move") {
@@ -32,7 +26,7 @@ export function paintStackEdit(action: "add" | "set" | "move" | "remove", params
     return at < 0 || at >= stack.length ? stack : stack.filter((_, i) => i !== at);
   };
   const replacement = params.paint == null ? undefined : readPaint(params.paint, true);
-  const color = parseColour(params.color), visible = parseBoolean(params.visible), mode = blend(params.blend);
+  const color = parseColour(params.color), visible = parseBoolean(params.visible), mode = blendFromName(params.blend);
   let opacity: number | undefined;
   if (params.opacity != null) {
     try {

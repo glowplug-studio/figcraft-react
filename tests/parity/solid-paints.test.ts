@@ -37,7 +37,7 @@ describe("native solid paints", () => {
 
   it("refuses unsupported paint kinds, blends and unknown properties", () => {
     expect(() => readSolidPaint({ type: "gradient", stops: [] })).toThrow();
-    expect(() => readSolidPaint({ type: "solid", color: "red", blend: "multiply" })).toThrow();
+    expect(() => readSolidPaint({ type: "solid", color: "red", blend: "unknownMode" })).toThrow();
     expect(() => readSolidPaint({ type: "solid", color: "red", future: true })).toThrow();
     expect(() => readSolidPaint({ type: "solid", color: "red", opacity: Infinity })).toThrow();
   });

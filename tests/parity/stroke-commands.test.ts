@@ -45,7 +45,7 @@ describe("native stroke list commands", () => {
   });
   it("refuses malformed targets, unsupported paints and later-target errors atomically", () => {
     const { e, a, b } = fixture(); e.execute("stroke.add", { id: b }); const before = e.getSnapshot();
-    for (const params of [{ ids: [b, a], index: 1, color: "red" }, { ids: [] }, { ids: [a, "missing"] }, { ids: "bad" }, { paint: { type: "gradient" } }, { blend: "multiply" }]) {
+    for (const params of [{ ids: [b, a], index: 1, color: "red" }, { ids: [] }, { ids: [a, "missing"] }, { ids: "bad" }, { paint: { type: "gradient" } }, { paint: {type:"solid",color:"red",blend:"unknownMode"} }]) {
       expect(() => e.execute("stroke.set", params)).toThrow(); expect(e.getSnapshot()).toBe(before);
     }
   });

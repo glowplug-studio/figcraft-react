@@ -1,3 +1,4 @@
+import { isBlendMode, type BlendMode } from "./blend";
 import { colour, fromRgba8, toRgba8, withAlpha, type Colour } from "./colour";
 import { readPattern, type Pattern } from "./pattern";
 import { readGradient, type Gradient } from "./gradient";
@@ -10,7 +11,7 @@ import type { Affine } from "./affine";
 interface PaintProperties {
   readonly opacity: number;
   readonly visible: boolean;
-  readonly blend: "normal" | "passThrough";
+  readonly blend: BlendMode;
   readonly colorAlpha: number;
 }
 export interface SolidPaint extends PaintProperties { readonly type: "solid"; readonly color: Colour }
@@ -50,7 +51,7 @@ export function readPaint(value: unknown, command = false): Paint {
   const opacity = p.opacity ?? 1, colorAlpha = p.colorAlpha ?? 1;
   if (typeof opacity !== "number" || !Number.isFinite(opacity) || typeof colorAlpha !== "number" || !Number.isFinite(colorAlpha)) throw new Error("Paint opacity and colour alpha must be finite numbers");
   if (p.visible !== undefined && typeof p.visible !== "boolean") throw new Error("Paint visibility must be boolean");
-  if (p.blend !== undefined && p.blend !== "normal" && p.blend !== "passThrough") throw new Error("This paint blend mode is not supported yet");
+  if (p.blend !== undefined && !isBlendMode(p.blend)) throw new Error("This paint blend mode is not supported yet");
   const storedOpacity = Math.fround(command ? Math.max(0, Math.min(1, opacity)) : opacity), storedAlpha = Math.fround(colorAlpha);
   if (!Number.isFinite(storedOpacity) || !Number.isFinite(storedAlpha)) throw new Error("Paint opacity and colour alpha exceed the finite native range");
   const properties: PaintProperties = { opacity: storedOpacity, visible: p.visible !== false, blend: p.blend ?? "normal", colorAlpha: storedAlpha };

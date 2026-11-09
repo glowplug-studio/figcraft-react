@@ -4,7 +4,7 @@ import { ArcInteraction } from "./arc-handles";
 import { DrawInteraction } from "./draw-interaction";
 import { isLeaf } from "./document";
 import { CornerInteraction } from "./corner-handles";
-import { tracePath } from "./corners";
+import { tracePath, type PathCommand } from "./corners";
 import { shapePath, hasShapePath } from "./shape-path";
 import { canvasAccent } from "./canvas-colours";
 import { pageOf, pageColour, rectanglePaints, rectangleTransform, type Document, type LayerNode } from "./document";
@@ -25,7 +25,8 @@ import { GradientInteraction } from "./gradient-interaction";
 import { ImagePage } from "./image-page";
 import { resolveLayerPaints } from "./pattern-renderer";
 import { CanvasImages, type LayerPaintSteps, type PaintSteps } from "./image-renderer";
-import { drawGradient } from "./gradient-renderer";
+import { paintPath } from "./paint-path";
+import { pathBounds } from "./vector-path";
 import { vectorPaintRegions } from "./vector-presentation";
 import { VectorInteraction } from "./vector-interaction";
 import { drawVectorEdit } from "./vector-edit-overlay";
@@ -41,6 +42,13 @@ const compositeSurfaces = new WeakMap<CanvasRenderingContext2D, HTMLCanvasElemen
 const groupBounds = new WeakMap<Document, Map<string, Rectangle | undefined>>();
 const opacity = (value: number) => Math.max(0, Math.min(1, value));
 
+const fillPaths = new WeakMap<readonly PathCommand[],Path2D>();
+function fillPath(commands: readonly PathCommand[]) {
+  let path = fillPaths.get(commands);
+  if (!path) { path = new Path2D(); tracePath(path,commands); fillPaths.set(commands,path); }
+  return path;
+}
+
 function* paintRectangle(context: CanvasRenderingContext2D, node: LayerNode, alpha = 1, strokes = true): LayerPaintSteps {
   context.save();
   if (node.transform) context.transform(...node.transform);
@@ -48,19 +56,12 @@ function* paintRectangle(context: CanvasRenderingContext2D, node: LayerNode, alp
   const regions = node.kind === "vector" ? vectorPaintRegions(node) : [{ paints: rectanglePaints(node), path: hasShapePath(node) ? shapePath(node) : undefined, rule: "nonzero" as const }];
   for (const region of regions) for (const paint of region.paints) {
     if (!paint.visible || paint.opacity <= 0) continue;
-    context.globalAlpha = opacity(paint.opacity) * alpha;
-    if (paint.type !== "solid") {
-      context.save(); context.beginPath();
-      if (region.path) tracePath(context,region.path); else context.rect(0,0,node.width,node.height);
-      context.clip(region.rule);
-      const space = "space" in region ? region.space : undefined;
-      if (paint.type === "gradient") drawGradient(context, paint, node.width, node.height, space);
-      else yield [context, paint, node.width, node.height, space];
-      context.restore(); continue;
-    }
-    context.fillStyle = renderColour(paint.color);
-    if (region.path) { context.beginPath(); tracePath(context, region.path); context.fill(region.rule); }
-    else context.fillRect(0, 0, node.width, node.height);
+    const commands = region.path, space = "space" in region ? region.space : undefined;
+    const bounds = paint.blend === "plusDarker" && commands ? (matrix:Affine) => {
+      const b = pathBounds(commands);
+      return b ? transformBounds(multiply(matrix,[1,0,0,1,b.x,b.y]),b.width,b.height) : {x:0,y:0,width:0,height:0};
+    } : undefined;
+    yield* paintPath(context,commands && fillPath(commands),region.rule,node.width,node.height,paint,alpha,space,bounds);
   }
   if (strokes) yield* paintStroke(context, node, alpha);
   context.restore();
@@ -143,14 +144,14 @@ function* drawLayer(context: CanvasRenderingContext2D, document: Document, node:
       target.restore();
       if (node.kind === "frame" && hasVisibleStroke(node)) yield* resolveLayerPaints(paintLayerStroke(target, node), document, depth, nesting, drawLayer);
     };
-    if (blended || node.blend === "normal" && node.children.length || opacity(node.opacity ?? 1) < 1) {
+    if (blended || node.blend === "normal" && node.children.length || (node.opacity ?? 1) < .999) {
       const bounds = paintedGroupBounds(context, document, node);
       if (bounds) yield* paintComposite(context, node, draw, bounds);
     } else yield* draw(context);
   } else if (blended || hasShapePath(node) || hasVisibleStroke(node) || node.fills || node.opacity !== undefined && node.opacity !== 1) {
-    const fillCount = node.kind === "vector" ? vectorPaintRegions(node).reduce((sum, region) => sum + region.paints.length, 0) : rectanglePaints(node).length;
-    if (blended || fillCount + (node.strokes?.length ?? 0) > 1 && opacity(node.opacity ?? 1) < 1) yield* paintComposite(context, node, target => resolveLayerPaints(paintRectangle(target, node, 1, true), document, depth, nesting, drawLayer));
-    else yield* resolveLayerPaints(paintRectangle(context, node, opacity(node.opacity ?? 1), true), document, depth, nesting, drawLayer);
+    if (blended || (node.opacity ?? 1) < .999) {
+      yield* paintComposite(context,node,target=>resolveLayerPaints(paintRectangle(target,node),document,depth,nesting,drawLayer));
+    } else yield* resolveLayerPaints(paintRectangle(context,node),document,depth,nesting,drawLayer);
   } else {
     context.fillStyle = node.fill;
     if (node.transform) {
