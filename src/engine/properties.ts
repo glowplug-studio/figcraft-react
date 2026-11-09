@@ -1,4 +1,5 @@
-import { frameTuning, setFrameLayout } from "./layout-properties";
+import { childLayoutKeys, explicitAxis, setChildProperty } from "./child-layout-properties";
+import { frameTuning, setFrameLayout, validateLayoutSwitch } from "./layout-properties";
 import { fixTextSize } from "./text-sizing";
 import { isTextKey, setTextProperties, textCommandProperties } from "./text-properties";
 import { textSpans } from "./text-ranges";
@@ -29,7 +30,7 @@ const geometryKeys = new Set(["x", "y", "width", "height", "w", "h", "rotation"]
 const appearanceKeys = new Set(["effects", "isMask", "maskType", "booleanOperation", "operandOperation", "name", "visible", "locked", "opacity", "blend", "blendMode", "fill", "fills", "clip", "constraints", "constrainProportions"]);
 
 /** The supported layer geometry and appearance subset of upstream `node.set`. No history is recorded here. */
-export function setRectangleProperties(document: Document, selection: readonly NodeId[], params: Record<string, unknown>, origin?: Point, warnings: string[] = [], textCommand?: "text.style" | "text.set"): Document {
+export function setRectangleProperties(document: Document, selection: readonly NodeId[], params: Record<string, unknown>, origin?: Point, warnings: string[] = [], textCommand?: "text.style" | "text.set", draft = new HierarchyDraft(document)): Document {
   if (params.ids != null && !Array.isArray(params.ids)) throw new Error("node.set ids must be an array");
   const rawTargets = params.ids ?? params.id;
   const suppliedTargets = rawTargets == null ? selection : Array.isArray(rawTargets) ? rawTargets : [rawTargets];
@@ -51,7 +52,8 @@ export function setRectangleProperties(document: Document, selection: readonly N
   if (!textCommand && keys.length === 0) throw new Error("node.set requires properties");
   const textKeys = keys.filter(isTextKey).sort();
   const tuning = keys.filter(k => frameTuning.has(k)).sort();
-  const unsupported = keys.filter(key => key !== "layout" && key !== "layoutMode" && !frameTuning.has(key) && key !== "path" && key !== "start" && key !== "end" && !isTextKey(key) && !geometryKeys.has(key) && !appearanceKeys.has(key) && !isCornerKey(key) && !isArcKey(key) && !isShapeKey(key) && !isStrokeKey(key));
+  const childKeys = keys.filter(key => childLayoutKeys.has(key));
+  const unsupported = keys.filter(key => !childLayoutKeys.has(key) && key !== "layout" && key !== "layoutMode" && !frameTuning.has(key) && key !== "path" && key !== "start" && key !== "end" && !isTextKey(key) && !geometryKeys.has(key) && !appearanceKeys.has(key) && !isCornerKey(key) && !isArcKey(key) && !isShapeKey(key) && !isStrokeKey(key));
   if (unsupported.length) throw new Error(`node.set unsupported properties: ${unsupported.join(", ")}`);
   if (!textCommand && typeof props.fontStyle === "string") {
     const families = typeof props.fontFamily === "string" ? [props.fontFamily] : ids.flatMap(id => {
@@ -122,7 +124,6 @@ export function setRectangleProperties(document: Document, selection: readonly N
   }
   if ("fills" in props) paints = readPaints(props.fills, true);
   if ("constraints" in props) readConstraints(props.constraints);
-  const draft = new HierarchyDraft(document);
   for (const id of ids) {
     const node = draft.nodes[id];
     if (textCommand && node?.kind !== "text") throw new Error("Expected a text layer");
@@ -135,8 +136,6 @@ export function setRectangleProperties(document: Document, selection: readonly N
     if (!node || node.kind === "page") throw new Error(`node.set target ${id} is not an editable layer`);
     if ("clip" in props && node.kind !== "frame") throw new Error("Clip content requires a frame");
     let arcNode = setStrokeProperties(setShapeProperties(setArc(node, props), props), props);
-    if (tuning.length || "layout" in props || "layoutMode" in props)
-      arcNode = setFrameLayout(arcNode, props, tuning, hasFrame && node.kind !== "frame");
     for (const key of ["booleanOperation", "operandOperation"] as const) {
       if (!(key in props)) continue;
       const op = props[key];
@@ -177,6 +176,27 @@ export function setRectangleProperties(document: Document, selection: readonly N
       if (arcNode.kind === "text") arcNode = fixTextSize(arcNode,isWidth,!isWidth);
       if (arcNode.kind === "vector" && (width !== oldWidth || height !== oldHeight)) arcNode = withLayerSize(arcNode, width, height);
     }
+    if ("width" in props || "w" in props) arcNode = explicitAxis(draft,arcNode,"horizontal",width);
+    if ("height" in props || "h" in props) arcNode = explicitAxis(draft,arcNode,"vertical",height);
+    const skipTuning = hasFrame && node.kind !== "frame";
+    if (tuning.length || "layout" in props || "layoutMode" in props) {
+      if (!childKeys.length) arcNode = setFrameLayout(arcNode,props,tuning,skipTuning);
+      else {
+        validateLayoutSwitch(props,skipTuning ? [] : tuning);
+        arcNode = setFrameLayout(arcNode,props,[],skipTuning);
+      }
+    }
+    if (childKeys.length) {
+      const ordered = [...childKeys,...textKeys,...(skipTuning ? [] : tuning)].sort();
+      for (const key of ordered) {
+        if (frameTuning.has(key)) arcNode = setFrameLayout(arcNode,{[key]:props[key]},[key],false);
+        else if (childLayoutKeys.has(key)) arcNode = setChildProperty(draft,arcNode,key,props[key]);
+        else {
+          if (arcNode.kind !== "text") throw new Error("Text properties require a text layer");
+          arcNode = setTextProperties(arcNode,props,[key]);
+        }
+      }
+    }
     let transform = rectangleTransform(node);
     if ("rotation" in values) transform = setRotationAboutCenter(transform, width, height, values.rotation);
     if ("x" in values || "y" in values) {
@@ -189,7 +209,7 @@ export function setRectangleProperties(document: Document, selection: readonly N
     }
     transformBounds(transform, width, height);
     let updated: LayerNode = withLayerSize(withRectangleTransform(arcNode, transform), width, height);
-    if (textKeys.length) {
+    if (textKeys.length && !childKeys.length) {
       if (updated.kind !== "text") throw new Error("Text properties require a text layer");
       updated = setTextProperties(updated, props, textKeys);
     }

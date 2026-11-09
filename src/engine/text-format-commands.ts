@@ -1,3 +1,4 @@
+import { clearTextHeightLimit } from "./child-layout-properties";
 import { type Document, type NodeId, type TextNode } from "./document";
 import { pixelRound } from "./geometry";
 import { HierarchyDraft, subtreeIds } from "./hierarchy";
@@ -181,9 +182,27 @@ export function executeTextFormat(command:TextFormatCommand, doc:Document, selec
   const draft=new HierarchyDraft(doc);
   for (const [id,text] of edits) {
     const node=doc.nodes[id] as TextNode;
-    if (!sameTextData(text,node.text)) draft.set(fitEditedText({...node,text},node));
+    const changed = !sameTextData(text,node.text);
+    if (changed || action === "maxLines") {
+      const fitted = fitEditedText(changed ? {...node,text} : node,node);
+      if (changed || fitted.width !== node.width || fitted.height !== node.height || fitted.textSizing !== node.textSizing)
+        draft.set(fitted);
+    }
   }
   draft.normaliseGroups();
-  const document=validateChangedGeometry(draft);
+  let document=validateChangedGeometry(draft);
+  // Native text.maxLines first settles the paragraph edit, then releases the height limit
+  // on each targeted text and normalises the final transaction against its original state.
+  if (action === "maxLines" && [...edits.values()].some(t => t.maxLines > 0)) {
+    const limits = new HierarchyDraft(document,doc);
+    for (const id of targets) {
+      const current = document.nodes[id] as TextNode;
+      const updated = clearTextHeightLimit(current);
+      if (updated === current && current === doc.nodes[id]) continue;
+      limits.set(fitEditedText({...updated},current));
+    }
+    limits.normaliseGroups();
+    document = validateChangedGeometry(limits);
+  }
   return {document,result:indent ? {changed:document!==doc} : {ok:true}};
 }

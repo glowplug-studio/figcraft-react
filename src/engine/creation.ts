@@ -69,10 +69,7 @@ export function createLayer(before: { document: Document; selection: readonly No
     draft.insert(node, parent.id, index);
     let document: Document;
     if (p.props !== null && typeof p.props === "object" && !Array.isArray(p.props) && Object.keys(p.props).length > 0) {
-      document = setRectangleProperties(draft.finish(), [node.id], { props: p.props });
-      const derived = new HierarchyDraft(document);
-      if (document.nodes[node.id]) derived.changedIds.add(node.id);
-      derived.normaliseGroups(); document = derived.finish();
+      document = setRectangleProperties(draft.document, [node.id], {props:p.props}, undefined, [], undefined, draft);
     }
     else { draft.normaliseGroups(); document = draft.finish(); }
 

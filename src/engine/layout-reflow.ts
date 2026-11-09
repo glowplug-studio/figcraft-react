@@ -120,7 +120,7 @@ export function reflowChangedFrames(draft: HierarchyDraft) {
   for (const id of draft.changedIds) {
     const n = draft.nodes[id];
     if (!n || n.kind === "page") continue;
-    const a = draft.originalDocument.nodes[id];
+    const a = draft.layoutBaseline.nodes[id];
     const shape = reshaped(a, n);
     if (!shape && a && a.kind !== "page" && a.x === n.x && a.y === n.y && a.transform === n.transform) continue;
     if (shape && n.kind === "frame" && n.layout) frames.add(n);

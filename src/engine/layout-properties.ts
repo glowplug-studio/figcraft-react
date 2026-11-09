@@ -109,16 +109,20 @@ function tune(layout: AutoLayout, key: string, raw: unknown): AutoLayout {
   }
 }
 
+export function validateLayoutSwitch(props: Record<string,unknown>, keys: readonly string[]) {
+  const off = ["layout","layoutMode"].find(k => props[k] === null || typeof props[k] === "string" && props[k].toLowerCase() === "none");
+  if (off && keys.length) {
+    const description = keys.length === 1 ? "is an auto layout property" : "are auto layout properties";
+    throw new Error(keys.map(k => "`"+k+"`").join(", ")+" "+description+", and `"+off+"` in the same call turns auto layout off");
+  }
+}
+
 export function setFrameLayout(node: LayerNode, props: Record<string,unknown>, tuning: readonly string[], skipTuning: boolean): LayerNode {
   const modes = ["layout","layoutMode"].filter(k => Object.hasOwn(props,k));
   const keys = skipTuning ? [] : tuning;
   if (!modes.length && !keys.length) return node;
   if (node.kind !== "frame") throw new Error("Auto layout needs a frame");
-  const off = modes.find(k => props[k] === null || typeof props[k] === "string" && props[k].toLowerCase() === "none");
-  if (off && keys.length) {
-    const description = keys.length === 1 ? "is an auto layout property" : "are auto layout properties";
-    throw new Error(keys.map(k => "`"+k+"`").join(", ")+" "+description+", and `"+off+"` in the same call turns auto layout off");
-  }
+  validateLayoutSwitch(props,keys);
   let layout: FrameNode["layout"] = node.layout;
   for (const k of modes) layout = commandMode(layout,props[k]);
   for (const k of keys) layout = tune(layout ?? defaultContainer,k,props[k]);

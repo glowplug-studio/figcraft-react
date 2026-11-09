@@ -4821,3 +4821,44 @@ test("editing a child rewraps horizontal flow and an undo restores the previous 
   await expect(layout.getByRole("button",{name:"Vertical",exact:true})).toHaveAttribute("aria-pressed","true");
   await expect(layout.getByLabel("Canvas stacking")).toHaveValue("true");
 });
+
+test("grid child sizing, anchors and limits persist after recovery", async ({page}) => {
+  const file = JSON.parse(await readFile(new URL("../fixtures/native-rectangle.json",import.meta.url),"utf8"));
+  file.name="Grid child sizing";
+  Object.assign(file.nodes[2],{type:"frame",name:"Container",width:200,height:80,children:[3,4],
+    layout:{mode:"grid",grid_columns:2,grid_rows:1,gap:0,padding:[0,0,0,0]}});
+  for (const id of [3,4]) file.nodes[id]={id,parent:2,type:"rectangle",name:"Cell "+id,width:20,height:20};
+  file.next_id=5;
+  await login(page);
+  await page.getByLabel("Open Figcraft file",{exact:true}).setInputFiles({
+    name:"child.figcraft",mimeType:"application/octet-stream",buffer:Buffer.from(JSON.stringify(file)),
+  });
+  const select = async () => {
+    const layers=page.getByRole("region",{name:"Layers"});
+    await expect(page.getByRole("heading",{name:file.name,exact:true})).toBeVisible();
+    const child=layers.getByRole("button",{name:"Cell 3",exact:true});
+    if (!await child.isVisible()) await layers.getByRole("button",{name:"Expand frame Container",exact:true}).click();
+    await child.click();
+  };
+  await select();
+  const panel=page.getByRole("group",{name:"Layout sizing",exact:true});
+  await panel.getByLabel("Width sizing").selectOption("fill");
+  await expect(page.getByLabel("Edit Width",{exact:true})).toHaveValue("100");
+  await panel.getByLabel("Width sizing").selectOption("maxWidth");
+  const maximum=panel.getByLabel("Max width",{exact:true});
+  await maximum.fill("66"); await maximum.press("Enter");
+  await expect(page.getByLabel("Edit Width",{exact:true})).toHaveValue("66");
+  const column=panel.getByLabel("Column",{exact:true});
+  await column.fill("2"); await column.press("Enter");
+  await panel.getByLabel("Horizontal align",{exact:true}).selectOption("max");
+  await expect(page.getByLabel("Edit X",{exact:true})).toHaveValue("134");
+  await panel.getByRole("button",{name:"Ignore auto layout (absolute position)"}).click();
+  await expect(panel.getByRole("button",{name:"Use auto layout"})).toBeVisible();
+  await page.getByRole("button",{name:"Undo",exact:true}).click();
+  await expect(panel.getByLabel("Width sizing")).toHaveValue("fill");
+  await expect(page.getByText("Recovery saved on this device",{exact:true})).toBeVisible();
+  await page.reload(); await select();
+  await expect(column).toHaveValue("2"); await expect(maximum).toHaveValue("66");
+  await panel.getByRole("button",{name:"Place automatically"}).click();
+  await expect(column).toHaveValue("1");
+});

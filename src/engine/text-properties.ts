@@ -1,3 +1,4 @@
+import { clearTextHeightLimit } from "./child-layout-properties";
 import type { TextNode } from "./document";
 import { parseColour } from "./colour-css";
 import { parseNumber, parseString, propertyEnum } from "./parameters";
@@ -192,6 +193,7 @@ export function setTextProperties(node: TextNode, props: Record<string,unknown>,
     const start = Math.trunc(clamp(optionalNumber(props.start, 0), 0, count));
     const end = Math.trunc(clamp(optionalNumber(props.end, count), 0, count));
     text = Object.freeze(applyProperty(text, key, props[key], start, end));
+    if (key === "maxLines" && text.maxLines > 0) node = clearTextHeightLimit(node);
     if (key === "text" || key === "characters") overridden = true;
   }
   return Object.freeze({...node, text, ...(overridden ? {charactersOverridden:true as const} : {})});

@@ -1,3 +1,4 @@
+import { cohereEdits } from "./child-layout-properties";
 import { reflowChangedFrames } from "./layout-reflow";
 import { isGroupLike } from "./document";
 import { isLeaf } from "./document";
@@ -105,7 +106,7 @@ export class HierarchyDraft {
   readonly changedIds = new Set<NodeId>();
   #changed = false;
 
-  constructor(document: Document) {
+  constructor(document: Document, readonly layoutBaseline = document) {
     this.originalDocument = document;
     this.nodes = { ...document.nodes };
   }
@@ -239,7 +240,10 @@ export class HierarchyDraft {
   }
 
   finish(): Document {
-    if (this.#changed && !Object.isFrozen(this.nodes)) reflowChangedFrames(this);
+    if (this.#changed && !Object.isFrozen(this.nodes)) {
+      cohereEdits(this);
+      reflowChangedFrames(this);
+    }
     return this.#changed ? Object.freeze({ ...this.originalDocument, nodes: Object.freeze(this.nodes) }) : this.originalDocument;
   }
 }

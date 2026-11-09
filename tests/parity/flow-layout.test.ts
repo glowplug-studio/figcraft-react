@@ -1,3 +1,4 @@
+import {reflowChangedFrames} from "../../src/engine/layout-reflow";
 import {readFileSync} from "node:fs";
 import {expect, it} from "vitest";
 import {readAutoLayout, readChildLayout} from "../../src/engine/auto-layout";
@@ -32,7 +33,8 @@ it.each(cases)("matches native $name, including nested frame and text sizes", as
   for (const [i, layer] of layers.entries()) {
     if (layer.kind === "frame") draft.set({...nodes[i+2] as FrameNode,layout:readAutoLayout(layer.layout)});
   }
-  const result = draft.finish();
+  reflowChangedFrames(draft);
+  const result = draft.document;
   for (const [i, values] of expected.entries()) {
     const node = result.nodes[i+2] as LayerNode;
     [node.width,node.height,node.x,node.y].forEach((v,k)=>expect(v).toBeCloseTo(Number(values[k]),7));

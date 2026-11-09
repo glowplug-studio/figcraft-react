@@ -1,3 +1,5 @@
+import { withSizing } from "./child-layout-properties";
+import { layerSizing } from "./auto-layout";
 import { fixTextSize, refitResizedText } from "./text-sizing";
 import { placementCrop } from "./image-placement";
 import { rectanglePaints, withRectanglePaints, withLayerSize } from "./document";
@@ -6,7 +8,7 @@ import { axisFactors, resizeChildren } from "./constraints";
 import type { Document, NodeId } from "./document";
 import { withLayerTransform } from "./document";
 import { drawnLine, type Point } from "./geometry";
-import { HierarchyDraft, rootIds, worldTransform } from "./hierarchy";
+import { ancestors, HierarchyDraft, rootIds, worldTransform } from "./hierarchy";
 import { validateChangedGeometry, selectionFrame } from "./rotation";
 import { scaleSubtree } from "./sizing";
 import { nativeSign, resizedBox, scaleFactor, type Handle, type HandleFrame, type ScaleAnchor } from "./transform-handles";
@@ -52,7 +54,10 @@ export function previewResize(document: Document, start: ResizeStart, point: Poi
       let world = multiply(worldTransform(document, id), [1, 0, 0, 1, Math.min(x0, x1), Math.min(y0, y1)]);
       if (x1 < x0) world = multiply(world, [-1, 0, 0, 1, width, 0]);
       if (y1 < y0) world = multiply(world, [1, 0, 0, -1, 0, height]);
-      if (keepChildren && node.kind !== "page") {
+      if (keepChildren && node.kind !== "page" && node.kind !== "text" && ![id,...ancestors(document,id)].some(id => {
+        const layer = document.nodes[id];
+        return layer.kind === "frame" && layer.layout;
+      })) {
         const fills=rectanglePaints(node);
         if (fills.some(paint=>paint.type==="image" && paint.scale_mode!=="tile")) {
           const w=Math.max(node.width,1e-6), h=Math.max(node.height,1e-6);
@@ -69,9 +74,12 @@ export function previewResize(document: Document, start: ResizeStart, point: Poi
       }
       setWorld(id, world); size(id, Math.max(.01, width), Math.max(.01, height), preserve);
       const resized=draft.nodes[id];
-      if (resized.kind==="text") {
-        const side=handle.kind==="edge" && (handle.index===1 || handle.index===3);
-        draft.set(fixTextSize(resized,side || handle.kind==="corner",!side,true));
+      if (resized.kind !== "page") {
+        const side = handle.kind === "edge" && (handle.index === 1 || handle.index === 3);
+        const horizontal = side || handle.kind === "corner", vertical = !side;
+        const sizing = layerSizing(resized);
+        const updated = resized.kind === "text" ? fixTextSize(resized,horizontal,vertical,true) : resized;
+        draft.set(withSizing(updated,horizontal ? "fixed" : sizing.horizontal,vertical ? "fixed" : sizing.vertical));
       }
       for (const child of kept) setWorld(child.id, child.world);
     } else {

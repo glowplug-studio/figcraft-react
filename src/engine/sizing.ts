@@ -1,3 +1,4 @@
+import { explicitAxis } from "./child-layout-properties";
 import { scaleLayoutProperties } from "./auto-layout";
 import { fixTextSize, refitResizedText, scaleTextData } from "./text-sizing";
 import { scaleEffect } from "./effects";
@@ -25,14 +26,14 @@ function resize(draft: HierarchyDraft, id: NodeId, requestedWidth?: number, requ
   const node = draft.nodes[id];
   if (node.kind === "page") throw new Error("Cannot resize a page");
   const width=Math.max(0,requestedWidth ?? node.width), height=Math.max(0,requestedHeight ?? node.height);
-  if (width === node.width && height === node.height) {
-    if (node.kind==="text") draft.set(fixTextSize(node,requestedWidth!==undefined,requestedHeight!==undefined,true));
-    return;
-  }
   const before = transformPoint(layerTransform(node), { x: node.width * ax, y: node.height * ay });
   transformBounds(layerTransform(node), width, height);
-  const sized=withLayerSize(node,width,height);
-  draft.set(sized.kind==="text" ? fixTextSize(sized,requestedWidth!==undefined,requestedHeight!==undefined,true) : sized);
+  let sized = width === node.width && height === node.height ? node : withLayerSize(node,width,height);
+  if (sized.kind === "text") sized = fixTextSize(sized,requestedWidth !== undefined,requestedHeight !== undefined,true);
+  if (requestedWidth !== undefined) sized = explicitAxis(draft,sized,"horizontal",width);
+  if (requestedHeight !== undefined) sized = explicitAxis(draft,sized,"vertical",height);
+  draft.set(sized);
+  if (width === node.width && height === node.height) return;
   resizeChildren(draft, id, node.width, node.height);
   const updated = draft.nodes[id];
   if (updated.kind === "page") throw new Error("Cannot resize a page");
