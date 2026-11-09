@@ -1,3 +1,4 @@
+import { remapPatternSources } from "./pattern-sources";
 import { isLeaf } from "./document";
 import { withPageColour, type Document, type DocumentNode, type LayerNode, type NodeId, type PageNode } from "./document";
 import { parseColour } from "./colour-css";
@@ -162,9 +163,10 @@ export function executePage(command: string, document: Document, selection: read
       for (const child of children) {
         const id = ids.get(child.id)!;
         const parent = ids.get(child.parent)!;
-        nodes[id] = !isLeaf(child)
+        const copy = !isLeaf(child)
           ? Object.freeze({ ...child, id, parent, children: Object.freeze(child.children.map(candidate => ids.get(candidate)!)) })
           : Object.freeze({ ...child, id, parent });
+        nodes[id] = remapPatternSources(copy, target => target === source.id ? undefined : ids.get(target));
       }
       const copied = source.children.map(child => ids.get(child)!);
       nodes[copyId] = Object.freeze({ ...source, id: copyId, name: `Copy of ${source.name}`, children: Object.freeze(copied) });

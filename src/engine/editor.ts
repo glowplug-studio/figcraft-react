@@ -154,6 +154,7 @@ export class EditorEngine {
   };
   #canvasListeners = new Set<() => void>();
   #vectorEdit?: VectorEditState;
+  #documentIdentity = Symbol();
   #copiedPaint?: CopiedPaint;
   hasCopiedFill = (): boolean => this.#copiedPaint?.list === "fill";
   hasCopiedStroke = (): boolean => this.#copiedPaint?.list === "stroke";
@@ -566,13 +567,14 @@ export class EditorEngine {
       const list = command === "fill.copy" ? "fill" : "stroke";
       const previous = this.#copiedPaint?.list;
       this.#copiedPaint = copyPaint(list, this.#snapshot.document, this.#snapshot.selection, p, this.#vectorEdit);
+      if (this.#copiedPaint.paint.type === "pattern") this.#copiedPaint.documentIdentity = this.#documentIdentity;
       if (previous !== list) this.#publish({});
       return { ...this.#copiedPaint.paint };
     }
     if (Object.hasOwn(fillSpecs, command) || command === "stroke.paste") {
       const before = this.#snapshot;
       const document = command === "fill.paste" || command === "stroke.paste"
-        ? pastePaint(command === "fill.paste" ? "fill" : "stroke", before.document, before.selection, p, this.#copiedPaint, this.#vectorEdit)
+        ? pastePaint(command === "fill.paste" ? "fill" : "stroke", before.document, before.selection, p, this.#copiedPaint, this.#vectorEdit, this.#documentIdentity)
         : writeFill(command as Exclude<keyof typeof fillSpecs, "fill.copy" | "fill.paste">, before.document, before.selection, p, this.#vectorEdit);
       if (document !== before.document) {
         this.#undo.push({ document: before.document, selection: before.selection }); this.#redo = [];
@@ -746,6 +748,7 @@ export class EditorEngine {
       decoded = { document: opened.document, nextId: String(opened.nextId) };
     } else decoded = await decodeFigcraft(source?.file ?? fileData(p.data, MAX_UNPACKED_BYTES));
     checkCurrent();
+    this.#documentIdentity = Symbol();
     this.#nextId = BigInt(decoded.nextId);
     this.#undo = []; this.#redo = []; this.#saved = null; this.#pendingSaves.clear();
     this.#vectorEdit = undefined;

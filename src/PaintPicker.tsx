@@ -1,4 +1,6 @@
-import { useEffect, useLayoutEffect, useRef, useState, type PointerEvent } from "react";
+import { PatternPaintControls } from "./PatternPaintControls";
+import { patternSources } from "./engine/pattern-sources";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type PointerEvent } from "react";
 import { ImagePaintControls } from "./ImagePaintControls";
 import { outsideSrgb } from "./engine/colour-spaces";
 import { fromRgba8, renderColour, withAlpha } from "./engine/colour";
@@ -102,6 +104,9 @@ export function PaintPicker({engine,list,index,label,paint,change,region=false}:
   }
   useEffect(()=>{if (paint.type==="image") setPending(undefined);},[paint.type]);
   const open = picker?.list === list && picker.index === index;
+  const {document: doc, selection} = engine.getSnapshot();
+  const sources = useMemo(() => open ? patternSources(doc,selection) : [], [open,doc,selection]);
+  const [missingSource,setMissingSource] = useState<Picker>();
   const button = useRef<HTMLButtonElement>(null), panel = useRef<HTMLDivElement>(null);
   useLayoutEffect(()=>{
     const popup=panel.current, anchor=button.current;
@@ -145,12 +150,21 @@ export function PaintPicker({engine,list,index,label,paint,change,region=false}:
       onKeyDown={event=>{if(event.key==="Escape" && !engine.interacting){event.preventDefault();event.stopPropagation();engine.setPaintPicker();button.current?.focus();}}}>
       <button type="button" aria-label="Close paint picker" style={{float:"right"}} onClick={()=>{engine.setPaintPicker();button.current?.focus();}}>×</button>
       <label>Paint type<select value={image ? "image" : paint.type === "gradient" ? paint.kind : paint.type} onChange={event=>{
-        if(event.target.value==="image") setPending(picker);
+        setMissingSource(undefined);
+        if(event.target.value==="pattern") {
+          setPending(undefined);
+          const source=sources[0];
+          if (!source) {setMissingSource(picker);return;}
+          const {opacity,visible,blend,colorAlpha}=paint;
+          change({type:"pattern",source:source.id,tile:"grid",align:"start",scale:1,spacing:[0,0],opacity,visible,blend,colorAlpha});
+        } else if(event.target.value==="image") setPending(picker);
         else {setPending(undefined);change(changeKind(paint,event.target.value as GradientKind|"solid"));}
       }}>
         {(["solid","linear","radial","angular","diamond"] as const).map(kind=><option key={kind} value={kind}>{kind[0].toUpperCase()+kind.slice(1)}</option>)}
-        <option value="image">Image</option>
+        <option value="image">Image</option><option value="pattern">Pattern</option>
       </select></label>
+      {missingSource===picker && <p role="status">Add a layer or component to tile first</p>}
+      {!image && paint.type==="pattern" && <PatternPaintControls engine={engine} picker={picker} paint={paint} sources={sources} change={change}/>}
       {image && <ImagePaintControls engine={engine} picker={picker} paint={paint.type === "image" ? paint : undefined} region={region} hover={hover===picker} upload={upload} change={change}/>}
       {image && uploadError?.picker===picker && <p role="alert">{uploadError.message}</p>}
       {!image && paint.type === "gradient" && <Stops engine={engine} paint={paint} picker={picker} change={change}/>}

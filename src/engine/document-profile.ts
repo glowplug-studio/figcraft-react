@@ -10,7 +10,7 @@ export function setDocumentProfile(document: Document, target: ColourProfile, co
   if (!convert) return assigned;
 
   const paint = (p: Paint): Paint => {
-    if (p.type === "image") return p;
+    if (p.type === "image" || p.type === "pattern") return p;
     if (p.type === "solid") return Object.freeze({ ...p, color: convertColour(p.color, from, target) });
     const stops = p.stops.map(stop => Object.freeze({ ...stop, color: convertColour(stop.color, from, target) }));
     return Object.freeze({ ...p, stops: Object.freeze(stops) });

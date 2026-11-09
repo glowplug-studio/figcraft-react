@@ -4,7 +4,8 @@ import { fromRgba8 } from "./colour";
 import { rectanglePaints, withRectanglePaints, type Document, type LayerNode, type NodeId } from "./document";
 import { HierarchyDraft } from "./hierarchy";
 import { paintStackEdit } from "./paint-stack";
-import { parseIndex, parseNodeId } from "./parameters";
+import { checkPatternTarget } from "./pattern-sources";
+import { parseIndex, parseNodeId, parseNumber } from "./parameters";
 import { samePaints, solidPaint, type Paint } from "./solid-paint";
 import type { VectorEditState } from "./vector-edit";
 
@@ -12,6 +13,7 @@ export const fillSpecs = Object.freeze({
   "fill.add": { label: "Add fill", undo: true },
   "fill.remove": { label: "Remove fill", undo: true },
   "fill.move": { label: "Move fill", undo: true },
+  "fill.pattern": { label: "Pattern fill", undo: true },
   "fill.set": { label: "Set fill", undo: true },
   "fill.copy": { label: "Copy fill", undo: false },
   "fill.paste": { label: "Paste fill", undo: true },
@@ -62,7 +64,17 @@ export function copyPaint(list: CopiedPaint["list"], document: Document, selecti
 export function writeFill(command: WriteCommand, document: Document, selection: readonly NodeId[], params: Record<string, unknown>,
   state?: VectorEditState, clipboard?: Paint): Document {
   const ids = arrangementTargets(document, selection, params, false);
-  const regions = fillRegions(document, ids, params.regions, state);
+  const selected = fillRegions(document, ids, params.regions, state);
+  const regions = command === "fill.pattern" ? undefined : selected;
+  if (command === "fill.pattern") {
+    const source = parseNodeId(params.source), node = source && document.nodes[source];
+    if (!node || node.kind === "page") throw new Error("Pattern source must be a layer");
+    checkPatternTarget(document, ids, node.id);
+    let scale = 1;
+    try { scale = Math.max(.01, Math.min(100, parseNumber(params.scale))); } catch { /* Optional native scale defaults to one. */ }
+    params = {...params, paint:{type:"pattern", source:node.id, tile:params.tile, align:params.align, spacing:params.spacing, scale}};
+    command = "fill.set";
+  }
   if (command === "fill.paste" && !clipboard) throw new Error("No copied fill");
   const action = command === "fill.paste" ? (params.index == null ? "add" : "set") : command.slice(5) as "set" | "add" | "remove" | "move";
   const values = command === "fill.paste" ? { paint: clipboard, index: params.index } : params;

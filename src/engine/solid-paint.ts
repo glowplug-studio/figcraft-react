@@ -1,4 +1,5 @@
 import { colour, fromRgba8, toRgba8, withAlpha, type Colour } from "./colour";
+import { readPattern, type Pattern } from "./pattern";
 import { readGradient, type Gradient } from "./gradient";
 import { parseColour } from "./colour-css";
 
@@ -19,7 +20,8 @@ export interface ImagePaint extends PaintProperties, ImagePlacement {
   readonly image: string;
   readonly filters: ImageFilters;
 }
-export type Paint = SolidPaint | GradientPaint | ImagePaint;
+export interface PatternPaint extends PaintProperties, Pattern { readonly type: "pattern" }
+export type Paint = SolidPaint | GradientPaint | ImagePaint | PatternPaint;
 
 function readImagePaint(p: Record<string, unknown>, properties: PaintProperties): ImagePaint {
   const allowed = ["type", "image", "scale_mode", "scale", "rotation", "crop", "filters", "opacity", "visible", "blend", "colorAlpha"];
@@ -57,6 +59,10 @@ export function readPaint(value: unknown, command = false): Paint {
     const color = parseColour(p.color);
     if (!color) throw new Error("Invalid paint colour");
     return Object.freeze({ type: "solid", color, ...properties });
+  }
+  if (p.type === "pattern") {
+    if (Object.keys(p).some(key => !["type","source","tile","scale","spacing","align","opacity","visible","blend","colorAlpha"].includes(key))) throw new Error("Unsupported pattern paint property");
+    return Object.freeze({type: "pattern", ...readPattern(p), ...properties});
   }
   if (p.type === "image") return readImagePaint(p, properties);
   if (typeof p.type !== "string" || !p.type.toLowerCase().endsWith("gradient")) throw new Error("This paint kind is not supported yet");
@@ -97,6 +103,8 @@ export function samePaints(left: readonly Paint[], right: readonly Paint[]): boo
     if (a === b) return true;
     if (a.opacity !== b.opacity || a.visible !== b.visible || a.blend !== b.blend || a.colorAlpha !== b.colorAlpha) return false;
     if (a.type === "solid") return b.type === "solid" && sameColour(a.color,b.color);
+    if (a.type === "pattern") return b.type === "pattern" && a.source === b.source && a.tile === b.tile && a.scale === b.scale
+      && a.align === b.align && a.spacing[0] === b.spacing[0] && a.spacing[1] === b.spacing[1];
     if (a.type === "image") {
       return b.type === "image" && a.image === b.image && a.scale_mode === b.scale_mode && a.rotation === b.rotation && a.scale === b.scale
         && (a.crop === b.crop || !!a.crop && !!b.crop && a.crop.every((v, i) => v === b.crop![i]))

@@ -2,7 +2,7 @@ import { decodeImageBitmap } from "./image-decode";
 import { adjustImagePixels, type ImageFilters } from "./image-filters";
 import { cropRect, imageTransform, placementCrop } from "./image-placement";
 import type { ImageResource } from "./image-resource";
-import type { ImagePaint } from "./solid-paint";
+import type { ImagePaint, PatternPaint } from "./solid-paint";
 import type { RegionPaintSpace } from "./vector-network";
 
 import { convertColourPixels, type ColourProfile } from "./colour-spaces";
@@ -52,7 +52,9 @@ export async function decodeVariant(entry: Pick<ImageVariant, "resource" | "widt
   } finally { source.close(); }
 }
 
-export type PaintSteps = Generator<[context: CanvasRenderingContext2D, paint: ImagePaint, width: number, height: number, space?: RegionPaintSpace], void>;
+type PaintRequest<P> = [context: CanvasRenderingContext2D, paint: P, width: number, height: number, space?: RegionPaintSpace];
+export type LayerPaintSteps = Generator<PaintRequest<ImagePaint | PatternPaint>, void>;
+export type PaintSteps = Generator<[...PaintRequest<ImagePaint>, magnifiedPixels?: boolean], void>;
 
 function coversBox(paint: ImagePaint, iw: number, ih: number, w: number, h: number): boolean {
   if (paint.scale_mode !== "crop") return paint.scale_mode === "fill";
@@ -130,12 +132,12 @@ export class CanvasImages {
 
   }
 
-  paint(ctx: CanvasRenderingContext2D, paint: ImagePaint, width: number, height: number, space?: RegionPaintSpace) {
-    return this.#draw(ctx, paint, width, height, space);
+  paint(ctx: CanvasRenderingContext2D, paint: ImagePaint, width: number, height: number, space?: RegionPaintSpace, magnifiedPixels = true) {
+    return this.#draw(ctx, paint, width, height, space, undefined, magnifiedPixels);
   }
 
   drawGhost(ctx:CanvasRenderingContext2D,paint:ImagePaint,width:number,height:number) {
-    const pending = this.#draw(ctx,paint,width,height,undefined,2048);
+    const pending = this.#draw(ctx,paint,width,height,undefined,2048,false);
     if (pending && pending !== this.#ghostWaiting) {
       this.#ghostWaiting = pending;
       void pending.then(() => {
@@ -146,7 +148,7 @@ export class CanvasImages {
     }
   }
 
-  #draw(ctx:CanvasRenderingContext2D,paint:ImagePaint,width:number,height:number,space?:RegionPaintSpace,maxSide?:number): void | Promise<void> {
+  #draw(ctx:CanvasRenderingContext2D,paint:ImagePaint,width:number,height:number,space?:RegionPaintSpace,maxSide?:number,magnifiedPixels = true): void | Promise<void> {
     const resource = this.#resources?.[paint.image];
     if (!resource || !resource.width || !resource.height || resource.width * resource.height * 4 > PIXEL_BYTES) return;
     const w = space?.width ?? width, h = space?.height ?? height;
@@ -171,7 +173,7 @@ export class CanvasImages {
       if (cached.loading) return this.#loading;
       this.#entries.delete(key);
       this.#entries.set(key, cached);
-      if (cached.bitmap) drawPixels(ctx, paint, cached.bitmap, width, height, space, maxSide === undefined);
+      if (cached.bitmap) drawPixels(ctx, paint, cached.bitmap, width, height, space, magnifiedPixels);
       return;
     }
     if (this.#loading) return this.#loading;

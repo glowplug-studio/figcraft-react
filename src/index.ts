@@ -26,7 +26,7 @@ export { worldTransform, frameRelative, pageForNode, subtreeIds } from "./engine
 export { renderDocument, CanvasController } from "./engine/canvas";
 export { colour, fromRgba8, toRgba8, toCssHex, renderColour, type Colour } from "./engine/colour";
 export { parseColour, parseCssColour, parseHexColour } from "./engine/colour-css";
-export { solidPaint, type SolidPaint, type Paint, type ImagePaint, type GradientPaint } from "./engine/solid-paint";
+export { solidPaint, type SolidPaint, type Paint, type ImagePaint, type PatternPaint, type GradientPaint } from "./engine/solid-paint";
 export { rectanglePaints, withRectanglePaints, pageColour, withPageColour } from "./engine/document";
 export type { RecoveryStore } from "./backends/recovery";
 export { IndexedDbRecoveryStore } from "./backends/browser/recovery";

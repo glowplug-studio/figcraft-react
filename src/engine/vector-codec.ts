@@ -1,5 +1,5 @@
 import type { Affine } from "./affine";
-import { readPaints } from "./solid-paint";
+import { readPaints, type Paint } from "./solid-paint";
 import { strokeCaps } from "./stroke";
 import { freezeNetwork, type RegionPaintSpace, type VectorNetwork } from "./vector-network";
 
@@ -27,6 +27,6 @@ export function readVectorNetwork(value: unknown): VectorNetwork {
     return { loops: array(r.loops).map(l => array(l).map(index)), winding, ...(r.fills == null ? {} : { fills: readPaints(r.fills) }), ...(paintSpace ? { paintSpace } : {}) };
   }) });
 }
-export function wireVectorNetwork(net: VectorNetwork): Record<string, unknown> {
-  return { vertices: net.vertices, segments: net.segments, regions: net.regions.map(({ paintSpace, ...r }) => ({ ...r, ...(paintSpace ? { paint_space: paintSpace } : {}) })) };
+export function wireVectorNetwork(net: VectorNetwork, encodePaints?: (fills: readonly Paint[]) => readonly unknown[]): Record<string, unknown> {
+  return { vertices: net.vertices, segments: net.segments, regions: net.regions.map(({ paintSpace, ...r }) => ({ ...r, ...(r.fills && encodePaints ? { fills: encodePaints(r.fills) } : {}), ...(paintSpace ? { paint_space: paintSpace } : {}) })) };
 }

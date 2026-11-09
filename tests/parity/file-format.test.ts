@@ -62,6 +62,25 @@ describe("bounded native Figcraft file adapter", () => {
     expect(await decodeFigcraft(archive)).toEqual(decoded);
   });
 
+  it("preserves distinct u64 pattern sources in fills, strokes and vector regions", async () => {
+    const native = fixture(), node = native.nodes["2"];
+    const pattern = (source: string) => [{type:"pattern", source}];
+    node.type = "vector";
+    node.fills = pattern("FILL_ID");
+    node.strokes = pattern("STROKE_ID");
+    node.network = {vertices:[], segments:[], regions:[{loops:[], fills:pattern("REGION_ID")}]};
+    const ids = ["9007199254740992", "9007199254740993", "18446744073709551615"];
+    const json = JSON.stringify(native).replace('"FILL_ID"',ids[0]).replace('"STROKE_ID"',ids[1]).replace('"REGION_ID"',ids[2]);
+    const opened = await decodeFigcraft(new Blob([json]));
+    expect(opened.document.nodes["2"]).toMatchObject({fills:pattern(ids[0]), strokes:pattern(ids[1]),
+      network:{regions:[{fills:pattern(ids[2])}]}});
+    const archive = await encodeFigcraft(opened.document);
+    const wire = strFromU8(unzipSync(archive)["document.json"]);
+    for (const id of ids) expect(wire).toContain('"source":'+id);
+    expect(await decodeFigcraft(archive)).toEqual(opened);
+    await expect(decodeFigcraft(bytes(json.replace(ids[1], '"'+ids[1]+'"')))).rejects.toThrow("numeric node ID");
+  });
+
   it("repairs the allocator upward and preserves the exhausted u64 maximum", async () => {
     expect((await decodeFigcraft(encodedFixture((value) => { value.next_id = 1; }))).nextId).toBe("3");
     const source = fixtureText.replaceAll('"2"', '"18446744073709551615"').replace(/\b2\b/g, "18446744073709551615");

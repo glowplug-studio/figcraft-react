@@ -1,5 +1,6 @@
 import { arrangementTargets } from "./arrange";
 import type { Document, NodeId } from "./document";
+import { checkPatternTarget } from "./pattern-sources";
 import { writeFill } from "./fill-commands";
 import { HierarchyDraft } from "./hierarchy";
 import { withImageResource } from "./image-import";
@@ -13,6 +14,7 @@ export interface CopiedPaint {
   list: "fill" | "stroke";
   paint: Paint;
   image?: ImageResource;
+  documentIdentity?: symbol;
   stroke?: StrokeProps;
 }
 
@@ -42,9 +44,13 @@ function restoreImage(document: Document, copied: CopiedPaint) {
 }
 
 export function pastePaint(list: CopiedPaint["list"], document: Document, selection: readonly NodeId[],
-  params: Record<string,unknown>, copied: CopiedPaint | undefined, state?: VectorEditState): Document {
+  params: Record<string,unknown>, copied: CopiedPaint | undefined, state?: VectorEditState, documentIdentity?: symbol): Document {
   if (!copied) throw new Error("No copied " + list);
   if (copied.list !== list) throw new Error("The copied paint is a " + copied.list);
+  if (copied.paint.type === "pattern") {
+    if (!documentIdentity || copied.documentIdentity !== documentIdentity) throw new Error("A pattern can't be pasted into another file");
+    checkPatternTarget(document, arrangementTargets(document,selection,params,false), copied.paint.source);
+  }
   const target = restoreImage(document,copied);
   if (list === "fill") return writeFill("fill.paste", target.document, selection, params, state, target.paint);
   const ids = arrangementTargets(document,selection,params,false);

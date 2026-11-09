@@ -1,5 +1,5 @@
 import { multiply, transformBounds, type Affine } from "./affine";
-import type { PaintSteps } from "./image-renderer";
+import type { LayerPaintSteps } from "./image-renderer";
 import { drawGradient } from "./gradient-renderer";
 import { renderColour, withAlpha } from "./colour";
 import { flattenContours, tracePath, type PathCommand } from "./corners";
@@ -149,7 +149,7 @@ function dashCaps(context: CanvasRenderingContext2D, contour: Contour, pattern: 
   }
 }
 const gradientMasks = new WeakMap<CanvasRenderingContext2D, HTMLCanvasElement>();
-function* paintMask(context: CanvasRenderingContext2D, node: LayerNode, mask: Mask, alpha: number): PaintSteps {
+function* paintMask(context: CanvasRenderingContext2D, node: LayerNode, mask: Mask, alpha: number): LayerPaintSteps {
   const { surface, context: scratch, left, top, width, height } = mask;
   scratch.resetTransform(); scratch.globalCompositeOperation = "source-in";
   context.save(); context.resetTransform();
@@ -179,7 +179,7 @@ function* paintMask(context: CanvasRenderingContext2D, node: LayerNode, mask: Ma
 }
 
 /** Caller has entered node-local coordinates. No DOM or React node represents a canvas layer. */
-export function* paintStroke(context: CanvasRenderingContext2D, node: LayerNode, alpha = 1): PaintSteps {
+export function* paintStroke(context: CanvasRenderingContext2D, node: LayerNode, alpha = 1): LayerPaintSteps {
   if (!hasVisibleStroke(node) || node.kind === "group") return;
   const filled = filledStroke(node), paints = node.strokes ?? [];
   if (filled) {

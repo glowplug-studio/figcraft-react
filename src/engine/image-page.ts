@@ -9,6 +9,7 @@ export class ImagePage {
   #generation = 0;
   #invalidate?: () => void;
   #pending = false;
+  #steps?: PaintSteps;
   #notification?: number;
   #waiting?: Promise<void>;
   #resume?: () => void;
@@ -32,7 +33,7 @@ export class ImagePage {
       if (surface.height !== target.canvas.height) surface.height = target.canvas.height;
       const ctx = surface.getContext("2d")!;
       ctx.setTransform(matrix);
-      const steps = paint(ctx);
+      const steps = this.#steps = paint(ctx);
       let step = steps.next();
       const notify = () => {
         if (this.#notification !== undefined) return;
@@ -63,6 +64,7 @@ export class ImagePage {
           }
           step = steps.next();
         }
+        this.#steps = undefined;
         if (this.#pending) {
           this.#pending = false;
           if (this.#notification !== undefined) cancelAnimationFrame(this.#notification);
@@ -83,6 +85,8 @@ export class ImagePage {
   }
 
   #releaseSurface() {
+    this.#steps?.return();
+    this.#steps = undefined;
     if (this.#notification !== undefined) cancelAnimationFrame(this.#notification);
     this.#notification = undefined;
     if (this.#surface) this.#surface.width = this.#surface.height = 0;

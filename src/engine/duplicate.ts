@@ -1,3 +1,4 @@
+import { remapPatternSources } from "./pattern-sources";
 import { isLeaf } from "./document";
 import type { Document, NodeId } from "./document";
 import { arrangementTargets, moveWorld } from "./arrange";
@@ -35,14 +36,23 @@ export function executeDuplicate(document: Document, selection: readonly NodeId[
     const parent = draft.nodes[source.parent];
     if (isLeaf(parent)) throw new Error("Invalid layer parent");
     const index = parent.children.indexOf(sourceId) + 1;
-    for (const oldId of subtreeIds(document, sourceId)) {
+    const subtree = subtreeIds(document, sourceId);
+    const localMap = new Map<NodeId,NodeId>();
+    for (const oldId of subtree) {
       const node = document.nodes[oldId];
       if (node.kind === "page") throw new Error("A page cannot be a layer child");
       const allocated = draft.allocateId(allocator); allocator = allocated.nextId;
       const id = allocated.id, parentId = oldId === sourceId ? node.parent : map[node.parent];
       if (!parentId) throw new Error("Invalid subtree parent");
       map[oldId] = id;
+      localMap.set(oldId,id);
       draft.insert(isLeaf(node) ? { ...node, id } : { ...node, id, children: Object.freeze([]) }, parentId, oldId === sourceId ? index : undefined);
+    }
+    for (const id of localMap.values()) {
+      const node = draft.nodes[id];
+      if (node.kind === "page") continue;
+      const copy = remapPatternSources(node, source => localMap.get(source));
+      if (copy !== node) draft.set(copy);
     }
     const copyId = map[sourceId];
     // Explicit offsets are parent-space in native code; repeated steps are page-space.

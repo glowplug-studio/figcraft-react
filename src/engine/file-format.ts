@@ -12,7 +12,7 @@ import { readConstraints } from "./constraints";
 import { layerTransform, withLayerTransform, rectanglePaints, withRectanglePaints, pageColour, withPageColour, type Document, type DocumentNode } from "./document";
 import { parseColour } from "./colour-css";
 import type { Colour } from "./colour";
-import { readPaints } from "./solid-paint";
+import { readPaints, type Paint } from "./solid-paint";
 import { isDefaultStroke, readStroke, wireStroke } from "./stroke";
 import { transformBounds, type Affine } from "./affine";
 
@@ -107,7 +107,11 @@ const nodeDefaults = {
 function appearanceValue(value: unknown): unknown {
   if (isLosslessNumber(value)) return number(value, "appearance number");
   if (Array.isArray(value)) return value.map(appearanceValue);
-  if (value && typeof value === "object") return Object.fromEntries(Object.entries(value).map(([key, entry]) => [key, appearanceValue(entry)]));
+  if (value && typeof value === "object") {
+    const pattern = "type" in value && value.type === "pattern";
+    return Object.fromEntries(Object.entries(value).map(([key, entry]) =>
+      [key, pattern && key === "source" ? id(entry, "pattern source") : appearanceValue(entry)]));
+  }
   return value;
 }
 function nativeColour(value: unknown, path: string): Colour {
@@ -429,15 +433,21 @@ export async function decodeFigcraft(source: Uint8Array | Blob): Promise<Decoded
   }
 }
 
+function wirePaints(paints: readonly Paint[]) {
+  return paints.some(p => p.type === "pattern")
+    ? paints.map(p => p.type === "pattern" ? { ...p, source: wireId(p.source) } : p)
+    : paints;
+}
+
 function wireNode(key: string, node: DocumentNode) {
   const numericId = wireId(key);
   if (node.id !== key) fail("node map key and ID differ");
-  const common = { id: numericId, name: node.name, type: node.kind, ...(node.kind === "booleanOp" ? { op: node.op } : {}), ...(node.kind === "ellipse" ? { start: node.start, sweep: node.sweep, inner: node.inner } : node.kind === "star" ? { count: node.count, inner_ratio: node.innerRatio } : node.kind === "polygon" ? { count: node.count } : node.kind === "vector" ? { network: wireVectorNetwork(node.network) } : {}) };
+  const common = { id: numericId, name: node.name, type: node.kind, ...(node.kind === "booleanOp" ? { op: node.op } : {}), ...(node.kind === "ellipse" ? { start: node.start, sweep: node.sweep, inner: node.inner } : node.kind === "star" ? { count: node.count, inner_ratio: node.innerRatio } : node.kind === "polygon" ? { count: node.count } : node.kind === "vector" ? { network: wireVectorNetwork(node.network, wirePaints) } : {}) };
   if (node.kind === "page") {
     return { ...common, width: 0, height: 0, children: node.children.map(wireId), background: pageColour(node), ...(node.prototypeBackground && { prototype: { device: "None", rotation: "portrait", background: node.prototypeBackground } }) };
   } else {
-    return { ...common, ...(node.boolOp ? { bool_op: node.boolOp } : {}), parent: wireId(node.parent), ...(!isLeaf(node) ? { children: node.children.map(wireId) } : {}), transform: layerTransform(node), width: node.width, height: node.height, ...(node.stroke ? { stroke: wireStroke(node.stroke) } : {}), ...(node.strokes ? { strokes: node.strokes } : {}),
-      ...(node.corners ? { corners: node.corners } : {}), ...(node.constraints ? { constraints: node.constraints } : {}), ...(node.constrainProportions ? { constrain_proportions: true } : {}), ...(node.kind === "frame" ? { clip: node.clip } : {}), blend: node.blend ?? (!isLeaf(node) ? "passThrough" : "normal"), visible: node.visible ?? true, locked: node.locked ?? false, opacity: node.opacity ?? 1, fills: rectanglePaints(node) };
+    return { ...common, ...(node.boolOp ? { bool_op: node.boolOp } : {}), parent: wireId(node.parent), ...(!isLeaf(node) ? { children: node.children.map(wireId) } : {}), transform: layerTransform(node), width: node.width, height: node.height, ...(node.stroke ? { stroke: wireStroke(node.stroke) } : {}), ...(node.strokes ? { strokes: wirePaints(node.strokes) } : {}),
+      ...(node.corners ? { corners: node.corners } : {}), ...(node.constraints ? { constraints: node.constraints } : {}), ...(node.constrainProportions ? { constrain_proportions: true } : {}), ...(node.kind === "frame" ? { clip: node.clip } : {}), blend: node.blend ?? (!isLeaf(node) ? "passThrough" : "normal"), visible: node.visible ?? true, locked: node.locked ?? false, opacity: node.opacity ?? 1, fills: wirePaints(rectanglePaints(node)) };
   }
 }
 

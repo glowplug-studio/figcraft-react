@@ -22,7 +22,8 @@ import { hasVisibleStroke } from "./stroke";
 import { ImageCropInteraction } from "./image-crop-interaction";
 import { GradientInteraction } from "./gradient-interaction";
 import { ImagePage } from "./image-page";
-import { CanvasImages, type PaintSteps } from "./image-renderer";
+import { resolveLayerPaints } from "./pattern-renderer";
+import { CanvasImages, type LayerPaintSteps, type PaintSteps } from "./image-renderer";
 import { drawGradient } from "./gradient-renderer";
 import { vectorPaintRegions } from "./vector-presentation";
 import { VectorInteraction } from "./vector-interaction";
@@ -39,7 +40,7 @@ const compositeSurfaces = new WeakMap<CanvasRenderingContext2D, HTMLCanvasElemen
 const groupBounds = new WeakMap<Document, Map<string, Rectangle | undefined>>();
 const opacity = (value: number) => Math.max(0, Math.min(1, value));
 
-function* paintRectangle(context: CanvasRenderingContext2D, node: LayerNode, alpha = 1, strokes = true): PaintSteps {
+function* paintRectangle(context: CanvasRenderingContext2D, node: LayerNode, alpha = 1, strokes = true): LayerPaintSteps {
   context.save();
   if (node.transform) context.transform(...node.transform);
   else context.translate(node.x, node.y);
@@ -63,7 +64,7 @@ function* paintRectangle(context: CanvasRenderingContext2D, node: LayerNode, alp
   if (strokes) yield* paintStroke(context, node, alpha);
   context.restore();
 }
-function* paintLayerStroke(context: CanvasRenderingContext2D, node: LayerNode): PaintSteps {
+function* paintLayerStroke(context: CanvasRenderingContext2D, node: LayerNode): LayerPaintSteps {
   context.save(); context.transform(...rectangleTransform(node)); yield* paintStroke(context, node, 1); context.restore();
 }
 
@@ -122,24 +123,24 @@ function paintedGroupBounds(context: CanvasRenderingContext2D, document: Documen
   return screenBounds(bounds);
 }
 
-function* drawLayer(context: CanvasRenderingContext2D, document: Document, node: LayerNode, depth = 0): PaintSteps {
+function* drawLayer(context: CanvasRenderingContext2D, document: Document, node: LayerNode, depth: number, nesting: number): PaintSteps {
   if (node.visible === false || (node.opacity ?? 1) <= 0 || depth > 256) return;
   if (node.kind === "booleanOp") {
     const result = booleanResult(document, node);
-    if (result) yield* drawLayer(context, document, result, depth);
+    if (result) yield* drawLayer(context, document, result, depth, nesting);
     return;
   }
   if (!isLeaf(node)) {
     const draw = function* (target: CanvasRenderingContext2D): PaintSteps {
-      if (node.kind === "frame") yield* paintRectangle(target, node, 1, false);
+      if (node.kind === "frame") yield* resolveLayerPaints(paintRectangle(target, node, 1, false), document, depth, nesting, drawLayer);
       target.save(); target.transform(...rectangleTransform(node));
       if (node.kind === "frame" && node.clip) { target.beginPath(); tracePath(target, shapePath(node)); target.clip(); }
       for (const id of node.children) {
         const child = document.nodes[id];
-        if (child && child.kind !== "page") yield* drawLayer(target, document, child, depth + 1);
+        if (child && child.kind !== "page") yield* drawLayer(target, document, child, depth + 1, nesting);
       }
       target.restore();
-      if (node.kind === "frame" && hasVisibleStroke(node)) yield* paintLayerStroke(target, node);
+      if (node.kind === "frame" && hasVisibleStroke(node)) yield* resolveLayerPaints(paintLayerStroke(target, node), document, depth, nesting, drawLayer);
     };
     if (opacity(node.opacity ?? 1) < 1) {
       const bounds = paintedGroupBounds(context, document, node);
@@ -147,8 +148,8 @@ function* drawLayer(context: CanvasRenderingContext2D, document: Document, node:
     } else yield* draw(context);
   } else if (hasShapePath(node) || hasVisibleStroke(node) || node.fills || node.opacity !== undefined && node.opacity !== 1) {
     const fillCount = node.kind === "vector" ? vectorPaintRegions(node).reduce((sum, region) => sum + region.paints.length, 0) : rectanglePaints(node).length;
-    if (fillCount + (node.strokes?.length ?? 0) > 1 && opacity(node.opacity ?? 1) < 1) yield* paintComposite(context, node, target => paintRectangle(target, node, 1, true));
-    else yield* paintRectangle(context, node, opacity(node.opacity ?? 1), true);
+    if (fillCount + (node.strokes?.length ?? 0) > 1 && opacity(node.opacity ?? 1) < 1) yield* paintComposite(context, node, target => resolveLayerPaints(paintRectangle(target, node, 1, true), document, depth, nesting, drawLayer));
+    else yield* resolveLayerPaints(paintRectangle(context, node, opacity(node.opacity ?? 1), true), document, depth, nesting, drawLayer);
   } else {
     context.fillStyle = node.fill;
     if (node.transform) {
@@ -294,7 +295,7 @@ function* paintPage(context: CanvasRenderingContext2D, document: Document, width
       const bounds = hasVisibleStroke(node) ? strokeBounds(node, rectangleTransform(node)) : node.transform ? transformBounds(node.transform, node.width, node.height) : node;
       if (bounds.x > origin.x + width / zoom || bounds.y > origin.y + height / zoom || bounds.x + bounds.width < origin.x || bounds.y + bounds.height < origin.y) continue;
     }
-    yield* drawLayer(context, document, node);
+    yield* drawLayer(context, document, node, 0, 0);
   }
   context.restore();
 }

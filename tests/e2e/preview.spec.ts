@@ -3642,3 +3642,84 @@ test("copied image fills and strokes survive a different file using the same ima
     expect(Buffer.from(members["images/legacy"])).toEqual(taken);
   }
 });
+
+test("pattern picker tiles a live source, scrubs once and recovers its native file", async ({page}) => {
+  await login(page);
+  await createNamedRectangle(page,"Tile",22,20,10,10);
+  const picker=page.getByRole("group",{name:"fill 1 paint picker",exact:true});
+  const open=page.getByRole("button",{name:"Edit fill 1 paint",exact:true});
+  await open.click();
+  await picker.getByLabel("Paint type").selectOption("pattern");
+  await expect(picker.getByRole("status")).toHaveText("Add a layer or component to tile first");
+  await expect(picker.getByLabel("Paint type")).toHaveValue("solid");
+  await picker.getByRole("button",{name:"Close paint picker"}).click();
+  await createNamedRectangle(page,"Destination",80,80,100,100);
+  await open.click();
+  await picker.getByLabel("Paint type").selectOption("pattern");
+  await expect(picker.getByLabel("Pattern source").locator("option")).toHaveText(["Tile"]);
+  await picker.getByLabel("Tile type").selectOption("horizontalHex");
+  await picker.getByLabel("Pattern alignment").selectOption("center");
+  for (const [label,n] of [["Scale (%)","200"],["Horizontal gap","10"],["Vertical gap","16"]]) {
+    const control=picker.getByRole("spinbutton",{name:label,exact:true});
+    await control.fill(n);
+    await control.press("Enter");
+  }
+  const canvas=page.getByLabel("Design canvas",{exact:true});
+  const scrub=picker.getByRole("button",{name:"Scrub Horizontal gap"});
+  const box=(await scrub.boundingBox())!;
+  await page.mouse.move(box.x+8,box.y+8); await page.mouse.down();
+  await page.mouse.move(box.x+38,box.y+8,{steps:5}); await page.mouse.up();
+  await expect(picker.getByRole("spinbutton",{name:"Horizontal gap",exact:true})).toHaveValue("40");
+  await canvas.focus(); await page.keyboard.press("ControlOrMeta+z");
+  await expect(picker.getByRole("spinbutton",{name:"Horizontal gap",exact:true})).toHaveValue("10");
+  await expect(picker).toHaveScreenshot("live-pattern-picker.png",{animations:"disabled",maxDiffPixels:0});
+  await page.setViewportSize({width:390,height:844});
+  await picker.getByLabel("Tile type").selectOption("verticalHex");
+  await picker.getByLabel("Pattern alignment").selectOption("end");
+  const bounds=(await picker.boundingBox())!;
+  expect(bounds.x).toBeGreaterThanOrEqual(0); expect(bounds.x+bounds.width).toBeLessThanOrEqual(390);
+  await page.setViewportSize({width:1440,height:900});
+  await picker.getByRole("button",{name:"Close paint picker"}).click();
+  await expect(page.locator(".figcraft-recovery")).toHaveText("Recovery saved on this device");
+  await page.reload();
+  await expect(page.getByRole("list",{name:"Page layers"}).getByRole("button",{name:"Destination",exact:true})).toBeVisible();
+  const pending=page.waitForEvent("download");
+  await canvas.focus(); await page.keyboard.press("ControlOrMeta+s");
+  const doc=(await decodeFigcraft(await readFile((await (await pending).path())!))).document;
+  expect(rectanglePaints(doc.nodes["3"] as RectangleNode)[0]).toMatchObject({type:"pattern",source:"2",tile:"verticalHex",align:"end",spacing:[10,16],scale:2});
+});
+
+test("stroke and regional pattern pickers retain their own paint stacks", async ({page}) => {
+  const engine = new EditorEngine();
+  const src=String(engine.execute("shape.rectangle",{name:"Tile",x:500,y:10,width:10,height:10,props:{fill:"blue"}}).id);
+  const id=String(engine.execute("vector.create",{x:120,y:120,name:"Faces",path:"M0 0H80V80H0Z M100 0H180V80H100Z",props:{fill:"red"}}).id);
+  const doc=engine.getSnapshot().document, node=doc.nodes[id] as VectorNode;
+  const regions=node.network.regions[0].loops.map(loop=>({winding:"nonZero" as const,loops:[loop]}));
+  const bytes=await encodeFigcraft({...doc,nodes:{...doc.nodes,[id]:{...node,network:{...node.network,regions}}}});
+  await login(page);
+  await page.getByLabel("Open Figcraft file",{exact:true}).setInputFiles({name:"patterns.figcraft",mimeType:"application/octet-stream",buffer:Buffer.from(bytes)});
+  const layer=page.getByRole("region",{name:"Layers",exact:true}).getByRole("button",{name:"Faces",exact:true});
+  await expect(layer).toBeVisible(); await resetCanvasOrigin(page); await layer.click();
+  const stroke=page.getByRole("group",{name:"Stroke",exact:true});
+  await stroke.getByRole("button",{name:"Add stroke",exact:true}).click();
+  await stroke.getByRole("button",{name:"Edit stroke 1 paint"}).click();
+  const sp=stroke.getByRole("group",{name:"stroke 1 paint picker"});
+  await sp.getByLabel("Paint type").selectOption("pattern");
+  await sp.getByLabel("Tile type").selectOption("verticalHex");
+  await sp.getByRole("button",{name:"Close paint picker"}).click();
+  await page.getByRole("button",{name:"Edit vector",exact:true}).click();
+  const right=await canvasPoint(page,250,155); await page.mouse.click(right.x,right.y);
+  await page.getByRole("button",{name:"Edit fill 1 paint",exact:true}).click();
+  const fp=page.getByRole("group",{name:"fill 1 paint picker",exact:true});
+  await fp.getByLabel("Paint type").selectOption("pattern");
+  await fp.getByRole("button",{name:"Close paint picker"}).click();
+  await page.getByRole("button",{name:"Done editing",exact:true}).click();
+  await expectCanvasPixel(page,150,155,[255,0,0,255]);
+  await expectCanvasPixel(page,250,155,[0,0,255,255]);
+  const pending=page.waitForEvent("download"); await page.getByRole("button",{name:"Save as",exact:true}).click();
+  const saved=(await decodeFigcraft(await readFile((await (await pending).path())!))).document.nodes[id] as VectorNode;
+  expect(rectanglePaints(saved)[0].type).toBe("solid");
+  expect(saved.strokes).toMatchObject([{type:"pattern",source:src,tile:"verticalHex"}]);
+  expect(saved.network.regions[0].fills).toBeUndefined();
+  expect(saved.network.regions[1].fills).toMatchObject([{type:"pattern",source:src,tile:"grid"}]);
+});
