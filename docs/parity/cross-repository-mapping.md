@@ -420,3 +420,5 @@ Native `on_path`, `stroke_geometry`, `resize_cmd`, `nudge_size` and text scaling
 Native `fonts::missing`, `fonts::refit` and `FontDb::has_family` map to `missingFonts`, `refitText` and `FontLibrary.hasFamily` for supported text layers. [Family counts, stale boxes, undo and deferred style inputs](../planning/26-11-09-rich-text.md#missing-families-and-text-refitting).
 
 Native browser `ask`, `load_wanted`, `FontDb::add_local` and `load_local` map to `LocalFontAccess`, `FontLibrary.offerLocal`, `finishLocal` and `observeLocalFonts`. [Registration, permissions, native selection and file sizes](../planning/26-11-09-rich-text.md#browser-installed-fonts).
+
+Native typography’s font picker maps to `FontFamilyPicker`. Native preview and end-preview map to the editor’s transient render document. Native cluster-face fallback maps to `fontSegments` and `FontLibrary`. [Scope and comparisons](../planning/26-11-09-rich-text.md#font-picker-and-transient-previews).
