@@ -4740,3 +4740,28 @@ test("a narrow touch viewport creates, composes and saves a Unicode text layer",
   const archive=await decodeFigcraft(await readFile((await (await download).path())!));
   expect(archive.document.nodes["2"]).toMatchObject({kind:"text",text:{characters:"日本🙂"}});
 });
+
+test("native frame layout survives opening, recovery and a browser download", async ({page}) => {
+  const native = JSON.parse(await readFile(new URL("../fixtures/native-rectangle.json", import.meta.url), "utf8"));
+  native.name = "Native grid";
+  Object.assign(native.nodes["2"], {type: "frame", children: [], layout: {
+    mode: "grid", grid_columns: 3, row_tracks: [{sizing: "hug", value: 0}],
+    column_tracks: [{sizing: "fixed", value: 24}, {sizing: "fill", value: 2}],
+    padding: [4, 8, 12, 16], cross_gap: 7, reverse_z: true,
+  }});
+  await login(page);
+  await page.getByLabel("Open Figcraft file", {exact: true}).setInputFiles({
+    name: "native-grid.figcraft", mimeType: "application/octet-stream", buffer: Buffer.from(JSON.stringify(native)),
+  });
+  await expect(page.getByRole("heading", {name: "Native grid", exact: true})).toBeVisible();
+  await expect(page.getByText("Recovery saved on this device", {exact: true})).toBeVisible();
+  await page.reload();
+  await expect(page.getByRole("heading", {name: "Native grid", exact: true})).toBeVisible();
+  const downloading = page.waitForEvent("download");
+  await page.getByRole("button", {name: "Save as", exact: true}).click();
+  const saved = await decodeFigcraft(await readFile((await (await downloading).path())!));
+  expect(saved.document.nodes["2"]).toMatchObject({kind: "frame", layout: {
+    mode: "grid", gridColumns: 3, rowTracks: [{sizing: "hug", value: 0}],
+    columnTracks: native.nodes["2"].layout.column_tracks, padding: [4, 8, 12, 16], crossGap: 7, reverseZ: true,
+  }});
+});

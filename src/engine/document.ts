@@ -1,3 +1,4 @@
+import type { AutoLayout } from "./auto-layout";
 import { scaleTextPathData } from "./text-path-data";
 import type { TextData } from "./text-data";
 import type { Effect } from "./effects";
@@ -88,6 +89,7 @@ export interface GroupNode extends LayerProperties {
 }
 export interface FrameNode extends LayerProperties {
   readonly kind: "frame";
+  readonly layout?: AutoLayout;
   readonly children: readonly NodeId[];
   readonly clip: boolean;
 }
@@ -99,7 +101,7 @@ export interface BooleanNode extends LayerProperties {
 export type LayerNode = LeafNode | GroupNode | FrameNode | BooleanNode;
 export function commonProperties(node: LayerNode): LayerProperties {
   switch (node.kind) {
-    case "frame": { const { kind: _kind, children: _children, clip: _clip, ...common } = node; return common; }
+    case "frame": { const { kind: _kind, children: _children, clip: _clip, layout: _layout, ...common } = node; return common; }
     case "group": { const { kind: _kind, children: _children, ...common } = node; return common; }
     case "booleanOp": { const { kind: _kind, children: _children, op: _op, ...common } = node; return common; }
     case "ellipse": { const { kind: _kind, start: _start, sweep: _sweep, inner: _inner, ...common } = node; return common; }

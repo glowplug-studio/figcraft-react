@@ -108,6 +108,7 @@ function inspect(doc: Document, node: DocumentNode, depth: number, fields?: Set<
       if (smoothing > 0) put("cornerSmoothing", smoothing);
     }
     const parent = doc.nodes[node.parent];
+    if (node.kind === "frame" && node.layout) put("layout", node.layout);
     if (parent?.kind === "frame") put("constraints", node.constraints ?? defaultConstraints);
     if (parent?.kind === "booleanOp") put("operandOperation", node.boolOp);
     if (node.kind === "text") {
