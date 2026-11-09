@@ -1,3 +1,4 @@
+import type { Effect } from "./effects";
 import type { BlendMode } from "./blend";
 import type { ImagePreset } from "./image-filters";
 import type { ImageResource } from "./image-resource";
@@ -10,6 +11,7 @@ import { parseCssColour } from "./colour-css";
 import { isLegacyPaint, paintColour, solidPaint, type Paint } from "./solid-paint";
 /** Deliberate Document/Node subset; native serialisation belongs to the file adapter. */
 export type NodeId = string;
+
 export const booleanOperations = ["union", "subtract", "intersect", "exclude"] as const;
 export type BooleanOperation = typeof booleanOperations[number];
 export function isBooleanOperation(value: unknown): value is BooleanOperation {
@@ -30,6 +32,7 @@ export function withMaskProperties<T extends MaskProperties>(node:T, isMask = no
   return Object.freeze({...rest,...(isMask && {isMask:true}),...(maskType !== "alpha" && {maskType})}) as T;
 }
 export interface PageNode extends MaskProperties {
+  readonly effects?: readonly Effect[];
   readonly id: NodeId;
   readonly kind: "page";
   readonly name: string;
@@ -45,6 +48,7 @@ export interface Constraints {
 }
 export const defaultConstraints: Constraints = Object.freeze({ horizontal: "left", vertical: "top" });
 export interface LayerProperties extends MaskProperties {
+  readonly effects?: readonly Effect[];
   readonly boolOp?: BooleanOperation;
   readonly id: NodeId;
   readonly name: string;

@@ -45,7 +45,7 @@ describe("node.set rectangle geometry parity", () => {
     for (const params of [
       { ids: ["2", "999"], props: { width: 20 } },
       { ids: ["2", doc.currentPage], props: { width: 20 } },
-      { ids: ["2", "3"], props: { effects: [] } },
+      { ids: ["2", "3"], props: { effects: [{type: "unknown"}] } },
       { ids: ["2", "3"], props: { width: Number.POSITIVE_INFINITY } },
       { ids: ["2", "3"], props: { width: 1e308, x: 1e308 } },
       { ids: [], props: { x: 1 } },
@@ -56,9 +56,9 @@ describe("node.set rectangle geometry parity", () => {
     }
   });
 
-  it("rejects unsupported effects and malformed gradient strokes without changing geometry", () => {
+  it("rejects unknown effects and malformed gradient strokes without changing geometry", () => {
     const doc = fixture();
-    expect(() => setRectangleProperties(doc, ["2"], { props: { effects: [] } })).toThrow("unsupported properties");
+    expect(() => setRectangleProperties(doc, ["2"], { props: { effects: [{type: "unknown"}] } })).toThrow("Invalid effect type");
     expect(() => setRectangleProperties(doc, ["2"], { props: { strokes: [{ type: "linearGradient" }] } })).toThrow("Gradient stops must be an array");
     expect(setRectangleProperties(doc, ["2"], { props: { x: 10 } })).toBe(doc);
   });

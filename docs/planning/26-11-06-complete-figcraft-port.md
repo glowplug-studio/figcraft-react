@@ -11,10 +11,10 @@
 | Branch and last verified commit | `prompt/full-figcraft-port`, responsive menu correction 87ced5f, bounded opacity correction 1a6c8ef, mask renderer, hit testing and editor controls bb9e1e5, native mask commands and bounds 6b7d9db, blend release implementation 9c678db. Prior source checkpoints and corrections are recorded in the dated plans. |
 | Completed slices | Rectangle/host-auth, bounded native persistence/recovery, supported-model pages, affine rectangle geometry/selection and solid appearance, plus nested group hierarchy, Frame containers, movement/transform gestures, rounded corners, ellipse/arc/ring and Polygon/Star editing verified locally; Line/Arrow and uniform solid strokes also verified; per-side Rectangle/Frame strokes, variable-width profiles and procedural brushes verified; vector networks, solid region/stroke rendering and Flatten/Reverse also verified; foundation commit `154f5a7`. Gradient, image, pattern, blend and mask releases now have local property matrices. [Blend evidence](../reports/26-11-09-blend-modes-parity.html). |
 | Remaining slices | Continue incomplete roadmap rows, excluding the user-deferred plugin and widget family. See each slice matrix for outstanding integrations. |
-| Tests last passed | At 87ced5f all 183 local production Chromium workflows passed in 355.0 seconds with zero skips, failures, flakes or retries. Both production builds, strict types, 1,124 pure tests and two real local Auth checks passed. |
-| Files currently in progress | Typed effect records, native decoding, inspection and effect commands. |
+| Tests last passed | The effects checkpoint passed strict types, both production builds, 1,135 pure tests, two real Auth tests and a focused signed-in Chromium recovery/download workflow. At 87ced5f all 183 local production Chromium workflows passed in 355.0 seconds with zero skips, failures, flakes or retries. Both production builds, strict types, 1,124 pure tests and two real local Auth checks passed. |
+| Files currently in progress | Effect records, all six stack commands, subtree scaling and archive recovery passed their checkpoint. Raster effects are next. |
 | Blockers | No blocker. Use local Graphify for all remaining slices. The scoped Supabase read succeeded. |
-| Exact next action | Implement the seven native effect records and their typed archive/command boundaries from the [layer effects plan](26-11-09-layer-effects.md). |
+| Exact next action | Implement silhouette and shadow rendering against the [layer effects plan](26-11-09-layer-effects.md). |
 | Last updated | 2026-11-09 |
 
 ## Scope and continuation

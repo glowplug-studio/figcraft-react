@@ -3882,3 +3882,37 @@ test("mask actions, mixed types, hit testing, native downloads and recovery in t
   await open.setInputFiles({name:"masks-roundtrip.figcraft",mimeType:"application/octet-stream",buffer:saved});
   await layer("Coverage").click(); await expect(type).toHaveValue("vector");
 });
+
+test("native effect stacks survive an editor change, device recovery and download", async ({page}) => {
+  const engine = new EditorEngine();
+  const id = String(engine.execute("shape.rectangle", {name:"Effect sample", x:40}).id);
+  const members = unzipSync(await encodeFigcraft(engine.getSnapshot().document));
+  const native = JSON.parse(strFromU8(members["document.json"]));
+  native.nodes[id].effects = [
+    {type:"dropShadow",radius:6}, {type:"innerShadow",showBehind:true},
+    {type:"layerBlur",blurType:"PROGRESSIVE",startOffset:[.2,.7]}, {type:"backgroundBlur"},
+    {type:"noise",mode:"duo",sizeY:2}, {type:"texture",clipToShape:true}, {type:"glass",visible:false,frost:150},
+  ];
+  await login(page);
+  await page.getByLabel("Open Figcraft file",{exact:true}).setInputFiles({
+    name:"effects.figcraft", mimeType:"application/octet-stream",
+    buffer:Buffer.from(zipSync({...members,"document.json":new TextEncoder().encode(JSON.stringify(native))})),
+  });
+  const layer = page.getByRole("region",{name:"Layers",exact:true}).getByRole("button",{name:"Effect sample",exact:true});
+  await layer.click();
+  await page.getByLabel("Design canvas",{exact:true}).focus();
+  await page.keyboard.press("ArrowRight");
+  await expect(page.locator(".figcraft-recovery")).toHaveText("Recovery saved on this device");
+  await page.reload();
+  await expect(layer).toBeVisible();
+  const pending = page.waitForEvent("download");
+  await page.getByRole("button",{name:"Save as",exact:true}).click();
+  const raw = await readFile((await (await pending).path())!);
+  const node = JSON.parse(strFromU8(unzipSync(raw)["document.json"])).nodes[id];
+  expect(node.transform[4]).toBe(41);
+  expect(node.effects).toMatchObject([
+    {type:"dropShadow",radius:6}, {type:"innerShadow",show_behind:true},
+    {type:"layerBlur",blur_type:"progressive",start:[.2,.7]}, {type:"backgroundBlur"},
+    {type:"noise",mode:"duo",size_y:2}, {type:"texture",clip_to_shape:true}, {type:"glass",visible:false,frost:150},
+  ]);
+});

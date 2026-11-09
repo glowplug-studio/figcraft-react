@@ -1,3 +1,5 @@
+import { copyEffect, editEffects, effectSpecs } from "./effect-commands";
+import { wireEffect, type Effect } from "./effects";
 import type { BlendMode } from "./blend";
 import { isGroupLike, rectanglePaints } from "./document";
 import { editImagePaints, editImagePreset, imageEditSpecs, startImageCrop, type CropTarget } from "./image-commands";
@@ -47,6 +49,7 @@ interface FileSource {file:Blob; picker?:PaintPicker; paste?:boolean; centre?:bo
 type OpenResult = { repairs: readonly string[]; summary: {name:string; pages:number; layers:number; images:number} }
 
 export const commandSpecs = Object.freeze({
+  ...effectSpecs,
   ...strokeSpecs,
   ...fillSpecs,
   ...arrangeSpecs,
@@ -157,6 +160,7 @@ export class EditorEngine {
   #canvasListeners = new Set<() => void>();
   #vectorEdit?: VectorEditState;
   #documentIdentity = Symbol();
+  #copiedEffect?: Effect;
   #copiedPaint?: CopiedPaint;
   hasCopiedFill = (): boolean => this.#copiedPaint?.list === "fill";
   hasCopiedStroke = (): boolean => this.#copiedPaint?.list === "stroke";
@@ -422,7 +426,7 @@ export class EditorEngine {
     if (!editable) this.pen.cancel();
     if (!editable) this.cancelInteraction();
     if (!editable) this.cancelPendingFiles();
-    if (!editable) { this.#vectorEdit = undefined; this.#copiedPaint = undefined; }
+    if (!editable) { this.#vectorEdit = undefined; this.#copiedPaint = undefined; this.#copiedEffect = undefined; }
     if (editable !== this.#snapshot.editable) this.#publish({ editable, tool: "move", profileDialog: false });
   }
   execute(command: "select.layersAt", input: unknown): ReturnType<typeof layersAt>;
@@ -585,6 +589,22 @@ export class EditorEngine {
       if (command === "select.none") this.#vectorEdit = undefined;
       this.#publish({ document: next.document, selection: next.selection });
       return next.result;
+    }
+    if (command === "effect.copy") {
+      const previous = this.#copiedEffect;
+      this.#copiedEffect = copyEffect(this.#snapshot.document, this.#snapshot.selection, p);
+      if (!previous) this.#publish({});
+      return wireEffect(this.#copiedEffect);
+    }
+    if (Object.hasOwn(effectSpecs, command)) {
+      const before = this.#snapshot;
+      const document = editEffects(command, before.document, before.selection, p, this.#copiedEffect);
+      if (document !== before.document) {
+        this.#undo.push({ document: before.document, selection: before.selection });
+        this.#redo = [];
+        this.#publish({ document });
+      }
+      return { ok: true };
     }
     if (command === "fill.copy" || command === "stroke.copy") {
       const list = command === "fill.copy" ? "fill" : "stroke";

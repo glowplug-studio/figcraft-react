@@ -1,6 +1,6 @@
 # Full Figcraft port resume checkpoint
 
-Mask release 0.47.0 passed all 183 production Chromium workflows at 87ced5f in 355.0 seconds. Strict types, both production builds, 1,124 pure tests and two real Auth checks passed. [Mask matrix](../reports/26-11-09-masks-parity.html). Phase 4 of [layer effects](26-11-09-layer-effects.md) is active. The upstream fork and local reference agree at 8a7ebc24, the local graph covers the React and Rust sources, and the scoped Supabase read succeeded. Start native effect records and their archive/command boundary.
+Mask release 0.47.0 passed all 183 production Chromium workflows at 87ced5f in 355.0 seconds. Strict types, both production builds, 1,124 pure tests and two real Auth checks passed. [Mask matrix](../reports/26-11-09-masks-parity.html). Phase 4 of [layer effects](26-11-09-layer-effects.md) is active. The upstream fork and local reference agree at 8a7ebc24, the local graph covers the React and Rust sources, and the scoped Supabase read succeeded. Effect records, six stack commands, scaling and a signed-in recovery/download workflow passed. Continue with silhouette and shadow rendering in the [effects checkpoint](26-11-09-layer-effects.md#native-records-and-stack-checkpoint).
 
 
 The user deferred Figcraft plugins and their widgets on 9 November. They are excluded from this run’s publication gate.

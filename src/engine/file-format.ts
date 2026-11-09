@@ -1,3 +1,4 @@
+import { readEffects, wireEffect } from "./effects";
 import { isBlendMode, type BlendMode } from "./blend";
 import { sha256 } from "@noble/hashes/sha2.js";
 import { bytesToHex } from "@noble/hashes/utils.js";
@@ -34,6 +35,10 @@ const IMAGE_COUNT_LIMIT = 20_000;
 export interface DecodedFigcraft { document: Document; nextId: string; issues?: readonly string[] }
 
 function fail(message: string): never { throw new Error(`Cannot open Figcraft file: ${message}`); }
+function nativeEffects(value: unknown) {
+  try { return readEffects(appearanceValue(value), "archive"); }
+  catch (error) { return fail(error instanceof Error ? error.message : "Invalid effects"); }
+}
 function nativeNetwork(value: unknown): ReturnType<typeof readVectorNetwork> {
   try { return readVectorNetwork(appearanceValue(value)); }
   catch (error) { return fail(error instanceof Error ? error.message : "Invalid vector network"); }
@@ -125,9 +130,10 @@ function readNode(key: string, value: unknown): DocumentNode {
   const n = object(value, `node ${key}`), kind = n.type;
   if (id(n.id, "node ID") !== key) fail(`node ${key} has a mismatched ID`);
   if (kind !== "page" && kind !== "group" && kind !== "booleanOp" && kind !== "frame" && !isLeafKind(kind)) fail(`node type ${String(kind)} is not supported yet`);
-  fields(n, ["id", "name", "type", "parent", "children", "transform", "width", "height", "fills", "blend", "is_mask", "mask_type", ...(kind === "page" ? ["background", "flows", "prototype"] : ["bool_op", ...(kind === "booleanOp" ? ["op"] : kind === "ellipse" ? ["start", "sweep", "inner"] : kind === "star" ? ["count", "inner_ratio"] : kind === "polygon" ? ["count"] : kind === "vector" ? ["network"] : []), "stroke", "strokes", "visible", "locked", "opacity", "corners", "constraints", "constrain_proportions", ...(kind === "frame" ? ["clip"] : [])])], nodeDefaults, `node ${key}`);
+  fields(n, ["id", "name", "type", "parent", "children", "transform", "width", "height", "fills", "blend", "effects", "is_mask", "mask_type", ...(kind === "page" ? ["background", "flows", "prototype"] : ["bool_op", ...(kind === "booleanOp" ? ["op"] : kind === "ellipse" ? ["start", "sweep", "inner"] : kind === "star" ? ["count", "inner_ratio"] : kind === "polygon" ? ["count"] : kind === "vector" ? ["network"] : []), "stroke", "strokes", "visible", "locked", "opacity", "corners", "constraints", "constrain_proportions", ...(kind === "frame" ? ["clip"] : [])])], nodeDefaults, `node ${key}`);
   if (n.is_mask !== undefined && typeof n.is_mask !== "boolean") fail("is_mask must be boolean");
   if (n.mask_type !== undefined && !isMaskType(n.mask_type)) fail("mask_type must be alpha, vector or luminance");
+  const effects = n.effects === undefined ? undefined : nativeEffects(n.effects);
   const mask = {...(n.is_mask === true && {isMask:true}),...(n.mask_type && n.mask_type !== "alpha" ? {maskType:n.mask_type} : {})};
   const name = text(n.name, "node name"), width = number(n.width, "width"), height = number(n.height, "height");
   if (width < 0 || height < 0) fail("negative dimensions are not supported yet");
@@ -150,7 +156,7 @@ function readNode(key: string, value: unknown): DocumentNode {
         if (Object.keys(expected).some(key => background[key as keyof Colour] !== expected[key as keyof Colour])) prototypeBackground = background;
       }
     }
-    return withPageColour({ ...mask, ...(prototypeBackground && {prototypeBackground}), id: key, kind, name, parent: null, children: Object.freeze(children), background: "#f5f5f5" }, nativeColour(n.background ?? "#f5f5f5", "page background"));
+    return withPageColour({ ...mask, ...(effects?.length && { effects }), ...(prototypeBackground && {prototypeBackground}), id: key, kind, name, parent: null, children: Object.freeze(children), background: "#f5f5f5" }, nativeColour(n.background ?? "#f5f5f5", "page background"));
   } else {
     if (isLeafKind(kind) && children.length) fail("leaf children are not supported");
     if (n.blend !== undefined && !isBlendMode(n.blend)) fail(`${kind} blend is not supported yet`);
@@ -184,7 +190,7 @@ function readNode(key: string, value: unknown): DocumentNode {
     if (n.bool_op != null && !isBooleanOperation(n.bool_op)) fail("invalid operand operation");
     const op = kind === "booleanOp" ? (isBooleanOperation(n.op) ? n.op : fail("invalid boolean group operation")) : undefined;
     const layer = { ...(isBooleanOperation(n.bool_op) ? { boolOp: n.bool_op } : {}), id: key, kind, name, ...strokeData, ...(corners ? { corners } : {}), parent: id(n.parent, `${kind} parent`), x: transform[4]!, y: transform[5]!, width, height, fill: "transparent", ...(constraints.horizontal !== "left" || constraints.vertical !== "top" ? { constraints } : {}),
-      ...mask, ...(n.constrain_proportions === true ? { constrainProportions: true } : {}), ...(n.visible === false ? { visible: false } : {}), ...(n.locked === true ? { locked: true } : {}), ...(opacity !== 1 ? { opacity } : {}),
+      ...mask, ...(effects?.length && { effects }), ...(n.constrain_proportions === true ? { constrainProportions: true } : {}), ...(n.visible === false ? { visible: false } : {}), ...(n.locked === true ? { locked: true } : {}), ...(opacity !== 1 ? { opacity } : {}),
       ...(n.blend !== undefined && n.blend !== (!isLeafKind(kind) ? "passThrough" : "normal") ? { blend: n.blend as BlendMode } : {}) };
     let count = 0;
     if (kind === "polygon" || kind === "star") {
@@ -446,7 +452,7 @@ function wirePaints(paints: readonly Paint[]) {
 function wireNode(key: string, node: DocumentNode) {
   const numericId = wireId(key);
   if (node.id !== key) fail("node map key and ID differ");
-  const common = { ...(node.isMask && {is_mask:true}), ...(node.maskType && node.maskType !== "alpha" && {mask_type:node.maskType}), id: numericId, name: node.name, type: node.kind, ...(node.kind === "booleanOp" ? { op: node.op } : {}), ...(node.kind === "ellipse" ? { start: node.start, sweep: node.sweep, inner: node.inner } : node.kind === "star" ? { count: node.count, inner_ratio: node.innerRatio } : node.kind === "polygon" ? { count: node.count } : node.kind === "vector" ? { network: wireVectorNetwork(node.network, wirePaints) } : {}) };
+  const common = { ...(node.effects?.length && { effects: node.effects.map(wireEffect) }), ...(node.isMask && {is_mask:true}), ...(node.maskType && node.maskType !== "alpha" && {mask_type:node.maskType}), id: numericId, name: node.name, type: node.kind, ...(node.kind === "booleanOp" ? { op: node.op } : {}), ...(node.kind === "ellipse" ? { start: node.start, sweep: node.sweep, inner: node.inner } : node.kind === "star" ? { count: node.count, inner_ratio: node.innerRatio } : node.kind === "polygon" ? { count: node.count } : node.kind === "vector" ? { network: wireVectorNetwork(node.network, wirePaints) } : {}) };
   if (node.kind === "page") {
     return { ...common, width: 0, height: 0, children: node.children.map(wireId), background: pageColour(node), ...(node.prototypeBackground && { prototype: { device: "None", rotation: "portrait", background: node.prototypeBackground } }) };
   } else {

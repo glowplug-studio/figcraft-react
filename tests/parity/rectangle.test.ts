@@ -118,7 +118,7 @@ describe("rectangle port boundary and transaction safety", () => {
   it.each([
     ["shape.vector", {}],
     ["shape.rectangle", { unknown: true }],
-    ["shape.rectangle", { props: { effects: [] } }],
+    ["shape.rectangle", { props: { effects: [{type: "unknown"}] } }],
     ["shape.rectangle", { width: Number.NaN }],
     ["shape.rectangle", { x: Number.POSITIVE_INFINITY }],
     ["shape.rectangle", { index: "wrong" }],
