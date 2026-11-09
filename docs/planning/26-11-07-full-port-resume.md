@@ -1,6 +1,6 @@
 # Full Figcraft port resume checkpoint
 
-At 9c678db all 172 local production Chromium checks passed in 393.1 seconds with no retries or skips. Blending on layers, fills, strokes and regions is recorded in the [property matrix](../reports/26-11-09-blend-modes-parity.html). The active slice is [alpha, vector and luminance masks](26-11-09-masks.md). Upstream synchronisation, local graph checks and the scoped Supabase inventory passed. Continue with native mask properties, grouping and bounds.
+At 9c678db all 172 local production Chromium checks passed in 393.1 seconds with no retries or skips. Blending on layers, fills, strokes and regions is recorded in the [property matrix](../reports/26-11-09-blend-modes-parity.html). The active slice is [alpha, vector and luminance masks](26-11-09-masks.md). Upstream synchronisation, local graph checks and the scoped Supabase inventory passed. At 6b7d9db the native records, grouping, release and mask-aware bounds passed strict types, 1,120 pure checks and both builds. Resume the renderer from the [mask checkpoint](26-11-09-masks.md#native-command-and-bounds-checkpoint).
 
 
 Resumed on 8 November. The objective is still full browser-relevant parity and final verified publication under [the governing prompt](../prompts/26-11-06-astra-high-step-port.md). Use the [master roadmap](26-11-06-complete-figcraft-port.md) and [feature inventory](../parity/full-port-feature-inventory.md). The live demo is the earlier rectangle release.

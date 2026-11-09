@@ -8,13 +8,13 @@
 | Active slice | Alpha, vector and luminance masks |
 | Active phase | Phase 4. [Mask mappings and implementation order](26-11-09-masks.md). |
 | Upstream baseline | Closed-vector smoothing reference 3daa9d32. Paint bucket reference 8a7ebc24. Global supported baseline 8eb0b876. |
-| Branch and last verified commit | `prompt/full-figcraft-port`, blend release implementation 9c678db. Prior source checkpoints and corrections are recorded in the dated plans. |
+| Branch and last verified commit | `prompt/full-figcraft-port`, native mask commands and group bounds 6b7d9db, blend release implementation 9c678db. Prior source checkpoints and corrections are recorded in the dated plans. |
 | Completed slices | Rectangle/host-auth, bounded native persistence/recovery, supported-model pages, affine rectangle geometry/selection and solid appearance, plus nested group hierarchy, Frame containers, movement/transform gestures, rounded corners, ellipse/arc/ring and Polygon/Star editing verified locally; Line/Arrow and uniform solid strokes also verified; per-side Rectangle/Frame strokes, variable-width profiles and procedural brushes verified; vector networks, solid region/stroke rendering and Flatten/Reverse also verified; foundation commit `154f5a7`. Gradient, image, pattern and blend releases now have local property matrices. [Blend evidence](../reports/26-11-09-blend-modes-parity.html). |
 | Remaining slices | Every row below except the integrated foundation; static inventory entries remain unverified until mapped and tested |
-| Tests last passed | At 9c678db all 172 local production Chromium workflows passed in 393.1 seconds with one worker and no retries, skips, flakes or failures. Strict types, package and Next.js builds, 1,117 pure tests and two real local Auth checks passed. |
-| Files currently in progress | Mask properties, native records, structural command and mask-aware group bounds. |
+| Tests last passed | At 9c678db all 172 local production Chromium workflows passed in 393.1 seconds with one worker and no retries, skips, flakes or failures. Strict types, package and Next.js builds, 1,117 pure tests and two real local Auth checks passed. At 6b7d9db, 1,120 pure tests, strict types and both production builds passed for mask commands and bounds. |
+| Files currently in progress | Sibling paint runs, alpha, luminance and vector coverage, followed by hit testing and mask controls. |
 | Blockers | No blocker. Use local Graphify for all remaining slices. The scoped Supabase read succeeded. |
-| Exact next action | Implement step 1 of the [mask plan](26-11-09-masks.md), then the grouping and geometry contracts. Include the masked drawing and hit-test paths before accepting this slice. |
+| Exact next action | Continue from the [mask command and bounds checkpoint](26-11-09-masks.md#native-command-and-bounds-checkpoint). Implement the renderer and pointer hit restrictions before the editor acceptance workflow. |
 | Last updated | 2026-11-09 |
 
 ## Scope and continuation
