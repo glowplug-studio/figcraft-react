@@ -3938,3 +3938,107 @@ test("native effect stacks survive an editor change, device recovery and downloa
     {type:"noise",mode:"duo",size_y:2}, {type:"texture",clip_to_shape:true}, {type:"glass",visible:false,frost:150},
   ]);
 });
+
+test("effect settings, clipboard and row order survive a native save and recovery", async ({page}) => {
+  await login(page);
+  await page.getByRole("button",{name:"Create rectangle",exact:true}).click();
+  const panel = page.getByRole("region",{name:"Effects",exact:true});
+  const add = panel.getByRole("button",{name:"Add effect"});
+  const rows = panel.getByRole("listitem");
+  await add.click();
+  await rows.first().getByRole("button",{name:"Effect 1 settings"}).click();
+  await rows.first().getByLabel("Shadow colour hex").fill("#27A43D");
+  await rows.first().getByLabel("Shadow colour hex").press("Enter");
+  await rows.first().getByLabel("Shadow colour opacity (%)",{exact:true}).fill("65");
+  await rows.first().getByLabel("Shadow colour opacity (%)",{exact:true}).press("Enter");
+  await rows.first().getByLabel("Show behind transparent areas").check();
+  await add.click();
+  await rows.first().getByLabel("Effect type").selectOption("glass");
+  await rows.first().getByRole("button",{name:"Effect 1 settings"}).click();
+  const depth = rows.first().getByLabel("Depth",{exact:true});
+  await depth.fill("1400"); await depth.press("Enter"); await expect(depth).toHaveValue("1000");
+  const scrub = rows.first().getByRole("button",{name:"Scrub Frost"});
+  await scrub.scrollIntoViewIfNeeded();
+  const p = await scrub.boundingBox(); if (!p) throw new Error("missing Frost scrub");
+  await page.mouse.move(p.x+4,p.y+4); await page.mouse.down(); await page.mouse.move(p.x+14,p.y+4,{steps:5}); await page.mouse.up();
+  await expect(rows.first().getByLabel("Frost",{exact:true})).toHaveValue("14");
+  await rows.first().getByRole("button",{name:"Move down"}).click();
+  await expect(rows.nth(1).getByLabel("Depth",{exact:true})).toHaveValue("1000");
+  await rows.nth(1).getByLabel("Effect type").press("Shift+F10");
+  await panel.getByRole("button",{name:"Copy effect",exact:true}).click();
+  await add.press("Shift+F10");
+  await panel.getByRole("button",{name:"Paste effect",exact:true}).click();
+  await expect(rows).toHaveCount(3);
+  await rows.first().getByLabel("Visible",{exact:true}).uncheck();
+  await rows.first().getByRole("button",{name:"Remove effect 1"}).click();
+  await expect(rows).toHaveCount(2);
+  await expect(page.locator(".figcraft-recovery")).toHaveText("Recovery saved on this device");
+  await page.reload();
+  const pending = page.waitForEvent("download");
+  await page.getByRole("button",{name:"Save as",exact:true}).click();
+  const archive = unzipSync(await readFile((await (await pending).path())!));
+  const native = JSON.parse(strFromU8(archive["document.json"]));
+  const layer = Object.values(native.nodes).find((n:any) => n.effects?.length) as {effects: {type:string}[]};
+  expect(layer.effects).toMatchObject([{type:"glass",depth:1000,frost:14},{type:"dropShadow",show_behind:true}]);
+});
+
+test("progressive blur handles edit unit-box endpoints with one undo", async ({page}) => {
+  const engine = new EditorEngine();
+  const id = String(engine.execute("shape.rectangle",{x:80,y:70,width:100,height:80,name:"Ramp sample",props:{
+    effects:[{type:"backgroundBlur",blurType:"progressive",start:[.25,.5],end:[.75,.5]}]}}).id);
+  await login(page);
+  const open = page.getByLabel("Open Figcraft file",{exact:true});
+  await open.setInputFiles({name:"ramp.figcraft",mimeType:"application/octet-stream",buffer:Buffer.from(await encodeFigcraft(engine.getSnapshot().document))});
+  await page.getByRole("region",{name:"Layers",exact:true}).getByRole("button",{name:"Ramp sample",exact:true}).click();
+  await resetCanvasOrigin(page);
+  const panel = page.getByRole("region",{name:"Effects",exact:true});
+  await panel.getByRole("button",{name:"Effect 1 settings",exact:true}).click();
+  await expect(panel.getByLabel("Blur type")).toHaveValue("progressive");
+  const from = await canvasPoint(page,105,110), to = await canvasPoint(page,120,130);
+  await page.mouse.move(from.x,from.y); await page.mouse.down(); await page.mouse.move(to.x,to.y,{steps:6}); await page.mouse.up();
+  async function savedStart() {
+    const pending = page.waitForEvent("download");
+    await page.getByRole("button",{name:"Save as",exact:true}).click();
+    const bytes = await readFile((await (await pending).path())!);
+    return JSON.parse(strFromU8(unzipSync(bytes)["document.json"])).nodes[id].effects[0].start;
+  }
+  expect(await savedStart()).toEqual([.4,.75]);
+  await page.getByRole("button",{name:"Undo",exact:true}).click();
+  expect(await savedStart()).toEqual([.25,.5]);
+});
+
+test("mobile effect settings edit native noise, texture and blur properties", async ({page}) => {
+  await page.setViewportSize({width:390,height:844});
+  await login(page,false);
+  await page.getByRole("button",{name:"Create rectangle",exact:true}).click();
+  const panel = page.getByRole("region",{name:"Effects",exact:true});
+  const row = panel.getByRole("listitem").first();
+  await panel.getByRole("button",{name:"Add effect"}).click();
+  await row.getByLabel("Effect type").selectOption("noise");
+  await row.getByRole("button",{name:"Effect 1 settings"}).click();
+  await row.getByLabel("Noise mode").selectOption("duo");
+  await row.getByLabel("Secondary colour hex").fill("#E04020"); await row.getByLabel("Secondary colour hex").press("Enter");
+  await row.getByLabel("Density (%)",{exact:true}).fill("35"); await row.getByLabel("Density (%)",{exact:true}).press("Enter");
+  await row.getByLabel("Noise mode").selectOption("multi");
+  await expect(row.getByLabel("Secondary colour hex")).toHaveCount(0);
+  await row.getByLabel("Opacity (%)",{exact:true}).fill("80"); await row.getByLabel("Opacity (%)",{exact:true}).press("Enter");
+  await panel.getByRole("button",{name:"Add effect"}).click();
+  await row.getByLabel("Effect type").selectOption("texture");
+  await row.getByRole("button",{name:"Effect 1 settings"}).click();
+  await row.getByLabel("Clip to shape").check();
+  await row.getByLabel("Size",{exact:true}).fill("-6"); await row.getByLabel("Size",{exact:true}).press("Enter");
+  await expect(row.getByLabel("Size",{exact:true})).toHaveValue("0.01");
+  await panel.getByRole("button",{name:"Add effect"}).click();
+  await row.getByLabel("Effect type").selectOption("layerBlur");
+  await row.getByRole("button",{name:"Effect 1 settings"}).click();
+  await row.getByLabel("Blur type").selectOption("progressive");
+  await row.getByLabel("End",{exact:true}).fill("17"); await row.getByLabel("End",{exact:true}).press("Enter");
+  expect(await panel.evaluate(n=>n.getBoundingClientRect().right)).toBeLessThanOrEqual(390);
+  const pending = page.waitForEvent("download");
+  await page.getByRole("button",{name:"Save as",exact:true}).click();
+  const bytes = await readFile((await (await pending).path())!);
+  const native = JSON.parse(strFromU8(unzipSync(bytes)["document.json"]));
+  const layer = Object.values(native.nodes).find((n:any) => n.effects?.length) as {effects: {type:string}[]};
+  expect(layer.effects).toMatchObject([{type:"noise",mode:"multi",density:.35},{type:"texture",clip_to_shape:true,size:.01},
+    {type:"layerBlur",blur_type:"progressive",radius:17}]);
+});

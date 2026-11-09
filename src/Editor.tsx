@@ -27,6 +27,7 @@ import { rotationDegrees } from "./engine/affine";
 import type { RecoveryStore } from "./backends/recovery";
 import { RecoveryController } from "./engine/recovery";
 import { PagePanel } from "./PagePanel";
+import { EffectsPanel } from "./EffectsPanel";
 import { AppearancePanel } from "./AppearancePanel";
 import { BooleanMenu } from "./BooleanMenu";
 import { LayerPanel } from "./LayerPanel";
@@ -491,6 +492,7 @@ export function Editor({ identity, capabilities, engine: suppliedEngine, recover
           <CornerPanel nodes={snapshot.selection.flatMap(id => { const n = snapshot.document.nodes[id]; return n && n.kind !== "page" ? [n] : []; })} editable={editable && !busy} dispatch={dispatch} /></>}
           <AppearancePanel engine={engine} page={page} selected={selected && selected.kind !== "page" ? selected : undefined} editable={editable && !busy} dispatch={dispatch} />
           <StrokePanel engine={engine} nodes={snapshot.selection.flatMap(id => { const n = snapshot.document.nodes[id]; return n && n.kind !== "page" ? [n] : []; })} editable={editable && !busy} dispatch={dispatch} />
+          <EffectsPanel engine={engine} editable={editable && !busy} dispatch={dispatch} />
         </aside>
       </div>
     </div>;

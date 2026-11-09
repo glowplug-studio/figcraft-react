@@ -2,7 +2,7 @@ import { useLayoutEffect, useRef, useState, type KeyboardEvent, type MouseEvent 
 import type { NodeId } from "./engine/document";
 
 /** The property row replaces its paint on paste. The legend and add button append. */
-export function usePaintActions(list: "fill" | "stroke", editable: boolean, hasCopied: boolean, ids: readonly NodeId[],
+export function usePaintActions(list: "fill" | "stroke" | "effect", editable: boolean, hasCopied: boolean, ids: readonly NodeId[],
   dispatch: (command: string, params?: unknown) => void) {
   const [menu, setMenu] = useState<{ x: number; y: number; index?: number }>();
   const popup = useRef<HTMLDivElement>(null);
@@ -27,7 +27,7 @@ export function usePaintActions(list: "fill" | "stroke", editable: boolean, hasC
     dispatch(list+"."+command, { ids, index: menu?.index });
     setMenu(undefined);
   }
-  return {openMenu, popup: menu && <div ref={popup} popover="auto" role="group" aria-label={list === "fill" ? "Fill actions" : "Stroke actions"}
+  return {openMenu, popup: menu && <div ref={popup} popover="auto" role="group" aria-label={list[0].toUpperCase() + list.slice(1) + " actions"}
           style={{ position: "fixed", inset: "auto", margin: 0 }}
           onToggle={event => { if (event.newState === "closed") setMenu(undefined); }}>
           {menu.index !== undefined && <button type="button" onClick={() => menuAction("copy")}>Copy {list}</button>}

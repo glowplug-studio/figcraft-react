@@ -118,6 +118,7 @@ export interface PaintPicker {
 export interface EditorSnapshot {
   readonly profileDialog?: boolean;
   readonly paintPicker?: PaintPicker;
+  readonly openEffects?: readonly number[];
   readonly crop?: CropTarget;
   readonly document: Document;
   readonly selection: readonly NodeId[];
@@ -162,6 +163,7 @@ export class EditorEngine {
   #documentIdentity = Symbol();
   #copiedEffect?: Effect;
   #copiedPaint?: CopiedPaint;
+  hasCopiedEffect = (): boolean => !!this.#copiedEffect;
   hasCopiedFill = (): boolean => this.#copiedPaint?.list === "fill";
   hasCopiedStroke = (): boolean => this.#copiedPaint?.list === "stroke";
   #vectorListeners = new Set<() => void>();
@@ -303,6 +305,26 @@ export class EditorEngine {
       cancel: () => { if (this.#interaction === owner) this.cancelInteraction(); },
     };
   }
+  toggleEffectSettings(index: number) {
+    if (!this.#snapshot.editable) return;
+    const open = this.#snapshot.openEffects ?? [];
+    this.#publish({openEffects: Object.freeze(open.includes(index) ? open.filter(i => i !== index) : [...open,index])});
+  }
+  beginEffectPreview(index: number) {
+    const {editable, document, selection} = this.#snapshot;
+    if (!editable || this.interacting || !selection.length || !selection.every(id => document.nodes[id]?.effects?.[index])) return;
+    this.beginInteraction();
+    const owner = this.#interaction!;
+    return {
+      preview: (effect: Effect) => {
+        if (this.#interaction !== owner) return;
+        owner.document = editEffects("effect.set",document,selection,{ids:selection,index,effect:wireEffect(effect)});
+        this.#notifyCanvas();
+      },
+      commit: () => { if (this.#interaction === owner) this.commitInteraction(); },
+      cancel: () => { if (this.#interaction === owner) this.cancelInteraction(); },
+    };
+  }
   previewPaint(picker: PaintPicker, paint: Paint): void {
     const interaction = this.#interaction;
     if (!interaction) throw new Error("No active paint interaction");
@@ -409,7 +431,7 @@ export class EditorEngine {
   cancelPendingFiles(): void { this.#openSequence++; this.#pendingSaves.clear(); }
   #publish(patch: Partial<EditorSnapshot>): void {
     const document = patch.document ?? this.#snapshot.document;
-    if (patch.editable === false || patch.selection && !sameIds(patch.selection, this.#snapshot.selection)) patch = { ...patch, paintPicker: undefined };
+    if (patch.editable === false || patch.selection && !sameIds(patch.selection, this.#snapshot.selection)) patch = { ...patch, paintPicker: undefined, openEffects: undefined };
     this.#snapshot = Object.freeze({ ...this.#snapshot, ...patch, canUndo: this.#undo.length > 0, canRedo: this.#redo.length > 0, dirty: !sameContent(document, this.#saved), hasSaved: this.#saved !== null });
     if (this.#lastDuplicate && !duplicateSelection(this.#lastDuplicate, this.#snapshot.selection)) this.#lastDuplicate = undefined;
     if (this.#vectorEdit) this.#vectorEdit = pageForNode(document, this.#vectorEdit.id) === document.currentPage ? clampVectorEdit(document, this.#vectorEdit) : undefined;
@@ -602,7 +624,18 @@ export class EditorEngine {
       if (document !== before.document) {
         this.#undo.push({ document: before.document, selection: before.selection });
         this.#redo = [];
-        this.#publish({ document });
+        let openEffects = before.openEffects;
+        const first = before.selection[0];
+        if (first && openEffects?.length && before.document.nodes[first]?.effects !== document.nodes[first]?.effects) {
+          if (command === "effect.remove") {
+            const index = Number(p.index);
+            openEffects = Object.freeze(openEffects.filter(i => i !== index).map(i => i > index ? i - 1 : i));
+          } else if (command === "effect.move") {
+            const from = Number(p.from), to = Number(p.to);
+            openEffects = Object.freeze(openEffects.map(i => i === from ? to : i > from && i <= to ? i - 1 : i >= to && i < from ? i + 1 : i));
+          }
+        }
+        this.#publish({ document, openEffects });
       }
       return { ok: true };
     }
