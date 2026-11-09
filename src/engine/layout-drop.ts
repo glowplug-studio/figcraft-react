@@ -5,7 +5,7 @@ import { isFrameLike, isGroupLike, type Document, type FrameLikeNode, type NodeI
 import type { Point, Rectangle } from "./geometry";
 import { cellRect, gridGeometry } from "./grid-layout";
 import { HierarchyDraft, worldTransform } from "./hierarchy";
-import { autoLayoutSlot } from "./layout-navigation";
+import { prepareAutoLayoutSlot } from "./layout-navigation";
 import { boundsOf } from "./viewport";
 
 export interface MoveDrop {
@@ -34,8 +34,12 @@ function gridCellAt(document: Document, frame: FrameLikeNode, point: Point) {
   return {column, row, rect};
 }
 
+export interface MoveSlotCache {
+  current?: { frame: FrameLikeNode; moving: readonly NodeId[]; locate: ReturnType<typeof prepareAutoLayoutSlot> };
+}
+
 /** The drag preview and its insertion indicator both use the original gesture geometry. */
-export function placeMove(draft: HierarchyDraft, moving: readonly NodeId[], delta: Point, point: Point) {
+export function placeMove(draft: HierarchyDraft, moving: readonly NodeId[], delta: Point, point: Point, cache?: MoveSlotCache) {
   const doc = draft.document, home = doc.nodes[moving[0]].parent!;
   const flow = !isGroupLike(doc.nodes[home]) && moving.every(id => {
     const node = doc.nodes[id];
@@ -48,7 +52,15 @@ export function placeMove(draft: HierarchyDraft, moving: readonly NodeId[], delt
     const layout = frame.layout;
     const cell = layout.mode === "grid" ? gridCellAt(doc, frame, point) : undefined;
     const excluded = new Set(moving);
-    const slot = cell ? undefined : autoLayoutSlot(doc, frame, point, excluded);
+    let slot;
+    if (!cell) {
+      let prepared = cache?.current;
+      if (!prepared || prepared.frame !== frame || prepared.moving !== moving) {
+        prepared = { frame, moving, locate: prepareAutoLayoutSlot(doc, frame, excluded) };
+        if (cache) cache.current = prepared;
+      }
+      slot = prepared.locate(point);
+    }
     for (const id of moving) if (draft.nodes[id].parent !== target) draft.reparent(id, target);
     if (cell) {
       const first = draft.nodes[moving[0]];

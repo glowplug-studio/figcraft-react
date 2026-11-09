@@ -43,50 +43,42 @@ function wrapRows(items: FlowBox[]) {
   return rows;
 }
 
-export function autoLayoutSlot(
-  doc: Document,
-  frame: FrameLikeNode,
-  point: Point,
-  exclude: ReadonlySet<NodeId>,
-): { index: number; line?: Guide } {
-  const vertical = frame.layout?.mode === "vertical",
-    x = vertical ? point.y : point.x,
-    y = vertical ? point.x : point.y;
-  const kids = frame.children.filter((id) => !exclude.has(id));
-  const placed = kids.flatMap((id, index) => (flowingParent(doc, id) ? [{ id, index }] : []));
-  const boxes = flowBoxes(
-    doc,
-    placed.map((item) => item.id),
-    vertical,
-  );
-  if (!boxes.length) return { index: kids.length };
-  let candidates = boxes,
-    lo = 0,
-    hi = 0;
-  const wrap = frame.layout?.wrap && frame.layout.mode !== "grid";
-  if (wrap) {
-    let nearest = Infinity;
-    for (const row of wrapRows(boxes)) {
-      const low = row.reduce((a, b) => Math.min(a, b.box.y), Infinity),
-        high = row.reduce((a, b) => Math.max(a, b.box.y + b.box.height), -Infinity);
-      const distance = Math.max(0, low - y, y - high);
-      if (distance < nearest) {
-        nearest = distance;
-        candidates = row;
-        lo = low;
-        hi = high;
+export function prepareAutoLayoutSlot(doc: Document, frame: FrameLikeNode, exclude: ReadonlySet<NodeId>) {
+  const vertical = frame.layout?.mode === "vertical";
+  const kids = frame.children.filter(id => !exclude.has(id));
+  const placed = kids.flatMap((id, index) => flowingParent(doc, id) ? [{ id, index }] : []);
+  const boxes = flowBoxes(doc, placed.map(item => item.id), vertical);
+  const rows = frame.layout?.wrap && frame.layout.mode !== "grid" ? wrapRows(boxes).map(items => ({
+    items,
+    low: items.reduce((min, item) => Math.min(min, item.box.y), Infinity),
+    high: items.reduce((max, item) => Math.max(max, item.box.y + item.box.height), -Infinity),
+  })) : undefined;
+
+  return (point: Point): { index: number; line?: Guide } => {
+    if (!boxes.length) return { index: kids.length };
+    const x = vertical ? point.y : point.x, y = vertical ? point.x : point.y;
+    let candidates = boxes, lo = 0, hi = 0;
+    if (rows) {
+      let nearest = Infinity;
+      for (const row of rows) {
+        const distance = Math.max(0, row.low - y, y - row.high);
+        if (distance < nearest) {
+          nearest = distance; candidates = row.items; lo = row.low; hi = row.high;
+          if (distance === 0) break;
+        }
       }
     }
-  }
-  const before = candidates.find((item) => x < item.box.x + item.box.width / 2),
-    item = before ?? candidates.at(-1)!;
-  const at = before ? item.box.x - 2 : item.box.x + item.box.width + 2,
-    index = item.index + (before ? 0 : 1);
-  if (!wrap) {
-    lo = item.box.y;
-    hi = lo + item.box.height;
-  }
-  return { index: placed[index]?.index ?? kids.length, line: vertical ? [lo, at, hi, at] : [at, lo, at, hi] };
+    const before = candidates.find(item => x < item.box.x + item.box.width / 2);
+    const item = before ?? candidates.at(-1)!;
+    const at = before ? item.box.x - 2 : item.box.x + item.box.width + 2;
+    const index = item.index + (before ? 0 : 1);
+    if (!rows) { lo = item.box.y; hi = lo + item.box.height; }
+    return { index: placed[index]?.index ?? kids.length, line: vertical ? [lo, at, hi, at] : [at, lo, at, hi] };
+  };
+}
+
+export function autoLayoutSlot(doc: Document, frame: FrameLikeNode, point: Point, exclude: ReadonlySet<NodeId>) {
+  return prepareAutoLayoutSlot(doc, frame, exclude)(point);
 }
 
 function writeFlow(draft: HierarchyDraft, parent: FrameLikeNode, order: NodeId[]) {

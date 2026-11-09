@@ -79,7 +79,7 @@ import { anchors, sizingSpecs, executeSizing } from "./sizing";
 import { executeRotation, localOrigin, movedOrigin, originBoxPoints, originSpecs, rotationSpecs, sameIds, snappedOrigin, validateChangedGeometry, type OriginSnapshot, type RotationOrigin } from "./rotation";
 import type { Point } from "./geometry";
 import { executeSmartSelection, smartSpecs } from "./smart-selection";
-import { placeMove, type MoveDrop } from "./layout-drop";
+import { placeMove, type MoveDrop, type MoveSlotCache } from "./layout-drop";
 import { copyLayers, duplicateSelection, executeDuplicate, type Duplicated } from "./duplicate";
 import { ancestorIds } from "./canvas-selection";
 import { previewResize, type ResizeStart } from "./transform-preview";
@@ -274,6 +274,7 @@ export class EditorEngine {
   #originListeners = new Set<() => void>();
   #interaction?: {
     base: EditorSnapshot; document: Document; selection: readonly NodeId[]; nextId: bigint; duplicated?: Duplicated;
+    moveSlot?: MoveSlotCache;
     preparedCopy?: { ids: readonly NodeId[]; draft: HierarchyDraft; result: ReturnType<typeof copyLayers> };
     baseVectorEdit?: VectorEditState; vectorEdit?: VectorEditState;
   };
@@ -527,7 +528,8 @@ export class EditorEngine {
       duplicated = copy.result.duplicated;
       nextId = copy.result.nextId;
     } else draft = new HierarchyDraft(interaction.base.document);
-    const {document, drop} = placeMove(draft, duplicated?.copies ?? ids, delta, point);
+    const cache = duplicate ? undefined : (interaction.moveSlot ??= {});
+    const {document, drop} = placeMove(draft, duplicated?.copies ?? ids, delta, point, cache);
     interaction.document = document;
     interaction.selection = duplicated?.copies ?? interaction.base.selection;
     interaction.nextId = nextId;
