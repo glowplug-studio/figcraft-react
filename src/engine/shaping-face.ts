@@ -2,6 +2,7 @@ import * as hb from "#figcraft-harfbuzz";
 import { fontTables, fontVariations, normaliseFontStyle, type FontAxis, type FontInstance } from "./font-tables";
 import { styleWeight, type TextStyle } from "./text-style";
 import { fontOutlinePath } from "./text-glyph-path";
+import type { CurveElement } from "./curve-flatten";
 import type { PathCommand } from "./corners";
 import { validOpenTypeTag } from "./text-case";
 
@@ -43,6 +44,9 @@ export class ShapingFace {
   readonly upem: number;
   readonly ascent: number;
   readonly capHeight: number;
+  readonly underlinePosition: number;
+  readonly underlineThickness: number;
+  readonly strikePosition: number;
   readonly descent: number;
   readonly lineGap: number;
   readonly axes: Readonly<Record<string,FontAxis>>;
@@ -54,7 +58,7 @@ export class ShapingFace {
   readonly weight: number;
   readonly features: readonly string[];
   readonly #glyphCount: number;
-  readonly #outlines = new Map<string,readonly PathCommand[]>();
+  readonly #outlines = new Map<string,readonly CurveElement[]>();
   #outlineCommands = 0;
   readonly #font: hb.Font;
   readonly #buffer = new hb.Buffer();
@@ -84,6 +88,10 @@ export class ShapingFace {
     this.#font = new hb.Font(face);
     const metrics = this.#font.hExtents();
     this.ascent = metrics.ascender;
+    const post=tables.get("post");
+    this.underlinePosition=post && post.byteLength>=12 ? post.getInt16(8) : -this.upem*0.1;
+    this.underlineThickness=Math.max(this.upem*0.02,post && post.byteLength>=12 ? post.getInt16(10) : this.upem*0.06);
+    this.strikePosition=os2 && os2.byteLength>=30 ? os2.getInt16(28) : this.ascent*0.3;
     const cap = os2 && os2.byteLength>=90 && os2.getUint16(0)>=2 ? os2.getInt16(88) : 0;
     this.capHeight = cap>0 ? cap : this.ascent*0.72;
     this.descent = -metrics.descender;
@@ -136,16 +144,18 @@ export class ShapingFace {
   }
 
   /** Unhinted outlines in font units, with the same downward Y axis as the canvas. */
-  outline(id: number, axes: Readonly<Record<string,number>> = {}): readonly PathCommand[] {
+  outline(id:number, axes?:Readonly<Record<string,number>>):readonly PathCommand[];
+  outline(id:number, axes:Readonly<Record<string,number>>, preserveQuadratics:true):readonly CurveElement[];
+  outline(id:number, axes:Readonly<Record<string,number>>={}, preserveQuadratics=false):readonly CurveElement[] {
     if (!Number.isInteger(id) || id < 0 || id >= this.#glyphCount) return [];
     const values = Object.values(this.axes).map(axis => Number.isFinite(axes[axis.tag])
       ? Math.max(axis.min, Math.min(axis.max, axes[axis.tag])) : axis.default);
-    const key = id + ":" + values.join(",");
+    const key = (preserveQuadratics ? "Q" : "C") + id + ":" + values.join(",");
     const cached = this.#outlines.get(key);
     if (cached) return cached;
     this.#applyAxes(axes);
     const raw = hb.unhintedOutline(this.#font, id);
-    const path = fontOutlinePath(raw);
+    const path = preserveQuadratics ? fontOutlinePath(raw,true) : fontOutlinePath(raw);
     // Axes can be continuously dragged. Bound both the map and retained path geometry.
     if (this.#outlines.size >= 20_000 || this.#outlineCommands + path.length > 128_000) {
       this.#outlines.clear();

@@ -3,6 +3,7 @@ import { expect, test } from "@playwright/test";
 import { build } from "vite";
 import pathCases from "../fixtures/text-on-path.json" with {type:"json"};
 import caretCases from "../fixtures/text-caret.json" with {type:"json"};
+import decorationCases from "../fixtures/text-decorations.json" with {type:"json"};
 import flow from "../fixtures/text-flow.json" with { type:"json" };
 import wordSamples from "../fixtures/text-word-starts.json" with { type:"json" };
 import outlines from "../fixtures/text-outlines.json" with { type:"json" };
@@ -129,6 +130,38 @@ test("Chromium shapes pinned font bytes with the native glyph IDs, positions and
     });
   },caretCases);
   expect(carets).toEqual(caretCases.map(({carets,steps,hits,selections})=>({carets,steps,hits,selections})));
+  const decorationPixels=await page.evaluate(async cases=>{
+    const url="/shaper.js",api:typeof import("../fixtures/text-shaping-browser")=await import(url);
+    const fonts=new api.FontLibrary();
+    for (const file of ["inter/Inter-Regular","inter/Inter-Bold","noto-sans-georgian/NotoSansGeorgian"]) {
+      const bytes=await (await fetch("/fonts/"+file+".ttf")).arrayBuffer();
+      for (const face of await api.readFontFaces(new Uint8Array(bytes))) fonts.add(face);
+    }
+    function mask(paths:(readonly (readonly (string|number)[])[])[]) {
+      const ctx=new OffscreenCanvas(480,210).getContext("2d")!;
+      ctx.translate(12,12);
+      for (const path of paths) {
+        ctx.beginPath();
+        for (const [op,...args] of path) {
+          const [a,b,c,d,e,f]=args as number[];
+          if (op==="M") ctx.moveTo(a,b);
+          else if (op==="L") ctx.lineTo(a,b);
+          else if (op==="C") ctx.bezierCurveTo(a,b,c,d,e,f);
+          else ctx.closePath();
+        }
+        ctx.fill();
+      }
+      return ctx.getImageData(0,0,480,210).data;
+    }
+    return cases.map(({input,width,height,decos})=>{
+      const l=api.layoutTextFlow(api.readTextData(input),fonts,{width:width ?? undefined,height:height ?? undefined},[]);
+      const reference=mask(decos.map(d=>d.path)), actual=mask(l.decorations.map(api.decorationPath));
+      let error=0;
+      for (let i=3;i<actual.length;i+=4) error+=Math.abs(actual[i]-reference[i]);
+      return error;
+    });
+  },decorationCases);
+  expect(decorationPixels).toEqual(decorationCases.map(()=>0));
   const masks = await page.evaluate(async samples => {
     const url = "/shaper.js";
     const api: typeof import("../fixtures/text-shaping-browser") = await import(url);

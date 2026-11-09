@@ -1,10 +1,14 @@
 import { identity, multiply, type Affine } from "./affine";
 import { mapVectorPath, type PathCommand } from "./corners";
+import type { CurveElement } from "./curve-flatten";
 import type { FlowGlyph } from "./text-flow";
 
 /** Convert native font curves to the editor's cubic paths and remove redundant closing lines. */
-export function fontOutlinePath(commands: readonly {type:string; values:readonly number[]}[]): readonly PathCommand[] {
-  const result: PathCommand[] = [];
+type FontCommands = readonly {type:string; values:readonly number[]}[];
+export function fontOutlinePath(commands:FontCommands):readonly PathCommand[];
+export function fontOutlinePath(commands:FontCommands,preserveQuadratics:true):readonly CurveElement[];
+export function fontOutlinePath(commands:FontCommands,preserveQuadratics=false):readonly CurveElement[] {
+  const result:CurveElement[]=[];
   let x = 0, y = 0, startX = 0, startY = 0;
   for (const {type,values} of commands) {
     if (type === "Z") {
@@ -23,7 +27,8 @@ export function fontOutlinePath(commands: readonly {type:string; values:readonly
       if (x !== endX || y !== endY) result.push(["L",endX,endY]);
     } else if (type === "Q") {
       const cx = values[0], cy = -values[1];
-      result.push(["C",x + (cx-x)*2/3,y + (cy-y)*2/3,
+      if (preserveQuadratics) result.push(["Q",cx,cy,endX,endY]);
+      else result.push(["C",x + (cx-x)*2/3,y + (cy-y)*2/3,
         endX + (cx-endX)*2/3,endY + (cy-endY)*2/3,endX,endY]);
     } else if (type === "C") {
       result.push(["C",values[0],-values[1],values[2],-values[3],endX,endY]);

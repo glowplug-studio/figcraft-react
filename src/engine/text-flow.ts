@@ -1,4 +1,5 @@
 import type { Affine } from "./affine";
+import { textDecorations } from "./text-decorations";
 import { TextOnPath } from "./text-on-path";
 import { textWordStarts } from "./text-word-starts";
 import type { FontLibrary } from "./font-library";
@@ -71,7 +72,7 @@ function finishTruncatedLine(glyphs:FlowGlyph[], line:FlowLine, next:TextLineRan
   for (let i=line.first;i<line.last;i++) if (glyphs[i].end>glyphs[i].start) line.end=Math.max(line.end,glyphs[i].end);
 }
 
-/** Flow geometry before text-path warping and decoration painting.
+/** Shape and place glyphs, lines and decorations.
  * wordStarts supplies scalar word boundaries for scripts written without spaces. */
 export function layoutTextFlow(text:TextData, fonts:FontLibrary, box:{width?:number; height?:number}, wordStarts:ArrayLike<number>) {
   const boxWidth=box.width;
@@ -206,7 +207,8 @@ export function layoutTextFlow(text:TextData, fonts:FontLibrary, box:{width?:num
     const hidden:Affine=[0,0,0,0,0,0];
     for (const g of glyphs) g.warp=onPath.frame(g.x+g.advance/2,g.y) ?? hidden;
   } else if (text.path) glyphs.length=0;
-  return {glyphs,lines,width:widest,height,truncated,onPath};
+  const decorations=text.path ? [] : textDecorations(lines,glyphs,faceFor);
+  return {glyphs,lines,width:widest,height,truncated,onPath,decorations};
 }
 
 /** Resolve the browser word model when the document contains a complex-script run. */

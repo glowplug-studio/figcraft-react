@@ -35,16 +35,16 @@ function signature(style: TextStyle) {
   }
   return value;
 }
-const equal = (a: TextStyle,b: TextStyle) => a === b || signature(a) === signature(b);
+export const sameTextStyle = (a: TextStyle,b: TextStyle) => a === b || signature(a) === signature(b);
 const run = (start: number,end: number,style: TextStyle) => Object.freeze({start,end,style});
 
 export function normaliseRuns(runs: readonly StyleRun[], base: TextStyle, length: number): readonly StyleRun[] {
-  const ordered = runs.filter(r=>r.start < r.end && r.start < length && !equal(r.style,base)).sort((a,b)=>a.start-b.start);
+  const ordered = runs.filter(r=>r.start < r.end && r.start < length && !sameTextStyle(r.style,base)).sort((a,b)=>a.start-b.start);
   const result: StyleRun[] = [];
   for (const r of ordered) {
     const previous = result.at(-1), start = Math.max(r.start,previous?.end ?? 0), end = Math.min(r.end,length);
     if (start >= end) continue;
-    if (previous?.end === start && equal(r.style,previous.style)) result[result.length-1] = run(previous.start,end,previous.style);
+    if (previous?.end === start && sameTextStyle(r.style,previous.style)) result[result.length-1] = run(previous.start,end,previous.style);
     else result.push(run(start,end,r.style));
   }
   return Object.freeze(result);

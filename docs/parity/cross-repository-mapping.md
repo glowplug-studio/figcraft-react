@@ -398,3 +398,5 @@ Native Face::outline_at, FlipPen and Glyph::layer_path map to ShapingFace.outlin
 Native OnPath::new, frame, place and TextLayout::warp_point map to TextOnPath, layoutTextFlow and textWarpPoint. The shared path sampler retains quadratic segments and uses the upstream measurement bounds. [Text path fixtures and comparison](../planning/26-11-09-rich-text.md#text-on-a-path).
 
 Native TextLayout::caret, visual_step, hit and selection_rects map to textCaret, textVisualStep, textHit and textSelectionRects. The tests exercise native scalar positions, bidirectional spans, trailing breaks and transformed hits. [Caret reference and verification](../planning/26-11-09-rich-text.md#caret-geometry).
+
+Native Decoration::path, ink_cuts, TextLayout::ink_bounds and to_path map to decorationPath, the skip-ink band intersection, textInkBounds and textToPath. [Decoration and ink verification](../planning/26-11-09-rich-text.md#decoration-paths-and-paint-bounds).
