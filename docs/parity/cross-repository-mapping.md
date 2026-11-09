@@ -418,3 +418,5 @@ Native text formatting, `toggle_bold`, `list_key` and link activation map to `ex
 Native `on_path`, `stroke_geometry`, `resize_cmd`, `nudge_size` and text scaling map to `putTextOnPath`, `textPathData`, `fixTextSize`, `refitResizedText` and `scaleTextData`. [Path coordinates, saved records and text sizing](../planning/26-11-09-rich-text.md#attaching-and-resizing-text-on-paths).
 
 Native `fonts::missing`, `fonts::refit` and `FontDb::has_family` map to `missingFonts`, `refitText` and `FontLibrary.hasFamily` for supported text layers. [Family counts, stale boxes, undo and deferred style inputs](../planning/26-11-09-rich-text.md#missing-families-and-text-refitting).
+
+Native browser `ask`, `load_wanted`, `FontDb::add_local` and `load_local` map to `LocalFontAccess`, `FontLibrary.offerLocal`, `finishLocal` and `observeLocalFonts`. [Registration, permissions, native selection and file sizes](../planning/26-11-09-rich-text.md#browser-installed-fonts).
