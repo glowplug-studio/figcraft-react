@@ -132,9 +132,11 @@ export function Editor({ identity, capabilities, engine: suppliedEngine, recover
       event.preventDefault(); engine.finishCrop(); canvas.current?.focus(); return;
     }
     if (event.target instanceof HTMLTextAreaElement && event.target.hasAttribute("data-figcraft-text-input") &&
-      !event.nativeEvent.isComposing && !event.altKey && (event.ctrlKey || event.metaKey) &&
-      (event.code==="KeyK" && !event.shiftKey || event.code==="KeyU" && event.shiftKey)) {
-      event.preventDefault(); linkDialog.current?.showModal(); return;
+      !event.nativeEvent.isComposing && !event.altKey && (event.ctrlKey || event.metaKey)) {
+      if (event.code==="KeyS" && !event.shiftKey) { event.preventDefault(); void save(); return; }
+      if (event.code==="KeyK" && !event.shiftKey || event.code==="KeyU" && event.shiftKey) {
+        event.preventDefault(); linkDialog.current?.showModal(); return;
+      }
     }
     if (event.key.toLowerCase() === "v") modifiedPaste.current = (event.ctrlKey || event.metaKey) && (event.shiftKey || event.altKey);
     if (event.target instanceof HTMLElement && event.target.closest("input,textarea,select,dialog,[contenteditable=true]")) return;
@@ -222,9 +224,11 @@ export function Editor({ identity, capabilities, engine: suppliedEngine, recover
       if (event.shiftKey && event.key.toLowerCase() === "m") command = "tool.shapeBuilder";
       if (event.key.toLowerCase() === "p") command = event.shiftKey ? "tool.pencil" : "tool.pen";
       if (event.target instanceof HTMLTextAreaElement && event.target.hasAttribute("data-figcraft-text-input") &&
-      !event.nativeEvent.isComposing && !event.altKey && (event.ctrlKey || event.metaKey) &&
-      (event.code==="KeyK" && !event.shiftKey || event.code==="KeyU" && event.shiftKey)) {
-      event.preventDefault(); linkDialog.current?.showModal(); return;
+      !event.nativeEvent.isComposing && !event.altKey && (event.ctrlKey || event.metaKey)) {
+      if (event.code==="KeyS" && !event.shiftKey) { event.preventDefault(); void save(); return; }
+      if (event.code==="KeyK" && !event.shiftKey || event.code==="KeyU" && event.shiftKey) {
+        event.preventDefault(); linkDialog.current?.showModal(); return;
+      }
     }
     if (event.key.toLowerCase() === "v") command = "tool.move";
       if (event.key.toLowerCase() === "k") command = "tool.scale";
@@ -323,7 +327,9 @@ export function Editor({ identity, capabilities, engine: suppliedEngine, recover
   async function save() {
     setBusy(true); setError("");
     try {
-      engine.pen.finish(); controller.current?.cancel();
+      engine.pen.finish();
+      if (engine.currentTextEdit()) await controller.current?.flushTextForSave();
+      else controller.current?.cancel();
       const result = await engine.saveFile();
       const url = URL.createObjectURL(result.data);
       try {
@@ -445,6 +451,7 @@ export function Editor({ identity, capabilities, engine: suppliedEngine, recover
           </div> : editingVector ? <VectorToolbar engine={engine} editable={editable && !busy} dispatch={(command, params) => { dispatch(command, params); canvas.current?.focus(); }} /> : <div className="figcraft-toolbar" role="toolbar" aria-label="Tools">
             <button disabled={!editable} aria-pressed={snapshot.tool === "move"} onClick={() => { dispatch("tool.move"); canvas.current?.focus(); }}>Move</button>
             <button disabled={!editable} aria-pressed={snapshot.tool === "text"} title="Text · T" onClick={() => { dispatch("tool.text"); canvas.current?.focus(); }}>Text</button>
+            <button disabled={!editable} aria-pressed={snapshot.tool === "textOnPath"} onClick={() => { dispatch("tool.textOnPath"); canvas.current?.focus(); }}>Text on a path</button>
             <button disabled={!editable} aria-pressed={snapshot.tool === "pen"} title="Pen · P" onClick={() => { dispatch("tool.pen"); canvas.current?.focus(); }}>Pen</button>
             <button disabled={!editable} aria-pressed={snapshot.tool === "pencil"} title="Pencil · Shift+P" onClick={() => { dispatch("tool.pencil"); canvas.current?.focus(); }}>Pencil</button>
             <button disabled={!editable} aria-pressed={snapshot.tool === "scale"} onClick={() => { dispatch("tool.scale"); canvas.current?.focus(); }}>Scale</button>

@@ -1,6 +1,6 @@
 import { fontGeometryCache } from "./font-generation";
 import { booleanResult } from "./boolean-result";
-import { isLeaf, nodeTypeName, type LayerNode } from "./document";
+import { isLeaf, nodeTypeName, type LayerNode, type LeafNode } from "./document";
 import { hitsPath } from "./corners";
 import { hasShapePath, shapePath } from "./shape-path";
 import { identity, inverse, multiply, transformPoint, type Affine } from "./affine";
@@ -170,7 +170,8 @@ function covers(document:Document,node:LayerNode,parent:Affine,point:Point,depth
 
 interface PointLayer {id:number|string; name:string; type:string; depth:number}
 
-function queryPoint(document:Document,point:Point,tolerance:number,selection:readonly NodeId[],enterBooleans:boolean,stack?:PointLayer[]) {
+function queryPoint(document:Document,point:Point,tolerance:number,selection:readonly NodeId[],enterBooleans:boolean,stack?:PointLayer[],
+  pathHit?:(node:LeafNode,world:Affine)=>boolean) {
   if (!Number.isFinite(point.x) || !Number.isFinite(point.y)) return;
   const coverage=new Map<NodeId,boolean>();
   function visitChildren(children:readonly NodeId[],parent:NodeId,world:Affine,depth:number,output?:PointLayer[]):NodeId|undefined {
@@ -197,6 +198,11 @@ function queryPoint(document:Document,point:Point,tolerance:number,selection:rea
     if (depth>512) return;
     const world=worldFrom(parent,node);
     if (node.kind==="frame" && node.clip && !hitsLayer(node,world,point,0)) return;
+    if (pathHit) {
+      if (node.kind==="booleanOp") return;
+      if (!isLeaf(node)) return visitChildren(node.children,node.id,world,depth+1);
+      return !node.isMask && pathHit(node,world) ? node.id : undefined;
+    }
     let leaf:NodeId|undefined;
     const at=output?.length??0;
     if (node.kind==="booleanOp") {
@@ -214,6 +220,11 @@ function queryPoint(document:Document,point:Point,tolerance:number,selection:rea
   }
   const page=pageOf(document);
   return visitChildren(page.children,page.id,identity,0,stack);
+}
+
+/** Visit visible leaf outlines in paint order, respecting masks, clipping, locked parents and booleans. */
+export function hitPathLeaf(document:Document,point:Point,hit:(node:LeafNode,world:Affine)=>boolean) {
+  return queryPoint(document,point,0,[],false,undefined,hit);
 }
 
 /** Hit frontmost visible layer; container selection follows native level_target. */

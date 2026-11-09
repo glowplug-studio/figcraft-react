@@ -3,7 +3,7 @@ import { executeTextFormat, isTextFormatCommand, textFormatSpecs } from "./text-
 import { sameTextData, scalarCount } from "./text-ranges";
 import { subscribeFonts } from "./font-generation";
 import { missingFonts, refitText, type MissingFont } from "./text-refit";
-import { putTextOnPath } from "./text-path-commands";
+import { createTextOnPath, putTextOnPath } from "./text-path-commands";
 import { textLinkAt } from "./text-link";
 import { listKey } from "./text-list-edit";
 import { copyEffect, editEffects, effectSpecs } from "./effect-commands";
@@ -120,6 +120,7 @@ export const commandSpecs = Object.freeze({
   "tool.move": { label: "Move", undo: false },
   "tool.scale": { label: "Scale", undo: false },
   "tool.text": { label: "Text", undo: false },
+  "tool.textOnPath": { label: "Text on a path", undo: false },
   "tool.pen": { label: "Pen", undo: false },
   "tool.pencil": { label: "Pencil", undo: false },
   "tool.pencilBrush": { label: "Pencil brush", undo: false },
@@ -150,7 +151,7 @@ export interface EditorSnapshot {
   readonly crop?: CropTarget;
   readonly document: Document;
   readonly selection: readonly NodeId[];
-  readonly tool: "move" | DrawShapeKind | "scale" | "text" | "pen" | "pencil" | "shapeBuilder";
+  readonly tool: "move" | DrawShapeKind | "scale" | "text" | "textOnPath" | "pen" | "pencil" | "shapeBuilder";
   readonly builderMode: "merge" | "remove";
   readonly scaleAnchor: ScaleAnchor;
   readonly canUndo: boolean;
@@ -248,20 +249,22 @@ export class EditorEngine {
     if (this.#interaction) throw new Error("An interaction is already active");
     this.#interaction = { base: this.#snapshot, document: this.#snapshot.document, selection: this.#snapshot.selection, nextId: this.#nextId, baseVectorEdit: this.#vectorEdit, vectorEdit: this.#vectorEdit };
   }
-  beginTextEdit(target: TextTarget) {
+  beginTextEdit(target: TextTarget | {pathId:string;startFraction:number}) {
     const existing=this.currentTextEdit();
     const before = existing ? this.#interaction!.document : this.#snapshot.document;
     const creating = !("id" in target);
     const created = creating || (this.getTextRange()?.node.id===target.id && this.#textCreated);
     if (creating && (this.#nextId > 18446744073709551615n || before.nodes[String(this.#nextId)])) throw new Error("Document identifiers are exhausted");
-    const initial = "id" in target ? before.nodes[target.id] : createCanvasText(before,String(this.#nextId),target);
+    const pathDocument="pathId" in target ? createTextOnPath(before,String(this.#nextId),target) : undefined;
+    const initial = "id" in target ? before.nodes[target.id] : "pathId" in target ? pathDocument!.nodes[String(this.#nextId)]
+      : createCanvasText(before,String(this.#nextId),target);
     if (initial?.kind !== "text") throw new Error("Expected a text layer");
     if (!existing) this.beginInteraction();
     const owner = this.#interaction!;
     let node = initial;
     owner.selection = Object.freeze([node.id]);
     if (creating) {
-      owner.document = publishTextNode(before,node);
+      owner.document = pathDocument ?? publishTextNode(before,node);
       owner.nextId = this.#nextId < 18446744073709551615n ? this.#nextId + 1n : this.#nextId;
     }
     const token=Symbol();
@@ -989,10 +992,10 @@ export class EditorEngine {
     if (command.startsWith("file.") || command === "image.place" || command === "image.replace") throw new Error(`${command} requires executeAsync`);
     if (command === "text.create" || command === "vector.create" || command === "shape.line" || command === "shape.arrow" || command === "shape.polygon" || command === "shape.star" || command === "shape.ellipse" || command === "shape.rectangle" || command === "frame.create" || command === "node.create") return this.#create(command, p);
     if (Object.keys(p).length) throw new Error(`${command} takes no parameters`);
-    if (command === "tool.text" || command === "tool.shapeBuilder" || command === "tool.pencil" || command === "tool.pen" || command === "tool.line" || command === "tool.arrow" || command === "tool.polygon" || command === "tool.star" || command === "tool.ellipse" || command === "tool.rectangle" || command === "tool.move" || command === "tool.scale") {
+    if (command === "tool.text" || command==="tool.textOnPath" || command === "tool.shapeBuilder" || command === "tool.pencil" || command === "tool.pen" || command === "tool.line" || command === "tool.arrow" || command === "tool.polygon" || command === "tool.star" || command === "tool.ellipse" || command === "tool.rectangle" || command === "tool.move" || command === "tool.scale") {
       const end = this.#vectorEdit && command !== "tool.move" && command !== "tool.scale" ? executeVectorEdit("vector.edit.end", this.#snapshot.document, this.#snapshot.selection, this.#vectorEdit, {}) : undefined;
       if (end) this.#vectorEdit = undefined;
-      this.#publish({ ...(end ? { document: end.document, selection: end.selection } : {}), tool: command === "tool.text" ? "text" : command === "tool.shapeBuilder" ? "shapeBuilder" : command === "tool.pencil" ? "pencil" : command === "tool.pen" ? "pen" : command === "tool.line" ? "line" : command === "tool.arrow" ? "arrow" : command === "tool.polygon" ? "polygon" : command === "tool.star" ? "star" : command === "tool.ellipse" ? "ellipse" : command === "tool.rectangle" ? "rectangle" : command === "tool.scale" ? "scale" : "move" });
+      this.#publish({ ...(end ? { document: end.document, selection: end.selection } : {}), tool: command.slice(5) as EditorSnapshot["tool"] });
       return {};
     }
     const undo = command === "edit.undo";

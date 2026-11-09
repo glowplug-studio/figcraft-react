@@ -113,7 +113,11 @@ export class SmartHandles {
     this.engine.commitInteraction();
     if (clicked) this.engine.execute("select.set", { ids: [clicked] });
   }
-  cancel(): void { this.#drag = undefined; this.engine.cancelInteraction(); }
+  cancel(): void {
+    if (!this.#drag) return;
+    this.#drag=undefined;
+    this.engine.cancelInteraction();
+  }
   draw(context: CanvasRenderingContext2D): void {
     const snapshot = this.engine.getSnapshot(), document = this.engine.getRenderDocument(), view = this.engine.getView(), drag = this.#drag;
     if (!snapshot.editable || snapshot.tool !== "move") return;

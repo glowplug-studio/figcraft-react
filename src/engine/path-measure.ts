@@ -1,4 +1,5 @@
 import { flattenCurve, type CurveElement } from "./curve-flatten";
+import {transformPoint,type Affine} from "./affine";
 import type { Point } from "./geometry";
 
 export const PATH_FLATTEN_TOLERANCE = .05, MAX_PATH_SAMPLES = 40_000;
@@ -41,15 +42,17 @@ export function polylineAt(line: MeasuredPolyline, t: number): { point: Point; n
   const dx = b.x - a.x, dy = b.y - a.y, norm = Math.max(1e-12, Math.hypot(dx, dy));
   return { point: lerp(a, b, u), normal: { x: -dy / norm, y: dx / norm } };
 }
-export function nearestOnPolylines(lines: readonly MeasuredPolyline[], point: Point): { subpath: number; t: number; distance: number } | undefined {
+export function nearestOnPolylines(lines: readonly MeasuredPolyline[], point: Point, world?:Affine): { subpath: number; t: number; distance: number } | undefined {
   let best: { subpath: number; t: number; distance: number } | undefined;
   lines.forEach((line, subpath) => {
     const length = polylineLength(line); if (length <= 1e-9) return;
     for (let i = 0; i < line.points.length - 1; i++) {
-      const a = line.points[i], b = line.points[i + 1], dx = b.x - a.x, dy = b.y - a.y, l2 = dx * dx + dy * dy;
+      const a = world ? transformPoint(world,line.points[i]) : line.points[i];
+      const b = world ? transformPoint(world,line.points[i+1]) : line.points[i+1];
+      const dx = b.x - a.x, dy = b.y - a.y, l2 = dx * dx + dy * dy;
       const u = l2 > 1e-18 ? Math.max(0, Math.min(1, ((point.x - a.x) * dx + (point.y - a.y) * dy) / l2)) : 0;
       const p = lerp(a, b, u), distance = Math.hypot(p.x - point.x, p.y - point.y);
-      if (!best || distance < best.distance) best = { subpath, t: ((line.lengths[i] ?? 0) + u * Math.sqrt(l2)) / length, distance };
+      if (!best || distance < best.distance) best = { subpath, t: (line.lengths[i] + u * (line.lengths[i+1]-line.lengths[i])) / length, distance };
     }
   });
   return best;

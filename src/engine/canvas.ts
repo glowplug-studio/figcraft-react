@@ -703,6 +703,7 @@ export class CanvasController {
   };
   formatText(props: Record<string,unknown>) { return this.#text.format(props); }
   finishText() { this.#text.finish(); }
+  flushTextForSave() { return this.#text.flushForSave(); }
   cancel(preservePen = false): void {
     if (!preservePen) {
       this.#crop.cancel();

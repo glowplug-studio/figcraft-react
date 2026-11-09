@@ -1,3 +1,4 @@
+import { textPathAt } from "./text-path-commands";
 import { textKeyMotion } from "./text-key-motion";
 import { textShortcut } from "./text-shortcuts";
 import { inverse, transformPoint } from "./affine";
@@ -38,6 +39,13 @@ export class CanvasTextInput {
     canvas.addEventListener("pointercancel",this.#cancelDrag,options);
     canvas.addEventListener("lostpointercapture",this.#cancelDrag,options);
     canvas.addEventListener("dblclick",this.#double,options);
+    canvas.addEventListener("click",e=>{
+      if (e.detail!==3 || e.button!==0 || !this.active) return;
+      const point=this.#point(e);
+      if (this.#hit(point)!==this.#session!.node().id) return;
+      e.preventDefault();e.stopImmediatePropagation();
+      this.engine.execute("text.edit.selectLine",{index:utf16ToScalar(this.#input!.value,this.#index(point))});
+    },options);
     const unsubscribe=engine.subscribeTextCommands(()=>{
       const session=engine.currentTextEdit();
       if (this.#session && this.#session!==session) this.#close(false);
@@ -105,6 +113,12 @@ export class CanvasTextInput {
     }
     this.#generation++;
     if (this.active) this.finish();
+    if (tool==="textOnPath") {
+      e.preventDefault();e.stopImmediatePropagation();this.canvas.focus();
+      const target=textPathAt(this.engine.getRenderDocument(),start,this.engine.getView().zoom);
+      if (target) void this.#open(target,start);
+      return;
+    }
     if (this.engine.getSnapshot().tool !== "text") return;
     const doc = this.engine.getRenderDocument();
     const target: TextTarget = id ? {id} : {start,parent:dropParent(doc,start,[]) ?? doc.currentPage};
@@ -114,6 +128,11 @@ export class CanvasTextInput {
   };
   #move = (e: PointerEvent) => {
     const drag=this.#drag;
+    if (!drag && this.engine.getSnapshot().tool==="textOnPath") {
+      const hit=textPathAt(this.engine.getRenderDocument(),this.#point(e),this.engine.getView().zoom);
+      this.canvas.style.cursor=hit ? "text" : "default";
+      e.stopImmediatePropagation();return;
+    }
     if (!drag || drag.pointer !== e.pointerId) return;
     e.preventDefault(); e.stopImmediatePropagation();
     drag.end=this.#point(e);
@@ -148,14 +167,15 @@ export class CanvasTextInput {
     if (!id) return;
     e.preventDefault(); e.stopImmediatePropagation(); void this.#open({id},point,true);
   };
-  async #open(target: TextTarget, point: Point, selectAll=false, extend?: Point) {
+  async #open(target: Parameters<EditorEngine["beginTextEdit"]>[0], point: Point, selectAll=false, extend?: Point) {
     const version=++this.#generation, before=this.engine.getSnapshot();
     try {
       await prepareText();
       if (version !== this.#generation || this.engine.getSnapshot() !== before) return;
-      if (before.tool === "text") this.engine.execute("tool.move");
+      if (before.tool === "text" || before.tool === "textOnPath") this.engine.execute("tool.move");
       const input=this.#attach(this.engine.beginTextEdit(target));
-      if (selectAll) { input.select(); this.invalidate(); }
+      if ("pathId" in target) input.setSelectionRange(0,0);
+      else if (selectAll) { input.select(); this.invalidate(); }
       else { this.#select(point,false); if (extend) this.#select(extend,true); }
       this.#updateRange();
     } catch (e) { this.#close(false); this.onError(e instanceof Error ? e.message : "Could not edit text"); }
@@ -275,6 +295,19 @@ export class CanvasTextInput {
       } catch (error) { this.onError(error instanceof Error ? error.message : "Could not open link"); }
       return;
     }
+    if ((e.ctrlKey || e.metaKey) && !e.altKey && e.code==="KeyZ") {
+      e.preventDefault();e.stopPropagation();
+      const session=this.#session;
+      const undo=()=>{
+        if (!session?.active() || session!==this.#session) return;
+        if (this.#pending) {void this.#pending.then(undo);return;}
+        this.finish();
+        this.engine.execute(e.shiftKey ? "edit.redo" : "edit.undo");
+        this.canvas.focus();
+      };
+      undo();
+      return;
+    }
     const shortcut = textShortcut(e,true);
     if (shortcut) {
       e.preventDefault(); e.stopPropagation();
@@ -320,6 +353,13 @@ export class CanvasTextInput {
     }
     this.#updateRange();
   };
+  async flushForSave() {
+    const session=this.#session;
+    if (!session?.active() || this.#composing) return;
+    if (this.#pending) await this.#pending;
+    if (this.#session!==session || !session.active()) throw new Error("The active text edit changed");
+    if (this.#input?.value!==session.node().text.characters) throw new Error("Text input is still pending");
+  }
   finish() {
     if (!this.#input) return;
     if (this.#composition) this.#endComposition(this.#composition.text);
