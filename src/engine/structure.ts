@@ -1,4 +1,4 @@
-import { booleanOperations, isBooleanOperation, isLeaf, rectanglePaints, withRectanglePaints, type BooleanNode, type BooleanOperation } from "./document";
+import { withMaskProperties, booleanOperations, isBooleanOperation, isLeaf, rectanglePaints, withRectanglePaints, type BooleanNode, type BooleanOperation } from "./document";
 import { fromRgba8 } from "./colour";
 import { solidPaint } from "./solid-paint";
 import { inverse, transformBounds } from "./affine";
@@ -11,6 +11,8 @@ export const structureSpecs = Object.freeze({
   "bool.subtract": { label: "Subtract selection", undo: true },
   "bool.intersect": { label: "Intersect selection", undo: true },
   "bool.exclude": { label: "Exclude selection", undo: true },
+  "object.mask": { label: "Use as mask", undo: true },
+  "object.releaseMask": { label: "Release mask", undo: true },
   "object.group": { label: "Group selection", undo: true },
   "object.frameSelection": { label: "Frame selection", undo: true },
   "object.removeFrame": { label: "Remove frame", undo: true },
@@ -62,19 +64,23 @@ export function executeStructure(command: string, document: Document, selection:
       const children = parent.children.filter(child => child !== id);
       children.splice(position, 0, id);
       draft.set(Object.freeze({ ...parent, children: Object.freeze(children) }));
+      if (children.some(child=>document.nodes[child]?.isMask)) draft.normaliseGroups();
     }
     return { document: draft.finish(), selection, nextId, result: { ok: true } };
   }
   const suffix = command.startsWith("bool.") ? command.slice(5) : undefined;
   const operation = isBooleanOperation(suffix) ? suffix : undefined;
-  const wraps = command === "object.group" || command === "object.frameSelection" || operation !== undefined;
-  const allowed = wraps ? ["ids", "id", "name"] : command === "node.reparent" ? ["ids", "id", "parent", "index"] : ["ids", "id"];
+  const mask = command === "object.mask", releaseMask = command === "object.releaseMask";
+  const strictTargets = !!operation || mask || releaseMask;
+  const wraps = mask || command === "object.group" || command === "object.frameSelection" || operation !== undefined;
+  const allowed = wraps && !mask ? ["ids", "id", "name"] : command === "node.reparent" ? ["ids", "id", "parent", "index"] : ["ids", "id"];
   if (!Object.hasOwn(structureSpecs, command)) throw new Error(`Unsupported structure command: ${command}`);
   for (const key of Object.keys(params)) if (!allowed.includes(key)) throw new Error(`Unsupported ${command} parameter: ${key}`);
   const raw = params.ids ?? params.id;
-  if ((operation ? params.ids != null : params.ids !== undefined) && !Array.isArray(params.ids)) throw new Error("ids must be an array");
-  if (operation && raw != null && (Array.isArray(raw) ? raw : [raw]).some(v => parseNodeId(v) === undefined)) throw new Error("Every target must be a node id");
-  const targets = (raw === undefined || (operation && raw === null)) ? [...selection] : (Array.isArray(raw) ? raw : [raw]).map(parseNodeId).filter((id): id is string => id !== undefined);
+  if ((mask || releaseMask) && params.ids == null && params.id != null && parseNodeId(params.id) === undefined) throw new Error("id must be a node id");
+  if ((strictTargets ? params.ids != null : params.ids !== undefined) && !Array.isArray(params.ids)) throw new Error("ids must be an array");
+  if (strictTargets && raw != null && (Array.isArray(raw) ? raw : [raw]).some(v => parseNodeId(v) === undefined)) throw new Error("Every target must be a node id");
+  const targets = (raw === undefined || (strictTargets && raw === null)) ? [...selection] : (Array.isArray(raw) ? raw : [raw]).map(parseNodeId).filter((id): id is string => id !== undefined);
   if (!targets.length) throw new Error("Nothing selected");
   for (const id of targets) if (!document.nodes[id]) throw new Error(`No node ${id}`);
   const draft = new HierarchyDraft(document);
@@ -100,7 +106,12 @@ export function executeStructure(command: string, document: Document, selection:
       return { document: draft.finish(), selection, nextId, result: { ids: targets, operation } };
     }
   }
-  if (wraps) {
+  if (releaseMask || mask && targets.length === 1) {
+    for (const id of targets) {
+      const node = draft.nodes[id];
+      draft.set(withMaskProperties(node,!releaseMask && !node.isMask));
+    }
+  } else if (wraps) {
     const frame = command === "object.frameSelection";
     const ids = zSorted(document, rootIds(document, targets));
     const top = document.nodes[ids.at(-1)!];
@@ -118,7 +129,7 @@ export function executeStructure(command: string, document: Document, selection:
     const local = transformBounds([inv[0], inv[1], inv[2], inv[3], inv[0] * x + inv[2] * y + inv[4], inv[1] * x + inv[3] * y + inv[5]], width, height);
     if (allocator > maximumId || draft.nodes[String(allocator)]) throw new Error("Document identifiers are exhausted");
     const id = String(allocator);
-    let group: GroupNode | FrameNode | BooleanNode = Object.freeze({ id, ...(frame ? { kind: "frame" as const, clip: true } : { kind: "group" as const }), name: parseString(params.name) ?? nextLayerName(document, frame ? "Frame" : "Group"), parent: parent.id,
+    let group: GroupNode | FrameNode | BooleanNode = Object.freeze({ id, ...(frame ? { kind: "frame" as const, clip: true } : { kind: "group" as const }), name: mask ? "Mask group" : parseString(params.name) ?? nextLayerName(document, frame ? "Frame" : "Group"), parent: parent.id,
       children: Object.freeze([]), x: local.x, y: local.y, width: local.width, height: local.height, fill: frame ? "#ffffff" : "transparent", blend: "passThrough" });
     if (operation) {
       const source = document.nodes[operation === "subtract" ? ids[0] : top.id];
@@ -132,6 +143,7 @@ export function executeStructure(command: string, document: Document, selection:
       draft.reparent(child, id);
       if (operation) clearOperand(draft, child);
     }
+    if (mask) draft.set(withMaskProperties(draft.nodes[ids[0]],true));
     if (!frame) draft.fitToChildren(id);
     if (allocator < maximumId) allocator++;
     selected = [id]; result = { id };

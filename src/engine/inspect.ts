@@ -57,6 +57,7 @@ function inspect(doc: Document, node: DocumentNode, depth: number, fields?: Set<
   const out: Record<string, unknown> = { id: Number.isSafeInteger(numeric) ? numeric : node.id };
   const wants = (key: string) => !fields || fields.has(key);
   const put = (key: string, value: unknown) => { if (wants(key) && value !== undefined) out[key] = value; };
+  if (node.isMask) {put("isMask",true); put("maskType",node.maskType ?? "alpha");}
   put("name", node.name);
   put("type", node.kind === "booleanOp" ? "BOOLEAN_OPERATION" : node.kind.toUpperCase());
   if (fields?.has("visible")) put("visible", node.kind === "page" || node.visible !== false);

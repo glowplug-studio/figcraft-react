@@ -1,5 +1,5 @@
 import { blendFromName, type BlendMode } from "./blend";
-import { layerBlend, isBooleanOperation, isGroupLike } from "./document";
+import { isMaskType, withMaskProperties, layerBlend, isBooleanOperation, isGroupLike } from "./document";
 import { pathNetwork } from "./svg-path";
 import { freezeNetwork } from "./vector-network";
 import { isShapeKey, setShapeProperties } from "./shape-properties";
@@ -8,7 +8,7 @@ import { isArcKey, setArc } from "./ellipse";
 import { isLeaf, withLayerSize } from "./document";
 import { isCornerKey, setCorners, zeroCorners } from "./corners";
 import { identity, inverse, multiply, setRotationAboutCenter, transformBounds, transformPoint, withTranslation } from "./affine";
-import { defaultConstraints, rectanglePaints, rectangleTransform, withRectanglePaints, withRectangleTransform, type Document, type NodeId, type LayerNode } from "./document";
+import { defaultConstraints, rectanglePaints, rectangleTransform, withRectanglePaints, withRectangleTransform, type Document, type DocumentNode, type NodeId, type LayerNode } from "./document";
 import { HierarchyDraft, frameRelative, rootIds, worldTransform } from "./hierarchy";
 import { parseNodeId, parseNumber } from "./parameters";
 import { parseColour } from "./colour-css";
@@ -20,7 +20,7 @@ import { moveWorld } from "./arrange";
 import type { Point } from "./geometry";
 
 const geometryKeys = new Set(["x", "y", "width", "height", "w", "h", "rotation"]);
-const appearanceKeys = new Set(["booleanOperation", "operandOperation", "name", "visible", "locked", "opacity", "blend", "blendMode", "fill", "fills", "clip", "constraints", "constrainProportions"]);
+const appearanceKeys = new Set(["isMask", "maskType", "booleanOperation", "operandOperation", "name", "visible", "locked", "opacity", "blend", "blendMode", "fill", "fills", "clip", "constraints", "constrainProportions"]);
 
 /** The supported layer geometry and appearance subset of upstream `node.set`. No history is recorded here. */
 export function setRectangleProperties(document: Document, selection: readonly NodeId[], params: Record<string, unknown>, origin?: Point, warnings: string[] = []): Document {
@@ -63,9 +63,12 @@ export function setRectangleProperties(document: Document, selection: readonly N
     ? typeof props.name === "string" || typeof props.name === "number" && Number.isFinite(props.name)
       ? String(props.name) : (() => { throw new Error("name must be a string"); })()
     : undefined;
-  for (const key of ["visible", "locked", "clip", "constrainProportions"] as const) {
+  for (const key of ["isMask", "visible", "locked", "clip", "constrainProportions"] as const) {
     if (key in props && typeof props[key] !== "boolean") throw new Error(`${key} must be a boolean`);
   }
+  const maskType = typeof props.maskType === "string" ? props.maskType.toLowerCase() : undefined;
+  if ("maskType" in props && !isMaskType(maskType)) throw new Error("maskType must be alpha, vector or luminance");
+  const mask = <T extends DocumentNode>(node:T) => withMaskProperties(node,props.isMask as boolean | undefined,isMaskType(maskType) ? maskType : undefined);
   const opacity = "opacity" in props ? (() => {
     const fraction = parseNumber(props.opacity, "opacity");
     const percent = typeof props.opacity === "string" && props.opacity.trim().endsWith("%");
@@ -93,6 +96,7 @@ export function setRectangleProperties(document: Document, selection: readonly N
   const draft = new HierarchyDraft(document);
   for (const id of ids) {
     const node = draft.nodes[id];
+    if (node?.kind === "page" && keys.every(key=>key==="isMask" || key==="maskType")) {draft.set(mask(node)); continue;}
     if (!node || node.kind === "page") throw new Error(`node.set target ${id} is not an editable layer`);
     if ("clip" in props && node.kind !== "frame") throw new Error("Clip content requires a frame");
     let arcNode = setStrokeProperties(setShapeProperties(setArc(node, props), props), props);
@@ -154,6 +158,7 @@ export function setRectangleProperties(document: Document, selection: readonly N
         updated = Object.freeze(rest);
       } else updated = Object.freeze({...updated,blend});
     }
+    if ("isMask" in props || "maskType" in props) updated = mask(updated);
     if (cornersChanged) updated = Object.freeze({ ...updated, corners });
     if (updated.kind === "vector" && "cornerRadius" in props) updated = Object.freeze({ ...updated, network: freezeNetwork({ ...updated.network, vertices: updated.network.vertices.map(v => ({ ...v, radius: corners.radii[0] })) }) });
     if (constraintsChanged) updated = Object.freeze({ ...updated, constraints });
@@ -164,7 +169,7 @@ export function setRectangleProperties(document: Document, selection: readonly N
     if ("constrainProportions" in props) updated = Object.freeze({ ...updated, constrainProportions: props.constrainProportions as boolean });
     if (opacity !== undefined && opacity !== (node.opacity ?? 1)) updated = Object.freeze({ ...updated, opacity });
     if (paints && !samePaints(rectanglePaints(node), paints)) updated = withRectanglePaints(updated, paints);
-    if (changeBlend || arcNode !== node || updated.kind === "vector" && "cornerRadius" in props || cornersChanged || "constrainProportions" in props && props.constrainProportions !== (node.constrainProportions ?? false) || constraintsChanged || "clip" in props && node.kind === "frame" && props.clip !== node.clip || width !== node.width || height !== node.height || transform.some((value, index) => value !== rectangleTransform(node)[index])
+    if (updated.isMask !== node.isMask || updated.maskType !== node.maskType || changeBlend || arcNode !== node || updated.kind === "vector" && "cornerRadius" in props || cornersChanged || "constrainProportions" in props && props.constrainProportions !== (node.constrainProportions ?? false) || constraintsChanged || "clip" in props && node.kind === "frame" && props.clip !== node.clip || width !== node.width || height !== node.height || transform.some((value, index) => value !== rectangleTransform(node)[index])
       || name !== undefined && name !== node.name || "visible" in props && props.visible !== (node.visible ?? true)
       || "locked" in props && props.locked !== (node.locked ?? false) || opacity !== undefined && opacity !== (node.opacity ?? 1)
       || paints && !samePaints(rectanglePaints(node), paints)) {

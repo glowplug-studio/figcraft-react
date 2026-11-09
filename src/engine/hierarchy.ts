@@ -165,13 +165,18 @@ export class HierarchyDraft {
     if (!isGroupLike(node) || node.children.length === 0) return;
     const world = worldTransform(document, id), toLocal = inverse(world);
     let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    let masked = false;
     const childWorlds = node.children.map(childId => {
       const child = nodeOf(document, childId);
       if (child.kind === "page") throw new Error("Page cannot be a group child");
       const childWorld = worldTransform(document, childId);
-      const bounds = transformBounds(multiply(toLocal, childWorld), child.width, child.height);
-      x0 = Math.min(x0, bounds.x); y0 = Math.min(y0, bounds.y);
-      x1 = Math.max(x1, bounds.x + bounds.width); y1 = Math.max(y1, bounds.y + bounds.height);
+      // A visible mask stands in for the box of every following child until the next mask.
+      if (child.isMask || !masked) {
+        const bounds = transformBounds(multiply(toLocal, childWorld), child.width, child.height);
+        x0 = Math.min(x0, bounds.x); y0 = Math.min(y0, bounds.y);
+        x1 = Math.max(x1, bounds.x + bounds.width); y1 = Math.max(y1, bounds.y + bounds.height);
+      }
+      if (child.isMask) masked = child.visible !== false;
       return [childId, childWorld] as const;
     });
     const shift: Affine = [1, 0, 0, 1, x0, y0];

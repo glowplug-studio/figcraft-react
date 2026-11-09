@@ -15,7 +15,21 @@ export type BooleanOperation = typeof booleanOperations[number];
 export function isBooleanOperation(value: unknown): value is BooleanOperation {
   return booleanOperations.some(op => op === value);
 }
-export interface PageNode {
+export const maskTypes = ["alpha","vector","luminance"] as const;
+export type MaskType = typeof maskTypes[number];
+export function isMaskType(value:unknown): value is MaskType {
+  return maskTypes.some(type=>type===value);
+}
+interface MaskProperties {
+  readonly isMask?: boolean;
+  readonly maskType?: MaskType;
+}
+export function withMaskProperties<T extends MaskProperties>(node:T, isMask = node.isMask ?? false, maskType = node.maskType ?? "alpha"): T {
+  if (isMask === (node.isMask ?? false) && maskType === (node.maskType ?? "alpha")) return node;
+  const {isMask: priorMask, maskType: priorType, ...rest} = node;
+  return Object.freeze({...rest,...(isMask && {isMask:true}),...(maskType !== "alpha" && {maskType})}) as T;
+}
+export interface PageNode extends MaskProperties {
   readonly id: NodeId;
   readonly kind: "page";
   readonly name: string;
@@ -30,7 +44,7 @@ export interface Constraints {
   readonly vertical: "top" | "bottom" | "topBottom" | "center" | "scale";
 }
 export const defaultConstraints: Constraints = Object.freeze({ horizontal: "left", vertical: "top" });
-export interface LayerProperties {
+export interface LayerProperties extends MaskProperties {
   readonly boolOp?: BooleanOperation;
   readonly id: NodeId;
   readonly name: string;
