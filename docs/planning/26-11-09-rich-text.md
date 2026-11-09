@@ -21,4 +21,10 @@ The combined local Graphify index has 30,480 nodes and 100,764 edges. Verified R
 
 Rust style offsets count Unicode scalar values. DOM selection uses UTF-16 offsets and user edits operate on grapheme boundaries. A glyph, code unit and scalar can represent different spans, especially for emoji, ligatures, combining marks and bidi text. Native stored line breaks carry a layout-content key and width. An unavailable face must not silently reflow an existing file as if its original font had loaded. Build-time external font inputs are separate from the upstream submodule and need their own licence and provenance checks.
 
-Single-agent work in the canonical checkout. The Effects release suite passed 204/204 at f278b1b and its property report is recorded. Preflight is complete. Start the native text values and range layer. No text implementation or font package is verified yet.
+The native text value and range checkpoint passed ten focused tests, 1,163 pure tests, strict types and both production builds. Three signed-in Chromium regressions passed against the local production host, covering streamed archive recovery and native pattern paints on layers, strokes and regions. Release 0.48.0 remains the last full browser run (204/204 at f278b1b).
+
+The independent model reads and writes native styles, paints, variation axes, lists, direction, text paths and saved-break records. Pattern source IDs and saved-break keys retain all 64 bits. Editing uses scalar offsets, first-match style lookup, run normalisation and per-paragraph list inheritance. A 200,000-character range test invokes the style edit once. Text nodes still require the font, layout, rendering and editor integrations.
+
+Local Graphify indexed these source changes against Rust a4251ca8. The combined graph has 30,551 nodes and 100,990 edges, including both TextData models, readTextData, replaceTextRange and native layout. Graphify reported no extracted symbols from the two new test files. Vitest executed their cases directly.
+
+Next implement saved-break key generation and validation against native fixtures, then verify pinned font resources and shaping metrics. No publication gate has run for this slice.

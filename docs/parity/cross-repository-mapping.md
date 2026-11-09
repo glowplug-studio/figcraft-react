@@ -368,3 +368,7 @@ At Rust 8a7ebc24 and React 87ced5f, doc::Node mask flags and engine::cmd::struct
 ## Layer effect rendering
 
 At Rust 8a7ebc24, render::shadow and render::fx map to shadow-renderer and effect-raster. Render::blur and render::backdrop map to blur-renderer, backdrop-stack and backdrop-renderer. Render::grain maps to grain-renderer. Render::glass distance and nearest-site transforms, AnalyticRect, shape_fields and glass map to glass-fields, glass-rectangle, glass-shape, glass-lens and glass-renderer. [Dated checkpoint and pixel evidence](../planning/26-11-09-layer-effects.md#glass). The Effects inspector, bindings and downstream export surfaces remain open.
+
+## Character styles and Unicode ranges
+
+At Rust a4251ca8, doc::text TextStyle, TextData, StyleRun and ParaList map to the TypeScript text-style and text-data modules. The native style_at, spans, normalisation, range replacement and paragraph-list operations map to text-ranges. Native TextCase conversion maps to text-case. Ten focused cases cover stored records, pattern IDs, Unicode offsets, case context, style inheritance and paragraph edits. Browser text layout, shaping and authoring remain open. [Checkpoint](../planning/26-11-09-rich-text.md).

@@ -1,3 +1,4 @@
+import { U64_MAX, appearanceValue, fail, id, idString, number, wireId, wirePaints } from "./native-values";
 import { readEffects, wireEffect } from "./effects";
 import { isBlendMode, type BlendMode } from "./blend";
 import { sha256 } from "@noble/hashes/sha2.js";
@@ -9,12 +10,12 @@ import { type Corners, type Radii } from "./corners";
 import { readImageFilters } from "./image-filters";
 import { archivedImage, validImageKey, type ImageResource } from "./image-resource";
 import { BlobReader, BlobWriter, ZipWriter, ERR_INVALID_CRC32, ERR_INVALID_UNCOMPRESSED_SIZE, Reader, ZipReader, type FileEntry } from "@zip.js/zip.js/lib/zip-core-native.js";
-import { isLosslessNumber, LosslessNumber, parse, stringify } from "lossless-json";
+import { isLosslessNumber, parse, stringify } from "lossless-json";
 import { readConstraints } from "./constraints";
 import { layerTransform, withLayerTransform, rectanglePaints, withRectanglePaints, pageColour, withPageColour, type Document, type DocumentNode } from "./document";
 import { parseColour } from "./colour-css";
 import type { Colour } from "./colour";
-import { readPaints, type Paint } from "./solid-paint";
+import { readPaints } from "./solid-paint";
 import { isDefaultStroke, readStroke, wireStroke } from "./stroke";
 import { transformBounds, type Affine } from "./affine";
 
@@ -29,12 +30,10 @@ export const MAX_ARCHIVE_MEMBER = 512 * 1024 * 1024;
 export const MAX_UNPACKED_BYTES = 2 * 1024 ** 3; // Native browser target.
 const MAX_DIRECTORY_READ = 16 * 1024 * 1024;
 export const FIGCRAFT_TREE_DEPTH_LIMIT = 256;
-const U64_MAX = 18_446_744_073_709_551_615n;
 type ObjectValue = Record<string, unknown>;
 const IMAGE_COUNT_LIMIT = 20_000;
 export interface DecodedFigcraft { document: Document; nextId: string; issues?: readonly string[] }
 
-function fail(message: string): never { throw new Error(`Cannot open Figcraft file: ${message}`); }
 function nativeEffects(value: unknown) {
   try { return readEffects(appearanceValue(value), "archive"); }
   catch (error) { return fail(error instanceof Error ? error.message : "Invalid effects"); }
@@ -55,21 +54,6 @@ function text(value: unknown, path: string): string {
   if (typeof value !== "string") fail(`${path} must be text`);
   return value;
 }
-function number(value: unknown, path: string): number {
-  const result = isLosslessNumber(value) ? Number(value.value) : value;
-  if (typeof result !== "number" || !Number.isFinite(result)) fail(`${path} must be finite`);
-  return result;
-}
-function idString(value: string, path: string): string {
-  if (!/^(0|[1-9][0-9]*)$/.test(value) || value.length > 20 || BigInt(value) > U64_MAX) fail(`${path} must be an unsigned 64-bit integer`);
-  return value;
-}
-function id(value: unknown, path: string): string {
-  if (!isLosslessNumber(value)) fail(`${path} must be a numeric node ID`);
-  return idString(value.value, path);
-}
-function wireId(value: string): LosslessNumber { return new LosslessNumber(idString(value, "node ID")); }
-
 // Serde's defaulted structs accept omitted members. Explicit non-default values
 // are refused even when they would not currently affect the canvas appearance.
 function defaultValue(value: unknown, expected: unknown, path: string): void {
@@ -109,17 +93,6 @@ const nodeDefaults = {
   annotations: [], code_links: [], dev_resources: [], measurements: [], board: null,
 };
 
-/** Convert only appearance numbers; node IDs remain lossless tokens elsewhere. */
-function appearanceValue(value: unknown): unknown {
-  if (isLosslessNumber(value)) return number(value, "appearance number");
-  if (Array.isArray(value)) return value.map(appearanceValue);
-  if (value && typeof value === "object") {
-    const pattern = "type" in value && value.type === "pattern";
-    return Object.fromEntries(Object.entries(value).map(([key, entry]) =>
-      [key, pattern && key === "source" ? id(entry, "pattern source") : appearanceValue(entry)]));
-  }
-  return value;
-}
 function nativeColour(value: unknown, path: string): Colour {
   const result = parseColour(appearanceValue(value));
   if (!result) fail(`${path}: invalid colour`);
@@ -441,12 +414,6 @@ export async function decodeFigcraft(source: Uint8Array | Blob): Promise<Decoded
     if (error instanceof Error && error.message.startsWith("Cannot open Figcraft file:")) throw error;
     fail("invalid JSON or ZIP data");
   }
-}
-
-function wirePaints(paints: readonly Paint[]) {
-  return paints.some(p => p.type === "pattern")
-    ? paints.map(p => p.type === "pattern" ? { ...p, source: wireId(p.source) } : p)
-    : paints;
 }
 
 function wireNode(key: string, node: DocumentNode) {
