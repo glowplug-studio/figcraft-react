@@ -1,8 +1,12 @@
-import { useState } from "react";
+import { useEffect, useId, useState } from "react";
+import { PaintPicker } from "./PaintPicker";
+import { TypographyField } from "./TypographyField";
+import type { EditorEngine } from "./engine/editor";
+import { parseCssColour } from "./engine/colour-css";
 import { effectLabels } from "./EffectsPanel";
 import { StyleTypography } from "./StyleTypography";
-import { renderColour } from "./engine/colour";
-import { paintColour } from "./engine/solid-paint";
+import { renderColour, withAlpha } from "./engine/colour";
+import { paintColour, solidPaint, type Paint } from "./engine/solid-paint";
 import type { SharedStyle } from "./engine/shared-styles";
 
 export function StyleSwatch({style}:{style:SharedStyle}) {
@@ -17,30 +21,54 @@ export function StyleSwatch({style}:{style:SharedStyle}) {
 }
 
 export type Run = (cmd:string, p:Record<string,unknown>) => Record<string,unknown> | undefined;
-export function EditStyle({style, run, back, source}:{style:SharedStyle;run:Run;back:()=>void;source?:string}) {
+export function EditStyle({engine, style, run, back, source}:{engine:EditorEngine;style:SharedStyle;run:Run;back:()=>void;source?:string}) {
   const [name, setName] = useState(style.name), [description,setDescription] = useState(style.description);
+  const metadataForm = useId();
+  useEffect(()=>()=>{
+    if (engine.getSnapshot().paintPicker?.styleId === style.id) engine.setPaintPicker();
+  },[engine,style.id]);
   function finish() {
     const renamed=name.trim();
     const patch={...(renamed && renamed !== style.name && {name:renamed}), ...(description !== style.description && {description})};
     if (!Object.keys(patch).length || run("style.update",{style:style.id,...patch})) back();
   }
-  return <form onSubmit={event=>{event.preventDefault();finish();}} onKeyDown={event=>{
+  return <div onKeyDown={event=>{
     if (event.key === "Escape" && !event.defaultPrevented && !event.nativeEvent.isComposing) {
       event.preventDefault();event.stopPropagation();finish();
     }
   }}>
+    <form id={metadataForm} onSubmit={event=>{event.preventDefault();finish();}}>
     <label>Name<input aria-label="Style name" autoFocus required value={name} onChange={e=>setName(e.target.value)}/></label>
     <label>Description<textarea aria-label="Style description" value={description} onChange={e=>setDescription(e.target.value)}/></label>
+    </form>
+    {style.type === "paint" && <div role="group" aria-label="Paint properties">
+      {!style.paints.length && <p>No paints</p>}
+      {style.paints.map((paint,index)=>{
+        const label="Style paint "+(style.paints.length-index);
+        const change=(next:Paint)=>run("style.update",{style:style.id,value:style.paints.map((p,i)=>i===index ? next : p)});
+        return <div key={index}>
+          {paint.type==="solid" && <TypographyField label={label+" colour"} value={renderColour(paintColour(paint))} apply={s=>{
+            const c=parseCssColour(s);
+            if (c) change(c.a===paintColour(paint).a ? {...paint,color:withAlpha(c,paint.color.a)} : {...solidPaint(c),visible:paint.visible,blend:paint.blend});
+          }}/>}
+          <TypographyField label={label+" opacity (%)"} value={String(Math.round(paint.opacity*10000)/100)} apply={s=>{
+            const n=Number(s.replace(/%$/,""));
+            if (Number.isFinite(n)) change({...paint,opacity:Math.min(1,Math.max(0,n/100)),colorAlpha:1});
+          }}/>
+          <PaintPicker engine={engine} list="fill" index={index} label={label} styleId={style.id} paint={paint} change={change}/>
+        </div>;
+      }).reverse()}
+    </div>}
     {style.type === "text" && <StyleTypography value={style.style} change={value=>run("style.update",{style:style.id,value})}/>}
     {style.type === "effect" && <ul aria-label="Effect properties">{style.effects.map((fx,i)=><li key={i}>{effectLabels[fx.type]}</li>).reverse()}</ul>}
     {style.type === "grid" && <ul aria-label="Grid properties">{style.grids.map((g,i)=><li key={i}>
       {g.kind === "grid" ? "Grid "+g.size : (g.kind === "columns" ? "Columns " : "Rows ")+g.count}
     </li>)}</ul>}
     <div className="figcraft-style-actions">
-      <button type="submit">Save style</button><button type="button" onClick={finish}>Back</button>
+      <button type="submit" form={metadataForm}>Save style</button><button type="button" onClick={finish}>Back</button>
       {source && <button type="button" onClick={()=>run("style.update",{style:style.id,from:source})}>Update from selection</button>}
       <button type="button" onClick={()=>{if (run("style.duplicate",{style:style.id})) back();}}>Duplicate style</button>
       <button type="button" onClick={()=>{if (run("style.delete",{style:style.id})) back();}}>Delete style</button>
     </div>
-  </form>;
+  </div>;
 }

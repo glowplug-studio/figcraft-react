@@ -5778,3 +5778,38 @@ test("editing a shared text definition updates linked characters and preserves i
   const text=document.nodes[4];
   expect(text.kind==="text" && text.text.runs[0]).toMatchObject({start:0,end:5,style:{...definition,styleId:"S:5"}});
 });
+
+test("a shared paint picker propagates gradient stops and uploaded images with no selected layers", async ({page})=>{
+  await login(page);
+  const buffer=await readFile(new URL("../fixtures/native-shared-styles.json",import.meta.url));
+  await page.getByLabel("Open Figcraft file",{exact:true}).setInputFiles({name:"paints.figcraft",mimeType:"application/octet-stream",buffer});
+  const catalogue=page.getByRole("group",{name:"Local styles",exact:true});
+  await catalogue.getByRole("button",{name:"Edit Palette/Surface"}).click();
+  const opacity=catalogue.getByRole("textbox",{name:"Style paint 1 opacity (%)"});
+  await opacity.fill("75"); await opacity.press("Enter");
+  await catalogue.getByRole("button",{name:"Edit Style paint 1 paint",exact:true}).click();
+  const picker=catalogue.getByRole("group",{name:"Style paint 1 paint picker"});
+  await picker.getByLabel("Paint type").selectOption("linear");
+  await picker.getByRole("button",{name:"Add stop",exact:true}).click();
+  const stop=picker.getByRole("button",{name:"Gradient stop 3",exact:true});
+  const handle=(await stop.boundingBox())!;
+  await page.mouse.move(handle.x+handle.width/2,handle.y+handle.height/2);
+  await page.mouse.down(); await page.mouse.move(handle.x+handle.width/2+30,handle.y+handle.height/2,{steps:4}); await page.mouse.up();
+  await expect(picker.getByRole("button",{name:"Gradient stop 3",exact:true})).toHaveAttribute("aria-pressed","true");
+  await picker.getByLabel("Paint type").selectOption("image");
+  await picker.getByLabel("Choose image").setInputFiles(new URL("../fixtures/images/six-pixels.png",import.meta.url).pathname);
+  await picker.getByLabel("Image mode").selectOption("tile");
+  await picker.getByRole("button",{name:"Close paint picker"}).click();
+  await catalogue.getByRole("button",{name:"Back",exact:true}).click();
+  await expect(page.locator(".figcraft-recovery")).toHaveText("Recovery saved on this device");
+  await page.reload();
+  const downloading=page.waitForEvent("download");
+  await page.getByRole("button",{name:"Save as",exact:true}).click();
+  const {document}=await decodeFigcraft(await readFile((await (await downloading).path())!));
+  const style=document.styles?.find(s=>s.id==="S:2");
+  if (style?.type!=="paint" || style.paints[0].type!=="image") throw new Error("Missing shared image paint");
+  const paint=style.paints[0];
+  expect(paint).toMatchObject({scale_mode:"tile",opacity:.75});
+  expect(document.images?.[paint.image]).toMatchObject({width:3,height:2});
+  expect(document.nodes[3]).toMatchObject({fills:[paint],strokes:[paint]});
+});

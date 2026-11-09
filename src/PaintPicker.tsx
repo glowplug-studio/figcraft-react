@@ -18,6 +18,7 @@ type Props = {
   paint: Paint;
   change: (paint: Paint) => void;
   region?: boolean;
+  styleId?: string;
 };
 
 function changeKind(paint: Paint, kind: GradientKind | "solid"): Paint {
@@ -92,7 +93,7 @@ function Stops({engine,picker,paint,change}: {engine:EditorEngine; picker:Picker
   </div>;
 }
 
-export function PaintPicker({engine,list,index,label,paint,change,region=false}:Props) {
+export function PaintPicker({engine,list,index,label,paint,change,region=false,styleId}:Props) {
   const picker = engine.getSnapshot().paintPicker;
   const [pending,setPending] = useState<Picker>();
   const image = paint.type === "image" || pending !== undefined && picker === pending;
@@ -104,9 +105,9 @@ export function PaintPicker({engine,list,index,label,paint,change,region=false}:
     catch(e) { setUploadError({picker,message:e instanceof Error ? e.message : "Image upload failed"}); }
   }
   useEffect(()=>{if (paint.type==="image") setPending(undefined);},[paint.type]);
-  const open = picker?.list === list && picker.index === index;
+  const open = picker?.list === list && picker.index === index && picker.styleId === styleId;
   const {document: doc, selection} = engine.getSnapshot();
-  const sources = useMemo(() => open ? patternSources(doc,selection) : [], [open,doc,selection]);
+  const sources = useMemo(() => open ? patternSources(doc,styleId === undefined ? selection : []) : [], [open,doc,selection,styleId]);
   const [missingSource,setMissingSource] = useState<Picker>();
   const button = useRef<HTMLButtonElement>(null), panel = useRef<HTMLDivElement>(null);
   useLayoutEffect(()=>{
@@ -136,11 +137,11 @@ export function PaintPicker({engine,list,index,label,paint,change,region=false}:
   },[open,engine]);
   const selectedColour = paint.type === "solid" ? paint.color : paint.type === "gradient" && picker ? paint.stops[picker.stop]?.color : undefined;
   return <>
-    <button ref={button} type="button" aria-expanded={open} onClick={()=>engine.setPaintPicker(open ? undefined : {list,index,stop:0})}>Edit {label} paint</button>
-    {open && <div data-figcraft-image-drop-target={image && !region ? "" : undefined} ref={panel} role="group" popover="manual" aria-label={label+" paint picker"}
+    <button ref={button} type="button" aria-expanded={open} onClick={()=>engine.setPaintPicker(open ? undefined : {list,index,stop:0,...(styleId !== undefined && {styleId})})}>Edit {label} paint</button>
+    {open && <div data-figcraft-image-drop-target={image && !region && styleId === undefined ? "" : undefined} ref={panel} role="group" popover="manual" aria-label={label+" paint picker"}
       style={{position:"fixed",inset:"auto",margin:0,width:"min(240px, calc(100vw - 8px))",maxHeight:"calc(100dvh - 8px)",overflow:"auto",padding:12,border:"1px solid #bbb",borderRadius:6,background:"Canvas",color:"CanvasText"}}
       onDragOver={event=>{
-        if (image && !region && event.dataTransfer.types.includes("Files")) {event.preventDefault();event.stopPropagation();setHover(picker);}
+        if (image && !region && styleId === undefined && event.dataTransfer.types.includes("Files")) {event.preventDefault();event.stopPropagation();setHover(picker);}
       }}
       onDragLeave={event=>{
         if (!(event.relatedTarget instanceof Node) || !event.currentTarget.contains(event.relatedTarget)) setHover(undefined);
@@ -166,7 +167,7 @@ export function PaintPicker({engine,list,index,label,paint,change,region=false}:
       </select></label>
       {missingSource===picker && <p role="status">Add a layer or component to tile first</p>}
       {!image && paint.type==="pattern" && <PatternPaintControls engine={engine} picker={picker} paint={paint} sources={sources} change={change}/>}
-      {image && <ImagePaintControls engine={engine} picker={picker} paint={paint.type === "image" ? paint : undefined} region={region} hover={hover===picker} upload={upload} change={change}/>}
+      {image && <ImagePaintControls engine={engine} picker={picker} paint={paint.type === "image" ? paint : undefined} region={region || styleId !== undefined} hover={hover===picker} upload={upload} change={change}/>}
       {image && uploadError?.picker===picker && <p role="alert">{uploadError.message}</p>}
       {!image && paint.type === "gradient" && <Stops engine={engine} paint={paint} picker={picker} change={change}/>}
       {!image && selectedColour && outsideSrgb(selectedColour, engine.getSnapshot().document.colourProfile ?? "srgb") &&

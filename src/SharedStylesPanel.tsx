@@ -33,7 +33,7 @@ function useStyleView() {
   return {grid,setGrid,folded,toggle};
 }
 
-function SlotPicker({slot, styles, ids, link, run, close, view}:{slot:StyleSlot;styles:readonly SharedStyle[];ids:string[];
+function SlotPicker({engine, slot, styles, ids, link, run, close, view}:{engine:EditorEngine;slot:StyleSlot;styles:readonly SharedStyle[];ids:string[];
   link:string|null|undefined;run:Run;close:()=>void;view:ReturnType<typeof useStyleView>}) {
   const [query,setQuery] = useState(""), [edit,setEdit] = useState<string>();
   const edited = styles.find(s=>s.id === edit);
@@ -49,7 +49,7 @@ function SlotPicker({slot, styles, ids, link, run, close, view}:{slot:StyleSlot;
     if (typeof made?.id === "string") {setQuery("");setEdit(made.id);}
   }
   return <div role="group" aria-label={titles[slot]+" style picker"} className="figcraft-style-picker">
-    {edited ? <EditStyle key={edited.id} style={edited} run={run} source={ids[0]} back={()=>setEdit(undefined)}/> : <>
+    {edited ? <EditStyle engine={engine} key={edited.id} style={edited} run={run} source={ids[0]} back={()=>setEdit(undefined)}/> : <>
       <input autoFocus type="search" aria-label="Search styles" placeholder="Search styles" value={query} onChange={e=>setQuery(e.target.value)}/>
       <div className="figcraft-style-choices">
         {groupStyles(choices).map(([folder,items])=>{
@@ -80,7 +80,7 @@ function SlotPicker({slot, styles, ids, link, run, close, view}:{slot:StyleSlot;
   </div>;
 }
 
-function SelectedStyles({nodes, styles, live, enabled, run, leave, view}:{nodes:DocumentNode[];styles:readonly SharedStyle[];
+function SelectedStyles({engine, nodes, styles, live, enabled, run, leave, view}:{engine:EditorEngine;nodes:DocumentNode[];styles:readonly SharedStyle[];
   live?:ActiveStyleRange;enabled:boolean;run:Run;leave:()=>void;view:ReturnType<typeof useStyleView>}) {
   const [slot,setSlot] = useState<StyleSlot>();
   const triggers = useRef(new Map<StyleSlot,HTMLButtonElement>());
@@ -106,7 +106,7 @@ function SelectedStyles({nodes, styles, live, enabled, run, leave, view}:{nodes:
         {titles[key]}{name && " · "+name}
       </button>;
     })}</div>
-    {slot && <SlotPicker view={view} key={slot} slot={slot} ids={nodes.map(n=>n.id)} link={link} styles={styles} run={run} close={close}/>}
+    {slot && <SlotPicker engine={engine} view={view} key={slot} slot={slot} ids={nodes.map(n=>n.id)} link={link} styles={styles} run={run} close={close}/>}
   </fieldset>;
 }
 
@@ -116,6 +116,6 @@ export function SharedStylesPanel({engine,enabled,run,leave}:{engine:EditorEngin
   const live = useSyncExternalStore(engine.subscribeCanvas,engine.getTextRange,engine.getTextRange);
   const doc = live ? engine.getRenderDocument() : snapshot.document;
   const nodes = live ? [live.node] : snapshot.selection.map(id=>doc.nodes[id]).filter(n=>n && n.kind !== "page");
-  if (!nodes.length) return doc.styles?.length ? <LocalStyleCatalogue styles={doc.styles} enabled={enabled} run={run}/> : null;
-  return <SelectedStyles view={view} key={nodes.map(n=>n.id).join(",")} nodes={nodes} live={live} enabled={enabled} styles={doc.styles ?? []} run={run} leave={leave}/>;
+  if (!nodes.length) return doc.styles?.length ? <LocalStyleCatalogue engine={engine} styles={doc.styles} enabled={enabled} run={run}/> : null;
+  return <SelectedStyles engine={engine} view={view} key={nodes.map(n=>n.id).join(",")} nodes={nodes} live={live} enabled={enabled} styles={doc.styles ?? []} run={run} leave={leave}/>;
 }

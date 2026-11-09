@@ -1,6 +1,6 @@
 import { editLayoutGuides, gridSpecs } from "./layout-guides";
 import { editStyleLinks } from "./style-application";
-import { editStyleDefinition, orderStyles, styleEditSpecs, styleOrderSpecs } from "./style-commands";
+import { editStylePaint, editStyleDefinition, orderStyles, styleEditSpecs, styleOrderSpecs } from "./style-commands";
 import { listStyles } from "./shared-styles";
 import { finishComponentEdit } from "./component-edits";
 import { listComponents } from "./component-assets";
@@ -24,13 +24,13 @@ import { isLeaf, isFrameLike, isGroupLike, rectanglePaints } from "./document";
 import { editImagePaints, editImagePreset, imageEditSpecs, startImageCrop, type CropTarget } from "./image-commands";
 import { listImagePresets } from "./image-filters";
 import { getNode } from "./inspect";
-import { centrePastedImage, rasterImportParams, placeImage, prepareImage, rasterFilename, replaceImage } from "./image-import";
+import { centrePastedImage, rasterImportParams, placeImage, prepareImage, rasterFilename, replaceImage, withImageResource } from "./image-import";
 import { createCanvasText, editTextRange, publishTextNode, typedListMarker, type TextTarget } from "./text-edit";
 import { fitEditedText, importFontBytes, prepareText, prepareDocumentText, queryFonts } from "./text-node-layout";
 import { creationCharacters, createLayer } from "./creation";
 import { pastePaint, type CopiedPaint } from "./paint-clipboard";
 import { copyPaint, fillSpecs, selectedRegionFills, writeFill } from "./fill-commands";
-import type { Paint } from "./solid-paint";
+import { readPaint, type Paint } from "./solid-paint";
 import { executeStrokeList, strokeSpecs } from "./stroke-commands";
 import { newDocument, sameContent, withLayerTransform, type Document, type DrawShapeKind, type TextNode, type NodeId } from "./document";
 import { MAX_IMAGE_BYTES } from "./image-resource";
@@ -160,6 +160,7 @@ export const commandSpecs = Object.freeze({
 });
 export type CommandId = keyof typeof commandSpecs;
 export interface PaintPicker {
+  readonly styleId?: string;
   readonly list: "fill" | "stroke";
   readonly index: number;
   readonly stop: number;
@@ -535,7 +536,7 @@ export class EditorEngine {
   /** The native canvas handles edit one open picker. Mixed region paints have no target. */
   #pickedPaint(picker: PaintPicker | undefined) {
     const ids=this.getRenderSelection();
-    if (!picker || ids.length !== 1) return;
+    if (!picker || picker.styleId !== undefined || ids.length !== 1) return;
     const node=this.getRenderDocument().nodes[ids[0]];
     if (!node || node.kind === "page") return;
     const regions=picker.list==="fill" ? selectedRegionFills(node,this.getRenderVectorEdit()) : undefined;
@@ -620,14 +621,16 @@ export class EditorEngine {
   finishCrop() { if (this.#snapshot.crop) this.#publish({crop:undefined}); }
   /** A menu may outlive its gesture after selection changes or edit access is revoked. */
   beginBlendPreview(picker?: PaintPicker) {
-    if (this.interacting || !this.#snapshot.editable || !this.#snapshot.selection.length) return;
+    if (this.interacting || !this.#snapshot.editable || (picker?.styleId === undefined && !this.#snapshot.selection.length)) return;
     this.beginInteraction();
     const owner = this.#interaction!;
     const {document,selection} = owner.base;
     return {
       show: (blend:BlendMode) => {
         if (this.#interaction !== owner) return;
-        if (picker) {
+        if (picker?.styleId !== undefined) {
+          owner.document = editStylePaint(document,picker.styleId,picker.index,paint=>({...paint,blend}));
+        } else if (picker) {
           const params = {ids:selection,index:picker.index,blend};
           owner.document = picker.list === "stroke" ? executeStrokeList("stroke.set",document,selection,params)
             : writeFill("fill.set",document,selection,params,owner.baseVectorEdit);
@@ -661,6 +664,11 @@ export class EditorEngine {
     const interaction = this.#interaction;
     if (!interaction) throw new Error("No active paint interaction");
     const { document, selection } = interaction.base;
+    if (picker.styleId !== undefined) {
+      interaction.document = editStylePaint(document,picker.styleId,picker.index,()=>paint);
+      this.#notifyCanvas();
+      return;
+    }
     const params = { ids: selection, index: picker.index, paint };
     interaction.document = picker.list === "fill"
       ? writeFill("fill.set", document, selection, params, interaction.baseVectorEdit)
@@ -1231,6 +1239,27 @@ export class EditorEngine {
   }
   async uploadPaintImage(picker: PaintPicker, file: File) {
     if (this.#snapshot.paintPicker !== picker) throw new Error("Image picker was closed");
+    if (picker.styleId !== undefined) {
+      const before = this.getRenderDocument(), identity = this.#documentIdentity, live = this.getTextRange();
+      const check = () => {
+        if (!this.#snapshot.editable || this.#documentIdentity !== identity || this.#snapshot.paintPicker !== picker ||
+            this.getRenderDocument() !== before || this.getTextRange() !== live || (this.interacting && !live))
+          throw new Error("Style image target changed");
+      };
+      check();
+      if (file.size > MAX_IMAGE_BYTES) throw new Error("Image exceeds the 256 MiB external input limit");
+      const image = await prepareImage(new Uint8Array(await file.arrayBuffer()),before.images,undefined,file);
+      check();
+      const document = editStylePaint(withImageResource(before,image),picker.styleId,picker.index,previous=>{
+        const {opacity,visible,colorAlpha,blend} = previous;
+        return readPaint({type:"image",image:image.hash,opacity,visible,colorAlpha,blend});
+      });
+      await prepareArchive(document,String(this.#interaction?.nextId ?? this.#nextId));
+      check();
+      if (live) live.update(document,live.anchor,live.caret);
+      else this.#commitEdit({document});
+      return {image:image.hash,width:image.resource.width,height:image.resource.height,changed:1};
+    }
     return this.#executeFileCommand("image.replace", {ids:this.#snapshot.selection, target:picker.list, index:picker.index}, {picker, file});
   }
   async pasteImage(file: File, at?: Point) {

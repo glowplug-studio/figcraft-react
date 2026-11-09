@@ -1,4 +1,5 @@
 import { useState } from "react";
+import type { EditorEngine } from "./engine/editor";
 import { EditStyle, StyleSwatch, type Run } from "./StyleEditor";
 import type { SharedStyle } from "./engine/shared-styles";
 
@@ -72,12 +73,12 @@ function KindList({styles, edit, run}:{styles:readonly SharedStyle[]; edit:(id:s
   </div>)}</>;
 }
 
-export function LocalStyleCatalogue({styles,enabled,run}:{styles:readonly SharedStyle[];enabled:boolean;run:Run}) {
+export function LocalStyleCatalogue({styles,enabled,run,engine}:{engine:EditorEngine;styles:readonly SharedStyle[];enabled:boolean;run:Run}) {
   const [editing,setEditing] = useState<string>();
   const style = styles.find(s=>s.id === editing);
   return <fieldset disabled={!enabled} aria-label="Local styles">
     <legend>Local styles</legend>
-    {style ? <EditStyle key={style.id} style={style} run={run} back={()=>setEditing(undefined)}/> : kinds.map(([kind,title])=>{
+    {style ? <EditStyle engine={engine} key={style.id} style={style} run={run} back={()=>setEditing(undefined)}/> : kinds.map(([kind,title])=>{
       const list = styles.filter(s=>s.type===kind);
       return list.length ? <div key={kind} role="group" aria-label={title}><h4>{title}</h4>
         <KindList styles={list} edit={setEditing} run={run}/></div> : null;

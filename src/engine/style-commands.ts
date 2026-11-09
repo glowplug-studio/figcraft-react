@@ -1,3 +1,4 @@
+import type { Paint } from "./solid-paint";
 import { HierarchyDraft } from "./hierarchy";
 import { sameComponentValue } from "./component-groups";
 import { applyStyleToNode, propagateStyle, type ActiveStyleRange } from "./style-application";
@@ -160,4 +161,13 @@ export function editStyleDefinition(document: Document, selection: readonly stri
   linkSource?.(draft);
   for (const node of Object.values(draft.nodes)) draft.set(propagateStyle(node, id, definition));
   return {document:draft.finish(), result};
+}
+
+
+/** The colour picker replaces one paint in the definition and propagates the complete stack. */
+export function editStylePaint(document: Document, id: string, index: number, update: (paint: Paint) => Paint) {
+  const style = document.styles?.find(s=>s.id === id);
+  if (style?.type !== "paint" || !style.paints[index]) throw new Error("The style paint is no longer available");
+  const value = style.paints.map((paint,i)=>i === index ? update(paint) : paint);
+  return editStyleDefinition(document, [], "style.update", {style:id,value}).document;
 }

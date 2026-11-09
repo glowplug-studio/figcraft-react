@@ -192,3 +192,28 @@ describe("native shared style authoring", () => {
     expect(grid(4)).toMatchObject({grids:[{kind:"columns",count:5}],styles:{grid:"S:1"}});
   });
 });
+
+it("previews a shared paint independently of the selected fill and undoes propagation in one step", async ()=>{
+  const e=new EditorEngine();
+  await e.executeAsync("file.open",{data:base64Bytes(capture)});
+  e.execute("select.set",{ids:[2]});
+  const picker={styleId:"S:2",list:"fill" as const,index:0,stop:0};
+  const before=e.getSnapshot().document;
+  e.setPaintPicker(picker);
+  expect(e.pickedGradient()).toBeUndefined();
+  const preview=e.beginBlendPreview(picker)!;
+  preview.show("multiply");
+  const paint=(doc:typeof before)=>doc.styles?.find(s=>s.id==="S:2");
+  expect(paint(e.getRenderDocument())).toMatchObject({paints:[{blend:"multiply"}]});
+  expect(e.getSnapshot().document).toBe(before);
+  preview.cancel();
+  expect(e.getRenderDocument()).toBe(before);
+  e.beginInteraction();
+  const definition=paint(before);
+  if (definition?.type!=="paint") throw new Error("Missing fixture paint");
+  e.previewPaint(picker,{...definition.paints[0],opacity:.31});
+  e.commitInteraction();
+  expect(paint(e.getSnapshot().document)).toMatchObject({paints:[{opacity:Math.fround(.31)}]});
+  expect(e.getSnapshot().document.nodes[2]).toBe(before.nodes[2]);
+  e.execute("edit.undo"); expect(e.getSnapshot().document).toBe(before);
+});
