@@ -3892,6 +3892,8 @@ test("native effect stacks survive an editor change, device recovery and downloa
   engine.execute("shape.rectangle",{x:200,y:100,width:20,height:30,props:{fill:"black"}});
   engine.execute("shape.rectangle",{x:220,y:100,width:20,height:30,props:{fill:"white"}});
   engine.execute("shape.rectangle",{x:210,y:105,width:20,height:20,props:{fills:[],effects:[{type:"backgroundBlur",radius:2}]}});
+  engine.execute("shape.rectangle",{x:260,y:100,width:30,height:30,props:{fill:"blue",effects:[
+    {type:"noise",mode:"mono",color:"lime",density:1},{type:"texture",size:1,radius:2,clipToShape:true}]}});
   const members = unzipSync(await encodeFigcraft(engine.getSnapshot().document));
   const native = JSON.parse(strFromU8(members["document.json"]));
   native.nodes[id].effects = [
@@ -3912,6 +3914,7 @@ test("native effect stacks survive an editor change, device recovery and downloa
   await expectCanvasPixel(page,155,115,[255,0,0,255]);
   await expectCanvasPixel(page,219,115,[85,85,85,255]);
   await expectCanvasPixel(page,220,115,[170,170,170,255]);
+  await expectCanvasPixel(page,275,115,[0,255,0,255]);
   await layer.click();
   await page.getByLabel("Design canvas",{exact:true}).focus();
   await page.keyboard.press("ArrowRight");

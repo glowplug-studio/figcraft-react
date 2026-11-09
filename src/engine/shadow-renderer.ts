@@ -121,7 +121,7 @@ export class ShadowLayer {
     const drop = node.effects?.filter((e): e is Shadow => e.visible && e.type === "dropShadow");
     if (!drop?.length) return;
     const alpha = alphaPixels(layer);
-    const moved = node.effects?.some(e=>e.visible && e.type==="layerBlur" && blurRadius(e)>0);
+    const moved = node.effects?.some(e=>e.visible && (e.type==="layerBlur" && blurRadius(e)>0 || e.type==="texture" && !e.clipToShape && e.radius!==0));
     const hiding = !moved && drop.some(e=>!e.showBehind) && outlines(this.doc,node,true);
     const cover = hiding ? outlineAlpha(surface,width,height,hiding,matrix) : alpha;
     const casting = drop.some(e=>e.spread !== 0) && outlines(this.doc,node,false);

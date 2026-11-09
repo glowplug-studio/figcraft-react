@@ -2,6 +2,7 @@ import { multiply } from "./affine";
 import { backdropParent } from "./backdrop-stack";
 import { hasBackdrop, nestedBackdrop, renderBackdrop } from "./backdrop-renderer";
 import { applyBlur, blurRadius } from "./blur-renderer";
+import { applyGrain } from "./grain-renderer";
 import { rectangleTransform, type Document, type LayerNode } from "./document";
 import type { PaintSteps } from "./image-renderer";
 import { hasShadows, ShadowLayer } from "./shadow-renderer";
@@ -13,13 +14,14 @@ export function effectReach(node: LayerNode) {
     page = Math.max(page, Math.min(1e12, 2 * Math.abs(e.radius) + Math.abs(e.offset[0]) + Math.abs(e.offset[1]) + 4 * Math.abs(e.spread)));
     local = Math.max(local, Math.min(1e12, 4 * Math.max(0, e.spread)));
   }
-  let squared = 0;
+  let squared = 0, scatter = 0;
   for (const e of node.effects ?? []) if (e.visible && e.type === "layerBlur") squared += (1.5 * blurRadius(e)) ** 2;
-  return { page: page + Math.sqrt(squared), local };
+  for (const e of node.effects ?? []) if (e.visible && e.type === "texture" && !e.clipToShape) scatter += Math.min(1e12,Math.abs(e.radius));
+  return { page: page + Math.sqrt(squared) + scatter, local };
 }
 
 export function usesPixelLayer(node: LayerNode) {
-  return node.effects?.some(e => e.visible && (e.type === "dropShadow" || e.type === "innerShadow" ||
+  return node.effects?.some(e => e.visible && (e.type === "dropShadow" || e.type === "innerShadow" || e.type === "noise" || e.type === "texture" ||
     (e.type === "layerBlur" || e.type === "backgroundBlur") && blurRadius(e) > 0));
 }
 
@@ -28,6 +30,7 @@ export function effectMargin(node:LayerNode,scale:number) {
   let blurMargin = 0;
   for (const e of node.effects ?? []) {
     if (e.visible && e.type === "backgroundBlur") margin = Math.max(margin, Math.ceil(2 * blurRadius(e) * scale));
+    if (e.visible && e.type === "texture") blurMargin += Math.abs(e.radius) * scale;
     if (e.visible && e.type === "layerBlur") blurMargin += 2 * blurRadius(e) * scale;
     if (e.visible && (e.type === "dropShadow" || e.type === "innerShadow")) {
       const reach = 2 * Math.abs(e.radius) + 4 * Math.abs(e.spread) + Math.abs(e.offset[0]) + Math.abs(e.offset[1]);
@@ -49,11 +52,13 @@ export function* drawLayerEffects(context:CanvasRenderingContext2D,scratch:Canva
   const m = scratch.getTransform();
   const xf = multiply([m.a,m.b,m.c,m.d,m.e,m.f],rectangleTransform(node));
   const readBack = () => renderBackdrop(context,doc,node,left,top,width,height,xf,scale);
-  const moving = node.effects?.some(e=>e.visible && e.type==="layerBlur");
+  const hasFilters = node.effects?.some(e=>e.visible && (e.type==="layerBlur" || e.type==="noise" || e.type==="texture"));
   const filter = () => {
-    if (!moving) return;
-    for (const e of node.effects ?? []) if (e.visible && e.type === "layerBlur") {
-      applyBlur(scratch,e,node.width,node.height,xf,scale);
+    if (!hasFilters) return;
+    for (const e of node.effects ?? []) {
+      if (!e.visible) continue;
+      if (e.type === "layerBlur") applyBlur(scratch,e,node.width,node.height,xf,scale);
+      if (e.type === "noise" || e.type === "texture") applyGrain(scratch,e,xf,scale,node.id);
     }
   };
   let firstBack: CanvasRenderingContext2D | undefined, original: HTMLCanvasElement | undefined;
@@ -70,7 +75,7 @@ export function* drawLayerEffects(context:CanvasRenderingContext2D,scratch:Canva
       }
     }
     yield* draw(scratch,shadows);
-    if (casts && moving) {
+    if (casts && hasFilters) {
       original=context.canvas.ownerDocument.createElement("canvas");
       original.width=width; original.height=height; original.getContext("2d")!.drawImage(scratch.canvas,0,0);
     }

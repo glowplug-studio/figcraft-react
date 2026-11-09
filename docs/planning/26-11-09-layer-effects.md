@@ -63,3 +63,11 @@ The preceding whole-suite run passed all 189 collected workflows in 359.4 second
 Next port the seeded noise and texture passes from render/src/grain.rs. Verify exact wrapping integer hashes and signed cell coordinates, independent deterministic bytes, anisotropic grain and clipping. Glass, mixed stack and memory/performance verification, settings UI and the final effects property report remain open.
 
 Background blur checkpoint 1056d9f. The refreshed local graph at this revision and Rust 8a7ebc24 contains 30,349 nodes and 100,306 edges. Verified readBackdrop and renderBackdrop by React source file, and grains and texture by Rust source file. The local production host and full Chromium rerun were started from 1056d9f. Verify the runner and its JSON result before treating this checkpoint as a full pass.
+
+## Noise and texture
+
+At 1056d9f all 192 local production Chromium workflows passed on the first attempt in 359.4 seconds. Seeded noise and texture now use the layer's inverse affine and the native wrapping integer hash. Noise supports mono, duo and multi colours, density, independent axis sizes and blend. Texture samples the original layer with radial scatter and optional alpha clipping. Both run in native filter order and reserve scratch memory before reading pixels.
+
+The independent 64-bit reference and pixel tests passed with 1,144 pure tests, strict types, both production builds and two local Auth checks. Three focused Chromium workflows covered grain colours, texture clipping, filter order, panning and the memory budget. On a 210 × 180 fixture with a 60 × 60 layer, 40 frames measured 1.40 ms at p95 with zero model publications. The signed-in production workflow verified the noise pixel, device recovery and native download. The local React graph merged with Rust 8a7ebc24 has 30,377 nodes and 100,386 edges. Verified grainPixels, native grains and native render::glass::glass by source file.
+
+Next verify the full grain checkpoint in Chromium and port glass distance fields, refraction and lighting. Glass rendering, settings UI, remaining integrations and the full property matrix are open.
