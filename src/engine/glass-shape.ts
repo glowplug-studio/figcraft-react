@@ -1,5 +1,6 @@
 import { transformPoint, type Affine } from "./affine";
 import type { PathCommand } from "./corners";
+import { glassCoverage } from "./glass-coverage";
 import { glassBendDirections, glassInsideDistance, glassNormals } from "./glass-fields";
 import type { GlassGeometry } from "./glass-lens";
 import { glassOwnFrame } from "./glass-rectangle";
@@ -44,17 +45,12 @@ function rasterFields(doc: Document, path: Path2D, rule: CanvasFillRule, xf: Aff
   originX: number, originY: number, width: number, height: number, radius: number) {
   const release = reserveLayerPixels(width, height, 10);
   if (!release) return;
-  const canvas = doc.createElement("canvas");
   try {
-    canvas.width = width; canvas.height = height;
-    const ctx = canvas.getContext("2d", {willReadFrequently:true})!;
-    ctx.setTransform(xf[0], xf[1], xf[2], xf[3], xf[4] - originX, xf[5] - originY);
-    ctx.fill(path, rule);
-    const pixels = ctx.getImageData(0, 0, width, height).data, alpha = new Uint8Array(width * height);
-    for (let i = 0; i < alpha.length; i++) alpha[i] = pixels[4 * i + 3];
+    const alpha = glassCoverage(doc, path, rule, xf, originX, originY, width, height);
+    if (!alpha) return;
     const distance = glassInsideDistance(alpha, width, height), normals = glassNormals(distance, width, height, radius);
     return { alpha, distance, normals, bends: new Map(), width, height } as EdgeFields;
-  } finally { canvas.width = canvas.height = 0; release(); }
+  } finally { release(); }
 }
 
 export function glassShape(doc: Document, commands: readonly PathCommand[], path: Path2D, rule: CanvasFillRule,

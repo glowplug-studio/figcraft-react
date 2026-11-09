@@ -2,6 +2,11 @@
 
 All notable changes to the React port and its upstream compatibility baseline are recorded here.
 
+## [0.48.0] - 2026-11-09
+
+- Added native layer effects, ordered stack commands, Design settings and progressive blur handles. Shadows, blur, grain, texture and glass render on the canvas and survive native file recovery.
+- Stabilised glass edge coverage across viewport cuts and verified continuous effect edits on a 10,000-node document. [Layer effects checkpoint](docs/planning/26-11-09-layer-effects.md). This slice targets upstream 8a7ebc24. The global compatibility baseline remains 8eb0b876.
+
 ## [0.47.0] - 2026-11-09
 
 - Added native alpha, vector and luminance masks, mask-aware layer selection and the Select layer context menu. Mask properties survive device recovery and native file exchange.
