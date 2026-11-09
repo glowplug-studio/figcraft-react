@@ -116,3 +116,13 @@ The pinned Emscripten rebuild produced byte-identical JavaScript and Wasm on two
 The original 1,000 layout cases now match upstream wasm32 Figcraft. A second seed added 10,000 exact full layout comparisons. Together the two runs compared 16,000 word-boundary masks and 11,000 layouts. Fourteen reduced regressions compare wrapped geometry, and eight unwrapped native fixtures compare glyph IDs, positions and ranges for Hebrew, Arabic, Thai, Lao, Khmer, Myanmar and mixed marks. Node and the generated Chromium consumer passed all 35 word fixtures and 41 full glyph-flow fixtures. Strict types, both production builds, 1,322 pure tests, two local Auth tests and three focused Chromium workflows passed. The last complete Chromium run was 208/208 at 6770c2c.
 
 Local Graphify merged the React changes over 6770c2c with Rust a4251ca8, yielding 31,155 nodes and 102,146 edges. The next step is glyph outlines and layout-space ink, followed by decorations, text paths and editable browser text nodes.
+
+At 0015fe4 the full local production Chromium suite passed 208/208 in 381.3 seconds with one worker and zero failures, skips or retries.
+
+### Glyph outline reference
+
+Upstream Face::outline_at selects skrifa’s default FreeType path style with unscaled, unhinted font coordinates. Glyph::layer_path flips the font-space Y axis through the outline pen and applies glyph size, baseline position and path warp. HarfBuzz’s floating variation deltas differ by up to 0.987 font units from these outlines. The signed rounding occurs before implied quadratic midpoints. Whole-font comparisons remove geometrically redundant closing lines and zero-length lines.
+
+A local FreeType 2.15.0 comparison loaded the original font bytes with FT_LOAD_NO_SCALE, FT_LOAD_NO_HINTING and FT_LOAD_NO_BITMAP. Normalising variable axes to the native F2Dot14 precision before loading the glyph resolved 23 outline differences at an intermediate Georgian width and weight. All 13,928 reference glyph outlines across the five bundled fonts and four Georgian axis configurations matched, including controls, points and winding. All 11,080 additional glyph outlines at 20 seeded fractional axis configurations matched. These are reference experiments. Browser glyph painting remains open.
+
+Next implement the unhinted TrueType outline reader using the independent FreeType library, reuse the loaded face bytes, preserve quadratic midpoints in the TypeScript path adapter and compare actual Node and Chromium drawing with the reference. Follow with CFF, coloured glyphs, decorations, warped paths and text editing.
