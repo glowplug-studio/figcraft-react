@@ -31,6 +31,24 @@ export class TransformInteraction {
     try { const frame = this.#frame(); if (!frame) return; const corners = frameCorners(frame), handle = handleAt(corners, point, this.engine.getView().zoom, this.#isLine()); return handle && handleCursor(corners, handle); }
     catch { return; }
   }
+  doubleClickEdge(point: Point, modifiers: MoveModifiers): boolean {
+    const {document, selection, tool} = this.engine.getSnapshot();
+    if (selection.length !== 1 || (tool !== "move" && tool !== "scale") ||
+        modifiers.shiftKey || modifiers.ctrlKey || modifiers.metaKey) return false;
+    const node = document.nodes[selection[0]];
+    if (node.kind === "page") return false;
+    const parent = document.nodes[node.parent];
+    const applies = modifiers.altKey ? !node.childLayout?.absolute && parent.kind === "frame" && parent.layout
+      : node.kind === "frame" && node.layout;
+    if (!applies) return false;
+    const frame = this.#frame();
+    const edge = frame && handleAt(frameCorners(frame), point, this.engine.getView().zoom, this.#isLine());
+    if (edge?.kind !== "edge") return false;
+    this.engine.execute("node.set", {id: node.id, props: {
+      [edge.index % 2 ? "sizingH" : "sizingV"]: modifiers.altKey ? "fill" : "hug",
+    }});
+    return true;
+  }
   down(point: Point): boolean {
     try {
       const frame = this.#frame(); if (!frame) return false;

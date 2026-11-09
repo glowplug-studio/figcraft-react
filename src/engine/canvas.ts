@@ -684,9 +684,12 @@ export class CanvasController {
     if (!this.engine.getSnapshot().editable) return;
     event.preventDefault();
     try {
+      if (this.#text.active && this.#text.doubleClick(event)) return;
       if (this.engine.getSnapshot().tool === "shapeBuilder") return;
       if (this.engine.pen.doubleClick(this.#point(event))) return;
       if (this.#vectors.doubleClick(this.#point(event))) return;
+      if (this.#transforming.doubleClickEdge(this.#point(event), event)) return;
+      if (this.#text.doubleClick(event)) return;
       if (this.#onOrigin(this.#point(event))) this.engine.execute("transform.setRotationOrigin", { reset: true });
       else this.#moving.doubleClick(this.#point(event));
     } catch (error) { this.onError(error instanceof Error ? error.message : "Could not enter layer"); }

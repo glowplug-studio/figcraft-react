@@ -38,7 +38,6 @@ export class CanvasTextInput {
     canvas.addEventListener("pointerup",this.#up,options);
     canvas.addEventListener("pointercancel",this.#cancelDrag,options);
     canvas.addEventListener("lostpointercapture",this.#cancelDrag,options);
-    canvas.addEventListener("dblclick",this.#double,options);
     canvas.addEventListener("click",e=>{
       if (e.detail!==3 || e.button!==0 || !this.active) return;
       const point=this.#point(e);
@@ -155,18 +154,18 @@ export class CanvasTextInput {
     const target = "id" in drag.target || !moved ? drag.target : {...drag.target,end};
     void this.#open(target,drag.start,false,moved && "id" in target ? end : undefined);
   };
-  #double = (e: MouseEvent) => {
+  doubleClick(e: MouseEvent): boolean {
     if (this.active) {
       e.preventDefault(); e.stopImmediatePropagation();
       const input=this.#input!, value=input.value, index=utf16ToScalar(value,this.#index(this.#point(e)));
       const [a,b]=textWordRange(value,index);
-      input.setSelectionRange(scalarToUtf16(value,a),scalarToUtf16(value,b)); this.invalidate(); return;
+      input.setSelectionRange(scalarToUtf16(value,a),scalarToUtf16(value,b)); this.invalidate(); return true;
     }
-    if (this.engine.getSnapshot().tool !== "move" || !this.engine.getSnapshot().editable) return;
+    if (this.engine.getSnapshot().tool !== "move" || !this.engine.getSnapshot().editable) return false;
     const point=this.#point(e), id=this.#hit(point);
-    if (!id) return;
-    e.preventDefault(); e.stopImmediatePropagation(); void this.#open({id},point,true);
-  };
+    if (!id) return false;
+    e.preventDefault(); e.stopImmediatePropagation(); void this.#open({id},point,true); return true;
+  }
   async #open(target: Parameters<EditorEngine["beginTextEdit"]>[0], point: Point, selectAll=false, extend?: Point) {
     const version=++this.#generation, before=this.engine.getSnapshot();
     try {

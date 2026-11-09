@@ -4940,3 +4940,34 @@ test("pointer reordering previews wrapped rows, cancels and saves a drop into a 
   expect(saved.document.nodes[2]).toMatchObject({children: ["4","5","6","7","8"]});
   expect(saved.document.nodes[3]).toMatchObject({parent: "9", childLayout: {gridColumn: 1,gridRow: 1}});
 });
+
+test("double-clicking a layout edge hugs the frame and Alt-double-click fills its text child", async ({page}) => {
+  const file = JSON.parse(await readFile(new URL("../fixtures/native-rectangle.json", import.meta.url), "utf8"));
+  file.name = "Edge sizing";
+  Object.assign(file.nodes[2], {type: "frame", name: "Container", width: 250, height: 100,
+    transform: [1,0,0,1,190,170], children: [3], layout: {mode: "horizontal", gap: 0, padding: [0,0,0,0]}});
+  file.nodes[3] = {id: 3, parent: 2, type: "text", name: "Caption", width: 100, height: 40, characters: "Caption", auto_resize: "none"};
+  file.next_id = 4;
+  await login(page);
+  await page.getByLabel("Open Figcraft file",{exact:true}).setInputFiles({
+    name:"edge.figcraft", mimeType:"application/octet-stream", buffer:Buffer.from(JSON.stringify(file)),
+  });
+  await expect(page.getByRole("heading",{name:file.name,exact:true})).toBeVisible();
+  await resetCanvasOrigin(page);
+  const layers = page.getByRole("region",{name:"Layers"}), parent = layers.getByRole("button",{name:"Container",exact:true});
+  await parent.click();
+  const right = await canvasPoint(page,440,220);
+  await page.mouse.dblclick(right.x,right.y);
+  await expect(page.getByLabel("Edit Width",{exact:true})).toHaveValue("100");
+  await page.getByRole("button",{name:"Undo",exact:true}).click();
+  await expect(page.getByLabel("Edit Width",{exact:true})).toHaveValue("250");
+  const child = layers.getByRole("button",{name:"Caption",exact:true});
+  if (!await child.isVisible()) await layers.getByRole("button",{name:"Expand frame Container",exact:true}).click();
+  await child.click();
+  const edge = await canvasPoint(page,289,190);
+  await page.keyboard.down("Alt"); await page.mouse.dblclick(edge.x,edge.y); await page.keyboard.up("Alt");
+  await expect(page.getByLabel("Edit Width",{exact:true})).toHaveValue("250");
+  await expect(page.getByRole("textbox",{name:"Edit text layer"})).toHaveCount(0);
+  const filled = await canvasPoint(page,439,190); await page.mouse.dblclick(filled.x,filled.y);
+  await expect(page.getByRole("textbox",{name:"Edit text layer"})).toBeFocused();
+});
