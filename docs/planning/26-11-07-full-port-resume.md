@@ -1,6 +1,8 @@
 # Full Figcraft port resume checkpoint
 
-At a329a88 linked styles passed native file, command and signed-in browser verification. The 289-workflow regression is running. Continue the [linked component store and placement](26-11-09-styles-variables-libraries.md#linked-component-store-and-placement) on the same branch.
+At 016c207 linked component imports, nested updates, hidden-store protection, browser placement, swapping instances and recovery passed focused verification. The 290-workflow regression is running. Continue [whole-library swaps](26-11-09-styles-variables-libraries.md#whole-library-swap-evidence) from the native Ocean/Forest full and partial match cases, including undo and redo.
+
+At a329a88 linked styles passed native file, command and signed-in browser verification. All 289 production Chromium workflows passed. Continue the [linked component store and placement](26-11-09-styles-variables-libraries.md#linked-component-store-and-placement) on the same branch.
 
 At 425c44a remote variable imports and updates passed native and signed-in production checks. All 288 production Chromium workflows passed. Next implement linked style imports and updates under [row 10](26-11-09-styles-variables-libraries.md#linked-variable-imports-and-updates).
 
