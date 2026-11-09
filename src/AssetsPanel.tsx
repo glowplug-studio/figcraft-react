@@ -1,3 +1,4 @@
+import {LibraryPublishForm} from "./LibraryPublishForm";
 import { StyleSwatch } from "./StyleEditor";
 import { useEffect, useMemo, useRef, useState, type DragEvent } from "react";
 import { listComponents } from "./engine/component-assets";
@@ -67,6 +68,7 @@ interface AssetProps {
 export function AssetsPanel({doc,editable,dispatch,place,start,end}:AssetProps) {
   const [query,setQuery] = useState("");
   const [collapsed,setCollapsed] = useState<ReadonlySet<string>>(()=>new Set());
+  const [publish,setPublish] = useState(false);
   const [menu,setMenu] = useState<string>();
   const all = useMemo(()=>localAssets(doc),[doc]);
   const search = query.trim().toLowerCase();
@@ -82,6 +84,8 @@ export function AssetsPanel({doc,editable,dispatch,place,start,end}:AssetProps) 
   },[all,search]);
   return <section className="figcraft-assets" aria-label="Assets" onKeyDown={e=>{if(e.key === "Escape") {setMenu(undefined);setQuery("");}}}>
     <input aria-label="Search assets" placeholder="Search assets" type="search" value={query} onChange={e=>setQuery(e.target.value)}/>
+    <button type="button" aria-expanded={publish} onClick={()=>setPublish(!publish)}>Publish library…</button>
+    {publish && <LibraryPublishForm doc={doc} editable={editable} dispatch={dispatch}/>}
     <h3>Local components</h3>
     {!groups.size && <p>{search ? "No matching components" : "No components yet."}</p>}
     {[...groups].map(([path,assets])=>{

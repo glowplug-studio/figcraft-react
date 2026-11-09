@@ -1,3 +1,4 @@
+import {publishLibrary,listLibraries} from "./library-publish";
 import { importVariables } from "./variable-import";
 import { exportVariables } from "./variable-export";
 import { bindLayerVariable, forgetLayerVariables, refreshLayerBindings } from "./layer-variable-bindings";
@@ -118,6 +119,8 @@ export const commandSpecs = Object.freeze({
   ...gridSpecs,
   "style.apply": {label:"Apply style",undo:true},
   "style.detach": {label:"Detach style",undo:true},
+  "library.publish": {label:"Publish library",undo:true},
+  "library.list": {label:"List libraries",undo:false},
   "variable.import": {label:"Import variables",undo:true},
   "variable.export": {label:"Export variables",undo:false},
   "variable.list": {label:"List variables",undo:false},
@@ -1172,6 +1175,12 @@ export class EditorEngine {
         const {variables:old,...rest}=kept;
         this.#commitEdit({document:Object.freeze({...rest,...(next.data!==emptyVariables && {variables:next.data})})});
       }
+      return next.result;
+    }
+    if (command==="library.list") return listLibraries(this.#snapshot.document,!!parseBoolean(p.assets));
+    if (command==="library.publish") {
+      const next=publishLibrary(this.#snapshot.document,p);
+      this.#commitEdit({document:next.document});
       return next.result;
     }
     if (command === "variable.export") return exportVariables(this.getRenderDocument(),p);

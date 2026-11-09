@@ -6193,3 +6193,29 @@ test("a 10,000-variable import keeps the catalogue bounded and edits the last ro
   await expect(panel.getByRole("button",{name:"Edit Wide value · Mode 49",exact:true})).toHaveText("5");
   await test.info().attach("variable-import-time",{body:JSON.stringify({variables:10001,inputBytes:bytes.length,importMs}),contentType:"application/json"});
 });
+
+test("Assets publishes a native library revision, undoes it and preserves the snapshot through reload and download",async({page})=>{
+  await login(page);
+  await page.getByLabel("Open Figcraft file",{exact:true}).setInputFiles(new URL("../fixtures/native-published-library.figcraft",import.meta.url).pathname);
+  const assets=page.getByRole("button",{name:"Assets",exact:true});
+  const launch=page.getByRole("button",{name:"Publish library…",exact:true});
+  await assets.click();await launch.click();
+  const form=page.getByRole("form",{name:"Publish library",exact:true});
+  await expect(form.getByRole("status")).toContainText("published version 1");
+  await form.getByRole("textbox",{name:"Description (optional)"}).fill("Consumer release");
+  await form.getByRole("button",{name:"Publish changes"}).click();
+  await expect(form.getByRole("status")).toContainText("published version 2");
+  await page.getByRole("button",{name:"Undo",exact:true}).click();
+  await expect(form.getByRole("status")).toContainText("published version 1");
+  await page.getByRole("button",{name:"Redo",exact:true}).click();
+  await expect(page.locator(".figcraft-recovery")).toHaveText("Recovery saved on this device");
+  await page.reload();
+  await assets.click();await launch.click();
+  await expect(form.getByRole("status")).toContainText("published version 2");
+  await expect(form.getByRole("textbox",{name:"Description (optional)"})).toHaveValue("Consumer release");
+  const download=page.waitForEvent("download");
+  await page.getByRole("button",{name:"Save as",exact:true}).click();
+  const saved=await readFile((await (await download).path())!);
+  const {document}=await decodeFigcraft(saved);
+  expect(document.published?.manifest.components).toEqual([{id:"5",name:"Unpublished rename",set:false,version:"2",published:true}]);
+});

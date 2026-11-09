@@ -1,3 +1,4 @@
+import {keepLibraryAssets,libraryImageKeys,readLibraryManifest,wireLibraryManifest,type PublishedLibrary} from "./published-library";
 import { emptyVariables, readVariables } from "./variables";
 import { readLayerStyles, readSharedStyles, wireSharedStyle } from "./shared-styles";
 import { readComponentLinks, wireComponentLinks, readFrameKind, wireFrameKind } from "./component-properties";
@@ -14,7 +15,7 @@ import { isFrameLikeKind, isFrameLike, isMaskType, layerBlend, isBooleanOperatio
 import { type Corners, type Radii } from "./corners";
 import { readImageFilters } from "./image-filters";
 import { archivedImage, validImageKey, type ImageResource } from "./image-resource";
-import { BlobReader, BlobWriter, ZipWriter, ERR_INVALID_CRC32, ERR_INVALID_UNCOMPRESSED_SIZE, Reader, ZipReader, type FileEntry } from "@zip.js/zip.js/lib/zip-core-native.js";
+import { BlobReader, BlobWriter, ZipWriter, ERR_INVALID_CRC32, ERR_INVALID_UNCOMPRESSED_SIZE, Reader, ZipReader, type Entry, type FileEntry } from "@zip.js/zip.js/lib/zip-core-native.js";
 import { isLosslessNumber, parse, stringify } from "lossless-json";
 import { readConstraints } from "./constraints";
 import { layerTransform, withLayerTransform, rectanglePaints, withRectanglePaints, pageColour, withPageColour, type Document, type DocumentNode } from "./document";
@@ -331,16 +332,71 @@ export function documentByteLimit(packed: number, archiveBytes: number) {
   return Math.min(MAX_DOCUMENT_BYTES, Math.max(MAX_ARCHIVE_MEMBER, 16 * Math.min(packed,archiveBytes)));
 }
 
+const MANIFEST = "library/manifest.json";
+const SNAPSHOT = "library/document.json";
+const MAX_MANIFEST = 16 * 1024 ** 2;
+async function readPublished(members:ReadonlyMap<string,FileEntry>, own:Readonly<Record<string,ImageResource>>,
+  imageMembers:ReadonlyMap<string,FileEntry>, remaining:number, source?:Blob):Promise<PublishedLibrary | undefined> {
+  if (!members.has(MANIFEST)) return undefined;
+  async function required(name:string,limit:number) {
+    const member=members.get(name);
+    if (!member) fail("missing "+name);
+    if (member.uncompressedSize>Math.min(remaining,limit)) fail(name+" exceeds the library byte budget");
+    remaining-=member.uncompressedSize;
+    return readMember(member,source);
+  }
+  const raw=await required(MANIFEST,MAX_MANIFEST);
+  const manifest=readLibraryManifest(parse(new TextDecoder("utf-8",{fatal:true}).decode(await raw.arrayBuffer())));
+  const {decoded}=await parseDocument(await required(SNAPSHOT,MAX_ARCHIVE_MEMBER));
+  const images:Record<string,ImageResource>=Object.create(null);
+  let imageBudget=1024 ** 3, count=0;
+  for (const key of libraryImageKeys(decoded.document)) {
+    if (!validImageKey(key)) continue;
+    if (Object.hasOwn(own,key)) { images[key]=own[key]; continue; }
+    const member=members.get("library/images/"+key) ?? imageMembers.get(key);
+    if (!member || ++count>IMAGE_COUNT_LIMIT || member.uncompressedSize>Math.min(remaining,imageBudget,MAX_ARCHIVE_MEMBER)) continue;
+    remaining-=member.uncompressedSize;
+    imageBudget-=member.uncompressedSize;
+    try {
+      const hash=sha256.create(),encoded=await readMember(member,source,hash);
+      const {resource}=await archivedImage(encoded);
+      images[key]=Object.freeze({...resource,digest:bytesToHex(hash.digest())});
+    } catch { /* A damaged image leaves a placeholder in the published snapshot. */ }
+  }
+  const document=Object.keys(images).length ? Object.freeze({...decoded.document,images:Object.freeze(images)}) : decoded.document;
+  return Object.freeze({manifest:keepLibraryAssets(manifest,document),document,nextId:decoded.nextId});
+}
+const archiveOptions={strictness:"strict",filenameValidation:"tolerant",checkCrc32:true,checkOverlappingEntry:true,useWebWorkers:false} as const;
+function addLibraryMember(members:Map<string,FileEntry>,file:Entry) {
+  if (file.filename!==MANIFEST && file.filename!==SNAPSHOT && !file.filename.startsWith("library/images/")) return false;
+  if (!file.directory) {
+    if (members.has(file.filename)) fail("duplicate library member");
+    members.set(file.filename,file);
+  }
+  return true;
+}
+/** A consumer can use a published snapshot without reading the author's editable drawing or history. */
+export async function decodePublishedLibrary(source:Uint8Array | Blob) {
+  const reader=new ZipReader(new ArchiveReader(source),archiveOptions);
+  try {
+    const members=new Map<string,FileEntry>(),images=new Map<string,FileEntry>();
+    for await (const file of reader.getEntriesGenerator()) {
+      if (addLibraryMember(members,file) || file.directory || !file.filename.startsWith("images/")) continue;
+      const key=file.filename.slice(7);
+      if (validImageKey(key)) images.set(key,file);
+    }
+    return await readPublished(members,{},images,MAX_UNPACKED_BYTES,source instanceof Blob ? source : undefined);
+  } finally { await reader.close(); }
+}
+
 async function readArchive(bytes: Uint8Array | Blob): Promise<DecodedFigcraft> {
   // Keys are validated before reading image members. An unsafe key is a recoverable
   // image issue. No entry name is ever used as a filesystem path.
-  const reader = new ZipReader(new ArchiveReader(bytes), {
-    strictness: "strict", filenameValidation: "tolerant", checkCrc32: true,
-    checkOverlappingEntry: true, useWebWorkers: false,
-  });
+  const reader = new ZipReader(new ArchiveReader(bytes), archiveOptions);
   try {
     let documentFile: FileEntry | undefined;
     const members = new Map<string, FileEntry>();
+    const publicationMembers = new Map<string,FileEntry>();
     const unreadKeys = new Set<string>();
     const issues: string[] = [];
     let issueCount = 0;
@@ -350,6 +406,8 @@ async function readArchive(bytes: Uint8Array | Blob): Promise<DecodedFigcraft> {
     for await (const file of reader.getEntriesGenerator()) {
       if (file.filename === "document.json" && !file.directory && !documentFile) {
         documentFile = file;
+      } else if (addLibraryMember(publicationMembers,file) || file.filename==="thumbnail.png" && !file.directory || file.filename==="library/" && file.directory) {
+        continue;
       } else if (file.filename === "images/" && file.directory) {
         continue;
       } else if (file.filename.startsWith("images/")) {
@@ -400,8 +458,14 @@ async function readArchive(bytes: Uint8Array | Blob): Promise<DecodedFigcraft> {
     for (const key of [...listed].sort()) {
       if (!members.has(key) && !unreadKeys.has(key)) report(`image ${key} is used by the file but its data is missing: it is left out, and saving this file again drops it`);
     }
+    let published:PublishedLibrary | undefined;
+    try {
+      published=await readPublished(publicationMembers,images,members,remaining,bytes instanceof Blob ? bytes : undefined);
+    } catch (error) {
+      report("the published library was skipped: "+(error instanceof Error ? error.message : "invalid library"));
+    }
     if (issueCount > issues.length) issues.push(`${issueCount - issues.length} more images couldn't be loaded`);
-    const document = Object.keys(images).length ? Object.freeze({ ...decoded.document, images: Object.freeze(images) }) : decoded.document;
+    const document = Object.keys(images).length || published ? Object.freeze({ ...decoded.document, ...(published && {published}), ...(Object.keys(images).length && {images:Object.freeze(images)}) }) : decoded.document;
     return { ...decoded, document, ...(issues.length ? { issues: Object.freeze(issues) } : {}) };
   } finally {
     await reader.close();
@@ -492,6 +556,19 @@ export async function encodeFigcraftBlob(document: Document, nextId?: string): P
   await writer.add("document.json", new BlobReader(json), {level: json.size > MAX_ARCHIVE_MEMBER ? 0 : 3});
   for (const key of keys) {
     await writer.add(`images/${key}`, new BlobReader(resources[key]!.bytes), {level: 0});
+  }
+  if (document.published) {
+    const published=document.published;
+    const snapshot=await prepareArchive(published.document,published.nextId);
+    const manifest=new Blob([stringify(wireLibraryManifest(published.manifest))!]);
+    if (manifest.size>MAX_MANIFEST || snapshot.json.size>MAX_ARCHIVE_MEMBER) fail("published library exceeds the native member limit");
+    const extra=snapshot.keys.filter(key=>!Object.hasOwn(resources,key));
+    const imageBytes=extra.reduce((n,key)=>n+snapshot.resources[key].bytes.size,0);
+    const total=keys.reduce((n,key)=>n+resources[key].bytes.size,json.size+snapshot.json.size+manifest.size+imageBytes);
+    if (total>MAX_UNPACKED_BYTES || imageBytes>1024 ** 3) fail("published library exceeds the archive budget");
+    await writer.add(MANIFEST,new BlobReader(manifest),{level:3});
+    await writer.add(SNAPSHOT,new BlobReader(snapshot.json),{level:3});
+    for (const key of extra) await writer.add("library/images/"+key,new BlobReader(snapshot.resources[key].bytes),{level:0});
   }
   return writer.close();
 }
