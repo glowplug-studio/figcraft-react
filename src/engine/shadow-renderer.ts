@@ -17,18 +17,6 @@ export function hasShadows(node: LayerNode) {
   return node.effects?.some(e => e.visible && (e.type === "dropShadow" || e.type === "innerShadow"));
 }
 
-/** Effects have page-space offsets and radii. An outline's spread also follows its local affine. */
-export function effectReach(node: LayerNode) {
-  let page = 0, local = 0;
-  for (const e of node.effects ?? []) if (e.visible && e.type === "dropShadow") {
-    page = Math.max(page, Math.min(1e12, 2 * Math.abs(e.radius) + Math.abs(e.offset[0]) + Math.abs(e.offset[1]) + 4 * Math.abs(e.spread)));
-    local = Math.max(local, Math.min(1e12, 4 * Math.max(0, e.spread)));
-  }
-  let squared = 0;
-  for (const e of node.effects ?? []) if (e.visible && e.type === "layerBlur") squared += (1.5 * blurRadius(e)) ** 2;
-  return { page: page + Math.sqrt(squared), local };
-}
-
 function alphaPixels(ctx: CanvasRenderingContext2D) {
   const {width,height} = ctx.canvas;
   const data = ctx.getImageData(0,0,width,height).data;

@@ -1,5 +1,6 @@
-import { applyBlur, blurRadius } from "./blur-renderer";
-import { hasShadows, effectReach, ShadowLayer } from "./shadow-renderer";
+import { backdropParent } from "./backdrop-stack";
+import { effectMargin, effectReach, usesPixelLayer, drawLayerEffects } from "./layer-effects-renderer";
+import type { ShadowLayer } from "./shadow-renderer";
 import { compositeSurface } from "./blend-composite";
 import { drawMasked, reserveLayerPixels } from "./mask-renderer";
 import { booleanResult } from "./boolean-result";
@@ -77,16 +78,7 @@ function* paintLayerStroke(context: CanvasRenderingContext2D, node: LayerNode): 
 function* paintComposite(context: CanvasRenderingContext2D, node: LayerNode, draw: (target: CanvasRenderingContext2D, shadows?: ShadowLayer) => PaintSteps, painted?: Rectangle, effect?: { doc: Document; scale: number }): PaintSteps {
   const matrix = context.getTransform();
   const bounds = painted ?? strokeBounds(node, multiply([matrix.a, matrix.b, matrix.c, matrix.d, matrix.e, matrix.f], rectangleTransform(node)));
-  let margin = 0;
-  let blurMargin = 0;
-  if (effect) for (const e of node.effects ?? []) {
-    if (e.visible && e.type === "layerBlur") blurMargin += 2 * blurRadius(e) * effect.scale;
-    if (e.visible && (e.type === "dropShadow" || e.type === "innerShadow")) {
-      const reach = 2 * Math.abs(e.radius) + 4 * Math.abs(e.spread) + Math.abs(e.offset[0]) + Math.abs(e.offset[1]);
-      margin = Math.max(margin, Math.min(2048, Math.ceil(reach * effect.scale) + 1));
-    }
-  }
-  margin = Math.min(2048, margin + Math.ceil(blurMargin));
+  const margin = effect ? effectMargin(node,effect.scale) : 0;
   const left = Math.max(-margin, Math.floor(bounds.x)), top = Math.max(-margin, Math.floor(bounds.y));
   const width = Math.min(effect ? 16384 : Infinity, Math.min(context.canvas.width + margin, Math.ceil(bounds.x + bounds.width)) - left);
   const height = Math.min(effect ? 16384 : Infinity, Math.min(context.canvas.height + margin, Math.ceil(bounds.y + bounds.height)) - top);
@@ -108,16 +100,11 @@ function* paintComposite(context: CanvasRenderingContext2D, node: LayerNode, dra
     if (!scratch) throw new Error("Canvas compositing is unavailable");
     scratch.resetTransform(); scratch.clearRect(0, 0, surfaceWidth, height);
     scratch.setTransform(matrix.a, matrix.b, matrix.c, matrix.d, matrix.e - left, matrix.f - top);
-    const shadows = effect && hasShadows(node) ? new ShadowLayer(scratch,effect.doc,node,effect.scale) : undefined;
-    try {
-      yield* draw(scratch,shadows);
-      if (effect) for (const e of node.effects ?? []) if (e.visible && e.type === "layerBlur") {
-        const m = scratch.getTransform();
-        const xf = multiply([m.a,m.b,m.c,m.d,m.e,m.f],rectangleTransform(node));
-        applyBlur(scratch,e,node.width,node.height,xf,effect.scale);
-      }
-      shadows?.drop(context,left,top);
-    } finally { shadows?.dispose(); }
+    if (effect) yield* drawLayerEffects(context,scratch,node,draw,left,top,effect.doc,effect.scale);
+    else {
+      const detach=backdropParent(scratch,context,left,top,node.opacity??1,node.blend??"normal");
+      try { yield* draw(scratch); } finally { detach(); }
+    }
     compositeSurface(context, scratch, left, top, width, height, node.blend ?? "normal", opacity(node.opacity ?? 1));
   } finally { release(); }
 }
@@ -171,10 +158,6 @@ function loneNormalStroke(node: LayerNode): boolean {
     : !rectanglePaints(node).length;
 }
 
-function usesPixelLayer(node: LayerNode) {
-  return node.effects?.some(e => e.visible && (e.type === "dropShadow" || e.type === "innerShadow" ||
-    e.type === "layerBlur" && blurRadius(e) > 0));
-}
 function* drawLayer(context: CanvasRenderingContext2D, document: Document, node: LayerNode, depth: number, nesting: number, scale: number): PaintSteps {
   if (node.isMask || node.visible === false || (node.opacity ?? 1) <= 0 || depth > 256) return;
   if (node.kind === "booleanOp") {

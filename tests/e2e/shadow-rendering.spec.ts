@@ -62,3 +62,21 @@ test("uniform and progressive blur move layer pixels before casting drop shadows
   expect(r.ramp[0]).toEqual([0,0,255,19]); expect(r.ramp[1][3]).toBeGreaterThan(30); expect(r.ramp[2][3]).toBeGreaterThan(0);
   expect(r.castAfterBlur).toEqual([[255,0,0,110],[255,0,0,14],clear]);
 });
+
+test("background blur reads neighbouring backdrop pixels through isolated ancestors and masks",async({page})=>{
+  const r=await page.evaluate(()=>window.FigcraftShadows.backdropSamples(document.querySelector("canvas")!));
+  const grey=(c:number)=>[c,c,c,255];
+  expect(r.flat).toEqual([grey(85),grey(170),grey(0),grey(255)]);
+  expect(r.ramp).toEqual([grey(3),grey(82)]);
+  // Half opacity maps 85 and 170 onto black and white at 42.5 and 212.5.
+  for (const [i,want] of [42.5,212.5].entries()) {
+    expect(r.ancestor[i][3]).toBe(255);
+    for(const c of r.ancestor[i].slice(0,3)) expect(Math.abs(c-want)).toBe(.5);
+  }
+  expect(r.clipped).toEqual([...r.ancestor,grey(0),grey(255)]);
+});
+
+test("a backdrop effect re-reads the shadow underneath its translucent fill",async({page})=>{
+  const delta=await page.evaluate(()=>window.FigcraftShadows.backdropShadowComparison(document.querySelector("canvas")!));
+  expect(delta).toBeLessThanOrEqual(1);
+});

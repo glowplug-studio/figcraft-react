@@ -3889,6 +3889,9 @@ test("native effect stacks survive an editor change, device recovery and downloa
   engine.execute("shape.rectangle",{x:120,y:100,width:30,height:30,props:{
     fill:"white",effects:[{type:"dropShadow",offset:[10,0],radius:0,color:"red"},
       {type:"innerShadow",offset:[4,0],radius:0,color:"blue"}]}});
+  engine.execute("shape.rectangle",{x:200,y:100,width:20,height:30,props:{fill:"black"}});
+  engine.execute("shape.rectangle",{x:220,y:100,width:20,height:30,props:{fill:"white"}});
+  engine.execute("shape.rectangle",{x:210,y:105,width:20,height:20,props:{fills:[],effects:[{type:"backgroundBlur",radius:2}]}});
   const members = unzipSync(await encodeFigcraft(engine.getSnapshot().document));
   const native = JSON.parse(strFromU8(members["document.json"]));
   native.nodes[id].effects = [
@@ -3907,6 +3910,8 @@ test("native effect stacks survive an editor change, device recovery and downloa
   await expectCanvasPixel(page,122,115,[0,0,255,255]);
   await expectCanvasPixel(page,137,115,[255,255,255,255]);
   await expectCanvasPixel(page,155,115,[255,0,0,255]);
+  await expectCanvasPixel(page,219,115,[85,85,85,255]);
+  await expectCanvasPixel(page,220,115,[170,170,170,255]);
   await layer.click();
   await page.getByLabel("Design canvas",{exact:true}).focus();
   await page.keyboard.press("ArrowRight");

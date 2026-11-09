@@ -1,3 +1,4 @@
+import { backdropParent } from "./backdrop-stack";
 import { multiply, transformBounds, type Affine } from "./affine";
 import { maskOutline } from "./boolean-result";
 import { tracePath } from "./corners";
@@ -97,10 +98,13 @@ export function* drawMasked(ctx:CanvasRenderingContext2D,doc:Document,mask:Layer
       if (mask.maskType==="luminance") applyLuminance(coverage);
     }
     content.setTransform(m.a,m.b,m.c,m.d,m.e-left,m.f-top);
-    for (let i=start;i<end;i++) {
-      const child=doc.nodes[children[i]];
-      if (child && child.kind!=="page") yield* draw(content,doc,child,depth,nesting,scale);
-    }
+    const detach=backdropParent(content,ctx,left,top,1,"normal",maskCanvas);
+    try {
+      for (let i=start;i<end;i++) {
+        const child=doc.nodes[children[i]];
+        if (child && child.kind!=="page") yield* draw(content,doc,child,depth,nesting,scale);
+      }
+    } finally {detach();}
     content.resetTransform();
     content.globalCompositeOperation="destination-in";
     content.drawImage(maskCanvas,0,0);

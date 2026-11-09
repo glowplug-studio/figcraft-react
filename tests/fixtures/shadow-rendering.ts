@@ -118,3 +118,38 @@ export function layerBlurSamples(canvas:HTMLCanvasElement) {
   draw(); const castAfterBlur=[pixel(70,25),pixel(74,25),pixel(80,25)];
   return {uniform,ramp,coincident,castAfterBlur};
 }
+
+export function backdropSamples(canvas:HTMLCanvasElement) {
+  const {rect,set,engine,draw,pixel}=scene(canvas);
+  rect(0,0,60,100,{fill:"black"});rect(60,0,60,100,{fill:"white"});
+  const blur={type:"backgroundBlur",radius:2};
+  const id=rect(40,20,40,50,{fills:[],effects:[blur]});
+  draw(); const flat=[pixel(59,35),pixel(60,35),pixel(59,10),pixel(60,10)];
+  set(id,{effects:[{...blur,blurType:"progressive",start:[0,0],end:[0,1]}]}); draw();
+  const ramp=[pixel(59,21),pixel(59,68)];
+  set(id,{effects:[blur]});
+  const group=String(engine.execute("object.group",{id}).id);set(group,{opacity:.5});
+  draw(); const ancestor=[pixel(59,35),pixel(60,35)];
+  const mask=rect(35,20,50,20,{fill:"black"});
+  engine.execute("node.reorder",{id:mask,index:2});
+  set(mask,{isMask:true,maskType:"alpha"});
+  draw(); const clipped=[pixel(59,35),pixel(60,35),pixel(59,50),pixel(60,50)];
+  return {flat,ramp,ancestor,clipped};
+}
+
+export function backdropShadowComparison(canvas:HTMLCanvasElement) {
+  function render(explicit:boolean) {
+    const {ctx,rect,draw}=scene(canvas);
+    rect(0,0,120,100,{fill:"white"}); rect(0,0,48,100,{fill:"black"});
+    // A translucent fill casts a half-alpha red shadow when showBehind is true.
+    if(explicit) rect(36,20,45,50,{fill:"rgba(255,0,0,.5)"});
+    rect(30,20,45,50,{fill:"rgba(0,0,255,.5)",effects:[{type:"backgroundBlur",radius:6},
+      ...(explicit?[]:[{...redShadow,offset:[6,0],showBehind:true}])]});
+    draw();
+    return ctx.getImageData(0,0,120,100).data;
+  }
+  const both=render(false), reference=render(true);
+  let max=0;
+  for(let i=0;i<both.length;i++) max=Math.max(max,Math.abs(both[i]-reference[i]));
+  return max;
+}
