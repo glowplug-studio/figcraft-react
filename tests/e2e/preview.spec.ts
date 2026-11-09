@@ -4805,6 +4805,11 @@ test("editing a child rewraps horizontal flow and an undo restores the previous 
   await page.getByRole("button",{name:"Undo",exact:true}).click(); await third.click();
   await expect(page.getByLabel("Edit X",{exact:true})).toHaveValue("80");
   await expect(page.getByLabel("Edit Y",{exact:true})).toHaveValue("0");
+  const canvas = page.getByLabel("Design canvas", {exact:true});
+  await canvas.press("ArrowLeft");
+  await expect(page.getByLabel("Edit X",{exact:true})).toHaveValue("40");
+  await canvas.press("ArrowRight");
+  await expect(page.getByLabel("Edit X",{exact:true})).toHaveValue("80");
   await layers.getByRole("button",{name:"Flow frame",exact:true}).click();
   const layout = page.getByRole("group",{name:"Auto layout",exact:true});
   await layout.getByRole("button",{name:"Vertical",exact:true}).click();

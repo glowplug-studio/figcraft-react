@@ -1,3 +1,4 @@
+import { flowingParent, nudgeFlow } from "./layout-navigation";
 import { isLeaf } from "./document";
 import { inverse, multiply, transformBounds, type Affine } from "./affine";
 import { layerTransform, withLayerTransform, type Document, type NodeId } from "./document";
@@ -65,7 +66,10 @@ export function executeArrange(command: string, document: Document, selection: r
     const k = command === "transform.nudge" && parseBoolean(params.big) === true ? 10 : 1;
     const dx = command === "transform.moveTo" ? number("x", box.x) - box.x : number("dx", 0) * k;
     const dy = command === "transform.moveTo" ? number("y", box.y) - box.y : number("dy", 0) * k;
-    for (const id of ids) moveWorld(draft, id, dx, dy, command === "transform.nudge");
+    if (command === "transform.nudge") {
+      for (const id of ids) if (!flowingParent(document,id)) moveWorld(draft,id,dx,dy,true);
+      nudgeFlow(draft,ids,dx,dy);
+    } else for (const id of ids) moveWorld(draft,id,dx,dy);
   } else if (command.startsWith("align.")) {
     if (!canAlign(document, ids)) return document;
     const box = boundsOf(document, ids.length === 1 ? [document.nodes[ids[0]].parent!] : ids)!;
