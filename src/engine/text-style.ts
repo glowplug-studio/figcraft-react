@@ -118,7 +118,10 @@ const namedWeights: readonly (readonly [string,number])[] = [
 export function textWeight(s: TextStyle) {
   const weight = s.variations.wght;
   if (Number.isFinite(weight)) return Math.max(1,Math.min(1000,Math.round(weight)));
-  const name = s.fontStyle.toLowerCase().replace(/[ -]/g,"");
+  return styleWeight(s.fontStyle);
+}
+export function styleWeight(fontStyle: string) {
+  const name = fontStyle.toLowerCase().replace(/[ -]/g,"");
   const number = Number(/^\d+/.exec(name)?.[0]);
   if (number >= 1 && number <= 1000) return number;
   return namedWeights.find(([label])=>name.includes(label))?.[1] ?? 400;

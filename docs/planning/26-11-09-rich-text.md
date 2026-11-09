@@ -55,4 +55,12 @@ The native CJK opening and closing punctuation, small-kana and figure-space rule
 
 The local graph contains 30,621 nodes and 101,152 edges. Verified native grapheme_step and break_between alongside TextGraphemes and breakBetween. The native fixtures, bundled font digests, glyph tests and focused browser runs cover behaviour beyond the static graph.
 
-Next implement native face selection for whole grapheme clusters, variable named instances and scalar case mapping across styled segments. Compare grid-snapped advances and mixed-script layouts with the native layout function, then connect font resolution and line construction to document rendering. Browser text nodes and editing remain open.
+### Loaded font selection and variable instances
+
+The Rust text crate at a4251ca8 ran against the same five bundled font files with system font discovery disabled. FontLibrary.find matched ten family/style requests, including legacy names, weight and slope matching, and unknown families. All nine named Georgian instances and six style/axis combinations matched Face::axis_values. Explicit coordinates take precedence and clamp to the font’s limits. Bounded sfnt table reads support both single fonts and collections.
+
+FontLibrary.segments selects one face per grapheme within a style span, preserves scalar offsets, and splits at bidi level changes, newlines and line separators. Six mixed-script strings matched the face, glyph ID and source cluster from native layout in Node and Chromium. Separate controlled coverage tests exercise colour emoji preference, variation selectors, clipped spans and combining marks. Both builds, strict types, 1,209 pure tests, two real Auth tests and the focused browser consumer passed. The last complete Chromium run was 206/206 at f6f595c.
+
+Local Graphify rebuilt the React index over the fff934d working tree with this checkpoint’s changes and merged the pinned Rust graph. The combined graph has 30,658 nodes and 101,265 edges, including FontLibrary, fontSegments and pick_cluster_face. The extractor reports no symbols for the package entry and the browser fixture. The package consumer test exercises those paths.
+
+Next apply case and script features per styled segment, compare snapped advances and offsets with native layout, then implement paragraph and line positioning. Local Font Access discovery, glyph painting and editable browser text nodes remain open.

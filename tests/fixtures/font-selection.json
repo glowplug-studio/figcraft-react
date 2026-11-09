@@ -1,0 +1,41 @@
+{
+  "instances": [
+    ["Thin",[100.0,100.0]],
+    ["ExtraLight",[200.0,100.0]],
+    ["Light",[300.0,100.0]],
+    ["Regular",[400.0,100.0]],
+    ["Medium",[500.0,100.0]],
+    ["SemiBold",[600.0,100.0]],
+    ["Bold",[700.0,100.0]],
+    ["ExtraBold",[800.0,100.0]],
+    ["Black",[900.0,100.0]]
+  ],
+  "requests": [
+    ["Inter","Regular","Inter-Regular","Inter-Regular"],
+    ["Inter","620","Inter-SemiBold","Inter-Regular"],
+    ["Inter","Heavy","Inter-Bold","Inter-Regular"],
+    ["Inter","Semi-Bold","Inter-SemiBold","Inter-Regular"],
+    ["Inter","Medium Italic","Inter-Italic","Inter-Regular"],
+    ["Inter Semi Bold","Normal","Inter-SemiBold","Inter-Regular"],
+    ["Inter Bold","Italic","Inter-Italic","Inter-Regular"],
+    ["noto_sans-georgian","Thin","NotoSansGeorgian-Regular","Inter-Regular"],
+    ["Inter Condensed","Regular",null,"Inter-Regular"],
+    ["No Such Font","Bold",null,"Inter-Regular"]
+  ],
+  "runs": [
+    {"glyphs":[["Inter-Regular",0,456],["Inter-Regular",1,2],["NotoSansGeorgian-Regular",2,112],["NotoSansGeorgian-Regular",3,118],["Inter-Regular",4,456]],"text":"VAაბV"},
+    {"glyphs":[["Inter-Regular",0,6],["NotoSansGeorgian-Regular",2,118],["NotoSansGeorgian-Regular",2,198],["Inter-Regular",4,496]],"text":"Áბ️Z"},
+    {"glyphs":[["NotoSansGeorgian-Regular",0,126],["Inter-Regular",1,0],["NotoSansGeorgian-Regular",2,133]],"text":"წ🎨ე"},
+    {"glyphs":[["Inter-Regular",0,0],["Inter-Regular",0,0],["NotoSansGeorgian-Regular",2,112]],"text":"🇬🇧ა"},
+    {"glyphs":[["Inter-Regular",0,2],["Inter-Regular",0,1777],["Inter-Regular",0,1777],["Inter-Regular",3,65]],"text":"A͏‍B"},
+    {"glyphs":[["NotoSansGeorgian-Regular",0,165],["NotoSansGeorgian-Regular",0,108],["NotoSansGeorgian-Regular",0,0]],"text":"ქ́𞥄"}
+  ],
+  "settings": [
+    ["Regular",{},[400.0,100.0]],
+    ["semi_bold",{},[600.0,100.0]],
+    ["ExtraCondensed Bold",{},[700.0,100.0]],
+    ["nonexistent Bold Italic",{},[700.0,100.0]],
+    ["Light",{"wdth":55.0,"wght":1200.0},[900.0,62.5]],
+    ["600 italic",{"wdth":83.25},[600.0,83.25]]
+  ]
+}

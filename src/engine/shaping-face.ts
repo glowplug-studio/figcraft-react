@@ -1,5 +1,7 @@
 import * as hb from "#figcraft-harfbuzz";
 import type { AxisInfo } from "harfbuzzjs";
+import { fontTables, fontVariations, normaliseFontStyle, type FontInstance } from "./font-tables";
+import { styleWeight, type TextStyle } from "./text-style";
 import { validOpenTypeTag } from "./text-case";
 
 export interface ShapingScalar { readonly codePoint: number; readonly source: number }
@@ -41,17 +43,29 @@ export class ShapingFace {
   readonly descent: number;
   readonly lineGap: number;
   readonly axes: Readonly<Record<string,Readonly<AxisInfo>>>;
+  readonly instances: readonly FontInstance[];
+  readonly italic: boolean;
+  readonly hasColour: boolean;
+  readonly weight: number;
   readonly features: readonly string[];
   readonly #font: hb.Font;
   readonly #buffer = new hb.Buffer();
 
-  private constructor(face: hb.Face, family: string, style: string) {
+  private constructor(face: hb.Face, family: string, style: string, tables: ReadonlyMap<string,DataView>) {
     this.family = family;
     this.style = style;
     this.postscript = faceName(face,6);
     this.upem = face.upem;
-    this.axes = Object.freeze(Object.fromEntries(Object.entries(face.getAxisInfos())
-      .map(([tag,axis]) => [tag,Object.freeze(axis)])));
+    const variation = fontVariations(tables.get("fvar"), id => faceName(face,id));
+    this.axes = variation.axes;
+    this.instances = variation.instances;
+    const os2 = tables.get("OS/2"), head = tables.get("head");
+    const selection = os2 && os2.byteLength >= 64 ? os2.getUint16(62) : 0;
+    const italicFlag = os2 && os2.byteLength >= 64 ? (selection & 0x201) !== 0
+      : !!head && head.byteLength >= 46 && (head.getUint16(44) & 2) !== 0;
+    this.italic = italicFlag || style.toLowerCase().includes("italic");
+    this.weight = (os2 && os2.byteLength >= 6 && os2.getUint16(4)) || styleWeight(style);
+    this.hasColour = ["sbix","CBDT","EBDT","COLR"].some(tag=>tables.has(tag));
     this.features = Object.freeze([...new Set(face.getTableFeatureTags("GSUB"))].sort());
     this.#font = new hb.Font(face);
     const metrics = this.#font.hExtents();
@@ -66,13 +80,32 @@ export class ShapingFace {
     const blob = new hb.Blob(bytes);
     const faces: ShapingFace[] = [];
     for (let index = 0; index < count; index++) {
+      const tables = fontTables(bytes,index);
+      if (!tables.has("head") || !tables.has("maxp")) continue;
       const face = new hb.Face(blob,index);
       const family = faceName(face,16) || faceName(face,1);
-      if (!family || !face.referenceTable("head") || !face.referenceTable("maxp")) continue;
+      if (!family) continue;
       const style = faceName(face,17) || faceName(face,2) || "Regular";
-      faces.push(new ShapingFace(face,family,style));
+      faces.push(new ShapingFace(face,family,style,tables));
     }
     return Object.freeze(faces);
+  }
+
+  axisValues(style: Pick<TextStyle,"fontStyle" | "fontSize" | "variations">): Readonly<Record<string,number>> {
+    const name = normaliseFontStyle(style.fontStyle);
+    const instance = this.instances.find(i => normaliseFontStyle(i.name) === name);
+    const ownStyle = normaliseFontStyle(this.style) === name;
+    const italic = style.fontStyle.toLowerCase().includes("italic") && !this.italic;
+    return Object.fromEntries(Object.values(this.axes).map(axis => {
+      let value = axis.default;
+      if (Object.hasOwn(style.variations,axis.tag)) value = style.variations[axis.tag];
+      else if (instance) value = instance.coordinates[axis.tag];
+      else if (axis.tag === "wght" && !ownStyle) value = styleWeight(style.fontStyle);
+      else if (axis.tag === "ital" && italic) value = 1;
+      else if (axis.tag === "slnt" && italic) value = axis.min;
+      else if (axis.tag === "opsz") value = style.fontSize;
+      return [axis.tag,Number.isFinite(value) ? Math.max(axis.min,Math.min(axis.max,value)) : axis.default];
+    }));
   }
 
   glyphFor(codePoint: number) { return this.#font.nominalGlyph(codePoint) ?? 0; }
