@@ -1,7 +1,9 @@
 # Full Figcraft port resume checkpoint
 
-At 9c678db all 172 local production Chromium checks passed in 393.1 seconds with no retries or skips. Blending on layers, fills, strokes and regions is recorded in the [property matrix](../reports/26-11-09-blend-modes-parity.html). The active slice is [alpha, vector and luminance masks](26-11-09-masks.md). Upstream synchronisation, local graph checks and the scoped Supabase inventory passed. At 6b7d9db the native records, grouping, release and mask-aware bounds passed strict types, 1,120 pure checks and both builds. Resume the renderer from the [mask checkpoint](26-11-09-masks.md#native-command-and-bounds-checkpoint).
+Active source 1a6c8ef on `prompt/full-figcraft-port`. The first mask regression run passed 180/183. Three half-opacity pixel regressions shared one cause. All four focused opacity checks passed after the correction. Strict types, 1,124 pure tests, two real Auth tests and both production builds passed. A second 183-workflow production Chromium run is in progress. Inspect its result before closing the [mask verification gate](26-11-09-masks.md#opacity-correction-and-full-regression-gate).
 
+
+The user deferred Figcraft plugins and their widgets on 9 November. They are excluded from this run’s publication gate.
 
 Resumed on 8 November. The objective is still full browser-relevant parity and final verified publication under [the governing prompt](../prompts/26-11-06-astra-high-step-port.md). Use the [master roadmap](26-11-06-complete-figcraft-port.md) and [feature inventory](../parity/full-port-feature-inventory.md). The live demo is the earlier rectangle release.
 
@@ -25,7 +27,7 @@ Raw two- and four-component JPEG TIFFs at f64eeb0 passed 156/156 Chromium checks
 | `242b5d0`, screenshots `6b3529a` | [Width-point authoring](../reports/26-11-07-width-point-authoring.md). Local package and host builds, 879 pure tests, two real local Auth tests, 108 Chromium checks. |
 | `43ddc4b` | [Closed-vector smoothing](../reports/26-11-07-closed-vector-smoothing.md). Shared corner geometry, 32 region-direction combinations, pixel and pointer checks, native save and recovery, mobile preset and the 10,000-node fixture. See the report for exact final results. |
 
-The master roadmap lists earlier verified implementations from rectangles through Pen, Pencil, history and stroke authoring. A feature being listed in the upstream command inventory does not establish verification. Largest open areas include vector operations, paints/effects/images, rich text, auto layout, components, libraries, file interoperability, online files, collaboration, prototypes, boards, Dev Mode, plugins and the complete UI. Whole-host memory, long sessions and final parity/publication remain open.
+The master roadmap lists earlier verified implementations from rectangles through Pen, Pencil, history and stroke authoring. A feature being listed in the upstream command inventory does not establish verification. Largest open areas include vector operations, paints/effects/images, rich text, auto layout, components, libraries, file interoperability, online files, collaboration, prototypes, boards, Dev Mode and the in-scope UI. Whole-host memory, long sessions and final parity/publication remain open.
 
 ## Exact restart point
 

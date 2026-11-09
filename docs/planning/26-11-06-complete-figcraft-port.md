@@ -6,20 +6,22 @@
 |---|---|
 | Overall status | In progress. [Execution checkpoint](26-11-07-full-port-resume.md). |
 | Active slice | Alpha, vector and luminance masks |
-| Active phase | Phase 4. [Mask mappings and implementation order](26-11-09-masks.md). |
+| Active phase | Phase 5. [Mask mappings and implementation order](26-11-09-masks.md). |
 | Upstream baseline | Closed-vector smoothing reference 3daa9d32. Paint bucket reference 8a7ebc24. Global supported baseline 8eb0b876. |
-| Branch and last verified commit | `prompt/full-figcraft-port`, native mask commands and group bounds 6b7d9db, blend release implementation 9c678db. Prior source checkpoints and corrections are recorded in the dated plans. |
+| Branch and last verified commit | `prompt/full-figcraft-port`, bounded opacity correction 1a6c8ef, mask renderer, hit testing and editor controls bb9e1e5, native mask commands and bounds 6b7d9db, blend release implementation 9c678db. Prior source checkpoints and corrections are recorded in the dated plans. |
 | Completed slices | Rectangle/host-auth, bounded native persistence/recovery, supported-model pages, affine rectangle geometry/selection and solid appearance, plus nested group hierarchy, Frame containers, movement/transform gestures, rounded corners, ellipse/arc/ring and Polygon/Star editing verified locally; Line/Arrow and uniform solid strokes also verified; per-side Rectangle/Frame strokes, variable-width profiles and procedural brushes verified; vector networks, solid region/stroke rendering and Flatten/Reverse also verified; foundation commit `154f5a7`. Gradient, image, pattern and blend releases now have local property matrices. [Blend evidence](../reports/26-11-09-blend-modes-parity.html). |
 | Remaining slices | Every row below except the integrated foundation; static inventory entries remain unverified until mapped and tested |
-| Tests last passed | At 9c678db all 172 local production Chromium workflows passed in 393.1 seconds with one worker and no retries, skips, flakes or failures. Strict types, package and Next.js builds, 1,117 pure tests and two real local Auth checks passed. At 6b7d9db, 1,120 pure tests, strict types and both production builds passed for mask commands and bounds. |
-| Files currently in progress | Sibling paint runs, alpha, luminance and vector coverage, followed by hit testing and mask controls. |
+| Tests last passed | At 9c678db all 172 local production Chromium workflows passed in 393.1 seconds with one worker and no retries, skips, flakes or failures. Strict types, package and Next.js builds, 1,117 pure tests and two real local Auth checks passed. At bb9e1e5, 1,123 pure tests, two Auth integrations, strict types, both production builds, ten mask rendering workflows and the authenticated mask authoring workflow passed. The first full mask run passed 180/183. At 1a6c8ef all four focused rounding checks, 1,124 pure tests, two local Auth checks, strict types and both builds passed. |
+| Files currently in progress | Mask property matrix and full production Chromium verification. |
 | Blockers | No blocker. Use local Graphify for all remaining slices. The scoped Supabase read succeeded. |
-| Exact next action | Continue from the [mask command and bounds checkpoint](26-11-09-masks.md#native-command-and-bounds-checkpoint). Implement the renderer and pointer hit restrictions before the editor acceptance workflow. |
+| Exact next action | Inspect the 183-workflow production regression result and finish the [mask verification checkpoint](26-11-09-masks.md#opacity-correction-and-full-regression-gate). |
 | Last updated | 2026-11-09 |
 
 ## Scope and continuation
 
 The user explicitly requests one autonomous full-port run. Slices are implementation units, never completion boundaries. Preserve all landed browser-relevant upstream behaviour, including its existing browser host, rather than filling hypothetical Figma gaps from stale aspirational documents. Never import or execute the Rust engine in React code, builds or tests. No merge to main is authorised. Do not publish this branch or deploy partial slices before the full-product Phase 8 gate.
+
+The user deferred Figcraft’s plugin and widget system on 9 November. Row 18 is outside this run’s implementation, verification and publication gates until explicitly resumed. Preserve upstream inventory entries and opaque native document data for future work. Core editor features and Dev Mode remain in scope.
 
 The existing production rectangle demo is a previous release, not evidence of complete parity. No Vercel changes occur during implementation. The roadmap expands whenever inspection finds an omitted feature. Completion requires a fresh audit against the pinned tree, commands, menus, data format, assets, tests and UI.
 
@@ -57,9 +59,9 @@ Full-host performance obligation: the user specifically asks about browser RAM, 
 | 15 | Prototype interactions, triggers/actions/expressions, overlays, transitions, scrolling and presenter; `doc/src/proto*`, engine prototype runtime and UI | 2–14 as applicable | Not implemented |
 | 16 | Boards: shapes/connectors/stickies/stamps/tables/templates; facilitation timer/voting/history; `doc/src/{board,facilitation}.rs`, board commands/tools | 2–14 | Not implemented |
 | 17 | Dev Mode inspection/code generation, code connect, annotations/resources/status and changed-state review; engine dev and handoff modules | 2–16 | Not implemented |
-| 18 | Plugins, permissions, sandbox limits, panels/widgets and installed-plugin lifecycle; `plugin`, engine extensions and UI | Stable command/data/UI boundaries | Not implemented |
+| 18 | Plugins, permissions, sandbox limits, panels/widgets and installed-plugin lifecycle; `plugin`, engine extensions and UI | Stable command/data/UI boundaries | Deferred by user for this run |
 | 19 | Complete UI chrome/menu/actions, preferences/themes, localisation, keyboard/accessibility and host integrations; UI and browser app | All relevant functional slices | Not implemented |
-| 20 | Fresh whole-product audit, full parity matrices, performance/security/browser verification and final publication | Every preceding required property passed | Not started |
+| 20 | Fresh whole-product audit, full parity matrices, performance/security/browser verification and final publication | Every in-scope property passed, with deferred row 18 disclosed | Not started |
 
 Each broad row is decomposed into bounded vertical slices before implementation. No row is passed merely because its command exists or an adapter compiles. Native window/process/updater/tray operations may be omitted only with individual evidence; browser-meaningful controls remain required. Native file pickers/downloads, storage, workers, clipboard and browser sandbox are explicit equivalents, not blanket exclusions.
 

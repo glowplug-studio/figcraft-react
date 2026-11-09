@@ -173,7 +173,7 @@ Upstream test evidence: [`board_tests`](../../original/figcraft/crates/engine/sr
 
 ### 18. Plugins and widgets
 
-Status: **Not implemented / Not tested**.
+**Deferred by the user on 9 November 2026.** The plugin runtime, directory, permissions, panels, callbacks and plugin-backed widgets are outside this run’s acceptance and publication gates. The upstream anchors below are retained for a future port.
 
 WASM ABI v6 import/run/remove; permissions/fuel/memory/log limits; transactional callback rollback; panels/controls/settings/images/save-file callbacks and read-only Dev Mode guards. Widget scene/state/text/menu/hover/SVG/lines and panel callbacks. Directory network operations require a separate supported-host audit. Dependencies: command/model ABI, bounded resources, history and accessible UI.
 
@@ -215,7 +215,7 @@ Upstream test evidence: [`batch_rollback_tests`](../../original/figcraft/crates/
 2. Geometry/renderer/hierarchy/selection/viewport, then complete shapes/vectors/paints.
 3. Text/fonts/layout, then components/styles/variables/import-export and templates/utilities.
 4. Durable histories and authenticated ordered sharing, then comments/collaboration/libraries/branches.
-5. Prototyping, Dev Mode, Boards and plugins/widgets, each with its own feature matrix.
+5. Prototyping, Dev Mode and Boards, each with its own feature matrix.
 6. Cross-family persistence/round trips, multi-client permissions/reconnect, error/rollback, keyboard/accessibility/localisation and performance; final hosted publication gates from the master prompt.
 
 Slices are resumable execution units, not completion boundaries. Add newly discovered landed behaviour to the master matrix. Before completion, reconcile every command/catalogue item/shortcut, relevant format/resource and observable UI path against implementation and actual browser evidence. Upstream test existence is never a port pass.
@@ -227,7 +227,7 @@ Slices are resumable execution units, not completion boundaries. Add newly disco
 - Finder/reveal actions, unrestricted directory traversal and atomic filesystem rename require browser picker/download/storage equivalents. Save integrity/recovery/resource limits/error behaviour remain required. Evidence: [file commands](../../original/figcraft/crates/engine/src/cmd/file.rs), [browser recovery](../../original/figcraft/apps/figcraft-web/src/recovery.rs).
 - OS font-registry scanning requires browser font access/import/fallback equivalents. Missing-font handling and document fidelity remain required. Evidence: [font commands](../../original/figcraft/crates/engine/src/fonts.rs).
 - Metal/Vulkan/DX/winit details are implementation mechanics. Equivalent browser rendering, input and frame-frequency performance remain required.
-- Plugin WASM is not automatically excluded: upstream has browser plugin behaviour. Independently hosting bounded user plugin ABI is distinct from importing/executing the prohibited Rust application engine. Audit browser directory/network restrictions explicitly. Evidence: [plugin ABI and host limits](../../original/figcraft/docs/plugins.md).
+- Deferred for this run by user instruction on 9 November. At a future plugin restart: upstream has browser plugin behaviour. Independently hosting bounded user plugin ABI is distinct from importing/executing the prohibited Rust application engine. Audit browser directory/network restrictions explicitly. Evidence: [plugin ABI and host limits](../../original/figcraft/docs/plugins.md).
 
 ## Upstream gaps are not speculative port requirements
 

@@ -4451,133 +4451,152 @@
       "label": "Browse plugin directory",
       "source": "crates/engine/src/extensions/plugin_directory.rs",
       "line": 288,
-      "status": "Not tested"
+      "status": "Not tested",
+      "scope": "Deferred by user for this run"
     },
     {
       "command": "plugin.directory.install",
       "label": "Install plugin from directory",
       "source": "crates/engine/src/extensions/plugin_directory.rs",
       "line": 295,
-      "status": "Not tested"
+      "status": "Not tested",
+      "scope": "Deferred by user for this run"
     },
     {
       "command": "plugin.directory.publish",
       "label": "Publish plugin to directory",
       "source": "crates/engine/src/extensions/plugin_directory.rs",
       "line": 302,
-      "status": "Not tested"
+      "status": "Not tested",
+      "scope": "Deferred by user for this run"
     },
     {
       "command": "plugin.directory.unpublish",
       "label": "Unpublish plugin from directory",
       "source": "crates/engine/src/extensions/plugin_directory.rs",
       "line": 309,
-      "status": "Not tested"
+      "status": "Not tested",
+      "scope": "Deferred by user for this run"
     },
     {
       "command": "plugin.list",
       "label": "List plugins",
       "source": "crates/engine/src/extensions/plugins.rs",
       "line": 665,
-      "status": "Not tested"
+      "status": "Not tested",
+      "scope": "Deferred by user for this run"
     },
     {
       "command": "plugin.import",
       "label": "Import plugin from manifest…",
       "source": "crates/engine/src/extensions/plugins.rs",
       "line": 666,
-      "status": "Not tested"
+      "status": "Not tested",
+      "scope": "Deferred by user for this run"
     },
     {
       "command": "plugin.remove",
       "label": "Remove plugin",
       "source": "crates/engine/src/extensions/plugins.rs",
       "line": 673,
-      "status": "Not tested"
+      "status": "Not tested",
+      "scope": "Deferred by user for this run"
     },
     {
       "command": "plugin.run",
       "label": "Run plugin",
       "source": "crates/engine/src/extensions/plugins.rs",
       "line": 674,
-      "status": "Not tested"
+      "status": "Not tested",
+      "scope": "Deferred by user for this run"
     },
     {
       "command": "plugin.ui",
       "label": "Plugin panel",
       "source": "crates/engine/src/extensions/plugins.rs",
       "line": 681,
-      "status": "Not tested"
+      "status": "Not tested",
+      "scope": "Deferred by user for this run"
     },
     {
       "command": "plugin.event",
       "label": "Use plugin panel control",
       "source": "crates/engine/src/extensions/plugins.rs",
       "line": 688,
-      "status": "Not tested"
+      "status": "Not tested",
+      "scope": "Deferred by user for this run"
     },
     {
       "command": "plugin.close",
       "label": "Close plugin panel",
       "source": "crates/engine/src/extensions/plugins.rs",
       "line": 695,
-      "status": "Not tested"
+      "status": "Not tested",
+      "scope": "Deferred by user for this run"
     },
     {
       "command": "plugins.runLast",
       "label": "Run last plugin",
       "source": "crates/engine/src/extensions/plugins.rs",
       "line": 696,
-      "status": "Not tested"
+      "status": "Not tested",
+      "scope": "Deferred by user for this run"
     },
     {
       "command": "plugins.manage",
       "label": "Manage plugins…",
       "source": "crates/engine/src/extensions/plugins.rs",
       "line": 697,
-      "status": "Not tested"
+      "status": "Not tested",
+      "scope": "Deferred by user for this run"
     },
     {
       "command": "widget.insert",
       "label": "Insert widget",
       "source": "crates/engine/src/extensions/widgets.rs",
       "line": 565,
-      "status": "Not tested"
+      "status": "Not tested",
+      "scope": "Deferred by user for this run"
     },
     {
       "command": "widget.click",
       "label": "Click widget",
       "source": "crates/engine/src/extensions/widgets.rs",
       "line": 572,
-      "status": "Not tested"
+      "status": "Not tested",
+      "scope": "Deferred by user for this run"
     },
     {
       "command": "widget.setText",
       "label": "Edit widget field",
       "source": "crates/engine/src/extensions/widgets.rs",
       "line": 579,
-      "status": "Not tested"
+      "status": "Not tested",
+      "scope": "Deferred by user for this run"
     },
     {
       "command": "widget.menu",
       "label": "Widget menu",
       "source": "crates/engine/src/extensions/widgets.rs",
       "line": 586,
-      "status": "Not tested"
+      "status": "Not tested",
+      "scope": "Deferred by user for this run"
     },
     {
       "command": "widget.hover",
       "label": "Hover widget",
       "source": "crates/engine/src/extensions/widgets.rs",
       "line": 593,
-      "status": "Not tested"
+      "status": "Not tested",
+      "scope": "Deferred by user for this run"
     },
     {
       "command": "widget.list",
       "label": "List widgets",
       "source": "crates/engine/src/extensions/widgets.rs",
       "line": 604,
-      "status": "Not tested"
+      "status": "Not tested",
+      "scope": "Deferred by user for this run"
     },
     {
       "command": "font.download",
