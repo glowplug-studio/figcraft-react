@@ -129,3 +129,17 @@ it("rejects a self-link, unpublished source or obsolete file selection without c
   await expect(pending).rejects.toThrow("destination or library selection changed");
   expect(other.getSnapshot().document.libraryLinks).toBeUndefined();
 });
+
+it("opens the library browser and publication form without modifying the file or its history",()=>{
+  const e=new EditorEngine(),before=e.getSnapshot().document;
+  for (const [command,publish] of [["libraries.publish",true],["libraries.open",false]] as const) {
+    expect(e.execute(command)).toEqual({ok:true});
+    expect(e.getSnapshot().libraryPanel).toEqual({publish});
+    const snapshot=e.getSnapshot();
+    expect(()=>e.execute(command,{x:1})).toThrow("unknown parameter");
+    expect(e.getSnapshot()).toBe(snapshot);
+  }
+  expect(e.getSnapshot().document).toBe(before);
+  expect(e.getUndoDepth()).toBe(0);
+  e.setEditable(false);expect(e.getSnapshot().libraryPanel).toBeUndefined();
+});

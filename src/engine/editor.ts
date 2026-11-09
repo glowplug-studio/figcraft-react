@@ -130,6 +130,8 @@ export const commandSpecs = Object.freeze({
   ...gridSpecs,
   "library.import": {label:"Import library component",undo:true},
   "library.place": {label:"Place library component",undo:true},
+  "libraries.open": {label:"Open libraries",undo:false},
+  "libraries.publish": {label:"Publish library…",undo:false},
   "library.swap": {label:"Swap library",undo:true},
   "library.swapAt": {label:"Swap instance to library component",undo:true},
   "library.applyStyle": {label:"Apply library style",undo:true},
@@ -213,6 +215,7 @@ export interface PaintPicker {
 }
 export interface EditorSnapshot {
   readonly profileDialog?: boolean;
+  readonly libraryPanel?: {readonly publish:boolean};
   readonly missingFonts?: readonly MissingFont[];
   readonly paintPicker?: PaintPicker;
   readonly openEffects?: readonly number[];
@@ -673,6 +676,7 @@ export class EditorEngine {
     return {previewing:true};
   }
   closeMissingFonts() { if (this.#snapshot.missingFonts) this.#publish({missingFonts:undefined}); }
+  closeLibraryPanel() { if (this.#snapshot.libraryPanel) this.#publish({libraryPanel:undefined}); }
   closeProfileDialog() { if (this.#snapshot.profileDialog) this.#publish({ profileDialog: false }); }
   finishCrop() { if (this.#snapshot.crop) this.#publish({crop:undefined}); }
   /** A menu may outlive its gesture after selection changes or edit access is revoked. */
@@ -940,7 +944,7 @@ export class EditorEngine {
     if (!editable) this.cancelInteraction();
     if (!editable) {this.cancelPendingFiles();this.#libraryFiles.clear();this.#libraryRevision++;}
     if (!editable) { this.#vectorEdit = undefined; this.#copiedPaint = undefined; this.#copiedEffect = undefined; }
-    if (editable !== this.#snapshot.editable) this.#publish({ editable, tool: "move", profileDialog: false, missingFonts: undefined });
+    if (editable !== this.#snapshot.editable) this.#publish({ editable, tool: "move", profileDialog: false, libraryPanel:undefined, missingFonts: undefined });
   }
   execute(command:"text.edit.selection",input?:unknown):EditSelection|null;
   execute(command:"text.fonts",input?:unknown):ReturnType<typeof queryFonts>;
@@ -959,6 +963,12 @@ export class EditorEngine {
     if (!this.#snapshot.editable) throw new Error("Sign in to edit this document");
     const p = command==="text.fonts" || command==="text.rescanFonts" || command==="text.loadFont"
       ? fontParams(command,input) : isTextEditCommand(command) ? namedParameters(input) : parameters(input);
+    if (command==="libraries.open" || command==="libraries.publish") {
+      const [unexpected]=Object.keys(p);
+      if (unexpected!==undefined) throw Error("invalid parameters for `"+command+"`: unknown parameter `"+unexpected+"` (it takes none)");
+      this.#publish({libraryPanel:{publish:command==="libraries.publish"}});
+      return {ok:true};
+    }
     if (command==="paint.documentColors") return documentColours(this.#snapshot.document,p);
     if (command==="text.preview") return this.#previewChange(p);
     if (command==="text.endPreview") {
@@ -1552,7 +1562,7 @@ export class EditorEngine {
     this.#nextId = BigInt(decoded.nextId);
     this.#undo = []; this.#redo = []; this.#saved = null; this.#pendingSaves.clear();
     this.#vectorEdit = undefined;
-    this.#publish({ document: decoded.document, profileDialog: false, missingFonts: undefined, selection: Object.freeze([]), tool: "move" });
+    this.#publish({ document: decoded.document, profileDialog: false, libraryPanel:undefined, missingFonts: undefined, selection: Object.freeze([]), tool: "move" });
     this.updateView(fitPage({ ...this.#view, proofSrgb: false }, decoded.document));
     return { repairs: decoded.issues ?? [], summary: { name: decoded.document.name, pages: decoded.document.pages.length, layers: Object.keys(decoded.document.nodes).length - decoded.document.pages.length - (decoded.document.libraryStore?.root ? 1 : 0), images: Object.keys(decoded.document.images ?? {}).length } };
   }

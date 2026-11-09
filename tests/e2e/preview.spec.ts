@@ -6199,9 +6199,12 @@ test("a 10,000-variable import keeps the catalogue bounded and edits the last ro
 test("Assets publishes a native library revision, undoes it and preserves the snapshot through reload and download",async({page})=>{
   await login(page);
   await page.getByLabel("Open Figcraft file",{exact:true}).setInputFiles(new URL("../fixtures/native-published-library.figcraft",import.meta.url).pathname);
+  await expect(page.getByRole("region",{name:"Layers",exact:true}).locator('[data-layer-id="5"]')).toContainText("Unpublished rename");
   const assets=page.getByRole("button",{name:"Assets",exact:true});
   const launch=page.getByRole("button",{name:"Publish library…",exact:true});
-  await assets.click();await launch.click();
+  const menu=page.locator("details").filter({has:page.locator("summary").filter({hasText:/^Libraries$/})});
+  await menu.locator("summary").click();
+  await menu.getByRole("button",{name:"Publish library…",exact:true}).click();
   const form=page.getByRole("form",{name:"Publish library",exact:true});
   await expect(form.getByRole("status")).toContainText("published version 1");
   await form.getByRole("textbox",{name:"Description (optional)"}).fill("Consumer release");
@@ -6215,7 +6218,12 @@ test("Assets publishes a native library revision, undoes it and preserves the sn
   await page.getByRole("button",{name:"Redo",exact:true}).click();
   await expect(page.locator(".figcraft-recovery")).toHaveText("Recovery saved on this device");
   await page.reload();
-  await assets.click();await launch.click();
+  await expect(page.getByRole("button",{name:"Save as",exact:true})).toBeEnabled();
+  await page.getByLabel("Design canvas",{exact:true}).focus();
+  await page.keyboard.press("Alt+Digit3");
+  await expect(assets).toHaveAttribute("aria-pressed","true");
+  await expect(form).toHaveCount(0);
+  await launch.click();
   await expect(form.getByRole("status")).toContainText("published version 2");
   await expect(form.getByRole("textbox",{name:"Description (optional)"})).toHaveValue("Consumer release");
   const download=page.waitForEvent("download");
@@ -6223,6 +6231,20 @@ test("Assets publishes a native library revision, undoes it and preserves the sn
   const saved=await readFile((await (await download).path())!);
   const {document}=await decodeFigcraft(saved);
   expect(document.published?.manifest.components).toEqual([{id:"5",name:"Unpublished rename",set:false,version:"2",published:true}]);
+  await page.getByRole("group",{name:"Sidebar"}).getByRole("button",{name:"Layers"}).click();
+  const layers=page.getByRole("region",{name:"Layers",exact:true});
+  await layers.locator('[data-layer-id="5"]').getByRole("button",{name:"Unpublished rename",exact:true}).click();
+  await menu.locator("summary").click();
+  await menu.getByRole("button",{name:"Hide when publishing",exact:true}).click();
+  await expect(layers.locator('[data-layer-id="5"]')).toContainText(".Unpublished rename");
+  await page.getByRole("button",{name:"Undo",exact:true}).click();
+  await page.setViewportSize({width:390,height:844});
+  await menu.locator("summary").click();
+  await menu.getByRole("button",{name:"Publish library…",exact:true}).click();
+  const narrow=page.locator(".figcraft-mobile-assets");
+  await expect(narrow.getByRole("form",{name:"Publish library"})).toBeVisible();
+  await narrow.locator("summary").click();
+  await expect(narrow.getByRole("form",{name:"Publish library"})).toHaveCount(0);
 });
 
 test("a consumer adds a local published file, restores the source after reload and removes the link with undo",async({page})=>{

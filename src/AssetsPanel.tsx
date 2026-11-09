@@ -61,6 +61,7 @@ function localAssets(doc: Document) {
 }
 
 interface AssetProps {
+  publish:boolean;
   doc: Document;
   editable: boolean;
   dispatch(command: string, params: unknown): Record<string,unknown>|undefined;
@@ -72,7 +73,7 @@ interface AssetProps {
   end(): void;
 }
 
-export function AssetsPanel({doc,editable,dispatch,place,start,end,source,addLibrary,save}:AssetProps) {
+export function AssetsPanel({doc,editable,dispatch,place,start,end,source,addLibrary,save,publish}:AssetProps) {
   const {sources}=useLibraryVariables();
   const catalogues=useMemo(()=>new Map(sources.map(s=>[s.id,s])),[sources]);
   const [query,setQuery] = useState("");
@@ -81,7 +82,6 @@ export function AssetsPanel({doc,editable,dispatch,place,start,end,source,addLib
   const [swapping,setSwapping]=useState<string>();
   const [loadingLibrary,setLoadingLibrary]=useState(false);
   const picker=useRef<HTMLInputElement>(null);
-  const [publish,setPublish] = useState(false);
   const [menu,setMenu] = useState<string>();
   const all = useMemo(()=>localAssets(doc),[doc]);
   const search = query.trim().toLowerCase();
@@ -97,7 +97,7 @@ export function AssetsPanel({doc,editable,dispatch,place,start,end,source,addLib
   },[all,search]);
   return <section className="figcraft-assets" aria-label="Assets" onKeyDown={e=>{if(e.key === "Escape") {setMenu(undefined);setSwapping(undefined);setQuery("");}}}>
     <input aria-label="Search assets" placeholder="Search assets" type="search" value={query} onChange={e=>setQuery(e.target.value)}/>
-    <button type="button" aria-expanded={publish} onClick={()=>setPublish(!publish)}>Publish library…</button>
+    <button type="button" aria-expanded={publish} onClick={()=>dispatch(publish ? "libraries.open" : "libraries.publish",{})}>Publish library…</button>
     {publish && <LibraryPublishForm doc={doc} editable={editable} dispatch={dispatch} save={save}/>}
     <button type="button" disabled={!editable || loadingLibrary} onClick={()=>picker.current?.click()}>Add library…</button>
     <input type="file" ref={picker} hidden aria-label="Choose published library" accept=".figcraft" onChange={async e=>{

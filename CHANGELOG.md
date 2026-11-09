@@ -2,6 +2,12 @@
 
 All notable changes to the React port and its upstream compatibility baseline are recorded here.
 
+## [0.52.0] - 2026-11-10
+
+- Added local shared styles, typed variables, collection modes, inherited overrides and variable bindings for layers and shared definitions. Variables import from JSON and export to JSON, CSS, Tailwind and Dart.
+- Added local library publication, file linking, dependency import, updates and whole-library replacement with native file interchange and device recovery. The Assets panel and Libraries menu expose publication and browsing.
+- Added page colour swatches for fills and gradient stops. The style and library reference is upstream `a2e87433`. [Property audit and remaining cross-file work](docs/reports/26-11-10-styles-variables-libraries-parity.html).
+
 ## [0.51.0] - 2026-11-09
 
 - Added local components, linked instances and overrides, variant sets, typed properties, exposed nested instances, editable slots and instance lifecycle commands. Component trees survive native save, undo and recovery.

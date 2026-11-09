@@ -1,3 +1,4 @@
+import {componentRoot} from "./engine/library-component-source";
 import type {PublishedLibrary} from "./engine/published-library";
 import {LibraryVariablesContext,libraryCatalogues} from "./LibraryVariablesContext";
 import {MAX_CACHED_LIBRARIES} from "./engine/library-links";
@@ -75,6 +76,13 @@ export function Editor({ identity, capabilities, engine: suppliedEngine, recover
   const [busy, setBusy] = useState(false);
   const [assetsOpen,setAssetsOpen] = useState(false);
   const [mobileAssetsOpen,setMobileAssetsOpen] = useState(false);
+  const mobileAssets=useRef<HTMLDetailsElement>(null);
+  useLayoutEffect(()=>{
+    if (!snapshot.libraryPanel) return;
+    const mobile=mobileAssets.current;
+    if (mobile && mobile.getClientRects().length) mobile.open=true;
+    else setAssetsOpen(true);
+  },[snapshot.libraryPanel]);
   const draggedAsset = useRef<{id:string;library?:PublishedLibrary} | undefined>(undefined);
   const [mobileLayersOpen, setMobileLayersOpen] = useState(false);
   const [pendingFile, setPendingFile] = useState<File | null>(null);
@@ -166,6 +174,9 @@ export function Editor({ identity, capabilities, engine: suppliedEngine, recover
     }
     if (event.key.toLowerCase() === "v") modifiedPaste.current = (event.ctrlKey || event.metaKey) && (event.shiftKey || event.altKey);
     if (event.target instanceof HTMLElement && event.target.closest("input,textarea,select,dialog,[contenteditable=true]")) return;
+    if (event.altKey && !event.ctrlKey && !event.metaKey && !event.shiftKey && event.code==="Digit3") {
+      event.preventDefault();dispatch("libraries.open");return;
+    }
     const formatting = textShortcut(event,false);
     if (formatting && snapshot.selection.some(id=>subtreeIds(snapshot.document,id).some(child=>snapshot.document.nodes[child].kind==="text"))) {
       event.preventDefault(); dispatch(formatting); return;
@@ -399,7 +410,9 @@ export function Editor({ identity, capabilities, engine: suppliedEngine, recover
   },[editable,engine,recoveryStore,snapshot.document.libraryLinks]);
   const libraryVariables=useMemo(()=>libraryCatalogues(snapshot.document.libraryLinks,snapshot.document.libraryRecords,path=>engine.librarySource(path)),
     [engine,engine.libraryRevision,snapshot.document.libraryLinks,snapshot.document.libraryRecords]);
-  const assetsPanel = <AssetsPanel key={engine.fileGeneration} save={save} doc={snapshot.document} editable={editable && !busy} dispatch={dispatch}
+  const publishableSelection=useMemo(()=>snapshot.selection.length>0 &&
+    snapshot.selection.every(id=>componentRoot(snapshot.document,id)),[snapshot.document,snapshot.selection]);
+  const assetsPanel = <AssetsPanel publish={snapshot.libraryPanel?.publish ?? false} key={engine.fileGeneration} save={save} doc={snapshot.document} editable={editable && !busy} dispatch={dispatch}
     source={path=>engine.librarySource(path)}
     addLibrary={async file=>{
       const principal=initialPrincipal.current;
@@ -434,6 +447,15 @@ export function Editor({ identity, capabilities, engine: suppliedEngine, recover
         <details><summary>File</summary><button disabled={!editable || busy} type="button" onClick={event => {
           event.currentTarget.closest("details")?.removeAttribute("open"); dispatch("file.colorProfile");
         }}>Color profile</button></details>
+        <details><summary>Libraries</summary>
+          {([["libraries.open","Open libraries"],["libraries.publish","Publish library…"]] as const).map(([command,label])=>
+            <button key={command} type="button" disabled={!editable || busy} onClick={event=>{
+              event.currentTarget.closest("details")?.removeAttribute("open");dispatch(command);
+            }}>{label}</button>)}
+          <button type="button" disabled={!editable || busy || !publishableSelection} onClick={event=>{
+            event.currentTarget.closest("details")?.removeAttribute("open");dispatch("component.hideWhenPublishing");
+          }}>Hide when publishing</button>
+        </details>
         <ViewMenu engine={engine} editable={editable && !busy} dispatch={dispatch} />
         <details><summary>Object</summary><button disabled={!canCrop || busy} type="button" onClick={e=>{
           e.currentTarget.closest("details")?.removeAttribute("open");dispatch("image.crop");canvas.current?.focus();
@@ -457,7 +479,10 @@ export function Editor({ identity, capabilities, engine: suppliedEngine, recover
         <details className="figcraft-mobile-layers" onToggle={event => setMobileLayersOpen(event.currentTarget.open)}><summary>Layers</summary>
           {mobileLayersOpen && <LayerPanel document={snapshot.document} selection={snapshot.selection} editable={editable && !busy} dispatch={dispatch} />}
         </details>
-        <details className="figcraft-mobile-assets" onToggle={e=>setMobileAssetsOpen(e.currentTarget.open)}><summary>Assets</summary>
+        <details ref={mobileAssets} className="figcraft-mobile-assets" onToggle={e=>{
+          setMobileAssetsOpen(e.currentTarget.open);
+          if (!e.currentTarget.open && e.currentTarget.getClientRects().length) engine.closeLibraryPanel();
+        }}><summary>Assets</summary>
           {mobileAssetsOpen && assetsPanel}
         </details>
       </header>
@@ -482,7 +507,7 @@ export function Editor({ identity, capabilities, engine: suppliedEngine, recover
       <div className="figcraft-workspace">
         <aside className="figcraft-layers" aria-label={assetsOpen ? "Assets browser" : "Layers"}>
           <div role="group" aria-label="Sidebar">
-            <button type="button" aria-pressed={!assetsOpen} onClick={()=>setAssetsOpen(false)}>Layers</button>
+            <button type="button" aria-pressed={!assetsOpen} onClick={()=>{setAssetsOpen(false);engine.closeLibraryPanel();}}>Layers</button>
             <button type="button" aria-pressed={assetsOpen} onClick={()=>setAssetsOpen(true)}>Assets</button>
           </div>
           {assetsOpen ? assetsPanel : <>
