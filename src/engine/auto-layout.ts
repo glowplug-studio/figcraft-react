@@ -173,3 +173,13 @@ export function scaleLayoutProperties(node: LayerNode, factor: number) {
   }
   return result;
 }
+
+export function sameAutoLayout(a: AutoLayout | undefined, b: AutoLayout | undefined): boolean {
+  if (a === b) return true;
+  if (!a || !b || a.mode !== b.mode || a.wrap !== b.wrap || a.gap !== b.gap || a.crossGap !== b.crossGap ||
+    a.gridColumns !== b.gridColumns || a.gridRows !== b.gridRows || a.strokesIncluded !== b.strokesIncluded ||
+    a.reverseZ !== b.reverseZ || a.mainAlign !== b.mainAlign || a.crossAlign !== b.crossAlign || a.contentAlign !== b.contentAlign) return false;
+  const equalTracks = (x: readonly GridTrack[], y: readonly GridTrack[]) => x === y ||
+    x.length === y.length && x.every((t,i) => t.sizing === y[i].sizing && t.value === y[i].value);
+  return a.padding.every((v,i) => v === b.padding[i]) && equalTracks(a.columnTracks,b.columnTracks) && equalTracks(a.rowTracks,b.rowTracks);
+}

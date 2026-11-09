@@ -1,3 +1,4 @@
+import { frameTuning, setFrameLayout } from "./layout-properties";
 import { fixTextSize } from "./text-sizing";
 import { isTextKey, setTextProperties, textCommandProperties } from "./text-properties";
 import { textSpans } from "./text-ranges";
@@ -13,7 +14,7 @@ import { isArcKey, setArc } from "./ellipse";
 import { isLeaf, withLayerSize } from "./document";
 import { isCornerKey, setCorners, zeroCorners } from "./corners";
 import { identity, inverse, multiply, setRotationAboutCenter, transformBounds, transformPoint, withTranslation } from "./affine";
-import { defaultConstraints, rectanglePaints, rectangleTransform, withRectanglePaints, withRectangleTransform, type Document, type DocumentNode, type NodeId, type LayerNode } from "./document";
+import { defaultConstraints, nodeTypeName, rectanglePaints, rectangleTransform, withRectanglePaints, withRectangleTransform, type Document, type DocumentNode, type NodeId, type LayerNode } from "./document";
 import { HierarchyDraft, frameRelative, rootIds, worldTransform } from "./hierarchy";
 import { parseNodeId, parseNumber } from "./parameters";
 import { parseColour } from "./colour-css";
@@ -49,7 +50,8 @@ export function setRectangleProperties(document: Document, selection: readonly N
   const keys = Object.keys(props);
   if (!textCommand && keys.length === 0) throw new Error("node.set requires properties");
   const textKeys = keys.filter(isTextKey).sort();
-  const unsupported = keys.filter(key => key !== "path" && key !== "start" && key !== "end" && !isTextKey(key) && !geometryKeys.has(key) && !appearanceKeys.has(key) && !isCornerKey(key) && !isArcKey(key) && !isShapeKey(key) && !isStrokeKey(key));
+  const tuning = keys.filter(k => frameTuning.has(k)).sort();
+  const unsupported = keys.filter(key => key !== "layout" && key !== "layoutMode" && !frameTuning.has(key) && key !== "path" && key !== "start" && key !== "end" && !isTextKey(key) && !geometryKeys.has(key) && !appearanceKeys.has(key) && !isCornerKey(key) && !isArcKey(key) && !isShapeKey(key) && !isStrokeKey(key));
   if (unsupported.length) throw new Error(`node.set unsupported properties: ${unsupported.join(", ")}`);
   if (!textCommand && typeof props.fontStyle === "string") {
     const families = typeof props.fontFamily === "string" ? [props.fontFamily] : ids.flatMap(id => {
@@ -60,6 +62,16 @@ export function setRectangleProperties(document: Document, selection: readonly N
       const warning = fontStyleWarning(family, props.fontStyle);
       if (warning) warnings.push(warning);
     }
+  }
+  const hasFrame = tuning.length > 0 && ids.some(id => document.nodes[id]?.kind === "frame");
+  const skippedLayout = hasFrame ? ids.filter(id => document.nodes[id]?.kind !== "frame") : [];
+  if (skippedLayout.length) {
+    const names = skippedLayout.slice(0,10).flatMap(id => {
+      const n = document.nodes[id];
+      return n ? [`${id} “${n.name}” (${nodeTypeName(n)})`] : [];
+    }).join(", ");
+    const more = skippedLayout.length > 10 ? ` and ${skippedLayout.length-10} more` : "";
+    warnings.push(`${tuning.map(k => "\`"+k+"\`").join(", ")} skipped on ${names}${more}: only frames, components and instances have auto layout`);
   }
   const hasPath = Object.hasOwn(props, "path"), vectors = ids.filter(id => document.nodes[id]?.kind === "vector");
   if (hasPath && !vectors.length) { const node = document.nodes[ids[0]]; throw new Error(`path applies to vector layers; ${node?.name ?? ids[0]} is not a vector`); }
@@ -119,9 +131,12 @@ export function setRectangleProperties(document: Document, selection: readonly N
       draft.set(effects ? withEffects(page, effects) : page);
       continue;
     }
+    if (node?.kind === "page" && hasFrame && keys.every(k => frameTuning.has(k))) continue;
     if (!node || node.kind === "page") throw new Error(`node.set target ${id} is not an editable layer`);
     if ("clip" in props && node.kind !== "frame") throw new Error("Clip content requires a frame");
     let arcNode = setStrokeProperties(setShapeProperties(setArc(node, props), props), props);
+    if (tuning.length || "layout" in props || "layoutMode" in props)
+      arcNode = setFrameLayout(arcNode, props, tuning, hasFrame && node.kind !== "frame");
     for (const key of ["booleanOperation", "operandOperation"] as const) {
       if (!(key in props)) continue;
       const op = props[key];

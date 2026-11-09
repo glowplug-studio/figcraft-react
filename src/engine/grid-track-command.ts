@@ -1,26 +1,17 @@
 import { arrangementTargets } from "./arrange";
-import type { GridTrack } from "./auto-layout";
+import { commandSizing } from "./layout-properties";
 import type { Document, NodeId } from "./document";
 import { gridGeometry } from "./grid-layout";
 import { HierarchyDraft } from "./hierarchy";
 import { parseNumber } from "./parameters";
 import { validateChangedGeometry } from "./rotation";
 
-function trackSizing(raw: unknown): GridTrack["sizing"] {
-  switch (typeof raw === "string" && raw.toLowerCase()) {
-    case "fixed": return "fixed";
-    case "hug": case "auto": case "hug contents": return "hug";
-    case "fill": case "fill container": case "stretch": return "fill";
-    default: throw new Error("sizing must be fixed, hug or fill");
-  }
-}
-
 export function setGridTrack(document: Document, selection: readonly NodeId[], p: Record<string, unknown>) {
   const ids = arrangementTargets(document, selection, p, false);
   const axis = typeof p.axis === "string" ? p.axis.toLowerCase() : "";
   const columns = ["columns", "column", "col", "x"].includes(axis);
   if (!columns && !["rows", "row", "y"].includes(axis)) throw new Error("axis must be columns or rows");
-  const index = parseNumber(p.index, "index"), sizing = trackSizing(p.sizing);
+  const index = parseNumber(p.index, "index"), sizing = commandSizing(p.sizing);
   let value: number | undefined;
   try { value = parseNumber(p.value); } catch { /* Native optional numeric argument defaults when unreadable. */ }
   const draft = new HierarchyDraft(document);
