@@ -1,3 +1,4 @@
+import { shiftListBindings } from "./list-variable-bindings";
 import type { Document, NodeId } from "./document";
 import { effectTypes, readEffect, withEffects, type Effect } from "./effects";
 import { HierarchyDraft } from "./hierarchy";
@@ -60,7 +61,9 @@ export function editEffects(command: string, document: Document, selection: read
     } else if (command === "effect.remove" && index !== undefined) after.splice(index, 1);
     else if (effect && index !== undefined) after[index] = effect;
     else if (effect) after.push(effect);
-    draft.set(withEffects(node, Object.freeze(after)));
+    const next=from!==undefined ? shiftListBindings(node,"effects",from,to) :
+      command==="effect.remove" && index!==undefined ? shiftListBindings(node,"effects",index) : node;
+    draft.set(withEffects(next, Object.freeze(after)));
   }
   return draft.finish();
 }

@@ -1,9 +1,11 @@
+import { sameComponentValue } from "./component-groups";
 import type { Document, DocumentNode, NodeId } from "./document";
-import { ancestors, HierarchyDraft } from "./hierarchy";
+import { ancestors, HierarchyDraft, subtreeIds } from "./hierarchy";
 import { parseNodeId, parseString } from "./parameters";
 import type { Variables } from "./variables";
 
 export interface LayerVariableModes {
+  readonly boundVariables?: Readonly<Record<string,string>>;
   readonly variableModes?: Readonly<Record<string,string>>;
 }
 
@@ -64,4 +66,23 @@ export function removeLayerMode(doc:Document, old:Variables, p:Record<string,unk
     (draft??=new HierarchyDraft(doc)).set(withVariableModes(node,{[c.id]:null}));
   }
   return draft?.finish() ?? doc;
+}
+
+/** A parent or main mode change also invalidates its descendants and instance users. */
+export function variableConsumers(doc:Document,before?:Document):Iterable<DocumentNode> {
+  if (!before || before.variables!==doc.variables) return Object.values(doc.nodes);
+  const affected=new Set<string>(), subtrees=new Set<string>(), mains=new Set<string>();
+  for (const id in doc.nodes) {
+    const node=doc.nodes[id],old=before.nodes[id];
+    if (old===node) continue;
+    affected.add(id);
+    const modes=!sameComponentValue(node.variableModes,old?.variableModes);
+    if (!old || modes || old.parent!==node.parent ||
+        (old.kind==="instance" ? old.component : undefined)!==(node.kind==="instance" ? node.component : undefined)) subtrees.add(id);
+    if (modes && node.kind==="component") mains.add(id);
+  }
+  if (mains.size) for (const node of Object.values(doc.nodes))
+    if (node.kind==="instance" && mains.has(node.component)) subtrees.add(node.id);
+  for (const root of subtrees) for (const id of subtreeIds(doc,root)) affected.add(id);
+  return Array.from(affected,id=>doc.nodes[id]);
 }

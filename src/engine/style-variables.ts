@@ -1,3 +1,5 @@
+import { bindingItem } from "./variable-binding-key";
+export { bindingItem, canonicalBinding } from "./variable-binding-key";
 import { withAlpha, type Colour } from "./colour";
 import { sameComponentValue } from "./component-groups";
 import type { Document } from "./document";
@@ -10,21 +12,6 @@ import { layerModes } from "./variable-modes";
 import { resolveVariable, type Variables } from "./variables";
 
 type Value = NonNullable<ReturnType<typeof resolveVariable>>;
-
-export function bindingItem(key:string) {
-  if (key==="fill" || key==="fills" || key==="fills/0") return {list:"fills",index:0,field:"color"};
-  if (key==="stroke") return {list:"strokes",index:0,field:"color"};
-  const match=/^(fills|strokes|effects|layoutGrids)\/(\d+)\/(.+)$/s.exec(key);
-  if (!match) return;
-  const index=Number(match[2]);
-  if (!Number.isSafeInteger(index)) return;
-  return {list:match[1],index,field:match[3]};
-}
-
-export function canonicalBinding(key:string) {
-  const item=bindingItem(key);
-  return item ? item.list+"/"+item.index+"/"+item.field : key;
-}
 
 function changedAt<T>(array:readonly T[],index:number,value:T):readonly T[] {
   if (sameComponentValue(array[index],value)) return array;

@@ -5971,3 +5971,28 @@ test("shared style variable pickers filter by scope and retain per-layer mode co
   expect(document.nodes[5].fills?.[0]).toMatchObject({color:{a:Math.fround(192/255),r:Math.fround(194/255)}});
   expect(document.nodes[2].grids?.[0].size).toBe(6.5);
 });
+
+test("layer paint variables detach, rebind and survive recovery and native download",async({page})=>{
+  await login(page);
+  await page.getByLabel("Open Figcraft file",{exact:true}).setInputFiles(new URL("../fixtures/native-layer-variables.json",import.meta.url).pathname);
+  const select=page.getByRole("region",{name:"Layers",exact:true}).locator('[data-layer-id="2"]').getByRole("button",{name:"Token swatch",exact:true});
+  await select.click();
+  const chip=page.getByRole("button",{name:"Detach variable from fill 1 colour",exact:true});
+  await expect(chip).toHaveText("Accent");
+  await chip.click();
+  await page.getByRole("button",{name:"Bind variable to fill 1 colour",exact:true}).click();
+  const picker=page.getByRole("group",{name:"Variables for fill 1 colour",exact:true});
+  await expect(picker.getByRole("button",{name:"Spacing"})).toHaveCount(0);
+  await picker.getByRole("searchbox").fill("Base");
+  await picker.getByRole("button",{name:"Base",exact:true}).click();
+  await expect(chip).toHaveText("Base");
+  await expect(page.locator(".figcraft-recovery")).toHaveText("Recovery saved on this device");
+  await page.reload();
+  await select.click();
+  await expect(chip).toHaveText("Base");
+  const downloading=page.waitForEvent("download");
+  await page.getByRole("button",{name:"Save as",exact:true}).click();
+  const {document}=await decodeFigcraft(await readFile((await (await downloading).path())!));
+  expect(document.nodes[2].boundVariables).toEqual({"fills/0/color":"VariableID:1"});
+  expect(document.nodes[2].fills?.[0]).toMatchObject({color:{a:Math.fround(192/255)},opacity:1});
+});

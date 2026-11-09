@@ -1,3 +1,4 @@
+import { shiftListBindings } from "./list-variable-bindings";
 import { rotationDegrees, transformBounds, transformPoint, type Affine } from "./affine";
 import { renderColour } from "./colour";
 import { convertColour } from "./colour-spaces";
@@ -92,7 +93,7 @@ export function editLayoutGuides(doc:Document, selection:readonly string[], comm
       const [item] = grids.splice(from,1);
       if (command === "grid.move") grids.splice(to,0,item);
     }
-    const next = grid ? node : withStyleRef(node,"grid",null);
+    const next = grid ? node : withStyleRef(shiftListBindings(node,"layoutGrids",from,command==="grid.move" ? to : undefined),"grid",null);
     const {grids:old, ...rest} = next;
     draft.set(grids.length ? {...rest,grids:Object.freeze(grids)} : rest);
   }

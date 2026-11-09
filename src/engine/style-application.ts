@@ -1,8 +1,10 @@
-import { resolveStyle, styleForLayer } from "./style-variables";
+import { variableConsumers } from "./variable-modes";
+import { remapBindings } from "./list-variable-bindings";
+import { bindingItem, resolveStyle, styleForLayer } from "./style-variables";
 import { requiredTargets } from "./arrange";
 import { sameComponentValue } from "./component-groups";
 import { rectanglePaints, withRectanglePaints, type Document, type DocumentNode, type TextNode } from "./document";
-import { HierarchyDraft, subtreeIds } from "./hierarchy";
+import { HierarchyDraft } from "./hierarchy";
 import { parseNumber, parseString } from "./parameters";
 import { withStyleRef, type SharedStyle, type StyleSlot } from "./shared-styles";
 import { samePaints } from "./solid-paint";
@@ -60,8 +62,16 @@ function styleText(node: TextNode, definition: TextDefinition | undefined, range
   return sameTextData(text, node.text) ? node : fitEditedText({...node, text}, node);
 }
 
-export function applyStyleToNode<T extends DocumentNode>(node: T, slot: StyleSlot, style?: SharedStyle, range?: Range): T;
-export function applyStyleToNode(node: DocumentNode, slot: StyleSlot, style?: SharedStyle, range?: Range): DocumentNode {
+export function applyStyleToNode<T extends DocumentNode>(node: T, slot: StyleSlot, style?: SharedStyle, range?: Range, refresh?:boolean): T;
+export function applyStyleToNode(node: DocumentNode, slot: StyleSlot, style?: SharedStyle, range?: Range, refresh=false): DocumentNode {
+  if (style && !refresh && !range && node.boundVariables) {
+    const list={fill:"fills",stroke:"strokes",effect:"effects",grid:"layoutGrids",text:undefined}[slot];
+    node=remapBindings(node,key=>{
+      const sets=list ? bindingItem(key)?.list===list :
+        ["fontFamily","fontStyle","fontWeight","fontSize","lineHeight","letterSpacing","paragraphSpacing","paragraphIndent"].includes(key);
+      return sets ? undefined : key;
+    });
+  }
   let result = node;
   if (slot === "text" && (!style || style.type === "text")) {
     if (node.kind === "text") result = styleText(node, style, range);
@@ -180,25 +190,6 @@ export function editStyleLinks(doc: Document, selection: readonly string[], para
   return draft.finish();
 }
 
-/** A parent or main mode change also invalidates its descendants and instance users. */
-function styleConsumers(doc:Document,before?:Document):Iterable<DocumentNode> {
-  if (!before || before.variables!==doc.variables) return Object.values(doc.nodes);
-  const affected=new Set<string>(), subtrees=new Set<string>(), mains=new Set<string>();
-  for (const id in doc.nodes) {
-    const node=doc.nodes[id],old=before.nodes[id];
-    if (old===node) continue;
-    affected.add(id);
-    const modes=!sameComponentValue(node.variableModes,old?.variableModes);
-    if (!old || modes || old.parent!==node.parent ||
-        (old.kind==="instance" ? old.component : undefined)!==(node.kind==="instance" ? node.component : undefined)) subtrees.add(id);
-    if (modes && node.kind==="component") mains.add(id);
-  }
-  if (mains.size) for (const node of Object.values(doc.nodes))
-    if (node.kind==="instance" && mains.has(node.component)) subtrees.add(node.id);
-  for (const root of subtrees) for (const id of subtreeIds(doc,root)) affected.add(id);
-  return Array.from(affected,id=>doc.nodes[id]);
-}
-
 /** A style stores its default-mode definition. Consumers keep the values in their own modes. */
 export function refreshBoundStyles(doc:Document,before?:Document):Document {
   if (doc===before) return doc;
@@ -209,7 +200,7 @@ export function refreshBoundStyles(doc:Document,before?:Document):Document {
   if (bound.some(s=>catalogue.get(s.id)!==s))
     doc=Object.freeze({...doc,styles:Object.freeze(doc.styles!.map(s=>catalogue.get(s.id) ?? s))});
   let draft:HierarchyDraft|undefined;
-  for (const node of styleConsumers(doc,before)) {
+  for (const node of variableConsumers(doc,before)) {
     if (!node.styles && node.kind!=="text") continue;
     const old=before?.nodes[node.id];
     let next=node;
@@ -229,7 +220,7 @@ export function refreshBoundStyles(doc:Document,before?:Document):Document {
       if (!id || !catalogue.has(id)) continue;
       const current=slot==="fill" ? nodeFills(node) : slot==="stroke" ? node.strokes : slot==="effect" ? node.effects : node.grids;
       const prior=old && (slot==="fill" ? nodeFills(old) : slot==="stroke" ? old.strokes : slot==="effect" ? old.effects : old.grids);
-      if (!old || sameComponentValue(current,prior)) next=applyStyleToNode(next,slot,resolved(id));
+      if (!old || sameComponentValue(current,prior)) next=applyStyleToNode(next,slot,resolved(id),undefined,true);
     }
     const usesBoundText=node.kind==="text" && (node.styles?.text && catalogue.has(node.styles.text) ||
       textSpans(node.text).some(span=>span.style.styleId!==undefined && catalogue.has(span.style.styleId)));

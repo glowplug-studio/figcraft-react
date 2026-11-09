@@ -1,3 +1,4 @@
+import { compareScalarKeys } from "./text-breaks";
 import { bindingItem, canonicalBinding, rebindPaintAlpha, resolveStyle, styleForLayer } from "./style-variables";
 import type { Paint } from "./solid-paint";
 import { HierarchyDraft } from "./hierarchy";
@@ -131,7 +132,17 @@ export function editStyleDefinition(document: Document, selection: readonly stri
     const value = explicit ? explicitDefinition(slot, p.value) : node && nodeDefinition(slot, node, range);
     if (!value) throw new Error("Pass a style value or select a layer with the requested property");
     id = newStyleId(styles);
-    const created = Object.freeze({id, name, description:parseString(p.description) ?? "", ...value});
+    let created:SharedStyle=Object.freeze({id,name,description:parseString(p.description) ?? "",...value});
+    if (!explicit && !range && node?.boundVariables) {
+      const bound:Record<string,string>=Object.create(null);
+      for (const field of Object.keys(node.boundVariables).sort(compareScalarKeys)) {
+        const item=bindingItem(field);
+        if ((slot==="fill" || slot==="stroke") && item?.list!==(slot==="fill" ? "fills" : "strokes")) continue;
+        const key=item && (slot==="fill" || slot==="stroke") ? "fills/"+item.index+"/"+item.field : field;
+        if (styleBindingType(created,key)) bound[key]=node.boundVariables[field];
+      }
+      if (Object.keys(bound).length) created=Object.freeze({...created,bound:Object.freeze(bound)});
+    }
     definition = created;
     next.push(created);
     result = {id};

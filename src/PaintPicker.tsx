@@ -1,3 +1,4 @@
+import { LayerVariablePicker } from "./StyleVariablePicker";
 import { BlendMenu } from "./BlendMenu";
 import { PatternPaintControls } from "./PatternPaintControls";
 import { patternSources } from "./engine/pattern-sources";
@@ -95,6 +96,7 @@ function Stops({engine,picker,paint,change}: {engine:EditorEngine; picker:Picker
 
 export function PaintPicker({engine,list,index,label,paint,change,region=false,styleId}:Props) {
   const picker = engine.getSnapshot().paintPicker;
+  const [bindingError,setBindingError]=useState("");
   const [pending,setPending] = useState<Picker>();
   const image = paint.type === "image" || pending !== undefined && picker === pending;
   const [hover,setHover] = useState<Picker>(), [uploadError,setUploadError] = useState<{picker:Picker;message:string}>();
@@ -107,6 +109,11 @@ export function PaintPicker({engine,list,index,label,paint,change,region=false,s
   useEffect(()=>{if (paint.type==="image") setPending(undefined);},[paint.type]);
   const open = picker?.list === list && picker.index === index && picker.styleId === styleId;
   const {document: doc, selection} = engine.getSnapshot();
+  const bindColour=(suffix:string,name:string)=>!region && styleId===undefined &&
+    <LayerVariablePicker doc={doc} ids={selection} field={list+"s/"+index+"/"+suffix} label={name} type="color" run={(cmd,params)=>{
+      try {setBindingError(""); return engine.execute(cmd,params);}
+      catch (e) {setBindingError(e instanceof Error ? e.message : "Could not bind variable");}
+    }}/>;
   const sources = useMemo(() => open ? patternSources(doc,styleId === undefined ? selection : []) : [], [open,doc,selection,styleId]);
   const [missingSource,setMissingSource] = useState<Picker>();
   const button = useRef<HTMLButtonElement>(null), panel = useRef<HTMLDivElement>(null);
@@ -137,6 +144,8 @@ export function PaintPicker({engine,list,index,label,paint,change,region=false,s
   },[open,engine]);
   const selectedColour = paint.type === "solid" ? paint.color : paint.type === "gradient" && picker ? paint.stops[picker.stop]?.color : undefined;
   return <>
+    {paint.type==="solid" && bindColour("color",label+" colour")}
+    {bindingError && <span role="alert">{bindingError}</span>}
     <button ref={button} type="button" aria-expanded={open} onClick={()=>engine.setPaintPicker(open ? undefined : {list,index,stop:0,...(styleId !== undefined && {styleId})})}>Edit {label} paint</button>
     {open && <div data-figcraft-image-drop-target={image && !region && styleId === undefined ? "" : undefined} ref={panel} role="group" popover="manual" aria-label={label+" paint picker"}
       style={{position:"fixed",inset:"auto",margin:0,width:"min(240px, calc(100vw - 8px))",maxHeight:"calc(100dvh - 8px)",overflow:"auto",padding:12,border:"1px solid #bbb",borderRadius:6,background:"Canvas",color:"CanvasText"}}
@@ -170,6 +179,7 @@ export function PaintPicker({engine,list,index,label,paint,change,region=false,s
       {image && <ImagePaintControls engine={engine} picker={picker} paint={paint.type === "image" ? paint : undefined} region={region || styleId !== undefined} hover={hover===picker} upload={upload} change={change}/>}
       {image && uploadError?.picker===picker && <p role="alert">{uploadError.message}</p>}
       {!image && paint.type === "gradient" && <Stops engine={engine} paint={paint} picker={picker} change={change}/>}
+      {!image && paint.type==="gradient" && paint.stops.length>0 && bindColour("stops/"+Math.min(picker.stop,paint.stops.length-1)+"/color", label+" stop colour")}
       {!image && selectedColour && outsideSrgb(selectedColour, engine.getSnapshot().document.colourProfile ?? "srgb") &&
         <p title="The canvas shows the nearest sRGB color.">Outside sRGB</p>}
       <span>Blend mode </span><BlendMenu engine={engine} label={label+" blend mode"} value={paint.blend} picker={picker}

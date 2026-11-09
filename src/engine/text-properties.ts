@@ -186,7 +186,7 @@ function applyProperty(t: TextData, key: string, value: unknown, start: number, 
   }
 }
 
-export function setTextProperties(node: TextNode, props: Record<string,unknown>, keys: readonly string[]): TextNode {
+export function setTextProperties(node: TextNode, props: Record<string,unknown>, keys: readonly string[], explicit=true): TextNode {
   let text = node.text, overridden = node.charactersOverridden;
   for (const key of keys) {
     const count = scalarCount(text.characters);
@@ -194,7 +194,7 @@ export function setTextProperties(node: TextNode, props: Record<string,unknown>,
     const end = Math.trunc(clamp(optionalNumber(props.end, count), 0, count));
     text = Object.freeze(applyProperty(text, key, props[key], start, end));
     if (key === "maxLines" && text.maxLines > 0) node = clearTextHeightLimit(node);
-    if (key === "text" || key === "characters") overridden = true;
+    if (explicit && (key === "text" || key === "characters")) overridden = true;
   }
   return Object.freeze({...node, text, ...(overridden ? {charactersOverridden:true as const} : {})});
 }

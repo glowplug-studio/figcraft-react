@@ -1,6 +1,8 @@
 import { styleForLayer } from "./style-variables";
+import { reconcilePaintBindings } from "./list-variable-bindings";
+import { bindWrappedPaint, paintVariableWrappers, withLayerBindings } from "./layer-variable-bindings";
 import { withVariableModes } from "./variable-modes";
-import { applyStyleToNode } from "./style-application";
+import { applyStyleToNode, nodeFills } from "./style-application";
 import { readGrids, type StyleSlot } from "./shared-styles";
 import { explicitOverrides } from "./component-groups";
 import { owningInstance } from "./component-tree";
@@ -37,7 +39,13 @@ const geometryKeys = new Set(["x", "y", "width", "height", "w", "h", "rotation"]
 const styleSlots = new Map<string, StyleSlot>([
   ["effectStyle","effect"], ["fillStyle","fill"], ["gridStyle","grid"], ["strokeStyle","stroke"], ["textStyle","text"],
 ]);
-const appearanceKeys = new Set([...styleSlots.keys(), "variableModes", "grids", "layoutGrids", "description", "effects", "isMask", "maskType", "booleanOperation", "operandOperation", "name", "visible", "locked", "opacity", "blend", "blendMode", "fill", "fills", "clip", "constraints", "constrainProportions"]);
+const appearanceKeys = new Set([...styleSlots.keys(), "boundVariables", "variableModes", "grids", "layoutGrids", "description", "effects", "isMask", "maskType", "booleanOperation", "operandOperation", "name", "visible", "locked", "opacity", "blend", "blendMode", "fill", "fills", "clip", "constraints", "constrainProportions"]);
+
+export function supportsLayerProperty(key:string) {
+  return geometryKeys.has(key) || appearanceKeys.has(key) || childLayoutKeys.has(key) || frameTuning.has(key) ||
+    key==="layout" || key==="layoutMode" || key==="path" || key==="start" || key==="end" ||
+    isTextKey(key) || isCornerKey(key) || isArcKey(key) || isShapeKey(key) || isStrokeKey(key);
+}
 
 /** The supported layer geometry and appearance subset of upstream `node.set`. No history is recorded here. */
 export function setRectangleProperties(document: Document, selection: readonly NodeId[], params: Record<string, unknown>, origin?: Point, warnings: string[] = [], textCommand?: "text.style" | "text.set", draft = new HierarchyDraft(document)): Document {
@@ -55,8 +63,8 @@ export function setPageGeometryFields(document: Document, selection: readonly No
   return validateChangedGeometry(draft);
 }
 
-function writeProperties(draft: HierarchyDraft, document: Document, selection: readonly NodeId[], params: Record<string,unknown>,
-  origin: Point | undefined, warnings: string[], textCommand?: "text.style" | "text.set"): void {
+export function writeProperties(draft: HierarchyDraft, document: Document, selection: readonly NodeId[], params: Record<string,unknown>,
+  origin: Point | undefined, warnings: string[], textCommand?: "text.style" | "text.set", derived=false): void {
   if (params.ids != null && !Array.isArray(params.ids)) throw new Error("node.set ids must be an array");
   const rawTargets = params.ids ?? params.id;
   const suppliedTargets = rawTargets == null ? selection : Array.isArray(rawTargets) ? rawTargets : [rawTargets];
@@ -71,11 +79,15 @@ function writeProperties(draft: HierarchyDraft, document: Document, selection: r
   if (!textCommand && rawProps !== undefined && (rawProps === null || typeof rawProps !== "object" || Array.isArray(rawProps))) {
     throw new Error("node.set props must be an object");
   }
-  const props = textCommand ? textCommandProperties(textCommand, params) : rawProps === undefined
+  const inputProps = textCommand ? textCommandProperties(textCommand, params) : rawProps === undefined
     ? Object.fromEntries(Object.entries(params).filter(([key]) => key !== "id" && key !== "ids"))
     : rawProps as Record<string, unknown>;
+  const wrappers=paintVariableWrappers(document,inputProps);
+  const props=wrappers.size ? {...inputProps} : inputProps;
+  if (wrappers.has("fills")) delete props.fill;
+  if (wrappers.has("strokes")) delete props.stroke;
   const keys = Object.keys(props);
-  if (!textCommand && keys.length === 0) throw new Error("node.set requires properties");
+  if (!textCommand && !wrappers.size && keys.length === 0) throw new Error("node.set requires properties");
   const links = [...styleSlots].filter(([key]) => Object.hasOwn(props, key)).map(([key, slot]) => {
     const id = parseString(props[key]);
     const style = id === undefined ? undefined : document.styles?.find(style => style.id === id || style.name === id);
@@ -84,15 +96,22 @@ function writeProperties(draft: HierarchyDraft, document: Document, selection: r
   });
   const grids = keys.includes("layoutGrids") ? readGrids(props.layoutGrids,true) : keys.includes("grids") ? readGrids(props.grids,true) : undefined;
   function styleProperties<T extends DocumentNode>(node: T): T {
+    const previous=document.nodes[node.id];
+    if (previous?.boundVariables) {
+      if ("fill" in props || "fills" in props) node=reconcilePaintBindings(node,"fills",nodeFills(previous),nodeFills(node));
+      if ("stroke" in props || "strokes" in props) node=reconcilePaintBindings(node,"strokes",previous.strokes ?? [],node.strokes ?? []);
+    }
     if ("variableModes" in props) node=withVariableModes(node,props.variableModes);
     if (grids) node = {...node, grids:grids.length ? grids : undefined};
     for (const {slot,style} of links) node = applyStyleToNode(node, slot, styleForLayer(draft.document,style,node.id));
+    if (Object.hasOwn(props,"boundVariables")) node=withLayerBindings(node,props.boundVariables);
+    for (const [list,id] of wrappers) node=bindWrappedPaint(node,list,id);
     return node;
   }
   const textKeys = keys.filter(isTextKey).sort();
   const tuning = keys.filter(k => frameTuning.has(k)).sort();
   const childKeys = keys.filter(key => childLayoutKeys.has(key));
-  const unsupported = keys.filter(key => !childLayoutKeys.has(key) && key !== "layout" && key !== "layoutMode" && !frameTuning.has(key) && key !== "path" && key !== "start" && key !== "end" && !isTextKey(key) && !geometryKeys.has(key) && !appearanceKeys.has(key) && !isCornerKey(key) && !isArcKey(key) && !isShapeKey(key) && !isStrokeKey(key));
+  const unsupported = keys.filter(key => !supportsLayerProperty(key));
   if (unsupported.length) throw new Error(`node.set unsupported properties: ${unsupported.join(", ")}`);
   if (!textCommand && typeof props.fontStyle === "string") {
     const families = typeof props.fontFamily === "string" ? [props.fontFamily] : ids.flatMap(id => {
@@ -167,7 +186,7 @@ function writeProperties(draft: HierarchyDraft, document: Document, selection: r
   for (const id of ids) {
     const node = draft.nodes[id];
     if (textCommand && node?.kind !== "text") throw new Error("Expected a text layer");
-    if (node?.kind === "page" && keys.every(key => styleSlots.has(key) || ["variableModes", "description", "fill", "fills", "stroke", "strokes", "effects", "isMask", "maskType", "grids", "layoutGrids"].includes(key))) {
+    if (node?.kind === "page" && keys.every(key => styleSlots.has(key) || ["boundVariables", "variableModes", "description", "fill", "fills", "stroke", "strokes", "effects", "isMask", "maskType", "grids", "layoutGrids"].includes(key))) {
       let page = mask(node);
       if (paints && !samePaints(page.fills ?? [], paints)) page = {...page, fills:paints.length ? paints : undefined};
       let strokes: readonly Paint[] | undefined;
@@ -241,7 +260,7 @@ function writeProperties(draft: HierarchyDraft, document: Document, selection: r
         else if (childLayoutKeys.has(key)) arcNode = setChildProperty(draft,arcNode,key,props[key]);
         else {
           if (arcNode.kind !== "text") throw new Error("Text properties require a text layer");
-          arcNode = setTextProperties(arcNode,props,[key]);
+          arcNode = setTextProperties(arcNode,props,[key],!derived);
         }
       }
     }
@@ -259,7 +278,7 @@ function writeProperties(draft: HierarchyDraft, document: Document, selection: r
     let updated: LayerNode = withLayerSize(withRectangleTransform(arcNode, transform), width, height);
     if (textKeys.length && !childKeys.length) {
       if (updated.kind !== "text") throw new Error("Text properties require a text layer");
-      updated = setTextProperties(updated, props, textKeys);
+      updated = setTextProperties(updated, props, textKeys,!derived);
     }
     if (updated.kind === "text" && node.kind === "text" && (textKeys.length || arcNode !== node || width !== node.width || height !== node.height))
       updated = fitEditedText(updated, node);
@@ -289,7 +308,7 @@ function writeProperties(draft: HierarchyDraft, document: Document, selection: r
     if (opacity !== undefined && opacity !== (node.opacity ?? 1)) updated = Object.freeze({ ...updated, opacity });
     if (paints && !samePaints(rectanglePaints(node), paints)) updated = withRectanglePaints(updated, paints);
     updated = styleProperties(updated);
-    if (updated.variableModes!==node.variableModes || links.length || grids || "description" in props || textKeys.length || updated.effects !== node.effects || updated.isMask !== node.isMask || updated.maskType !== node.maskType || changeBlend || arcNode !== node || updated.kind === "vector" && "cornerRadius" in props || cornersChanged || "constrainProportions" in props && props.constrainProportions !== (node.constrainProportions ?? false) || constraintsChanged || "clip" in props && isFrameLike(node) && props.clip !== node.clip || width !== node.width || height !== node.height || transform.some((value, index) => value !== rectangleTransform(node)[index])
+    if (wrappers.size || updated.boundVariables!==node.boundVariables || updated.variableModes!==node.variableModes || links.length || grids || "description" in props || textKeys.length || updated.effects !== node.effects || updated.isMask !== node.isMask || updated.maskType !== node.maskType || changeBlend || arcNode !== node || updated.kind === "vector" && "cornerRadius" in props || cornersChanged || "constrainProportions" in props && props.constrainProportions !== (node.constrainProportions ?? false) || constraintsChanged || "clip" in props && isFrameLike(node) && props.clip !== node.clip || width !== node.width || height !== node.height || transform.some((value, index) => value !== rectangleTransform(node)[index])
       || name !== undefined && name !== node.name || "visible" in props && props.visible !== (node.visible ?? true)
       || "locked" in props && props.locked !== (node.locked ?? false) || opacity !== undefined && opacity !== (node.opacity ?? 1)
       || paints && !samePaints(rectanglePaints(node), paints)) {
@@ -298,8 +317,8 @@ function writeProperties(draft: HierarchyDraft, document: Document, selection: r
   }
   for (const id of ids) {
     const node = draft.nodes[id];
-    if (node.kind !== "page" && node.source) {
-      draft.set(explicitOverrides(node,keys,node.kind === "instance" && !owningInstance(draft.document,id,false)));
+    if (!derived && node.kind !== "page" && node.source) {
+      draft.set(explicitOverrides(node,Object.keys(inputProps),node.kind === "instance" && !owningInstance(draft.document,id,false)));
     }
   }
   if (pivot) for (const { id, point } of pinned) if (point) {

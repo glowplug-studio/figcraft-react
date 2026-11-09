@@ -8,7 +8,7 @@ import { ancestors, HierarchyDraft, subtreeIds } from "./hierarchy";
 import { boundCopy } from "./component-bindings";
 import { assertNoNewComponentCycle, outermostInstance, owningInstance, propertyMains, propertyOwner, setBooleanDefault, slotName } from "./component-tree";
 
-import { type ComponentGroup, copyComponentGroup, withOverrideSet, differentComponentGroups, sameComponentValue } from "./component-groups";
+import { type ComponentGroup, bindingGroup, changedBindingGroups, copyGroupBindings, copyComponentGroup, withOverrideSet, differentComponentGroups, sameComponentValue } from "./component-groups";
 
 /** Legacy documents can predate the explicit mode override group on instance descendants. */
 export function markLoadedModeOverrides(document:Document):Document {
@@ -220,9 +220,16 @@ function recordOverrides(before: Document, after: Document, node: LayerNode, cha
     else differs.add("name");
   }
   const overrides = new Set(componentOverrides(node));
+  const rebound=source && source.kind!=="page" ? changedBindingGroups(source,node) : undefined;
+  const old=before.nodes[node.id];
+  const edits=old && old.kind!=="page" ? changedBindingGroups(old,node) : undefined;
+  const inherited=new Set(Object.entries(node.boundVariables ?? {}).flatMap(([key,value])=>
+    source && source.boundVariables?.[key]===value ? [bindingGroup(key)] : []));
   for (const group of changed) {
     if (top && (group === "modes" || group === "component" || group === "props" || group === "resizing" || group === "position")) continue;
     if ((group === "size" || group === "position") && derivedGeometry(before, after, node, group)) continue;
+    if (edits?.has(group) && rebound?.has(group)) {overrides.add(group);continue;}
+    if (differs?.has(group) && inherited.has(group)) continue;
     if (!differs || differs.has(group)) overrides.add(group);
     else if (group !== "size" && group !== "position") overrides.delete(group);
   }
@@ -256,6 +263,7 @@ function followComponentValues(before: Document, after: Document, changed: reado
     const old = before.nodes[node.id];
     if (old.kind === "page") continue;
     const groups = differentComponentGroups(old, node);
+    for (const group of changedBindingGroups(old,node)) if (!groups.includes(group)) groups.push(group);
     const lost = componentOverrides(old).some(group=>!componentOverrides(node).includes(group));
     if (lost || node.kind === "instance" && (groups.includes("props") || groups.includes("component"))) {
       const root = outermostInstance(after,node.id);
@@ -314,7 +322,11 @@ function followComponentValues(before: Document, after: Document, changed: reado
           const main = [id,...ancestors(targets.document,id)].find(key=>targets.nodes[key].kind === "component");
           if (main) rebuild.add(main);
         }
-        if (source.kind === "component" && (group === "modes" || group === "position" || group === "visible" || group === "resizing")) continue;
+        if (source.kind === "component" && (group === "modes" || group === "position" || group === "visible" || group === "resizing")) {
+          const inherited=copyGroupBindings(source,next,group);
+          if (inherited!==next) {next=inherited;applied.push(group);}
+          continue;
+        }
         if (source.kind === "component" && group === "name") {
           const parent = targets.nodes[source.parent];
           next = {...next, name:parent.kind === "componentSet" ? parent.name : source.name};

@@ -1,3 +1,4 @@
+import { remapBindings } from "./list-variable-bindings";
 import { definitionCommands, editDefinition } from "./property-authoring";
 import { addVariant, combineVariants } from "./variant-authoring";
 import { describeComponentProperties, withInstanceProperties } from "./component-variants";
@@ -75,7 +76,7 @@ function detach(draft: HierarchyDraft, root: InstanceNode) {
       draft.set(withOverrideSet(plain,new Set()));
     }
   }
-  const {source,overrides,component,props,propRefs,...frame} = root;
+  const {source,overrides,component,props,propRefs,...frame} = remapBindings(root,key=>key.startsWith("componentProperties/") ? undefined : key);
   const refs = Object.fromEntries(Object.entries(propRefs ?? {}).filter(([key])=>key !== "mainComponent"));
   const modes={...doc.nodes[root.component]?.variableModes,...root.variableModes};
   draft.set({...frame,...(Object.keys(modes).length>0 && {variableModes:Object.freeze(modes)}),kind:"frame",...(Object.keys(refs).length && {propRefs:Object.freeze(refs)})});
@@ -250,7 +251,10 @@ export function executeInstanceCommand(command: keyof typeof instanceCommandSpec
           const keep = top && child === inst.id && componentOverrides(layer).includes("size") ? ["size"] : [];
           draft.set(withOverrideSet(layer,new Set(keep)));
         }
-        if (top) resetDefaults(draft,inst.id);
+        if (top) {
+          draft.set(remapBindings(draft.nodes[inst.id],key=>key.startsWith("componentProperties/") ? undefined : key));
+          resetDefaults(draft,inst.id);
+        }
         done.push(inst.id);
       }
       if (!done.length) throw new Error("Select an instance");

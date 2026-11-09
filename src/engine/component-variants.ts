@@ -33,7 +33,7 @@ export function variantOptions(doc: Document, set: ComponentSetNode) {
   return result;
 }
 
-function matchingVariant(doc: Document, set: ComponentSetNode, wanted: ReadonlyMap<string,string>) {
+export function matchingVariant(doc: Document, set: ComponentSetNode, wanted: ReadonlyMap<string,string>) {
   let best: NodeId | undefined, bestScore = -1;
   for (const id of set.children) {
     const values = variantProperties(doc.nodes[id].name);

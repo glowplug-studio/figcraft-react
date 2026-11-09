@@ -1,3 +1,4 @@
+import { bindingItem } from "./variable-binding-key";
 import { withStyleRef } from "./shared-styles";
 import { componentOverrides } from "./component-properties";
 import { compareScalarKeys } from "./text-breaks";
@@ -65,6 +66,7 @@ export function differentComponentGroups(a: LayerNode, b: LayerNode): ComponentG
 }
 
 export function copyComponentGroup(from: LayerNode, to: LayerNode, group: ComponentGroup): LayerNode {
+  to=copyGroupBindings(from,to,group);
   switch (group) {
     case "modes": return {...to,variableModes:from.variableModes};
     case "grids": return {...withStyleRef(to, "grid", from.styles?.grid ?? null), grids:from.grids};
@@ -138,7 +140,36 @@ const propertyKeys: Partial<Record<ComponentGroup, string>> = {
   padding:"padding paddingTop paddingRight paddingBottom paddingLeft paddingHorizontal paddingVertical",
   alignment:"mainAlign primaryAxisAlignItems crossAlign counterAxisAlignItems contentAlign counterAxisAlignContent",
 };
-const propertyGroups = new Map(Object.entries(propertyKeys).flatMap(([group, keys]) => keys.split(" ").map(key => [key,group] as const)));
+const propertyGroups = new Map<string,ComponentGroup>(groups.flatMap(group => (propertyKeys[group]?.split(" ") ?? []).map(key=>[key,group] as const)));
+
+export function bindingGroup(key:string):ComponentGroup|undefined {
+  const item=bindingItem(key);
+  if (item) return item.list==="fills" || item.list==="strokes" || item.list==="effects" ? item.list : undefined;
+  if (key.startsWith("componentProperties/") || ["fillStyle","strokeStyle","effectStyle"].includes(key)) return;
+  return propertyGroups.get(key) ?? (/^(font|text|letter|line|paragraph)/.test(key) ? "textStyle" : undefined);
+}
+
+export function changedBindingGroups(a:LayerNode,b:LayerNode) {
+  const result=new Set<ComponentGroup>();
+  if (a.boundVariables!==b.boundVariables) for (const key of new Set([...Object.keys(a.boundVariables ?? {}),...Object.keys(b.boundVariables ?? {})])) {
+    const group=bindingGroup(key);
+    if (group && a.boundVariables?.[key]!==b.boundVariables?.[key]) result.add(group);
+  }
+  return result;
+}
+
+export function copyGroupBindings<T extends LayerNode>(from:LayerNode,to:T,group:ComponentGroup):T {
+  if (from.boundVariables===to.boundVariables) return to;
+  const belongs=(k:string)=>group==="props" ? k.startsWith("componentProperties/") : bindingGroup(k)===group;
+  const remove=Object.keys(to.boundVariables ?? {}).filter(belongs);
+  const add=Object.entries(from.boundVariables ?? {}).filter(([k])=>belongs(k));
+  if (!remove.length && !add.length) return to;
+  const {boundVariables,...rest}=to;
+  const next:Record<string,string>=Object.assign(Object.create(null),boundVariables);
+  for (const k of remove) delete next[k];
+  for (const [k,v] of add) next[k]=v;
+  return {...rest,...(Object.keys(next).length>0 && {boundVariables:Object.freeze(next)})} as T;
+}
 
 export function explicitOverrides(node: LayerNode, keys: readonly string[], ownRoot: boolean): LayerNode {
   const groups = new Set(componentOverrides(node));

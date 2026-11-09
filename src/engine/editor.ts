@@ -1,3 +1,4 @@
+import { bindLayerVariable, forgetLayerVariables, refreshLayerBindings } from "./layer-variable-bindings";
 import { refreshBoundStyles } from "./style-application";
 import { removeLayerMode, setVariableMode } from "./variable-modes";
 import { editVariableMetadata, metadataSpecs } from "./variable-metadata";
@@ -109,6 +110,7 @@ export const commandSpecs = Object.freeze({
   ...collectionSpecs,
   ...valueSpecs,
   ...metadataSpecs,
+  "variable.bind": {label:"Bind variable",undo:true},
   "variable.setMode": {label:"Set variable mode",undo:true},
   ...gridSpecs,
   "style.apply": {label:"Apply style",undo:true},
@@ -795,9 +797,9 @@ export class EditorEngine {
   #prepareEdit(proposed: Document, allocator: bigint) {
     const base = this.#snapshot.document, previous = this.#preparedEdit;
     if (previous?.base === base && previous.proposed === proposed && previous.allocator === allocator) return previous.result;
-    const projected=refreshBoundStyles(proposed,base);
+    const projected=refreshBoundStyles(refreshLayerBindings(proposed,base,false,true),base);
     const components=finishComponentEdit(base,projected,allocator);
-    const result=components.document===projected ? components : {...components,document:refreshBoundStyles(components.document,base)};
+    const result=components.document===projected ? components : {...components,document:refreshBoundStyles(refreshLayerBindings(components.document,base),base)};
     this.#preparedEdit = {base,proposed,allocator,result};
     return result;
   }
@@ -1132,9 +1134,10 @@ export class EditorEngine {
       else if (document !== before) this.#commitEdit({document});
       return result;
     }
-    if (command==="variable.setMode") {
+    if (command==="variable.setMode" || command==="variable.bind") {
       const before=this.#snapshot;
-      const document=setVariableMode(before.document,before.selection,p);
+      const edit=command==="variable.bind" ? bindLayerVariable : setVariableMode;
+      const document=edit(before.document,before.selection,p);
       this.#commitEdit({document});
       return {ok:true};
     }
@@ -1143,8 +1146,9 @@ export class EditorEngine {
       const next=Object.hasOwn(collectionSpecs,command) ? editCollection(data,command,p) :
         Object.hasOwn(metadataSpecs,command) ? editVariableMetadata(data,command,p) : editVariableValue(data,command,p);
       if (next.data!==data) {
-        const kept=command==="variable.deleteCollection" || command==="variable.removeMode"
+        let kept=command==="variable.deleteCollection" || command==="variable.removeMode"
           ? removeLayerMode(before,data,p,command==="variable.deleteCollection") : before;
+        if (command==="variable.delete" || command==="variable.deleteCollection") kept=forgetLayerVariables(kept,data,next.data);
         const {variables:old,...rest}=kept;
         this.#commitEdit({document:Object.freeze({...rest,...(next.data!==emptyVariables && {variables:next.data})})});
       }
@@ -1376,7 +1380,7 @@ export class EditorEngine {
       decoded = { document: opened.document, nextId: String(opened.nextId) };
     } else decoded = await decodeFigcraft(source?.file ?? fileData(p.data, MAX_UNPACKED_BYTES));
     if (!raster) {
-      decoded={...decoded,document:refreshBoundStyles(markLoadedModeOverrides(decoded.document))};
+      decoded={...decoded,document:refreshBoundStyles(markLoadedModeOverrides(refreshLayerBindings(decoded.document,undefined,true)))};
       await prepareDocumentText(decoded.document);
     }
     checkCurrent();

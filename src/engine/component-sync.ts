@@ -1,3 +1,4 @@
+import { copyGroupBindings } from "./component-groups";
 import { type ComponentNode, type Document, type InstanceNode, isLeaf, type LayerNode, layerTransform, type NodeId, withLayerTransform } from "./document";
 import { ancestors, HierarchyDraft, subtreeIds } from "./hierarchy";
 import { componentOverrides } from "./component-properties";
@@ -76,7 +77,7 @@ function refreshRoot(doc: Document, main: ComponentNode, placed: InstanceNode): 
     visible:placed.visible, locked:placed.locked, isMask:placed.isMask, exposed:placed.exposed,
     constrainProportions:placed.constrainProportions, boolOp:placed.boolOp,
     overrides:own}, layerTransform(placed));
-  let node: LayerNode = actual;
+  let node: LayerNode = copyGroupBindings(placed,actual,"props");
   for (const group of own ?? []) {
     if (isComponentGroup(group) && group !== "position") node = copyComponentGroup(placed,node,group);
   }

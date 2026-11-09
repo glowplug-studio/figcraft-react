@@ -1,3 +1,4 @@
+import { editPaintBindings } from "./list-variable-bindings";
 import type { Document, NodeId } from "./document";
 import { fromRgba8 } from "./colour";
 import { paintStackEdit } from "./paint-stack";
@@ -39,7 +40,9 @@ export function executeStrokeList(command: string, document: Document, selection
   for (const id of ids) {
     const node = draft.nodes[id]; if (node.kind === "page") throw new Error("Cannot stroke a page");
     const before = node.strokes ?? [], strokes = apply(before, black);
-    if (!samePaints(strokes, before)) draft.set({ ...node, strokes: Object.freeze(strokes) });
+    const updated=editPaintBindings(node,"strokes",action,params,before,strokes);
+    if (!samePaints(before,strokes)) draft.set({ ...updated, strokes: Object.freeze(strokes) });
+    else if (updated!==node) draft.set(updated);
   }
   return draft.finish();
 }

@@ -1,3 +1,4 @@
+import { editPaintBindings } from "./list-variable-bindings";
 import type { CopiedPaint } from "./paint-clipboard";
 import { arrangementTargets } from "./arrange";
 import { fromRgba8 } from "./colour";
@@ -93,7 +94,9 @@ export function writeFill(command: WriteCommand, document: Document, selection: 
       }
     } else {
       const fills = apply(inherited, isFrameLike(node) && action === "add" ? white : grey);
-      if (!samePaints(inherited, fills)) draft.set(withRectanglePaints(node, fills));
+      const updated=editPaintBindings(node,"fills",action,params,inherited,fills);
+      if (!samePaints(inherited,fills)) draft.set(withRectanglePaints(updated, fills));
+      else if (updated!==node) draft.set(updated);
     }
   }
   return draft.finish();

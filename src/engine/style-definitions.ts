@@ -1,5 +1,5 @@
 import type { DocumentNode } from "./document";
-import { readEffects } from "./effects";
+import { readEffects, type Effect } from "./effects";
 import { parseNumber, propertyEnum } from "./parameters";
 import { readGrids, readParagraph, type SharedStyle, type StyleSlot } from "./shared-styles";
 import { readPaints } from "./solid-paint";
@@ -81,14 +81,17 @@ export function styleBindingType(style: SharedStyle, key: string): "color" | "nu
     if (paint?.type === "solid" && field === "color" || paint?.type === "gradient" && stop && paint.stops[Number(stop[1])]) return "color";
   }
   if (style.type === "effect" && list === "effects") {
-    const effect = style.effects[i];
-    switch (effect?.type) {
-      case "dropShadow": case "innerShadow":
-        if (field === "color") return "color";
-        if (["radius","spread","offsetX","offsetY"].includes(field)) return "number";
-        break;
-      case "layerBlur": case "backgroundBlur": if (field === "radius" || field === "startRadius") return "number"; break;
-      case "glass": if (["lightAngle","lightIntensity","refraction","depth","dispersion","radius","splay"].includes(field)) return "number";
-    }
+    return effectBindingType(style.effects[i],field);
+  }
+}
+
+export function effectBindingType(effect:Effect|undefined,field:string) {
+  switch (effect?.type) {
+    case "dropShadow": case "innerShadow":
+      if (field === "color") return "color";
+      if (["radius","spread","offsetX","offsetY"].includes(field)) return "number";
+      break;
+    case "layerBlur": case "backgroundBlur": if (field === "radius" || field === "startRadius") return "number"; break;
+    case "glass": if (["lightAngle","lightIntensity","refraction","depth","dispersion","radius","splay"].includes(field)) return "number";
   }
 }

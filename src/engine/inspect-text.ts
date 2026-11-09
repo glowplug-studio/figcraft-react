@@ -6,11 +6,15 @@ import { scalarToUtf16, textSpans } from "./text-ranges";
 import { wireTextStyle, type TextStyle } from "./text-style";
 
 /** Native trim_num rounds to hundredths and formats large values without exponential notation. */
+export function trimNumber(value:number) {
+  return Math.abs(value) >= 9e18 ? value.toLocaleString("en-US",{useGrouping:false,maximumFractionDigits:0})
+    : String(pixelRound(value*100)/100);
+}
+
 function spacingLabel(length: TextStyle["lineHeight"]) {
   if (length.unit === "auto") return "Auto";
   const {value} = length;
-  const n = Math.abs(value) >= 9e18 ? value.toLocaleString("en-US",{useGrouping:false,maximumFractionDigits:0})
-    : String(pixelRound(value*100)/100);
+  const n = trimNumber(value);
   return length.unit === "percent" ? n+"%" : n;
 }
 
