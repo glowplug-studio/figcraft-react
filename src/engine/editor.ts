@@ -1,3 +1,4 @@
+import { setGridTrack } from "./grid-track-command";
 import { editTextSpecs, executeTextEdit, isTextEditCommand, type EditSelection } from "./text-edit-commands";
 import { executeTextFormat, isTextFormatCommand, textFormatSpecs } from "./text-format-commands";
 import { sameTextData, scalarCount } from "./text-ranges";
@@ -77,6 +78,7 @@ export const commandSpecs = Object.freeze({
   ...fillSpecs,
   ...arrangeSpecs,
   ...sizingSpecs,
+  "layout.setTrack": {label: "Set grid track size", undo: true},
   ...rotationSpecs,
   ...originSpecs,
   ...smartSpecs,
@@ -265,6 +267,7 @@ export class EditorEngine {
     owner.selection = Object.freeze([node.id]);
     if (creating) {
       owner.document = pathDocument ?? publishTextNode(before,node);
+      node = owner.document.nodes[node.id] as TextNode;
       owner.nextId = this.#nextId < 18446744073709551615n ? this.#nextId + 1n : this.#nextId;
     }
     const token=Symbol();
@@ -323,7 +326,8 @@ export class EditorEngine {
         const at=this.#textRange!.caret;
         if (text) {
           const rendered=editTextRange(node,at,at,text);
-          composed={node:rendered,document:publishTextNode(owner.document,rendered),start:at,end:at+count,cursor:at+localCursor};
+          const preview = publishTextNode(owner.document, rendered);
+          composed={node:preview.nodes[node.id] as TextNode,document:preview,start:at,end:at+count,cursor:at+localCursor};
           preedit={text,cursor:localCursor};
         } else {composed=undefined;preedit=null;}
         this.#notifyCanvas();
@@ -357,7 +361,7 @@ export class EditorEngine {
         const edited = editTextRange(node, from, to, insertion);
         if (edited === node) return;
         owner.document = publishTextNode(owner.document, edited);
-        node = edited;
+        node = owner.document.nodes[edited.id] as TextNode;
         select(this.#textRange?.anchor ?? 0, this.#textRange?.caret ?? 0);
       },
       finish: () => {
@@ -878,9 +882,9 @@ export class EditorEngine {
       const { editing, moved, point } = this.#originSnapshot;
       return { editing, moved, x: point?.x ?? 0, y: point?.y ?? 0 };
     }
-    if (Object.hasOwn(arrangeSpecs, command) || Object.hasOwn(sizingSpecs, command) || Object.hasOwn(rotationSpecs, command)) {
+    if (command === "layout.setTrack" || Object.hasOwn(arrangeSpecs, command) || Object.hasOwn(sizingSpecs, command) || Object.hasOwn(rotationSpecs, command)) {
       const before = this.#snapshot;
-      const document = Object.hasOwn(rotationSpecs, command)
+      const document = command === "layout.setTrack" ? setGridTrack(before.document, before.selection, p) : Object.hasOwn(rotationSpecs, command)
         ? executeRotation(command, before.document, before.selection, p, movedOrigin(before.document, before.selection, this.#origin), this.#vectorEdit)
         : (Object.hasOwn(sizingSpecs, command) ? executeSizing : executeArrange)(command, before.document, before.selection, p);
       if (document !== before.document) {

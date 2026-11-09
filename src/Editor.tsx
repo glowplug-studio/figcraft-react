@@ -15,6 +15,7 @@ import { SizePanel } from "./SizePanel";
 import { RotationPanel } from "./RotationPanel";
 import { SmartSelectionPanel } from "./SmartSelectionPanel";
 import { framePresets } from "./engine/frame-presets";
+import { GridTrackPanel } from "./GridTrackPanel";
 import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type FormEvent, type KeyboardEvent } from "react";
 import type { DocumentCapability } from "./backends/access";
 import type { IdentityAdapter } from "./backends/identity";
@@ -537,6 +538,8 @@ export function Editor({ identity, capabilities, engine: suppliedEngine, recover
               {["top", "bottom", "topBottom", "center", "scale"].map(value => <option key={value} value={value}>{({ top: "Top", bottom: "Bottom", topBottom: "Top and bottom", center: "Centre", scale: "Scale" })[value]}</option>)}
             </select></label><button type="submit">Apply constraints</button>
           </fieldset></form></section>}
+          {!editingVector && snapshot.selection.length === 1 && selected?.kind === "frame" && selected.layout?.mode === "grid" &&
+            <GridTrackPanel document={snapshot.document} frame={selected} enabled={editable && !busy} dispatch={dispatch}/>}
           {!editingVector && <><ArrangePanel document={snapshot.document} selection={snapshot.selection} editable={editable && !busy} dispatch={dispatch} />
           <SmartSelectionPanel engine={engine} enabled={editable && !busy} dispatch={dispatch} onError={setError} />
           {snapshot.tool === "scale" ? <ScalePanel engine={engine} enabled={editable && !busy} dispatch={dispatch} onError={setError} /> : <SizePanel enabled={editable && !busy && snapshot.selection.length > 0} dispatch={dispatch} />}

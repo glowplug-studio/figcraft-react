@@ -1,3 +1,4 @@
+import { reflowChangedFrames } from "./layout-reflow";
 import { isGroupLike } from "./document";
 import { isLeaf } from "./document";
 import { identity, inverse, multiply, transformBounds, type Affine } from "./affine";
@@ -238,6 +239,7 @@ export class HierarchyDraft {
   }
 
   finish(): Document {
+    if (this.#changed && !Object.isFrozen(this.nodes)) reflowChangedFrames(this);
     return this.#changed ? Object.freeze({ ...this.originalDocument, nodes: Object.freeze(this.nodes) }) : this.originalDocument;
   }
 }

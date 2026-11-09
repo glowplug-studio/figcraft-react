@@ -4761,6 +4761,14 @@ test("native frame layout survives opening, recovery and a browser download", as
   await expect(page.getByText("Recovery saved on this device", {exact: true})).toBeVisible();
   await page.reload();
   await expect(page.getByRole("heading", {name: "Native grid", exact: true})).toBeVisible();
+  await page.getByRole("region", {name: "Layers"}).getByRole("button", {name: "Rectangle", exact: true}).click();
+  const first = page.getByRole("spinbutton", {name: "Column 1 size", exact: true});
+  await expect(first).toHaveValue("24");
+  await first.fill("48"); await first.press("Enter");
+  await expect(first).toHaveValue("48");
+  await page.getByRole("button", {name: "Undo", exact: true}).click();
+  await expect(first).toHaveValue("24");
+  await first.fill("36"); await first.press("Enter");
   const downloading = page.waitForEvent("download");
   await page.getByRole("button", {name: "Save as", exact: true}).click();
   const saved = await decodeFigcraft(await readFile((await (await downloading).path())!));
@@ -4768,6 +4776,6 @@ test("native frame layout survives opening, recovery and a browser download", as
     childLayout: {minWidth: 12, gridColumn: 0, gridRowSpan: 2, gridAlignV: "center"}});
   expect(saved.document.nodes["2"]).toMatchObject({kind: "frame", layout: {
     mode: "grid", gridColumns: 3, rowTracks: [{sizing: "hug", value: 0}],
-    columnTracks: native.nodes["2"].layout.column_tracks, padding: [4, 8, 12, 16], crossGap: 7, reverseZ: true,
+    columnTracks: [{sizing: "fixed", value: 36}, {sizing: "fill", value: 2}], padding: [4, 8, 12, 16], crossGap: 7, reverseZ: true,
   }});
 });

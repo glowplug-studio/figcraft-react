@@ -91,6 +91,13 @@ function measure(text: TextData, box: { width?: number; height?: number }) {
   return layoutTextFlow(text, fonts, box, preparedWordStarts(text.characters));
 }
 
+/** The native layout measurer asks separately for natural size and height at a given width. */
+export function measureLayoutText(node: TextNode, width?: number) {
+  const autoResize = width === undefined ? "widthAndHeight" : node.text.autoResize === "widthAndHeight" ? "height" : node.text.autoResize;
+  const layout = measure({...node.text, autoResize}, {width});
+  return {width: Math.max(1, Math.ceil(layout.width)), height: Math.max(1, layout.height)};
+}
+
 export function autoSizeText(node: TextNode): TextNode {
   const {text, textSizing} = node;
   const h = textSizing?.horizontal ?? "fixed", v = textSizing?.vertical ?? "fixed";
