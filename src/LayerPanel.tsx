@@ -1,3 +1,4 @@
+import { canAddVariant, combineRefusal } from "./engine/variant-authoring";
 import { LayerList } from "./LayerList";
 import { isGroupLike, isLeaf } from "./engine/document";
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
@@ -89,6 +90,10 @@ export function LayerPanel({ document, selection, editable, dispatch }: LayerPan
       <button type="button" disabled={!editable || !parent || parent.kind === "page"} onClick={() => dispatch("select.parent")}>Select parent</button>
       {selection.length === 1 && ["component","componentSet"].includes(document.nodes[selection[0]]?.kind) &&
         <button type="button" disabled={!editable} onClick={() => dispatch("instance.create",{component:selection[0]})}>Create instance</button>}
+      {selection.length>1 && !combineRefusal(document,selection) &&
+        <button type="button" disabled={!editable} onClick={()=>dispatch("component.combineVariants")}>Combine as variants</button>}
+      {selection.length===1 && canAddVariant(document,selection[0]) &&
+        <button type="button" disabled={!editable} onClick={()=>dispatch("component.addVariant")}>Add variant</button>}
       <button type="button" disabled={!editable || !selection.length} onClick={() => dispatch("component.create")}>Create component</button>
       <button type="button" disabled={!editable || !selection.length} onClick={() => dispatch("component.createMultiple")}>Create multiple components</button>
       <button type="button" disabled={!editable || selection.length === 0} onClick={() => dispatch("object.frameSelection", { ids: selection })}>Frame selection</button>

@@ -5344,3 +5344,49 @@ test("bound instance properties and editable slots survive recovery and native d
   expect(slot.children).toHaveLength(1);
   expect(document.nodes[slot.children[0]]).toMatchObject({kind:"instance",component:"5"});
 });
+
+test("adding variants wraps a standalone main and preserves declared choices after reload",async ({page})=>{
+  await login(page);
+  const buffer=await readFile(new URL("../fixtures/native-component-instance.json",import.meta.url));
+  await page.getByLabel("Open Figcraft file",{exact:true}).setInputFiles({name:"variants.figcraft",mimeType:"application/octet-stream",buffer});
+  const layers=page.getByRole("region",{name:"Layers",exact:true});
+  const select=(id:number,name:string)=>layers.locator('[data-layer-id="'+id+'"]').getByRole("button",{name,exact:true}).click();
+  await select(2,"Card");
+  await layers.getByRole("button",{name:"Add variant",exact:true}).click();
+  await expect(page.getByLabel("Name",{exact:true})).toHaveValue("Property 1=Variant2");
+  await layers.getByRole("button",{name:"Add variant",exact:true}).click();
+  await expect(page.getByLabel("Name",{exact:true})).toHaveValue("Property 1=Variant3");
+  await page.getByRole("button",{name:"Undo",exact:true}).click();
+  await select(4,"Card");
+  const choice=page.getByRole("combobox",{name:"Variant Property 1",exact:true});
+  await choice.selectOption("Variant2");
+  await expect(page.locator(".figcraft-recovery")).toHaveText("Recovery saved on this device");
+  await page.reload();
+  await select(4,"Card");
+  await expect(choice).toHaveValue("Variant2");
+  const saving=page.waitForEvent("download");
+  await page.getByRole("button",{name:"Save as",exact:true}).click();
+  const {document}=await decodeFigcraft(await readFile((await (await saving).path())!));
+  expect(document.nodes[6]).toMatchObject({kind:"componentSet",name:"Card",children:["2","7"]});
+  expect(document.nodes[4]).toMatchObject({kind:"instance",component:"7"});
+});
+
+test("combining selected mains as variants retains the linked instance and undoes in one step",async ({page})=>{
+  await login(page);
+  const buffer=await readFile(new URL("../fixtures/native-component-typed.json",import.meta.url));
+  await page.getByLabel("Open Figcraft file",{exact:true}).setInputFiles({name:"choices.figcraft",mimeType:"application/octet-stream",buffer});
+  const layers=page.getByRole("region",{name:"Layers",exact:true});
+  const row=(id:number,name:string)=>layers.locator('[data-layer-id="'+id+'"]').getByRole("button",{name,exact:true});
+  await row(2,"Card").click();
+  await row(5,"Icon").click({modifiers:["Shift"]});
+  await layers.getByRole("button",{name:"Combine as variants",exact:true}).click();
+  await expect(row(11,"Card")).toBeVisible();
+  await expect(row(2,"Property 1=Default")).toBeVisible();
+  await expect(row(5,"Property 1=Variant2")).toBeVisible();
+  await row(7,"Card").click();
+  await expect(page.getByRole("combobox",{name:"Variant Property 1",exact:true})).toHaveValue("Default");
+  await page.getByRole("button",{name:"Undo",exact:true}).click();
+  await expect(row(11,"Card")).toHaveCount(0);
+  await expect(row(2,"Card")).toBeVisible();
+  await expect(row(5,"Icon")).toBeVisible();
+});

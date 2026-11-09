@@ -1,4 +1,4 @@
-import { adoptSlot, rebuildAffectedInstances, rebuildInstance } from "./component-sync";
+import { adoptSlot, rebuildAffectedInstances, rebuildInstance, rebaseOwnedInstance } from "./component-sync";
 import { componentOverrides } from "./component-properties";
 import { autoSizeText } from "./text-node-layout";
 import { defaultConstraints, isFrameLike, isLeaf, layerTransform, type Document, type LayerNode, type NodeId } from "./document";
@@ -56,14 +56,54 @@ function forbiddenOverride(before: Document, after: Document, a: LayerNode, b: L
   if (diverged(placing)) return "A layer's place in auto layout";
 }
 
+function relinkNewCopies(doc: Document, ids: readonly NodeId[]) {
+  let draft: HierarchyDraft | undefined;
+  for (const id of ids) {
+    const current = draft?.document ?? doc, node = current.nodes[id];
+    if (!node || node.kind === "page" || owningInstance(current,id,false)) continue;
+    if (node.kind === "instance") {
+      const main = current.nodes[node.component];
+      if (main?.kind !== "component") continue;
+      if (node.source !== main.id || !matchesInstanceStructure(current,node.id,main.id)) {
+        rebaseOwnedInstance(draft ??= new HierarchyDraft(doc),node,main);
+      }
+    } else if (node.source || componentOverrides(node).length) {
+      const {source,...layer} = node;
+      (draft ??= new HierarchyDraft(doc)).set(withOverrideSet(layer,new Set()));
+    }
+  }
+  return draft?.finish() ?? doc;
+}
+
+function matchesInstanceStructure(doc: Document, root: NodeId, main: NodeId) {
+  const pairs: [NodeId,NodeId,number][] = [[root,main,0]];
+  while (pairs.length) {
+    const [copyId,sourceId,depth] = pairs.pop()!;
+    const copy = doc.nodes[copyId], source = doc.nodes[sourceId];
+    if (!copy || !source || depth>16 || copy.overrides?.includes("slot")) continue;
+    const children = isLeaf(copy) ? [] : copy.children, originals = isLeaf(source) ? [] : source.children;
+    if (children.length !== originals.length) return false;
+    for (let i=0; i<children.length; i++) {
+      const child = doc.nodes[children[i]], placed = doc.nodes[originals[i]];
+      if (child.source !== placed.id) return false;
+      const swapped = child.kind === "instance" && placed.kind === "instance" && child.component !== placed.component;
+      pairs.push([child.id,swapped ? child.component : placed.id,depth+1]);
+    }
+  }
+  return true;
+}
+
 /** Validate the whole edit before the session records history, consumes ids or publishes a selection. */
 export function finishComponentEdit(before: Document, after: Document, nextId: bigint) {
   if (before.nodes === after.nodes) return {document:after,nextId};
   let hasInstance = false;
+  const copies: NodeId[] = [];
   for (const id in after.nodes) {
-    if (after.nodes[id].kind === "instance") { hasInstance = true; break; }
+    const node = after.nodes[id];
+    if (node.kind === "instance") hasInstance = true;
+    if (!before.nodes[id] && node.kind !== "page" && (node.kind === "instance" || node.source || componentOverrides(node).length)) copies.push(id);
   }
-  if (!hasInstance) return {document:after,nextId};
+  if (!hasInstance) return {document:relinkNewCopies(after,copies),nextId};
   const changed: LayerNode[] = [];
   const slots = new Set<NodeId>();
   const rebuild = new Set<NodeId>();
@@ -128,7 +168,7 @@ export function finishComponentEdit(before: Document, after: Document, nextId: b
     for (const slot of slots) adoptSlot(adoption,slot);
     after = adoption.finish();
   }
-  return followComponentValues(before, after, changed, rebuild, structures, nextId);
+  return followComponentValues(before, relinkNewCopies(after,copies), changed, rebuild, structures, nextId);
 }
 
 function recordOverrides(before: Document, after: Document, node: LayerNode, changed: readonly ComponentGroup[]) {

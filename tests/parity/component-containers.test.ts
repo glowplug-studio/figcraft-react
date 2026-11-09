@@ -411,3 +411,37 @@ it("builds a bound nested swap through its placing main before matching descenda
   e.execute("instance.setProperties",{id:12,properties:{Type:2}});
   expect(e.getSnapshot().document.nodes[13]).toMatchObject({component:"2"});
 });
+
+it("combines mains in stacking order, preserves world placement and appends a distinct variant below the set",async () => {
+  const e=new EditorEngine();
+  e.execute("node.create",{type:"component",name:"Button/Off",x:20,y:30,width:120,height:80});
+  e.execute("node.create",{type:"rectangle",parent:2,name:"Icon"});
+  e.execute("node.create",{type:"component",name:"Button/On",x:220,y:50,width:160,height:70});
+  expect(e.execute("component.combineVariants",{ids:[4,2,2]})).toEqual({id:"5"});
+  const nodes=e.getSnapshot().document.nodes;
+  expect(nodes[5]).toMatchObject({kind:"componentSet",name:"Button",children:["2","4"],x:0,y:10,width:400,height:130});
+  expect(nodes[2]).toMatchObject({name:"Property 1=Default",parent:"5",x:20,y:20});
+  expect(nodes[4]).toMatchObject({name:"Property 1=Variant2",parent:"5",x:220,y:40});
+  expect(e.execute("component.addVariant",{id:2,property:"Property 1",value:"Hover"})).toEqual({id:"6"});
+  expect(e.getSnapshot().document.nodes[6]).toMatchObject({kind:"component",name:"Property 1=Hover",children:["7"],x:20,y:130});
+  expect(e.getSnapshot().document.nodes[5]).toMatchObject({children:["2","4","6"],height:230});
+  const before=e.getSnapshot(), depth=e.getUndoDepth();
+  expect(()=>e.execute("component.addVariant",{id:5,property:"Property 1",value:"Hover"})).toThrow(/already exists/);
+  expect(()=>e.execute("component.combineVariants",{ids:[2,4]})).toThrow(/variants already/);
+  expect(e.getSnapshot()).toBe(before);
+  expect(e.getUndoDepth()).toBe(depth);
+  const reopened=await open(await encodeFigcraft(before.document));
+  expect(reopened.execute("component.properties",{id:5})).toEqual({component:2,set:5,conflicts:[],
+    properties:[{name:"Property 1",type:"variant",default:"Default",options:["Default","Variant2","Hover"]}]});
+});
+
+it("clears a newly created main text layer's transient override and keeps subsequent character edits",async () => {
+  const e=new EditorEngine();
+  e.execute("node.create",{type:"component",name:"Tag"});
+  await e.executeAsync("node.create",{parent:2,type:"text",props:{characters:"First"}});
+  expect(e.getSnapshot().document.nodes[3]).not.toHaveProperty("charactersOverridden");
+  e.execute("node.set",{id:3,props:{characters:"Later"}});
+  expect(e.getSnapshot().document.nodes[3]).toMatchObject({charactersOverridden:true});
+  e.execute("component.addVariant",{id:2});
+  expect(e.getSnapshot().document.nodes[6]).not.toHaveProperty("charactersOverridden");
+});

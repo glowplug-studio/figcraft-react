@@ -55,11 +55,11 @@ export function copyLayers(draft: HierarchyDraft, sources: readonly NodeId[], ne
     const parent = draft.nodes[source.parent];
     if (isLeaf(parent)) throw new Error("Invalid layer parent");
     const index = parent.children.indexOf(sourceId) + 1;
-    const subtree = subtreeIds(document, sourceId);
     if (source.kind === "component" && parent.kind !== "componentSet") {
       const instance = insertInstance(draft, source, parent.id, layerTransform(source), allocator, index);
       allocator = instance.nextId;
       copies.push(instance.id);
+      const subtree = subtreeIds(document,sourceId);
       const mirrored = subtreeIds(draft.document, instance.id);
       map[sourceId] = instance.id;
       if (subtree.length === mirrored.length) {
@@ -67,26 +67,32 @@ export function copyLayers(draft: HierarchyDraft, sources: readonly NodeId[], ne
       }
       continue;
     }
-    const localMap = new Map<NodeId,NodeId>();
-    for (const oldId of subtree) {
-      const node = document.nodes[oldId];
-      if (node.kind === "page") throw new Error("A page cannot be a layer child");
-      const allocated = draft.allocateId(allocator); allocator = allocated.nextId;
-      const id = allocated.id, parentId = oldId === sourceId ? node.parent : map[node.parent];
-      if (!parentId) throw new Error("Invalid subtree parent");
-      map[oldId] = id;
-      localMap.set(oldId,id);
-      draft.insert(isLeaf(node) ? { ...node, id } : { ...node, id, children: Object.freeze([]) }, parentId, oldId === sourceId ? index : undefined);
-    }
-    for (const id of localMap.values()) {
-      const node = draft.nodes[id];
-      if (node.kind === "page") continue;
-      const copy = remapPatternSources(node, source => localMap.get(source));
-      if (copy !== node) draft.set(copy);
-    }
-    const copyId = map[sourceId];
-    copies.push(copyId);
+    const copy = duplicateInto(draft,sourceId,parent.id,allocator,index);
+    allocator = copy.nextId;
+    for (const [source,child] of copy.map) map[source] = child;
+    copies.push(copy.id);
   }
   const duplicated: Duplicated = Object.freeze({ sources: Object.freeze([...sources]), copies: Object.freeze(copies) });
   return { duplicated, nextId: allocator, map: Object.freeze(map) };
+}
+
+export function duplicateInto(draft: HierarchyDraft, sourceId: NodeId, parent: NodeId, nextId: bigint, index?: number) {
+  const document = draft.document, map = new Map<NodeId,NodeId>();
+  for (const oldId of subtreeIds(document,sourceId)) {
+    const node = document.nodes[oldId];
+    if (node.kind === "page") throw new Error("A page cannot be a layer child");
+    const allocated = draft.allocateId(nextId);
+    nextId = allocated.nextId;
+    map.set(oldId,allocated.id);
+    const root = oldId === sourceId;
+    draft.insert({...node,id:allocated.id,...(!isLeaf(node) && {children:Object.freeze([])})},
+      root ? parent : map.get(node.parent)!,root ? index : undefined);
+  }
+  for (const id of map.values()) {
+    const node = draft.nodes[id];
+    if (node.kind === "page") continue;
+    const copy = remapPatternSources(node,source=>map.get(source));
+    if (copy !== node) draft.set(copy);
+  }
+  return {id:map.get(sourceId)!,map,nextId};
 }

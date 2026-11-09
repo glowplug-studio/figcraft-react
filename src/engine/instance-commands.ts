@@ -1,3 +1,4 @@
+import { addVariant, combineVariants } from "./variant-authoring";
 import { describeComponentProperties, withInstanceProperties } from "./component-variants";
 import { assertCanInstantiate, canExposeInstance, componentSlots, defaultMain, exposedCopies, outermostInstance, owningInstance, propertyNodeId, slotName } from "./component-tree";
 import { componentOverrides, newComponentKind, type ComponentProperty } from "./component-properties";
@@ -11,6 +12,8 @@ import { inspectedId, parseBoolean, parseNodeId, parseString } from "./parameter
 import { remapPatternSources } from "./pattern-sources";
 
 export const instanceCommandSpecs = {
+  "component.combineVariants": {label:"Combine as variants",undo:true},
+  "component.addVariant": {label:"Add variant",undo:true},
   "component.goToMain": {label:"Go to main component",undo:false},
   "component.detach": {label:"Detach instance",undo:true},
   "component.resetInstance": {label:"Reset all changes",undo:true},
@@ -148,13 +151,21 @@ function resolveSlot(doc: Document, id: NodeId, name?: string): NodeId {
 }
 
 export function executeInstanceCommand(command: keyof typeof instanceCommandSpecs, document: Document, selection: readonly NodeId[], nextId: bigint, params: Record<string,unknown>) {
-  const multiple = command === "component.detach" || command === "component.resetInstance" || command === "instance.swap" || command === "instance.setProperties";
+  const multiple = command === "component.combineVariants" || command === "component.detach" || command === "component.resetInstance" || command === "instance.swap" || command === "instance.setProperties";
   const ids = requestedIds(selection,params,multiple);
   if (!ids.length) throw new Error(command === "component.properties" ? "Select a component or instance" : "Select an instance");
   if (multiple) for (const id of ids) if (!document.nodes[id]) throw new Error("No node "+id);
   const first = ids[0], draft = new HierarchyDraft(document);
   let selected = selection, result: Record<string,unknown> = {};
   switch (command) {
+    case "component.combineVariants":
+    case "component.addVariant": {
+      const added = command === "component.combineVariants" ? combineVariants(draft,ids,nextId) : addVariant(draft,first,nextId,params);
+      nextId = added.nextId;
+      selected = Object.freeze([added.id]);
+      result = {id:added.id};
+      break;
+    }
     case "instance.exposed":
       result = {instances:exposedCopies(document,first).map(node=>({id:inspectedId(node.id),name:node.name}))};
       break;
