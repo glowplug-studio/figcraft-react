@@ -394,3 +394,5 @@ Native breaks::word_breaks and the wasm32 segmenter map to textWordStarts and la
 Native shape_segment uses HarfRust 0.13.3. ShapingFace now uses matching HarfBuzz 14.3.1 fallback shaping and Unicode 17 properties. The 19 previously failing mixed-script cases passed alongside the additional 10,000 layouts. [Shaper evidence](../planning/26-11-09-rich-text.md#shaping-fallback-and-unicode-tables).
 
 Native Face::outline_at, FlipPen and Glyph::layer_path map to ShapingFace.outline, fontOutlinePath and glyphPath. The independent FreeType reader shares the shaper’s font buffer and uses the normalised axis location. [Outline and browser evidence](../planning/26-11-09-rich-text.md#browser-glyph-outlines).
+
+Native OnPath::new, frame, place and TextLayout::warp_point map to TextOnPath, layoutTextFlow and textWarpPoint. The shared path sampler retains quadratic segments and uses the upstream measurement bounds. [Text path fixtures and comparison](../planning/26-11-09-rich-text.md#text-on-a-path).

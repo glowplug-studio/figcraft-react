@@ -36,8 +36,13 @@ export function widthProfilePixels(canvas: HTMLCanvasElement) {
   const culled = pixel(90, 2);
   const node = wedge.getSnapshot().document.nodes[wedge.getSnapshot().selection[0]] as LayerNode;
   const extremeReach = strokeReach({ ...node, stroke: { ...node.stroke!, widthProfile: { points: [{ t: 0, scale: 1e308, bias: 1e308 }] } } });
-  // Measure refusal falls back to the bounded uniform line rather than dropping the stroke.
+  // The native measurement ceiling accepts an eye profile on the largest supported line.
   wedge.execute("node.set", { props: { width: 1e9, strokeWeight: 10, widthProfile: "eye" } }); paint(wedge);
+  const maxWidthTaper = pixel(80, 42);
+  // Exercise measure refusal separately using an out-of-range document supplied to the renderer.
+  const doc=wedge.getSnapshot().document, page=doc.nodes[doc.currentPage];
+  renderDocument(context,{...doc,nodes:{...doc.nodes,[page.id]:{...page,background:"#ffffff"},
+    [node.id]:{...doc.nodes[node.id],width:1.5e9+1}}} as Document,240,200);
   const fallback = pixel(80, 42);
-  return { taper, sided, dash, dots, styles, ring, alpha, sides, culled, extremeReach, fallback };
+  return { taper, sided, dash, dots, styles, ring, alpha, sides, culled, extremeReach, maxWidthTaper, fallback };
 }

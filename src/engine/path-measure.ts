@@ -1,19 +1,13 @@
-import type { PathCommand } from "./corners";
+import { flattenCurve, type CurveElement } from "./curve-flatten";
 import type { Point } from "./geometry";
 
 export const PATH_FLATTEN_TOLERANCE = .05, MAX_PATH_SAMPLES = 40_000;
 export interface MeasuredPolyline { readonly points: readonly Point[]; readonly lengths: readonly number[]; readonly closed: boolean }
 export const polylineLength = (line: MeasuredPolyline): number => line.lengths.at(-1) ?? 0;
 const lerp = (a: Point, b: Point, t: number): Point => ({ x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t });
-function chordDistance(p: Point, a: Point, b: Point): number {
-  const x = b.x - a.x, y = b.y - a.y, d = x * x + y * y;
-  const t = d > 0 ? Math.max(0, Math.min(1, ((p.x - a.x) * x + (p.y - a.y) * y) / d)) : 0;
-  return Math.hypot(p.x - a.x - x * t, p.y - a.y - y * t);
-}
-/** Independent bounded adaptive flattening; native measure.rs uses Kurbo at the same tolerance. */
-export function measurePath(path: readonly PathCommand[], limit = MAX_PATH_SAMPLES, tolerance = PATH_FLATTEN_TOLERANCE): readonly MeasuredPolyline[] | undefined {
+export function measurePath(path: readonly CurveElement[], limit = MAX_PATH_SAMPLES, tolerance = PATH_FLATTEN_TOLERANCE): readonly MeasuredPolyline[] | undefined {
   if (!(Number.isFinite(tolerance) && tolerance > 0)) return undefined;
-  if (path.length > limit || path.some(c => c.slice(1).some(n => typeof n !== "number" || !Number.isFinite(n) || Math.abs(n) >= 1e9))) return undefined;
+  if (path.length > limit || path.some(c => c.slice(1).some(n => typeof n !== "number" || !Number.isFinite(n) || Math.abs(n) > 1.5e9))) return undefined;
   const out: MeasuredPolyline[] = []; let points: Point[] = [], lengths: number[] = [], count = 0, closed = false;
   let start: Point = { x: 0, y: 0 }, pen = start;
   const push = (p: Point) => {
@@ -21,26 +15,16 @@ export function measurePath(path: readonly PathCommand[], limit = MAX_PATH_SAMPL
     if (!last || distance > 1e-9) { points.push(p); lengths.push((lengths.at(-1) ?? 0) + distance); }
   };
   const finish = () => { if (points.length >= 2) out.push({ points, lengths, closed }); points = []; lengths = []; closed = false; };
-  const curve = (a: Point, b: Point, c: Point, d: Point): boolean => {
-    const stack: [Point, Point, Point, Point, number][] = [[a, b, c, d, 0]];
-    while (stack.length) {
-      const [p0, p1, p2, p3, depth] = stack.pop()!;
-      if (depth >= 24 || Math.max(chordDistance(p1, p0, p3), chordDistance(p2, p0, p3)) <= tolerance) {
-        if (++count > limit) return false;
-        if (!points.length) push(a); push(p3); continue;
-      }
-      const ab = lerp(p0, p1, .5), bc = lerp(p1, p2, .5), cd = lerp(p2, p3, .5), abc = lerp(ab, bc, .5), bcd = lerp(bc, cd, .5), mid = lerp(abc, bcd, .5);
-      stack.push([mid, bcd, cd, p3, depth + 1], [p0, ab, abc, mid, depth + 1]);
-    }
-    return true;
-  };
   for (const command of path) {
     if (count > limit) return undefined;
     if (command[0] === "M") { count++; finish(); start = pen = { x: command[1], y: command[2] }; push(pen); }
     else if (command[0] === "L") { count++; if (!points.length) push(start); pen = { x: command[1], y: command[2] }; push(pen); }
-    else if (command[0] === "C") {
-      const end = { x: command[5], y: command[6] };
-      if (!curve(pen, { x: command[1], y: command[2] }, { x: command[3], y: command[4] }, end)) return undefined;
+    else if (command[0] === "Q" || command[0] === "C") {
+      const control = {x:command[1],y:command[2]}, point = {x:command[3],y:command[4]};
+      const end = command[0]==="C" ? {x:command[5],y:command[6]} : point;
+      if (!points.length) push(pen);
+      if (!flattenCurve(command[0]==="C" ? [pen,control,point,end] : [pen,control,end],
+        tolerance,limit-count,p=>{ count++; push(p); })) return undefined;
       pen = end;
     } else { count++; push(start); closed = points.length >= 3; pen = start; finish(); }
   }

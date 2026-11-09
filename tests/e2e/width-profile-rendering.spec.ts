@@ -19,6 +19,7 @@ test("width profiles preserve sided bands, alignment, caps, dashes, alpha, prece
   // Native variable band and TriangleArrow wind in opposite directions; their overlap cancels.
   expect(pixels.alpha).toEqual({ band: [255, 127, 127, 255], overlap: white, head: [255, 127, 127, 255] });
   expect(pixels.sides).toEqual({ top: black, right: white, bottom: white });
+  expect(pixels.maxWidthTaper).toEqual(white);
   expect(pixels.culled).toEqual(black); expect(pixels.fallback).toEqual(black);
   expect(pixels.extremeReach).toBe(20000);
 });

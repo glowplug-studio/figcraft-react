@@ -1,3 +1,4 @@
+import type { CurveElement } from "./curve-flatten";
 import type { PathCommand } from "./corners";
 import { ellipticalArcPath, TAU } from "./ellipse";
 import type { Point } from "./geometry";
@@ -21,9 +22,14 @@ function svgArc(from: Point, to: Point, rx: number, ry: number, rotation: number
   return ellipticalArcPath(cx, cy, rx, ry, start, span, rotation, .1).slice(1);
 }
 /** Independent reader of the native Kurbo0.13.1 command/lexer behaviour, including its best-effort trailing-byte termination. */
-export function parseSvgPath(data: string): readonly PathCommand[] {
+export function parseSvgPath(data: string): readonly PathCommand[];
+export function parseSvgPath(data: string, preserveQuadratics: true): readonly CurveElement[];
+export function parseSvgPath(data: string, preserveQuadratics = false): readonly CurveElement[] {
+  for (const token of data.matchAll(/[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?/g)) {
+    if (Math.abs(Number(token[0]))>1e9) return tooLarge();
+  }
   let at = 0, last = "", pen: Point = { x: 0, y: 0 }, first = pen, control: Point | undefined, implicitMove: Point | undefined;
-  const path: PathCommand[] = [];
+  const path: CurveElement[] = [];
   const whitespace = () => { while (at < data.length && /[ \t\n\f\r]/.test(data[at])) at++; };
   const comma = () => { whitespace(); if (data[at] === ",") at++; };
   const number = (): number => {
@@ -49,7 +55,7 @@ export function parseSvgPath(data: string): readonly PathCommand[] {
     else if (upper === "L") { pen = point(relative); path.push(["L", pen.x, pen.y]); control = pen; last = cmd; }
     else if (upper === "H" || upper === "V") { const n = number(); comma(); pen = upper === "H" ? { x: n + (relative ? pen.x : 0), y: pen.y } : { x: pen.x, y: n + (relative ? pen.y : 0) }; path.push(["L", pen.x, pen.y]); control = pen; last = cmd; }
     else if (upper === "C" || upper === "S") { const a = upper === "S" ? reflect() : point(relative), b = point(relative), end = point(relative); path.push(["C", a.x, a.y, b.x, b.y, end.x, end.y]); control = b; pen = end; last = cmd; }
-    else if (upper === "Q" || upper === "T") { const c = upper === "T" ? reflect() : point(relative), end = point(relative); quad(c, end); control = c; pen = end; last = cmd; }
+    else if (upper === "Q" || upper === "T") { const c = upper === "T" ? reflect() : point(relative), end = point(relative); if (preserveQuadratics) path.push(["Q",c.x,c.y,end.x,end.y]); else quad(c, end); control = c; pen = end; last = cmd; }
     else if (upper === "A") { const radii = pair(), rotation = number() * (Math.PI / 180); comma(); const large = flag(), sweep = flag(), end = point(relative); for (const c of svgArc(pen, end, radii.x, radii.y, rotation, large, sweep)) path.push(c); pen = end; control = pen; last = cmd; }
     else if (upper === "Z") { path.push(["Z"]); pen = first; implicitMove = first; }
     else return invalid();

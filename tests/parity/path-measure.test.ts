@@ -26,7 +26,8 @@ describe("geom::measure and pathops::width::measures_paths_by_length", () => {
     expect(measurePath(curve, 8)).toBeUndefined(); expect(measurePath(curve)).toBeDefined();
     const lines: PathCommand[] = [["M", 0, 0], ...Array.from({ length: MAX_PATH_SAMPLES + 10 }, (_, i): PathCommand => ["L", i, i % 2 * 5])];
     expect(measurePath(lines)).toBeUndefined();
-    for (const x of [NaN, Infinity, 1e9, -1e9]) expect(measurePath([["M", x, 0], ["L", 1, 1]])).toBeUndefined();
+    for (const x of [NaN, Infinity, 1.5e9+1, -1.5e9-1]) expect(measurePath([["M", x, 0], ["L", 1, 1]])).toBeUndefined();
+    expect(measurePath([["M", 1.5e9, 0], ["L", 1e9, 1]])?.[0].points).toHaveLength(2);
     expect(measurePath([["M", 0, 0], ["L", 1, 1]], 2)).toHaveLength(1);
   });
   it("preserves curve endpoints, deduplicates tiny segments and omits empty subpaths", () => {

@@ -55,7 +55,8 @@ describe("pathops::brush_tests paired procedural brushes", () => {
     expect(moves(outline(subpaths, 1, brush("confetti", { spacing: .1 })))).toBe(6000);
   });
   it("rejects invalid measured paths and bounds empty/zero-width output", () => {
-    expect(brushOutline([["M", 0, 0], ["L", 1e9, 0]], 1, defaultStroke, brush("taper"))).toBeUndefined();
+    expect(brushOutline(line(1e9), 1, defaultStroke, brush("taper"))).toBeDefined();
+    expect(brushOutline(line(1.5e9+1), 1, defaultStroke, brush("taper"))).toBeUndefined();
     expect(outline([], 1, brush("dots"))).toEqual([]); expect(outline(line(10), 0, brush("taper"))).toEqual([]);
     const excessive: PathCommand[] = Array.from({ length: 40001 }, (_, i) => ["M", i, 0]);
     expect(brushOutline(excessive, 1, defaultStroke, brush("dots"))).toBeUndefined();

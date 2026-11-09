@@ -1,6 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { expect, test } from "@playwright/test";
 import { build } from "vite";
+import pathCases from "../fixtures/text-on-path.json" with {type:"json"};
 import flow from "../fixtures/text-flow.json" with { type:"json" };
 import wordSamples from "../fixtures/text-word-starts.json" with { type:"json" };
 import outlines from "../fixtures/text-outlines.json" with { type:"json" };
@@ -99,6 +100,20 @@ test("Chromium shapes pinned font bytes with the native glyph IDs, positions and
     };
   },{inputs,selection,styled,flow});
   expect(selected).toEqual({...selection,flow:flow.map(({width,height,lines,glyphs,truncated})=>({width,height,lines,glyphs,truncated})),styled:styled.map(({glyphs,width})=>({glyphs,width}))});
+  const warped = await page.evaluate(async cases => {
+    const url="/shaper.js", api:typeof import("../fixtures/text-shaping-browser")=await import(url);
+    const fonts=new api.FontLibrary();
+    const bytes=await (await fetch("/fonts/inter/Inter-Regular.ttf")).arrayBuffer();
+    for (const face of await api.readFontFaces(new Uint8Array(bytes))) fonts.add(face);
+    return cases.map(({input,width,height})=>{
+      const out=api.layoutTextFlow(api.readTextData(input),fonts,{width:width ?? undefined,height:height ?? undefined},[]);
+      return out.glyphs.map(g=>g.warp);
+    });
+  },pathCases);
+  for (const [i,actual] of warped.entries()) {
+    expect(actual).toHaveLength(pathCases[i].warps.length);
+    actual.forEach((row,j)=>row!.forEach((v,k)=>expect(v).toBeCloseTo(pathCases[i].warps[j][k],8)));
+  }
   const masks = await page.evaluate(async samples => {
     const url = "/shaper.js";
     const api: typeof import("../fixtures/text-shaping-browser") = await import(url);

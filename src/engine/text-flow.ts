@@ -1,4 +1,5 @@
 import type { Affine } from "./affine";
+import { TextOnPath } from "./text-on-path";
 import { textWordStarts } from "./text-word-starts";
 import type { FontLibrary } from "./font-library";
 import type { ShapingFace } from "./shaping-face";
@@ -199,7 +200,13 @@ export function layoutTextFlow(text:TextData, fonts:FontLibrary, box:{width?:num
     line.x=text.alignH==="center" ? (alignWidth-line.width)/2 : text.alignH==="right" ? alignWidth-line.width : 0;
     if (line.x) for (let i=line.first;i<line.last;i++) glyphs[i].x+=line.x;
   }
-  return {glyphs,lines,width:widest,height,truncated};
+  const pathShift=text.alignH==="center" ? widest/2 : text.alignH==="right" ? widest : 0;
+  const onPath=text.path && TextOnPath.from(text.path,pathShift,lines[0]?.baseline ?? 0);
+  if (onPath) {
+    const hidden:Affine=[0,0,0,0,0,0];
+    for (const g of glyphs) g.warp=onPath.frame(g.x+g.advance/2,g.y) ?? hidden;
+  } else if (text.path) glyphs.length=0;
+  return {glyphs,lines,width:widest,height,truncated,onPath};
 }
 
 /** Resolve the browser word model when the document contains a complex-script run. */
