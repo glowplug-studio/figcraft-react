@@ -1,5 +1,9 @@
 # Full Figcraft port resume checkpoint
 
+At 88cc856 page-colour enumeration and reuse passed 216 native readbacks and focused production checks. Continue the [row audit](../reports/26-11-10-styles-variables-libraries.md), including the publication-form command, and verify the 292-workflow regression.
+
+At 163980f the local library swap passed eight native round trips, strict types, both builds, 1,938 pure tests, two local Auth integrations and the signed-in swap workflow. The preceding full production run passed 290/290. The full swap run passed 291/291. Continue the [row 10 audit](26-11-09-styles-variables-libraries.md#whole-library-swap-evidence), then file workspace and history.
+
 At 016c207 linked component imports, nested updates, hidden-store protection, browser placement, swapping instances and recovery passed focused verification. The 290-workflow regression is running. Continue [whole-library swaps](26-11-09-styles-variables-libraries.md#whole-library-swap-evidence) from the native Ocean/Forest full and partial match cases, including undo and redo.
 
 At a329a88 linked styles passed native file, command and signed-in browser verification. All 289 production Chromium workflows passed. Continue the [linked component store and placement](26-11-09-styles-variables-libraries.md#linked-component-store-and-placement) on the same branch.
