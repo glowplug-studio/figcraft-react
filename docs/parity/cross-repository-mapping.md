@@ -410,3 +410,5 @@ Native `NodeKind::Text`, `layout_node`, `auto_size` and the text arm of `render:
 Native canvas `text_down`, `text_box_drag`, `textedit::begin/end`, `select_word` and `preedit_doc` map to `CanvasTextInput`, `createCanvasText`, `EditorEngine.beginTextEdit` and `textWordRange`. [Canvas gestures, edit history, Unicode and input-method evidence](../planning/26-11-09-rich-text.md#canvas-creation-editing-and-input-methods).
 
 Native `automation::inspect::text_props` maps to `inspectText` through `node.get`. [Independent native field comparison](../planning/26-11-09-rich-text.md#text-property-inspection).
+
+Native `apply_text`, `apply_text_style`, `font_style_warnings`, `fontdb::styles` and the typography panel map to `setTextProperties`, `FontLibrary` and `TypographyPanel`. The inspector retains the canvas scalar selection and formats it in the open history transaction. [Native command and document comparisons](../planning/26-11-09-rich-text.md#typography-commands-and-inspector).
