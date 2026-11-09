@@ -61,7 +61,7 @@ function spacing(value: unknown): Spacing {
 }
 function length(value: unknown): Length {
   const v = textRecord(value,"length");
-  return v.unit === "auto" ? auto : spacing(v);
+  return v.unit === "auto" && v.value == null ? auto : spacing(v);
 }
 function decorationLook(value: unknown): DecorationLook {
   const v = textRecord(value,"decoration look");
@@ -107,7 +107,7 @@ export function wireTextStyle(s: TextStyle) {
   return {font_family:s.fontFamily,font_style:s.fontStyle,font_size:wireTextFloat(s.fontSize),line_height:wireLength(s.lineHeight),
     letter_spacing:wireLength(s.letterSpacing),decoration:s.decoration,...(d && {decoration_look:{style:d.style,
       thickness:d.thickness,offset:d.offset,skip_ink:d.skipInk,color:d.color ?? null}}),
-    case:s.case,fills:s.fills ? wirePaints(s.fills) : null,link:s.link ?? null,
+    case:s.case,fills:s.fills ? wirePaints(s.fills).map(({colorAlpha, ...paint}) => colorAlpha === 1 ? paint : {...paint, colorAlpha}) : null,link:s.link ?? null,
     ...(Object.keys(s.variations).length > 0 && {variations:Object.fromEntries(Object.entries(s.variations).map(([k,v])=>[k,wireTextFloat(v)]))}),...(s.styleId !== undefined && {style_id:s.styleId})};
 }
 

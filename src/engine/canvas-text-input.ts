@@ -41,6 +41,19 @@ export class CanvasTextInput {
     signal.addEventListener("abort",() => { this.#generation++; this.#close(false); },{once:true});
   }
   get active() { return !!this.#session?.active(); }
+  #updateRange = () => {
+    const input = this.#input;
+    if (input) this.#session?.select(utf16ToScalar(input.value,input.selectionStart), utf16ToScalar(input.value,input.selectionEnd));
+    this.invalidate();
+  };
+  format(props: Record<string,unknown>) {
+    const input = this.#input, session = this.#session;
+    if (!input || !session?.active()) return false;
+    if (this.#composing || this.#pending) throw new Error("Finish entering the text before formatting it");
+    session.format(props, utf16ToScalar(input.value,input.selectionStart), utf16ToScalar(input.value,input.selectionEnd));
+    this.invalidate();
+    return true;
+  }
   #point(e: MouseEvent) {
     const rect = this.canvas.getBoundingClientRect();
     return screenToPage(this.engine.getView(),{x:e.clientX-rect.left,y:e.clientY-rect.top});
@@ -67,6 +80,7 @@ export class CanvasTextInput {
     const id = this.active || tool === "text" ? this.#hit(start) : undefined;
     if (this.active && id === this.#session?.node().id && id) {
       e.preventDefault(); e.stopImmediatePropagation();
+      this.#input?.focus({preventScroll:true});
       this.#select(start,e.shiftKey);
       this.#drag = {pointer:e.pointerId,start,end:start,target:{id},selecting:true};
       this.canvas.setPointerCapture(e.pointerId); return;
@@ -137,13 +151,19 @@ export class CanvasTextInput {
       });
       input.addEventListener("compositionupdate",e=>{ void this.#showComposition(e.data); });
       input.addEventListener("compositionend",e=>this.#endComposition(e.data));
-      input.addEventListener("select",this.invalidate);
-      input.addEventListener("keyup",this.invalidate);
+      input.addEventListener("select",this.#updateRange);
+      input.addEventListener("keyup",this.#updateRange);
       input.addEventListener("keydown",this.#key);
-      input.addEventListener("blur",()=>{ if (this.#input===input) this.finish(); });
+      input.addEventListener("blur", event => {
+        const next = event.relatedTarget;
+        if (next instanceof Element && next.closest("[data-figcraft-typography]") &&
+          next.closest("[data-figcraft-editor]") === this.canvas.closest("[data-figcraft-editor]")) return;
+        if (this.#input === input) this.finish();
+      });
       input.focus({preventScroll:true});
       if (selectAll) { input.select(); this.invalidate(); }
       else { this.#select(point,false); if (extend) this.#select(extend,true); }
+      this.#updateRange();
     } catch (e) { this.#close(false); this.onError(e instanceof Error ? e.message : "Could not edit text"); }
   }
   async #showComposition(data: string) {
@@ -206,7 +226,7 @@ export class CanvasTextInput {
     session.replace(utf16ToScalar(before,from),utf16ToScalar(before,to),value.slice(from,end));
     this.#selection=undefined;
     if (input.value !== session.node().text.characters) input.value=session.node().text.characters;
-    this.invalidate();
+    this.#updateRange();
   }
   #key = (e: KeyboardEvent) => {
     if (e.isComposing || this.#composing) return;

@@ -110,7 +110,11 @@ function inspect(doc: Document, node: DocumentNode, depth: number, fields?: Set<
     const parent = doc.nodes[node.parent];
     if (parent?.kind === "frame") put("constraints", node.constraints ?? defaultConstraints);
     if (parent?.kind === "booleanOp") put("operandOperation", node.boolOp);
-    if (node.kind === "text") inspectText(node.text,outline,wants,put);
+    if (node.kind === "text") {
+      inspectText(node.text,outline,wants,put);
+      put("sizing", node.textSizing ?? {horizontal:"fixed", vertical:"fixed"});
+      if (node.charactersOverridden) put("overrides", ["characters"]);
+    }
     if (node.kind === "frame") put("clip", node.clip);
     if (node.kind === "booleanOp") put("booleanOperation", node.op);
     if (node.kind === "polygon" || node.kind === "star") put("pointCount", node.count);

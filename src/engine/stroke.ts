@@ -1,3 +1,5 @@
+import { propertyEnum as strokeEnum } from "./parameters";
+export { propertyEnum as strokeEnum } from "./parameters";
 import type { LayerNode } from "./document";
 import { parseColour } from "./colour-css";
 import { parseNumber } from "./parameters";
@@ -32,25 +34,6 @@ const aligns = ["inside", "center", "outside"] as const, joins = ["miter", "beve
 const clamp = (n: number, lo: number, hi: number): number => Math.max(lo, Math.min(hi, n));
 export const miterAngle = (limit: number): number => 2 * Math.asin(1 / clamp(limit, 1, 100)) * 180 / Math.PI;
 export const miterLimitFor = (angle: number): number => clamp(1 / Math.sin((Number.isFinite(angle) ? clamp(angle, 1, 180) : 28.955) * Math.PI / 360), 1, 100);
-
-/** Native enum_of normalises command strings; file enums stay exact. */
-export function strokeEnum<T extends string>(value: unknown, allowed: readonly T[], command = true): T {
-  if (typeof value !== "string") throw new Error("A stroke enum must be a string");
-  let normalised = value;
-  if (command) {
-    const noLowercase = !/\p{Ll}/u.test(value);
-    let upper = false;
-    normalised = [...value.trim()].map((ch, i) => {
-      if (ch === "_" || ch === "-" || ch === " ") { upper = true; return ""; }
-      if (i === 0) return ch.toLowerCase();
-      if (upper) { upper = false; return ch.toUpperCase(); }
-      return noLowercase ? ch.toLowerCase() : ch;
-    }).join("");
-  }
-  const found = allowed.find(item => item === normalised);
-  if (found === undefined) throw new Error(`Unsupported stroke value: ${value}`);
-  return found;
-}
 
 /** Read native StrokeProps after the file adapter converts lossless float tokens. */
 export function readStroke(value: unknown): StrokeProps {

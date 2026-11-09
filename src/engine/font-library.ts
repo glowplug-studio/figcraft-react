@@ -74,6 +74,41 @@ export class FontLibrary {
     return [key,style];
   }
 
+  families(): string[] {
+    return [...this.#families.keys()].sort().map(key => this.#families.get(key)![0].family);
+  }
+
+  styles(family: string): string[] {
+    const key = this.#key(family);
+    const entries: {weight:number; italic:boolean; index:number; name:string}[] = [];
+    for (const face of this.#families.get(key) ?? []) {
+      if (!face.instances.length) entries.push({weight:face.weight, italic:face.italic, index:0, name:face.style});
+      face.instances.forEach(({name, coordinates}, index) => {
+        const weight = Math.round(Math.max(1, Math.min(1000, coordinates.wght ?? face.weight)));
+        entries.push({weight, italic:face.italic || /italic|oblique/i.test(name), index, name});
+      });
+    }
+    if (this.#familyPrefixes.has(key)) {
+      for (const [other, faces] of this.#families) {
+        if (!other.startsWith(key + " ")) continue;
+        const suffix = faces[0].family.slice(key.length + 1).trim();
+        if (!weightsOnly(suffix.split(/\s+/))) continue;
+        const italic = /italic|oblique/i.test(suffix);
+        for (const face of faces) entries.push({weight:face.weight, italic:face.italic || italic, index:0,
+          name:face.italic && !italic ? suffix + " Italic" : suffix});
+      }
+    }
+    entries.sort((a,b) => a.weight-b.weight || Number(a.italic)-Number(b.italic) || a.index-b.index ||
+      (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
+    const seen = new Set<string>();
+    return entries.flatMap(({name}) => {
+      const normal = normaliseFontStyle(name);
+      if (seen.has(normal)) return [];
+      seen.add(normal);
+      return [name];
+    });
+  }
+
   find(family: string,style: string) {
     const [key,requested] = this.#resolve(family,style), faces = this.#families.get(key);
     if (!faces) return undefined;
@@ -89,6 +124,18 @@ export class FontLibrary {
       if (cost < best) { nearest = face; best = cost; }
     }
     return nearest;
+  }
+
+  styleWarning(family: string, style: string) {
+    const names = this.styles(family), normal = normaliseFontStyle(style);
+    if (!names.length || names.some(name => normaliseFontStyle(name) === normal)) return;
+    const face = this.find(family, style), weight = styleWeight(style);
+    if (!face || face.family.toLowerCase() !== family.toLowerCase()) return;
+    const axis = face.axes.wght;
+    const resolved = axis ? Math.round(Math.max(axis.min, Math.min(axis.max, weight))) : face.weight;
+    if (face.instances.some(i => normaliseFontStyle(i.name) === normal) ||
+      resolved === weight && face.italic === /italic/i.test(style)) return;
+    return family + " has no `" + style + "` style: it draws in " + face.style + ", the nearest (it has: " + names.join(", ") + ")";
   }
 
   defaultFace() {

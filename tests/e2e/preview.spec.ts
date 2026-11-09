@@ -4171,3 +4171,32 @@ test("native Chromium IME pre-edit paints temporary glyphs and commits once on t
   await page.getByRole("button",{name:"Undo",exact:true}).click();
   await expect(page.getByText("0 layers",{exact:true})).toBeVisible();
 });
+
+test("Typography formats selected Unicode characters and saves the edit as one undo", async ({page}) => {
+  await login(page);
+  const canvas = page.getByLabel("Design canvas",{exact:true});
+  await canvas.focus(); await page.keyboard.press("t");
+  const point = await canvasPoint(page, 155, 115);
+  await page.mouse.click(point.x,point.y);
+  const input = page.getByRole("textbox", {name:"Edit text layer"});
+  await expect(input).toBeFocused();
+  await page.keyboard.insertText("A🙂BC");
+  await input.evaluate((el: HTMLTextAreaElement) => el.setSelectionRange(1,4));
+  const panel = page.getByRole("group", {name:"Typography",exact:true});
+  const size = panel.getByLabel("Font size",{exact:true});
+  await size.fill("32"); await size.press("Enter");
+  await expect(input).toHaveCount(1);
+  await panel.getByText("More typography options").click();
+  await panel.getByLabel("Text decoration",{exact:true}).selectOption("underline");
+  await input.focus(); await input.press("Escape");
+  await expect(input).toHaveCount(0);
+  await expect(size).toHaveAttribute("placeholder","Mixed");
+  await page.getByRole("button",{name:"Undo",exact:true}).click();
+  await expect(page.getByText("0 layers",{exact:true})).toBeVisible();
+  await page.getByRole("button",{name:"Redo",exact:true}).click();
+  const download = page.waitForEvent("download");
+  await page.getByRole("button",{name:"Save as",exact:true}).click();
+  const saved = await decodeFigcraft(await readFile((await (await download).path())!));
+  expect(saved.document.nodes["2"]).toMatchObject({text:{characters:"A🙂BC",style:{fontSize:12},
+    runs:[{start:1,end:3,style:{fontSize:32,decoration:"underline"}}]}});
+});

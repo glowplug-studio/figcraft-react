@@ -1,5 +1,6 @@
 import { ColourProfileDialog } from "./ColourProfileDialog";
 import { ArcPanel } from "./ArcPanel";
+import { TypographyPanel } from "./TypographyPanel";
 import { PointsPanel } from "./PointsPanel";
 import { VectorPanel, VectorToolbar } from "./VectorPanel";
 import { StrokePanel } from "./StrokePanel";
@@ -492,6 +493,11 @@ export function Editor({ identity, capabilities, engine: suppliedEngine, recover
           <ArcPanel nodes={snapshot.selection.flatMap(id => { const n = snapshot.document.nodes[id]; return n && n.kind !== "page" ? [n] : []; })} editable={editable && !busy} dispatch={dispatch} />
           <PointsPanel nodes={snapshot.selection.flatMap(id => { const n = snapshot.document.nodes[id]; return n && n.kind !== "page" ? [n] : []; })} editable={editable && !busy} dispatch={dispatch} />
           <CornerPanel nodes={snapshot.selection.flatMap(id => { const n = snapshot.document.nodes[id]; return n && n.kind !== "page" ? [n] : []; })} editable={editable && !busy} dispatch={dispatch} /></>}
+          {!editingVector && <TypographyPanel engine={engine} editable={editable && !busy} onLeave={() => controller.current?.finishText()}
+            apply={(ids, props) => {
+              try { if (!controller.current?.formatText(props)) dispatch("node.set", {ids, props}); }
+              catch (e) { setError(e instanceof Error ? e.message : "Could not format text"); }
+            }} />}
           <AppearancePanel engine={engine} page={page} selected={selected && selected.kind !== "page" ? selected : undefined} editable={editable && !busy} dispatch={dispatch} />
           <StrokePanel engine={engine} nodes={snapshot.selection.flatMap(id => { const n = snapshot.document.nodes[id]; return n && n.kind !== "page" ? [n] : []; })} editable={editable && !busy} dispatch={dispatch} />
           <EffectsPanel engine={engine} editable={editable && !busy} dispatch={dispatch} />

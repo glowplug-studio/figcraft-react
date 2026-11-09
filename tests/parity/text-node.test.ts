@@ -95,3 +95,75 @@ it("uses the native readable fill and positions new text in a transformed frame"
   const light=editor.beginTextEdit({parent:String(id),start:{x:0,y:0}});
   expect(light.node().fill).toBe("#000000"); light.cancel();
 });
+
+it("formats scalar ranges atomically, preserves unrelated styles and round-trips native text", async () => {
+  const engine = new EditorEngine();
+  await engine.executeAsync("text.create", {text:"A🙂bc\nאב"});
+  const selected = () => {
+    const node = engine.getSnapshot().document.nodes["2"];
+    if (node.kind !== "text") throw Error("Expected text");
+    return node;
+  };
+  engine.execute("text.style", {start:1, end:3.9, fontSize:27, variationSettings:{wght:523, wdth:89}});
+  expect(selected().text.runs).toMatchObject([{start:1,end:3,style:{fontSize:27,variations:{wght:523,wdth:89}}}]);
+  engine.execute("node.set", {props:{start:1,end:3,fontStyle:"Italic",fontWeight:675,textFills:[],lineHeight:"125%",letterSpacing:"3px",
+    textDecoration:"underline",textDecorationColor:"#ff0000",textDecorationSkipInk:true,textCase:"SMALL_CAPS"}});
+  expect(selected().text.runs[0].style).toMatchObject({fontStyle:"Bold Italic",variations:{wdth:89},fills:[],lineHeight:{unit:"percent",value:125},
+    letterSpacing:{unit:"pixels",value:3},decorationLook:{skipInk:true},case:"smallCaps"});
+  engine.execute("node.set", {props:{start:5,end:6,listStyle:"numbered",textDirection:"RTL",fontFeatures:{liga:false,kern:1,tnum:null}}});
+  expect(selected().text).toMatchObject({paragraphs:[{list:"none"},{list:"numbered",direction:"rtl"}],features:{liga:false,kern:true}});
+  const before = engine.getSnapshot();
+  expect(() => engine.execute("node.set",{props:{fontSize:40,variationSettings:{wght:1e7}}})).toThrow();
+  expect(engine.getSnapshot()).toBe(before);
+  const saved = await decodeFigcraft(await encodeFigcraft(before.document));
+  expect(saved.document.nodes["2"]).toMatchObject({kind:"text",text:{runs:selected().text.runs}});
+  engine.execute("text.style",{start:1,end:3,textFills:null,textDecorationSkipInk:false,textDecorationColor:"AUTO",fontVariations:null});
+  expect(selected().text.runs[0].style.decorationLook).toBeUndefined();
+  expect(selected().text.runs[0].style.fills).toBeUndefined();
+  engine.execute("edit.undo"); expect(selected()).toBe(before.document.nodes["2"]);
+  await engine.executeAsync("text.set",{text:"Revised\r\ntext"});
+  expect(selected().text.characters).toBe("Revised\ntext");
+});
+
+it("formats only text targets, and a failed mixed selection leaves each layer untouched", async () => {
+  const engine = new EditorEngine();
+  await engine.executeAsync("text.create", {text:"Text"});
+  engine.execute("shape.rectangle",{width:20,height:10});
+  const before = engine.getSnapshot();
+  expect(() => engine.execute("text.style",{ids:[2,3],fontWeight:650})).toThrow();
+  expect(engine.getSnapshot()).toBe(before);
+  expect(() => engine.execute("text.style",{id:3,unknown:true})).toThrow();
+  expect(() => engine.execute("text.style",{id:2,unknown:true})).toThrow();
+  expect(() => engine.execute("text.style",{id:2,lineHeight:{unit:"auto",value:5}})).toThrow();
+  expect(() => engine.execute("text.set",{id:2,text:"x",start:2})).toThrow();
+  engine.execute("text.style",{id:2,start:1,end:2});
+  expect(engine.getSnapshot()).toBe(before);
+});
+
+// Full Session::execute results at a4251ca8 using the same five packaged faces.
+it.each(JSON.parse(readFileSync(new URL("../fixtures/native-typography.json",import.meta.url),"utf8")) as {
+  case:number; commands:Record<string,unknown>[]; result:Record<string,unknown>; node:Record<string,unknown>
+}[])("matches the Rust typography session for case $case", async entry => {
+  const engine = new EditorEngine();
+  const {id} = await engine.executeAsync("text.create",{text:"A🙂bc\nქართული", x:0, y:0});
+  let result;
+  for (const props of entry.commands) {
+    try { result = engine.execute("node.set",{id,props}); }
+    catch { result = {error:true}; break; }
+  }
+  expect(result).toEqual(entry.result);
+  expect(engine.execute("node.get",{id})).toEqual(entry.node);
+});
+
+it("opens the Rust session's explicit hug sizing and releases both axes when the box becomes fixed", async () => {
+  const engine = new EditorEngine(), id = 2;
+  const native = readFileSync(new URL("../fixtures/native-typography-document.json",import.meta.url));
+  await engine.executeAsync("file.open",{name:"Styled.figcraft",data:native.toString("base64")});
+  expect(engine.execute("node.get",{id,fields:["sizing","textAutoResize"]}))
+    .toEqual({id,sizing:{horizontal:"hug",vertical:"hug"},textAutoResize:"height"});
+  engine.execute("node.set",{id,props:{start:1,end:3,fontWeight:740,fontFeatures:{liga:false},textDecorationStyle:"wavy",textAutoResize:"none"}});
+  expect(engine.execute("node.get",{id,fields:["sizing"]})).toEqual({id,sizing:{horizontal:"fixed",vertical:"fixed"}});
+  const original = engine.getSnapshot().document;
+  const decoded = await decodeFigcraft(await encodeFigcraft(original));
+  expect(decoded.document.nodes["2"]).toEqual(original.nodes["2"]);
+});

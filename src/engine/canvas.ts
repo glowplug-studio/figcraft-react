@@ -700,6 +700,8 @@ export class CanvasController {
     if (event.code === "Space") this.#space = false;
     if (event.key.toLowerCase() === "z") this.#zoomHeld = false;
   };
+  formatText(props: Record<string,unknown>) { return this.#text.format(props); }
+  finishText() { this.#text.finish(); }
   cancel(preservePen = false): void {
     if (!preservePen) {
       this.#crop.cancel();

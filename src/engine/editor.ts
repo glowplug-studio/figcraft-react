@@ -14,7 +14,7 @@ import { copyPaint, fillSpecs, selectedRegionFills, writeFill } from "./fill-com
 import type { Paint } from "./solid-paint";
 import { executeStrokeList, strokeSpecs } from "./stroke-commands";
 import { isLeaf } from "./document";
-import { newDocument, sameContent, withLayerTransform, type Document, type DrawShapeKind, type NodeId } from "./document";
+import { newDocument, sameContent, withLayerTransform, type Document, type DrawShapeKind, type TextNode, type NodeId } from "./document";
 import { MAX_IMAGE_BYTES } from "./image-resource";
 import { base64Bytes } from "./recovery";
 import { decodeFigcraft, encodeFigcraft, encodeFigcraftBlob, prepareArchive, MAX_UNPACKED_BYTES } from "./file-format";
@@ -89,6 +89,8 @@ export const commandSpecs = Object.freeze({
   "tool.star": { label: "Star", undo: false },
   "shape.ellipse": { label: "Ellipse", undo: true },
   "shape.rectangle": { label: "Rectangle", undo: true },
+  "text.style": { label: "Style text range", undo: true },
+  "text.set": { label: "Set text", undo: true },
   "text.create": { label: "Text", undo: true },
   "node.create": { label: "Create layer", undo: true },
   "vector.create": { label: "Vector", undo: true },
@@ -162,6 +164,8 @@ export class EditorEngine {
     preparedCopy?: { ids: readonly NodeId[]; result: ReturnType<typeof executeDuplicate> };
     baseVectorEdit?: VectorEditState; vectorEdit?: VectorEditState;
   };
+  #textRange?: {node:TextNode; start:number; end:number; active:() => boolean};
+  getTextRange = () => this.#textRange?.active() ? this.#textRange : undefined;
   #canvasListeners = new Set<() => void>();
   #vectorEdit?: VectorEditState;
   #documentIdentity = Symbol();
@@ -209,8 +213,27 @@ export class EditorEngine {
       owner.document = publishTextNode(before,node);
       owner.nextId = this.#nextId < 18446744073709551615n ? this.#nextId + 1n : this.#nextId;
     }
-    this.#notifyCanvas();
+    const active = () => this.#interaction === owner;
+    const select = (start:number, end:number) => {
+      if (!active()) return;
+      const previous = this.#textRange;
+      if (previous?.node === node && previous.start === start && previous.end === end) return;
+      this.#textRange = {node, start, end, active};
+      this.#notifyCanvas();
+    };
+    select(0, 0);
     return {
+      select,
+      format: (props: Record<string,unknown>, start:number, end:number) => {
+        if (!active()) return;
+        const range = start === end ? {} : {start, end};
+        const next = setRectangleProperties(owner.document, [node.id], {id:node.id, props:{...props, ...range}});
+        const edited = next.nodes[node.id];
+        if (edited?.kind !== "text") throw new Error("Expected a text layer");
+        owner.document = next;
+        node = edited;
+        select(start, end);
+      },
       active: () => this.#interaction === owner,
       node: () => node,
       replace: (from: number, to: number, insertion: string) => {
@@ -219,10 +242,11 @@ export class EditorEngine {
         if (edited === node) return;
         owner.document = publishTextNode(owner.document, edited);
         node = edited;
-        this.#notifyCanvas();
+        select(this.#textRange?.start ?? 0, this.#textRange?.end ?? 0);
       },
       finish: () => {
         if (this.#interaction !== owner) return;
+        this.#textRange = undefined;
         if (!node.text.characters.trim()) {
           if (created) { this.cancelInteraction(); return; }
           const draft = new HierarchyDraft(owner.document);
@@ -231,7 +255,7 @@ export class EditorEngine {
         }
         this.commitInteraction();
       },
-      cancel: () => { if (this.#interaction === owner) this.cancelInteraction(); },
+      cancel: () => { if (active()) { this.#textRange = undefined; this.cancelInteraction(); } },
     };
   }
   setVectorRegionHover(regionHover: number | undefined): void {
@@ -403,7 +427,7 @@ export class EditorEngine {
     draft.normaliseGroups(); interaction.document = validateChangedGeometry(draft);
     this.commitInteraction();
   }
-  #notifyCanvas(): void { this.#refreshOrigin(); this.#canvasListeners.forEach(listener => listener()); }
+  #notifyCanvas(): void { if (this.#textRange && !this.#textRange.active()) this.#textRange = undefined; this.#refreshOrigin(); this.#canvasListeners.forEach(listener => listener()); }
   cancelInteraction(): boolean {
     if (!this.#interaction) return false;
     this.#interaction = undefined; this.#notifyCanvas(); return true;
@@ -481,6 +505,7 @@ export class EditorEngine {
     if (this.#snapshot.crop && (!this.#snapshot.editable || !this.pickedCrop())) {
       this.#snapshot = Object.freeze({...this.#snapshot,crop:undefined});
     }
+    if (this.#textRange && !this.#textRange.active()) this.#textRange = undefined;
     this.#vectorListeners.forEach(listener => listener());
     this.#refreshOrigin();
     this.#canvasListeners.forEach(listener => listener());
@@ -701,10 +726,13 @@ export class EditorEngine {
       }
       return { ok: true };
     }
-    if (command === "node.set" || Object.hasOwn(strokeSpecs, command)) {
+    if (command === "node.set" || command === "text.style" || command === "text.set" || Object.hasOwn(strokeSpecs, command)) {
       const before = this.#snapshot;
       const warnings: string[] = [];
-      const document = command === "node.set" ? setRectangleProperties(before.document, before.selection, p, movedOrigin(before.document, before.selection, this.#origin), warnings) : executeStrokeList(command, before.document, before.selection, p);
+      const document = command === "node.set" || command === "text.style" || command === "text.set"
+        ? setRectangleProperties(before.document, before.selection, p, movedOrigin(before.document, before.selection, this.#origin), warnings,
+          command === "node.set" ? undefined : command)
+        : executeStrokeList(command, before.document, before.selection, p);
       if (document !== before.document) {
         this.#undo.push({ document: before.document, selection: before.selection });
         this.#redo = [];
@@ -759,9 +787,9 @@ export class EditorEngine {
   async executeAsync(command: "node.get", input: unknown): Promise<ReturnType<typeof getNode>>;
   async executeAsync(command: string, input?: unknown): Promise<Record<string, unknown>>;
   async executeAsync(command: string, input: unknown = {}): Promise<Record<string, unknown> | null> {
-    if (command === "text.create" || command === "node.create" || command === "node.set") {
+    if (command === "text.create" || command === "node.create" || command === "node.set" || command === "text.set") {
       const p = parameters(input);
-      const props = p.props && typeof p.props === "object" && !Array.isArray(p.props) ? p.props as Record<string, unknown> : command === "node.set" ? p : {};
+      const props = command === "text.set" ? p : p.props && typeof p.props === "object" && !Array.isArray(p.props) ? p.props as Record<string, unknown> : command === "node.set" ? p : {};
       const creating = command === "text.create" || command === "node.create" && parseString(p.type)?.toLowerCase() === "text";
       const content = [props.characters, props.text].filter(value => value !== undefined).map(value => parseString(value) ?? "");
       if (creating || content.length) {

@@ -30,8 +30,8 @@ export function createCanvasText(document: Document, id: string, target: Exclude
   const placement: Affine = [1,0,0,1,x,y];
   let node = autoSizeText(Object.freeze({kind:"text",id,parent,name:"",x:0,y:0,width:1,height:14,
     fill:readableTextFill(document, parent),text:newTextData()}));
-  if (end) node = Object.freeze({...node,width:Math.max(1,pixelRound(Math.abs(end.x-start.x))),
-    height:Math.max(node.height,pixelRound(Math.abs(end.y-start.y))),text:Object.freeze({...node.text,autoResize:"none"})});
+  if (end) node = autoSizeText(Object.freeze({...node,width:Math.max(1,pixelRound(Math.abs(end.x-start.x))),
+    height:Math.max(node.height,pixelRound(Math.abs(end.y-start.y))),text:Object.freeze({...node.text,autoResize:"none"})}));
   return withLayerTransform(node, multiply(inverse(worldTransform(document,parent)),placement));
 }
 

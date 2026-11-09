@@ -1,0 +1,542 @@
+[
+  {
+    "case": 10,
+    "commands": [
+      {
+        "fontFamily": false
+      }
+    ],
+    "result": {
+      "error": true
+    },
+    "node": {
+      "absoluteBounds": {
+        "height": 30.0,
+        "width": 61.0,
+        "x": 0.0,
+        "y": 0.0
+      },
+      "characters": "A🙂bc\nქართული",
+      "fills": [
+        {
+          "color": "#000000",
+          "type": "solid"
+        }
+      ],
+      "fontFamily": "Inter",
+      "fontSize": 12.0,
+      "fontStyle": "Regular",
+      "height": 30.0,
+      "id": 2,
+      "letterSpacing": "0%",
+      "lineHeight": "Auto",
+      "name": "A🙂bc",
+      "sizing": {
+        "horizontal": "hug",
+        "vertical": "hug"
+      },
+      "textAlign": "left",
+      "textAutoResize": "widthAndHeight",
+      "type": "TEXT",
+      "width": 61.0,
+      "x": 0.0,
+      "y": 0.0
+    }
+  },
+  {
+    "case": 13,
+    "commands": [
+      {
+        "fontStyle": "Extra Bold"
+      }
+    ],
+    "result": {
+      "ok": true,
+      "warnings": [
+        "Inter has no `Extra Bold` style: it draws in Bold, the nearest (it has: Regular, Italic, SemiBold, Bold)"
+      ]
+    },
+    "node": {
+      "absoluteBounds": {
+        "height": 30.0,
+        "width": 66.0,
+        "x": 0.0,
+        "y": 0.0
+      },
+      "characters": "A🙂bc\nქართული",
+      "fills": [
+        {
+          "color": "#000000",
+          "type": "solid"
+        }
+      ],
+      "fontFamily": "Inter",
+      "fontSize": 12.0,
+      "fontStyle": "Extra Bold",
+      "height": 30.0,
+      "id": 2,
+      "letterSpacing": "0%",
+      "lineHeight": "Auto",
+      "name": "A🙂bc",
+      "sizing": {
+        "horizontal": "hug",
+        "vertical": "hug"
+      },
+      "textAlign": "left",
+      "textAutoResize": "widthAndHeight",
+      "type": "TEXT",
+      "width": 66.0,
+      "x": 0.0,
+      "y": 0.0
+    }
+  },
+  {
+    "case": 62,
+    "commands": [
+      {
+        "textFills": "#bb0044"
+      }
+    ],
+    "result": {
+      "ok": true
+    },
+    "node": {
+      "absoluteBounds": {
+        "height": 30.0,
+        "width": 61.0,
+        "x": 0.0,
+        "y": 0.0
+      },
+      "characters": "A🙂bc\nქართული",
+      "fills": [
+        {
+          "color": "#000000",
+          "type": "solid"
+        }
+      ],
+      "fontFamily": "Inter",
+      "fontSize": 12.0,
+      "fontStyle": "Regular",
+      "height": 30.0,
+      "id": 2,
+      "letterSpacing": "0%",
+      "lineHeight": "Auto",
+      "name": "A🙂bc",
+      "sizing": {
+        "horizontal": "hug",
+        "vertical": "hug"
+      },
+      "textAlign": "left",
+      "textAutoResize": "widthAndHeight",
+      "type": "TEXT",
+      "width": 61.0,
+      "x": 0.0,
+      "y": 0.0
+    }
+  },
+  {
+    "case": 87,
+    "commands": [
+      {
+        "textDirection": "RTL"
+      }
+    ],
+    "result": {
+      "ok": true
+    },
+    "node": {
+      "absoluteBounds": {
+        "height": 30.0,
+        "width": 61.0,
+        "x": 0.0,
+        "y": 0.0
+      },
+      "characters": "A🙂bc\nქართული",
+      "fills": [
+        {
+          "color": "#000000",
+          "type": "solid"
+        }
+      ],
+      "fontFamily": "Inter",
+      "fontSize": 12.0,
+      "fontStyle": "Regular",
+      "height": 30.0,
+      "id": 2,
+      "letterSpacing": "0%",
+      "lineHeight": "Auto",
+      "lineIndentations": [
+        0,
+        0
+      ],
+      "lineTypes": [
+        "none",
+        "none"
+      ],
+      "name": "A🙂bc",
+      "sizing": {
+        "horizontal": "hug",
+        "vertical": "hug"
+      },
+      "textAlign": "left",
+      "textAutoResize": "widthAndHeight",
+      "textDirection": "rtl",
+      "type": "TEXT",
+      "width": 61.0,
+      "x": 0.0,
+      "y": 0.0
+    }
+  },
+  {
+    "case": 119,
+    "commands": [
+      {
+        "text": "🙂abc"
+      }
+    ],
+    "result": {
+      "ok": true
+    },
+    "node": {
+      "absoluteBounds": {
+        "height": 15.0,
+        "width": 29.0,
+        "x": 0.0,
+        "y": 0.0
+      },
+      "characters": "🙂abc",
+      "fills": [
+        {
+          "color": "#000000",
+          "type": "solid"
+        }
+      ],
+      "fontFamily": "Inter",
+      "fontSize": 12.0,
+      "fontStyle": "Regular",
+      "height": 15.0,
+      "id": 2,
+      "letterSpacing": "0%",
+      "lineHeight": "Auto",
+      "name": "A🙂bc",
+      "overrides": [
+        "characters"
+      ],
+      "sizing": {
+        "horizontal": "hug",
+        "vertical": "hug"
+      },
+      "textAlign": "left",
+      "textAutoResize": "widthAndHeight",
+      "type": "TEXT",
+      "width": 29.0,
+      "x": 0.0,
+      "y": 0.0
+    }
+  },
+  {
+    "case": 130,
+    "commands": [
+      {
+        "paragraphSpacing": 0,
+        "textFills": "#bb0044",
+        "hyperlink": 3,
+        "leadingTrim": "CAP_HEIGHT",
+        "lineHeight": "-6%",
+        "start": 2,
+        "end": 5
+      },
+      {
+        "textDecorationStyle": "dotted",
+        "paragraphIndent": 2.5,
+        "start": 0,
+        "end": 2
+      }
+    ],
+    "result": {
+      "ok": true
+    },
+    "node": {
+      "absoluteBounds": {
+        "height": 23.73,
+        "width": 64.0,
+        "x": 0.0,
+        "y": 0.0
+      },
+      "characters": "A🙂bc\nქართული",
+      "fills": [
+        {
+          "color": "#000000",
+          "type": "solid"
+        }
+      ],
+      "fontFamily": "Inter",
+      "fontSize": 12.0,
+      "fontStyle": "Regular",
+      "height": 23.73,
+      "id": 2,
+      "leadingTrim": "capHeight",
+      "letterSpacing": "0%",
+      "lineHeight": "Auto",
+      "name": "A🙂bc",
+      "sizing": {
+        "horizontal": "hug",
+        "vertical": "hug"
+      },
+      "styledRuns": [
+        {
+          "end": 2,
+          "start": 0,
+          "style": {
+            "case": "original",
+            "decoration": "none",
+            "decoration_look": {
+              "color": null,
+              "offset": {
+                "unit": "auto"
+              },
+              "skip_ink": false,
+              "style": "dotted",
+              "thickness": {
+                "unit": "auto"
+              }
+            },
+            "fills": null,
+            "font_family": "Inter",
+            "font_size": 12.0,
+            "font_style": "Regular",
+            "letter_spacing": {
+              "unit": "percent",
+              "value": 0.0
+            },
+            "line_height": {
+              "unit": "auto"
+            },
+            "link": null
+          }
+        },
+        {
+          "end": 5,
+          "start": 2,
+          "style": {
+            "case": "original",
+            "decoration": "none",
+            "fills": [
+              {
+                "blend": "normal",
+                "color": {
+                  "a": 1.0,
+                  "b": 0.2666666805744171,
+                  "g": 0.0,
+                  "r": 0.7333333492279053
+                },
+                "opacity": 1.0,
+                "type": "solid",
+                "visible": true
+              }
+            ],
+            "font_family": "Inter",
+            "font_size": 12.0,
+            "font_style": "Regular",
+            "letter_spacing": {
+              "unit": "percent",
+              "value": 0.0
+            },
+            "line_height": {
+              "unit": "percent",
+              "value": -6.0
+            },
+            "link": "3"
+          }
+        }
+      ],
+      "textAlign": "left",
+      "textAutoResize": "widthAndHeight",
+      "type": "TEXT",
+      "width": 64.0,
+      "x": 0.0,
+      "y": 0.0
+    }
+  },
+  {
+    "case": 149,
+    "commands": [
+      {
+        "leadingTrim": "CAP_HEIGHT",
+        "start": -1,
+        "end": 999
+      },
+      {
+        "textDirection": "auto",
+        "hangingList": false,
+        "maxLines": -1,
+        "start": 2,
+        "end": 10
+      },
+      {
+        "paragraphSpacing": "foo",
+        "hangingList": true,
+        "variationSettings": {
+          "bad": 1
+        },
+        "paragraphIndent": 2.5,
+        "text": "new string"
+      },
+      {
+        "fontVariations": {
+          "slnt": -2
+        },
+        "paragraphIndent": 2.5,
+        "fontStyle": "Unknown",
+        "textDecorationOffset": "auto",
+        "leadingTrim": "none",
+        "start": 3,
+        "end": 2
+      }
+    ],
+    "result": {
+      "error": true
+    },
+    "node": {
+      "absoluteBounds": {
+        "height": 23.73,
+        "width": 61.0,
+        "x": 0.0,
+        "y": 0.0
+      },
+      "characters": "A🙂bc\nქართული",
+      "fills": [
+        {
+          "color": "#000000",
+          "type": "solid"
+        }
+      ],
+      "fontFamily": "Inter",
+      "fontSize": 12.0,
+      "fontStyle": "Regular",
+      "height": 23.73,
+      "id": 2,
+      "leadingTrim": "capHeight",
+      "letterSpacing": "0%",
+      "lineHeight": "Auto",
+      "name": "A🙂bc",
+      "sizing": {
+        "horizontal": "hug",
+        "vertical": "hug"
+      },
+      "textAlign": "left",
+      "textAutoResize": "widthAndHeight",
+      "type": "TEXT",
+      "width": 61.0,
+      "x": 0.0,
+      "y": 0.0
+    }
+  },
+  {
+    "case": 223,
+    "commands": [
+      {
+        "fontWeight": 550,
+        "fontSize": -2,
+        "start": 0,
+        "end": 5
+      },
+      {
+        "fontStyle": "Bold Italic",
+        "textDecoration": "underline",
+        "start": 0,
+        "end": 999
+      },
+      {
+        "textWrap": "pretty",
+        "leadingTrim": "none",
+        "hangingList": true,
+        "textDecorationOffset": "auto",
+        "hyperlink": 3,
+        "start": "bad",
+        "end": 4
+      }
+    ],
+    "result": {
+      "ok": true
+    },
+    "node": {
+      "absoluteBounds": {
+        "height": 16.0,
+        "width": 65.0,
+        "x": 0.0,
+        "y": 0.0
+      },
+      "characters": "A🙂bc\nქართული",
+      "fills": [
+        {
+          "color": "#000000",
+          "type": "solid"
+        }
+      ],
+      "fontFamily": "Inter",
+      "fontSize": 12.0,
+      "fontStyle": "Bold Italic",
+      "hangingList": true,
+      "height": 16.0,
+      "id": 2,
+      "letterSpacing": "0%",
+      "lineHeight": "Auto",
+      "name": "A🙂bc",
+      "sizing": {
+        "horizontal": "hug",
+        "vertical": "hug"
+      },
+      "styledRuns": [
+        {
+          "end": 4,
+          "start": 0,
+          "style": {
+            "case": "original",
+            "decoration": "underline",
+            "fills": null,
+            "font_family": "Inter",
+            "font_size": 1.0,
+            "font_style": "Bold Italic",
+            "letter_spacing": {
+              "unit": "percent",
+              "value": 0.0
+            },
+            "line_height": {
+              "unit": "auto"
+            },
+            "link": "3"
+          }
+        },
+        {
+          "end": 5,
+          "start": 4,
+          "style": {
+            "case": "original",
+            "decoration": "underline",
+            "fills": null,
+            "font_family": "Inter",
+            "font_size": 1.0,
+            "font_style": "Bold Italic",
+            "letter_spacing": {
+              "unit": "percent",
+              "value": 0.0
+            },
+            "line_height": {
+              "unit": "auto"
+            },
+            "link": null
+          }
+        }
+      ],
+      "textAlign": "left",
+      "textAutoResize": "widthAndHeight",
+      "textDecoration": "underline",
+      "type": "TEXT",
+      "width": 65.0,
+      "wrapStyle": "pretty",
+      "x": 0.0,
+      "y": 0.0
+    }
+  }
+]

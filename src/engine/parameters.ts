@@ -48,3 +48,22 @@ export function parseBoolean(value: unknown): boolean | undefined {
   if (["false", "no", "off", "0"].includes(text)) return false;
   return undefined;
 }
+
+/** Native enum_of normalises command strings; file enums stay exact. */
+export function propertyEnum<T extends string>(value: unknown, allowed: readonly T[], command = true): T {
+  if (typeof value !== "string") throw new Error("An enum must be a string");
+  let normalised = value;
+  if (command) {
+    const noLowercase = !/\p{Ll}/u.test(value);
+    let upper = false;
+    normalised = [...value.trim()].map((ch, i) => {
+      if (ch === "_" || ch === "-" || ch === " ") { upper = true; return ""; }
+      if (i === 0) return ch.toLowerCase();
+      if (upper) { upper = false; return ch.toUpperCase(); }
+      return noLowercase ? ch.toLowerCase() : ch;
+    }).join("");
+  }
+  const found = allowed.find(item => item === normalised);
+  if (found === undefined) throw new Error(`Unsupported enum value: ${value}`);
+  return found;
+}

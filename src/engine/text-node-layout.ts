@@ -26,13 +26,26 @@ export async function prepareText(characters = "") {
   await Promise.all([loading, prepareWordSegmenter(characters)]);
 }
 
+export const fontFamilies = () => fonts?.families() ?? [];
+export const familyStyles = (family: string) => fonts?.styles(family) ?? [];
+
+export const fontStyleWarning = (family:string, style:string) => fonts?.styleWarning(family, style);
+
 function measure(text: TextData, box: { width?: number; height?: number }) {
   if (!fonts) throw new Error("Call prepareText or executeAsync before creating a text layer");
   return layoutTextFlow(text, fonts, box, preparedWordStarts(text.characters));
 }
 
+const bothHug = Object.freeze({horizontal:"hug", vertical:"hug"} as const);
+const heightHug = Object.freeze({horizontal:"fixed", vertical:"hug"} as const);
 export function autoSizeText(node: TextNode): TextNode {
   const { text } = node;
+  const sizing = text.autoResize === "widthAndHeight" ? bothHug : text.autoResize === "height"
+    ? (node.textSizing?.horizontal === "hug" ? bothHug : heightHug) : undefined;
+  if (sizing !== node.textSizing) {
+    const {textSizing: _previous, ...layer} = node;
+    node = Object.freeze(sizing ? {...layer, textSizing:sizing} : layer);
+  }
   if (text.path || text.autoResize === "none" || text.autoResize === "truncate") return node;
   const fixedWidth = text.autoResize === "height";
   const layout = measure(text, fixedWidth ? {width: node.width} : {});
