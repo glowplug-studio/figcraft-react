@@ -1,4 +1,5 @@
-import { hasShadows, shadowReach, ShadowLayer } from "./shadow-renderer";
+import { applyBlur, blurRadius } from "./blur-renderer";
+import { hasShadows, effectReach, ShadowLayer } from "./shadow-renderer";
 import { compositeSurface } from "./blend-composite";
 import { drawMasked, reserveLayerPixels } from "./mask-renderer";
 import { booleanResult } from "./boolean-result";
@@ -73,24 +74,27 @@ function* paintLayerStroke(context: CanvasRenderingContext2D, node: LayerNode): 
 }
 
 /** Node opacity affects the finished stack, including antialiased edges, once. */
-function* paintComposite(context: CanvasRenderingContext2D, node: LayerNode, draw: (target: CanvasRenderingContext2D, shadows?: ShadowLayer) => PaintSteps, painted?: Rectangle, shadow?: { doc: Document; scale: number }): PaintSteps {
+function* paintComposite(context: CanvasRenderingContext2D, node: LayerNode, draw: (target: CanvasRenderingContext2D, shadows?: ShadowLayer) => PaintSteps, painted?: Rectangle, effect?: { doc: Document; scale: number }): PaintSteps {
   const matrix = context.getTransform();
   const bounds = painted ?? strokeBounds(node, multiply([matrix.a, matrix.b, matrix.c, matrix.d, matrix.e, matrix.f], rectangleTransform(node)));
   let margin = 0;
-  if (shadow) for (const e of node.effects ?? []) {
+  let blurMargin = 0;
+  if (effect) for (const e of node.effects ?? []) {
+    if (e.visible && e.type === "layerBlur") blurMargin += 2 * blurRadius(e) * effect.scale;
     if (e.visible && (e.type === "dropShadow" || e.type === "innerShadow")) {
       const reach = 2 * Math.abs(e.radius) + 4 * Math.abs(e.spread) + Math.abs(e.offset[0]) + Math.abs(e.offset[1]);
-      margin = Math.max(margin, Math.min(2048, Math.ceil(reach * shadow.scale) + 1));
+      margin = Math.max(margin, Math.min(2048, Math.ceil(reach * effect.scale) + 1));
     }
   }
+  margin = Math.min(2048, margin + Math.ceil(blurMargin));
   const left = Math.max(-margin, Math.floor(bounds.x)), top = Math.max(-margin, Math.floor(bounds.y));
-  const width = Math.min(shadow ? 16384 : Infinity, Math.min(context.canvas.width + margin, Math.ceil(bounds.x + bounds.width)) - left);
-  const height = Math.min(shadow ? 16384 : Infinity, Math.min(context.canvas.height + margin, Math.ceil(bounds.y + bounds.height)) - top);
+  const width = Math.min(effect ? 16384 : Infinity, Math.min(context.canvas.width + margin, Math.ceil(bounds.x + bounds.width)) - left);
+  const height = Math.min(effect ? 16384 : Infinity, Math.min(context.canvas.height + margin, Math.ceil(bounds.y + bounds.height)) - top);
   if (width <= 0 || height <= 0) return;
   // Chromium rounds half-opacity compositing differently on its whole-image fast path.
   // Crop the exact paint rectangle from a padded surface to retain native byte rounding.
-  const surfaceWidth = !shadow && (node.opacity ?? 1) < 1 ? width + 1 : width;
-  const release = reserveLayerPixels(surfaceWidth, height, shadow ? 6 : 1);
+  const surfaceWidth = !effect && (node.opacity ?? 1) < 1 ? width + 1 : width;
+  const release = reserveLayerPixels(surfaceWidth, height, effect ? 6 : 1);
   if (!release) return;
   try {
     let surface = compositeSurfaces.get(context);
@@ -104,9 +108,14 @@ function* paintComposite(context: CanvasRenderingContext2D, node: LayerNode, dra
     if (!scratch) throw new Error("Canvas compositing is unavailable");
     scratch.resetTransform(); scratch.clearRect(0, 0, surfaceWidth, height);
     scratch.setTransform(matrix.a, matrix.b, matrix.c, matrix.d, matrix.e - left, matrix.f - top);
-    const shadows = shadow && new ShadowLayer(scratch,shadow.doc,node,shadow.scale);
+    const shadows = effect && hasShadows(node) ? new ShadowLayer(scratch,effect.doc,node,effect.scale) : undefined;
     try {
       yield* draw(scratch,shadows);
+      if (effect) for (const e of node.effects ?? []) if (e.visible && e.type === "layerBlur") {
+        const m = scratch.getTransform();
+        const xf = multiply([m.a,m.b,m.c,m.d,m.e,m.f],rectangleTransform(node));
+        applyBlur(scratch,e,node.width,node.height,xf,effect.scale);
+      }
       shadows?.drop(context,left,top);
     } finally { shadows?.dispose(); }
     compositeSurface(context, scratch, left, top, width, height, node.blend ?? "normal", opacity(node.opacity ?? 1));
@@ -133,7 +142,7 @@ function paintedGroupBounds(context: CanvasRenderingContext2D, document: Documen
     const item = pending.pop()!, current = item.node;
     if (current.visible === false || (current.opacity ?? 1) <= 0 || item.depth > 256) continue;
     const matrix = multiply(item.parent, rectangleTransform(current));
-    const reach = current.effects?.length ? shadowReach(current) : undefined;
+    const reach = current.effects?.length ? effectReach(current) : undefined;
     const stackMargin = item.margin + (reach?.page ?? 0);
     margin = Math.max(margin, stackMargin);
     if (!isLeaf(current)) {
@@ -162,6 +171,10 @@ function loneNormalStroke(node: LayerNode): boolean {
     : !rectanglePaints(node).length;
 }
 
+function usesPixelLayer(node: LayerNode) {
+  return node.effects?.some(e => e.visible && (e.type === "dropShadow" || e.type === "innerShadow" ||
+    e.type === "layerBlur" && blurRadius(e) > 0));
+}
 function* drawLayer(context: CanvasRenderingContext2D, document: Document, node: LayerNode, depth: number, nesting: number, scale: number): PaintSteps {
   if (node.isMask || node.visible === false || (node.opacity ?? 1) <= 0 || depth > 256) return;
   if (node.kind === "booleanOp") {
@@ -169,7 +182,7 @@ function* drawLayer(context: CanvasRenderingContext2D, document: Document, node:
     if (result) yield* drawLayer(context, document, result.isMask || result.blend !== node.blend ? { ...result, isMask: false, blend: node.blend } : result, depth, nesting, scale);
     return;
   }
-  const shadow = hasShadows(node) ? { doc: document, scale } : undefined;
+  const effect = usesPixelLayer(node) ? { doc: document, scale } : undefined;
   const blended = node.blend !== undefined && node.blend !== "normal" && node.blend !== "passThrough";
   if (!isLeaf(node)) {
     const draw = function* (target: CanvasRenderingContext2D, shadows?: ShadowLayer): PaintSteps {
@@ -182,17 +195,17 @@ function* drawLayer(context: CanvasRenderingContext2D, document: Document, node:
       if (node.kind === "group") shadows?.inner();
       if (node.kind === "frame" && hasVisibleStroke(node)) yield* resolveLayerPaints(paintLayerStroke(target, node), document, depth, nesting, drawLayer);
     };
-    if (shadow || blended || node.blend === "normal" && node.children.length || (node.opacity ?? 1) < .999) {
+    if (effect || blended || node.blend === "normal" && node.children.length || (node.opacity ?? 1) < .999) {
       const bounds = paintedGroupBounds(context, document, node, scale);
-      if (bounds) yield* paintComposite(context, node, draw, bounds, shadow);
+      if (bounds) yield* paintComposite(context, node, draw, bounds, effect);
     } else yield* draw(context);
-  } else if (shadow) {
+  } else if (effect) {
     const bounds = deviceBounds(context,document,node,scale);
     yield* paintComposite(context,node,function* (target,shadows) {
-      yield* resolveLayerPaints(paintRectangle(target,node,1,false),document,depth,nesting,drawLayer,true);
+      yield* resolveLayerPaints(paintRectangle(target,node,1,false),document,depth,nesting,drawLayer,!!shadows);
       shadows?.inner();
       if (hasVisibleStroke(node)) yield* resolveLayerPaints(paintLayerStroke(target,node),document,depth,nesting,drawLayer);
-    },bounds,shadow);
+    },bounds,effect);
   } else if (blended || hasShapePath(node) || hasVisibleStroke(node) || node.fills || node.opacity !== undefined && node.opacity !== 1) {
     const alpha = opacity(node.opacity ?? 1);
     const faded = alpha < .999;
@@ -348,7 +361,7 @@ function deviceBounds(context: CanvasRenderingContext2D, document: Document, nod
   const matrix = multiply([m.a,m.b,m.c,m.d,m.e,m.f], rectangleTransform(node));
   const bounds = strokeBounds(node,matrix);
   if (!node.effects?.length) return bounds;
-  const reach = shadowReach(node);
+  const reach = effectReach(node);
   return paddedRect(bounds,reach.page*scale+outlinePad(matrix,reach.local));
 }
 
@@ -364,7 +377,7 @@ function* drawChildren(context: CanvasRenderingContext2D, document: Document, ch
       index = end - 1;
       continue;
     }
-    if (view && isLeaf(node) && !hasShadows(node)) {
+    if (view && isLeaf(node) && !usesPixelLayer(node)) {
       const bounds = hasVisibleStroke(node) ? strokeBounds(node, rectangleTransform(node)) : node.transform ? transformBounds(node.transform, node.width, node.height) : node;
       if (bounds.x > view.x + view.width || bounds.y > view.y + view.height || bounds.x + bounds.width < view.x || bounds.y + bounds.height < view.y) continue;
     }

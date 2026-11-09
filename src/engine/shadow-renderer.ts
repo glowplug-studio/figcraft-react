@@ -1,3 +1,4 @@
+import { blurRadius } from "./blur-renderer";
 import { compositeSurface } from "./blend-composite";
 import { maskOutline, paintedStrokePath } from "./boolean-result";
 import { tracePath, type PathCommand } from "./corners";
@@ -17,13 +18,15 @@ export function hasShadows(node: LayerNode) {
 }
 
 /** Effects have page-space offsets and radii. An outline's spread also follows its local affine. */
-export function shadowReach(node: LayerNode) {
+export function effectReach(node: LayerNode) {
   let page = 0, local = 0;
   for (const e of node.effects ?? []) if (e.visible && e.type === "dropShadow") {
     page = Math.max(page, Math.min(1e12, 2 * Math.abs(e.radius) + Math.abs(e.offset[0]) + Math.abs(e.offset[1]) + 4 * Math.abs(e.spread)));
     local = Math.max(local, Math.min(1e12, 4 * Math.max(0, e.spread)));
   }
-  return { page, local };
+  let squared = 0;
+  for (const e of node.effects ?? []) if (e.visible && e.type === "layerBlur") squared += (1.5 * blurRadius(e)) ** 2;
+  return { page: page + Math.sqrt(squared), local };
 }
 
 function alphaPixels(ctx: CanvasRenderingContext2D) {
@@ -130,7 +133,8 @@ export class ShadowLayer {
     const drop = node.effects?.filter((e): e is Shadow => e.visible && e.type === "dropShadow");
     if (!drop?.length) return;
     const alpha = alphaPixels(layer);
-    const hiding = drop.some(e=>!e.showBehind) && outlines(this.doc,node,true);
+    const moved = node.effects?.some(e=>e.visible && e.type==="layerBlur" && blurRadius(e)>0);
+    const hiding = !moved && drop.some(e=>!e.showBehind) && outlines(this.doc,node,true);
     const cover = hiding ? outlineAlpha(surface,width,height,hiding,matrix) : alpha;
     const casting = drop.some(e=>e.spread !== 0) && outlines(this.doc,node,false);
     for (const e of drop) {

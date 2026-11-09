@@ -14,7 +14,7 @@
 | Tests last passed | The effect stack checkpoint d54f4a5 passed all 184 production Chromium tests in 358.8 seconds, strict types, both production builds, 1,135 pure tests and two real Auth tests. At 97f74e8 the shadow kernels passed strict types and 1,139 pure tests. At 87ced5f all 183 local production Chromium workflows passed in 355.0 seconds with zero skips, failures, flakes or retries. Both production builds, strict types, 1,124 pure tests and two real local Auth checks passed. |
 | Files currently in progress | Native effect records and commands at d54f4a5. Canvas inner and drop shadows passed five focused Chromium fixtures and a signed-in native-file visual check. |
 | Blockers | No blocker. Use local Graphify for all remaining slices. The scoped Supabase read succeeded. |
-| Exact next action | Continue with uniform and progressive layer/backdrop blur from the [canvas shadow checkpoint](26-11-09-layer-effects.md#canvas-shadows). |
+| Exact next action | Continue with ancestor backdrop reads from the [layer blur checkpoint](26-11-09-layer-effects.md#layer-blur). |
 | Last updated | 2026-11-09 |
 
 ## Scope and continuation

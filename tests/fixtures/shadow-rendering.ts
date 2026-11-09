@@ -104,3 +104,17 @@ export function scaledOutlines(canvas:HTMLCanvasElement) {
   draw();
   return samples;
 }
+
+export function layerBlurSamples(canvas:HTMLCanvasElement) {
+  const {rect,set,draw,pixel}=scene(canvas);
+  const blur={type:"layerBlur",radius:6};
+  const id=rect(20,15,20,20,{fill:"blue",effects:[blur]});
+  draw(); const uniform=[39,40,41,42,44,50].map(x=>pixel(x,25));
+  set(id,{effects:[{...blur,blurType:"progressive",start:[0,0],end:[0,1]}]});
+  draw(); const ramp=[pixel(40,16),pixel(40,33),pixel(41,28)];
+  set(id,{effects:[{...blur,blurType:"progressive",start:[.5,.5],end:[.5,.5]}]});
+  draw(); const coincident=[39,40,41,42,44,50].map(x=>pixel(x,25));
+  set(id,{effects:[{...redShadow,offset:[30,0]},blur]});
+  draw(); const castAfterBlur=[pixel(70,25),pixel(74,25),pixel(80,25)];
+  return {uniform,ramp,coincident,castAfterBlur};
+}

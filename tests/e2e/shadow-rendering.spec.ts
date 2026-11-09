@@ -53,3 +53,12 @@ test("a scaled parent transforms outline spread and preserves the page-space dro
   const r=await page.evaluate(()=>window.FigcraftShadows.scaledOutlines(document.querySelector("canvas")!));
   expect(r).toEqual([[0,0,255,128],[255,0,0,128],[255,0,0,128],clear,[255,0,0,128]]);
 });
+
+test("uniform and progressive blur move layer pixels before casting drop shadows",async({page})=>{
+  const r=await page.evaluate(()=>window.FigcraftShadows.layerBlurSamples(document.querySelector("canvas")!));
+  expect(r.uniform.slice(1)).toEqual([110,78,50,14,0].map(a=>a?[0,0,255,a]:clear));
+  expect(r.coincident).toEqual(r.uniform);
+  // At y=16.5 the radius mixes 22.5% of the one-sigma level into a clear pixel.
+  expect(r.ramp[0]).toEqual([0,0,255,19]); expect(r.ramp[1][3]).toBeGreaterThan(30); expect(r.ramp[2][3]).toBeGreaterThan(0);
+  expect(r.castAfterBlur).toEqual([[255,0,0,110],[255,0,0,14],clear]);
+});
