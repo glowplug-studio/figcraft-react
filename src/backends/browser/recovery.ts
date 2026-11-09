@@ -1,4 +1,4 @@
-import type { RecoveryStore } from "../recovery";
+import type { WorkspaceArchive, WorkspaceRecoveryStore } from "../recovery";
 
 const SNAPSHOTS = "snapshots";
 
@@ -9,7 +9,7 @@ export interface IndexedDbRecoveryOptions {
 }
 
 /** Transactional browser equivalent of upstream recovery's successful-write acknowledgement. */
-export class IndexedDbRecoveryStore implements RecoveryStore {
+export class IndexedDbRecoveryStore implements WorkspaceRecoveryStore {
   #options: IndexedDbRecoveryOptions;
   #database: IDBDatabase | undefined;
   #opening: Promise<IDBDatabase> | undefined;
@@ -129,8 +129,30 @@ export class IndexedDbRecoveryStore implements RecoveryStore {
     return this.#transaction(principalId, "readwrite", store => store.put(copy, principalId), () => undefined);
   }
 
+  async readWorkspace(principal: string): Promise<WorkspaceArchive | null> {
+    const stored = await this.#transaction(principal, "readonly", store => store.get([principal, "workspace"]), value => {
+      if (value === undefined) return null;
+      const record = value as Partial<WorkspaceArchive>;
+      if (!Array.isArray(record.files) || !record.files.every(file => file instanceof Blob)
+        || !Number.isInteger(record.active) || record.active! < 0 || record.active! >= Math.max(1, record.files.length)) {
+        throw new Error("Invalid stored file workspace");
+      }
+      return { files: record.files as Blob[], active: record.active! };
+    });
+    if (stored) return stored;
+    const legacy = await this.readBlob(principal);
+    return legacy ? { files: [legacy], active: 0 } : null;
+  }
+
+  writeWorkspace(principal: string, archive: WorkspaceArchive): Promise<void> {
+    return this.#transaction(principal, "readwrite", store => {
+      store.delete(principal);
+      return store.put(archive, [principal, "workspace"]);
+    }, () => undefined);
+  }
+
   remove(principalId: string): Promise<void> {
-    return this.#transaction(principalId, "readwrite", store => store.delete(principalId), () => undefined);
+    return this.#transaction(principalId, "readwrite", store => { store.delete([principalId, "workspace"]); return store.delete(principalId); }, () => undefined);
   }
 
   close(): void {

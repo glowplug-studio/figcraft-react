@@ -18,6 +18,8 @@ export {
   type Principal,
   type Unsubscribe,
 } from "./backends/identity";
+export { WorkspaceEditor } from "./WorkspaceEditor";
+export type { WorkspaceRecoveryStore, WorkspaceArchive } from "./backends/recovery";
 export { Editor, type EditorProps } from "./Editor";
 export { EditorWorkspace, type DocumentTab } from "./engine/workspace";
 export { EditorEngine, commandSpecs, type EditorSnapshot, type CommandId } from "./engine/editor";

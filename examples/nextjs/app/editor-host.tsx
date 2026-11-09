@@ -2,7 +2,7 @@
 
 import "@glowplug-studio/figcraft-react/fonts.css";
 import { useEffect, useState } from "react";
-import { Editor, FigcraftRoot, IndexedDbRecoveryStore, type IdentitySnapshot, type DocumentCapability } from "@glowplug-studio/figcraft-react";
+import { WorkspaceEditor, FigcraftRoot, IndexedDbRecoveryStore, type IdentitySnapshot, type DocumentCapability } from "@glowplug-studio/figcraft-react";
 import { SupabaseIdentityAdapter } from "@glowplug-studio/figcraft-react/backends/supabase";
 import { useRouter } from "next/navigation";
 import { getBrowserSupabase } from "../lib/supabase/browser";
@@ -36,6 +36,6 @@ export function EditorHost({ identity }: { identity: Extract<IdentitySnapshot, {
   return <main>
     <header className="host-bar"><p>Figcraft React</p><button onClick={logout}>Sign out</button></header>
     {error && <p role="alert">{error}</p>}
-    <FigcraftRoot>{adapter && recovery ? <Editor key={identity.principal.id} identity={adapter} capabilities={localCapabilities} recoveryStore={recovery} /> : <p role="status">Opening editor…</p>}</FigcraftRoot>
+    <FigcraftRoot>{adapter && recovery ? <WorkspaceEditor key={identity.principal.id} identity={adapter} capabilities={localCapabilities} recoveryStore={recovery} /> : <p role="status">Opening editor…</p>}</FigcraftRoot>
   </main>;
 }

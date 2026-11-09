@@ -127,3 +127,7 @@ dd { margin: 0; }
 .figcraft-variable-field > [role=group] { display:grid; gap:4px; max-height:15rem; overflow:auto; padding:4px; border:1px solid ButtonBorder; background:Canvas; }
 .figcraft-variable-field [role=group] [role=group] { display:grid; gap:2px; }
 .figcraft-variable-field input, .figcraft-variable-field button { min-width:0; max-width:100%; overflow-wrap:anywhere; }
+
+.figcraft-file-tabs { display: flex; gap: 2px; overflow-x: auto; border-bottom: 1px solid #ddd; padding: 2px 8px; }
+.figcraft-file-tabs > button { flex: none; max-width: 18rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.figcraft-file-tabs > [aria-selected=true] { border-color: #0d99ff; }

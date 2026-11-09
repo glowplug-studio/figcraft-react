@@ -254,6 +254,8 @@ function fontParams(command:keyof typeof fontOptions,input:unknown) {
   return p;
 }
 /** React-free command transactions. Snapshots share immutable nodes and document references. */
+export interface EditorClipboard { paint?: CopiedPaint; effect?: Effect }
+
 export class EditorEngine {
   readonly pen = new PenInteraction(this);
   readonly pencil = new PencilInteraction(this);
@@ -294,11 +296,10 @@ export class EditorEngine {
   #libraryPick=0;
   #libraryRevision=0;
   get libraryRevision() {return this.#libraryRevision;}
-  #copiedEffect?: Effect;
-  #copiedPaint?: CopiedPaint;
-  hasCopiedEffect = (): boolean => !!this.#copiedEffect;
-  hasCopiedFill = (): boolean => this.#copiedPaint?.list === "fill";
-  hasCopiedStroke = (): boolean => this.#copiedPaint?.list === "stroke";
+  #clipboard: EditorClipboard = {};
+  hasCopiedEffect = (): boolean => !!this.#clipboard.effect;
+  hasCopiedFill = (): boolean => this.#clipboard.paint?.list === "fill";
+  hasCopiedStroke = (): boolean => this.#clipboard.paint?.list === "stroke";
   #vectorListeners = new Set<() => void>();
   #viewportAttached = false;
   #viewConfigured = false;
@@ -310,15 +311,17 @@ export class EditorEngine {
   constructor(name?: string) {
     this.#snapshot = Object.freeze({ document: newDocument(name), selection: Object.freeze([]), tool: "move", builderMode: "merge", scaleAnchor: "tl", canUndo: false, canRedo: false, editable: true, dirty: true, hasSaved: false });
   }
-  static newTab(name?: string): EditorEngine {
+  static newTab(name?: string, clipboard: EditorClipboard = {}): EditorEngine {
     const engine = new EditorEngine(name);
+    engine.#clipboard = clipboard;
     engine.#saved = engine.#snapshot.document;
     engine.#publish({});
     return engine;
   }
+  closeTab() { this.#clipboard = {}; this.setEditable(false); }
   duplicateTab(): EditorEngine {
     const document = Object.freeze({ ...this.#snapshot.document, name: this.#snapshot.document.name + " (Copy)" });
-    const copy = EditorEngine.newTab();
+    const copy = EditorEngine.newTab(undefined, this.#clipboard);
     copy.#saved = document;
     copy.#nextId = this.#nextId;
     copy.#publish({ document });
@@ -960,7 +963,7 @@ export class EditorEngine {
     if (!editable) this.pen.cancel();
     if (!editable) this.cancelInteraction();
     if (!editable) {this.cancelPendingFiles();this.#libraryFiles.clear();this.#libraryRevision++;}
-    if (!editable) { this.#vectorEdit = undefined; this.#copiedPaint = undefined; this.#copiedEffect = undefined; }
+    if (!editable) { this.#vectorEdit = undefined; this.#clipboard.paint = undefined; this.#clipboard.effect = undefined; }
     if (editable !== this.#snapshot.editable) this.#publish({ editable, tool: "move", profileDialog: false, libraryPanel:undefined, missingFonts: undefined });
   }
   execute(command:"text.edit.selection",input?:unknown):EditSelection|null;
@@ -1185,14 +1188,14 @@ export class EditorEngine {
       return next.result;
     }
     if (command === "effect.copy") {
-      const previous = this.#copiedEffect;
-      this.#copiedEffect = copyEffect(this.#snapshot.document, this.#snapshot.selection, p);
+      const previous = this.#clipboard.effect;
+      this.#clipboard.effect = copyEffect(this.#snapshot.document, this.#snapshot.selection, p);
       if (!previous) this.#publish({});
-      return wireEffect(this.#copiedEffect);
+      return wireEffect(this.#clipboard.effect);
     }
     if (Object.hasOwn(effectSpecs, command)) {
       const before = this.#snapshot;
-      const document = editEffects(command, before.document, before.selection, p, this.#copiedEffect);
+      const document = editEffects(command, before.document, before.selection, p, this.#clipboard.effect);
       if (document !== before.document) {
         let openEffects = before.openEffects;
         const first = before.selection[0];
@@ -1211,17 +1214,17 @@ export class EditorEngine {
     }
     if (command === "fill.copy" || command === "stroke.copy") {
       const list = command === "fill.copy" ? "fill" : "stroke";
-      const previous = this.#copiedPaint?.list;
-      this.#copiedPaint = copyPaint(list, this.#snapshot.document, this.#snapshot.selection, p, this.#vectorEdit);
-      if (this.#copiedPaint.paint.type === "pattern") this.#copiedPaint.documentIdentity = this.#documentIdentity;
+      const previous = this.#clipboard.paint?.list;
+      this.#clipboard.paint = copyPaint(list, this.#snapshot.document, this.#snapshot.selection, p, this.#vectorEdit);
+      if (this.#clipboard.paint.paint.type === "pattern") this.#clipboard.paint.documentIdentity = this.#documentIdentity;
       if (previous !== list) this.#publish({});
-      const {colorAlpha,...paint}=this.#copiedPaint.paint;
+      const {colorAlpha,...paint}=this.#clipboard.paint.paint;
       return {...paint,...(paint.type==="pattern" && {source:inspectedId(paint.source)}),...(colorAlpha!==1 && {colorAlpha})};
     }
     if (Object.hasOwn(fillSpecs, command) || command === "stroke.paste") {
       const before = this.#snapshot;
       const document = command === "fill.paste" || command === "stroke.paste"
-        ? pastePaint(command === "fill.paste" ? "fill" : "stroke", before.document, before.selection, p, this.#copiedPaint, this.#vectorEdit, this.#documentIdentity)
+        ? pastePaint(command === "fill.paste" ? "fill" : "stroke", before.document, before.selection, p, this.#clipboard.paint, this.#vectorEdit, this.#documentIdentity)
         : writeFill(command as Exclude<keyof typeof fillSpecs, "fill.copy" | "fill.paste">, before.document, before.selection, p, this.#vectorEdit);
       if (document !== before.document) {
         this.#commitEdit({ document });
@@ -1469,6 +1472,12 @@ export class EditorEngine {
   }
   recoverFile(file: Blob) {
     return this.#executeFileCommand("file.recover", {}, {file});
+  }
+  async openTabFile(file: File) {
+    const result = await this.openFile(file);
+    this.#saved = this.#snapshot.document;
+    this.#publish({});
+    return result;
   }
   async openFile(file:File) {
     return this.#executeFileCommand("file.open",{name:file.name},{file});

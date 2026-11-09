@@ -16,3 +16,14 @@ export interface RecoveryStore {
   remove(principalId: string): Promise<void>;
   close(): void;
 }
+
+/** One atomic, ordered set of native archives for a signed-in browser workspace. */
+export interface WorkspaceArchive {
+  files: readonly Blob[];
+  active: number;
+}
+
+export interface WorkspaceRecoveryStore extends RecoveryStore {
+  readWorkspace(principal: string): Promise<WorkspaceArchive | null>;
+  writeWorkspace(principal: string, archive: WorkspaceArchive): Promise<void>;
+}

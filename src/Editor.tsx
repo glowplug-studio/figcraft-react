@@ -1,3 +1,6 @@
+import type { ReactNode } from "react";
+import type { WorkspaceRecoveryState } from "./engine/workspace-recovery";
+import type { EditorWorkspace } from "./engine/workspace";
 import {componentRoot} from "./engine/library-component-source";
 import type {PublishedLibrary} from "./engine/published-library";
 import {LibraryVariablesContext,libraryCatalogues} from "./LibraryVariablesContext";
@@ -64,15 +67,24 @@ function HistoryButtons({ engine, editable, undo, redo, dispatch }: { engine: Ed
     <button disabled={!editable || (!redo && !(pen & 2))} onClick={() => dispatch("edit.redo")}>Redo</button></>;
 }
 /** Embeddable local rectangle workflow. The host owns authentication and styling. */
-export function Editor({ identity, capabilities, engine: suppliedEngine, recoveryStore }: EditorProps) {
+export function Editor(props: EditorProps) { return <DocumentEditor {...props} />; }
+
+export function DocumentEditor({ identity, capabilities, engine: suppliedEngine, recoveryStore, workspace, workspaceRecovery, fileMenu, onWorkspaceNotice }: EditorProps & {
+  workspace?: EditorWorkspace;
+  workspaceRecovery?: WorkspaceRecoveryState;
+  fileMenu?: ReactNode;
+  onWorkspaceNotice?: (message: string) => void;
+}) {
   const [engine] = useState(() => suppliedEngine ?? new EditorEngine());
   useEffect(()=>engine.observeLocalFonts(),[engine]);
   const snapshot = useSyncExternalStore(engine.subscribe, engine.getSnapshot, engine.getSnapshot);
   const editingVector = useSyncExternalStore(engine.subscribeVectorEdit, () => Boolean(engine.getVectorEdit()), () => Boolean(engine.getVectorEdit()));
   const [signedIn, setSignedIn] = useState(() => identity.getSnapshot().status === "authenticated");
   const [error, setError] = useState("");
-  const [recoveryStatus, setRecoveryStatus] = useState(recoveryStore ? "loading" : "ready");
-  const [recoveryError, setRecoveryError] = useState("");
+  const [localStatus, setRecoveryStatus] = useState(recoveryStore ? "loading" : "ready");
+  const [localError, setRecoveryError] = useState("");
+  const recoveryStatus = workspaceRecovery?.status ?? localStatus;
+  const recoveryError = workspaceRecovery ? workspaceRecovery.message : localError;
   const [busy, setBusy] = useState(false);
   const [assetsOpen,setAssetsOpen] = useState(false);
   const [mobileAssetsOpen,setMobileAssetsOpen] = useState(false);
@@ -121,7 +133,7 @@ export function Editor({ identity, capabilities, engine: suppliedEngine, recover
     return identity.subscribe(update);
   }, [engine, identity, capabilities]);
   useEffect(() => {
-    if (!recoveryStore || !initialPrincipal.current) return;
+    if (workspace || !recoveryStore || !initialPrincipal.current) return;
     const recovery = new RecoveryController(engine, recoveryStore, initialPrincipal.current, (status, message) => {
       setRecoveryStatus(status); setRecoveryError(message ?? "");
     });
@@ -129,7 +141,7 @@ export function Editor({ identity, capabilities, engine: suppliedEngine, recover
     const flush = () => { if (document.visibilityState === "hidden") void recovery.flush(); };
     document.addEventListener("visibilitychange", flush);
     return () => { document.removeEventListener("visibilitychange", flush); recovery.dispose(); };
-  }, [engine, recoveryStore]);
+  }, [engine, recoveryStore, workspace]);
   useEffect(() => {
     if (!canvas.current || recoveryStatus === "loading") return;
     const instance = new CanvasController(canvas.current, engine, setError);
@@ -324,7 +336,7 @@ export function Editor({ identity, capabilities, engine: suppliedEngine, recover
     menu.style.top=Math.max(0,Math.min(y,window.innerHeight-bounds.height))+"px";
   }
   function requestOpen(file:File) {
-    if (snapshot.dirty && Object.keys(snapshot.document.nodes).length > snapshot.document.pages.length) setPendingFile(file);
+    if (!workspace && snapshot.dirty && Object.keys(snapshot.document.nodes).length > snapshot.document.pages.length) setPendingFile(file);
     else void open(file);
   }
   async function drop(files:File[], point:Point, usePicker:boolean) {
@@ -367,8 +379,9 @@ export function Editor({ identity, capabilities, engine: suppliedEngine, recover
   async function open(file: File) {
     controller.current?.cancel(); setPendingFile(null); setBusy(true); setError("");
     try {
-      const { repairs } = await engine.openFile(file);
-      if (repairs.length) setError(repairs.join("\n"));
+      const { repairs } = workspace ? await workspace.open(file) : await engine.openFile(file);
+      if (workspace) onWorkspaceNotice?.(repairs.join("\n"));
+      else if (repairs.length) setError(repairs.join("\n"));
     } catch (caught) { setError(caught instanceof Error ? caught.message : "File could not be opened"); }
     finally { setBusy(false); }
   }
@@ -443,8 +456,8 @@ export function Editor({ identity, capabilities, engine: suppliedEngine, recover
       const file = Array.from(e.clipboardData.files).find(file=>file.type.startsWith("image/"));
       if (file) { e.preventDefault(); void paste(file); }
     }}>
-      <header className="figcraft-document-bar"><h1>{snapshot.document.name}</h1><span>{snapshot.dirty ? "Unsaved" : "Downloaded"} · Local document</span>
-        <details><summary>File</summary><button disabled={!editable || busy} type="button" onClick={event => {
+      <header className="figcraft-document-bar"><h1>{snapshot.document.name}</h1><span>{snapshot.dirty ? "Unsaved" : snapshot.hasSaved ? "Downloaded" : "Unmodified"} · Local document</span>
+        <details><summary>File</summary>{fileMenu}<button disabled={!editable || busy} type="button" onClick={event => {
           event.currentTarget.closest("details")?.removeAttribute("open"); dispatch("file.colorProfile");
         }}>Color profile</button></details>
         <details><summary>Libraries</summary>

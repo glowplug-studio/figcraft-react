@@ -1,4 +1,4 @@
-import { EditorEngine } from "./editor";
+import { EditorEngine, type EditorClipboard } from "./editor";
 import { parseBoolean, parseIndex, parseString } from "./parameters";
 
 export interface DocumentTab {
@@ -26,17 +26,25 @@ export class EditorWorkspace {
   #tabs: OpenTab[] = [];
   #active?: OpenTab;
   #editable = true;
+  #clipboard: EditorClipboard = {};
   #generation = 0;
   #listeners = new Set<() => void>();
+  #documentListeners = new Set<() => void>();
   #snapshot: readonly DocumentTab[] = Object.freeze([]);
 
-  constructor() { this.#append(EditorEngine.newTab()); }
+  constructor() { this.#append(EditorEngine.newTab(undefined, this.#clipboard)); }
   get activeEngine() { return this.#active?.engine; }
   getSnapshot = () => this.#snapshot;
   subscribe = (listener: () => void) => {
     this.#listeners.add(listener);
     return () => { this.#listeners.delete(listener); };
   };
+
+  subscribeDocuments(listener: () => void) {
+    this.#documentListeners.add(listener);
+    return () => { this.#documentListeners.delete(listener); };
+  }
+  get engines(): readonly EditorEngine[] { return this.#tabs.map(tab => tab.engine); }
 
   #publish() {
     this.#snapshot = Object.freeze(this.#tabs.map(({ id, engine }, index) => {
@@ -46,17 +54,27 @@ export class EditorWorkspace {
     for (const listener of this.#listeners) listener();
   }
 
-  #append(engine: EditorEngine) {
+  #attach(engine: EditorEngine) {
     let { document: { name }, dirty } = engine.getSnapshot();
+    let last = engine.getSnapshot().document;
     const unsubscribe = engine.subscribe(() => {
       const state = engine.getSnapshot();
+      if (last !== state.document) {
+        last = state.document;
+        for (const listener of this.#documentListeners) listener();
+      }
       if (name === state.document.name && dirty === state.dirty) return;
       name = state.document.name;
       dirty = state.dirty;
       this.#publish();
     });
-    this.#active = { id: nextDocumentId++, engine, unsubscribe };
-    this.#tabs.push(this.#active);
+    return { id: nextDocumentId++, engine, unsubscribe };
+  }
+
+  #append(engine: EditorEngine, activate = true) {
+    const tab = this.#attach(engine);
+    this.#tabs.push(tab);
+    if (activate || !this.#active) this.#active = tab;
     this.#publish();
     return { index: this.#tabs.length - 1 };
   }
@@ -68,13 +86,33 @@ export class EditorWorkspace {
     for (const tab of this.#tabs) tab.engine.setEditable(editable);
   }
 
+  async restore(files: readonly Blob[], active: number, cancelled: () => boolean) {
+    const generation = this.#generation;
+    const tabs: EditorEngine[] = [], repairs: string[] = [];
+    for (const file of files) {
+      if (cancelled() || generation !== this.#generation) return;
+      const engine = EditorEngine.newTab(undefined, this.#clipboard);
+      const result = await engine.recoverFile(file);
+      repairs.push(...result.repairs);
+      tabs.push(engine);
+    }
+    if (cancelled() || generation !== this.#generation) return;
+    for (const tab of this.#tabs) { tab.unsubscribe(); tab.engine.closeTab(); }
+    this.#tabs = tabs.map(engine => this.#attach(engine));
+    this.#active = this.#tabs[active];
+    this.#publish();
+    return repairs;
+  }
+
   async open(file: File) {
     if (!this.#editable) throw new Error("Sign in to open a document");
     const generation = this.#generation;
-    const engine = EditorEngine.newTab();
-    const result = await engine.openFile(file);
+    const engine = EditorEngine.newTab(undefined, this.#clipboard);
+    const origin = this.#active;
+    const result = await engine.openTabFile(file);
     if (generation !== this.#generation) throw new Error("Open cancelled because the identity changed");
-    return { ...result, ...this.#append(engine) };
+    if (origin && !this.#tabs.includes(origin)) throw new Error("Open cancelled because the source tab closed");
+    return { ...result, ...this.#append(engine, this.#active === origin) };
   }
 
   execute(command: "doc.list"): readonly DocumentTab[];
@@ -82,7 +120,7 @@ export class EditorWorkspace {
   execute(command: WorkspaceCommand, params: Record<string, unknown> = {}): readonly DocumentTab[] | Record<string, unknown> {
     if (!this.#editable) throw new Error("Sign in to use the workspace");
     if (command === "doc.list") return this.#snapshot;
-    if (command === "file.new") return { ...this.#append(EditorEngine.newTab(parseString(params.name))), kind: "design" };
+    if (command === "file.new") return { ...this.#append(EditorEngine.newTab(parseString(params.name), this.#clipboard)), kind: "design" };
     const active = this.#active;
     const tabIndex = (key: string) => {
       const index = parseIndex(params[key], key);
@@ -112,7 +150,7 @@ export class EditorWorkspace {
         throw new Error("command `file.close` is not available right now: the document has unsaved changes (pass force: true to discard)");
       }
       tab.unsubscribe();
-      tab.engine.setEditable(false);
+      tab.engine.closeTab();
       this.#tabs.splice(index, 1);
       if (tab === active) this.#active = this.#tabs[Math.min(index, this.#tabs.length - 1)];
       this.#publish();

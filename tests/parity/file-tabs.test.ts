@@ -64,6 +64,6 @@ describe("native file workspace", () => {
     expect(() => first.execute("shape.rectangle")).toThrow();
     await workspace.open(new File([bytes], "Draft.figcraft"));
     expect(workspace.getSnapshot()).toHaveLength(1);
-    expect(workspace.getSnapshot()[0].dirty).toBe(true);
+    expect(workspace.getSnapshot()[0].dirty).toBe(false);
   });
 });

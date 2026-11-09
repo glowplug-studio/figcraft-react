@@ -216,7 +216,7 @@ test("unavailable Canvas 2D reports an accessible error", async ({ page }) => {
   await expect(page.locator("main [role=alert]")).toContainText("Canvas 2D is unavailable");
 });
 
-test("native download, cancelled replacement, reopen and recovery after reload", async ({ page }) => {
+test("native download, independent open tabs, cancelled discard and recovery after reload", async ({ page }) => {
   const errors: string[] = [];
   page.on("pageerror", error => errors.push(error.message));
   page.on("requestfailed", request => { if (!request.failure()?.errorText.includes("ERR_ABORTED")) errors.push(request.failure()?.errorText ?? "Request failed"); });
@@ -235,22 +235,70 @@ test("native download, cancelled replacement, reopen and recovery after reload",
   const input = page.getByLabel("Open Figcraft file", { exact: true });
   const file = { name: "roundtrip.figcraft", mimeType: "application/octet-stream", buffer: bytes };
   await input.setInputFiles(file);
-  await expect(page.getByRole("dialog", { name: "Replace unsaved document" })).toBeVisible();
-  await page.getByRole("button", { name: "Cancel", exact: true }).click();
+  const tabs = page.getByRole("tablist", { name: "Open files" }).getByRole("tab");
+  await expect(tabs).toHaveCount(2);
+  await tabs.first().click();
   await expect(page.getByText("2 layers", { exact: true })).toBeVisible();
-  await input.setInputFiles(file);
-  await page.getByRole("button", { name: "Replace document", exact: true }).click();
+  await page.locator(".figcraft-document-bar").getByText("File", { exact: true }).click();
+  await page.getByRole("button", { name: "Close file", exact: true }).click();
+  await expect(page.getByRole("dialog", { name: "Close unsaved file" })).toBeVisible();
+  await page.getByRole("button", { name: "Cancel", exact: true }).click();
+  await tabs.last().click();
   await expect(page.getByText("1 layer", { exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "Undo", exact: true })).toBeDisabled();
   await expect(page.getByText("Recovery saved on this device", { exact: true })).toBeVisible();
   await page.reload(); await resetCanvasOrigin(page);
   await expect(page.getByText("1 layer", { exact: true })).toBeVisible();
   await expect(page.getByText("Unsaved · Local document", { exact: true })).toBeVisible();
+  await expect(tabs).toHaveCount(2);
   await input.setInputFiles({ name: "invalid.figcraft", mimeType: "application/octet-stream", buffer: Buffer.from("broken") });
-  await page.getByRole("button", { name: "Replace document", exact: true }).click();
+
+
   await expect(page.locator("main [role=alert]")).toContainText("Cannot open Figcraft file");
   await expect(page.getByText("1 layer", { exact: true })).toBeVisible();
   expect(errors).toEqual([]);
+});
+
+test("file tabs rename, duplicate, reorder, retain editing state and restore an empty workspace", async ({ page }) => {
+  await login(page);
+  const menu = async (name: string) => {
+    const bar = page.locator(".figcraft-document-bar");
+    const button = bar.getByRole("button", { name, exact: true });
+    if (!await button.isVisible()) await bar.getByText("File", { exact: true }).click();
+    await button.click();
+  };
+  const fileTabs = page.getByRole("tablist", { name: "Open files" }).getByRole("tab");
+  await page.getByRole("button", { name: "Create rectangle", exact: true }).click();
+  await menu("Rename file");
+  const dialog = page.getByRole("dialog", { name: "Rename file" });
+  await dialog.getByLabel("File name").fill("Drawing");
+  await dialog.getByRole("button", { name: "Rename", exact: true }).click();
+  await menu("Duplicate file");
+  await expect(page.getByRole("heading", { name: "Drawing (Copy)", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Undo", exact: true })).toBeDisabled();
+  await menu("New file");
+  await expect(fileTabs).toHaveCount(3);
+  await expect(page.getByLabel("Design canvas", { exact: true })).toHaveCount(1);
+  await menu("Move tab left");
+  await expect(fileTabs.nth(1)).toHaveAttribute("aria-selected", "true");
+  await page.setViewportSize({ width: 390, height: 844 });
+  await fileTabs.nth(1).focus();
+  await page.keyboard.press("ArrowLeft");
+  await expect(page.getByRole("heading", { name: "Drawing", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Undo", exact: true })).toBeEnabled();
+  await menu("Close file");
+  await page.getByRole("button", { name: "Discard changes", exact: true }).click();
+  await expect(fileTabs.nth(0)).toHaveText("Untitled");
+  await menu("Close file");
+  await expect(page.getByRole("heading", { name: "Drawing (Copy)", exact: true })).toBeVisible();
+  await menu("Close file");
+  await expect(page.getByRole("heading", { name: "Files", exact: true })).toBeVisible();
+  await expect(page.getByLabel("Design canvas")).toHaveCount(0);
+  await expect(page.getByRole("status").filter({ hasText: "Recovery saved on this device" })).toBeVisible();
+  await page.reload();
+  await expect(page.getByRole("heading", { name: "Files", exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "New file", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Untitled", exact: true })).toBeVisible();
 });
 
 test("native image archive preserves original bytes through browser open, edits, recovery and download", async ({ page }) => {
@@ -330,7 +378,8 @@ test("opening raster files draws decoded pixels for all six formats and preserve
   for (const [index, filename] of files.entries()) {
     const source = await readFile(new URL("../fixtures/images/"+filename,import.meta.url));
     await input.setInputFiles({name:index+"-"+filename,mimeType:"application/octet-stream",buffer:source});
-    if (index) await page.getByRole("button", { name:"Replace document", exact:true }).click();
+
+
     await expect(page.getByRole("heading", { name:index+"-"+filename.replace(/\.[^.]*$/,""), exact:true })).toBeVisible();
     await resetCanvasOrigin(page);
     await expectCanvasPixel(page,0,0,filename.endsWith(".jpg") ? [27,97,27,255] : filename === "strips-jpeg.tiff" ? [250,0,8,255] : [255,0,0,255]);
@@ -1679,13 +1728,15 @@ test("width profile presets and flip survive native files, recovery, invalid inp
   expect(Object.values(opened.document.nodes).find(n => n.kind === "line")).toMatchObject({ stroke: { widthProfile: { points: [{ t: 0, scale: 0, bias: 0 }, { t: 1, scale: 1, bias: 0 }] } } });
   await profile.selectOption("uniform"); await expect(profile).toHaveValue("uniform");
   await page.getByLabel("Open Figcraft file", { exact: true }).setInputFiles({ name: "profile.figcraft", mimeType: "application/octet-stream", buffer: bytes });
-  await page.getByRole("button", { name: "Replace document", exact: true }).click();
+
+
   await expect(page.locator(".figcraft-recovery")).toHaveText("Recovery saved on this device"); await page.reload();
   await page.getByRole("region", { name: "Layers", exact: true }).getByRole("button", { name: "Line", exact: true }).click();
   await stroke.getByText("Advanced stroke", { exact: true }).click(); await expect(profile).toHaveValue("custom");
   const malformed = JSON.parse(strFromU8(unzipSync(bytes)["document.json"]), (key, value: unknown) => key === "width_profile" ? { points: null } : value) as unknown;
   await page.getByLabel("Open Figcraft file", { exact: true }).setInputFiles({ name: "invalid-profile.figcraft", mimeType: "application/json", buffer: Buffer.from(JSON.stringify(malformed)) });
-  await page.getByRole("button", { name: "Replace document", exact: true }).click();
+
+
   await expect(page.locator("main [role=alert]")).toContainText("Width profile points must be an array"); await expect(profile).toHaveValue("custom");
   await page.setViewportSize({ width: 390, height: 844 });
   await profile.scrollIntoViewIfNeeded(); const bounds = (await profile.boundingBox())!; expect(bounds.x).toBeGreaterThanOrEqual(0); expect(bounds.x + bounds.width).toBeLessThanOrEqual(390);
@@ -1738,7 +1789,8 @@ test("brush presets and scatter controls preserve profiles, files, recovery and 
   await expect(brush).toHaveValue("dots"); for (const [label, value] of fields) await expect(stroke.getByLabel(label, { exact: true })).toHaveValue(value);
   const malformed = JSON.parse(strFromU8(unzipSync(bytes)["document.json"]), (key, value: unknown) => key === "brush" ? { preset: "dots", seed: -1 } : value) as unknown;
   await page.getByLabel("Open Figcraft file", { exact: true }).setInputFiles({ name: "invalid-brush.figcraft", mimeType: "application/json", buffer: Buffer.from(JSON.stringify(malformed)) });
-  await page.getByRole("button", { name: "Replace document", exact: true }).click(); await expect(page.locator("main [role=alert]")).toContainText("Brush seed"); await expect(brush).toHaveValue("dots");
+
+  await expect(page.locator("main [role=alert]")).toContainText("Brush seed"); await expect(brush).toHaveValue("dots");
   await page.setViewportSize({ width: 390, height: 844 });
   for (const [label] of fields) { const input = stroke.getByLabel(label, { exact: true }); await input.scrollIntoViewIfNeeded(); const bounds = (await input.boundingBox())!; expect(bounds.x).toBeGreaterThanOrEqual(0); expect(bounds.x + bounds.width).toBeLessThanOrEqual(390); }
   await brush.selectOption("taper"); await expect(stroke.getByLabel("Brush spacing", { exact: true })).toHaveCount(0);
@@ -2080,7 +2132,8 @@ test("vector point dimensions, shared box gestures and snapping controls survive
   await page.setViewportSize({ width: 1440, height: 900 });
   const wide = new EditorEngine(); wide.execute("vector.create", { name: "Wide path", points: [[0, 0], [2e7, 10]] });
   await page.getByLabel("Open Figcraft file", { exact: true }).setInputFiles({ name: "wide.figcraft", mimeType: "application/octet-stream", buffer: Buffer.from(await wide.nativeSnapshot()) });
-  await page.getByRole("button", { name: "Replace document", exact: true }).click();
+
+
   await layers.getByRole("button", { name: "Wide path", exact: true }).click(); await page.getByRole("button", { name: "Edit vector", exact: true }).click();
   await panel.getByRole("button", { name: "Select all points", exact: true }).click();
   await expect(panel.getByLabel("Point width", { exact: true })).toHaveValue("20000000");
@@ -3242,7 +3295,8 @@ test("PNG source profiles keep the native gamma labels and convert canvas pixels
   ];
   for(const [index,{name,profile,grey,colour}] of files.entries()){
     await input.setInputFiles(new URL("../fixtures/images/"+name+".png",import.meta.url).pathname);
-    if(index) await page.getByRole("button",{name:"Replace document",exact:true}).click();
+
+
     await expect(page.getByRole("heading",{name,exact:true})).toBeVisible();
     await resetCanvasOrigin(page);
     await expectCanvasPixel(page,0,0,[grey,grey,grey,255]);
@@ -3262,7 +3316,8 @@ test("embedded ICC profiles convert PNG JPEG WebP and TIFF pixels and survive a 
   for(const [i,ext] of files.entries()){
     const file="icc-adobe."+ext, name=ext+"-adobe";
     await input.setInputFiles({name:name+"."+ext,mimeType:"application/octet-stream",buffer:await readFile(new URL("../fixtures/images/"+file,import.meta.url))});
-    if(i) await page.getByRole("button",{name:"Replace document",exact:true}).click();
+
+
     await expect(page.getByRole("heading",{name,level:1,exact:true})).toBeVisible();
     await resetCanvasOrigin(page);
     // D65 Adobe RGB (1998) [200,80,60] mapped through XYZ to sRGB.
@@ -3281,8 +3336,7 @@ test("embedded ICC profiles convert PNG JPEG WebP and TIFF pixels and survive a 
   expect(image.profileName).toBe("Adobe RGB (1998)");
   expect(Buffer.from(await image.bytes.arrayBuffer())).toEqual(await readFile(new URL("../fixtures/images/icc-adobe.tiff",import.meta.url)));
   await input.setInputFiles({name:"Recovered.figcraft",mimeType:"application/octet-stream",buffer:saved});
-  const confirm=page.getByRole("button",{name:"Replace document",exact:true});
-  if(await confirm.isVisible()) await confirm.click();
+
   await resetCanvasOrigin(page);
   await expectCanvasPixel(page,20,1,[230,79,56,255]);
 });
@@ -3295,7 +3349,8 @@ test("grey and lookup-table ICC profiles preserve opacity and match the native p
   ];
   for(const [i,{name,label,pixels}] of files.entries()){
     await page.getByLabel("Open Figcraft file",{exact:true}).setInputFiles(new URL("../fixtures/images/"+name+".png",import.meta.url).pathname);
-    if(i) await page.getByRole("button",{name:"Replace document",exact:true}).click();
+
+
     await expect(page.getByRole("heading",{name,level:1,exact:true})).toBeVisible();
     await page.getByRole("list",{name:"Page layers",exact:true}).getByRole("button",{name,exact:true}).click();
     await page.getByRole("button",{name:"Edit fill 1 paint",exact:true}).click();
@@ -3401,7 +3456,8 @@ test("P3 gamut warning and soft proof identify clipped colours and clear on a fr
   await expect(page.getByText("Outside sRGB",{exact:true})).toBeVisible();
   await page.getByRole("button",{name:"Close paint picker"}).click();
   await open();
-  await page.getByRole("button",{name:"Replace document",exact:true}).click();
+
+
   await page.locator("summary").filter({hasText:/^View$/}).click();
   await expect(proof).toHaveAttribute("aria-pressed","false");
   await expectCanvasPixel(page,20,28,[0,255,0,255]);
@@ -3418,8 +3474,7 @@ test("two- and four-component JPEG TIFFs keep native CMYK and alpha pixels on op
     const beforeWorkers = workers;
     const original = await readFile(new URL("../fixtures/images/"+name+".tiff",import.meta.url));
     await open.setInputFiles({name:name+".tiff",mimeType:"image/tiff",buffer:original});
-    const replace = page.getByRole("button",{name:"Replace document",exact:true});
-    if (i && await replace.isVisible()) await replace.click();
+
     await expect(page.getByRole("heading",{name,exact:true,level:1})).toBeVisible();
     await resetCanvasOrigin(page);
     await expectCanvasPixel(page,12,3,sampled);
@@ -3617,8 +3672,7 @@ test("copied image fills and strokes survive a different file using the same ima
   await login(page);
   const open = async (sourceFile: boolean) => {
     await page.getByLabel("Open Figcraft file",{exact:true}).setInputFiles({name:"Clipboard.figcraft",mimeType:"application/octet-stream",buffer:archive(sourceFile)});
-    const replace = page.getByRole("button",{name:"Replace document",exact:true});
-    if (await replace.isVisible()) await replace.click();
+
     await expect(page.getByRole("heading",{name:sourceFile?"Clipboard source":"Clipboard destination",level:1})).toBeVisible();
     await page.getByRole("list",{name:"Page layers",exact:true}).getByRole("button",{name:"Rectangle",exact:true}).click();
   };

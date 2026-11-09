@@ -18,3 +18,11 @@ The first implementation boundary is the tab lifecycle and per-tab editing state
 ## First implementation checkpoint
 
 The public EditorWorkspace now owns independent EditorEngine instances. A replay against pinned headless Rust matched eleven successive results, including clean new tabs, stable identity across reordering, the dirty-close error and activation after closing a different tab. Four parity tests cover the replay, empty workspace, distinct histories and allocators, copy-on-write duplication and an identity change during file opening. The Next.js host and multi-document recovery are the next integration step.
+
+## Browser workspace checkpoint
+
+The protected host uses one active canvas. New, open, rename, duplicate, switch, reorder and close use the same workspace as the command tests. Closing the final document leaves a recoverable empty workspace. A second Rust replay confirmed that a pathless opened file starts clean and closes without confirmation. Download delivery and device recovery have distinct saved-state semantics.
+
+The IndexedDB host migrates a previous single archive on the first successful workspace write. Each atomic record contains ordered native Blobs and the selected index. Unchanged archives are reused, concurrent writes are serialised and a failed restore keeps the stored original. Three additional contract tests cover legacy migration, principal separation, empty-workspace persistence, a close during a delayed write and corrupt storage. The two signed-in desktop and narrow-screen tab workflows passed on production Next.js, alongside image archive and unavailable-storage checks. The full Chromium regression gate is in progress.
+
+The refreshed local combined graph contains 32,628 nodes and 109,494 edges. Verified EditorWorkspace and WorkspaceRecovery on the React side and cycle_doc and go_to_library_main on the pinned Rust side. Test modules with no extracted symbols require direct inspection.
