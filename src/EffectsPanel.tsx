@@ -4,7 +4,7 @@ import { usePaintActions } from "./PaintActions";
 import { effectTypes, wireEffect, type Effect } from "./engine/effects";
 import type { EditorEngine } from "./engine/editor";
 
-const labels: Record<Effect["type"], string> = {
+export const effectLabels: Record<Effect["type"], string> = {
   dropShadow:"Drop shadow", innerShadow:"Inner shadow", layerBlur:"Layer blur",
   backgroundBlur:"Background blur", noise:"Noise", texture:"Texture", glass:"Glass",
 };
@@ -38,12 +38,12 @@ export function EffectsPanel({engine, editable, dispatch}: {engine: EditorEngine
           if (editable && source?.selection === ids) move(source.index,index);
         }}>
         <div draggable={editable} onDragStart={event => {
-          drag.current = {index, selection:ids}; event.dataTransfer.setData("text/plain", labels[e.type]); event.dataTransfer.effectAllowed = "move";
+          drag.current = {index, selection:ids}; event.dataTransfer.setData("text/plain", effectLabels[e.type]); event.dataTransfer.effectAllowed = "move";
         }} onDragEnd={()=>{drag.current = undefined;}}>
           <button type="button" aria-label={'Effect ' + (row + 1) + ' settings'} aria-expanded={open}
             onClick={()=>engine.toggleEffectSettings(index)}>Settings</button>
           <label>Effect type<select value={e.type} onChange={event=>dispatch("effect.set", {ids,index,effect:{type:event.target.value}})}>
-            {effectTypes.map(type=><option key={type} value={type}>{labels[type]}</option>)}</select></label>
+            {effectTypes.map(type=><option key={type} value={type}>{effectLabels[type]}</option>)}</select></label>
           <label><input type="checkbox" checked={e.visible} onChange={event=>change({...e,visible:event.target.checked})}/>Visible</label>
           <button type="button" aria-label={'Remove effect ' + (row + 1)} onClick={()=>dispatch("effect.remove",{ids,index})}>Remove</button>
           <button type="button" disabled={!row} onClick={()=>move(index,index+1)}>Move up</button>

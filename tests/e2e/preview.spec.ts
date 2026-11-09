@@ -5742,3 +5742,39 @@ test("Design organises local style folders, reorders styles across folders and s
   expect(document.nodes[3].styles?.fill).toBe("S:6");
   expect(document.styles?.find(s=>s.name==="Brand/Surface copy")?.description).toBe("Catalogue copy");
 });
+
+test("editing a shared text definition updates linked characters and preserves its font on recovery", async ({page})=>{
+  await login(page);
+  const buffer=await readFile(new URL("../fixtures/native-shared-styles.json",import.meta.url));
+  await page.getByLabel("Open Figcraft file",{exact:true}).setInputFiles({name:"type.figcraft",mimeType:"application/octet-stream",buffer});
+  const catalogue=page.getByRole("group",{name:"Local styles",exact:true});
+  await catalogue.getByRole("button",{name:"Edit Type/Emphasis"}).click();
+  const type=catalogue.getByRole("group",{name:"Typography properties"});
+  for (const [label,value,result] of [["Style font size","*1.5","30"],["Style line height","150%","150%"],
+    ["Style line height","-2","0%"],["Style line height","24px","24"],["Style letter spacing","-2.5%","-2.5%"]]) {
+    const field=type.getByLabel(label,{exact:true});
+    await field.fill(value);
+    await field.press("Enter");
+    await expect(field).toHaveValue(result);
+  }
+  await type.getByRole("button",{name:"Font family"}).click();
+  const fonts=type.getByRole("dialog",{name:"Choose font family"});
+  await fonts.getByRole("option",{name:"Inter",exact:true}).first().click();
+  await type.getByLabel("Style font style").selectOption("Regular");
+  await catalogue.getByLabel("Style description").fill("Reviewed typography");
+  await catalogue.getByRole("button",{name:"Back",exact:true}).click();
+  await catalogue.getByRole("button",{name:"Edit Depth/Stack"}).click();
+  await expect(catalogue.getByRole("list",{name:"Effect properties"}).getByRole("listitem")).toHaveCount(6);
+  await catalogue.getByRole("button",{name:"Back",exact:true}).click();
+  await catalogue.getByRole("button",{name:"Edit Layout/Columns"}).click();
+  await expect(catalogue.getByRole("list",{name:"Grid properties"}).getByRole("listitem")).toHaveCount(2);
+  await expect(page.locator(".figcraft-recovery")).toHaveText("Recovery saved on this device");
+  await page.reload();
+  const downloading=page.waitForEvent("download");
+  await page.getByRole("button",{name:"Save as",exact:true}).click();
+  const {document}=await decodeFigcraft(await readFile((await (await downloading).path())!));
+  const definition={fontSize:30,fontFamily:"Inter",fontStyle:"Regular",lineHeight:{unit:"pixels",value:24},letterSpacing:{unit:"percent",value:-2.5}};
+  expect(document.styles?.find(s=>s.id==="S:5")).toMatchObject({style:definition,description:"Reviewed typography"});
+  const text=document.nodes[4];
+  expect(text.kind==="text" && text.text.runs[0]).toMatchObject({start:0,end:5,style:{...definition,styleId:"S:5"}});
+});

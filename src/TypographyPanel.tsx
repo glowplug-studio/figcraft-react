@@ -1,4 +1,5 @@
-import { useMemo, useState, useSyncExternalStore, type RefObject } from "react";
+import { useMemo, useSyncExternalStore, type RefObject } from "react";
+import { TypographyField as Field, textMeasure as measure } from "./TypographyField";
 import { TypographySettings } from "./TypographySettings";
 import { toCssHex } from "./engine/colour";
 import { hasRtlText } from "./engine/text-bidi";
@@ -11,26 +12,6 @@ import { paragraphList, paragraphSpan, scalarCount, textSpans } from "./engine/t
 import type { TextStyle } from "./engine/text-style";
 
 const common = <T,>(values: T[]) => values.every(v => v === values[0]) ? values[0] : undefined;
-const measure = (v: TextStyle["lineHeight"]) => v.unit === "auto" ? "Auto" : String(v.value) + (v.unit === "percent" ? "%" : "");
-
-function Field({label, value, apply, empty}: {label:string; value?:string; empty?:string; apply:(value:string) => void}) {
-  const [draft, setDraft] = useState<string>();
-  function commit() {
-    if (draft !== undefined && draft !== value) {
-      const next=draft.trim() || empty;
-      if (next!==undefined) apply(next);
-    }
-    setDraft(undefined);
-  }
-  return <label>{label}<input aria-label={label} value={draft ?? value ?? ""} placeholder={value === undefined ? "Mixed" : undefined}
-    onChange={event => setDraft(event.target.value)} onBlur={commit}
-    onKeyDown={event => {
-      if (event.nativeEvent.isComposing) return;
-      if (event.key === "Enter") { event.preventDefault(); commit(); }
-      if (event.key === "Escape") { event.preventDefault(); setDraft(undefined); }
-    }} /></label>;
-}
-
 export function TypographyPanel({engine, editable, apply, onLeave, linkDialog, link, run}: {engine:EditorEngine; linkDialog:RefObject<HTMLDialogElement|null>; link:(ids:string[],url:string)=>void; run:(command:string,params:Record<string,unknown>)=>void; editable:boolean;
   apply:(ids:string[], props:Record<string,unknown>) => void; onLeave:() => void}) {
   const catalogueVersion=useSyncExternalStore(subscribeFonts,fontGeneration,fontGeneration);
