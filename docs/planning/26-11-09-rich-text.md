@@ -284,3 +284,13 @@ Implementation `a5bd87c` passed all eight affected Chromium workflows. Its full 
 ### Text editing command evidence and execution order
 
 The nine `text.edit.*` entries in `crates/engine/src/cmd/text.rs` delegate to `canvas/textedit.rs`. The native session keeps a directed scalar caret and anchor, a provisional IME string, and a single undoable interaction. Text input currently uses a DOM textarea with sorted formatting ranges. Share the word, grapheme, line and visual caret movement with the keyboard controller first. Then connect the command session and native textarea to one directed selection and composition owner. Compare commands both during live canvas editing and in an independent embedded engine. Preserve default select-all, cancellation, replacement of selected characters on first composition, filtered empty commits, list markers, derived names, access revocation and undo. The separate upstream reference captured 443 command sequences against the pinned revision.
+
+Implementation `31a85cb` shares all nine commands and the native textarea. All 443 native traces, 1,670 pure tests, two Auth tests, strict types, both builds and 227/227 production browser workflows passed. The installed library bridge checked reverse selection, physical typing and preedit. [Editing matrix](../reports/26-11-09-text-edit-sessions-parity.html).
+
+### Text editor clipboard and gestures
+
+Upstream `ui-egui/src/shortcuts.rs::copy_or_cut` copies the selected plain text. Paste uses `textedit::insert` and inherits the destination formatting. Preserve that behaviour with the native textarea and check actual clipboard contents, reverse selection and styled ranges in the saved archive. Route triple-click through the existing native line selection command. Check the text-context Save and Undo shortcuts through the signed-in host, including the open edit after saving and the single undo entry.
+
+### Text on a path tool
+
+Map `canvas/tools/click.rs::path_at`, `text_on_path_down`, `handles.rs::path_candidates` and the native draw-tool tests to browser path hit testing and the existing text interaction. A six-screen-pixel hit uses the frontmost eligible first subpath, measured in page space with the fractional start in path-local length. Cover locked layers, boolean operands, masks, clipped frames, anisotropic scale, source order, fills, effects, constraints and the restoration of an abandoned path. Open the existing textarea at scalar zero. Carry style and variable bindings when their owning document records are ported.

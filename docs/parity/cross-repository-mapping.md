@@ -426,3 +426,5 @@ Native typography’s font picker maps to `FontFamilyPicker`. Native preview and
 Native `text.fonts`, `text.loadFont`, the browser branch of `rescan_system_fonts`, and `fonts::refit` map to `queryFonts`, `importFontBytes`, the browser rescan result and family-filtered `refitText`. [Catalogue, collection and browser evidence](../planning/26-11-09-rich-text.md#font-catalogue-verification).
 
 Native typography `variable_axes`, `named_instances` and `type_settings` map to `TypographySettings`, `AxisControl` and `TypographyPanel`. Browser `familySample` uses the editor’s glyph painter for the native `font_preview::family` path. [Inspector property matrix](../reports/26-11-09-font-catalogue-inspector-parity.html).
+
+Upstream `canvas/textedit.rs` and its nine `cmd/text.rs` entries map to `executeTextEdit`, `EditorEngine.beginTextEdit`, `textKeyMotion` and `CanvasTextInput`. The comparison matched 443 native edit sequences. The installed package and signed-in Next.js host passed browser checks. [Editing matrix](../reports/26-11-09-text-edit-sessions-parity.html).
