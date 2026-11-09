@@ -5813,3 +5813,38 @@ test("a shared paint picker propagates gradient stops and uploaded images with n
   expect(document.images?.[paint.image]).toMatchObject({width:3,height:2});
   expect(document.nodes[3]).toMatchObject({fills:[paint],strokes:[paint]});
 });
+
+test("local variables display expressions and preserve extended collections and reordered modes after recovery", async ({page})=>{
+  await login(page);
+  await page.getByLabel("Open Figcraft file",{exact:true}).setInputFiles(new URL("../fixtures/native-variables.json",import.meta.url).pathname);
+  await page.getByRole("button",{name:"Open variables (6)"}).click();
+  const panel=page.getByRole("dialog",{name:"Local variables"});
+  await panel.getByRole("searchbox",{name:"Search variables"}).fill("Highlight");
+  const row=panel.getByRole("row",{name:/Highlight/});
+  await expect(row.getByRole("cell").first()).toContainText("Base + Accent");
+  await panel.getByRole("button",{name:"Extend collection",exact:true}).click();
+  await expect(panel.getByRole("table",{name:"Theme (extended) variables"})).toBeVisible();
+  await expect(panel.getByRole("button",{name:"Add mode"})).toHaveCount(0);
+  await panel.getByRole("button",{name:"Theme",exact:true}).click();
+  await panel.getByLabel("Options for Dark").click();
+  await panel.getByRole("button",{name:"Duplicate mode",exact:true}).click();
+  await panel.getByRole("textbox",{name:"Mode name"}).fill("Dusk");
+  await panel.getByRole("button",{name:"Save name"}).click();
+  await panel.getByLabel("Options for Dusk").click();
+  await panel.getByRole("columnheader",{name:/Dusk/}).getByRole("button",{name:"Move left"}).click();
+  await panel.getByRole("button",{name:"Create collection",exact:true}).click();
+  await panel.getByRole("textbox",{name:"Collection name"}).fill("Motion");
+  await panel.getByRole("button",{name:"Save name"}).click();
+  await panel.getByRole("button",{name:"Close variables",exact:true}).click();
+  await expect(page.locator(".figcraft-recovery")).toHaveText("Recovery saved on this device");
+  await page.reload();
+  await page.getByRole("button",{name:"Open variables (11)"}).click();
+  await panel.getByRole("button",{name:"Theme (extended)",exact:true}).click();
+  await expect(panel.getByRole("columnheader")).toHaveText(["Name","Light","Dusk","Dark"]);
+  await panel.getByRole("button",{name:"Close variables",exact:true}).click();
+  const downloading=page.waitForEvent("download");
+  await page.getByRole("button",{name:"Save as",exact:true}).click();
+  const {document}=await decodeFigcraft(await readFile((await (await downloading).path())!));
+  expect(document.variables?.collections.map(c=>c.name)).toEqual(["Theme","Density","Theme (extended)","Motion"]);
+  expect(document.variables?.variables.filter(v=>v.extends)).toHaveLength(5);
+});

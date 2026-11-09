@@ -1,3 +1,5 @@
+import { collectionSpecs, editCollection } from "./variable-collections";
+import { emptyVariables, type Variables } from "./variables";
 import { editLayoutGuides, gridSpecs } from "./layout-guides";
 import { editStyleLinks } from "./style-application";
 import { editStylePaint, editStyleDefinition, orderStyles, styleEditSpecs, styleOrderSpecs } from "./style-commands";
@@ -100,9 +102,11 @@ export const commandSpecs = Object.freeze({
   ...instanceCommandSpecs,
   ...styleOrderSpecs,
   ...styleEditSpecs,
+  ...collectionSpecs,
   ...gridSpecs,
   "style.apply": {label:"Apply style",undo:true},
   "style.detach": {label:"Detach style",undo:true},
+  "variable.list": {label:"List variables",undo:false},
   "style.list": {label:"List styles",undo:false},
   "component.list": {label:"List components",undo:false},
   "instance.create": { label:"Create instance", undo:true },
@@ -840,11 +844,12 @@ export class EditorEngine {
   execute(command: "shapeBuilder.regions", input?: unknown): ReturnType<typeof readBuilderRegions>;
   execute(command: "frame.presets", input?: unknown): typeof framePresets;
   execute(command: "image.presets", input?: unknown): ReturnType<typeof listImagePresets>;
+  execute(command: "variable.list", input?: unknown): Variables;
   execute(command: "style.list", input?: unknown): ReturnType<typeof listStyles>;
   execute(command: "component.list", input?: unknown): ReturnType<typeof listComponents>;
   execute(command: "page.list", input?: unknown): ReturnType<typeof listPages>;
   execute(command: string, input?: unknown): Record<string, unknown>;
-  execute(command: string, input: unknown = {}): Record<string, unknown> | ReturnType<typeof listStyles> | ReturnType<typeof listComponents> | ReturnType<typeof listPages> | typeof framePresets | ReturnType<typeof queryFonts> | null {
+  execute(command: string, input: unknown = {}): Record<string, unknown> | Variables | ReturnType<typeof listStyles> | ReturnType<typeof listComponents> | ReturnType<typeof listPages> | typeof framePresets | ReturnType<typeof queryFonts> | null {
     if (!Object.hasOwn(commandSpecs, command)) throw new Error(`Unsupported command: ${command}`);
     if (!this.#snapshot.editable) throw new Error("Sign in to edit this document");
     const p = command==="text.fonts" || command==="text.rescanFonts" || command==="text.loadFont"
@@ -1118,6 +1123,16 @@ export class EditorEngine {
       else if (document !== before) this.#commitEdit({document});
       return result;
     }
+    if (Object.hasOwn(collectionSpecs,command)) {
+      const before=this.#snapshot.document, data=before.variables ?? emptyVariables;
+      const next=editCollection(data,command,p);
+      if (next.data!==data) this.#commitEdit({document:Object.freeze({...before,variables:next.data})});
+      return next.result;
+    }
+    if (command === "variable.list") {
+      if (Object.keys(p).length) throw new Error("variable.list takes no parameters");
+      return structuredClone(this.getRenderDocument().variables ?? emptyVariables);
+    }
     if (command === "style.list") return listStyles(this.getRenderDocument(), p.type);
     if (command === "component.list") return listComponents(this.#snapshot.document);
     if (command === "page.list") return listPages(this.#snapshot.document);
@@ -1161,13 +1176,14 @@ export class EditorEngine {
   }
   /** Native file commands run outside pointer rendering and retain atomic document replacement. */
   async executeAsync(command:"text.edit.selection",input?:unknown):Promise<EditSelection|null>;
+  async executeAsync(command:"variable.list",input?:unknown):Promise<Variables>;
   async executeAsync(command:"style.list",input?:unknown):Promise<ReturnType<typeof listStyles>>;
   async executeAsync(command:"component.list",input?:unknown):Promise<ReturnType<typeof listComponents>>;
   async executeAsync(command:"text.fonts",input?:unknown):Promise<ReturnType<typeof queryFonts>>;
   async executeAsync(command: "file.open" | "file.recover", input: unknown): Promise<OpenResult>;
   async executeAsync(command: "node.get", input: unknown): Promise<ReturnType<typeof getNode>>;
   async executeAsync(command: string, input?: unknown): Promise<Record<string, unknown>>;
-  async executeAsync(command: string, input: unknown = {}): Promise<Record<string, unknown> | ReturnType<typeof listStyles> | ReturnType<typeof listComponents> | ReturnType<typeof queryFonts> | null> {
+  async executeAsync(command: string, input: unknown = {}): Promise<Record<string, unknown> | Variables | ReturnType<typeof listStyles> | ReturnType<typeof listComponents> | ReturnType<typeof queryFonts> | null> {
     if (command!=="text.preview" && command!=="text.endPreview") this.endTextPreview();
     if (command==="text.edit.insert" || command==="text.edit.preedit") {
       const p=namedParameters(input), session=this.currentTextEdit(), revision=this.#openSequence;

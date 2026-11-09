@@ -1,3 +1,4 @@
+import { emptyVariables, readVariables } from "./variables";
 import { readLayerStyles, readSharedStyles, wireSharedStyle } from "./shared-styles";
 import { readComponentLinks, wireComponentLinks, readFrameKind, wireFrameKind } from "./component-properties";
 import { layerSizing, readAutoLayout, readChildLayout, wireAutoLayout, wireChildLayout } from "./auto-layout";
@@ -79,7 +80,7 @@ function fields(value: ObjectValue, supported: string[], defaults: ObjectValue, 
   }
 }
 const documentDefaults = {
-  kind: "design", variables: { collections: [], variables: [] },
+  kind: "design",
   comments: [],
   libraries: { enabled: [], store: null, components: [], styles: [], collections: [], variables: [], detached: [], inserted: [] },
   annotation_categories: null, dev_snapshots: {}, timer: null,
@@ -194,7 +195,7 @@ function decodeDocument(raw: unknown, parsedNodes?: Record<string,DocumentNode>)
   if (root.version !== undefined && number(root.version, "version") > 1) fail("this file needs a newer Figcraft format reader");
   if (root.version !== undefined && number(root.version, "version") !== 1) fail("unsupported format version");
   if (root.format !== undefined && root.format !== "figcraft") fail("unrecognised format");
-  fields(root, ["styles", "format", "version", "name", "pages", "nodes", "next_id", "current_page", "imageIndex", "image_presets", "document_colors", "color_profile"], documentDefaults, "document");
+  fields(root, ["variables", "styles", "format", "version", "name", "pages", "nodes", "next_id", "current_page", "imageIndex", "image_presets", "document_colors", "color_profile"], documentDefaults, "document");
   const profile = root.color_profile === undefined ? "srgb" : root.color_profile;
   if (profile !== "srgb" && profile !== "displayP3") fail("invalid document colour profile");
   const palette = root.document_colors === undefined ? [] : list(root.document_colors, "document colors").map(c => nativeColour(c, "document color"));
@@ -208,6 +209,7 @@ function decodeDocument(raw: unknown, parsedNodes?: Record<string,DocumentNode>)
       return fail(error instanceof Error ? error.message : "invalid image filters");
     }
   });
+  const variables = root.variables === undefined ? emptyVariables : readVariables(root.variables);
   const styles = root.styles === undefined ? undefined : readSharedStyles(root.styles);
   const pages = list(root.pages, "pages").map((entry) => id(entry, "page ID"));
   if (!pages.length || new Set(pages).size !== pages.length) fail("pages must be non-empty and unique");
@@ -243,7 +245,7 @@ function decodeDocument(raw: unknown, parsedNodes?: Record<string,DocumentNode>)
   if (!pages.includes(currentPage)) fail("current page is not listed");
   const declared = BigInt(id(root.next_id, "next_id"));
   const minimum = maximum < U64_MAX ? maximum + 1n : U64_MAX;
-  return { document: Object.freeze({ ...(styles?.length && { styles }), ...(profile === "displayP3" && {colourProfile: "displayP3" as const}), ...(palette.length > 0 && {documentColours: Object.freeze(palette)}), ...(presets.length ? { imagePresets: Object.freeze(presets) } : {}), name: text(root.name, "document name"), pages: Object.freeze(pages), currentPage, nodes: parsedNodes ?? Object.freeze(nodes) }), nextId: (declared < minimum ? minimum : declared).toString() };
+  return { document: Object.freeze({ ...(variables !== emptyVariables && {variables}), ...(styles?.length && { styles }), ...(profile === "displayP3" && {colourProfile: "displayP3" as const}), ...(palette.length > 0 && {documentColours: Object.freeze(palette)}), ...(presets.length ? { imagePresets: Object.freeze(presets) } : {}), name: text(root.name, "document name"), pages: Object.freeze(pages), currentPage, nodes: parsedNodes ?? Object.freeze(nodes) }), nextId: (declared < minimum ? minimum : declared).toString() };
 }
 
 async function parseDocument(source: Uint8Array | Blob) {
@@ -469,7 +471,7 @@ export async function prepareArchive(document: Document, nextId?: string) {
     if (bytes.size > MAX_ARCHIVE_MEMBER) fail("image exceeds the 512 MiB native member limit");
     return { hash, width, height };
   });
-  const root = { format: "figcraft", version: 1, imageIndex, ...(document.imagePresets?.length ? { image_presets: document.imagePresets } : {}), name: document.name, pages: document.pages.map(wireId), next_id: wireId((supplied < minimum ? minimum : supplied).toString()), current_page: wireId(document.currentPage), styles: document.styles?.map(wireSharedStyle) ?? [], variables: { collections: [], variables: [] }, document_colors: document.documentColours ?? [], ...(document.colourProfile === "displayP3" && {color_profile: document.colourProfile}), comments: [] };
+  const root = { format: "figcraft", version: 1, imageIndex, ...(document.imagePresets?.length ? { image_presets: document.imagePresets } : {}), name: document.name, pages: document.pages.map(wireId), next_id: wireId((supplied < minimum ? minimum : supplied).toString()), current_page: wireId(document.currentPage), styles: document.styles?.map(wireSharedStyle) ?? [], variables: document.variables ?? emptyVariables, document_colors: document.documentColours ?? [], ...(document.colourProfile === "displayP3" && {color_profile: document.colourProfile}), comments: [] };
   // Validate relationships on the supplied domain graph after each individual wire record passed.
   decodeDocument({...root,nodes:document.nodes},document.nodes);
   const header = stringify(root)!;

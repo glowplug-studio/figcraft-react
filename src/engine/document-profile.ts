@@ -1,3 +1,4 @@
+import { convertVariableColours } from "./variables";
 import { convertColour, type ColourProfile } from "./colour-spaces";
 import { pageColour, rectanglePaints, withPageColour, withRectanglePaints, type Document, type DocumentNode } from "./document";
 import type { Colour } from "./colour";
@@ -70,5 +71,5 @@ export function setDocumentProfile(document: Document, target: ColourProfile, co
   }
   const palette = document.documentColours?.map(color);
   const styles = document.styles?.map(style);
-  return Object.freeze({ ...assigned, nodes: Object.freeze(nodes), ...(styles && { styles: Object.freeze(styles) }), ...(palette && { documentColours: Object.freeze(palette) }) });
+  return Object.freeze({ ...assigned, nodes: Object.freeze(nodes), ...(document.variables && {variables:convertVariableColours(document.variables,color)}), ...(styles && { styles: Object.freeze(styles) }), ...(palette && { documentColours: Object.freeze(palette) }) });
 }

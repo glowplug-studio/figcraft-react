@@ -108,3 +108,9 @@ dd { margin: 0; }
 .figcraft-style-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(min(6rem,100%),1fr)); gap:4px; }
 .figcraft-style-grid .figcraft-style-option { grid-template-columns:minmax(0,1fr); }
 .figcraft-style-option > .figcraft-style-actions { grid-column:1/-1; }
+
+.figcraft-variables { width:min(760px,94vw); max-height:85dvh; padding:16px; background:Canvas; color:CanvasText; }
+.figcraft-variables header,.figcraft-variables aside,.figcraft-variables section { display:flex; flex-wrap:wrap; align-items:center; gap:6px; margin-bottom:10px; }
+.figcraft-variables header { justify-content:space-between; }
+.figcraft-variable-table { overflow:auto; }.figcraft-variable-table table { border-collapse:collapse; width:100%; }
+.figcraft-variable-table td,.figcraft-variable-table th { padding:6px; border:1px solid #ccc; text-align:start; }

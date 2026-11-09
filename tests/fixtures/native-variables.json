@@ -1,0 +1,214 @@
+{
+  "comments": [],
+  "current_page": 1,
+  "document_colors": [],
+  "format": "figcraft",
+  "imageIndex": [],
+  "name": "Untitled",
+  "next_id": 2,
+  "nodes": {
+    "1": {
+      "background": {
+        "a": 1.0,
+        "b": 0.9607843160629272,
+        "g": 0.9607843160629272,
+        "r": 0.9607843160629272
+      },
+      "flows": [],
+      "height": 0.0,
+      "id": 1,
+      "name": "Page 1",
+      "prototype": {
+        "background": {
+          "a": 1.0,
+          "b": 0.11764705926179886,
+          "g": 0.11764705926179886,
+          "r": 0.11764705926179886
+        },
+        "device": "None",
+        "rotation": "portrait"
+      },
+      "type": "page",
+      "width": 0.0
+    }
+  },
+  "pages": [
+    1
+  ],
+  "styles": [],
+  "variables": {
+    "collections": [
+      {
+        "id": "VariableCollectionId:1",
+        "modes": [
+          {
+            "id": "VariableCollectionId:1/mode1",
+            "name": "Light"
+          },
+          {
+            "id": "VariableCollectionId:1/mode2",
+            "name": "Dark"
+          }
+        ],
+        "name": "Theme"
+      },
+      {
+        "id": "VariableCollectionId:2",
+        "modes": [
+          {
+            "id": "VariableCollectionId:2/mode1",
+            "name": "Compact"
+          },
+          {
+            "id": "VariableCollectionId:2/mode2",
+            "name": "Comfortable"
+          }
+        ],
+        "name": "Density"
+      }
+    ],
+    "variables": [
+      {
+        "collection": "VariableCollectionId:1",
+        "description": "Native mode fixture",
+        "id": "VariableID:1",
+        "name": "Base",
+        "resolvedType": "color",
+        "values": {
+          "VariableCollectionId:1/mode1": {
+            "type": "color",
+            "value": {
+              "a": 0.7529411911964417,
+              "b": 0.5058823823928833,
+              "g": 0.27450981736183167,
+              "r": 0.7607843279838562
+            }
+          },
+          "VariableCollectionId:1/mode2": {
+            "type": "color",
+            "value": {
+              "a": 0.501960813999176,
+              "b": 0.729411780834198,
+              "g": 0.16078431904315948,
+              "r": 0.09019608050584793
+            }
+          }
+        }
+      },
+      {
+        "collection": "VariableCollectionId:1",
+        "description": "Native mode fixture",
+        "id": "VariableID:2",
+        "name": "Accent",
+        "resolvedType": "color",
+        "values": {
+          "VariableCollectionId:1/mode1": {
+            "type": "colorAlpha",
+            "value": {
+              "opacity": 0.375,
+              "variable": "VariableID:1"
+            }
+          },
+          "VariableCollectionId:1/mode2": {
+            "type": "alias",
+            "value": "VariableID:1"
+          }
+        }
+      },
+      {
+        "collection": "VariableCollectionId:1",
+        "description": "Native mode fixture",
+        "id": "VariableID:3",
+        "name": "Highlight",
+        "resolvedType": "color",
+        "values": {
+          "VariableCollectionId:1/mode1": {
+            "type": "colorMix",
+            "value": {
+              "from": {
+                "variable": "VariableID:1"
+              },
+              "t": 0.625,
+              "to": {
+                "variable": "VariableID:2"
+              }
+            }
+          },
+          "VariableCollectionId:1/mode2": {
+            "type": "colorMix",
+            "value": {
+              "from": {
+                "literal": {
+                  "a": 0.501960813999176,
+                  "b": 0.6274510025978088,
+                  "g": 0.8941176533699036,
+                  "r": 1.0
+                }
+              },
+              "t": 0.3100000023841858,
+              "to": {
+                "variable": "VariableID:1"
+              }
+            }
+          }
+        }
+      },
+      {
+        "collection": "VariableCollectionId:1",
+        "description": "Native mode fixture",
+        "id": "VariableID:4",
+        "name": "Action",
+        "resolvedType": "string",
+        "values": {
+          "VariableCollectionId:1/mode1": {
+            "type": "string",
+            "value": "Continue"
+          },
+          "VariableCollectionId:1/mode2": {
+            "type": "string",
+            "value": "次へ"
+          }
+        }
+      },
+      {
+        "collection": "VariableCollectionId:1",
+        "description": "Native mode fixture",
+        "id": "VariableID:5",
+        "name": "Enabled",
+        "resolvedType": "boolean",
+        "values": {
+          "VariableCollectionId:1/mode1": {
+            "type": "boolean",
+            "value": true
+          },
+          "VariableCollectionId:1/mode2": {
+            "type": "boolean",
+            "value": false
+          }
+        }
+      },
+      {
+        "codeSyntax": {
+          "WEB": "var(--spacing)"
+        },
+        "collection": "VariableCollectionId:2",
+        "description": "",
+        "hiddenFromPublishing": true,
+        "id": "VariableID:6",
+        "name": "Spacing",
+        "resolvedType": "number",
+        "values": {
+          "VariableCollectionId:2/mode1": {
+            "type": "number",
+            "value": 6.5
+          },
+          "VariableCollectionId:2/mode2": {
+            "type": "number",
+            "value": 13.75
+          }
+        }
+      }
+    ]
+  },
+  "version": 1
+}

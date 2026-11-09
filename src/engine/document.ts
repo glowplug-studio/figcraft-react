@@ -1,3 +1,4 @@
+import type { Variables } from "./variables";
 import type { LayerStyles, SharedStyle } from "./shared-styles";
 import type { ComponentLinks, ComponentMain, ComponentSet, ComponentInstance } from "./component-properties";
 import type { AutoLayout, ChildLayout, LayerSizing } from "./auto-layout";
@@ -143,6 +144,7 @@ export const isDrawTool = (kind: unknown): kind is DrawShapeKind => isLeafKind(k
 export const isLeaf = (node: DocumentNode): node is LeafNode => isLeafKind(node.kind);
 export const layerBlend = (node: LayerNode): BlendMode => node.blend ?? (isLeaf(node) ? "normal" : "passThrough");
 export interface Document {
+  readonly variables?: Variables;
   readonly styles?: readonly SharedStyle[];
   readonly colourProfile?: import("./colour-spaces").ColourProfile;
   readonly documentColours?: readonly Colour[];
@@ -155,7 +157,7 @@ export interface Document {
 }
 // Current page is navigation state. It is persisted, but does not dirty document content.
 export function sameContent(a: Document, b: Document | null): boolean {
-  return b !== null && a.name === b.name && a.pages === b.pages && a.styles === b.styles && a.nodes === b.nodes && (a.colourProfile ?? "srgb") === (b.colourProfile ?? "srgb") && a.documentColours === b.documentColours && a.images === b.images && a.imagePresets === b.imagePresets;
+  return b !== null && a.name === b.name && a.pages === b.pages && a.styles === b.styles && a.variables === b.variables && a.nodes === b.nodes && (a.colourProfile ?? "srgb") === (b.colourProfile ?? "srgb") && a.documentColours === b.documentColours && a.images === b.images && a.imagePresets === b.imagePresets;
 }
 export function newDocument(name = "Untitled"): Document {
   const page: PageNode = Object.freeze({ id: "1", kind: "page", name: "Page 1", parent: null, children: Object.freeze([]), background: "#f5f5f5" });
