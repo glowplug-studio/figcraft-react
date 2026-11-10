@@ -6,7 +6,7 @@ import {compareScalarKeys,nativeFloat} from "./text-breaks";
 import {cssVariableName,numberRoles,variableCssNames} from "./variable-css-names";
 import {emptyVariables,resolveVariable,variableIndex,type Collection,type Variable,type Variables,type VariableValue} from "./variables";
 
-function flatten(data:Variables,v:Variable,mode:string,value:VariableValue) {
+export function flattenVariable(data:Variables,v:Variable,mode:string,value:VariableValue) {
   return value.type==="colorAlpha" || value.type==="colorMix"
     ? resolveVariable(data,v.id,{[v.collection]:mode},value) : value;
 }
@@ -34,7 +34,7 @@ function jsonExport(data:Variables,collections:readonly Collection[],groups:Map<
     if (!selected.has(v.id)) continue;
     const valuesByMode:Record<string,unknown>=Object.create(null);
     for (const [mode,source] of Object.entries(v.values)) {
-      const val=source.type==="alias" && !selected.has(source.value) ? resolveVariable(data,source.value) : flatten(data,v,mode,source);
+      const val=source.type==="alias" && !selected.has(source.value) ? resolveVariable(data,source.value) : flattenVariable(data,v,mode,source);
       if (val) valuesByMode[mode]=val.type==="alias" ? {type:"VARIABLE_ALIAS",id:val.value} : val.value;
     }
     variables[v.id]={id:v.id,name:v.name,key:v.id,variableCollectionId:v.collection,
@@ -51,7 +51,7 @@ function unresolvedCalculations(data:Variables) {
     const fallback=v.values[Object.keys(v.values).sort(compareScalarKeys)[0]];
     if (collection?.modes.some(m=>{
       const source=Object.hasOwn(v.values,m.id) ? v.values[m.id] : fallback;
-      return source && !flatten(data,v,m.id,source);
+      return source && !flattenVariable(data,v,m.id,source);
     })) missing.add(v.id);
     for (const source of Object.values(v.values)) if (source.type==="alias") {
       const list=readers.get(source.value);
@@ -84,7 +84,7 @@ function cssExport(doc:Document,data:Variables,collections:readonly Collection[]
     for (const v of groups.get(c.id) ?? []) {
       if (!Object.hasOwn(v.values,m.id)) continue;
       const source=v.values[m.id];
-      const value=source.type==="alias" && omit.has(source.value) ? resolveVariable(data,v.id,{[c.id]:m.id}) : flatten(data,v,m.id,source);
+      const value=source.type==="alias" && omit.has(source.value) ? resolveVariable(data,v.id,{[c.id]:m.id}) : flattenVariable(data,v,m.id,source);
       if (!value) continue;
       let text:string;
       switch (value.type) {

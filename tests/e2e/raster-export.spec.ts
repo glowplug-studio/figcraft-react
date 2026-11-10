@@ -420,3 +420,16 @@ test("decoding 5,000 binary Fig layers yields to the browser and releases the Ki
   await expect.poll(()=>workers.size).toBe(0);
   test.info().annotations.push({type:"5,000 binary Fig layers",description:JSON.stringify(measured)});
 });
+
+test("exporting 5,000 binary Fig layers allows input and releases the encoding worker",async({page})=>{
+  await loadExporter(page);
+  const workers=new Set<import("@playwright/test").Worker>();
+  page.on("worker",w=>{workers.add(w);w.on("close",()=>workers.delete(w));});
+  const {readFile}=await import("node:fs/promises");
+  const input=(await readFile(new URL("../fixtures/native-fig-5000.fig",import.meta.url))).toString("base64");
+  const measured=await page.evaluate(data=>(window as unknown as {FigcraftRaster:typeof import("../fixtures/raster-export")}).FigcraftRaster.measureFigExport(data),input);
+  expect(measured).toMatchObject({layers:5000,pages:1,images:0,warnings:[]});
+  expect(measured.ticks).toBeGreaterThan(0);
+  await expect.poll(()=>workers.size).toBe(0);
+  test.info().annotations.push({type:"5,000 exported binary Fig layers",description:JSON.stringify(measured)});
+});

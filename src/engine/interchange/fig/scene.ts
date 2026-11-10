@@ -119,6 +119,7 @@ export async function figScene(msg:KiwiValue,name:string,checkCurrent:()=>void,l
     const group=type==="GROUP" || type==="BOOLEAN_OPERATION";
     if (++count%64===0) yield;
     const linked=styles.resolve(n,type);
+    const stash=items(n.pluginData).map(obj).find(p=>p.pluginID==="figcraft" && p.key==="stroke")?.value;
     const origin:FigOrigin={id,rest:restId,expanded:!!instance,wireFrame:n.type==="FRAME",wireInstance:n.type==="INSTANCE",
       sizeOverride,slotContent,slotOverride:false};
     const out:Record<string,unknown>={
@@ -147,6 +148,9 @@ export async function figScene(msg:KiwiValue,name:string,checkCurrent:()=>void,l
           if (styles.some(s=>typeof s.textDecoration==="string" && s.textDecoration!=="NONE")) warn("text path underline or strikethrough decoration is not rendered");
         }
       }
+    }
+    if (typeof stash==="string") {
+      try {out.outlinedStroke=JSON.parse(stash);} catch { /* Use the visible outline when its metadata is malformed. */ }
     }
     assets.bindings(out,n,warn);
     if (type==="COMPONENT" || type==="COMPONENT_SET") components.definition(out,n,restId);

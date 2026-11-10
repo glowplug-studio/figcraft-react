@@ -136,3 +136,19 @@ export async function measureFigImport(base64:string) {
     return {...opened.summary,warnings:opened.warnings,bytes:file.size,milliseconds:performance.now()-start,ticks,largestGap};
   } finally {clearInterval(timer);}
 }
+
+export async function measureFigExport(base64:string) {
+  const engine=new EditorEngine();
+  await engine.openFile(new File([Uint8Array.from(atob(base64),c=>c.charCodeAt(0))],"Tiles.fig"));
+  let previous=performance.now(),largestGap=0,ticks=0;
+  const start=previous;
+  const sample=()=>{const now=performance.now();largestGap=Math.max(largestGap,now-previous);previous=now;};
+  const timer=setInterval(()=>{ticks++;sample();},4);
+  try {
+    const {blob,warnings}=await engine.exportGraphic({format:"fig"});
+    sample();
+    const milliseconds=performance.now()-start,gap=largestGap,count=ticks;
+    const {summary}=await new EditorEngine().openFile(new File([blob],"Again.fig"));
+    return {...summary,warnings,bytes:blob.size,milliseconds,ticks:count,largestGap:gap};
+  } finally {clearInterval(timer);}
+}

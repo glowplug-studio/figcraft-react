@@ -1738,10 +1738,18 @@ export class EditorEngine {
   async exportGraphic(params: Record<string,unknown> = {}, frames = false): Promise<{format:string; blob:Blob; warnings?:string[]; pages?:number}> {
     const format=parseString(params.format)?.toLowerCase().replace(/^\.+/,"");
     const drawable=format==="xml" || format==="vd" || format==="vectordrawable";
-    if (!drawable && format!=="svg" && format!=="pdf") return this.exportRaster(params);
+    if (!drawable && format!=="fig" && format!=="svg" && format!=="pdf") return this.exportRaster(params);
     if (!this.#hostEditable) throw new Error("Sign in to export this document");
     if (params.path != null) throw new Error("Use a browser download to choose the export destination");
     const opening = this.#openSequence, {document,selection} = this.#snapshot;
+    if (format==="fig") {
+      const checkCurrent=()=>this.#assertExportAccess(opening);
+      const {writeFigDocument}=await import("./interchange/fig/write-document");
+      checkCurrent();
+      const thumbnail=typeof globalThis.document==="undefined" ? undefined : await (await import("./canvas")).renderFileThumbnail(document);
+      checkCurrent();
+      return writeFigDocument(document,checkCurrent,thumbnail);
+    }
     if (format==="pdf") {
       const {renderPdf}=await import("./pdf/export");
       const file=await renderPdf(document,selection,params,frames,()=>this.#assertExportAccess(opening));

@@ -1,3 +1,4 @@
+import {restoreOutlinedStroke} from "./outlined-stroke";
 import { unfoldRestAlpha } from "./paint-bindings";
 import { refreshBoundStyles } from "../../style-application";
 import { refreshLayerBindings } from "../../layer-variable-bindings";
@@ -124,7 +125,8 @@ export async function importRestDocument(input:unknown,checkCurrent:()=>void=()=
       const bindings=variables.fields(n,type,!!layout,props,grids);
       const node=readNode(id,{...kind,...props,...bindings,grids,...(layout && {layout}),child_layout:childLayout(n,layout?.mode,cursor.parentMode),...(type==="vector" && vectorFields(n,props,warnings,images)),...(type==="componentSet" || type==="component" ? {description} : {}),
         id:wireId(id),parent:wireId(cursor.parent),name:clipped(string(n.name) ?? label),transform,width,height});
-      base.nodes[id]=styles.link(node,n);
+      const styled=styles.link(node,n);
+      base.nodes[id]=n.outlinedStroke===undefined ? styled : restoreOutlinedStroke(styled,n.outlinedStroke);
       count++;
       childLists.get(cursor.parent)!.push(id);
       if (restId && !importedIds.has(restId)) importedIds.set(restId,id);

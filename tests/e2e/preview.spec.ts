@@ -7203,3 +7203,31 @@ test("a Fig text path and Unicode wrap positions survive opening and saving in t
     expect(saved.nodes).toEqual(native.nodes);
   }
 });
+
+test("export the whole signed-in drawing as Fig and reopen the download with its component overrides",async({page})=>{
+  await login(page);
+  const source=JSON.parse(await readFile(new URL("../fixtures/native-rest-documents.json",import.meta.url),"utf8")) as {name:string;archive:string}[];
+  const fixture=source.find(c=>c.name==="linked components")!;
+  const corpus=unzipSync(await readFile(new URL("../fixtures/native-fig-imports.zip",import.meta.url)));
+  const expected=(await decodeFigcraft(corpus["linked-components-zip.figcraft"])).document;
+  const picker=page.getByLabel("Open Figcraft file",{exact:true});
+  await picker.setInputFiles({name:"Source.figcraft",mimeType:"application/octet-stream",buffer:Buffer.from(fixture.archive,"base64")});
+  await expect(page.getByRole("heading",{name:expected.name,exact:true})).toBeVisible();
+  const bar=page.locator(".figcraft-document-bar");
+  await bar.getByText("File",{exact:true}).click();
+  await bar.getByRole("button",{name:"Export…",exact:true}).click();
+  const downloading=page.waitForEvent("download");
+  await page.getByRole("dialog",{name:"Export"}).getByRole("button",{name:".fig (experimental)",exact:true}).click();
+  const dl=await downloading,buffer=await readFile((await dl.path())!);
+  expect(dl.suggestedFilename()).toBe(expected.name+".fig");
+  const zip=unzipSync(buffer),meta=JSON.parse(strFromU8(zip["meta.json"]));
+  expect(meta.file_name).toBe(expected.name);
+  expect(meta.client_meta.thumbnail_size.width).toBeGreaterThan(0);
+  expect(zip["thumbnail.png"].slice(1,4)).toEqual(Uint8Array.from([80,78,71]));
+  await picker.setInputFiles({name:"Reopened.fig",mimeType:"application/octet-stream",buffer});
+  await expect(page.getByRole("tab",{name:expected.name,exact:true})).toHaveCount(2);
+  const saving=page.waitForEvent("download");
+  await page.getByRole("button",{name:"Save as",exact:true}).click();
+  const saved=await decodeFigcraft(await readFile((await (await saving).path())!));
+  expect(saved.document).toEqual(expected);
+});

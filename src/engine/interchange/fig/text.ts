@@ -4,7 +4,7 @@ import {figLetterSpacing} from "../rest/text";
 
 const weights=["Thin","Extra Light","Ultra Light","Light","Regular","Medium","Semi Bold","Demi Bold","Bold","Extra Bold","Ultra Bold","Black"];
 const compact=(s:string)=>s.replace(/[ _-]/g,"").toLowerCase();
-function styleName(s:string) {
+export function styleName(s:string) {
   const text=compact(s), italic=text.endsWith("italic"), base=italic ? text.slice(0,-6) : text;
   const weight=weights.find(w=>compact(w)===base) ?? (!base && italic ? "Regular" : undefined);
   return weight ? italic ? weight==="Regular" ? "Italic" : weight+" Italic" : weight : s;

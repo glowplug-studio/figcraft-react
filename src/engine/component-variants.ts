@@ -8,7 +8,7 @@ import { inspectedId, parseNodeId } from "./parameters";
 import { compareScalarKeys, nativeFloat } from "./text-breaks";
 import { sameComponentValue } from "./component-groups";
 
-function variantPairs(name: string): [string,string][] {
+export function variantPairs(name: string): [string,string][] {
   const pairs: [string,string][] = [];
   for (const part of name.split(",")) {
     const equals = part.indexOf("=");
