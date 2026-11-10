@@ -11,11 +11,11 @@
 | Branch and last verified commit | prompt/full-figcraft-port. Interchange release at 1a53341. Guest links at 0cc97d2, native preview drafts at 69c2a7c and active guest revocation at 3b8743f. Owner sharing controls at d1e8352 and join by short code at 84d37df. Framed publication gate at ee2b9a7 and atomic retained capacity at be7764f. Hourly admission at a9071fd and guest lifetime at a3f19ac. Owner attachment at bc30c6c and room activity at 1557f79. Idle expiry at f11ae73, corrected expiry regression at d57e49f and team directory at 7bdf3a7. |
 | Completed slices | Rectangle/host-auth, bounded native persistence/recovery, supported-model pages, affine rectangle geometry/selection and solid appearance, plus nested group hierarchy, Frame containers, movement/transform gestures, rounded corners, ellipse/arc/ring and Polygon/Star editing verified locally; Line/Arrow and uniform solid strokes also verified; per-side Rectangle/Frame strokes, variable-width profiles and procedural brushes verified; vector networks, solid region/stroke rendering and Flatten/Reverse also verified; foundation commit `154f5a7`. Gradient, image, pattern, blend and mask releases now have local property matrices. [Blend evidence](../reports/26-11-09-blend-modes-parity.html). Auto layout and constraints passed the local release gate. [Release evidence](../reports/26-11-09-auto-layout.md). [Local components, instances, variant properties, slots and Assets](../reports/26-11-09-components-instances.md) passed the 0.51.0 gate. |
 | Remaining slices | Continue incomplete roadmap rows, excluding the user-deferred plugin and widget family. See each slice matrix for outstanding integrations. |
-| Tests last passed | At 7bdf3a7, 213 SQL assertions, 17 provider integrations, 4,479 pure checks, a real restart and a two-account production workflow passed. Full suite at 7bdf3a7 passed 354/354 in 751.8 seconds with zero skips, retries or flakes. |
+| Tests last passed | At 7bdf3a7, 213 SQL assertions, 17 provider integrations, 4,479 pure checks, a real restart and a two-account production workflow passed. Full suite at 7bdf3a7 passed 354/354 in 751.8 seconds with zero skips, retries or flakes. At ffa21ed all 249 SQL assertions, 18 provider integrations, 4,484 pure checks and the focused browser workflow passed. Cumulative Chromium is running. |
 | Files currently in progress | [Online files and ownership](26-11-10-online-file-ownership.md). |
-| Blockers | The scoped Supabase MCP project and public-table reads passed after reauthorisation. |
+| Blockers | The previous scoped MCP read passed. A fresh Figcraft OAuth refresh failed on 11 November. Reauthorisation is pending. |
 | Exact next action | Follow the [current action in the resume handover](26-11-07-full-port-resume.md#continue-from-here), then its dependency-ordered review queue. |
-| Last updated | 2026-11-11 06:11 ICT |
+| Last updated | 2026-11-11 06:19 ICT |
 
 ## Scope and continuation
 
