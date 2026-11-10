@@ -8,9 +8,11 @@ const fields = {
   name: "name", visible: "visible", locked: "locked", opacity: "opacity", blend: "blend", transform: "transform",
   width: "width", height: "height", fills: "fills", strokes: "strokes", stroke: "stroke", effects: "effects",
   corners: "corners", constraints: "constraints", layout: "layout", childLayout: "child_layout", clip: "clip",
-  isMask: "is_mask", maskType: "mask_type", grids: "grids", styles: "styles", bound: "bound", varModes: "var_modes",
+  isMask: "is_mask", maskType: "mask_type", grids: "grids", guides: "guides", exports: "exports", interactions: "interactions",
+  overflow: "overflow", scrollPosition: "scroll_position", styles: "styles", bound: "bound", varModes: "var_modes",
   boolOp: "bool_op", constrainProportions: "constrain_proportions", source: "source", exposed: "exposed",
-  overrides: "overrides", propRefs: "prop_refs", pluginData: "plugin_data",
+  devStatus: "dev_status", devChanged: "dev_changed", devNote: "dev_note", overrides: "overrides", propRefs: "prop_refs", pluginData: "plugin_data", annotations: "annotations", codeLinks: "code_links",
+  devResources: "dev_resources", measurements: "measurements", board: "board",
 } as const;
 export const nodePropertyOrder = ["name", "kind", ...Object.keys(fields).slice(1), "parent"];
 const standardFields = new Set<string>(["id", "parent", "children", ...Object.values(fields)]);
