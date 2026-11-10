@@ -1,6 +1,6 @@
 # Configurable team directory
 
-Row 13 follows idle-file expiry. Reference revision `a2e87433`. Directory implementation and verification are pending.
+Row 13 follows idle-file expiry. Reference revision `a2e87433`. The directory is implemented at `7bdf3a7`. Local SQL, provider, native, production-browser and real restart checks are recorded in the [property matrix](../reports/26-11-11-team-directory-parity.html). The cumulative Chromium run is in progress.
 
 | Order | Implementation | Required evidence |
 |---|---|---|
@@ -25,3 +25,6 @@ The operator and browser sanitise different inputs. Operator configuration rejec
 Directory refresh is a bounded Home operation. It has no document serialisation, undo or canvas rendering effects. The existing private snapshot remains behind the ordinary guest admission. The browser host supplies the validated session; directory membership alone grants no ownership or management action.
 
 The previous cumulative gate passed 353/353 at `d57e49f`. The scoped hosted Figcraft project returned zero public tables. Local Graphify contains 7,317 React nodes and 32,660 edges at this test revision. The combined index with the pinned Rust tree has 34,955 nodes and 119,691 edges. Both `BrowserInvitations` and `team_admits` resolved to the expected source files. SQL grants and triggers require direct source inspection.
+
+
+At `7bdf3a7` 12 independent resolution requests returned one reusable grant. A real PostgreSQL restart ended the original connection; the same token then admitted a new guest. To repeat this isolated restart check on the empty local Figcraft stack, run `FIGCRAFT_VERIFY_TEAM_RESTART=1 FIGCRAFT_LOCAL_INTEGRATION=1 npx vitest run tests/integration/online-file-ownership.test.ts -t 'resolves concurrent team joins'`. The fixture refuses to restart a database containing other accounts. The database and provider fixtures cleaned up all test accounts and files. The earlier app fixture found a hidden access label on phones; the corrected 390 px workflow is recorded in the matrix. The React graph has 7,387 nodes and 32,800 edges. With the pinned Rust graph it contains 35,025 nodes and 119,826 edges.
