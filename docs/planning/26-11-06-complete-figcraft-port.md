@@ -8,14 +8,14 @@
 | Active slice | Row 13. Online files, ownership and grants. [Dated plan](26-11-10-online-file-ownership.md). |
 | Active phase | Local owner publication, Storage access and dashboard integration. |
 | Upstream baseline | Styles reference a2e87433. Components reference 79c36346. Global supported baseline 8eb0b876. |
-| Branch and last verified commit | prompt/full-figcraft-port. The full 0.54.0 release passed at 1a53341. Provider foundation verified at dcdbdc5. Native join-code evidence landed at b9952e8. |
+| Branch and last verified commit | prompt/full-figcraft-port. The full 0.54.0 release passed at 1a53341. Owner provider verified at dcdbdc5 and dashboard at a25f091. Native join-code evidence landed at b9952e8. |
 | Completed slices | Rectangle/host-auth, bounded native persistence/recovery, supported-model pages, affine rectangle geometry/selection and solid appearance, plus nested group hierarchy, Frame containers, movement/transform gestures, rounded corners, ellipse/arc/ring and Polygon/Star editing verified locally; Line/Arrow and uniform solid strokes also verified; per-side Rectangle/Frame strokes, variable-width profiles and procedural brushes verified; vector networks, solid region/stroke rendering and Flatten/Reverse also verified; foundation commit `154f5a7`. Gradient, image, pattern, blend and mask releases now have local property matrices. [Blend evidence](../reports/26-11-09-blend-modes-parity.html). Auto layout and constraints passed the local release gate. [Release evidence](../reports/26-11-09-auto-layout.md). [Local components, instances, variant properties, slots and Assets](../reports/26-11-09-components-instances.md) passed the 0.51.0 gate. |
 | Remaining slices | Continue incomplete roadmap rows, excluding the user-deferred plugin and widget family. See each slice matrix for outstanding integrations. |
 | Tests last passed | 347/347 production Chromium checks for 0.54.0. The local ownership migration passed nine SQL privilege checks and four real integration tests including Auth, Storage, RLS and retry after a lost publication response. |
 | Files currently in progress | [Online files and ownership](26-11-10-online-file-ownership.md). |
 | Blockers | The scoped Supabase MCP project and public-table reads passed after reauthorisation. |
-| Exact next action | Connect the validated Supabase publisher and device ownership records to the signed-in host. Exercise owner, unrelated user, offline retry and removal in real browsers. [Resume handover](26-11-07-full-port-resume.md#continue-from-here). |
-| Last updated | 2026-11-10 23:56 ICT |
+| Exact next action | Collect the 349-case dashboard regression, then exercise a lost publish response across browser restart. The preceding 348-case run had one brush pan timing miss. [Resume handover](26-11-07-full-port-resume.md#continue-from-here). |
+| Last updated | 2026-11-11 00:23 ICT |
 
 ## Scope and continuation
 
