@@ -208,6 +208,7 @@ export const commandSpecs = Object.freeze({
   "edit.redo": { label: "Redo", undo: false },
   "edit.duplicate": { label: "Duplicate", undo: true },
   "image.place": { label: "Place image", undo: true },
+  "file.exportSvg": { label: "Export selection as SVG", undo: false },
   "file.exportLayers": { label: "Export layers", undo: false },
   "file.export": { label: "Export", undo: false },
   "file.import": { label: "Import", undo: true },
@@ -1133,7 +1134,7 @@ export class EditorEngine {
   execute(command: string, input: unknown = {}): Record<string, unknown> | Variables | ReturnType<typeof listStyles> | ReturnType<typeof listComponents> | ReturnType<typeof listPages> | typeof framePresets | ReturnType<typeof versionDetails>[] | ReturnType<typeof queryFonts> | null {
     if (!Object.hasOwn(commandSpecs, command)) throw new Error(`Unsupported command: ${command}`);
     if (!this.#hostEditable) throw new Error("Sign in to edit this document");
-    if (command === "file.export" || command === "file.exportLayers") throw new Error("Use executeAsync to export a file");
+    if (command === "file.export" || command === "file.exportSvg" || command === "file.exportLayers") throw new Error("Use executeAsync to export a file");
     if (command === "version.exitPreview") return { ended: this.exitVersionPreview() };
     if (this.#preview) {
       if (command === "file.markSaved" || command === "file.saveVersion") this.exitVersionPreview();
@@ -1655,9 +1656,9 @@ export class EditorEngine {
       this.#assertExportAccess(opening);
       return { files, skipped, ...(data !== undefined && { data }) };
     }
-    if (command === "file.export") {
-      const opening = this.#openSequence;
-      const { blob, format } = await this.exportRaster(parameters(input));
+    if (command === "file.export" || command === "file.exportSvg") {
+      const opening = this.#openSequence, params = parameters(input);
+      const { blob, format } = await this.exportGraphic(command === "file.exportSvg" ? {...params,format:"svg"} : params);
       const bytes = await blob.arrayBuffer();
       this.#assertExportAccess(opening);
       return { format, data: base64Bytes(new Uint8Array(bytes)) };
@@ -1715,6 +1716,16 @@ export class EditorEngine {
     const opening = this.#openSequence, {document,selection} = this.#snapshot;
     const { renderLayerExports } = await import("./export-layers");
     return renderLayerExports(document, selection, params, download, () => this.#assertExportAccess(opening));
+  }
+  async exportGraphic(params: Record<string,unknown> = {}) {
+    if (parseString(params.format)?.toLowerCase().replace(/^\.+/, "") !== "svg") return this.exportRaster(params);
+    if (!this.#hostEditable) throw new Error("Sign in to export this document");
+    if (params.path != null) throw new Error("Use a browser download to choose the export destination");
+    const opening = this.#openSequence, {document,selection} = this.#snapshot;
+    const { renderSvgExport } = await import("./export-svg");
+    const blob = await renderSvgExport(document,selection,params);
+    this.#assertExportAccess(opening);
+    return { format:"svg" as const, blob };
   }
   async exportRaster(params: Record<string, unknown> = {}) {
     if (!this.#hostEditable) throw new Error("Sign in to export this document");

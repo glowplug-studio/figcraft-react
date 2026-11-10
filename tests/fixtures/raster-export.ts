@@ -17,3 +17,13 @@ export async function replayBatch(commands: readonly (readonly unknown[])[]) {
   if (engine.getSnapshot().document !== before.document || before.dirty !== engine.getSnapshot().dirty) throw new Error("Batch export mutated the drawing");
   return result;
 }
+
+export async function replaySvg(commands: readonly (readonly unknown[])[]) {
+  const engine = new EditorEngine();
+  for (const [command,params] of commands.slice(0,-1)) {
+    if (command === "text.create") await engine.executeAsync(command,params);
+    else engine.execute(String(command),params);
+  }
+  const file = await engine.exportGraphic({...commands.at(-1)![1] as Record<string,unknown>,format:"svg"});
+  return file.blob.text();
+}

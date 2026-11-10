@@ -21,8 +21,14 @@ export async function renderLayerExports(doc: Document, selection: readonly stri
   for (const {setting,id,name} of jobs) {
     assertAccess();
     const {format} = setting;
-    if (format !== "png" && format !== "jpg" && format !== "webp") throw new Error("The " + format + " file encoder is unavailable");
-    const blob = await renderRasterExport(doc,[id],{...setting, ...overrides, quality:Math.max(1,Math.min(100,setting.quality ?? 90))},format,setting.size);
+    let blob: Blob;
+    if (format === "svg") {
+      const {renderSvgExport} = await import("./export-svg");
+      blob = await renderSvgExport(doc,[id],{...setting,...overrides},setting);
+    } else {
+      if (format !== "png" && format !== "jpg" && format !== "webp") throw new Error("The " + format + " file encoder is unavailable");
+      blob = await renderRasterExport(doc,[id],{...setting, ...overrides, quality:Math.max(1,Math.min(100,setting.quality ?? 90))},format,setting.size);
+    }
     assertAccess();
     const file: ExportedFile = {id:inspectedId(id),name,bytes:blob.size};
     if (writer) {

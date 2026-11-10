@@ -1,0 +1,778 @@
+[
+  {
+    "name": "solid rectangle",
+    "commands": [
+      [
+        "shape.rectangle",
+        {
+          "name": "Tag & Icon",
+          "x": 20,
+          "y": 35,
+          "width": 45,
+          "height": 21,
+          "props": {
+            "fill": "#12ab34"
+          }
+        }
+      ],
+      [
+        "file.exportSvg",
+        {}
+      ]
+    ],
+    "svg": "<svg width=\"45\" height=\"21\" viewBox=\"0 0 45 21\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\"><g><path transform=\"matrix(1 0 0 1 0 0)\" d=\"M0 0L45 0L45 21L0 21Z\" fill=\"#12AB34\"/></g></svg>\n"
+  },
+  {
+    "name": "outside stroke",
+    "commands": [
+      [
+        "shape.rectangle",
+        {
+          "name": "Outline",
+          "x": -10,
+          "y": 5,
+          "width": 20,
+          "height": 30,
+          "props": {
+            "fill": "#881155",
+            "stroke": "#334455",
+            "strokeAlign": "outside",
+            "strokeWeight": 4
+          }
+        }
+      ],
+      [
+        "file.exportSvg",
+        {}
+      ]
+    ],
+    "svg": "<svg width=\"28\" height=\"38\" viewBox=\"0 0 28 38\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\"><g><path transform=\"matrix(1 0 0 1 4 4)\" d=\"M0 0L20 0L20 30L0 30Z\" fill=\"#881155\"/><path transform=\"matrix(1 0 0 1 4 4)\" d=\"M-2 -2C-2 -2 -2 -2 -2 -2L22 -2C22 -2 22 -2 22 -2L22 32C22 32 22 32 22 32L-2 32C-2 32 -2 32 -2 32Z\" fill=\"none\" stroke=\"#334455\" stroke-width=\"4\"/></g></svg>\n"
+  },
+  {
+    "name": "round box",
+    "commands": [
+      [
+        "shape.rectangle",
+        {
+          "name": "Corners",
+          "x": 0,
+          "y": 0,
+          "width": 60,
+          "height": 30,
+          "props": {
+            "fill": "#556677",
+            "cornerRadius": 6
+          }
+        }
+      ],
+      [
+        "file.exportSvg",
+        {}
+      ]
+    ],
+    "svg": "<svg width=\"60\" height=\"30\" viewBox=\"0 0 60 30\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\"><g><path transform=\"matrix(1 0 0 1 0 0)\" d=\"M6 0L54 0C57.314 0 60 2.686 60 6L60 6L60 24C60 27.314 57.314 30 54 30L54 30L6 30C2.686 30 0 27.314 0 24L0 24L0 6C0 2.686 2.686 0 6 0L6 0Z\" fill=\"#556677\"/></g></svg>\n"
+  },
+  {
+    "name": "ellipse",
+    "commands": [
+      [
+        "shape.ellipse",
+        {
+          "name": "Oval",
+          "x": 5,
+          "y": 9,
+          "width": 36,
+          "height": 22,
+          "props": {
+            "fill": "#992244"
+          }
+        }
+      ],
+      [
+        "file.exportSvg",
+        {}
+      ]
+    ],
+    "svg": "<svg width=\"36\" height=\"22\" viewBox=\"0 0 36 22\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\"><g><path transform=\"matrix(1 0 0 1 0 0)\" d=\"M36 11C36 17.075 27.941 22 18 22C8.059 22 0 17.075 0 11C0 4.925 8.059 0 18 0C27.941 0 36 4.925 36 11\" fill=\"#992244\"/></g></svg>\n"
+  },
+  {
+    "name": "star",
+    "commands": [
+      [
+        "shape.star",
+        {
+          "name": "Spark",
+          "x": 4,
+          "y": 7,
+          "width": 25,
+          "height": 25,
+          "props": {
+            "fill": "#884422"
+          }
+        }
+      ],
+      [
+        "file.exportSvg",
+        {}
+      ]
+    ],
+    "svg": "<svg width=\"25\" height=\"25\" viewBox=\"0 0 25 25\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\"><g><path transform=\"matrix(1 0 0 1 0 0)\" d=\"M12.5 0L15.292 8.657L24.388 8.637L17.018 13.968L19.847 22.613L12.5 17.25L5.153 22.613L7.982 13.968L0.612 8.637L9.708 8.657Z\" fill=\"#884422\"/></g></svg>\n"
+  },
+  {
+    "name": "polygon",
+    "commands": [
+      [
+        "shape.polygon",
+        {
+          "name": "Triangle",
+          "x": 3,
+          "y": 4,
+          "width": 31,
+          "height": 37,
+          "props": {
+            "fill": "#338855"
+          }
+        }
+      ],
+      [
+        "file.exportSvg",
+        {}
+      ]
+    ],
+    "svg": "<svg width=\"31\" height=\"37\" viewBox=\"0 0 31 37\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\"><g><path transform=\"matrix(1 0 0 1 0 0)\" d=\"M15.5 0L28.923 27.75L2.077 27.75Z\" fill=\"#338855\"/></g></svg>\n"
+  },
+  {
+    "name": "alpha and repeated IDs",
+    "commands": [
+      [
+        "shape.rectangle",
+        {
+          "name": "Tag & Icon",
+          "x": 20,
+          "y": 35,
+          "width": 45,
+          "height": 21,
+          "props": {
+            "fill": "#12ab34"
+          }
+        }
+      ],
+      [
+        "shape.rectangle",
+        {
+          "name": "Tag & Icon",
+          "x": 23,
+          "y": 35,
+          "width": 15,
+          "height": 12,
+          "props": {
+            "fill": "#0000ff80",
+            "opacity": 0.5
+          }
+        }
+      ],
+      [
+        "file.exportSvg",
+        {
+          "ids": [
+            2,
+            3
+          ],
+          "svgIdAttribute": true
+        }
+      ]
+    ],
+    "svg": "<svg width=\"45\" height=\"21\" viewBox=\"0 0 45 21\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\"><g id=\"Tag_&amp;_Icon\"><path transform=\"matrix(1 0 0 1 0 0)\" d=\"M0 0L45 0L45 21L0 21Z\" fill=\"#12AB34\"/></g><g id=\"Tag_&amp;_Icon_2\" opacity=\"0.5\"><path transform=\"matrix(1 0 0 1 3 0)\" d=\"M0 0L15 0L15 12L0 12Z\" fill=\"#0000FF\" fill-opacity=\"0.502\"/></g></svg>\n"
+  },
+  {
+    "name": "contents under crop",
+    "commands": [
+      [
+        "shape.rectangle",
+        {
+          "name": "Tag & Icon",
+          "x": 20,
+          "y": 35,
+          "width": 45,
+          "height": 21,
+          "props": {
+            "fill": "#12ab34"
+          }
+        }
+      ],
+      [
+        "shape.rectangle",
+        {
+          "name": "Other",
+          "x": 22,
+          "y": 37,
+          "width": 3,
+          "height": 5,
+          "props": {
+            "fill": "#00ffff"
+          }
+        }
+      ],
+      [
+        "file.exportSvg",
+        {
+          "ids": [
+            3
+          ],
+          "contentsOnly": false
+        }
+      ]
+    ],
+    "svg": "<svg width=\"3\" height=\"5\" viewBox=\"0 0 3 5\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\"><g><path transform=\"matrix(1 0 0 1 -2 -2)\" d=\"M0 0L45 0L45 21L0 21Z\" fill=\"#12AB34\"/></g><g><path transform=\"matrix(1 0 0 1 0 0)\" d=\"M0 0L3 0L3 5L0 5Z\" fill=\"#00FFFF\"/></g></svg>\n"
+  },
+  {
+    "name": "flat vector scale excluded",
+    "commands": [
+      [
+        "shape.rectangle",
+        {
+          "name": "Tag & Icon",
+          "x": 20,
+          "y": 35,
+          "width": 45,
+          "height": 21,
+          "props": {
+            "fill": "#12ab34"
+          }
+        }
+      ],
+      [
+        "file.exportSvg",
+        {
+          "size": "3x"
+        }
+      ]
+    ],
+    "svg": "<svg width=\"45\" height=\"21\" viewBox=\"0 0 45 21\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\"><g><path transform=\"matrix(1 0 0 1 0 0)\" d=\"M0 0L45 0L45 21L0 21Z\" fill=\"#12AB34\"/></g></svg>\n"
+  },
+  {
+    "name": "oversized vector",
+    "commands": [
+      [
+        "shape.rectangle",
+        {
+          "name": "Banner",
+          "x": 0,
+          "y": 0,
+          "width": 25000,
+          "height": 16,
+          "props": {
+            "fill": "#774411"
+          }
+        }
+      ],
+      [
+        "file.exportSvg",
+        {}
+      ]
+    ],
+    "svg": "<svg width=\"25000\" height=\"16\" viewBox=\"0 0 25000 16\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\"><g><path transform=\"matrix(1 0 0 1 0 0)\" d=\"M0 0L25000 0L25000 16L0 16Z\" fill=\"#774411\"/></g></svg>\n"
+  },
+  {
+    "name": "hidden",
+    "commands": [
+      [
+        "shape.rectangle",
+        {
+          "name": "Tag & Icon",
+          "x": 20,
+          "y": 35,
+          "width": 45,
+          "height": 21,
+          "props": {
+            "fill": "#12ab34"
+          }
+        }
+      ],
+      [
+        "node.set",
+        {
+          "props": {
+            "visible": false
+          }
+        }
+      ],
+      [
+        "file.exportSvg",
+        {}
+      ]
+    ],
+    "svg": "<svg width=\"45\" height=\"21\" viewBox=\"0 0 45 21\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\"></svg>\n"
+  },
+  {
+    "name": "gradient",
+    "commands": [
+      [
+        "shape.rectangle",
+        {
+          "name": "Gradient",
+          "x": 8,
+          "y": 20,
+          "width": 90,
+          "height": 34,
+          "props": {
+            "fills": [
+              {
+                "type": "gradient",
+                "kind": "linear",
+                "from": [
+                  0,
+                  0
+                ],
+                "to": [
+                  1,
+                  0
+                ],
+                "stops": [
+                  {
+                    "position": 0,
+                    "color": "#ff0000"
+                  },
+                  {
+                    "position": 1,
+                    "color": "#0088ff"
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ],
+      [
+        "file.exportSvg",
+        {}
+      ]
+    ],
+    "svg": "<svg width=\"90\" height=\"34\" viewBox=\"0 0 90 34\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\"><g><path transform=\"matrix(1 0 0 1 0 0)\" d=\"M0 0L90 0L90 34L0 34Z\" fill=\"url(#paint1)\"/></g><defs><linearGradient id=\"paint1\" x1=\"0\" y1=\"0\" x2=\"90\" y2=\"0\" gradientUnits=\"userSpaceOnUse\"><stop offset=\"0\" stop-color=\"#FF0000\"/><stop offset=\"1\" stop-color=\"#0088FF\"/></linearGradient></defs></svg>\n"
+  },
+  {
+    "name": "group",
+    "commands": [
+      [
+        "shape.rectangle",
+        {
+          "name": "Tag & Icon",
+          "x": 20,
+          "y": 35,
+          "width": 45,
+          "height": 21,
+          "props": {
+            "fill": "#12ab34"
+          }
+        }
+      ],
+      [
+        "shape.rectangle",
+        {
+          "name": "Small",
+          "x": 18,
+          "y": 5,
+          "width": 4,
+          "height": 9,
+          "props": {
+            "fill": "#aabbcc"
+          }
+        }
+      ],
+      [
+        "object.group",
+        {
+          "ids": [
+            2,
+            3
+          ]
+        }
+      ],
+      [
+        "file.exportSvg",
+        {
+          "svgIdAttribute": true
+        }
+      ]
+    ],
+    "svg": "<svg width=\"47\" height=\"51\" viewBox=\"0 0 47 51\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\"><g id=\"Group_1\"><g id=\"Tag_&amp;_Icon\"><path transform=\"matrix(1 0 0 1 2 30)\" d=\"M0 0L45 0L45 21L0 21Z\" fill=\"#12AB34\"/></g><g id=\"Small\"><path transform=\"matrix(1 0 0 1 0 0)\" d=\"M0 0L4 0L4 9L0 9Z\" fill=\"#AABBCC\"/></g></g></svg>\n"
+  },
+  {
+    "name": "open line",
+    "commands": [
+      [
+        "shape.line",
+        {
+          "name": "Edge",
+          "x": 0,
+          "y": 0,
+          "width": 50,
+          "props": {
+            "stroke": "#112244",
+            "strokeWeight": 3,
+            "strokeAlign": "center"
+          }
+        }
+      ],
+      [
+        "file.exportSvg",
+        {
+          "svgIdAttribute": true
+        }
+      ]
+    ],
+    "svg": "<svg width=\"74\" height=\"24\" viewBox=\"0 0 74 24\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\"><g id=\"Edge\"><path transform=\"matrix(1 0 0 1 12 12)\" d=\"M0 0L50 0\" fill=\"none\" stroke=\"#112244\" stroke-width=\"3\"/></g></svg>\n"
+  },
+  {
+    "name": "live text",
+    "commands": [
+      [
+        "text.create",
+        {
+          "text": "A & B\nNext",
+          "x": 4,
+          "y": 8
+        }
+      ],
+      [
+        "file.exportSvg",
+        {
+          "svgOutlineText": false
+        }
+      ]
+    ],
+    "svg": "<svg width=\"31\" height=\"30\" viewBox=\"0 0 31 30\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\"><g><text transform=\"matrix(1 0 0 1 0 0)\" font-family=\"Inter\" font-size=\"12\" font-weight=\"400\" fill=\"#000000\" xml:space=\"preserve\"><tspan x=\"0\" y=\"11.865\">A &amp; B</tspan><tspan x=\"0\" y=\"26.865\">Next</tspan></text></g></svg>\n"
+  },
+  {
+    "name": "outlined text",
+    "commands": [
+      [
+        "text.create",
+        {
+          "text": "A & B\nNext",
+          "x": 4,
+          "y": 8
+        }
+      ],
+      [
+        "file.exportSvg",
+        {}
+      ]
+    ],
+    "svg": "<svg width=\"31\" height=\"30\" viewBox=\"0 0 31 30\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\"><g><path transform=\"matrix(1 0 0 1 0 0)\" d=\"M0.305 11.865L3.475 3.135L4.764 3.135L7.975 11.865L6.803 11.865L5.93 9.428L2.332 9.428L1.488 11.865ZM2.672 8.455L5.584 8.455L4.951 6.686Q4.793 6.246 4.594 5.61Q4.395 4.975 4.113 4.025Q3.838 4.992 3.633 5.637Q3.428 6.281 3.287 6.686ZM15.059 11.982Q14.197 11.982 13.57 11.663Q12.943 11.344 12.606 10.802Q12.27 10.26 12.27 9.586Q12.27 9.029 12.492 8.622Q12.715 8.215 13.104 7.866Q13.494 7.518 13.992 7.148Q13.535 6.598 13.257 6.111Q12.979 5.625 12.979 5.027Q12.979 4.16 13.562 3.606Q14.145 3.053 15.117 3.053Q15.773 3.053 16.248 3.308Q16.723 3.563 16.98 3.987Q17.238 4.412 17.238 4.934Q17.238 5.537 16.913 5.997Q16.588 6.457 16.078 6.838L15.445 7.307L17.314 9.574Q17.484 9.246 17.578 8.851Q17.672 8.455 17.672 8.01L18.686 8.01Q18.686 8.924 18.46 9.495Q18.234 10.066 17.982 10.389L19.201 11.865L17.93 11.865L17.326 11.139Q16.893 11.566 16.274 11.774Q15.656 11.982 15.059 11.982ZM16.693 10.383L14.631 7.91L14.332 8.133Q13.793 8.531 13.573 8.874Q13.354 9.217 13.354 9.621Q13.354 10.266 13.805 10.664Q14.256 11.063 14.982 11.063Q15.949 11.063 16.693 10.383ZM14.813 6.545L15.381 6.123Q15.539 6.006 15.727 5.842Q15.914 5.678 16.046 5.449Q16.178 5.221 16.178 4.916Q16.178 4.5 15.899 4.23Q15.621 3.961 15.146 3.961Q14.648 3.961 14.344 4.257Q14.039 4.553 14.039 5.021Q14.039 5.414 14.253 5.769Q14.467 6.123 14.813 6.545ZM23.824 11.865L23.824 3.135L26.918 3.135Q27.832 3.135 28.427 3.448Q29.021 3.762 29.312 4.286Q29.602 4.811 29.602 5.449Q29.602 6.012 29.402 6.378Q29.203 6.744 28.878 6.961Q28.553 7.178 28.172 7.283L28.172 7.365Q28.582 7.389 28.989 7.646Q29.396 7.904 29.669 8.379Q29.941 8.854 29.941 9.539Q29.941 10.195 29.64 10.723Q29.338 11.25 28.693 11.558Q28.049 11.865 27.018 11.865ZM24.938 10.881L26.988 10.881Q28.008 10.881 28.438 10.488Q28.869 10.096 28.869 9.527Q28.869 9.088 28.646 8.719Q28.424 8.35 28.017 8.127Q27.609 7.904 27.047 7.904L24.938 7.904ZM24.938 6.967L26.859 6.967Q27.563 6.967 28.049 6.557Q28.535 6.146 28.535 5.473Q28.535 4.904 28.14 4.512Q27.744 4.119 26.895 4.119L24.938 4.119ZM1.055 26.865L1.055 18.135L2.367 18.135L5.918 23.719Q6.094 24 6.372 24.478Q6.65 24.955 6.949 25.547Q6.896 24.914 6.885 24.378Q6.873 23.842 6.873 23.49L6.873 18.135L7.986 18.135L7.986 26.865L6.662 26.865L3.498 21.896Q3.299 21.586 3.103 21.258Q2.906 20.93 2.666 20.502Q2.426 20.074 2.086 19.471Q2.121 20.309 2.147 20.938Q2.174 21.568 2.174 21.885L2.174 26.865ZM12.727 27.006Q11.777 27.006 11.089 26.584Q10.4 26.162 10.028 25.406Q9.656 24.65 9.656 23.643Q9.656 22.635 10.02 21.867Q10.383 21.1 11.048 20.666Q11.713 20.232 12.604 20.232Q13.125 20.232 13.632 20.405Q14.139 20.578 14.552 20.962Q14.965 21.346 15.211 21.973Q15.457 22.6 15.457 23.508L15.457 23.947L10.723 23.947Q10.764 24.973 11.312 25.521Q11.859 26.068 12.732 26.068Q13.313 26.068 13.731 25.813Q14.15 25.559 14.332 25.061L15.352 25.342Q15.123 26.086 14.429 26.546Q13.734 27.006 12.727 27.006ZM10.729 23.057L14.385 23.057Q14.309 22.219 13.86 21.694Q13.412 21.17 12.604 21.17Q12.041 21.17 11.634 21.434Q11.227 21.697 10.992 22.125Q10.758 22.553 10.729 23.057ZM16.154 26.865L18.457 23.502L16.289 20.314L17.52 20.314L18.334 21.586Q18.557 21.938 18.735 22.251Q18.914 22.564 19.084 22.863Q19.242 22.564 19.406 22.251Q19.57 21.938 19.799 21.586L20.631 20.314L21.838 20.314L19.646 23.561L21.943 26.865L20.719 26.865L19.758 25.395Q19.541 25.061 19.371 24.759Q19.201 24.457 19.037 24.182Q18.885 24.457 18.727 24.759Q18.568 25.061 18.346 25.395L17.373 26.865ZM26.063 20.314L26.063 21.217L24.715 21.217L24.715 25.166Q24.715 25.605 24.894 25.808Q25.072 26.01 25.488 26.01Q25.588 26.01 25.743 25.986Q25.898 25.963 26.027 25.939L26.244 26.83Q26.08 26.889 25.872 26.918Q25.664 26.947 25.459 26.947Q24.609 26.947 24.135 26.499Q23.66 26.051 23.66 25.248L23.66 21.217L22.676 21.217L22.676 20.314L23.66 20.314L23.66 18.756L24.715 18.756L24.715 20.314Z\" fill=\"#000000\"/></g></svg>\n"
+  },
+  {
+    "name": "source pattern",
+    "commands": [
+      [
+        "shape.rectangle",
+        {
+          "name": "Tile",
+          "x": 0,
+          "y": 0,
+          "width": 4,
+          "height": 3,
+          "props": {
+            "fill": "#ff6622"
+          }
+        }
+      ],
+      [
+        "shape.rectangle",
+        {
+          "name": "Tiled",
+          "x": 10,
+          "y": 10,
+          "width": 12,
+          "height": 10,
+          "props": {
+            "fills": [
+              {
+                "type": "pattern",
+                "source": 2,
+                "tile": "horizontalHex",
+                "spacing": [
+                  2,
+                  3
+                ]
+              }
+            ]
+          }
+        }
+      ],
+      [
+        "file.exportSvg",
+        {}
+      ]
+    ],
+    "svg": "<svg width=\"12\" height=\"10\" viewBox=\"0 0 12 10\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\"><g><path transform=\"matrix(1 0 0 1 0 0)\" d=\"M0 0L12 0L12 10L0 10Z\" fill=\"url(#pattern1)\"/></g><defs><pattern id=\"pattern1\" patternUnits=\"userSpaceOnUse\" width=\"6\" height=\"12\" patternTransform=\"translate(0 0)\"><g><path transform=\"matrix(1 0 0 1 0 0)\" d=\"M0 0L4 0L4 3L0 3Z\" fill=\"#FF6622\"/></g><g><path transform=\"matrix(1 0 0 1 3 6)\" d=\"M0 0L4 0L4 3L0 3Z\" fill=\"#FF6622\"/></g><g><path transform=\"matrix(1 0 0 1 -3 6)\" d=\"M0 0L4 0L4 3L0 3Z\" fill=\"#FF6622\"/></g></pattern></defs></svg>\n"
+  },
+  {
+    "name": "radial handles",
+    "commands": [
+      [
+        "shape.ellipse",
+        {
+          "name": "Gradient",
+          "x": 3,
+          "y": 4,
+          "width": 28,
+          "height": 18,
+          "props": {
+            "fills": [
+              {
+                "type": "gradient",
+                "kind": "radial",
+                "from": [
+                  0.5,
+                  0.5
+                ],
+                "to": [
+                  1,
+                  0.4
+                ],
+                "width": [
+                  0.7,
+                  1
+                ],
+                "stops": [
+                  {
+                    "position": 1,
+                    "color": "#88223380"
+                  },
+                  {
+                    "position": 0,
+                    "color": "#00ff11"
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ],
+      [
+        "file.exportSvg",
+        {}
+      ]
+    ],
+    "svg": "<svg width=\"28\" height=\"18\" viewBox=\"0 0 28 18\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\"><g><path transform=\"matrix(1 0 0 1 0 0)\" d=\"M28 9C28 13.971 21.732 18 14 18C6.268 18 0 13.971 0 9C0 4.029 6.268 0 14 0C21.732 0 28 4.029 28 9\" fill=\"url(#paint1)\"/></g><defs><radialGradient id=\"paint1\" cx=\"0\" cy=\"0\" r=\"1\" gradientUnits=\"userSpaceOnUse\" gradientTransform=\"matrix(14 -1.8 5.6 9 14 9)\"><stop offset=\"0\" stop-color=\"#00FF11\"/><stop offset=\"1\" stop-color=\"#882233\" stop-opacity=\"0.502\"/></radialGradient></defs></svg>\n"
+  },
+  {
+    "name": "bounded frame",
+    "commands": [
+      [
+        "frame.create",
+        {
+          "name": "Frame",
+          "x": 10,
+          "y": 5,
+          "width": 24,
+          "height": 17
+        }
+      ],
+      [
+        "node.set",
+        {
+          "props": {
+            "clip": true
+          }
+        }
+      ],
+      [
+        "shape.rectangle",
+        {
+          "parent": 2,
+          "x": 8,
+          "y": 6,
+          "width": 35,
+          "height": 27
+        }
+      ],
+      [
+        "file.exportSvg",
+        {
+          "ids": [
+            2
+          ]
+        }
+      ]
+    ],
+    "svg": "<svg width=\"24\" height=\"17\" viewBox=\"0 0 24 17\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\"><g><path transform=\"matrix(1 0 0 1 0 0)\" d=\"M0 0L24 0L24 17L0 17Z\" fill=\"#FFFFFF\"/><g clip-path=\"url(#clip1)\"><path transform=\"matrix(1 0 0 1 8 6)\" d=\"M0 0L35 0L35 27L0 27Z\" fill=\"#D9D9D9\"/></g></g><defs><clipPath id=\"clip1\"><path d=\"M0 0L24 0L24 17L0 17Z\"/></clipPath></defs></svg>\n"
+  },
+  {
+    "name": "colour profile",
+    "commands": [
+      [
+        "shape.rectangle",
+        {
+          "name": "Tag & Icon",
+          "x": 20,
+          "y": 35,
+          "width": 45,
+          "height": 21,
+          "props": {
+            "fill": "#12ab34"
+          }
+        }
+      ],
+      [
+        "file.colorProfile",
+        {
+          "profile": "displayP3"
+        }
+      ],
+      [
+        "file.exportSvg",
+        {}
+      ]
+    ],
+    "svg": "<svg width=\"45\" height=\"21\" viewBox=\"0 0 45 21\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\"><g><path transform=\"matrix(1 0 0 1 0 0)\" d=\"M0 0L45 0L45 21L0 21Z\" fill=\"#12AB34\"/></g></svg>\n"
+  },
+  {
+    "name": "alpha mask",
+    "commands": [
+      [
+        "shape.rectangle",
+        {
+          "name": "Mask",
+          "x": 0,
+          "y": 0,
+          "width": 20,
+          "height": 20,
+          "props": {
+            "fill": "#cccccc80",
+            "isMask": true,
+            "maskType": "alpha"
+          }
+        }
+      ],
+      [
+        "shape.rectangle",
+        {
+          "name": "Ink",
+          "x": 4,
+          "y": 5,
+          "width": 24,
+          "height": 16,
+          "props": {
+            "fill": "#661188"
+          }
+        }
+      ],
+      [
+        "object.group",
+        {
+          "ids": [
+            2,
+            3
+          ]
+        }
+      ],
+      [
+        "file.exportSvg",
+        {
+          "svgIdAttribute": true
+        }
+      ]
+    ],
+    "svg": "<svg width=\"16\" height=\"15\" viewBox=\"0 0 16 15\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\"><g id=\"Group_1\"><g mask=\"url(#mask1)\"><g id=\"Ink\"><path transform=\"matrix(1 0 0 1 0 0)\" d=\"M0 0L24 0L24 16L0 16Z\" fill=\"#661188\"/></g></g></g><defs><mask id=\"mask1\" maskUnits=\"userSpaceOnUse\" style=\"mask-type:alpha\"><g id=\"Mask\"><path transform=\"matrix(1 0 0 1 -4 -5)\" d=\"M0 0L20 0L20 20L0 20Z\" fill=\"#CCCCCC\" fill-opacity=\"0.502\"/></g></mask></defs></svg>\n"
+  },
+  {
+    "name": "luminance mask",
+    "commands": [
+      [
+        "shape.rectangle",
+        {
+          "name": "Mask",
+          "x": 0,
+          "y": 0,
+          "width": 20,
+          "height": 20,
+          "props": {
+            "fill": "#cccccc80",
+            "isMask": true,
+            "maskType": "luminance"
+          }
+        }
+      ],
+      [
+        "shape.rectangle",
+        {
+          "name": "Ink",
+          "x": 4,
+          "y": 5,
+          "width": 24,
+          "height": 16,
+          "props": {
+            "fill": "#661188"
+          }
+        }
+      ],
+      [
+        "object.group",
+        {
+          "ids": [
+            2,
+            3
+          ]
+        }
+      ],
+      [
+        "file.exportSvg",
+        {
+          "svgIdAttribute": true
+        }
+      ]
+    ],
+    "svg": "<svg width=\"16\" height=\"15\" viewBox=\"0 0 16 15\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\"><g id=\"Group_1\"><g mask=\"url(#mask1)\"><g id=\"Ink\"><path transform=\"matrix(1 0 0 1 0 0)\" d=\"M0 0L24 0L24 16L0 16Z\" fill=\"#661188\"/></g></g></g><defs><mask id=\"mask1\" maskUnits=\"userSpaceOnUse\"><g id=\"Mask\"><path transform=\"matrix(1 0 0 1 -4 -5)\" d=\"M0 0L20 0L20 20L0 20Z\" fill=\"#CCCCCC\" fill-opacity=\"0.502\"/></g></mask></defs></svg>\n"
+  },
+  {
+    "name": "vector mask",
+    "commands": [
+      [
+        "shape.rectangle",
+        {
+          "name": "Mask",
+          "x": 0,
+          "y": 0,
+          "width": 20,
+          "height": 20,
+          "props": {
+            "fill": "#cccccc80",
+            "isMask": true,
+            "maskType": "vector"
+          }
+        }
+      ],
+      [
+        "shape.rectangle",
+        {
+          "name": "Ink",
+          "x": 4,
+          "y": 5,
+          "width": 24,
+          "height": 16,
+          "props": {
+            "fill": "#661188"
+          }
+        }
+      ],
+      [
+        "object.group",
+        {
+          "ids": [
+            2,
+            3
+          ]
+        }
+      ],
+      [
+        "file.exportSvg",
+        {
+          "svgIdAttribute": true
+        }
+      ]
+    ],
+    "svg": "<svg width=\"16\" height=\"15\" viewBox=\"0 0 16 15\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\"><g id=\"Group_1\"><g clip-path=\"url(#clip1)\"><g id=\"Ink\"><path transform=\"matrix(1 0 0 1 0 0)\" d=\"M0 0L24 0L24 16L0 16Z\" fill=\"#661188\"/></g></g></g><defs><clipPath id=\"clip1\"><path transform=\"matrix(1 0 0 1 -4 -5)\" d=\"M0 0L20 0L20 20L0 20Z\"/></clipPath></defs></svg>\n"
+  }
+]

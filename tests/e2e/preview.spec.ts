@@ -6917,3 +6917,24 @@ test("layer export settings recover, preview and download one file or a named ZI
   await page.getByRole("button",{name:"Export page as PNG",exact:true}).click();
   expect((await pending).suggestedFilename()).toBe("Page 1.png");
 });
+
+test("the signed-in editor downloads editable SVG paths and saved SVG assets", async ({page})=>{
+  await login(page); await createNamedRectangle(page,"Design & Art",8,9,31,24);
+  const bar=page.locator(".figcraft-document-bar"), panel=page.getByRole("group",{name:"Layer export",exact:true});
+  await bar.getByText("File",{exact:true}).click(); await bar.getByRole("button",{name:"Export…",exact:true}).click();
+  let pending=page.waitForEvent("download");
+  await page.getByRole("dialog",{name:"Export",exact:true}).getByRole("button",{name:"SVG",exact:true}).click();
+  const first=await pending;
+  expect(first.suggestedFilename()).toBe("Design & Art.svg");
+  expect(await readFile((await first.path())!,"utf8")).toContain('viewBox="0 0 31 24"');
+  await panel.getByRole("button",{name:"Add export setting"}).click();
+  const setting=panel.getByRole("group",{name:"Export setting 1"});
+  await setting.getByLabel("Export format").selectOption("svg");
+  await setting.getByText("Export options",{exact:true}).click();
+  await setting.getByLabel("Include id attribute").check();
+  pending=page.waitForEvent("download");
+  await panel.getByRole("button",{name:"Export Design & Art"}).click();
+  const source=await readFile((await (await pending).path())!,"utf8");
+  expect(source).toContain('<g id="Design_&amp;_Art"><path');
+  expect(source).not.toContain("<image");
+});

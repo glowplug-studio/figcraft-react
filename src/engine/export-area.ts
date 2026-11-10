@@ -32,18 +32,17 @@ function flag(p: Record<string, unknown>, key: string, fallback: boolean) {
   return value;
 }
 
-export function rasterExportPlan(doc: Document, selection: readonly string[], p: Record<string, unknown>, savedSize?: ExportSize) {
+export function exportRegion(doc: Document, selection: readonly string[], p: Record<string, unknown>, beforeBounds?: (roots: readonly string[]) => void) {
   const currentPage = pageOf(doc);
   const id = parseNodeId(p.id);
   const requested = Array.isArray(p.ids) ? p.ids.flatMap(value => parseNodeId(value) ?? []) : id ? [id] : selection;
   const ids = requested.length ? requested : currentPage.children;
-  const profile: unknown = p.colorProfile == null || p.colorProfile === "sameAsFile" ? doc.colourProfile ?? "srgb" : p.colorProfile;
-  if (profile !== "srgb" && profile !== "displayP3") throw new Error("colorProfile: sameAsFile|srgb|displayP3");
-  const quality = p.quality === undefined ? 90 : typeof p.quality === "boolean" ? NaN : parseNumber(p.quality, "quality");
-  if (!Number.isInteger(quality) || quality < 1 || quality > 100) throw new Error("quality: a whole number from 1 to 100 (JPG)");
-  const size = savedSize ?? (p.size == null ? undefined : exportSize(p.size));
   const contentsOnly = flag(p, "contentsOnly", true), boundingBox = flag(p, "includeBoundingBox", false);
   const layers = ids.filter(id => doc.nodes[id]);
+  const pageId = layers.length ? pageForNode(doc, layers[0]) : undefined, page = pageId ? doc.nodes[pageId] : undefined;
+  const parentPage = page?.kind === "page" ? page : currentPage;
+  const drawn = contentsOnly ? zSorted(doc, rootIds(doc, layers)) : parentPage.children;
+  if (beforeBounds) beforeBounds(drawn);
   const anyVisible = layers.some(id => { const n = doc.nodes[id]; return n.kind === "page" || n.visible !== false; });
   let area: Rectangle | undefined;
   for (const id of layers) {
@@ -59,9 +58,17 @@ export function rasterExportPlan(doc: Document, selection: readonly string[], p:
     }
   }
   if (!area || !layers.length) throw new Error("nothing to export");
-  const pageId = pageForNode(doc, layers[0]), page = pageId ? doc.nodes[pageId] : undefined;
-  const parentPage = page?.kind === "page" ? page : currentPage;
-  const drawn = contentsOnly ? zSorted(doc, rootIds(doc, layers)) : parentPage.children;
+
+  return { area, drawn };
+}
+
+export function rasterExportPlan(doc: Document, selection: readonly string[], p: Record<string, unknown>, savedSize?: ExportSize) {
+  const profile: unknown = p.colorProfile == null || p.colorProfile === "sameAsFile" ? doc.colourProfile ?? "srgb" : p.colorProfile;
+  if (profile !== "srgb" && profile !== "displayP3") throw new Error("colorProfile: sameAsFile|srgb|displayP3");
+  const quality = p.quality === undefined ? 90 : typeof p.quality === "boolean" ? NaN : parseNumber(p.quality, "quality");
+  if (!Number.isInteger(quality) || quality < 1 || quality > 100) throw new Error("quality: a whole number from 1 to 100 (JPG)");
+  const size = savedSize ?? (p.size == null ? undefined : exportSize(p.size));
+  const { area, drawn } = exportRegion(doc, selection, p);
   let scale: number;
   if (!size) scale = Math.max(0.01, Math.min(64, p.scale == null ? 1 : parseNumber(p.scale)));
   else if (size.by === "scale") scale = size.value;

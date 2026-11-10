@@ -471,14 +471,14 @@ export function DocumentEditor({ identity, capabilities, engine: suppliedEngine,
     } catch (caught) { setError(caught instanceof Error ? caught.message : "Export failed"); }
     finally { setBusy(false); }
   }
-  async function exportDrawing(format: "png" | "jpg" | "webp", scale: number, wholePage = false) {
+  async function exportDrawing(format: "png" | "jpg" | "webp" | "svg", scale: number, wholePage = false) {
     exportDialog.current?.close();
     setBusy(true); setError("");
     try {
       const { document: design, selection } = engine.getSnapshot();
       const first = selection[0] ?? pageOf(design).children[0];
       const name = (wholePage ? pageOf(design).name : design.nodes[first]?.name ?? "Export") + (scale === 1 ? "" : "@" + scale + "x") + "." + format;
-      const { blob } = await engine.exportRaster({ format, scale, ...(wholePage && {ids: pageOf(design).children}) });
+      const { blob } = await engine.exportGraphic({ format, scale, ...(wholePage && {ids: pageOf(design).children}) });
       downloadBlob(blob,name);
     } catch (error) { setError(error instanceof Error ? error.message : "Export failed"); }
     finally { setBusy(false); }
@@ -660,6 +660,7 @@ export function DocumentEditor({ identity, capabilities, engine: suppliedEngine,
         <p>{snapshot.selection.length || page.children.length} layers as one file</p>
         {([["png",1], ["png",2], ["png",3], ["jpg",2], ["webp",2]] as const).map(([format, scale]) =>
           <button type="button" key={format + scale} onClick={() => void exportDrawing(format, scale)}>{format.toUpperCase()} @{scale}x</button>)}
+        <button type="button" onClick={()=>void exportDrawing("svg",1)}>SVG</button>
         <button type="button" onClick={() => exportDialog.current?.close()}>Close</button>
       </dialog>
       <dialog ref={replaceDialog} aria-label="Replace unsaved document" onCancel={() => setPendingFile(null)}>
@@ -799,7 +800,7 @@ export function DocumentEditor({ identity, capabilities, engine: suppliedEngine,
           <dl>
             <dt>X</dt><dd>{relative[4]}</dd><dt>Y</dt><dd>{relative[5]}</dd><dt>Width</dt><dd>{selected.width}</dd><dt>Height</dt><dd>{selected.height}</dd>
           </dl>
-          <GeometryPanel key={snapshot.selection.join(",")} document={snapshot.document} selection={snapshot.selection}
+          <GeometryPanel key={"GeometryPanel:"+snapshot.selection.join(",")} document={snapshot.document} selection={snapshot.selection}
             enabled={editable && !busy} engine={engine} dispatch={dispatch} onError={setError}/>
           </section>}
           {!editingVector && <ChildLayoutPanel engine={engine} onError={setError} document={snapshot.document} selection={snapshot.selection} enabled={editable && !busy} dispatch={dispatch}/>}
@@ -833,13 +834,13 @@ export function DocumentEditor({ identity, capabilities, engine: suppliedEngine,
           <AppearancePanel engine={engine} page={page} selected={selected && selected.kind !== "page" ? selected : undefined} editable={editable && !busy} dispatch={dispatch} />
           <StrokePanel engine={engine} nodes={snapshot.selection.flatMap(id => { const n = snapshot.document.nodes[id]; return n && n.kind !== "page" ? [n] : []; })} editable={editable && !busy} dispatch={dispatch} />
           <EffectsPanel engine={engine} editable={editable && !busy} dispatch={dispatch} />
-          {!editingVector && <LayoutGuidesPanel key={snapshot.selection.join(",")} nodes={snapshot.selection.map(id=>snapshot.document.nodes[id])}
+          {!editingVector && <LayoutGuidesPanel key={"LayoutGuidesPanel:"+snapshot.selection.join(",")} nodes={snapshot.selection.map(id=>snapshot.document.nodes[id])}
             engine={engine} enabled={editable && !busy} dispatch={dispatch} onError={setError}/>}
           {!editingVector && <VariableModesPanel document={snapshot.document} selection={snapshot.selection} enabled={editable && !busy} run={dispatch}/>}
           {!editingVector && !snapshot.selection.length && <VariablesPanel documentName={snapshot.document.name} importFile={file=>engine.importVariableFile(file)} error={error} data={snapshot.document.variables} enabled={editable && !busy} run={dispatch}/>}
           {!editingVector && <SharedStylesPanel engine={engine} enabled={editable && !busy} run={dispatch} leave={()=>controller.current?.finishText()}/>}
           {!editingVector && !snapshot.selection.length && <fieldset><legend>Export</legend><button type="button" disabled={!signedIn || busy} onClick={()=>void exportDrawing("png",1,true)}>Export page as PNG</button></fieldset>}
-          {!editingVector && <ExportPanel key={snapshot.selection.join(",")} doc={snapshot.document} ids={snapshot.selection} enabled={editable && !busy}
+          {!editingVector && <ExportPanel key={"ExportPanel:"+snapshot.selection.join(",")} doc={snapshot.document} ids={snapshot.selection} enabled={editable && !busy}
             run={dispatch} download={()=>void exportLayers()}/>}
         </aside>
       </div>

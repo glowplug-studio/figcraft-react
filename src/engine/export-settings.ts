@@ -111,6 +111,10 @@ function parseSetting(base: ExportSetting, p: Record<string, unknown>, wire: boo
   return Object.freeze(e);
 }
 
+export function fileExportSetting(params: Record<string,unknown>) {
+  return parseSetting(defaultSetting(), params, false);
+}
+
 /** Only the shared print, compatibility and profile options override saved settings. */
 export function batchExportOptions(p: Record<string, unknown>) {
   const keys = ["bleed", "cropMarks", "bleedMarks", "cmyk", "vdCompat", "colorProfile"];

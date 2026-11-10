@@ -1,3 +1,4 @@
+import { reversedRuns } from "./paint-runs";
 import type { ColourProfile } from "./colour-spaces";
 import { rasterExportPlan } from "./export-area";
 import { drawLayoutGuides } from "./layout-guides";
@@ -388,24 +389,6 @@ function deviceBounds(context: CanvasRenderingContext2D, document: Document, nod
   if (!node.effects?.length) return bounds;
   const reach = effectReach(node);
   return paddedRect(bounds,reach.page*scale+outlinePad(matrix,reach.local));
-}
-
-// Reverse the order of mask runs while preserving paint order inside each run.
-const reverseRunIndices = new WeakMap<Document, WeakMap<readonly string[], readonly number[]>>();
-function reversedRuns(document: Document, children: readonly string[]) {
-  let frames = reverseRunIndices.get(document);
-  if (!frames) reverseRunIndices.set(document, frames = new WeakMap());
-  const cached = frames.get(children);
-  if (cached) return cached;
-  const starts: number[] = [];
-  for (let i = 0; i < children.length;) {
-    starts.push(i);
-    const node = document.nodes[children[i++]];
-    if (node?.isMask && (node.kind === "page" || node.visible !== false))
-      while (i < children.length && !document.nodes[children[i]]?.isMask) i++;
-  }
-  frames.set(children, starts.reverse());
-  return starts;
 }
 
 function* drawChildren(context: CanvasRenderingContext2D, document: Document, children: readonly string[],
