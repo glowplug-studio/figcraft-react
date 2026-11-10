@@ -6,16 +6,16 @@
 |---|---|
 | Overall status | In progress. [Execution checkpoint](26-11-07-full-port-resume.md). |
 | Active slice | Row 12 design interchange and export. [Dated plan](26-11-10-file-interchange.md). |
-| Active phase | Row 12. Editable Sketch import, prototype data and Slice exports passed local release verification. Penpot import and export are active. |
+| Active phase | Row 12. The editable Penpot reader passed focused verification. The full Chromium regression is running and the Penpot writer is active. |
 | Upstream baseline | Styles reference a2e87433. Components reference 79c36346. Global supported baseline 8eb0b876. |
-| Branch and last verified commit | prompt/full-figcraft-port at 5d94730 for editable Sketch import. |
+| Branch and last verified commit | prompt/full-figcraft-port at c2a1b85 for editable Penpot import. Last full browser release was 5d94730. |
 | Completed slices | Rectangle/host-auth, bounded native persistence/recovery, supported-model pages, affine rectangle geometry/selection and solid appearance, plus nested group hierarchy, Frame containers, movement/transform gestures, rounded corners, ellipse/arc/ring and Polygon/Star editing verified locally; Line/Arrow and uniform solid strokes also verified; per-side Rectangle/Frame strokes, variable-width profiles and procedural brushes verified; vector networks, solid region/stroke rendering and Flatten/Reverse also verified; foundation commit `154f5a7`. Gradient, image, pattern, blend and mask releases now have local property matrices. [Blend evidence](../reports/26-11-09-blend-modes-parity.html). Auto layout and constraints passed the local release gate. [Release evidence](../reports/26-11-09-auto-layout.md). [Local components, instances, variant properties, slots and Assets](../reports/26-11-09-components-instances.md) passed the 0.51.0 gate. |
 | Remaining slices | Continue incomplete roadmap rows, excluding the user-deferred plugin and widget family. See each slice matrix for outstanding integrations. |
-| Tests last passed | At 5d94730, All 336 production Chromium workflows passed in 515.1 seconds with zero skips, retries or flakes. Strict TypeScript, both production builds, 3,044 pure checks and two local Auth integrations passed. |
+| Tests last passed | Penpot reader: 144 native archive comparisons, 3,442 pure checks, two local Auth integrations, strict types, both builds and focused production Chromium checks passed. The full Chromium regression is running. |
 | Files currently in progress | [Design interchange and export](26-11-10-file-interchange.md). |
 | Blockers | The scoped Supabase MCP project and public-table reads passed after reauthorisation. |
-| Exact next action | Build editable Penpot page and layer projections. Native source records and guides passed 114 document round trips. Archive admission and page order passed 142 independent host samples. [Penpot plan](26-11-10-penpot-interchange.md). |
-| Last updated | 2026-11-10 20:42 ICT |
+| Exact next action | Implement the native Penpot writer, starting with stable identifiers, page records and geometry. Compare generated archives and native reopens against 126 native exports. Collect the full Chromium regression before closing the interchange slice. [Penpot plan](26-11-10-penpot-interchange.md). |
+| Last updated | 2026-11-10 21:38 ICT |
 
 ## Scope and continuation
 
