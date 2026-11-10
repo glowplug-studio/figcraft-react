@@ -9,10 +9,20 @@ export interface OnlineFileInfo {
   expires?: string | null;
 }
 
+export interface OnlineHostInformation {
+  idleSeconds: string;
+  expires: string | null;
+  operator?: string;
+  terms?: string;
+  reports?: boolean;
+  open?: boolean;
+  maxFileMb?: number;
+}
+
 /** An embedding host supplies the authenticated store. Publication IDs survive retries. */
 export interface OnlineFileStore {
   teamDirectory?(): Promise<TeamDirectory>;
-  hosting?(file?: string): Promise<{idleSeconds: string; expires: string | null}>;
+  hosting?(file?: string): Promise<OnlineHostInformation>;
   publish(id: string, snapshot: Blob): Promise<OnlineFileInfo>;
   owned(ids: readonly string[]): Promise<readonly OnlineFileInfo[]>;
   open(id: string): Promise<Blob>;
@@ -69,6 +79,7 @@ export type GuestConnectionStatus = {attempt: number} | {access: OnlineGuestSess
 export interface OnlineInvitations {
   /** Redeem this device's original edit link. Older records may predate link storage. */
   joinOwned?(file: string): Promise<{session: OnlineGuestSession; archive: Blob} | undefined>;
+  report?(connection: string, reason: string): Promise<void>;
   retryNow?(connection: string): void;
   rejoin?(connection: string): Promise<OnlineGuestSession["access"]>;
   watch?(connection: string, ended: (reason: GuestSessionEnd) => void, changed?: (status: GuestConnectionStatus) => void): () => void;

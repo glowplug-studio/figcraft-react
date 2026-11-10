@@ -54,3 +54,11 @@ on conflict (singleton) do update set max_links=excluded.max_links;
 ```
 
 Run `supabase test db --local` and `npm run test:integration` against the migrated local stack. With its production preview running, use `npx playwright test tests/e2e/preview.spec.ts --grep 'second account discovers' --workers=1`. This two-account test temporarily enables the directory on the local fixture host and restores its disabled state.
+
+### Participant reports
+
+An attached participant can report the current file through its File menu. The signed-in host validates the connection and the trusted ingress address. Across all host workers, the newest 1,000 reports survive file removal and database restarts. Only the database operator can read `figcraft_private.online_participant_reports`. Each row captures the file name at submission, file and link identifiers, timestamp, normalised address and reason. IPv6 records use the network address of the /64. On hosts without a trusted ingress, submissions share the loopback address and allowance.
+
+Set the optional public contact and web terms in the single row of `figcraft_private.online_host_contact`. Signed-in clients receive them through `online_host_information`. A missing row leaves both fields empty.
+
+On the local stack, `supabase test db --local` exercises the admission and retention limits. To test persistence across an actual database restart, run the two-account procedure in the [participant report checkpoint](../docs/planning/26-11-11-participant-reports.md#execution-checkpoint).

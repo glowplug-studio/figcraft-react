@@ -3,6 +3,7 @@ import { createHash, randomUUID } from "node:crypto";
 import { join } from "node:path";
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { chromium, expect, test, type Page } from "@playwright/test";
+import {localOperatorSql} from "../support/localOperatorSql";
 import {enableLocalTeamDirectory} from "../support/localTeamDirectory";
 import { localSupabase } from "../support/localSupabase";
 import { decodeFigcraft, encodeFigcraft } from "../../src/engine/file-format";
@@ -616,7 +617,11 @@ test("the published view and edit invites open the original drawing in another s
   const origin = new URL(page.url()).origin;
   const visitor = await browser.newContext({ baseURL: origin, storageState: process.env.PLAYWRIGHT_STORAGE_STATE });
   let fileId: string | undefined;
+  let reportFile: string | undefined;
+  const contact = "Test operator " + randomUUID();
+  const terms = "https://example.test/figcraft-terms";
   try {
+    if (backend) localOperatorSql(backend,"insert into figcraft_private.online_host_contact(operator_contact,terms_url) values (:'contact',:'terms')",{contact,terms});
     await page.context().grantPermissions(["clipboard-read", "clipboard-write"], { origin });
     await page.getByRole("button", { name: "Create rectangle", exact: true }).click();
     const bar = page.locator(".figcraft-document-bar");
@@ -654,6 +659,26 @@ test("the published view and edit invites open the original drawing in another s
     await toolbar.getByText("File", {exact:true}).click();
     await toolbar.getByRole("button", {name:"About this server"}).click();
     await expect(toolbar.getByText(/The server deletes this file if nobody opens it before .* UTC/)).toBeVisible();
+    if (backend) {
+      await expect(toolbar.getByText("Hosted by " + contact)).toBeVisible();
+      await expect(toolbar.getByRole("link",{name:"Terms"})).toHaveAttribute("href",terms);
+      await toolbar.getByRole("button",{name:"Report this file…"}).click();
+      const reason = toolbar.getByRole("textbox",{name:"Report",exact:true});
+      await expect(reason).toBeFocused();
+      await expect(toolbar.getByRole("button",{name:"Send report"})).toBeDisabled();
+      await reason.fill("Do not submit");
+      await toolbar.getByRole("button",{name:"Cancel",exact:true}).click();
+      await toolbar.getByRole("button",{name:"Report this file…"}).click();
+      await expect(reason).toHaveValue("");
+      await reason.fill("Participant review");
+      reportFile = fileId;
+      const receipt = guest.waitForResponse(r => new URL(r.url()).pathname === "/api/online-files/report");
+      await reason.press("Enter");
+      expect((await receipt).status()).toBe(204);
+      await expect(toolbar.getByText("Your report was sent to the server's operator",{exact:true})).toBeVisible();
+      expect(localOperatorSql(backend,"select file_name || '/' || reason from figcraft_private.online_participant_reports where file_id=:'file'",{file:fileId!}))
+        .toBe("Original invite drawing/Participant review");
+    }
     await toolbar.getByText("File", {exact:true}).click();
     await bar.getByRole("button", {name: "Start sharing", exact: true}).click();
     await bar.getByLabel("Access", {exact: true}).selectOption("comment");
@@ -799,6 +824,10 @@ test("the published view and edit invites open the original drawing in another s
     }
     expect(secretInRequestUrl).toBe(false);
   } finally {
+    if (backend) {
+      localOperatorSql(backend,"delete from figcraft_private.online_host_contact where operator_contact=:'contact'",{contact});
+      if (reportFile) localOperatorSql(backend,"delete from figcraft_private.online_participant_reports where file_id=:'file'",{file:reportFile});
+    }
     await visitor.close();
     if (fileId) expect((await owner.storage.from("figcraft-files").remove([auth.data.user.id + "/" + fileId + ".figcraft"])).error).toBeNull();
     if (backend && guestId) await backend.admin.auth.admin.deleteUser(guestId);

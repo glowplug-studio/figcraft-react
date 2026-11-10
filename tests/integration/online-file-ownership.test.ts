@@ -14,6 +14,7 @@ import { lookupCode } from "../../examples/nextjs/lib/sharing/code-lookup";
 import { JoinCodeKey } from "../../examples/nextjs/lib/sharing/codes";
 import { createPublishedLinks, publishedLinkDigests } from "../../src/backends/published-links";
 import { parseJoinCode } from "../../src/engine/sharing/join-code";
+import {localOperatorSql} from "../support/localOperatorSql";
 import {enableLocalTeamDirectory} from "../support/localTeamDirectory";
 import { localSupabase } from "../support/localSupabase";
 
@@ -430,6 +431,49 @@ describe.skipIf(!enabled)("private online files on real local Supabase", () => {
     } finally { disable(); }
   }, 90_000);
 
+  it("keeps participant reports private across concurrent requests, restart and revocation", async () => {
+    const file = randomUUID(), tab = randomUUID(), keys = createPublishedLinks();
+    const proof = await publishedLinkDigests(keys);
+    const writer = local!.admin;
+    const store = new SupabaseOnlineFileStore(owner.client, owner.id, id => finaliseForTest(owner.client, writer, id, proof));
+    paths.push(owner.id + "/" + file + ".figcraft");
+    await store.publish(file, new Blob([archive]));
+    const session = (await stranger.client.auth.getClaims()).data!.claims.session_id as string;
+    const params = {actor:stranger.id, auth_session:session, tab, address:fixtureIngress + "::1", reason:"Fixture"};
+    const sql = (query: string) => localOperatorSql(local!,query,{file,owner:owner.id,viewer:stranger.id});
+    const count = () => sql("select count(*) from figcraft_private.online_participant_reports where file_id=:'file'");
+    try {
+      await readSharedDrawing(stranger.client,writer,stranger.id,session,tab,file,keys.view.token);
+      expect((await stranger.client.rpc("submit_participant_report",params)).error?.code).toBe("42501");
+      expect((await writer.rpc("submit_participant_report",{...params,actor:owner.id})).data).toBe("unavailable");
+      const receipts = await Promise.all(Array.from({length:12},() => writer.rpc("submit_participant_report",params)));
+      expect(receipts.every(r => r.error === null)).toBe(true);
+      expect(receipts.filter(r => r.data === "kept")).toHaveLength(10);
+      expect(receipts.filter(r => r.data === "rate")).toHaveLength(2);
+      expect(count()).toBe("10");
+      if (process.env.FIGCRAFT_VERIFY_REPORT_RESTART === "1") {
+        expect(sql("select count(*) from auth.users where id not in (:'owner',:'viewer')")).toBe("0");
+        execFileSync("docker",["restart","supabase_db_figcraft-react"],{stdio:"pipe",timeout:60_000});
+        await expect.poll(async () => (await writer.rpc("submit_participant_report",params)).data,
+          {timeout:60_000,interval:500}).toBe("unavailable");
+        expect(count()).toBe("10");
+        await readSharedDrawing(stranger.client,writer,stranger.id,session,tab,file,keys.view.token);
+      }
+      const [revoked, racing] = await Promise.all([
+        writer.from("online_file_links").delete().eq("file_id",file).eq("id",keys.view.id),
+        writer.rpc("submit_participant_report",{...params,address:fixtureIngress + ":100::1"}),
+      ]);
+      expect(revoked.error).toBeNull();
+      expect(racing.error).toBeNull();
+      expect(["kept","unavailable"]).toContain(racing.data);
+      expect((await writer.rpc("submit_participant_report",params)).data).toBe("unavailable");
+      await store.remove(file);
+      expect(count()).toBe(racing.data === "kept" ? "11" : "10");
+    } finally {
+      sql("delete from figcraft_private.online_participant_reports where file_id=:'file'");
+    }
+  },90_000);
+
   it("binds an invite to its Auth session and denies signed URLs, writes and downloads after revocation", async () => {
     const keys = createPublishedLinks();
     const proof = await publishedLinkDigests(keys);
@@ -449,7 +493,7 @@ describe.skipIf(!enabled)("private online files on real local Supabase", () => {
       if (result.error) throw result.error;
       return result.data;
     };
-    expect(await hosting()).toEqual({idle_seconds:"2592000",expires:null});
+    expect(await hosting()).toEqual({idle_seconds:"2592000",expires:null,operator_contact:"",terms_url:"",accepts_reports:true});
     const first = await join(keys.view.token);
     expect((await hosting()).expires).toMatch(/^\d+$/);
     expect(first.access).toBe("view");

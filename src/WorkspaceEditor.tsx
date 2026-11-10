@@ -144,7 +144,8 @@ export function WorkspaceEditor({ identity, capabilities, recoveryStore, onlineH
     }}>Copy {access} link</button>)}
   </div></details>;
   const fileMenu = active && <>
-    {online && guest && !guest.ended && <OnlineHostingInformation key={guest.connection} online={online} file={guest.file} />}
+    {online && guest && !guest.ended && <OnlineHostingInformation key={guest.connection} online={online} file={guest.file}
+      report={!guest.reconnectAttempt && invitations?.report ? reason => invitations.report!(guest.connection,reason) : undefined} />}
     {invitations && <button type="button" disabled={!enabled} onClick={event => {
       event.currentTarget.closest("details")?.removeAttribute("open"); invitations.showJoin();
     }}>Join live session…</button>}

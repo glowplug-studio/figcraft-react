@@ -20,28 +20,59 @@ function utcDay(seconds: number) {
   return Number.isFinite(date.getTime()) ? date.toISOString().split("T")[0] : "Unknown";
 }
 
-export function OnlineHostingInformation({online, file}: {online: OnlineWorkspace; file?: string}) {
+function ParticipantReport({send}: {send: (reason: string) => Promise<void>}) {
+  const [reason, setReason] = useState<string>();
+  const [sending, setSending] = useState(false);
+  const [message, setMessage] = useState("");
+  return <>
+    {reason === undefined ? <button type="button" onClick={() => { setReason(""); setMessage(""); }}>Report this file…</button> :
+      <form onSubmit={async event => {
+        event.preventDefault();
+        if (sending || !reason.trim()) return;
+        setSending(true);
+        try { await send(reason); setReason(undefined); setMessage("Your report was sent to the server's operator"); }
+        catch (error) { setMessage("The report wasn't sent: " + failure(error)); }
+        finally { setSending(false); }
+      }}>
+        <p>What is wrong with this file? The server's operator gets your report.</p>
+        <label>Report<input autoFocus value={reason} placeholder="Spam, stolen work, abuse…" disabled={sending}
+          onChange={e => setReason([...e.target.value].slice(0,500).join(""))} /></label>
+        <button disabled={sending || !reason.trim()}>Send report</button>
+        <button type="button" disabled={sending} onClick={() => { setReason(undefined); setMessage(""); }}>Cancel</button>
+      </form>}
+    {message && <p role="status">{message}</p>}
+  </>;
+}
+
+export function OnlineHostingInformation({online, file, report}: {
+  online: OnlineWorkspace; file?: string; report?: (reason: string) => Promise<void>;
+}) {
   const [request, setRequest] = useState(0);
   const [info, setInfo] = useState<Awaited<ReturnType<OnlineWorkspace["hosting"]>>>();
   const [failed, setFailed] = useState(false);
   useEffect(() => {
-    if (!request) return;
+    if (!request && !file) return;
     let current = true;
-    setInfo(undefined); setFailed(false);
+    setFailed(false);
     void online.hosting(file).then(value => { if (current) setInfo(value); },
       () => { if (current) setFailed(true); });
     return () => { current = false; };
   }, [online, file, request]);
   if (!online.hasHostingInfo) return null;
-  if (!info) return <button type="button" disabled={!!request && !failed} onClick={() => setRequest(n => n + 1)}>
-    {failed ? "Retry server information" : request ? "Asking the server…" : "About this server"}
-  </button>;
-  const days = (BigInt(info.idleSeconds) + 86399n) / 86400n;
-  return <div className="figcraft-hosting-information">
-    {days > 0n && <p>Files nobody opens for {days.toString()} {days === 1n ? "day" : "days"} are deleted.</p>}
-    {info.expires && <p>The server deletes this file if nobody opens it before {serverUtcDate(info.expires)}.</p>}
-    <p>The server operator can read files hosted here.</p>
-  </div>;
+  const days = (BigInt(info?.idleSeconds ?? "0") + 86399n) / 86400n;
+  return <>
+    {info?.operator && <p>Hosted by {info.operator}</p>}
+    {info?.terms && /^https?:\/\//.test(info.terms) && <a href={info.terms} target="_blank" rel="noreferrer">Terms</a>}
+    {request && info ? <div className="figcraft-hosting-information">
+      {!file && info.open && <p>This server is open to the public: no key needed.</p>}
+      {days > 0n && <p>Files nobody opens for {days.toString()} {days === 1n ? "day" : "days"} are deleted.</p>}
+      {info.expires && <p>The server deletes this file if nobody opens it before {serverUtcDate(info.expires)}.</p>}
+      <p>The server operator can read files hosted here.</p>
+    </div> : <button type="button" disabled={!!request && !failed} onClick={() => setRequest(n => n + 1)}>
+      {failed && request ? "Retry server information" : request ? "Asking the server…" : "About this server"}
+    </button>}
+    {info?.reports && report && <ParticipantReport send={report} />}
+  </>;
 }
 
 export function PublishOnlineDialog({ online, tab, close, published }: {

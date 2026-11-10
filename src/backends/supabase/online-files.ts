@@ -1,3 +1,4 @@
+import {PUBLIC_FILE_BYTES} from "../../engine/sharing/publication";
 import { readTeamDirectory } from "../../engine/sharing/team-directory";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { OnlineFileInfo, OnlineFileStore } from "../online-files";
@@ -54,9 +55,11 @@ export class SupabaseOnlineFileStore implements OnlineFileStore {
 
   async hosting(file?: string) {
     const result = await this.client.rpc("online_host_information", {target: file ?? null})
-      .single<{idle_seconds: string; expires: string | null}>();
+      .single<{idle_seconds: string; expires: string | null; operator_contact?: string; terms_url?: string; accepts_reports?: boolean}>();
     if (result.error) throw result.error;
-    return {idleSeconds: result.data.idle_seconds, expires: result.data.expires};
+    const info = result.data;
+    return {idleSeconds: info.idle_seconds, expires: info.expires, operator: info.operator_contact,
+      terms: info.terms_url, reports: info.accepts_reports === true, open: true, maxFileMb: PUBLIC_FILE_BYTES / (1024 * 1024)};
   }
 
   async publish(id: string, snapshot: Blob) {

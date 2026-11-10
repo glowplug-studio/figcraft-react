@@ -1,3 +1,4 @@
+import {participantReportReason} from "@glowplug-studio/figcraft-react";
 import type { GuestConnectionStatus, GuestSessionEnd, IndexedDbRecoveryStore, OnlineGuestSession, OnlineInvitations } from "@glowplug-studio/figcraft-react";
 import { nativeInviteLink, parseInviteServer, parseSessionInvite } from "@glowplug-studio/figcraft-react/sharing/invite";
 
@@ -21,7 +22,7 @@ export class BrowserInvitations implements OnlineInvitations {
 
 
   constructor(private device: Pick<IndexedDbRecoveryStore, "readPublishedLinks">, private principal: string, private server: string,
-    private readonly monitor: NonNullable<OnlineInvitations["watch"]>, readonly showJoin: () => void, private report: (message: string) => void,
+    private readonly monitor: NonNullable<OnlineInvitations["watch"]>, readonly showJoin: () => void, private readonly notify: (message: string) => void,
     private resolveTeam?: (file: string) => Promise<{file: string; token: string}>) {
     this.endpoint = parseInviteServer(server.replace(/^http/, "ws")).server;
   }
@@ -39,7 +40,7 @@ export class BrowserInvitations implements OnlineInvitations {
       }
       if (!fragment.startsWith("#join=")) return;
       history.replaceState(history.state, "", location.pathname + location.search);
-      void this.join(fragment).catch(() => this.report("The invite could not be opened"));
+      void this.join(fragment).catch(() => this.notify("The invite could not be opened"));
     };
     const changed = () => consume(false);
     window.addEventListener("hashchange", changed);
@@ -180,6 +181,18 @@ export class BrowserInvitations implements OnlineInvitations {
       clearTimeout(timer);
       stop?.();
     };
+  }
+
+  async report(connection: string, text: string) {
+    const reason = participantReportReason(text);
+    const tab = this.tabs.get(connection);
+    if (!tab || tab.ended) throw new Error("Join a file on a FigCraft server first");
+    const response = await fetch("/api/online-files/report", {method:"POST",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({connection:tab.physical,reason})});
+    if (!response.ok) {
+      const result = await response.json().catch(() => null);
+      throw new Error(typeof result?.error === "string" ? result.error : "The report could not be saved");
+    }
   }
 
   retryNow(connection: string) { this.waiting.get(connection)?.(); }
