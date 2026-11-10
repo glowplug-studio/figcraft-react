@@ -11,6 +11,7 @@ export default defineConfig({
         index: resolve(import.meta.dirname, "src/index.ts"),
         "icc-node": resolve(import.meta.dirname, "src/engine/icc-node.ts"),
         "icc-browser": resolve(import.meta.dirname, "src/engine/icc-browser.ts"),
+        "backends/supabase/publication": resolve(import.meta.dirname, "src/backends/supabase/publication.ts"),
         "backends/supabase/index": resolve(
           import.meta.dirname,
           "src/backends/supabase/index.ts",

@@ -1,0 +1,15 @@
+/** A server listing. The document itself retains the title captured at publication. */
+export interface OnlineFileInfo {
+  id: string;
+  name: string;
+  created: string;
+}
+
+/** An embedding host supplies the authenticated store. Publication IDs survive retries. */
+export interface OnlineFileStore {
+  publish(id: string, snapshot: Blob): Promise<OnlineFileInfo>;
+  owned(ids: readonly string[]): Promise<readonly OnlineFileInfo[]>;
+  open(id: string): Promise<Blob>;
+  rename(id: string, name: string): Promise<OnlineFileInfo>;
+  remove(id: string): Promise<void>;
+}

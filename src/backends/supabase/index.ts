@@ -13,3 +13,4 @@ export function createSupabaseBackend({
   return createClient(url, publishableKey);
 }
 export { SupabaseIdentityAdapter } from "./identity";
+export { SupabaseOnlineFileStore } from "./online-files";

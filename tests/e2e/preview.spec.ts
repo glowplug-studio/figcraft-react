@@ -108,6 +108,38 @@ test("protected host, failed login, callback failure and safe redirects", async 
   expect(denied.status()).toBe(403);
 });
 
+test("signed-in ownership finalisation validates the staged archive and safely retries", async ({ page }) => {
+  await login(page);
+  const url = backend?.url ?? process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = backend?.key ?? process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+  if (!url || !key) throw new Error("Set the hosted Supabase URL and publishable key for the ownership fixture");
+  const { createClient } = await import("@supabase/supabase-js");
+  const client = createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } });
+  const signedIn = await client.auth.signInWithPassword({ email, password });
+  if (signedIn.error) throw signedIn.error;
+  const id = randomUUID(), path = signedIn.data.user.id + "/" + id + ".figcraft";
+  const storage = client.storage.from("figcraft-files");
+  const archive = unzipSync(await readFile(new URL("../fixtures/native-pdf-print-dialog.zip", import.meta.url)));
+  const upload = await storage.upload(path, archive["Cover.figcraft"], { contentType: "application/octet-stream" });
+  expect(upload.error).toBeNull();
+  try {
+    const publish = () => page.evaluate(async id => {
+      const result = await fetch("/api/online-files", {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id }),
+      });
+      return { status: result.status, data: await result.json() };
+    }, id);
+    const first = await publish();
+    expect(first.status).toBe(200);
+    expect(first.data).toEqual({ id, name: "Untitled", created: expect.any(String) });
+    expect(await publish()).toEqual(first);
+    const refused = await page.request.post("/api/online-files", { headers: { Origin: "https://unrelated.example" }, data: { id } });
+    expect(refused.status()).toBe(403);
+  } finally {
+    expect((await storage.remove([path])).error).toBeNull();
+  }
+});
+
 test("authenticated rectangle command, pixels, keyboard undo/redo and resize", async ({ page }) => {
   const errors: string[] = [];
   page.on("pageerror", error => errors.push(error.message));
