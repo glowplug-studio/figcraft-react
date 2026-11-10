@@ -14,7 +14,7 @@
 | Tests last passed | At 5d94730, All 336 production Chromium workflows passed in 515.1 seconds with zero skips, retries or flakes. Strict TypeScript, both production builds, 3,044 pure checks and two local Auth integrations passed. |
 | Files currently in progress | [Design interchange and export](26-11-10-file-interchange.md). |
 | Blockers | The scoped Supabase MCP project and public-table reads passed after reauthorisation. |
-| Exact next action | Validate the native Penpot archive and source-metadata model against the captured host references. [Penpot plan](26-11-10-penpot-interchange.md). |
+| Exact next action | Build editable Penpot page and layer projections. Native source records and guides passed 114 document round trips. Archive admission and page order passed 142 independent host samples. [Penpot plan](26-11-10-penpot-interchange.md). |
 | Last updated | 2026-11-10 20:42 ICT |
 
 ## Scope and continuation
