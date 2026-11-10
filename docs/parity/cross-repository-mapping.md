@@ -498,3 +498,14 @@ Whole-library replacement at 163980f maps `assets/library_swap.rs::{swap_library
 
 
 The local 0.52.0 candidate maps the two `panel.libraries` command requests, the Libraries catalogue and Alt+3 to the editor snapshot and responsive Assets panel. Native `asset_folder`, `foldered` and `build_listing` map to shared source-folder extraction and the source-specific fold and search state at d12c2e6. Queries preserve fold choices and hide libraries without a match. [Property matrix](../reports/26-11-10-styles-variables-libraries-parity.html).
+
+## Local file workspace and branches
+
+| Pinned Rust surface | React surface | Verified behaviour |
+| --- | --- | --- |
+| `engine/cmd/file`, tab order tests and web recovery | `EditorWorkspace`, `WorkspaceRecovery`, `WorkspaceEditor` | Native command replay and signed-in multi-tab recovery. |
+| `cmd/component::go_to_library_main` | `EditorWorkspace.goToMain` | Opens the editable author and selects its original component ID. |
+| `cmd/file/version`, `format::read_versions`, `cmd/file/save::thumbnail` | `VersionHistory`, archive codec, `VersionPanel`, `renderFileThumbnail` | Rust reopened downloaded versions. Browser cover and page pixels matched native PNGs. |
+| `sharing/branches::{create,open_tab,archive,current,file_tab}`, `format::{read_branches,save_bytes_with_history}`, `doc::set_client_id` | `EditorWorkspace`, `branch-ids`, `file-format` | Native branch-history interchange, separate client IDs and owner-scoped edit, save and recovery. Conflict review and merge remain open. |
+
+[Property report](../reports/26-11-10-file-workspace-parity.html)

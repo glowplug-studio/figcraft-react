@@ -1,0 +1,11 @@
+# Local file workspace verification
+
+The target is upstream `a2e87433`. Local branch `prompt/full-figcraft-port` provides independent tabs, explicit file selection and downloads, account-scoped device recovery, navigation into editable author files, native version history, page and cover thumbnails, and branch archive interchange. The supported whole-application baseline has not advanced.
+
+All 294 production Chromium workflows passed at `b8f5b56`. At `ac33527`, 295 of 296 passed. The dense grid gap drag exceeded its frame budget. After reusing immutable grid occupancy at `a7f1532`, the targeted Chromium check passed twice. The two named-version and memory workflows passed. Three open 10,000-layer documents used 17.1 MB of collected Chromium JavaScript heap, compared with 8.0 MB before opening. Eighteen switches retained one canvas and gave a two-frame p95 of 33.9 ms.
+
+The Next.js production build, library build, strict TypeScript, 1,957 pure checks, two local Auth integrations and the signed-in native thumbnail comparison passed at `14c6b04`. All 297 production Chromium workflows passed in 10.5 minutes. At `440ff7c`, 63 focused archive tests and strict types passed. The pinned Rust engine opened the edited React branch file with zero repairs, retrieved its named branch version and distinguished the main and branch additions in review.
+
+The scoped Supabase MCP project and public schema were verified. The schema had zero public tables. File recovery is local to the authenticated principal through the device adapter. Picking files and delivering downloads are the upstream browser equivalents for opening and saving. Path-based revert requires a filesystem path.
+
+At `a425246` branch creation, switching, archiving, native client allocation, owner-routed downloads and restoration passed their scoped production browser workflow. Strict types, both builds, 1,961 pure checks and two real Auth integrations passed. The 298-case Chromium run is in progress. Conflict review, update and merge, linked clipboard transfer and online sharing remain open. The local branch has not been published. No user action is required. [Property report](26-11-10-file-workspace-parity.html) · [Execution checkpoint](../planning/26-11-10-file-workspace-history.md).
