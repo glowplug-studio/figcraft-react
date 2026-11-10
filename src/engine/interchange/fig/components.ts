@@ -1,11 +1,14 @@
 import {guid,items,num,obj} from "./fields";
+import {scaledRecord} from "./instance-geometry";
 import type {KiwiObject,KiwiValue} from "./kiwi";
 
 interface Property {name:string;type:string}
-interface Row {data:KiwiObject;level:number;ordinal:number;explicit:boolean}
+interface Row {data:KiwiObject;level:number;ordinal:number;explicit:boolean; stale:boolean; scale:number; depth:number}
+interface RowTree {rows:Row[]; children:Map<string,RowTree>}
+const tree=():RowTree=>({rows:[],children:new Map()});
 export interface FigInstance {
   root:string;path:string;main:string;outer?:FigInstance;
-  rows:Map<string,Row[]>;props:Map<string,KiwiObject>;slots:Map<string,string>;
+  trees:RowTree[];scale:number;depth:number;props:Map<string,KiwiObject>;slots:Map<string,string>;
 }
 const propText=(v:KiwiObject)=>obj(v.textValue ?? v.textDataValue).characters;
 const propGuid=(v:KiwiObject)=>guid(v.guidValue) ?? guid(obj(v.symbolIdValue).guid);
@@ -20,7 +23,9 @@ export class FigComponents {
   readonly #parents=new Map<string,string>();
   readonly components:Record<string,unknown>=Object.create(null);
   readonly sets:Record<string,unknown>=Object.create(null);
-  constructor(readonly records:Map<string,KiwiObject>,readonly warn:(s:string)=>void) {
+  readonly hasAliases:boolean;
+  constructor(readonly records:Map<string,KiwiObject>,readonly warn:(s:string)=>void,readonly children:Map<string,{id:string}[]>,readonly limit:number) {
+    this.hasAliases=[...records.values()].some(n=>n.overrideKey!==undefined);
     for (const n of records.values()) for (const value of items(n.componentPropDefs)) {
       const d=obj(value),id=guid(d.id);
       if (!id) continue;
@@ -32,6 +37,10 @@ export class FigComponents {
     const seen=new Set<string>();
     while (this.#parents.has(id) && !seen.has(id) && seen.size<256) {seen.add(id);id=this.#parents.get(id)!;}
     return id;
+  }
+  isSwap(id:KiwiValue|undefined) {
+    const key=guid(id);
+    return !!key && this.#properties.get(this.#root(key))?.type==="INSTANCE_SWAP";
   }
   definition(out:Record<string,unknown>,n:KiwiObject,id:string) {
     const defs:Record<string,unknown>=Object.create(null);
@@ -80,21 +89,61 @@ export class FigComponents {
     out.componentPropertyReferences=refs;
     return {swap,slot};
   }
-  override(n:KiwiObject,id:string,instance:FigInstance|undefined) {
-    if (!instance) return {node:n,sizeOverride:false};
-    const gathered:{row:Row;depth:number}[]=[];
-    let path=id,depth=0;
-    for (let i:FigInstance|undefined=instance;i;i=i.outer) {
-      for (const row of i.rows.get(path) ?? []) gathered.push({row,depth});
-      path=i.path.split(";").at(-1)+";"+path;depth++;
+  readonly #aliasScopes=new Map<string,Map<string,string>>();
+  #aliasEntries=0;
+  #aliases(main:string) {
+    const cached=this.#aliasScopes.get(main);
+    if (cached) return cached;
+    const pending=(this.children.get(main) ?? []).map(c=>({id:c.id,depth:1})),current=new Set<string>(),aliases=new Map<string,string>();
+    while (pending.length) {
+      const {id,depth}=pending.pop()!;
+      if (depth>256 || current.size>=this.limit) {aliases.clear();break;}
+      if (current.has(id)) continue;
+      current.add(id);
+      const record=this.records.get(id)!,alias=guid(record.overrideKey);
+      if (alias) aliases.set(alias,aliases.has(alias) ? "" : id);
+      if (record.type!=="INSTANCE") for (const c of this.children.get(id) ?? []) pending.push({id:c.id,depth:depth+1});
     }
-    if (!gathered.length) return {node:n,sizeOverride:false};
-    gathered.sort((a,b)=>(a.depth-a.row.level)-(b.depth-b.row.level) || a.depth-b.depth || a.row.ordinal-b.row.ordinal);
-    const merged={...n};
-    for (const {row} of gathered) Object.assign(merged,row.data);
-    return {node:merged,sizeOverride:gathered.some(({row})=>row.explicit && row.data.size!==undefined)};
+    const byId=new Map<string,string>();
+    for (const [alias,id] of aliases) if (id && !current.has(alias)) byId.set(id,alias);
+    if (this.#aliasEntries+byId.size<=this.limit) {
+      this.#aliasScopes.set(main,byId);
+      this.#aliasEntries+=byId.size;
+    }
+    return byId;
   }
-  instance(out:Record<string,unknown>,n:KiwiObject,id:string,restId:string,swap:string|undefined,outer?:FigInstance):FigInstance|undefined {
+  #subtrees(id:string,instance?:FigInstance) {
+    if (!instance?.trees.length) return [];
+    const alias=this.hasAliases ? this.#aliases(instance.main).get(id) : undefined;
+    const result:RowTree[]=[];
+    for (const tree of instance.trees) {
+      const current=tree.children.get(id),old=alias && tree.children.get(alias);
+      if (current) result.push(current);
+      if (old) result.push(old);
+    }
+    return result;
+  }
+  override(n:KiwiObject,id:string,instance:FigInstance|undefined) {
+    const scale=instance?.scale ?? 1,base=scaledRecord(n,scale);
+    const rows=this.#subtrees(id,instance).flatMap(t=>t.rows).sort((a,b)=>
+      (b.depth+b.level)-(a.depth+a.level) || b.depth-a.depth || a.ordinal-b.ordinal);
+    const sources=new Map<string,number>();
+    const node=rows.length ? {...base} : base;
+    let sizeOverride=false,hasSize=false,hasTransform=false,derived=false;
+    for (const row of rows) {
+      for (const [key,value] of Object.entries(scaledRecord(row.data,row.scale))) {
+        if (row.stale && (key==="size" || key==="transform")) continue;
+        node[key]=value;sources.set(key,row.scale);
+      }
+      if (row.stale) continue;
+      hasSize ||= row.data.size!==undefined;
+      hasTransform ||= row.data.transform!==undefined;
+      sizeOverride ||= row.explicit && row.data.size!==undefined;
+      derived ||= !row.explicit && (row.data.size!==undefined || row.data.transform!==undefined);
+    }
+    return {node,base,sizeOverride,hasSize,hasTransform,derived,scaleOf:(key:string)=>sources.get(key) ?? scale};
+  }
+  instance(out:Record<string,unknown>,n:KiwiObject,id:string,restId:string,swap:string|undefined,scaleOf:(key:string)=>number,outer?:FigInstance):FigInstance|undefined {
     const sd=obj(n.symbolData), main=swap ?? guid(n.overriddenSymbolID) ?? guid(sd.symbolID);
     if (!main) {this.warn("instances without a main component were imported as empty frames");return;}
     out.componentId=main;
@@ -120,12 +169,32 @@ export class FigComponents {
     out.componentProperties=result;
     if (!this.records.has(main)) {this.warn("instances of components that aren't in the file show no layers");return;}
     for (let i=outer;i;i=i.outer) if (i.main===main) return;
-    const rows=new Map<string,Row[]>();let ordinal=0;
+    const root=tree(), depth=(outer?.depth ?? -1)+1;
+    const base=obj(this.records.get(id)?.size),actual=obj(n.size),ambient=outer?.scale ?? 1;
+    const tolerance=ambient===1 ? 1e-6 : 1e-4;
+    const resized=!!outer && ["x","y"].some(axis=>{
+      const raw=num(base[axis]),b=num(actual[axis]);
+      if (raw===undefined || b===undefined) return raw!==b;
+      const a=raw*ambient;
+      return Math.abs(a-b)>tolerance*Math.max(Math.abs(a),Math.abs(b),1);
+    });
+    let ordinal=0;
     for (const [kind,list] of [sd.symbolOverrides,n.derivedSymbolData].entries()) for (const value of items(list)) {
-      const data=obj(value),key=items(obj(data.guidPath).guids).map(guid).filter(Boolean).join(";");
-      if (!key || key===main) continue;
-      const group=rows.get(key) ?? [];group.push({data,explicit:kind===0,level:Math.max(0,Math.min(256,num(data.overrideLevel) ?? 0)),ordinal:ordinal++});rows.set(key,group);
+      const data=obj(value),path=items(obj(data.guidPath).guids).map(guid).filter((v):v is string=>v!==undefined);
+      if (!path.length || path.length>256 || path.length===1 && path[0]===main) continue;
+      let branch=root;
+      for (const key of path) {
+        let child=branch.children.get(key);
+        if (!child) {child=tree();branch.children.set(key,child);}
+        branch=child;
+      }
+      branch.rows.push({data,explicit:kind===0,stale:kind===1 && resized,level:Math.max(0,Math.min(256,Math.trunc(num(data.overrideLevel) ?? 0))),
+        ordinal:ordinal++,scale:scaleOf(kind===0 ? "symbolData" : "derivedSymbolData"),depth});
     }
-    return {root:outer?.root ?? restId,path:outer ? (outer.path ? outer.path+";" : "")+id : "",main,rows,outer,props,slots};
+    const trees=this.#subtrees(id,outer).filter(t=>t.children.size);
+    if (root.children.size) trees.push(root);
+    const factor=num(sd.uniformScaleFactor) ?? 1;
+    const scale=Math.max(.001,Math.min(1000,ambient*(factor>=.001 && factor<=1000 ? factor : 1)));
+    return {root:outer?.root ?? restId,path:outer ? (outer.path ? outer.path+";" : "")+id : "",main,scale,depth,trees,outer,props,slots};
   }
 }

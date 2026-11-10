@@ -62,13 +62,13 @@ function entryRoots(source:JsonObject) {
 }
 const title=(s:string)=>s[0].toUpperCase()+s.slice(1);
 
-export async function importRestDocument(input:unknown,checkCurrent:()=>void=()=>{},images=new ImportImages(),companion?:unknown,folder?:RestFolder,figLayerLimit?:number):Promise<DecodedFigcraft|undefined> {
+export async function importRestDocument(input:unknown,checkCurrent:()=>void=()=>{},images=new ImportImages(),companion?:unknown,folder?:RestFolder,figLayerLimit?:number,libraryContexts:readonly unknown[]=[]):Promise<DecodedFigcraft|undefined> {
   const source=object(input), roots=entryRoots(source);
   if (!roots.length) return;
   const warnings=new ImportWarnings(), name=string(source.name);
   const initial=newDocument(name?.trim() ? clipped(name) : "Imported file");
   const variables=new ImportVariables(source,companion,warnings);
-  const layerLimit=figLayerLimit ?? 200000;
+  const layerLimit=figLayerLimit===undefined ? 200000 : figLayerLimit+libraryContexts.length;
   const siblings=folder && new SiblingImages(folder.image);
   if (siblings) {
     images=new ImportImages(siblings.found,figLayerLimit!==undefined ? warnings : undefined);
@@ -149,6 +149,13 @@ export async function importRestDocument(input:unknown,checkCurrent:()=>void=()=
       await build([root],loose,true);
     }
   }
+  let storeRoot:string|undefined;
+  if (libraryContexts.length) {
+    storeRoot=String(next++);
+    base.nodes[storeRoot]={...initial.nodes["1"] as PageNode,id:storeRoot,name:"Library components"};
+    childLists.set(storeRoot,[]);
+    await build(libraryContexts,storeRoot,false);
+  }
   for (const [id,children] of childLists) base.nodes[id]=Object.freeze({...base.nodes[id],children:Object.freeze(children)}) as DocumentNode;
   for (const id of fit) base.fitToChildren(id);
   if (pages.length) delete base.nodes["1"];
@@ -162,6 +169,7 @@ export async function importRestDocument(input:unknown,checkCurrent:()=>void=()=
   images.finish(warnings);
   const shared=styles.finish();
   const document:Document=Object.freeze({...initial,pages:Object.freeze(pages),currentPage:pages[0],nodes:Object.freeze(base.nodes),
+    ...(storeRoot && {libraryStore:{root:storeRoot,components:[],inserted:[],detached:[]}}),
     ...(shared.length && {styles:shared}),
     ...((variables.values.collections.length || variables.values.variables.length) && {variables:variables.values}),
     ...(Object.keys(images.resources).length && {images:Object.freeze(images.resources)})});

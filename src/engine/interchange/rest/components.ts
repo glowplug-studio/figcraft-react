@@ -17,8 +17,7 @@ const overrideGroups:Readonly<Record<string,string>>=Object.fromEntries(Object.e
   grids:"layoutGrids gridStyleId",exports:"exportSettings",interactions:"interactions reactions"
 }).flatMap(([group,fields])=>fields.split(" ").map(field=>[field,group])));
 
-export const figOrigin=Symbol("source of an expanded Fig layer");
-export interface FigOrigin {id:string;sizeOverride:boolean}
+import {figOrigin,linkFigSources,type FigOrigin} from "../fig/sources";
 export class ImportComponents {
   readonly #origins=new Map<string,FigOrigin>();
   readonly #defs=new Map<string,Record<string,ComponentProperty>>();
@@ -140,12 +139,8 @@ export class ImportComponents {
       for (const f of list(o.overriddenFields)) if (typeof f==="string" && Object.hasOwn(overrideGroups,f)) groups.add(overrideGroups[f]);
       draft.set(withOverrideSet(node,groups));
     }
-    for (const [id,origin] of this.#origins) {
-      const source=ids.get(origin.id), node=draft.nodes[id];
-      if (!source || source===id || node.kind==="page") continue;
-      const linked={...node,source};
-      draft.set(origin.sizeOverride ? withOverrideSet(linked,new Set([...componentOverrides(node),"size"])) : linked);
-    }
+    const unresolved=linkFigSources(draft,ids,this.#origins);
+    if (unresolved) this.warnings.add(unresolved+" .fig instance source link(s) could not be resolved and were left unlinked");
     this.#rename();
     for (const {id,main} of linked.sort((a,b)=>b.depth-a.depth)) {
       const instance=draft.nodes[id],source=draft.nodes[main];

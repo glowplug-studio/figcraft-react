@@ -7171,3 +7171,21 @@ test("open a native binary Fig drawing, edit a shape, append a bare canvas and u
   await page.keyboard.press("ControlOrMeta+z");
   expect((await saved()).nodes).toEqual(afterEdit.nodes);
 });
+
+test("opening a Fig library preserves hidden mains and renamed nested source links after download",async({page})=>{
+  await login(page);
+  const {unzipSync}=await import("fflate");
+  const files=unzipSync(await readFile(new URL("../fixtures/native-fig-components.zip",import.meta.url)));
+  for (const name of ["library transitive mains","nested aliased rename","scaled overrides"]) {
+    const expected=(await decodeFigcraft(files[name+".figcraft"])).document;
+    await page.getByLabel("Open Figcraft file",{exact:true}).setInputFiles({name:name+".fig",mimeType:"application/octet-stream",buffer:Buffer.from(files[name+".fig"])});
+    await expect(page.getByRole("heading",{name:expected.name,exact:true})).toBeVisible();
+    const dl=page.waitForEvent("download");
+    await page.getByRole("button",{name:"Save as",exact:true}).click();
+    const actual=(await decodeFigcraft(await readFile((await (await dl).path())!))).document;
+    expect(actual.nodes).toEqual(expected.nodes);
+    expect(actual.pages).toEqual(expected.pages);
+    expect(actual.libraryStore).toEqual(expected.libraryStore);
+    if (actual.libraryStore?.root) expect(actual.pages).not.toContain(actual.libraryStore.root);
+  }
+});

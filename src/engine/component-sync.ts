@@ -1,4 +1,5 @@
-import { copyGroupBindings } from "./component-groups";
+import {ComponentSources} from "./component-sources";
+import { bindingGroup, copyGroupBindings } from "./component-groups";
 import { type ComponentNode, type Document, type InstanceNode, isLeaf, type LayerNode, layerTransform, type NodeId, withLayerTransform } from "./document";
 import { ancestors, HierarchyDraft, subtreeIds } from "./hierarchy";
 import { componentOverrides } from "./component-properties";
@@ -284,32 +285,50 @@ export function rebaseOwnedInstance(draft: HierarchyDraft, placed: InstanceNode,
   const doc = draft.document;
   const mainPaths = new Map([...namePaths(doc,main.id,false)].map(([id,path])=>[path,id]));
   const paths = namePaths(doc,placed.id,true);
-  const members = new Set(mainPaths.values());
-  for (const [id,path] of paths) {
-    const child = draft.nodes[id];
-    if (child.kind === "page") continue;
-    let source = child.source;
-    const seen = new Set<NodeId>([id]);
-    while (source && !members.has(source) && !seen.has(source)) {
-      seen.add(source);
-      source = doc.nodes[source]?.source;
+  const sources=new ComponentSources(doc), owners=sources.owners(placed.id);
+  const placedSource=sources.placed(placed,owners), contexts=[placed,...owners];
+  const updates:LayerNode[]=[];
+  const boundGroups=(a:LayerNode,b:LayerNode)=>{
+    const groups=new Set<string>();
+    for (const [key,value] of Object.entries(a.boundVariables ?? {})) {
+      const group=bindingGroup(key);
+      if (group && b.boundVariables?.[key]===value) groups.add(group);
     }
-    const target = source && members.has(source) ? source : mainPaths.get(path);
-    const node = target ? doc.nodes[target] : undefined;
-    const own = new Set(componentOverrides(child));
-    own.delete("component"); own.delete("props");
-    if (node && node.kind !== "page") {
-      for (const group of differentComponentGroups(node,child)) {
-        if (group !== "position" && group !== "size" && node.propRefs?.[group] === undefined) own.add(group);
+    return groups;
+  };
+  for (const [id,path] of paths) {
+    const child=doc.nodes[id];
+    if (child.kind==="page") continue;
+    const owners=sources.owners(id),valid=sources.valid(child.source,id,owners);
+    let member=sources.member(valid,main.id,id);
+    if (!member && valid && sources.beneathSwap(owners,placed.id)) continue;
+    const candidate=mainPaths.get(path);
+    if (!member && owners[0] && sources.member(candidate,owners[0].component,id)) member=candidate;
+    const target=member && valid && sources.contextual(valid,contexts) ? valid : member;
+    const base=target && doc.nodes[target],own=new Set(componentOverrides(child));
+    own.delete("component");own.delete("props");
+    if (base && base.kind!=="page") {
+      const bound=boundGroups(child,base);
+      for (const key of Object.keys(base.propRefs ?? {})) bound.add(key==="mainComponent" ? "component" : key);
+      for (const group of differentComponentGroups(base,child)) {
+        if (!["position","size","component","props"].includes(group) && !bound.has(group)) own.add(group);
       }
+      if (base.kind==="instance" && child.kind==="instance" && base.component!==child.component) own.add("component");
     } else own.clear();
-    draft.set(withOverrideSet({...child,source:target},own));
+    updates.push(withOverrideSet({...child,source:target},own));
   }
-  const own = new Set(componentOverrides(placed));
-  for (const group of ["component","props","position","resizing","modes"]) own.delete(group);
-  for (const group of differentComponentGroups(main,placed)) {
-    if (!["component","props","name","resizing","position","size","modes"].includes(group)) own.add(group);
+  const chain=sources.chain(main.id);
+  const target=placedSource ?? (chain && !chain.includes(placed.id) && sources.inMain(main.id,placed.id)===false ? main.id : undefined);
+  const base=target && doc.nodes[target],own=new Set(componentOverrides(placed));
+  for (const group of ["component","props","position",...(!placedSource ? ["resizing","modes"] : [])]) own.delete(group);
+  if (base && base.kind!=="page") {
+    const bound=boundGroups(placed,base);
+    for (const group of differentComponentGroups(base,placed)) {
+      if (!["component","props","name","position","size"].includes(group) && (placedSource || !["resizing","modes"].includes(group)) && !bound.has(group)) own.add(group);
+    }
+    if (placed.name!==(placedSource ? base.name : defaultInstanceName(doc,main))) own.add("name");
+    if (placedSource && base.kind==="instance" && base.component!==placed.component) own.add("component");
   }
-  if (placed.name !== defaultInstanceName(doc,main)) own.add("name");
-  draft.set(withOverrideSet({...placed,source:main.id,propRefs:undefined},own));
+  for (const node of updates) draft.set(node);
+  draft.set(withOverrideSet({...placed,source:target},own));
 }

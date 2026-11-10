@@ -1,5 +1,7 @@
 import type {RestFolder} from "../rest/companions";
-import {figOrigin} from "../rest/components";
+import {libraryBranches} from "./library";
+import {instanceFit,fitInstanceChild,scaledRecord} from "./instance-geometry";
+import {figOrigin,type FigOrigin} from "./sources";
 import {FigComponents,type FigInstance} from "./components";
 import {vectorNetwork} from "./network";
 import {FigStyles} from "./styles";
@@ -74,7 +76,7 @@ export async function figScene(msg:KiwiValue,name:string,checkCurrent:()=>void,l
   const doc=sorted.find(k=>records.get(k)!.type==="DOCUMENT");
   const pages=doc ? (kids.get(doc) ?? []).map(c=>c.id) : sorted.filter(k=>records.get(k)!.type==="CANVAS");
   const warnings=new ImportWarnings(), warn=(s:string)=>warnings.add(s);
-  const components=new FigComponents(records,warn);
+  const components=new FigComponents(records,warn,kids,limit);
   const styles=new FigStyles(assets,warn);
   const paintBudget={remaining:200000};
   const paths=new Map<number,string|undefined>();
@@ -88,9 +90,9 @@ export async function figScene(msg:KiwiValue,name:string,checkCurrent:()=>void,l
       return !path ? [] : [{path,windingRule:p.windingRule==="ODD" ? "EVENODD" : "NONZERO"}];
     });
   }
-  let count=0,lastYield=performance.now();
+  let reserved=0,count=0,lastYield=performance.now();
   type Traversal=Generator<void,Record<string,unknown>|undefined>;
-  async function run(work:Traversal) {
+  async function run<T>(work:Generator<void,T>) {
     let step=work.next();
     while (!step.done) {
       if (performance.now()-lastYield>=8) {
@@ -101,10 +103,13 @@ export async function figScene(msg:KiwiValue,name:string,checkCurrent:()=>void,l
     }
     return step.value;
   }
-  function* layer(id:string,space:Affine,depth:number,parent?:KiwiObject,instance?:FigInstance):Traversal {
+  function* layer(id:string,space:Affine,depth:number,parent?:KiwiObject,instance?:FigInstance,fit?:ReturnType<typeof instanceFit>,slotContent=false,included?:Set<string>):Traversal {
+    if (included && !included.has(id)) return;
     if (depth>256) {warn("layers nested deeper than 256 levels were skipped");return;}
-    if (count>=limit) {warn("the file has more than "+limit+" layers; the rest were skipped");return;}
-    const {node:n,sizeOverride}=components.override(records.get(id)!,id,instance);
+    if (count>=limit-reserved) {warn("the file has more than "+limit+" layers; the rest were skipped");return;}
+    const view=components.override(records.get(id)!,id,instance),{sizeOverride}=view;
+    const stacked=parent && ["HORIZONTAL","VERTICAL","GRID"].includes(String(parent.stackMode)) && view.node.stackPositioning!=="ABSOLUTE";
+    const n=fit && !view.derived && !stacked ? fitInstanceChild(view.base,view.node,fit,view.hasSize,view.hasTransform) : view.node;
     const restId=instance ? "I"+instance.root+";"+(instance.path ? instance.path+";" : "")+id : id;
     const type=n.type==="ROUNDED_RECTANGLE" ? "RECTANGLE" : n.type==="SYMBOL" ? "COMPONENT" :
       n.type==="FRAME" && n.isStateGroup ? "COMPONENT_SET" : n.type==="FRAME" && n.resizeToFit ? "GROUP" : n.type;
@@ -112,11 +117,13 @@ export async function figScene(msg:KiwiValue,name:string,checkCurrent:()=>void,l
     const group=type==="GROUP" || type==="BOOLEAN_OPERATION";
     if (++count%64===0) yield;
     const linked=styles.resolve(n,type);
+    const origin:FigOrigin={id,rest:restId,expanded:!!instance,wireFrame:n.type==="FRAME",wireInstance:n.type==="INSTANCE",
+      sizeOverride,slotContent,slotOverride:false};
     const out:Record<string,unknown>={
       styles:linked.refs,
       ...layoutFields(n,parent,warn),layoutGrids:guideGrids(linked.grids),
       exportSettings:items(n.exportSettings).map(v=>{const e=obj(v), c=obj(e.constraint);return {format:e.imageType ?? "PNG",suffix:e.suffix ?? "",constraint:{type:c.type==="CONTENT_WIDTH" ? "WIDTH" : c.type==="CONTENT_HEIGHT" ? "HEIGHT" : "SCALE",value:num(c.value) ?? 1}};}),
-      ...(instance && {[figOrigin]:{id,sizeOverride}}),id:restId,type,name:n.name,visible:n.visible,locked:n.locked,isMask:n.mask,maskType:n.maskType==="OUTLINE" ? "VECTOR" : n.maskType,
+      [figOrigin]:origin,id:restId,type,name:n.name,visible:n.visible,locked:n.locked,isMask:n.mask,maskType:n.maskType==="OUTLINE" ? "VECTOR" : n.maskType,
       size:n.size,opacity:n.opacity,blendMode:n.blendMode==="UNSET" ? undefined : n.blendMode,relativeTransform:rows(t),
       fills:paints(linked.fill,warn),strokes:paints(linked.stroke,warn),effects:effects(linked.effects),...stroke(n),
       cornerRadius:n.cornerRadius,cornerSmoothing:n.cornerSmoothing,arcData:n.arcData,
@@ -137,20 +144,44 @@ export async function figScene(msg:KiwiValue,name:string,checkCurrent:()=>void,l
       if (type==="VECTOR" && !vectorNetwork(n,out,blobs,warn,paintBudget) && !fill.length && !stroke.length) warn("vectors without geometry are empty");
     }
     const children:unknown[]=[];
-    const nested=type==="INSTANCE" ? components.instance(out,n,id,restId,swap,instance) : instance;
+    const nested=type==="INSTANCE" ? components.instance(out,n,id,restId,swap,view.scaleOf,instance) : instance;
+    origin.slotOverride=!!slot && type==="FRAME";
+    if (typeof out.componentId==="string") origin.component=out.componentId;
     const childSource=type==="INSTANCE" ? nested?.main : slot ?? id;
+    const main=type==="INSTANCE" && nested ? scaledRecord(records.get(nested.main)!,nested.scale) : undefined;
+    const childFit=main ? instanceFit(main.size,n.size,false,nested!.scale!==1) : instance ? instanceFit(view.base.size,n.size,group) : undefined;
+    const parentLayout=main && n.stackMode===undefined && main.stackMode!==undefined ? {...main,...n} : n;
+    if (parentLayout!==n) Object.assign(out,layoutFields(parentLayout,parent,warn));
     for (const child of childSource ? kids.get(childSource) ?? [] : []) {
-      const mapped=yield* layer(child.id,group ? t : identity,depth+1,n,nested);
+      const mapped=yield* layer(child.id,group ? t : identity,depth+1,parentLayout,nested,slot ? undefined : childFit,type!=="INSTANCE" && (slotContent || !!slot),type==="INSTANCE" || slot ? undefined : included);
       if (mapped) children.push(mapped);
     }
     if (children.length) out.children=children;
     return out;
   }
-  const canvases:unknown[]=[];
+  const visible:string[]=[],internal:string[]=[];
   for (const id of pages) {
     const n=records.get(id)!;
-    if (n.type!=="CANVAS") {warn("document children other than pages were skipped");continue;}
-    if (n.internalOnly) continue;
+    if (n.type!=="CANVAS") warn("document children other than pages were skipped");
+    else (n.internalOnly ? internal : visible).push(id);
+  }
+  const contexts:Record<string,unknown>[]=[];
+  const branches=await run(libraryBranches(visible,internal,records,kids,v=>components.isSwap(v),limit,warn));
+  reserved=Math.min(Math.floor(limit/2),visible.reduce((n,id)=>n+1+(kids.get(id)?.length ?? 0),0));
+  for (const [id,included] of branches) {
+    const n=records.get(id)!,children:unknown[]=[];
+    for (const child of kids.get(id) ?? []) {
+      const mapped=await run(layer(child.id,identity,0,undefined,undefined,undefined,false,included));
+      if (mapped) children.push(mapped);
+    }
+    const context={id,type:"FRAME",name:n.name,size:{x:0,y:0},relativeTransform:rows(identity),children,
+      [figOrigin]:{id,rest:id,wireFrame:true,expanded:false,wireInstance:false,slotContent:false,slotOverride:false,sizeOverride:false} satisfies FigOrigin};
+    assets.bindings(context,n,warn);contexts.push(context);
+  }
+  reserved=0;
+  const canvases:unknown[]=[];
+  for (const id of visible) {
+    const n=records.get(id)!;
     const children:unknown[]=[];
     for (const c of kids.get(id) ?? []) {
       const mapped=await run(layer(c.id,identity,0));
@@ -162,7 +193,7 @@ export async function figScene(msg:KiwiValue,name:string,checkCurrent:()=>void,l
   if (!canvases.length) warn("the file has no pages");
   checkCurrent();
   const styleDefinitions=await styles.definitions(id=>run(layer(id,identity,0)));
-  const imported=await importRestDocument({name,components:components.components,componentSets:components.sets,styles:styles.metadata,styleDefinitions,meta:assets.definitions(),document:{type:"DOCUMENT",children:canvases}},checkCurrent,undefined,undefined,folder,limit);
+  const imported=await importRestDocument({name,components:components.components,componentSets:components.sets,styles:styles.metadata,styleDefinitions,meta:assets.definitions(),document:{type:"DOCUMENT",children:canvases}},checkCurrent,undefined,undefined,folder,limit,contexts);
   if (!imported) throw new Error("Cannot read the Fig document");
   const notes=warnings.finish();
   for (const note of imported.issues ?? []) {
