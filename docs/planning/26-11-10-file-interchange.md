@@ -99,3 +99,5 @@ At 8a5c831 the reader matched 80 supported upstream re-imports, including the or
 At 5987f3a, all 26 additional component comparisons passed. The signed-in production host preserved the hidden library store and nested contextual source IDs after saving three drawings. Continue with binary text-path networks and saved wrap positions, then complete remaining import and export mappings.
 
 At f7a9bbb, text path and saved-wrap properties passed in all 32 source files. Compare native reopens of browser-written Fig files, extend the writer through editable text, vectors, layout, styles, variables and linked components, then verify the host download and foreign file integrations.
+
+At 4709475 all 101 browser-written Fig fixtures matched independent upstream reopens. The signed-in download, whole-document selection, cancel-on-sign-out and worker responsiveness passed. All 333 production browser tests passed in 487.2 seconds. Row 12 continues with [Sketch import](26-11-10-sketch-interchange.md), Penpot, remaining output formats and deferred interchange records when their destination models are available.
