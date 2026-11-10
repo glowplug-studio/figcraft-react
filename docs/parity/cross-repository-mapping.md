@@ -506,6 +506,9 @@ The local 0.52.0 candidate maps the two `panel.libraries` command requests, the 
 | `engine/cmd/file`, tab order tests and web recovery | `EditorWorkspace`, `WorkspaceRecovery`, `WorkspaceEditor` | Native command replay and signed-in multi-tab recovery. |
 | `cmd/component::go_to_library_main` | `EditorWorkspace.goToMain` | Opens the editable author and selects its original component ID. |
 | `cmd/file/version`, `format::read_versions`, `cmd/file/save::thumbnail` | `VersionHistory`, archive codec, `VersionPanel`, `renderFileThumbnail` | Rust reopened downloaded versions. Browser cover and page pixels matched native PNGs. |
-| `sharing/branches::{create,open_tab,archive,current,file_tab}`, `format::{read_branches,save_bytes_with_history}`, `doc::set_client_id` | `EditorWorkspace`, `branch-ids`, `file-format` | Native branch-history interchange, separate client IDs and owner-scoped edit, save and recovery. Conflict review and merge remain open. |
+| `sharing/branches::{create,open_tab,archive,current,file_tab}`, `format::{read_branches,save_bytes_with_history}`, `doc::set_client_id` | `EditorWorkspace`, `branch-ids`, `file-format` | Native branch-history interchange, separate client IDs and owner-scoped edit, save and recovery. |
+| collab/{frac,diff,merge}, dev/devcompare | branch-position, branch-merge, branch-apply, branch-review and VersionPanel | Six reviews, twelve resolution combinations and fourteen layout, paint and subtree comparisons against Rust. The signed-in local merge and undo passed. Specialised review descriptions remain open. |
 
 [Property report](../reports/26-11-10-file-workspace-parity.html)
+
+Rust edit clipboard, appearance and file path commands map to the workspace layer clipboard, property clipboard and browser file menu. Cross-file linked IDs, images and property transfer passed native replay and production browser tests. Rust export_area and export_file map to export-area, canvas and export-png. [Raster evidence](../reports/26-11-10-file-interchange.md).

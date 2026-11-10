@@ -2,6 +2,14 @@
 
 All notable changes to the React port and its upstream compatibility baseline are recorded here.
 
+## [0.53.0] - 2026-11-10
+
+- Added independent file tabs, account-scoped recovery, native page or frame thumbnails and editable source navigation for linked component instances.
+- Added named and automatic file versions, read-only previews, branch-local history, three-way conflict review, update and undoable merge.
+- Added cross-file layer and property clipboards, including linked component dependencies, image resources and appearance. The file workspace reference is upstream a2e87433. [Property report](docs/reports/26-11-10-file-workspace-parity.html).
+
+- Added PNG export for selections and pages, with native crop, sizing and working-profile metadata.
+
 ## [0.52.0] - 2026-11-10
 
 - Added local shared styles, typed variables, collection modes, inherited overrides and variable bindings for layers and shared definitions. Variables import from JSON and export to JSON, CSS, Tailwind and Dart.

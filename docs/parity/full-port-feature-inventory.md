@@ -103,7 +103,7 @@ Upstream test evidence: [`variable_tests`](../../original/figcraft/crates/engine
 
 ### 10. Import, export and clipboard
 
-Status: **Not implemented / Not tested**.
+**Partial.** Native design archives, raster placement and cross-file layer clipboard have verified subsets. Eleven pinned Rust clipboard sessions cover geometry, cut, replacement and linked component identity. The remaining interchange formats and external clipboard encodings have separate verification gates. [File workspace evidence](../reports/26-11-10-file-workspace-parity.html).
 
 Native `.figcraft`; best-effort `.fig` read and experimental write; `.jam` and Sketch import; Penpot import/export; REST JSON plus variables/images; editable SVG; raster/ICC and missing-image warnings. Export PNG/JPEG/WebP/SVG/PDF/Android VectorDrawable with documented options. Clipboard native/design-layer HTML, properties, pages and image resources require independent coverage. Dependencies: relevant model/render/text support, remapped identities, bounded resources and browser APIs.
 
@@ -278,3 +278,7 @@ At dcc3c82, structure::simplify and the Kurbo cubic fitting rules map to simplif
 ## Shape Builder
 
 At a132b69, pathops::faces, union_faces and canvas/shapebuilder.rs map to path-arrangement, shape-builder, shape-builder-commands and ShapeBuilderInteraction. Native sources and named tests are linked from the [twelve-property matrix](../reports/26-11-09-shape-builder-parity.html). The independent browser tool covers fills, strokes, paint frames, atomic commands, input and recovery for supported node and paint types. Text contours, linked styles, auto layout and gradient sampling retain their downstream obligations.
+
+## Workspace and design interchange checkpoint
+
+Local workspace history, branch review and clipboards passed the 0.53.0 release gate. PNG selection, crop, scale, colour tagging and downloads passed native comparisons. Other design interchange and online workspace features remain open. [Workspace matrix](../reports/26-11-10-file-workspace-parity.html) · [Raster matrix](../reports/26-11-10-file-interchange-parity.html).
