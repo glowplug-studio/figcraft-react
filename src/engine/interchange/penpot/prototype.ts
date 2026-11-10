@@ -2,7 +2,8 @@ import { sha256 } from "@noble/hashes/sha2.js";
 import { bytesToHex } from "@noble/hashes/utils.js";
 import { isFrameLike, type DocumentNode } from "../../document";
 import { wireId } from "../../native-values";
-import { readInteractions } from "../../prototype-data";
+import {isLosslessNumber} from "lossless-json";
+import { readInteractions,wireInteractions,type PrototypeInteraction } from "../../prototype-data";
 import { nativeFloat } from "../../text-breaks";
 import { children, entries, object, string, type JsonObject } from "../rest/values";
 import { PenpotNumbers } from "./json";
@@ -22,10 +23,23 @@ export function keepInteractions(raw: JsonObject, meta: Record<string,string>, n
 
 /** The fingerprint hashes the typed Rust struct (field order, f32 colour, f64 offsets). */
 function interactionJson(value: unknown, key = ""): string {
+  if (isLosslessNumber(value)) return value.value;
   if (Array.isArray(value)) return "["+value.map(v=>interactionJson(v,key)).join(",")+"]";
   if (value && typeof value==="object") return "{"+Object.entries(value).map(([k,v])=>JSON.stringify(k)+":"+interactionJson(v,k)).join(",")+"}";
-  if (typeof value==="number" && ["r","g","b","a","offset"].includes(key)) return nativeFloat(value);
+  if (typeof value==="number" && ["r","g","b","a"].includes(key)) {
+    for (let precision=1;precision<=9;precision++) {
+      const short=Number(value.toPrecision(precision));
+      if (Math.fround(short)===Math.fround(value)) return nativeFloat(short);
+    }
+  }
+  if (typeof value==="number" && ["offset","x1","y1","x2","y2","mass","stiffness","damping"].includes(key)) return nativeFloat(value);
   return JSON.stringify(value);
+}
+
+export function interactionFingerprint(list:readonly PrototypeInteraction[]) {
+  const wire=wireInteractions(list).map(({trigger,actions,transition,duration_ms,easing,delay_ms})=>
+    ({trigger,actions,transition,duration_ms,easing,...(delay_ms && {delay_ms})}));
+  return bytesToHex(sha256(new TextEncoder().encode(interactionJson(wire)))).slice(0,32);
 }
 
 export function resolvePrototypes(nodes: Record<string,DocumentNode>, pages: string[], warn: Warn) {
@@ -79,7 +93,7 @@ export function resolvePrototypes(nodes: Record<string,DocumentNode>, pages: str
     if (meta["penpot.source.interactions"]!==undefined || native.length) {
       const connections=readInteractions(native.map(i=>({...i, actions:i.actions.map(a=>"dest" in a ? {...a,dest:wireId(String(a.dest))} : a)})));
       const metadata=meta["penpot.source.interactions"]===undefined ? meta : {...meta,
-        "penpot.fp.interactions":bytesToHex(sha256(new TextEncoder().encode(interactionJson(native)))).slice(0,32)};
+        "penpot.fp.interactions":interactionFingerprint(connections)};
       nodes[n.id]=Object.freeze({...n,sourceMetadata:metadata,...(connections.length && {interactions:connections})});
     }
   }

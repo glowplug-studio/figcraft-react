@@ -7322,3 +7322,26 @@ test("Penpot open, native save, image append, undo and device recovery retain th
   await expect.poll(async()=>(await save()).pages.length).toBe(appended.pages.length);
   expect(await save()).toEqual(appended);
 });
+
+test("signed-in Penpot download reopens as an editable document with native text runs",async({page})=>{
+  await login(page);
+  const files=unzipSync(await readFile(new URL("../fixtures/native-penpot-authored-exports.zip",import.meta.url)));
+  const stem="unicode-overlap-and-blank-paragraphs",input=files[stem+".input.figcraft"];
+  const expected=(await decodeFigcraft(files[stem+".figcraft"])).document;
+  const chooser=page.getByLabel("Open Figcraft file",{exact:true});
+  await chooser.setInputFiles({name:"Source.figcraft",mimeType:"application/octet-stream",buffer:Buffer.from(input)});
+  await expect(page.getByRole("heading",{name:expected.name,exact:true})).toBeVisible();
+  const bar=page.locator(".figcraft-document-bar");
+  await bar.getByText("File",{exact:true}).click();
+  await bar.getByRole("button",{name:"Export…",exact:true}).click();
+  const exporting=page.waitForEvent("download");
+  await page.getByRole("dialog",{name:"Export"}).getByRole("button",{name:"Penpot (.penpot)",exact:true}).click();
+  const download=await exporting;
+  expect(download.suggestedFilename()).toBe(expected.name+".penpot");
+  await chooser.setInputFiles({name:"Reopened.penpot",mimeType:"application/zip",buffer:await readFile((await download.path())!)});
+  await expect(page.getByRole("tab",{name:expected.name,exact:true})).toHaveCount(2);
+  const saving=page.waitForEvent("download");
+  await page.getByRole("button",{name:"Save as",exact:true}).click();
+  const actual=await decodeFigcraft(await readFile((await (await saving).path())!));
+  expect(actual.document).toEqual(expected);
+});

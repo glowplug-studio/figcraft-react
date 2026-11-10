@@ -137,18 +137,18 @@ export async function measureDesignImport(base64:string,filename:string) {
   } finally {clearInterval(timer);}
 }
 
-export async function measureFigExport(base64:string) {
+export async function measureDesignExport(base64:string,format:"fig"|"penpot") {
   const engine=new EditorEngine();
-  await engine.openFile(new File([Uint8Array.from(atob(base64),c=>c.charCodeAt(0))],"Tiles.fig"));
+  await engine.openFile(new File([Uint8Array.from(atob(base64),c=>c.charCodeAt(0))],"Tiles."+format));
   let previous=performance.now(),largestGap=0,ticks=0;
   const start=previous;
   const sample=()=>{const now=performance.now();largestGap=Math.max(largestGap,now-previous);previous=now;};
   const timer=setInterval(()=>{ticks++;sample();},4);
   try {
-    const {blob,warnings}=await engine.exportGraphic({format:"fig"});
+    const {blob,warnings}=await engine.exportGraphic({format});
     sample();
     const milliseconds=performance.now()-start,gap=largestGap,count=ticks;
-    const {summary}=await new EditorEngine().openFile(new File([blob],"Again.fig"));
+    const {summary}=await new EditorEngine().openFile(new File([blob],"Again."+format));
     return {...summary,warnings,bytes:blob.size,milliseconds,ticks:count,largestGap:gap};
   } finally {clearInterval(timer);}
 }
@@ -177,5 +177,22 @@ export async function openPenpotSnapshot(base64:string) {
   const file=new File([Uint8Array.from(atob(base64),c=>c.charCodeAt(0))],"Original.penpot");
   const {warnings}=await engine.openFile(file);
   const saved=await engine.executeAsync("file.saveAs",{data:true});
-  return {data:String(saved.data),warnings};
+  const result=await engine.executeAsync("file.export",{format:"penpot"});
+  const reopened=new EditorEngine();
+  const receipt=await reopened.openFile(new File([Uint8Array.from(atob(String(result.data)),c=>c.charCodeAt(0))],"Again.penpot"));
+  const second=await reopened.executeAsync("file.saveAs",{data:true});
+  return {data:String(saved.data),warnings,reopened:String(second.data),issues:receipt.warnings};
+
+}
+
+export async function cancelPenpotExport(data:string) {
+  const engine=new EditorEngine();
+  await engine.openFile(new File([Uint8Array.from(atob(data),c=>c.charCodeAt(0))],"Tiles.penpot"));
+  const before=engine.getSnapshot().document;
+  const saving=engine.exportGraphic({format:"penpot"});
+  const timer=setTimeout(()=>engine.setEditable(false),0);
+  try {
+    const err=await saving.then(()=>"",e=>String(e));
+    return {err,sameDocument:before===engine.getSnapshot().document};
+  } finally {clearTimeout(timer);}
 }

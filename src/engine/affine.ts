@@ -38,14 +38,10 @@ export function inverse(transform: Affine): Affine {
   const [a, b, c, d, e, f] = checked(transform);
   const determinant = finite(a * d - b * c);
   if (determinant === 0) throw new Error("Affine transform is singular");
-  return matrix(
-    d / determinant,
-    -b / determinant,
-    -c / determinant,
-    a / determinant,
-    (c * f - d * e) / determinant,
-    (b * e - a * f) / determinant,
-  );
+  // Kurbo rounds the reciprocal before multiplying. Preserve finite inverses for subnormal determinants.
+  const reciprocal = 1 / determinant;
+  const divide = Number.isFinite(reciprocal) ? (v: number) => reciprocal * v : (v: number) => v / determinant;
+  return matrix(divide(d), divide(-b), divide(-c), divide(a), divide(c * f - d * e), divide(b * e - a * f));
 }
 
 export function transformPoint(transform: Affine, point: Point): Point {

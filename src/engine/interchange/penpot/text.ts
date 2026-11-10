@@ -87,8 +87,12 @@ export function textLayer(raw: JsonObject, layerFills: readonly unknown[]) {
   }
   if (!fills.length) fills=[solidPaint(colour(0,0,0))];
   const wire=wireTextData(text);
-  const nativeFills=fills.map(p=>{const {colorAlpha,...rest}=object(p);return colorAlpha===1 ? rest : p;});
-  return {wire,fills,hash:fingerprint({text:wire,fills:nativeFills},new Set(["start","end"]))};
+  return {wire,fills,hash:textFingerprint(wire,fills)};
+}
+
+export function textFingerprint(wire:ReturnType<typeof wireTextData>,fills:readonly unknown[]) {
+  const native=fills.map(p=>{const {colorAlpha,...rest}=object(p);return colorAlpha===1 ? rest : p;});
+  return fingerprint({text:wire,fills:native},new Set(["start","end"]));
 }
 
 interface FontRef {family:string;id:string;variants:{italic:boolean;weight:number}[]}

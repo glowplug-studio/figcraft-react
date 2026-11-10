@@ -1739,10 +1739,14 @@ export class EditorEngine {
   async exportGraphic(params: Record<string,unknown> = {}, frames = false): Promise<{format:string; blob:Blob; warnings?:string[]; pages?:number}> {
     const format=parseString(params.format)?.toLowerCase().replace(/^\.+/,"");
     const drawable=format==="xml" || format==="vd" || format==="vectordrawable";
-    if (!drawable && format!=="fig" && format!=="svg" && format!=="pdf") return this.exportRaster(params);
+    if (!drawable && format!=="fig" && format!=="penpot" && format!=="svg" && format!=="pdf") return this.exportRaster(params);
     if (!this.#hostEditable) throw new Error("Sign in to export this document");
     if (params.path != null) throw new Error("Use a browser download to choose the export destination");
     const opening = this.#openSequence, {document,selection} = this.#snapshot;
+    if (format==="penpot") {
+      const {writePenpotDocument}=await import("./interchange/penpot/write-document");
+      return writePenpotDocument(document,()=>this.#assertExportAccess(opening));
+    }
     if (format==="fig") {
       const checkCurrent=()=>this.#assertExportAccess(opening);
       const {writeFigDocument}=await import("./interchange/fig/write-document");

@@ -7,6 +7,7 @@ import {foldBooleanPaths} from "../../path-boolean";
 import {shapePath,strokeGeometry} from "../../shape-path";
 import {mapVectorPath} from "../../vector-region-selection";
 import {parse} from "lossless-json";
+import {nativeFloat} from "../../text-breaks";
 
 export type Fields=Record<string,unknown>;
 export type Warn=(message:string)=>void;
@@ -35,6 +36,11 @@ export function rgb(c:Colour) {
 export function rounded(v:number) {
   if (!Number.isFinite(v)) return 0;
   return Math.sign(v)*Math.round(Math.abs(v)*1e6)/1e6 || 0;
+}
+export function numberText(value:number) {
+  const n=rounded(value);
+  if (!Number.isFinite(n)) return "0";
+  return Number.isInteger(n) && Math.abs(n)<1e15 ? String(n) : nativeFloat(n);
 }
 function matrix(t:Affine) {
   const [a,b,c,d,e,f]=t.map(rounded);

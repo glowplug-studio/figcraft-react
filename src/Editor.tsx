@@ -520,13 +520,13 @@ export function DocumentEditor({ identity, capabilities, engine: suppliedEngine,
     } catch (caught) { setError(caught instanceof Error ? caught.message : "Export failed"); }
     finally { setBusy(false); }
   }
-  async function exportDrawing(format: "fig" | "png" | "jpg" | "webp" | "svg" | "xml" | "pdf", scale: number, scope?: "page" | "frames") {
+  async function exportDrawing(format: "penpot" | "fig" | "png" | "jpg" | "webp" | "svg" | "xml" | "pdf", scale: number, scope?: "page" | "frames") {
     exportDialog.current?.close();
     setBusy(true); setError("");
     try {
       const { document: design, selection } = engine.getSnapshot();
       const first = selection[0] ?? pageOf(design).children[0];
-      const name = (format === "fig" || scope === "frames" ? design.name : scope === "page" ? pageOf(design).name : design.nodes[first]?.name ?? "Export") + (scale === 1 ? "" : "@" + scale + "x") + "." + format;
+      const name = (format === "fig" || format === "penpot" || scope === "frames" ? design.name : scope === "page" ? pageOf(design).name : design.nodes[first]?.name ?? "Export") + (scale === 1 ? "" : "@" + scale + "x") + "." + format;
       const graphic = await engine.exportGraphic({ format, scale, ...(scope === "page" && {ids: pageOf(design).children}) },scope === "frames");
       downloadBlob(graphic.blob,name);
       if (graphic.warnings) setError(graphic.warnings.join("\n"));
@@ -727,6 +727,7 @@ export function DocumentEditor({ identity, capabilities, engine: suppliedEngine,
         <button type="button" onClick={()=>void exportDrawing("pdf",1)}>PDF</button>
         <button type="button" onClick={()=>void exportDrawing("xml",1)}>Android XML</button>
         <p>The whole file</p>
+        <button type="button" onClick={()=>void exportDrawing("penpot",1)}>Penpot (.penpot)</button>
         <button type="button" onClick={()=>void exportDrawing("fig",1)}>.fig (experimental)</button>
         <p>Other apps may not open every .fig file exported here.</p>
         <button type="button" onClick={() => exportDialog.current?.close()}>Close</button>

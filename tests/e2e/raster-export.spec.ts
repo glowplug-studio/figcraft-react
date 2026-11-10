@@ -427,7 +427,7 @@ test("exporting 5,000 binary Fig layers allows input and releases the encoding w
   page.on("worker",w=>{workers.add(w);w.on("close",()=>workers.delete(w));});
   const {readFile}=await import("node:fs/promises");
   const input=(await readFile(new URL("../fixtures/native-fig-5000.fig",import.meta.url))).toString("base64");
-  const measured=await page.evaluate(data=>(window as unknown as {FigcraftRaster:typeof import("../fixtures/raster-export")}).FigcraftRaster.measureFigExport(data),input);
+  const measured=await page.evaluate(data=>(window as unknown as {FigcraftRaster:typeof import("../fixtures/raster-export")}).FigcraftRaster.measureDesignExport(data,"fig"),input);
   expect(measured).toMatchObject({layers:5000,pages:1,images:0,warnings:[]});
   expect(measured.ticks).toBeGreaterThan(0);
   await expect.poll(()=>workers.size).toBe(0);
@@ -459,21 +459,25 @@ test("Penpot raw SVG expands to editable layers matching native open and save",a
   const {readFile}=await import("node:fs/promises"),{unzipSync}=await import("fflate");
   const {decodeFigcraft}=await import("../../src/engine/file-format");
   const corpus=unzipSync(await readFile(new URL("../fixtures/native-penpot-files.zip",import.meta.url)));
+  const outputs=unzipSync(await readFile(new URL("../fixtures/native-penpot-exports.zip",import.meta.url)));
   for (const stem of ["tests-raw_svg_from_export_is_preserved_for_native_svg_expansion-0","tests-svg_raw_boxes_are_never_painted-0"]) {
     const source=Buffer.from(corpus[stem+".penpot"]).toString("base64");
     const result=await page.evaluate(b64=>(window as unknown as {FigcraftRaster:typeof import("../fixtures/raster-export")}).FigcraftRaster.openPenpotSnapshot(b64),source);
     expect(result.warnings,stem).toEqual(JSON.parse(new TextDecoder().decode(corpus[stem+".json"])).warnings);
-    const actual=await decodeFigcraft(Buffer.from(result.data,"base64")),expected=await decodeFigcraft(corpus[stem+".figcraft"]);
-    // Native libm and Chromium differ by one ULP for the diagonal line length.
-    const nodes={...expected.document.nodes};
-    for (const n of Object.values(nodes)) if (n.kind==="line") {
-      const observed=actual.document.nodes[n.id];
-      if (observed?.kind!=="line") throw new Error("Expected an editable SVG line");
-      expect(Math.abs(observed.width-n.width)).toBeLessThanOrEqual(n.width*Number.EPSILON);
-      nodes[n.id]={...n,width:observed.width};
+    expect(result.issues).toEqual(JSON.parse(new TextDecoder().decode(outputs[stem+".json"])).open.warnings);
+    for (const [encoded,fixture] of [[result.data,corpus],[result.reopened,outputs]] as const) {
+      const actual=await decodeFigcraft(Buffer.from(encoded,"base64")),expected=await decodeFigcraft(fixture[stem+".figcraft"]);
+      // Native libm and Chromium differ by one ULP for the diagonal line length.
+      const nodes={...expected.document.nodes};
+      for (const n of Object.values(nodes)) if (n.kind==="line") {
+        const observed=actual.document.nodes[n.id];
+        if (observed?.kind!=="line") throw new Error("Expected an editable SVG line");
+        expect(Math.abs(observed.width-n.width)).toBeLessThanOrEqual(n.width*Number.EPSILON);
+        nodes[n.id]={...n,width:observed.width};
+      }
+      expect(actual.document,stem).toEqual({...expected.document,nodes});
+      expect(actual.nextId,stem).toBe(expected.nextId);
     }
-    expect(actual.document,stem).toEqual({...expected.document,nodes});
-    expect(actual.nextId,stem).toBe(expected.nextId);
   }
 });
 
@@ -502,6 +506,13 @@ test("opening 5,000 Penpot layers yields to input and cancellation releases the 
   expect(started).toBeGreaterThan(0);
   await expect.poll(()=>workers.size).toBe(0);
   test.info().annotations.push({type:"5,000 Penpot layers",description:JSON.stringify(measured)});
+  const exported=await page.evaluate(b64=>(window as unknown as {FigcraftRaster:typeof import("../fixtures/raster-export")}).FigcraftRaster.measureDesignExport(b64,"penpot"),data);
+  expect(exported).toMatchObject({name:"Tiles",layers:5000,pages:1,warnings:[]});
+  expect(exported.ticks).toBeGreaterThan(0);
+  test.info().annotations.push({type:"5,000 Penpot layers exported",description:JSON.stringify(exported)});
+  const cancelled=await page.evaluate(b64=>(window as unknown as {FigcraftRaster:typeof import("../fixtures/raster-export")}).FigcraftRaster.cancelPenpotExport(b64),data);
+  expect(cancelled.err).toMatch(/export was cancelled/i);
+  expect(cancelled.sameDocument).toBe(true);
   const second=await page.evaluate(b64=>(window as unknown as {FigcraftRaster:typeof import("../fixtures/raster-export")}).FigcraftRaster.supersedeArchiveImport(b64,"Cancelled.penpot"),data);
   expect(second).toMatchObject({replaced:true,name:"Replacement"});
   expect(second.rejected).toMatch(/cancelled/i);
