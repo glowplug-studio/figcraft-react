@@ -166,10 +166,11 @@ test("signed-in ownership finalisation validates the staged archive and safely r
   }
 });
 
-// Run against a local production host configured with one retained file per
-// address. Other host verification uses the operator's actual capacity.
-if (process.env.FIGCRAFT_E2E_RETAINED_LIMIT === "1") {
-  test("retained file limit is shown in the editor and retry succeeds after capacity is freed", async ({page}) => {
+// These local production checks use the host's normal operator settings.
+const hourlyFixture = process.env.FIGCRAFT_E2E_HOURLY_LIMIT === "1";
+if (hourlyFixture || process.env.FIGCRAFT_E2E_RETAINED_LIMIT === "1") {
+  test(hourlyFixture ? "hourly publication limit survives removal and permits receipt recovery" :
+    "retained file limit is shown in the editor and retry succeeds after capacity is freed", async ({page}) => {
     await login(page);
     if (!backend || !userId) throw new Error("The capacity fixture requires the local Supabase host");
     const storage = backend.admin.storage.from("figcraft-files");
@@ -192,16 +193,32 @@ if (process.env.FIGCRAFT_E2E_RETAINED_LIMIT === "1") {
       await open("First capacity drawing");
       await expect(form).toHaveCount(0);
       const [first] = paths;
+      if (hourlyFixture) {
+        const retry = await page.evaluate(async id => {
+          const result = await fetch("/api/online-files", {method: "POST", headers: {"Content-Type": "application/json"},
+            body: JSON.stringify({id})});
+          return {status: result.status, file: (await result.json()).id};
+        }, first.split("/")[1].replace(".figcraft", ""));
+        expect(retry).toEqual({status: 200, file: first.split("/")[1].replace(".figcraft", "")});
+      }
+      const refusal = page.waitForResponse(response => new URL(response.url()).pathname === "/api/online-files"
+        && response.status() === (hourlyFixture ? 429 : 409));
       await open("Second capacity drawing");
-      await expect(form.getByRole("alert")).toHaveText("Your address has reached its retained file limit");
+      await refusal;
+      const reason = hourlyFixture ? "Too many files published from your address lately: try again in an hour" :
+        "Your address has reached its retained file limit";
+      await expect(form.getByRole("alert")).toHaveText(reason);
       expect(paths.size).toBe(2);
       const list = () => backend!.admin.from("online_files").select("name").eq("owner_id", userId!);
       expect((await list()).data).toEqual([{name: "First capacity drawing"}]);
       expect((await storage.remove([first])).error).toBeNull();
+      const retried = page.waitForResponse(response => new URL(response.url()).pathname === "/api/online-files");
       await form.getByRole("button", {name: "Publish", exact: true}).click();
-      await expect(form).toHaveCount(0);
+      expect((await retried).status()).toBe(hourlyFixture ? 429 : 200);
+      if (hourlyFixture) await expect(form.getByRole("alert")).toHaveText(reason);
+      else await expect(form).toHaveCount(0);
       expect(paths.size).toBe(2);
-      expect((await list()).data).toEqual([{name: "Second capacity drawing"}]);
+      expect((await list()).data).toEqual(hourlyFixture ? [] : [{name: "Second capacity drawing"}]);
     } finally {
       if (paths.size) expect((await storage.remove([...paths])).error).toBeNull();
     }

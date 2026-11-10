@@ -6,6 +6,7 @@ import { onlineFileInfo, onlineSnapshotPath } from "./online-files";
 /** Only the trusted host supplies these overrides. PostgreSQL owns the native defaults. */
 export interface PublicationCapacity {
   address: string;
+  publishes_per_hour?: number;
   max_files?: number;
   max_files_per_ip?: number;
   max_bytes_per_ip?: number;
@@ -13,6 +14,9 @@ export interface PublicationCapacity {
 }
 
 export class PublicationCapacityError extends Error {}
+export class PublicationRateError extends Error {
+  constructor() { super("Too many files published from your address lately: try again in an hour"); }
+}
 
 async function measurePriorPublications(writer: SupabaseClient) {
   const missing = await writer.rpc("unmeasured_online_files")
@@ -50,11 +54,28 @@ export async function finaliseOnlineFile(user: SupabaseClient, writer: SupabaseC
   const object = await storage.info(path);
   if (object.error) throw object.error;
   if (links !== undefined && !isPublishedLinkDigests(links)) throw new Error("Invalid published links");
-  const prior = await user.from("online_files").select("name").eq("id", id)
-    .eq("owner_id", principal).eq("snapshot_id", object.data.id).maybeSingle();
-  if (prior.error) throw prior.error;
+  const { publishes_per_hour, ...retained } = capacity;
+  const readPrior = async () => {
+    const prior = await user.from("online_files").select("name").eq("id", id)
+      .eq("owner_id", principal).eq("snapshot_id", object.data.id).maybeSingle();
+    if (prior.error) throw prior.error;
+    return prior.data;
+  };
+  let prior = await readPrior();
+  if (!prior) {
+    const admitted = await writer.rpc("admit_online_publication", {
+      address: capacity.address, ...(publishes_per_hour !== undefined && {hourly: publishes_per_hour}),
+    });
+    if (admitted.error) throw admitted.error;
+    if (typeof admitted.data !== "boolean") throw new Error("Invalid publication admission receipt");
+    if (!admitted.data) {
+      // Another worker may just have committed the original acknowledgement.
+      prior = await readPrior();
+      if (!prior) throw new PublicationRateError();
+    }
+  }
   let name: string, measured: number | null = null;
-  if (prior.data) name = prior.data.name;
+  if (prior) name = prior.name;
   else {
     const download = await storage.download(path);
     if (download.error) throw download.error;
@@ -65,7 +86,7 @@ export async function finaliseOnlineFile(user: SupabaseClient, writer: SupabaseC
   const pair = links ?? await publishedLinkDigests(createPublishedLinks());
   for (;;) {
     const reply = await writer.rpc("keep_online_publication", {
-      ...capacity, actor: principal, target: id, snapshot: object.data.id, title: name,
+      ...retained, actor: principal, target: id, snapshot: object.data.id, title: name,
       links: pair, verify_pair: links !== undefined, measured,
     }).single<{ id: string; name: string; created_at: string }>();
     if (!reply.error) return onlineFileInfo(reply.data);

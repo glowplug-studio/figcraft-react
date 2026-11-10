@@ -50,8 +50,8 @@ it("applies retained publication overrides from the trusted host", () => {
   const headers = new Headers({"x-forwarded-for": "192.0.2.31", "x-vercel-forwarded-for": "2001:db8::10"});
   expect(publicationCapacity(headers, {})).toEqual({address: "127.0.0.1"});
   expect(publicationCapacity(headers, {VERCEL: "1", FIGCRAFT_MAX_FILES: "10", FIGCRAFT_MAX_FILES_PER_IP: "2",
-    FIGCRAFT_MAX_MB_PER_IP: "4", FIGCRAFT_MAX_TOTAL_MB: "16"})).toEqual({address: "2001:db8::10", max_files: 10,
-      max_files_per_ip: 2, max_bytes_per_ip: 4 * 1024 * 1024, max_total_bytes: 16 * 1024 * 1024});
+    FIGCRAFT_MAX_MB_PER_IP: "4", FIGCRAFT_MAX_TOTAL_MB: "16", FIGCRAFT_PUBLISHES_PER_HOUR: "3"})).toEqual({address: "2001:db8::10", max_files: 10,
+      publishes_per_hour: 3, max_files_per_ip: 2, max_bytes_per_ip: 4 * 1024 * 1024, max_total_bytes: 16 * 1024 * 1024});
   for (const value of ["0", "-2", "1.5", "invalid", "999999999999999999999"]) {
     expect(() => publicationCapacity(headers, {FIGCRAFT_MAX_FILES: value})).toThrow("FIGCRAFT_MAX_FILES");
   }

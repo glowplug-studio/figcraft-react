@@ -6,18 +6,76 @@ create table figcraft_private.online_code_budgets (
     used_at timestamptz not null,
     wrong integer not null default 0,
     wrong_at timestamptz,
-    locked_until timestamptz
+    locked_until timestamptz,
+    publish_tokens double precision,
+    publish_used_at timestamptz
 );
-create index online_code_budgets_age on figcraft_private.online_code_budgets(used_at);
+create index online_code_budgets_age on figcraft_private.online_code_budgets(greatest(used_at,publish_used_at));
 create table figcraft_private.online_code_global (
     singleton boolean primary key check (singleton),
     tokens double precision not null,
     sampled_at timestamptz not null,
-    store_started timestamptz not null
+    store_started timestamptz not null,
+    publish_tokens double precision,
+    publish_used_at timestamptz
 );
 alter table figcraft_private.online_code_budgets enable row level security;
 alter table figcraft_private.online_code_global enable row level security;
 revoke all on figcraft_private.online_code_budgets, figcraft_private.online_code_global from public, anon, authenticated, service_role;
+
+create function figcraft_private.publication_blocks(address inet)
+returns table(block cidr, multiplier integer)
+language sql immutable strict parallel safe set search_path = ''
+as $$
+    with canonical(ip) as (
+        select case when address <<= inet '::ffff:0:0/96'
+            then inet '0.0.0.0' + (address - inet '::ffff:0:0') else address end
+    )
+    select network(set_masklen(ip, bits)), scale
+    from canonical cross join (values (4,32,1),(6,64,1),(6,56,2),(6,48,4)) as ranges(af,bits,scale)
+    where family(ip) = af order by scale;
+$$;
+revoke all on function figcraft_private.publication_blocks(inet) from public, anon, authenticated, service_role;
+
+-- Both actions share the native server lifetime and bounded address inventory.
+-- Each action has its own refill clock. Sample time after acquiring the lock.
+create function figcraft_private.admission_clock(sampled timestamptz)
+returns timestamptz language plpgsql security invoker set search_path = ''
+as $$
+begin
+    perform pg_advisory_xact_lock(650130, 2);
+    sampled := coalesce(sampled,clock_timestamp());
+    if not exists(select from figcraft_private.online_code_global where store_started = pg_postmaster_start_time()) then
+        delete from figcraft_private.online_code_budgets where block is not null;
+        insert into figcraft_private.online_code_global(singleton,tokens,sampled_at,store_started)
+            values(true,1000,sampled,pg_postmaster_start_time()) on conflict (singleton) do update
+            set tokens = 1000, sampled_at = excluded.sampled_at, store_started = excluded.store_started,
+                publish_tokens = null, publish_used_at = null;
+    end if;
+    return sampled;
+end;
+$$;
+revoke all on function figcraft_private.admission_clock(timestamptz) from public, anon, authenticated, service_role;
+
+create function figcraft_private.admission_bucket(b cidr, participating cidr[], sampled timestamptz)
+returns figcraft_private.online_code_budgets language plpgsql security invoker set search_path = ''
+as $$
+declare
+    budget figcraft_private.online_code_budgets;
+begin
+    select * into budget from figcraft_private.online_code_budgets where block = b;
+    if found then return budget; end if;
+    if (select count(*) from figcraft_private.online_code_budgets) >= 10000 then
+        delete from figcraft_private.online_code_budgets where not (block = any(participating))
+            and greatest(used_at,publish_used_at) <= (select greatest(used_at,publish_used_at)
+            from figcraft_private.online_code_budgets order by greatest(used_at,publish_used_at) offset 5000 limit 1);
+    end if;
+    insert into figcraft_private.online_code_budgets(block,tokens,used_at)
+        values(b,case masklen(b) when 48 then 40 when 56 then 20 else 10 end,sampled) returning * into budget;
+    return budget;
+end;
+$$;
+revoke all on function figcraft_private.admission_bucket(cidr,cidr[],timestamptz) from public, anon, authenticated, service_role;
 
 -- The online code, its two domain separators and the XOR pad follow the native
 -- JoinCodeKey format. Test clocks are available only to the database owner.
@@ -40,20 +98,8 @@ declare
     budget figcraft_private.online_code_budgets;
 begin
     if address is null then raise exception 'invalid lookup'; end if;
-    -- Keep the admission check, key stretching and outcome in one transaction.
-    -- Nothing outside this lookup (including normal link joins) takes this lock.
-    perform pg_advisory_xact_lock(650130, 2);
-    sampled := coalesce(sampled,clock_timestamp());
-    if not exists(select from figcraft_private.online_code_global where store_started = pg_postmaster_start_time()) then
-        delete from figcraft_private.online_code_budgets where block is not null;
-        insert into figcraft_private.online_code_global values(true, 1000, sampled, pg_postmaster_start_time())
-            on conflict (singleton) do update set tokens = 1000, sampled_at = excluded.sampled_at, store_started = excluded.store_started;
-    end if;
-    if address <<= inet '::ffff:0:0/96' then
-        address := inet '0.0.0.0' + (address - inet '::ffff:0:0');
-    end if;
-    blocks := case when family(address) = 4 then array[network(set_masklen(address,32))]
-        else array[network(set_masklen(address,64)),network(set_masklen(address,56)),network(set_masklen(address,48))] end;
+    sampled := figcraft_private.admission_clock(sampled);
+    select array_agg(block order by multiplier) into blocks from figcraft_private.publication_blocks(address);
 
     select max(locked_until) into until_time from figcraft_private.online_code_budgets where block = any(blocks);
     if until_time > sampled then
@@ -61,18 +107,10 @@ begin
     end if;
     foreach b in array blocks loop
         scale_factor := case masklen(b) when 48 then 4 when 56 then 2 else 1 end;
-        select * into budget from figcraft_private.online_code_budgets where block = b;
-        if not found then
-            if (select count(*) from figcraft_private.online_code_budgets) >= 10000 then
-                delete from figcraft_private.online_code_budgets where not (block = any(blocks)) and used_at <= (
-                    select used_at from figcraft_private.online_code_budgets order by used_at offset 5000 limit 1);
-            end if;
-            insert into figcraft_private.online_code_budgets(block,tokens,used_at) values(b, 10*scale_factor,sampled);
-        else
-            allowance := least(10*scale_factor, budget.tokens + greatest(0,extract(epoch from sampled-budget.used_at))*scale_factor/6);
-            update figcraft_private.online_code_budgets set tokens = allowance, used_at = greatest(used_at,sampled) where block = b;
-            if allowance < 1 then return jsonb_build_object('status','rate'); end if;
-        end if;
+        budget := figcraft_private.admission_bucket(b,blocks,sampled);
+        allowance := least(10*scale_factor, budget.tokens + greatest(0,extract(epoch from sampled-budget.used_at))*scale_factor/6);
+        update figcraft_private.online_code_budgets set tokens = allowance, used_at = greatest(used_at,sampled) where block = b;
+        if allowance < 1 then return jsonb_build_object('status','rate'); end if;
     end loop;
     update figcraft_private.online_code_budgets set tokens = tokens-1 where block = any(blocks);
     select least(1000,tokens + greatest(0,extract(epoch from sampled-sampled_at))/3.6)

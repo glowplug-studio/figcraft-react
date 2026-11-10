@@ -32,7 +32,7 @@ export function EditorHost({ identity }: { identity: Extract<IdentitySnapshot, {
         method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, links }),
       });
       if (!response.ok) {
-        const reason = response.status === 409 ? await response.json().catch(() => null) : null;
+        const reason = response.status === 409 || response.status === 429 ? await response.json().catch(() => null) : null;
         throw new Error(typeof reason?.error === "string" ? reason.error : "The online file could not be published");
       }
       return response.json();

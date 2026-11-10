@@ -9,20 +9,6 @@ create table figcraft_private.online_file_usage (
 alter table figcraft_private.online_file_usage enable row level security;
 revoke all on figcraft_private.online_file_usage from public, anon, authenticated, service_role;
 
-create function figcraft_private.publication_blocks(address inet)
-returns table(block cidr, multiplier integer)
-language sql immutable strict parallel safe set search_path = ''
-as $$
-    with canonical(ip) as (
-        select case when address <<= inet '::ffff:0:0/96'
-            then inet '0.0.0.0' + (address - inet '::ffff:0:0') else address end
-    )
-    select network(set_masklen(ip, bits)), scale
-    from canonical cross join (values (4,32,1),(6,64,1),(6,56,2),(6,48,4)) as ranges(af,bits,scale)
-    where family(ip) = af order by scale;
-$$;
-revoke all on function figcraft_private.publication_blocks(inet) from public, anon, authenticated, service_role;
-
 -- Reads and writes for a pre-accounting installation are scoped to immutable
 -- object IDs. Deleting or recreating a file during measurement cannot attach
 -- the old size to a new listing.
