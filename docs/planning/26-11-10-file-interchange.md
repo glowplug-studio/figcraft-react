@@ -97,3 +97,5 @@ At 2fdd1c4, 40 supported REST fixtures matched the complete decoded layer tree, 
 At 8a5c831 the reader matched 80 supported upstream re-imports, including the original ZIP image bytes and bare-canvas placeholder pixels. All 329 production browser workflows passed. Next compare 15 additional native component cases, preserve field-level instance scaling and fitted geometry, resolve nested sources and historical keys, then verify internal library stores. Continue with the writer and omitted document models before the final audit.
 
 At 5987f3a, all 26 additional component comparisons passed. The signed-in production host preserved the hidden library store and nested contextual source IDs after saving three drawings. Continue with binary text-path networks and saved wrap positions, then complete remaining import and export mappings.
+
+At f7a9bbb, text path and saved-wrap properties passed in all 32 source files. Compare native reopens of browser-written Fig files, extend the writer through editable text, vectors, layout, styles, variables and linked components, then verify the host download and foreign file integrations.
