@@ -146,7 +146,11 @@ test("signed-in ownership finalisation validates the staged archive and safely r
     }, target);
     const first = await publish();
     expect(first.status).toBe(200);
-    expect(first.data).toEqual({ id, name: "Untitled", created: expect.any(String) });
+    const created = Math.floor(Date.parse(first.data.created) / 1000);
+    const defaultIdleSeconds = 30 * 24 * 60 * 60;
+    expect(Number.isFinite(created)).toBe(true);
+    expect(first.data).toEqual({ id, name: "Untitled", created: expect.any(String),
+      expires: String(created + defaultIdleSeconds) });
     expect(await publish()).toEqual(first);
     const members = unzipSync(archive["Cover.figcraft"]);
     const drawing = JSON.parse(strFromU8(members["document.json"]));
