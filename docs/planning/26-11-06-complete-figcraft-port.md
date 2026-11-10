@@ -6,16 +6,16 @@
 |---|---|
 | Overall status | In progress. [Continue handover and deferred review queue](26-11-07-full-port-resume.md#continue-from-here). |
 | Active slice | Row 12 design interchange and export. [Dated plan](26-11-10-file-interchange.md). |
-| Active phase | Row 12. External design clipboard command and browser paste. [Resume action and deferred reviews](26-11-07-full-port-resume.md#continue-from-here). |
+| Active phase | Row 12. Section editing and remaining interchange checks. [Continue handover](26-11-07-full-port-resume.md#continue-from-here). |
 | Upstream baseline | Styles reference a2e87433. Components reference 79c36346. Global supported baseline 8eb0b876. |
-| Branch and last verified commit | prompt/full-figcraft-port, Penpot writer at 8c07e01. Production Chromium passed 339/340 in one run. The SVG corpus passed separately in 2.55 seconds after reducing test-runner overhead. |
+| Branch and last verified commit | prompt/full-figcraft-port at e399303 for external design paste and Section interchange. |
 | Completed slices | Rectangle/host-auth, bounded native persistence/recovery, supported-model pages, affine rectangle geometry/selection and solid appearance, plus nested group hierarchy, Frame containers, movement/transform gestures, rounded corners, ellipse/arc/ring and Polygon/Star editing verified locally; Line/Arrow and uniform solid strokes also verified; per-side Rectangle/Frame strokes, variable-width profiles and procedural brushes verified; vector networks, solid region/stroke rendering and Flatten/Reverse also verified; foundation commit `154f5a7`. Gradient, image, pattern, blend and mask releases now have local property matrices. [Blend evidence](../reports/26-11-09-blend-modes-parity.html). Auto layout and constraints passed the local release gate. [Release evidence](../reports/26-11-09-auto-layout.md). [Local components, instances, variant properties, slots and Assets](../reports/26-11-09-components-instances.md) passed the 0.51.0 gate. |
 | Remaining slices | Continue incomplete roadmap rows, excluding the user-deferred plugin and widget family. See each slice matrix for outstanding integrations. |
-| Tests last passed | 144 Penpot input cases, 130 native export/reopen comparisons with every saved member matching, 3,572 pure checks, two local Auth integrations, strict types, both builds and focused Chromium workflows. |
+| Tests last passed | 3,632 pure tests, two Auth integrations, both production builds, strict types, 46 native paste sequences and three focused signed-in browser workflows. Full Chromium regression started at e399303. |
 | Files currently in progress | [Design interchange and export](26-11-10-file-interchange.md). |
 | Blockers | The scoped Supabase MCP project and public-table reads passed after reauthorisation. |
-| Exact next action | Resolve the remaining native Section clipboard fixture and inspect the signed-in clipboard test result. Follow the resume handover for commands. |
-| Last updated | 2026-11-10 22:26 ICT |
+| Exact next action | Consume the full Chromium run, then compare native Section create, hide/show, selection and undo against the browser. See the [resume handover](26-11-07-full-port-resume.md). |
+| Last updated | 2026-11-10 22:37 ICT |
 
 ## Scope and continuation
 

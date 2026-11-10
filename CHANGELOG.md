@@ -4,6 +4,8 @@ All notable changes to the React port and its upstream compatibility baseline ar
 
 ## [0.53.0] - 2026-11-10
 
+- Added editable paste of external Fig clipboard layers, missing-image notices and Section interchange. [Clipboard verification](docs/reports/26-11-10-design-clipboard-parity.html).
+
 - Added editable Penpot import and export. All 130 exported drawings reopened in pinned upstream with matching saved archive contents. [Property report](docs/reports/26-11-10-penpot-interchange-parity.html).
 
 - Added editable Sketch import, prototype record preservation and Slice drawing, guides and export crops. [Property report](docs/reports/26-11-10-sketch-interchange-parity.html).

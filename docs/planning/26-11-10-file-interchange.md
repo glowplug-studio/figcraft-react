@@ -107,3 +107,5 @@ At 5d94730, All 336 production Chromium workflows passed in 515.1 seconds with z
 ## External design clipboard
 
 Penpot export reached the native reopen checkpoint at 8c07e01. The next acquisition route combines the Fig reader and the existing cross-file clipboard transaction. Compare 46 independent native paste sequences, including bare data, HTML, placement in a selected frame, repeated paste and undo. The Section and Slice fixture requires the shared Section model and reader. Signed-in browser checks must cover clipboard priority, malformed markers, resource warnings and cancelled edits. [Current action](26-11-07-full-port-resume.md#continue-from-here).
+
+At e399303 all 46 native paste sequences passed. Section identity, hidden contents and nested Slice survive REST, Fig, native saves and clipboard transactions. Both independent deep hits and three focused signed-in workflows passed. Continue with Section authoring and PDF traversal. [Property matrix](../reports/26-11-10-design-clipboard-parity.html).
