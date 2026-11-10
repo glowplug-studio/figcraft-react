@@ -130,7 +130,7 @@ Upstream test evidence: [`branch_tests`](../../original/figcraft/crates/engine/s
 
 ### 13. Online files, sharing and live collaboration
 
-Status: **Not implemented / Not tested**.
+Status: **Partial.** Local publication, ownership, role grants, short codes, revocation, connection lifetime and expiry have executable coverage. Team discovery and ordered collaboration remain open. [Ownership matrix](../reports/26-11-11-online-file-ownership-parity.html) · [Current verification](../planning/26-11-07-full-port-resume.md#continue-from-here).
 
 Online file list/open/forget/recover; publish/share with view/comment/edit grants, revocation/expiry; join progress/cancel/retry and moderation/reporting. Ordered authoritative changes, optimistic rollback/reconciliation, reconnect/offline handling, bounded identifiers/logs/tombstones, per-client undo. Cursors/selections/carets/avatars/follow/chat/spotlight. Dependencies: authenticated ownership, RLS/Storage grants, stable commands/identity, persistence and transport adapters.
 
