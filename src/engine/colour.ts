@@ -23,3 +23,17 @@ export function toCssHex(value: Colour): string {
 export function renderColour(value: Colour): string {
   return `rgba(${value.r * 255},${value.g * 255},${value.b * 255},${value.a})`;
 }
+
+export function cssColour(c:Colour) {
+  if (c.a>=Math.fround(.999)) return toCssHex(c);
+  const [r,g,b,a]=toRgba8(c);
+  const keeps=(s:string)=>Math.round(Math.fround(Math.fround(Number(s))*255))===a;
+  // Rust decimal formatting rounds exact halfway cases to even.
+  const fixed=(x:number,n:number)=>{
+    const scale=10**n, scaled=x*scale, floor=Math.floor(scaled);
+    const rounded=scaled-floor===.5 && floor%2===0 ? floor : Math.round(scaled);
+    return (rounded/scale).toFixed(n);
+  };
+  const alpha=[fixed(c.a,2),fixed(c.a,3)].find(keeps) ?? fixed(Math.fround(a/255),3);
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}

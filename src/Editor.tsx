@@ -68,6 +68,9 @@ export interface EditorProps {
   recoveryStore?: RecoveryStore;
 }
 
+const copyLabels = { text: "Copy as text", css: "Copy as CSS", svg: "Copy as SVG", png: "Copy as PNG", link: "Copy link to selection" } as const;
+type CopyFormat = keyof typeof copyLabels;
+
 async function writeClipboard(type:"text/plain"|"image/png",prepare:()=>Promise<Blob>) {
   if (navigator.clipboard?.write && typeof ClipboardItem!=="undefined") {
     // Reserve the browser's clipboard write inside the original user gesture.
@@ -99,6 +102,12 @@ export function DocumentEditor({ identity, capabilities, engine: suppliedEngine,
   const snapshot = useSyncExternalStore(engine.subscribe, engine.getSnapshot, engine.getSnapshot);
   const editingVector = useSyncExternalStore(engine.subscribeVectorEdit, () => Boolean(engine.getVectorEdit()), () => Boolean(engine.getVectorEdit()));
   const [signedIn, setSignedIn] = useState(() => identity.getSnapshot().status === "authenticated");
+  const [copyNotice, setCopyNotice] = useState("");
+  useEffect(() => {
+    if (!copyNotice) return;
+    const timer = window.setTimeout(() => setCopyNotice(""), 2500);
+    return () => window.clearTimeout(timer);
+  }, [copyNotice]);
   const [localReport, setLocalReport] = useState<ImportReport>();
   function showReport(report: ImportReport | undefined, owner?: number) {
     if (!report) return;
@@ -159,7 +168,7 @@ export function DocumentEditor({ identity, capabilities, engine: suppliedEngine,
       const current = identity.getSnapshot();
       const authenticated = current.status === "authenticated" && current.principal.id === initialPrincipal.current;
       setSignedIn(authenticated);
-      if (!authenticated) { setLocalReport(undefined); setError(""); }
+      if (!authenticated) { setLocalReport(undefined); setCopyNotice(""); setError(""); }
       engine.setEditable(authenticated && capabilities.includes("document.edit"));
     };
     update();
@@ -433,24 +442,46 @@ export function DocumentEditor({ identity, capabilities, engine: suppliedEngine,
       .catch(()=>setError("Layers copied in Figcraft. The browser could not write the system clipboard."));
   }
 
-  function copyAs(format:"svg"|"png",trusted:boolean) {
-    if (!trusted || !canCopyLayers) return;
-    const type=format==="png" ? "image/png" : "text/plain";
+  function copyAs(format: CopyFormat, trusted: boolean) {
+    if (!canUseClipboard || (format !== "text" && !canCopyLayers)) return;
+    const notice = format === "link" ? "Link copied" : "Copied as " + (format === "text" ? "text" : format.toUpperCase());
+    if (!trusted) { setCopyNotice(notice); return; }
+    const type = format === "png" ? "image/png" : "text/plain";
+    const doc = engine.getRenderDocument(), ids = snapshot.selection;
     setError("");
-    void writeClipboard(type,async()=>{
-      const {blob}=format === "png" ? await engine.exportRaster({format,colorProfile:"srgb",scale:2}, true) : await engine.exportGraphic({format});
-      return format==="png" ? blob : blob.slice(0,blob.size,type);
-    }).catch(error=>setError(error instanceof Error ? error.message : "Could not copy artwork"));
+    void writeClipboard(type, async () => {
+      if (format === "svg" || format === "png") {
+        const { blob } = format === "png" ? await engine.exportRaster({ format, colorProfile: "srgb", scale: 2 }, true) : await engine.exportGraphic({ format });
+        return format === "png" ? blob : blob.slice(0, blob.size, type);
+      }
+      let text: string;
+      if (format === "link") text = "figcraft://node/" + ids[0];
+      else if (format === "text") text = ids.flatMap(id => {
+        const node = doc.nodes[id];
+        return node?.kind === "text" ? [node.text.characters] : [];
+      }).join("\n");
+      else {
+        const { layerCss } = await import("./engine/layer-css");
+        const session = identity.getSnapshot();
+        if (session.status !== "authenticated" || session.principal.id !== initialPrincipal.current || engine.getRenderDocument() !== doc) {
+          throw new Error("Copy cancelled because the document or identity changed");
+        }
+        text = layerCss(doc, doc.nodes[ids[0]]);
+      }
+      return new Blob([text], { type });
+    }).then(() => setCopyNotice(notice))
+      .catch(error => setError(error instanceof Error ? error.message : "Could not copy artwork"));
   }
-  function copyAsMenu(context=false) {
+  function copyAsMenu(context = false) {
+    const formats: CopyFormat[] = context ? ["css", "svg", "png", "link"] : ["text", "css", "svg", "png", "link"];
     return <details onToggle={context ? positionCanvasMenu : undefined}><summary>Copy as</summary>
-      {(["svg","png"] as const).map(format=><button type="button" key={format} disabled={!canCopyLayers} onClick={event=>{
-        copyAs(format,event.isTrusted);
+      {formats.map(format => <button type="button" key={format} disabled={format === "text" ? !canUseClipboard : !canCopyLayers} onClick={event => {
+        copyAs(format, event.isTrusted);
         event.currentTarget.closest("details")?.removeAttribute("open");
         if (context) pasteMenu.current?.hidePopover();
         else event.currentTarget.closest(".figcraft-bar-menu")?.removeAttribute("open");
         canvas.current?.focus();
-      }}>Copy as {format.toUpperCase()}</button>)}
+      }}>{copyLabels[format]}</button>)}
     </details>;
   }
 
@@ -592,7 +623,8 @@ export function DocumentEditor({ identity, capabilities, engine: suppliedEngine,
     } catch (caught) { setError(caught instanceof Error ? caught.message : "File could not be saved"); }
     finally { setBusy(false); }
   }
-  const canCopyLayers = signedIn && !busy && recoveryStatus !== "loading" && capabilities.includes("document.edit") && snapshot.selection.length > 0;
+  const canUseClipboard = signedIn && !busy && recoveryStatus !== "loading" && capabilities.includes("document.edit");
+  const canCopyLayers = canUseClipboard && snapshot.selection.length > 0;
   const editable = signedIn && snapshot.editable && recoveryStatus !== "loading" && capabilities.includes("document.edit");
   const page = pageOf(snapshot.document);
   const selected = snapshot.document.nodes[snapshot.selection[0]];
@@ -740,6 +772,7 @@ export function DocumentEditor({ identity, capabilities, engine: suppliedEngine,
         </details>
       </header>
       {!signedIn && <p role="status">Sign in to edit this document.</p>}
+      {signedIn && copyNotice && <output className="figcraft-copy-notice">{copyNotice}</output>}
       {signedIn && localReport && <ImportReportPanel report={localReport} close={() => setLocalReport(undefined)} />}
       {error && <p role="alert">{error}</p>}
       {sourceRequest && <label>Choose library source<input type="file" accept=".figcraft" disabled={!editable} onChange={event => {

@@ -175,3 +175,5 @@ dd { margin: 0; }
 }
 .figcraft-import-report :is(h2, h3, p) { margin: 0 0 .5rem; }
 .figcraft-import-report ul { max-height: 16.25rem; overflow: auto; padding-inline-start: 1.25rem; }
+
+.figcraft-copy-notice { position: fixed; bottom: .5rem; left: 50%; transform: translateX(-50%); z-index: 4; padding: .2rem .6rem; color: white; background: #222; border-radius: .3rem; pointer-events: none; }

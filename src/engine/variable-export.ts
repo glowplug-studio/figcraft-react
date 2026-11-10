@@ -1,4 +1,4 @@
-import {toCssHex,toRgba8,type Colour} from "./colour";
+import {cssColour,toRgba8} from "./colour";
 import type {Document} from "./document";
 import {trimNumber} from "./inspect-text";
 import {parseString} from "./parameters";
@@ -62,19 +62,6 @@ function unresolvedCalculations(data:Variables) {
   return missing;
 }
 const safeCss=(s:string)=>s.replaceAll("*/","* /").replace(/["\\\n\r\f]/g," ");
-function cssColour(c:Colour) {
-  if (c.a>=Math.fround(.999)) return toCssHex(c);
-  const [r,g,b,a]=toRgba8(c);
-  const keeps=(s:string)=>Math.round(Math.fround(Math.fround(Number(s))*255))===a;
-  // Rust decimal formatting rounds exact halfway cases to even.
-  const fixed=(x:number,n:number)=>{
-    const scale=10**n, scaled=x*scale, floor=Math.floor(scaled);
-    const rounded=scaled-floor===.5 && floor%2===0 ? floor : Math.round(scaled);
-    return (rounded/scale).toFixed(n);
-  };
-  const alpha=[fixed(c.a,2),fixed(c.a,3)].find(keeps) ?? fixed(Math.fround(a/255),3);
-  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
-}
 function cssExport(doc:Document,data:Variables,collections:readonly Collection[],groups:Map<string,Variable[]>,tailwind:boolean) {
   const roles=numberRoles(doc,data),names=variableCssNames(data,roles,tailwind),omit=unresolvedCalculations(data);
   const out=tailwind ? ['@import "tailwindcss";\n\n'] : [];

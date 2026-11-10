@@ -7082,6 +7082,52 @@ test("the signed-in editor downloads editable SVG paths and saved SVG assets", a
   expect(source).not.toContain("<image");
 });
 
+test("Copy as CSS, text and node link uses native output and fences synthetic clipboard writes", async ({ page, context }) => {
+  await login(page);
+  await context.grantPermissions(["clipboard-read", "clipboard-write"], { origin: new URL(page.url()).origin });
+  const files = unzipSync(await readFile(new URL("../fixtures/native-clipboard-code.zip", import.meta.url)));
+  const expected = JSON.parse(strFromU8(files["css.json"]));
+  await page.getByLabel("Open Figcraft file", { exact: true }).setInputFiles({
+    name: "Clipboard.figcraft", mimeType: "application/octet-stream", buffer: Buffer.from(files["Clipboard.figcraft"]),
+  });
+  const bar = page.locator(".figcraft-document-bar"), layers = page.getByRole("region", { name: "Layers", exact: true });
+  const canvas = page.getByLabel("Design canvas", { exact: true });
+  const read = () => page.evaluate(() => navigator.clipboard.readText());
+  const editItem = async (name: string) => {
+    await bar.getByText("Edit", { exact: true }).click();
+    await bar.getByText("Copy as", { exact: true }).click();
+    return bar.getByRole("button", { name, exact: true });
+  };
+  await layers.getByRole("button", { name: "Label A", exact: true }).click();
+  await (await editItem("Copy as CSS")).click();
+  await expect.poll(read).toBe(expected["3"]);
+  await canvas.press("ControlOrMeta+a");
+  await (await editItem("Copy as text")).click();
+  await expect.poll(read).toBe("First line\nSecond line");
+  await (await editItem("Copy as CSS")).click();
+  await expect.poll(read).toBe(expected["9007199254740993"]);
+  await page.evaluate(() => navigator.clipboard.writeText("Preserve this clipboard"));
+  await (await editItem("Copy link to selection")).evaluate((button: HTMLButtonElement) => button.click());
+  await expect.poll(read).toBe("Preserve this clipboard");
+  await expect(page.getByText("Link copied", { exact: true })).toBeVisible();
+  await (await editItem("Copy as CSS")).evaluate((button: HTMLButtonElement) => button.click());
+  await expect.poll(read).toBe("Preserve this clipboard");
+  await (await editItem("Copy as text")).evaluate((button: HTMLButtonElement) => button.click());
+  await expect.poll(read).toBe("Preserve this clipboard");
+  await (await editItem("Copy link to selection")).click();
+  await expect.poll(read).toBe("figcraft://node/9007199254740993");
+  await layers.getByRole("button", { name: "Card */ outline", exact: true }).click();
+  await (await editItem("Copy as text")).click();
+  await expect.poll(read).toBe("");
+  const at = await canvasPoint(page, 25, 30);
+  await page.mouse.click(at.x, at.y, { button: "right" });
+  const menu = page.getByRole("group", { name: "Canvas actions", exact: true });
+  await menu.getByText("Copy as", { exact: true }).click();
+  await expect(menu.getByRole("button", { name: "Copy as text", exact: true })).toHaveCount(0);
+  await menu.getByRole("button", { name: "Copy link to selection", exact: true }).click();
+  await expect.poll(read).toBe("figcraft://node/9007199254740993");
+});
+
 test("Copy as SVG and PNG writes the selected art through menus and the two-times PNG shortcut",async ({page,context})=>{
   await login(page);
   await context.grantPermissions(["clipboard-read","clipboard-write"],{origin:new URL(page.url()).origin});
