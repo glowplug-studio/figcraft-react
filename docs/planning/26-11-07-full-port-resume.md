@@ -1,5 +1,7 @@
 # Full Figcraft port resume checkpoint
 
+At c833a9c all 320 production Chromium workflows passed in 619.8 seconds with no skips, retries or flakes. Both production builds, strict TypeScript, 2,309 pure checks and both local Auth integrations passed. Android XML matched 95 of 103 pinned files byte for byte. Eight alternative stroke contours passed the per-path coverage checks. The largest relative coverage difference was 0.85% on a curved dashed path. Continue row 12 at PDF page groups, print, vector content, embedded fonts and raster effects.
+
 At c14f32a the editable SVG importer passed all 316 production Chromium workflows in 606.8 seconds with no skips, retries or flakes. All 174 original probes from the 22 upstream SVG corpus files passed. Both production builds, strict types, 2,115 pure checks and both local Auth integrations passed. Continue extended import parity, then the remaining interchange formats.
 
 At 018afe6 all 314 production Chromium workflows passed in 602.8 seconds, with zero skips, retries or flakes. Both builds, strict TypeScript, 2,112 pure checks and two local Auth integrations passed. Native SVG filters, dashed strokes and clipboard artwork passed the local checkpoint. Across 45 vector fixtures the pixels matched exactly. Ten embedded effect images matched native XML structure, with maximum premultiplied channel difference 10 and worst per-scene mean 0.221. Continue editable SVG import against the 22 native corpus files.
