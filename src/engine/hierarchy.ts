@@ -107,6 +107,11 @@ export function zSorted(document: Document, ids: readonly NodeId[]): NodeId[] {
   return [...ids].sort((left, right) => (order.get(left) ?? Number.MAX_SAFE_INTEGER) - (order.get(right) ?? Number.MAX_SAFE_INTEGER));
 }
 
+// The native reader uses a frozen, null-prototype dictionary. Normalise it once
+// so repeated pointer previews can clone an ordinary table without re-enumerating
+// the native dictionary. Each draft still owns its writes.
+const nativeDraftTables = new WeakMap<Document["nodes"], Document["nodes"]>();
+
 export class HierarchyDraft {
   readonly nodes: Record<NodeId, DocumentNode>;
   readonly originalDocument: Document;
@@ -115,7 +120,16 @@ export class HierarchyDraft {
 
   constructor(document: Document, readonly layoutBaseline = document) {
     this.originalDocument = document;
-    this.nodes = { ...document.nodes };
+    let source = document.nodes;
+    if (Object.getPrototypeOf(source) === null && Object.isFrozen(source)) {
+      let table = nativeDraftTables.get(source);
+      if (!table) {
+        table = { ...source };
+        nativeDraftTables.set(source, table);
+      }
+      source = table;
+    }
+    this.nodes = { ...source };
   }
 
   get document(): Document { return { ...this.originalDocument, nodes: this.nodes }; }

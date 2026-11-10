@@ -20,6 +20,20 @@ function fixture(): Document {
 }
 
 describe("hierarchy primitives", () => {
+  it("isolates preview writes when the native node table is reused", () => {
+    const base = fixture();
+    const nodes = Object.freeze(Object.assign(Object.create(null), base.nodes)) as Document["nodes"];
+    const native = {...base, nodes};
+    const first = new HierarchyDraft(native);
+    first.set({...first.nodes["3"], name: "Changed"});
+    const retry = new HierarchyDraft(native);
+    expect(retry.nodes["3"]).toBe(base.nodes["3"]);
+    retry.remove("4");
+    expect(first.nodes["4"]).toBe(base.nodes["4"]);
+    expect(native.nodes["3"].name).toBe("Rectangle 3");
+    expect(native.nodes["4"]).toBe(base.nodes["4"]);
+  });
+
   it("composes world and frame-relative transforms through groups", () => {
     const doc = fixture();
     expect(worldTransform(doc, "3")).toEqual(multiply(worldTransform(doc, "2"), [2, 0.3, 0.5, 1, 10, 20]));
