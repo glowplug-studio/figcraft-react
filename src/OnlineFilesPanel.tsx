@@ -1,3 +1,4 @@
+import { serverUtcDate } from "./engine/sharing/server-date";
 import { OwnerShareControls } from "./OwnerShareControls";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import type { OnlineRow, OnlineWorkspace } from "./engine/sharing/online-workspace";
@@ -18,6 +19,30 @@ function utcDay(seconds: number) {
   return Number.isFinite(date.getTime()) ? date.toISOString().split("T")[0] : "Unknown";
 }
 
+export function OnlineHostingInformation({online, file}: {online: OnlineWorkspace; file?: string}) {
+  const [request, setRequest] = useState(0);
+  const [info, setInfo] = useState<Awaited<ReturnType<OnlineWorkspace["hosting"]>>>();
+  const [failed, setFailed] = useState(false);
+  useEffect(() => {
+    if (!request) return;
+    let current = true;
+    setInfo(undefined); setFailed(false);
+    void online.hosting(file).then(value => { if (current) setInfo(value); },
+      () => { if (current) setFailed(true); });
+    return () => { current = false; };
+  }, [online, file, request]);
+  if (!online.hasHostingInfo) return null;
+  if (!info) return <button type="button" disabled={!!request && !failed} onClick={() => setRequest(n => n + 1)}>
+    {failed ? "Retry server information" : request ? "Asking the server…" : "About this server"}
+  </button>;
+  const days = (BigInt(info.idleSeconds) + 86399n) / 86400n;
+  return <div className="figcraft-hosting-information">
+    {days > 0n && <p>Files nobody opens for {days.toString()} {days === 1n ? "day" : "days"} are deleted.</p>}
+    {info.expires && <p>The server deletes this file if nobody opens it before {serverUtcDate(info.expires)}.</p>}
+    <p>The server operator can read files hosted here.</p>
+  </div>;
+}
+
 export function PublishOnlineDialog({ online, tab, close, published }: {
   online: OnlineWorkspace; tab: { id: number; name: string }; close: () => void; published: (name: string) => void;
 }) {
@@ -34,6 +59,7 @@ export function PublishOnlineDialog({ online, tab, close, published }: {
       finally { setBusy(false); }
     }}>
       <label>Server address<input readOnly value={online.server} /></label>
+      <OnlineHostingInformation online={online} />
       <label>File name<input autoFocus value={name} disabled={busy} onFocus={e => e.currentTarget.select()} onChange={e => setName(e.target.value)} /></label>
       {error && <p role="alert">{error}</p>}
       <button disabled={busy}>Publish</button><button type="button" onClick={close}>Cancel</button>
@@ -108,6 +134,7 @@ export function OnlineFilesPanel({ online, opened }: { online: OnlineWorkspace; 
           <button disabled={busy} onClick={() => void run(() => online.forget(row.file))}>Forget on this computer</button>
         </> : row.state === "gone" ? <button disabled={busy} onClick={() => void run(() => online.forget(row.file))}>Clear from this list</button> : <>
           <button disabled={busy} onClick={() => void run(() => online.open(row.file), true)}>Open</button>
+          {row.expires && <p>The server deletes this file if nobody opens it before {serverUtcDate(row.expires)}.</p>}
           {online.sharing && actions === row.file && <OwnerShareControls file={row.file} sharing={online.sharing} changed={updateShared} />}
           <button disabled={busy} onClick={() => { setName(row.name); setDialog({ row, action: "rename" }); }}>Rename on the server…</button>
           <button disabled={busy} onClick={() => setDialog({ row, action: "remove" })}>Remove from server…</button>

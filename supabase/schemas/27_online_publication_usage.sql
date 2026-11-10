@@ -50,6 +50,9 @@ declare
 begin
     -- Admission and reservation are one transaction across all host workers.
     perform pg_advisory_xact_lock(650130, 3);
+    if exists (select from figcraft_private.online_retirements r where r.snapshot_id = snapshot) then
+        raise exception 'this upload is being removed; retry publication' using errcode = '55000';
+    end if;
     select exists(select from public.online_files f
         where f.id = target and f.owner_id = actor and f.snapshot_id = snapshot) into existing;
     if not existing then

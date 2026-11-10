@@ -2,7 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { OnlineFileInfo, OnlineFileStore } from "../online-files";
 
 const bucket = "figcraft-files";
-const columns = "id,name,created_at";
+const columns = "id,name,created_at,online_expiry_epoch";
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
 export function onlineSnapshotPath(principal: string, id: string) {
@@ -10,8 +10,8 @@ export function onlineSnapshotPath(principal: string, id: string) {
   return principal + "/" + id + ".figcraft";
 }
 
-export function onlineFileInfo(row: { id: string; name: string; created_at: string }): OnlineFileInfo {
-  return { id: row.id, name: row.name, created: row.created_at };
+export function onlineFileInfo(row: { id: string; name: string; created_at: string; online_expiry_epoch?: string | null }): OnlineFileInfo {
+  return { id: row.id, name: row.name, created: row.created_at, expires: row.online_expiry_epoch };
 }
 
 async function sameBytes(first: Blob, second: Blob) {
@@ -28,6 +28,13 @@ export class SupabaseOnlineFileStore implements OnlineFileStore {
     private principal: string,
     private finalise: (id: string) => Promise<OnlineFileInfo>,
   ) {}
+
+  async hosting(file?: string) {
+    const result = await this.client.rpc("online_host_information", {target: file ?? null})
+      .single<{idle_seconds: string; expires: string | null}>();
+    if (result.error) throw result.error;
+    return {idleSeconds: result.data.idle_seconds, expires: result.data.expires};
+  }
 
   async publish(id: string, snapshot: Blob) {
     const path = onlineSnapshotPath(this.principal, id);

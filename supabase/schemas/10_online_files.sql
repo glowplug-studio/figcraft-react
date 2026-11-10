@@ -6,6 +6,8 @@ create table public.online_files (
     snapshot_id uuid not null unique references storage.objects (id) on delete cascade,
     published_link_fingerprint text check (published_link_fingerprint ~ '^[0-9a-f]{64}$'),
     name text not null check (char_length(name) <= 256),
+    published_without_key boolean not null default true,
+    document_updated_at timestamptz,
     created_at timestamptz not null default now()
 );
 

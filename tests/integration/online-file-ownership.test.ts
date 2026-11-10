@@ -1,4 +1,7 @@
 import { createHash, randomUUID } from "node:crypto";
+import { spawn } from "node:child_process";
+import { once } from "node:events";
+import { createInterface } from "node:readline";
 import { readFile } from "node:fs/promises";
 import { createClient, type RealtimeChannel } from "@supabase/supabase-js";
 import { unzipSync } from "fflate";
@@ -281,6 +284,98 @@ describe.skipIf(!enabled)("private online files on real local Supabase", () => {
     expect(await grants()).toEqual([]);
   });
 
+  it("retires an idle listing and retries Storage deletion without touching a replacement", async () => {
+    const file = randomUUID(), path = owner.id + "/" + file + ".figcraft";
+    paths.push(path);
+    const writer = local!.admin, links = createPublishedLinks(), proof = await publishedLinkDigests(links);
+    const bytes = new Blob([archive]);
+    const store = new SupabaseOnlineFileStore(owner.client, owner.id, id => finaliseForTest(owner.client, writer, id, proof));
+    await store.publish(file, bytes);
+    const info = await owner.client.storage.from(bucket).info(path);
+    if (info.error) throw info.error;
+    const snapshot = info.data.id;
+    const claim = async () => {
+      const result = await writer.rpc("claim_online_retirement", {target: snapshot, idle_seconds: 1});
+      if (result.error) throw result.error;
+      return result.data as {object_path: string; claim: string}[];
+    };
+    const worker = (token?: string) => createClient(local!.url, local!.key, {
+      auth: {persistSession: false, autoRefreshToken: false},
+      global: {headers: token ? {"x-figcraft-retirement": token} : {}},
+    }).storage.from(bucket);
+    const age = await writer.from("online_files").update({created_at: new Date(Date.now() - 60_000).toISOString()}).eq("id", file);
+    expect(age.error).toBeNull();
+    const [first] = await claim();
+    expect(first?.object_path).toBe(path);
+    expect(await store.owned([file])).toEqual([]);
+    expect((await owner.client.storage.from(bucket).download(path)).error).toBeTruthy();
+    const session = (await stranger.client.auth.getClaims()).data!.claims.session_id as string;
+    await expect(readSharedDrawing(stranger.client, writer, stranger.id, session, randomUUID(), file, links.view.token))
+      .rejects.toThrow("unavailable");
+    await expect(finaliseForTest(owner.client, writer, file, proof)).rejects.toBeTruthy();
+    const [retry] = await claim();
+    expect(retry.claim !== first.claim).toBe(true);
+    for (const credential of [undefined, randomUUID(), first.claim]) {
+      await worker(credential).remove([path]);
+      expect((await writer.storage.from(bucket).info(path)).data?.id).toBe(snapshot);
+    }
+    expect((await worker(retry.claim).download(path)).error).toBeTruthy();
+    const removed = await worker(retry.claim).remove([path]);
+    expect(removed.error).toBeNull();
+    expect(removed.data).toHaveLength(1);
+    expect((await writer.storage.from(bucket).download(path)).error).toBeTruthy();
+    expect(await claim()).toHaveLength(0);
+    await store.publish(file, bytes);
+    await worker(retry.claim).remove([path]);
+    const replacement = await owner.client.storage.from(bucket).info(path);
+    expect(replacement.error).toBeNull();
+    expect(replacement.data?.id === snapshot).toBe(false);
+    expect(new Uint8Array(await (await store.open(file)).arrayBuffer())).toEqual(archive);
+  });
+
+  it("serialises a due file's retirement with admission of a real guest", async () => {
+    const file = randomUUID(), path = owner.id + "/" + file + ".figcraft";
+    paths.push(path);
+    const writer = local!.admin, links = createPublishedLinks(), proof = await publishedLinkDigests(links);
+    const store = new SupabaseOnlineFileStore(owner.client, owner.id, id => finaliseForTest(owner.client, writer, id, proof));
+    await store.publish(file, new Blob([archive]));
+    const object = await owner.client.storage.from(bucket).info(path);
+    if (object.error) throw object.error;
+    const age = await writer.from("online_files").update({created_at: new Date(Date.now() - 60_000).toISOString()}).eq("id", file);
+    expect(age.error).toBeNull();
+    const tab = randomUUID(), session = (await stranger.client.auth.getClaims()).data!.claims.session_id as string;
+    // Hold the exact file lock that an in-flight admission takes. The sweeper
+    // must leave it alone while admission may still be reclaiming stale grants.
+    const lock = spawn("docker", ["exec", "-i", "supabase_db_figcraft-react", "psql",
+      "-XqAt", "-v", "ON_ERROR_STOP=1", "-U", "postgres", "-d", "postgres"]);
+    const lines = createInterface({input:lock.stdout});
+    const closed = once(lock, "close");
+    try {
+      const locked = once(lines, "line", {signal:AbortSignal.timeout(4000)});
+      lock.stdin.write("begin; select 'locked' from public.online_files where id='" + file + "' for key share;\n");
+      expect((await locked)[0]).toBe("locked");
+      const whileOpening = await writer.rpc("claim_online_retirement", {target:object.data.id, idle_seconds:1})
+        .abortSignal(AbortSignal.timeout(3000));
+      expect(whileOpening.error).toBeNull();
+      expect(whileOpening.data).toHaveLength(0);
+    } finally {
+      lock.stdin.end("rollback;\n");
+      await closed;
+      lines.close();
+    }
+    const [joined, swept] = await Promise.allSettled([
+      readSharedDrawing(stranger.client, writer, stranger.id, session, tab, file, links.view.token),
+      writer.rpc("claim_online_retirement", {target: object.data.id, idle_seconds: 1}).throwOnError(),
+    ]);
+    if (swept.status === "rejected") throw swept.reason;
+    const claimed = swept.value.data.length > 0;
+    expect(claimed).toBe(joined.status === "rejected");
+    if (joined.status === "rejected") expect(joined.reason.message).toContain("unavailable");
+    else expect(joined.value.bytes.size).toBe(archive.byteLength);
+    expect((await stranger.client.rpc("online_connection_active", {tab})).data).toBe(!claimed);
+    expect(await store.owned([file])).toHaveLength(claimed ? 0 : 1);
+  });
+
   it("binds an invite to its Auth session and denies signed URLs, writes and downloads after revocation", async () => {
     const keys = createPublishedLinks();
     const proof = await publishedLinkDigests(keys);
@@ -294,7 +389,15 @@ describe.skipIf(!enabled)("private online files on real local Supabase", () => {
     const join = (token: string, connection = tab) => readSharedDrawing(stranger.client, writer, stranger.id, session, connection, file, token);
     expect((await guest.download(path)).error).toBeTruthy();
     await expect(join(proof.view.hash)).rejects.toThrow("unavailable");
+    const hosting = async () => {
+      const result = await stranger.client.rpc("online_host_information", {target:file})
+        .single<{idle_seconds:string; expires:string | null}>();
+      if (result.error) throw result.error;
+      return result.data;
+    };
+    expect(await hosting()).toEqual({idle_seconds:"2592000",expires:null});
     const first = await join(keys.view.token);
+    expect((await hosting()).expires).toMatch(/^\d+$/);
     expect(first.access).toBe("view");
     expect(new Uint8Array(await first.bytes.arrayBuffer())).toEqual(archive);
     expect((await join(keys.view.token)).access).toBe("view");
@@ -323,6 +426,7 @@ describe.skipIf(!enabled)("private online files on real local Supabase", () => {
     expect((await writer.from("online_file_connections").select("id").eq("id", leaving)).data).toEqual([]);
     await expect(join(keys.edit.token)).rejects.toThrow("unavailable");
     await changeFileLinks(writer, owner.id, file, [keys.view.id]);
+    expect((await hosting()).expires).toBeNull();
     expect((await guest.download(path)).error).toBeTruthy();
     await expect(join(keys.view.token)).rejects.toThrow("unavailable");
     expect((await join(keys.edit.token, randomUUID())).access).toBe("edit");

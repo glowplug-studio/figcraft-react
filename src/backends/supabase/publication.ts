@@ -89,7 +89,11 @@ export async function finaliseOnlineFile(user: SupabaseClient, writer: SupabaseC
       ...retained, actor: principal, target: id, snapshot: object.data.id, title: name,
       links: pair, verify_pair: links !== undefined, measured,
     }).single<{ id: string; name: string; created_at: string }>();
-    if (!reply.error) return onlineFileInfo(reply.data);
+    if (!reply.error) {
+      const info = await user.rpc("online_host_information", {target: id}).single<{expires: string | null}>();
+      if (info.error) throw info.error;
+      return onlineFileInfo({...reply.data, online_expiry_epoch: info.data.expires});
+    }
     if (reply.error.code === "FC002") throw new PublicationCapacityError(reply.error.message);
     if (reply.error.code !== "FC001") throw reply.error;
     await measurePriorPublications(writer);

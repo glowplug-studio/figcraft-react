@@ -1,3 +1,4 @@
+import { serverUtcDate } from "../../src/engine/sharing/server-date";
 import { readFileSync } from "node:fs";
 import { IDBFactory } from "fake-indexeddb";
 import { strFromU8, unzipSync } from "fflate";
@@ -302,4 +303,11 @@ it("keeps pending owner changes across tabs and excludes credentials from public
   await second.onlineFiles("owner", () => [record]);
   expect(await second.ownerSharing("owner", record.server, record.file)).toEqual({links: []});
   second.close();
+});
+
+
+it("formats native UTC minutes throughout the unsigned server clock range", () => {
+  expect(serverUtcDate("0")).toBe("1970-01-01 00:00 UTC");
+  expect(serverUtcDate("951782400")).toBe("2000-02-29 00:00 UTC");
+  expect(serverUtcDate("18446744073709551615")).toBe("584554051223-11-09 07:00 UTC");
 });

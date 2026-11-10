@@ -1,5 +1,5 @@
 import { OwnerShareControls } from "./OwnerShareControls";
-import { OnlineFilesPanel, PublishOnlineDialog } from "./OnlineFilesPanel";
+import { OnlineFilesPanel, OnlineHostingInformation, PublishOnlineDialog } from "./OnlineFilesPanel";
 import { OnlineWorkspace } from "./engine/sharing/online-workspace";
 import type { GuestConnectionStatus, GuestSessionEnd, OnlineInvitations, OnlineWorkspaceHost } from "./backends/online-files";
 import { defaultPrint, type PrintSettings } from "./engine/export-settings";
@@ -144,6 +144,7 @@ export function WorkspaceEditor({ identity, capabilities, recoveryStore, onlineH
     }}>Copy {access} link</button>)}
   </div></details>;
   const fileMenu = active && <>
+    {online && guest && !guest.ended && <OnlineHostingInformation key={guest.connection} online={online} file={guest.file} />}
     {invitations && <button type="button" disabled={!enabled} onClick={event => {
       event.currentTarget.closest("details")?.removeAttribute("open"); invitations.showJoin();
     }}>Join live session…</button>}

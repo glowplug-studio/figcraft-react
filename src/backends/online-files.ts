@@ -3,10 +3,13 @@ export interface OnlineFileInfo {
   id: string;
   name: string;
   created: string;
+  /** UTC epoch seconds as decimal text to preserve the native u64 range. */
+  expires?: string | null;
 }
 
 /** An embedding host supplies the authenticated store. Publication IDs survive retries. */
 export interface OnlineFileStore {
+  hosting?(file?: string): Promise<{idleSeconds: string; expires: string | null}>;
   publish(id: string, snapshot: Blob): Promise<OnlineFileInfo>;
   owned(ids: readonly string[]): Promise<readonly OnlineFileInfo[]>;
   open(id: string): Promise<Blob>;

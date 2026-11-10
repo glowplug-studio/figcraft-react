@@ -19,3 +19,17 @@ The host accounts for retained publication capacity in the same transaction as t
 The server admits ten new public-host publications per hour per address by default, with the native wider-block multipliers and 32 times that rate across the host. Set `FIGCRAFT_PUBLISHES_PER_HOUR` to override it. To check the limit in the editor, start the local production preview with this setting at 1 and run `FIGCRAFT_E2E_HOURLY_LIMIT=1 npx playwright test --grep 'hourly publication limit survives' --workers=1` against a fresh local admission budget. After the first file, a second publication receives HTTP 429. Removing the first file does not reset the hourly allowance. An acknowledgement retry on the first file still succeeds before removal.
 
 For cumulative browser regression, restart the idle local Figcraft database after the dedicated hourly-limit check and start the production preview with `FIGCRAFT_PUBLISHES_PER_HOUR=1000`. This prevents unrelated fixture publications from exhausting the default ten-per-hour allowance. The default and one-per-hour behaviour are verified separately by the SQL and dedicated production checks. The rate override is server-side and does not change product defaults.
+
+File expiry runs in PostgreSQL through pg_cron and pg_net. Public-host files default to 30 idle days. The first room open, final departure or a newer journal update extends the deadline. A live room survives a sweep. An operator-key file has no expiry. Unregistered immutable uploads have ten minutes to finalise before a sweep may reclaim them. A device with an unconfirmed upload retains its original bytes for retry.
+
+After a local reset and bucket seed, run `node scripts/configure-local-retirement.mjs`. This configures the local gateway in Vault and runs an initial catch-up. On a hosted installation, provision Vault entries `figcraft_storage_api_url` (the project URL ending in `/storage/v1`) and `figcraft_storage_publishable_key` (the project's publishable key), then run `select figcraft_private.sweep_online_files();` as the database operator. The scheduled tasks run every ten minutes and at database startup. The delete request carries a capability valid for one immutable object. A lost or rejected request can be retried at the next sweep. Supabase documents how [pg_net queues and retains requests](https://supabase.com/docs/guides/database/extensions/pg_net).
+
+Set the host idle period in seconds as the database operator. Zero keeps public-host files indefinitely. Existing committed deletion claims still finish, and abandoned uploads are collected independently.
+
+```sql
+insert into figcraft_private.online_retention_settings (singleton, idle_seconds)
+values (true, 2592000)
+on conflict (singleton) do update set idle_seconds = excluded.idle_seconds;
+```
+
+Run `node scripts/verify-local-retirement.mjs` on an empty local stack to test the installed schedule, actual Storage removal and recovery of a committed claim after a PostgreSQL restart. To exercise an interrupted browser publication through the real ten-minute staging interval, start the local production preview and run `FIGCRAFT_VERIFY_STAGING_CLEANUP=1 npx playwright test tests/e2e/preview.spec.ts --grep 'interrupted publication before server confirmation' --workers=1`. Allow up to 21 minutes for the next eligible sweep.

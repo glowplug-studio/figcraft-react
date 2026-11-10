@@ -240,6 +240,8 @@ test("publish, reopen and manage a device-owned file in Home Online", async ({ p
     await bar.getByText("File", { exact: true }).click();
     await bar.getByRole("button", { name: "Publish to server…", exact: true }).click();
     const form = page.getByRole("dialog", { name: "Publish to server", exact: true });
+    await form.getByRole("button", {name: "About this server"}).click();
+    await expect(form.getByText("Files nobody opens for 30 days are deleted.")).toBeVisible();
     await form.getByLabel("File name").fill(name);
     await form.getByRole("button", { name: "Publish", exact: true }).click();
     await expect(form).toHaveCount(0);
@@ -263,6 +265,10 @@ test("publish, reopen and manage a device-owned file in Home Online", async ({ p
     const firstJoin = page.waitForRequest(r => new URL(r.url()).pathname === "/api/online-files/join");
     await publish("Owner drawing");
     const sourceConnection = (await firstJoin).postDataJSON().tab;
+    await bar.getByText("File", {exact:true}).click();
+    await bar.getByRole("button", {name:"About this server"}).click();
+    await expect(bar.getByText(/The server deletes this file if nobody opens it before .* UTC/)).toBeVisible();
+    await bar.getByText("File", {exact:true}).click();
     await expect(bar.getByText(/Can edit/)).toBeVisible();
     const ownerGrant = async (tab: string) => {
       const row = await backend!.admin.from("online_file_connections").select("principal_id,online_file_links!inner(access_level)")
@@ -395,6 +401,23 @@ for (const confirmed of [true, false]) {
       const staged = await client.storage.from("figcraft-files").download(path);
       expect(staged.error).toBeNull();
       const original = Buffer.from(await staged.data!.arrayBuffer());
+      if (!confirmed) {
+        if (process.env.FIGCRAFT_VERIFY_STAGING_CLEANUP === "1") {
+          const local = backend;
+          if (!local) throw new Error("Scheduled staging cleanup requires the local fixture");
+          test.setTimeout(22 * 60_000);
+          const before = await local.admin.storage.from("figcraft-files").info(path);
+          expect(before.error).toBeNull();
+          await expect.poll(async () => {
+            const row = await local.admin.storage.from("figcraft-files").info(path);
+            return !!row.error && /not found|does not exist/i.test(row.error.message);
+          }, {timeout:21 * 60_000, intervals:[5000]}).toBe(true);
+        } else if (backend) {
+          // Simulate cleanup between the failed finalisation and device recovery.
+          const removed = await backend.admin.storage.from("figcraft-files").remove([path]);
+          expect(removed.data).toHaveLength(1);
+        }
+      }
       await page.unroute(endpoint);
       await page.reload();
       await bar.getByRole("button", { name: "Home", exact: true }).click();
@@ -542,6 +565,10 @@ test("the published view and edit invites open the original drawing in another s
     await expect(toolbar.getByText(/View only/)).toBeVisible();
     await expect(guest.getByRole("button", { name: "Create rectangle", exact: true })).toBeDisabled();
     expect(new URL(guest.url()).hash).toBe("");
+    await toolbar.getByText("File", {exact:true}).click();
+    await toolbar.getByRole("button", {name:"About this server"}).click();
+    await expect(toolbar.getByText(/The server deletes this file if nobody opens it before .* UTC/)).toBeVisible();
+    await toolbar.getByText("File", {exact:true}).click();
     await bar.getByRole("button", {name: "Start sharing", exact: true}).click();
     await bar.getByLabel("Access", {exact: true}).selectOption("comment");
     await bar.getByRole("button", {name: "Copy link", exact: true}).click();

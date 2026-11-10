@@ -75,7 +75,10 @@ grant execute on function figcraft_private.shared_snapshot_ids() to authenticate
 create policy "Owners and current link sessions read snapshots" on storage.objects
     for select to authenticated
     using (bucket_id = 'figcraft-files' and (
-        owner_id = (select auth.uid())::text or (
+        (owner_id = (select auth.uid())::text and (
+            (select storage.allow_only_operation('object.delete_many'))
+            or id not in (select figcraft_private.own_retired_snapshots())
+        )) or (
             (select storage.allow_only_operation('object.get_authenticated'))
             and id in (select figcraft_private.shared_snapshot_ids())
         )

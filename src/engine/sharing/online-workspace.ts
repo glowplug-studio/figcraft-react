@@ -3,11 +3,12 @@ import type { EditorWorkspace } from "../workspace";
 import { cleanOnlineName, prepareOnlineSnapshot } from "./publication";
 import { MAX_ONLINE_FILES, onlineServerKey } from "./remembered-files";
 
-export type OnlineRow = RememberedOnlineFile & { state: "unknown" | "online" | "gone" | "pending" };
+export type OnlineRow = RememberedOnlineFile & { expires?: string | null; state: "unknown" | "online" | "gone" | "pending" };
 
 export class OnlineWorkspace {
   readonly server: string;
   private states = new Map<string, OnlineRow["state"]>();
+  private expiries = new Map<string, string | null>();
   private tabs = new Map<string, number>();
   private publishingTabs = new Map<number, string>();
   private operation = false;
@@ -16,6 +17,15 @@ export class OnlineWorkspace {
     private principal: string, private authorised: () => boolean) {
     this.server = onlineServerKey(host.server);
     if (!this.server) throw new Error("Invalid online server address");
+  }
+
+  get hasHostingInfo() { return !!this.host.store.hosting; }
+
+  async hosting(file?: string) {
+    this.check();
+    const info = await this.host.store.hosting?.(file);
+    this.check();
+    return info;
   }
 
   get sharing() { return this.host.sharing; }
@@ -87,7 +97,7 @@ export class OnlineWorkspace {
         server, file, name, created: started, opened: started, state: "pending" as const,
       })),
       ...files.filter(row => row.server === this.server).map(row => ({
-        ...row, state: this.states.get(row.file) ?? "unknown" as const,
+        ...row, expires: this.expiries.get(row.file), state: this.states.get(row.file) ?? "unknown" as const,
       })),
     ];
   }
@@ -128,6 +138,9 @@ export class OnlineWorkspace {
         return { files: [...recovered, ...files], pending };
       });
       for (const row of remembered) {
+        const expiry = byId.get(row.file)?.expires;
+        if (expiry === undefined) this.expiries.delete(row.file);
+        else this.expiries.set(row.file, expiry);
         if (byId.has(row.file)) this.states.set(row.file, "online");
         else if (row.state !== "pending") this.states.set(row.file, "gone");
       }
@@ -145,6 +158,7 @@ export class OnlineWorkspace {
         pending: current.pending.filter(row => !this.matches(row, file.id)) };
     });
     this.states.set(file.id, "online");
+    if (file.expires !== undefined) this.expiries.set(file.id, file.expires);
     return file;
   }
 
@@ -251,6 +265,7 @@ export class OnlineWorkspace {
       pending: current.pending.filter(row => !this.matches(row, id)),
     }));
     this.states.delete(id);
+    this.expiries.delete(id);
     this.tabs.delete(id);
   }
 
