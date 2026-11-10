@@ -111,3 +111,5 @@ The decoder checkpoint at 8ca195d passed 147/147 production Chromium checks. The
 ## 9 November image sampling and source colour
 
 The full suite passed 148/148 at ba25ef5. Resume from 3c80225 with PNG gamma and chromaticity labelling verified by 1,055 pure tests, both local Auth checks, strict types, production builds and three focused Chromium workflows. The [image plan](26-11-09-image-paints.md#raster-import-and-crop) lists the exact embedded ICC acceptance cases, remaining image limits and subsequent gates. No hosted change accompanied these checkpoints.
+
+10 November. PDF checkpoint 52429e0 passed 323 production Chromium workflows in 428.1 seconds. The next operation is native page appending with asset and reference remapping. REST, Fig/Jam, Sketch, Penpot, later roadmap rows and final publication remain open. See the [interchange plan](26-11-10-file-interchange.md#imported-pages-and-rest-documents).
