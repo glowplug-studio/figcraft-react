@@ -4,11 +4,13 @@
 
 A single `continue` is enough, including in a fresh chat opened in the canonical checkout. The original objective covers the full browser port on `prompt/full-figcraft-port`. Use the [master checkpoint](26-11-06-complete-figcraft-port.md#execution-checkpoint) for the active phase and verified commit. Inspect Git status and recent history first, including uncommitted work. Check the actual handle for any running verification and consume its result before starting a replacement. The HTML tracker is local and stays outside commits.
 
-**Current action — collect the full production Chromium result at `d57e49f`.** The one-worker suite started at 05:25 ICT on 11 November and writes `/tmp/fc-expiry-receipt-release.json`. Inspect the process before rerunning. Record pass, failure, skip and flake counts, then continue to team discovery when the gate passes.
+**Current action — implement the team directory’s private settings, bounded listing and grant lifetime.** Work on `prompt/full-figcraft-port` in the canonical checkout. Start at steps 1 and 2 of the [team directory plan](26-11-11-team-directory.md), then wire the authenticated Home and invite workflow. Run the native comparison, two-account allow/deny tests and the complete regression before advancing to ordered collaboration. The next release-dependent and post-publication reviews are listed in [deferred tests and reviews](#deferred-tests-and-reviews).
+
+**Latest completed gate.** All 353 production Chromium workflows passed at `d57e49f` in 754.4 seconds with zero skips, retries or flakes. The suite covered the owner and independent guest expiry views and exact publication receipts. The separate real-time staging recovery passed as described below. Local cleanup left zero accounts, files, Storage objects or connections. No browser gate from this checkpoint is outstanding. If temporary output has expired, use the reproduction commands below.
 
 **Timed browser recovery passed.** At `f11ae73` Chromium waited for the actual ten-minute scheduler to remove an interrupted upload. After reload, the device retained its pending entry. Retry republished it, reopened the original rectangle and downloaded byte-identical archive contents. One passed in 1,112.5 seconds, with zero skips or retries. Report: `/tmp/fc-expiry-pending.json`. The initial full run at this revision passed 122, failed one and skipped 230 after a serial fixture stopped. The receipt expectation omitted the new expiry field. At `d57e49f` the corrected test verified the exact 30-day deadline and idempotent response in 5.9 seconds.
 
-From the canonical checkout, if the processes and results are gone, follow the [local adapter setup](../../supabase/README.md), configure the local retirement worker and serve the production build with the documented 1,000-publication test allowance. Reproduce with:
+To reproduce the finished expiry gates from the canonical checkout, follow the [local adapter setup](../../supabase/README.md), configure the local retirement worker and serve the production build with the documented 1,000-publication test allowance. Reproduce with:
 
 ```sh
 FIGCRAFT_VERIFY_STAGING_CLEANUP=1 npx playwright test tests/e2e/preview.spec.ts --grep 'interrupted publication before server confirmation' --workers=1
@@ -19,7 +21,7 @@ The timed test must see the actual scheduled removal of the unconfirmed upload, 
 
 **Already verified at `f11ae73`.** All 240 native expiry decisions, 176 SQL checks, 16 provider integrations and 4,402 pure checks passed. Strict types, both builds, advisers, schema drift and dependency audit passed. Real periodic cleanup removed an immutable Storage object. A real database restart recovered a separate pending deletion. Replaying the old credential left a same-path replacement intact. The ten-minute grace period accommodates the browser’s separate upload and finalisation requests. [Expiry and cleanup evidence](26-11-10-online-file-ownership.md#expiry-and-abandoned-object-deletion).
 
-**Next implementation.** After closing the cumulative browser check, execute the [team directory plan](26-11-11-team-directory.md). Then resume ordered collaboration and the remaining master roadmap. At final publication replace this top action with the first eligible item in [deferred tests and reviews](#deferred-tests-and-reviews).
+**Next implementation.** Execute the [team directory plan](26-11-11-team-directory.md). Then resume ordered collaboration and the remaining master roadmap. At final publication replace this top action with the first eligible item in [deferred tests and reviews](#deferred-tests-and-reviews).
 
 **Last verified evidence.** At `1557f79`, all five production owner/guest workflows passed in 67.1 seconds. Clean migration replay, 156 pgTAP checks, fourteen real provider integrations, 24 competing leave/revoke/removal trials, strict types, advisers and empty schema drift passed. Updated evidence is in the [ownership report](../reports/26-11-11-online-file-ownership-parity.html). The preceding full run at `bc30c6c` finished with 350 passes and three failures in 1,058.2 seconds. The dense grid drag measured 18.7 ms against 16.7 ms. Outline stroke timed out during teardown, and live pattern rendering timed out during browser setup and execution. All three passed three isolated runs apiece in 21.1 seconds. Repeat those checks with `npx playwright test tests/e2e/layout-performance.spec.ts tests/e2e/outline-stroke.spec.ts tests/e2e/pattern-rendering.spec.ts --grep 'single-frame grid gap drag|Outline stroke keeps|live patterns repeat' --repeat-each=3 --workers=1`. The subsequent full run at `1557f79` passed all 353 workflows.
 
@@ -55,7 +57,7 @@ npx playwright test tests/e2e/preview.spec.ts --grep 'owner sharing retries|publ
 npx playwright test tests/e2e/layout-performance.spec.ts tests/e2e/stroke-performance.spec.ts --grep 'single-frame (grid gap drag|wrapped reorder)|Vector network stroke previews' --repeat-each=3 --workers=1
 ```
 
-**Remaining dependency order.** Close the cumulative browser check, then implement and verify team discovery. Row 14 still requires ordered edits, presence, shared comments and merging disconnected changes. [Ownership plan](26-11-10-online-file-ownership.md#link-issuance-and-redemption) · [Property matrix](../reports/26-11-11-online-file-ownership-parity.html).
+**Remaining dependency order.** Implement and verify team discovery. Row 14 still requires ordered edits, presence, shared comments and merging disconnected changes. [Ownership plan](26-11-10-online-file-ownership.md#link-issuance-and-redemption) · [Property matrix](../reports/26-11-11-online-file-ownership-parity.html).
 
 ## Deferred tests and reviews
 
@@ -84,6 +86,8 @@ To prepare the first input for the published editor, run this from the repositor
 ```sh
 node --input-type=module -e 'import fs from "node:fs"; import os from "node:os"; import path from "node:path"; const rows=JSON.parse(fs.readFileSync("tests/fixtures/native-rest-documents.json","utf8")); const dir=fs.mkdtempSync(path.join(os.tmpdir(),"figcraft-review-")); const file=path.join(dir,"linked-components.figcraft"); fs.writeFileSync(file,Buffer.from(rows.find(row=>row.name==="linked components").archive,"base64")); console.log(file)'
 ```
+
+For the text review, extract `decorated.figcraft` from the [text fixtures](../../tests/fixtures/native-fig-text.zip). Its native export warns that text on a path becomes plain text and its native reopen reports no warnings. For the embedded-image review, use the same decoding command with the `missing images` row and a distinct output filename. Its reference reopen has one image, one layer, one page and no warnings. Compare the reader against the reference result for each fixture. Reproduce both native controls with `npx vitest run tests/parity/fig-export.test.ts`. [Text export receipts](../../tests/fixtures/native-fig-export.zip) · [Image reopen receipts](../../tests/fixtures/native-fig-imports.zip).
 
 If access to an external reader is pending, prepare the remaining release exports and record their checksums and native reopen results. Then take the independent phone keyboard review when a device is available. Keep external acceptance open against the same files. Plugins and widgets require a separate user decision.
 
