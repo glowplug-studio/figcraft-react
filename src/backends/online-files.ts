@@ -23,7 +23,25 @@ export interface RememberedOnlineFile {
   opened: number;
 }
 
+/** Private, immutable upload retained until the host confirms the listing. */
+export interface PendingOnlinePublication {
+  file: string;
+  name: string;
+  server: string;
+  started: number;
+  snapshot: Blob;
+}
+
+export interface OnlineFileRegistry {
+  files: readonly RememberedOnlineFile[];
+  pending: readonly PendingOnlinePublication[];
+}
+
 export interface OnlineFileDevice {
+  onlineRegistry(
+    principal: string,
+    update?: (current: OnlineFileRegistry) => OnlineFileRegistry,
+  ): Promise<OnlineFileRegistry>;
   onlineFiles(
     principal: string,
     update?: (current: readonly RememberedOnlineFile[]) => readonly RememberedOnlineFile[],

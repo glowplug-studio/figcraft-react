@@ -1,5 +1,5 @@
-import type { OnlineFileDevice, RememberedOnlineFile } from "../online-files";
-import { readRememberedFiles } from "../../engine/sharing/remembered-files";
+import type { OnlineFileDevice, OnlineFileRegistry, RememberedOnlineFile } from "../online-files";
+import { readOnlineRegistry } from "../../engine/sharing/remembered-files";
 import type { WorkspaceArchive, WorkspaceRecoveryStore } from "../recovery";
 
 const SNAPSHOTS = "snapshots";
@@ -111,15 +111,20 @@ export class IndexedDbRecoveryStore implements WorkspaceRecoveryStore, OnlineFil
     return stored instanceof ArrayBuffer ? new Blob([stored]) : stored;
   }
 
-  onlineFiles(principal: string, update?: (current: readonly RememberedOnlineFile[]) => readonly RememberedOnlineFile[]) {
+  onlineRegistry(principal: string, update?: (current: OnlineFileRegistry) => OnlineFileRegistry) {
     const key = [principal, "online-files"];
     return this.#transaction(principal, update ? "readwrite" : "readonly", store => store.get(key), (value, store) => {
-      const current = readRememberedFiles(value);
+      const current = readOnlineRegistry(value);
       if (!update) return current;
-      const next = readRememberedFiles(update(current));
+      const next = readOnlineRegistry(update(current));
       store.put(next, key);
       return next;
     });
+  }
+
+  async onlineFiles(principal: string, update?: (current: readonly RememberedOnlineFile[]) => readonly RememberedOnlineFile[]) {
+    const registry = await this.onlineRegistry(principal, update && (current => ({ ...current, files: update(current.files) })));
+    return registry.files;
   }
 
   readLibrary(principalId:string,path:string):Promise<Blob|null> {

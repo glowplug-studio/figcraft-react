@@ -242,6 +242,71 @@ test("publish, reopen and manage a device-owned file in Home Online", async ({ p
   }
 });
 
+for (const confirmed of [true, false]) {
+  test("reload recovers an interrupted publication " + (confirmed ? "after" : "before") + " server confirmation", async ({ page }) => {
+    await login(page);
+    const url = backend?.url ?? process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const key = backend?.key ?? process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+    if (!url || !key) throw new Error("Configure Supabase for the interrupted publication fixture");
+    const { createClient } = await import("@supabase/supabase-js");
+    const client = createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } });
+    const session = await client.auth.signInWithPassword({ email, password });
+    if (session.error) throw session.error;
+    const bar = page.locator(".figcraft-document-bar");
+    const endpoint = "**/api/online-files";
+    let fileId: string | undefined;
+    let intercepted = 0;
+    await page.route(endpoint, async route => {
+      fileId = route.request().postDataJSON().id;
+      intercepted++;
+      if (confirmed) expect((await route.fetch()).ok()).toBe(true);
+      await route.fulfill({ status: 503, json: { error: "fixture interrupted" } });
+    });
+    try {
+      await page.getByRole("button", { name: "Create rectangle", exact: true }).click();
+      await bar.getByText("File", { exact: true }).click();
+      await bar.getByRole("button", { name: "Publish to server…" }).click();
+      const form = page.getByRole("dialog", { name: "Publish to server" });
+      const name = "Interrupted drawing " + randomUUID();
+      await form.getByLabel("File name").fill(name);
+      await form.getByRole("button", { name: "Publish", exact: true }).click();
+      await expect(form.getByRole("alert")).toBeVisible();
+      expect(fileId).toBeTruthy();
+      const listing = () => client.from("online_files").select("id").eq("name", name);
+      expect((await listing()).data).toEqual(confirmed ? [{ id: fileId }] : []);
+      const path = session.data.user.id + "/" + fileId + ".figcraft";
+      const staged = await client.storage.from("figcraft-files").download(path);
+      expect(staged.error).toBeNull();
+      const original = Buffer.from(await staged.data!.arrayBuffer());
+      await page.unroute(endpoint);
+      await page.reload();
+      await bar.getByRole("button", { name: "Home", exact: true }).click();
+      await page.getByRole("button", { name: "Online", exact: true }).click();
+      const panel = page.getByRole("region", { name: "Online files", exact: true });
+      const row = panel.getByRole("button", { name: new RegExp("^" + name) });
+      if (!confirmed) {
+        await expect(row).toContainText("Publication unconfirmed");
+        await expect(row).toBeDisabled();
+        await panel.getByLabel("Actions for " + name).click();
+        await panel.getByRole("button", { name: "Retry publication" }).click();
+      }
+      await expect(row).toBeEnabled();
+      expect((await listing()).data).toEqual([{ id: fileId }]);
+      await row.click();
+      await expect(bar.getByRole("heading", { name, exact: true })).toBeVisible();
+      await expect(page.getByRole("region", { name: "Layers" }).getByRole("button", { name: "Rectangle", exact: true })).toBeVisible();
+      const reopened = await client.storage.from("figcraft-files").download(path);
+      expect(Buffer.from(await reopened.data!.arrayBuffer()).equals(original)).toBe(true);
+      expect(intercepted).toBe(1);
+    } finally {
+      if (fileId) {
+        const removed = await client.storage.from("figcraft-files").remove([session.data.user.id + "/" + fileId + ".figcraft"]);
+        expect(removed.error).toBeNull();
+      }
+    }
+  });
+}
+
 test("authenticated rectangle command, pixels, keyboard undo/redo and resize", async ({ page }) => {
   const errors: string[] = [];
   page.on("pageerror", error => errors.push(error.message));

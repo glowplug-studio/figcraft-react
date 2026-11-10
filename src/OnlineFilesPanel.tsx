@@ -85,11 +85,14 @@ export function OnlineFilesPanel({ online, opened }: { online: OnlineWorkspace; 
     {error && !dialog && <p role="alert">{error}</p>}
     {!busy && !rows.length && <p>Nothing online yet.</p>}
     <ul>{rows.map(row => <li key={row.file}>
-      <button type="button" disabled={busy || row.state === "gone"} onClick={() => void run(() => online.open(row.file), true)}>
-        <strong>{row.name}</strong><small>{host} · {row.state === "gone" ? "No longer on the server" : "Not shared · Opened " + utcDay(row.opened)}</small>
+      <button type="button" disabled={busy || row.state === "gone" || row.state === "pending"} onClick={() => void run(() => online.open(row.file), true)}>
+        <strong>{row.name}</strong><small>{host} · {row.state === "pending" ? "Publication unconfirmed" : row.state === "gone" ? "No longer on the server" : "Not shared · Opened " + utcDay(row.opened)}</small>
       </button>
       <details><summary aria-label={"Actions for " + row.name}>•••</summary><div>
-        {row.state === "gone" ? <button disabled={busy} onClick={() => void run(() => online.forget(row.file))}>Clear from this list</button> : <>
+        {row.state === "pending" ? <>
+          <button disabled={busy} onClick={() => void run(() => online.retryPublication(row.file))}>Retry publication</button>
+          <button disabled={busy} onClick={() => void run(() => online.forget(row.file))}>Forget on this computer</button>
+        </> : row.state === "gone" ? <button disabled={busy} onClick={() => void run(() => online.forget(row.file))}>Clear from this list</button> : <>
           <button disabled={busy} onClick={() => void run(() => online.open(row.file), true)}>Open</button>
           <button disabled={busy} onClick={() => { setName(row.name); setDialog({ row, action: "rename" }); }}>Rename on the server…</button>
           <button disabled={busy} onClick={() => setDialog({ row, action: "remove" })}>Remove from server…</button>

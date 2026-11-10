@@ -1,4 +1,4 @@
-import type { RememberedOnlineFile } from "../../backends/online-files";
+import type { OnlineFileRegistry, PendingOnlinePublication, RememberedOnlineFile } from "../../backends/online-files";
 
 export const MAX_ONLINE_FILES = 200;
 
@@ -31,4 +31,30 @@ export function readRememberedFiles(stored: unknown): RememberedOnlineFile[] {
     if (files.length === MAX_ONLINE_FILES) break;
   }
   return files;
+}
+
+/** Earlier versions stored the confirmed list directly at the same IndexedDB key. */
+export function readOnlineRegistry(stored: unknown): OnlineFileRegistry {
+  if (!stored || Array.isArray(stored) || typeof stored !== "object") {
+    return { files: readRememberedFiles(stored), pending: [] };
+  }
+  const registry = stored as Partial<OnlineFileRegistry>;
+  const files = readRememberedFiles(registry.files);
+  const pending: PendingOnlinePublication[] = [];
+  const seen = new Set(files.map(row => row.server + "?" + row.file));
+  if (Array.isArray(registry.pending)) {
+    for (const item of registry.pending.slice(0, MAX_ONLINE_FILES)) {
+      if (!item || typeof item !== "object") continue;
+      const { server, file, name, started, snapshot } = item as Partial<PendingOnlinePublication>;
+      const key = typeof server === "string" && onlineServerKey(server);
+      if (!key || typeof file !== "string" || !/^[A-Za-z0-9_-]{1,64}$/.test(file)
+        || typeof name !== "string" || typeof started !== "number" || !Number.isSafeInteger(started) || started < 0
+        || !(snapshot instanceof Blob) || !snapshot.size) continue;
+      const identity = key + "?" + file;
+      if (seen.has(identity)) continue;
+      seen.add(identity);
+      pending.push({ server: key, file, name, started, snapshot });
+    }
+  }
+  return { files, pending };
 }
