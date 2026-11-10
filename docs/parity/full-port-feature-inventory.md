@@ -288,3 +288,5 @@ Row 12 checkpoint 5d94730 covers Sketch import, prototype record interchange and
 At bbc26fd, binary Fig and Penpot writer/reader checkpoints, Section authoring and its nested PDF frames, external layer paste and persistent Import reports have focused reference checks. The full production browser rerun, Copy as CSS, text and node link operations are the current interchange gate. [Import report matrix](../reports/26-11-10-import-report-parity.html).
 
 At e05748c the remaining Edit clipboard actions and the one-off PDF print settings passed their local checks. The complete 0.54.0 regression is pending. [Property checks](../reports/26-11-10-clipboard-code-parity.html).
+
+All 347 local production Chromium workflows passed in 1,110.1 seconds with one worker, zero skips, retries or flakes at `1a53341`. The preceding run passed 122, timed out on a page-wide fieldset selector and left 224 serial tests unexecuted. The fix scoped the rectangle workflow to its named controls and preserved its existing screenshot. The active slice is [online file ownership](../planning/26-11-10-online-file-ownership.md).
