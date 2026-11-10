@@ -286,3 +286,5 @@ Local workspace history, branch review and clipboards passed the 0.53.0 release 
 Row 12 checkpoint 5d94730 covers Sketch import, prototype record interchange and Slice export. The signed-in host verified open, append, undo, save, guides and worker cancellation. Penpot and remaining interchange work continue. Prototype editing and presentation stay in row 15. [Property matrix](../reports/26-11-10-sketch-interchange-parity.html).
 
 At bbc26fd, binary Fig and Penpot writer/reader checkpoints, Section authoring and its nested PDF frames, external layer paste and persistent Import reports have focused reference checks. The full production browser rerun, Copy as CSS, text and node link operations are the current interchange gate. [Import report matrix](../reports/26-11-10-import-report-parity.html).
+
+At e05748c the remaining Edit clipboard actions and the one-off PDF print settings passed their local checks. The complete 0.54.0 regression is pending. [Property checks](../reports/26-11-10-clipboard-code-parity.html).

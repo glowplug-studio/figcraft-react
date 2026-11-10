@@ -6,16 +6,16 @@
 |---|---|
 | Overall status | In progress. [Continue handover and deferred review queue](26-11-07-full-port-resume.md#continue-from-here). |
 | Active slice | Row 12 design interchange and export. [Dated plan](26-11-10-file-interchange.md). |
-| Active phase | Row 12. Clipboard menu and CSS output. |
+| Active phase | Row 12. One-off PDF print controls and interchange release checks. |
 | Upstream baseline | Styles reference a2e87433. Components reference 79c36346. Global supported baseline 8eb0b876. |
-| Branch and last verified commit | prompt/full-figcraft-port at bbc26fd for import diagnostics and the reviewed Section toolbar references at eee31fd. |
+| Branch and last verified commit | prompt/full-figcraft-port at e05748c for one-off PDF controls, empty-page handling and Copy as. Full import-report regression passed at bbc26fd. |
 | Completed slices | Rectangle/host-auth, bounded native persistence/recovery, supported-model pages, affine rectangle geometry/selection and solid appearance, plus nested group hierarchy, Frame containers, movement/transform gestures, rounded corners, ellipse/arc/ring and Polygon/Star editing verified locally; Line/Arrow and uniform solid strokes also verified; per-side Rectangle/Frame strokes, variable-width profiles and procedural brushes verified; vector networks, solid region/stroke rendering and Flatten/Reverse also verified; foundation commit `154f5a7`. Gradient, image, pattern, blend and mask releases now have local property matrices. [Blend evidence](../reports/26-11-09-blend-modes-parity.html). Auto layout and constraints passed the local release gate. [Release evidence](../reports/26-11-09-auto-layout.md). [Local components, instances, variant properties, slots and Assets](../reports/26-11-09-components-instances.md) passed the 0.51.0 gate. |
 | Remaining slices | Continue incomplete roadmap rows, excluding the user-deferred plugin and widget family. See each slice matrix for outstanding integrations. |
-| Tests last passed | 3,679 pure tests, two local Auth integrations, strict types and both builds. Three targeted production Chromium cases passed. The complete browser run is in progress. |
+| Tests last passed | 345/345 production Chromium workflows at bbc26fd. At 1ac4acf, 4,073 pure tests, two local Auth integrations, strict types, both builds and focused signed-in clipboard tests passed. |
 | Files currently in progress | [Design interchange and export](26-11-10-file-interchange.md). |
 | Blockers | The scoped Supabase MCP project and public-table reads passed after reauthorisation. |
-| Exact next action | Collect the full production result and port the three outstanding Copy as operations. [Resume handover](26-11-07-full-port-resume.md#continue-from-here). |
-| Last updated | 2026-11-10 23:08 ICT |
+| Exact next action | Collect the complete 0.54.0 production Chromium result, fix any regression and start the online ownership plan. [Resume handover](26-11-07-full-port-resume.md#continue-from-here). |
+| Last updated | 2026-11-10 23:29 ICT |
 
 ## Scope and continuation
 

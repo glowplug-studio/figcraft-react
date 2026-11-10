@@ -1,0 +1,18 @@
+# Online files and ownership
+
+## Entry condition
+
+Begin implementation after the local interchange regression and the one-off PDF print controls pass. The pinned native reference is a2e87433. The provider-neutral access and identity contracts already exist. Supabase CLI 2.116.0 supports declarative migration generation with `supabase db schema declarative sync -f <description> --no-apply`. The checked-in public schema currently declares the namespace. [Identity mapping](../parity/access-mapping.md) · [Native online-file behaviour](../../original/figcraft/docs/server.md#your-online-files).
+
+## Execution order
+
+1. Map publishing, owner discovery and opening to the authenticated principal. The native store keeps the selected document snapshot, gives the file an independent listing name and issues edit and view links. Copying or downloading the document must never disclose the account, management credential or share secret. Keep the package contract independent of Supabase; authorise every persisted operation at the database or Storage boundary.
+2. Verify publication is atomic and retryable across metadata and archive upload. Exercise loss of session or a failed upload before finalisation, an interrupted response after finalisation, simultaneous publishes and a stale file revision. Use an unprivileged signed-in client. Check that opening the returned archive restores native page, layer and image data.
+3. Cover the Online list's native lazy refresh, loading, offline retry, stale and removed rows, tab reuse and recency. Compare rename, remove with confirmation and forget-on-device. Rename changes the listing; remove deletes the shared file; forgetting clears only the device record. Test with two independent browser contexts and compare remote state after each action. [Dashboard](../../original/figcraft/crates/ui-egui/src/home/online.rs) · [Owner records](../../original/figcraft/crates/engine/src/sharing/online.rs).
+4. Map the separate view, comment and edit link grants, join codes, rotation, stop/restart sharing and immediate revocation. A file editor cannot rename the server listing, remove the file or manage grants. Test a legitimate owner, each grantee and an unrelated principal, including direct REST, Storage and privileged-operation attempts. Verify a viewer cannot submit changes and a commenter cannot edit document content. Use the relevant cases in the [native link store](../../original/figcraft/apps/figcraft-server/src/store/links.rs). Carry ordered edits, presence and per-client undo into row 14.
+5. Cover expiry, already-open documents, interrupted-session recovery and public team-directory behaviour under the native configuration. Record which limits belong to the server operator and which govern browser-visible behaviour. Public profile data requires a demonstrated application use and its own RLS coverage.
+6. Generate, review and replay declarative migrations locally. Verify allowed and denied paths with real Auth accounts, check database advisers, package/host builds and signed-in Playwright. Record fixture cleanup, schema drift and the full browser result before advancing.
+
+## Checkpoint
+
+Source investigation only. No online-file schema or adapter from this plan has been applied. Begin with the native publish, owner listing and file reopen cases in the [file store](../../original/figcraft/apps/figcraft-server/src/store/files.rs). The first pass condition is a signed-in owner successfully publishing and reopening a real archive while an unrelated authenticated client cannot read, replace, rename or delete it. Record partial-upload and retry evidence alongside the success path.
