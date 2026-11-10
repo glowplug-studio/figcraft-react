@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import pdfScenes from "../fixtures/native-pdf-export.json" with {type:"json"};
 import { createRequire } from "node:module";
@@ -215,14 +216,15 @@ test("editable SVG imports match native layer data, warnings, resources and the 
   let probes=0;
   function compare(native:unknown,actual:unknown,path:string) {
     if (typeof native==="number") {
-      expect(typeof actual,path).toBe("number");
-      expect(Math.abs(Number(actual)-native),path).toBeLessThanOrEqual(.0005+.000005*Math.abs(native));
+      assert(typeof actual==="number",path+" must be numeric");
+      assert(Math.abs(actual-native)<=.0005+.000005*Math.abs(native),path+": expected "+native+", received "+actual);
     } else if (Array.isArray(native)) {
-      expect(actual,path).toHaveLength(native.length);
-      native.forEach((item,i)=>compare(item,(actual as unknown[])[i],path+"["+i+"]"));
+      assert(Array.isArray(actual),path+" must be an array");
+      assert.equal(actual.length,native.length,path);
+      native.forEach((item,i)=>compare(item,actual[i],path+"["+i+"]"));
     } else if (native && typeof native==="object") {
       for(const [k,v] of Object.entries(native)) compare(v,(actual as RecordMap)?.[k],path+"."+k);
-    } else expect(actual,path).toEqual(native);
+    } else assert.deepEqual(actual,native,path);
   }
   for (const scene of corpus) {
     const imported=page.evaluate(async ({name,svg,profile})=>(window as unknown as {
@@ -252,9 +254,9 @@ test("editable SVG imports match native layer data, warnings, resources and the 
     const im=PNG.sync.read(Buffer.from(result.png,"base64"));
     for (const m of scene.svg.matchAll(/<!-- probe (\d+) (\d+) #([\da-f]{8})(?: ~(\d+))?\s*-->/gi)) {
       const [x,y]=m.slice(1,3).map(Number), start=(im.width*y+x)*4;
-      expect(x).toBeLessThan(im.width);expect(y).toBeLessThan(im.height);
+      assert(x<im.width && y<im.height,scene.name+" probe outside image");
       const expected=Buffer.from(m[3],"hex");
-      for(let i=0;i<4;i++) expect(Math.abs(im.data[start+i]-expected[i]),scene.name+" at "+x+","+y).toBeLessThanOrEqual(Number(m[4] ?? 8));
+      for(let i=0;i<4;i++) assert(Math.abs(im.data[start+i]-expected[i])<=Number(m[4] ?? 8),scene.name+" at "+x+","+y+" channel "+i);
       probes++;
     }
   }
