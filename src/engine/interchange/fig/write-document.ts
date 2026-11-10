@@ -89,7 +89,8 @@ export async function writeFigDocument(doc:Document,checkCurrent:()=>void,thumbn
       warn("boolean groups whose layers combine in different ways use the group's operation");
     if (node.kind==="text" && !node.styles?.text && (node.text.style.styleId!==undefined || node.text.runs.some(r=>r.style.styleId!==undefined)))
       warn("text styles applied to part of a text were written as their values");
-    if (node.thumbnailFlag!==undefined) warn("plugin data was left out");
+    if (node.guides?.length) warn("ruler guides were left out");
+    if (node.thumbnailFlag!==undefined || node.sourceMetadata) warn("plugin data was left out");
     return layer;
   };
   const nestedLayer=async(node:LayerNode)=>{
@@ -103,6 +104,7 @@ export async function writeFigDocument(doc:Document,checkCurrent:()=>void,thumbn
     const base={guid:guid(ids.get(id)!),phase:"CREATED",parentIndex:{guid:parent,position:position(index)}};
     let layer:KiwiObject;
     if (node.kind==="page") {
+      if (node.guides?.length) warn("ruler guides were left out");
       if (node.prototypeBackground) warn("prototype device settings were left out");
       const background=pageColour(node);
       layer={type:"CANVAS",name:node.name,...rootFields,backgroundColor:{...background},backgroundEnabled:true,backgroundOpacity:background.a};

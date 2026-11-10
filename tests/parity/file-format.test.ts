@@ -150,11 +150,26 @@ describe("bounded native Figcraft file adapter", () => {
     expect(await decodeFigcraft(archive)).toEqual(decoded);
   });
 
+  it("retains opaque interchange records, thumbnails and ruler guides across native saves", async () => {
+    const archive = encodedFixture(value => {
+      value.nodes["2"].plugin_data = {key: "preserve me", "penpot.source.fills": "[]", "figcraft.thumbnail": "true"};
+      value.nodes["1"].guides = [{vertical: true, offset: -12.5}, {vertical: false, offset: 0}];
+    });
+    const opened = await decodeFigcraft(archive);
+    const saved = await encodeFigcraft(opened.document, opened.nextId);
+    const wire = JSON.parse(strFromU8(unzipSync(saved)["document.json"]));
+    expect(wire.nodes["2"].plugin_data).toEqual({key: "preserve me", "penpot.source.fills": "[]", "figcraft.thumbnail": "true"});
+    expect(wire.nodes["1"].guides).toEqual([{vertical: true, offset: -12.5}, {vertical: false, offset: 0}]);
+    expect(await decodeFigcraft(saved)).toEqual(opened);
+    await expect(decodeFigcraft(encodedFixture(value => {
+      value.nodes["2"].plugin_data = {bad: 10};
+    }))).rejects.toThrow("plugin_data/bad must be text");
+  });
+
   it.each([
     ["future version", (value: ReturnType<typeof fixture>) => { value.version = 2; }],
     ["comments", (value: ReturnType<typeof fixture>) => { value.comments = [{ text: "preserve me" }]; }],
     ["section", (value: ReturnType<typeof fixture>) => { value.nodes["2"].type = "section"; }],
-    ["custom metadata", (value: ReturnType<typeof fixture>) => { value.nodes["2"].plugin_data = { key: "preserve me" }; }],
     ["paint blend", (value: ReturnType<typeof fixture>) => { value.nodes["2"].fills = [{ type: "solid", color: "#ffffff", blend: "unknownMode" }]; }],
     ["node blend", (value: ReturnType<typeof fixture>) => { value.nodes["2"].blend = "futureBlendMode"; }],
     ["unknown properties", (value: ReturnType<typeof fixture>) => { value.nodes["2"].future = null; }],

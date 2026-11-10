@@ -40,7 +40,16 @@ export function withMaskProperties<T extends MaskProperties>(node:T, isMask = no
   const {isMask: priorMask, maskType: priorType, ...rest} = node;
   return Object.freeze({...rest,...(isMask && {isMask:true}),...(maskType !== "alpha" && {maskType})}) as T;
 }
-export interface PageNode extends MaskProperties, ComponentLinks, LayerStyles, LayerVariableModes {
+export interface DocumentGuide {
+  readonly vertical: boolean;
+  readonly offset: number;
+}
+interface NativeLayerRecords {
+  /** Opaque native strings used by interchange formats, including Penpot source records. */
+  readonly sourceMetadata?: Readonly<Record<string, string>>;
+  readonly guides?: readonly DocumentGuide[];
+}
+export interface PageNode extends NativeLayerRecords, MaskProperties, ComponentLinks, LayerStyles, LayerVariableModes {
   readonly interactions?: readonly PrototypeInteraction[];
   readonly stroke?: StrokeProps;
   readonly blend?: BlendMode;
@@ -65,7 +74,7 @@ export interface Constraints {
   readonly vertical: "top" | "bottom" | "topBottom" | "center" | "scale";
 }
 export const defaultConstraints: Constraints = Object.freeze({ horizontal: "left", vertical: "top" });
-export interface LayerProperties extends MaskProperties, ComponentLinks, LayerStyles, LayerVariableModes {
+export interface LayerProperties extends NativeLayerRecords, MaskProperties, ComponentLinks, LayerStyles, LayerVariableModes {
   readonly interactions?: readonly PrototypeInteraction[];
   readonly thumbnailFlag?: string;
   readonly exports?: readonly ExportSetting[];
