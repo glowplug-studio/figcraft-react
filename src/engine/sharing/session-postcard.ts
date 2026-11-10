@@ -54,6 +54,14 @@ class Postcard {
     this.size += bytes;
   }
 
+  imageSize(key: string, valueBytes: number) {
+    this.byte(4); // Change::Put
+    this.variant(entryKinds, "image");
+    this.text(key);
+    this.uint(valueBytes);
+    this.size += valueBytes;
+  }
+
   change(change: InitialChange) {
     switch (change.type) {
       case "create":
@@ -88,16 +96,47 @@ export interface InitialSession {
   changes: readonly InitialChange[];
 }
 
+function prefix(writer: Postcard, session: bigint, count: number) {
+  writer.byte(1); // message::WIRE_VERSION
+  writer.uint(session);
+  writer.uint(count);
+}
+
+function suffix(writer: Postcard, nextClient: number) {
+  writer.uint(0); // last accepted sequence
+  writer.uint(nextClient);
+  for (let i = 0; i < 4; i++) writer.byte(0); // issued clients, deleted nodes, removed entries and accepted log
+}
+
 function writeInitialState(state: InitialSession, output?: Uint8Array) {
   const writer = new Postcard(output);
-  writer.byte(1); // message::WIRE_VERSION
-  writer.uint(state.session);
-  writer.uint(state.changes.length);
+  prefix(writer, state.session, state.changes.length);
   for (const change of state.changes) writer.change(change);
-  writer.uint(0); // last accepted sequence
-  writer.uint(state.nextClient);
-  for (let i = 0; i < 4; i++) writer.byte(0); // issued clients, deleted nodes, removed entries and accepted log
+  suffix(writer, state.nextClient);
   return writer.size;
+}
+
+/** Counts the same postcard fields as the encoder. Image base64 length is known from its Blob. */
+export class InitialSnapshotMeasure {
+  private body = new Postcard();
+  private count = 0;
+
+  add(change: InitialChange) {
+    this.body.change(change);
+    this.count++;
+  }
+
+  image(key: string, jsonBytes: number) {
+    this.body.imageSize(key, jsonBytes);
+    this.count++;
+  }
+
+  framedBytes(session: bigint, nextClient: number) {
+    const envelope = new Postcard();
+    prefix(envelope, session, this.count);
+    suffix(envelope, nextClient);
+    return SESSION_DISK_HEADER_BYTES + envelope.size + this.body.size;
+  }
 }
 
 export function initialSnapshotSize(state: InitialSession) {

@@ -145,9 +145,10 @@ export class OnlineWorkspace {
       }
       if (!attempt) {
         const { document, nextId } = engine.archiveRevision;
-        const snapshot = await prepareOnlineSnapshot(document, nextId, listingName);
+        const file = crypto.randomUUID();
+        const snapshot = await prepareOnlineSnapshot(document, nextId, file, listingName);
         if (!this.workspace.getSnapshot().some(tab => tab.id === tabId)) throw new Error("The source file closed");
-        const stage = { file: crypto.randomUUID(), server: this.server, name: listingName, snapshot, started: Math.floor(Date.now() / 1000) };
+        const stage = { file, server: this.server, name: listingName, snapshot, started: Math.floor(Date.now() / 1000) };
         await this.registry(current => {
           if (current.pending.length >= MAX_ONLINE_FILES) throw new Error("Resolve a pending publication before starting another");
           return { ...current, pending: [stage, ...current.pending] };

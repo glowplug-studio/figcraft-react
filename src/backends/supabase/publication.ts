@@ -21,7 +21,7 @@ export async function finaliseOnlineFile(user: SupabaseClient, writer: SupabaseC
   else {
     const download = await storage.download(path);
     if (download.error) throw download.error;
-    name = (await validateOnlineSnapshot(download.data)).name;
+    name = (await validateOnlineSnapshot(download.data, id)).name;
   }
   const pair = links ?? await publishedLinkDigests(createPublishedLinks());
   const reply = await writer.rpc("finalise_online_publication", {

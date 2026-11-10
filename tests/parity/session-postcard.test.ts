@@ -1,3 +1,6 @@
+import { createHash } from "node:crypto";
+import { initialDocumentState, measureDocumentSnapshot } from "../../src/engine/sharing/document-session";
+import { decodeFigcraft } from "../../src/engine/file-format";
 import { readFileSync } from "node:fs";
 import { strFromU8, unzipSync } from "fflate";
 import { parse, stringify, type LosslessNumber } from "lossless-json";
@@ -37,4 +40,31 @@ it.each([
     changes: reference.snapshot.map(readChange) };
   expect(encodeInitialState(state)).toEqual(fixtures[file + "/body.bin"]);
   expect(initialSnapshotSize(state)).toBe(framedBytes);
+});
+
+const printFixture = unzipSync(readFileSync(new URL("../fixtures/native-pdf-print-dialog.zip", import.meta.url)));
+const drawings = Object.keys(fixtures).filter(path => path.endsWith("/body.bin")).map(path => path.split("/")[0]);
+
+it.each(drawings)("builds the upstream session directly from %s", async file => {
+  const data = file === "Cover.figcraft" ? printFixture[file] : readFileSync(new URL("../fixtures/" + file, import.meta.url));
+  const { document } = await decodeFigcraft(data);
+  const state = await initialDocumentState(document, 0x12345n);
+  const expected = fixtures[file + "/body.bin"];
+  const actual = encodeInitialState(state);
+  expect(Buffer.from(actual).equals(expected), file + ": expected " + expected.length + " bytes, got " + actual.length).toBe(true);
+  expect(initialSnapshotSize(state)).toBe(expected.length + 17);
+});
+
+const corpus = JSON.parse(strFromU8(fixtures["corpus.json"])) as Record<string, Record<string, [number, string]>>;
+it.each(Object.entries(corpus))("matches every distinct native session from %s", async (archive, entries) => {
+  const drawings = unzipSync(readFileSync(new URL("../fixtures/" + archive, import.meta.url)), {
+    filter: member => Object.hasOwn(entries, member.name),
+  });
+  for (const [name, [size, digest]] of Object.entries(entries)) {
+    const { document } = await decodeFigcraft(drawings[name]);
+    const state = await initialDocumentState(document, 0x12345n);
+    const body = encodeInitialState(state);
+    expect(createHash("sha256").update(body).digest("hex"), name).toBe(digest);
+    expect(await measureDocumentSnapshot(document, 0x12345n), name).toBe(size + 17);
+  }
 });

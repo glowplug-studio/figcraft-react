@@ -132,25 +132,37 @@ test("signed-in ownership finalisation validates the staged archive and safely r
   const signedIn = await client.auth.signInWithPassword({ email, password });
   if (signedIn.error) throw signedIn.error;
   const id = randomUUID(), path = signedIn.data.user.id + "/" + id + ".figcraft";
+  const oversized = randomUUID(), oversizedPath = signedIn.data.user.id + "/" + oversized + ".figcraft";
   const storage = client.storage.from("figcraft-files");
   const archive = unzipSync(await readFile(new URL("../fixtures/native-pdf-print-dialog.zip", import.meta.url)));
   const upload = await storage.upload(path, archive["Cover.figcraft"], { contentType: "application/octet-stream" });
   expect(upload.error).toBeNull();
   try {
-    const publish = () => page.evaluate(async id => {
+    const publish = (target = id) => page.evaluate(async id => {
       const result = await fetch("/api/online-files", {
         method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id }),
       });
       return { status: result.status, data: await result.json() };
-    }, id);
+    }, target);
     const first = await publish();
     expect(first.status).toBe(200);
     expect(first.data).toEqual({ id, name: "Untitled", created: expect.any(String) });
     expect(await publish()).toEqual(first);
+    const members = unzipSync(archive["Cover.figcraft"]);
+    const drawing = JSON.parse(strFromU8(members["document.json"]));
+    drawing.nodes["2"].plugin_data = { note: "x".repeat(16 * 1024 * 1024) };
+    members["document.json"] = strToU8(JSON.stringify(drawing));
+    const compressed = zipSync(members);
+    expect(compressed.length).toBeLessThan(100_000);
+    expect((await storage.upload(oversizedPath, compressed, {contentType: "application/octet-stream"})).error).toBeNull();
+    expect((await publish(oversized)).status).toBe(422);
+    const hidden = await client.from("online_files").select("id").eq("id", oversized);
+    expect(hidden.error).toBeNull();
+    expect(hidden.data).toEqual([]);
     const refused = await page.request.post("/api/online-files", { headers: { Origin: "https://unrelated.example" }, data: { id } });
     expect(refused.status()).toBe(403);
   } finally {
-    expect((await storage.remove([path])).error).toBeNull();
+    expect((await storage.remove([path, oversizedPath])).error).toBeNull();
   }
 });
 

@@ -111,7 +111,7 @@ file_size_limit = "50MiB"
 
 [storage.buckets.figcraft-files]
 public = false
-file_size_limit = "16MiB"
+file_size_limit = "50MiB"
 allowed_mime_types = ["application/octet-stream"]
 
 # Uncomment to configure local storage buckets
