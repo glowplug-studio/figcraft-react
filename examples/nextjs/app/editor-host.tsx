@@ -3,7 +3,7 @@
 import "@glowplug-studio/figcraft-react/fonts.css";
 import { useEffect, useRef, useState } from "react";
 import { WorkspaceEditor, FigcraftRoot, IndexedDbRecoveryStore, type OnlineWorkspaceHost, type IdentitySnapshot, type DocumentCapability } from "@glowplug-studio/figcraft-react";
-import { SupabaseIdentityAdapter, SupabaseOnlineFileStore, publishedLinkDigests } from "@glowplug-studio/figcraft-react/backends/supabase";
+import { SupabaseIdentityAdapter, SupabaseOnlineFileStore, publishedLinkDigests, watchSupabaseGuest } from "@glowplug-studio/figcraft-react/backends/supabase";
 import { BrowserInvitations } from "../lib/sharing/browser-invites";
 import { useRouter } from "next/navigation";
 import { supabaseConfig } from "../lib/supabase/config";
@@ -33,7 +33,8 @@ export function EditorHost({ identity }: { identity: Extract<IdentitySnapshot, {
       if (!response.ok) throw new Error("The online file could not be published");
       return response.json();
     });
-    const invites = new BrowserInvitations(store, identity.principal.id, server, () => {
+    const invites = new BrowserInvitations(store, identity.principal.id, server,
+      (connection, ended) => watchSupabaseGuest(getBrowserSupabase(), connection, ended), () => {
       setJoinError(""); joinDialog.current?.showModal();
     }, setError);
     setInviteHost(invites);

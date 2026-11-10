@@ -15,3 +15,4 @@ export function createSupabaseBackend({
 export { SupabaseIdentityAdapter } from "./identity";
 export { SupabaseOnlineFileStore } from "./online-files";
 export { isPublishedLinkDigests, publishedLinkDigests } from "../published-links";
+export { watchSupabaseGuest } from "./guest-session";

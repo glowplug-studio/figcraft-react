@@ -371,12 +371,43 @@ test("the published view and edit invites open the original drawing in another s
     await dialog.getByRole("button", { name: "Join", exact: true }).click();
     await expect(toolbar.getByText(/Can edit/)).toBeVisible();
     await expect(guest.getByRole("button", { name: "Create rectangle", exact: true })).toBeEnabled();
+    const viewer = await visitor.newPage();
+    const viewerBar = viewer.locator(".figcraft-document-bar");
+    let validations = 0;
+    viewer.on("response", response => {
+      if (new URL(response.url()).pathname.endsWith("/rpc/online_connection_active") && response.ok()) validations++;
+    });
+    await viewer.goto(view);
+    await expect(viewerBar.getByText(/View only/)).toBeVisible();
+    await expect.poll(() => validations, {timeout: 15000}).toBeGreaterThanOrEqual(2);
+    if (backend) {
+      const revoked = await backend.admin.from("online_file_links").delete().eq("file_id", fileId!).eq("access_level", "view").select("id");
+      expect(revoked.error).toBeNull();
+      expect(revoked.data).toHaveLength(1);
+      await expect(viewerBar.getByText("Disconnected", {exact: false})).toBeVisible({timeout: 15000});
+      await expect(viewer.getByText("Sharing was stopped", {exact: true})).toBeVisible();
+      await expect(viewer.getByRole("button", {name: "Create rectangle", exact: true})).toBeEnabled();
+      await viewerBar.getByText("File", {exact: true}).click();
+      await viewerBar.getByRole("button", {name: "Reconnect", exact: true}).click();
+      await expect(viewer.getByText("The invite is unavailable", {exact: true})).toBeVisible();
+      await expect(viewerBar.getByText(/Disconnected/)).toBeVisible();
+      await expect(toolbar.getByText(/Can edit/)).toBeVisible();
+      await viewer.goto(edit);
+      await expect(viewerBar.getByText(/Can edit/)).toBeVisible();
+    }
     const closeFile = toolbar.getByRole("button", { name: "Close file", exact: true });
     if (!await closeFile.isVisible()) await toolbar.getByText("File", { exact: true }).click();
     const closed = guest.waitForResponse(response => new URL(response.url()).pathname === "/api/online-files/leave");
     await closeFile.click();
     expect((await closed).status()).toBe(204);
     await expect(toolbar.getByText(/Local document/)).toBeVisible();
+    await visitor.setOffline(true);
+    expect((await owner.storage.from("figcraft-files").remove([auth.data.user.id + "/" + fileId + ".figcraft"])).error).toBeNull();
+    fileId = undefined;
+    await visitor.setOffline(false);
+    await expect(viewerBar.getByText(/Disconnected/)).toBeVisible({timeout: 15000});
+    await expect(viewer.getByText(/The file was removed from the server|The session is no longer available/)).toBeVisible();
+    await expect(viewerBar.getByRole("heading", {name: "Original invite drawing"})).toBeVisible();
     if (backend) {
       const rows = await backend.admin.from("online_file_connections").select("id").eq("principal_id", guestId!);
       expect(rows.error).toBeNull();

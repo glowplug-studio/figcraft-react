@@ -1,6 +1,6 @@
 import { createHash, randomUUID } from "node:crypto";
 import { readFile } from "node:fs/promises";
-import { createClient } from "@supabase/supabase-js";
+import { createClient, type RealtimeChannel } from "@supabase/supabase-js";
 import { unzipSync } from "fflate";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { SupabaseOnlineFileStore } from "../../src/backends/supabase/online-files";
@@ -174,6 +174,22 @@ describe.skipIf(!enabled)("private online files on real local Supabase", () => {
     const other = createClient(local!.url, local!.key, { auth: { persistSession: false, autoRefreshToken: false } });
     expect((await other.auth.signInWithPassword({ email: stranger.email, password: stranger.password })).error).toBeNull();
     expect((await other.storage.from(bucket).download(path)).error).toBeTruthy();
+    const leaving = randomUUID();
+    const credentials = (await stranger.client.auth.getSession()).data.session!;
+    const duringRead = createClient(local!.url, local!.key, {
+      accessToken: async () => credentials.access_token,
+      global: {fetch: async (input, init) => {
+        const response = await fetch(input, init);
+        if (response.ok && String(input).includes("/storage/v1/object/")) {
+          const result = await writer.from("online_file_connections").delete().eq("id", leaving);
+          expect(result.error).toBeNull();
+        }
+        return response;
+      }},
+    });
+    await expect(readSharedDrawing(duringRead, writer, stranger.id, session, leaving, file, keys.edit.token))
+      .rejects.toThrow("unavailable");
+    expect((await writer.from("online_file_connections").select("id").eq("id", leaving)).data).toEqual([]);
     await expect(join(keys.edit.token)).rejects.toThrow("unavailable");
     await changeFileLinks(writer, owner.id, file, [keys.view.id]);
     expect((await guest.download(path)).error).toBeTruthy();
@@ -183,6 +199,48 @@ describe.skipIf(!enabled)("private online files on real local Supabase", () => {
     await store.remove(file);
     expect((await guest.download(path)).error).toBeTruthy();
   });
+
+  it("ends only revoked connections and rejects unrelated private subscribers", async () => {
+    const writer = local!.admin, file = randomUUID(), viewTab = randomUUID(), editTab = randomUUID();
+    const keys = createPublishedLinks(), proof = await publishedLinkDigests(keys);
+    paths.push(owner.id + "/" + file + ".figcraft");
+    const store = new SupabaseOnlineFileStore(owner.client, owner.id, id => finaliseOnlineFile(owner.client, writer, id, proof));
+    await store.publish(file, new Blob([archive]));
+    const session = (await stranger.client.auth.getClaims()).data!.claims.session_id as string;
+    const topic = (tab: string) => "figcraft-connection:" + session + ":" + tab;
+    const active = (account: typeof stranger, tab: string) => account.client.rpc("online_connection_active", {tab});
+    const subscribe = (channel: RealtimeChannel) => new Promise<string>(resolve => {
+      channel.subscribe(status => resolve(status), 8000);
+    });
+    const view = stranger.client.channel(topic(viewTab), {config: {private: true}});
+    const edit = stranger.client.channel(topic(editTab), {config: {private: true}});
+    const unrelated = owner.client.channel(topic(viewTab), {config: {private: true}});
+    const events: string[] = [];
+    try {
+      await readSharedDrawing(stranger.client, writer, stranger.id, session, viewTab, file, keys.view.token);
+      await readSharedDrawing(stranger.client, writer, stranger.id, session, editTab, file, keys.edit.token);
+      expect((await active(stranger, viewTab)).data).toBe(true);
+      expect((await active(owner, viewTab)).data).toBe(false);
+      await stranger.client.realtime.setAuth();
+      await owner.client.realtime.setAuth();
+      view.on("broadcast", {event: "ended"}, ({payload}) => events.push("view:" + payload.reason));
+      edit.on("broadcast", {event: "ended"}, ({payload}) => events.push("edit:" + payload.reason));
+      unrelated.on("broadcast", {event: "ended"}, () => events.push("unrelated"));
+      expect(await subscribe(view)).toBe("SUBSCRIBED");
+      expect(await subscribe(edit)).toBe("SUBSCRIBED");
+      expect(await subscribe(unrelated)).toBe("CHANNEL_ERROR");
+      await expect(view.httpSend("ended", {reason: "removed"})).rejects.toThrow("Unauthorized");
+      await changeFileLinks(writer, owner.id, file, [keys.view.id]);
+      await expect.poll(() => events, {timeout: 8000}).toEqual(["view:stopped"]);
+      expect((await active(stranger, viewTab)).data).toBe(false);
+      expect((await active(stranger, editTab)).data).toBe(true);
+      await store.remove(file);
+      await expect.poll(() => events, {timeout: 8000}).toEqual(["view:stopped", "edit:removed"]);
+      expect((await active(stranger, editTab)).data).toBe(false);
+    } finally {
+      await Promise.all([stranger.client.removeChannel(view), stranger.client.removeChannel(edit), owner.client.removeChannel(unrelated)]);
+    }
+  }, 45_000);
 
   it("ties owner metadata to an immutable private archive and removes both together", async () => {
     const file = randomUUID();

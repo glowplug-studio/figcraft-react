@@ -1,17 +1,26 @@
 import { OnlineFilesPanel, PublishOnlineDialog } from "./OnlineFilesPanel";
 import { OnlineWorkspace } from "./engine/sharing/online-workspace";
-import type { OnlineWorkspaceHost } from "./backends/online-files";
+import type { GuestSessionEnd, OnlineInvitations, OnlineWorkspaceHost } from "./backends/online-files";
 import { defaultPrint, type PrintSettings } from "./engine/export-settings";
 import { ImportReportPanel } from "./ImportReportPanel";
 import { importNotice, readImportReport, type ImportReport } from "./engine/interchange/import-report";
 import { BranchReviewDialog } from "./BranchReviewDialog";
-import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { DocumentEditor, type EditorProps } from "./Editor";
 import type { WorkspaceRecoveryStore } from "./backends/recovery";
 import { EditorWorkspace } from "./engine/workspace";
 import { WorkspaceRecovery, type WorkspaceRecoveryState } from "./engine/workspace-recovery";
 
 type WorkspaceProps = Omit<EditorProps, "engine" | "recoveryStore"> & { recoveryStore: WorkspaceRecoveryStore; onlineHost?: OnlineWorkspaceHost };
+
+function GuestSubscription({connection, invitations, ended}: {
+  connection: string;
+  invitations: OnlineInvitations;
+  ended: (connection: string, reason: GuestSessionEnd) => void;
+}) {
+  useEffect(() => invitations.watch?.(connection, reason => ended(connection, reason)), [connection, invitations, ended]);
+  return null;
+}
 
 export function WorkspaceEditor({ identity, capabilities, recoveryStore, onlineHost }: WorkspaceProps) {
   const [workspace] = useState(() => new EditorWorkspace());
@@ -67,8 +76,14 @@ export function WorkspaceEditor({ identity, capabilities, recoveryStore, onlineH
       setNotice("");
     });
   }, [workspace, enabled, invitations]);
+  const ended = useCallback((connection: string, reason: GuestSessionEnd) => {
+    const session = workspace.getSnapshot().find(tab => tab.guest?.connection === connection)?.guest;
+    if (!session || !workspace.setGuestSession({...session, ended: reason})) return;
+    const notice = {removed: "The file was removed from the server", stopped: "Sharing was stopped", unavailable: "The session is no longer available"};
+    setNotice(notice[reason]);
+  }, [workspace]);
   const guest = active?.guest;
-  const tabCapabilities = useMemo(() => guest && guest.access !== "edit" ? capabilities.filter(cap => cap === "document.read"
+  const tabCapabilities = useMemo(() => guest && !guest.ended && guest.access !== "edit" ? capabilities.filter(cap => cap === "document.read"
     || (guest.access === "comment" && cap === "document.comment")) : capabilities, [capabilities, guest]);
   const publishedId = active && online?.publishedFile(active.id);
 
@@ -114,6 +129,13 @@ export function WorkspaceEditor({ identity, capabilities, recoveryStore, onlineH
     {invitations && <button type="button" disabled={!enabled} onClick={event => {
       event.currentTarget.closest("details")?.removeAttribute("open"); invitations.showJoin();
     }}>Join live session…</button>}
+    {guest?.ended && invitations?.rejoin && <button type="button" onClick={async () => {
+      try {
+        const access = await invitations.rejoin!(guest.connection);
+        if (!workspace.setGuestSession({file: guest.file, connection: guest.connection, access})) await invitations.leave(guest.connection);
+        else setNotice("Rejoined session");
+      } catch { setNotice("The invite is unavailable"); }
+    }}>Reconnect</button>}
     {guest && <button type="button" onClick={() => void leave()}>Leave session</button>}
     <button type="button" disabled={!enabled} onClick={() => workspace.execute("file.new")}>New file</button>
     <button type="button" disabled title="Browser downloads have no writable file path">Revert to saved</button>
@@ -137,8 +159,12 @@ export function WorkspaceEditor({ identity, capabilities, recoveryStore, onlineH
       workspace.execute(event.shiftKey ? "doc.previousTab" : "doc.nextTab");
     }
   }}>
+    {enabled && invitations?.watch && tabs.map(tab => tab.guest && !tab.guest.ended &&
+      <GuestSubscription key={tab.guest.connection} connection={tab.guest.connection} invitations={invitations} ended={ended} />)}
     {tabs.length > 1 && <div role="tablist" aria-label="Open files" className="figcraft-file-tabs">
       {tabs.map(tab => <button key={tab.id} type="button" role="tab" disabled={!enabled} aria-selected={tab.active}
+        aria-label={tab.guest?.ended ? tab.name + ", disconnected from its live session" : undefined}
+        title={tab.guest?.ended ? "Disconnected from its live session" : undefined}
         tabIndex={tab.active ? 0 : -1} onClick={() => { setHome(undefined); workspace.execute("doc.switch", { index: tab.index }); }}
         onKeyDown={event => {
           if (event.key !== "ArrowRight" && event.key !== "ArrowLeft") return;
@@ -147,7 +173,7 @@ export function WorkspaceEditor({ identity, capabilities, recoveryStore, onlineH
           (event.currentTarget.parentElement?.children[index] as HTMLElement)?.focus();
           setHome(undefined);
           workspace.execute("doc.switch", { index });
-        }}>{tab.name}{tab.dirty && <span aria-label="unsaved"> ●</span>}</button>)}
+        }}>{tab.name}{tab.guest?.ended && " · Disconnected"}{tab.dirty && <span aria-label="unsaved"> ●</span>}</button>)}
     </div>}
     {online && authorised && home ? <section aria-label="Home" className="figcraft-home">
       <nav aria-label="Home sections">
@@ -161,7 +187,7 @@ export function WorkspaceEditor({ identity, capabilities, recoveryStore, onlineH
         <button onClick={() => { workspace.execute("file.new"); setHome(undefined); }}>New file</button>
       </section>}
     </section> : active ? <DocumentEditor key={active.id} identity={identity} capabilities={tabCapabilities} engine={workspace.activeEngine}
-      shareMenu={shareMenu} sessionLabel={guest && (guest.access === "view" ? "View only" : guest.access === "comment" ? "Can comment" : "Can edit")}
+      shareMenu={shareMenu} sessionLabel={guest && (guest.ended ? "Disconnected" : guest.access === "view" ? "View only" : guest.access === "comment" ? "Can comment" : "Can edit")}
       onHome={online && enabled ? () => setHome("recent") : undefined}
       workspacePrint={pdfPrint} onWorkspacePrint={setPdfPrint}
       onImportReport={(value, owner = active.id) => setReport({ value, owner })}

@@ -1,4 +1,4 @@
-import type { IndexedDbRecoveryStore, OnlineGuestSession, OnlineInvitations } from "@glowplug-studio/figcraft-react";
+import type { GuestSessionEnd, IndexedDbRecoveryStore, OnlineGuestSession, OnlineInvitations } from "@glowplug-studio/figcraft-react";
 import { nativeInviteLink, parseInviteServer, parseSessionInvite } from "@glowplug-studio/figcraft-react/sharing/invite";
 
 export const inviteAfterLogin = "figcraft-join-after-login";
@@ -7,26 +7,37 @@ export class BrowserInvitations implements OnlineInvitations {
   private listener?: (session: OnlineGuestSession, bytes: Blob) => Promise<void>;
   private readonly endpoint;
   private joining = false;
+  // Retain a manual rejoin credential only while its tab belongs to this signed-in host.
+  private readonly tabs = new Map<string, {file: string; token: string; ended: boolean}>();
+
 
   constructor(private device: IndexedDbRecoveryStore, private principal: string, private server: string,
-    readonly showJoin: () => void, private report: (message: string) => void) {
+    private readonly monitor: NonNullable<OnlineInvitations["watch"]>, readonly showJoin: () => void, private report: (message: string) => void) {
     this.endpoint = parseInviteServer(server.replace(/^http/, "ws")).server;
   }
 
   subscribe(listener: (session: OnlineGuestSession, bytes: Blob) => Promise<void>) {
     this.listener = listener;
-    queueMicrotask(() => {
+    const consume = (afterLogin: boolean) => {
       if (this.listener !== listener) return;
       let fragment = location.hash;
-      try {
-        if (!fragment.startsWith("#join=")) fragment = sessionStorage.getItem(inviteAfterLogin) ?? "";
-        sessionStorage.removeItem(inviteAfterLogin);
-      } catch { /* A link on this page can still be opened without session storage. */ }
+      if (afterLogin) {
+        try {
+          if (!fragment.startsWith("#join=")) fragment = sessionStorage.getItem(inviteAfterLogin) ?? "";
+          sessionStorage.removeItem(inviteAfterLogin);
+        } catch { /* A link on this page can still be opened without session storage. */ }
+      }
       if (!fragment.startsWith("#join=")) return;
       history.replaceState(history.state, "", location.pathname + location.search);
       void this.join(fragment).catch(() => this.report("The invite could not be opened"));
-    });
-    return () => { if (this.listener === listener) this.listener = undefined; };
+    };
+    const changed = () => consume(false);
+    window.addEventListener("hashchange", changed);
+    queueMicrotask(() => consume(true));
+    return () => {
+      window.removeEventListener("hashchange", changed);
+      if (this.listener === listener) this.listener = undefined;
+    };
   }
 
   async copyPublished(file: string, access: "edit" | "view") {
@@ -58,13 +69,9 @@ export class BrowserInvitations implements OnlineInvitations {
     const connection = crypto.randomUUID();
     let attached = false;
     try {
-      const response = await fetch("/api/online-files/join", { method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tab: connection, file: invite.file, token: invite.token }) });
-      if (!response.ok) throw new Error("The invite is unavailable");
-      const access = response.headers.get("X-Figcraft-Access");
-      if (access !== "view" && access !== "edit" && access !== "comment") throw new Error("Invalid session access");
-      const bytes = await response.blob();
+      const {access, bytes} = await this.redeem(connection, invite);
       if (this.listener !== receive) throw new Error("The signed-in workspace changed");
+      this.tabs.set(connection, {file: invite.file, token: invite.token, ended: false});
       await receive({ file: invite.file, connection, access }, bytes);
       attached = true;
     } finally {
@@ -73,9 +80,41 @@ export class BrowserInvitations implements OnlineInvitations {
     }
   }
 
+  private async redeem(connection: string, invite: {file: string; token: string}): Promise<{access: OnlineGuestSession["access"]; bytes: Blob}> {
+    const response = await fetch("/api/online-files/join", { method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ tab: connection, file: invite.file, token: invite.token }) });
+    if (!response.ok) throw new Error("The invite is unavailable");
+    const access = response.headers.get("X-Figcraft-Access");
+    if (access !== "view" && access !== "edit" && access !== "comment") throw new Error("Invalid session access");
+    const bytes = await response.blob();
+    return {access, bytes};
+  }
+
+  watch(connection: string, ended: (reason: GuestSessionEnd) => void) {
+    return this.monitor(connection, reason => {
+      const tab = this.tabs.get(connection);
+      if (tab) tab.ended = true;
+      ended(reason);
+    });
+  }
+
+  async rejoin(connection: string) {
+    const tab = this.tabs.get(connection);
+    if (!tab?.ended) throw new Error("The session cannot be rejoined");
+    const {access} = await this.redeem(connection, tab);
+    if (this.tabs.get(connection) !== tab) {
+      await this.leave(connection);
+      throw new Error("The session tab closed");
+    }
+    tab.ended = false;
+    return access;
+  }
+
   async leave(connection: string) {
+    if (this.tabs.get(connection)?.ended) { this.tabs.delete(connection); return; }
     const response = await fetch("/api/online-files/leave", { method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ connection }) });
     if (!response.ok) throw new Error("Could not leave the session");
+    this.tabs.delete(connection);
   }
 }

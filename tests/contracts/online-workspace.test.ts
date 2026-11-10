@@ -200,3 +200,29 @@ it("keeps the original link credentials private to the host, stable across tabs,
   expect((await device.publicationLinks("owner", online.server, file.id)).edit.token).not.toEqual(first.edit.token);
   device.close();
 });
+
+it("keeps an ended guest session on its own tab until leave and preserves local edits on rejoin", async () => {
+  const workspace = new EditorWorkspace(), document = workspace.activeEngine!;
+  const archive = await document.saveFile();
+  const view = {connection: crypto.randomUUID(), file: "review", access: "view" as const};
+  await workspace.open(new File([archive.data], "Review.figcraft"), view);
+  const guest = workspace.activeEngine!;
+  expect(guest.getSnapshot().editable).toBe(false);
+  expect(workspace.setGuestSession({...view, ended: "stopped"})).toBe(true);
+  expect(workspace.getSnapshot().find(tab => tab.active)?.guest?.ended).toBe("stopped");
+  expect(guest.getSnapshot().editable).toBe(true);
+  guest.execute("shape.rectangle");
+  const localDocument = guest.getSnapshot().document;
+  expect(Object.keys(localDocument.nodes)).toHaveLength(2);
+  workspace.setEditable(false);
+  expect(guest.getSnapshot().editable).toBe(false);
+  workspace.setEditable(true);
+  expect(guest.getSnapshot().editable).toBe(true);
+  expect(workspace.setGuestSession({...view, file: "different"})).toBe(false);
+  expect(workspace.setGuestSession(view)).toBe(true);
+  expect(guest.getSnapshot().editable).toBe(false);
+  expect(guest.getSnapshot().document).toBe(localDocument);
+  workspace.leaveSession(view.connection);
+  expect(workspace.getSnapshot().find(tab => tab.active)?.guest).toBeUndefined();
+  expect(guest.getSnapshot().editable).toBe(true);
+});

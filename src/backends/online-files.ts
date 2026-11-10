@@ -53,8 +53,12 @@ export interface OnlineGuestSession {
   file: string;
   connection: string;
   access: "edit" | "view" | "comment";
+  ended?: GuestSessionEnd;
 }
+export type GuestSessionEnd = "stopped" | "removed" | "unavailable";
 export interface OnlineInvitations {
+  rejoin?(connection: string): Promise<OnlineGuestSession["access"]>;
+  watch?(connection: string, ended: (reason: GuestSessionEnd) => void): () => void;
   showJoin(): void;
   subscribe(joined: (session: OnlineGuestSession, archive: Blob) => Promise<void>): () => void;
   copyPublished(file: string, access: "edit" | "view"): Promise<void>;

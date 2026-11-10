@@ -142,7 +142,7 @@ export class EditorWorkspace {
       delete this.#clipboard.effect;
       delete this.#clipboard.paint;
     }
-    for (const tab of this.#tabs) tab.engine.setEditable(editable && (!tab.guest || tab.guest.access === "edit"));
+    for (const tab of this.#tabs) tab.engine.setEditable(editable && (!tab.guest || !!tab.guest.ended || tab.guest.access === "edit"));
   }
 
   async restore(files: readonly Blob[], active: number, cancelled: () => boolean) {
@@ -218,6 +218,15 @@ export class EditorWorkspace {
   }
 
   open(file: File, guest?: OnlineGuestSession) { return this.#openFile(file, undefined, guest); }
+
+  setGuestSession(session: OnlineGuestSession) {
+    const tab = this.#tabs.find(tab => tab.guest?.connection === session.connection && tab.guest.file === session.file);
+    if (!tab) return false;
+    tab.guest = session;
+    tab.engine.setEditable(this.#editable && (!!session.ended || session.access === "edit"));
+    this.#publish();
+    return true;
+  }
 
   leaveSession(connection: string) {
     const tab = this.#tabs.find(tab => tab.guest?.connection === connection);
@@ -329,7 +338,7 @@ export class EditorWorkspace {
   execute(command: Exclude<WorkspaceCommand, "doc.list">, params?: Record<string, unknown>): Record<string, unknown>;
   execute(command: WorkspaceCommand | BranchCommand, params: Record<string, unknown> = {}): readonly DocumentTab[] | readonly Record<string, unknown>[] | Record<string, unknown> {
     if (!this.#editable) throw new Error("Sign in to use the workspace");
-    if (this.#active?.guest && this.#active.guest.access !== "edit" && ["branch.create", "branch.merge", "branch.archive", "branch.updateFromMain"].includes(command)) {
+    if (this.#active?.guest && !this.#active.guest.ended && this.#active.guest.access !== "edit" && ["branch.create", "branch.merge", "branch.archive", "branch.updateFromMain"].includes(command)) {
       throw new Error("This shared file is read-only");
     }
     if (command.startsWith("branch.")) return this.#branchCommand(command as BranchCommand, params);
