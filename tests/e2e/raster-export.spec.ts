@@ -2,6 +2,7 @@ import { expect, test, type Page } from "@playwright/test";
 import { createRequire } from "node:module";
 import { build } from "vite";
 import cases from "../fixtures/native-png-exports.json" with { type: "json" };
+import jobCases from "../fixtures/native-export-jobs.json" with { type: "json" };
 import codecs from "../fixtures/native-raster-codecs.json" with { type: "json" };
 import { embeddedIcc } from "../../src/engine/icc-container";
 import { iccDescription } from "../../src/engine/image-profile";
@@ -82,4 +83,41 @@ test("lossless WebP and baseline JPEG retain native profiles, alpha and full chr
     if (isJpeg) expect(result.mean, entry.name).toBeLessThan(entry.name.endsWith("20") ? 2 : 0.6);
     else expect(result.max, entry.name).toBe(0);
   }
+});
+
+test("layer export command returns separate payloads and a ZIP with the same decoded PNGs", async ({page}) => {
+  await loadExporter(page);
+  const { commands, files } = jobCases[0];
+  for (const zip of [false,true]) {
+    const result = await page.evaluate(({commands,zip}) => {
+      const batch = (window as unknown as {FigcraftRaster:{replayBatch:typeof import("../fixtures/raster-export").replayBatch}}).FigcraftRaster;
+      return batch.replayBatch([...commands.slice(0,-1),["file.exportLayers",{ids:[2,3,4,5],zip}]]);
+    },{commands,zip});
+    expect(result.skipped).toBe(1);
+    const records = result.files as {id:number;name:string;bytes:number;data?:string}[];
+    expect(records.map(({id,name})=>({id,name}))).toEqual(files);
+    const members = zip ? (await import("fflate")).unzipSync(Buffer.from(String(result.data),"base64")) : {};
+    for (const file of records) {
+      if (zip) expect(file.data).toBeUndefined();
+      const bytes = zip ? Buffer.from(members[file.name]) : Buffer.from(file.data!,"base64");
+      expect(bytes.byteLength).toBe(file.bytes);
+      expect(PNG.sync.read(bytes).width).toBe(file.name.includes("@2x") ? 8 : 4);
+    }
+  }
+});
+
+test("a 4K JPEG export keeps its dimensions and releases its encoder worker", async ({page}) => {
+  await loadExporter(page);
+  const workers = new Set<ReturnType<Page["workers"]>[number]>();
+  let created = 0;
+  page.on("worker",worker=>{ created++; workers.add(worker); worker.on("close",()=>workers.delete(worker)); });
+  const before = Date.now();
+  const result = await page.evaluate(() => (window as unknown as { FigcraftRaster:{replay:typeof replay} }).FigcraftRaster.replay([
+    ["shape.rectangle",{width:3840,height:2160}],["node.set",{props:{fill:"#34a589"}}],["file.export",{format:"jpg"}]
+  ]));
+  const bytes = Buffer.from(result,"base64");
+  expect(jpegHeader(bytes)).toMatchObject({width:3840,height:2160});
+  expect(created).toBe(1);
+  await expect.poll(()=>workers.size).toBe(0);
+  await test.info().attach("4k-jpeg",{body:JSON.stringify({durationMs:Date.now()-before,bytes:bytes.length,workerCountAfter:workers.size}),contentType:"application/json"});
 });

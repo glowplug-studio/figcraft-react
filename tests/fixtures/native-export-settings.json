@@ -1,0 +1,962 @@
+[
+  {
+    "name": "increment and edit",
+    "commands": [
+      [
+        "shape.rectangle",
+        {
+          "name": "Swatch"
+        }
+      ],
+      [
+        "export.add",
+        {}
+      ],
+      [
+        "node.get",
+        {
+          "id": 2,
+          "fields": [
+            "exports"
+          ]
+        }
+      ],
+      [
+        "export.add",
+        {}
+      ],
+      [
+        "node.get",
+        {
+          "id": 2,
+          "fields": [
+            "exports"
+          ]
+        }
+      ],
+      [
+        "export.update",
+        {
+          "index": 1,
+          "size": "72w",
+          "format": "jpg",
+          "quality": 66,
+          "colorProfile": "displayP3",
+          "suffix": "-proof",
+          "contentsOnly": false,
+          "includeBoundingBox": true
+        }
+      ],
+      [
+        "node.get",
+        {
+          "id": 2,
+          "fields": [
+            "exports"
+          ]
+        }
+      ],
+      [
+        "export.remove",
+        {
+          "index": 0
+        }
+      ],
+      [
+        "node.get",
+        {
+          "id": 2,
+          "fields": [
+            "exports"
+          ]
+        }
+      ],
+      [
+        "edit.undo",
+        {}
+      ],
+      [
+        "node.get",
+        {
+          "id": 2,
+          "fields": [
+            "exports"
+          ]
+        }
+      ]
+    ],
+    "results": {
+      "1": {
+        "ok": true
+      },
+      "2": {
+        "exports": [
+          {
+            "format": "png",
+            "size": {
+              "by": "scale",
+              "value": 1.0
+            },
+            "suffix": ""
+          }
+        ],
+        "id": 2
+      },
+      "3": {
+        "ok": true
+      },
+      "4": {
+        "exports": [
+          {
+            "format": "png",
+            "size": {
+              "by": "scale",
+              "value": 1.0
+            },
+            "suffix": ""
+          },
+          {
+            "format": "png",
+            "size": {
+              "by": "scale",
+              "value": 2.0
+            },
+            "suffix": "@2x"
+          }
+        ],
+        "id": 2
+      },
+      "5": {
+        "ok": true
+      },
+      "6": {
+        "exports": [
+          {
+            "format": "png",
+            "size": {
+              "by": "scale",
+              "value": 1.0
+            },
+            "suffix": ""
+          },
+          {
+            "colorProfile": "displayP3",
+            "contentsOnly": false,
+            "format": "jpg",
+            "includeBoundingBox": true,
+            "quality": 66,
+            "size": {
+              "by": "width",
+              "value": 72.0
+            },
+            "suffix": "-proof"
+          }
+        ],
+        "id": 2
+      },
+      "7": {
+        "ok": true
+      },
+      "8": {
+        "exports": [
+          {
+            "colorProfile": "displayP3",
+            "contentsOnly": false,
+            "format": "jpg",
+            "includeBoundingBox": true,
+            "quality": 66,
+            "size": {
+              "by": "width",
+              "value": 72.0
+            },
+            "suffix": "-proof"
+          }
+        ],
+        "id": 2
+      },
+      "10": {
+        "exports": [
+          {
+            "format": "png",
+            "size": {
+              "by": "scale",
+              "value": 1.0
+            },
+            "suffix": ""
+          },
+          {
+            "colorProfile": "displayP3",
+            "contentsOnly": false,
+            "format": "jpg",
+            "includeBoundingBox": true,
+            "quality": 66,
+            "size": {
+              "by": "width",
+              "value": 72.0
+            },
+            "suffix": "-proof"
+          }
+        ],
+        "id": 2
+      }
+    },
+    "wire": [
+      {
+        "format": "png",
+        "size": {
+          "by": "scale",
+          "value": 1.0
+        },
+        "suffix": ""
+      },
+      {
+        "colorProfile": "displayP3",
+        "contentsOnly": false,
+        "format": "jpg",
+        "includeBoundingBox": true,
+        "quality": 66,
+        "size": {
+          "by": "width",
+          "value": 72.0
+        },
+        "suffix": "-proof"
+      }
+    ],
+    "pageWire": []
+  },
+  {
+    "name": "print and SVG settings",
+    "commands": [
+      [
+        "shape.rectangle",
+        {
+          "name": "Swatch"
+        }
+      ],
+      [
+        "export.add",
+        {
+          "setting": {
+            "format": "pdf",
+            "bleed": "3mm",
+            "cropMarks": true,
+            "bleedMarks": true,
+            "cmyk": true
+          }
+        }
+      ],
+      [
+        "node.get",
+        {
+          "id": 2,
+          "fields": [
+            "exports"
+          ]
+        }
+      ],
+      [
+        "export.update",
+        {
+          "index": 0,
+          "format": "svg",
+          "svgOutlineText": false,
+          "svgIdAttribute": true,
+          "svgSimplifyStroke": false
+        }
+      ],
+      [
+        "node.get",
+        {
+          "id": 2,
+          "fields": [
+            "exports"
+          ]
+        }
+      ],
+      [
+        "export.update",
+        {
+          "index": 0,
+          "format": "xml",
+          "vdCompat": "exact"
+        }
+      ],
+      [
+        "node.get",
+        {
+          "id": 2,
+          "fields": [
+            "exports"
+          ]
+        }
+      ]
+    ],
+    "results": {
+      "1": {
+        "ok": true
+      },
+      "2": {
+        "exports": [
+          {
+            "format": "pdf",
+            "print": {
+              "bleed": 8.503937007874017,
+              "bleedMarks": true,
+              "cmyk": true,
+              "cropMarks": true
+            },
+            "size": {
+              "by": "scale",
+              "value": 1.0
+            },
+            "suffix": ""
+          }
+        ],
+        "id": 2
+      },
+      "3": {
+        "ok": true
+      },
+      "4": {
+        "exports": [
+          {
+            "format": "svg",
+            "print": {
+              "bleed": 8.503937007874017,
+              "bleedMarks": true,
+              "cmyk": true,
+              "cropMarks": true
+            },
+            "size": {
+              "by": "scale",
+              "value": 1.0
+            },
+            "suffix": "",
+            "svgIdAttribute": true,
+            "svgOutlineText": false,
+            "svgSimplifyStroke": false
+          }
+        ],
+        "id": 2
+      },
+      "5": {
+        "ok": true
+      },
+      "6": {
+        "exports": [
+          {
+            "format": "vectorDrawable",
+            "print": {
+              "bleed": 8.503937007874017,
+              "bleedMarks": true,
+              "cmyk": true,
+              "cropMarks": true
+            },
+            "size": {
+              "by": "scale",
+              "value": 1.0
+            },
+            "suffix": "",
+            "svgIdAttribute": true,
+            "svgOutlineText": false,
+            "svgSimplifyStroke": false,
+            "vdCompat": "exact"
+          }
+        ],
+        "id": 2
+      }
+    },
+    "wire": [
+      {
+        "format": "vectorDrawable",
+        "print": {
+          "bleed": 8.503937007874017,
+          "bleedMarks": true,
+          "cmyk": true,
+          "cropMarks": true
+        },
+        "size": {
+          "by": "scale",
+          "value": 1.0
+        },
+        "suffix": "",
+        "svgIdAttribute": true,
+        "svgOutlineText": false,
+        "svgSimplifyStroke": false,
+        "vdCompat": "exact"
+      }
+    ],
+    "pageWire": []
+  },
+  {
+    "name": "atomic invalid setting",
+    "commands": [
+      [
+        "shape.rectangle",
+        {
+          "name": "Swatch"
+        }
+      ],
+      [
+        "export.add",
+        {}
+      ],
+      [
+        "export.update",
+        {
+          "index": 0,
+          "quality": 0
+        }
+      ],
+      [
+        "node.get",
+        {
+          "id": 2,
+          "fields": [
+            "exports"
+          ]
+        }
+      ],
+      [
+        "export.update",
+        {
+          "index": 1,
+          "size": "no"
+        }
+      ],
+      [
+        "node.get",
+        {
+          "id": 2,
+          "fields": [
+            "exports"
+          ]
+        }
+      ],
+      [
+        "export.remove",
+        {
+          "index": 99
+        }
+      ],
+      [
+        "node.get",
+        {
+          "id": 2,
+          "fields": [
+            "exports"
+          ]
+        }
+      ]
+    ],
+    "results": {
+      "1": {
+        "ok": true
+      },
+      "2": {
+        "error": "invalid parameters for `export.update`: quality: a whole number from 1 to 100 (JPG)"
+      },
+      "3": {
+        "exports": [
+          {
+            "format": "png",
+            "size": {
+              "by": "scale",
+              "value": 1.0
+            },
+            "suffix": ""
+          }
+        ],
+        "id": 2
+      },
+      "4": {
+        "error": "invalid parameters for `export.update`: size: 2x, 512w or 512h (or {by: scale|width|height, value})"
+      },
+      "5": {
+        "exports": [
+          {
+            "format": "png",
+            "size": {
+              "by": "scale",
+              "value": 1.0
+            },
+            "suffix": ""
+          }
+        ],
+        "id": 2
+      },
+      "6": {
+        "ok": true
+      },
+      "7": {
+        "exports": [
+          {
+            "format": "png",
+            "size": {
+              "by": "scale",
+              "value": 1.0
+            },
+            "suffix": ""
+          }
+        ],
+        "id": 2
+      }
+    },
+    "wire": [
+      {
+        "format": "png",
+        "size": {
+          "by": "scale",
+          "value": 1.0
+        },
+        "suffix": ""
+      }
+    ],
+    "pageWire": []
+  },
+  {
+    "name": "next after custom size",
+    "commands": [
+      [
+        "shape.rectangle",
+        {
+          "name": "Swatch"
+        }
+      ],
+      [
+        "export.add",
+        {
+          "setting": {
+            "size": "31w",
+            "suffix": "@icon",
+            "format": "webp",
+            "colorProfile": "srgb"
+          }
+        }
+      ],
+      [
+        "export.add",
+        {}
+      ],
+      [
+        "node.get",
+        {
+          "id": 2,
+          "fields": [
+            "exports"
+          ]
+        }
+      ]
+    ],
+    "results": {
+      "1": {
+        "ok": true
+      },
+      "2": {
+        "ok": true
+      },
+      "3": {
+        "exports": [
+          {
+            "colorProfile": "srgb",
+            "format": "webp",
+            "size": {
+              "by": "width",
+              "value": 31.0
+            },
+            "suffix": "@icon"
+          },
+          {
+            "format": "png",
+            "size": {
+              "by": "scale",
+              "value": 1.0
+            },
+            "suffix": ""
+          }
+        ],
+        "id": 2
+      }
+    },
+    "wire": [
+      {
+        "colorProfile": "srgb",
+        "format": "webp",
+        "size": {
+          "by": "width",
+          "value": 31.0
+        },
+        "suffix": "@icon"
+      },
+      {
+        "format": "png",
+        "size": {
+          "by": "scale",
+          "value": 1.0
+        },
+        "suffix": ""
+      }
+    ],
+    "pageWire": []
+  },
+  {
+    "name": "geometry reference",
+    "commands": [
+      [
+        "shape.rectangle",
+        {
+          "name": "Swatch"
+        }
+      ],
+      [
+        "node.set",
+        {
+          "props": {
+            "exports": [
+              {
+                "format": "png",
+                "size": {
+                  "by": "height",
+                  "value": 8
+                },
+                "suffix": "sm"
+              }
+            ]
+          }
+        }
+      ],
+      [
+        "node.get",
+        {
+          "id": 2,
+          "fields": [
+            "exports"
+          ]
+        }
+      ]
+    ],
+    "results": {
+      "1": {
+        "ok": true
+      },
+      "2": {
+        "exports": [
+          {
+            "format": "png",
+            "size": {
+              "by": "height",
+              "value": 8.0
+            },
+            "suffix": "sm"
+          }
+        ],
+        "id": 2
+      }
+    },
+    "wire": [
+      {
+        "format": "png",
+        "size": {
+          "by": "height",
+          "value": 8.0
+        },
+        "suffix": "sm"
+      }
+    ],
+    "pageWire": []
+  },
+  {
+    "name": "raw property defaults and options",
+    "commands": [
+      [
+        "shape.rectangle",
+        {}
+      ],
+      [
+        "node.set",
+        {
+          "props": {
+            "exportSettings": [
+              {
+                "format": "jpg",
+                "quality": 0,
+                "size": {
+                  "by": "width",
+                  "value": -4
+                },
+                "colorProfile": "displayP3",
+                "includeBoundingBox": true,
+                "print": {
+                  "cmyk": true,
+                  "cropMarks": true,
+                  "bleed": -2
+                }
+              }
+            ]
+          }
+        }
+      ],
+      [
+        "node.get",
+        {
+          "id": 2,
+          "fields": [
+            "exports"
+          ]
+        }
+      ]
+    ],
+    "results": {
+      "1": {
+        "ok": true
+      },
+      "2": {
+        "exports": [
+          {
+            "format": "jpg",
+            "print": {
+              "bleed": -2.0,
+              "bleedMarks": false,
+              "cmyk": true,
+              "cropMarks": false
+            },
+            "quality": 0,
+            "size": {
+              "by": "width",
+              "value": -4.0
+            },
+            "suffix": ""
+          }
+        ],
+        "id": 2
+      }
+    },
+    "wire": [
+      {
+        "format": "jpg",
+        "print": {
+          "bleed": -2.0,
+          "bleedMarks": false,
+          "cmyk": true,
+          "cropMarks": false
+        },
+        "quality": 0,
+        "size": {
+          "by": "width",
+          "value": -4.0
+        },
+        "suffix": ""
+      }
+    ],
+    "pageWire": []
+  },
+  {
+    "name": "page hidden inspection",
+    "commands": [
+      [
+        "shape.rectangle",
+        {}
+      ],
+      [
+        "export.add",
+        {
+          "id": 1
+        }
+      ],
+      [
+        "node.get",
+        {
+          "id": 1,
+          "fields": [
+            "exports"
+          ]
+        }
+      ],
+      [
+        "node.get",
+        {
+          "id": 2,
+          "fields": [
+            "exports"
+          ]
+        }
+      ]
+    ],
+    "results": {
+      "1": {
+        "ok": true
+      },
+      "2": {
+        "children": [
+          {
+            "id": 2
+          }
+        ],
+        "id": 1
+      },
+      "3": {
+        "id": 2
+      }
+    },
+    "wire": [],
+    "pageWire": [
+      {
+        "format": "png",
+        "size": {
+          "by": "scale",
+          "value": 1.0
+        },
+        "suffix": ""
+      }
+    ]
+  },
+  {
+    "name": "suffix and aliases",
+    "commands": [
+      [
+        "shape.rectangle",
+        {}
+      ],
+      [
+        "export.add",
+        {
+          "setting": {
+            "format": "..JPEG",
+            "size": "@0.5x",
+            "suffix": "ABC\u0001",
+            "quality": "100",
+            "colorProfile": "srgb"
+          }
+        }
+      ],
+      [
+        "node.get",
+        {
+          "id": 2,
+          "fields": [
+            "exports"
+          ]
+        }
+      ],
+      [
+        "export.add",
+        {}
+      ],
+      [
+        "node.get",
+        {
+          "id": 2,
+          "fields": [
+            "exports"
+          ]
+        }
+      ],
+      [
+        "export.update",
+        {
+          "index": 0,
+          "quality": 90,
+          "colorProfile": "sameAsFile"
+        }
+      ],
+      [
+        "node.get",
+        {
+          "id": 2,
+          "fields": [
+            "exports"
+          ]
+        }
+      ]
+    ],
+    "results": {
+      "1": {
+        "ok": true
+      },
+      "2": {
+        "exports": [
+          {
+            "colorProfile": "srgb",
+            "format": "jpg",
+            "quality": 100,
+            "size": {
+              "by": "scale",
+              "value": 0.5
+            },
+            "suffix": "ABC"
+          }
+        ],
+        "id": 2
+      },
+      "3": {
+        "ok": true
+      },
+      "4": {
+        "exports": [
+          {
+            "colorProfile": "srgb",
+            "format": "jpg",
+            "quality": 100,
+            "size": {
+              "by": "scale",
+              "value": 0.5
+            },
+            "suffix": "ABC"
+          },
+          {
+            "format": "png",
+            "size": {
+              "by": "scale",
+              "value": 1.0
+            },
+            "suffix": "@1x"
+          }
+        ],
+        "id": 2
+      },
+      "5": {
+        "ok": true
+      },
+      "6": {
+        "exports": [
+          {
+            "format": "jpg",
+            "size": {
+              "by": "scale",
+              "value": 0.5
+            },
+            "suffix": "ABC"
+          },
+          {
+            "format": "png",
+            "size": {
+              "by": "scale",
+              "value": 1.0
+            },
+            "suffix": "@1x"
+          }
+        ],
+        "id": 2
+      }
+    },
+    "wire": [
+      {
+        "format": "jpg",
+        "size": {
+          "by": "scale",
+          "value": 0.5
+        },
+        "suffix": "ABC"
+      },
+      {
+        "format": "png",
+        "size": {
+          "by": "scale",
+          "value": 1.0
+        },
+        "suffix": "@1x"
+      }
+    ],
+    "pageWire": []
+  }
+]

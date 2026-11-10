@@ -32,7 +32,7 @@ function flag(p: Record<string, unknown>, key: string, fallback: boolean) {
   return value;
 }
 
-export function rasterExportPlan(doc: Document, selection: readonly string[], p: Record<string, unknown>) {
+export function rasterExportPlan(doc: Document, selection: readonly string[], p: Record<string, unknown>, savedSize?: ExportSize) {
   const currentPage = pageOf(doc);
   const id = parseNodeId(p.id);
   const requested = Array.isArray(p.ids) ? p.ids.flatMap(value => parseNodeId(value) ?? []) : id ? [id] : selection;
@@ -41,7 +41,7 @@ export function rasterExportPlan(doc: Document, selection: readonly string[], p:
   if (profile !== "srgb" && profile !== "displayP3") throw new Error("colorProfile: sameAsFile|srgb|displayP3");
   const quality = p.quality === undefined ? 90 : typeof p.quality === "boolean" ? NaN : parseNumber(p.quality, "quality");
   if (!Number.isInteger(quality) || quality < 1 || quality > 100) throw new Error("quality: a whole number from 1 to 100 (JPG)");
-  const size = p.size == null ? undefined : exportSize(p.size);
+  const size = savedSize ?? (p.size == null ? undefined : exportSize(p.size));
   const contentsOnly = flag(p, "contentsOnly", true), boundingBox = flag(p, "includeBoundingBox", false);
   const layers = ids.filter(id => doc.nodes[id]);
   const anyVisible = layers.some(id => { const n = doc.nodes[id]; return n.kind === "page" || n.visible !== false; });
@@ -69,6 +69,7 @@ export function rasterExportPlan(doc: Document, selection: readonly string[], p:
     const span = area[size.by];
     scale = span > 0 ? Math.min(64, size.value / span) : 1;
   }
+  if (size) scale = Number.isFinite(scale) && scale > 0 ? Math.min(scale,64) : 1;
   const width = Math.max(1, Math.ceil(area.width * scale - 1e-6)), height = Math.max(1, Math.ceil(area.height * scale - 1e-6));
   if (width > 16384 || height > 16384 || !Object.values(area).every(Number.isFinite)) throw new Error("render failed (empty or too large)");
   return { area, drawn, scale, width, height, profile: profile as ColourProfile, quality };

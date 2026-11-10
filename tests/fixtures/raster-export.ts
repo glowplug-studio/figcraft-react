@@ -8,3 +8,12 @@ export async function replay(commands: readonly (readonly unknown[])[]) {
   if (engine.getSnapshot().document !== before.document || engine.getUndoDepth() !== history || engine.getSnapshot().dirty !== before.dirty) throw new Error("Export mutated the drawing");
   return String(result.data);
 }
+
+export async function replayBatch(commands: readonly (readonly unknown[])[]) {
+  const engine = new EditorEngine();
+  for (const [command, params] of commands.slice(0,-1)) engine.execute(String(command),params);
+  const before = engine.getSnapshot();
+  const result = await engine.executeAsync("file.exportLayers", commands.at(-1)![1]);
+  if (engine.getSnapshot().document !== before.document || before.dirty !== engine.getSnapshot().dirty) throw new Error("Batch export mutated the drawing");
+  return result;
+}

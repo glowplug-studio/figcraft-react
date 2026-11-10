@@ -508,8 +508,8 @@ export async function renderAssetThumbnail(canvas: HTMLCanvasElement, doc: Docum
   } finally { scratch.width = scratch.height = 0; }
 }
 
-export async function renderRasterExport(doc: Document, selection: readonly string[], params: Record<string, unknown>, format: "png" | "jpg" | "webp") {
-  const plan = rasterExportPlan(doc, selection, params);
+export async function renderRasterExport(doc: Document, selection: readonly string[], params: Record<string, unknown>, format: "png" | "jpg" | "webp", savedSize?: import("./export-area").ExportSize) {
+  const plan = rasterExportPlan(doc, selection, params, savedSize);
   const scratch = globalThis.document.createElement("canvas");
   try {
     const rendered = await renderAreaPixels(scratch, doc, plan.area, plan.scale, plan.drawn, undefined, 1e-6, undefined, plan.profile, format === "jpg");

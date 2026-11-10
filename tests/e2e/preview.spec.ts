@@ -6873,3 +6873,47 @@ test("the export dialog downloads colour-tagged baseline JPEG and lossless WebP 
   }
   await expect(bar.getByText("Unsaved · Local document", { exact: true })).toBeVisible();
 });
+
+test("layer export settings recover, preview and download one file or a named ZIP", async ({page}) => {
+  await login(page);
+  await createNamedRectangle(page,"Icons/Chip",10,10,16,12);
+  const panel = page.getByRole("group",{name:"Layer export",exact:true});
+  await panel.getByRole("button",{name:"Add export setting"}).click();
+  await panel.getByText("Preview",{exact:true}).click();
+  await panel.locator("canvas").scrollIntoViewIfNeeded();
+  await expect.poll(() => panel.locator("canvas").evaluate(node=>(node as HTMLCanvasElement).width)).toBeGreaterThan(1);
+  let pending = page.waitForEvent("download");
+  await panel.getByRole("button",{name:"Export Icons/Chip"}).click();
+  expect((await pending).suggestedFilename()).toBe("Chip.png");
+  await panel.getByRole("button",{name:"Add export setting"}).click();
+  const second = panel.getByRole("group",{name:"Export setting 2"});
+  await second.getByLabel("Export format").selectOption("jpg");
+  await second.getByLabel("Export suffix").fill("-print");
+  await second.getByLabel("Export suffix").press("Enter");
+  await second.getByText("Export options",{exact:true}).click();
+  await second.getByLabel("Colour profile").selectOption("displayP3");
+  pending = page.waitForEvent("download");
+  await page.getByRole("button",{name:"Save as",exact:true}).click();
+  const native = await decodeFigcraft(await readFile((await (await pending).path())!));
+  expect(native.document.nodes["2"].exports?.[1]).toMatchObject({format:"jpg",suffix:"-print",colorProfile:"displayP3"});
+  await expect(page.getByText("Recovery saved on this device",{exact:true})).toBeVisible();
+  await page.reload();
+  await page.getByText("Icons/Chip",{exact:true}).first().click();
+  const bar = page.locator(".figcraft-document-bar");
+  await bar.getByText("File",{exact:true}).click(); await bar.getByRole("button",{name:"Export…",exact:true}).click();
+  const dialog = page.getByRole("dialog",{name:"Export",exact:true});
+  await expect(dialog.getByText("Icons/Chip-print.jpg",{exact:true})).toBeVisible();
+  pending = page.waitForEvent("download");
+  await dialog.getByRole("button",{name:"Export 1 layer",exact:true}).click();
+  const archive = await pending;
+  expect(archive.suggestedFilename()).toBe("Untitled.zip");
+  const members = unzipSync(await readFile((await archive.path())!));
+  expect(Object.keys(members)).toEqual(["Icons/Chip.png","Icons/Chip-print.jpg"]);
+  expect(Buffer.from(members["Icons/Chip-print.jpg"]).includes(Buffer.from("ICC_PROFILE"))).toBe(true);
+  expect(Buffer.from(members["Icons/Chip.png"]).readUInt32BE(16)).toBe(16);
+  const canvas = page.locator(".figcraft-canvas-area canvas").first();
+  await canvas.click({position:{x:160,y:90}});
+  pending = page.waitForEvent("download");
+  await page.getByRole("button",{name:"Export page as PNG",exact:true}).click();
+  expect((await pending).suggestedFilename()).toBe("Page 1.png");
+});

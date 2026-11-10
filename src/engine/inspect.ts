@@ -74,6 +74,7 @@ function inspect(doc: Document, node: DocumentNode, depth: number, fields?: Set<
     if (wants("background")) put("background", toCssHex(pageColour(node)));
   } else {
     if (node.styles) put("styles", node.styles);
+    if (node.exports?.length) put("exports", node.exports);
     if (node.grids?.length) put("grids", node.grids);
     if (wants("x") || wants("y")) {
       const local = frameRelative(doc, node.id);

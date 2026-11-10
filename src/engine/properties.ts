@@ -1,3 +1,4 @@
+import { readExportSettings } from "./export-settings";
 import { styleForLayer } from "./style-variables";
 import { takeCharacterFills } from "./text-layer-fills";
 import { reconcilePaintBindings } from "./list-variable-bindings";
@@ -40,7 +41,7 @@ const geometryKeys = new Set(["x", "y", "width", "height", "w", "h", "rotation"]
 const styleSlots = new Map<string, StyleSlot>([
   ["effectStyle","effect"], ["fillStyle","fill"], ["gridStyle","grid"], ["strokeStyle","stroke"], ["textStyle","text"],
 ]);
-const appearanceKeys = new Set([...styleSlots.keys(), "boundVariables", "variableModes", "grids", "layoutGrids", "description", "effects", "isMask", "maskType", "booleanOperation", "operandOperation", "name", "visible", "locked", "opacity", "blend", "blendMode", "fill", "fills", "clip", "constraints", "constrainProportions"]);
+const appearanceKeys = new Set([...styleSlots.keys(), "boundVariables", "variableModes", "grids", "layoutGrids", "exports", "exportSettings", "description", "effects", "isMask", "maskType", "booleanOperation", "operandOperation", "name", "visible", "locked", "opacity", "blend", "blendMode", "fill", "fills", "clip", "constraints", "constrainProportions"]);
 
 export function supportsLayerProperty(key:string) {
   return geometryKeys.has(key) || appearanceKeys.has(key) || childLayoutKeys.has(key) || frameTuning.has(key) ||
@@ -96,12 +97,14 @@ export function writeProperties(draft: HierarchyDraft, document: Document, selec
     return {slot, style};
   });
   const grids = keys.includes("layoutGrids") ? readGrids(props.layoutGrids,true) : keys.includes("grids") ? readGrids(props.grids,true) : undefined;
+  const exports = keys.includes("exports") ? readExportSettings(props.exports,true) : keys.includes("exportSettings") ? readExportSettings(props.exportSettings,true) : undefined;
   function styleProperties<T extends DocumentNode>(node: T, previous:DocumentNode): T {
     if (previous?.boundVariables) {
       if ("fill" in props || "fills" in props) node=reconcilePaintBindings(node,"fills",nodeFills(previous),nodeFills(node));
       if ("stroke" in props || "strokes" in props) node=reconcilePaintBindings(node,"strokes",previous.strokes ?? [],node.strokes ?? []);
     }
     if ("variableModes" in props) node=withVariableModes(node,props.variableModes);
+    if (exports) node = {...node, exports: exports.length ? exports : undefined};
     if (grids) node = {...node, grids:grids.length ? grids : undefined};
     for (const {slot,style} of links) node = applyStyleToNode(node, slot, styleForLayer(draft.document,style,node.id));
     if (Object.hasOwn(props,"boundVariables")) node=withLayerBindings(node,props.boundVariables);
@@ -187,7 +190,7 @@ export function writeProperties(draft: HierarchyDraft, document: Document, selec
     let node = draft.nodes[id];
     if (paints && node?.kind==="text") {node=takeCharacterFills(node);draft.set(node);}
     if (textCommand && node?.kind !== "text") throw new Error("Expected a text layer");
-    if (node?.kind === "page" && keys.every(key => styleSlots.has(key) || isStrokeKey(key) || ["opacity", "blend", "blendMode", "boundVariables", "variableModes", "description", "fill", "fills", "stroke", "strokes", "effects", "isMask", "maskType", "grids", "layoutGrids"].includes(key))) {
+    if (node?.kind === "page" && keys.every(key => styleSlots.has(key) || isStrokeKey(key) || ["opacity", "blend", "blendMode", "boundVariables", "variableModes", "description", "fill", "fills", "stroke", "strokes", "effects", "isMask", "maskType", "grids", "layoutGrids", "exports", "exportSettings"].includes(key))) {
       let page = mask(node);
       if (paints && !samePaints(page.fills ?? [], paints)) page = {...page, fills:paints.length ? paints : undefined};
       page = setStrokeProperties(page, props);
@@ -305,7 +308,7 @@ export function writeProperties(draft: HierarchyDraft, document: Document, selec
     if (opacity !== undefined && opacity !== (node.opacity ?? 1)) updated = Object.freeze({ ...updated, opacity });
     if (paints && !samePaints(rectanglePaints(node), paints)) updated = withRectanglePaints(updated, paints);
     updated = styleProperties(updated,node);
-    if (wrappers.size || updated.boundVariables!==node.boundVariables || updated.variableModes!==node.variableModes || links.length || grids || "description" in props || textKeys.length || updated.effects !== node.effects || updated.isMask !== node.isMask || updated.maskType !== node.maskType || changeBlend || arcNode !== node || updated.kind === "vector" && "cornerRadius" in props || cornersChanged || "constrainProportions" in props && props.constrainProportions !== (node.constrainProportions ?? false) || constraintsChanged || "clip" in props && isFrameLike(node) && props.clip !== node.clip || width !== node.width || height !== node.height || transform.some((value, index) => value !== rectangleTransform(node)[index])
+    if (wrappers.size || updated.boundVariables!==node.boundVariables || updated.variableModes!==node.variableModes || links.length || grids || exports || "description" in props || textKeys.length || updated.effects !== node.effects || updated.isMask !== node.isMask || updated.maskType !== node.maskType || changeBlend || arcNode !== node || updated.kind === "vector" && "cornerRadius" in props || cornersChanged || "constrainProportions" in props && props.constrainProportions !== (node.constrainProportions ?? false) || constraintsChanged || "clip" in props && isFrameLike(node) && props.clip !== node.clip || width !== node.width || height !== node.height || transform.some((value, index) => value !== rectangleTransform(node)[index])
       || name !== undefined && name !== node.name || "visible" in props && props.visible !== (node.visible ?? true)
       || "locked" in props && props.locked !== (node.locked ?? false) || opacity !== undefined && opacity !== (node.opacity ?? 1)
       || paints && !samePaints(rectanglePaints(node), paints)) {

@@ -1,3 +1,5 @@
+import { ExportPanel } from "./ExportPanel";
+import { layerExportJobs, type ExportJob } from "./engine/export-jobs";
 import { VersionPanel } from "./VersionPanel";
 import type { ReactNode } from "react";
 import type { WorkspaceRecoveryState } from "./engine/workspace-recovery";
@@ -108,6 +110,8 @@ export function DocumentEditor({ identity, capabilities, engine: suppliedEngine,
   const linkDialog = useRef<HTMLDialogElement>(null);
   const missingFontsDialog = useRef<HTMLDialogElement>(null);
   useEffect(() => { if (snapshot.missingFonts) missingFontsDialog.current?.showModal(); }, [snapshot.missingFonts]);
+  const [exportJobs,setExportJobs] = useState<ExportJob[]>([]);
+  const exportLayerCount = new Set(exportJobs.map(job=>job.id)).size;
   const exportDialog = useRef<HTMLDialogElement>(null);
   const replaceDialog = useRef<HTMLDialogElement>(null);
   const initialPrincipal = useRef(identity.getSnapshot().principal?.id);
@@ -451,19 +455,31 @@ export function DocumentEditor({ identity, capabilities, engine: suppliedEngine,
     } catch (caught) { setError(caught instanceof Error ? caught.message : "File could not be opened"); }
     finally { setBusy(false); setOpeningTab(false); }
   }
-  async function exportDrawing(format: "png" | "jpg" | "webp", scale: number) {
+  function downloadBlob(blob: Blob, name: string) {
+    const link = document.createElement("a"), url = URL.createObjectURL(blob);
+    try {
+      link.href = url; link.download = name;
+      document.body.append(link); link.click();
+    } finally { link.remove(); setTimeout(() => URL.revokeObjectURL(url), 1000); }
+  }
+  async function exportLayers() {
+    exportDialog.current?.close();
+    setBusy(true); setError("");
+    try {
+      const {output,name} = await engine.prepareLayerExports({});
+      if (output) downloadBlob(output,name);
+    } catch (caught) { setError(caught instanceof Error ? caught.message : "Export failed"); }
+    finally { setBusy(false); }
+  }
+  async function exportDrawing(format: "png" | "jpg" | "webp", scale: number, wholePage = false) {
     exportDialog.current?.close();
     setBusy(true); setError("");
     try {
       const { document: design, selection } = engine.getSnapshot();
       const first = selection[0] ?? pageOf(design).children[0];
-      const name = (design.nodes[first]?.name ?? "Export") + (scale === 1 ? "" : "@" + scale + "x") + "." + format;
-      const { blob } = await engine.exportRaster({ format, scale });
-      const link = document.createElement("a"), url = URL.createObjectURL(blob);
-      try {
-        link.href = url; link.download = name;
-        document.body.append(link); link.click();
-      } finally { link.remove(); setTimeout(() => URL.revokeObjectURL(url), 1000); }
+      const name = (wholePage ? pageOf(design).name : design.nodes[first]?.name ?? "Export") + (scale === 1 ? "" : "@" + scale + "x") + "." + format;
+      const { blob } = await engine.exportRaster({ format, scale, ...(wholePage && {ids: pageOf(design).children}) });
+      downloadBlob(blob,name);
     } catch (error) { setError(error instanceof Error ? error.message : "Export failed"); }
     finally { setBusy(false); }
   }
@@ -549,7 +565,8 @@ export function DocumentEditor({ identity, capabilities, engine: suppliedEngine,
       <header className="figcraft-document-bar"><h1>{snapshot.document.name}</h1><span>{snapshot.dirty ? "Unsaved" : snapshot.hasSaved ? "Downloaded" : "Unmodified"} · Local document</span>
         <details className="figcraft-bar-menu"><summary>File</summary><div className="figcraft-menu-items">{fileMenu}
           <button type="button" disabled={!signedIn || busy || recoveryStatus === "loading"} onClick={event => {
-            event.currentTarget.closest("details")?.removeAttribute("open"); exportDialog.current?.showModal();
+            event.currentTarget.closest("details")?.removeAttribute("open");
+            setExportJobs(layerExportJobs(snapshot.document,snapshot.selection,{}).jobs); exportDialog.current?.showModal();
           }}>Export…</button>
           {(["Version history", "Save to version history…", ...(workspace && !workspace.onBranch ? ["Create branch…"] : [])]).map((label, index) => <button key={label} type="button"
             disabled={!signedIn || busy || recoveryStatus === "loading" || !capabilities.includes("document.edit")} onClick={event => {
@@ -635,7 +652,11 @@ export function DocumentEditor({ identity, capabilities, engine: suppliedEngine,
       </dialog>}
       {snapshot.profileDialog && editable && <ColourProfileDialog current={snapshot.document.colourProfile ?? "srgb"}
         close={() => engine.closeProfileDialog()} apply={(profile, convert) => dispatch("file.colorProfile", {profile, convert})} />}
-      <dialog ref={exportDialog} aria-label="Export">
+      <dialog ref={exportDialog} aria-label="Export" onClose={()=>setExportJobs([])}>
+        {exportJobs.length > 0 && <><p>With the layers’ export settings</p><ul>{exportJobs.slice(0,6).map(job=><li key={job.name}>{job.name}</li>)}</ul>
+          {exportJobs.length > 6 && <p>and {exportJobs.length - 6} more</p>}
+          <button type="button" onClick={()=>void exportLayers()}>Export {exportLayerCount} {exportLayerCount === 1 ? "layer" : "layers"}</button>
+        </>}
         <p>{snapshot.selection.length || page.children.length} layers as one file</p>
         {([["png",1], ["png",2], ["png",3], ["jpg",2], ["webp",2]] as const).map(([format, scale]) =>
           <button type="button" key={format + scale} onClick={() => void exportDrawing(format, scale)}>{format.toUpperCase()} @{scale}x</button>)}
@@ -817,6 +838,9 @@ export function DocumentEditor({ identity, capabilities, engine: suppliedEngine,
           {!editingVector && <VariableModesPanel document={snapshot.document} selection={snapshot.selection} enabled={editable && !busy} run={dispatch}/>}
           {!editingVector && !snapshot.selection.length && <VariablesPanel documentName={snapshot.document.name} importFile={file=>engine.importVariableFile(file)} error={error} data={snapshot.document.variables} enabled={editable && !busy} run={dispatch}/>}
           {!editingVector && <SharedStylesPanel engine={engine} enabled={editable && !busy} run={dispatch} leave={()=>controller.current?.finishText()}/>}
+          {!editingVector && !snapshot.selection.length && <fieldset><legend>Export</legend><button type="button" disabled={!signedIn || busy} onClick={()=>void exportDrawing("png",1,true)}>Export page as PNG</button></fieldset>}
+          {!editingVector && <ExportPanel key={snapshot.selection.join(",")} doc={snapshot.document} ids={snapshot.selection} enabled={editable && !busy}
+            run={dispatch} download={()=>void exportLayers()}/>}
         </aside>
       </div>
     </div></LibraryVariablesContext.Provider>;

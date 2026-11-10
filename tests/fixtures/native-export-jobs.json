@@ -1,0 +1,393 @@
+[
+  {
+    "name": "folder collisions and ignored layers",
+    "commands": [
+      [
+        "shape.rectangle",
+        {
+          "name": "../Art/Icon",
+          "width": 4,
+          "height": 5
+        }
+      ],
+      [
+        "export.add",
+        {
+          "setting": {}
+        }
+      ],
+      [
+        "export.add",
+        {
+          "setting": {
+            "size": "2x"
+          }
+        }
+      ],
+      [
+        "shape.rectangle",
+        {
+          "name": "art/icon",
+          "width": 4,
+          "height": 5
+        }
+      ],
+      [
+        "export.add",
+        {
+          "setting": {}
+        }
+      ],
+      [
+        "shape.rectangle",
+        {
+          "name": ".../a:*? /.",
+          "width": 4,
+          "height": 5
+        }
+      ],
+      [
+        "export.add",
+        {
+          "setting": {
+            "suffix": "bad/side"
+          }
+        }
+      ],
+      [
+        "shape.rectangle",
+        {
+          "name": "Plain",
+          "width": 4,
+          "height": 5
+        }
+      ],
+      [
+        "file.exportLayers",
+        {
+          "ids": [
+            2,
+            3,
+            4,
+            5
+          ],
+          "zip": true
+        }
+      ]
+    ],
+    "files": [
+      {
+        "id": 2,
+        "name": "Art/Icon.png"
+      },
+      {
+        "id": 2,
+        "name": "Art/Icon@2x.png"
+      },
+      {
+        "id": 3,
+        "name": "art/icon 2.png"
+      },
+      {
+        "id": 4,
+        "name": "a___bad_side.png"
+      }
+    ],
+    "skipped": 1,
+    "error": null
+  },
+  {
+    "name": "explicit duplicates",
+    "commands": [
+      [
+        "shape.rectangle",
+        {
+          "name": "../Art/Icon",
+          "width": 4,
+          "height": 5
+        }
+      ],
+      [
+        "export.add",
+        {
+          "setting": {}
+        }
+      ],
+      [
+        "export.add",
+        {
+          "setting": {
+            "size": "2x"
+          }
+        }
+      ],
+      [
+        "shape.rectangle",
+        {
+          "name": "art/icon",
+          "width": 4,
+          "height": 5
+        }
+      ],
+      [
+        "export.add",
+        {
+          "setting": {}
+        }
+      ],
+      [
+        "shape.rectangle",
+        {
+          "name": ".../a:*? /.",
+          "width": 4,
+          "height": 5
+        }
+      ],
+      [
+        "export.add",
+        {
+          "setting": {
+            "suffix": "bad/side"
+          }
+        }
+      ],
+      [
+        "shape.rectangle",
+        {
+          "name": "Plain",
+          "width": 4,
+          "height": 5
+        }
+      ],
+      [
+        "file.exportLayers",
+        {
+          "ids": [
+            3,
+            2,
+            3
+          ]
+        }
+      ]
+    ],
+    "files": [
+      {
+        "id": 3,
+        "name": "art/icon.png"
+      },
+      {
+        "id": 2,
+        "name": "Art/Icon 2.png"
+      },
+      {
+        "id": 2,
+        "name": "Art/Icon@2x.png"
+      },
+      {
+        "id": 3,
+        "name": "art/icon 3.png"
+      }
+    ],
+    "skipped": 1,
+    "error": null
+  },
+  {
+    "name": "unselected page fallback",
+    "commands": [
+      [
+        "shape.rectangle",
+        {
+          "name": "../Art/Icon",
+          "width": 4,
+          "height": 5
+        }
+      ],
+      [
+        "export.add",
+        {
+          "setting": {}
+        }
+      ],
+      [
+        "export.add",
+        {
+          "setting": {
+            "size": "2x"
+          }
+        }
+      ],
+      [
+        "shape.rectangle",
+        {
+          "name": "art/icon",
+          "width": 4,
+          "height": 5
+        }
+      ],
+      [
+        "export.add",
+        {
+          "setting": {}
+        }
+      ],
+      [
+        "shape.rectangle",
+        {
+          "name": ".../a:*? /.",
+          "width": 4,
+          "height": 5
+        }
+      ],
+      [
+        "export.add",
+        {
+          "setting": {
+            "suffix": "bad/side"
+          }
+        }
+      ],
+      [
+        "shape.rectangle",
+        {
+          "name": "Plain",
+          "width": 4,
+          "height": 5
+        }
+      ],
+      [
+        "file.exportLayers",
+        {
+          "ids": []
+        }
+      ]
+    ],
+    "files": [
+      {
+        "id": 2,
+        "name": "Art/Icon.png"
+      },
+      {
+        "id": 2,
+        "name": "Art/Icon@2x.png"
+      },
+      {
+        "id": 3,
+        "name": "art/icon 2.png"
+      },
+      {
+        "id": 4,
+        "name": "a___bad_side.png"
+      }
+    ],
+    "skipped": 0,
+    "error": null
+  },
+  {
+    "name": "no jobs",
+    "commands": [
+      [
+        "shape.rectangle",
+        {
+          "name": "Empty",
+          "width": 4,
+          "height": 5
+        }
+      ],
+      [
+        "file.exportLayers",
+        {}
+      ]
+    ],
+    "files": [],
+    "skipped": null,
+    "error": "command `file.exportLayers` is not available right now: no export settings (add one with export.add)"
+  },
+  {
+    "name": "inspect icon",
+    "commands": [
+      [
+        "shape.star",
+        {
+          "name": "Star",
+          "width": 21,
+          "height": 20
+        }
+      ],
+      [
+        "file.exportLayers",
+        {
+          "assets": true
+        }
+      ]
+    ],
+    "files": [
+      {
+        "id": 2,
+        "name": "Star.svg"
+      }
+    ],
+    "skipped": 0,
+    "error": null
+  },
+  {
+    "name": "custom names",
+    "commands": [
+      [
+        "shape.rectangle",
+        {
+          "name": "a.",
+          "width": 4,
+          "height": 5
+        }
+      ],
+      [
+        "export.add",
+        {
+          "setting": {
+            "size": "2x",
+            "format": "pdf"
+          }
+        }
+      ],
+      [
+        "export.add",
+        {
+          "setting": {
+            "size": "19w"
+          }
+        }
+      ],
+      [
+        "export.add",
+        {
+          "setting": {
+            "size": "4x",
+            "suffix": "-v"
+          }
+        }
+      ],
+      [
+        "file.exportLayers",
+        {
+          "zip": true
+        }
+      ]
+    ],
+    "files": [
+      {
+        "id": 2,
+        "name": "a.pdf"
+      },
+      {
+        "id": 2,
+        "name": "a.png"
+      },
+      {
+        "id": 2,
+        "name": "a-v.png"
+      }
+    ],
+    "skipped": 0,
+    "error": null
+  }
+]

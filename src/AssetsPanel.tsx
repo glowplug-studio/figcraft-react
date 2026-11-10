@@ -30,7 +30,7 @@ function scheduleThumbnails() {
   });
 }
 
-function AssetThumbnail({doc,id}:{doc:Document;id:string}) {
+export function AssetThumbnail({doc,id}:{doc:Document;id:string}) {
   const ref = useRef<HTMLCanvasElement>(null);
   useEffect(()=>{
     const canvas = ref.current!;

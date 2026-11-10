@@ -512,3 +512,5 @@ The local 0.52.0 candidate maps the two `panel.libraries` command requests, the 
 [Property report](../reports/26-11-10-file-workspace-parity.html)
 
 Rust edit clipboard, appearance and file path commands map to the workspace layer clipboard, property clipboard and browser file menu. Cross-file linked IDs, images and property transfer passed native replay and production browser tests. Rust export_area and export_file map to export-area, canvas and export-png. [Raster evidence](../reports/26-11-10-file-interchange.md).
+
+Rust ExportSetting, export_setting, export_jobs and asset_jobs map to export-settings, export-jobs, export-layers and ExportPanel. Eight native sessions exercise settings, validation and persistence. Six exercise layer order, skipped counts, asset selection, names and folders. Rust JPEG and WebP exports map to renderRasterExport, export-image-profile and the JPEG worker. [Interchange evidence](../reports/26-11-10-file-interchange.md).

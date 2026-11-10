@@ -1,4 +1,5 @@
 import type { LayerVariableModes } from "./variable-modes";
+import type { ExportSetting } from "./export-settings";
 import type { Variables } from "./variables";
 import type { LayerStyles, SharedStyle } from "./shared-styles";
 import type { ComponentLinks, ComponentMain, ComponentSet, ComponentInstance } from "./component-properties";
@@ -43,6 +44,7 @@ export interface PageNode extends MaskProperties, ComponentLinks, LayerStyles, L
   readonly blend?: BlendMode;
   readonly opacity?: number;
   readonly thumbnailFlag?: string;
+  readonly exports?: readonly ExportSetting[];
   readonly fills?: readonly Paint[];
   readonly strokes?: readonly Paint[];
   readonly effects?: readonly Effect[];
@@ -62,6 +64,7 @@ export interface Constraints {
 export const defaultConstraints: Constraints = Object.freeze({ horizontal: "left", vertical: "top" });
 export interface LayerProperties extends MaskProperties, ComponentLinks, LayerStyles, LayerVariableModes {
   readonly thumbnailFlag?: string;
+  readonly exports?: readonly ExportSetting[];
   readonly childLayout?: ChildLayout;
   readonly sizing?: LayerSizing;
   readonly effects?: readonly Effect[];

@@ -6,15 +6,15 @@
 |---|---|
 | Overall status | In progress. [Execution checkpoint](26-11-07-full-port-resume.md). |
 | Active slice | Row 12 design interchange and export. [Dated plan](26-11-10-file-interchange.md). |
-| Active phase | PNG export passed against native pixels. JPEG, lossless WebP and layer export settings are in progress. |
+| Active phase | PNG, JPEG and lossless WebP passed native comparisons and all 306 production Chromium checks. Layer export settings and ZIP delivery are in progress. |
 | Upstream baseline | Styles reference a2e87433. Components reference 79c36346. Global supported baseline 8eb0b876. |
-| Branch and last verified commit | prompt/full-figcraft-port at 978b2f7 for the 0.53.0 local workspace release. |
+| Branch and last verified commit | prompt/full-figcraft-port at 48f7fc7 for JPEG and lossless WebP. The workspace release gate passed at 978b2f7. |
 | Completed slices | Rectangle/host-auth, bounded native persistence/recovery, supported-model pages, affine rectangle geometry/selection and solid appearance, plus nested group hierarchy, Frame containers, movement/transform gestures, rounded corners, ellipse/arc/ring and Polygon/Star editing verified locally; Line/Arrow and uniform solid strokes also verified; per-side Rectangle/Frame strokes, variable-width profiles and procedural brushes verified; vector networks, solid region/stroke rendering and Flatten/Reverse also verified; foundation commit `154f5a7`. Gradient, image, pattern, blend and mask releases now have local property matrices. [Blend evidence](../reports/26-11-09-blend-modes-parity.html). Auto layout and constraints passed the local release gate. [Release evidence](../reports/26-11-09-auto-layout.md). [Local components, instances, variant properties, slots and Assets](../reports/26-11-09-components-instances.md) passed the 0.51.0 gate. |
 | Remaining slices | Continue incomplete roadmap rows, excluding the user-deferred plugin and widget family. See each slice matrix for outstanding integrations. |
 | Tests last passed | Strict TypeScript, both builds, 2,049 pure tests, two local Auth integrations and all 304 production Chromium workflows passed in 603.9 seconds. [Workspace evidence](../reports/26-11-10-file-workspace.md). |
 | Files currently in progress | [Design interchange and export](26-11-10-file-interchange.md). |
 | Blockers | The scoped Supabase MCP project and public-table reads passed after reauthorisation. |
-| Exact next action | Compare JPEG and lossless WebP export profiles, alpha, quality and preset downloads against pinned Rust outputs. Then implement persisted layer export settings and batch output. |
+| Exact next action | Verify the layer settings inspector, native round trips and single-file and batch ZIP downloads. Continue vector interchange. |
 | Last updated | 2026-11-10 |
 
 ## Scope and continuation

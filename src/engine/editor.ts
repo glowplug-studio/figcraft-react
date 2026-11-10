@@ -20,6 +20,7 @@ import { editVariableMetadata, metadataSpecs } from "./variable-metadata";
 import { editVariableValue, valueSpecs } from "./variable-values";
 import { collectionSpecs, editCollection } from "./variable-collections";
 import { emptyVariables, type Variables } from "./variables";
+import { editExportSettings, exportSpecs } from "./export-settings";
 import { editLayoutGuides, gridSpecs } from "./layout-guides";
 import { editStyleLinks } from "./style-application";
 import { editStylePaint, editStyleDefinition, orderStyles, styleEditSpecs, styleOrderSpecs } from "./style-commands";
@@ -136,6 +137,7 @@ export const commandSpecs = Object.freeze({
   "variable.bind": {label:"Bind variable",undo:true},
   "variable.setMode": {label:"Set variable mode",undo:true},
   ...gridSpecs,
+  ...exportSpecs,
   "library.import": {label:"Import library component",undo:true},
   "library.place": {label:"Place library component",undo:true},
   "libraries.open": {label:"Open libraries",undo:false},
@@ -206,6 +208,7 @@ export const commandSpecs = Object.freeze({
   "edit.redo": { label: "Redo", undo: false },
   "edit.duplicate": { label: "Duplicate", undo: true },
   "image.place": { label: "Place image", undo: true },
+  "file.exportLayers": { label: "Export layers", undo: false },
   "file.export": { label: "Export", undo: false },
   "file.import": { label: "Import", undo: true },
   "file.placeImage": { label: "Place image", undo: true },
@@ -1130,7 +1133,7 @@ export class EditorEngine {
   execute(command: string, input: unknown = {}): Record<string, unknown> | Variables | ReturnType<typeof listStyles> | ReturnType<typeof listComponents> | ReturnType<typeof listPages> | typeof framePresets | ReturnType<typeof versionDetails>[] | ReturnType<typeof queryFonts> | null {
     if (!Object.hasOwn(commandSpecs, command)) throw new Error(`Unsupported command: ${command}`);
     if (!this.#hostEditable) throw new Error("Sign in to edit this document");
-    if (command === "file.export") throw new Error("Use executeAsync to export a file");
+    if (command === "file.export" || command === "file.exportLayers") throw new Error("Use executeAsync to export a file");
     if (command === "version.exitPreview") return { ended: this.exitVersionPreview() };
     if (this.#preview) {
       if (command === "file.markSaved" || command === "file.saveVersion") this.exitVersionPreview();
@@ -1466,9 +1469,10 @@ export class EditorEngine {
       }
       return { ok: true, ...(warnings.length ? { warnings } : {}) };
     }
-    if (Object.hasOwn(gridSpecs, command)) {
+    if (Object.hasOwn(gridSpecs, command) || Object.hasOwn(exportSpecs, command)) {
       const before = this.#snapshot.document;
-      const document = editLayoutGuides(before, this.#snapshot.selection, command, p);
+      const edit = Object.hasOwn(exportSpecs, command) ? editExportSettings : editLayoutGuides;
+      const document = edit(before, this.#snapshot.selection, command, p);
       if (document !== before) this.#commitEdit({document});
       return {ok:true};
     }
@@ -1644,11 +1648,18 @@ export class EditorEngine {
   async executeAsync(command: "node.get", input: unknown): Promise<ReturnType<typeof getNode>>;
   async executeAsync(command: string, input?: unknown): Promise<Record<string, unknown>>;
   async executeAsync(command: string, input: unknown = {}): Promise<Record<string, unknown> | Variables | ReturnType<typeof listStyles> | ReturnType<typeof listComponents> | ReturnType<typeof queryFonts> | null> {
+    if (command === "file.exportLayers") {
+      const opening = this.#openSequence;
+      const { output, files, skipped } = await this.prepareLayerExports(parameters(input), false);
+      const data = output ? base64Bytes(new Uint8Array(await output.arrayBuffer())) : undefined;
+      this.#assertExportAccess(opening);
+      return { files, skipped, ...(data !== undefined && { data }) };
+    }
     if (command === "file.export") {
       const opening = this.#openSequence;
       const { blob, format } = await this.exportRaster(parameters(input));
       const bytes = await blob.arrayBuffer();
-      if (opening !== this.#openSequence || !this.#hostEditable) throw new Error("Export was cancelled because the document or identity changed");
+      this.#assertExportAccess(opening);
       return { format, data: base64Bytes(new Uint8Array(bytes)) };
     }
     if (command === "version.restore" || command === "version.preview") return this.#showVersion(command, parameters(input));
@@ -1696,6 +1707,15 @@ export class EditorEngine {
     }
     return this.#executeFileCommand(command, input);
   }
+  #assertExportAccess(opening: number) {
+    if (opening !== this.#openSequence || !this.#hostEditable) throw new Error("Export was cancelled because the document or identity changed");
+  }
+  async prepareLayerExports(params: Record<string, unknown>, download = true) {
+    if (!this.#hostEditable) throw new Error("Sign in to export this document");
+    const opening = this.#openSequence, {document,selection} = this.#snapshot;
+    const { renderLayerExports } = await import("./export-layers");
+    return renderLayerExports(document, selection, params, download, () => this.#assertExportAccess(opening));
+  }
   async exportRaster(params: Record<string, unknown> = {}) {
     if (!this.#hostEditable) throw new Error("Sign in to export this document");
     if (params.path != null) throw new Error("Use a browser download to choose the export destination");
@@ -1705,7 +1725,7 @@ export class EditorEngine {
     const opening = this.#openSequence, { document, selection } = this.#snapshot;
     const { renderRasterExport } = await import("./canvas");
     const blob = await renderRasterExport(document, selection, params, format);
-    if (opening !== this.#openSequence || !this.#hostEditable) throw new Error("Export was cancelled because the document or identity changed");
+    this.#assertExportAccess(opening);
     return { format, blob };
   }
   async #prepareSave<T>(output: (archive: Blob) => Promise<T>) {
