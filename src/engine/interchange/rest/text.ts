@@ -5,6 +5,7 @@ import { defaultTextStyle, textItalic, textWeight, type TextStyle } from "../../
 import { restPaints, type ImportImages } from "./paint";
 import { children,clamp,clipped,entries,finite,numeric,object,restColour,string,type ImportWarnings,type JsonObject } from "./values";
 
+export const figLetterSpacing=Symbol("Fig letter spacing in percent");
 type Look=NonNullable<TextStyle["decorationLook"]>;
 const styles=["Thin","Extra Light","Light","Regular","Medium","Semi Bold","Bold","Extra Bold","Black"];
 const cases=new Map<string,TextStyle["case"]>([["ORIGINAL","original"],["UPPER","upper"],["LOWER","lower"],["TITLE","title"],["SMALL_CAPS","smallCaps"],["SMALL_CAPS_FORCED","smallCaps"]]);
@@ -32,6 +33,8 @@ function typeStyle(s:JsonObject,base:TextStyle,images:ImportImages,warnings:Impo
   else if (s.lineHeightUnit!=="PIXELS" && pct!==undefined) t.lineHeight={unit:"percent",value:clamp(pct,0,1e6)};
   else if (s.lineHeightUnit!=="FONT_SIZE_%" && px!==undefined) t.lineHeight={unit:"pixels",value:clamp(px,0,1e6)};
   if (finite(s.letterSpacing)) t.letterSpacing=s.letterSpacing===0 ? {unit:"percent",value:0} : {unit:"pixels",value:clamp(s.letterSpacing,-1e4,1e4)};
+  const percent=(s as Readonly<Record<PropertyKey,unknown>>)[figLetterSpacing];
+  if (finite(percent)) t.letterSpacing={unit:"percent",value:clamp(percent,-1e4,1e4)};
   t.case=cases.get(string(s.textCase) ?? "") ?? t.case;
   if (s.textDecoration==="NONE" || s.textDecoration==="UNDERLINE" || s.textDecoration==="STRIKETHROUGH") t.decoration=s.textDecoration.toLowerCase() as TextStyle["decoration"];
   const ds=s.textDecorationStyle, thickness=length(s.textDecorationThickness), offset=length(s.textDecorationOffset);

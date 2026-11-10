@@ -17,7 +17,10 @@ const overrideGroups:Readonly<Record<string,string>>=Object.fromEntries(Object.e
   grids:"layoutGrids gridStyleId",exports:"exportSettings",interactions:"interactions reactions"
 }).flatMap(([group,fields])=>fields.split(" ").map(field=>[field,group])));
 
+export const figOrigin=Symbol("source of an expanded Fig layer");
+export interface FigOrigin {id:string;sizeOverride:boolean}
 export class ImportComponents {
+  readonly #origins=new Map<string,FigOrigin>();
   readonly #defs=new Map<string,Record<string,ComponentProperty>>();
   readonly #swaps:{owner:string;name:string;rest:string}[]=[];
   readonly #defaults=new Map<string,Map<string,unknown>>();
@@ -25,6 +28,8 @@ export class ImportComponents {
   readonly #slots=new Map<string,JsonObject>();
   constructor(readonly draft:HierarchyDraft,readonly ids:Map<string,string>,readonly warnings:ImportWarnings) {}
   register(id:string,n:JsonObject) {
+    const origin=(n as JsonObject & {[figOrigin]?:FigOrigin})[figOrigin];
+    if (origin) this.#origins.set(id,origin);
     if (n.type==="INSTANCE") this.#instances.set(id,n);
     if (n.type==="SLOT") this.#slots.set(id,n);
     if (n.type!=="COMPONENT" && n.type!=="COMPONENT_SET") return;
@@ -134,6 +139,12 @@ export class ImportComponents {
       const groups=new Set(componentOverrides(node));
       for (const f of list(o.overriddenFields)) if (typeof f==="string" && Object.hasOwn(overrideGroups,f)) groups.add(overrideGroups[f]);
       draft.set(withOverrideSet(node,groups));
+    }
+    for (const [id,origin] of this.#origins) {
+      const source=ids.get(origin.id), node=draft.nodes[id];
+      if (!source || source===id || node.kind==="page") continue;
+      const linked={...node,source};
+      draft.set(origin.sizeOverride ? withOverrideSet(linked,new Set([...componentOverrides(node),"size"])) : linked);
     }
     this.#rename();
     for (const {id,main} of linked.sort((a,b)=>b.depth-a.depth)) {

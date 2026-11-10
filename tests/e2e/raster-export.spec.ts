@@ -407,3 +407,16 @@ test("opening 5,000 REST design layers yields to browser input",async({page})=>{
   expect(measured.ticks).toBeGreaterThan(0);
   test.info().annotations.push({type:"5,000 REST layers",description:JSON.stringify(measured)});
 });
+
+test("decoding 5,000 binary Fig layers yields to the browser and releases the Kiwi worker",async({page})=>{
+  await loadExporter(page);
+  const workers=new Set<import("@playwright/test").Worker>();
+  page.on("worker",w=>{workers.add(w);w.on("close",()=>workers.delete(w));});
+  const {readFile}=await import("node:fs/promises");
+  const data=(await readFile(new URL("../fixtures/native-fig-5000.fig",import.meta.url))).toString("base64");
+  const measured=await page.evaluate(b64=>(window as unknown as {FigcraftRaster:typeof import("../fixtures/raster-export")}).FigcraftRaster.measureFigImport(b64),data);
+  expect(measured).toMatchObject({name:"5,000 native tiles",layers:5000,pages:1,images:0,warnings:[]});
+  expect(measured.ticks).toBeGreaterThan(0);
+  await expect.poll(()=>workers.size).toBe(0);
+  test.info().annotations.push({type:"5,000 binary Fig layers",description:JSON.stringify(measured)});
+});

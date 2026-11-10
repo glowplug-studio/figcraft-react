@@ -99,6 +99,7 @@
     "@noble/hashes": "2.4.0",
     "@zip.js/zip.js": "2.24.0",
     "fflate": "0.8.3",
+    "fzstd": "0.1.1",
     "geotiff": "3.0.5",
     "harfbuzzjs": "1.6.4",
     "image-size": "2.1.0",

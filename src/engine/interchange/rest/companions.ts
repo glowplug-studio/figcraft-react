@@ -40,7 +40,7 @@ export class SiblingImages {
         const resource=imageResource(bytes,file);
         if (resource.width && resource.height) {
           const key=await imageHash(bytes);
-          const shared=this.#byDigest.get(key) ?? await readImageResource(bytes,resource);
+          const shared=this.#byDigest.get(key) ?? Object.freeze({...await readImageResource(bytes,resource),digest:key});
           this.#byDigest.set(key,shared);
           this.found.set(ref,{key,resource:shared});
         }

@@ -1878,7 +1878,7 @@ export class EditorEngine {
     const raster = command === "file.open" && typeof p.name === "string" && rasterFilename.test(p.name);
     const svg = (importing || command === "file.open") && typeof p.name === "string" && /\.svgz?$/i.test(p.name);
     const variables=importing || command==="file.open" ? fileVariablesParam(p.variables) : undefined;
-    const pages=importing && typeof p.name==="string" && /\.(?:figcraft|json)$/i.test(p.name);
+    const pages=importing && typeof p.name==="string" && /\.(?:figcraft|json|fig|jam)$/i.test(p.name);
     if (source && !pages && (placing || replacing || raster || svg) && source.file.size > MAX_IMAGE_BYTES) throw new Error("Image exceeds the 256 MiB external input limit");
     const allowed = importing ? ["name","data","x","y","center","variables"] : replacing ? ["data", "ids", "id", "target", "index"] : placing ? ["data", "name", "target", "mode", "width", "height", "parent", "x", "y"] : command==="file.open" ? ["data","name","variables"] : ["data", "name"];
     if (Object.keys(p).some(key => !allowed.includes(key)) || !source && typeof p.data !== "string" || (!importing && p.name !== undefined && typeof p.name !== "string")) throw new Error("File import requires base64 data and supported parameters");

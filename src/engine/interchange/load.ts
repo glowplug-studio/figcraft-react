@@ -31,7 +31,15 @@ export async function loadDesignDocument(source:Source,variables:unknown,checkCu
   const first=source instanceof Blob ? new Uint8Array(await source.slice(0,16384).arrayBuffer()) : source.subarray(0,16384);
   const prefix=new TextDecoder().decode(first), start=prefix.trimStart()[0];
   const native=async()=>({decoded:await decodeFigcraft(source),external:false});
-  if (size>MAX_DOCUMENT_BYTES || start && start!=="{") return native();
+  if (size>MAX_DOCUMENT_BYTES) return native();
+  const zipped=first[0]===0x50 && first[1]===0x4b;
+  const bare=prefix.startsWith("fig-");
+  if (bare || zipped) {
+    const {importFig}=await import("./fig/archive");
+    const decoded=await importFig(source,zipped,name,checkCurrent);
+    if (decoded) return {decoded,external:true};
+  }
+  if (start && start!=="{") return native();
   const external=async()=>{
     const json=await textOf(source);
     checkCurrent();

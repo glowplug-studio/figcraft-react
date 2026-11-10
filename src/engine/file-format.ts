@@ -312,7 +312,7 @@ async function parseDocument(source: Uint8Array | Blob) {
   return { decoded, listed, hasImageIndex: Array.isArray(root.imageIndex) };
 }
 
-async function readMember(file: FileEntry, source?: Blob, hash?: ReturnType<typeof sha256.create>): Promise<Blob> {
+export async function readMember(file: FileEntry, source?: Blob, hash?: ReturnType<typeof sha256.create>): Promise<Blob> {
   if (file.encrypted) fail("encrypted ZIP members are not supported yet");
   if (file.compressionMethod !== 0 && file.compressionMethod !== 8) fail("unsupported ZIP compression");
   if (file.crc32 === undefined) fail("ZIP member has no CRC32 checksum");
@@ -345,7 +345,7 @@ async function readMember(file: FileEntry, source?: Blob, hash?: ReturnType<type
 }
 
 /** zip.js streams file payloads but requests the central directory in one read. */
-class ArchiveReader extends Reader<Uint8Array | Blob> {
+export class ArchiveReader extends Reader<Uint8Array | Blob> {
   constructor(private source: Uint8Array | Blob) {
     super(source);
     this.size = source instanceof Blob ? source.size : source.byteLength;
@@ -397,7 +397,7 @@ async function readPublished(members:ReadonlyMap<string,FileEntry>, own:Readonly
   const document=Object.keys(images).length ? Object.freeze({...decoded.document,images:Object.freeze(images)}) : decoded.document;
   return Object.freeze({manifest:keepLibraryAssets(manifest,document),document,nextId:decoded.nextId});
 }
-const archiveOptions={strictness:"strict",filenameValidation:"tolerant",checkCrc32:true,checkOverlappingEntry:true,useWebWorkers:false} as const;
+export const archiveOptions={strictness:"strict",filenameValidation:"tolerant",checkCrc32:true,checkOverlappingEntry:true,useWebWorkers:false} as const;
 function addLibraryMember(members:Map<string,FileEntry>,file:Entry) {
   if (file.filename!==MANIFEST && file.filename!==SNAPSHOT && !file.filename.startsWith("library/images/")) return false;
   if (!file.directory) {

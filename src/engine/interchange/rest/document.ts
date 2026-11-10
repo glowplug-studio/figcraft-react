@@ -62,15 +62,16 @@ function entryRoots(source:JsonObject) {
 }
 const title=(s:string)=>s[0].toUpperCase()+s.slice(1);
 
-export async function importRestDocument(input:unknown,checkCurrent:()=>void=()=>{},images=new ImportImages(),companion?:unknown,folder?:RestFolder):Promise<DecodedFigcraft|undefined> {
+export async function importRestDocument(input:unknown,checkCurrent:()=>void=()=>{},images=new ImportImages(),companion?:unknown,folder?:RestFolder,figLayerLimit?:number):Promise<DecodedFigcraft|undefined> {
   const source=object(input), roots=entryRoots(source);
   if (!roots.length) return;
   const warnings=new ImportWarnings(), name=string(source.name);
   const initial=newDocument(name?.trim() ? clipped(name) : "Imported file");
   const variables=new ImportVariables(source,companion,warnings);
+  const layerLimit=figLayerLimit ?? 200000;
   const siblings=folder && new SiblingImages(folder.image);
   if (siblings) {
-    images=new ImportImages(siblings.found);
+    images=new ImportImages(siblings.found,figLayerLimit!==undefined ? warnings : undefined);
     for (const def of children(source.styleDefinitions).slice(0,256)) await siblings.prepare(object(object(def).node),checkCurrent);
   }
   const styles=new ImportStyles(roots,source,images,variables,warnings);
@@ -104,8 +105,8 @@ export async function importRestDocument(input:unknown,checkCurrent:()=>void=()=
       if (++visited%128===0 && performance.now()-lastYield>12) {
         await new Promise<void>(resolve=>setTimeout(resolve,0));checkCurrent();lastYield=performance.now();
       }
-      if (cursor.depth>256 || count>=200000) {
-        warnings.add(cursor.depth>256 ? "layers nested deeper than 256 levels were skipped" : "the file has more than 200000 layers; the rest were skipped",cursor.items.length-cursor.index);
+      if (cursor.depth>256 || count>=layerLimit) {
+        warnings.add(cursor.depth>256 ? "layers nested deeper than 256 levels were skipped" : "the file has more than "+layerLimit+" layers; the rest were skipped",cursor.items.length-cursor.index);
         cursor.index=cursor.items.length;continue;
       }
       const n=object(cursor.items[cursor.index++]);
@@ -121,7 +122,7 @@ export async function importRestDocument(input:unknown,checkCurrent:()=>void=()=
       const layout=isFrameLikeKind(type) ? restLayout(n) : undefined;
       const grids=isFrameLikeKind(type) ? layoutGrids(n.layoutGrids) : [];
       const bindings=variables.fields(n,type,!!layout,props,grids);
-      const node=readNode(id,{...kind,...props,...bindings,grids,...(layout && {layout}),child_layout:childLayout(n,layout?.mode,cursor.parentMode),...(type==="vector" && vectorFields(n,props,warnings)),...(type==="componentSet" || type==="component" ? {description} : {}),
+      const node=readNode(id,{...kind,...props,...bindings,grids,...(layout && {layout}),child_layout:childLayout(n,layout?.mode,cursor.parentMode),...(type==="vector" && vectorFields(n,props,warnings,images)),...(type==="componentSet" || type==="component" ? {description} : {}),
         id:wireId(id),parent:wireId(cursor.parent),name:clipped(string(n.name) ?? label),transform,width,height});
       base.nodes[id]=styles.link(node,n);
       count++;

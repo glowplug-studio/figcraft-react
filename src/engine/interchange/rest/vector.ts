@@ -4,8 +4,10 @@ import { readVectorNetwork, wireVectorNetwork } from "../../vector-codec";
 import { networkFromPath, sanitiseNetwork } from "../../vector-network";
 import { pathBounds } from "../../vector-path";
 import { children, clamp, list, maximumCoordinate, maximumSize, object, string, type ImportWarnings, type JsonObject } from "./values";
+import {restPaints,type ImportImages} from "./paint";
 import type { Paint } from "../../solid-paint";
 
+export const figRegionFills=Symbol("Fig vector region paints");
 const limit=200000;
 function geometry(input:unknown,warnings:ImportWarnings) {
   const commands:PathCommand[]=[];
@@ -25,7 +27,7 @@ function geometry(input:unknown,warnings:ImportWarnings) {
   }
   if (commands.length) return {commands,winding:winding ?? "nonZero"};
 }
-function editable(input:unknown) {
+function editable(input:unknown,images:ImportImages,warnings:ImportWarnings) {
   const raw=object(input),regions=children(raw.regions);
   let size=children(raw.vertices).length+children(raw.segments).length;
   if (size>limit) return;
@@ -33,16 +35,16 @@ function editable(input:unknown) {
     for (const loop of children(object(r).loops)) size+=children(loop).length;
     if (size>limit) return;
   }
-  const net=readVectorNetwork({...raw,regions:regions.map(r=>({loops:object(r).loops,winding:object(r).winding}))});
+  const net=readVectorNetwork({...raw,regions:regions.map(r=>{const p=object(r) as Readonly<Record<PropertyKey,unknown>>;return {loops:p.loops,winding:p.winding,...(Array.isArray(p[figRegionFills]) && {fills:restPaints(p[figRegionFills],images,warnings)})};})});
   if (net.vertices.some(p=>[p.x,p.y,p.radius].some(n=>Math.abs(n)>maximumCoordinate)) ||
       net.segments.some(s=>[...s.ta,...s.tb].some(n=>Math.abs(n)>maximumCoordinate))) return;
   const result=sanitiseNetwork({...net,vertices:net.vertices.map(p=>({...p,radius:clamp(p.radius,0,maximumSize)}))});
   return result.segments.length ? result : undefined;
 }
-export function vectorFields(n:JsonObject,properties:{fills:Paint[];strokes:Paint[];stroke:{weight:number}},warnings:ImportWarnings) {
+export function vectorFields(n:JsonObject,properties:{fills:Paint[];strokes:Paint[];stroke:{weight:number}},warnings:ImportWarnings,images:ImportImages) {
   if (Object.hasOwn(n,"vectorNetwork") || Object.hasOwn(n,"vectorNetworkRef")) {
     try {
-      const net=editable(n.vectorNetwork);
+      const net=editable(n.vectorNetwork,images,warnings);
       if (net) return {network:wireVectorNetwork(net)};
     } catch { /* Malformed networks fall back to the REST outlines. */ }
     warnings.add("invalid or oversized vector networks import as outlines");

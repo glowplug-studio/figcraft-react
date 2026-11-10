@@ -122,3 +122,17 @@ export async function largeRestImport(count:number) {
     return {layers:opened.summary.layers,warnings:opened.warnings,bytes:file.size,milliseconds:performance.now()-start,ticks};
   } finally {clearInterval(timer);}
 }
+
+export async function measureFigImport(base64:string) {
+  const data=Uint8Array.from(atob(base64),c=>c.charCodeAt(0));
+  const file=new File([data],"Tiles.fig"), engine=new EditorEngine();
+  let previous=performance.now(),largestGap=0,ticks=0;
+  const start=previous;
+  const sample=()=>{const now=performance.now();largestGap=Math.max(largestGap,now-previous);previous=now;};
+  const timer=setInterval(()=>{ticks++;sample();},4);
+  try {
+    const opened=await engine.openFile(file);
+    sample();
+    return {...opened.summary,warnings:opened.warnings,bytes:file.size,milliseconds:performance.now()-start,ticks,largestGap};
+  } finally {clearInterval(timer);}
+}

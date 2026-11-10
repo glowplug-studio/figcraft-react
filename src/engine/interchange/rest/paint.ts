@@ -22,7 +22,7 @@ export class ImportImages {
   readonly #keys=new Map<string,string>();
   #placeholder?:ImageResource;
   #missing=0;
-  constructor(readonly companions?:ReadonlyMap<string,{key:string;resource:ImageResource}>) {}
+  constructor(readonly companions?:ReadonlyMap<string,{key:string;resource:ImageResource}>,readonly figWarnings?:ImportWarnings) {}
   key(ref:string) {
     const existing=this.#keys.get(ref);
     if (existing) return existing;
@@ -37,12 +37,13 @@ export class ImportImages {
       this.#placeholder??={bytes:new Blob([Uint8Array.from(atob(stripesPng),s=>s.charCodeAt(0))],{type:"image/png"}),width:256,height:256};
       this.resources[key]??=this.#placeholder;
       this.#missing++;
+      this.figWarnings?.add("image fills whose image isn't in the file show a missing-image placeholder and keep its name");
     }
     this.#keys.set(ref,key);
     return key;
   }
   finish(warnings:ImportWarnings) {
-    if (this.#missing) warnings.add(this.#missing+(this.#missing===1 ? " image without image data shows" : " images without image data show")+
+    if (this.#missing && !this.figWarnings) warnings.add(this.#missing+(this.#missing===1 ? " image without image data shows" : " images without image data show")+
       " a missing-image placeholder, named by its imageRef when that can legitimately name a file and by the shared name otherwise (put the downloaded images, named by imageRef, in an `images` folder next to the JSON)");
   }
 }

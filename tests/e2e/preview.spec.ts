@@ -7146,3 +7146,28 @@ test("dropping a REST design folder imports its real image and variable siblings
     return {pages:document.pages.length,keys:Object.keys(document.images ?? {}),variables:document.variables?.variables.map(v=>v.id)};
   }).toMatchObject({pages:2,keys:[createHash("sha256").update(png).digest("hex")],variables:expect.arrayContaining(["w","b","red"])});
 });
+
+test("open a native binary Fig drawing, edit a shape, append a bare canvas and undo",async({page})=>{
+  await login(page);
+  const corpus=unzipSync(await readFile(new URL("../fixtures/native-fig-imports.zip",import.meta.url)));
+  const source=corpus["primitives.fig"];
+  const expected=(await decodeFigcraft(corpus["primitives-zip.figcraft"])).document;
+  await page.getByLabel("Open Figcraft file",{exact:true}).setInputFiles({name:"Shapes.fig",mimeType:"application/octet-stream",buffer:Buffer.from(source)});
+  await expect(page.getByRole("heading",{name:expected.name,exact:true})).toBeVisible();
+  const saved=async()=>{
+    const dl=page.waitForEvent("download");
+    await page.getByRole("button",{name:"Save as",exact:true}).click();
+    return (await decodeFigcraft(await readFile((await (await dl).path())!))).document;
+  };
+  expect((await saved()).nodes).toEqual(expected.nodes);
+  await page.getByRole("button",{name:"Create rectangle",exact:true}).click();
+  const afterEdit=await saved();
+  expect(Object.keys(afterEdit.nodes).length).toBe(Object.keys(expected.nodes).length+1);
+  await page.getByLabel("Import into current document",{exact:true}).setInputFiles({
+    name:"Text.fig",mimeType:"application/octet-stream",buffer:Buffer.from(unzipSync(corpus["text-runs.fig"])["canvas.fig"])});
+  await expect.poll(async()=>(await saved()).pages.length).toBe(expected.pages.length+1);
+  expect(Object.values((await saved()).nodes).some(n=>n.kind==="text" && n.text.characters.includes("😁"))).toBe(true);
+  await page.getByLabel("Design canvas",{exact:true}).focus();
+  await page.keyboard.press("ControlOrMeta+z");
+  expect((await saved()).nodes).toEqual(afterEdit.nodes);
+});
