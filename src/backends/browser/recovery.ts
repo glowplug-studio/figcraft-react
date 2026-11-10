@@ -1,5 +1,6 @@
+import { createPublishedLinks, type PublishedLinks } from "../published-links";
 import type { OnlineFileDevice, OnlineFileRegistry, RememberedOnlineFile } from "../online-files";
-import { readOnlineRegistry } from "../../engine/sharing/remembered-files";
+import { onlineServerKey, readOnlineRegistry } from "../../engine/sharing/remembered-files";
 import type { WorkspaceArchive, WorkspaceRecoveryStore } from "../recovery";
 
 const SNAPSHOTS = "snapshots";
@@ -117,8 +118,37 @@ export class IndexedDbRecoveryStore implements WorkspaceRecoveryStore, OnlineFil
       const current = readOnlineRegistry(value);
       if (!update) return current;
       const next = readOnlineRegistry(update(current));
+      const retained = new Set([...next.files, ...next.pending].map(row => row.server + "?" + row.file));
+      for (const row of [...current.files, ...current.pending]) {
+        if (!retained.has(row.server + "?" + row.file)) store.delete([principal, "published-links", row.server, row.file]);
+      }
       store.put(next, key);
       return next;
+    });
+  }
+
+  readPublishedLinks(principal: string, server: string, file: string): Promise<PublishedLinks | undefined> {
+    return this.#transaction(principal, "readonly", store => store.get([principal, "published-links", onlineServerKey(server), file]),
+      value => value as PublishedLinks | undefined);
+  }
+
+  /** Keep bearer credentials in the host's private storage, outside document and registry snapshots. */
+  async publicationLinks(principal: string, server: string, file: string): Promise<PublishedLinks> {
+    const address = onlineServerKey(server);
+    const key = [principal, "published-links", address, file];
+    let registry: IDBRequest;
+    return this.#transaction(principal, "readwrite", store => {
+      registry = store.get([principal, "online-files"]);
+      return store.get(key);
+    }, (prior, store) => {
+      const current = readOnlineRegistry(registry.result);
+      if (![...current.files, ...current.pending].some(row => row.server === address && row.file === file)) {
+        throw new Error("This publication was forgotten on this device");
+      }
+      if (prior) return prior as PublishedLinks;
+      const links = createPublishedLinks();
+      store.put(links, key);
+      return links;
     });
   }
 

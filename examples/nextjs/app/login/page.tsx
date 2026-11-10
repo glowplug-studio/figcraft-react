@@ -1,3 +1,4 @@
+import { InviteFragment } from "./invite-fragment";
 import { safeDestination } from "../../lib/auth";
 import { login } from "./actions";
 
@@ -12,6 +13,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
   const error = typeof params.error === "string" && Object.hasOwn(messages, params.error) ? messages[params.error] : undefined;
   return (
     <main className="auth-page">
+      <InviteFragment />
       <h1>Sign in to Figcraft</h1>
       <p>Use your host account to open the editor.</p>
       {error ? <p role="alert">{error}</p> : null}

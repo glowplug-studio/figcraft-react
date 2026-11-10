@@ -48,8 +48,22 @@ export interface OnlineFileDevice {
   ): Promise<readonly RememberedOnlineFile[]>;
 }
 
+/** One authenticated guest tab. Bearer secrets remain in the host adapter. */
+export interface OnlineGuestSession {
+  file: string;
+  connection: string;
+  access: "edit" | "view" | "comment";
+}
+export interface OnlineInvitations {
+  showJoin(): void;
+  subscribe(joined: (session: OnlineGuestSession, archive: Blob) => Promise<void>): () => void;
+  copyPublished(file: string, access: "edit" | "view"): Promise<void>;
+  leave(connection: string): Promise<void>;
+}
+
 export interface OnlineWorkspaceHost {
   server: string;
   store: OnlineFileStore;
   device: OnlineFileDevice;
+  invitations?: OnlineInvitations;
 }

@@ -58,6 +58,20 @@ export function WorkspaceEditor({ identity, capabilities, recoveryStore, onlineH
       unsubscribe(); controller?.dispose(); workspace.setEditable(false);
     };
   }, [identity, principal, capabilities, recoveryStore, workspace]);
+  const invitations = onlineHost?.invitations;
+  useEffect(() => {
+    if (!enabled || !invitations) return;
+    return invitations.subscribe(async (session, bytes) => {
+      await workspace.open(new File([bytes], session.file + ".figcraft"), session);
+      setHome(undefined);
+      setNotice("");
+    });
+  }, [workspace, enabled, invitations]);
+  const guest = active?.guest;
+  const tabCapabilities = useMemo(() => guest && guest.access !== "edit" ? capabilities.filter(cap => cap === "document.read"
+    || (guest.access === "comment" && cap === "document.comment")) : capabilities, [capabilities, guest]);
+  const publishedId = active && online?.publishedFile(active.id);
+
   useEffect(() => {
     if (!enabled) return;
     const timer = window.setInterval(() => {
@@ -71,21 +85,43 @@ export function WorkspaceEditor({ identity, capabilities, recoveryStore, onlineH
   useEffect(() => {
     if (report && !tabs.some(tab => tab.id === report.owner)) setReport(undefined);
   }, [report, tabs]);
-  const close = (id: number, force = false) => {
-    const tab = tabs.find(item => item.id === id);
+  const close = async (id: number, force = false) => {
+    const tab = workspace.getSnapshot().find(item => item.id === id);
     if (!tab) return;
     if (tab.dirty && !tab.branchId && !force) { setCloseId(id); return; }
-    workspace.execute("file.close", { index: tab.index, force });
+    if (tab.guest && invitations) {
+      try { await invitations.leave(tab.guest.connection); }
+      catch { setCloseId(undefined); setNotice("Could not leave the session"); return; }
+      workspace.leaveSession(tab.guest.connection);
+    }
+    const current = workspace.getSnapshot().find(item => item.id === id);
+    if (current?.dirty && !current.branchId && !force) { setCloseId(id); return; }
+    if (current) workspace.execute("file.close", { index: current.index, force });
     setCloseId(undefined);
   };
+  const leave = async () => {
+    if (!guest || !invitations) return;
+    try { await invitations.leave(guest.connection); workspace.leaveSession(guest.connection); setNotice("Left session"); }
+    catch { setNotice("Could not leave the session"); }
+  };
+  const shareMenu = invitations && publishedId && <details className="figcraft-bar-menu"><summary>Share</summary><div className="figcraft-menu-items">
+    {(["edit", "view"] as const).map(access => <button key={access} type="button" onClick={async () => {
+      try { await invitations.copyPublished(publishedId, access); setNotice(access === "edit" ? "Edit link copied" : "View link copied"); }
+      catch { setNotice("Could not copy the published link"); }
+    }}>Copy {access} link</button>)}
+  </div></details>;
   const fileMenu = active && <>
+    {invitations && <button type="button" disabled={!enabled} onClick={event => {
+      event.currentTarget.closest("details")?.removeAttribute("open"); invitations.showJoin();
+    }}>Join live session…</button>}
+    {guest && <button type="button" onClick={() => void leave()}>Leave session</button>}
     <button type="button" disabled={!enabled} onClick={() => workspace.execute("file.new")}>New file</button>
     <button type="button" disabled title="Browser downloads have no writable file path">Revert to saved</button>
     <details><summary>Open recent</summary><button type="button" disabled>Clear recent</button></details>
     <button type="button" disabled={!enabled} onClick={() => workspace.execute("file.duplicate")}>Duplicate file</button>
     <button type="button" disabled={!enabled} onClick={event => { event.currentTarget.closest("details")?.removeAttribute("open"); setRenaming(true); }}>Rename file</button>
     <button type="button" disabled={!enabled} onClick={event => { event.currentTarget.closest("details")?.removeAttribute("open"); close(active.id); }}>Close file</button>
-    {online && <button type="button" disabled={!enabled} onClick={event => {
+    {online && !guest && <button type="button" disabled={!enabled} onClick={event => {
       event.currentTarget.closest("details")?.removeAttribute("open"); setPublishTab(active);
     }}>Publish to server…</button>}
     {tabs.length > 1 && ([-1, 1] as const).map(offset => {
@@ -124,7 +160,8 @@ export function WorkspaceEditor({ identity, capabilities, recoveryStore, onlineH
         }}>{tab.name}</button>)}
         <button onClick={() => { workspace.execute("file.new"); setHome(undefined); }}>New file</button>
       </section>}
-    </section> : active ? <DocumentEditor key={active.id} identity={identity} capabilities={capabilities} engine={workspace.activeEngine}
+    </section> : active ? <DocumentEditor key={active.id} identity={identity} capabilities={tabCapabilities} engine={workspace.activeEngine}
+      shareMenu={shareMenu} sessionLabel={guest && (guest.access === "view" ? "View only" : guest.access === "comment" ? "Can comment" : "Can edit")}
       onHome={online && enabled ? () => setHome("recent") : undefined}
       workspacePrint={pdfPrint} onWorkspacePrint={setPdfPrint}
       onImportReport={(value, owner = active.id) => setReport({ value, owner })}

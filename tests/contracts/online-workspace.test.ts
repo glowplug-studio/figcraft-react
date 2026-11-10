@@ -182,3 +182,21 @@ it("leaves the server untouched when the device cannot retain the publication", 
   expect(await online.list()).toEqual([]);
   device.close();
 });
+
+it("keeps the original link credentials private to the host, stable across tabs, and erases them on forget", async () => {
+  const { online, workspace, device } = setup();
+  const file = await online.publish(workspace.getSnapshot()[0].id, "Private receipt");
+  const [first, second] = await Promise.all([device.publicationLinks("owner", online.server, file.id),
+    device.publicationLinks("owner", online.server, file.id)]);
+  expect(first).toEqual(second);
+  expect(first.edit.token).toMatch(/^[a-zA-Z0-9_-]{22}$/);
+  expect(first.view.token).not.toEqual(first.edit.token);
+  expect(JSON.stringify(await device.onlineRegistry("owner"))).not.toContain(first.edit.token);
+  await expect(device.publicationLinks("different", online.server, file.id)).rejects.toThrow("forgotten");
+  await online.forget(file.id);
+  await expect(device.publicationLinks("owner", online.server, file.id)).rejects.toThrow("forgotten");
+  // Remembering the same ID again does not resurrect the forgotten keys.
+  await device.onlineFiles("owner", () => [{ file: file.id, server: online.server, name: "Again", created: 1, opened: 1 }]);
+  expect((await device.publicationLinks("owner", online.server, file.id)).edit.token).not.toEqual(first.edit.token);
+  device.close();
+});

@@ -1,0 +1,10 @@
+begin;
+create extension if not exists pgtap with schema extensions;
+select plan(5);
+select ok(not has_table_privilege('anon','public.online_file_connections','select'), 'anonymous clients cannot discover connections');
+select ok(not has_table_privilege('authenticated','public.online_file_connections','insert'), 'an account cannot forge a redeemed session');
+select ok(not has_function_privilege('authenticated','public.join_online_file(uuid,uuid,uuid,uuid,text)','execute'), 'stored digests cannot redeem a public invite');
+select ok(not has_function_privilege('anon','figcraft_private.shared_snapshot_ids()','execute'), 'anonymous callers cannot look up shared snapshots');
+select ok(has_function_privilege('authenticated','figcraft_private.shared_snapshot_ids()','execute'), 'Storage may resolve current signed-in grants');
+select * from finish();
+rollback;

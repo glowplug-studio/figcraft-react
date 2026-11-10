@@ -47,6 +47,10 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     },
+    "./sharing/invite": {
+      "types": "./dist/engine/sharing/invite.d.ts",
+      "import": "./dist/sharing/invite.js"
+    },
     "./sharing/join-code": {
       "types": "./dist/engine/sharing/join-code.d.ts",
       "import": "./dist/sharing/join-code.js"

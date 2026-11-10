@@ -6,7 +6,9 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { SupabaseOnlineFileStore } from "../../src/backends/supabase/online-files";
 import { finaliseOnlineFile } from "../../src/backends/supabase/publication";
 import { changeFileLinks } from "../../examples/nextjs/lib/sharing/links";
+import { readSharedDrawing } from "../../examples/nextjs/lib/sharing/join";
 import { JoinCodeKey } from "../../examples/nextjs/lib/sharing/codes";
+import { createPublishedLinks, publishedLinkDigests } from "../../src/backends/published-links";
 import { parseJoinCode } from "../../src/engine/sharing/join-code";
 import { localSupabase } from "../support/localSupabase";
 
@@ -26,7 +28,7 @@ describe.skipIf(!enabled)("private online files on real local Supabase", () => {
     const client = createClient(local!.url, local!.key, { auth: { persistSession: false, autoRefreshToken: false } });
     const login = await client.auth.signInWithPassword({ email, password });
     if (login.error) throw login.error;
-    return { id: data.user.id, client };
+    return { id: data.user.id, client, email, password };
   }
   let owner: Awaited<ReturnType<typeof account>>;
   let stranger: typeof owner;
@@ -74,13 +76,15 @@ describe.skipIf(!enabled)("private online files on real local Supabase", () => {
     const id = randomUUID();
     const path = owner.id + "/" + id + ".figcraft";
     paths.push(path);
-    const store = new SupabaseOnlineFileStore(owner.client, owner.id, file => finaliseOnlineFile(owner.client, local!.admin, file));
+    const keys = createPublishedLinks();
+    const proof = await publishedLinkDigests(keys);
+    const store = new SupabaseOnlineFileStore(owner.client, owner.id, file => finaliseOnlineFile(owner.client, local!.admin, file, proof));
     await store.publish(id, new Blob([archive]));
     const writer = local!.admin;
     const read = () => writer.from("online_file_links").select("*").eq("file_id", id);
     await expect(changeFileLinks(writer, stranger.id, id, [], "shared")).rejects.toMatchObject({ code: "42501" });
     await expect(changeFileLinks(owner.client, owner.id, id, [], "shared")).rejects.toBeTruthy();
-    const published = await changeFileLinks(writer, owner.id, id, [], "published");
+    const published = (["edit", "view"] as const).map(access => ({ ...keys[access], access, code: undefined }));
     expect(published.map(link => link.access)).toEqual(["edit", "view"]);
     expect(published.every(link => !link.code)).toBe(true);
     const shared = await changeFileLinks(writer, owner.id, id, [], "shared");
@@ -117,6 +121,67 @@ describe.skipIf(!enabled)("private online files on real local Supabase", () => {
     expect((await read()).data).toHaveLength(5);
     await store.remove(id);
     expect((await read()).data).toEqual([]);
+  });
+
+  it("installs the original pair once across retries and rolls back an invalid pair", async () => {
+    const keys = createPublishedLinks();
+    const proof = await publishedLinkDigests(keys);
+    const failed = randomUUID(), file = randomUUID();
+    const storage = owner.client.storage.from(bucket);
+    const writer = local!.admin;
+    for (const id of [file, failed]) {
+      const path = owner.id + "/" + id + ".figcraft";
+      paths.push(path);
+      expect((await storage.upload(path, archive, { contentType: "application/octet-stream" })).error).toBeNull();
+    }
+    await Promise.all([finaliseOnlineFile(owner.client, writer, file, proof), finaliseOnlineFile(owner.client, writer, file, proof)]);
+    const list = () => writer.from("online_file_links").select("id,token_hash,access_level").eq("file_id", file);
+    expect((await list()).data).toHaveLength(2);
+    // A duplicate link ID triggers a database failure after the new listing insert.
+    await expect(finaliseOnlineFile(owner.client, writer, failed, proof)).rejects.toMatchObject({ code: "23505" });
+    expect((await owner.client.from("online_files").select("id").eq("id", failed)).data).toEqual([]);
+    const other = await publishedLinkDigests(createPublishedLinks());
+    await expect(finaliseOnlineFile(owner.client, writer, file, other)).rejects.toMatchObject({ code: "22023" });
+    await expect(finaliseOnlineFile(stranger.client, writer, file, proof)).rejects.toBeTruthy();
+    await changeFileLinks(writer, owner.id, file, [keys.edit.id]);
+    await finaliseOnlineFile(owner.client, writer, file, proof);
+    await finaliseOnlineFile(owner.client, writer, file);
+    expect((await list()).data).toEqual([{ id: keys.view.id, token_hash: proof.view.hash, access_level: "view" }]);
+    expect((await owner.client.from("online_files").update({ published_link_fingerprint: null }).eq("id", file)).error).toBeTruthy();
+  });
+
+  it("binds an invite to its Auth session and denies signed URLs, writes and downloads after revocation", async () => {
+    const keys = createPublishedLinks();
+    const proof = await publishedLinkDigests(keys);
+    const file = randomUUID(), tab = randomUUID(), path = owner.id + "/" + file + ".figcraft";
+    paths.push(path);
+    const writer = local!.admin;
+    const store = new SupabaseOnlineFileStore(owner.client, owner.id, id => finaliseOnlineFile(owner.client, writer, id, proof));
+    await store.publish(file, new Blob([archive]));
+    const guest = stranger.client.storage.from(bucket);
+    const session = (await stranger.client.auth.getClaims()).data!.claims.session_id as string;
+    const join = (token: string, connection = tab) => readSharedDrawing(stranger.client, writer, stranger.id, session, connection, file, token);
+    expect((await guest.download(path)).error).toBeTruthy();
+    await expect(join(proof.view.hash)).rejects.toThrow("unavailable");
+    const first = await join(keys.view.token);
+    expect(first.access).toBe("view");
+    expect(new Uint8Array(await first.bytes.arrayBuffer())).toEqual(archive);
+    expect((await join(keys.view.token)).access).toBe("view");
+    expect((await guest.createSignedUrl(path, 3600)).error).toBeTruthy();
+    expect((await guest.update(path, archive, { contentType: "application/octet-stream" })).error).toBeTruthy();
+    expect((await stranger.client.from("online_files").select("id").eq("id", file)).data).toEqual([]);
+    expect((await stranger.client.from("online_file_connections").select("*")).error).toBeTruthy();
+    const other = createClient(local!.url, local!.key, { auth: { persistSession: false, autoRefreshToken: false } });
+    expect((await other.auth.signInWithPassword({ email: stranger.email, password: stranger.password })).error).toBeNull();
+    expect((await other.storage.from(bucket).download(path)).error).toBeTruthy();
+    await expect(join(keys.edit.token)).rejects.toThrow("unavailable");
+    await changeFileLinks(writer, owner.id, file, [keys.view.id]);
+    expect((await guest.download(path)).error).toBeTruthy();
+    await expect(join(keys.view.token)).rejects.toThrow("unavailable");
+    expect((await join(keys.edit.token, randomUUID())).access).toBe("edit");
+    expect((await guest.createSignedUrl(path, 3600)).error).toBeTruthy();
+    await store.remove(file);
+    expect((await guest.download(path)).error).toBeTruthy();
   });
 
   it("ties owner metadata to an immutable private archive and removes both together", async () => {

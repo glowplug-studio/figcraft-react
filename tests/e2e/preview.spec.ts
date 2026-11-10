@@ -307,6 +307,89 @@ for (const confirmed of [true, false]) {
   });
 }
 
+test("the published view and edit invites open the original drawing in another signed-in browser", async ({ page, browser }) => {
+  test.setTimeout(90_000);
+  await login(page);
+  const url = backend?.url ?? process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = backend?.key ?? process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+  if (!url || !key) throw new Error("Configure the local or hosted Supabase fixture");
+  const { createClient } = await import("@supabase/supabase-js");
+  const owner = createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } });
+  const auth = await owner.auth.signInWithPassword({ email, password });
+  if (auth.error) throw auth.error;
+  const guestEmail = backend ? "figcraft-guest-" + randomUUID() + "@example.test" : process.env.FIGCRAFT_E2E_GUEST_EMAIL;
+  const guestPassword = backend ? "Figcraft-" + randomUUID() + "!" : process.env.FIGCRAFT_E2E_GUEST_PASSWORD;
+  if (!guestEmail || !guestPassword || guestEmail === email) throw new Error("Configure a second independent account for hosted sharing checks");
+  const guestId = backend && (await backend.admin.auth.admin.createUser({ email: guestEmail, password: guestPassword, email_confirm: true })).data.user?.id;
+  const origin = new URL(page.url()).origin;
+  const visitor = await browser.newContext({ baseURL: origin, storageState: process.env.PLAYWRIGHT_STORAGE_STATE });
+  let fileId: string | undefined;
+  try {
+    await page.context().grantPermissions(["clipboard-read", "clipboard-write"], { origin });
+    await page.getByRole("button", { name: "Create rectangle", exact: true }).click();
+    const bar = page.locator(".figcraft-document-bar");
+    await bar.getByText("File", { exact: true }).click();
+    await bar.getByRole("button", { name: "Publish to server…" }).click();
+    const form = page.getByRole("dialog", { name: "Publish to server" });
+    await form.getByLabel("File name").fill("Original invite drawing");
+    const reply = page.waitForResponse(response => new URL(response.url()).pathname === "/api/online-files");
+    await form.getByRole("button", { name: "Publish", exact: true }).click();
+    const response = await reply;
+    expect(response.ok()).toBe(true);
+    fileId = (await response.json()).id;
+    await bar.getByText("Share", { exact: true }).click();
+    const copy = async (access: string) => {
+      await bar.getByRole("button", { name: "Copy " + access + " link" }).click();
+      await expect(page.getByText(access === "view" ? "View link copied" : "Edit link copied", { exact: true })).toBeVisible();
+      return page.evaluate(() => navigator.clipboard.readText());
+    };
+    const view = await copy("view"), edit = await copy("edit");
+    expect(view.startsWith(origin + "/#join=") && edit !== view).toBe(true);
+    const guest = await visitor.newPage();
+    let secretInRequestUrl = false;
+    guest.on("request", request => {
+      secretInRequestUrl ||= /token(?:=|%3d)|#join=/i.test(request.url().split("#")[0]);
+    });
+    await guest.goto(view);
+    await guest.getByLabel("Email", { exact: true }).fill(guestEmail);
+    await guest.getByLabel("Password", { exact: true }).fill(guestPassword);
+    await guest.getByRole("button", { name: "Sign in", exact: true }).click();
+    const toolbar = guest.locator(".figcraft-document-bar");
+    await expect(toolbar.getByRole("heading", { name: "Original invite drawing" })).toBeVisible();
+    await expect(toolbar.getByText(/View only/)).toBeVisible();
+    await expect(guest.getByRole("button", { name: "Create rectangle", exact: true })).toBeDisabled();
+    expect(new URL(guest.url()).hash).toBe("");
+    await toolbar.getByText("File", { exact: true }).click();
+    await toolbar.getByRole("button", { name: "Leave session" }).click();
+    await expect(toolbar.getByText(/Local document/)).toBeVisible();
+    await expect(guest.getByRole("button", { name: "Create rectangle", exact: true })).toBeEnabled();
+    const join = toolbar.getByRole("button", { name: "Join live session…" });
+    if (!await join.isVisible()) await toolbar.getByText("File", { exact: true }).click();
+    await join.click();
+    const dialog = guest.getByRole("dialog", { name: "Join live session" });
+    await dialog.getByLabel("Invite link").fill(edit);
+    await dialog.getByRole("button", { name: "Join", exact: true }).click();
+    await expect(toolbar.getByText(/Can edit/)).toBeVisible();
+    await expect(guest.getByRole("button", { name: "Create rectangle", exact: true })).toBeEnabled();
+    const closeFile = toolbar.getByRole("button", { name: "Close file", exact: true });
+    if (!await closeFile.isVisible()) await toolbar.getByText("File", { exact: true }).click();
+    const closed = guest.waitForResponse(response => new URL(response.url()).pathname === "/api/online-files/leave");
+    await closeFile.click();
+    expect((await closed).status()).toBe(204);
+    await expect(toolbar.getByText(/Local document/)).toBeVisible();
+    if (backend) {
+      const rows = await backend.admin.from("online_file_connections").select("id").eq("principal_id", guestId!);
+      expect(rows.error).toBeNull();
+      expect(rows.data).toEqual([]);
+    }
+    expect(secretInRequestUrl).toBe(false);
+  } finally {
+    await visitor.close();
+    if (fileId) expect((await owner.storage.from("figcraft-files").remove([auth.data.user.id + "/" + fileId + ".figcraft"])).error).toBeNull();
+    if (backend && guestId) await backend.admin.auth.admin.deleteUser(guestId);
+  }
+});
+
 test("authenticated rectangle command, pixels, keyboard undo/redo and resize", async ({ page }) => {
   const errors: string[] = [];
   page.on("pageerror", error => errors.push(error.message));

@@ -9,6 +9,7 @@ export default defineConfig({
     lib: {
       entry: {
         index: resolve(import.meta.dirname, "src/index.ts"),
+        "sharing/invite": resolve(import.meta.dirname, "src/engine/sharing/invite.ts"),
         "sharing/join-code": resolve(import.meta.dirname, "src/engine/sharing/join-code.ts"),
         "icc-node": resolve(import.meta.dirname, "src/engine/icc-node.ts"),
         "icc-browser": resolve(import.meta.dirname, "src/engine/icc-browser.ts"),

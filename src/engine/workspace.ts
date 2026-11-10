@@ -1,3 +1,4 @@
+import type { OnlineGuestSession } from "../backends/online-files";
 import { planBranch } from "./branch-merge";
 import { applyBranch } from "./branch-apply";
 import { branchReview } from "./branch-review";
@@ -20,12 +21,14 @@ export interface DocumentTab {
   readonly active: boolean;
   readonly path: null;
   readonly branchId?: string;
+  readonly guest?: OnlineGuestSession;
 }
 
 interface OpenTab {
   id: number;
   engine: EditorEngine;
   unsubscribe: () => void;
+  guest?: OnlineGuestSession;
   branch?: { main: EditorEngine; id: string };
 }
 
@@ -91,9 +94,9 @@ export class EditorWorkspace {
   }
 
   #publish() {
-    this.#snapshot = Object.freeze(this.#tabs.map(({ id, engine, branch }, index) => {
+    this.#snapshot = Object.freeze(this.#tabs.map(({ id, engine, branch, guest }, index) => {
       const { document, dirty } = engine.getSnapshot();
-      return Object.freeze({ id, index, name: document.name, dirty, active: engine === this.activeEngine, path: null, ...(branch && { branchId: branch.id }) });
+      return Object.freeze({ id, index, name: document.name, dirty, active: engine === this.activeEngine, path: null, ...(guest && { guest }), ...(branch && { branchId: branch.id }) });
     }));
     for (const listener of this.#listeners) listener();
   }
@@ -119,8 +122,9 @@ export class EditorWorkspace {
     return { id: nextDocumentId++, engine, unsubscribe, branch };
   }
 
-  #append(engine: EditorEngine, activate = true, branch?: OpenTab["branch"]) {
-    const tab = this.#attach(engine, branch);
+  #append(engine: EditorEngine, activate = true, branch?: OpenTab["branch"], guest?: OnlineGuestSession) {
+    const tab: OpenTab = this.#attach(engine, branch);
+    if (guest) { tab.guest = guest; engine.setEditable(this.#editable && guest.access === "edit"); }
     this.#tabs.push(tab);
     if (activate || !this.#active) this.#active = tab;
     this.#publish();
@@ -138,7 +142,7 @@ export class EditorWorkspace {
       delete this.#clipboard.effect;
       delete this.#clipboard.paint;
     }
-    for (const tab of this.#tabs) tab.engine.setEditable(editable);
+    for (const tab of this.#tabs) tab.engine.setEditable(editable && (!tab.guest || tab.guest.access === "edit"));
   }
 
   async restore(files: readonly Blob[], active: number, cancelled: () => boolean) {
@@ -213,9 +217,17 @@ export class EditorWorkspace {
     return this.#append(copy);
   }
 
-  open(file: File) { return this.#openFile(file); }
+  open(file: File, guest?: OnlineGuestSession) { return this.#openFile(file, undefined, guest); }
 
-  async #openFile(file: File, stillWanted?: () => boolean) {
+  leaveSession(connection: string) {
+    const tab = this.#tabs.find(tab => tab.guest?.connection === connection);
+    if (!tab) return;
+    delete tab.guest;
+    tab.engine.setEditable(this.#editable);
+    this.#publish();
+  }
+
+  async #openFile(file: File, stillWanted?: () => boolean, guest?: OnlineGuestSession) {
     if (!this.#editable) throw new Error("Sign in to open a document");
     const generation = this.#generation;
     const engine = EditorEngine.newTab(undefined, this.#clipboard);
@@ -225,7 +237,7 @@ export class EditorWorkspace {
     if (stillWanted && !stillWanted()) throw new Error("The source instance changed during navigation");
     if (origin && !this.#tabs.includes(origin)) throw new Error("Open cancelled because the source tab closed");
     this.#filenames.set(engine, file.name);
-    const { index } = this.#append(engine, this.#active === origin);
+    const { index } = this.#append(engine, this.#active === origin, undefined, guest);
     return { ...result, index, tabId: this.#tabs[index].id };
   }
 
@@ -317,6 +329,9 @@ export class EditorWorkspace {
   execute(command: Exclude<WorkspaceCommand, "doc.list">, params?: Record<string, unknown>): Record<string, unknown>;
   execute(command: WorkspaceCommand | BranchCommand, params: Record<string, unknown> = {}): readonly DocumentTab[] | readonly Record<string, unknown>[] | Record<string, unknown> {
     if (!this.#editable) throw new Error("Sign in to use the workspace");
+    if (this.#active?.guest && this.#active.guest.access !== "edit" && ["branch.create", "branch.merge", "branch.archive", "branch.updateFromMain"].includes(command)) {
+      throw new Error("This shared file is read-only");
+    }
     if (command.startsWith("branch.")) return this.#branchCommand(command as BranchCommand, params);
     if (command === "doc.list") return this.#snapshot;
     // Browser byte opens and downloads never create native filesystem-path recents.

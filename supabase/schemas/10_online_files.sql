@@ -4,6 +4,7 @@ create table public.online_files (
     id uuid primary key,
     owner_id uuid not null references auth.users (id) on delete cascade,
     snapshot_id uuid not null unique references storage.objects (id) on delete cascade,
+    published_link_fingerprint text check (published_link_fingerprint ~ '^[0-9a-f]{64}$'),
     name text not null check (char_length(name) <= 256),
     created_at timestamptz not null default now()
 );
@@ -56,10 +57,6 @@ create policy "Owners upload private Figcraft snapshots" on storage.objects
         and name ~ ('^' || (select auth.uid())::text ||
             '/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}[.]figcraft$')
     );
-
-create policy "Owners read private Figcraft snapshots" on storage.objects
-    for select to authenticated
-    using (bucket_id = 'figcraft-files' and owner_id = (select auth.uid())::text);
 
 create policy "Owners remove private Figcraft snapshots" on storage.objects
     for delete to authenticated

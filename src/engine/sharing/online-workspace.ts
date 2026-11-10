@@ -162,6 +162,10 @@ export class OnlineWorkspace {
     });
   }
 
+  publishedFile(tab: number) {
+    for (const [file, id] of this.tabs) if (id === tab) return file;
+  }
+
   async open(id: string) {
     return this.run(async () => {
       const entry = (await this.list()).find(record => record.file === id);
@@ -198,6 +202,7 @@ export class OnlineWorkspace {
       pending: current.pending.filter(row => !this.matches(row, id)),
     }));
     this.states.delete(id);
+    this.tabs.delete(id);
   }
 
   async remove(id: string) {
