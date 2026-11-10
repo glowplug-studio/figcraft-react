@@ -676,10 +676,10 @@ export function DocumentEditor({ identity, capabilities, engine: suppliedEngine,
           if (file) void place(file);
         }} />
         <button disabled={(!editable && !snapshot.previewVersionId) || !signedIn || busy} onClick={() => void save()}>Save as</button>
-        <input ref={importInput} aria-label="Import into current document" type="file" accept=".figcraft,.fig,.jam,.sketch,.json,.svg,.svgz,.png,.jpg,.jpeg,.webp,.gif,.bmp,.tif,.tiff" hidden onChange={event=>{
+        <input ref={importInput} aria-label="Import into current document" type="file" accept=".figcraft,.fig,.jam,.sketch,.penpot,.json,.svg,.svgz,.png,.jpg,.jpeg,.webp,.gif,.bmp,.tif,.tiff" hidden onChange={event=>{
           const file=event.currentTarget.files?.[0];event.currentTarget.value="";if (file) void drop([file]);
         }}/>
-        <input ref={fileInput} aria-label="Open Figcraft file" type="file" accept=".figcraft,.fig,.jam,.sketch,.json,.svg,.svgz,.png,.jpg,.jpeg,.webp,.gif,.bmp,.tif,.tiff" hidden onChange={event => {
+        <input ref={fileInput} aria-label="Open Figcraft file" type="file" accept=".figcraft,.fig,.jam,.sketch,.penpot,.json,.svg,.svgz,.png,.jpg,.jpeg,.webp,.gif,.bmp,.tif,.tiff" hidden onChange={event => {
           const file = event.currentTarget.files?.[0]; event.currentTarget.value = "";
           if (!file) return;
           requestOpen(file);

@@ -1,7 +1,8 @@
 import { ZipReader, type Entry, type FileEntry } from "@zip.js/zip.js/lib/zip-core-native.js";
-import { isLosslessNumber, parse } from "lossless-json";
+import PenpotJsonWorker from "./json-worker?worker&inline";
+import { decodePenpotJson, PenpotNumbers, type PenpotJsonResult } from "./json";
+export type { PenpotNumbers } from "./json";
 import { ArchiveReader, archiveOptions } from "../../file-format";
-import { archiveJsonText } from "../archive-json";
 import { object, type JsonObject } from "../rest/values";
 
 const MiB = 1024 ** 2;
@@ -13,51 +14,21 @@ export const rootId = "00000000-0000-0000-0000-000000000000";
 
 interface PageBudget { remaining: number }
 type Source = Blob | Uint8Array;
-type Fields = Record<string, unknown>;
-
-/** Preserve lexical numbers wherever native serde distinguishes an integer from a float or a JS number loses bits. */
-export class PenpotNumbers {
-  private readonly tokens = new WeakMap<object, Map<string, string>>();
-
-  parse(text: string): unknown {
-    const root: unknown = parse(text);
-    const visit = (container: Fields) => {
-      for (const [key, value] of Object.entries(container)) {
-        if (isLosslessNumber(value)) {
-          const numeric = Number(value.value);
-          container[key] = numeric;
-          if (String(numeric) !== value.value || !Number.isSafeInteger(numeric)) {
-            let tokens = this.tokens.get(container);
-            if (!tokens) this.tokens.set(container, tokens = new Map());
-            tokens.set(key, value.value);
-          }
-        } else if (value !== null && typeof value === "object") visit(value as Fields);
-      }
-    };
-    if (isLosslessNumber(root)) return Number(root.value);
-    if (root !== null && typeof root === "object") visit(root as Fields);
-    return root;
-  }
-
-  token(container: object, key: string, value: number) {
-    return this.tokens.get(container)?.get(key) ?? String(value);
-  }
-
-  integer(container: JsonObject, key: string) {
-    const value = container[key];
-    if (typeof value !== "number") return;
-    const token = this.token(container, key, value);
-    if (/^-?\d{1,20}$/.test(token)) return BigInt(token);
-  }
-}
-
 export class PenpotArchive {
   readonly numbers = new PenpotNumbers();
   private remaining = 1024 * MiB;
   private jsonValues = 4_000_000;
   private fatal?: Error;
 
-  constructor(private readonly members: ReadonlyMap<string, Entry>, private readonly source: Source, private readonly checkCurrent: () => void) {}
+  private readonly recordPaths=new Map<string,string[]>();
+  constructor(private readonly members: ReadonlyMap<string, Entry>, private readonly source: Source, private readonly checkCurrent: () => void) {
+    for (const path of members.keys()) {
+      const end=path.lastIndexOf("/")+1;
+      if (!path.endsWith(".json") || !isUuid(path.slice(end,-5))) continue;
+      const prefix=path.slice(0,end),list=this.recordPaths.get(prefix);
+      if (list) list.push(path);else this.recordPaths.set(prefix,[path]);
+    }
+  }
 
   names() { return this.members.keys(); }
   has(name: string) { return this.members.has(name); }
@@ -163,28 +134,37 @@ export class PenpotArchive {
     if (count) return "Penpot contains " + count + " embedded font file(s); the current model does not retain font binaries. Install the licensed fonts locally; original family references are preserved";
   }
 
+  image(path: string) { return this.read(path, 128 * MiB, "image exceeds member limit"); }
+
   async json(path: string, page?: PageBudget): Promise<unknown> {
     const bytes = await this.read(path, 16 * MiB, "JSON member too large: " + path, page);
-    let cost = 1, quoted = false;
-    for (let index = 0; index < bytes.length; index++) {
-      const byte = bytes[index];
-      if (quoted && byte === 92) index++;
-      else if (byte === 34) quoted = !quoted;
-      else if (!quoted && (byte === 91 || byte === 123 || byte === 44 || byte === 58)) cost++;
+    const context = prefix + path;
+    let result: PenpotJsonResult;
+    if (bytes.length < 256*1024 || typeof Worker === "undefined") {
+      result=decodePenpotJson(bytes.buffer,context,this.jsonValues);
+    } else {
+      const worker=new PenpotJsonWorker();
+      let poll: ReturnType<typeof setInterval> | undefined;
+      try {
+        result=await new Promise<PenpotJsonResult>((resolve,reject)=>{
+          poll=setInterval(()=>{try {this.check();} catch(e) {reject(e);}},32);
+          worker.onmessage=(e:MessageEvent<PenpotJsonResult>)=>resolve(e.data);
+          worker.onerror=e=>{e.preventDefault();reject(new Error(e.message || "Penpot JSON worker failed"));};
+          worker.onmessageerror=()=>reject(new Error("Cannot read decoded Penpot JSON"));
+          worker.postMessage({bytes:bytes.buffer,context,budget:this.jsonValues},[bytes.buffer]);
+        });
+      } finally {clearInterval(poll);worker.terminate();this.check();}
     }
-    if (cost > this.jsonValues) this.exhausted("JSON structure exceeds import value budget");
-    this.jsonValues -= cost;
-    return this.numbers.parse(archiveJsonText(bytes.buffer, prefix + path));
+    if (result.cost>this.jsonValues) this.exhausted("JSON structure exceeds import value budget");
+    this.jsonValues-=result.cost;
+    if ("error" in result) throw new Error(result.error);
+    this.numbers.adopt(result.tokens);
+    return result.value;
   }
 
   private records(prefix: string, max: number, reason: string) {
-    const paths: string[] = [];
-    for (const path of this.names()) {
-      if (path.length !== prefix.length + 41 || !path.startsWith(prefix) || !path.endsWith(".json") ||
-          !isUuid(path.slice(prefix.length, -5))) continue;
-      if (paths.length === max) throw penpotError(reason);
-      paths.push(path);
-    }
+    const paths=this.recordPaths.get(prefix) ?? [];
+    if (paths.length>max) throw penpotError(reason);
     return paths;
   }
 

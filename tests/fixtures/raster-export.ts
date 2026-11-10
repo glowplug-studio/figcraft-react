@@ -153,19 +153,29 @@ export async function measureFigExport(base64:string) {
   } finally {clearInterval(timer);}
 }
 
-export async function supersedeSketchImport(base64:string) {
+export async function supersedeArchiveImport(base64:string,filename="Cancelled.sketch") {
   const engine=new EditorEngine(), original=Worker.prototype.postMessage;
   let replacement:Promise<unknown>|undefined;
   const newDrawing=new File([JSON.stringify({name:"Replacement",document:{type:"DOCUMENT",children:[]}})],"Replacement.json");
   // Supersede the open after the production worker actually receives the large member.
   Worker.prototype.postMessage=function(this:Worker,message:unknown,options?:Transferable[]|StructuredSerializeOptions) {
     Reflect.apply(original,this,[message,options]);
-    if (message && typeof message==="object" && "name" in message && message.name==="pages/P.json" && !replacement) replacement=engine.openFile(newDrawing);
+    const target=message && typeof message==="object" && ("name" in message && message.name==="pages/P.json" ||
+      "context" in message && typeof message.context==="string" && message.context.startsWith("not a valid FigCraft file: Penpot: "));
+    if (target && !replacement) replacement=engine.openFile(newDrawing);
   };
   try {
-    const file=new File([Uint8Array.from(atob(base64),c=>c.charCodeAt(0))],"Cancelled.sketch");
+    const file=new File([Uint8Array.from(atob(base64),c=>c.charCodeAt(0))],filename);
     const rejected=await engine.openFile(file).then(()=>"",e=>String(e));
     await replacement;
     return {rejected,replaced:!!replacement,name:engine.getSnapshot().document.name};
   } finally {Worker.prototype.postMessage=original;}
+}
+
+export async function openPenpotSnapshot(base64:string) {
+  const engine=new EditorEngine();
+  const file=new File([Uint8Array.from(atob(base64),c=>c.charCodeAt(0))],"Original.penpot");
+  const {warnings}=await engine.openFile(file);
+  const saved=await engine.executeAsync("file.saveAs",{data:true});
+  return {data:String(saved.data),warnings};
 }

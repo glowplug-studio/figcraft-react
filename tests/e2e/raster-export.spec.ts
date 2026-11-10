@@ -448,7 +448,61 @@ test("opening 5,000 Sketch layers yields to input and releases the JSON worker",
   expect(started).toBeGreaterThan(0);
   await expect.poll(()=>workers.size).toBe(0);
   test.info().annotations.push({type:"5,000 Sketch layers",description:JSON.stringify(measured)});
-  const second=await page.evaluate(b64=>(window as unknown as {FigcraftRaster:typeof import("../fixtures/raster-export")}).FigcraftRaster.supersedeSketchImport(b64),Buffer.from(source).toString("base64"));
+  const second=await page.evaluate(b64=>(window as unknown as {FigcraftRaster:typeof import("../fixtures/raster-export")}).FigcraftRaster.supersedeArchiveImport(b64),Buffer.from(source).toString("base64"));
+  expect(second).toMatchObject({replaced:true,name:"Replacement"});
+  expect(second.rejected).toMatch(/cancelled/i);
+  await expect.poll(()=>workers.size).toBe(0);
+});
+
+test("Penpot raw SVG expands to editable layers matching native open and save",async({page})=>{
+  await loadExporter(page);
+  const {readFile}=await import("node:fs/promises"),{unzipSync}=await import("fflate");
+  const {decodeFigcraft}=await import("../../src/engine/file-format");
+  const corpus=unzipSync(await readFile(new URL("../fixtures/native-penpot-files.zip",import.meta.url)));
+  for (const stem of ["tests-raw_svg_from_export_is_preserved_for_native_svg_expansion-0","tests-svg_raw_boxes_are_never_painted-0"]) {
+    const source=Buffer.from(corpus[stem+".penpot"]).toString("base64");
+    const result=await page.evaluate(b64=>(window as unknown as {FigcraftRaster:typeof import("../fixtures/raster-export")}).FigcraftRaster.openPenpotSnapshot(b64),source);
+    expect(result.warnings,stem).toEqual(JSON.parse(new TextDecoder().decode(corpus[stem+".json"])).warnings);
+    const actual=await decodeFigcraft(Buffer.from(result.data,"base64")),expected=await decodeFigcraft(corpus[stem+".figcraft"]);
+    // Native libm and Chromium differ by one ULP for the diagonal line length.
+    const nodes={...expected.document.nodes};
+    for (const n of Object.values(nodes)) if (n.kind==="line") {
+      const observed=actual.document.nodes[n.id];
+      if (observed?.kind!=="line") throw new Error("Expected an editable SVG line");
+      expect(Math.abs(observed.width-n.width)).toBeLessThanOrEqual(n.width*Number.EPSILON);
+      nodes[n.id]={...n,width:observed.width};
+    }
+    expect(actual.document,stem).toEqual({...expected.document,nodes});
+    expect(actual.nextId,stem).toBe(expected.nextId);
+  }
+});
+
+test("opening 5,000 Penpot layers yields to input and cancellation releases the parser",async({page})=>{
+  test.setTimeout(120000);
+  await loadExporter(page);
+  const {zipSync,strToU8}=await import("fflate");
+  const file="aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",pg="bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb";
+  const root="00000000-0000-0000-0000-000000000000",prefix="files/"+file+"/pages/"+pg;
+  const json=(value:unknown)=>strToU8(JSON.stringify(value));
+  const members:Record<string,Uint8Array>={"manifest.json":json({type:"penpot/export-files",version:1,files:[{id:file,name:"Tiles"}]}),
+    [prefix+".json"]:json({id:pg,name:"Page"} )};
+  const ids=[];
+  for (let i=0;i<5000;i++) {
+    const id="cccccccc-cccc-cccc-cccc-"+i.toString(16).padStart(12,"0");
+    ids.push(id);
+    members[prefix+"/"+id+".json"]=json({id,parentId:root,name:"Tile "+i,type:"rect",x:i%100,y:Math.floor(i/100),width:1,height:1});
+  }
+  members[prefix+"/"+root+".json"]=json({id:root,type:"frame",shapes:ids,notes:" ".repeat(100000)});
+  const data=Buffer.from(zipSync(members,{level:0})).toString("base64"),workers=new Set<import("@playwright/test").Worker>();
+  let started=0;
+  page.on("worker",w=>{started++;workers.add(w);w.on("close",()=>workers.delete(w));});
+  const measured=await page.evaluate(b64=>(window as unknown as {FigcraftRaster:typeof import("../fixtures/raster-export")}).FigcraftRaster.measureDesignImport(b64,"Tiles.penpot"),data);
+  expect(measured).toMatchObject({name:"Tiles",layers:5000,pages:1,images:0,warnings:[]});
+  expect(measured.ticks).toBeGreaterThan(0);
+  expect(started).toBeGreaterThan(0);
+  await expect.poll(()=>workers.size).toBe(0);
+  test.info().annotations.push({type:"5,000 Penpot layers",description:JSON.stringify(measured)});
+  const second=await page.evaluate(b64=>(window as unknown as {FigcraftRaster:typeof import("../fixtures/raster-export")}).FigcraftRaster.supersedeArchiveImport(b64,"Cancelled.penpot"),data);
   expect(second).toMatchObject({replaced:true,name:"Replacement"});
   expect(second.rejected).toMatch(/cancelled/i);
   await expect.poll(()=>workers.size).toBe(0);

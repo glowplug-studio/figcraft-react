@@ -28,6 +28,11 @@ async function checkNesting(json:string,checkCurrent:()=>void) {
 /** Prefer the streaming native reader for native JSON and archives. Only external JSON needs a full JS object. */
 export async function loadDesignDocument(source:Source,variables:unknown,checkCurrent:()=>void,folder?:RestFolder,name="") {
   const size=source instanceof Blob ? source.size : source.byteLength;
+  if (/\.penpot$/i.test(name)) {
+    const {withPenpotArchive}=await import("./penpot/archive");
+    const {penpotScene}=await import("./penpot/scene");
+    return {decoded:await withPenpotArchive(source,checkCurrent,penpotScene),external:true};
+  }
   const first=source instanceof Blob ? new Uint8Array(await source.slice(0,16384).arrayBuffer()) : source.subarray(0,16384);
   const prefix=new TextDecoder().decode(first), start=prefix.trimStart()[0];
   const native=async()=>({decoded:await decodeFigcraft(source),external:false});

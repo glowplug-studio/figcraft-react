@@ -7288,3 +7288,37 @@ test("Slice shortcut draws an editable export region with a switchable canvas gu
     name:"Slice 1",x:120,y:120,width:110,height:54,fill:"transparent"
   });
 });
+
+test("Penpot open, native save, image append, undo and device recovery retain the imported design system",async({page})=>{
+  await login(page);
+  const corpus=unzipSync(await readFile(new URL("../fixtures/native-penpot-files.zip",import.meta.url)));
+  const source="tests-penpot_themes_become_modes_with_aliases_math_and_active_theme-0", extra="export_tests-image_fills_write_media_and_storage_objects-0";
+  const original=(await decodeFigcraft(corpus[source+".figcraft"])).document;
+  const imageDoc=(await decodeFigcraft(corpus[extra+".figcraft"])).document;
+  const file=(stem:string)=>({name:"Original.penpot",mimeType:"application/octet-stream",buffer:Buffer.from(corpus[stem+".penpot"])});
+  const save=async()=>{
+    const downloaded=page.waitForEvent("download");
+    await page.getByRole("button",{name:"Save as",exact:true}).click();
+    return (await decodeFigcraft(await readFile((await (await downloaded).path())!))).document;
+  };
+  const chooser=page.getByLabel("Open Figcraft file",{exact:true});
+  expect(await chooser.getAttribute("accept")).toContain(".penpot");
+  await chooser.setInputFiles(file(source));
+  await expect(page.getByRole("heading",{name:original.name,exact:true})).toBeVisible();
+  expect(await save()).toEqual(original);
+  await page.getByLabel("Import into current document",{exact:true}).setInputFiles(file(extra));
+  await expect.poll(async()=>(await save()).pages.length).toBe(original.pages.length+imageDoc.pages.length);
+  const appended=await save();
+  expect(Object.keys(imageDoc.images ?? {})).not.toHaveLength(0);
+  for (const [id,img] of Object.entries(imageDoc.images ?? {}))
+    expect(await appended.images?.[id].bytes.arrayBuffer()).toEqual(await img.bytes.arrayBuffer());
+  await page.getByLabel("Design canvas",{exact:true}).focus();
+  await page.keyboard.press("ControlOrMeta+z");
+  expect(await save()).toEqual(original);
+  await page.getByLabel("Design canvas",{exact:true}).focus();
+  await page.keyboard.press("ControlOrMeta+Shift+z");
+  await expect(page.getByText("Recovery saved on this device",{exact:true})).toBeVisible();
+  await page.reload();
+  await expect.poll(async()=>(await save()).pages.length).toBe(appended.pages.length);
+  expect(await save()).toEqual(appended);
+});
