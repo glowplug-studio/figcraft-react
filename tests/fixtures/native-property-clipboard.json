@@ -1,0 +1,1167 @@
+[
+  {
+    "name": "paint corners and strokes on a frame",
+    "commands": [
+      [
+        "shape.rectangle",
+        {
+          "props": {
+            "fill": "#ef3456",
+            "cornerRadius": [
+              1,
+              2,
+              3,
+              4
+            ],
+            "cornerSmoothing": 0.3,
+            "opacity": 0.65,
+            "stroke": "#F01234",
+            "strokeWeight": 3,
+            "strokeSides": [
+              1,
+              2,
+              3,
+              4
+            ],
+            "dashes": [
+              3,
+              6
+            ],
+            "strokeJoin": "round",
+            "blend": "multiply"
+          }
+        }
+      ],
+      [
+        "edit.copyProperties",
+        {}
+      ],
+      [
+        "frame.create",
+        {}
+      ],
+      [
+        "edit.pasteProperties",
+        {}
+      ],
+      [
+        "edit.copyProperties",
+        {}
+      ]
+    ],
+    "results": {
+      "1": {
+        "blend": "multiply",
+        "brush": null,
+        "cornerRadius": [
+          1.0,
+          2.0,
+          3.0,
+          4.0
+        ],
+        "cornerSmoothing": 0.3,
+        "dashCap": null,
+        "dashes": [
+          3.0,
+          6.0
+        ],
+        "effects": [],
+        "endCap": "none",
+        "fills": [
+          {
+            "blend": "normal",
+            "color": {
+              "a": 1.0,
+              "b": 0.33725491166114807,
+              "g": 0.20392157137393951,
+              "r": 0.9372549057006836
+            },
+            "opacity": 1.0,
+            "type": "solid",
+            "visible": true
+          }
+        ],
+        "miterLimit": 4.0,
+        "opacity": 0.6499999761581421,
+        "startCap": "none",
+        "strokeAlign": "inside",
+        "strokeJoin": "round",
+        "strokeSides": [
+          1.0,
+          2.0,
+          3.0,
+          4.0
+        ],
+        "strokeWeight": 3.0,
+        "strokes": [
+          {
+            "blend": "normal",
+            "color": {
+              "a": 1.0,
+              "b": 0.20392157137393951,
+              "g": 0.07058823853731155,
+              "r": 0.9411764740943909
+            },
+            "opacity": 1.0,
+            "type": "solid",
+            "visible": true
+          }
+        ],
+        "widthProfile": null
+      },
+      "3": {
+        "ok": true
+      },
+      "4": {
+        "blend": "multiply",
+        "brush": null,
+        "cornerRadius": [
+          1.0,
+          2.0,
+          3.0,
+          4.0
+        ],
+        "cornerSmoothing": 0.3,
+        "dashCap": null,
+        "dashes": [
+          3.0,
+          6.0
+        ],
+        "effects": [],
+        "endCap": "none",
+        "fills": [
+          {
+            "blend": "normal",
+            "color": {
+              "a": 1.0,
+              "b": 0.33725491166114807,
+              "g": 0.20392157137393951,
+              "r": 0.9372549057006836
+            },
+            "opacity": 1.0,
+            "type": "solid",
+            "visible": true
+          }
+        ],
+        "miterLimit": 4.0,
+        "opacity": 0.6499999761581421,
+        "startCap": "none",
+        "strokeAlign": "inside",
+        "strokeJoin": "round",
+        "strokeSides": [
+          1.0,
+          2.0,
+          3.0,
+          4.0
+        ],
+        "strokeWeight": 3.0,
+        "strokes": [
+          {
+            "blend": "normal",
+            "color": {
+              "a": 1.0,
+              "b": 0.20392157137393951,
+              "g": 0.07058823853731155,
+              "r": 0.9411764740943909
+            },
+            "opacity": 1.0,
+            "type": "solid",
+            "visible": true
+          }
+        ],
+        "widthProfile": null
+      }
+    }
+  },
+  {
+    "name": "text to shape",
+    "commands": [
+      [
+        "text.create",
+        {
+          "text": "Source",
+          "props": {
+            "fontSize": 29,
+            "fontFamily": "Inter",
+            "lineHeight": "150%",
+            "letterSpacing": "10%"
+          }
+        }
+      ],
+      [
+        "edit.copyProperties",
+        {}
+      ],
+      [
+        "shape.ellipse",
+        {}
+      ],
+      [
+        "edit.pasteProperties",
+        {}
+      ],
+      [
+        "edit.copyProperties",
+        {}
+      ]
+    ],
+    "results": {
+      "1": {
+        "blend": "normal",
+        "brush": null,
+        "cornerRadius": [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "cornerSmoothing": 0.0,
+        "dashCap": null,
+        "dashes": [],
+        "effects": [],
+        "endCap": "none",
+        "fills": [
+          {
+            "blend": "normal",
+            "color": {
+              "a": 1.0,
+              "b": 0.0,
+              "g": 0.0,
+              "r": 0.0
+            },
+            "opacity": 1.0,
+            "type": "solid",
+            "visible": true
+          }
+        ],
+        "fontFamily": "Inter",
+        "fontSize": 29.0,
+        "fontStyle": "Regular",
+        "fontVariations": {},
+        "letterSpacing": {
+          "unit": "percent",
+          "value": 10.0
+        },
+        "lineHeight": {
+          "unit": "percent",
+          "value": 150.0
+        },
+        "miterLimit": 4.0,
+        "opacity": 1.0,
+        "startCap": "none",
+        "strokeAlign": "inside",
+        "strokeJoin": "miter",
+        "strokeSides": null,
+        "strokeWeight": 1.0,
+        "strokes": [],
+        "widthProfile": null
+      },
+      "3": {
+        "ok": true
+      },
+      "4": {
+        "blend": "normal",
+        "brush": null,
+        "cornerRadius": [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "cornerSmoothing": 0.0,
+        "dashCap": null,
+        "dashes": [],
+        "effects": [],
+        "endCap": "none",
+        "fills": [
+          {
+            "blend": "normal",
+            "color": {
+              "a": 1.0,
+              "b": 0.0,
+              "g": 0.0,
+              "r": 0.0
+            },
+            "opacity": 1.0,
+            "type": "solid",
+            "visible": true
+          }
+        ],
+        "miterLimit": 4.0,
+        "opacity": 1.0,
+        "startCap": "none",
+        "strokeAlign": "inside",
+        "strokeJoin": "miter",
+        "strokeSides": null,
+        "strokeWeight": 1.0,
+        "strokes": [],
+        "widthProfile": null
+      }
+    }
+  },
+  {
+    "name": "text to text",
+    "commands": [
+      [
+        "text.create",
+        {
+          "text": "Source",
+          "props": {
+            "fontSize": 29,
+            "fontFamily": "Inter",
+            "lineHeight": "150%",
+            "letterSpacing": "10%"
+          }
+        }
+      ],
+      [
+        "edit.copyProperties",
+        {}
+      ],
+      [
+        "text.create",
+        {
+          "text": "Target"
+        }
+      ],
+      [
+        "edit.pasteProperties",
+        {}
+      ],
+      [
+        "edit.copyProperties",
+        {}
+      ]
+    ],
+    "results": {
+      "1": {
+        "blend": "normal",
+        "brush": null,
+        "cornerRadius": [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "cornerSmoothing": 0.0,
+        "dashCap": null,
+        "dashes": [],
+        "effects": [],
+        "endCap": "none",
+        "fills": [
+          {
+            "blend": "normal",
+            "color": {
+              "a": 1.0,
+              "b": 0.0,
+              "g": 0.0,
+              "r": 0.0
+            },
+            "opacity": 1.0,
+            "type": "solid",
+            "visible": true
+          }
+        ],
+        "fontFamily": "Inter",
+        "fontSize": 29.0,
+        "fontStyle": "Regular",
+        "fontVariations": {},
+        "letterSpacing": {
+          "unit": "percent",
+          "value": 10.0
+        },
+        "lineHeight": {
+          "unit": "percent",
+          "value": 150.0
+        },
+        "miterLimit": 4.0,
+        "opacity": 1.0,
+        "startCap": "none",
+        "strokeAlign": "inside",
+        "strokeJoin": "miter",
+        "strokeSides": null,
+        "strokeWeight": 1.0,
+        "strokes": [],
+        "widthProfile": null
+      },
+      "3": {
+        "ok": true
+      },
+      "4": {
+        "blend": "normal",
+        "brush": null,
+        "cornerRadius": [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "cornerSmoothing": 0.0,
+        "dashCap": null,
+        "dashes": [],
+        "effects": [],
+        "endCap": "none",
+        "fills": [
+          {
+            "blend": "normal",
+            "color": {
+              "a": 1.0,
+              "b": 0.0,
+              "g": 0.0,
+              "r": 0.0
+            },
+            "opacity": 1.0,
+            "type": "solid",
+            "visible": true
+          }
+        ],
+        "fontFamily": "Inter",
+        "fontSize": 29.0,
+        "fontStyle": "Regular",
+        "fontVariations": {},
+        "letterSpacing": {
+          "unit": "percent",
+          "value": 10.0
+        },
+        "lineHeight": {
+          "unit": "percent",
+          "value": 150.0
+        },
+        "miterLimit": 4.0,
+        "opacity": 1.0,
+        "startCap": "none",
+        "strokeAlign": "inside",
+        "strokeJoin": "miter",
+        "strokeSides": null,
+        "strokeWeight": 1.0,
+        "strokes": [],
+        "widthProfile": null
+      }
+    }
+  },
+  {
+    "name": "vector anchors retained",
+    "commands": [
+      [
+        "vector.create",
+        {
+          "path": "M0,0L80,0L50,90Z"
+        }
+      ],
+      [
+        "node.set",
+        {
+          "id": 2,
+          "props": {
+            "cornerRadius": 7
+          }
+        }
+      ],
+      [
+        "edit.copyProperties",
+        {}
+      ],
+      [
+        "shape.rectangle",
+        {
+          "props": {
+            "cornerRadius": 9
+          }
+        }
+      ],
+      [
+        "edit.pasteProperties",
+        {}
+      ],
+      [
+        "edit.copyProperties",
+        {}
+      ]
+    ],
+    "results": {
+      "2": {
+        "blend": "normal",
+        "brush": null,
+        "dashCap": null,
+        "dashes": [],
+        "effects": [],
+        "endCap": "none",
+        "fills": [
+          {
+            "blend": "normal",
+            "color": {
+              "a": 1.0,
+              "b": 0.8509804010391235,
+              "g": 0.8509804010391235,
+              "r": 0.8509804010391235
+            },
+            "opacity": 1.0,
+            "type": "solid",
+            "visible": true
+          }
+        ],
+        "miterLimit": 4.0,
+        "opacity": 1.0,
+        "startCap": "none",
+        "strokeAlign": "center",
+        "strokeJoin": "miter",
+        "strokeSides": null,
+        "strokeWeight": 1.0,
+        "strokes": [],
+        "widthProfile": null
+      },
+      "4": {
+        "ok": true
+      },
+      "5": {
+        "blend": "normal",
+        "brush": null,
+        "cornerRadius": [
+          9.0,
+          9.0,
+          9.0,
+          9.0
+        ],
+        "cornerSmoothing": 0.0,
+        "dashCap": null,
+        "dashes": [],
+        "effects": [],
+        "endCap": "none",
+        "fills": [
+          {
+            "blend": "normal",
+            "color": {
+              "a": 1.0,
+              "b": 0.8509804010391235,
+              "g": 0.8509804010391235,
+              "r": 0.8509804010391235
+            },
+            "opacity": 1.0,
+            "type": "solid",
+            "visible": true
+          }
+        ],
+        "miterLimit": 4.0,
+        "opacity": 1.0,
+        "startCap": "none",
+        "strokeAlign": "center",
+        "strokeJoin": "miter",
+        "strokeSides": null,
+        "strokeWeight": 1.0,
+        "strokes": [],
+        "widthProfile": null
+      }
+    }
+  },
+  {
+    "name": "property and layer clipboards across files",
+    "commands": [
+      [
+        "shape.rectangle",
+        {
+          "props": {
+            "fill": "#ef3456",
+            "cornerRadius": [
+              1,
+              2,
+              3,
+              4
+            ],
+            "cornerSmoothing": 0.3,
+            "opacity": 0.65,
+            "stroke": "#F01234",
+            "strokeWeight": 3,
+            "strokeSides": [
+              1,
+              2,
+              3,
+              4
+            ],
+            "dashes": [
+              3,
+              6
+            ],
+            "strokeJoin": "round",
+            "blend": "multiply"
+          }
+        }
+      ],
+      [
+        "edit.copyProperties",
+        {}
+      ],
+      [
+        "edit.copy",
+        {}
+      ],
+      [
+        "file.new",
+        {}
+      ],
+      [
+        "shape.rectangle",
+        {
+          "props": {}
+        }
+      ],
+      [
+        "edit.pasteProperties",
+        {}
+      ],
+      [
+        "edit.copyProperties",
+        {}
+      ],
+      [
+        "edit.paste",
+        {}
+      ],
+      [
+        "edit.copyProperties",
+        {}
+      ]
+    ],
+    "results": {
+      "1": {
+        "blend": "multiply",
+        "brush": null,
+        "cornerRadius": [
+          1.0,
+          2.0,
+          3.0,
+          4.0
+        ],
+        "cornerSmoothing": 0.3,
+        "dashCap": null,
+        "dashes": [
+          3.0,
+          6.0
+        ],
+        "effects": [],
+        "endCap": "none",
+        "fills": [
+          {
+            "blend": "normal",
+            "color": {
+              "a": 1.0,
+              "b": 0.33725491166114807,
+              "g": 0.20392157137393951,
+              "r": 0.9372549057006836
+            },
+            "opacity": 1.0,
+            "type": "solid",
+            "visible": true
+          }
+        ],
+        "miterLimit": 4.0,
+        "opacity": 0.6499999761581421,
+        "startCap": "none",
+        "strokeAlign": "inside",
+        "strokeJoin": "round",
+        "strokeSides": [
+          1.0,
+          2.0,
+          3.0,
+          4.0
+        ],
+        "strokeWeight": 3.0,
+        "strokes": [
+          {
+            "blend": "normal",
+            "color": {
+              "a": 1.0,
+              "b": 0.20392157137393951,
+              "g": 0.07058823853731155,
+              "r": 0.9411764740943909
+            },
+            "opacity": 1.0,
+            "type": "solid",
+            "visible": true
+          }
+        ],
+        "widthProfile": null
+      },
+      "5": {
+        "ok": true
+      },
+      "6": {
+        "blend": "multiply",
+        "brush": null,
+        "cornerRadius": [
+          1.0,
+          2.0,
+          3.0,
+          4.0
+        ],
+        "cornerSmoothing": 0.3,
+        "dashCap": null,
+        "dashes": [
+          3.0,
+          6.0
+        ],
+        "effects": [],
+        "endCap": "none",
+        "fills": [
+          {
+            "blend": "normal",
+            "color": {
+              "a": 1.0,
+              "b": 0.33725491166114807,
+              "g": 0.20392157137393951,
+              "r": 0.9372549057006836
+            },
+            "opacity": 1.0,
+            "type": "solid",
+            "visible": true
+          }
+        ],
+        "miterLimit": 4.0,
+        "opacity": 0.6499999761581421,
+        "startCap": "none",
+        "strokeAlign": "inside",
+        "strokeJoin": "round",
+        "strokeSides": [
+          1.0,
+          2.0,
+          3.0,
+          4.0
+        ],
+        "strokeWeight": 3.0,
+        "strokes": [
+          {
+            "blend": "normal",
+            "color": {
+              "a": 1.0,
+              "b": 0.20392157137393951,
+              "g": 0.07058823853731155,
+              "r": 0.9411764740943909
+            },
+            "opacity": 1.0,
+            "type": "solid",
+            "visible": true
+          }
+        ],
+        "widthProfile": null
+      },
+      "8": {
+        "blend": "multiply",
+        "brush": null,
+        "cornerRadius": [
+          1.0,
+          2.0,
+          3.0,
+          4.0
+        ],
+        "cornerSmoothing": 0.3,
+        "dashCap": null,
+        "dashes": [
+          3.0,
+          6.0
+        ],
+        "effects": [],
+        "endCap": "none",
+        "fills": [
+          {
+            "blend": "normal",
+            "color": {
+              "a": 1.0,
+              "b": 0.33725491166114807,
+              "g": 0.20392157137393951,
+              "r": 0.9372549057006836
+            },
+            "opacity": 1.0,
+            "type": "solid",
+            "visible": true
+          }
+        ],
+        "miterLimit": 4.0,
+        "opacity": 0.6499999761581421,
+        "startCap": "none",
+        "strokeAlign": "inside",
+        "strokeJoin": "round",
+        "strokeSides": [
+          1.0,
+          2.0,
+          3.0,
+          4.0
+        ],
+        "strokeWeight": 3.0,
+        "strokes": [
+          {
+            "blend": "normal",
+            "color": {
+              "a": 1.0,
+              "b": 0.20392157137393951,
+              "g": 0.07058823853731155,
+              "r": 0.9411764740943909
+            },
+            "opacity": 1.0,
+            "type": "solid",
+            "visible": true
+          }
+        ],
+        "widthProfile": null
+      }
+    }
+  },
+  {
+    "name": "pages",
+    "commands": [
+      [
+        "shape.rectangle",
+        {
+          "props": {
+            "fill": "#ef3456",
+            "cornerRadius": [
+              1,
+              2,
+              3,
+              4
+            ],
+            "cornerSmoothing": 0.3,
+            "opacity": 0.65,
+            "stroke": "#F01234",
+            "strokeWeight": 3,
+            "strokeSides": [
+              1,
+              2,
+              3,
+              4
+            ],
+            "dashes": [
+              3,
+              6
+            ],
+            "strokeJoin": "round",
+            "blend": "multiply"
+          }
+        }
+      ],
+      [
+        "edit.copyProperties",
+        {}
+      ],
+      [
+        "edit.pasteProperties",
+        {
+          "id": 1
+        }
+      ],
+      [
+        "edit.copyProperties",
+        {
+          "id": 1
+        }
+      ]
+    ],
+    "results": {
+      "1": {
+        "blend": "multiply",
+        "brush": null,
+        "cornerRadius": [
+          1.0,
+          2.0,
+          3.0,
+          4.0
+        ],
+        "cornerSmoothing": 0.3,
+        "dashCap": null,
+        "dashes": [
+          3.0,
+          6.0
+        ],
+        "effects": [],
+        "endCap": "none",
+        "fills": [
+          {
+            "blend": "normal",
+            "color": {
+              "a": 1.0,
+              "b": 0.33725491166114807,
+              "g": 0.20392157137393951,
+              "r": 0.9372549057006836
+            },
+            "opacity": 1.0,
+            "type": "solid",
+            "visible": true
+          }
+        ],
+        "miterLimit": 4.0,
+        "opacity": 0.6499999761581421,
+        "startCap": "none",
+        "strokeAlign": "inside",
+        "strokeJoin": "round",
+        "strokeSides": [
+          1.0,
+          2.0,
+          3.0,
+          4.0
+        ],
+        "strokeWeight": 3.0,
+        "strokes": [
+          {
+            "blend": "normal",
+            "color": {
+              "a": 1.0,
+              "b": 0.20392157137393951,
+              "g": 0.07058823853731155,
+              "r": 0.9411764740943909
+            },
+            "opacity": 1.0,
+            "type": "solid",
+            "visible": true
+          }
+        ],
+        "widthProfile": null
+      },
+      "2": {
+        "ok": true
+      },
+      "3": {
+        "blend": "multiply",
+        "brush": null,
+        "cornerRadius": [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "cornerSmoothing": 0.0,
+        "dashCap": null,
+        "dashes": [
+          3.0,
+          6.0
+        ],
+        "effects": [],
+        "endCap": "none",
+        "fills": [
+          {
+            "blend": "normal",
+            "color": {
+              "a": 1.0,
+              "b": 0.33725491166114807,
+              "g": 0.20392157137393951,
+              "r": 0.9372549057006836
+            },
+            "opacity": 1.0,
+            "type": "solid",
+            "visible": true
+          }
+        ],
+        "miterLimit": 4.0,
+        "opacity": 0.6499999761581421,
+        "startCap": "none",
+        "strokeAlign": "inside",
+        "strokeJoin": "round",
+        "strokeSides": [
+          1.0,
+          2.0,
+          3.0,
+          4.0
+        ],
+        "strokeWeight": 3.0,
+        "strokes": [
+          {
+            "blend": "normal",
+            "color": {
+              "a": 1.0,
+              "b": 0.20392157137393951,
+              "g": 0.07058823853731155,
+              "r": 0.9411764740943909
+            },
+            "opacity": 1.0,
+            "type": "solid",
+            "visible": true
+          }
+        ],
+        "widthProfile": null
+      }
+    }
+  },
+  {
+    "name": "width profile and brush",
+    "commands": [
+      [
+        "shape.rectangle",
+        {
+          "props": {
+            "stroke": "#8123ac",
+            "strokeWeight": 5,
+            "widthProfile": "eye",
+            "brush": {
+              "preset": "bristle",
+              "spacing": 1.4,
+              "seed": 7,
+              "sizeJitter": 0.4
+            }
+          }
+        }
+      ],
+      [
+        "edit.copyProperties",
+        {}
+      ],
+      [
+        "shape.rectangle",
+        {
+          "props": {}
+        }
+      ],
+      [
+        "edit.pasteProperties",
+        {}
+      ],
+      [
+        "edit.copyProperties",
+        {}
+      ]
+    ],
+    "results": {
+      "1": {
+        "blend": "normal",
+        "brush": {
+          "preset": "bristle",
+          "rotation_jitter": 0.0,
+          "scatter": 0.0,
+          "seed": 7,
+          "size_jitter": 0.4,
+          "spacing": 1.4
+        },
+        "cornerRadius": [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "cornerSmoothing": 0.0,
+        "dashCap": null,
+        "dashes": [],
+        "effects": [],
+        "endCap": "none",
+        "fills": [
+          {
+            "blend": "normal",
+            "color": {
+              "a": 1.0,
+              "b": 0.8509804010391235,
+              "g": 0.8509804010391235,
+              "r": 0.8509804010391235
+            },
+            "opacity": 1.0,
+            "type": "solid",
+            "visible": true
+          }
+        ],
+        "miterLimit": 4.0,
+        "opacity": 1.0,
+        "startCap": "none",
+        "strokeAlign": "inside",
+        "strokeJoin": "miter",
+        "strokeSides": null,
+        "strokeWeight": 5.0,
+        "strokes": [
+          {
+            "blend": "normal",
+            "color": {
+              "a": 1.0,
+              "b": 0.6745098233222961,
+              "g": 0.13725490868091583,
+              "r": 0.5058823823928833
+            },
+            "opacity": 1.0,
+            "type": "solid",
+            "visible": true
+          }
+        ],
+        "widthProfile": [
+          [
+            0.0,
+            0.0
+          ],
+          [
+            0.5,
+            1.0
+          ],
+          [
+            1.0,
+            0.0
+          ]
+        ]
+      },
+      "3": {
+        "ok": true
+      },
+      "4": {
+        "blend": "normal",
+        "brush": {
+          "preset": "bristle",
+          "rotation_jitter": 0.0,
+          "scatter": 0.0,
+          "seed": 7,
+          "size_jitter": 0.4,
+          "spacing": 1.4
+        },
+        "cornerRadius": [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "cornerSmoothing": 0.0,
+        "dashCap": null,
+        "dashes": [],
+        "effects": [],
+        "endCap": "none",
+        "fills": [
+          {
+            "blend": "normal",
+            "color": {
+              "a": 1.0,
+              "b": 0.8509804010391235,
+              "g": 0.8509804010391235,
+              "r": 0.8509804010391235
+            },
+            "opacity": 1.0,
+            "type": "solid",
+            "visible": true
+          }
+        ],
+        "miterLimit": 4.0,
+        "opacity": 1.0,
+        "startCap": "none",
+        "strokeAlign": "inside",
+        "strokeJoin": "miter",
+        "strokeSides": null,
+        "strokeWeight": 5.0,
+        "strokes": [
+          {
+            "blend": "normal",
+            "color": {
+              "a": 1.0,
+              "b": 0.6745098233222961,
+              "g": 0.13725490868091583,
+              "r": 0.5058823823928833
+            },
+            "opacity": 1.0,
+            "type": "solid",
+            "visible": true
+          }
+        ],
+        "widthProfile": [
+          [
+            0.0,
+            0.0
+          ],
+          [
+            0.5,
+            1.0
+          ],
+          [
+            1.0,
+            0.0
+          ]
+        ]
+      }
+    }
+  }
+]

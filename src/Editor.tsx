@@ -293,6 +293,10 @@ export function DocumentEditor({ identity, capabilities, engine: suppliedEngine,
         !macGrid && event.code === "Digit4" && event.ctrlKey && event.shiftKey)) command = "view.layoutGrids";
     if (!event.metaKey && !event.ctrlKey && event.altKey && event.shiftKey && event.code === "KeyF" || (event.metaKey || event.ctrlKey) && !event.altKey && !event.shiftKey && event.key.toLowerCase() === "e") command = "vector.flatten";
     if ((event.metaKey || event.ctrlKey) && !event.shiftKey && !event.altKey && event.key.toLowerCase() === "d") command = "edit.duplicate";
+    if ((event.metaKey || event.ctrlKey) && event.altKey && !event.shiftKey) {
+      if (event.code === "KeyC") command = "edit.copyProperties";
+      if (event.code === "KeyV") command = "edit.pasteProperties";
+    }
     if ((event.metaKey || event.ctrlKey) && event.shiftKey && !event.altKey && engine.hasCopiedLayers()) {
       if (event.code === "KeyV") command = "edit.pasteOver";
       if (event.code === "KeyR") command = "edit.pasteReplace";
@@ -536,14 +540,20 @@ export function DocumentEditor({ identity, capabilities, engine: suppliedEngine,
           event.currentTarget.closest("details")?.removeAttribute("open"); dispatch("file.colorProfile");
         }}>Color profile</button></details>
         <details><summary>Edit</summary>
-          {(["Cut", "Copy", "Paste", "Paste over selection", "Paste to replace"] as const).map(label =>
-            <button key={label} type="button" disabled={label === "Copy" ? !canCopyLayers : !editable || busy ||
-              label === "Cut" && !canCopyLayers || label !== "Cut" && label !== "Paste" && !engine.hasCopiedLayers() ||
-              label === "Paste to replace" && !snapshot.selection.length} onClick={event => {
+          {([
+            ["Cut", "edit.cut", editable && canCopyLayers],
+            ["Copy", "edit.copy", canCopyLayers],
+            ["Paste", "edit.paste", editable],
+            ["Paste over selection", "edit.pasteOver", editable && engine.hasCopiedLayers()],
+            ["Paste to replace", "edit.pasteReplace", editable && engine.hasCopiedLayers() && !!snapshot.selection.length],
+            ["Copy properties", "edit.copyProperties", canCopyLayers],
+            ["Paste properties", "edit.pasteProperties", editable && engine.hasCopiedProperties() && !!snapshot.selection.length],
+          ] as const).map(([label, command, enabled]) =>
+            <button key={command} type="button" disabled={busy || !enabled} onClick={event => {
               event.currentTarget.closest("details")?.removeAttribute("open");
-              if (label === "Cut" || label === "Copy") copyLayers(label === "Cut" ? "edit.cut" : "edit.copy");
-              else if (label === "Paste") void paste();
-              else dispatch(label === "Paste to replace" ? "edit.pasteReplace" : "edit.pasteOver");
+              if (command === "edit.copy" || command === "edit.cut") copyLayers(command);
+              else if (command === "edit.paste") void paste();
+              else dispatch(command);
               canvas.current?.focus();
             }}>{label}</button>)}
         </details>

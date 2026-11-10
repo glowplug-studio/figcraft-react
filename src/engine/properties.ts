@@ -187,16 +187,12 @@ export function writeProperties(draft: HierarchyDraft, document: Document, selec
     let node = draft.nodes[id];
     if (paints && node?.kind==="text") {node=takeCharacterFills(node);draft.set(node);}
     if (textCommand && node?.kind !== "text") throw new Error("Expected a text layer");
-    if (node?.kind === "page" && keys.every(key => styleSlots.has(key) || ["boundVariables", "variableModes", "description", "fill", "fills", "stroke", "strokes", "effects", "isMask", "maskType", "grids", "layoutGrids"].includes(key))) {
+    if (node?.kind === "page" && keys.every(key => styleSlots.has(key) || isStrokeKey(key) || ["opacity", "blend", "blendMode", "boundVariables", "variableModes", "description", "fill", "fills", "stroke", "strokes", "effects", "isMask", "maskType", "grids", "layoutGrids"].includes(key))) {
       let page = mask(node);
       if (paints && !samePaints(page.fills ?? [], paints)) page = {...page, fills:paints.length ? paints : undefined};
-      let strokes: readonly Paint[] | undefined;
-      if ("stroke" in props) {
-        const value = props.stroke;
-        strokes = value === null || typeof value === "string" && value.toLowerCase() === "none" ? [] : readPaints([value], true);
-      }
-      if ("strokes" in props) strokes = readPaints(props.strokes, true);
-      if (strokes && !samePaints(page.strokes ?? [], strokes)) page = {...page, strokes:strokes.length ? strokes : undefined};
+      page = setStrokeProperties(page, props);
+      if (opacity !== undefined && opacity !== (page.opacity ?? 1)) page = { ...page, opacity };
+      if (blend && blend !== (page.blend ?? "passThrough")) page = { ...page, blend };
       draft.set(styleProperties(effects ? withEffects(page, effects) : page,node));
       continue;
     }

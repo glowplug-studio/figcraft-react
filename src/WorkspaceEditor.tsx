@@ -63,6 +63,8 @@ export function WorkspaceEditor({ identity, capabilities, recoveryStore }: Works
   };
   const fileMenu = active && <>
     <button type="button" disabled={!enabled} onClick={() => workspace.execute("file.new")}>New file</button>
+    <button type="button" disabled title="Browser downloads have no writable file path">Revert to saved</button>
+    <details><summary>Open recent</summary><button type="button" disabled>Clear recent</button></details>
     <button type="button" disabled={!enabled} onClick={() => workspace.execute("file.duplicate")}>Duplicate file</button>
     <button type="button" disabled={!enabled} onClick={event => { event.currentTarget.closest("details")?.removeAttribute("open"); setRenaming(true); }}>Rename file</button>
     <button type="button" disabled={!enabled} onClick={event => { event.currentTarget.closest("details")?.removeAttribute("open"); close(active.id); }}>Close file</button>

@@ -67,3 +67,14 @@ describe("native file workspace", () => {
     expect(workspace.getSnapshot()[0].dirty).toBe(false);
   });
 });
+
+it("keeps native filesystem recents empty for browser byte opens and downloads", async () => {
+  const workspace = new EditorWorkspace();
+  const source = await workspace.activeEngine!.nativeSnapshot();
+  await workspace.open(new File([Uint8Array.from(source)], "Saved.figcraft"));
+  (await workspace.prepareDownload()).delivered();
+  expect(workspace.execute("file.openRecent")).toEqual({ files: [] });
+  expect(workspace.execute("file.openRecent", { clear: true })).toEqual({ files: [] });
+  expect(() => workspace.execute("file.openRecent", { index: 0 })).toThrow(/no such recent file/i);
+  expect(() => workspace.execute("file.revert")).toThrow(/never saved/i);
+});

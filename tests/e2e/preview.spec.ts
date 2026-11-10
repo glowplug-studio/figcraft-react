@@ -6791,3 +6791,52 @@ test("layer clipboard crosses file tabs, respects newer system text and pastes a
   for (const n of transferred) expect(n).toMatchObject({ kind: "rectangle", x: 90, y: 110 });
   expect(Object.values(doc.nodes).some(n => n.kind === "text" && n.text.characters === "From another app")).toBe(true);
 });
+
+test("copy properties transfers appearance across tabs and undo restores the destination", async ({ page }) => {
+  await login(page);
+  await createNamedRectangle(page, "Style source", 20, 30);
+  const appearance = page.getByRole("region", { name: "Appearance" });
+  await appearance.getByLabel("Node opacity").fill("0.4");
+  await appearance.getByRole("button", { name: "Apply layer" }).click();
+  const canvas = page.getByLabel("Design canvas", { exact: true });
+  await canvas.focus();
+  await page.keyboard.press("ControlOrMeta+Alt+c");
+  const bar = page.locator(".figcraft-document-bar");
+  await bar.getByText("File", { exact: true }).click();
+  await expect(bar.getByRole("button", { name: "Revert to saved" })).toBeDisabled();
+  await bar.getByText("Open recent", { exact: true }).click();
+  await expect(bar.getByRole("button", { name: "Clear recent" })).toBeDisabled();
+  await bar.getByRole("button", { name: "New file", exact: true }).click();
+  await createNamedRectangle(page, "Destination", 60, 80);
+  await bar.getByText("Edit", { exact: true }).click();
+  await bar.getByRole("button", { name: "Paste properties", exact: true }).click();
+  await expect.poll(async () => Number(await appearance.getByLabel("Node opacity").inputValue())).toBeCloseTo(0.4);
+  await expect(appearance.getByLabel("Name", { exact: true })).toHaveValue("Destination");
+  await canvas.focus(); await page.keyboard.press("ControlOrMeta+z");
+  await expect(appearance.getByLabel("Node opacity")).toHaveValue("1");
+});
+
+test("linked layer paste retains the native library record and image across recovery and download", async ({ page, context }) => {
+  await login(page);
+  await context.grantPermissions(["clipboard-read", "clipboard-write"], { origin: new URL(page.url()).origin });
+  await page.getByLabel("Open Figcraft file", { exact: true }).setInputFiles(new URL("../fixtures/native-library-component-consumer.figcraft", import.meta.url).pathname);
+  const layers = page.getByRole("region", { name: "Layers", exact: true });
+  await layers.getByRole("button", { name: "Button", exact: true }).click();
+  const canvas = page.getByLabel("Design canvas", { exact: true });
+  await canvas.focus(); await page.keyboard.press("ControlOrMeta+c");
+  const bar = page.locator(".figcraft-document-bar");
+  await bar.getByText("File", { exact: true }).click();
+  await bar.getByRole("button", { name: "New file", exact: true }).click();
+  await canvas.focus(); await page.keyboard.press("ControlOrMeta+v");
+  await expect(layers.getByRole("button", { name: "Button", exact: true })).toBeVisible();
+  await expect(page.getByText("Recovery saved on this device", { exact: true })).toBeVisible();
+  await page.reload();
+  await expect(layers.getByRole("button", { name: "Button", exact: true })).toBeVisible();
+  const download = page.waitForEvent("download");
+  await bar.getByRole("button", { name: "Save as", exact: true }).click();
+  const doc = (await decodeFigcraft(await readFile((await (await download).path())!))).document;
+  const [record] = doc.libraryStore!.components;
+  expect(record).toMatchObject({ key: "5", library: "e36d4acf0f4beca8", root: "3" });
+  expect(doc.nodes["2"]).toMatchObject({ kind: "instance", component: record.root, source: record.root });
+  expect(Object.keys(doc.images ?? {})).toHaveLength(1);
+});

@@ -1,6 +1,6 @@
 import { propertyEnum as strokeEnum } from "./parameters";
 export { propertyEnum as strokeEnum } from "./parameters";
-import type { LayerNode } from "./document";
+import type { DocumentNode, LayerNode, PageNode } from "./document";
 import { parseColour } from "./colour-css";
 import { parseNumber } from "./parameters";
 import { readPaints, solidPaint } from "./solid-paint";
@@ -78,7 +78,9 @@ export function wireStroke(props: StrokeProps): Record<string, unknown> {
 export const strokeSideKeys = ["strokeTopWeight", "strokeRightWeight", "strokeBottomWeight", "strokeLeftWeight"] as const;
 const strokeKeys = new Set(["stroke", "strokes", "strokeWeight", "strokeSides", ...strokeSideKeys, "widthProfile", "brush", "strokeBrush", "strokeAlign", "strokeCap", "startCap", "endCap", "strokeJoin", "miterLimit", "miterAngle", "dashes", "dashCap"]);
 export const isStrokeKey = (key: string): boolean => strokeKeys.has(key);
-export function setStrokeProperties(node: LayerNode, props: Record<string, unknown>): LayerNode {
+export function setStrokeProperties(node: PageNode, props: Record<string, unknown>): PageNode;
+export function setStrokeProperties(node: LayerNode, props: Record<string, unknown>): LayerNode;
+export function setStrokeProperties(node: DocumentNode, props: Record<string, unknown>): DocumentNode {
   const keys = Object.keys(props).filter(isStrokeKey).sort();
   if (!keys.length) return node;
   let stroke = { ...(node.stroke ?? defaultStroke) }, strokes = node.strokes;

@@ -30,7 +30,7 @@ interface OpenTab {
 }
 
 type WorkspaceCommand = "doc.list" | "doc.switch" | "doc.nextTab" | "doc.previousTab"
-  | "file.new" | "file.moveTab" | "file.close" | "file.duplicate";
+  | "file.new" | "file.openRecent" | "file.revert" | "file.moveTab" | "file.close" | "file.duplicate";
 
 type BranchCommand = "branch.list" | "branch.create" | "branch.open" | "branch.archive" | "branch.merge" | "branch.updateFromMain" | "branch.review";
 
@@ -133,6 +133,7 @@ export class EditorWorkspace {
     this.#generation++;
     if (!editable) {
       this.#sourceFiles.clear();
+      delete this.#clipboard.properties;
       delete this.#clipboard.layers;
       delete this.#clipboard.effect;
       delete this.#clipboard.paint;
@@ -317,6 +318,12 @@ export class EditorWorkspace {
     if (!this.#editable) throw new Error("Sign in to use the workspace");
     if (command.startsWith("branch.")) return this.#branchCommand(command as BranchCommand, params);
     if (command === "doc.list") return this.#snapshot;
+    // Browser byte opens and downloads never create native filesystem-path recents.
+    if (command === "file.openRecent") {
+      if (params.path != null) throw new Error("Select the file in the browser to open it");
+      if (params.index != null) throw new Error("No such recent file");
+      return { files: [] };
+    }
     if (command === "file.new") return { ...this.#append(EditorEngine.newTab(parseString(params.name), this.#clipboard)), kind: "design" };
     const active = this.#active;
     const tabIndex = (key: string) => {
@@ -339,6 +346,7 @@ export class EditorWorkspace {
       return { ok: true };
     }
     if (!active) throw new Error("No document");
+    if (command === "file.revert") throw new Error("The file was never saved to a filesystem path");
     if (command === "file.duplicate") return this.#append(active.engine.duplicateTab());
     if (command === "file.close") {
       const index = "index" in params ? tabIndex("index") : this.#tabs.indexOf(active);

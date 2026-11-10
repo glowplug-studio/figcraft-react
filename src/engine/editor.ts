@@ -67,6 +67,8 @@ import { setRectangleProperties, setPageGeometryFields } from "./properties";
 import { HierarchyDraft, pageForNode, worldTransform } from "./hierarchy";
 import { applyBuilder } from "./shape-builder-commands";
 import { builderArrangement, builderTargets, readBuilderRegions } from "./shape-builder";
+import { copyLayerProperties, pasteLayerProperties } from "./property-clipboard";
+import { requiredTargets } from "./arrange";
 import { captureLayers, pasteLayers, layerClipboardSpecs, type CopiedLayers } from "./layer-clipboard";
 import { executeStructure, structureSpecs } from "./structure";
 import { executeVector, isVectorJoin, vectorSpecs } from "./vector-commands";
@@ -96,6 +98,8 @@ interface FileSource {file:Blob; picker?:PaintPicker; paste?:boolean; centre?:bo
 type OpenResult = { repairs: readonly string[]; summary: {name:string; pages:number; layers:number; images:number} }
 
 export const commandSpecs = Object.freeze({
+  "edit.copyProperties": { label: "Copy properties", undo: false },
+  "edit.pasteProperties": { label: "Paste properties", undo: true },
   ...layerClipboardSpecs,
   ...effectSpecs,
   ...strokeSpecs,
@@ -270,7 +274,7 @@ function fontParams(command:keyof typeof fontOptions,input:unknown) {
   return p;
 }
 /** React-free command transactions. Snapshots share immutable nodes and document references. */
-export interface EditorClipboard { layers?: CopiedLayers; paint?: CopiedPaint; effect?: Effect }
+export interface EditorClipboard { properties?: Record<string, unknown>; layers?: CopiedLayers; paint?: CopiedPaint; effect?: Effect }
 
 export class EditorEngine {
   readonly pen = new PenInteraction(this);
@@ -316,6 +320,7 @@ export class EditorEngine {
   #clipboard: EditorClipboard = {};
   markLayerClipboardMirror(text: string) { if (this.#clipboard.layers) this.#clipboard.layers.mirror = text; }
   ownsLayerClipboardText(text: string) { return !!this.#clipboard.layers && (this.#clipboard.layers.mirror === text || text.startsWith("figcraft://clipboard/")); }
+  hasCopiedProperties = (): boolean => !!this.#clipboard.properties;
   hasCopiedLayers = (): boolean => !!this.#clipboard.layers;
   hasCopiedEffect = (): boolean => !!this.#clipboard.effect;
   hasCopiedFill = (): boolean => this.#clipboard.paint?.list === "fill";
@@ -1105,7 +1110,7 @@ export class EditorEngine {
     if (!editable) this.pen.cancel();
     if (!editable) this.cancelInteraction();
     if (!editable) {this.cancelPendingFiles();this.#libraryFiles.clear();this.#libraryRevision++;}
-    if (!editable) { this.#vectorEdit = undefined; this.#clipboard.layers = undefined; this.#clipboard.paint = undefined; this.#clipboard.effect = undefined; }
+    if (!editable) { this.#vectorEdit = undefined; this.#clipboard.properties = undefined; this.#clipboard.layers = undefined; this.#clipboard.paint = undefined; this.#clipboard.effect = undefined; }
     if (editable !== this.#snapshot.editable) this.#publish({ editable, tool: "move", profileDialog: false, libraryPanel:undefined, missingFonts: undefined });
   }
   execute(command: "file.versionHistory" | "version.list", input?: unknown): ReturnType<typeof versionDetails>[];
@@ -1129,7 +1134,7 @@ export class EditorEngine {
       if (command === "file.markSaved" || command === "file.saveVersion") this.exitVersionPreview();
       else if (command === "version.autosave") return { saved: false };
       else if (!command.startsWith("version.") && command !== "file.versionHistory" && !Object.hasOwn(viewSpecs, command)
-        && !Object.hasOwn(selectionSpecs, command) && command !== "node.get" && command !== "edit.copy") {
+        && !Object.hasOwn(selectionSpecs, command) && command !== "node.get" && command !== "edit.copy" && command !== "edit.copyProperties") {
         throw new Error("command `" + command + "` is not available right now: you're viewing an earlier version: restore it or go back to the current version to edit");
       }
     }
@@ -1345,6 +1350,20 @@ export class EditorEngine {
       this.#viewConfigured = true; this.updateView(next.view);
       if (next.document !== before.document || next.selection !== before.selection) this.#publish({ document: next.document, selection: next.selection });
       return next.result;
+    }
+    if (command === "edit.copyProperties") {
+      const { document, selection } = this.#snapshot;
+      const [id] = requiredTargets(document, selection, p);
+      const props = copyLayerProperties(document.nodes[id]);
+      this.#clipboard.properties = structuredClone(props);
+      this.#publish({});
+      return props;
+    }
+    if (command === "edit.pasteProperties") {
+      const before = this.#snapshot;
+      const document = pasteLayerProperties(before.document, before.selection, p, this.#clipboard.properties);
+      if (document !== before.document) this.#commitEdit({ document });
+      return { ok: true };
     }
     if (command === "edit.copy" || command === "edit.cut") {
       const before = this.#snapshot;
