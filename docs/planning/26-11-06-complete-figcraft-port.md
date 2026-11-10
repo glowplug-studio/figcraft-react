@@ -6,16 +6,16 @@
 |---|---|
 | Overall status | In progress. [Continue handover and deferred review queue](26-11-07-full-port-resume.md#continue-from-here). |
 | Active slice | Row 12 design interchange and export. [Dated plan](26-11-10-file-interchange.md). |
-| Active phase | Row 12. Import reports and remaining interchange checks. |
+| Active phase | Row 12. Clipboard menu and CSS output. |
 | Upstream baseline | Styles reference a2e87433. Components reference 79c36346. Global supported baseline 8eb0b876. |
-| Branch and last verified commit | prompt/full-figcraft-port at 80f52d5 for Section authoring and nested frame PDF export. |
+| Branch and last verified commit | prompt/full-figcraft-port at bbc26fd for import diagnostics and the reviewed Section toolbar references at eee31fd. |
 | Completed slices | Rectangle/host-auth, bounded native persistence/recovery, supported-model pages, affine rectangle geometry/selection and solid appearance, plus nested group hierarchy, Frame containers, movement/transform gestures, rounded corners, ellipse/arc/ring and Polygon/Star editing verified locally; Line/Arrow and uniform solid strokes also verified; per-side Rectangle/Frame strokes, variable-width profiles and procedural brushes verified; vector networks, solid region/stroke rendering and Flatten/Reverse also verified; foundation commit `154f5a7`. Gradient, image, pattern, blend and mask releases now have local property matrices. [Blend evidence](../reports/26-11-09-blend-modes-parity.html). Auto layout and constraints passed the local release gate. [Release evidence](../reports/26-11-09-auto-layout.md). [Local components, instances, variant properties, slots and Assets](../reports/26-11-09-components-instances.md) passed the 0.51.0 gate. |
 | Remaining slices | Continue incomplete roadmap rows, excluding the user-deferred plugin and widget family. See each slice matrix for outstanding integrations. |
-| Tests last passed | 342/342 production Chromium workflows at e399303. At 80f52d5, all 3,664 pure tests, 32 focused Section checks, three signed-in browser workflows, both builds, both Auth integrations and strict types passed. Full Section browser regression running. |
+| Tests last passed | 3,679 pure tests, two local Auth integrations, strict types and both builds. Three targeted production Chromium cases passed. The complete browser run is in progress. |
 | Files currently in progress | [Design interchange and export](26-11-10-file-interchange.md). |
 | Blockers | The scoped Supabase MCP project and public-table reads passed after reauthorisation. |
-| Exact next action | Collect the Section regression and implement the user-facing Import report. [Resume handover](26-11-07-full-port-resume.md#continue-from-here). |
-| Last updated | 2026-11-10 22:54 ICT |
+| Exact next action | Collect the full production result and port the three outstanding Copy as operations. [Resume handover](26-11-07-full-port-resume.md#continue-from-here). |
+| Last updated | 2026-11-10 23:08 ICT |
 
 ## Scope and continuation
 
@@ -53,7 +53,7 @@ Full-host performance obligation: the user specifically asks about browser RAM, 
 | 9 | Components, instances/overrides, variants/properties/slots and sync; `engine/src/assets/components`, `cmd/component/` | 2–8 | Local release 0.51.0, 266/266 Chromium workflows. Linked libraries and Dev Mode playgrounds remain assigned to their owning rows. [Property matrix](../reports/26-11-09-components-instances-parity.html). |
 | 10 | Styles, variables/collections/modes/expressions and IO, libraries/assets and updates; `doc/src/{styles,library}.rs`, `cmd/{styles,variables,variables_io,library}.rs` | 2–9 | Local 0.52.0 release passed 292/292 Chromium tests. The [property audit](../reports/26-11-10-styles-variables-libraries-parity.html) carries linked clipboard transfer, source navigation and team-service features into their owning rows. [Style and variable plan](26-11-09-styles-variables-libraries.md). |
 | 11 | File workspace, thumbnails, history/checkpoints, branches and conflict review; `cmd/file`, engine branches and library | 1–10 | Active entry checks. [Workspace and history plan](26-11-10-file-workspace-history.md). |
-| 12 | SVG/raster, REST, .fig, Penpot, Sketch imports and exports; native bundles, SVG/PDF/VectorDrawable/code/raster exports; current format/export crates | 1–11; current source determines actual supported subsets | In progress. Raster codecs, export settings, ZIP delivery and editable SVG geometry verified locally |
+| 12 | SVG/raster, REST, .fig, Penpot, Sketch imports and exports; native bundles, SVG/PDF/VectorDrawable/code/raster exports; current format/export crates | 1–11; current source determines actual supported subsets | In progress. PNG, JPEG, WebP, SVG, PDF, Android XML, REST, Fig, Sketch and Penpot have local reference and browser evidence. Import reports passed focused gates. Clipboard code export and release regression remain |
 | 13 | Online files/dashboard, ownership and share grants, profile data where required, database/Storage RLS; server store and host-neutral adapters | 1–12; verified account mapping | Not implemented |
 | 14 | Ordered live collaboration, reconnect/revocation, presence, comments and per-client live undo; `collab`, `engine/src/sharing`, server stores | 13 and stable commands | Not implemented |
 | 15 | Prototype interactions, triggers/actions/expressions, overlays, transitions, scrolling and presenter; `doc/src/proto*`, engine prototype runtime and UI | 2–14 as applicable | Not implemented |

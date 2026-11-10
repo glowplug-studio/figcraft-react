@@ -4,6 +4,8 @@ All notable changes to the React port and its upstream compatibility baseline ar
 
 ## [0.53.0] - 2026-11-10
 
+- Added source-tab import reports with compatibility notes, document counts and bounded Unicode text. [Verification](docs/reports/26-11-10-import-report-parity.html).
+
 - Added Section drawing, wrapping, frame conversion, hide/show and export of frames nested in Sections. [Verification](docs/reports/26-11-10-file-interchange.md#section-authoring-and-frame-pdf).
 
 - Added editable paste of external Fig clipboard layers, missing-image notices and Section interchange. [Clipboard verification](docs/reports/26-11-10-design-clipboard-parity.html).
