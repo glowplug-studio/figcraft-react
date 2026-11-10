@@ -200,3 +200,58 @@ test("rasterised SVG patterns share the export root's remaining nesting depth",a
     expect(containsRed).toBe(red);
   }
 });
+
+test("editable SVG imports match native layer data, warnings, resources and the upstream pixel probes",async({page})=>{
+  const {readFile}=await import("node:fs/promises");
+  type RecordMap=Record<string,unknown>;
+  type Scene={name:string;svg:string;error?:string;result?:RecordMap;document?:{
+    nodes:Record<string,RecordMap>;imageIndex:{hash:string;width:number;height:number}[]}};
+  const corpus:Scene[]=JSON.parse(await readFile(new URL("../fixtures/native-svg-import.json",import.meta.url),"utf8"));
+  await loadExporter(page);
+  let probes=0;
+  function compare(native:unknown,actual:unknown,path:string) {
+    if (typeof native==="number") {
+      expect(typeof actual,path).toBe("number");
+      expect(Math.abs(Number(actual)-native),path).toBeLessThanOrEqual(.0005+.000005*Math.abs(native));
+    } else if (Array.isArray(native)) {
+      expect(actual,path).toHaveLength(native.length);
+      native.forEach((item,i)=>compare(item,(actual as unknown[])[i],path+"["+i+"]"));
+    } else if (native && typeof native==="object") {
+      for(const [k,v] of Object.entries(native)) compare(v,(actual as RecordMap)?.[k],path+"."+k);
+    } else expect(actual,path).toEqual(native);
+  }
+  for (const scene of corpus) {
+    const imported=page.evaluate(async ({name,svg})=>(window as unknown as {
+      FigcraftRaster:Pick<typeof import("../fixtures/raster-export"),"importSvgFixture">
+    }).FigcraftRaster.importSvgFixture(name,svg),{name:scene.name,svg:scene.svg});
+    if (scene.error) {await expect(imported).rejects.toThrow("SVG import failed:");continue;}
+    const result=await imported, native=scene.document!;
+    expect(result.result,scene.name).toEqual(scene.result);
+    expect(Object.keys(result.document.nodes),scene.name).toEqual(Object.keys(native.nodes));
+    expect(result.document.imageIndex.map((i:{width:number;height:number})=>[i.width,i.height]).sort(),scene.name)
+      .toEqual(native.imageIndex.map(i=>[i.width,i.height]).sort());
+    for(const [id,node] of Object.entries(native.nodes)) {
+      if (id==="1") continue;
+      const actual=result.document.nodes[id];
+      const expected:RecordMap={transform:[1,0,0,1,0,0],...node};
+      // Vector tiles use the browser's PNG encoder. Their resource key hashes the encoded bytes.
+      if (scene.name==="patterns" && ["tiled","spotted"].includes(String(node.name))) {
+        const paint=(node.fills as RecordMap[])[0];
+        const source=native.imageIndex.find(i=>i.hash===paint.image)!;
+        const resource=result.document.imageIndex.find((i:{hash:string})=>i.hash===actual.fills[0].image);
+        expect([resource.width,resource.height]).toEqual([source.width,source.height]);
+        expected.fills=[{...paint,image:actual.fills[0].image}];
+      }
+      compare(expected,actual,scene.name+"."+id);
+    }
+    const im=PNG.sync.read(Buffer.from(result.png,"base64"));
+    for (const m of scene.svg.matchAll(/<!-- probe (\d+) (\d+) #([\da-f]{8})(?: ~(\d+))?\s*-->/gi)) {
+      const [x,y]=m.slice(1,3).map(Number), start=(im.width*y+x)*4;
+      expect(x).toBeLessThan(im.width);expect(y).toBeLessThan(im.height);
+      const expected=Buffer.from(m[3],"hex");
+      for(let i=0;i<4;i++) expect(Math.abs(im.data[start+i]-expected[i]),scene.name+" at "+x+","+y).toBeLessThanOrEqual(Number(m[4] ?? 8));
+      probes++;
+    }
+  }
+  expect(probes).toBeGreaterThan(140);
+});

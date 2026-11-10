@@ -48,7 +48,7 @@ import { isLeaf, isFrameLike, isGroupLike } from "./document";
 import { editImagePaints, editImagePreset, imageEditSpecs, startImageCrop, type CropTarget } from "./image-commands";
 import { listImagePresets } from "./image-filters";
 import { getNode } from "./inspect";
-import { centrePastedImage, rasterImportParams, placeImage, prepareImage, rasterFilename, replaceImage, withImageResource } from "./image-import";
+import { centrePastedImage, fileImportParams, placeImage, prepareImage, rasterFilename, replaceImage, withImageResource } from "./image-import";
 import { createCanvasText, editTextRange, publishTextNode, typedListMarker, type TextTarget } from "./text-edit";
 import { fitEditedText, importFontBytes, prepareText, prepareDocumentText, queryFonts } from "./text-node-layout";
 import { creationCharacters, createLayer } from "./creation";
@@ -96,7 +96,7 @@ import { PencilInteraction } from "./pencil-interaction";
 import { parseBrush, wireBrush, type Brush } from "./brush";
 
 interface FileSource {file:Blob; picker?:PaintPicker; paste?:boolean; centre?:boolean}
-type OpenResult = { repairs: readonly string[]; summary: {name:string; pages:number; layers:number; images:number} }
+type OpenResult = { warnings?: readonly string[]; repairs: readonly string[]; summary: {name:string; pages:number; layers:number; images:number} }
 
 export const commandSpecs = Object.freeze({
   "edit.copyProperties": { label: "Copy properties", undo: false },
@@ -1818,6 +1818,9 @@ export class EditorEngine {
     return this.#executeFileCommand("image.replace", {ids:this.#snapshot.selection, target:picker.list, index:picker.index}, {picker, file});
   }
   async pasteImage(file: File, at?: Point) {
+    if (file.type === "image/svg+xml" || /\.svgz?$/i.test(file.name)) {
+      return this.#executeFileCommand("file.import",{name:"Pasted SVG.svg",...at,center:!at},{file,paste:true});
+    }
     const {document, selection} = this.#snapshot;
     const selected = selection.length === 1 ? document.nodes[selection[0]] : undefined;
     if (!at && selected && selected.kind !== "page" && selected.kind !== "group") {
@@ -1832,7 +1835,10 @@ export class EditorEngine {
       const sequence = this.#openSequence;
       try {
         if (index === 0 && picker) await this.uploadPaintImage(picker,file);
-        else await this.#executeFileCommand("file.import",{name:file.name || "dropped.png",...at},{file});
+        else {
+          const result=await this.#executeFileCommand("file.import",{name:file.name || "dropped.png",...at},{file});
+          if (Array.isArray(result?.warnings)) errors.push(...result.warnings.map(note=>file.name+": "+note));
+        }
       } catch (error) {
         errors.push(file.name + ": " + (error instanceof Error ? error.message : "Image import failed"));
         if (!this.#snapshot.editable || before !== this.#snapshot.document || this.#openSequence > sequence+1) break;
@@ -1854,7 +1860,8 @@ export class EditorEngine {
       return this.#prepareSave(async archive => base64Bytes(new Uint8Array(await archive.arrayBuffer())));
     }
     const raster = command === "file.open" && typeof p.name === "string" && rasterFilename.test(p.name);
-    if (source && (placing || replacing || raster) && source.file.size > MAX_IMAGE_BYTES) throw new Error("Image exceeds the 256 MiB external input limit");
+    const svg = (importing || command === "file.open") && typeof p.name === "string" && /\.svgz?$/i.test(p.name);
+    if (source && (placing || replacing || raster || svg) && source.file.size > MAX_IMAGE_BYTES) throw new Error("Image exceeds the 256 MiB external input limit");
     const allowed = importing ? ["name","data","x","y","center","variables"] : replacing ? ["data", "ids", "id", "target", "index"] : placing ? ["data", "name", "target", "mode", "width", "height", "parent", "x", "y"] : ["data", "name"];
     if (Object.keys(p).some(key => !allowed.includes(key)) || !source && typeof p.data !== "string" || (!importing && p.name !== undefined && typeof p.name !== "string")) throw new Error("File import requires base64 data and supported parameters");
     this.pen.cancel(); this.pencil.cancel(); this.cancelInteraction();
@@ -1868,10 +1875,26 @@ export class EditorEngine {
       if ((replacing || source?.paste) && !sameIds(before.selection, this.#snapshot.selection)) throw new Error("Image edit was cancelled because the selection changed");
       if (opening !== this.#openSequence || before.document !== this.#snapshot.document || !this.#snapshot.editable || this.interacting) throw new Error("Open was cancelled because the document or identity changed");
     };
-    if (placing || replacing) {
+    let decoded: Awaited<ReturnType<typeof decodeFigcraft>>;
+    if (svg) {
+      const placement = fileImportParams(p,centre);
+      const {importSvg} = await import("./svg-import/document");
+      const bytes = await inputBytes();
+      checkCurrent();
+      const opened = await importSvg(importing ? before.document : newDocument(placement.name), importing ? this.#nextId : 2n,
+        bytes, placement.name, importing ? placement.x : 0, importing ? placement.y : 0, importing && parseBoolean(p.center) === true);
+      const prepared = importing ? this.#prepareEdit(opened.document,opened.nextId) : opened;
+      await prepareArchive(prepared.document,String(prepared.nextId));
+      checkCurrent();
+      if (importing) {
+        this.#commitEdit({document:opened.document,selection:[opened.id]}, {nextId:opened.nextId});
+        return {id:inspectedId(opened.id),...(opened.warnings.length && {warnings:opened.warnings})};
+      }
+      decoded = {document:opened.document,nextId:String(opened.nextId),issues:opened.warnings};
+    } else if (placing || replacing) {
       const bytes = await inputBytes();
       if (source) checkCurrent();
-      const placement = importing ? rasterImportParams(p,centre) : p;
+      const placement = importing ? fileImportParams(p,centre) : p;
       const image = await prepareImage(bytes, before.document.images, source?.paste ? 100_000_000 : undefined, source?.file);
       checkCurrent();
       const next = replacing ? replaceImage(before, this.#nextId, image, p, source ? regionState : undefined) : placeImage(before, this.#nextId, image, source?.centre ? {...placement,...centrePastedImage(image,centre)} : placement);
@@ -1882,10 +1905,7 @@ export class EditorEngine {
       checkCurrent();
       this.#commitEdit({document:next.document, selection:next.selection}, {nextId:next.nextId});
       return next.result;
-    }
-
-    let decoded: Awaited<ReturnType<typeof decodeFigcraft>>;
-    if (raster) {
+    } else if (raster) {
       const image = await prepareImage(await inputBytes(), undefined, undefined, source?.file);
       const name = String(p.name).split(/[\\/]/).pop()!.replace(rasterFilename, "");
       const initial = { document: newDocument(name), selection: [] };
@@ -1910,7 +1930,7 @@ export class EditorEngine {
     this.#vectorEdit = undefined;
     this.#publish({ document: decoded.document, profileDialog: false, libraryPanel:undefined, missingFonts: undefined, selection: Object.freeze([]), tool: "move" });
     this.updateView(fitPage({ ...this.#view, proofSrgb: false }, decoded.document));
-    return { repairs: decoded.issues ?? [], summary: { name: decoded.document.name, pages: decoded.document.pages.length, layers: Object.keys(decoded.document.nodes).length - decoded.document.pages.length - (decoded.document.libraryStore?.root ? 1 : 0), images: Object.keys(decoded.document.images ?? {}).length } };
+    return { repairs: decoded.issues ?? [], ...(svg && {warnings:decoded.issues ?? []}), summary: { name: decoded.document.name, pages: decoded.document.pages.length, layers: Object.keys(decoded.document.nodes).length - decoded.document.pages.length - (decoded.document.libraryStore?.root ? 1 : 0), images: Object.keys(decoded.document.images ?? {}).length } };
   }
   #create(command: string, p: Record<string, unknown>): Record<string, unknown> {
     const before = this.#snapshot, next = createLayer(before, this.#nextId, command, p, this.#view);

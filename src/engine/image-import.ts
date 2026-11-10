@@ -15,7 +15,7 @@ import { MAX_UNPACKED_BYTES } from "./file-format";
 export const rasterFilename = /\.(?:png|jpe?g|webp|gif|bmp|tiff?)$/i;
 
 /** Native file.import places a raster's top left at the supplied coordinates or view centre. */
-export function rasterImportParams(params: Record<string,unknown>, centre: {cx:number; cy:number}) {
+export function fileImportParams(params: Record<string,unknown>, centre: {cx:number; cy:number}) {
   const {x,y,variables} = params, name = parseString(params.name) ?? "import.png";
   if (variables != null) {
     const json = typeof variables === "string" ? JSON.parse(variables) : variables;
@@ -24,7 +24,7 @@ export function rasterImportParams(params: Record<string,unknown>, centre: {cx:n
       throw new Error("variables requires the local variables JSON");
     }
   }
-  if (/\.(?:svg|figcraft|json|fig|jam|sketch|penpot)$/i.test(name)) throw new Error("This design-file import requires its format adapter");
+  if (/\.(?:figcraft|json|fig|jam|sketch|penpot)$/i.test(name)) throw new Error("This design-file import requires its format adapter");
   const base = name.split(/[\\/]/).pop() || "Untitled", dot = base.lastIndexOf(".");
   const coordinate = (value: unknown, fallback: number) => {
     try { return parseNumber(value); } catch { return fallback; }

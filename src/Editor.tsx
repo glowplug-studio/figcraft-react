@@ -1,3 +1,4 @@
+import { looksLikeSvg } from "./engine/svg-import/xml";
 import { ExportPanel } from "./ExportPanel";
 import { layerExportJobs, type ExportJob } from "./engine/export-jobs";
 import { VersionPanel } from "./VersionPanel";
@@ -441,6 +442,10 @@ export function DocumentEditor({ identity, capabilities, engine: suppliedEngine,
   function pasteText(text: string, point?: Point) {
     if (engine.ownsLayerClipboardText(text)) { dispatch("edit.paste", point); return; }
     if (text.startsWith("figcraft://clipboard/")) return;
+    if (looksLikeSvg(text)) {
+      void paste(new File([text],"Pasted SVG.svg",{type:"image/svg+xml"}),point);
+      return;
+    }
     const view = engine.getView();
     controller.current?.cancel();
     void engine.executeAsync("text.create", { text, x: point?.x ?? view.cx, y: point?.y ?? view.cy })
@@ -465,8 +470,10 @@ export function DocumentEditor({ identity, capabilities, engine: suppliedEngine,
         const text = itemWithText ? await (await itemWithText.getType("text/plain")).text() : "";
         if (document !== engine.getSnapshot().document) throw new Error("Paste was cancelled because the drawing changed");
         if (text && engine.ownsLayerClipboardText(text)) { pasteText(text, point); return; }
+        if (looksLikeSvg(text)) file=new File([text],"Pasted SVG.svg",{type:"image/svg+xml"});
         for (const item of items) {
-          const type = item.types.includes("image/png") ? "image/png" : item.types.find(type=>type.startsWith("image/"));
+          if (file) break;
+          const type = item.types.includes("image/svg+xml") ? "image/svg+xml" : item.types.includes("image/png") ? "image/png" : item.types.find(type=>type.startsWith("image/"));
           if (type) {file = new File([await item.getType(type)],"Pasted image",{type});break;}
         }
         if (!file && text) { pasteText(text, point); return; }
@@ -474,7 +481,8 @@ export function DocumentEditor({ identity, capabilities, engine: suppliedEngine,
         if (!file) throw new Error("The clipboard is empty");
       }
       if (document !== engine.getSnapshot().document) throw new Error("Paste was cancelled because the drawing changed");
-      await engine.pasteImage(file,point);
+      const result = await engine.pasteImage(file,point);
+      if (Array.isArray(result?.warnings)) setError(result.warnings.join("\n"));
     } catch (e) {setError(e instanceof Error ? e.message : "Image paste failed");}
     finally {setBusy(false);}
   }
@@ -594,8 +602,8 @@ export function DocumentEditor({ identity, capabilities, engine: suppliedEngine,
     onPaste={e=>{
       if (!editable || busy || pendingFile || modifiedPaste.current) return;
       if (e.target instanceof Element && e.target.closest("input,textarea,select,dialog,[contenteditable]:not([contenteditable=false])")) return;
-      const text = e.clipboardData.getData("text/plain");
-      if (text && engine.ownsLayerClipboardText(text)) { e.preventDefault(); pasteText(text); return; }
+      const text = e.clipboardData.getData("text/plain") || e.clipboardData.getData("image/svg+xml");
+      if (text && (engine.ownsLayerClipboardText(text) || looksLikeSvg(text))) { e.preventDefault(); pasteText(text); return; }
       const file = Array.from(e.clipboardData.files).find(file=>file.type.startsWith("image/"));
       if (file) { e.preventDefault(); void paste(file); }
       else if (text) { e.preventDefault(); pasteText(text); }
@@ -656,7 +664,7 @@ export function DocumentEditor({ identity, capabilities, engine: suppliedEngine,
           if (file) void place(file);
         }} />
         <button disabled={(!editable && !snapshot.previewVersionId) || !signedIn || busy} onClick={() => void save()}>Save as</button>
-        <input ref={fileInput} aria-label="Open Figcraft file" type="file" accept=".figcraft,.json,.png,.jpg,.jpeg,.webp,.gif,.bmp,.tif,.tiff" hidden onChange={event => {
+        <input ref={fileInput} aria-label="Open Figcraft file" type="file" accept=".figcraft,.json,.svg,.svgz,.png,.jpg,.jpeg,.webp,.gif,.bmp,.tif,.tiff" hidden onChange={event => {
           const file = event.currentTarget.files?.[0]; event.currentTarget.value = "";
           if (!file) return;
           requestOpen(file);

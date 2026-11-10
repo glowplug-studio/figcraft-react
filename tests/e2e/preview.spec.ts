@@ -6967,3 +6967,40 @@ test("Copy as SVG and PNG writes the selected art through menus and the two-time
   await page.keyboard.press("ControlOrMeta+Shift+c");
   await expect.poll(pngSize).toEqual([80,40]);
 });
+
+test("open, drop and paste SVG as editable layers, undo and reopen the saved archive",async({page,context})=>{
+  await login(page);
+  await context.grantPermissions(["clipboard-read","clipboard-write"],{origin:new URL(page.url()).origin});
+  const svg='<svg xmlns="http://www.w3.org/2000/svg" width="40" height="20"><rect id="Editable shape" width="40" height="20" fill="red"/></svg>';
+  const picker=page.getByLabel("Open Figcraft file",{exact:true}),canvas=page.getByLabel("Design canvas",{exact:true});
+  await picker.setInputFiles({name:"Badge.svg",buffer:Buffer.from(svg),mimeType:"image/svg+xml"});
+  await expect(page.getByRole("heading",{name:"Badge",exact:true})).toBeVisible();
+  const saved=async()=>{
+    const download=page.waitForEvent("download");
+    await page.getByRole("button",{name:"Save as",exact:true}).click();
+    const bytes=await readFile((await (await download).path())!);
+    return {bytes,document:(await decodeFigcraft(bytes)).document};
+  };
+  const opened=await saved();
+  expect(opened.document.nodes["2"]).toMatchObject({kind:"frame",clip:true,width:40,height:20});
+  expect(opened.document.nodes["3"]).toMatchObject({kind:"rectangle",name:"Editable shape",parent:"2"});
+  const at=await canvasPoint(page,70,90);
+  const data=await page.evaluateHandle(svg=>{
+    const transfer=new DataTransfer();transfer.items.add(new File([svg],"Dropped.svg",{type:"image/svg+xml"}));return transfer;
+  },svg);
+  await canvas.dispatchEvent("drop",{clientX:at.x,clientY:at.y,dataTransfer:data});
+  await expect(page.getByRole("region",{name:"Layers",exact:true})).toContainText("Dropped");
+  const dropped=await saved();
+  expect(Object.values(dropped.document.nodes).find(n=>n.name==="Dropped")).toMatchObject({x:70,y:90,kind:"frame"});
+  await canvas.focus();await page.keyboard.press("ControlOrMeta+z");
+  await expect(page.getByRole("region",{name:"Layers",exact:true})).not.toContainText("Dropped");
+  await page.evaluate(svg=>navigator.clipboard.writeText("<!-- external SVG -->"+svg),svg);
+  await canvas.focus();await page.keyboard.press("ControlOrMeta+v");
+  const layers=page.getByRole("region",{name:"Layers",exact:true});
+  await expect(layers).toContainText("Pasted SVG");
+  const pasted=await saved();
+  expect(Object.values(pasted.document.nodes).filter(n=>n.kind==="rectangle" && n.name==="Editable shape")).toHaveLength(2);
+  await picker.setInputFiles({name:"Saved copy.figcraft",buffer:pasted.bytes,mimeType:"application/octet-stream"});
+  await expect(layers).toContainText("Pasted SVG");
+  expect(Object.values((await saved()).document.nodes).filter(n=>n.kind==="rectangle")).toHaveLength(2);
+});

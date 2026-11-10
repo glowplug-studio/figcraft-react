@@ -33,3 +33,19 @@ export async function exportDeepPattern(outer:number,inner:number) {
   const {renderSvgExport}=await import("../../src/engine/export-svg");
   return (await renderSvgExport(deepPatternDocument(outer,inner,true),["2"],{})).text();
 }
+
+export async function importSvgFixture(name:string,svg:string) {
+  const engine=new EditorEngine();
+  const bytes=new TextEncoder().encode(svg);
+  const data=btoa(Array.from(bytes,b=>String.fromCharCode(b)).join(""));
+  const result=await engine.executeAsync("file.import",{name:name+".svg",data,x:0,y:0});
+  const {prepareArchive}=await import("../../src/engine/file-format");
+  const wire=await prepareArchive(engine.getSnapshot().document);
+  const file=await engine.exportRaster({id:result!.id});
+  return {result,document:JSON.parse(await wire.json.text()),png:await new Promise<string>((resolve,reject)=>{
+    const reader=new FileReader();
+    reader.onerror=()=>reject(reader.error);
+    reader.onload=()=>resolve(String(reader.result).split(",")[1]);
+    reader.readAsDataURL(file.blob);
+  })};
+}
