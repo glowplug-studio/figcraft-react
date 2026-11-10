@@ -1,3 +1,4 @@
+import { BranchReviewDialog } from "./BranchReviewDialog";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { DocumentEditor, type EditorProps } from "./Editor";
 import type { WorkspaceRecoveryStore } from "./backends/recovery";
@@ -12,6 +13,7 @@ export function WorkspaceEditor({ identity, capabilities, recoveryStore }: Works
   const [principal] = useState(() => identity.getSnapshot().principal?.id);
   const [authorised, setAuthorised] = useState(false);
   const [recovery, setRecovery] = useState<WorkspaceRecoveryState>({ status: "loading" });
+  const [reviewId, setReviewId] = useState<string>();
   const [closeId, setCloseId] = useState<number>();
   const [renaming, setRenaming] = useState(false);
   const [notice, setNotice] = useState("");
@@ -87,7 +89,7 @@ export function WorkspaceEditor({ identity, capabilities, recoveryStore }: Works
         }}>{tab.name}{tab.dirty && <span aria-label="unsaved"> ●</span>}</button>)}
     </div>}
     {active ? <DocumentEditor key={active.id} identity={identity} capabilities={capabilities} engine={workspace.activeEngine}
-      workspace={workspace} recoveryStore={recoveryStore} workspaceRecovery={recovery} fileMenu={fileMenu} onWorkspaceNotice={setNotice} /> :
+      workspace={workspace} recoveryStore={recoveryStore} workspaceRecovery={recovery} fileMenu={fileMenu} onWorkspaceNotice={setNotice} onReviewBranch={setReviewId} /> :
       <section aria-label="File workspace"><h1>Files</h1>
         <button disabled={!enabled} onClick={() => workspace.execute("file.new")}>New file</button>
         <button disabled={!enabled} onClick={() => openInput.current?.click()}>Open file</button>
@@ -99,6 +101,7 @@ export function WorkspaceEditor({ identity, capabilities, recoveryStore }: Works
         {recovery.status === "stored" && <p role="status">Recovery saved on this device</p>}
         {recovery.status === "error" && <p role="alert">{recovery.message}</p>}
       </section>}
+    {enabled && reviewId && <BranchReviewDialog workspace={workspace} id={reviewId} close={() => setReviewId(undefined)} />}
     {notice && <p role="alert">{notice}</p>}
     {closeId !== undefined && <dialog ref={closeDialog} aria-label="Close unsaved file" onCancel={() => setCloseId(undefined)}>
       <p>Discard unsaved changes to {tabs.find(tab => tab.id === closeId)?.name}?</p>

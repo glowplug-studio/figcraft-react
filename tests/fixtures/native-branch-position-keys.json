@@ -1,0 +1,21 @@
+[
+  {"lower": null, "upper": null, "count": 1, "keys": ["a0"]},
+  {"lower": null, "upper": null, "count": 65, "keys": ["a0", "a1", "a2", "a3", "a4", "a5", "a6", "a7", "a8", "a9", "aA", "aB", "aC", "aD", "aE", "aF", "aG", "aH", "aI", "aJ", "aK", "aL", "aM", "aN", "aO", "aP", "aQ", "aR", "aS", "aT", "aU", "aV", "aW", "aX", "aY", "aZ", "aa", "ab", "ac", "ad", "ae", "af", "ag", "ah", "ai", "aj", "ak", "al", "am", "an", "ao", "ap", "aq", "ar", "as", "at", "au", "av", "aw", "ax", "ay", "az", "b00", "b01", "b02"]},
+  {"lower": null, "upper": "a1", "count": 10, "keys": ["Zr", "Zs", "Zt", "Zu", "Zv", "Zw", "Zx", "Zy", "Zz", "a0"]},
+  {"lower": "a0", "upper": "a1", "count": 19, "keys": ["a02", "a04", "a08", "a0C", "a0G", "a0I", "a0K", "a0O", "a0S", "a0V", "a0X", "a0Z", "a0d", "a0h", "a0l", "a0n", "a0p", "a0t", "a0x"]},
+  {"lower": "a0z", "upper": "a1", "count": 5, "keys": ["a0z8", "a0zG", "a0zV", "a0zd", "a0zl"]},
+  {"lower": "az", "upper": "b00", "count": 8, "keys": ["az4", "az8", "azG", "azO", "azV", "azd", "azl", "azt"]},
+  {"lower": "Zz", "upper": "a0", "count": 8, "keys": ["Zz4", "Zz8", "ZzG", "ZzO", "ZzV", "Zzd", "Zzl", "Zzt"]},
+  {"lower": "Y00", "upper": null, "count": 4, "keys": ["Y01", "Y02", "Y03", "Y04"]},
+  {"lower": null, "upper": "Z0", "count": 5, "keys": ["Yzv", "Yzw", "Yzx", "Yzy", "Yzz"]},
+  {"lower": null, "upper": "b00", "count": 5, "keys": ["av", "aw", "ax", "ay", "az"]},
+  {"lower": "a0", "upper": "a0V", "count": 11, "keys": ["a02", "a04", "a08", "a0A", "a0C", "a0G", "a0I", "a0K", "a0O", "a0Q", "a0S"]},
+  {"lower": "a0V", "upper": "a0W", "count": 15, "keys": ["a0V4", "a0V8", "a0VC", "a0VG", "a0VK", "a0VO", "a0VS", "a0VV", "a0VZ", "a0Vd", "a0Vh", "a0Vl", "a0Vp", "a0Vt", "a0Vx"]},
+  {"lower": "a0V", "upper": "a0V01", "count": 9, "keys": ["a0V004", "a0V008", "a0V00G", "a0V00O", "a0V00V", "a0V00Z", "a0V00d", "a0V00l", "a0V00t"]},
+  {"lower": "A000000000000000000000000001", "upper": "A000000000000000000000000009", "count": 4, "keys": ["A000000000000000000000000002", "A000000000000000000000000003", "A000000000000000000000000005", "A000000000000000000000000007"]},
+  {"lower": null, "upper": "A00000000000000000000000001", "count": 3, "keys": ["A00000000000000000000000000G", "A00000000000000000000000000V", "A00000000000000000000000000z"]},
+  {"lower": "zzzzzzzzzzzzzzzzzzzzzzzzzzz", "upper": null, "count": 2, "keys": ["zzzzzzzzzzzzzzzzzzzzzzzzzzzV", "zzzzzzzzzzzzzzzzzzzzzzzzzzzl"]},
+  {"lower": "A00000000000000000000000000", "upper": null, "count": 1, "error": "invalid position key \"A00000000000000000000000000\""},
+  {"lower": "a00", "upper": "a1", "count": 1, "error": "invalid position key \"a00\""},
+  {"lower": "a1", "upper": "a0", "count": 1, "error": "position keys out of order"}
+]

@@ -141,3 +141,22 @@ dd { margin: 0; }
 .figcraft-version-panel li { margin: 0.75rem 0; }
 .figcraft-version-panel time { display: block; font-size: 0.8rem; }
 .figcraft-version-panel textarea { display: block; width: 100%; }
+
+.figcraft-branch-banner, .figcraft-branch-review header, .figcraft-branch-review footer { display: flex; align-items: center; gap: .75rem; padding: .5rem .75rem; }
+.figcraft-branch-review { width: min(70rem, calc(100% - 2rem)); max-height: calc(100dvh - 2rem); padding: .5rem; color: inherit; }
+.figcraft-branch-review h2, .figcraft-branch-review h3 { font-size: 1rem; }
+.figcraft-branch-body { display: grid; grid-template-columns: minmax(0, 3fr) minmax(14rem, 2fr); gap: 1rem; padding: .5rem; }
+.figcraft-branch-body > section { min-width: 0; overflow: auto; max-height: 65dvh; }
+.figcraft-branch-review figure { margin: 0; }
+.figcraft-branch-review canvas { display: block; max-width: 100%; max-height: 48dvh; object-fit: contain; }
+.figcraft-branch-pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .4rem; }
+.figcraft-branch-overlay { display: grid; }
+.figcraft-branch-overlay > * { grid-area: 1 / 1; }
+.figcraft-branch-review footer { flex-wrap: wrap; }
+.figcraft-branch-review footer span { margin-right: auto; }
+.figcraft-branch-review fieldset label { display: block; }
+@media (max-width: 650px) {
+  .figcraft-branch-body { grid-template-columns: 1fr; }
+  .figcraft-branch-body > section { max-height: 35dvh; }
+  .figcraft-branch-review canvas { max-height: 20dvh; }
+}

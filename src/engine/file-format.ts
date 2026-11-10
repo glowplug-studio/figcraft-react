@@ -121,7 +121,7 @@ const textFields = [ "characters", "style", "runs", "auto_resize", "align_h", "a
   "paragraph_indent", "list", "paragraphs", "list_spacing", "hanging_punctuation", "hanging_list",
   "leading_trim", "max_lines", "wrap_style", "features", "path", "saved_breaks"];
 
-function readNode(key: string, value: unknown): DocumentNode {
+export function readNode(key: string, value: unknown): DocumentNode {
   idString(key, "node map key");
   const n = object(value, `node ${key}`), kind = n.type;
   if (id(n.id, "node ID") !== key) fail(`node ${key} has a mismatched ID`);
@@ -211,6 +211,29 @@ function readNode(key: string, value: unknown): DocumentNode {
   }
 }
 
+export function validateFileTree(nodes: Readonly<Record<string, DocumentNode>>, pages: readonly string[], libraryRoot?: string, count = Object.keys(nodes).length) {
+  if (!pages.length) fail("document must contain a page");
+  const referenced = new Set<string>();
+  for (const pageId of libraryRoot ? [...pages,libraryRoot] : pages) {
+    const page = nodes[pageId];
+    if (!page || page.kind !== "page") fail("page list refers to a missing or non-page node");
+    if (referenced.has(pageId)) fail("duplicate page root");
+    referenced.add(pageId);
+    // One cursor per ancestor keeps wide pages from allocating a second list of all their children.
+    const pending = [{ parent: page.id, children: page.children, index: 0 }];
+    while (pending.length) {
+      const cursor = pending[pending.length - 1];
+      if (cursor.index === cursor.children.length) { pending.pop(); continue; }
+      if (pending.length > FIGCRAFT_TREE_DEPTH_LIMIT) fail(`layer tree exceeds the maximum depth of ${FIGCRAFT_TREE_DEPTH_LIMIT}`);
+      const childId = cursor.children[cursor.index++], child = nodes[childId];
+      if (!child || child.kind === "page" || child.parent !== cursor.parent || referenced.has(childId)) fail("invalid, repeated or cyclic child relationship");
+      referenced.add(childId);
+      if (!isLeaf(child)) pending.push({parent: childId, children: child.children, index: 0});
+    }
+  }
+  if (referenced.size !== count) fail("unlisted pages or orphan nodes");
+}
+
 function decodeDocument(raw: unknown, parsedNodes?: Record<string,DocumentNode>): DecodedFigcraft {
   const root = object(raw, "document");
   if (root.version !== undefined && number(root.version, "version") > 1) fail("this file needs a newer Figcraft format reader");
@@ -248,25 +271,7 @@ function decodeDocument(raw: unknown, parsedNodes?: Record<string,DocumentNode>)
     const id = BigInt(key);
     if (id > maximum) maximum = id;
   }
-  const referenced = new Set<string>();
-  for (const pageId of libraryStore?.root ? [...pages,libraryStore.root] : pages) {
-    const page = nodes[pageId];
-    if (!page || page.kind !== "page") fail("page list refers to a missing or non-page node");
-    if (referenced.has(pageId)) fail("duplicate page root");
-    referenced.add(pageId);
-    // One cursor per ancestor keeps wide pages from allocating a second list of all their children.
-    const pending = [{ parent: page.id, children: page.children, index: 0 }];
-    while (pending.length) {
-      const cursor = pending[pending.length - 1];
-      if (cursor.index === cursor.children.length) { pending.pop(); continue; }
-      if (pending.length > FIGCRAFT_TREE_DEPTH_LIMIT) fail(`layer tree exceeds the maximum depth of ${FIGCRAFT_TREE_DEPTH_LIMIT}`);
-      const childId = cursor.children[cursor.index++], child = nodes[childId];
-      if (!child || child.kind === "page" || child.parent !== cursor.parent || referenced.has(childId)) fail("invalid, repeated or cyclic child relationship");
-      referenced.add(childId);
-      if (!isLeaf(child)) pending.push({parent: childId, children: child.children, index: 0});
-    }
-  }
-  if (referenced.size !== count) fail("unlisted pages or orphan nodes");
+  validateFileTree(nodes, pages, libraryStore?.root, count);
   const currentPage = root.current_page == null ? pages[0]! : id(root.current_page, "current page");
   if (!pages.includes(currentPage)) fail("current page is not listed");
   const declared = BigInt(id(root.next_id, "next_id"));
@@ -644,7 +649,7 @@ export async function decodeFigcraft(source: Uint8Array | Blob): Promise<Decoded
   }
 }
 
-function wireNode(key: string, node: DocumentNode) {
+export function wireNode(key: string, node: DocumentNode) {
   const numericId = wireId(key);
   if (node.id !== key) fail("node map key and ID differ");
   const common = { ...(node.thumbnailFlag !== undefined && {plugin_data: {"figcraft.thumbnail": node.thumbnailFlag}}), ...(node.boundVariables && {bound:node.boundVariables}), ...(node.variableModes && {var_modes:node.variableModes}), ...(node.styles && { styles: node.styles }), ...(node.grids?.length && { grids: node.grids }), ...wireComponentLinks(node), ...(node.effects?.length && { effects: node.effects.map(wireEffect) }), ...(node.isMask && {is_mask:true}), ...(node.maskType && node.maskType !== "alpha" && {mask_type:node.maskType}), id: numericId, name: node.name, type: node.kind, ...(node.kind === "booleanOp" ? { op: node.op } : {}), ...(node.kind === "ellipse" ? { start: node.start, sweep: node.sweep, inner: node.inner } : node.kind === "star" ? { count: node.count, inner_ratio: node.innerRatio } : node.kind === "polygon" ? { count: node.count } : node.kind === "vector" ? { network: wireVectorNetwork(node.network, wirePaints) } : node.kind === "text" ? wireTextData(node.text) : {}) };

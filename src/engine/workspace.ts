@@ -1,3 +1,6 @@
+import { planBranch } from "./branch-merge";
+import { applyBranch } from "./branch-apply";
+import { branchReview } from "./branch-review";
 import { EditorEngine, type EditorClipboard } from "./editor";
 import { clippedText } from "./file-versions";
 import type { FileBranch } from "./file-format";
@@ -29,7 +32,7 @@ interface OpenTab {
 type WorkspaceCommand = "doc.list" | "doc.switch" | "doc.nextTab" | "doc.previousTab"
   | "file.new" | "file.moveTab" | "file.close" | "file.duplicate";
 
-type BranchCommand = "branch.list" | "branch.create" | "branch.open" | "branch.archive";
+type BranchCommand = "branch.list" | "branch.create" | "branch.open" | "branch.archive" | "branch.merge" | "branch.updateFromMain" | "branch.review";
 
 export class LibrarySourceNeeded extends Error {}
 
@@ -64,6 +67,8 @@ export class EditorWorkspace {
 
   get fileBranches() { return (this.#active?.branch?.main ?? this.activeEngine)?.branches ?? []; }
   get onBranch() { return !!this.#active?.branch; }
+  get branchOwner() { return this.#active?.branch?.main; }
+  get activeBranchId() { return this.#active?.branch?.id; }
 
   // Recovery writes each file once. A branch is already included in its owning archive.
   get recoveryFiles() {
@@ -258,6 +263,33 @@ export class EditorWorkspace {
     const record = main.branches.find(b => b.id === id);
     if (!record) throw new Error("No branch `" + id + "`");
     const index = openIndex(id);
+    if (command === "branch.review" || command === "branch.merge" || command === "branch.updateFromMain") {
+      const current = main.archiveRevision;
+      const plan = planBranch(record.base.document, record.head.document, current.document);
+      if (command === "branch.review") return branchReview(record, plan);
+      if (record.state !== "active") throw new Error("The branch was merged or archived");
+      const picks = params.resolutions === undefined ? {} : params.resolutions;
+      if (!picks || typeof picks !== "object" || Array.isArray(picks)) throw new Error("Resolutions must be an object");
+      for (const [key, value] of Object.entries(picks)) if (value !== "main" && value !== "branch") throw new Error("Choose branch or main for " + key);
+      const side = command === "branch.merge" ? "branch" : "main";
+      const doc = applyBranch(plan, side, picks as Record<string, unknown>);
+      const counts = { changes: plan[side].count, conflicts: plan.conflicts.length };
+      if (side === "branch") {
+        main.applyBranchDocument(doc, "Merged “" + record.name + "”", false);
+        main.replaceBranches(main.branches.map(b => b.id === id ? Object.freeze({ ...b, state: "merged" }) : b));
+        if (index >= 0) this.#removeTab(this.#tabs[index]);
+        this.#active = this.#tabs.find(t => t.engine === main);
+        this.#publish();
+        return { ...counts, merged: true, index: this.#tabs.indexOf(this.#active!) };
+      }
+      const engine = index >= 0 ? this.#tabs[index].engine : main.openBranch(record);
+      engine.applyBranchDocument(doc, "Updated from main", true);
+      const head = engine.archiveRevision;
+      main.replaceBranches(main.branches.map(b => b.id === id ? Object.freeze({ ...b,
+        base: { document: current.document, nextId: String(current.nextId) },
+        head: { document: head.document, nextId: String(head.nextId) }, versions: head.versions }) : b));
+      return { ...counts, updated: true };
+    }
     if (command === "branch.archive") {
       if (record.state !== "active") throw new Error("The branch was already merged or archived");
       main.replaceBranches(main.branches.map(b => b === record ? Object.freeze({ ...b, state: "archived" }) : b));
@@ -271,6 +303,7 @@ export class EditorWorkspace {
     return { index };
   }
 
+  execute(command: "branch.review", params?: Record<string, unknown>): ReturnType<typeof branchReview>;
   execute(command: "branch.list"): { id: string; name: string; time: number | string; state: FileBranch["state"]; index?: number }[];
   execute(command: Exclude<BranchCommand, "branch.list">, params?: Record<string, unknown>): Record<string, unknown>;
   execute(command: "doc.list"): readonly DocumentTab[];

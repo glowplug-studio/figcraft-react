@@ -58,10 +58,10 @@ export class VersionHistory {
 
   mark(document: Document) { this.#checkpoint = document; }
 
-  add(document: Document, nextId: string, params: Record<string, unknown>, auto: boolean) {
+  add(document: Document, nextId: string, params: Record<string, unknown>, auto: boolean, system = false) {
     const records = [...this.records];
-    if (!auto && records.length >= versionLimit) throw new Error("The version history is full (100 versions): delete old versions first");
-    if (auto && (records.length >= versionLimit || records.filter(v => v.auto).length >= 20)) {
+    if (!auto && !system && records.length >= versionLimit) throw new Error("The version history is full (100 versions): delete old versions first");
+    if (records.length >= versionLimit || auto && records.filter(v => v.auto).length >= 20) {
       const oldest = records.findIndex(v => v.auto);
       if (oldest < 0) return;
       records.splice(oldest, 1);

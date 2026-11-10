@@ -135,6 +135,10 @@ export class HierarchyDraft {
     this.changedIds.add(node.id);
   }
 
+  markChanged(ids: Iterable<NodeId>) {
+    for (const id of ids) { this.changedIds.add(id); this.#changed = true; }
+  }
+
   allocateId(start: bigint): { id: NodeId; nextId: bigint } {
     const maximum = 18446744073709551615n;
     let value = start;

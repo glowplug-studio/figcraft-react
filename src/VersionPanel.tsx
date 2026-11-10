@@ -3,8 +3,8 @@ import type { EditorEngine } from "./engine/editor";
 import type { FileVersion } from "./engine/file-versions";
 import type { EditorWorkspace } from "./engine/workspace";
 
-export function VersionPanel({ engine, workspace, initialForm }: {
-  engine: EditorEngine; workspace?: EditorWorkspace; initialForm?: "new" | "branch";
+export function VersionPanel({ engine, workspace, initialForm, onReviewBranch }: {
+  engine: EditorEngine; workspace?: EditorWorkspace; initialForm?: "new" | "branch"; onReviewBranch?: (id: string) => void;
 }) {
   const [form, setForm] = useState<"new" | FileVersion | undefined>(initialForm === "new" ? "new" : undefined);
   const [branchForm, setBranchForm] = useState(initialForm === "branch");
@@ -82,6 +82,7 @@ export function VersionPanel({ engine, workspace, initialForm }: {
         {workspace.fileBranches.length ? <ul>{workspace.fileBranches.map(branch => <li key={branch.id} aria-label={branch.name}>
           <button type="button" onClick={() => void action("branch.open", { id: branch.id })}>{branch.name}</button>
           <span>{branch.state}</span>
+          <button type="button" aria-label={"Review branch " + branch.name} onClick={() => onReviewBranch?.(branch.id)}>Review</button>
           {branch.state === "active" && <button type="button" onClick={() => void action("branch.archive", { id: branch.id })}>Archive</button>}
         </li>)}</ul> : <p>No branches.</p>}
       </section>}

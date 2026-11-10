@@ -361,7 +361,7 @@ export class EditorEngine {
       this.#publish({ document: shown, selection: Object.freeze([]), editable: false, previewVersionId: version.id });
       return versionDetails(version, index);
     }
-    if (this.#history.changed(current.document)) this.#history.add(current.document, String(this.#nextId), {}, true);
+    if (!this.#branchTab && this.#history.changed(current.document)) this.#history.add(current.document, String(this.#nextId), {}, true);
     const restored = Object.freeze({ ...shown, name: current.document.name, published: current.document.published });
     this.#undo.push({ document: current.document, selection: current.selection }); this.#redo = [];
     this.#nextId = this.#nextId > BigInt(nextId) ? this.#nextId : BigInt(nextId);
@@ -375,6 +375,7 @@ export class EditorEngine {
   get branches() { return this.#branches; }
   #savedBranches = this.#branches;
   #branchClient = 0;
+  #branchTab = false;
   #assetIds() {
     let next = this.#interaction?.nextId ?? this.#nextId;
     const allocate = this.#branchClient ? () => {
@@ -393,6 +394,7 @@ export class EditorEngine {
     const tab = EditorEngine.newTab(undefined, this.#clipboard);
     const { document } = branch.head;
     tab.#branchClient = branch.client;
+    tab.#branchTab = true;
     tab.#nextId = nextBranchId(branch);
     tab.#saved = document;
     tab.#history = new VersionHistory(branch.versions);
@@ -401,6 +403,23 @@ export class EditorEngine {
     tab.updateView(fitPage(defaultViewport, document));
     return tab;
   }
+  applyBranchDocument(document: Document, name: string, update: boolean) {
+    if (!this.#hostEditable) throw new Error("Sign in to edit this document");
+    this.exitVersionPreview();
+    this.cancelInteraction();
+    const previous = this.#snapshot.document, beforeId = this.#nextId;
+    let nextId = beforeId;
+    for (const key of Object.keys(document.nodes)) {
+      const id = BigInt(key);
+      if ((!this.#branchClient || id >> 32n === BigInt(this.#branchClient)) && id >= nextId) nextId = id + 1n;
+    }
+    this.#commitEdit({ document }, { nextId, record: !update, libraryEdit: true });
+    if (update) { this.#undo = []; this.#redo = []; }
+    else if (this.#history.changed(previous)) this.#history.add(previous, String(beforeId), {}, true);
+    this.#history.add(this.#snapshot.document, String(this.#nextId), { name }, false, true);
+    this.#publish({});
+  }
+
   #savedVersions = this.#history.records;
   #archiveRevision?: { document: Document; branches: readonly FileBranch[]; versions: readonly FileVersion[]; nextId: bigint };
   get archiveRevision() {
@@ -1773,6 +1792,7 @@ export class EditorEngine {
     this.#branches = decoded.branches ?? Object.freeze([]);
     this.#savedBranches = this.#branches;
     this.#branchClient = 0;
+    this.#branchTab = false;
     this.#history = new VersionHistory(decoded.versions);
     this.#savedVersions = this.#history.records;
     this.#undo = []; this.#redo = []; this.#saved = null; this.#downloaded = false; this.#pendingSaves.clear();

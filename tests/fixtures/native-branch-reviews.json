@@ -1,0 +1,727 @@
+[
+  {
+    "name": "two independent additions",
+    "commands": [
+      [
+        "shape.rectangle",
+        {
+          "name": "Box",
+          "width": 100,
+          "height": 80
+        }
+      ],
+      [
+        "branch.create",
+        {
+          "name": "Review"
+        }
+      ],
+      [
+        "shape.ellipse",
+        {
+          "name": "Branch shape"
+        }
+      ],
+      [
+        "doc.switch",
+        {
+          "index": 0
+        }
+      ],
+      [
+        "shape.rectangle",
+        {
+          "name": "Main shape"
+        }
+      ],
+      [
+        "doc.switch",
+        {
+          "index": 1
+        }
+      ],
+      [
+        "branch.review",
+        {}
+      ]
+    ],
+    "review": {
+      "branch": {
+        "document": [],
+        "layers": [
+          {
+            "change": "added",
+            "depth": 1,
+            "id": 4294967297,
+            "layers": 1,
+            "name": "Branch shape",
+            "type": "ELLIPSE"
+          }
+        ],
+        "truncated": false
+      },
+      "conflicts": [],
+      "main": {
+        "document": [],
+        "layers": [
+          {
+            "change": "added",
+            "depth": 1,
+            "id": 3,
+            "layers": 1,
+            "name": "Main shape",
+            "type": "RECTANGLE"
+          }
+        ],
+        "truncated": false
+      },
+      "name": "Review",
+      "state": "active"
+    }
+  },
+  {
+    "name": "size and name conflicts",
+    "commands": [
+      [
+        "shape.rectangle",
+        {
+          "name": "Box",
+          "width": 100,
+          "height": 80
+        }
+      ],
+      [
+        "branch.create",
+        {
+          "name": "Review"
+        }
+      ],
+      [
+        "node.set",
+        {
+          "id": 2,
+          "props": {
+            "width": 150,
+            "height": 110,
+            "name": "Branch box"
+          }
+        }
+      ],
+      [
+        "doc.switch",
+        {
+          "index": 0
+        }
+      ],
+      [
+        "node.set",
+        {
+          "id": 2,
+          "props": {
+            "width": 200,
+            "name": "Main box"
+          }
+        }
+      ],
+      [
+        "doc.switch",
+        {
+          "index": 1
+        }
+      ],
+      [
+        "branch.review",
+        {}
+      ]
+    ],
+    "review": {
+      "branch": {
+        "document": [],
+        "layers": [
+          {
+            "change": "changed",
+            "depth": 1,
+            "id": 2,
+            "layers": 1,
+            "name": "Branch box",
+            "properties": [
+              {
+                "after": "Branch box",
+                "before": "Box",
+                "property": "name",
+                "section": "Layer",
+                "text": "name Box → Branch box"
+              },
+              {
+                "after": "150",
+                "before": "100",
+                "property": "width",
+                "section": "Layout",
+                "text": "width 100 → 150"
+              },
+              {
+                "after": "110",
+                "before": "80",
+                "property": "height",
+                "section": "Layout",
+                "text": "height 80 → 110"
+              }
+            ],
+            "type": "RECTANGLE"
+          }
+        ],
+        "truncated": false
+      },
+      "conflicts": [
+        {
+          "branch": "name Branch box",
+          "id": 2,
+          "key": "2/name",
+          "main": "name Main box",
+          "name": "Main box",
+          "property": "name"
+        },
+        {
+          "branch": "width 150",
+          "id": 2,
+          "key": "2/width",
+          "main": "width 200",
+          "name": "Main box",
+          "property": "width"
+        }
+      ],
+      "main": {
+        "document": [],
+        "layers": [
+          {
+            "change": "changed",
+            "depth": 1,
+            "id": 2,
+            "layers": 1,
+            "name": "Main box",
+            "properties": [
+              {
+                "after": "Main box",
+                "before": "Box",
+                "property": "name",
+                "section": "Layer",
+                "text": "name Box → Main box"
+              },
+              {
+                "after": "200",
+                "before": "100",
+                "property": "width",
+                "section": "Layout",
+                "text": "width 100 → 200"
+              }
+            ],
+            "type": "RECTANGLE"
+          }
+        ],
+        "truncated": false
+      },
+      "name": "Review",
+      "state": "active"
+    }
+  },
+  {
+    "name": "transform and visibility",
+    "commands": [
+      [
+        "shape.rectangle",
+        {
+          "name": "Box",
+          "width": 100,
+          "height": 80
+        }
+      ],
+      [
+        "branch.create",
+        {
+          "name": "Review"
+        }
+      ],
+      [
+        "node.set",
+        {
+          "id": 2,
+          "props": {
+            "x": 42,
+            "visible": false,
+            "opacity": 0.6
+          }
+        }
+      ],
+      [
+        "doc.switch",
+        {
+          "index": 0
+        }
+      ],
+      [
+        "node.set",
+        {
+          "id": 2,
+          "props": {
+            "x": 18,
+            "opacity": 0.2
+          }
+        }
+      ],
+      [
+        "doc.switch",
+        {
+          "index": 1
+        }
+      ],
+      [
+        "branch.review",
+        {}
+      ]
+    ],
+    "review": {
+      "branch": {
+        "document": [],
+        "layers": [
+          {
+            "change": "changed",
+            "depth": 1,
+            "id": 2,
+            "layers": 1,
+            "name": "Box",
+            "properties": [
+              {
+                "after": "hidden",
+                "before": "visible",
+                "property": "visibility",
+                "section": "Layer",
+                "text": "visibility visible → hidden"
+              },
+              {
+                "after": "42",
+                "before": "0",
+                "property": "left",
+                "section": "Layout",
+                "text": "left 0 → 42"
+              },
+              {
+                "after": "60%",
+                "before": "100%",
+                "property": "opacity",
+                "section": "Layout",
+                "text": "opacity 100% → 60%"
+              }
+            ],
+            "type": "RECTANGLE"
+          }
+        ],
+        "truncated": false
+      },
+      "conflicts": [
+        {
+          "branch": "opacity 60%",
+          "id": 2,
+          "key": "2/opacity",
+          "main": "opacity 20%",
+          "name": "Box",
+          "property": "opacity"
+        },
+        {
+          "branch": "left 42",
+          "id": 2,
+          "key": "2/transform",
+          "main": "left 18",
+          "name": "Box",
+          "property": "transform"
+        }
+      ],
+      "main": {
+        "document": [],
+        "layers": [
+          {
+            "change": "changed",
+            "depth": 1,
+            "id": 2,
+            "layers": 1,
+            "name": "Box",
+            "properties": [
+              {
+                "after": "18",
+                "before": "0",
+                "property": "left",
+                "section": "Layout",
+                "text": "left 0 → 18"
+              },
+              {
+                "after": "20%",
+                "before": "100%",
+                "property": "opacity",
+                "section": "Layout",
+                "text": "opacity 100% → 20%"
+              }
+            ],
+            "type": "RECTANGLE"
+          }
+        ],
+        "truncated": false
+      },
+      "name": "Review",
+      "state": "active"
+    }
+  },
+  {
+    "name": "deletion against an edit",
+    "commands": [
+      [
+        "shape.rectangle",
+        {
+          "name": "Box",
+          "width": 100,
+          "height": 80
+        }
+      ],
+      [
+        "branch.create",
+        {
+          "name": "Review"
+        }
+      ],
+      [
+        "select.set",
+        {
+          "id": 2
+        }
+      ],
+      [
+        "edit.delete",
+        {}
+      ],
+      [
+        "doc.switch",
+        {
+          "index": 0
+        }
+      ],
+      [
+        "node.set",
+        {
+          "id": 2,
+          "props": {
+            "name": "Main box"
+          }
+        }
+      ],
+      [
+        "doc.switch",
+        {
+          "index": 1
+        }
+      ],
+      [
+        "branch.review",
+        {}
+      ]
+    ],
+    "review": {
+      "branch": {
+        "document": [],
+        "layers": [
+          {
+            "change": "changed",
+            "depth": 0,
+            "id": 1,
+            "layers": 1,
+            "name": "Page 1",
+            "properties": [
+              {
+                "after": "none",
+                "before": "0",
+                "property": "top",
+                "section": "Layout",
+                "text": "top 0 → none"
+              },
+              {
+                "after": "none",
+                "before": "0",
+                "property": "left",
+                "section": "Layout",
+                "text": "left 0 → none"
+              }
+            ],
+            "type": "PAGE"
+          },
+          {
+            "change": "removed",
+            "depth": 1,
+            "id": 2,
+            "layers": 1,
+            "name": "Box",
+            "type": "RECTANGLE"
+          }
+        ],
+        "truncated": false
+      },
+      "conflicts": [
+        {
+          "branch": "deleted",
+          "deletedBy": "branch",
+          "id": 2,
+          "key": "2/layer",
+          "main": "edited",
+          "name": "Main box",
+          "property": "layer"
+        }
+      ],
+      "main": {
+        "document": [],
+        "layers": [
+          {
+            "change": "changed",
+            "depth": 1,
+            "id": 2,
+            "layers": 1,
+            "name": "Main box",
+            "properties": [
+              {
+                "after": "Main box",
+                "before": "Box",
+                "property": "name",
+                "section": "Layer",
+                "text": "name Box → Main box"
+              }
+            ],
+            "type": "RECTANGLE"
+          }
+        ],
+        "truncated": false
+      },
+      "name": "Review",
+      "state": "active"
+    }
+  },
+  {
+    "name": "same property matches",
+    "commands": [
+      [
+        "shape.rectangle",
+        {
+          "name": "Box",
+          "width": 100,
+          "height": 80
+        }
+      ],
+      [
+        "branch.create",
+        {
+          "name": "Review"
+        }
+      ],
+      [
+        "node.set",
+        {
+          "id": 2,
+          "props": {
+            "width": 120
+          }
+        }
+      ],
+      [
+        "doc.switch",
+        {
+          "index": 0
+        }
+      ],
+      [
+        "node.set",
+        {
+          "id": 2,
+          "props": {
+            "width": 120
+          }
+        }
+      ],
+      [
+        "doc.switch",
+        {
+          "index": 1
+        }
+      ],
+      [
+        "branch.review",
+        {}
+      ]
+    ],
+    "review": {
+      "branch": {
+        "document": [],
+        "layers": [
+          {
+            "change": "changed",
+            "depth": 1,
+            "id": 2,
+            "layers": 1,
+            "name": "Box",
+            "properties": [
+              {
+                "after": "120",
+                "before": "100",
+                "property": "width",
+                "section": "Layout",
+                "text": "width 100 → 120"
+              }
+            ],
+            "type": "RECTANGLE"
+          }
+        ],
+        "truncated": false
+      },
+      "conflicts": [],
+      "main": {
+        "document": [],
+        "layers": [
+          {
+            "change": "changed",
+            "depth": 1,
+            "id": 2,
+            "layers": 1,
+            "name": "Box",
+            "properties": [
+              {
+                "after": "120",
+                "before": "100",
+                "property": "width",
+                "section": "Layout",
+                "text": "width 100 → 120"
+              }
+            ],
+            "type": "RECTANGLE"
+          }
+        ],
+        "truncated": false
+      },
+      "name": "Review",
+      "state": "active"
+    }
+  },
+  {
+    "name": "shared style name",
+    "commands": [
+      [
+        "shape.rectangle",
+        {
+          "name": "Box",
+          "width": 100,
+          "height": 80
+        }
+      ],
+      [
+        "branch.create",
+        {
+          "name": "Review"
+        }
+      ],
+      [
+        "style.create",
+        {
+          "name": "Branch paint",
+          "type": "paint",
+          "from": 2
+        }
+      ],
+      [
+        "doc.switch",
+        {
+          "index": 0
+        }
+      ],
+      [
+        "style.create",
+        {
+          "name": "Main paint",
+          "type": "paint",
+          "from": 2
+        }
+      ],
+      [
+        "doc.switch",
+        {
+          "index": 1
+        }
+      ],
+      [
+        "branch.review",
+        {}
+      ]
+    ],
+    "review": {
+      "branch": {
+        "document": [
+          {
+            "change": "added",
+            "what": "Style “Branch paint”"
+          }
+        ],
+        "layers": [
+          {
+            "change": "changed",
+            "depth": 1,
+            "id": 2,
+            "layers": 1,
+            "name": "Box",
+            "properties": [
+              {
+                "after": "#D9D9D9 (Branch paint)",
+                "before": "#D9D9D9",
+                "property": "fill",
+                "section": "Fills",
+                "text": "fill #D9D9D9 → #D9D9D9 (Branch paint)"
+              }
+            ],
+            "type": "RECTANGLE"
+          }
+        ],
+        "truncated": false
+      },
+      "conflicts": [
+        {
+          "branch": "fill #D9D9D9",
+          "id": 2,
+          "key": "2/styles",
+          "main": "fill #D9D9D9 (Main paint)",
+          "name": "Box",
+          "property": "styles"
+        }
+      ],
+      "main": {
+        "document": [
+          {
+            "change": "added",
+            "what": "Style “Main paint”"
+          }
+        ],
+        "layers": [
+          {
+            "change": "changed",
+            "depth": 1,
+            "id": 2,
+            "layers": 1,
+            "name": "Box",
+            "properties": [
+              {
+                "after": "#D9D9D9 (Main paint)",
+                "before": "#D9D9D9",
+                "property": "fill",
+                "section": "Fills",
+                "text": "fill #D9D9D9 → #D9D9D9 (Main paint)"
+              }
+            ],
+            "type": "RECTANGLE"
+          }
+        ],
+        "truncated": false
+      },
+      "name": "Review",
+      "state": "active"
+    }
+  }
+]

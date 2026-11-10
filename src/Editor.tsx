@@ -70,11 +70,12 @@ function HistoryButtons({ engine, editable, undo, redo, dispatch }: { engine: Ed
 /** Embeddable local rectangle workflow. The host owns authentication and styling. */
 export function Editor(props: EditorProps) { return <DocumentEditor {...props} />; }
 
-export function DocumentEditor({ identity, capabilities, engine: suppliedEngine, recoveryStore, workspace, workspaceRecovery, fileMenu, onWorkspaceNotice }: EditorProps & {
+export function DocumentEditor({ identity, capabilities, engine: suppliedEngine, recoveryStore, workspace, workspaceRecovery, fileMenu, onWorkspaceNotice, onReviewBranch }: EditorProps & {
   workspace?: EditorWorkspace;
   workspaceRecovery?: WorkspaceRecoveryState;
   fileMenu?: ReactNode;
   onWorkspaceNotice?: (message: string) => void;
+  onReviewBranch?: (id: string) => void;
 }) {
   const [engine] = useState(() => suppliedEngine ?? new EditorEngine());
   useEffect(()=>engine.observeLocalFonts(),[engine]);
@@ -549,8 +550,13 @@ export function DocumentEditor({ identity, capabilities, engine: suppliedEngine,
         <button onClick={() => setPendingFile(null)}>Cancel</button>
         <button onClick={() => { if (pendingFile) void open(pendingFile); }}>Replace document</button>
       </dialog>
+      {workspace?.activeBranchId && !snapshot.previewVersionId && <div className="figcraft-branch-banner">
+        <span>Branch of {workspace.branchOwner?.getSnapshot().document.name}</span>
+        <button type="button" disabled={!editable || workspace.fileBranches.find(b => b.id === workspace.activeBranchId)?.state !== "active"}
+          onClick={() => onReviewBranch?.(workspace.activeBranchId!)}>Review and merge</button>
+      </div>}
       <div className="figcraft-workspace">
-        {snapshot.versionPanel && signedIn ? <VersionPanel key={String(newVersionForm)} engine={engine} workspace={workspace} initialForm={newVersionForm} /> : <aside className="figcraft-layers" aria-label={assetsOpen ? "Assets browser" : "Layers"}>
+        {snapshot.versionPanel && signedIn ? <VersionPanel key={String(newVersionForm)} engine={engine} workspace={workspace} initialForm={newVersionForm} onReviewBranch={onReviewBranch} /> : <aside className="figcraft-layers" aria-label={assetsOpen ? "Assets browser" : "Layers"}>
           <div role="group" aria-label="Sidebar">
             <button type="button" aria-pressed={!assetsOpen} onClick={()=>{setAssetsOpen(false);engine.closeLibraryPanel();}}>Layers</button>
             <button type="button" aria-pressed={assetsOpen} onClick={()=>setAssetsOpen(true)}>Assets</button>

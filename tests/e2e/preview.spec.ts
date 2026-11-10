@@ -6702,15 +6702,53 @@ test("branch tabs save the main archive, recover under their owner and reopen ar
   await expect(page.getByText("Recovery saved on this device", { exact: true })).toBeVisible();
   await page.reload();
   await expect(page.getByRole("heading", { name: "Untitled", exact: true })).toBeVisible();
+  await expect(button("Create rectangle")).toBeEnabled();
   await fileMenu.click(); await button("Version history").click();
   const list = page.getByRole("region", { name: "Branches" });
   await expect(list).toContainText("Review");
-  await list.getByRole("button", { name: "Review" }).click();
+  await list.getByRole("button", { name: "Review", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Review", exact: true })).toBeVisible();
   await fileMenu.click(); await button("Version history").click();
   await list.getByRole("button", { name: "Archive" }).click();
   await expect(page.getByRole("heading", { name: "Untitled", exact: true })).toBeVisible();
   await expect(list).toContainText("archived");
-  await list.getByRole("button", { name: "Review" }).click();
+  await list.getByRole("button", { name: "Review", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Review", exact: true })).toBeVisible();
+});
+
+test("mixed branch conflict choices gate merge, retain history and undo as one edit", async ({ page }) => {
+  await login(page);
+  const button = (name: string) => page.getByRole("button", { name, exact: true });
+  const fileMenu = page.locator(".figcraft-document-bar").getByText("File", { exact: true });
+  await page.getByLabel("Open Figcraft file", { exact: true }).setInputFiles(new URL("../fixtures/native-branch-conflict.figcraft", import.meta.url).pathname);
+  await expect(page.getByRole("list", { name: "Page layers" }).getByRole("button", { name: "Main box", exact: true })).toBeVisible();
+  await fileMenu.click(); await button("Version history").click();
+  const list = page.getByRole("region", { name: "Branches" });
+  await list.getByRole("button", { name: "Review branch Review", exact: true }).click();
+  const dialog = page.getByRole("dialog", { name: "Review and merge" });
+  const merge = dialog.getByRole("button", { name: "Merge into main" });
+  await expect(merge).toBeDisabled();
+  const shots = dialog.locator("canvas");
+  await expect(shots).toHaveCount(2);
+  await expect.poll(() => shots.first().evaluate(c => {
+    const canvas = c as HTMLCanvasElement;
+    return canvas.getContext("2d")!.getImageData(Math.floor(canvas.width / 2), Math.floor(canvas.height / 2), 1, 1).data[3];
+  })).toBe(255);
+  await dialog.getByRole("button", { name: "Overlay" }).click();
+  await dialog.getByLabel("Comparison split").fill("35");
+  await dialog.getByRole("group", { name: "Main box · name" }).getByRole("radio", { name: /^Branch/ }).check();
+  await expect(merge).toBeDisabled();
+  await dialog.getByRole("group", { name: "Main box · width" }).getByRole("radio", { name: /^Main/ }).check();
+  await merge.click();
+  await expect(dialog).toHaveCount(0);
+  await expect(list).toContainText("merged");
+  await expect(page.getByRole("complementary", { name: "Version history" })).toContainText("Merged “Review”");
+  const save = async () => {
+    const pending = page.waitForEvent("download"); await button("Save as").click();
+    return decodeFigcraft(await readFile((await (await pending).path())!));
+  };
+  const merged = await save();
+  expect(merged.document.nodes["2"]).toMatchObject({ name: "Branch box", width: 200, height: 110 });
+  await button("Undo").click();
+  expect((await save()).document.nodes["2"]).toMatchObject({ name: "Main box", width: 200, height: 80 });
 });
