@@ -103,3 +103,7 @@ At f7a9bbb, text path and saved-wrap properties passed in all 32 source files. C
 At 4709475 all 101 browser-written Fig fixtures matched independent upstream reopens. The signed-in download, whole-document selection, cancel-on-sign-out and worker responsiveness passed. All 333 production browser tests passed in 487.2 seconds. Row 12 continues with [Sketch import](26-11-10-sketch-interchange.md), Penpot, remaining output formats and deferred interchange records when their destination models are available.
 
 At 5d94730, All 336 production Chromium workflows passed in 515.1 seconds with zero skips, retries or flakes. Strict TypeScript, both production builds, 3,044 pure checks and two local Auth integrations passed. The Sketch corpus and Slice property checks passed. Continue with [Penpot offline import and export](26-11-10-penpot-interchange.md). [Sketch evidence](../reports/26-11-10-sketch-interchange-parity.html).
+
+## External design clipboard
+
+Penpot export reached the native reopen checkpoint at 8c07e01. The next acquisition route combines the Fig reader and the existing cross-file clipboard transaction. Compare 46 independent native paste sequences, including bare data, HTML, placement in a selected frame, repeated paste and undo. The Section and Slice fixture requires the shared Section model and reader. Signed-in browser checks must cover clipboard priority, malformed markers, resource warnings and cancelled edits. [Current action](26-11-07-full-port-resume.md#continue-from-here).
