@@ -16,9 +16,9 @@ function initialSessionId(file: string) {
   return BigInt("0x" + hex.slice(0, 12) + hex.slice(-4));
 }
 
-async function publicationSize(document: Document, file: string) {
-  const size = await measureDocumentSnapshot(document, initialSessionId(file), PUBLIC_FILE_BYTES);
-  if (size > PUBLIC_FILE_BYTES) throw new Error("This server keeps files up to 16 MiB");
+async function publicationSize(document: Document, file: string, limit = PUBLIC_FILE_BYTES) {
+  const size = await measureDocumentSnapshot(document, initialSessionId(file), limit);
+  if (size > limit) throw new Error("This server keeps files up to 16 MiB");
   return size;
 }
 
@@ -39,7 +39,7 @@ export async function prepareOnlineSnapshot(document: Document, nextId: bigint, 
 }
 
 /** Apply server limits before the general-purpose native reader inflates any member. */
-export async function validateOnlineSnapshot(archive: Blob, file: string) {
+export async function validateOnlineSnapshot(archive: Blob, file: string, limit = PUBLIC_FILE_BYTES) {
   if (!archive.size || archive.size > ONLINE_ARCHIVE_BYTES) throw new Error("The upload must be a non-empty archive of at most 50 MiB");
   const reader = new ZipReader(new ArchiveReader(archive), archiveOptions);
   try {
@@ -58,5 +58,5 @@ export async function validateOnlineSnapshot(archive: Blob, file: string) {
   if (Array.from(document.name).length > 256 || /[\p{Cc}\u061c\u200e\u200f\u202a-\u202e\u2066-\u2069]/u.test(document.name)) {
     throw new Error("Invalid online file name");
   }
-  return { name: document.name, snapshotBytes: await publicationSize(document, file) };
+  return { name: document.name, snapshotBytes: await publicationSize(document, file, limit) };
 }

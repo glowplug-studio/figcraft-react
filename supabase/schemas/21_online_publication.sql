@@ -55,5 +55,4 @@ begin
 end;
 $$;
 
-revoke all on function public.finalise_online_publication(uuid,uuid,uuid,text,jsonb,boolean) from public, anon, authenticated;
-grant execute on function public.finalise_online_publication(uuid,uuid,uuid,text,jsonb,boolean) to service_role;
+revoke all on function public.finalise_online_publication(uuid,uuid,uuid,text,jsonb,boolean) from public, anon, authenticated, service_role;

@@ -31,7 +31,10 @@ export function EditorHost({ identity }: { identity: Extract<IdentitySnapshot, {
       const response = await fetch("/api/online-files", {
         method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, links }),
       });
-      if (!response.ok) throw new Error("The online file could not be published");
+      if (!response.ok) {
+        const reason = response.status === 409 ? await response.json().catch(() => null) : null;
+        throw new Error(typeof reason?.error === "string" ? reason.error : "The online file could not be published");
+      }
       return response.json();
     });
     const invites = new BrowserInvitations(store, identity.principal.id, server,

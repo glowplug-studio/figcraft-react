@@ -1,5 +1,6 @@
+import { ingressAddress } from "../../../../lib/sharing/ingress-address";
 import { onlinePost } from "../../../../lib/supabase/online-post";
-import { codeLookupAddress, lookupCode } from "../../../../lib/sharing/code-lookup";
+import { lookupCode } from "../../../../lib/sharing/code-lookup";
 
 async function readCode(request: Request) {
   const reader = request.body?.getReader();
@@ -23,7 +24,7 @@ export async function POST(request: Request) {
   const headers = {"Cache-Control": "private, no-store"};
   if (!host.session) return new Response(null, {status: 401, headers});
   try {
-    const address = codeLookupAddress(request.headers, process.env.VERCEL === "1");
+    const address = ingressAddress(request.headers, process.env.VERCEL === "1");
     const receipt = await lookupCode(host.writer, address, await readCode(request));
     return Response.json(receipt.body, {status: receipt.status, headers});
   } catch { return Response.json({error: "Code lookup is temporarily unavailable"}, {status: 503, headers}); }

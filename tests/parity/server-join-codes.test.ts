@@ -1,6 +1,7 @@
+import { publicationCapacity } from "../../examples/nextjs/lib/sharing/publication-capacity";
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { codeLookupAddress } from "../../examples/nextjs/lib/sharing/code-lookup";
+import { ingressAddress } from "../../examples/nextjs/lib/sharing/ingress-address";
 import { JoinCodeKey, type SealedJoinCode } from "../../examples/nextjs/lib/sharing/codes";
 import { encodeOnlineJoinCode } from "../../src/engine/sharing/join-code";
 
@@ -39,8 +40,19 @@ describe("pinned native server join-code records", () => {
 
 it("uses the configured ingress address and a shared local fallback", () => {
   const headers = new Headers({"x-forwarded-for": "198.51.100.1", "x-vercel-forwarded-for": "2001:db8::19"});
-  expect(codeLookupAddress(headers, false)).toBe("127.0.0.1");
-  expect(codeLookupAddress(headers, true)).toBe("2001:db8::19");
+  expect(ingressAddress(headers, false)).toBe("127.0.0.1");
+  expect(ingressAddress(headers, true)).toBe("2001:db8::19");
   headers.set("x-vercel-forwarded-for", "198.51.100.1, 192.0.2.1");
-  expect(codeLookupAddress(headers, true)).toBe("127.0.0.1");
+  expect(ingressAddress(headers, true)).toBe("127.0.0.1");
+});
+
+it("applies retained publication overrides from the trusted host", () => {
+  const headers = new Headers({"x-forwarded-for": "192.0.2.31", "x-vercel-forwarded-for": "2001:db8::10"});
+  expect(publicationCapacity(headers, {})).toEqual({address: "127.0.0.1"});
+  expect(publicationCapacity(headers, {VERCEL: "1", FIGCRAFT_MAX_FILES: "10", FIGCRAFT_MAX_FILES_PER_IP: "2",
+    FIGCRAFT_MAX_MB_PER_IP: "4", FIGCRAFT_MAX_TOTAL_MB: "16"})).toEqual({address: "2001:db8::10", max_files: 10,
+      max_files_per_ip: 2, max_bytes_per_ip: 4 * 1024 * 1024, max_total_bytes: 16 * 1024 * 1024});
+  for (const value of ["0", "-2", "1.5", "invalid", "999999999999999999999"]) {
+    expect(() => publicationCapacity(headers, {FIGCRAFT_MAX_FILES: value})).toThrow("FIGCRAFT_MAX_FILES");
+  }
 });

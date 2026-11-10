@@ -1,12 +1,5 @@
-import { isIP } from "node:net";
 import { parseJoinCode } from "@glowplug-studio/figcraft-react/sharing/join-code";
 import type { SupabaseClient } from "@supabase/supabase-js";
-
-/** On other hosts all requests share a conservative bucket until a trusted ingress is configured. */
-export function codeLookupAddress(headers: Headers, vercel: boolean) {
-  const address = vercel && headers.get("x-vercel-forwarded-for");
-  return address && isIP(address) ? address : "127.0.0.1";
-}
 
 export async function lookupCode(writer: SupabaseClient, address: string, typed: string) {
   let symbols: string | null = null;

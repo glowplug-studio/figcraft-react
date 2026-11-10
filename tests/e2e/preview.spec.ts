@@ -166,6 +166,48 @@ test("signed-in ownership finalisation validates the staged archive and safely r
   }
 });
 
+// Run against a local production host configured with one retained file per
+// address. Other host verification uses the operator's actual capacity.
+if (process.env.FIGCRAFT_E2E_RETAINED_LIMIT === "1") {
+  test("retained file limit is shown in the editor and retry succeeds after capacity is freed", async ({page}) => {
+    await login(page);
+    if (!backend || !userId) throw new Error("The capacity fixture requires the local Supabase host");
+    const storage = backend.admin.storage.from("figcraft-files");
+    const paths = new Set<string>();
+    page.on("request", request => {
+      if (new URL(request.url()).pathname === "/api/online-files" && request.method() === "POST") {
+        const id = request.postDataJSON().id;
+        paths.add(userId + "/" + id + ".figcraft");
+      }
+    });
+    const bar = page.locator(".figcraft-document-bar");
+    const form = page.getByRole("dialog", {name: "Publish to server", exact: true});
+    const open = async (name: string) => {
+      await bar.getByText("File", {exact: true}).click();
+      await bar.getByRole("button", {name: "Publish to server…", exact: true}).click();
+      await form.getByLabel("File name").fill(name);
+      await form.getByRole("button", {name: "Publish", exact: true}).click();
+    };
+    try {
+      await open("First capacity drawing");
+      await expect(form).toHaveCount(0);
+      const [first] = paths;
+      await open("Second capacity drawing");
+      await expect(form.getByRole("alert")).toHaveText("Your address has reached its retained file limit");
+      expect(paths.size).toBe(2);
+      const list = () => backend!.admin.from("online_files").select("name").eq("owner_id", userId!);
+      expect((await list()).data).toEqual([{name: "First capacity drawing"}]);
+      expect((await storage.remove([first])).error).toBeNull();
+      await form.getByRole("button", {name: "Publish", exact: true}).click();
+      await expect(form).toHaveCount(0);
+      expect(paths.size).toBe(2);
+      expect((await list()).data).toEqual([{name: "Second capacity drawing"}]);
+    } finally {
+      if (paths.size) expect((await storage.remove([...paths])).error).toBeNull();
+    }
+  });
+}
+
 test("publish, reopen and manage a device-owned file in Home Online", async ({ page, browser }) => {
   test.setTimeout(90_000);
   await login(page);

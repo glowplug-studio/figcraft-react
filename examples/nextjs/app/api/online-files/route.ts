@@ -1,4 +1,5 @@
-import { finaliseOnlineFile } from "@glowplug-studio/figcraft-react/backends/supabase/publication";
+import { publicationCapacity } from "../../../lib/sharing/publication-capacity";
+import { finaliseOnlineFile, PublicationCapacityError } from "@glowplug-studio/figcraft-react/backends/supabase/publication";
 import { isPublishedLinkDigests } from "@glowplug-studio/figcraft-react/backends/supabase";
 import { onlinePost } from "../../../lib/supabase/online-post";
 
@@ -12,9 +13,10 @@ export async function POST(request: Request) {
   const links = "links" in body ? body.links : undefined;
   if (links !== undefined && !isPublishedLinkDigests(links)) return Response.json({ error: "Invalid published links" }, { status: 400 });
   try {
-    const listing = await finaliseOnlineFile(host.user, host.writer, body.id, links);
+    const listing = await finaliseOnlineFile(host.user, host.writer, body.id, links, publicationCapacity(request.headers, process.env));
     return Response.json(listing, { headers: { "Cache-Control": "private, no-store" } });
-  } catch {
+  } catch (error) {
+    if (error instanceof PublicationCapacityError) return Response.json({error: error.message}, {status: 409});
     return Response.json({ error: "The online file could not be published" }, { status: 422 });
   }
 }

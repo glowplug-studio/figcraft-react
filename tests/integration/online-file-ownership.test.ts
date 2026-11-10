@@ -151,6 +151,55 @@ describe.skipIf(!enabled)("private online files on real local Supabase", () => {
     expect((await owner.client.from("online_files").update({ published_link_fingerprint: null }).eq("id", file)).error).toBeTruthy();
   });
 
+  it("reserves the last address slot atomically across two owners and releases it on removal", async () => {
+    const users = [owner, stranger];
+    const ids = [randomUUID(), randomUUID()];
+    const proof = await Promise.all(ids.map(() => publishedLinkDigests(createPublishedLinks())));
+    const addresses = ["2001:db8:ff10:11::1", "2001:db8:ff10:11::2"];
+    const publish = (index: number, address = addresses[index]) => finaliseOnlineFile(users[index].client, local!.admin,
+      ids[index], proof[index], {address, max_files_per_ip: 1});
+    for (const [i, id] of ids.entries()) {
+      const path = users[i].id + "/" + id + ".figcraft";
+      paths.push(path);
+      const uploaded = await users[i].client.storage.from(bucket).upload(path, archive, {contentType: "application/octet-stream"});
+      expect(uploaded.error).toBeNull();
+    }
+    const attempts = await Promise.allSettled([publish(0), publish(1)]);
+    const winner = attempts.findIndex(result => result.status === "fulfilled");
+    expect(attempts.filter(result => result.status === "fulfilled")).toHaveLength(1);
+    const other = 1 - winner;
+    expect(attempts[other]).toMatchObject({status: "rejected", reason: {message: "Your address has reached its retained file limit"}});
+    expect((await local!.admin.from("online_file_links").select("id").eq("file_id", ids[other])).data).toEqual([]);
+    expect(await publish(winner, "192.0.2.50")).toMatchObject({id: ids[winner]});
+    expect((await users[winner].client.storage.from(bucket).remove([users[winner].id + "/" + ids[winner] + ".figcraft"])).error).toBeNull();
+    expect(await publish(other)).toMatchObject({id: ids[other]});
+  });
+
+  it("backfills the measured size of a prior immutable listing before admitting a new file", async () => {
+    const prior = randomUUID(), current = randomUUID();
+    const storage = owner.client.storage.from(bucket);
+    for (const id of [prior, current]) {
+      const path = owner.id + "/" + id + ".figcraft";
+      paths.push(path);
+      const uploaded = await storage.upload(path, archive, {contentType: "application/octet-stream"});
+      expect(uploaded.error).toBeNull();
+      if (id === prior) {
+        const object = await storage.info(path);
+        expect(object.error).toBeNull();
+        expect((await local!.admin.from("online_files").insert({id, owner_id: owner.id, snapshot_id: object.data!.id,
+          name: "Existing drawing"})).error).toBeNull();
+      }
+    }
+    const missing = () => local!.admin.rpc("unmeasured_online_files");
+    expect((await missing()).data).toEqual(expect.arrayContaining([expect.objectContaining({file_id: prior})]));
+    await expect(finaliseOnlineFile(owner.client, local!.admin, current, undefined, {
+      address: "198.51.100.1", max_total_bytes: 600,
+    })).rejects.toThrow("retained byte limit");
+    expect((await missing()).data).toEqual([]);
+    expect((await storage.info(owner.id + "/" + prior + ".figcraft")).error).toBeNull();
+    expect(await finaliseOnlineFile(owner.client, local!.admin, current)).toMatchObject({id: current});
+  });
+
   it("binds an invite to its Auth session and denies signed URLs, writes and downloads after revocation", async () => {
     const keys = createPublishedLinks();
     const proof = await publishedLinkDigests(keys);
