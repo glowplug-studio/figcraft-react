@@ -14,8 +14,8 @@
 | Tests last passed | 347/347 production Chromium checks for 0.54.0. The later production suite passed 349/351. Grid gap drag and vector pan exceeded 16.7 ms. The guest link workflow, 23 local SQL checks and seven real integrations passed. |
 | Files currently in progress | [Online files and ownership](26-11-10-online-file-ownership.md). |
 | Blockers | The scoped Supabase MCP project and public-table reads passed after reauthorisation. |
-| Exact next action | Follow the current action in the handover for isolated frame-budget rechecks and guest-session lifecycle. [Resume handover](26-11-07-full-port-resume.md#continue-from-here). |
-| Last updated | 2026-11-11 01:16 ICT |
+| Exact next action | Collect the full browser run at 0cc97d2 and use the handover’s profiling evidence and native revocation test. [Resume handover](26-11-07-full-port-resume.md#continue-from-here). |
+| Last updated | 2026-11-11 01:35 ICT |
 
 ## Scope and continuation
 
