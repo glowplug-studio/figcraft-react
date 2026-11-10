@@ -5,7 +5,7 @@ import { unzipSync } from "fflate";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { SupabaseOnlineFileStore } from "../../src/backends/supabase/online-files";
 import { finaliseOnlineFile } from "../../src/backends/supabase/publication";
-import { changeFileLinks } from "../../examples/nextjs/lib/sharing/links";
+import { applyOwnerSharing, changeFileLinks, ownerSharingStatus } from "../../examples/nextjs/lib/sharing/links";
 import { readSharedDrawing } from "../../examples/nextjs/lib/sharing/join";
 import { JoinCodeKey } from "../../examples/nextjs/lib/sharing/codes";
 import { createPublishedLinks, publishedLinkDigests } from "../../src/backends/published-links";
@@ -199,6 +199,42 @@ describe.skipIf(!enabled)("private online files on real local Supabase", () => {
     await store.remove(file);
     expect((await guest.download(path)).error).toBeTruthy();
   });
+
+  it("keeps owner share receipts stable through competing starts, stop and delayed replay", async () => {
+    const writer = local!.admin, file = randomUUID(), first = randomUUID(), stop = randomUUID();
+    const seed = "73".repeat(32);
+    const published = createPublishedLinks(), proof = await publishedLinkDigests(published);
+    paths.push(owner.id + "/" + file + ".figcraft");
+    const store = new SupabaseOnlineFileStore(owner.client, owner.id, id => finaliseOnlineFile(owner.client, writer, id, proof));
+    await store.publish(file, new Blob([archive]));
+    const start = () => applyOwnerSharing(writer, owner.id, file, null, first, [], seed);
+    const [a, b] = await Promise.all([start(), start()]);
+    expect(a).toEqual(b);
+    expect(a.map(row => row.access)).toEqual(["edit", "view", "comment"]);
+    const ids = a.map(row => row.id);
+    const state = () => ownerSharingStatus(writer, owner.id, file);
+    expect((await state()).ids.sort()).toEqual([...ids, published.edit.id, published.view.id].sort());
+    await expect(applyOwnerSharing(writer, stranger.id, file, null, first, [], seed)).rejects.toThrow("unavailable");
+    await expect(applyOwnerSharing(writer, owner.id, file, null, first, [], "36".repeat(32))).rejects.toMatchObject({code:"22023"});
+    const rows = await writer.from("online_file_links").select("id,code_hash,wrapped_token").in("id", ids);
+    expect(rows.error).toBeNull();
+    for (const receipt of a) {
+      const symbols = parseJoinCode(receipt.code!);
+      if (symbols.kind !== "online") throw new Error("Expected an online code");
+      const row = rows.data!.find(link => link.id === receipt.id)!;
+      expect(new JoinCodeKey(symbols.code).open({hash: row.code_hash, token: row.wrapped_token})).toBe(receipt.token);
+    }
+    await expect(applyOwnerSharing(writer, owner.id, file, first, stop, [published.view.id], null)).rejects.toMatchObject({code:"22023"});
+    await Promise.all([1,2].map(() => applyOwnerSharing(writer, owner.id, file, first, stop, ids, null)));
+    await expect(start()).rejects.toThrow("Sharing changed elsewhere");
+    expect(await state()).toMatchObject({revision:stop});
+    expect((await state()).ids.sort()).toEqual([published.edit.id,published.view.id].sort());
+    const renewed = await applyOwnerSharing(writer, owner.id, file, stop, randomUUID(), [], seed);
+    expect(renewed.every(link => !ids.includes(link.id))).toBe(true);
+    expect((await owner.client.from("online_file_share_changes").select("*")).error).toBeTruthy();
+    await store.remove(file);
+    expect((await writer.from("online_file_share_changes").select("file_id").eq("file_id",file)).data).toEqual([]);
+  }, 30_000);
 
   it("ends only revoked connections and rejects unrelated private subscribers", async () => {
     const writer = local!.admin, file = randomUUID(), viewTab = randomUUID(), editTab = randomUUID();

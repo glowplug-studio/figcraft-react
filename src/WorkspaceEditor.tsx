@@ -1,3 +1,4 @@
+import { OwnerShareControls } from "./OwnerShareControls";
 import { OnlineFilesPanel, PublishOnlineDialog } from "./OnlineFilesPanel";
 import { OnlineWorkspace } from "./engine/sharing/online-workspace";
 import type { GuestSessionEnd, OnlineInvitations, OnlineWorkspaceHost } from "./backends/online-files";
@@ -85,6 +86,7 @@ export function WorkspaceEditor({ identity, capabilities, recoveryStore, onlineH
   const guest = active?.guest;
   const tabCapabilities = useMemo(() => guest && !guest.ended && guest.access !== "edit" ? capabilities.filter(cap => cap === "document.read"
     || (guest.access === "comment" && cap === "document.comment")) : capabilities, [capabilities, guest]);
+  const [openShareTab, setOpenShareTab] = useState<number>();
   const publishedId = active && online?.publishedFile(active.id);
 
   useEffect(() => {
@@ -119,8 +121,11 @@ export function WorkspaceEditor({ identity, capabilities, recoveryStore, onlineH
     try { await invitations.leave(guest.connection); workspace.leaveSession(guest.connection); setNotice("Left session"); }
     catch { setNotice("Could not leave the session"); }
   };
-  const shareMenu = invitations && publishedId && <details className="figcraft-bar-menu"><summary>Share</summary><div className="figcraft-menu-items">
-    {(["edit", "view"] as const).map(access => <button key={access} type="button" onClick={async () => {
+  const shareMenu = enabled && active && online && !guest && (online.sharing || (invitations && publishedId)) && <details className="figcraft-bar-menu"
+    onToggle={event => setOpenShareTab(event.currentTarget.open ? active.id : undefined)}><summary>Share</summary><div className="figcraft-menu-items">
+    {online.sharing && openShareTab === active.id && <OwnerShareControls sharing={online.sharing} file={publishedId}
+      publish={async () => (await online.publish(active.id, active.name)).id} published={() => setNotice("Published " + active.name)} />}
+    {invitations && publishedId && (["edit", "view"] as const).map(access => <button key={access} type="button" onClick={async () => {
       try { await invitations.copyPublished(publishedId, access); setNotice(access === "edit" ? "Edit link copied" : "View link copied"); }
       catch { setNotice("Could not copy the published link"); }
     }}>Copy {access} link</button>)}

@@ -226,3 +226,37 @@ it("keeps an ended guest session on its own tab until leave and preserves local 
   expect(workspace.getSnapshot().find(tab => tab.active)?.guest).toBeUndefined();
   expect(guest.getSnapshot().editable).toBe(true);
 });
+
+it("publishing a second file from a tab keeps each server drawing attached to its own tab", async () => {
+  const {workspace, online} = setup();
+  const firstTab = workspace.getSnapshot()[0].id;
+  const first = await online.publish(firstTab, "First");
+  const second = await online.publish(firstTab, "Second");
+  expect(online.publishedFile(firstTab)).toBe(second.id);
+  await online.open(first.id);
+  const reopened = workspace.getSnapshot().find(tab => tab.active)!;
+  expect(reopened.id).not.toBe(firstTab);
+  expect(online.publishedFile(reopened.id)).toBe(first.id);
+});
+
+it("keeps pending owner changes across tabs and excludes credentials from public listings", async () => {
+  const db = new IDBFactory();
+  const first = new IndexedDbRecoveryStore({indexedDB: db}), second = new IndexedDbRecoveryStore({indexedDB: db});
+  const record = {server: "https://files.example", file: "a", opened: 2, created: 1, name: "Shared"};
+  const pending = {seed: "a".repeat(64), expected: null, revision: crypto.randomUUID(), revoke: []};
+  await first.onlineFiles("owner", () => [record]);
+  const stage = (device: IndexedDbRecoveryStore, seed: string) => device.ownerSharing("owner", record.server, record.file,
+    row => row.pending ? row : {...row, pending: {...pending, seed}});
+  const [a, b] = await Promise.all([stage(first, pending.seed), stage(second, "b".repeat(64))]);
+  expect(a.pending).toBeDefined();
+  expect(a).toEqual(b);
+  first.close();
+  expect(await second.ownerSharing("owner", record.server, record.file)).toEqual(a);
+  expect(JSON.stringify(await second.onlineRegistry("owner"))).not.toContain(a.pending!.seed);
+  await expect(second.ownerSharing("stranger", record.server, record.file)).rejects.toThrow("not remembered");
+  await second.onlineFiles("owner", () => []);
+  await expect(stage(second, pending.seed)).rejects.toThrow("not remembered");
+  await second.onlineFiles("owner", () => [record]);
+  expect(await second.ownerSharing("owner", record.server, record.file)).toEqual({links: []});
+  second.close();
+});

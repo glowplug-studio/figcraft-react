@@ -1,3 +1,4 @@
+import { readDeviceOwnerSharing, type DeviceOwnerSharing } from "./owner-sharing";
 import { createPublishedLinks, type PublishedLinks } from "../published-links";
 import type { OnlineFileDevice, OnlineFileRegistry, RememberedOnlineFile } from "../online-files";
 import { onlineServerKey, readOnlineRegistry } from "../../engine/sharing/remembered-files";
@@ -120,8 +121,29 @@ export class IndexedDbRecoveryStore implements WorkspaceRecoveryStore, OnlineFil
       const next = readOnlineRegistry(update(current));
       const retained = new Set([...next.files, ...next.pending].map(row => row.server + "?" + row.file));
       for (const row of [...current.files, ...current.pending]) {
-        if (!retained.has(row.server + "?" + row.file)) store.delete([principal, "published-links", row.server, row.file]);
+        if (!retained.has(row.server + "?" + row.file)) {
+          store.delete([principal, "published-links", row.server, row.file]);
+          store.delete([principal, "owner-sharing", row.server, row.file]);
+        }
       }
+      store.put(next, key);
+      return next;
+    });
+  }
+
+  ownerSharing(principal: string, server: string, file: string, update?: (row: DeviceOwnerSharing) => DeviceOwnerSharing) {
+    const address = onlineServerKey(server), key = [principal, "owner-sharing", address, file];
+    let registry: IDBRequest;
+    return this.#transaction(principal, update ? "readwrite" : "readonly", store => {
+      registry = store.get([principal, "online-files"]);
+      return store.get(key);
+    }, (stored, store) => {
+      if (!readOnlineRegistry(registry.result).files.some(row => row.server === address && row.file === file)) {
+        throw new Error("This file is not remembered on this device");
+      }
+      const current = readDeviceOwnerSharing(stored);
+      if (!update) return current;
+      const next = readDeviceOwnerSharing(update(current));
       store.put(next, key);
       return next;
     });

@@ -18,6 +18,14 @@ export class OnlineWorkspace {
     if (!this.server) throw new Error("Invalid online server address");
   }
 
+  get sharing() { return this.host.sharing; }
+
+  private bindTab(file: string, tab: number) {
+    const previous = this.publishedFile(tab);
+    if (previous) this.tabs.delete(previous);
+    this.tabs.set(file, tab);
+  }
+
   private check() {
     if (!this.authorised()) throw new Error("The signed-in account changed");
   }
@@ -128,7 +136,7 @@ export class OnlineWorkspace {
           const [file] = await this.host.store.owned([previous]);
           this.check();
           if (!file) throw new Error("This file is no longer on its server");
-          this.tabs.set(file.id, tabId);
+          this.bindTab(file.id, tabId);
           this.publishingTabs.delete(tabId);
           return file;
         }
@@ -148,7 +156,7 @@ export class OnlineWorkspace {
         this.publishingTabs.set(tabId, attempt.file);
       }
       const file = await this.send(attempt);
-      this.tabs.set(file.id, tabId);
+      this.bindTab(file.id, tabId);
       this.publishingTabs.delete(tabId);
       return file;
     });
@@ -180,7 +188,7 @@ export class OnlineWorkspace {
       this.check();
       const result = await this.workspace.open(new File([bytes], entry.name + ".figcraft"));
       this.check();
-      this.tabs.set(id, result.tabId);
+      this.bindTab(id, result.tabId);
       this.states.set(id, "online");
       await this.records(records => {
         const current = records.find(record => this.matches(record, id));

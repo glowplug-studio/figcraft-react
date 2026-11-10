@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { OwnerShareControls } from "./OwnerShareControls";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import type { OnlineRow, OnlineWorkspace } from "./engine/sharing/online-workspace";
 
 function Modal({ title, close, children }: { title: string; close: () => void; children: ReactNode }) {
@@ -48,6 +49,11 @@ export function OnlineFilesPanel({ online, opened }: { online: OnlineWorkspace; 
   const [retry, setRetry] = useState(0);
   const [dialog, setDialog] = useState<{ row: OnlineRow; action: "remove" | "rename" }>();
   const [name, setName] = useState("");
+  const [actions, setActions] = useState<string>();
+  const [shared, setShared] = useState<Record<string, boolean>>({});
+  const updateShared = useCallback((file: string, value: boolean) => {
+    setShared(previous => previous[file] === value ? previous : { ...previous, [file]: value });
+  }, []);
   const host = hostName(online.server);
   useEffect(() => {
     let active = true;
@@ -58,13 +64,21 @@ export function OnlineFilesPanel({ online, opened }: { online: OnlineWorkspace; 
         if (!active) return;
         setRows(local);
         const fresh = await online.refresh();
-        if (active) setRows(fresh);
+        if (!active) return;
+        setRows(fresh);
+        if (online.sharing) {
+          for (const row of fresh) {
+            if (row.state !== "online" || !active) continue;
+            const sharing = await online.sharing.read(row.file, true);
+            if (active) updateShared(row.file, Boolean(sharing.codes.edit));
+          }
+        }
       } catch {
         if (active) setOffline(true);
       } finally { if (active) setBusy(false); }
     })();
     return () => { active = false; };
-  }, [online, retry]);
+  }, [online, retry, updateShared]);
 
   const run = async (action: () => Promise<void>, showFile = false) => {
     if (busy) return;
@@ -86,14 +100,15 @@ export function OnlineFilesPanel({ online, opened }: { online: OnlineWorkspace; 
     {!busy && !rows.length && <p>Nothing online yet.</p>}
     <ul>{rows.map(row => <li key={row.file}>
       <button type="button" disabled={busy || row.state === "gone" || row.state === "pending"} onClick={() => void run(() => online.open(row.file), true)}>
-        <strong>{row.name}</strong><small>{host} · {row.state === "pending" ? "Publication unconfirmed" : row.state === "gone" ? "No longer on the server" : "Not shared · Opened " + utcDay(row.opened)}</small>
+        <strong>{row.name}</strong><small>{host} · {row.state === "pending" ? "Publication unconfirmed" : row.state === "gone" ? "No longer on the server" : (shared[row.file] ? "Shared" : "Not shared") + " · Opened " + utcDay(row.opened)}</small>
       </button>
-      <details><summary aria-label={"Actions for " + row.name}>•••</summary><div>
+      <details name="figcraft-online-actions" onToggle={event => { const open = event.currentTarget.open; setActions(current => open ? row.file : current === row.file ? undefined : current); }}><summary aria-label={"Actions for " + row.name}>•••</summary><div>
         {row.state === "pending" ? <>
           <button disabled={busy} onClick={() => void run(() => online.retryPublication(row.file))}>Retry publication</button>
           <button disabled={busy} onClick={() => void run(() => online.forget(row.file))}>Forget on this computer</button>
         </> : row.state === "gone" ? <button disabled={busy} onClick={() => void run(() => online.forget(row.file))}>Clear from this list</button> : <>
           <button disabled={busy} onClick={() => void run(() => online.open(row.file), true)}>Open</button>
+          {online.sharing && actions === row.file && <OwnerShareControls file={row.file} sharing={online.sharing} changed={updateShared} />}
           <button disabled={busy} onClick={() => { setName(row.name); setDialog({ row, action: "rename" }); }}>Rename on the server…</button>
           <button disabled={busy} onClick={() => setDialog({ row, action: "remove" })}>Remove from server…</button>
           <button disabled={busy} onClick={() => void run(() => online.forget(row.file))}>Forget on this computer</button>

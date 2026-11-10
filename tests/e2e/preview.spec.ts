@@ -307,6 +307,72 @@ for (const confirmed of [true, false]) {
   });
 }
 
+test("owner sharing retries a lost reply and rotates three roles from Home Online", async ({page}) => {
+  test.setTimeout(90_000);
+  await login(page);
+  const origin = new URL(page.url()).origin;
+  await page.context().grantPermissions(["clipboard-read", "clipboard-write"], {origin});
+  const bar = page.locator(".figcraft-document-bar");
+  let dropped = false;
+  const endpoint = "**/api/online-files/sharing";
+  await page.route(endpoint, async route => {
+    const body = route.request().postDataJSON();
+    if (body.action !== "change" || dropped) return route.continue();
+    const receipt = await route.fetch();
+    expect(receipt.ok()).toBe(true);
+    dropped = true;
+    await route.fulfill({status: 503, json: {error: "Fixture discarded the acknowledgement"}});
+  });
+  await bar.getByText("Share", {exact: true}).click();
+  await bar.getByRole("button", {name: "Start sharing", exact: true}).click();
+  await expect(bar.getByRole("button", {name: "Retry start sharing"})).toBeEnabled();
+  expect(dropped).toBe(true);
+  await page.unroute(endpoint);
+  await bar.getByRole("button", {name: "Retry start sharing"}).click();
+  await expect(bar.getByRole("button", {name: "Stop sharing"})).toBeEnabled();
+  const codes = new Set<string>();
+  for (const access of ["edit", "view", "comment"]) {
+    await bar.getByLabel("Access", {exact: true}).selectOption(access);
+    const code = await bar.getByLabel("Join code").innerText();
+    expect(code).toMatch(/^([0-9A-Z]{3}-){2}[0-9A-Z]{3}$/);
+    await bar.getByRole("button", {name: "Copy code", exact: true}).click();
+    await expect.poll(() => page.evaluate(() => navigator.clipboard.readText())).toBe(code);
+    codes.add(code);
+  }
+  expect(codes.size).toBe(3);
+  await bar.getByRole("button", {name: "Copy link", exact: true}).click();
+  await expect.poll(() => page.evaluate(() => navigator.clipboard.readText())).toContain(origin + "/#join=");
+  await bar.getByText("Share", {exact: true}).click();
+  await bar.getByRole("button", {name: "Home", exact: true}).click();
+  await page.getByRole("button", {name: "Online", exact: true}).click();
+  const panel = page.getByRole("region", {name: "Online files", exact: true});
+  await expect(panel.locator("small")).toContainText("Shared · Opened");
+  await page.setViewportSize({width: 390, height: 844});
+  await panel.getByLabel("Actions for Untitled").click();
+  await panel.getByRole("button", {name: "Stop sharing"}).click();
+  await expect(panel.locator("small")).toContainText("Not shared · Opened");
+  await panel.getByRole("button", {name: "Start sharing"}).click();
+  await expect(panel.getByRole("button", {name: "Stop sharing"})).toBeEnabled();
+  expect(codes.has(await panel.getByLabel("Join code").innerText())).toBe(false);
+  if (backend && userId) {
+    const listing = await backend.admin.from("online_files").select("id").eq("owner_id", userId).eq("name", "Untitled").single();
+    expect(listing.error).toBeNull();
+    const revoked = await backend.admin.from("online_file_links").delete().eq("file_id", listing.data!.id).eq("label", "Shared (edit)").select("id");
+    expect(revoked.data).toHaveLength(1);
+    const home = page.getByRole("region", {name: "Home", exact: true});
+    await home.getByRole("button", {name: "Recents", exact: true}).click();
+    await home.getByRole("button", {name: "Online", exact: true}).click();
+    await expect(panel.getByLabel("Actions for Untitled")).toBeVisible();
+    await panel.getByLabel("Actions for Untitled").click();
+    await expect(panel.getByRole("button", {name: "Start sharing", exact: true})).toBeEnabled();
+    await expect(panel.locator("small")).toContainText("Not shared · Opened");
+  }
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await panel.getByRole("button", {name: "Remove from server…"}).click();
+  await page.getByRole("dialog", {name: "Remove from server"}).getByRole("button", {name: "Remove", exact: true}).click();
+  await expect(panel.getByText("Nothing online yet.")).toBeVisible();
+});
+
 test("the published view and edit invites open the original drawing in another signed-in browser", async ({ page, browser }) => {
   test.setTimeout(90_000);
   await login(page);
@@ -359,6 +425,20 @@ test("the published view and edit invites open the original drawing in another s
     await expect(toolbar.getByText(/View only/)).toBeVisible();
     await expect(guest.getByRole("button", { name: "Create rectangle", exact: true })).toBeDisabled();
     expect(new URL(guest.url()).hash).toBe("");
+    await bar.getByRole("button", {name: "Start sharing", exact: true}).click();
+    await bar.getByLabel("Access", {exact: true}).selectOption("comment");
+    await bar.getByRole("button", {name: "Copy link", exact: true}).click();
+    await expect(bar.getByText("Link copied", {exact: true})).toBeVisible();
+    const comment = await page.evaluate(() => navigator.clipboard.readText());
+    const commenter = await visitor.newPage();
+    await commenter.goto(comment);
+    const commentBar = commenter.locator(".figcraft-document-bar");
+    await expect(commentBar.getByText(/Can comment/)).toBeVisible();
+    await expect(commenter.getByRole("button", {name: "Create rectangle", exact: true})).toBeDisabled();
+    await bar.getByRole("button", {name: "Stop sharing", exact: true}).click();
+    await expect(commentBar.getByText(/Disconnected/)).toBeVisible({timeout: 15000});
+    await expect(toolbar.getByText(/View only/)).toBeVisible();
+    await commenter.close();
     await toolbar.getByText("File", { exact: true }).click();
     await toolbar.getByRole("button", { name: "Leave session" }).click();
     await expect(toolbar.getByText(/Local document/)).toBeVisible();

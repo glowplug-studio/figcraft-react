@@ -4,6 +4,7 @@ import "@glowplug-studio/figcraft-react/fonts.css";
 import { useEffect, useRef, useState } from "react";
 import { WorkspaceEditor, FigcraftRoot, IndexedDbRecoveryStore, type OnlineWorkspaceHost, type IdentitySnapshot, type DocumentCapability } from "@glowplug-studio/figcraft-react";
 import { SupabaseIdentityAdapter, SupabaseOnlineFileStore, publishedLinkDigests, watchSupabaseGuest } from "@glowplug-studio/figcraft-react/backends/supabase";
+import { BrowserOwnerSharing } from "../lib/sharing/owner-sharing";
 import { BrowserInvitations } from "../lib/sharing/browser-invites";
 import { useRouter } from "next/navigation";
 import { supabaseConfig } from "../lib/supabase/config";
@@ -38,7 +39,7 @@ export function EditorHost({ identity }: { identity: Extract<IdentitySnapshot, {
       setJoinError(""); joinDialog.current?.showModal();
     }, setError);
     setInviteHost(invites);
-    setOnline({ server, store: files, device: store, invitations: invites });
+    setOnline({ server, store: files, device: store, invitations: invites, sharing: new BrowserOwnerSharing(store, identity.principal.id, server) });
     setRecovery(store);
     setAdapter(next);
     const unsubscribe = next.subscribe(snapshot => {

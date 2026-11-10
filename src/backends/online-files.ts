@@ -65,7 +65,18 @@ export interface OnlineInvitations {
   leave(connection: string): Promise<void>;
 }
 
+export interface OwnerShareSummary {
+  codes: Partial<Record<OnlineGuestSession["access"], string>>;
+  pending?: "start" | "stop";
+}
+export interface OnlineOwnerSharing {
+  read(file: string, refresh?: boolean): Promise<OwnerShareSummary>;
+  change(file: string, enabled: boolean): Promise<OwnerShareSummary>;
+  copy(file: string, access: OnlineGuestSession["access"], format: "code" | "link"): Promise<void>;
+}
+
 export interface OnlineWorkspaceHost {
+  sharing?: OnlineOwnerSharing;
   server: string;
   store: OnlineFileStore;
   device: OnlineFileDevice;
