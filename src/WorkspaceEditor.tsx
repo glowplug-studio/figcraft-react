@@ -1,3 +1,5 @@
+import { ImportReportPanel } from "./ImportReportPanel";
+import { importNotice, readImportReport, type ImportReport } from "./engine/interchange/import-report";
 import { BranchReviewDialog } from "./BranchReviewDialog";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { DocumentEditor, type EditorProps } from "./Editor";
@@ -16,6 +18,7 @@ export function WorkspaceEditor({ identity, capabilities, recoveryStore }: Works
   const [reviewId, setReviewId] = useState<string>();
   const [closeId, setCloseId] = useState<number>();
   const [renaming, setRenaming] = useState(false);
+  const [report, setReport] = useState<{ owner: number; value: ImportReport }>();
   const [notice, setNotice] = useState("");
   const closeDialog = useRef<HTMLDialogElement>(null), renameDialog = useRef<HTMLDialogElement>(null);
   const openInput = useRef<HTMLInputElement>(null);
@@ -28,7 +31,7 @@ export function WorkspaceEditor({ identity, capabilities, recoveryStore }: Works
       const allow = snapshot.status === "authenticated" && snapshot.principal.id === principal && capabilities.includes("document.edit");
       setAuthorised(allow);
       workspace.setEditable(allow);
-      if (!allow) { controller?.dispose(); controller = undefined; }
+      if (!allow) { setReport(undefined); setNotice(""); controller?.dispose(); controller = undefined; }
       else if (!controller && principal) {
         controller = new WorkspaceRecovery(workspace, recoveryStore, principal, next => setRecovery(previous =>
           previous.status === next.status && previous.message === next.message ? previous : next));
@@ -54,6 +57,9 @@ export function WorkspaceEditor({ identity, capabilities, recoveryStore }: Works
   useEffect(() => { if (closeId !== undefined) closeDialog.current?.showModal(); }, [closeId]);
   useEffect(() => { if (renaming) renameDialog.current?.showModal(); }, [renaming]);
 
+  useEffect(() => {
+    if (report && !tabs.some(tab => tab.id === report.owner)) setReport(undefined);
+  }, [report, tabs]);
   const close = (id: number, force = false) => {
     const tab = tabs.find(item => item.id === id);
     if (!tab) return;
@@ -91,20 +97,27 @@ export function WorkspaceEditor({ identity, capabilities, recoveryStore }: Works
         }}>{tab.name}{tab.dirty && <span aria-label="unsaved"> ●</span>}</button>)}
     </div>}
     {active ? <DocumentEditor key={active.id} identity={identity} capabilities={capabilities} engine={workspace.activeEngine}
+      onImportReport={(value, owner = active.id) => setReport({ value, owner })}
       workspace={workspace} recoveryStore={recoveryStore} workspaceRecovery={recovery} fileMenu={fileMenu} onWorkspaceNotice={setNotice} onReviewBranch={setReviewId} /> :
       <section aria-label="File workspace"><h1>Files</h1>
         <button disabled={!enabled} onClick={() => workspace.execute("file.new")}>New file</button>
         <button disabled={!enabled} onClick={() => openInput.current?.click()}>Open file</button>
         <input hidden type="file" aria-label="Open Figcraft file" ref={openInput} onChange={async event => {
           const file = event.currentTarget.files?.[0]; event.currentTarget.value = "";
-          if (file) try { const result = await workspace.open(file); setNotice(result.repairs.join("\n")); }
+          if (file) try {
+            const result = await workspace.open(file);
+            const value = readImportReport("file.open", file.name, result);
+            if (value) setReport({ owner: result.tabId, value });
+            setNotice(importNotice(file.name, result.repairs, true));
+          }
           catch (error) { setNotice(error instanceof Error ? error.message : "File could not be opened"); }
         }} />
         {recovery.status === "stored" && <p role="status">Recovery saved on this device</p>}
         {recovery.status === "error" && <p role="alert">{recovery.message}</p>}
       </section>}
+    {enabled && report && tabs.some(tab => tab.id === report.owner) && <ImportReportPanel report={report.value} close={() => setReport(undefined)} />}
     {enabled && reviewId && <BranchReviewDialog workspace={workspace} id={reviewId} close={() => setReviewId(undefined)} />}
-    {notice && <p role="alert">{notice}</p>}
+    {authorised && notice && <p role="alert">{notice}</p>}
     {closeId !== undefined && <dialog ref={closeDialog} aria-label="Close unsaved file" onCancel={() => setCloseId(undefined)}>
       <p>Discard unsaved changes to {tabs.find(tab => tab.id === closeId)?.name}?</p>
       <button autoFocus onClick={() => setCloseId(undefined)}>Cancel</button>

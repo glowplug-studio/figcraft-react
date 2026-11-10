@@ -1,3 +1,5 @@
+import { ImportReportPanel } from "./ImportReportPanel";
+import { importNotice, readImportReport, type ImportReport } from "./engine/interchange/import-report";
 import { droppedDesigns,type DroppedDesign } from "./rest-folder-drop";
 import { looksLikeSvg } from "./engine/svg-import/xml";
 import { ExportPanel } from "./ExportPanel";
@@ -84,11 +86,12 @@ function HistoryButtons({ engine, editable, undo, redo, dispatch }: { engine: Ed
 /** Embeddable local rectangle workflow. The host owns authentication and styling. */
 export function Editor(props: EditorProps) { return <DocumentEditor {...props} />; }
 
-export function DocumentEditor({ identity, capabilities, engine: suppliedEngine, recoveryStore, workspace, workspaceRecovery, fileMenu, onWorkspaceNotice, onReviewBranch }: EditorProps & {
+export function DocumentEditor({ identity, capabilities, engine: suppliedEngine, recoveryStore, workspace, workspaceRecovery, fileMenu, onWorkspaceNotice, onReviewBranch, onImportReport }: EditorProps & {
   workspace?: EditorWorkspace;
   workspaceRecovery?: WorkspaceRecoveryState;
   fileMenu?: ReactNode;
   onWorkspaceNotice?: (message: string) => void;
+  onImportReport?: (report: ImportReport, owner?: number) => void;
   onReviewBranch?: (id: string) => void;
 }) {
   const [engine] = useState(() => suppliedEngine ?? new EditorEngine());
@@ -96,6 +99,12 @@ export function DocumentEditor({ identity, capabilities, engine: suppliedEngine,
   const snapshot = useSyncExternalStore(engine.subscribe, engine.getSnapshot, engine.getSnapshot);
   const editingVector = useSyncExternalStore(engine.subscribeVectorEdit, () => Boolean(engine.getVectorEdit()), () => Boolean(engine.getVectorEdit()));
   const [signedIn, setSignedIn] = useState(() => identity.getSnapshot().status === "authenticated");
+  const [localReport, setLocalReport] = useState<ImportReport>();
+  function showReport(report: ImportReport | undefined, owner?: number) {
+    if (!report) return;
+    if (onImportReport) onImportReport(report, owner);
+    else setLocalReport(report);
+  }
   const [error, setError] = useState("");
   const [localStatus, setRecoveryStatus] = useState(recoveryStore ? "loading" : "ready");
   const [localError, setRecoveryError] = useState("");
@@ -150,6 +159,7 @@ export function DocumentEditor({ identity, capabilities, engine: suppliedEngine,
       const current = identity.getSnapshot();
       const authenticated = current.status === "authenticated" && current.principal.id === initialPrincipal.current;
       setSignedIn(authenticated);
+      if (!authenticated) { setLocalReport(undefined); setError(""); }
       engine.setEditable(authenticated && capabilities.includes("document.edit"));
     };
     update();
@@ -393,7 +403,11 @@ export function DocumentEditor({ identity, capabilities, engine: suppliedEngine,
     try {
       const batch=Array.isArray(input) ? input.map((file):DroppedDesign=>({file})) : await input;
       const folders=new Map(batch.flatMap(d=>d.folder ? [[d.file,d.folder] as const] : []));
-      setError((await engine.dropImages(batch.map(d=>d.file),point,usePicker ? snapshot.paintPicker : undefined,folders)).join("\n"));
+      setError((await engine.dropImages(batch.map(d=>d.file),point,usePicker ? snapshot.paintPicker : undefined,folders,
+        (file, result) => {
+          showReport(readImportReport("file.import", file.name, result));
+          return Array.isArray(result.warnings) ? importNotice(file.name, result.warnings) : "";
+        })).join("\n"));
     }
     catch (e) { setError(e instanceof Error ? e.message : "File drop failed"); }
     finally {setBusy(false);}
@@ -479,9 +493,13 @@ export function DocumentEditor({ identity, capabilities, engine: suppliedEngine,
         if (html.includes("(figma)")) {
           const result=await engine.pasteDesignLayers({html,...point});
           if (result) {
+            showReport(readImportReport("edit.pasteDesignLayers", "", result));
             engine.trackLayerClipboardMirror(text);
             if (result.missingImages?.length) setError("Pasted design layers; the clipboard didn't carry the images of: "+result.missingImages.join(", "));
-            else if (result.warnings?.length) setError(result.warnings.join("\n"));
+            else if (result.warnings?.length) {
+              const count = result.warnings.length;
+              setError("Pasted design layers; " + count + (count === 1 ? " kind of content was" : " kinds of content were") + " left out");
+            }
             return;
           }
         }
@@ -500,7 +518,8 @@ export function DocumentEditor({ identity, capabilities, engine: suppliedEngine,
       }
       if (document !== engine.getSnapshot().document) throw new Error("Paste was cancelled because the drawing changed");
       const result = await engine.pasteImage(file,point);
-      if (Array.isArray(result?.warnings)) setError(result.warnings.join("\n"));
+      showReport(readImportReport("file.import", file.name, result));
+      if (Array.isArray(result?.warnings)) setError(importNotice(file.name, result.warnings));
     } catch (e) {setError(e instanceof Error ? e.message : "Image paste failed");}
     finally {setBusy(false);}
   }
@@ -514,9 +533,15 @@ export function DocumentEditor({ identity, capabilities, engine: suppliedEngine,
   async function open(file: File) {
     controller.current?.cancel(); setPendingFile(null); setBusy(true); setOpeningTab(!!workspace); setError("");
     try {
-      const { repairs } = workspace ? await workspace.open(file) : await engine.openFile(file);
-      if (workspace) onWorkspaceNotice?.(repairs.join("\n"));
-      else if (repairs.length) setError(repairs.join("\n"));
+      if (workspace) {
+        const result = await workspace.open(file);
+        showReport(readImportReport("file.open", file.name, result), result.tabId);
+        onWorkspaceNotice?.(importNotice(file.name, result.repairs, true));
+      } else {
+        const result = await engine.openFile(file);
+        setLocalReport(readImportReport("file.open", file.name, result));
+        setError(importNotice(file.name, result.repairs, true));
+      }
     } catch (caught) { setError(caught instanceof Error ? caught.message : "File could not be opened"); }
     finally { setBusy(false); setOpeningTab(false); }
   }
@@ -715,6 +740,7 @@ export function DocumentEditor({ identity, capabilities, engine: suppliedEngine,
         </details>
       </header>
       {!signedIn && <p role="status">Sign in to edit this document.</p>}
+      {signedIn && localReport && <ImportReportPanel report={localReport} close={() => setLocalReport(undefined)} />}
       {error && <p role="alert">{error}</p>}
       {sourceRequest && <label>Choose library source<input type="file" accept=".figcraft" disabled={!editable} onChange={event => {
         const file = event.currentTarget.files?.[0];

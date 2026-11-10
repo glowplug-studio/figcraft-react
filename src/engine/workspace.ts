@@ -225,7 +225,8 @@ export class EditorWorkspace {
     if (stillWanted && !stillWanted()) throw new Error("The source instance changed during navigation");
     if (origin && !this.#tabs.includes(origin)) throw new Error("Open cancelled because the source tab closed");
     this.#filenames.set(engine, file.name);
-    return { ...result, ...this.#append(engine, this.#active === origin) };
+    const { index } = this.#append(engine, this.#active === origin);
+    return { ...result, index, tabId: this.#tabs[index].id };
   }
 
   #removeTab(tab: OpenTab) {

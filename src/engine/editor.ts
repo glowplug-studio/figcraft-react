@@ -1919,7 +1919,8 @@ export class EditorEngine {
     }
     return this.#executeFileCommand("file.import",{name:"Pasted image.png",...at},{file,paste:true,centre:!at});
   }
-  async dropImages(files: readonly File[], at?: Point, picker?: PaintPicker, folders?:ReadonlyMap<File,import("./interchange/rest/companions").RestFolder>) {
+  async dropImages(files: readonly File[], at?: Point, picker?: PaintPicker, folders?:ReadonlyMap<File,import("./interchange/rest/companions").RestFolder>,
+    imported?: (file: File, result: Record<string, unknown>) => string) {
     const errors: string[] = [];
     for (const [index,file] of files.entries()) {
       const before = this.#snapshot.document;
@@ -1928,7 +1929,12 @@ export class EditorEngine {
         if (index === 0 && picker) await this.uploadPaintImage(picker,file);
         else {
           const result=await this.#executeFileCommand("file.import",{name:file.name || "dropped.png",...at},{file,folder:folders?.get(file)});
-          if (Array.isArray(result?.warnings)) errors.push(...result.warnings.map(note=>file.name+": "+note));
+          if (result && imported) {
+            const notice = imported(file, result);
+            if (notice) errors.push(notice);
+          } else if (Array.isArray(result?.warnings)) {
+            for (const note of result.warnings) errors.push(file.name + ": " + note);
+          }
         }
       } catch (error) {
         errors.push(file.name + ": " + (error instanceof Error ? error.message : "Image import failed"));
@@ -1990,7 +1996,7 @@ export class EditorEngine {
       const fallback=String(p.name).split(/[\\/]/).at(-1)!.replace(/\.[^.]+$/,"");
       return {pages:next.pages.map(inspectedId),summary:{name:incoming.name && incoming.name!=="Untitled" ? incoming.name : fallback,
         pages:incoming.pages.length,layers:Object.keys(incoming.nodes).length-incoming.pages.length-(incoming.libraryStore?.root ? 1 : 0),
-        images:Object.keys(incoming.images ?? {}).length},...(loaded.issues?.length && {warnings:loaded.issues})};
+        images:Object.keys(incoming.images ?? {}).length},...((external || loaded.issues?.length) && {warnings:loaded.issues ?? []})};
     }
     if (svg) {
       const placement = fileImportParams(p,centre);

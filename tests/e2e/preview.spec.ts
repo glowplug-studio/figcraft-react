@@ -6795,6 +6795,54 @@ test("layer clipboard crosses file tabs, respects newer system text and pastes a
   expect(Object.values(doc.nodes).some(n => n.kind === "text" && n.text.characters === "From another app")).toBe(true);
 });
 
+test("import report follows its source tab and distinguishes open, append and SVG placement", async ({ page }) => {
+  await login(page);
+  const report = page.getByRole("dialog", { name: "Import report", exact: true });
+  const open = page.getByLabel("Open Figcraft file", { exact: true });
+  const add = page.getByLabel("Import into current document", { exact: true });
+  const design = (name: string, children: unknown[]) => ({
+    name: name + ".json", mimeType: "application/json",
+    buffer: Buffer.from(JSON.stringify({ name, document: { id: "0:0", type: "DOCUMENT", name, children: [
+      { id: "0:1", type: "CANVAS", name: "Page", children },
+    ] } })),
+  });
+  await open.setInputFiles(design("Synthetic", [{ id: "1:1", name: "No type" }]));
+  await expect(report.getByText("Opened as a new document")).toBeVisible();
+  await expect(report.getByText("Layers without a type were skipped", { exact: true })).toBeVisible();
+  await expect(report.getByText("Pages: 1 · Layers: 0 · Images: 0")).toBeVisible();
+  await expect(report).toHaveScreenshot("import-report.png", { animations: "disabled", maxDiffPixels: 0 });
+  const tabs = page.getByRole("tablist", { name: "Open files" }).getByRole("tab");
+  await tabs.first().click();
+  await expect(report).toBeVisible();
+  await tabs.last().click();
+  const bar = page.locator(".figcraft-document-bar");
+  await bar.getByText("File", { exact: true }).click();
+  await bar.getByRole("button", { name: "Close file", exact: true }).click();
+  await expect(report).toHaveCount(0);
+  await open.setInputFiles(design("Clean", []));
+  await expect(report.getByText("No compatibility warnings reported")).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(report).toHaveCount(0);
+  await add.setInputFiles(design("Append", []));
+  await expect(report.getByText("Pages added to the document")).toBeVisible();
+  await report.getByRole("button", { name: "Close", exact: true }).click();
+  const svg = (name: string, content: string) => ({ name, mimeType: "image/svg+xml",
+    buffer: Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64">' + content + '</svg>') });
+  await open.setInputFiles(svg("CleanIcon.svg", '<rect width="40" height="40"/>'));
+  await expect(page.getByRole("heading", { name: "CleanIcon", exact: true })).toBeVisible();
+  await expect(report).toHaveCount(0);
+  await add.setInputFiles(svg("Noted.svg", '<defs><filter id="f"><feMorphology radius="2"/></filter></defs><rect width="40" height="40" filter="url(#f)"/>'));
+  await expect(report.getByText("Placed on the current page")).toBeVisible();
+  await expect(report.getByText(/filter f isn't a shadow or blur/)).toBeVisible();
+  await page.setViewportSize({ width: 390, height: 700 });
+  const bounds = await report.boundingBox();
+  expect(bounds!.x).toBeGreaterThanOrEqual(0);
+  expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(390);
+  await page.getByRole("button", { name: "Sign out", exact: true }).click();
+  await expect(page).toHaveURL(/\/login/);
+  await expect(report).toHaveCount(0);
+});
+
 test("draw, wrap, convert and toggle editable Sections in the signed-in editor",async({page})=>{
   await login(page);
   await createNamedRectangle(page,"Child",55,55,20,20);
@@ -6878,6 +6926,13 @@ test("external design HTML pastes editable layers before image or text and falls
   await expect(layers.getByRole("button",{name:"Fallback from clipboard",exact:true})).toBeVisible();
   await paste(Buffer.from(original["missing-images.fig"]).toString("base64"),"Image fallback");
   await expect(page.getByText(/clipboard didn't carry the images of: Rectangle/)).toBeVisible();
+  const importReport = page.getByRole("dialog", { name: "Import report", exact: true });
+  await expect(importReport).toHaveCount(0);
+  await paste(Buffer.from(original["vector-outlines.fig"]).toString("base64"), "Vector fallback");
+  await expect(importReport.getByText("Pasted design layers", { exact: true })).toBeVisible();
+  await expect(importReport.getByText("Vectors without geometry are empty (×2)", { exact: true })).toBeVisible();
+  await expect(importReport.getByText("Placed on the current page")).toBeVisible();
+  await importReport.getByRole("button", { name: "Close" }).click();
 });
 
 test("copy properties transfers appearance across tabs and undo restores the destination", async ({ page }) => {
