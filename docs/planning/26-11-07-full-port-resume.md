@@ -1,5 +1,7 @@
 # Full Figcraft port resume checkpoint
 
+At 5d94730, All 336 production Chromium workflows passed in 515.1 seconds with zero skips, retries or flakes. Strict TypeScript, both production builds, 3,044 pure checks and two local Auth integrations passed. All 207 native Sketch inputs and 57 prototype reference checks passed. Continue row 12 with [Penpot](26-11-10-penpot-interchange.md).
+
 At c833a9c all 320 production Chromium workflows passed in 619.8 seconds with no skips, retries or flakes. Both production builds, strict TypeScript, 2,309 pure checks and both local Auth integrations passed. Android XML matched 95 of 103 pinned files byte for byte. Eight alternative stroke contours passed the per-path coverage checks. The largest relative coverage difference was 0.85% on a curved dashed path. Continue row 12 at PDF page groups, print, vector content, embedded fonts and raster effects.
 
 At c14f32a the editable SVG importer passed all 316 production Chromium workflows in 606.8 seconds with no skips, retries or flakes. All 174 original probes from the 22 upstream SVG corpus files passed. Both production builds, strict types, 2,115 pure checks and both local Auth integrations passed. Continue extended import parity, then the remaining interchange formats.

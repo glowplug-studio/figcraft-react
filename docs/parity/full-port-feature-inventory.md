@@ -282,3 +282,5 @@ At a132b69, pathops::faces, union_faces and canvas/shapebuilder.rs map to path-a
 ## Workspace and design interchange checkpoint
 
 Local workspace history, branch review and clipboards passed the 0.53.0 release gate. PNG selection, crop, scale, colour tagging and downloads passed native comparisons. Other design interchange and online workspace features remain open. [Workspace matrix](../reports/26-11-10-file-workspace-parity.html) · [Raster matrix](../reports/26-11-10-file-interchange-parity.html).
+
+Row 12 checkpoint 5d94730 covers Sketch import, prototype record interchange and Slice export. The signed-in host verified open, append, undo, save, guides and worker cancellation. Penpot and remaining interchange work continue. Prototype editing and presentation stay in row 15. [Property matrix](../reports/26-11-10-sketch-interchange-parity.html).

@@ -4,6 +4,8 @@ All notable changes to the React port and its upstream compatibility baseline ar
 
 ## [0.53.0] - 2026-11-10
 
+- Added editable Sketch import, prototype record preservation and Slice drawing, guides and export crops. [Property report](docs/reports/26-11-10-sketch-interchange-parity.html).
+
 - Added experimental whole-file Fig export with editable shapes, text, linked components, styles, variables and embedded images. Verified 101 browser-written drawings against upstream a2e87433. [Interchange report](docs/reports/26-11-10-file-interchange.md#editable-binary-fig-export).
 
 - Added independent file tabs, account-scoped recovery, native page or frame thumbnails and editable source navigation for linked component instances.
