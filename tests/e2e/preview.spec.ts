@@ -1,6 +1,7 @@
 import { expectSolid } from "../fixtures/expect-solid";
-import { randomUUID } from "node:crypto";
-import { readFile, rm, writeFile } from "node:fs/promises";
+import { createHash, randomUUID } from "node:crypto";
+import { join } from "node:path";
+import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { chromium, expect, test, type Page } from "@playwright/test";
 import { localSupabase } from "../support/localSupabase";
 import { decodeFigcraft, encodeFigcraft } from "../../src/engine/file-format";
@@ -7095,4 +7096,53 @@ test("Import appends drawing pages, preserves the open tab, and supports undo, r
   await canvas.dispatchEvent("drop",{dataTransfer:transfer,clientX:500,clientY:300});
   await expect.poll(async()=>(await snapshot()).pages.length).toBe(3);
   await expect(page.getByRole("heading",{name:"Untitled",exact:true})).toBeVisible();
+});
+
+test("REST design JSON opens as editable layers and imports additional pages into the same drawing",async({page})=>{
+  await login(page);
+  const open=page.getByLabel("Open Figcraft file",{exact:true}),importInto=page.getByLabel("Import into current document",{exact:true});
+  const corpus=JSON.parse(await readFile(new URL("../fixtures/native-rest-documents.json",import.meta.url),"utf8")) as
+    {name:string;source:unknown;archive:string}[];
+  const input=(name:string)=>({name:name+".json",mimeType:"application/json",buffer:Buffer.from(JSON.stringify(corpus.find(c=>c.name===name)!.source))});
+  await open.setInputFiles(input("linked components"));
+  await expect(page.getByRole("heading",{name:"REST fixture",exact:true})).toBeVisible();
+  const snapshot=async()=>{
+    const download=page.waitForEvent("download");
+    await page.getByRole("button",{name:"Save as",exact:true}).click();
+    return (await decodeFigcraft(await readFile((await (await download).path())!))).document;
+  };
+  const source=corpus.find(c=>c.name==="linked components")!;
+  const native=(await decodeFigcraft(Uint8Array.from(Buffer.from(source.archive,"base64")))).document;
+  expect((await snapshot()).nodes).toEqual(native.nodes);
+  await importInto.setInputFiles(input("text runs"));
+  await expect.poll(async()=>(await snapshot()).pages.length).toBe(2);
+  const appended=await snapshot();
+  const text=Object.values(appended.nodes).find(n=>n.kind==="text");
+  expect(text?.kind==="text" && text.text.characters).toBe("😁abc🌟def");
+  await page.getByLabel("Design canvas",{exact:true}).focus();
+  await page.keyboard.press("ControlOrMeta+z");
+  expect((await snapshot()).nodes).toEqual(native.nodes);
+});
+
+test("dropping a REST design folder imports its real image and variable siblings",async({page,context},info)=>{
+  await login(page);
+  const folder=info.outputPath("REST drawing");
+  await mkdir(join(folder,"images"),{recursive:true});
+  const png=Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aNIcAAAAASUVORK5CYII=","base64");
+  const corpus=JSON.parse(await readFile(new URL("../fixtures/native-rest-documents.json",import.meta.url),"utf8")) as {name:string;variables?:unknown}[];
+  const source={nodes:{a:{document:{type:"RECTANGLE",name:"Logo",fills:[{type:"IMAGE",imageRef:"logo"}]}}}};
+  await writeFile(join(folder,"design.json"),JSON.stringify(source));
+  await writeFile(join(folder,"variables.json"),JSON.stringify(corpus.find(c=>c.name==="companion variables")!.variables));
+  await writeFile(join(folder,"images","logo.png"),png);
+  const cdp=await context.newCDPSession(page);
+  const bounds=(await page.getByLabel("Design canvas",{exact:true}).boundingBox())!;
+  const event={x:bounds.x+bounds.width/2,y:bounds.y+bounds.height/2,data:{items:[],files:[folder],dragOperationsMask:1}};
+  for (const type of ["dragEnter","dragOver","drop"] as const) await cdp.send("Input.dispatchDragEvent",{type,...event});
+  await cdp.detach();
+  await expect.poll(async()=>{
+    const download=page.waitForEvent("download");
+    await page.getByRole("button",{name:"Save as",exact:true}).click();
+    const {document}=await decodeFigcraft(await readFile((await (await download).path())!));
+    return {pages:document.pages.length,keys:Object.keys(document.images ?? {}),variables:document.variables?.variables.map(v=>v.id)};
+  }).toMatchObject({pages:2,keys:[createHash("sha256").update(png).digest("hex")],variables:expect.arrayContaining(["w","b","red"])});
 });

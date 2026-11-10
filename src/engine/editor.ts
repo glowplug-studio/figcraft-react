@@ -95,7 +95,7 @@ import { buildPenPath, type PenAnchor } from "./pen-path";
 import { PencilInteraction } from "./pencil-interaction";
 import { parseBrush, wireBrush, type Brush } from "./brush";
 
-interface FileSource {file:Blob; picker?:PaintPicker; paste?:boolean; centre?:boolean}
+interface FileSource {file:Blob;folder?:import("./interchange/rest/companions").RestFolder; picker?:PaintPicker; paste?:boolean; centre?:boolean}
 type OpenResult = { warnings?: readonly string[]; repairs: readonly string[]; summary: {name:string; pages:number; layers:number; images:number} }
 
 export const commandSpecs = Object.freeze({
@@ -1844,7 +1844,7 @@ export class EditorEngine {
     }
     return this.#executeFileCommand("file.import",{name:"Pasted image.png",...at},{file,paste:true,centre:!at});
   }
-  async dropImages(files: readonly File[], at?: Point, picker?: PaintPicker) {
+  async dropImages(files: readonly File[], at?: Point, picker?: PaintPicker, folders?:ReadonlyMap<File,import("./interchange/rest/companions").RestFolder>) {
     const errors: string[] = [];
     for (const [index,file] of files.entries()) {
       const before = this.#snapshot.document;
@@ -1852,7 +1852,7 @@ export class EditorEngine {
       try {
         if (index === 0 && picker) await this.uploadPaintImage(picker,file);
         else {
-          const result=await this.#executeFileCommand("file.import",{name:file.name || "dropped.png",...at},{file});
+          const result=await this.#executeFileCommand("file.import",{name:file.name || "dropped.png",...at},{file,folder:folders?.get(file)});
           if (Array.isArray(result?.warnings)) errors.push(...result.warnings.map(note=>file.name+": "+note));
         }
       } catch (error) {
@@ -1877,10 +1877,10 @@ export class EditorEngine {
     }
     const raster = command === "file.open" && typeof p.name === "string" && rasterFilename.test(p.name);
     const svg = (importing || command === "file.open") && typeof p.name === "string" && /\.svgz?$/i.test(p.name);
-    if (importing) fileVariablesParam(p.variables);
+    const variables=importing || command==="file.open" ? fileVariablesParam(p.variables) : undefined;
     const pages=importing && typeof p.name==="string" && /\.(?:figcraft|json)$/i.test(p.name);
     if (source && !pages && (placing || replacing || raster || svg) && source.file.size > MAX_IMAGE_BYTES) throw new Error("Image exceeds the 256 MiB external input limit");
-    const allowed = importing ? ["name","data","x","y","center","variables"] : replacing ? ["data", "ids", "id", "target", "index"] : placing ? ["data", "name", "target", "mode", "width", "height", "parent", "x", "y"] : ["data", "name"];
+    const allowed = importing ? ["name","data","x","y","center","variables"] : replacing ? ["data", "ids", "id", "target", "index"] : placing ? ["data", "name", "target", "mode", "width", "height", "parent", "x", "y"] : command==="file.open" ? ["data","name","variables"] : ["data", "name"];
     if (Object.keys(p).some(key => !allowed.includes(key)) || !source && typeof p.data !== "string" || (!importing && p.name !== undefined && typeof p.name !== "string")) throw new Error("File import requires base64 data and supported parameters");
     this.pen.cancel(); this.pencil.cancel(); this.cancelInteraction();
     const before = this.#snapshot;
@@ -1894,9 +1894,16 @@ export class EditorEngine {
       if (opening !== this.#openSequence || before.document !== this.#snapshot.document || !this.#snapshot.editable || this.interacting) throw new Error("Open was cancelled because the document or identity changed");
     };
     let decoded: Awaited<ReturnType<typeof decodeFigcraft>>;
+    let external=false;
+    const readDesign=async()=>{
+      const {loadDesignDocument}=await import("./interchange/load");
+      const loaded=await loadDesignDocument(source?.file ?? fileData(p.data,MAX_UNPACKED_BYTES),variables,checkCurrent,source?.folder,String(p.name ?? ""));
+      external=loaded.external;
+      return loaded.decoded;
+    };
     if (pages) {
       const {appendPages}=await import("./interchange/append-pages");
-      const loaded=await decodeFigcraft(source?.file ?? fileData(p.data,MAX_UNPACKED_BYTES));
+      const loaded=await readDesign();
       const incoming=loaded.document;
       await prepareDocumentText(incoming);
       checkCurrent();
@@ -1946,7 +1953,7 @@ export class EditorEngine {
       const opened = placeImage(initial, 2n, image, { name, width: image.resource.width, height: image.resource.height });
       await prepareArchive(opened.document, String(opened.nextId));
       decoded = { document: opened.document, nextId: String(opened.nextId) };
-    } else decoded = await decodeFigcraft(source?.file ?? fileData(p.data, MAX_UNPACKED_BYTES));
+    } else decoded = command==="file.open" ? await readDesign() : await decodeFigcraft(source?.file ?? fileData(p.data, MAX_UNPACKED_BYTES));
     if (!raster) {
       decoded={...decoded,document:refreshBoundStyles(markLoadedModeOverrides(refreshLayerBindings(decoded.document,undefined,true)))};
       await prepareDocumentText(decoded.document);
@@ -1964,7 +1971,7 @@ export class EditorEngine {
     this.#vectorEdit = undefined;
     this.#publish({ document: decoded.document, profileDialog: false, libraryPanel:undefined, missingFonts: undefined, selection: Object.freeze([]), tool: "move" });
     this.updateView(fitPage({ ...this.#view, proofSrgb: false }, decoded.document));
-    return { repairs: decoded.issues ?? [], ...(svg && {warnings:decoded.issues ?? []}), summary: { name: decoded.document.name, pages: decoded.document.pages.length, layers: Object.keys(decoded.document.nodes).length - decoded.document.pages.length - (decoded.document.libraryStore?.root ? 1 : 0), images: Object.keys(decoded.document.images ?? {}).length } };
+    return { repairs: decoded.issues ?? [], ...((svg || external) && {warnings:decoded.issues ?? []}), summary: { name: decoded.document.name, pages: decoded.document.pages.length, layers: Object.keys(decoded.document.nodes).length - decoded.document.pages.length - (decoded.document.libraryStore?.root ? 1 : 0), images: Object.keys(decoded.document.images ?? {}).length } };
   }
   #create(command: string, p: Record<string, unknown>): Record<string, unknown> {
     const before = this.#snapshot, next = createLayer(before, this.#nextId, command, p, this.#view);

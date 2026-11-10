@@ -89,7 +89,7 @@ export function variationValues(value:unknown) {
 }
 type Look = NonNullable<TextStyle["decorationLook"]>;
 const defaultLook: Look = Object.freeze({style:"solid", thickness:auto, offset:auto, skipInk:false});
-function withLook(style: TextStyle, patch: Partial<Look>): TextStyle {
+export function withLook(style: TextStyle, patch: Partial<Look>): TextStyle {
   const look = {...defaultLook, ...style.decorationLook, ...patch};
   const isDefault = look.style === "solid" && look.thickness.unit === "auto" && look.offset.unit === "auto" &&
     !look.skipInk && look.color === undefined;

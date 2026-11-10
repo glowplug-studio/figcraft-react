@@ -1,7 +1,7 @@
 import {colour} from "./colour";
 import {compareScalarKeys} from "./text-breaks";
 import {variableScopes} from "./variable-metadata";
-import type {Collection,Mode,Variable,VariableType,VariableValue} from "./variables";
+import type {Collection,Mode,Variable,VariableType,VariableValue,Variables} from "./variables";
 
 type RecordValue=Record<string,unknown>;
 const record=(x:unknown):x is RecordValue=>x!==null && typeof x==="object" && !Array.isArray(x);
@@ -31,26 +31,30 @@ function readValue(kind:VariableType,raw:unknown):VariableValue|undefined {
 }
 function order<T extends Mode>(records:T[],raw:unknown) {
   if (!Array.isArray(raw)) return records;
-  const rank=new Map(list(raw).filter((k):k is string=>typeof k==="string").map((k,i)=>[k,i]));
+  const rank=new Map(list(raw).slice(0,256).filter((k):k is string=>typeof k==="string").map((k,i)=>[k,i]));
   return records.sort((a,b)=>(rank.get(a.id) ?? Infinity)-(rank.get(b.id) ?? Infinity));
 }
-export function readRestVariables(input:unknown) {
+export function hasRestVariables(input:unknown) {
+  return record(input) && [input.meta,input].some(h=>record(h) && record(h.variableCollections));
+}
+export function readRestVariables(input:unknown, prior?:Variables) {
   const root=typeof input==="string" ? JSON.parse(input) as unknown : input;
   if (!record(root)) throw new Error("Expected a local variables JSON object");
   const holders=[root.meta,root].filter(record),src=holders.find(h=>record(h.variableCollections));
   if (!src) throw new Error("Expected variableCollections in the local variables JSON");
   const counts=new Map<string,number>();
   const warn=(s:string)=>counts.set(s,(counts.get(s) ?? 0)+1);
-  const collections:Collection[]=[],modeSets=new Map<string,Set<string>>(),listed=new Set<string>();
+  const collections:Collection[]=[...(prior?.collections ?? [])],modeSets=new Map(collections.map(c=>[c.id,new Set(c.modes.map(m=>m.id))])),listed=new Set<string>();
+  const priorKinds=new Map(prior?.variables.map(v=>[v.id,v.resolvedType]));
   let listedCount=0;
   for (const [key,value] of entries(src.variableCollections,10000)) {
     const c=record(value) ? value : {},id=clip(text(c.id) ?? key);
-    if (listedCount<100000) for (const v of list(c.variableIds)) if (typeof v==="string") {
+    if (listedCount<100000) for (const v of list(c.variableIds).slice(0,256)) if (typeof v==="string") {
       listed.add(clip(v));if (++listedCount>=100000) break;
     }
     if (!id || modeSets.has(id)) continue;
     const modes:Mode[]=[],set=new Set<string>();
-    for (const m of list(c.modes).slice(0,1000)) {
+    for (const m of list(c.modes).slice(0,256)) {
       if (!record(m) || typeof m.modeId!=="string" || !m.modeId) continue;
       const mid=clip(m.modeId);
       if (!set.has(mid)) {set.add(mid);modes.push({id:mid,name:clip(text(m.name)?.trim() ? String(m.name) : "Mode "+(modes.length+1))});}
@@ -67,7 +71,7 @@ export function readRestVariables(input:unknown) {
   const seen=new Set<string>();
   for (const [key,value] of entries(holder?.variables,100000)) {
     const v=record(value) ? value : {},id=clip(text(v.id) ?? key);
-    if (!id) continue;
+    if (!id || priorKinds.has(id)) continue;
     const kind=kinds.get(text(v.resolvedType) ?? "");
     if (!kind) {warn("variables of unknown types were skipped");continue;}
     const cid=text(v.variableCollectionId),modes=cid===undefined ? undefined : modeSets.get(cid);
@@ -94,7 +98,7 @@ export function readRestVariables(input:unknown) {
   }
   let dropped=false;
   for (let pass=0;pass<8;pass++) {
-    const types=new Map(vars.map(v=>[v.id,v.resolvedType]));
+    const types=new Map([...priorKinds,...vars.map(v=>[v.id,v.resolvedType] as const)]);
     let removed=false;
     for (const v of vars) for (const [mid,val] of Object.entries(v.values)) if (val.type==="alias" && types.get(val.value)!==v.resolvedType) {
       delete v.values[mid];removed=true;
@@ -116,6 +120,7 @@ export function readRestVariables(input:unknown) {
     }
   }
   const warnings=Array.from(counts,([s,count])=>count>1 ? s+" (×"+count+")" : s);
+  if (prior) return {collections:order(collections,src.collectionOrder),variables:[...prior.variables,...order(vars,src.variableOrder)],warnings};
   if (!vars.length) warnings.push("no variables found: expected `meta.variables` (an object of variables by id, next to `meta.variableCollections`)");
   else {
     const imported=new Set(vars.map(v=>v.id));

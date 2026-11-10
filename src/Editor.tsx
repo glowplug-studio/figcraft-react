@@ -1,3 +1,4 @@
+import { droppedDesigns,type DroppedDesign } from "./rest-folder-drop";
 import { looksLikeSvg } from "./engine/svg-import/xml";
 import { ExportPanel } from "./ExportPanel";
 import { layerExportJobs, type ExportJob } from "./engine/export-jobs";
@@ -386,9 +387,13 @@ export function DocumentEditor({ identity, capabilities, engine: suppliedEngine,
     if (!workspace && snapshot.dirty && Object.keys(snapshot.document.nodes).length > snapshot.document.pages.length) setPendingFile(file);
     else void open(file);
   }
-  async function drop(files:File[], point?:Point, usePicker=false) {
+  async function drop(input:File[]|Promise<DroppedDesign[]>, point?:Point, usePicker=false) {
     controller.current?.cancel(); setBusy(true); setError("");
-    try { setError((await engine.dropImages(files,point,usePicker ? snapshot.paintPicker : undefined)).join("\n")); }
+    try {
+      const batch=Array.isArray(input) ? input.map((file):DroppedDesign=>({file})) : await input;
+      const folders=new Map(batch.flatMap(d=>d.folder ? [[d.file,d.folder] as const] : []));
+      setError((await engine.dropImages(batch.map(d=>d.file),point,usePicker ? snapshot.paintPicker : undefined,folders)).join("\n"));
+    }
     catch (e) { setError(e instanceof Error ? e.message : "File drop failed"); }
     finally {setBusy(false);}
   }
@@ -593,7 +598,7 @@ export function DocumentEditor({ identity, capabilities, engine: suppliedEngine,
       e.preventDefault();
       if (!editable || busy || pendingFile || !canvas.current) return;
       const well = e.target instanceof Element && !!e.target.closest("[data-figcraft-image-drop-target]");
-      void drop(Array.from(e.dataTransfer.files),pagePoint(e.clientX,e.clientY),well);
+      void drop(droppedDesigns(e.dataTransfer),pagePoint(e.clientX,e.clientY),well);
     }}
     onCopy={e => copyLayers("edit.copy", e)} onCut={e => copyLayers("edit.cut", e)}
     onPaste={e=>{

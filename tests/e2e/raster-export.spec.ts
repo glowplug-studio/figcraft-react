@@ -398,3 +398,12 @@ test("a PDF export of 5,000 vector layers yields to browser input",async({page})
   expect(measured.ticks).toBeGreaterThan(0);
   test.info().annotations.push({type:"5,000 PDF layers",description:JSON.stringify(measured)});
 });
+
+test("opening 5,000 REST design layers yields to browser input",async({page})=>{
+  await loadExporter(page);
+  const measured=await page.evaluate(()=>(window as unknown as {FigcraftRaster:typeof import("../fixtures/raster-export")}).FigcraftRaster.largeRestImport(5000));
+  expect(measured.layers).toBe(5000);
+  expect(measured.warnings).toEqual([]);
+  expect(measured.ticks).toBeGreaterThan(0);
+  test.info().annotations.push({type:"5,000 REST layers",description:JSON.stringify(measured)});
+});

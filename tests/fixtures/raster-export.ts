@@ -109,3 +109,16 @@ export async function largePdfExport(count:number) {
     return {pages:file.pages,bytes:file.blob.size,milliseconds:performance.now()-start,ticks};
   } finally {clearInterval(timer);}
 }
+
+export async function largeRestImport(count:number) {
+  const engine=new EditorEngine();
+  const children=Array.from({length:count},(_,i)=>({type:"RECTANGLE",name:"Tile "+i,
+    relativeTransform:[[1,0,i%100*10],[0,1,Math.floor(i/100)*10]],size:{x:8,y:8}}));
+  const file=new File([JSON.stringify({name:"Large layout",document:{type:"DOCUMENT",children:[{type:"CANVAS",children}]}})],"layout.json");
+  let ticks=0;
+  const start=performance.now(),timer=window.setInterval(()=>ticks++,0);
+  try {
+    const opened=await engine.openFile(file);
+    return {layers:opened.summary.layers,warnings:opened.warnings,bytes:file.size,milliseconds:performance.now()-start,ticks};
+  } finally {clearInterval(timer);}
+}
