@@ -15,7 +15,7 @@ Begin implementation after the local interchange regression and the one-off PDF 
 
 ## Checkpoint
 
-Owner controls reached `d1e8352`. Original published links, local ownership, selective revocation and disconnected guest tabs passed local browser and database checks. Continue at short-code retirement, admission and redemption. The [resume handover](26-11-07-full-port-resume.md#continue-from-here) records the active cumulative run and reproduction commands.
+Owner controls reached `d1e8352`. Original published links, local ownership, selective revocation and disconnected guest tabs passed local browser and database checks. Short-code redemption passed at `84d37df`. Continue at publication size and quotas. The [resume handover](26-11-07-full-port-resume.md#continue-from-here) records the active cumulative run and reproduction commands.
 
 ## Native evidence before implementation
 
@@ -77,8 +77,24 @@ Verified at `d1e8352`. An interrupted start recovered its original three credent
 
 ### Short-code redemption
 
-Start with the upstream [resolution and retirement rules](../../original/figcraft/apps/figcraft-server/src/store/links.rs), [address budgets](../../original/figcraft/apps/figcraft-server/src/abuse.rs) and [native code tests](../../original/figcraft/apps/figcraft-server/src/codes_tests.rs). The host currently issues and copies codes. Guests still need a full invite link to join.
+Start with the upstream [resolution and retirement rules](../../original/figcraft/apps/figcraft-server/src/store/links.rs), [address budgets](../../original/figcraft/apps/figcraft-server/src/abuse.rs) and [native code tests](../../original/figcraft/apps/figcraft-server/src/codes_tests.rs). Owner code issuance is verified. The lookup path passed these native cases locally.
 
 1. Retain the latest 10,000 retired lookup digests when a code is replaced, a grant is revoked or its file is deleted. Bound storage, handle concurrent retirements and expose no digest list to guest clients. Match the native history within the running service. Starting a new native store clears the retirement ring. Verify that a retired credential still cannot grant access after a restart.
 2. Reproduce admission before key stretching. A single IPv4 address or IPv6 /64 gets ten attempts per minute. Wider IPv6 /56 and /48 budgets are scaled by two and four. Wrong guesses accumulate until decay or lockout. Correct guesses do not reset the wrong count. The global wrong-code bucket holds 1,000 and refills over an hour. Integrate with verified ingress addresses. Reproduce the native clock-boundary, cross-address, concurrent and malformed-code cases. A blocked code lookup must leave long-link joining usable.
 3. Accept a bare normalised code and native code invite in the signed-in join form. Resolve the stored wrapped credential through the same guest connection, archive and access checks as a long invite. With two accounts, open the same drawing once per role, verify edit restrictions, stop sharing, retry each code, then restart and use a new code. Keep raw codes, bearers and seeds out of logs and document snapshots.
+
+The authenticated host resolves the ingress address. On Vercel it uses the single platform-provided `x-vercel-forwarded-for` address. The local host shares one loopback budget, and ignores forwarded address headers. Database roles prevent a browser choosing its own address or clock. The private RPC admits an attempt, stretches the key, unwraps the exact credential and accounts for the result in one transaction across all host workers. Private retirement digests and wrong-code budgets expire with the database process. A full invite still goes through its existing guest permission checks independently. [Vercel request headers](https://vercel.com/docs/headers/request-headers) · [Supabase Data API access](https://supabase.com/docs/guides/api/securing-your-api) · [PostgreSQL server start time](https://www.postgresql.org/docs/17/functions-info.html).
+
+At `84d37df` the focused signed-in browser replay passed in 19.9 seconds. Each role opened the original file from its code and enforced drawing permissions. All 66 SQL checks and nine real integrations passed after a clean migration replay. A real database stop/start cleared the retired status while retaining denial. The advisers returned no findings and both the public and private schemas had no drift. Graphify extracted 7,043 React nodes and 32,150 edges. The combined graph at Rust a2e87433 contains 34,681 nodes and 119,190 edges. SQL permissions and triggers were checked directly.
+
+### Native snapshot size for publication quotas
+
+Three pinned native drawings now have independent initial-session reference data. Use the bundled [state and postcard bodies](../../tests/fixtures/native-initial-session-states.zip). The inputs are Cover.figcraft from the [print fixture](../../tests/fixtures/native-pdf-print-dialog.zip), [branch conflict](../../tests/fixtures/native-branch-conflict.figcraft) and [file versions](../../tests/fixtures/native-file-versions.figcraft). The Rust reference loaded each original archive with `figcraft_format::load_bytes`, created `Server::new(document, "", Limits::default())`, obtained `state()`, set the session ID to 74565 for reproducibility, and called `message::encode(&state)`. The archive contains data only. It is independent of the React build and test runtime.
+
+| Input | Initial changes | Encoded state bytes | Bytes with native 17-byte disk header |
+|---|---:|---:|---:|
+| Cover.figcraft | 4 | 389 | 406 |
+| native-branch-conflict.figcraft | 4 | 366 | 383 |
+| native-file-versions.figcraft | 10 | 2,205 | 2,222 |
+
+Begin with the existing `initialPositions` and `layerFields` in the [branch diff](../../src/engine/branch-diff.ts). Compare each generated change with `state.json` before checking `body.bin`. The native Create change omits properties equal to a new blank node of the same kind and stores typed property values as compact serde JSON text inside postcard. Integer and float encodings differ even when they compare numerically equal. The source enum defines the field order, including the Dev Mode fields omitted by the current branch review. Reproduce u64 IDs without JS-number rounding, non-ASCII strings, numeric formatting, disconnected roots, variable/style/comment entries and embedded images. Exercise quota boundaries with configurable limits after building the wire measurement. The browser's compressed ZIP length is a different measurement. [Native initial changes](../../original/figcraft/crates/collab/src/replica.rs) · [Native property encoding](../../original/figcraft/crates/collab/src/change.rs) · [Native disk header](../../original/figcraft/apps/figcraft-server/src/disk.rs).
