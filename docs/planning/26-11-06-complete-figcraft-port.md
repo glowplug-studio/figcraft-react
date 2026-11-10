@@ -6,15 +6,15 @@
 |---|---|
 | Overall status | In progress. [Execution checkpoint](26-11-07-full-port-resume.md). |
 | Active slice | Row 12 design interchange and export. [Dated plan](26-11-10-file-interchange.md). |
-| Active phase | PNG, JPEG and lossless WebP passed native comparisons and all 306 production Chromium checks. Saved export settings and ZIP downloads are implemented. Editable SVG passed 23 native comparisons at ded054a. SVG effects and imports are in progress. |
+| Active phase | PNG, JPEG and lossless WebP passed native comparisons and all 306 production Chromium checks. Saved export settings and ZIP downloads are implemented. Editable SVG passed 23 native comparisons at ded054a. SVG effects and system clipboard artwork passed. Editable SVG import is in progress. |
 | Upstream baseline | Styles reference a2e87433. Components reference 79c36346. Global supported baseline 8eb0b876. |
-| Branch and last verified commit | prompt/full-figcraft-port at ded054a for saved export delivery and SVG geometry. The workspace release gate passed at 978b2f7. |
+| Branch and last verified commit | prompt/full-figcraft-port at 018afe6 for SVG effects, dashes and system clipboard artwork. The workspace release gate passed at 978b2f7. |
 | Completed slices | Rectangle/host-auth, bounded native persistence/recovery, supported-model pages, affine rectangle geometry/selection and solid appearance, plus nested group hierarchy, Frame containers, movement/transform gestures, rounded corners, ellipse/arc/ring and Polygon/Star editing verified locally; Line/Arrow and uniform solid strokes also verified; per-side Rectangle/Frame strokes, variable-width profiles and procedural brushes verified; vector networks, solid region/stroke rendering and Flatten/Reverse also verified; foundation commit `154f5a7`. Gradient, image, pattern, blend and mask releases now have local property matrices. [Blend evidence](../reports/26-11-09-blend-modes-parity.html). Auto layout and constraints passed the local release gate. [Release evidence](../reports/26-11-09-auto-layout.md). [Local components, instances, variant properties, slots and Assets](../reports/26-11-09-components-instances.md) passed the 0.51.0 gate. |
 | Remaining slices | Continue incomplete roadmap rows, excluding the user-deferred plugin and widget family. See each slice matrix for outstanding integrations. |
-| Tests last passed | Strict TypeScript, both builds, 2,050 pure tests, two local Auth integrations and all 306 production Chromium workflows passed at 48f7fc7. At ded054a, 2,088 pure checks passed. At ded054a all 311 production Chromium workflows passed in 595.4 seconds with one worker, zero skips, retries or flakes. [Interchange evidence](../reports/26-11-10-file-interchange.md). |
+| Tests last passed | At 018afe6 all 314 production Chromium workflows passed in 602.8 seconds, with zero skips, retries or flakes. Both builds, strict TypeScript, 2,112 pure checks and two local Auth integrations passed. [Interchange evidence](../reports/26-11-10-file-interchange.md). |
 | Files currently in progress | [Design interchange and export](26-11-10-file-interchange.md). |
 | Blockers | The scoped Supabase MCP project and public-table reads passed after reauthorisation. |
-| Exact next action | Continue native SVG effects, clipboard and design interchange. |
+| Exact next action | Continue editable SVG import and the remaining design interchange formats. |
 | Last updated | 2026-11-10 |
 
 ## Scope and continuation
