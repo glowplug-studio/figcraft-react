@@ -10,7 +10,8 @@ create table public.online_file_links (
     wrapped_token text check (wrapped_token ~ '^([0-9a-f]{2}){1,32}$'),
     created_at timestamptz not null default now(),
     check ((code_hash is null) = (wrapped_token is null)),
-    unique (file_id, token_hash)
+    unique (file_id, token_hash),
+    unique (id, file_id)
 );
 
 create unique index online_file_links_code_idx on public.online_file_links (code_hash)
@@ -31,7 +32,7 @@ as $$
 declare
     retained integer;
 begin
-    perform 1 from public.online_files where id = target and owner_id = actor for update;
+    perform 1 from public.online_files where id = target and owner_id = actor for no key update;
     if not found then
         raise exception 'this file is unavailable' using errcode = '42501';
     end if;

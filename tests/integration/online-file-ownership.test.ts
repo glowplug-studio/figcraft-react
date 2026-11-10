@@ -235,6 +235,52 @@ describe.skipIf(!enabled)("private online files on real local Supabase", () => {
     expect(receipts.filter(result => result.data === true)).toHaveLength(3);
   });
 
+  it("keeps independent room grants during concurrent joins, voluntary leaves and link revocation", async () => {
+    const file = randomUUID();
+    const keys = createPublishedLinks();
+    const proof = await publishedLinkDigests(keys);
+    const writer = local!.admin;
+    const store = new SupabaseOnlineFileStore(owner.client, owner.id, id => finaliseForTest(owner.client, writer, id, proof));
+    paths.push(owner.id + "/" + file + ".figcraft");
+    await store.publish(file, new Blob([archive]));
+    const session = (await stranger.client.auth.getClaims()).data!.claims.session_id;
+    const editors = Array.from({length: 4}, () => randomUUID());
+    const viewers = Array.from({length: 4}, () => randomUUID());
+    const admit = (tab: string, hash: string) => writer.rpc("join_online_file", {
+      actor: stranger.id, auth_session: session, tab, target: file, presented_hash: hash,
+    });
+    const tabs = [...editors, ...viewers];
+    const admissions = await Promise.all([...tabs, ...tabs].map(tab =>
+      admit(tab, editors.includes(tab) ? proof.edit.hash : proof.view.hash)));
+    expect(admissions.every(result => result.error === null)).toBe(true);
+    const grants = async () => {
+      const result = await writer.from("online_file_connections").select("id").eq("file_id", file);
+      expect(result.error).toBeNull();
+      return result.data!.map(row => row.id as string).sort();
+    };
+    expect(await grants()).toEqual([...tabs].sort());
+
+    const [left, , contested] = await Promise.all([
+      writer.from("online_file_connections").delete().in("id", editors.slice(1)),
+      changeFileLinks(writer, owner.id, file, [keys.view.id]),
+      admit(randomUUID(), proof.view.hash),
+    ]);
+    expect(left.error).toBeNull();
+    // A join either precedes revocation and is swept, or sees the refused link.
+    expect([undefined, "42501"]).toContain(contested.error?.code);
+    expect(await grants()).toEqual([editors[0]]);
+    expect((await stranger.client.rpc("online_connection_active", {tab: editors[0]})).data).toBe(true);
+    expect((await stranger.client.rpc("online_connection_active", {tab: viewers[0]})).data).toBe(false);
+    const reopened = await Promise.all(editors.slice(1).map(tab => admit(tab, proof.edit.hash)));
+    expect(reopened.every(result => result.error === null)).toBe(true);
+    const [closing] = await Promise.all([
+      writer.from("online_file_connections").delete().in("id", editors.slice(1)),
+      store.remove(file),
+    ]);
+    expect(closing.error).toBeNull();
+    expect(await grants()).toEqual([]);
+  });
+
   it("binds an invite to its Auth session and denies signed URLs, writes and downloads after revocation", async () => {
     const keys = createPublishedLinks();
     const proof = await publishedLinkDigests(keys);

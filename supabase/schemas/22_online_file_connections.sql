@@ -6,12 +6,14 @@ grant usage on schema figcraft_private to authenticated;
 create table public.online_file_connections (
     id uuid primary key,
     heard_at timestamptz not null default clock_timestamp(),
-    link_id text not null references public.online_file_links (id) on delete cascade,
+    link_id text not null,
+    file_id uuid not null,
+    foreign key (link_id, file_id) references public.online_file_links (id, file_id) on delete cascade,
     session_id uuid not null references auth.sessions (id) on delete cascade,
     principal_id uuid not null references auth.users (id) on delete cascade
 );
 create index online_file_connections_heard_idx on public.online_file_connections (heard_at);
-create index online_file_connections_link_idx on public.online_file_connections (link_id);
+create index online_file_connections_link_idx on public.online_file_connections (link_id, file_id);
 create index online_file_connections_session_idx on public.online_file_connections (session_id, principal_id);
 create index online_file_connections_principal_idx on public.online_file_connections (principal_id);
 alter table public.online_file_connections enable row level security;
@@ -36,12 +38,15 @@ as $$
 declare
     chosen public.online_file_links;
 begin
+    -- Match the owner's file-then-link lock order during revocation and removal.
+    perform 1 from public.online_files f where f.id = target for key share;
+    if not found then raise exception 'the invite is unavailable' using errcode = '42501'; end if;
     select l.* into chosen from public.online_file_links l
         where l.file_id = target and l.token_hash = presented_hash for key share;
     if not found then raise exception 'the invite is unavailable' using errcode = '42501'; end if;
     delete from public.online_file_connections where heard_at <= figcraft_private.connection_cutoff();
-    insert into public.online_file_connections (id, link_id, session_id, principal_id)
-        values (tab, chosen.id, auth_session, actor) on conflict (id) do nothing;
+    insert into public.online_file_connections (id, link_id, file_id, session_id, principal_id)
+        values (tab, chosen.id, chosen.file_id, auth_session, actor) on conflict (id) do nothing;
     if not exists (select 1 from public.online_file_connections c where c.id = tab and c.link_id = chosen.id
         and c.session_id = auth_session and c.principal_id = actor) then
         raise exception 'the connection is unavailable' using errcode = '42501';
