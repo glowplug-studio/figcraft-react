@@ -1882,7 +1882,7 @@ export class EditorEngine {
       const bytes = await inputBytes();
       checkCurrent();
       const opened = await importSvg(importing ? before.document : newDocument(placement.name), importing ? this.#nextId : 2n,
-        bytes, placement.name, importing ? placement.x : 0, importing ? placement.y : 0, importing && parseBoolean(p.center) === true);
+        bytes, placement.name, importing ? placement.x : 0, importing ? placement.y : 0, importing && parseBoolean(p.center) === true,checkCurrent);
       const prepared = importing ? this.#prepareEdit(opened.document,opened.nextId) : opened;
       await prepareArchive(prepared.document,String(prepared.nextId));
       checkCurrent();

@@ -1,0 +1,970 @@
+[
+ [
+  "srgb",
+  "color(srgb 0.08 0.63 0.24)",
+  [
+   20,
+   161,
+   61,
+   255
+  ],
+  null
+ ],
+ [
+  "srgb",
+  "color(srgb 0.08 0.63 0.24 / 0.6)",
+  [
+   20,
+   161,
+   61,
+   153
+  ],
+  null
+ ],
+ [
+  "srgb",
+  "COLOR(SRGB 100% 0% none / 50%)",
+  [
+   255,
+   0,
+   0,
+   128
+  ],
+  null
+ ],
+ [
+  "srgb",
+  "color(srgb 0 0 1)",
+  [
+   0,
+   0,
+   255,
+   255
+  ],
+  null
+ ],
+ [
+  "srgb",
+  "color(display-p3 0.2 0.6 0.3)",
+  [
+   0,
+   156,
+   66,
+   255
+  ],
+  null
+ ],
+ [
+  "srgb",
+  "color(srgb 0.2 0.6 0.3)",
+  [
+   51,
+   153,
+   77,
+   255
+  ],
+  null
+ ],
+ [
+  "srgb",
+  "color-mix(in srgb, #14a03c 60%, white)",
+  [
+   114,
+   198,
+   138,
+   255
+  ],
+  null
+ ],
+ [
+  "srgb",
+  "color-mix(in srgb, 40% white, #14a03c)",
+  [
+   114,
+   198,
+   138,
+   255
+  ],
+  null
+ ],
+ [
+  "srgb",
+  "color-mix(in oklab, white, black)",
+  [
+   99,
+   99,
+   99,
+   255
+  ],
+  null
+ ],
+ [
+  "srgb",
+  "color-mix(in oklch, white, black)",
+  [
+   99,
+   99,
+   99,
+   255
+  ],
+  null
+ ],
+ [
+  "srgb",
+  "color-mix(in oklch shorter hue, oklch(0.7 0.1 340), oklch(0.7 0.1 20))",
+  [
+   210,
+   132,
+   156,
+   255
+  ],
+  null
+ ],
+ [
+  "srgb",
+  "color-mix(in srgb, red 20%, blue 20%)",
+  [
+   128,
+   0,
+   128,
+   102
+  ],
+  null
+ ],
+ [
+  "srgb",
+  "color-mix(in srgb, red, transparent)",
+  [
+   255,
+   0,
+   0,
+   128
+  ],
+  null
+ ],
+ [
+  "srgb",
+  "color-mix(in srgb, rgb(255 0 0 / none), blue)",
+  [
+   128,
+   0,
+   128,
+   255
+  ],
+  null
+ ],
+ [
+  "srgb",
+  "color-mix(in srgb, red, rgb(0 0 255 / none) 50%)",
+  [
+   128,
+   0,
+   128,
+   255
+  ],
+  null
+ ],
+ [
+  "srgb",
+  "color-mix(in srgb, rgb(255 0 0 / none), rgb(0 0 255 / 50%))",
+  [
+   128,
+   0,
+   128,
+   128
+  ],
+  null
+ ],
+ [
+  "srgb",
+  "color-mix(in srgb, rgb(255 0 0 / none), rgb(0 0 255 / none))",
+  [
+   128,
+   0,
+   128,
+   0
+  ],
+  null
+ ],
+ [
+  "srgb",
+  "color-mix(in srgb, rgb(none 0 0), red)",
+  [
+   255,
+   0,
+   0,
+   255
+  ],
+  null
+ ],
+ [
+  "srgb",
+  "color-mix(in srgb, rgb(none 0 0), rgb(255 none 0))",
+  [
+   255,
+   0,
+   0,
+   255
+  ],
+  null
+ ],
+ [
+  "srgb",
+  "color-mix(in oklab, rgb(none 0 0), red)",
+  [
+   99,
+   0,
+   0,
+   255
+  ],
+  null
+ ],
+ [
+  "srgb",
+  "color-mix(in oklab, black, red)",
+  [
+   99,
+   0,
+   0,
+   255
+  ],
+  null
+ ],
+ [
+  "srgb",
+  "color-mix(in srgb, color-mix(in srgb, rgb(0 255 0 / none), rgb(0 255 0 / none)), red)",
+  [
+   128,
+   128,
+   0,
+   255
+  ],
+  null
+ ],
+ [
+  "srgb",
+  "color-mix(in srgb, color(srgb 1 0 0 / none), blue)",
+  [
+   128,
+   0,
+   128,
+   255
+  ],
+  null
+ ],
+ [
+  "srgb",
+  "color-mix(in srgb, color(srgb none 0 0), red)",
+  [
+   255,
+   0,
+   0,
+   255
+  ],
+  null
+ ],
+ [
+  "srgb",
+  "color-mix(in srgb, color(display-p3 none 0 0), red)",
+  [
+   255,
+   0,
+   0,
+   255
+  ],
+  null
+ ],
+ [
+  "srgb",
+  "color-mix(in srgb, color-mix(in srgb, color(srgb 0 1 0 / none), color(srgb 0 1 0 / none)), red)",
+  [
+   128,
+   128,
+   0,
+   255
+  ],
+  null
+ ],
+ [
+  "srgb",
+  "color-mix(in srgb, color-mix(in srgb, red, blue), color(srgb 0 1 0) 0%)",
+  [
+   128,
+   0,
+   128,
+   255
+  ],
+  null
+ ],
+ [
+  "srgb",
+  "color(srgb 0 1 0)",
+  [
+   0,
+   255,
+   0,
+   255
+  ],
+  null
+ ],
+ [
+  "srgb",
+  "color-mix(in srgb, blue, red)",
+  [
+   128,
+   0,
+   128,
+   255
+  ],
+  null
+ ],
+ [
+  "srgb",
+  "color(srgb 1 0 0)",
+  [
+   255,
+   0,
+   0,
+   255
+  ],
+  null
+ ],
+ [
+  "srgb",
+  "color(srgb a b c)",
+  [
+   128,
+   128,
+   128,
+   255
+  ],
+  "the colour `color(srgb a b c)`: a value isn't a number or a percentage"
+ ],
+ [
+  "srgb",
+  "color(srgb 1 0)",
+  [
+   128,
+   128,
+   128,
+   255
+  ],
+  "the colour `color(srgb 1 0)`: a colour space and three values were expected"
+ ],
+ [
+  "srgb",
+  "color(from red srgb r g b)",
+  [
+   128,
+   128,
+   128,
+   255
+  ],
+  "the colour `color(from red srgb r g b)`: relative colours aren't read"
+ ],
+ [
+  "srgb",
+  "color-mix(in srgb, red)",
+  [
+   128,
+   128,
+   128,
+   255
+  ],
+  "the colour `color-mix(in srgb, red)`: color-mix() takes a method and two colours"
+ ],
+ [
+  "srgb",
+  "color-mix(srgb, red, blue)",
+  [
+   128,
+   128,
+   128,
+   255
+  ],
+  "the colour `color-mix(srgb, red, blue)`: color-mix() starts with `in` and a colour space"
+ ],
+ [
+  "srgb",
+  "color-mix(in srgb, red 150%, blue)",
+  [
+   128,
+   128,
+   128,
+   255
+  ],
+  "the colour `color-mix(in srgb, red 150%, blue)`: mix percentages are between 0% and 100%"
+ ],
+ [
+  "srgb",
+  "color-mix(in srgb, red 0%, blue 0%)",
+  [
+   128,
+   128,
+   128,
+   255
+  ],
+  "the colour `color-mix(in srgb, red 0%, blue 0%)`: mix percentages add up to 0%"
+ ],
+ [
+  "srgb",
+  "color-mix(in srgb, currentcolor, blue)",
+  [
+   128,
+   128,
+   128,
+   255
+  ],
+  "the colour `color-mix(in srgb, currentcolor, blue)`: a mix colour isn't read"
+ ],
+ [
+  "srgb",
+  "color(srgb 1 0 0",
+  [
+   128,
+   128,
+   128,
+   255
+  ],
+  "the colour `color(srgb 1 0 0`: it isn't closed (or is too long to be a colour)"
+ ],
+ [
+  "srgb",
+  "color(rec2020 0 0 1)",
+  [
+   0,
+   0,
+   255,
+   255
+  ],
+  "the colour `color(rec2020 0 0 1)`: only the srgb and display-p3 spaces are read: its values were taken as sRGB"
+ ],
+ [
+  "srgb",
+  "color-mix(in hsl, red, blue)",
+  [
+   128,
+   0,
+   128,
+   255
+  ],
+  "the colour `color-mix(in hsl, red, blue)`: only srgb, oklab and oklch mixes are read: it was mixed in sRGB"
+ ],
+ [
+  "srgb",
+  "color(srgb 0 0 1) ",
+  [
+   0,
+   0,
+   255,
+   255
+  ],
+  null
+ ],
+ [
+  "srgb",
+  "color(",
+  [
+   128,
+   128,
+   128,
+   255
+  ],
+  "the colour `color(`: it isn't closed (or is too long to be a colour)"
+ ],
+ [
+  "srgb",
+  "color-mix(",
+  [
+   128,
+   128,
+   128,
+   255
+  ],
+  "the colour `color-mix(`: it isn't closed (or is too long to be a colour)"
+ ],
+ [
+  "displayP3",
+  "color(srgb 0.08 0.63 0.24)",
+  [
+   74,
+   158,
+   74,
+   255
+  ],
+  null
+ ],
+ [
+  "displayP3",
+  "color(srgb 0.08 0.63 0.24 / 0.6)",
+  [
+   74,
+   158,
+   74,
+   153
+  ],
+  null
+ ],
+ [
+  "displayP3",
+  "COLOR(SRGB 100% 0% none / 50%)",
+  [
+   234,
+   51,
+   35,
+   128
+  ],
+  null
+ ],
+ [
+  "displayP3",
+  "color(srgb 0 0 1)",
+  [
+   0,
+   0,
+   245,
+   255
+  ],
+  null
+ ],
+ [
+  "displayP3",
+  "color(display-p3 0.2 0.6 0.3)",
+  [
+   51,
+   153,
+   77,
+   255
+  ],
+  null
+ ],
+ [
+  "displayP3",
+  "color(srgb 0.2 0.6 0.3)",
+  [
+   82,
+   151,
+   85,
+   255
+  ],
+  null
+ ],
+ [
+  "displayP3",
+  "color-mix(in srgb, #14a03c 60%, white)",
+  [
+   114,
+   198,
+   138,
+   255
+  ],
+  null
+ ],
+ [
+  "displayP3",
+  "color-mix(in srgb, 40% white, #14a03c)",
+  [
+   114,
+   198,
+   138,
+   255
+  ],
+  null
+ ],
+ [
+  "displayP3",
+  "color-mix(in oklab, white, black)",
+  [
+   99,
+   99,
+   99,
+   255
+  ],
+  null
+ ],
+ [
+  "displayP3",
+  "color-mix(in oklch, white, black)",
+  [
+   99,
+   99,
+   99,
+   255
+  ],
+  null
+ ],
+ [
+  "displayP3",
+  "color-mix(in oklch shorter hue, oklch(0.7 0.1 340), oklch(0.7 0.1 20))",
+  [
+   210,
+   132,
+   156,
+   255
+  ],
+  null
+ ],
+ [
+  "displayP3",
+  "color-mix(in srgb, red 20%, blue 20%)",
+  [
+   128,
+   0,
+   128,
+   102
+  ],
+  null
+ ],
+ [
+  "displayP3",
+  "color-mix(in srgb, red, transparent)",
+  [
+   255,
+   0,
+   0,
+   128
+  ],
+  null
+ ],
+ [
+  "displayP3",
+  "color-mix(in srgb, rgb(255 0 0 / none), blue)",
+  [
+   128,
+   0,
+   128,
+   255
+  ],
+  null
+ ],
+ [
+  "displayP3",
+  "color-mix(in srgb, red, rgb(0 0 255 / none) 50%)",
+  [
+   128,
+   0,
+   128,
+   255
+  ],
+  null
+ ],
+ [
+  "displayP3",
+  "color-mix(in srgb, rgb(255 0 0 / none), rgb(0 0 255 / 50%))",
+  [
+   128,
+   0,
+   128,
+   128
+  ],
+  null
+ ],
+ [
+  "displayP3",
+  "color-mix(in srgb, rgb(255 0 0 / none), rgb(0 0 255 / none))",
+  [
+   128,
+   0,
+   128,
+   0
+  ],
+  null
+ ],
+ [
+  "displayP3",
+  "color-mix(in srgb, rgb(none 0 0), red)",
+  [
+   255,
+   0,
+   0,
+   255
+  ],
+  null
+ ],
+ [
+  "displayP3",
+  "color-mix(in srgb, rgb(none 0 0), rgb(255 none 0))",
+  [
+   255,
+   0,
+   0,
+   255
+  ],
+  null
+ ],
+ [
+  "displayP3",
+  "color-mix(in oklab, rgb(none 0 0), red)",
+  [
+   99,
+   0,
+   0,
+   255
+  ],
+  null
+ ],
+ [
+  "displayP3",
+  "color-mix(in oklab, black, red)",
+  [
+   99,
+   0,
+   0,
+   255
+  ],
+  null
+ ],
+ [
+  "displayP3",
+  "color-mix(in srgb, color-mix(in srgb, rgb(0 255 0 / none), rgb(0 255 0 / none)), red)",
+  [
+   128,
+   128,
+   0,
+   255
+  ],
+  null
+ ],
+ [
+  "displayP3",
+  "color-mix(in srgb, color(srgb 1 0 0 / none), blue)",
+  [
+   117,
+   26,
+   145,
+   255
+  ],
+  null
+ ],
+ [
+  "displayP3",
+  "color-mix(in srgb, color(srgb none 0 0), red)",
+  [
+   255,
+   0,
+   0,
+   255
+  ],
+  null
+ ],
+ [
+  "displayP3",
+  "color-mix(in srgb, color(display-p3 none 0 0), red)",
+  [
+   255,
+   0,
+   0,
+   255
+  ],
+  null
+ ],
+ [
+  "displayP3",
+  "color-mix(in srgb, color-mix(in srgb, color(srgb 0 1 0 / none), color(srgb 0 1 0 / none)), red)",
+  [
+   186,
+   126,
+   38,
+   255
+  ],
+  null
+ ],
+ [
+  "displayP3",
+  "color-mix(in srgb, color-mix(in srgb, red, blue), color(srgb 0 1 0) 0%)",
+  [
+   128,
+   0,
+   128,
+   255
+  ],
+  null
+ ],
+ [
+  "displayP3",
+  "color(srgb 0 1 0)",
+  [
+   117,
+   251,
+   76,
+   255
+  ],
+  null
+ ],
+ [
+  "displayP3",
+  "color-mix(in srgb, blue, red)",
+  [
+   128,
+   0,
+   128,
+   255
+  ],
+  null
+ ],
+ [
+  "displayP3",
+  "color(srgb 1 0 0)",
+  [
+   234,
+   51,
+   35,
+   255
+  ],
+  null
+ ],
+ [
+  "displayP3",
+  "color(srgb a b c)",
+  [
+   128,
+   128,
+   128,
+   255
+  ],
+  "the colour `color(srgb a b c)`: a value isn't a number or a percentage"
+ ],
+ [
+  "displayP3",
+  "color(srgb 1 0)",
+  [
+   128,
+   128,
+   128,
+   255
+  ],
+  "the colour `color(srgb 1 0)`: a colour space and three values were expected"
+ ],
+ [
+  "displayP3",
+  "color(from red srgb r g b)",
+  [
+   128,
+   128,
+   128,
+   255
+  ],
+  "the colour `color(from red srgb r g b)`: relative colours aren't read"
+ ],
+ [
+  "displayP3",
+  "color-mix(in srgb, red)",
+  [
+   128,
+   128,
+   128,
+   255
+  ],
+  "the colour `color-mix(in srgb, red)`: color-mix() takes a method and two colours"
+ ],
+ [
+  "displayP3",
+  "color-mix(srgb, red, blue)",
+  [
+   128,
+   128,
+   128,
+   255
+  ],
+  "the colour `color-mix(srgb, red, blue)`: color-mix() starts with `in` and a colour space"
+ ],
+ [
+  "displayP3",
+  "color-mix(in srgb, red 150%, blue)",
+  [
+   128,
+   128,
+   128,
+   255
+  ],
+  "the colour `color-mix(in srgb, red 150%, blue)`: mix percentages are between 0% and 100%"
+ ],
+ [
+  "displayP3",
+  "color-mix(in srgb, red 0%, blue 0%)",
+  [
+   128,
+   128,
+   128,
+   255
+  ],
+  "the colour `color-mix(in srgb, red 0%, blue 0%)`: mix percentages add up to 0%"
+ ],
+ [
+  "displayP3",
+  "color-mix(in srgb, currentcolor, blue)",
+  [
+   128,
+   128,
+   128,
+   255
+  ],
+  "the colour `color-mix(in srgb, currentcolor, blue)`: a mix colour isn't read"
+ ],
+ [
+  "displayP3",
+  "color(srgb 1 0 0",
+  [
+   128,
+   128,
+   128,
+   255
+  ],
+  "the colour `color(srgb 1 0 0`: it isn't closed (or is too long to be a colour)"
+ ],
+ [
+  "displayP3",
+  "color(rec2020 0 0 1)",
+  [
+   0,
+   0,
+   245,
+   255
+  ],
+  "the colour `color(rec2020 0 0 1)`: only the srgb and display-p3 spaces are read: its values were taken as sRGB"
+ ],
+ [
+  "displayP3",
+  "color-mix(in hsl, red, blue)",
+  [
+   128,
+   0,
+   128,
+   255
+  ],
+  "the colour `color-mix(in hsl, red, blue)`: only srgb, oklab and oklch mixes are read: it was mixed in sRGB"
+ ],
+ [
+  "displayP3",
+  "color(srgb 0 0 1) ",
+  [
+   0,
+   0,
+   245,
+   255
+  ],
+  null
+ ],
+ [
+  "displayP3",
+  "color(",
+  [
+   128,
+   128,
+   128,
+   255
+  ],
+  "the colour `color(`: it isn't closed (or is too long to be a colour)"
+ ],
+ [
+  "displayP3",
+  "color-mix(",
+  [
+   128,
+   128,
+   128,
+   255
+  ],
+  "the colour `color-mix(`: it isn't closed (or is too long to be a colour)"
+ ]
+]

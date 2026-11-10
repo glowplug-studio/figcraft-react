@@ -23,7 +23,7 @@ function svgArc(from: Point, to: Point, rx: number, ry: number, rotation: number
 }
 /** Independent reader of the native Kurbo0.13.1 command/lexer behaviour, including its best-effort trailing-byte termination. */
 export function parseSvgPath(data: string): readonly PathCommand[];
-export function parseSvgPath(data: string, preserveQuadratics: true): readonly CurveElement[];
+export function parseSvgPath(data: string, preserveQuadratics: true, syntax?:"svg"): readonly CurveElement[];
 export function parseSvgPath(data: string, preserveQuadratics: false, syntax:"svg"): readonly PathCommand[];
 export function parseSvgPath(data: string, preserveQuadratics = false, syntax:"kurbo"|"svg"="kurbo"): readonly CurveElement[] {
   for (const token of data.matchAll(/[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?/g)) {

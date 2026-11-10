@@ -204,9 +204,11 @@ test("rasterised SVG patterns share the export root's remaining nesting depth",a
 test("editable SVG imports match native layer data, warnings, resources and the upstream pixel probes",async({page})=>{
   const {readFile}=await import("node:fs/promises");
   type RecordMap=Record<string,unknown>;
-  type Scene={name:string;svg:string;error?:string;result?:RecordMap;document?:{
+  type Scene={name:string;svg:string;profile?:string;error?:string;result?:RecordMap;document?:{
     nodes:Record<string,RecordMap>;imageIndex:{hash:string;width:number;height:number}[]}};
-  const corpus:Scene[]=JSON.parse(await readFile(new URL("../fixtures/native-svg-import.json",import.meta.url),"utf8"));
+  const corpus:Scene[]=[];
+  for(const name of ["native-svg-import.json","native-svg-import-extended.json"]) corpus.push(...JSON.parse(
+    await readFile(new URL("../fixtures/"+name,import.meta.url),"utf8")) as Scene[]);
   await loadExporter(page);
   let probes=0;
   function compare(native:unknown,actual:unknown,path:string) {
@@ -221,9 +223,9 @@ test("editable SVG imports match native layer data, warnings, resources and the 
     } else expect(actual,path).toEqual(native);
   }
   for (const scene of corpus) {
-    const imported=page.evaluate(async ({name,svg})=>(window as unknown as {
+    const imported=page.evaluate(async ({name,svg,profile})=>(window as unknown as {
       FigcraftRaster:Pick<typeof import("../fixtures/raster-export"),"importSvgFixture">
-    }).FigcraftRaster.importSvgFixture(name,svg),{name:scene.name,svg:scene.svg});
+    }).FigcraftRaster.importSvgFixture(name,svg,profile),{name:scene.name,svg:scene.svg,profile:scene.profile});
     if (scene.error) {await expect(imported).rejects.toThrow("SVG import failed:");continue;}
     const result=await imported, native=scene.document!;
     expect(result.result,scene.name).toEqual(scene.result);
@@ -235,7 +237,8 @@ test("editable SVG imports match native layer data, warnings, resources and the 
       const actual=result.document.nodes[id];
       const expected:RecordMap={transform:[1,0,0,1,0,0],...node};
       // Vector tiles use the browser's PNG encoder. Their resource key hashes the encoded bytes.
-      if (scene.name==="patterns" && ["tiled","spotted"].includes(String(node.name))) {
+      if (scene.name==="patterns" && ["tiled","spotted"].includes(String(node.name)) ||
+        (scene.name==="a_repeating_pattern_tiles 2" || scene.name==="a_pattern_inside_its_own_tile_stops 1") && node.type==="rectangle") {
         const paint=(node.fills as RecordMap[])[0];
         const source=native.imageIndex.find(i=>i.hash===paint.image)!;
         const resource=result.document.imageIndex.find((i:{hash:string})=>i.hash===actual.fills[0].image);
@@ -254,4 +257,55 @@ test("editable SVG imports match native layer data, warnings, resources and the 
     }
   }
   expect(probes).toBeGreaterThan(140);
+});
+
+test("SVGZ, hostile XML, embedded SVG budgets and superseded file imports preserve the session",async({page})=>{
+  await loadExporter(page);
+  const linked:string[]=[];
+  await page.route("https://refused.invalid/**",route=>{
+    linked.push(route.request().url());return route.abort();
+  });
+  const result=await page.evaluate(async()=>{
+    const api=(window as unknown as {FigcraftRaster:typeof import("../fixtures/raster-export")}).FigcraftRaster;
+    return {limits:await api.svgImportLimits(),race:await api.svgImportRace(),large:await api.largeSvgImport(),script:Object.hasOwn(globalThis,"figcraftSvgExecuted")};
+  });
+  expect(linked).toEqual([]);
+  expect(result.script).toBe(false);
+  expect(result.large.layers).toBe(5001);
+  expect(result.large.ticks).toBeGreaterThan(1);
+  test.info().annotations.push({type:"svg-import-performance",description:JSON.stringify(result.large)});
+  expect(result.limits).toEqual({deep:"SVG import failed: elements nested more than 512 deep",
+    external:"SVG import failed: external entities are unavailable",depthNotes:["layers nested more than 128 deep were left out"],
+    linkedLayers:2,allowedLayers:2,deniedLayers:1,compressedLayers:2});
+  expect(result.race).toEqual({reason:"Open was cancelled because the document or identity changed",name:"New",unchanged:true});
+});
+
+test("the upstream SVG corpus retains its pixels over two editable round trips",async({page})=>{
+  const {readFile}=await import("node:fs/promises");
+  const scenes:{name:string;svg:string}[]=JSON.parse(await readFile(new URL("../fixtures/native-svg-import.json",import.meta.url),"utf8"));
+  await loadExporter(page);
+  const errors:number[][]=[];
+  for(const {name,svg} of scenes.slice(0,22)) {
+    const encoded=await page.evaluate(svg=>(window as unknown as {FigcraftRaster:typeof import("../fixtures/raster-export")}).FigcraftRaster.svgImportRoundTrips(svg),svg);
+    const images=encoded.map(s=>PNG.sync.read(Buffer.from(s,"base64")));
+    const deltas:number[]=[];
+    for(let n=1;n<images.length;n++) {
+      const a=images[n-1],b=images[n];
+      expect([b.width,b.height],name).toEqual([a.width,a.height]);
+      let sum=0;
+      for(let i=0;i<a.data.length;i+=4) {
+        const alpha=a.data[i+3],beta=b.data[i+3];
+        sum+=Math.abs(alpha-beta);
+        for(let c=0;c<3;c++) sum+=Math.abs(a.data[i+c]*alpha-b.data[i+c]*beta)/255;
+      }
+      deltas.push(sum/a.data.length);
+      expect(deltas.at(-1),name).toBeLessThanOrEqual(n===1 ? 1.5 : .5);
+    }
+    for(const m of svg.matchAll(/<!-- probe (\d+) (\d+) #([\da-f]{8})(?: ~(\d+))?\s*-->/gi)) {
+      const image=images[1],offset=(Number(m[2])*image.width+Number(m[1]))*4,rgba=Buffer.from(m[3],"hex");
+      for(let k=rgba[3]<32 ? 3 : 0;k<4;k++) expect(Math.abs(image.data[offset+k]-rgba[k]),name+" "+m[0]).toBeLessThanOrEqual(Number(m[4] ?? 8));
+    }
+    errors.push(deltas);
+  }
+  test.info().annotations.push({type:"maximum-mean-round-trip-difference",description:JSON.stringify([0,1].map(i=>Math.max(...errors.map(v=>v[i]))))});
 });

@@ -11,14 +11,16 @@ import { defaultStroke } from "../stroke";
 import { networkFromPath } from "../vector-network";
 import { pathBounds } from "../vector-path";
 import { elementPath,closedForFill,placedPrimitive,transformPath,translated } from "./geometry";
+import { needsTextOutlines,svgGlyphOutlines } from "./outlined-text";
 import { svgText } from "./text";
 import { svgPattern,type TileContext,type TileCache } from "./pattern";
 import { svgImages } from "./image";
 import { withImageResource } from "../image-import";
 import { readPaint } from "../solid-paint";
+import { resolveSvgColours } from "./colour";
 import { svgFilter } from "./filter";
 import type { Effect } from "../effects";
-import { localReference,svgGradient } from "./gradient";
+import { localReference,svgGradient,type PaintTarget } from "./gradient";
 import { inlinePaint,svgStroke } from "./paint";
 import { elementMatrix,svgCascade,svgLength,svgOpacity,transformList,viewBox,viewportTransform,type SvgStyle,type SvgUnits } from "./style";
 import { svgBytes,svgXml,svgNamespace } from "./xml";
@@ -30,15 +32,15 @@ const layerName=(id:string|null,whenEmpty:string)=>id ? id.replace(/_x([0-9a-f]{
 const maxLayers=100000;
 const sharedStroke={...defaultStroke,align:"center" as const};
 
-export async function importSvg(doc:Drawing,next:bigint,data:Uint8Array,name:string,x:number,y:number,centre=false) {
+export async function importSvg(doc:Drawing,next:bigint,data:Uint8Array,name:string,x:number,y:number,centre=false,checkCurrent?:()=>void) {
   const root=svgXml(await svgBytes(data));
   return importTree(doc,next,root,name,x,y,centre,{
-    count:0,traversed:0,embeddedDepth:0,patternDepth:0,resolveImage:svgImages(),
+    count:0,traversed:0,lastYield:performance.now(),checkCurrent,embeddedDepth:0,patternDepth:0,resolveImage:svgImages(),
     sheets:new WeakMap(),notes:new Set(),visited:new Set(),tiles:new WeakMap(),
   });
 }
 interface ImportWork {
-  count:number;traversed:number;embeddedDepth:number;patternDepth:number;resolveImage:ReturnType<typeof svgImages>;
+  count:number;traversed:number;lastYield:number;checkCurrent?:()=>void;embeddedDepth:number;patternDepth:number;resolveImage:ReturnType<typeof svgImages>;
   sheets:WeakMap<Document,ReturnType<typeof svgCascade>>;notes:Set<string>;visited:Set<Element>;tiles:TileCache;
 }
 interface ImportedSvg {document:Drawing;nextId:bigint;id:string;warnings:string[]}
@@ -47,7 +49,10 @@ async function importTree(doc:Drawing,next:bigint,root:Element,name:string,x:num
   const draft=new HierarchyDraft(doc),{sheets,notes,visited,resolveImage}=work;
   const cascade=(el:Element,parent?:SvgStyle)=>{
     let evaluate=sheets.get(el.ownerDocument);
-    if (!evaluate) {evaluate=svgCascade(el.ownerDocument.documentElement);sheets.set(el.ownerDocument,evaluate);}
+    if (!evaluate) {
+      resolveSvgColours(el.ownerDocument.documentElement,profile,note=>notes.add(note));
+      evaluate=svgCascade(el.ownerDocument.documentElement);sheets.set(el.ownerDocument,evaluate);
+    }
     return evaluate(el,parent);
   };
   let resources=doc;
@@ -106,6 +111,24 @@ async function importTree(doc:Drawing,next:bigint,root:Element,name:string,x:num
       ...(blend && blend!=="normal" ? {blend} : style.get("isolation")==="isolate" ? {blend:"normal"} : {})});
     return id;
   };
+  async function resolvePaint(el:Element,style:SvgStyle,key:"fill"|"stroke",u:SvgUnits,target:PaintTarget) {
+    const server=localReference(el,style.get(key));
+    if (!server) return inlinePaint(style,key);
+    const opacity=svgOpacity(style.get(key+"-opacity"));
+    if (["linearGradient","radialGradient"].includes(server.localName)) return svgGradient(server,target,u,opacity,cascade);
+    if (server.localName==="pattern" && work.patternDepth<2 && !visited.has(server)) {
+      work.patternDepth++;visited.add(server);
+      try {
+        return await svgPattern(server,target,u,opacity,work.tiles,(parent,context)=>
+          importTree(newDocument("Pattern"),2n,parent,"Tile",0,0,false,work,context),(key,resource)=>{
+            const previous=resources.images?.[key];
+            const hash=previous && previous.digest!==resource.digest ? resource.digest ?? key : key;
+            resources=withImageResource(resources,{hash,resource});
+            return hash;
+          },note=>notes.add(note));
+      } finally {work.patternDepth--;visited.delete(server);}
+    }
+  }
   async function paintPath(el:Element,parent:string,world:Affine,style:SvgStyle,u:SvgUnits,p:readonly PathCommand[],ref:boolean) {
     if (style.get("visibility")==="hidden" || style.get("visibility")==="collapse") return;
     const strokeWidth=svgLength(style.get("stroke-width"),Math.hypot(u.width,u.height)/Math.SQRT2,u.font,1);
@@ -115,25 +138,15 @@ async function importTree(doc:Drawing,next:bigint,root:Element,name:string,x:num
     const box=prim ? {x:0,y:0,width:prim.width,height:prim.height} : pathBounds(transformed);
     if (!box) return;
     const placement=prim?.xf ?? translated(box.x,box.y);
-    async function paint(key:"fill"|"stroke") {
-      const server=localReference(el,style.get(key));
-      if (!server) return inlinePaint(style,key,profile);
-      const bounds=pathBounds(p);
-      if (!bounds) return;
-      const target={bounds,toNode:multiply(inverse(placement),world),width:box!.width,height:box!.height},opacity=svgOpacity(style.get(key+"-opacity"));
-      if (["linearGradient","radialGradient"].includes(server.localName)) return svgGradient(server,target,u,opacity,profile,cascade);
-      if (server.localName==="pattern" && work.patternDepth<2 && !visited.has(server)) {
-        work.patternDepth++;visited.add(server);
-        try {
-          const result=await svgPattern(server,target,u,opacity,work.tiles,(parent,context)=>
-            importTree(newDocument("Pattern"),2n,parent,"Tile",0,0,false,work,context),note=>notes.add(note));
-          if (result) {resources=withImageResource(resources,result.image);return result.paint;}
-        } finally {work.patternDepth--;visited.delete(server);}
-      }
-    }
-    const fills=await paint("fill"),stroke=await paint("stroke");
+    const bounds=pathBounds(p);
+    if (!bounds) return;
+    const target={bounds,toNode:multiply(inverse(placement),world),width:box.width,height:box.height};
+    const fills=await resolvePaint(el,style,"fill",u,target),stroke=await resolvePaint(el,style,"stroke",u,target);
     const hasFill=!!fills,hasStroke=!!stroke && strokeWidth>0;
-    if (!hasFill && !hasStroke) return;
+    if (!hasFill && !hasStroke) {
+      const server=localReference(el,style.get("fill")) ?? localReference(el,style.get("stroke"));
+      if (server?.localName!=="pattern" || !server.childElementCount) return;
+    }
     const name=layerName(ref ? null : el.id,prim ? prim.kind[0].toUpperCase()+prim.kind.slice(1) : "Vector");
     const k=Math.sqrt(Math.abs(world[0]*world[3]-world[1]*world[2]));
     const under=style.get("paint-order")?.trim().startsWith("stroke") ?? false;
@@ -182,9 +195,21 @@ async function importTree(doc:Drawing,next:bigint,root:Element,name:string,x:num
     if (left!==Infinity) return {x:left,y:top,width:right-left,height:bottom-top};
   }
 
+  async function viewportMask(el:Element,parent:string,at:Affine,w:number,h:number,units:SvgUnits) {
+    const mask=commonGroup(parent,"Clip path",new Map());
+    draft.set({...draft.nodes[mask],isMask:true,maskType:"vector"} as GroupNode);
+    await paintPath(el,mask,at,new Map(),units,[["M",0,0],["L",w,0],["L",w,h],["L",0,h],["Z"]],true);
+    finishGroup(mask,true);
+  }
+
   async function visit(el:Element,parent:string,baseXf:Affine,inherited:SvgStyle,u:SvgUnits,depth:number,ref=false):Promise<void> {
     if (el.namespaceURI!==svgNamespace) return;
     if (work.count>=maxLayers || ++work.traversed>maxLayers*5) {notes.add("more than 100000 layers: the rest was left out");return;}
+    if (work.traversed%128===0 && performance.now()-work.lastYield>12) {
+      await new Promise<void>(resolve=>setTimeout(resolve,0));
+      work.checkCurrent?.();
+      work.lastYield=performance.now();
+    }
     if (depth>128) {notes.add("layers nested more than 128 deep were left out");return;}
     const style=cascade(el,inherited);
     if (style.get("display")==="none") return;
@@ -193,7 +218,7 @@ async function importTree(doc:Drawing,next:bigint,root:Element,name:string,x:num
     const local={...u,font:el.hasAttribute("font-size") || style.get("font-size")!==inherited.get("font-size") ? svgLength(style.get("font-size"),u.font,u.font,u.font) : u.font};
     const tag=el.localName;
     if (["defs","style","title","desc","metadata","script"].includes(tag)) return;
-    if (tag==="image") {
+    async function visitImage(imageParent:string) {
       if (style.get("visibility")==="hidden") return;
       const resource=await resolveImage(el,work.embeddedDepth,resources.images);
       if (!resource) return;
@@ -203,11 +228,15 @@ async function importTree(doc:Drawing,next:bigint,root:Element,name:string,x:num
       const ih=resource.kind==="raster" ? resource.image.resource.height : svgLength(nested!.getAttribute("height"),u.height,u.font,b?.height ?? 100);
       const w=svgLength(el.getAttribute("width"),u.width,u.font,iw),h=svgLength(el.getAttribute("height"),u.height,u.font,ih);
       if (!(iw>0 && ih>0 && w>0 && h>0)) return;
-      const imageXf=multiply(multiply(xf,translated(svgLength(el.getAttribute("x"),u.width,u.font),svgLength(el.getAttribute("y"),u.height,u.font))),
-        viewportTransform(el,w,h,{x:0,y:0,width:iw,height:ih}));
-      const name=layerName(ref ? null : el.id,"Image");
+      const at=multiply(xf,translated(svgLength(el.getAttribute("x"),u.width,u.font),svgLength(el.getAttribute("y"),u.height,u.font)));
+      const map=viewportTransform(el,w,h,{x:0,y:0,width:iw,height:ih});
+      const imageXf=multiply(at,map),bounds=transformBounds(map,iw,ih);
+      const clipped=bounds.x<-.01 || bounds.y<-.01 || bounds.x+bounds.width>w+.01 || bounds.y+bounds.height>h+.01;
+      const target=clipped ? commonGroup(imageParent,layerName(ref ? null : el.id,"Mask group"),new Map()) : imageParent;
+      if (clipped) await viewportMask(el,target,at,w,h,u);
+      const name=layerName(ref || clipped ? null : el.id,"Image");
       if (resource.kind==="svg") {
-        const group=commonGroup(parent,name,style);
+        const group=commonGroup(target,name,new Map());
         work.embeddedDepth++;
         try {
           const nestedStyle=cascade(resource.root), nestedXf=multiply(imageXf,viewportTransform(resource.root,iw,ih));
@@ -220,11 +249,9 @@ async function importTree(doc:Drawing,next:bigint,root:Element,name:string,x:num
         const placed=placedPrimitive(box,imageXf,true) ?? {xf:imageXf,width:iw,height:ih};
         const stretched=Math.abs(placed.width*ih-placed.height*iw)>1e-6*Math.max(placed.width*ih,placed.height*iw);
         const fill=readPaint({type:"image",image:resource.image.hash,...(stretched && {scale_mode:"crop",crop:identity})});
-        const opacity=svgOpacity(style.get("opacity")),blend=blendFromName(style.get("mix-blend-mode"));
-        add(withRectanglePaints(withLayerTransform({...base(fresh(),parent,name,placed.width,placed.height),kind:"rectangle",
-          ...(opacity!==1 && {opacity}),...(blend && {blend})},placed.xf),[fill]));
+        add(withRectanglePaints(withLayerTransform({...base(fresh(),target,name,placed.width,placed.height),kind:"rectangle"},placed.xf),[fill]));
       }
-      return;
+      if (clipped) finishGroup(target,!el.id || ref);
     }
     if (tag==="use") {
       const href=el.getAttribute("href") ?? el.getAttributeNS("http://www.w3.org/1999/xlink","href");
@@ -247,10 +274,7 @@ async function importTree(doc:Drawing,next:bigint,root:Element,name:string,x:num
           if (mapped && (mapped.x<-.01 || mapped.y<-.01 || mapped.x+mapped.width>tw+.01 || mapped.y+mapped.height>th+.01)) {
             const outer=draft.nodes[id] as GroupNode;
             if (!el.id || ref) draft.set({...outer,name:"Mask group"});
-            const mask=commonGroup(id,"Clip path",new Map());
-            draft.set({...draft.nodes[mask],isMask:true,maskType:"vector"} as GroupNode);
-            await paintPath(el,mask,at,new Map(),u,[["M",0,0],["L",tw,0],["L",tw,th],["L",0,th],["Z"]],true);
-            finishGroup(mask,true);
+            await viewportMask(el,id,at,tw,th,u);
           }
           nested=commonGroup(id,"Group",new Map());
         }
@@ -265,13 +289,27 @@ async function importTree(doc:Drawing,next:bigint,root:Element,name:string,x:num
     }
     const container=tag==="g" || tag==="a" || tag==="svg";
     const path=container ? undefined : elementPath(el,local);
-    if (!container && tag!=="text" && !path?.length) return;
-    const clip=localReference(el,style.get("clip-path")),mask=localReference(el,style.get("mask"));
+    if (!container && tag!=="text" && tag!=="image" && !path?.length) return;
+    let clip=localReference(el,style.get("clip-path"));
+    const mask=localReference(el,style.get("mask"));
+    const hadClip=!!clip;
+    if (clip?.children.length===1 && !clip.hasAttribute("clip-path") && !style.get("filter") && clip.getAttribute("clipPathUnits")!=="objectBoundingBox") {
+      const child=clip.children[0],outline=elementPath(child,local);
+      const cm=(clip as SVGClipPathElement).transform.baseVal;
+      const matrix=multiply(transformList(cm),elementMatrix(child));
+      const rectangle=outline && placedPrimitive(outline,matrix,true);
+      const bounds=contentBounds(el,local);
+      const couldStroke=style.has("stroke") && style.get("stroke")!=="none" || el.querySelector('[stroke]:not([stroke="none"]),[style],use,text,image') || el.ownerDocument.getElementsByTagName("style").length>0;
+      if (bounds && !couldStroke && rectangle?.kind==="rectangle" && !rectangle.radius && Math.abs(rectangle.xf[1])+Math.abs(rectangle.xf[2])<1e-9) {
+        const r=transformBounds(rectangle.xf,rectangle.width,rectangle.height);
+        if (r.x<=bounds.x+.01 && r.y<=bounds.y+.01 && r.x+r.width>=bounds.x+bounds.width-.01 && r.y+r.height>=bounds.y+bounds.height-.01) clip=undefined;
+      }
+    }
     if (mask && !mask.childElementCount) return;
     const filters=(style.get("filter")?.match(/url\([^)]+\)/g) ?? []).map(url=>localReference(el,url)).filter((f):f is Element=>f?.localName==="filter");
     let effects:Effect[]=[];
     for(const def of filters) {
-      const computed=svgFilter(def,xf,profile,cascade);
+      const computed=svgFilter(def,xf,cascade);
       if (!computed) {
         notes.add("filter "+filters.map(f=>f.id).join(", ")+" isn't a shadow or blur: the layer is drawn without it");
         effects=[];break;
@@ -279,7 +317,7 @@ async function importTree(doc:Drawing,next:bigint,root:Element,name:string,x:num
       effects.push(...computed);
     }
     const masked=!!clip || !!mask;
-    const group=container || masked || filters.length>0 || svgOpacity(style.get("opacity"))!==1 ||
+    const group=container || hadClip || masked || filters.length>0 || svgOpacity(style.get("opacity"))!==1 ||
       (style.get("mix-blend-mode") ?? "normal")!=="normal" || style.get("isolation")==="isolate" || el.hasAttribute("transform");
     const label=layerName(container && !ref ? el.id : null,masked ? "Mask group" : "Group");
     const outer=group ? commonGroup(parent,label,style) : parent;
@@ -315,18 +353,44 @@ async function importTree(doc:Drawing,next:bigint,root:Element,name:string,x:num
       draft.set({...draft.nodes[content],effects} as GroupNode);
     }
     if (container) {
-      let inner=xf, childUnits=local;
+      let inner=xf, childUnits=local,childParent=content;
       if (tag==="svg") {
         const width=svgLength(el.getAttribute("width"),u.width,u.font,u.width),height=svgLength(el.getAttribute("height"),u.height,u.font,u.height);
-        const b=viewBox(el);
-        inner=multiply(multiply(xf,translated(svgLength(el.getAttribute("x"),u.width,u.font),svgLength(el.getAttribute("y"),u.height,u.font))),viewportTransform(el,width,height));
+        const b=viewBox(el),viewport=viewportTransform(el,width,height);
+        const at=multiply(xf,translated(svgLength(el.getAttribute("x"),u.width,u.font),svgLength(el.getAttribute("y"),u.height,u.font)));
+        inner=multiply(at,viewport);
         childUnits={...local,width:b?.width ?? width,height:b?.height ?? height};
+        const bounds=contentBounds(el,childUnits);
+        if (bounds && style.get("overflow")!=="visible") {
+          const mapped=transformBounds(multiply(viewport,translated(bounds.x,bounds.y)),bounds.width,bounds.height);
+          if (mapped.x<-.01 || mapped.y<-.01 || mapped.x+mapped.width>width+.01 || mapped.y+mapped.height>height+.01) {
+            if (!el.id || ref) draft.set({...draft.nodes[content],name:"Mask group"} as GroupNode);
+            await viewportMask(el,content,at,width,height,local);
+            if (inner.some((v,i)=>v!==xf[i])) childParent=commonGroup(content,"Group",new Map());
+          }
+        }
       }
-      for (const child of el.children) await visit(child,content,inner,style,childUnits,depth+1,ref);
+      for (const child of el.children) await visit(child,childParent,inner,style,childUnits,depth+1,ref);
+      if (childParent!==content) finishGroup(childParent,true);
+    } else if (tag==="image") {
+      await visitImage(content);
     } else if (tag==="text") {
-      const layers=await svgText(el,xf,style,local,profile,cascade,(text,label)=>({...base(fresh(),content,layerName(ref ? null : el.id,label)),
+      const outline=needsTextOutlines(el,style);
+      const target=outline ? commonGroup(content,layerName(ref ? null : el.id,"Text"),new Map()) : content;
+      if (outline) notes.add("text on a path, vertical or with rotated glyphs came in as outlines");
+      const layers=await svgText(el,xf,style,local,cascade,resolvePaint,(text,label)=>({...base(outline ? "0" : fresh(),target,layerName(ref ? null : el.id,label)),
         kind:"text",text,textSizing:{horizontal:"hug",vertical:"hug"}}));
-      for(const layer of layers) add(layer);
+      for(const layer of layers) {
+        if (!outline) {add(layer);continue;}
+        for(const part of svgGlyphOutlines(el,layer,style)) {
+          const box=pathBounds(part.path);
+          if (!box) continue;
+          const path=transformPath(part.path,translated(-box.x,-box.y));
+          add(withRectanglePaints({...base(fresh(),target,"Vector",box.width,box.height),kind:"vector",x:box.x,y:box.y,
+            network:networkFromPath(path),stroke:layer.stroke ?? sharedStroke,strokes:layer.strokes},part.fills));
+        }
+      }
+      if (outline) finishGroup(target,true);
     } else await paintPath(el,content,xf,style,local,path!,ref);
     if (content!==insideMask) finishGroup(content,true);
     if (insideMask!==outer) finishGroup(insideMask,true);

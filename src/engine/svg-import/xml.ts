@@ -3,7 +3,7 @@ export const svgNamespace="http://www.w3.org/2000/svg";
 export const maxSvgBytes=64<<20;
 export const maxSvgNesting=512;
 
-function declarationEnd(s:string,start:number) {
+function declarationEnd(s:string,start:number,rejectExternal=false) {
   let quote="", brackets=0;
   for (let i=start+2;i<s.length;i++) {
     const c=s[i];
@@ -14,6 +14,10 @@ function declarationEnd(s:string,start:number) {
       const j=s.indexOf(end,i+2);
       if (j<0) return -1;
       i=j+end.length-1; continue;
+    }
+    if (rejectExternal && brackets && s.startsWith("<!ENTITY",i) &&
+        /^<!ENTITY\s+(?:%\s+)?[^\s>]+\s+(?:SYSTEM|PUBLIC)\s/i.test(s.slice(i))) {
+      throw new Error("SVG import failed: external entities are unavailable");
     }
     if (c==="[") brackets++;
     if (c==="]") brackets=Math.max(0,brackets-1);
@@ -51,7 +55,7 @@ export function checkSvgNesting(text:string) {
       at=end+close.length; continue;
     }
     if (text.startsWith("<!",at)) {
-      at=declarationEnd(text,at);
+      at=declarationEnd(text,at,true);
       if (at<0) break;
       continue;
     }
@@ -103,9 +107,6 @@ export function svgXml(bytes:Uint8Array) {
   try {text=new TextDecoder("utf-8",{fatal:true}).decode(bytes);}
   catch {throw new Error("SVG import failed: invalid UTF-8");}
   checkSvgNesting(text);
-  // XML processors can resolve external entities differently. Refuse external declarations
-  // before parsing, while retaining local entities and ordinary external doctype identifiers.
-  if (/<!ENTITY\s+(?:%\s+)?[^\s>]+\s+(?:SYSTEM|PUBLIC)\s/i.test(text)) throw new Error("SVG import failed: external entities are unavailable");
   const doc=new DOMParser().parseFromString(text,"image/svg+xml");
   const root=doc.documentElement;
   if (root.namespaceURI!==svgNamespace || root.localName!=="svg" || doc.getElementsByTagNameNS("http://www.mozilla.org/newlayout/xml/parsererror.xml","parsererror").length)

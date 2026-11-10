@@ -1,18 +1,21 @@
 import { parseCssColour } from "../colour-css";
 import { fromRgba8, toRgba8 } from "../colour";
-import { convertColour, type ColourProfile } from "../colour-spaces";
 import { solidPaint,type Paint } from "../solid-paint";
 import { defaultStroke,type StrokeProps } from "../stroke";
 import { svgLength,svgOpacity,type SvgStyle,type SvgUnits } from "./style";
 
-export function inlinePaint(style:SvgStyle,key:"fill"|"stroke",profile:ColourProfile):Paint|undefined {
-  const paint=style.get(key) ?? (key==="fill" ? "black" : "none");
+export function inlinePaint(style:SvgStyle,key:"fill"|"stroke"):Paint|undefined {
+  let paint=style.get(key) ?? (key==="fill" ? "black" : "none");
+  if (/^url\(/.test(paint)) {
+    paint=paint.replace(/^url\([^)]*\)\s*/,"");
+    if (!paint) return;
+  }
   if (paint==="none") return;
   const text=paint.toLowerCase()==="currentcolor" ? style.get("color") ?? "black" : paint;
-  const colour=parseCssColour(text);
+  const colour=parseCssColour(text) ?? (key==="fill" ? fromRgba8(0,0,0) : undefined);
   if (!colour) return;
   const [r,g,b,a]=toRgba8(colour);
-  const c=convertColour(fromRgba8(r,g,b),"srgb",profile);
+  const c=fromRgba8(r,g,b);
   return {...solidPaint(c),opacity:Math.fround(a/255*svgOpacity(style.get(key+"-opacity")))};
 }
 

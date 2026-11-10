@@ -86,10 +86,13 @@ export async function importFontBytes(bytes:Uint8Array<ArrayBuffer>, checkCurren
 
 export const fontStyleWarning = (family:string, style:string) => fonts?.styleWarning(family, style);
 
-function measure(text: TextData, box: { width?: number; height?: number }) {
+function measure(text: TextData, box: { width?: number; height?: number },gridFit=true) {
   if (!fonts) throw new Error("Call prepareText or executeAsync before creating a text layer");
-  return layoutTextFlow(text, fonts, box, preparedWordStarts(text.characters));
+  return layoutTextFlow(text, fonts, box, preparedWordStarts(text.characters),gridFit);
 }
+
+/** SVG outlines use the original font-unit advances from the SVG shaper. */
+export function svgOutlineLayout(text:TextData) {return measure(text,{},false);}
 
 /** The native layout measurer asks separately for natural size and height at a given width. */
 export function measureLayoutText(node: TextNode, width?: number) {

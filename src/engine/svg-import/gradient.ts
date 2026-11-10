@@ -1,7 +1,6 @@
 import { identity,inverse,multiply,transformPoint,type Affine } from "../affine";
 import { fromRgba8,toRgba8,withAlpha } from "../colour";
 import { parseCssColour } from "../colour-css";
-import { convertColour,type ColourProfile } from "../colour-spaces";
 import type { Point,Rectangle } from "../geometry";
 import type { ColourStop,GradientHandle } from "../gradient";
 import { solidPaint,type Paint } from "../solid-paint";
@@ -21,7 +20,7 @@ export interface PaintTarget {
   height:number;
 }
 
-export function svgGradient(el:Element,target:PaintTarget,units:SvgUnits,opacity:number,profile:ColourProfile,cascade:(el:Element,parent?:SvgStyle)=>SvgStyle):Paint|undefined {
+export function svgGradient(el:Element,target:PaintTarget,units:SvgUnits,opacity:number,cascade:(el:Element,parent?:SvgStyle)=>SvgStyle):Paint|undefined {
   const chain:Element[]=[];
   let def:Element|null=el;
   while (def && ["linearGradient","radialGradient"].includes(def.localName)) {
@@ -45,7 +44,7 @@ export function svgGradient(el:Element,target:PaintTarget,units:SvgUnits,opacity
     const value=style.get("stop-color") ?? "black";
     const c=parseCssColour(value.toLowerCase()==="currentcolor" ? style.get("color") ?? "black" : value);
     const [r,g,b,a]=toRgba8(c ?? fromRgba8(0,0,0));
-    const color=convertColour(withAlpha(fromRgba8(r,g,b),Math.fround(a/255*svgOpacity(style.get("stop-opacity")))),"srgb",profile);
+    const color=withAlpha(fromRgba8(r,g,b),Math.fround(a/255*svgOpacity(style.get("stop-opacity"))));
     last=Math.max(last,Math.min(1,Math.max(0,svgLength(stop.getAttribute("offset"),1,1))));
     stops.push({position:last,color});
   }

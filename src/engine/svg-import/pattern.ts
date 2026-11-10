@@ -39,7 +39,7 @@ async function drawTile(doc:Drawing,id:string,w:number,h:number,scale:number):Pr
 }
 
 export async function svgPattern(server:Element,target:PaintTarget,u:SvgUnits,opacity:number,cache:TileCache,
-  draw:(parent:Element,context:TileContext)=>Promise<{document:Drawing;id:string}>,note:(text:string)=>void) {
+  draw:(parent:Element,context:TileContext)=>Promise<{document:Drawing;id:string}>,storeTile:(hash:string,image:ImageResource)=>string,note:(text:string)=>void) {
   const chain:Element[]=[];
   let el:Element|null=server;
   while(el?.localName==="pattern") {
@@ -74,6 +74,7 @@ export async function svgPattern(server:Element,target:PaintTarget,u:SvgUnits,op
   }
   const tile=tiles.get(key);
   if (!tile) return;
+  const hash=storeTile(tile.key,tile.resource);
   const {width:iw,height:ih}=tile.resource;
   const node=transformBounds(inverse(matrix),target.width,target.height);
   const image=transformBounds(tile.content,iw,ih);
@@ -81,7 +82,7 @@ export async function svgPattern(server:Element,target:PaintTarget,u:SvgUnits,op
     Math.ceil((lo-start-length)/period+1e-6),Math.floor((lo+size-start)/period-1e-6)];
   const [x0,x1]=copies(node.x,node.width,image.x,image.width,w),[y0,y1]=copies(node.y,node.height,image.y,image.height,h);
   if (x0>x1 || y0>y1) return;
-  const fields:Record<string,unknown>={type:"image",image:tile.key,opacity};
+  const fields:Record<string,unknown>={type:"image",image:hash,opacity};
   if (x0===x1 && y0===y1) {
     const m=multiply(multiply(matrix,translated(x0*w,y0*h)),tile.content);
     const same=(mode:"fill"|"fit")=>{
@@ -101,5 +102,5 @@ export async function svgPattern(server:Element,target:PaintTarget,u:SvgUnits,op
     if (phase(x,iw*a)>.001 || phase(y,ih*a)>.001) note("a pattern's offset was dropped: its tiles start at the layer's corner");
     fields.scale_mode="tile";fields.scale=a;
   }
-  return {paint:readPaint(fields) as Paint,image:{hash:tile.key,resource:tile.resource}};
+  return readPaint(fields) as Paint;
 }

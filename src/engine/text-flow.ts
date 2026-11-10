@@ -74,12 +74,12 @@ function finishTruncatedLine(glyphs:FlowGlyph[], line:FlowLine, next:TextLineRan
 
 /** Shape and place glyphs, lines and decorations.
  * wordStarts supplies scalar word boundaries for scripts written without spaces. */
-export function layoutTextFlow(text:TextData, fonts:FontLibrary, box:{width?:number; height?:number}, wordStarts:ArrayLike<number>) {
+export function layoutTextFlow(text:TextData, fonts:FontLibrary, box:{width?:number; height?:number}, wordStarts:ArrayLike<number>,gridFit=true) {
   const boxWidth=box.width;
   const chars=Array.from(text.characters), boundaries=new TextGraphemes(text.characters);
   const bidi=textBidi(text.characters,text.paragraphs);
   const rtlAt=(i:number)=>!!bidi?.paragraphRtl[i];
-  const items=[...shapeTextSpans(text,fonts,bidi?.levels,chars,boundaries)];
+  const items=[...shapeTextSpans(text,fonts,bidi?.levels,chars,boundaries,gridFit)];
   const firstStyle=items[0]?.style ?? textSpans(text)[0].style;
   const defaultFace=fonts.defaultFace(), primary=new Map<TextStyle,ShapingFace | undefined>();
   const faceFor=(style:TextStyle)=>{

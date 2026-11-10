@@ -1,7 +1,6 @@
 import type { Affine } from "../affine";
 import { colour,withAlpha,type Colour } from "../colour";
 import { parseCssColour } from "../colour-css";
-import { convertColour,type ColourProfile } from "../colour-spaces";
 import { readEffect,type Effect } from "../effects";
 import { svgOpacity,type SvgStyle } from "./style";
 
@@ -95,7 +94,7 @@ function primitive(el:Element,get:(key:string|null)=>Stack|undefined,style:SvgSt
   }
 }
 
-export function svgFilter(filter:Element,world:Affine,profile:ColourProfile,cascade:(el:Element,parent?:SvgStyle)=>SvgStyle):Effect[]|undefined {
+export function svgFilter(filter:Element,world:Affine,cascade:(el:Element,parent?:SvgStyle)=>SvgStyle):Effect[]|undefined {
   const results=new Map<string,Stack>([["SourceGraphic",[source]],["SourceAlpha",[alpha]]]);
   let last:Stack=[source];
   const style=cascade(filter);
@@ -115,7 +114,7 @@ export function svgFilter(filter:Element,world:Affine,profile:ColourProfile,casc
     } else {
       if (l.kind!=="shadow" || l.inverted || l.inner!==(i>at) || l.cast>0 && (l.cast!==drawn.sigma || l.inner)) return;
       effects.push(readEffect({type:l.inner ? "innerShadow" : "dropShadow",radius:2*l.sigma*k,spread:l.spread*k,blend:"normal",
-        offset:[world[0]*l.dx+world[2]*l.dy,world[1]*l.dx+world[3]*l.dy],color:convertColour(l.color,"srgb",profile),showBehind:!l.inner && !l.knockout},"command"));
+        offset:[world[0]*l.dx+world[2]*l.dy,world[1]*l.dx+world[3]*l.dy],color:l.color,showBehind:!l.inner && !l.knockout},"command"));
     }
   }
   return effects;

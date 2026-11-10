@@ -1,15 +1,14 @@
-import { multiply,type Affine } from "../affine";
+import { inverse,multiply,type Affine } from "../affine";
 import { withLayerTransform,withRectanglePaints,type TextNode } from "../document";
 import { newTextData,type StyleRun,type TextData } from "../text-data";
-import { autoSizeText,hasFontFamily,prepareText,textNodeLayout } from "../text-node-layout";
+import { autoSizeText,hasFontFamily,prepareText,svgOutlineLayout,textNodeLayout } from "../text-node-layout";
 import { normaliseRuns,sameTextStyle,scalarCount,textLayerName } from "../text-ranges";
 import { defaultTextStyle,type TextStyle } from "../text-style";
-import { measurePath,polylineLength } from "../path-measure";
-import { svgPath } from "../svg-format";
-import { pathBounds } from "../vector-path";
-import type { ColourProfile } from "../colour-spaces";
-import { elementPath,translated } from "./geometry";
-import { inlinePaint,svgStroke } from "./paint";
+import { svgTextPath } from "./text-path";
+import { translated } from "./geometry";
+import type { Paint } from "../solid-paint";
+import type { PaintTarget } from "./gradient";
+import { svgStroke } from "./paint";
 import { svgLength,type SvgStyle,type SvgUnits } from "./style";
 
 const sans=["Inter","Helvetica","Arial","Segoe UI","Roboto","Noto Sans","DejaVu Sans","Liberation Sans"];
@@ -34,8 +33,9 @@ interface Span {text:string;style:TextStyle;svg:SvgStyle}
 interface Line {x?:number;y:number;align:TextData["alignH"];spans:Span[];path?:Element}
 const anchor=(a:TextData["alignH"])=>a==="center" ? .5 : a==="right" ? 1 : 0;
 
-export async function svgText(el:Element,world:Affine,style:SvgStyle,units:SvgUnits,profile:ColourProfile,
-  cascade:(el:Element,parent:SvgStyle)=>SvgStyle,make:(text:TextData,name:string)=>TextNode) {
+export async function svgText(el:Element,world:Affine,style:SvgStyle,units:SvgUnits,
+  cascade:(el:Element,parent:SvgStyle)=>SvgStyle,
+  resolvePaint:(el:Element,style:SvgStyle,key:"fill"|"stroke",units:SvgUnits,target:PaintTarget)=>Promise<Paint|undefined>,make:(text:TextData,name:string)=>TextNode) {
   await prepareText(el.textContent ?? "");
   const sx=Math.hypot(world[0],world[1]),sy=Math.hypot(world[2],world[3]);
   const pathText=el.getElementsByTagNameNS(el.namespaceURI,"textPath").length>0;
@@ -86,13 +86,13 @@ export async function svgText(el:Element,world:Affine,style:SvgStyle,units:SvgUn
     if (!content || block.every(line=>line.spans.every(s=>s.svg.get("visibility")==="hidden"))) continue;
     const baseStyle=first.spans[0].style,strokeStyle=first.spans[0].svg;
     const base={...baseStyle,...(block.length>1 && {lineHeight:{unit:"pixels" as const,value:pitch*scale}})};
-    const paint=(st:SvgStyle)=>st.get("visibility")==="hidden" ? undefined : inlinePaint(st,"fill",profile);
-    const fill=paint(strokeStyle),runs:StyleRun[]=[];
+    const runs:StyleRun[]=[],spans:SvgStyle[]=[];
     let index=0;
     for(const l of block) {
-      for(const s of l.spans) {
-        const end=index+scalarCount(s.text),f=paint(s.svg);
-        runs.push({start:index,end,style:{...s.style,lineHeight:base.lineHeight,...(JSON.stringify(f)!==JSON.stringify(fill) && {fills:f ? [f] : []})}});
+      for(const span of l.spans) {
+        const end=index+scalarCount(span.text);
+        runs.push({start:index,end,style:{...span.style,lineHeight:base.lineHeight}});
+        spans.push(span.svg);
         index=end;
       }
       index++;
@@ -100,23 +100,38 @@ export async function svgText(el:Element,world:Affine,style:SvgStyle,units:SvgUn
     let data:TextData={...newTextData(content),alignH:first.align,style:base,runs:normaliseRuns(runs,base,scalarCount(content))};
     let placed:Affine|undefined,size:{width:number;height:number}|undefined;
     if (first.path) {
-      const href=first.path.getAttribute("href") ?? first.path.getAttributeNS("http://www.w3.org/1999/xlink","href");
-      const ref=href?.startsWith("#") && el.ownerDocument.getElementById(href.slice(1));
-      const path=ref && elementPath(ref,units);
-      if (!path) continue;
-      const line=measurePath(path)?.[0],length=line && polylineLength(line),box=pathBounds(path);
-      if (!length || !box) continue;
-      data={...data,path:{d:svgPath(path,translated(-box.x,-box.y)),start:svgLength(first.path.getAttribute("startOffset"),length,units.font)/length,flip:false}};
-      placed=multiply(world,translated(box.x,box.y));size={width:Math.max(1,box.width),height:Math.max(1,box.height)};
+      const trace=svgTextPath(first.path,units);
+      if (!trace) continue;
+      data={...data,path:trace.path};
+      placed=multiply(world,translated(trace.box.x,trace.box.y));size={width:Math.max(1,trace.box.width),height:Math.max(1,trace.box.height)};
     }
     let n=autoSizeText(make(data,textLayerName(first.spans.map(s=>s.text).join(""))));
     if (size) n={...n,...size};
-    const baseline=textNodeLayout(n).layout.lines[0]?.baseline ?? 0;
+    const layout=textNodeLayout(n).layout,baseline=layout.lines[0]?.baseline ?? 0;
     const position=placed ?? multiply(m,translated(scale*x-anchor(first.align)*n.width,scale*first.y-baseline));
-    const stroke=inlinePaint(strokeStyle,"stroke",profile);
+    const target:PaintTarget={toNode:multiply(inverse(position),world),width:n.width,height:n.height,
+      bounds:{x:first.x ?? x,y:first.y-baseline/scale,width:n.width/scale,height:n.height/scale}};
+    if (spans.some(s=>s.get("fill")?.startsWith("url(") || s.get("stroke")?.startsWith("url("))) {
+      const regular=(s:TextStyle)=>({...s,fontFamily:"Inter",fontStyle:"Regular"});
+      const original=svgOutlineLayout({...data,style:regular(data.style),runs:data.runs.map(r=>({...r,style:regular(r.style)}))});
+      let left=Infinity,top=Infinity,right=-Infinity,bottom=-Infinity;
+      for(const g of original.glyphs) {
+        const k=g.size/g.face.upem,dx=g.x-anchor(first.align)*original.width,dy=g.y-(original.lines[0]?.baseline ?? 0);
+        left=Math.min(left,dx);right=Math.max(right,dx+g.advance);
+        top=Math.min(top,dy-g.face.ascent*k);bottom=Math.max(bottom,dy+g.face.descent*k);
+      }
+      if (right>left && bottom>top) target.bounds={x:x+left/scale,y:first.y+top/scale,width:(right-left)/scale,height:(bottom-top)/scale};
+    }
+    const fills:(Paint|undefined)[]=[];
+    for(const svg of spans) fills.push(svg.get("visibility")==="hidden" ? undefined : await resolvePaint(el,svg,"fill",units,target));
+    const fill=fills[0];
+    const painted=runs.map((run,i)=>JSON.stringify(fills[i])===JSON.stringify(fill) ? run :
+      {...run,style:{...run.style,fills:fills[i] ? [fills[i]!] : []}});
+    n={...n,text:{...n.text,runs:normaliseRuns(painted,base,scalarCount(content))}};
+    const stroke=await resolvePaint(el,strokeStyle,"stroke",units,target);
     if (stroke) n={...n,strokes:[stroke],stroke:svgStroke(strokeStyle,units,scale,true)};
     out.push(withRectanglePaints(withLayerTransform(n,position),fill ? [fill] : []));
-    penX=x+(1-anchor(first.align))*n.width/scale;
+    penX=x+(1-anchor(first.align))*layout.width/scale;
   }
   return out;
 }

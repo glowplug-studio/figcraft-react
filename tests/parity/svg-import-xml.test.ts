@@ -22,3 +22,8 @@ it("bounds decompressed SVGZ output and refuses nested compression",async()=>{
   await expect(svgBytes(gzipSync(gzipSync(data)))).rejects.toThrow("another compressed file");
   await expect(svgBytes(Uint8Array.of(31,139,128))).rejects.toThrow("malformed compressed SVG");
 });
+
+it("rejects external entity declarations while retaining matching words in ordinary SVG text",()=>{
+  expect(()=>checkSvgNesting('<!DOCTYPE svg [<!ENTITY e SYSTEM "https://invalid.test/">]><svg/>')).toThrow("external entities");
+  expect(()=>checkSvgNesting('<!DOCTYPE svg [<!-- <!ENTITY e SYSTEM "example"> --><!ENTITY text "SYSTEM">]><svg><![CDATA[<!ENTITY e SYSTEM "example">]]></svg>')).not.toThrow();
+});

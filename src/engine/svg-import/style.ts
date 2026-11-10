@@ -1,7 +1,7 @@
 import { svgNamespace } from "./xml";
 import { identity, type Affine } from "../affine";
 
-const inherited=new Set(("color fill fill-opacity fill-rule clip-rule stroke stroke-opacity stroke-width stroke-linecap stroke-linejoin stroke-miterlimit stroke-dasharray stroke-dashoffset visibility font-family font-size font-style font-variant font-weight letter-spacing word-spacing text-anchor dominant-baseline paint-order").split(" "));
+const inherited=new Set(("color fill fill-opacity fill-rule clip-rule stroke stroke-opacity stroke-width stroke-linecap stroke-linejoin stroke-miterlimit stroke-dasharray stroke-dashoffset visibility font-family font-size writing-mode font-style font-variant font-weight letter-spacing word-spacing text-anchor dominant-baseline paint-order").split(" "));
 const properties=new Set([...inherited,...("display opacity mix-blend-mode isolation filter mask clip-path stop-color stop-opacity flood-opacity flood-color overflow mask-type text-decoration").split(" ")]);
 export type SvgStyle = ReadonlyMap<string,string>;
 type Declaration={name:string;value:string;important:boolean};

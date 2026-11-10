@@ -35,7 +35,7 @@ function onGrid(units: number,upem: number) {
 interface FaceSegment {face:ShapingFace; start:number; end:number; level:number}
 
 function* styledSegment(chars: readonly string[], seg: FaceSegment, style: TextStyle,
-  features: Readonly<Record<string,boolean>>): Generator<StyledGlyph> {
+  features: Readonly<Record<string,boolean>>,gridFit:boolean): Generator<StyledGlyph> {
   const {face,start,end,level} = seg;
   const size = textSize(style);
   if (chars[start] === "\n" || chars[start] === "\u2028") {
@@ -84,7 +84,7 @@ function* styledSegment(chars: readonly string[], seg: FaceSegment, style: TextS
     const scale = (small?.has(source) ? 0.72 : 1)*scriptScale;
     for (; i<next; i++) {
       const g = raw[i], spacing = i===next-1 ? letterSpacing*(clusterEnd-source) : 0;
-      const em = onGrid(g.nominalAdvance,face.upem)+onGrid(g.advance-g.nominalAdvance,face.upem);
+      const em = gridFit ? onGrid(g.nominalAdvance,face.upem)+onGrid(g.advance-g.nominalAdvance,face.upem) : g.advance/face.upem;
       yield {face,style,coordinates,id:g.id,start:source,end:clusterEnd,level,size:size*scale,advance:em*size*scale+spacing,
         spacing,offsetX:g.offsetX*k*scale,offsetY:g.offsetY*k*scale+scriptShift*k};
     }
@@ -98,9 +98,9 @@ export function* styledGlyphs(text: TextData, fonts: FontLibrary, levels: ArrayL
 }
 
 export function* shapeTextSpans(text:TextData, fonts:FontLibrary, levels:ArrayLike<number> | undefined,
-  chars:readonly string[], boundaries:TextGraphemes) {
+  chars:readonly string[], boundaries:TextGraphemes,gridFit=true) {
   for (const {start,end,style} of textSpans(text)) {
     const segments = fonts.segments(chars,boundaries,start,end,style.fontFamily,style.fontStyle,levels);
-    for (const segment of segments) yield* styledSegment(chars,segment,style,text.features);
+    for (const segment of segments) yield* styledSegment(chars,segment,style,text.features,gridFit);
   }
 }
