@@ -2,7 +2,8 @@ import { useState } from "react";
 import { AssetThumbnail } from "./AssetsPanel";
 import type { Document } from "./engine/document";
 import { sizeLabel } from "./engine/export-jobs";
-import type { ExportSetting } from "./engine/export-settings";
+import { bleedPoints, defaultPrint, type ExportSetting, type PrintSettings } from "./engine/export-settings";
+import { trimNumber } from "./engine/inspect-text";
 
 type Run = (command: string, params: Record<string,unknown>) => void;
 type Update = (patch: Record<string,unknown>) => void;
@@ -13,6 +14,24 @@ function TextField({label,value,list,apply}:{label:string; value:string; list?:s
     onChange={e=>setDraft(e.currentTarget.value)}
     onBlur={()=>{ if (draft !== undefined && draft !== value) apply(draft); setDraft(undefined); }}
     onKeyDown={e=>{if (e.key === "Enter") {e.preventDefault(); e.currentTarget.blur();}}}/></label>;
+}
+export function PdfPrintOptions({ print = defaultPrint, change }: {
+  print?: Readonly<PrintSettings>;
+  change: (options: Partial<PrintSettings>) => void;
+}) {
+  const tenths = print.bleed * 25.4 / 72 * 10;
+  const bleed = Math.abs(Math.round(tenths) - tenths) < 1e-6 ? trimNumber(Math.round(tenths) / 10) + " mm" : trimNumber(print.bleed) + " pt";
+  return <>
+    <TextField label="Bleed" value={bleed} apply={value => {
+      const points = bleedPoints(value);
+      if (Number.isFinite(points) && points >= 0 && points <= 144 && points !== print.bleed) change({ bleed: points });
+    }} />
+    {(["cropMarks", "bleedMarks", "cmyk"] as const).map((key, i) => <label key={key}>
+      <input type="checkbox" checked={print[key]} onChange={event => change({ [key]: event.currentTarget.checked })} />
+      {["Crop marks", "Bleed marks", "CMYK colour"][i]}
+    </label>)}
+    {print.bleedMarks && print.bleed <= 0 && <small>Bleed marks need a bleed</small>}
+  </>;
 }
 function SettingRow({setting:e,index,allText,profile,update,remove}:{setting:ExportSetting;index:number;allText:boolean;profile:string;update:Update;remove:()=>void}) {
   const raster = e.format === "png" || e.format === "webp" || e.format === "jpg";
@@ -40,8 +59,7 @@ function SettingRow({setting:e,index,allText,profile,update,remove}:{setting:Exp
       </select></label>}
     </details>
     {e.format === "pdf" && <details><summary>Print options</summary>
-      <TextField label="Bleed" value={String(e.print?.bleed ?? 0) + " pt"} apply={bleed=>update({bleed})}/>
-      {(["cropMarks","bleedMarks","cmyk"] as const).map((key,i)=><label key={key}><input type="checkbox" checked={e.print?.[key] ?? false} onChange={ev=>update({[key]:ev.currentTarget.checked})}/>{["Crop marks","Bleed marks","CMYK"][i]}</label>)}
+      <PdfPrintOptions print={e.print} change={update} />
     </details>}
   </fieldset>;
 }

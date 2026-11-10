@@ -29,7 +29,7 @@ export const exportSpecs = {
 
 const flags = { contentsOnly: true, includeBoundingBox: false, svgOutlineText: true, svgIdAttribute: false, svgSimplifyStroke: true } as const;
 const printFlags = ["cropMarks", "bleedMarks", "cmyk"] as const;
-const defaultPrint: PrintSettings = { bleed: 0, cropMarks: false, bleedMarks: false, cmyk: false };
+export const defaultPrint: Readonly<PrintSettings> = Object.freeze({ bleed: 0, cropMarks: false, bleedMarks: false, cmyk: false });
 const formats = ["png", "jpg", "webp", "svg", "pdf", "vectorDrawable"] as const;
 const profiles = ["sameAsFile", "srgb", "displayP3"] as const;
 const modes = ["bestEffort", "exact", "ignore"] as const;
@@ -46,7 +46,7 @@ function bool(value: unknown, key: string, wire: boolean) {
   return result;
 }
 
-function bleedPoints(value: unknown): number {
+export function bleedPoints(value: unknown): number {
   if (typeof value === "number") return value;
   if (typeof value !== "string") return NaN;
   const match = /^([-+.\de]+)\s*(pt|px|mm|cm|in|")?$/i.exec(value.trim());

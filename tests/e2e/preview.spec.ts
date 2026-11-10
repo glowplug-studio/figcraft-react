@@ -7217,6 +7217,53 @@ test("Android XML downloads honour the saved layer name and compatibility settin
   expect(source).toContain('android:pathData="M0,0 L31,0 L31,24 L0,24 Z"');
 });
 
+test("one-off PDF print controls persist across tabs and match the native printed page", async ({ page }) => {
+  await login(page);
+  const files = unzipSync(await readFile(new URL("../fixtures/native-pdf-print-dialog.zip", import.meta.url)));
+  const open = page.getByLabel("Open Figcraft file", { exact: true });
+  await open.setInputFiles({ name: "Cover.figcraft", mimeType: "application/octet-stream", buffer: Buffer.from(files["Cover.figcraft"]) });
+  const bar = page.locator(".figcraft-document-bar"), dialog = page.getByRole("dialog", { name: "Export", exact: true });
+  const options = dialog.getByRole("group", { name: "PDF print options", exact: true });
+  const show = async () => {
+    await bar.getByText("File", { exact: true }).click();
+    await bar.getByRole("button", { name: "Export…", exact: true }).click();
+  };
+  await show();
+  await options.getByLabel("Bleed marks", { exact: true }).check();
+  await expect(options.getByText("Bleed marks need a bleed")).toBeVisible();
+  const bleed = options.getByLabel("Bleed", { exact: true });
+  await bleed.fill("3 mm"); await bleed.press("Enter");
+  await expect(bleed).toHaveValue("3 mm");
+  await bleed.fill("3 in"); await bleed.press("Enter");
+  await expect(bleed).toHaveValue("3 mm");
+  await bleed.fill("0.125 in"); await bleed.press("Enter");
+  await expect(bleed).toHaveValue("9 pt");
+  await options.getByLabel("Crop marks").check();
+  await options.getByLabel("CMYK colour").check();
+  await dialog.getByRole("button", { name: "Close", exact: true }).click();
+  const tabs = page.getByRole("tablist", { name: "Open files" }).getByRole("tab");
+  await tabs.first().click(); await show();
+  await expect(bleed).toHaveValue("9 pt");
+  await expect(options.getByLabel("CMYK colour")).toBeChecked();
+  await dialog.getByRole("button", { name: "PDF", exact: true }).click();
+  await expect(page.getByText("Nothing to export", { exact: true })).toBeVisible();
+  await tabs.last().click(); await show();
+  const pending = page.waitForEvent("download");
+  await dialog.getByRole("button", { name: "PDF", exact: true }).click();
+  const result = await readFile((await (await pending).path())!);
+  expect(result.toString("latin1")).toContain("/TrimBox [33 33 64 57] /BleedBox [24 24 73 66]");
+  const { execFileSync } = await import("node:child_process");
+  const render = (pdf: Uint8Array) => execFileSync("pdftoppm", ["-r", "72", "-singlefile", "-"], { input: pdf });
+  expect(render(result).equals(render(files["Cover.pdf"]))).toBe(true);
+  await tabs.first().click();
+  await page.getByRole("button", { name: "Create frame", exact: true }).click();
+  await bar.getByText("File", { exact: true }).click();
+  const frames = page.waitForEvent("download");
+  await bar.getByRole("button", { name: "Export frames to PDF…", exact: true }).click();
+  const unmarked = await readFile((await (await frames).path())!, "latin1");
+  expect(unmarked).not.toContain("/BleedBox");
+});
+
 test("signed-in PDF downloads preserve selection size, saved print options and frame page count",async({page})=>{
   await login(page);
   await createNamedRectangle(page,"Cover",8,9,31,24);

@@ -2,7 +2,8 @@ import { ImportReportPanel } from "./ImportReportPanel";
 import { importNotice, readImportReport, type ImportReport } from "./engine/interchange/import-report";
 import { droppedDesigns,type DroppedDesign } from "./rest-folder-drop";
 import { looksLikeSvg } from "./engine/svg-import/xml";
-import { ExportPanel } from "./ExportPanel";
+import { ExportPanel, PdfPrintOptions } from "./ExportPanel";
+import { defaultPrint, type PrintSettings } from "./engine/export-settings";
 import { layerExportJobs, type ExportJob } from "./engine/export-jobs";
 import { VersionPanel } from "./VersionPanel";
 import type { ReactNode } from "react";
@@ -89,11 +90,13 @@ function HistoryButtons({ engine, editable, undo, redo, dispatch }: { engine: Ed
 /** Embeddable local rectangle workflow. The host owns authentication and styling. */
 export function Editor(props: EditorProps) { return <DocumentEditor {...props} />; }
 
-export function DocumentEditor({ identity, capabilities, engine: suppliedEngine, recoveryStore, workspace, workspaceRecovery, fileMenu, onWorkspaceNotice, onReviewBranch, onImportReport }: EditorProps & {
+export function DocumentEditor({ identity, capabilities, engine: suppliedEngine, recoveryStore, workspace, workspaceRecovery, fileMenu, onWorkspaceNotice, onReviewBranch, onImportReport, workspacePrint, onWorkspacePrint }: EditorProps & {
   workspace?: EditorWorkspace;
   workspaceRecovery?: WorkspaceRecoveryState;
   fileMenu?: ReactNode;
   onWorkspaceNotice?: (message: string) => void;
+  workspacePrint?: PrintSettings;
+  onWorkspacePrint?: (value: PrintSettings) => void;
   onImportReport?: (report: ImportReport, owner?: number) => void;
   onReviewBranch?: (id: string) => void;
 }) {
@@ -141,6 +144,8 @@ export function DocumentEditor({ identity, capabilities, engine: suppliedEngine,
   const linkDialog = useRef<HTMLDialogElement>(null);
   const missingFontsDialog = useRef<HTMLDialogElement>(null);
   useEffect(() => { if (snapshot.missingFonts) missingFontsDialog.current?.showModal(); }, [snapshot.missingFonts]);
+  const [localPrint, setLocalPrint] = useState<PrintSettings>(defaultPrint);
+  const pdfPrint = workspacePrint ?? localPrint;
   const [exportJobs,setExportJobs] = useState<ExportJob[]>([]);
   const exportLayerCount = new Set(exportJobs.map(job=>job.id)).size;
   const exportDialog = useRef<HTMLDialogElement>(null);
@@ -599,8 +604,12 @@ export function DocumentEditor({ identity, capabilities, engine: suppliedEngine,
     try {
       const { document: design, selection } = engine.getSnapshot();
       const first = selection[0] ?? pageOf(design).children[0];
+      if (first === undefined && !scope && format !== "fig" && format !== "penpot") {
+        setError("Nothing to export");
+        return;
+      }
       const name = (format === "fig" || format === "penpot" || scope === "frames" ? design.name : scope === "page" ? pageOf(design).name : design.nodes[first]?.name ?? "Export") + (scale === 1 ? "" : "@" + scale + "x") + "." + format;
-      const graphic = await engine.exportGraphic({ format, scale, ...(scope === "page" && {ids: pageOf(design).children}) },scope === "frames");
+      const graphic = await engine.exportGraphic({ format, scale, ...(format === "pdf" && !scope && pdfPrint), ...(scope === "page" && {ids: pageOf(design).children}) },scope === "frames");
       downloadBlob(graphic.blob,name);
       if (graphic.warnings) setError(graphic.warnings.join("\n"));
     } catch (error) { setError(error instanceof Error ? error.message : "Export failed"); }
@@ -801,6 +810,9 @@ export function DocumentEditor({ identity, capabilities, engine: suppliedEngine,
         <button type="button" onClick={()=>void exportDrawing("svg",1)}>SVG</button>
         <button type="button" onClick={()=>void exportDrawing("pdf",1)}>PDF</button>
         <button type="button" onClick={()=>void exportDrawing("xml",1)}>Android XML</button>
+        <fieldset><legend>PDF print options</legend>
+          <PdfPrintOptions print={pdfPrint} change={options => (onWorkspacePrint ?? setLocalPrint)({ ...pdfPrint, ...options })} />
+        </fieldset>
         <p>The whole file</p>
         <button type="button" onClick={()=>void exportDrawing("penpot",1)}>Penpot (.penpot)</button>
         <button type="button" onClick={()=>void exportDrawing("fig",1)}>.fig (experimental)</button>

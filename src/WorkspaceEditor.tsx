@@ -1,3 +1,4 @@
+import { defaultPrint, type PrintSettings } from "./engine/export-settings";
 import { ImportReportPanel } from "./ImportReportPanel";
 import { importNotice, readImportReport, type ImportReport } from "./engine/interchange/import-report";
 import { BranchReviewDialog } from "./BranchReviewDialog";
@@ -18,6 +19,7 @@ export function WorkspaceEditor({ identity, capabilities, recoveryStore }: Works
   const [reviewId, setReviewId] = useState<string>();
   const [closeId, setCloseId] = useState<number>();
   const [renaming, setRenaming] = useState(false);
+  const [pdfPrint, setPdfPrint] = useState<PrintSettings>(defaultPrint);
   const [report, setReport] = useState<{ owner: number; value: ImportReport }>();
   const [notice, setNotice] = useState("");
   const closeDialog = useRef<HTMLDialogElement>(null), renameDialog = useRef<HTMLDialogElement>(null);
@@ -31,7 +33,7 @@ export function WorkspaceEditor({ identity, capabilities, recoveryStore }: Works
       const allow = snapshot.status === "authenticated" && snapshot.principal.id === principal && capabilities.includes("document.edit");
       setAuthorised(allow);
       workspace.setEditable(allow);
-      if (!allow) { setReport(undefined); setNotice(""); controller?.dispose(); controller = undefined; }
+      if (!allow) { setPdfPrint(defaultPrint); setReport(undefined); setNotice(""); controller?.dispose(); controller = undefined; }
       else if (!controller && principal) {
         controller = new WorkspaceRecovery(workspace, recoveryStore, principal, next => setRecovery(previous =>
           previous.status === next.status && previous.message === next.message ? previous : next));
@@ -97,6 +99,7 @@ export function WorkspaceEditor({ identity, capabilities, recoveryStore }: Works
         }}>{tab.name}{tab.dirty && <span aria-label="unsaved"> ●</span>}</button>)}
     </div>}
     {active ? <DocumentEditor key={active.id} identity={identity} capabilities={capabilities} engine={workspace.activeEngine}
+      workspacePrint={pdfPrint} onWorkspacePrint={setPdfPrint}
       onImportReport={(value, owner = active.id) => setReport({ value, owner })}
       workspace={workspace} recoveryStore={recoveryStore} workspaceRecovery={recovery} fileMenu={fileMenu} onWorkspaceNotice={setNotice} onReviewBranch={setReviewId} /> :
       <section aria-label="File workspace"><h1>Files</h1>
