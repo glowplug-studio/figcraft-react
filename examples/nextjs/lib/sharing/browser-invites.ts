@@ -56,6 +56,22 @@ export class BrowserInvitations implements OnlineInvitations {
     await navigator.clipboard.writeText(location.origin + "/#join=" + encodeURIComponent(link));
   }
 
+  async joinOwned(file: string) {
+    const links = await this.device.readPublishedLinks(this.principal, this.server, file);
+    if (!links) return undefined;
+    const connection = crypto.randomUUID();
+    const token = links.edit.token;
+    try {
+      const {access, bytes} = await this.redeem(connection, {file, token});
+      if (access !== "edit") throw new Error("The original edit link is unavailable");
+      this.tabs.set(connection, {file, token, physical: connection, ended: false});
+      return {session: {file, connection, access, openedAsOwner: true as const}, archive: bytes};
+    } catch (error) {
+      void this.release(connection).catch(() => undefined);
+      throw error;
+    }
+  }
+
   async join(text: string) {
     const receive = this.listener;
     if (!receive || this.joining) throw new Error("The editor is busy");

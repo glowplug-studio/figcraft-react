@@ -3,7 +3,7 @@ import { IDBFactory } from "fake-indexeddb";
 import { strFromU8, unzipSync } from "fflate";
 import { expect, it, vi } from "vitest";
 import { IndexedDbRecoveryStore } from "../../src/backends/browser/recovery";
-import type { OnlineFileInfo, OnlineFileStore, RememberedOnlineFile } from "../../src/backends/online-files";
+import type { OnlineFileInfo, OnlineFileStore, OnlineInvitations, RememberedOnlineFile } from "../../src/backends/online-files";
 import { EditorWorkspace } from "../../src/engine/workspace";
 import { OnlineWorkspace } from "../../src/engine/sharing/online-workspace";
 import { onlineServerKey, readRememberedFiles } from "../../src/engine/sharing/remembered-files";
@@ -237,6 +237,49 @@ it("publishing a second file from a tab keeps each server drawing attached to it
   const reopened = workspace.getSnapshot().find(tab => tab.active)!;
   expect(reopened.id).not.toBe(firstTab);
   expect(online.publishedFile(reopened.id)).toBe(first.id);
+});
+
+it("retries an interrupted owner join on the same confirmed publication", async () => {
+  const {workspace, host, store, device} = setup();
+  const publish = vi.spyOn(store, "publish");
+  const invitations: OnlineInvitations = {
+    joinOwned: vi.fn(async (file: string) => ({
+      session: {file, access: "edit" as const, connection: crypto.randomUUID(), openedAsOwner: true as const},
+      archive: await store.open(file),
+    })).mockRejectedValueOnce(new Error("lost welcome")),
+    showJoin() {}, subscribe: () => () => {}, copyPublished: vi.fn(), leave: vi.fn(),
+  };
+  const online = new OnlineWorkspace(workspace, {...host, invitations}, "owner", () => true);
+  const source = workspace.getSnapshot()[0].id;
+  await expect(online.publish(source, "Remote")).rejects.toThrow("lost welcome");
+  expect(await online.list()).toHaveLength(1);
+  const receipt = await online.publish(source, "Remote");
+  expect(publish).toHaveBeenCalledTimes(1);
+  expect(workspace.getSnapshot()).toHaveLength(1);
+  expect(workspace.getSnapshot()[0].guest).toMatchObject({file: receipt.id, access: "edit", openedAsOwner: true});
+  await online.open(receipt.id);
+  expect(invitations.joinOwned).toHaveBeenCalledTimes(2);
+  const prior = workspace.getSnapshot()[0].guest!.connection;
+  await online.publish(source, "Second");
+  expect(invitations.leave).toHaveBeenCalledWith(prior);
+  device.close();
+});
+
+it("opens a pre-link owner archive as a local copy but never bypasses a refused original link", async () => {
+  const {workspace, online, host, store, device} = setup();
+  const id = (await online.publish(workspace.getSnapshot()[0].id, "Remote")).id;
+  const read = vi.spyOn(store, "open");
+  const invitations: OnlineInvitations = {
+    joinOwned: vi.fn(async () => undefined).mockRejectedValueOnce(new Error("The invite is unavailable")),
+    showJoin() {}, subscribe: () => () => {}, copyPublished: vi.fn(), leave: vi.fn(),
+  };
+  const next = new OnlineWorkspace(workspace, {...host, invitations}, "owner", () => true);
+  await expect(next.open(id)).rejects.toThrow("The invite is unavailable");
+  expect(read).not.toHaveBeenCalled();
+  await next.open(id);
+  expect(read).toHaveBeenCalledOnce();
+  expect(workspace.getSnapshot().find(tab => tab.active)?.guest).toBeUndefined();
+  device.close();
 });
 
 it("keeps pending owner changes across tabs and excludes credentials from public listings", async () => {

@@ -260,7 +260,19 @@ test("publish, reopen and manage a device-owned file in Home Online", async ({ p
   });
   try {
     await page.getByRole("button", { name: "Create rectangle", exact: true }).click();
+    const firstJoin = page.waitForRequest(r => new URL(r.url()).pathname === "/api/online-files/join");
     await publish("Owner drawing");
+    const sourceConnection = (await firstJoin).postDataJSON().tab;
+    await expect(bar.getByText(/Can edit/)).toBeVisible();
+    const ownerGrant = async (tab: string) => {
+      const row = await backend!.admin.from("online_file_connections").select("principal_id,online_file_links!inner(access_level)")
+        .eq("id", tab).maybeSingle();
+      expect(row.error).toBeNull();
+      return row.data;
+    };
+    if (backend) expect(await ownerGrant(sourceConnection)).toMatchObject({
+      principal_id: signIn.data.user.id, online_file_links: {access_level: "edit"},
+    });
     await showList();
     await expect(panel.getByRole("button", { name: /^Owner drawing/ })).toBeEnabled();
     await expect(panel.locator("small")).toContainText(new URL(url).host + " · Not shared · Opened ");
@@ -281,7 +293,12 @@ test("publish, reopen and manage a device-owned file in Home Online", async ({ p
     await page.unroute("**/rest/v1/online_files?**");
     await panel.getByRole("button", { name: "Try again" }).click();
     await expect(panel.getByRole("button", { name: /^Server listing/ })).toBeEnabled();
+    const nextJoin = page.waitForRequest(r => new URL(r.url()).pathname === "/api/online-files/join");
     await panel.getByRole("button", { name: /^Server listing/ }).click();
+    const reopenedConnection = (await nextJoin).postDataJSON().tab;
+    expect(reopenedConnection).not.toBe(sourceConnection);
+    await expect(bar.getByText(/Can edit/)).toBeVisible();
+    if (backend) expect(await ownerGrant(reopenedConnection)).toMatchObject({principal_id: signIn.data.user.id});
     await expect(bar.getByRole("heading", { name: "Owner drawing", exact: true })).toBeVisible();
     await expect(page.getByRole("tablist", { name: "Open files" }).getByRole("tab")).toHaveCount(2);
     await expect(page.getByRole("region", { name: "Layers", exact: true }).getByRole("button", { name: "Rectangle", exact: true })).toBeVisible();
@@ -316,6 +333,21 @@ test("publish, reopen and manage a device-owned file in Home Online", async ({ p
     await home.getByRole("button", { name: "Recents" }).click();
     await home.getByRole("button", { name: "Owner drawing", exact: true }).click();
     await publish("Removed elsewhere");
+    if (backend) {
+      const thirdId = paths[2].split("/")[1].replace(".figcraft", "");
+      const revoked = await backend.admin.from("online_file_links").delete().eq("file_id", thirdId).eq("access_level", "edit").select("id");
+      expect(revoked.error).toBeNull();
+      expect(revoked.data).toHaveLength(1);
+      await expect(page.getByRole("tab", {name: /Owner drawing, disconnected from its live session/, selected: true})).toBeVisible({timeout: 15_000});
+      await bar.getByText("File", {exact: true}).click();
+      await bar.getByRole("button", {name: "Leave session"}).click();
+      await showList();
+      await panel.getByRole("button", {name: /^Removed elsewhere/}).click();
+      await expect(panel.getByRole("alert")).toHaveText("The invite is unavailable");
+      expect((await client.storage.from("figcraft-files").download(paths[2])).error).toBeNull();
+      await home.getByRole("button", {name: "Recents"}).click();
+      await home.getByRole("button", {name: "Owner drawing", exact: true}).click();
+    }
     expect((await client.storage.from("figcraft-files").remove([paths[2]])).error).toBeNull();
     await showList();
     await expect(panel.getByRole("button", { name: /Removed elsewhere.*No longer on the server/ })).toBeDisabled();
@@ -582,27 +614,39 @@ test("the published view and edit invites open the original drawing in another s
     await vanished.close();
     const viewer = await visitor.newPage();
     const viewerBar = viewer.locator(".figcraft-document-bar");
-    let validations = 0;
-    viewer.on("response", response => {
-      if (new URL(response.url()).pathname.endsWith("/rpc/online_connection_active") && response.ok()) validations++;
+    const validations = new Map<string, number>();
+    const joinedTab = () => viewer.waitForResponse(response =>
+      new URL(response.url()).pathname === "/api/online-files/join" && response.ok())
+      .then(response => response.request().postDataJSON().tab as string);
+    viewer.on("response", async response => {
+      if (!new URL(response.url()).pathname.endsWith("/rpc/online_connection_active") || !response.ok()) return;
+      if (await response.json().catch(() => false) !== true) return;
+      const tab = response.request().postDataJSON().tab as string;
+      validations.set(tab, (validations.get(tab) ?? 0) + 1);
     });
+    const initialJoin = joinedTab();
     await viewer.goto(view);
+    const firstGrant = await initialJoin;
     await expect(viewerBar.getByText(/View only/)).toBeVisible();
-    await expect.poll(() => validations, {timeout: 15000}).toBeGreaterThanOrEqual(2);
+    await expect.poll(() => validations.get(firstGrant) ?? 0, {timeout: 15000}).toBeGreaterThanOrEqual(2);
     // Suppress just this tab's contact with the host. Its sibling keeps its
     // real heartbeat, despite both pages sharing one authenticated login.
     const heartbeatUrl = "**/rest/v1/rpc/online_connection_active";
     const redeemUrl = "**/api/online-files/join";
-    const beforeSilence = validations;
     await viewer.route(heartbeatUrl, route => route.abort("connectionreset"));
     await viewer.route(redeemUrl, route => route.abort("connectionreset"));
     await expect(viewerBar.getByText(/reconnecting \(attempt/)).toBeVisible({timeout: 55_000});
     await expect(toolbar.getByText(/Can edit/)).toBeVisible();
     await expect(viewer.getByRole("button", {name: "Create rectangle", exact: true})).toBeDisabled();
+    const recoveredJoin = joinedTab();
     await viewer.unroute(heartbeatUrl);
     await viewer.unroute(redeemUrl);
     await expect(viewerBar.getByText(/View only/)).toBeVisible({timeout: 15_000});
-    await expect.poll(() => validations).toBeGreaterThan(beforeSilence);
+    const recoveredGrant = await recoveredJoin;
+    expect(recoveredGrant).not.toBe(firstGrant);
+    // Exercise revocation of an established subscription: the first check
+    // opens the private channel and the second confirms the grant on subscribe.
+    await expect.poll(() => validations.get(recoveredGrant) ?? 0, {timeout: 10_000}).toBeGreaterThanOrEqual(2);
     await expect(viewerBar.getByRole("heading", {name: "Original invite drawing"})).toBeVisible();
     if (backend) {
       const abandoned = await backend.admin.from("online_file_connections").select("id").eq("id", vanishedId);

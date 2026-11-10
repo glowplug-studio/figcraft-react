@@ -26,6 +26,32 @@ export class OnlineWorkspace {
     this.tabs.set(file, tab);
   }
 
+  private async attachPublished(file: string, tabId: number) {
+    const invitations = this.host.invitations;
+    const joined = await invitations?.joinOwned?.(file);
+    if (!joined) {
+      this.check();
+      this.bindTab(file, tabId);
+      return;
+    }
+    try {
+      this.check();
+      const previous = this.workspace.getSnapshot().find(tab => tab.id === tabId)?.guest;
+      if (!this.workspace.attachGuestSession(tabId, joined.session)) return;
+      this.bindTab(file, tabId);
+      if (previous) await invitations!.leave(previous.connection);
+    } finally {
+      if (!this.workspace.getSnapshot().some(tab => tab.guest?.connection === joined.session.connection)) {
+        await invitations!.leave(joined.session.connection);
+      }
+    }
+  }
+
+  leaveTab(id: number) {
+    const file = this.publishedFile(id);
+    if (file) this.tabs.delete(file);
+  }
+
   private check() {
     if (!this.authorised()) throw new Error("The signed-in account changed");
   }
@@ -136,7 +162,7 @@ export class OnlineWorkspace {
           const [file] = await this.host.store.owned([previous]);
           this.check();
           if (!file) throw new Error("This file is no longer on its server");
-          this.bindTab(file.id, tabId);
+          await this.attachPublished(file.id, tabId);
           this.publishingTabs.delete(tabId);
           return file;
         }
@@ -157,7 +183,7 @@ export class OnlineWorkspace {
         this.publishingTabs.set(tabId, attempt.file);
       }
       const file = await this.send(attempt);
-      this.bindTab(file.id, tabId);
+      await this.attachPublished(file.id, tabId);
       this.publishingTabs.delete(tabId);
       return file;
     });
@@ -185,11 +211,25 @@ export class OnlineWorkspace {
         this.workspace.execute("doc.switch", { index: tab.index });
         return;
       }
-      const bytes = await this.host.store.open(id);
+      const invitations = this.host.invitations;
+      if (invitations?.joinOwned && !(await this.host.store.owned([id])).length) {
+        throw new Error("This file is no longer on its server");
+      }
       this.check();
-      const result = await this.workspace.open(new File([bytes], entry.name + ".figcraft"));
-      this.check();
-      this.bindTab(id, result.tabId);
+      const joined = await invitations?.joinOwned?.(id);
+      let attached = false;
+      try {
+        // Older device records have no original edit credential. Their owner
+        // can still open the archive as a local drawing without a live grant.
+        const bytes = joined?.archive ?? await this.host.store.open(id);
+        this.check();
+        const result = await this.workspace.open(new File([bytes], entry.name + ".figcraft"), joined?.session);
+        this.check();
+        this.bindTab(id, result.tabId);
+        attached = true;
+      } finally {
+        if (joined && !attached) await invitations!.leave(joined.session.connection);
+      }
       this.states.set(id, "online");
       await this.records(records => {
         const current = records.find(record => this.matches(record, id));
@@ -216,9 +256,13 @@ export class OnlineWorkspace {
 
   async remove(id: string) {
     return this.run(async () => {
+      const session = this.workspace.getSnapshot().find(tab => tab.id === this.tabs.get(id))?.guest;
       await this.host.store.remove(id);
+      if (session && this.host.invitations) {
+        await this.host.invitations.leave(session.connection);
+        this.workspace.leaveSession(session.connection);
+      }
       await this.forget(id);
-      this.tabs.delete(id);
     });
   }
 }

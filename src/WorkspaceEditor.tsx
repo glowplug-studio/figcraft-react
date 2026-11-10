@@ -89,7 +89,7 @@ export function WorkspaceEditor({ identity, capabilities, recoveryStore, onlineH
     const session = workspace.getSnapshot().find(tab => tab.guest?.connection === connection)?.guest;
     if (!session || session.ended) return;
     workspace.setGuestSession("attempt" in status ? {...session, reconnectAttempt: status.attempt}
-      : {file: session.file, connection, access: status.access});
+      : {...session, reconnectAttempt: undefined, access: status.access});
   }, [workspace]);
   const guest = active?.guest;
   const tabCapabilities = useMemo(() => guest && !guest.ended && guest.access !== "edit" ? capabilities.filter(cap => cap === "document.read"
@@ -97,6 +97,7 @@ export function WorkspaceEditor({ identity, capabilities, recoveryStore, onlineH
   const menuGroup = useId();
   const [openShareTab, setOpenShareTab] = useState<number>();
   const publishedId = active && online?.publishedFile(active.id);
+  const managing = publishedId !== undefined && publishedId === guest?.file;
 
   useEffect(() => {
     if (!enabled) return;
@@ -127,10 +128,10 @@ export function WorkspaceEditor({ identity, capabilities, recoveryStore, onlineH
   };
   const leave = async () => {
     if (!guest || !invitations) return;
-    try { await invitations.leave(guest.connection); workspace.leaveSession(guest.connection); setNotice("Left session"); }
+    try { await invitations.leave(guest.connection); workspace.leaveSession(guest.connection); if (active) online?.leaveTab(active.id); setNotice("Left session"); }
     catch { setNotice("Could not leave the session"); }
   };
-  const shareMenu = enabled && active && online && !guest && (online.sharing || (invitations && publishedId)) && <details name={menuGroup} className="figcraft-bar-menu"
+  const shareMenu = enabled && active && online && (!guest || managing) && (online.sharing || (invitations && publishedId)) && <details name={menuGroup} className="figcraft-bar-menu"
     onToggle={event => setOpenShareTab(event.currentTarget.open ? active.id : undefined)}><summary>Share</summary><div className="figcraft-menu-items">
     {online.sharing && openShareTab === active.id && <OwnerShareControls sharing={online.sharing} file={publishedId}
       publish={async () => (await online.publish(active.id, active.name)).id} published={() => setNotice("Published " + active.name)} />}
@@ -151,7 +152,7 @@ export function WorkspaceEditor({ identity, capabilities, recoveryStore, onlineH
     {guest?.ended && invitations?.rejoin && <button type="button" onClick={async () => {
       try {
         const access = await invitations.rejoin!(guest.connection);
-        if (!workspace.setGuestSession({file: guest.file, connection: guest.connection, access})) await invitations.leave(guest.connection);
+        if (!workspace.setGuestSession({...guest, ended: undefined, reconnectAttempt: undefined, access})) await invitations.leave(guest.connection);
         else setNotice("Rejoined session");
       } catch { setNotice("The invite is unavailable"); }
     }}>Reconnect</button>}
@@ -162,7 +163,7 @@ export function WorkspaceEditor({ identity, capabilities, recoveryStore, onlineH
     <button type="button" disabled={!enabled} onClick={() => workspace.execute("file.duplicate")}>Duplicate file</button>
     <button type="button" disabled={!enabled} onClick={event => { event.currentTarget.closest("details")?.removeAttribute("open"); setRenaming(true); }}>Rename file</button>
     <button type="button" disabled={!enabled} onClick={event => { event.currentTarget.closest("details")?.removeAttribute("open"); close(active.id); }}>Close file</button>
-    {online && !guest && <button type="button" disabled={!enabled} onClick={event => {
+    {online && (!guest || guest.openedAsOwner) && <button type="button" disabled={!enabled} onClick={event => {
       event.currentTarget.closest("details")?.removeAttribute("open"); setPublishTab(active);
     }}>Publish to server…</button>}
     {tabs.length > 1 && ([-1, 1] as const).map(offset => {

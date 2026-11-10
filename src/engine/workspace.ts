@@ -221,7 +221,12 @@ export class EditorWorkspace {
 
   setGuestSession(session: OnlineGuestSession) {
     const tab = this.#tabs.find(tab => tab.guest?.connection === session.connection && tab.guest.file === session.file);
-    if (!tab) return false;
+    return tab ? this.attachGuestSession(tab.id, session) : false;
+  }
+
+  attachGuestSession(id: number, session: OnlineGuestSession) {
+    const tab = this.#tabs.find(tab => tab.id === id);
+    if (!tab || !this.#editable) return false;
     tab.guest = session;
     tab.engine.setEditable(this.#editable && (!!session.ended || session.access === "edit"));
     this.#publish();
