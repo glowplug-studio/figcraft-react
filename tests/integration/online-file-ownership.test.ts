@@ -1,10 +1,13 @@
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { createClient } from "@supabase/supabase-js";
 import { unzipSync } from "fflate";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { SupabaseOnlineFileStore } from "../../src/backends/supabase/online-files";
 import { finaliseOnlineFile } from "../../src/backends/supabase/publication";
+import { changeFileLinks } from "../../examples/nextjs/lib/sharing/links";
+import { JoinCodeKey } from "../../examples/nextjs/lib/sharing/codes";
+import { parseJoinCode } from "../../src/engine/sharing/join-code";
 import { localSupabase } from "../support/localSupabase";
 
 const enabled = process.env.FIGCRAFT_LOCAL_INTEGRATION === "1";
@@ -65,6 +68,55 @@ describe.skipIf(!enabled)("private online files on real local Supabase", () => {
     expect(new Uint8Array(await downloaded.arrayBuffer())).toEqual(archive);
     await store.remove(id);
     await expect(store.open(id)).rejects.toThrow("no longer on its server");
+  });
+
+  it("atomically issues, rotates and revokes scoped file links without persisting bearer secrets", async () => {
+    const id = randomUUID();
+    const path = owner.id + "/" + id + ".figcraft";
+    paths.push(path);
+    const store = new SupabaseOnlineFileStore(owner.client, owner.id, file => finaliseOnlineFile(owner.client, local!.admin, file));
+    await store.publish(id, new Blob([archive]));
+    const writer = local!.admin;
+    const read = () => writer.from("online_file_links").select("*").eq("file_id", id);
+    await expect(changeFileLinks(writer, stranger.id, id, [], "shared")).rejects.toMatchObject({ code: "42501" });
+    await expect(changeFileLinks(owner.client, owner.id, id, [], "shared")).rejects.toBeTruthy();
+    const published = await changeFileLinks(writer, owner.id, id, [], "published");
+    expect(published.map(link => link.access)).toEqual(["edit", "view"]);
+    expect(published.every(link => !link.code)).toBe(true);
+    const shared = await changeFileLinks(writer, owner.id, id, [], "shared");
+    expect(shared.map(link => link.access)).toEqual(["edit", "view", "comment"]);
+    const stored = (await read()).data!;
+    expect(stored).toHaveLength(5);
+    for (const link of [...published, ...shared]) {
+      const row = stored.find(row => row.id === link.id)!;
+      expect(row.token_hash).toBe(createHash("sha256").update(link.token).digest("hex"));
+      expect(JSON.stringify(stored)).not.toContain(link.token);
+      if (link.code) {
+        const parsed = parseJoinCode(link.code);
+        if (parsed.kind !== "online") throw new Error("Expected an online invite");
+        expect(JSON.stringify(stored)).not.toContain(parsed.code);
+        expect(new JoinCodeKey(parsed.code).open({ hash: row.code_hash, token: row.wrapped_token })).toBe(link.token);
+      }
+    }
+    for (const client of [owner.client, stranger.client, local!.client]) {
+      expect((await client.from("online_file_links").select("*")).error).toBeTruthy();
+    }
+    const ids = shared.map(link => link.id);
+    await expect(changeFileLinks(writer, owner.id, id, ids, "shared", 4)).rejects.toMatchObject({ code: "22023" });
+    expect((await read()).data!.map(row => row.id).sort()).toEqual(stored.map(row => row.id).sort());
+    const rotated = await changeFileLinks(writer, owner.id, id, ids, "shared");
+    expect(rotated.some(link => ids.includes(link.id))).toBe(false);
+    await expect(changeFileLinks(writer, owner.id, id, ids)).rejects.toMatchObject({ code: "22023" });
+    await changeFileLinks(writer, owner.id, id, rotated.map(link => link.id));
+    expect((await read()).data!.map(row => row.id).sort()).toEqual(published.map(row => row.id).sort());
+    const competing = await Promise.allSettled([
+      changeFileLinks(writer, owner.id, id, [], "shared", 5),
+      changeFileLinks(writer, owner.id, id, [], "shared", 5),
+    ]);
+    expect(competing.filter(result => result.status === "fulfilled")).toHaveLength(1);
+    expect((await read()).data).toHaveLength(5);
+    await store.remove(id);
+    expect((await read()).data).toEqual([]);
   });
 
   it("ties owner metadata to an immutable private archive and removes both together", async () => {

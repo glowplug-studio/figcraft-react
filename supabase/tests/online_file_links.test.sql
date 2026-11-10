@@ -1,0 +1,11 @@
+begin;
+create extension if not exists pgtap with schema extensions;
+select plan(6);
+select ok(not has_table_privilege('anon', 'public.online_file_links', 'select'), 'anonymous clients cannot inspect link digests');
+select ok(not has_table_privilege('authenticated', 'public.online_file_links', 'select'), 'signed-in clients cannot list stored credentials');
+select ok(not has_table_privilege('authenticated', 'public.online_file_links', 'insert'), 'clients cannot mint bearer grants');
+select ok(not has_function_privilege('authenticated', 'public.change_online_file_links(uuid,uuid,text[],jsonb,integer)', 'execute'), 'an account cannot impersonate the verified actor');
+select ok(has_function_privilege('service_role', 'public.change_online_file_links(uuid,uuid,text[],jsonb,integer)', 'execute'), 'the verified host can issue and revoke grants');
+select ok(not has_table_privilege('service_role', 'public.online_file_links', 'truncate'), 'the host has only row management privileges');
+select * from finish();
+rollback;

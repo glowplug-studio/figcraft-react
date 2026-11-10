@@ -3,7 +3,9 @@ import { defineConfig } from "vitest/config";
 
 export default defineConfig({
   test: {
-    alias: {"#figcraft-font-assets":fileURLToPath(new URL("./scripts/font-assets-node.ts",import.meta.url)),
+    alias: {
+      "@glowplug-studio/figcraft-react/sharing/join-code": fileURLToPath(new URL("./src/engine/sharing/join-code.ts", import.meta.url)),
+      "#figcraft-font-assets":fileURLToPath(new URL("./scripts/font-assets-node.ts",import.meta.url)),
       "#figcraft-harfbuzz":fileURLToPath(new URL("./tests/support/ready-shaper.ts",import.meta.url)),
       "#figcraft-word-segmenter":fileURLToPath(new URL("./src/engine/icu-node.ts",import.meta.url)),
       "#figcraft-icc-runtime": fileURLToPath(new URL("./src/engine/icc-node.ts",import.meta.url))},
