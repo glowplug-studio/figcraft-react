@@ -113,8 +113,10 @@ test("authenticated rectangle command, pixels, keyboard undo/redo and resize", a
   page.on("pageerror", error => errors.push(error.message));
   page.on("requestfailed", request => { if (!request.failure()?.errorText.includes("ERR_ABORTED")) errors.push(request.failure()?.errorText ?? "Request failed"); });
   await login(page);
-  const inputs = page.locator('fieldset input');
-  for (const [index, value] of [10, 20, 30, 40].entries()) await inputs.nth(index).fill(String(value));
+  const create = page.getByRole("group", { name: "Create layer", exact: true });
+  for (const [name, value] of Object.entries({ X: 10, Y: 20, Width: 30, Height: 40 })) {
+    await create.getByRole("spinbutton", { name, exact: true }).fill(String(value));
+  }
   await page.getByRole("button", { name: "Create rectangle", exact: true }).click();
   await geometry(page, [10, 20, 30, 40]);
   const canvas = page.getByLabel("Design canvas", { exact: true });
