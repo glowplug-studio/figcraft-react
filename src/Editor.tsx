@@ -87,7 +87,7 @@ export function DocumentEditor({ identity, capabilities, engine: suppliedEngine,
   const recoveryStatus = workspaceRecovery?.status ?? localStatus;
   const recoveryError = workspaceRecovery ? workspaceRecovery.message : localError;
   const [busy, setBusy] = useState(false);
-  const [newVersionForm, setNewVersionForm] = useState(false);
+  const [newVersionForm, setNewVersionForm] = useState<"new" | "branch">();
   const [openingTab, setOpeningTab] = useState(false);
   const [assetsOpen,setAssetsOpen] = useState(false);
   const [mobileAssetsOpen,setMobileAssetsOpen] = useState(false);
@@ -409,12 +409,13 @@ export function DocumentEditor({ identity, capabilities, engine: suppliedEngine,
       engine.pen.finish();
       if (engine.currentTextEdit()) await controller.current?.flushTextForSave();
       else controller.current?.cancel();
-      const result = await engine.saveFile();
+      const result = workspace ? await workspace.prepareDownload() : await engine.saveFile();
       const url = URL.createObjectURL(result.data);
       try {
         const link = document.createElement("a"); link.href = url; link.download = String(result.name);
         document.body.append(link); link.click(); link.remove();
-        engine.execute("file.markSaved", { revision: result.revision });
+        if ("delivered" in result && typeof result.delivered === "function") result.delivered();
+        else engine.execute("file.markSaved", { revision: result.revision });
       } finally { setTimeout(() => URL.revokeObjectURL(url), 1000); }
     } catch (caught) { setError(caught instanceof Error ? caught.message : "File could not be saved"); }
     finally { setBusy(false); }
@@ -477,9 +478,9 @@ export function DocumentEditor({ identity, capabilities, engine: suppliedEngine,
     }}>
       <header className="figcraft-document-bar"><h1>{snapshot.document.name}</h1><span>{snapshot.dirty ? "Unsaved" : snapshot.hasSaved ? "Downloaded" : "Unmodified"} · Local document</span>
         <details><summary>File</summary>{fileMenu}
-          {(["Version history", "Save to version history…"] as const).map((label, index) => <button key={label} type="button"
+          {(["Version history", "Save to version history…", ...(workspace && !workspace.onBranch ? ["Create branch…"] : [])]).map((label, index) => <button key={label} type="button"
             disabled={!signedIn || busy || recoveryStatus === "loading" || !capabilities.includes("document.edit")} onClick={event => {
-              event.currentTarget.closest("details")?.removeAttribute("open"); setNewVersionForm(index === 1);
+              event.currentTarget.closest("details")?.removeAttribute("open"); setNewVersionForm(index === 2 ? "branch" : index === 1 ? "new" : undefined);
               dispatch("file.versionHistory");
             }}>{label}</button>)}
           <button disabled={!editable || busy} type="button" onClick={event => {

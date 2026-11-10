@@ -1,4 +1,7 @@
 import { EditorEngine, type EditorClipboard } from "./editor";
+import { clippedText } from "./file-versions";
+import type { FileBranch } from "./file-format";
+import { nextBranchClient } from "./branch-ids";
 import { owningInstance } from "./component-tree";
 import { libraryComponent } from "./library-store";
 import { MAX_CACHED_LIBRARIES } from "./library-links";
@@ -13,16 +16,20 @@ export interface DocumentTab {
   readonly dirty: boolean;
   readonly active: boolean;
   readonly path: null;
+  readonly branchId?: string;
 }
 
 interface OpenTab {
   id: number;
   engine: EditorEngine;
   unsubscribe: () => void;
+  branch?: { main: EditorEngine; id: string };
 }
 
 type WorkspaceCommand = "doc.list" | "doc.switch" | "doc.nextTab" | "doc.previousTab"
   | "file.new" | "file.moveTab" | "file.close" | "file.duplicate";
+
+type BranchCommand = "branch.list" | "branch.create" | "branch.open" | "branch.archive";
 
 export class LibrarySourceNeeded extends Error {}
 
@@ -55,21 +62,48 @@ export class EditorWorkspace {
   }
   get engines(): readonly EditorEngine[] { return this.#tabs.map(tab => tab.engine); }
 
+  get fileBranches() { return (this.#active?.branch?.main ?? this.activeEngine)?.branches ?? []; }
+  get onBranch() { return !!this.#active?.branch; }
+
+  // Recovery writes each file once. A branch is already included in its owning archive.
+  get recoveryFiles() {
+    const mains = this.#tabs.filter(tab => !tab.branch);
+    const selected = this.#active?.branch?.main ?? this.activeEngine;
+    return { engines: mains.map(tab => tab.engine), active: Math.max(0, mains.findIndex(tab => tab.engine === selected)) };
+  }
+
+  async prepareDownload() {
+    const main = this.#active?.branch?.main ?? this.activeEngine;
+    if (!main || !this.#editable) throw new Error("No editable document");
+    const open = this.#tabs.filter(t => t.branch?.main === main).map(t => ({ engine: t.engine, revision: t.engine.archiveRevision }));
+    const result = await main.saveFile();
+    return { ...result, delivered: () => {
+      main.execute("file.markSaved", { revision: result.revision });
+      for (const tab of open) if (tab.engine.archiveRevision === tab.revision && this.#tabs.some(t => t.engine === tab.engine)) {
+        tab.engine.execute("file.markSaved");
+      }
+    } };
+  }
+
   #publish() {
-    this.#snapshot = Object.freeze(this.#tabs.map(({ id, engine }, index) => {
+    this.#snapshot = Object.freeze(this.#tabs.map(({ id, engine, branch }, index) => {
       const { document, dirty } = engine.getSnapshot();
-      return Object.freeze({ id, index, name: document.name, dirty, active: engine === this.activeEngine, path: null });
+      return Object.freeze({ id, index, name: document.name, dirty, active: engine === this.activeEngine, path: null, ...(branch && { branchId: branch.id }) });
     }));
     for (const listener of this.#listeners) listener();
   }
 
-  #attach(engine: EditorEngine) {
+  #attach(engine: EditorEngine, branch?: OpenTab["branch"]) {
     let { document: { name }, dirty } = engine.getSnapshot();
     let last = engine.archiveRevision;
     const unsubscribe = engine.subscribe(() => {
       const state = engine.getSnapshot();
       if (last !== engine.archiveRevision) {
         last = engine.archiveRevision;
+        if (branch && this.#editable) {
+          branch.main.replaceBranches(branch.main.branches.map(record => record.id === branch.id
+            ? Object.freeze({ ...record, head: { document: last.document, nextId: String(last.nextId) }, versions: last.versions }) : record));
+        }
         for (const listener of this.#documentListeners) listener();
       }
       if (name === state.document.name && dirty === state.dirty) return;
@@ -77,11 +111,11 @@ export class EditorWorkspace {
       dirty = state.dirty;
       this.#publish();
     });
-    return { id: nextDocumentId++, engine, unsubscribe };
+    return { id: nextDocumentId++, engine, unsubscribe, branch };
   }
 
-  #append(engine: EditorEngine, activate = true) {
-    const tab = this.#attach(engine);
+  #append(engine: EditorEngine, activate = true, branch?: OpenTab["branch"]) {
+    const tab = this.#attach(engine, branch);
     this.#tabs.push(tab);
     if (activate || !this.#active) this.#active = tab;
     this.#publish();
@@ -183,10 +217,67 @@ export class EditorWorkspace {
     return { ...result, ...this.#append(engine, this.#active === origin) };
   }
 
+  #removeTab(tab: OpenTab) {
+    const index = this.#tabs.indexOf(tab);
+    tab.unsubscribe();
+    tab.engine.closeTab();
+    this.#tabs.splice(index, 1);
+    if (tab === this.#active) this.#active = this.#tabs[Math.min(index, this.#tabs.length - 1)];
+  }
+
+  #branchCommand(command: BranchCommand, params: Record<string, unknown>) {
+    const active = this.#active;
+    if (!active) throw new Error("No document");
+    const main = active.branch?.main ?? active.engine;
+    const openIndex = (id: string) => this.#tabs.findIndex(tab => tab.branch?.main === main && tab.branch.id === id);
+    if (command === "branch.list") return main.branches.map(({ id, name, time, state }) => {
+      const index = openIndex(id);
+      return { id, name, time: inspectedId(time), state, ...(index >= 0 && { index }) };
+    });
+    if (command === "branch.create") {
+      if (active.branch) throw new Error("This tab is a branch: make branches from the main file");
+      if (main.branches.length >= 100) throw new Error("The file has the most branches it can keep (100)");
+      const { document, nextId } = main.archiveRevision;
+      const client = nextBranchClient(document, main.branches);
+      const name = clippedText(parseString(params.name)?.trim() || "Branch " + (main.branches.length + 1), 200);
+      const now = Date.now();
+      let stamp = now;
+      while (main.branches.some(b => b.id === stamp.toString(16))) stamp++;
+      const id = stamp.toString(16);
+      const branch: FileBranch = Object.freeze({ id, name, client, state: "active", time: String(Math.floor(now / 1000)),
+        base: { document, nextId: String(nextId) }, head: { document: Object.freeze({ ...document, name }), nextId: String((BigInt(client) << 32n) + 1n) },
+        versions: Object.freeze([]) });
+      main.replaceBranches([...main.branches, branch]);
+      const engine = main.openBranch(branch);
+      const { index } = this.#append(engine, true, { main, id });
+      engine.execute("file.saveVersion", { name: "Branch created" });
+      return { id, name, index };
+    }
+    const id = parseString(params.id) ?? active.branch?.id;
+    if (!id) throw new Error("Pass the branch id");
+    const record = main.branches.find(b => b.id === id);
+    if (!record) throw new Error("No branch `" + id + "`");
+    const index = openIndex(id);
+    if (command === "branch.archive") {
+      if (record.state !== "active") throw new Error("The branch was already merged or archived");
+      main.replaceBranches(main.branches.map(b => b === record ? Object.freeze({ ...b, state: "archived" }) : b));
+      if (index >= 0) this.#removeTab(this.#tabs[index]);
+      this.#publish();
+      return { archived: true };
+    }
+    if (index < 0) return this.#append(main.openBranch(record), true, { main, id });
+    this.#active = this.#tabs[index];
+    this.#publish();
+    return { index };
+  }
+
+  execute(command: "branch.list"): { id: string; name: string; time: number | string; state: FileBranch["state"]; index?: number }[];
+  execute(command: Exclude<BranchCommand, "branch.list">, params?: Record<string, unknown>): Record<string, unknown>;
   execute(command: "doc.list"): readonly DocumentTab[];
   execute(command: Exclude<WorkspaceCommand, "doc.list">, params?: Record<string, unknown>): Record<string, unknown>;
-  execute(command: WorkspaceCommand, params: Record<string, unknown> = {}): readonly DocumentTab[] | Record<string, unknown> {
+  execute(command: WorkspaceCommand | BranchCommand, params: Record<string, unknown> = {}): readonly DocumentTab[] | readonly Record<string, unknown>[] | Record<string, unknown> {
     if (!this.#editable) throw new Error("Sign in to use the workspace");
+    if (command.startsWith("branch.")) return this.#branchCommand(command as BranchCommand, params);
     if (command === "doc.list") return this.#snapshot;
     if (command === "file.new") return { ...this.#append(EditorEngine.newTab(parseString(params.name), this.#clipboard)), kind: "design" };
     const active = this.#active;
@@ -215,13 +306,11 @@ export class EditorWorkspace {
       const index = "index" in params ? tabIndex("index") : this.#tabs.indexOf(active);
       const tab = this.#tabs[index];
       tab.engine.exitVersionPreview();
-      if (tab.engine.getSnapshot().dirty && !parseBoolean(params.force)) {
+      if (!tab.branch && tab.engine.getSnapshot().dirty && !parseBoolean(params.force)) {
         throw new Error("command `file.close` is not available right now: the document has unsaved changes (pass force: true to discard)");
       }
-      tab.unsubscribe();
-      tab.engine.closeTab();
-      this.#tabs.splice(index, 1);
-      if (tab === active) this.#active = this.#tabs[Math.min(index, this.#tabs.length - 1)];
+      for (const child of this.#tabs.filter(t => t.branch?.main === tab.engine)) this.#removeTab(child);
+      this.#removeTab(tab);
       this.#publish();
       return { ok: true };
     }

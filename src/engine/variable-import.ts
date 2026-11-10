@@ -5,17 +5,18 @@ import {readRestVariables} from "./variable-rest";
 import {references,refersBack,variableDefaults} from "./variable-values";
 import type {Collection,Mode,Variable,Variables,VariableValue} from "./variables";
 
-function allocate(records:readonly {id:string}[],prefix:string) {
+function allocate(records:readonly {id:string}[],prefix:string, session?: () => bigint) {
+  if (session) return () => prefix + session();
   let n=BigInt(nextVariableId(records,prefix).slice(prefix.length));
   return ()=>prefix+String(n++);
 }
-export function importVariables(data:Variables,p:Record<string,unknown>,remote?:ReadonlySet<string>) {
+export function importVariables(data:Variables,p:Record<string,unknown>,remote?:ReadonlySet<string>, session?: () => bigint) {
   if (Object.keys(p).some(k=>k!=="variables")) throw new Error("Unknown variable import parameter");
   const src=readRestVariables(p.variables);
   const result={collections:0,variables:0,updated:0,warnings:src.warnings};
   const collections=new Map(data.collections.map(c=>[c.id,c]));
   const variables=new Map(data.variables.map(v=>[v.id,v]));
-  const nextCollection=allocate(data.collections,"VariableCollectionId:"),nextVariable=allocate(data.variables,"VariableID:");
+  const nextCollection=allocate(data.collections,"VariableCollectionId:", session),nextVariable=allocate(data.variables,"VariableID:", session);
   const localNames=new Map<string,string>(),allNames=new Set<string>();
   const members=new Map<string,Map<string,Variable>>(),memberIds=new Map<string,string[]>();
   for (const c of data.collections) {
@@ -50,7 +51,7 @@ export function importVariables(data:Variables,p:Record<string,unknown>,remote?:
       if (!local) {
         let n=modes.length+1;
         while (modeIds.has(cid+"/mode"+n)) n++;
-        local=Object.freeze({id:target.id+"/mode"+n,name:mode.name});
+        local=Object.freeze({id:target.id+"/mode"+(session ? session() : n),name:mode.name});
         modeIds.add(local.id);existingModes.set(local.name,local);addedModes.push(local.id);
         modes.push(local);
       }
@@ -115,6 +116,6 @@ export function importVariables(data:Variables,p:Record<string,unknown>,remote?:
   const next=syncExtensions({collections:Object.freeze([...collections.values()]),variables:Object.freeze([...variables.values()].map(v=>{
     if (Object.isFrozen(v)) return v;
     return Object.freeze({...v,values:Object.freeze(v.values)});
-  }))});
+  }))}, session);
   return {data:sameComponentValue(data,next) ? data : next,result};
 }

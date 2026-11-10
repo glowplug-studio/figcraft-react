@@ -100,7 +100,7 @@ function inputValue(data:Variables,type:VariableType,raw:unknown,owner?:string):
       return Object.freeze({type,value:raw});
   }
 }
-export function editVariableValue(data:Variables,command:string,p:Record<string,unknown>) {
+export function editVariableValue(data:Variables,command:string,p:Record<string,unknown>, allocate?: () => bigint) {
   const create=command==="variable.create", reset=command==="variable.resetOverride";
   const allowed=create ? ["name","collection","type","values","value","description"] : reset ? ["variable","mode"] : ["variable","mode","value"];
   for (const k of Object.keys(p)) if (!allowed.includes(k)) throw new Error("Unknown "+command+" parameter "+k);
@@ -152,11 +152,11 @@ export function editVariableValue(data:Variables,command:string,p:Record<string,
     }
     overrides=inherited.size ? Object.freeze([...inherited].sort(compareScalarKeys)) : undefined;
   }
-  const id=original?.id ?? nextVariableId(data.variables,"VariableID:");
+  const id=original?.id ?? (allocate ? "VariableID:" + allocate() : nextVariableId(data.variables,"VariableID:"));
   const {overrides:previous,...base}=original ?? {id,name:str(p.name),resolvedType:type,collection:coll.id,description:parseString(p.description) ?? ""};
   const next:Variable=Object.freeze({...base,values:Object.freeze(values),...(overrides && {overrides})});
   const result=create ? {id} : {ok:true};
   if (original && sameComponentValue(original,next)) return {data,result};
   const variables=original ? data.variables.map(v=>v===original ? next : v) : [...data.variables,next];
-  return {data:syncExtensions(Object.freeze({...data,variables:Object.freeze(variables)})), result};
+  return {data:syncExtensions(Object.freeze({...data,variables:Object.freeze(variables)}), allocate), result};
 }

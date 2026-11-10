@@ -1,3 +1,4 @@
+import { nextBranchId } from "./branch-ids";
 import { VersionHistory, versionDetails, type FileVersion } from "./file-versions";
 import {documentColours} from "./document-colours";
 import {swapLibrary} from "./library-swap";
@@ -372,6 +373,34 @@ export class EditorEngine {
 
   #branches: readonly FileBranch[] = Object.freeze([]);
   get branches() { return this.#branches; }
+  #savedBranches = this.#branches;
+  #branchClient = 0;
+  #assetIds() {
+    let next = this.#interaction?.nextId ?? this.#nextId;
+    const allocate = this.#branchClient ? () => {
+      if (next >> 32n !== BigInt(this.#branchClient)) throw new Error("Branch identifiers are exhausted");
+      return next++;
+    } : undefined;
+    return { allocate, next: () => next };
+  }
+  replaceBranches(records: readonly FileBranch[]) {
+    if (!this.#hostEditable) throw new Error("Sign in to edit this document");
+    this.#branches = Object.freeze([...records]);
+    this.#publish({});
+  }
+
+  openBranch(branch: FileBranch) {
+    const tab = EditorEngine.newTab(undefined, this.#clipboard);
+    const { document } = branch.head;
+    tab.#branchClient = branch.client;
+    tab.#nextId = nextBranchId(branch);
+    tab.#saved = document;
+    tab.#history = new VersionHistory(branch.versions);
+    tab.#savedVersions = tab.#history.records;
+    tab.#publish({ document });
+    tab.updateView(fitPage(defaultViewport, document));
+    return tab;
+  }
   #savedVersions = this.#history.records;
   #archiveRevision?: { document: Document; branches: readonly FileBranch[]; versions: readonly FileVersion[]; nextId: bigint };
   get archiveRevision() {
@@ -386,7 +415,7 @@ export class EditorEngine {
   #saved: Document | null = null;
   #downloaded = false;
   #saveSequence = 0;
-  #pendingSaves = new Map<number, { document: Document; versions: readonly FileVersion[] }>();
+  #pendingSaves = new Map<number, { document: Document; branches: readonly FileBranch[]; versions: readonly FileVersion[] }>();
   #openSequence = 0;
   constructor(name?: string) {
     this.#snapshot = Object.freeze({ document: newDocument(name), selection: Object.freeze([]), tool: "move", builderMode: "merge", scaleAnchor: "tl", canUndo: false, canRedo: false, editable: true, dirty: true, hasSaved: false });
@@ -1013,6 +1042,7 @@ export class EditorEngine {
     const before = this.#snapshot;
     const proposed=options.duplicated ? countLibraryInstances(patch.document,options.duplicated.copies,"inserted") : patch.document;
     const {document,nextId} = this.#prepareEdit(proposed, options.nextId ?? this.#nextId);
+    if (this.#branchClient && nextId > ((BigInt(this.#branchClient) + 1n) << 32n)) throw new Error("Branch identifiers are exhausted");
     guardLibraryVariables(before.document,document);
     if (!options.libraryEdit) guardLibraryStore(before.document,document);
     if (options.record !== false) {
@@ -1030,7 +1060,7 @@ export class EditorEngine {
     const document = patch.document ?? this.#snapshot.document;
     if (document !== this.#snapshot.document) this.#preparedEdit = undefined;
     if (patch.editable === false || patch.selection && !sameIds(patch.selection, this.#snapshot.selection)) patch = { ...patch, paintPicker: undefined, openEffects: undefined };
-    this.#snapshot = Object.freeze({ ...this.#snapshot, ...patch, canUndo: this.#undo.length > 0, canRedo: this.#redo.length > 0, dirty: !sameContent(this.#preview?.document ?? document, this.#saved) || this.#history.records !== this.#savedVersions, hasSaved: this.#downloaded });
+    this.#snapshot = Object.freeze({ ...this.#snapshot, ...patch, canUndo: this.#undo.length > 0, canRedo: this.#redo.length > 0, dirty: !sameContent(this.#preview?.document ?? document, this.#saved) || this.#history.records !== this.#savedVersions || this.#branches !== this.#savedBranches, hasSaved: this.#downloaded });
     if (this.#lastDuplicate && !duplicateSelection(this.#lastDuplicate, this.#snapshot.selection)) this.#lastDuplicate = undefined;
     if (this.#vectorEdit) this.#vectorEdit = pageForNode(document, this.#vectorEdit.id) === document.currentPage ? clampVectorEdit(document, this.#vectorEdit) : undefined;
     if (this.#snapshot.crop && (!this.#snapshot.editable || !this.pickedCrop())) {
@@ -1383,23 +1413,29 @@ export class EditorEngine {
       if (!live) this.cancelInteraction();
       const before = this.getRenderDocument();
       const selection = this.getRenderSelection();
+      const ids = this.#assetIds();
       const libraryStyle=()=>{
         const link=findLibrary(before,p.library);
         if (!link) throw Error("no enabled library `"+p.library+"`");
         return applyLibraryStyle(before,selection,linkedPublication(link,path=>this.librarySource(path)),p,live);
       };
-      const {document, result} = command==="library.applyStyle" ? libraryStyle() : Object.hasOwn(styleEditSpecs, command) ? editStyleDefinition(before, selection, command, p, live) :
+      const {document, result} = command==="library.applyStyle" ? libraryStyle() : Object.hasOwn(styleEditSpecs, command) ? editStyleDefinition(before, selection, command, p, live, ids.allocate) :
         {document:editStyleLinks(before, selection, p, command === "style.detach", live), result:{ok:true}};
-      if (live) live.update(document, live.anchor, live.caret);
-      else if (document !== before) this.#commitEdit({document});
+      if (live) {
+        if (this.#interaction) this.#interaction.nextId = ids.next();
+        live.update(document, live.anchor, live.caret);
+      } else if (document !== before) this.#commitEdit({document}, { nextId: ids.next() });
       return result;
     }
     if (Object.hasOwn(styleOrderSpecs, command)) {
       const live = this.getTextRange();
       const before = this.getRenderDocument();
-      const {document, result} = orderStyles(before, command, p);
-      if (live) live.update(document, live.anchor, live.caret);
-      else if (document !== before) this.#commitEdit({document});
+      const ids = this.#assetIds();
+      const {document, result} = orderStyles(before, command, p, ids.allocate);
+      if (live) {
+        if (this.#interaction) this.#interaction.nextId = ids.next();
+        live.update(document, live.anchor, live.caret);
+      } else if (document !== before) this.#commitEdit({document}, { nextId: ids.next() });
       return result;
     }
     if (command==="variable.setMode" || command==="variable.bind") {
@@ -1411,14 +1447,15 @@ export class EditorEngine {
     }
     if (command==="variable.import" || Object.hasOwn(collectionSpecs,command) || Object.hasOwn(valueSpecs,command) || Object.hasOwn(metadataSpecs,command)) {
       const before=this.#snapshot.document, data=before.variables ?? emptyVariables;
-      const next=command==="variable.import" ? importVariables(data,p,new Set(before.libraryRecords?.collections.map(r=>r.local))) : Object.hasOwn(collectionSpecs,command) ? editCollection(data,command,p) :
-        Object.hasOwn(metadataSpecs,command) ? editVariableMetadata(data,command,p) : editVariableValue(data,command,p);
+      const ids = this.#assetIds();
+      const next=command==="variable.import" ? importVariables(data,p,new Set(before.libraryRecords?.collections.map(r=>r.local)), ids.allocate) : Object.hasOwn(collectionSpecs,command) ? editCollection(data,command,p,ids.allocate) :
+        Object.hasOwn(metadataSpecs,command) ? editVariableMetadata(data,command,p,ids.allocate) : editVariableValue(data,command,p,ids.allocate);
       if (next.data!==data) {
         let kept=command==="variable.deleteCollection" || command==="variable.removeMode"
           ? removeLayerMode(before,data,p,command==="variable.deleteCollection") : before;
         if (command==="variable.delete" || command==="variable.deleteCollection") kept=forgetLayerVariables(kept,data,next.data);
         const {variables:old,...rest}=kept;
-        this.#commitEdit({document:Object.freeze({...rest,...(next.data!==emptyVariables && {variables:next.data})})});
+        this.#commitEdit({document:Object.freeze({...rest,...(next.data!==emptyVariables && {variables:next.data})})}, { nextId: ids.next() });
       }
       return next.result;
     }
@@ -1458,8 +1495,9 @@ export class EditorEngine {
       const before=this.#snapshot.document,link=findLibrary(before,parseString(p.library));
       if (!link) throw Error("no enabled library `"+p.library+"`");
       const lib=linkedPublication(link,path=>this.librarySource(path));
-      const next=editLibraryVariable(before,this.#snapshot.selection,lib,command,p);
-      if (next.document!==before) this.#commitEdit({document:next.document});
+      const ids = this.#assetIds();
+      const next=editLibraryVariable(before,this.#snapshot.selection,lib,command,p,ids.allocate);
+      if (next.document!==before) this.#commitEdit({document:next.document}, { nextId: ids.next() });
       return next.result;
     }
     if (command==="library.list") {
@@ -1501,11 +1539,12 @@ export class EditorEngine {
     }
     if (command === "file.markSaved") {
       if (Object.keys(p).some(key => key !== "revision")) throw new Error("Unsupported save acknowledgement parameter");
-      const saved = p.revision === undefined ? { document: this.#interaction?.document ?? this.#snapshot.document, versions: this.#history.records }
+      const saved = p.revision === undefined ? { document: this.#interaction?.document ?? this.#snapshot.document, versions: this.#history.records, branches: this.#branches }
         : typeof p.revision === "number" ? this.#pendingSaves.get(p.revision) : undefined;
       if (!saved) return { saved: false };
       this.#saved = saved.document;
       this.#savedVersions = saved.versions;
+      this.#savedBranches = saved.branches;
       this.#downloaded = true;
       this.#pendingSaves.clear();
       this.#publish({});
@@ -1601,7 +1640,7 @@ export class EditorEngine {
     const archive = await encodeFigcraftBlob(document, String(nextId), versions, thumbnail, branches);
     const data = await output(archive);
     if (!this.#snapshot.editable || opening !== this.#openSequence) throw new Error("Save was cancelled because the document or identity changed");
-    this.#pendingSaves.set(revision, { document, versions });
+    this.#pendingSaves.set(revision, { document, versions, branches });
     while (this.#pendingSaves.size > 16) this.#pendingSaves.delete(this.#pendingSaves.keys().next().value!);
     return {name: `${document.name}.figcraft`, bytes: archive.size, data, revision};
   }
@@ -1732,6 +1771,8 @@ export class EditorEngine {
     this.#documentIdentity = Symbol();
     this.#nextId = BigInt(decoded.nextId);
     this.#branches = decoded.branches ?? Object.freeze([]);
+    this.#savedBranches = this.#branches;
+    this.#branchClient = 0;
     this.#history = new VersionHistory(decoded.versions);
     this.#savedVersions = this.#history.records;
     this.#undo = []; this.#redo = []; this.#saved = null; this.#downloaded = false; this.#pendingSaves.clear();

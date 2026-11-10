@@ -40,7 +40,8 @@ function styleIndex(styles: readonly SharedStyle[], key: string, remote?:Readonl
 }
 
 // The native single-user document starts at the catalogue length + 1 and skips IDs or names in use.
-function newStyleId(styles: readonly SharedStyle[]) {
+function newStyleId(styles: readonly SharedStyle[], allocate?: () => bigint) {
+  if (allocate) return "S:" + allocate();
   const used = new Set(styles.flatMap(style => [style.id, style.name]));
   let n = styles.length + 1;
   while (used.has("S:" + n)) n++;
@@ -89,7 +90,7 @@ function renameFolder(styles: readonly SharedStyle[], p: Record<string, unknown>
   });
 }
 
-export function orderStyles(document: Document, command: string, params: Record<string, unknown>) {
+export function orderStyles(document: Document, command: string, params: Record<string, unknown>, allocate?: () => bigint) {
   const styles = document.styles ?? [];
   const remote=new Set(document.libraryRecords?.styles?.map(r=>r.local));
   let result: Record<string, unknown> = {ok:true};
@@ -97,7 +98,7 @@ export function orderStyles(document: Document, command: string, params: Record<
   switch (command) {
     case "style.duplicate": {
       const index = styleIndex(styles, requiredString(params, "style"), remote);
-      const original = styles[index], id = newStyleId(styles);
+      const original = styles[index], id = newStyleId(styles, allocate);
       const copy = Object.freeze({...original, id, name:copyName(styles, original.name)});
       next = [...styles.slice(0, index + 1), copy, ...styles.slice(index + 1)];
       result = {id};
@@ -119,7 +120,7 @@ export const styleEditSpecs = {
 } as const;
 
 export function editStyleDefinition(document: Document, selection: readonly string[], command: string,
-  p: Record<string, unknown>, live?: ActiveStyleRange) {
+  p: Record<string, unknown>, live?: ActiveStyleRange, allocate?: () => bigint) {
   const styles = document.styles ?? [];
   const remote=new Set(document.libraryRecords?.styles?.map(r=>r.local));
   let next = [...styles], source = parseNodeId(p.from);
@@ -135,7 +136,7 @@ export function editStyleDefinition(document: Document, selection: readonly stri
     const explicit = Object.hasOwn(p, "value");
     const value = explicit ? explicitDefinition(slot, p.value) : node && nodeDefinition(slot, node, range);
     if (!value) throw new Error("Pass a style value or select a layer with the requested property");
-    id = newStyleId(styles);
+    id = newStyleId(styles, allocate);
     let created:SharedStyle=Object.freeze({id,name,description:parseString(p.description) ?? "",...value});
     if (!explicit && !range && node?.boundVariables) {
       const bound:Record<string,string>=Object.create(null);

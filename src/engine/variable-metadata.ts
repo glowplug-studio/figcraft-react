@@ -60,7 +60,7 @@ function forget(data:Variables,gone:Set<string>) {
     return changed ? Object.freeze({...v,values:Object.freeze(values)}) : v;
   });
 }
-export function editVariableMetadata(data:Variables,command:string,p:Record<string,unknown>) {
+export function editVariableMetadata(data:Variables,command:string,p:Record<string,unknown>, allocate?: () => bigint) {
   const removeCollection=command==="variable.deleteCollection";
   const allowed=removeCollection ? ["collection"] : command==="variable.update" ? ["variable","name","description","scopes","hiddenFromPublishing","codeSyntax"] : ["variable"];
   for (const k of Object.keys(p)) if (!allowed.includes(k)) throw new Error("Unknown "+command+" parameter "+k);
@@ -89,7 +89,7 @@ export function editVariableMetadata(data:Variables,command:string,p:Record<stri
         if (n>=1000) throw new Error("Too many copies");
         name=prefix+" "+n;
       }
-      const id=nextVariableId(variables,"VariableID:");
+      const id=allocate ? "VariableID:" + allocate() : nextVariableId(variables,"VariableID:");
       variables.splice(i+1,0,Object.freeze({...base,id,name}));result={id};
     } else {
       const next=metadata(v,p,data);
@@ -97,5 +97,5 @@ export function editVariableMetadata(data:Variables,command:string,p:Record<stri
       variables[i]=next;
     }
   }
-  return {data:collections.length || variables.length ? syncExtensions(Object.freeze({collections,variables:Object.freeze(variables)})) : emptyVariables,result};
+  return {data:collections.length || variables.length ? syncExtensions(Object.freeze({collections,variables:Object.freeze(variables)}), allocate) : emptyVariables,result};
 }

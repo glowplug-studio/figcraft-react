@@ -3,10 +3,11 @@ import type { EditorEngine } from "./engine/editor";
 import type { FileVersion } from "./engine/file-versions";
 import type { EditorWorkspace } from "./engine/workspace";
 
-export function VersionPanel({ engine, workspace, initialForm = false }: {
-  engine: EditorEngine; workspace?: EditorWorkspace; initialForm?: boolean;
+export function VersionPanel({ engine, workspace, initialForm }: {
+  engine: EditorEngine; workspace?: EditorWorkspace; initialForm?: "new" | "branch";
 }) {
-  const [form, setForm] = useState<"new" | FileVersion | undefined>(initialForm ? "new" : undefined);
+  const [form, setForm] = useState<"new" | FileVersion | undefined>(initialForm === "new" ? "new" : undefined);
+  const [branchForm, setBranchForm] = useState(initialForm === "branch");
   const [deleting, setDeleting] = useState<string>();
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -21,7 +22,9 @@ export function VersionPanel({ engine, workspace, initialForm = false }: {
   async function action(command: string, params: Record<string, unknown> = {}) {
     setBusy(true); setError("");
     try {
-      if (command === "version.duplicate") await workspace!.duplicateVersion(params);
+      if (command === "branch.create" || command === "branch.open" || command === "branch.archive") {
+        workspace!.execute(command, params); setBranchForm(false);
+      } else if (command === "version.duplicate") await workspace!.duplicateVersion(params);
       else await engine.executeAsync(command, params);
       setForm(undefined); setDeleting(undefined);
     } catch (failure) { setError(failure instanceof Error ? failure.message : "Version command failed"); }
@@ -66,6 +69,22 @@ export function VersionPanel({ engine, workspace, initialForm = false }: {
         <li key={group[0].id}><details open={group.some(v => v.id === preview) || undefined}>
           <summary>{group.length} autosaves</summary><ol>{group.map(row)}</ol>
         </details></li>)}</ol> : <p>No saved versions yet.</p>}
+      {workspace && <section aria-label="Branches">
+        <h3>Branches</h3>
+        {!workspace.onBranch && <button type="button" onClick={() => setBranchForm(true)}>Create branch</button>}
+        {branchForm && <form onSubmit={event => {
+          event.preventDefault();
+          void action("branch.create", { name: new FormData(event.currentTarget).get("name") });
+        }}>
+          <label>Branch name<input autoFocus name="name" /></label>
+          <button type="submit">Create</button><button type="button" onClick={() => setBranchForm(false)}>Cancel</button>
+        </form>}
+        {workspace.fileBranches.length ? <ul>{workspace.fileBranches.map(branch => <li key={branch.id} aria-label={branch.name}>
+          <button type="button" onClick={() => void action("branch.open", { id: branch.id })}>{branch.name}</button>
+          <span>{branch.state}</span>
+          {branch.state === "active" && <button type="button" onClick={() => void action("branch.archive", { id: branch.id })}>Archive</button>}
+        </li>)}</ul> : <p>No branches.</p>}
+      </section>}
     </fieldset>
   </aside>;
 }

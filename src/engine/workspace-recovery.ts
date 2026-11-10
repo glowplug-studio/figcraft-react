@@ -53,8 +53,8 @@ export class WorkspaceRecovery {
     try {
       while (!this.#disposed && this.#written !== this.#revision) {
         attempted = this.#revision;
-        const active = Math.max(0, this.workspace.getSnapshot().findIndex(tab => tab.active));
-        const pending = this.workspace.engines.map(engine => ({
+        const { active, engines } = this.workspace.recoveryFiles;
+        const pending = engines.map(engine => ({
           doc: engine.archiveRevision, encode: engine.captureNativeSnapshot(),
         }));
         const files: Blob[] = [];

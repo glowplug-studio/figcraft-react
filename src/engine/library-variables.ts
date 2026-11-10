@@ -61,7 +61,7 @@ export function guardLibraryVariables(before:Document,after:Document) {
   const collections=new Set(records.collections.map(r=>r.local)),variables=new Set(records.variables.map(r=>r.local));
   if (after.variables?.variables.some(v=>collections.has(v.collection) && !variables.has(v.id))) throw Error(readOnlyLibraryMessage);
 }
-export function editLibraryVariable(doc:Document,selection:readonly string[],lib:PublishedLibrary,cmd:string,p:Record<string,unknown>) {
+export function editLibraryVariable(doc:Document,selection:readonly string[],lib:PublishedLibrary,cmd:string,p:Record<string,unknown>, allocate?: () => bigint) {
   const src=lib.document.variables ?? emptyVariables,m=lib.manifest,rows=src.variables;
   const data=doc.variables ?? emptyVariables;
   if (cmd==="library.extendCollection" || cmd==="library.setVariableMode") {
@@ -72,7 +72,7 @@ export function editLibraryVariable(doc:Document,selection:readonly string[],lib
     const seeds=cmd==="library.extendCollection" ? m.variables.filter(v=>v.collection===coll.id && v.published).map(v=>v.id) : [];
     const imported=importLibraryVariables(doc,lib,seeds,[coll.id]),id=imported.collections.get(coll.id)!;
     if (cmd==="library.extendCollection") {
-      const next=editCollection(imported.document.variables!,"variable.extendCollection",{collection:id,name:p.name});
+      const next=editCollection(imported.document.variables!,"variable.extendCollection",{collection:id,name:p.name}, allocate);
       return {document:{...imported.document,variables:next.data},result:next.result};
     }
     const name=parseString(p.mode),mode=coll.modes.find(x=>x.id===name) ?? coll.modes.find(x=>x.name===name);

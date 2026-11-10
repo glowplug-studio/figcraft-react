@@ -6681,3 +6681,36 @@ test("native file thumbnails fit the first page or isolate the selected cover fr
   await page.getByRole("button", { name: "Undo", exact: true }).click();
   await check("page");
 });
+
+test("branch tabs save the main archive, recover under their owner and reopen archived drawings", async ({ page }) => {
+  await login(page);
+  const button = (name: string) => page.getByRole("button", { name, exact: true });
+  const fileMenu = page.locator(".figcraft-document-bar").getByText("File", { exact: true });
+  await button("Create rectangle").click();
+  await fileMenu.click(); await button("Create branch…").click();
+  await page.getByLabel("Branch name").fill("Review");
+  await button("Create").click();
+  await expect(page.getByRole("tab", { name: /Review/ })).toHaveAttribute("aria-selected", "true");
+  await button("Create rectangle").click();
+  const pending = page.waitForEvent("download");
+  await button("Save as").click();
+  const file = await pending;
+  expect(file.suggestedFilename()).toBe("Untitled.figcraft");
+  const { document, branches } = await decodeFigcraft(await readFile((await file.path())!));
+  expect(document.nodes["4294967297"]).toBeUndefined();
+  expect(branches![0].head.document.nodes["4294967297"].kind).toBe("rectangle");
+  await expect(page.getByText("Recovery saved on this device", { exact: true })).toBeVisible();
+  await page.reload();
+  await expect(page.getByRole("heading", { name: "Untitled", exact: true })).toBeVisible();
+  await fileMenu.click(); await button("Version history").click();
+  const list = page.getByRole("region", { name: "Branches" });
+  await expect(list).toContainText("Review");
+  await list.getByRole("button", { name: "Review" }).click();
+  await expect(page.getByRole("heading", { name: "Review", exact: true })).toBeVisible();
+  await fileMenu.click(); await button("Version history").click();
+  await list.getByRole("button", { name: "Archive" }).click();
+  await expect(page.getByRole("heading", { name: "Untitled", exact: true })).toBeVisible();
+  await expect(list).toContainText("archived");
+  await list.getByRole("button", { name: "Review" }).click();
+  await expect(page.getByRole("heading", { name: "Review", exact: true })).toBeVisible();
+});

@@ -55,7 +55,7 @@ export function WorkspaceEditor({ identity, capabilities, recoveryStore }: Works
   const close = (id: number, force = false) => {
     const tab = tabs.find(item => item.id === id);
     if (!tab) return;
-    if (tab.dirty && !force) { setCloseId(id); return; }
+    if (tab.dirty && !tab.branchId && !force) { setCloseId(id); return; }
     workspace.execute("file.close", { index: tab.index, force });
     setCloseId(undefined);
   };

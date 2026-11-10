@@ -37,7 +37,7 @@ function nameOf(params:Record<string,unknown>,limit?:number) {
 }
 
 /** Inherit through the entire collection chain, parents first, keeping overridden mode values. */
-export function syncExtensions(data:Variables):Variables {
+export function syncExtensions(data:Variables, allocate?: () => bigint):Variables {
   if (!data.collections.some(c=>c.extends!==undefined)) return data;
   const collections=[...data.collections], variables=[...data.variables];
   const byId=new Map(collections.map(c=>[c.id,c]));
@@ -86,6 +86,7 @@ export function syncExtensions(data:Variables):Variables {
     byId.set(c.id,collections[entry.i]);
     for (const v of parents.values()) if (!inherited.has(v.id)) {
       const {overrides,hiddenFromPublishing,...base}=v;
+      if (allocate) nextId = allocate();
       nextId??=BigInt(nextVariableId(variables,"VariableID:").slice("VariableID:".length));
       variables.push(Object.freeze({...base,id:"VariableID:"+nextId,collection:c.id,extends:v.id}));
       if (nextId<U64_MAX) nextId++;
@@ -103,12 +104,12 @@ const collectionParams:Record<keyof typeof collectionSpecs,readonly string[]> = 
   "variable.moveMode":["collection","mode","to"],
 };
 
-export function editCollection(data:Variables=emptyVariables,command:string,p:Record<string,unknown>) {
+export function editCollection(data:Variables=emptyVariables,command:string,p:Record<string,unknown>, allocate?: () => bigint) {
   const allowed=collectionParams[command as keyof typeof collectionSpecs];
   for (const key of Object.keys(p)) if (!allowed?.includes(key)) throw new Error("Unknown "+command+" parameter "+key);
   const collections=[...data.collections];
   let variables=data.variables, result:Record<string,unknown>={ok:true};
-  const id=()=>nextVariableId(collections,"VariableCollectionId:");
+  const id=()=>allocate ? "VariableCollectionId:" + allocate() : nextVariableId(collections,"VariableCollectionId:");
   if (command==="variable.createCollection") {
     const name=nameOf(p);
     const names=Array.isArray(p.modes) ? p.modes.filter((s):s is string=>typeof s==="string").map(s=>s.trim()) : ["Mode 1"];
@@ -140,7 +141,7 @@ export function editCollection(data:Variables=emptyVariables,command:string,p:Re
         if (from!==undefined && !source) throw new Error("No such source mode");
         let n=modes.length+1;
         while (modes.some(m=>m.id===c.id+"/mode"+n)) n++;
-        const mid=c.id+"/mode"+n;
+        const mid=c.id+"/mode"+(allocate ? allocate() : n);
         modes.push(Object.freeze({id:mid,name:required(p,"name")}));
         variables=variables.map(v=>{
           const val=v.collection===c.id && source && ownVariableValue(v.values,source.id);
@@ -169,5 +170,5 @@ export function editCollection(data:Variables=emptyVariables,command:string,p:Re
     }
   }
   const next={collections:Object.freeze(collections),variables:Object.freeze(variables)};
-  return {data:sameComponentValue(data,next) ? data : syncExtensions(Object.freeze(next)),result};
+  return {data:sameComponentValue(data,next) ? data : syncExtensions(Object.freeze(next), allocate),result};
 }
