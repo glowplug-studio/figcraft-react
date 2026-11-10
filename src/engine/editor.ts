@@ -48,7 +48,7 @@ import { isLeaf, isFrameLike, isGroupLike } from "./document";
 import { editImagePaints, editImagePreset, imageEditSpecs, startImageCrop, type CropTarget } from "./image-commands";
 import { listImagePresets } from "./image-filters";
 import { getNode } from "./inspect";
-import { centrePastedImage, fileImportParams, placeImage, prepareImage, rasterFilename, replaceImage, withImageResource } from "./image-import";
+import { centrePastedImage, fileImportParams, fileVariablesParam, placeImage, prepareImage, rasterFilename, replaceImage, withImageResource } from "./image-import";
 import { createCanvasText, editTextRange, publishTextNode, typedListMarker, type TextTarget } from "./text-edit";
 import { fitEditedText, importFontBytes, prepareText, prepareDocumentText, queryFonts } from "./text-node-layout";
 import { creationCharacters, createLayer } from "./creation";
@@ -1844,7 +1844,7 @@ export class EditorEngine {
     }
     return this.#executeFileCommand("file.import",{name:"Pasted image.png",...at},{file,paste:true,centre:!at});
   }
-  async dropImages(files: readonly File[], at: Point, picker?: PaintPicker) {
+  async dropImages(files: readonly File[], at?: Point, picker?: PaintPicker) {
     const errors: string[] = [];
     for (const [index,file] of files.entries()) {
       const before = this.#snapshot.document;
@@ -1877,7 +1877,9 @@ export class EditorEngine {
     }
     const raster = command === "file.open" && typeof p.name === "string" && rasterFilename.test(p.name);
     const svg = (importing || command === "file.open") && typeof p.name === "string" && /\.svgz?$/i.test(p.name);
-    if (source && (placing || replacing || raster || svg) && source.file.size > MAX_IMAGE_BYTES) throw new Error("Image exceeds the 256 MiB external input limit");
+    if (importing) fileVariablesParam(p.variables);
+    const pages=importing && typeof p.name==="string" && /\.(?:figcraft|json)$/i.test(p.name);
+    if (source && !pages && (placing || replacing || raster || svg) && source.file.size > MAX_IMAGE_BYTES) throw new Error("Image exceeds the 256 MiB external input limit");
     const allowed = importing ? ["name","data","x","y","center","variables"] : replacing ? ["data", "ids", "id", "target", "index"] : placing ? ["data", "name", "target", "mode", "width", "height", "parent", "x", "y"] : ["data", "name"];
     if (Object.keys(p).some(key => !allowed.includes(key)) || !source && typeof p.data !== "string" || (!importing && p.name !== undefined && typeof p.name !== "string")) throw new Error("File import requires base64 data and supported parameters");
     this.pen.cancel(); this.pencil.cancel(); this.cancelInteraction();
@@ -1892,6 +1894,22 @@ export class EditorEngine {
       if (opening !== this.#openSequence || before.document !== this.#snapshot.document || !this.#snapshot.editable || this.interacting) throw new Error("Open was cancelled because the document or identity changed");
     };
     let decoded: Awaited<ReturnType<typeof decodeFigcraft>>;
+    if (pages) {
+      const {appendPages}=await import("./interchange/append-pages");
+      const loaded=await decodeFigcraft(source?.file ?? fileData(p.data,MAX_UNPACKED_BYTES));
+      const incoming=loaded.document;
+      await prepareDocumentText(incoming);
+      checkCurrent();
+      const next=appendPages(before.document,incoming,this.#nextId,this.#branchClient);
+      const prepared=this.#prepareEdit(next.document,next.nextId);
+      await prepareArchive(prepared.document,String(prepared.nextId));
+      checkCurrent();
+      this.#commitEdit({document:next.document},{nextId:next.nextId,libraryEdit:true});
+      const fallback=String(p.name).split(/[\\/]/).at(-1)!.replace(/\.[^.]+$/,"");
+      return {pages:next.pages.map(inspectedId),summary:{name:incoming.name && incoming.name!=="Untitled" ? incoming.name : fallback,
+        pages:incoming.pages.length,layers:Object.keys(incoming.nodes).length-incoming.pages.length-(incoming.libraryStore?.root ? 1 : 0),
+        images:Object.keys(incoming.images ?? {}).length},...(loaded.issues?.length && {warnings:loaded.issues})};
+    }
     if (svg) {
       const placement = fileImportParams(p,centre);
       const {importSvg} = await import("./svg-import/document");

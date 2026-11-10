@@ -117,6 +117,7 @@ export function DocumentEditor({ identity, capabilities, engine: suppliedEngine,
   const [pendingFile, setPendingFile] = useState<File | null>(null);
   const [sourceRequest, setSourceRequest] = useState<Record<string, unknown>>();
   const imageInput = useRef<HTMLInputElement>(null);
+  const importInput = useRef<HTMLInputElement>(null);
   const fileInput = useRef<HTMLInputElement>(null);
   const linkDialog = useRef<HTMLDialogElement>(null);
   const missingFontsDialog = useRef<HTMLDialogElement>(null);
@@ -385,13 +386,7 @@ export function DocumentEditor({ identity, capabilities, engine: suppliedEngine,
     if (!workspace && snapshot.dirty && Object.keys(snapshot.document.nodes).length > snapshot.document.pages.length) setPendingFile(file);
     else void open(file);
   }
-  async function drop(files:File[], point:Point, usePicker:boolean) {
-    const documents = files.filter(file=>/\.(?:figcraft|json)$/i.test(file.name));
-    if (documents.length) {
-      if (files.length === 1) requestOpen(documents[0]);
-      else setError("Open each drawing separately in this workspace.");
-      return;
-    }
+  async function drop(files:File[], point?:Point, usePicker=false) {
     controller.current?.cancel(); setBusy(true); setError("");
     try { setError((await engine.dropImages(files,point,usePicker ? snapshot.paintPicker : undefined)).join("\n")); }
     catch (e) { setError(e instanceof Error ? e.message : "File drop failed"); }
@@ -613,6 +608,9 @@ export function DocumentEditor({ identity, capabilities, engine: suppliedEngine,
     }}>
       <header className="figcraft-document-bar"><h1>{snapshot.document.name}</h1><span>{snapshot.dirty ? "Unsaved" : snapshot.hasSaved ? "Downloaded" : "Unmodified"} · Local document</span>
         <details className="figcraft-bar-menu"><summary>File</summary><div className="figcraft-menu-items">{fileMenu}
+          <button type="button" disabled={!editable || busy || recoveryStatus==="loading"} onClick={event=>{
+            event.currentTarget.closest("details")?.removeAttribute("open");importInput.current?.click();
+          }}>Import…</button>
           <button type="button" disabled={!signedIn || busy || recoveryStatus === "loading"} onClick={event => {
             event.currentTarget.closest("details")?.removeAttribute("open");
             setExportJobs(layerExportJobs(snapshot.document,snapshot.selection,{}).jobs); exportDialog.current?.showModal();
@@ -672,6 +670,9 @@ export function DocumentEditor({ identity, capabilities, engine: suppliedEngine,
           if (file) void place(file);
         }} />
         <button disabled={(!editable && !snapshot.previewVersionId) || !signedIn || busy} onClick={() => void save()}>Save as</button>
+        <input ref={importInput} aria-label="Import into current document" type="file" accept=".figcraft,.json,.svg,.svgz,.png,.jpg,.jpeg,.webp,.gif,.bmp,.tif,.tiff" hidden onChange={event=>{
+          const file=event.currentTarget.files?.[0];event.currentTarget.value="";if (file) void drop([file]);
+        }}/>
         <input ref={fileInput} aria-label="Open Figcraft file" type="file" accept=".figcraft,.json,.svg,.svgz,.png,.jpg,.jpeg,.webp,.gif,.bmp,.tif,.tiff" hidden onChange={event => {
           const file = event.currentTarget.files?.[0]; event.currentTarget.value = "";
           if (!file) return;

@@ -14,16 +14,18 @@ import { MAX_UNPACKED_BYTES } from "./file-format";
 
 export const rasterFilename = /\.(?:png|jpe?g|webp|gif|bmp|tiff?)$/i;
 
+export function fileVariablesParam(value:unknown) {
+  if (value==null) return;
+  const json=typeof value==="string" ? JSON.parse(value) as unknown : value;
+  const object=(v:unknown):v is Record<string,unknown>=>!!v && typeof v==="object" && !Array.isArray(v);
+  if (!object(json) || ![json.meta,json].some(v=>object(v) && object(v.variableCollections)))
+    throw new Error("variables requires the local variables JSON");
+  return json;
+}
+
 /** Native file.import places a raster's top left at the supplied coordinates or view centre. */
 export function fileImportParams(params: Record<string,unknown>, centre: {cx:number; cy:number}) {
-  const {x,y,variables} = params, name = parseString(params.name) ?? "import.png";
-  if (variables != null) {
-    const json = typeof variables === "string" ? JSON.parse(variables) : variables;
-    const object = (v:unknown): v is Record<string,unknown> => !!v && typeof v === "object" && !Array.isArray(v);
-    if (!object(json) || ![json.meta,json].some(v=>object(v) && object(v.variableCollections))) {
-      throw new Error("variables requires the local variables JSON");
-    }
-  }
+  const {x,y}=params, name=parseString(params.name) ?? "import.png";
   if (/\.(?:figcraft|json|fig|jam|sketch|penpot)$/i.test(name)) throw new Error("This design-file import requires its format adapter");
   const base = name.split(/[\\/]/).pop() || "Untitled", dot = base.lastIndexOf(".");
   const coordinate = (value: unknown, fallback: number) => {

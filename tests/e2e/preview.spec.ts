@@ -7063,3 +7063,36 @@ test("signed-in PDF downloads preserve selection size, saved print options and f
   expect(saved.suggestedFilename()).toBe("Untitled.pdf");
   expect(await readFile((await saved.path())!,"latin1")).toContain("/Type /Pages /Count 2");
 });
+
+test("Import appends drawing pages, preserves the open tab, and supports undo, redo and canvas drop",async({page})=>{
+  await login(page);
+  await createNamedRectangle(page,"Destination",6,8,34,22);
+  const source=await readFile(new URL("../fixtures/native-component-library-v1.figcraft",import.meta.url));
+  const bar=page.locator(".figcraft-document-bar");
+  await bar.getByText("File",{exact:true}).click();
+  const chooser=page.waitForEvent("filechooser");
+  await bar.getByRole("button",{name:"Import…",exact:true}).click();
+  await (await chooser).setFiles({name:"Library.figcraft",mimeType:"application/octet-stream",buffer:source});
+  const snapshot=async()=>{
+    const download=page.waitForEvent("download");
+    await page.getByRole("button",{name:"Save as",exact:true}).click();
+    return (await decodeFigcraft(await readFile((await (await download).path())!))).document;
+  };
+  const canvas=page.getByLabel("Design canvas",{exact:true});
+  await expect.poll(async()=>(await snapshot()).pages.length).toBe(2);
+  const imported=await snapshot();
+  expect(imported.nodes[imported.currentPage].name).toBe("Page 1");
+  expect(Object.values(imported.nodes).some(n=>n.name==="Destination")).toBe(true);
+  await canvas.focus();await page.keyboard.press("ControlOrMeta+z");
+  expect((await snapshot()).pages).toHaveLength(1);
+  await canvas.focus();await page.keyboard.press("ControlOrMeta+Shift+z");
+  expect((await snapshot()).pages).toHaveLength(2);
+  const transfer=await page.evaluateHandle(data=>{
+    const t=new DataTransfer();
+    t.items.add(new File([Uint8Array.from(atob(data),c=>c.charCodeAt(0))],"Dropped.figcraft"));
+    return t;
+  },source.toString("base64"));
+  await canvas.dispatchEvent("drop",{dataTransfer:transfer,clientX:500,clientY:300});
+  await expect.poll(async()=>(await snapshot()).pages.length).toBe(3);
+  await expect(page.getByRole("heading",{name:"Untitled",exact:true})).toBeVisible();
+});
