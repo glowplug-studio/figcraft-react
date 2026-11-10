@@ -6,16 +6,16 @@
 |---|---|
 | Overall status | In progress. [Continue handover and deferred review queue](26-11-07-full-port-resume.md#continue-from-here). |
 | Active slice | Row 13. Online files, ownership and grants. [Dated plan](26-11-10-online-file-ownership.md). |
-| Active phase | Retained and hourly publication limits verified locally. Hourly cumulative regression passed. Guest lifetime verified in the production host. Continue owner attachment and expiry. |
+| Active phase | Row 13 file activity. First open and last departure verified locally. Cumulative room activity regression running before file retirement and abandoned-upload recovery. |
 | Upstream baseline | Styles reference a2e87433. Components reference 79c36346. Global supported baseline 8eb0b876. |
-| Branch and last verified commit | prompt/full-figcraft-port. Interchange release at 1a53341. Guest links at 0cc97d2, native preview drafts at 69c2a7c and active guest revocation at 3b8743f. Owner sharing controls at d1e8352 and join by short code at 84d37df. Framed publication gate at ee2b9a7 and atomic retained capacity at be7764f. Hourly admission at a9071fd and guest lifetime at a3f19ac. |
+| Branch and last verified commit | prompt/full-figcraft-port. Interchange release at 1a53341. Guest links at 0cc97d2, native preview drafts at 69c2a7c and active guest revocation at 3b8743f. Owner sharing controls at d1e8352 and join by short code at 84d37df. Framed publication gate at ee2b9a7 and atomic retained capacity at be7764f. Hourly admission at a9071fd and guest lifetime at a3f19ac. Owner attachment at bc30c6c and room activity at 1557f79. |
 | Completed slices | Rectangle/host-auth, bounded native persistence/recovery, supported-model pages, affine rectangle geometry/selection and solid appearance, plus nested group hierarchy, Frame containers, movement/transform gestures, rounded corners, ellipse/arc/ring and Polygon/Star editing verified locally; Line/Arrow and uniform solid strokes also verified; per-side Rectangle/Frame strokes, variable-width profiles and procedural brushes verified; vector networks, solid region/stroke rendering and Flatten/Reverse also verified; foundation commit `154f5a7`. Gradient, image, pattern, blend and mask releases now have local property matrices. [Blend evidence](../reports/26-11-09-blend-modes-parity.html). Auto layout and constraints passed the local release gate. [Release evidence](../reports/26-11-09-auto-layout.md). [Local components, instances, variant properties, slots and Assets](../reports/26-11-09-components-instances.md) passed the 0.51.0 gate. |
 | Remaining slices | Continue incomplete roadmap rows, excluding the user-deferred plugin and widget family. See each slice matrix for outstanding integrations. |
-| Tests last passed | All 353 production Chromium workflows at `a3f19ac` in 745.7 seconds. The owner changes passed strict types, both builds and 4,401 pure checks; all five focused owner workflows and thirteen real integrations passed at `bc30c6c`. Its cumulative run is outstanding. |
+| Tests last passed | At 1557f79, five focused Chromium workflows, 156 SQL checks, fourteen provider integrations and 24 concurrent revoke/leave trials passed. The prior owner cumulative result was 350/353, with nine isolated rechecks passing. Last full pass was 353/353 at a3f19ac. |
 | Files currently in progress | [Online files and ownership](26-11-10-online-file-ownership.md). |
 | Blockers | The scoped Supabase MCP project and public-table reads passed after reauthorisation. |
 | Exact next action | Follow the [current action in the resume handover](26-11-07-full-port-resume.md#continue-from-here), then its dependency-ordered review queue. |
-| Last updated | 2026-11-11 04:26 ICT |
+| Last updated | 2026-11-11 04:51 ICT |
 
 ## Scope and continuation
 
