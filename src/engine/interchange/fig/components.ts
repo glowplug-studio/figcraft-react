@@ -1,4 +1,5 @@
 import {guid,items,num,obj} from "./fields";
+import {figLineStarts} from "../rest/text";
 import {scaledRecord} from "./instance-geometry";
 import type {KiwiObject,KiwiValue} from "./kiwi";
 
@@ -83,7 +84,7 @@ export class FigComponents {
       if (field==="mainComponent") swap=propGuid(value);
       if (field==="visible" && typeof value.boolValue==="boolean") out.visible=value.boolValue;
       if (field==="characters" && typeof propText(value)==="string" && propText(value)!==out.characters) {
-        out.characters=propText(value); delete out.characterStyleOverrides;delete out.styleOverrideTable;
+        out.characters=propText(value);delete (out as Record<PropertyKey,unknown>)[figLineStarts]; delete out.characterStyleOverrides;delete out.styleOverrideTable;
       }
     }
     out.componentPropertyReferences=refs;
@@ -129,8 +130,11 @@ export class FigComponents {
       (b.depth+b.level)-(a.depth+a.level) || b.depth-a.depth || a.ordinal-b.ordinal);
     const sources=new Map<string,number>();
     const node=rows.length ? {...base} : base;
+    let currentTextLayout=true;
     let sizeOverride=false,hasSize=false,hasTransform=false,derived=false;
     for (const row of rows) {
+      if (row.data.textData!==undefined) currentTextLayout=false;
+      if (row.data.derivedTextData!==undefined) currentTextLayout=true;
       for (const [key,value] of Object.entries(scaledRecord(row.data,row.scale))) {
         if (row.stale && (key==="size" || key==="transform")) continue;
         node[key]=value;sources.set(key,row.scale);
@@ -141,7 +145,7 @@ export class FigComponents {
       sizeOverride ||= row.explicit && row.data.size!==undefined;
       derived ||= !row.explicit && (row.data.size!==undefined || row.data.transform!==undefined);
     }
-    return {node,base,sizeOverride,hasSize,hasTransform,derived,scaleOf:(key:string)=>sources.get(key) ?? scale};
+    return {node,base,sizeOverride,hasSize,hasTransform,derived,currentTextLayout,scaleOf:(key:string)=>sources.get(key) ?? scale};
   }
   instance(out:Record<string,unknown>,n:KiwiObject,id:string,restId:string,swap:string|undefined,scaleOf:(key:string)=>number,outer?:FigInstance):FigInstance|undefined {
     const sd=obj(n.symbolData), main=swap ?? guid(n.overriddenSymbolID) ?? guid(sd.symbolID);

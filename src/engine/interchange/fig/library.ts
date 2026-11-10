@@ -47,7 +47,7 @@ export function* libraryBranches(
     const stack=(children.get(page) ?? []).map(child=>({id:child.id,depth:1,inside:false}));
     while (stack.length) {
       const {id,depth,inside}=stack.pop()!;
-      if (depth>256) {warn("internal library layers nested deeper than 256 levels were skipped");continue;}
+      if (depth>256) {warn("internal library branches deeper than 256 levels were skipped");continue;}
       if (seen.has(id)) continue;
       seen.add(id);
       if (++scanned>limit) {warn("the internal library scan reached the "+limit+"-layer limit; the remaining branches were skipped");break;}

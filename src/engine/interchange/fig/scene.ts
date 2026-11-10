@@ -7,7 +7,9 @@ import {vectorNetwork} from "./network";
 import {FigStyles} from "./styles";
 import {FigAssets} from "./assets";
 import {guideGrids,layoutFields} from "./layout";
-import {textLayer} from "./text";
+import {figTextPath} from "./text-path";
+import {figPath,figLineStarts} from "../rest/text";
+import {lineStarts,textLayer} from "./text";
 import {identity, multiply, type Affine} from "../../affine";
 import {compareScalarKeys} from "../../text-breaks";
 import {importRestDocument} from "../rest/document";
@@ -111,7 +113,7 @@ export async function figScene(msg:KiwiValue,name:string,checkCurrent:()=>void,l
     const stacked=parent && ["HORIZONTAL","VERTICAL","GRID"].includes(String(parent.stackMode)) && view.node.stackPositioning!=="ABSOLUTE";
     const n=fit && !view.derived && !stacked ? fitInstanceChild(view.base,view.node,fit,view.hasSize,view.hasTransform) : view.node;
     const restId=instance ? "I"+instance.root+";"+(instance.path ? instance.path+";" : "")+id : id;
-    const type=n.type==="ROUNDED_RECTANGLE" ? "RECTANGLE" : n.type==="SYMBOL" ? "COMPONENT" :
+    const type=n.type==="ROUNDED_RECTANGLE" ? "RECTANGLE" : n.type==="SYMBOL" ? "COMPONENT" : n.type==="TEXT_PATH" ? "TEXT" :
       n.type==="FRAME" && n.isStateGroup ? "COMPONENT_SET" : n.type==="FRAME" && n.resizeToFit ? "GROUP" : n.type;
     const t=multiply(space,matrix(n.transform) ?? identity);
     const group=type==="GROUP" || type==="BOOLEAN_OPERATION";
@@ -133,7 +135,19 @@ export async function figScene(msg:KiwiValue,name:string,checkCurrent:()=>void,l
       clipsContent:n.frameMaskDisabled!==true,booleanOperation:n.booleanOperation==="XOR" ? "EXCLUDE" : n.booleanOperation,
       pointCount:n.count,innerRadius:n.starInnerScale
     };
-    if (type==="TEXT") Object.assign(out,textLayer(n,warn,linked.text));
+    if (type==="TEXT") {
+      Object.assign(out,textLayer(n,warn,linked.text));
+      const privateFields=out as Record<PropertyKey,unknown>;
+      if (view.currentTextLayout && typeof out.characters==="string") privateFields[figLineStarts]=lineStarts(n,out.characters);
+      if (n.type==="TEXT_PATH") {
+        const path=figTextPath(n,blobs,warn);
+        if (path) {
+          privateFields[figPath]=path;
+          const styles=[out.style,...Object.values(out.styleOverrideTable ?? {})] as Record<string,unknown>[];
+          if (styles.some(s=>typeof s.textDecoration==="string" && s.textDecoration!=="NONE")) warn("text path underline or strikethrough decoration is not rendered");
+        }
+      }
+    }
     assets.bindings(out,n,warn);
     if (type==="COMPONENT" || type==="COMPONENT_SET") components.definition(out,n,restId);
     const {swap,slot}=components.references(out,n,instance);

@@ -7189,3 +7189,17 @@ test("opening a Fig library preserves hidden mains and renamed nested source lin
     if (actual.libraryStore?.root) expect(actual.pages).not.toContain(actual.libraryStore.root);
   }
 });
+
+test("a Fig text path and Unicode wrap positions survive opening and saving in the signed-in editor",async({page})=>{
+  await login(page);
+  const files=unzipSync(await readFile(new URL("../fixtures/native-fig-text.zip",import.meta.url)));
+  for (const name of ["reverse line","soft wrap Unicode","no marker"]) {
+    const native=(await decodeFigcraft(files[name+".figcraft"])).document;
+    await page.getByLabel("Open Figcraft file",{exact:true}).setInputFiles({name:name+".fig",mimeType:"application/octet-stream",buffer:Buffer.from(files[name+".fig"])});
+    await expect(page.getByRole("heading",{name:native.name,exact:true})).toBeVisible();
+    const dl=page.waitForEvent("download");
+    await page.getByRole("button",{name:"Save as",exact:true}).click();
+    const saved=(await decodeFigcraft(await readFile((await (await dl).path())!))).document;
+    expect(saved.nodes).toEqual(native.nodes);
+  }
+});

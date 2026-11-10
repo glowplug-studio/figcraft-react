@@ -55,3 +55,20 @@ export function textLayer(n:KiwiObject,warn:(s:string)=>void,linked?:KiwiObject)
   if (offsets.some(n=>n>0)) out.listStartOffsets=offsets;
   return out;
 }
+
+/** Convert saved UTF-16 offsets to scalar indices. Invalid or stale baselines cannot constrain wrapping. */
+export function lineStarts(n:KiwiObject,characters:string) {
+  const baselines=items(obj(n.derivedTextData).baselines);
+  if (!baselines.length) return;
+  const starts:number[]=[];
+  let unit=0,scalar=0,prior=-1;
+  for (const baseline of baselines) {
+    const next=num(obj(baseline).firstCharacter);
+    if (next===undefined || !Number.isInteger(next) || next>=characters.length || (prior<0 ? next!==0 : next<=prior)) return;
+    while (unit<next) {unit+=characters.codePointAt(unit)!>0xffff ? 2 : 1;scalar++;}
+    if (unit!==next) return;
+    if (scalar && characters[next-1]!=="\n" && characters[next-1]!=="\u2028") starts.push(scalar);
+    prior=next;
+  }
+  return starts;
+}

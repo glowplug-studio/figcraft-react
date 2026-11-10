@@ -5,6 +5,10 @@ import { defaultTextStyle, textItalic, textWeight, type TextStyle } from "../../
 import { restPaints, type ImportImages } from "./paint";
 import { children,clamp,clipped,entries,finite,numeric,object,restColour,string,type ImportWarnings,type JsonObject } from "./values";
 
+import {saveTextBreaks} from "../../text-breaks";
+
+export const figPath=Symbol("Fig text path");
+export const figLineStarts=Symbol("Fig text line starts");
 export const figLetterSpacing=Symbol("Fig letter spacing in percent");
 type Look=NonNullable<TextStyle["decorationLook"]>;
 const styles=["Thin","Extra Light","Light","Regular","Medium","Semi Bold","Bold","Extra Bold","Black"];
@@ -84,5 +88,13 @@ export function textFields(n:JsonObject,images:ImportImages,warnings:ImportWarni
     paragraphSpacing:clamp(numeric(s.paragraphSpacing) ?? 0,0,1e6),paragraphIndent:clamp(numeric(s.paragraphIndent) ?? 0,0,1e6),
     listSpacing:clamp(numeric(s.listSpacing) ?? 0,0,10000),hangingList:s.hangingList===true,hangingPunctuation:s.hangingPunctuation===true,
     leadingTrim:s.leadingTrim==="CAP_HEIGHT" ? "capHeight" : "none"};
-  return wireTextData(paragraphs.length ? editParagraphLists(data,paragraphSpan(data,0,count),p=>p) : data);
+  let settled=paragraphs.length ? editParagraphLists(data,paragraphSpan(data,0,count),p=>p) : data;
+  const privateFields=n as Record<PropertyKey,unknown>;
+  const path=privateFields[figPath] as TextData["path"],startsAt=privateFields[figLineStarts] as number[]|undefined;
+  if (path) settled={...settled,path};
+  else if (startsAt && settled.autoResize!=="widthAndHeight") {
+    const size=object(n.size),width=numeric(size.x);
+    if (width!==undefined && numeric(size.y)!==undefined) settled=saveTextBreaks(settled,startsAt.filter(s=>s<count),clamp(width,0,1e6));
+  }
+  return wireTextData(settled);
 }
