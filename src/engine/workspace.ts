@@ -131,7 +131,12 @@ export class EditorWorkspace {
     if (this.#editable === editable) return;
     this.#editable = editable;
     this.#generation++;
-    if (!editable) this.#sourceFiles.clear();
+    if (!editable) {
+      this.#sourceFiles.clear();
+      delete this.#clipboard.layers;
+      delete this.#clipboard.effect;
+      delete this.#clipboard.paint;
+    }
     for (const tab of this.#tabs) tab.engine.setEditable(editable);
   }
 

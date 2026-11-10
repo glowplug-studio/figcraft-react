@@ -14,7 +14,7 @@ import type {TextStyle} from "./text-style";
 
 type IdMap=ReadonlyMap<string,string>;
 
-function localiseComponent(source:Document,node:LayerNode,ids:IdMap):LayerNode {
+export function localiseComponent(source:Document,node:LayerNode,ids:IdMap):LayerNode {
   switch (node.kind) {
     case "instance": {
       const {component,props,...frame}=node,main=source.nodes[component],local=ids.get(component);

@@ -27,7 +27,7 @@ import { framePresets } from "./engine/frame-presets";
 import { ChildLayoutPanel } from "./ChildLayoutPanel";
 import { FrameLayoutPanel } from "./FrameLayoutPanel";
 import { GridTrackPanel } from "./GridTrackPanel";
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type FormEvent, type KeyboardEvent } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type ClipboardEvent, type FormEvent, type KeyboardEvent } from "react";
 import type { DocumentCapability } from "./backends/access";
 import type { IdentityAdapter } from "./backends/identity";
 import { hitRectangle, type layersAt } from "./engine/selection";
@@ -293,6 +293,10 @@ export function DocumentEditor({ identity, capabilities, engine: suppliedEngine,
         !macGrid && event.code === "Digit4" && event.ctrlKey && event.shiftKey)) command = "view.layoutGrids";
     if (!event.metaKey && !event.ctrlKey && event.altKey && event.shiftKey && event.code === "KeyF" || (event.metaKey || event.ctrlKey) && !event.altKey && !event.shiftKey && event.key.toLowerCase() === "e") command = "vector.flatten";
     if ((event.metaKey || event.ctrlKey) && !event.shiftKey && !event.altKey && event.key.toLowerCase() === "d") command = "edit.duplicate";
+    if ((event.metaKey || event.ctrlKey) && event.shiftKey && !event.altKey && engine.hasCopiedLayers()) {
+      if (event.code === "KeyV") command = "edit.pasteOver";
+      if (event.code === "KeyR") command = "edit.pasteReplace";
+    }
     if (event.key === "Delete" || event.key === "Backspace") command = "edit.delete";
     if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "z") command = event.shiftKey ? "edit.redo" : "edit.undo";
     else if (!event.metaKey && !event.ctrlKey && !event.altKey) {
@@ -370,18 +374,56 @@ export function DocumentEditor({ identity, capabilities, engine: suppliedEngine,
     catch (e) { setError(e instanceof Error ? e.message : "File drop failed"); }
     finally {setBusy(false);}
   }
+  function copyLayers(command: "edit.copy" | "edit.cut", event?: ClipboardEvent) {
+    if (!canCopyLayers || command === "edit.cut" && !editable) return;
+    if (event?.target instanceof Element && event.target.closest("input,textarea,select,dialog,[contenteditable]:not([contenteditable=false])")) return;
+    const selected = snapshot.selection.map(id => snapshot.document.nodes[id]);
+    const mirror = selected.every(node => node.kind === "text") && selected.map(node => node.text.characters).join("\n")
+      || "figcraft://clipboard/" + selected.length;
+    if (!dispatch(command)) return;
+    engine.markLayerClipboardMirror(mirror);
+    if (event) {
+      event.preventDefault();
+      event.clipboardData.setData("text/plain", mirror);
+    } else if (navigator.clipboard?.writeText) {
+      void navigator.clipboard.writeText(mirror).catch(() => setError("Layers copied in Figcraft. Browser clipboard access was denied."));
+    }
+  }
+
+  function pasteText(text: string, point?: Point) {
+    if (engine.ownsLayerClipboardText(text)) { dispatch("edit.paste", point); return; }
+    if (text.startsWith("figcraft://clipboard/")) return;
+    const view = engine.getView();
+    controller.current?.cancel();
+    void engine.executeAsync("text.create", { text, x: point?.x ?? view.cx, y: point?.y ?? view.cy })
+      .catch(error => setError(error instanceof Error ? error.message : "Could not paste text"));
+  }
+
   async function paste(file?:File, point?:Point) {
     const document = engine.getSnapshot().document;
     controller.current?.cancel(); setBusy(true); setError("");
     try {
       if (!file) {
-        if (!navigator.clipboard?.read) throw new Error("Use the browser’s Paste command to paste an image");
-        const items = await navigator.clipboard.read();
+        if (!navigator.clipboard?.read) {
+          if (engine.hasCopiedLayers()) { dispatch("edit.paste", point); return; }
+          throw new Error("Use the browser’s Paste command");
+        }
+        let items: ClipboardItems;
+        try { items = await navigator.clipboard.read(); } catch (error) {
+          if (document === engine.getSnapshot().document && engine.hasCopiedLayers()) { dispatch("edit.paste", point); return; }
+          throw error;
+        }
+        const itemWithText = items.find(item => item.types.includes("text/plain"));
+        const text = itemWithText ? await (await itemWithText.getType("text/plain")).text() : "";
+        if (document !== engine.getSnapshot().document) throw new Error("Paste was cancelled because the drawing changed");
+        if (text && engine.ownsLayerClipboardText(text)) { pasteText(text, point); return; }
         for (const item of items) {
           const type = item.types.includes("image/png") ? "image/png" : item.types.find(type=>type.startsWith("image/"));
           if (type) {file = new File([await item.getType(type)],"Pasted image",{type});break;}
         }
-        if (!file) throw new Error("The clipboard contains no image");
+        if (!file && text) { pasteText(text, point); return; }
+        if (!file && engine.hasCopiedLayers()) { dispatch("edit.paste", point); return; }
+        if (!file) throw new Error("The clipboard is empty");
       }
       if (document !== engine.getSnapshot().document) throw new Error("Paste was cancelled because the drawing changed");
       await engine.pasteImage(file,point);
@@ -421,6 +463,7 @@ export function DocumentEditor({ identity, capabilities, engine: suppliedEngine,
     } catch (caught) { setError(caught instanceof Error ? caught.message : "File could not be saved"); }
     finally { setBusy(false); }
   }
+  const canCopyLayers = signedIn && !busy && recoveryStatus !== "loading" && capabilities.includes("document.edit") && snapshot.selection.length > 0;
   const editable = signedIn && snapshot.editable && recoveryStatus !== "loading" && capabilities.includes("document.edit");
   const page = pageOf(snapshot.document);
   const selected = snapshot.document.nodes[snapshot.selection[0]];
@@ -471,11 +514,16 @@ export function DocumentEditor({ identity, capabilities, engine: suppliedEngine,
       const well = e.target instanceof Element && !!e.target.closest("[data-figcraft-image-drop-target]");
       void drop(Array.from(e.dataTransfer.files),pagePoint(e.clientX,e.clientY),well);
     }}
+    onCopy={e => copyLayers("edit.copy", e)} onCut={e => copyLayers("edit.cut", e)}
     onPaste={e=>{
-      if (!editable || busy || pendingFile || modifiedPaste.current || e.clipboardData.getData("text/plain")) return;
+      if (!editable || busy || pendingFile || modifiedPaste.current) return;
       if (e.target instanceof Element && e.target.closest("input,textarea,select,dialog,[contenteditable]:not([contenteditable=false])")) return;
+      const text = e.clipboardData.getData("text/plain");
+      if (text && engine.ownsLayerClipboardText(text)) { e.preventDefault(); pasteText(text); return; }
       const file = Array.from(e.clipboardData.files).find(file=>file.type.startsWith("image/"));
       if (file) { e.preventDefault(); void paste(file); }
+      else if (text) { e.preventDefault(); pasteText(text); }
+      else if (!e.clipboardData.types.length && engine.hasCopiedLayers()) { e.preventDefault(); dispatch("edit.paste"); }
     }}>
       <header className="figcraft-document-bar"><h1>{snapshot.document.name}</h1><span>{snapshot.dirty ? "Unsaved" : snapshot.hasSaved ? "Downloaded" : "Unmodified"} · Local document</span>
         <details><summary>File</summary>{fileMenu}
@@ -487,6 +535,18 @@ export function DocumentEditor({ identity, capabilities, engine: suppliedEngine,
           <button disabled={!editable || busy} type="button" onClick={event => {
           event.currentTarget.closest("details")?.removeAttribute("open"); dispatch("file.colorProfile");
         }}>Color profile</button></details>
+        <details><summary>Edit</summary>
+          {(["Cut", "Copy", "Paste", "Paste over selection", "Paste to replace"] as const).map(label =>
+            <button key={label} type="button" disabled={label === "Copy" ? !canCopyLayers : !editable || busy ||
+              label === "Cut" && !canCopyLayers || label !== "Cut" && label !== "Paste" && !engine.hasCopiedLayers() ||
+              label === "Paste to replace" && !snapshot.selection.length} onClick={event => {
+              event.currentTarget.closest("details")?.removeAttribute("open");
+              if (label === "Cut" || label === "Copy") copyLayers(label === "Cut" ? "edit.cut" : "edit.copy");
+              else if (label === "Paste") void paste();
+              else dispatch(label === "Paste to replace" ? "edit.pasteReplace" : "edit.pasteOver");
+              canvas.current?.focus();
+            }}>{label}</button>)}
+        </details>
         <details><summary>Libraries</summary>
           {([["libraries.open","Open libraries"],["libraries.publish","Publish library…"]] as const).map(([command,label])=>
             <button key={command} type="button" disabled={!editable || busy} onClick={event=>{

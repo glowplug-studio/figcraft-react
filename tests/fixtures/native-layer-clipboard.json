@@ -1,0 +1,840 @@
+[
+  {
+    "name": "position in a selected frame",
+    "commands": [
+      [
+        "shape.rectangle",
+        {
+          "name": "Box",
+          "x": 4,
+          "y": 30,
+          "width": 40,
+          "height": 20
+        }
+      ],
+      [
+        "edit.copy",
+        {}
+      ],
+      [
+        "frame.create",
+        {
+          "name": "Target",
+          "x": 100,
+          "y": 80,
+          "width": 200,
+          "height": 100
+        }
+      ],
+      [
+        "edit.paste",
+        {}
+      ]
+    ],
+    "results": {
+      "1": {
+        "copied": 1
+      },
+      "3": {
+        "ids": [
+          4
+        ]
+      }
+    },
+    "selection": [
+      4
+    ],
+    "nodes": {
+      "1": {
+        "children": [
+          2,
+          3
+        ],
+        "height": 0.0,
+        "name": "Page 1",
+        "type": "page",
+        "width": 0.0
+      },
+      "2": {
+        "height": 20.0,
+        "name": "Box",
+        "parent": 1,
+        "transform": [
+          1.0,
+          0.0,
+          0.0,
+          1.0,
+          4.0,
+          30.0
+        ],
+        "type": "rectangle",
+        "width": 40.0
+      },
+      "3": {
+        "children": [
+          4
+        ],
+        "height": 100.0,
+        "name": "Target",
+        "parent": 1,
+        "transform": [
+          1.0,
+          0.0,
+          0.0,
+          1.0,
+          100.0,
+          80.0
+        ],
+        "type": "frame",
+        "width": 200.0
+      },
+      "4": {
+        "height": 20.0,
+        "name": "Box",
+        "parent": 3,
+        "transform": [
+          1.0,
+          0.0,
+          0.0,
+          1.0,
+          80.0,
+          40.0
+        ],
+        "type": "rectangle",
+        "width": 40.0
+      }
+    }
+  },
+  {
+    "name": "world-space drop in another file",
+    "commands": [
+      [
+        "frame.create",
+        {
+          "name": "Frame",
+          "x": 100,
+          "y": 80,
+          "width": 200,
+          "height": 100
+        }
+      ],
+      [
+        "shape.rectangle",
+        {
+          "name": "Inside",
+          "x": 20,
+          "y": 10,
+          "width": 30,
+          "height": 20,
+          "parent": 2
+        }
+      ],
+      [
+        "edit.copy",
+        {}
+      ],
+      [
+        "file.new",
+        {
+          "name": "Other"
+        }
+      ],
+      [
+        "edit.paste",
+        {
+          "x": 400,
+          "y": 200
+        }
+      ]
+    ],
+    "results": {
+      "2": {
+        "copied": 1
+      },
+      "4": {
+        "ids": [
+          2
+        ]
+      }
+    },
+    "selection": [
+      2
+    ],
+    "nodes": {
+      "1": {
+        "children": [
+          2
+        ],
+        "height": 0.0,
+        "name": "Page 1",
+        "type": "page",
+        "width": 0.0
+      },
+      "2": {
+        "height": 20.0,
+        "name": "Inside",
+        "parent": 1,
+        "transform": [
+          1.0,
+          0.0,
+          0.0,
+          1.0,
+          400.0,
+          200.0
+        ],
+        "type": "rectangle",
+        "width": 30.0
+      }
+    }
+  },
+  {
+    "name": "copy nested roots and edit source",
+    "commands": [
+      [
+        "frame.create",
+        {
+          "name": "Frame",
+          "x": 100,
+          "y": 80,
+          "width": 200,
+          "height": 100
+        }
+      ],
+      [
+        "shape.rectangle",
+        {
+          "name": "Inside",
+          "x": 20,
+          "y": 10,
+          "width": 30,
+          "height": 20,
+          "parent": 2
+        }
+      ],
+      [
+        "edit.copy",
+        {
+          "ids": [
+            2,
+            3
+          ]
+        }
+      ],
+      [
+        "node.set",
+        {
+          "id": 3,
+          "props": {
+            "width": 200
+          }
+        }
+      ],
+      [
+        "select.none",
+        {}
+      ],
+      [
+        "edit.paste",
+        {
+          "x": 0,
+          "y": 0
+        }
+      ]
+    ],
+    "results": {
+      "2": {
+        "copied": 1
+      },
+      "5": {
+        "ids": [
+          4
+        ]
+      }
+    },
+    "selection": [
+      4
+    ],
+    "nodes": {
+      "1": {
+        "children": [
+          2,
+          4
+        ],
+        "height": 0.0,
+        "name": "Page 1",
+        "type": "page",
+        "width": 0.0
+      },
+      "2": {
+        "children": [
+          3
+        ],
+        "height": 100.0,
+        "name": "Frame",
+        "parent": 1,
+        "transform": [
+          1.0,
+          0.0,
+          0.0,
+          1.0,
+          100.0,
+          80.0
+        ],
+        "type": "frame",
+        "width": 200.0
+      },
+      "3": {
+        "height": 20.0,
+        "name": "Inside",
+        "parent": 2,
+        "transform": [
+          1.0,
+          0.0,
+          0.0,
+          1.0,
+          20.0,
+          10.0
+        ],
+        "type": "rectangle",
+        "width": 200.0
+      },
+      "4": {
+        "children": [
+          5
+        ],
+        "height": 100.0,
+        "name": "Frame",
+        "parent": 1,
+        "type": "frame",
+        "width": 200.0
+      },
+      "5": {
+        "height": 20.0,
+        "name": "Inside",
+        "parent": 4,
+        "transform": [
+          1.0,
+          0.0,
+          0.0,
+          1.0,
+          20.0,
+          10.0
+        ],
+        "type": "rectangle",
+        "width": 30.0
+      }
+    }
+  },
+  {
+    "name": "cut and undo after paste",
+    "commands": [
+      [
+        "shape.rectangle",
+        {
+          "name": "Box",
+          "x": 4,
+          "y": 30,
+          "width": 40,
+          "height": 20
+        }
+      ],
+      [
+        "edit.cut",
+        {}
+      ],
+      [
+        "edit.paste",
+        {}
+      ],
+      [
+        "edit.undo",
+        {}
+      ]
+    ],
+    "results": {
+      "1": {
+        "deleted": [
+          2
+        ],
+        "hidden": []
+      },
+      "2": {
+        "ids": [
+          3
+        ]
+      }
+    },
+    "selection": [],
+    "nodes": {
+      "1": {
+        "height": 0.0,
+        "name": "Page 1",
+        "type": "page",
+        "width": 0.0
+      }
+    }
+  },
+  {
+    "name": "paste over and replace",
+    "commands": [
+      [
+        "shape.rectangle",
+        {
+          "name": "Box",
+          "x": 4,
+          "y": 30,
+          "width": 40,
+          "height": 20
+        }
+      ],
+      [
+        "edit.copy",
+        {}
+      ],
+      [
+        "shape.ellipse",
+        {
+          "name": "Dest",
+          "x": 200,
+          "y": 50,
+          "width": 100,
+          "height": 90
+        }
+      ],
+      [
+        "edit.pasteOver",
+        {}
+      ],
+      [
+        "edit.pasteReplace",
+        {
+          "id": 3
+        }
+      ]
+    ],
+    "results": {
+      "1": {
+        "copied": 1
+      },
+      "3": {
+        "ids": [
+          4
+        ]
+      },
+      "4": {
+        "ids": [
+          5
+        ]
+      }
+    },
+    "selection": [
+      5
+    ],
+    "nodes": {
+      "1": {
+        "children": [
+          2,
+          5,
+          4
+        ],
+        "height": 0.0,
+        "name": "Page 1",
+        "type": "page",
+        "width": 0.0
+      },
+      "2": {
+        "height": 20.0,
+        "name": "Box",
+        "parent": 1,
+        "transform": [
+          1.0,
+          0.0,
+          0.0,
+          1.0,
+          4.0,
+          30.0
+        ],
+        "type": "rectangle",
+        "width": 40.0
+      },
+      "4": {
+        "height": 20.0,
+        "name": "Box",
+        "parent": 1,
+        "transform": [
+          1.0,
+          0.0,
+          0.0,
+          1.0,
+          200.0,
+          50.0
+        ],
+        "type": "rectangle",
+        "width": 40.0
+      },
+      "5": {
+        "height": 20.0,
+        "name": "Box",
+        "parent": 1,
+        "transform": [
+          1.0,
+          0.0,
+          0.0,
+          1.0,
+          200.0,
+          50.0
+        ],
+        "type": "rectangle",
+        "width": 40.0
+      }
+    }
+  },
+  {
+    "name": "copy a main as an instance",
+    "commands": [
+      [
+        "frame.create",
+        {
+          "name": "Frame",
+          "x": 100,
+          "y": 80,
+          "width": 200,
+          "height": 100
+        }
+      ],
+      [
+        "shape.rectangle",
+        {
+          "name": "Inside",
+          "x": 20,
+          "y": 10,
+          "width": 30,
+          "height": 20,
+          "parent": 2
+        }
+      ],
+      [
+        "component.create",
+        {
+          "ids": [
+            2
+          ]
+        }
+      ],
+      [
+        "edit.copy",
+        {
+          "id": 2
+        }
+      ],
+      [
+        "edit.paste",
+        {}
+      ]
+    ],
+    "results": {
+      "3": {
+        "copied": 1
+      },
+      "4": {
+        "ids": [
+          4
+        ]
+      }
+    },
+    "selection": [
+      4
+    ],
+    "nodes": {
+      "1": {
+        "children": [
+          2,
+          4
+        ],
+        "height": 0.0,
+        "name": "Page 1",
+        "type": "page",
+        "width": 0.0
+      },
+      "2": {
+        "children": [
+          3
+        ],
+        "height": 100.0,
+        "name": "Frame",
+        "parent": 1,
+        "transform": [
+          1.0,
+          0.0,
+          0.0,
+          1.0,
+          100.0,
+          80.0
+        ],
+        "type": "component",
+        "width": 200.0
+      },
+      "3": {
+        "height": 20.0,
+        "name": "Inside",
+        "parent": 2,
+        "transform": [
+          1.0,
+          0.0,
+          0.0,
+          1.0,
+          20.0,
+          10.0
+        ],
+        "type": "rectangle",
+        "width": 30.0
+      },
+      "4": {
+        "children": [
+          5
+        ],
+        "component": 2,
+        "height": 100.0,
+        "name": "Frame",
+        "parent": 1,
+        "source": 2,
+        "transform": [
+          1.0,
+          0.0,
+          0.0,
+          1.0,
+          100.0,
+          80.0
+        ],
+        "type": "instance",
+        "width": 200.0
+      },
+      "5": {
+        "height": 20.0,
+        "name": "Inside",
+        "parent": 4,
+        "source": 3,
+        "transform": [
+          1.0,
+          0.0,
+          0.0,
+          1.0,
+          20.0,
+          10.0
+        ],
+        "type": "rectangle",
+        "width": 30.0
+      }
+    }
+  },
+  {
+    "name": "copy an unshared instance across files",
+    "commands": [
+      [
+        "frame.create",
+        {
+          "name": "Frame",
+          "x": 100,
+          "y": 80,
+          "width": 200,
+          "height": 100
+        }
+      ],
+      [
+        "shape.rectangle",
+        {
+          "name": "Inside",
+          "x": 20,
+          "y": 10,
+          "width": 30,
+          "height": 20,
+          "parent": 2
+        }
+      ],
+      [
+        "component.create",
+        {
+          "ids": [
+            2
+          ]
+        }
+      ],
+      [
+        "instance.create",
+        {
+          "component": 2
+        }
+      ],
+      [
+        "edit.copy",
+        {}
+      ],
+      [
+        "file.new",
+        {
+          "name": "Receiver"
+        }
+      ],
+      [
+        "edit.paste",
+        {}
+      ]
+    ],
+    "results": {
+      "4": {
+        "copied": 1
+      },
+      "6": {
+        "ids": [
+          2
+        ]
+      }
+    },
+    "selection": [
+      2
+    ],
+    "nodes": {
+      "1": {
+        "children": [
+          2
+        ],
+        "height": 0.0,
+        "name": "Page 1",
+        "type": "page",
+        "width": 0.0
+      },
+      "2": {
+        "children": [
+          3
+        ],
+        "component": 4,
+        "height": 100.0,
+        "name": "Frame",
+        "parent": 1,
+        "source": 4,
+        "transform": [
+          1.0,
+          0.0,
+          0.0,
+          1.0,
+          340.0,
+          80.0
+        ],
+        "type": "instance",
+        "width": 200.0
+      },
+      "3": {
+        "height": 20.0,
+        "name": "Inside",
+        "parent": 2,
+        "source": 5,
+        "transform": [
+          1.0,
+          0.0,
+          0.0,
+          1.0,
+          20.0,
+          10.0
+        ],
+        "type": "rectangle",
+        "width": 30.0
+      }
+    }
+  },
+  {
+    "name": "do not copy pages",
+    "commands": [
+      [
+        "shape.rectangle",
+        {
+          "name": "Box",
+          "x": 4,
+          "y": 30,
+          "width": 40,
+          "height": 20
+        }
+      ],
+      [
+        "edit.copy",
+        {
+          "ids": [
+            1,
+            2
+          ]
+        }
+      ],
+      [
+        "edit.copy",
+        {
+          "id": 1
+        }
+      ],
+      [
+        "select.none",
+        {}
+      ],
+      [
+        "edit.paste",
+        {}
+      ]
+    ],
+    "results": {
+      "1": {
+        "copied": 1
+      },
+      "2": {
+        "error": "command `edit.copy` is not available right now: pages can't be copied; use page.duplicate"
+      },
+      "4": {
+        "ids": [
+          3
+        ]
+      }
+    },
+    "selection": [
+      3
+    ],
+    "nodes": {
+      "1": {
+        "children": [
+          2,
+          3
+        ],
+        "height": 0.0,
+        "name": "Page 1",
+        "type": "page",
+        "width": 0.0
+      },
+      "2": {
+        "height": 20.0,
+        "name": "Box",
+        "parent": 1,
+        "transform": [
+          1.0,
+          0.0,
+          0.0,
+          1.0,
+          4.0,
+          30.0
+        ],
+        "type": "rectangle",
+        "width": 40.0
+      },
+      "3": {
+        "height": 20.0,
+        "name": "Box",
+        "parent": 1,
+        "transform": [
+          1.0,
+          0.0,
+          0.0,
+          1.0,
+          4.0,
+          30.0
+        ],
+        "type": "rectangle",
+        "width": 40.0
+      }
+    }
+  }
+]

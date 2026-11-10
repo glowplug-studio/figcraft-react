@@ -67,6 +67,7 @@ import { setRectangleProperties, setPageGeometryFields } from "./properties";
 import { HierarchyDraft, pageForNode, worldTransform } from "./hierarchy";
 import { applyBuilder } from "./shape-builder-commands";
 import { builderArrangement, builderTargets, readBuilderRegions } from "./shape-builder";
+import { captureLayers, pasteLayers, layerClipboardSpecs, type CopiedLayers } from "./layer-clipboard";
 import { executeStructure, structureSpecs } from "./structure";
 import { executeVector, isVectorJoin, vectorSpecs } from "./vector-commands";
 import { executeVectorEdit, vectorEditSpecs, type VectorEditCommand } from "./vector-edit-commands";
@@ -95,6 +96,7 @@ interface FileSource {file:Blob; picker?:PaintPicker; paste?:boolean; centre?:bo
 type OpenResult = { repairs: readonly string[]; summary: {name:string; pages:number; layers:number; images:number} }
 
 export const commandSpecs = Object.freeze({
+  ...layerClipboardSpecs,
   ...effectSpecs,
   ...strokeSpecs,
   ...textFormatSpecs,
@@ -268,7 +270,7 @@ function fontParams(command:keyof typeof fontOptions,input:unknown) {
   return p;
 }
 /** React-free command transactions. Snapshots share immutable nodes and document references. */
-export interface EditorClipboard { paint?: CopiedPaint; effect?: Effect }
+export interface EditorClipboard { layers?: CopiedLayers; paint?: CopiedPaint; effect?: Effect }
 
 export class EditorEngine {
   readonly pen = new PenInteraction(this);
@@ -312,6 +314,9 @@ export class EditorEngine {
   #libraryRevision=0;
   get libraryRevision() {return this.#libraryRevision;}
   #clipboard: EditorClipboard = {};
+  markLayerClipboardMirror(text: string) { if (this.#clipboard.layers) this.#clipboard.layers.mirror = text; }
+  ownsLayerClipboardText(text: string) { return !!this.#clipboard.layers && (this.#clipboard.layers.mirror === text || text.startsWith("figcraft://clipboard/")); }
+  hasCopiedLayers = (): boolean => !!this.#clipboard.layers;
   hasCopiedEffect = (): boolean => !!this.#clipboard.effect;
   hasCopiedFill = (): boolean => this.#clipboard.paint?.list === "fill";
   hasCopiedStroke = (): boolean => this.#clipboard.paint?.list === "stroke";
@@ -1100,7 +1105,7 @@ export class EditorEngine {
     if (!editable) this.pen.cancel();
     if (!editable) this.cancelInteraction();
     if (!editable) {this.cancelPendingFiles();this.#libraryFiles.clear();this.#libraryRevision++;}
-    if (!editable) { this.#vectorEdit = undefined; this.#clipboard.paint = undefined; this.#clipboard.effect = undefined; }
+    if (!editable) { this.#vectorEdit = undefined; this.#clipboard.layers = undefined; this.#clipboard.paint = undefined; this.#clipboard.effect = undefined; }
     if (editable !== this.#snapshot.editable) this.#publish({ editable, tool: "move", profileDialog: false, libraryPanel:undefined, missingFonts: undefined });
   }
   execute(command: "file.versionHistory" | "version.list", input?: unknown): ReturnType<typeof versionDetails>[];
@@ -1124,7 +1129,7 @@ export class EditorEngine {
       if (command === "file.markSaved" || command === "file.saveVersion") this.exitVersionPreview();
       else if (command === "version.autosave") return { saved: false };
       else if (!command.startsWith("version.") && command !== "file.versionHistory" && !Object.hasOwn(viewSpecs, command)
-        && !Object.hasOwn(selectionSpecs, command) && command !== "node.get") {
+        && !Object.hasOwn(selectionSpecs, command) && command !== "node.get" && command !== "edit.copy") {
         throw new Error("command `" + command + "` is not available right now: you're viewing an earlier version: restore it or go back to the current version to edit");
       }
     }
@@ -1339,6 +1344,25 @@ export class EditorEngine {
       const before = this.#snapshot, next = executeView(command, this.#view, before.document, before.selection, p);
       this.#viewConfigured = true; this.updateView(next.view);
       if (next.document !== before.document || next.selection !== before.selection) this.#publish({ document: next.document, selection: next.selection });
+      return next.result;
+    }
+    if (command === "edit.copy" || command === "edit.cut") {
+      const before = this.#snapshot;
+      const clip = captureLayers(before.document, before.selection, p, this.#documentIdentity, command === "edit.cut");
+      if (command === "edit.cut") {
+        const next = executeStructure("edit.delete", before.document, before.selection, this.#nextId, { ids: clip.roots });
+        this.#commitEdit({ document: next.document, selection: next.selection }, { nextId: next.nextId });
+        this.#clipboard.layers = clip;
+        return Object.fromEntries(Object.entries(next.result).map(([key, ids]) => [key, (ids as string[]).map(inspectedId)]));
+      }
+      this.#clipboard.layers = clip;
+      this.#publish({});
+      return { copied: clip.roots.length };
+    }
+    if (command === "edit.paste" || command === "edit.pasteOver" || command === "edit.pasteReplace") {
+      const before = this.#snapshot;
+      const next = pasteLayers(command, before.document, before.selection, this.#nextId, p, this.#clipboard.layers, this.#documentIdentity, this.#view);
+      this.#commitEdit({ document: next.document, selection: next.selection }, { nextId: next.nextId, libraryEdit: true });
       return next.result;
     }
     const builderEdit = command === "shapeBuilder.merge" || command === "shapeBuilder.remove";

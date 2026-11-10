@@ -1,0 +1,459 @@
+[
+  {
+    "name": "linked dependency and repeat",
+    "commands": [
+      [
+        "library.add",
+        {
+          "path": "Kit1.figcraft"
+        }
+      ],
+      [
+        "library.place",
+        {
+          "library": "5de308d966a86e49",
+          "component": "Card",
+          "x": 20,
+          "y": 10
+        }
+      ],
+      [
+        "edit.copy",
+        {}
+      ],
+      [
+        "file.new",
+        {
+          "name": "Receiver"
+        }
+      ],
+      [
+        "edit.paste",
+        {
+          "x": 200,
+          "y": 50
+        }
+      ],
+      [
+        "select.none",
+        {}
+      ],
+      [
+        "edit.paste",
+        {
+          "x": 200,
+          "y": 50
+        }
+      ]
+    ],
+    "nodes": {
+      "1": {
+        "children": [
+          2,
+          11
+        ],
+        "name": "Page 1",
+        "type": "page"
+      },
+      "10": {
+        "children": [
+          5,
+          8
+        ],
+        "name": "Library components",
+        "type": "page"
+      },
+      "11": {
+        "children": [
+          12
+        ],
+        "component": 5,
+        "name": "Card",
+        "parent": 1,
+        "source": 5,
+        "type": "instance"
+      },
+      "12": {
+        "children": [
+          13
+        ],
+        "component": 8,
+        "name": "Button",
+        "parent": 11,
+        "source": 6,
+        "type": "instance"
+      },
+      "13": {
+        "name": "Label",
+        "parent": 12,
+        "source": 7,
+        "type": "text"
+      },
+      "2": {
+        "children": [
+          3
+        ],
+        "component": 5,
+        "name": "Card",
+        "parent": 1,
+        "source": 5,
+        "type": "instance"
+      },
+      "3": {
+        "children": [
+          4
+        ],
+        "component": 8,
+        "name": "Button",
+        "parent": 2,
+        "source": 6,
+        "type": "instance"
+      },
+      "4": {
+        "name": "Label",
+        "parent": 3,
+        "source": 7,
+        "type": "text"
+      },
+      "5": {
+        "children": [
+          6
+        ],
+        "name": "Card",
+        "parent": 10,
+        "type": "component"
+      },
+      "6": {
+        "children": [
+          7
+        ],
+        "component": 8,
+        "name": "Button",
+        "parent": 5,
+        "source": 8,
+        "type": "instance"
+      },
+      "7": {
+        "name": "Label",
+        "parent": 6,
+        "source": 9,
+        "type": "text"
+      },
+      "8": {
+        "children": [
+          9
+        ],
+        "name": "Button",
+        "parent": 10,
+        "type": "component"
+      },
+      "9": {
+        "name": "Label",
+        "parent": 8,
+        "type": "text"
+      }
+    },
+    "records": [
+      {
+        "ids": {
+          "4": 5,
+          "5": 6,
+          "6": 7
+        },
+        "key": 4,
+        "library": "5de308d966a86e49",
+        "root": 5,
+        "version": 1
+      },
+      {
+        "ids": {
+          "2": 8,
+          "3": 9
+        },
+        "key": 2,
+        "library": "5de308d966a86e49",
+        "root": 8,
+        "version": 1
+      }
+    ],
+    "selection": [
+      11
+    ],
+    "inserted": [
+      {
+        "count": 2,
+        "key": 4,
+        "library": "5de308d966a86e49"
+      }
+    ]
+  },
+  {
+    "name": "return to author",
+    "commands": [
+      [
+        "library.add",
+        {
+          "path": "Kit1.figcraft"
+        }
+      ],
+      [
+        "library.place",
+        {
+          "library": "5de308d966a86e49",
+          "component": "Card",
+          "x": 20,
+          "y": 10
+        }
+      ],
+      [
+        "edit.copy",
+        {}
+      ],
+      [
+        "file.open",
+        {
+          "path": "Kit1.figcraft"
+        }
+      ],
+      [
+        "edit.paste",
+        {
+          "x": 200,
+          "y": 50
+        }
+      ]
+    ],
+    "nodes": {
+      "1": {
+        "children": [
+          2,
+          4,
+          7,
+          8
+        ],
+        "name": "Page 1",
+        "type": "page"
+      },
+      "10": {
+        "name": "Label",
+        "parent": 9,
+        "source": 6,
+        "type": "text"
+      },
+      "2": {
+        "children": [
+          3
+        ],
+        "name": "Button",
+        "parent": 1,
+        "type": "component"
+      },
+      "3": {
+        "name": "Label",
+        "parent": 2,
+        "type": "text"
+      },
+      "4": {
+        "children": [
+          5
+        ],
+        "name": "Card",
+        "parent": 1,
+        "type": "component"
+      },
+      "5": {
+        "children": [
+          6
+        ],
+        "component": 2,
+        "name": "Button",
+        "parent": 4,
+        "source": 2,
+        "type": "instance"
+      },
+      "6": {
+        "name": "Label",
+        "parent": 5,
+        "source": 3,
+        "type": "text"
+      },
+      "7": {
+        "name": "_Draft",
+        "parent": 1,
+        "type": "component"
+      },
+      "8": {
+        "children": [
+          9
+        ],
+        "component": 4,
+        "name": "Card",
+        "parent": 1,
+        "source": 4,
+        "type": "instance"
+      },
+      "9": {
+        "children": [
+          10
+        ],
+        "component": 2,
+        "name": "Button",
+        "parent": 8,
+        "source": 5,
+        "type": "instance"
+      }
+    },
+    "records": [],
+    "selection": [
+      8
+    ],
+    "inserted": []
+  },
+  {
+    "name": "source publication to blank file",
+    "commands": [
+      [
+        "file.open",
+        {
+          "path": "Kit1.figcraft"
+        }
+      ],
+      [
+        "instance.create",
+        {
+          "component": 4
+        }
+      ],
+      [
+        "edit.copy",
+        {}
+      ],
+      [
+        "file.new",
+        {
+          "name": "Receiver"
+        }
+      ],
+      [
+        "edit.paste",
+        {
+          "x": 200,
+          "y": 50
+        }
+      ]
+    ],
+    "nodes": {
+      "1": {
+        "children": [
+          2
+        ],
+        "name": "Page 1",
+        "type": "page"
+      },
+      "10": {
+        "name": "Label",
+        "parent": 9,
+        "source": 7,
+        "type": "text"
+      },
+      "2": {
+        "children": [
+          3
+        ],
+        "component": 8,
+        "name": "Card",
+        "parent": 1,
+        "source": 8,
+        "type": "instance"
+      },
+      "3": {
+        "children": [
+          4
+        ],
+        "component": 6,
+        "name": "Button",
+        "parent": 2,
+        "source": 9,
+        "type": "instance"
+      },
+      "4": {
+        "name": "Label",
+        "parent": 3,
+        "source": 10,
+        "type": "text"
+      },
+      "5": {
+        "children": [
+          6,
+          8
+        ],
+        "name": "Library components",
+        "type": "page"
+      },
+      "6": {
+        "children": [
+          7
+        ],
+        "name": "Button",
+        "parent": 5,
+        "type": "component"
+      },
+      "7": {
+        "name": "Label",
+        "parent": 6,
+        "type": "text"
+      },
+      "8": {
+        "children": [
+          9
+        ],
+        "name": "Card",
+        "parent": 5,
+        "type": "component"
+      },
+      "9": {
+        "children": [
+          10
+        ],
+        "component": 6,
+        "name": "Button",
+        "parent": 8,
+        "source": 6,
+        "type": "instance"
+      }
+    },
+    "records": [
+      {
+        "ids": {
+          "2": 6,
+          "3": 7
+        },
+        "key": 2,
+        "library": "5de308d966a86e49",
+        "root": 6,
+        "version": 1
+      },
+      {
+        "ids": {
+          "4": 8,
+          "5": 9,
+          "6": 10
+        },
+        "key": 4,
+        "library": "5de308d966a86e49",
+        "root": 8,
+        "version": 1
+      }
+    ],
+    "selection": [
+      2
+    ],
+    "inserted": [
+      {
+        "count": 1,
+        "key": 4,
+        "library": "5de308d966a86e49"
+      }
+    ]
+  }
+]
