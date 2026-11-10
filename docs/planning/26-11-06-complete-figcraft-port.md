@@ -4,7 +4,7 @@
 
 | Field | Current value |
 |---|---|
-| Overall status | In progress. [Execution checkpoint](26-11-07-full-port-resume.md). |
+| Overall status | In progress. [Continue handover and deferred review queue](26-11-07-full-port-resume.md#continue-from-here). |
 | Active slice | Row 12 design interchange and export. [Dated plan](26-11-10-file-interchange.md). |
 | Active phase | Row 12. The Penpot writer now covers pages, geometry, appearance, layout and component files. Text, interactions, tokens, archive assembly and public export remain open. |
 | Upstream baseline | Styles reference a2e87433. Components reference 79c36346. Global supported baseline 8eb0b876. |
