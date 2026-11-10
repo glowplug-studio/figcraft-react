@@ -6,15 +6,15 @@
 |---|---|
 | Overall status | In progress. [Continue handover and deferred review queue](26-11-07-full-port-resume.md#continue-from-here). |
 | Active slice | Row 13. Online files, ownership and grants. [Dated plan](26-11-10-online-file-ownership.md). |
-| Active phase | Framed publication limit verified. Continue retained address-block and host quotas. |
+| Active phase | Retained file and byte limits verified. Continue hourly publication admission and expiry. |
 | Upstream baseline | Styles reference a2e87433. Components reference 79c36346. Global supported baseline 8eb0b876. |
-| Branch and last verified commit | prompt/full-figcraft-port. Interchange release at 1a53341. Guest links at 0cc97d2, native preview drafts at 69c2a7c and active guest revocation at 3b8743f. Owner sharing controls at d1e8352 and join by short code at 84d37df. Framed publication gate at ee2b9a7. |
+| Branch and last verified commit | prompt/full-figcraft-port. Interchange release at 1a53341. Guest links at 0cc97d2, native preview drafts at 69c2a7c and active guest revocation at 3b8743f. Owner sharing controls at d1e8352 and join by short code at 84d37df. Framed publication gate at ee2b9a7 and atomic retained capacity at be7764f. |
 | Completed slices | Rectangle/host-auth, bounded native persistence/recovery, supported-model pages, affine rectangle geometry/selection and solid appearance, plus nested group hierarchy, Frame containers, movement/transform gestures, rounded corners, ellipse/arc/ring and Polygon/Star editing verified locally; Line/Arrow and uniform solid strokes also verified; per-side Rectangle/Frame strokes, variable-width profiles and procedural brushes verified; vector networks, solid region/stroke rendering and Flatten/Reverse also verified; foundation commit `154f5a7`. Gradient, image, pattern, blend and mask releases now have local property matrices. [Blend evidence](../reports/26-11-09-blend-modes-parity.html). Auto layout and constraints passed the local release gate. [Release evidence](../reports/26-11-09-auto-layout.md). [Local components, instances, variant properties, slots and Assets](../reports/26-11-09-components-instances.md) passed the 0.51.0 gate. |
 | Remaining slices | Continue incomplete roadmap rows, excluding the user-deferred plugin and widget family. See each slice matrix for outstanding integrations. |
-| Tests last passed | 353/353 cumulative browser checks at 84d37df. Four signed-in publication workflows, 4,396 pure checks, nine provider integrations and 66 SQL assertions passed at ee2b9a7. |
+| Tests last passed | 353/353 cumulative browser checks at ee2b9a7. At be7764f the one-slot host and five standard signed-in workflows passed, alongside 4,397 pure checks, eleven real integrations and 95 SQL assertions. |
 | Files currently in progress | [Online files and ownership](26-11-10-online-file-ownership.md). |
 | Blockers | The scoped Supabase MCP project and public-table reads passed after reauthorisation. |
-| Exact next action | Enforce native retained byte and file-count quotas. Collect the full browser run at ee2b9a7. [Resume handover](26-11-07-full-port-resume.md#continue-from-here). |
+| Exact next action | Port the hourly publication budget. Collect the full browser run at be7764f. [Resume handover](26-11-07-full-port-resume.md#continue-from-here). |
 | Last updated | 2026-11-11 01:59 ICT |
 
 ## Scope and continuation
