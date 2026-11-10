@@ -90,10 +90,11 @@ function HistoryButtons({ engine, editable, undo, redo, dispatch }: { engine: Ed
 /** Embeddable local rectangle workflow. The host owns authentication and styling. */
 export function Editor(props: EditorProps) { return <DocumentEditor {...props} />; }
 
-export function DocumentEditor({ identity, capabilities, engine: suppliedEngine, recoveryStore, workspace, workspaceRecovery, fileMenu, onWorkspaceNotice, onReviewBranch, onImportReport, workspacePrint, onWorkspacePrint }: EditorProps & {
+export function DocumentEditor({ identity, capabilities, engine: suppliedEngine, recoveryStore, workspace, workspaceRecovery, fileMenu, onHome, onWorkspaceNotice, onReviewBranch, onImportReport, workspacePrint, onWorkspacePrint }: EditorProps & {
   workspace?: EditorWorkspace;
   workspaceRecovery?: WorkspaceRecoveryState;
   fileMenu?: ReactNode;
+  onHome?: () => void;
   onWorkspaceNotice?: (message: string) => void;
   workspacePrint?: PrintSettings;
   onWorkspacePrint?: (value: PrintSettings) => void;
@@ -696,7 +697,7 @@ export function DocumentEditor({ identity, capabilities, engine: suppliedEngine,
         void paste(undefined,undefined,{html,text,image});
       }
     }}>
-      <header className="figcraft-document-bar"><h1>{snapshot.document.name}</h1><span>{snapshot.dirty ? "Unsaved" : snapshot.hasSaved ? "Downloaded" : "Unmodified"} · Local document</span>
+      <header className="figcraft-document-bar">{onHome && <button type="button" onClick={onHome}>Home</button>}<h1>{snapshot.document.name}</h1><span>{snapshot.dirty ? "Unsaved" : snapshot.hasSaved ? "Downloaded" : "Unmodified"} · Local document</span>
         <details className="figcraft-bar-menu"><summary>File</summary><div className="figcraft-menu-items">{fileMenu}
           <button type="button" disabled={!editable || busy || recoveryStatus==="loading"} onClick={event=>{
             event.currentTarget.closest("details")?.removeAttribute("open");importInput.current?.click();

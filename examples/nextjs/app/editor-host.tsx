@@ -2,9 +2,10 @@
 
 import "@glowplug-studio/figcraft-react/fonts.css";
 import { useEffect, useState } from "react";
-import { WorkspaceEditor, FigcraftRoot, IndexedDbRecoveryStore, type IdentitySnapshot, type DocumentCapability } from "@glowplug-studio/figcraft-react";
-import { SupabaseIdentityAdapter } from "@glowplug-studio/figcraft-react/backends/supabase";
+import { WorkspaceEditor, FigcraftRoot, IndexedDbRecoveryStore, type OnlineWorkspaceHost, type IdentitySnapshot, type DocumentCapability } from "@glowplug-studio/figcraft-react";
+import { SupabaseIdentityAdapter, SupabaseOnlineFileStore } from "@glowplug-studio/figcraft-react/backends/supabase";
 import { useRouter } from "next/navigation";
+import { supabaseConfig } from "../lib/supabase/config";
 import { getBrowserSupabase } from "../lib/supabase/browser";
 
 const localCapabilities: readonly DocumentCapability[] = Object.freeze(["document.read", "document.edit"]);
@@ -13,10 +14,19 @@ export function EditorHost({ identity }: { identity: Extract<IdentitySnapshot, {
   const router = useRouter();
   const [adapter, setAdapter] = useState<SupabaseIdentityAdapter | null>(null);
   const [recovery, setRecovery] = useState<IndexedDbRecoveryStore | null>(null);
+  const [online, setOnline] = useState<OnlineWorkspaceHost>();
   const [error, setError] = useState("");
   useEffect(() => {
     const next = new SupabaseIdentityAdapter(getBrowserSupabase().auth, identity);
     const store = new IndexedDbRecoveryStore();
+    const files = new SupabaseOnlineFileStore(getBrowserSupabase(), identity.principal.id, async id => {
+      const response = await fetch("/api/online-files", {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id }),
+      });
+      if (!response.ok) throw new Error("The online file could not be published");
+      return response.json();
+    });
+    setOnline({ server: supabaseConfig().url, store: files, device: store });
     setRecovery(store);
     setAdapter(next);
     const unsubscribe = next.subscribe(snapshot => {
@@ -36,6 +46,6 @@ export function EditorHost({ identity }: { identity: Extract<IdentitySnapshot, {
   return <main>
     <header className="host-bar"><p>Figcraft React</p><button onClick={logout}>Sign out</button></header>
     {error && <p role="alert">{error}</p>}
-    <FigcraftRoot>{adapter && recovery ? <WorkspaceEditor key={identity.principal.id} identity={adapter} capabilities={localCapabilities} recoveryStore={recovery} /> : <p role="status">Opening editor…</p>}</FigcraftRoot>
+    <FigcraftRoot>{adapter && recovery ? <WorkspaceEditor key={identity.principal.id} identity={adapter} capabilities={localCapabilities} recoveryStore={recovery} onlineHost={online} /> : <p role="status">Opening editor…</p>}</FigcraftRoot>
   </main>;
 }

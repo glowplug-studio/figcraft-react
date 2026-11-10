@@ -1,3 +1,5 @@
+import type { OnlineFileDevice, RememberedOnlineFile } from "../online-files";
+import { readRememberedFiles } from "../../engine/sharing/remembered-files";
 import type { WorkspaceArchive, WorkspaceRecoveryStore } from "../recovery";
 
 const SNAPSHOTS = "snapshots";
@@ -9,7 +11,7 @@ export interface IndexedDbRecoveryOptions {
 }
 
 /** Transactional browser equivalent of upstream recovery's successful-write acknowledgement. */
-export class IndexedDbRecoveryStore implements WorkspaceRecoveryStore {
+export class IndexedDbRecoveryStore implements WorkspaceRecoveryStore, OnlineFileDevice {
   #options: IndexedDbRecoveryOptions;
   #database: IDBDatabase | undefined;
   #opening: Promise<IDBDatabase> | undefined;
@@ -63,7 +65,7 @@ export class IndexedDbRecoveryStore implements WorkspaceRecoveryStore {
     return opening;
   }
 
-  async #transaction<T>(principalId: string, mode: IDBTransactionMode, operation: (store: IDBObjectStore) => IDBRequest, result: (value: unknown) => T): Promise<T> {
+  async #transaction<T>(principalId: string, mode: IDBTransactionMode, operation: (store: IDBObjectStore) => IDBRequest, result: (value: unknown, store: IDBObjectStore) => T): Promise<T> {
     if (!principalId.trim()) throw new Error("Recovery requires a host principal");
     const database = await this.#open();
     this.#assertOpen();
@@ -77,9 +79,10 @@ export class IndexedDbRecoveryStore implements WorkspaceRecoveryStore {
       transaction.onabort = () => { finish(); reject(failure ?? transaction.error ?? new Error("Recovery transaction was aborted")); };
       transaction.onerror = () => { failure ??= transaction.error; };
       try {
-        const request = operation(transaction.objectStore(SNAPSHOTS));
+        const store = transaction.objectStore(SNAPSHOTS);
+        const request = operation(store);
         request.onsuccess = () => {
-          try { value = result(request.result as unknown); }
+          try { value = result(request.result as unknown, store); }
           catch (error) { failure = error; transaction.abort(); }
         };
         request.onerror = () => { failure = request.error; };
@@ -106,6 +109,17 @@ export class IndexedDbRecoveryStore implements WorkspaceRecoveryStore {
   async readBlob(principalId: string): Promise<Blob | null> {
     const stored = await this.#stored(principalId);
     return stored instanceof ArrayBuffer ? new Blob([stored]) : stored;
+  }
+
+  onlineFiles(principal: string, update?: (current: readonly RememberedOnlineFile[]) => readonly RememberedOnlineFile[]) {
+    const key = [principal, "online-files"];
+    return this.#transaction(principal, update ? "readwrite" : "readonly", store => store.get(key), (value, store) => {
+      const current = readRememberedFiles(value);
+      if (!update) return current;
+      const next = readRememberedFiles(update(current));
+      store.put(next, key);
+      return next;
+    });
   }
 
   readLibrary(principalId:string,path:string):Promise<Blob|null> {

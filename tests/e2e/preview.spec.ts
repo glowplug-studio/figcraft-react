@@ -140,6 +140,108 @@ test("signed-in ownership finalisation validates the staged archive and safely r
   }
 });
 
+test("publish, reopen and manage a device-owned file in Home Online", async ({ page, browser }) => {
+  test.setTimeout(90_000);
+  await login(page);
+  const bar = page.locator(".figcraft-document-bar");
+  const home = page.getByRole("region", { name: "Home", exact: true });
+  const panel = home.getByRole("region", { name: "Online files", exact: true });
+  const showList = async () => {
+    await bar.getByRole("button", { name: "Home", exact: true }).click();
+    await home.getByRole("button", { name: "Online", exact: true }).click();
+  };
+  const actions = (name: string) => panel.getByLabel("Actions for " + name, { exact: true });
+  const publish = async (name: string) => {
+    await bar.getByText("File", { exact: true }).click();
+    await bar.getByRole("button", { name: "Publish to server…", exact: true }).click();
+    const form = page.getByRole("dialog", { name: "Publish to server", exact: true });
+    await form.getByLabel("File name").fill(name);
+    await form.getByRole("button", { name: "Publish", exact: true }).click();
+    await expect(form).toHaveCount(0);
+  };
+  const url = backend?.url ?? process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = backend?.key ?? process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+  if (!url || !key) throw new Error("Set the Supabase URL and publishable key for the ownership fixture");
+  const { createClient } = await import("@supabase/supabase-js");
+  const client = createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } });
+  const signIn = await client.auth.signInWithPassword({ email, password });
+  if (signIn.error) throw signIn.error;
+  const paths: string[] = [];
+  page.on("response", async response => {
+    if (response.ok() && new URL(response.url()).pathname === "/api/online-files") {
+      const row = await response.json();
+      paths.push(signIn.data.user.id + "/" + row.id + ".figcraft");
+    }
+  });
+  try {
+    await page.getByRole("button", { name: "Create rectangle", exact: true }).click();
+    await publish("Owner drawing");
+    await showList();
+    await expect(panel.getByRole("button", { name: /^Owner drawing/ })).toBeEnabled();
+    await expect(panel.locator("small")).toContainText(new URL(url).host + " · Not shared · Opened ");
+    await expect(panel).toHaveScreenshot("online-files-owner.png", { mask: [panel.locator("small")], maskColor: "#e1e5e8" });
+    await actions("Owner drawing").click();
+    await panel.getByRole("button", { name: "Rename on the server…" }).click();
+    const rename = page.getByRole("dialog", { name: "Rename on the server" });
+    await rename.getByLabel("File name").fill("Server listing");
+    await rename.getByRole("button", { name: "Rename", exact: true }).click();
+    await panel.getByRole("button", { name: /^Server listing/ }).click();
+    await expect(page.getByRole("tablist", { name: "Open files" })).toHaveCount(0);
+    await page.reload();
+    await expect(bar.getByRole("button", { name: "Home", exact: true })).toBeEnabled();
+    await page.route("**/rest/v1/online_files?**", route => route.fulfill({ status: 400, json: { message: "offline fixture" } }));
+    await showList();
+    await expect(panel.getByRole("button", { name: "Try again" })).toBeVisible();
+    await expect(panel.getByRole("button", { name: /^Server listing/ })).toBeVisible();
+    await page.unroute("**/rest/v1/online_files?**");
+    await panel.getByRole("button", { name: "Try again" }).click();
+    await expect(panel.getByRole("button", { name: /^Server listing/ })).toBeEnabled();
+    await panel.getByRole("button", { name: /^Server listing/ }).click();
+    await expect(bar.getByRole("heading", { name: "Owner drawing", exact: true })).toBeVisible();
+    await expect(page.getByRole("tablist", { name: "Open files" }).getByRole("tab")).toHaveCount(2);
+    await expect(page.getByRole("region", { name: "Layers", exact: true }).getByRole("button", { name: "Rectangle", exact: true })).toBeVisible();
+    const other = await browser.newContext({ baseURL: new URL(page.url()).origin, storageState: await page.context().storageState() });
+    try {
+      const fresh = await other.newPage();
+      await fresh.goto("/");
+      await fresh.locator(".figcraft-document-bar").getByRole("button", { name: "Home", exact: true }).click();
+      await fresh.getByRole("button", { name: "Online", exact: true }).click();
+      await expect(fresh.getByText("Nothing online yet.")).toBeVisible();
+    } finally { await other.close(); }
+    await showList();
+    await page.setViewportSize({ width: 390, height: 844 });
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    await actions("Server listing").click();
+    await panel.getByRole("button", { name: "Remove from server…" }).click();
+    const confirm = page.getByRole("dialog", { name: "Remove from server" });
+    await confirm.getByRole("button", { name: "Cancel" }).click();
+    await expect(panel.getByRole("button", { name: /^Server listing/ })).toBeVisible();
+    await panel.getByRole("button", { name: "Remove from server…" }).click();
+    await confirm.getByRole("button", { name: "Remove", exact: true }).click();
+    await expect(panel.getByText("Nothing online yet.")).toBeVisible();
+    expect((await client.from("online_files").select("id").eq("id", paths[0].split("/")[1].split(".")[0])).data).toEqual([]);
+    await home.getByRole("button", { name: "Recents" }).click();
+    await home.getByRole("button", { name: "Owner drawing", exact: true }).click();
+    await publish("Forget me");
+    await showList(); await actions("Forget me").click();
+    await panel.getByRole("button", { name: "Forget on this computer" }).click();
+    await expect(panel.getByText("Nothing online yet.")).toBeVisible();
+    expect((await client.storage.from("figcraft-files").download(paths[1])).error).toBeNull();
+
+    await home.getByRole("button", { name: "Recents" }).click();
+    await home.getByRole("button", { name: "Owner drawing", exact: true }).click();
+    await publish("Removed elsewhere");
+    expect((await client.storage.from("figcraft-files").remove([paths[2]])).error).toBeNull();
+    await showList();
+    await expect(panel.getByRole("button", { name: /Removed elsewhere.*No longer on the server/ })).toBeDisabled();
+    await actions("Removed elsewhere").click();
+    await panel.getByRole("button", { name: "Clear from this list" }).click();
+    await expect(panel.getByText("Nothing online yet.")).toBeVisible();
+  } finally {
+    if (paths.length) expect((await client.storage.from("figcraft-files").remove(paths)).error).toBeNull();
+  }
+});
+
 test("authenticated rectangle command, pixels, keyboard undo/redo and resize", async ({ page }) => {
   const errors: string[] = [];
   page.on("pageerror", error => errors.push(error.message));

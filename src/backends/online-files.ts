@@ -13,3 +13,25 @@ export interface OnlineFileStore {
   rename(id: string, name: string): Promise<OnlineFileInfo>;
   remove(id: string): Promise<void>;
 }
+
+/** Account-scoped device preference. Authority is checked afresh by the configured server. */
+export interface RememberedOnlineFile {
+  server: string;
+  file: string;
+  name: string;
+  created: number;
+  opened: number;
+}
+
+export interface OnlineFileDevice {
+  onlineFiles(
+    principal: string,
+    update?: (current: readonly RememberedOnlineFile[]) => readonly RememberedOnlineFile[],
+  ): Promise<readonly RememberedOnlineFile[]>;
+}
+
+export interface OnlineWorkspaceHost {
+  server: string;
+  store: OnlineFileStore;
+  device: OnlineFileDevice;
+}
