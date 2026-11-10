@@ -84,3 +84,12 @@ All supported editable design formats use the same page-append transaction. At t
 4. Run file and clipboard format checks on the later Fig/Jam, Sketch and Penpot readers. Revisit section, prototype and board fields when their destination models land. Verify their final round trips before the whole-product gate.
 
 Native page appending passed at 6d643af. Twenty-four independent native sessions cover blank and existing destinations, repeated imports, conflicting styles and variables, linked component stores and documents with history. The full local release gate passed all 324 Chromium cases in 427.4 seconds. REST file and nodes-response decoding is in progress.
+
+At 2fdd1c4, 40 supported REST fixtures matched the complete decoded layer tree, pages, allocator, variables, styles, image keys and warnings. The archive carrying a Section and Slice remains open. Chromium verified the real folder drop with original image bytes and variable definitions. The local graph included the initial uncommitted Kiwi reader, with 5,838 React nodes and 26,832 edges, or 33,476 nodes and 113,951 edges across both checkouts. The merged graph resolves import_with_networks, importRestDocument and droppedDesigns. The top-level native fixture comparisons were checked directly.
+
+## Binary Fig and FigJam execution order
+
+1. Capture file.export followed by a fresh native file.open and file.saveAs for representative documents. Cover zipped and bare canvases, metadata naming, image members, editable layers and changes of order. Include corrupt headers, compressed chunks, truncated schemas, recursive definitions and value budgets. Keep the emitted file distinct from the expected re-imported archive.
+2. Map fig::decode_canvas and fig::kiwi to a bounds-checked TypeScript reader. Resolve field IDs against the schema carried by each file. Preserve integer precision, first-field semantics, structural depth, declared array length and expanded-byte limits. Compare imports across deflate, zlib and Zstandard frames.
+3. Map fig::map::to_rest to the existing REST importer, including sibling positions, original GUIDs, editable networks, component expansion and hidden library dependencies. Compare archived objects and warnings, then exercise open, append, drop and cancellation in Chromium. Map board-only data after the board model lands.
+4. Map the native Fig writer separately. Use an independent native reader to verify browser output before reporting export parity.
