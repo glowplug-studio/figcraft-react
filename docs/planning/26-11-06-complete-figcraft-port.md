@@ -6,16 +6,16 @@
 |---|---|
 | Overall status | In progress. [Continue handover and deferred review queue](26-11-07-full-port-resume.md#continue-from-here). |
 | Active slice | Row 12 design interchange and export. [Dated plan](26-11-10-file-interchange.md). |
-| Active phase | Row 12. Section editing and remaining interchange checks. [Continue handover](26-11-07-full-port-resume.md#continue-from-here). |
+| Active phase | Row 12. Import reports and remaining interchange checks. |
 | Upstream baseline | Styles reference a2e87433. Components reference 79c36346. Global supported baseline 8eb0b876. |
-| Branch and last verified commit | prompt/full-figcraft-port at e399303 for external design paste and Section interchange. |
+| Branch and last verified commit | prompt/full-figcraft-port at 80f52d5 for Section authoring and nested frame PDF export. |
 | Completed slices | Rectangle/host-auth, bounded native persistence/recovery, supported-model pages, affine rectangle geometry/selection and solid appearance, plus nested group hierarchy, Frame containers, movement/transform gestures, rounded corners, ellipse/arc/ring and Polygon/Star editing verified locally; Line/Arrow and uniform solid strokes also verified; per-side Rectangle/Frame strokes, variable-width profiles and procedural brushes verified; vector networks, solid region/stroke rendering and Flatten/Reverse also verified; foundation commit `154f5a7`. Gradient, image, pattern, blend and mask releases now have local property matrices. [Blend evidence](../reports/26-11-09-blend-modes-parity.html). Auto layout and constraints passed the local release gate. [Release evidence](../reports/26-11-09-auto-layout.md). [Local components, instances, variant properties, slots and Assets](../reports/26-11-09-components-instances.md) passed the 0.51.0 gate. |
 | Remaining slices | Continue incomplete roadmap rows, excluding the user-deferred plugin and widget family. See each slice matrix for outstanding integrations. |
-| Tests last passed | 3,632 pure tests, two Auth integrations, both production builds, strict types, 46 native paste sequences and three focused signed-in browser workflows. Full Chromium regression started at e399303. |
+| Tests last passed | 342/342 production Chromium workflows at e399303. At 80f52d5, all 3,664 pure tests, 32 focused Section checks, three signed-in browser workflows, both builds, both Auth integrations and strict types passed. Full Section browser regression running. |
 | Files currently in progress | [Design interchange and export](26-11-10-file-interchange.md). |
 | Blockers | The scoped Supabase MCP project and public-table reads passed after reauthorisation. |
-| Exact next action | Consume the full Chromium run, then compare native Section create, hide/show, selection and undo against the browser. See the [resume handover](26-11-07-full-port-resume.md). |
-| Last updated | 2026-11-10 22:37 ICT |
+| Exact next action | Collect the Section regression and implement the user-facing Import report. [Resume handover](26-11-07-full-port-resume.md#continue-from-here). |
+| Last updated | 2026-11-10 22:54 ICT |
 
 ## Scope and continuation
 

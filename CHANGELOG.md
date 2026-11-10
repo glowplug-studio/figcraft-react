@@ -4,6 +4,8 @@ All notable changes to the React port and its upstream compatibility baseline ar
 
 ## [0.53.0] - 2026-11-10
 
+- Added Section drawing, wrapping, frame conversion, hide/show and export of frames nested in Sections. [Verification](docs/reports/26-11-10-file-interchange.md#section-authoring-and-frame-pdf).
+
 - Added editable paste of external Fig clipboard layers, missing-image notices and Section interchange. [Clipboard verification](docs/reports/26-11-10-design-clipboard-parity.html).
 
 - Added editable Penpot import and export. All 130 exported drawings reopened in pinned upstream with matching saved archive contents. [Property report](docs/reports/26-11-10-penpot-interchange-parity.html).
