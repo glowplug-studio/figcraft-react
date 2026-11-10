@@ -1,3 +1,5 @@
+create schema if not exists figcraft_private;
+
 -- Link tokens and join codes are presented once. Persist only their digests
 -- and the native code-wrapped token. The host checks the actor before lookup.
 create table public.online_file_links (
@@ -24,13 +26,13 @@ grant select, insert, update, delete on public.online_file_links to service_role
 
 -- Apply an owner-authorised set of creations and revocations as one transaction.
 -- Row locking serialises competing changes against the same file and its limit.
-create function public.change_online_file_links(
-    actor uuid, target uuid, revoke_ids text[], new_links jsonb, link_limit integer
+create function figcraft_private.change_online_file_links(
+    actor uuid, target uuid, revoke_ids text[], new_links jsonb, link_limit numeric
 ) returns void
 language plpgsql security invoker set search_path = ''
 as $$
 declare
-    retained integer;
+    retained bigint;
 begin
     perform 1 from public.online_files where id = target and owner_id = actor for no key update;
     if not found then
@@ -60,6 +62,19 @@ begin
     from jsonb_to_recordset(new_links) as item(
         id text, access_level text, label text, token_hash text, code_hash text, wrapped_token text
     );
+end;
+$$;
+
+revoke all on function figcraft_private.change_online_file_links(uuid,uuid,text[],jsonb,numeric) from public,anon,authenticated,service_role;
+grant execute on function figcraft_private.change_online_file_links(uuid,uuid,text[],jsonb,numeric) to service_role;
+
+create function public.change_online_file_links(
+    actor uuid, target uuid, revoke_ids text[], new_links jsonb, link_limit integer
+) returns void
+language plpgsql security invoker set search_path = ''
+as $$
+begin
+    perform figcraft_private.change_online_file_links(actor,target,revoke_ids,new_links,link_limit::numeric);
 end;
 $$;
 

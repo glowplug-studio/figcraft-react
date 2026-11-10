@@ -701,7 +701,7 @@ export function DocumentEditor({ identity, capabilities, engine: suppliedEngine,
         void paste(undefined,undefined,{html,text,image});
       }
     }}>
-      <header className="figcraft-document-bar">{onHome && <button type="button" onClick={onHome}>Home</button>}<h1>{snapshot.document.name}</h1><span>{snapshot.dirty ? "Unsaved" : snapshot.hasSaved ? "Downloaded" : "Unmodified"} · {sessionLabel ?? "Local document"}</span>{shareMenu}
+      <header className="figcraft-document-bar">{onHome && <button type="button" onClick={onHome}>Home</button>}<h1>{snapshot.document.name}</h1><span data-live-status={sessionLabel ? true : undefined}>{snapshot.dirty ? "Unsaved" : snapshot.hasSaved ? "Downloaded" : "Unmodified"} · {sessionLabel ?? "Local document"}</span>{shareMenu}
         <details name={menuGroup ?? localMenuGroup} className="figcraft-bar-menu"><summary>File</summary><div className="figcraft-menu-items">{fileMenu}
           <button type="button" disabled={!editable || busy || recoveryStatus==="loading"} onClick={event=>{
             event.currentTarget.closest("details")?.removeAttribute("open");importInput.current?.click();

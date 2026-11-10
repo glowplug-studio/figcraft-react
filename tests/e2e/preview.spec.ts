@@ -3,6 +3,7 @@ import { createHash, randomUUID } from "node:crypto";
 import { join } from "node:path";
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { chromium, expect, test, type Page } from "@playwright/test";
+import {enableLocalTeamDirectory} from "../support/localTeamDirectory";
 import { localSupabase } from "../support/localSupabase";
 import { decodeFigcraft, encodeFigcraft } from "../../src/engine/file-format";
 import { rectanglePaints, type RectangleNode, type VectorNode } from "../../src/engine/document";
@@ -515,6 +516,87 @@ test("owner sharing retries a lost reply and rotates three roles from Home Onlin
   await panel.getByRole("button", {name: "Remove from server…"}).click();
   await page.getByRole("dialog", {name: "Remove from server"}).getByRole("button", {name: "Remove", exact: true}).click();
   await expect(panel.getByText("Nothing online yet.")).toBeVisible();
+});
+
+if (!process.env.PLAYWRIGHT_BASE_URL) test("a second account discovers, opens and loses a shared team file", async ({page,browser}, testInfo) => {
+  test.setTimeout(90_000);
+  if (!backend) throw new Error("Requires the local directory operator fixture");
+  await login(page);
+  const origin = new URL(page.url()).origin;
+  const visitor = await browser.newContext({permissions:["clipboard-read","clipboard-write"]});
+  const guestEmail = randomUUID() + "@example.test", guestPassword = randomUUID() + "Aa1!";
+  const created = await backend.admin.auth.admin.createUser({email:guestEmail,password:guestPassword,email_confirm:true});
+  if (created.error) throw created.error;
+  let disable: (() => void) | undefined;
+  const guest = await visitor.newPage();
+  const ownerBar = page.locator(".figcraft-document-bar");
+  const guestBar = guest.locator(".figcraft-document-bar");
+  const home = guest.getByRole("region", {name:"Home",exact:true});
+  const team = guest.getByRole("region", {name:/Shared by your team on/});
+  const refresh = async () => {
+    await home.getByRole("button", {name:"Recents",exact:true}).click();
+    await home.getByRole("button", {name:"Online",exact:true}).click();
+  };
+  try {
+    await guest.goto(origin);
+    await guest.getByLabel("Email",{exact:true}).fill(guestEmail);
+    await guest.getByLabel("Password",{exact:true}).fill(guestPassword);
+    await guest.getByRole("button",{name:"Sign in",exact:true}).click();
+    await guestBar.getByRole("button",{name:"Home",exact:true}).click();
+    const disabled = guest.waitForResponse(r => r.url().endsWith("/rpc/online_team_directory"));
+    await home.getByRole("button",{name:"Online",exact:true}).click();
+    expect((await disabled).ok()).toBe(true);
+    await expect(team).toHaveCount(0);
+    await guest.route("**/rpc/online_team_directory", route => route.fulfill({status:503,json:{message:"offline"}}));
+    await refresh();
+    await expect(team.getByRole("alert")).toContainText("for its team list");
+    await expect(home.getByText("Nothing online yet.",{exact:true})).toBeVisible();
+    await guest.unroute("**/rpc/online_team_directory");
+    disable = enableLocalTeamDirectory(backend,"view",origin + "/");
+    await refresh();
+    await expect(team.getByText("Nobody shares a file there now.")).toBeVisible();
+    await page.getByRole("button",{name:"Create rectangle",exact:true}).click();
+    await ownerBar.getByText("Share",{exact:true}).click();
+    await ownerBar.getByRole("button",{name:"Start sharing",exact:true}).click();
+    await expect(ownerBar.getByRole("button",{name:"Stop sharing"})).toBeEnabled();
+    await refresh();
+    const row = team.getByRole("button",{name:/^Untitled/});
+    await expect(row).toContainText("1 in it now");
+    await guest.evaluate(() => document.fonts.ready.then(() => undefined));
+    await testInfo.attach("team-directory-desktop", {body:await team.screenshot(),contentType:"image/png"});
+    await guest.setViewportSize({width:390,height:844});
+    await testInfo.attach("team-directory-narrow", {body:await team.screenshot(),contentType:"image/png"});
+    await team.getByLabel("Actions for Untitled").click();
+    await team.getByRole("button",{name:"Copy link",exact:true}).click();
+    const native = await guest.evaluate(() => navigator.clipboard.readText());
+    expect(native).toMatch(/^figcraft:\/\/join\?server=ws:\/\/127\.0\.0\.1:55321\/&file=[\da-f-]{36}&team=1$/);
+    await team.getByRole("button",{name:"Copy browser link",exact:true}).click();
+    const web = await guest.evaluate(() => navigator.clipboard.readText());
+    expect(web).toBe(origin + "/#join=" + encodeURIComponent(native));
+    await team.getByLabel("Actions for Untitled").click();
+    await row.click();
+    await expect(guestBar.getByText(/View only/)).toBeVisible();
+    expect(await guest.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    await expect(guest.getByRole("button",{name:"Create rectangle",exact:true})).toBeDisabled();
+    const linked = await visitor.newPage();
+    await linked.goto(web);
+    await expect(linked.locator(".figcraft-document-bar").getByText(/View only/)).toBeVisible();
+    expect(new URL(linked.url()).hash).toBe("");
+    await ownerBar.getByRole("button",{name:"Stop sharing",exact:true}).click();
+    await expect(guest.getByText("Sharing was stopped",{exact:true})).toBeVisible({timeout:15_000});
+    await expect(linked.getByText("Sharing was stopped",{exact:true})).toBeVisible();
+    await guestBar.getByRole("button",{name:"Home",exact:true}).click();
+    await home.getByRole("button",{name:"Online",exact:true}).click();
+    await expect(team.getByText("Nobody shares a file there now.")).toBeVisible();
+    await ownerBar.getByRole("button",{name:"Start sharing",exact:true}).click();
+    await expect(ownerBar.getByRole("button",{name:"Stop sharing"})).toBeEnabled();
+    await linked.goto(web);
+    await expect(linked.locator(".figcraft-document-bar").getByText(/View only/)).toBeVisible();
+  } finally {
+    disable?.();
+    await visitor.close();
+    await backend.admin.auth.admin.deleteUser(created.data.user.id);
+  }
 });
 
 test("the published view and edit invites open the original drawing in another signed-in browser", async ({ page, browser }) => {

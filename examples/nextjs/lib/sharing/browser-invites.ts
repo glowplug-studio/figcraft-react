@@ -21,7 +21,8 @@ export class BrowserInvitations implements OnlineInvitations {
 
 
   constructor(private device: Pick<IndexedDbRecoveryStore, "readPublishedLinks">, private principal: string, private server: string,
-    private readonly monitor: NonNullable<OnlineInvitations["watch"]>, readonly showJoin: () => void, private report: (message: string) => void) {
+    private readonly monitor: NonNullable<OnlineInvitations["watch"]>, readonly showJoin: () => void, private report: (message: string) => void,
+    private resolveTeam?: (file: string) => Promise<{file: string; token: string}>) {
     this.endpoint = parseInviteServer(server.replace(/^http/, "ws")).server;
   }
 
@@ -89,12 +90,18 @@ export class BrowserInvitations implements OnlineInvitations {
         || invite.server.path !== this.endpoint.path) {
       throw new Error("This invite belongs to another server");
     }
-    if (invite.kind === "team") throw new Error("This host requires an invite link for this session");
+
     this.joining = true;
     const connection = crypto.randomUUID();
     let attached = false, redeeming = false;
     try {
-      const grant = invite.kind === "code" ? await this.lookup(invite.code) : invite;
+      let grant: {file: string; token: string};
+      if (invite.kind === "team") {
+        if (!this.resolveTeam) throw new Error("This server keeps no team list");
+        grant = await this.resolveTeam(invite.file);
+      } else {
+        grant = invite.kind === "code" ? await this.lookup(invite.code) : invite;
+      }
       if (this.listener !== receive) throw new Error("The signed-in workspace changed");
       redeeming = true;
       const {access, bytes} = await this.redeem(connection, grant);

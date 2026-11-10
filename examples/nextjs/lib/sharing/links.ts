@@ -67,9 +67,9 @@ export async function applyOwnerSharing(writer: SupabaseClient, owner: string, f
 
 export async function ownerSharingStatus(writer: SupabaseClient, owner: string, file: string) {
   const response = await writer.from("online_files")
-    .select("id, online_file_share_changes(revision), online_file_links(id)").eq("id", file).eq("owner_id", owner)
-    .maybeSingle<{id: string; online_file_share_changes: {revision: string} | null; online_file_links: {id: string}[]}>();
+    .select("id, online_file_share_changes(revision), online_file_links(id,label)").eq("id", file).eq("owner_id", owner)
+    .maybeSingle<{id: string; online_file_share_changes: {revision: string} | null; online_file_links: {id: string; label: string}[]}>();
   if (response.error) throw response.error;
   if (!response.data) throw new Error("The file is unavailable");
-  return {revision: response.data.online_file_share_changes?.revision ?? null, ids: response.data.online_file_links.map(link => link.id)};
+  return {revision: response.data.online_file_share_changes?.revision ?? null, ids: response.data.online_file_links.filter(link => !link.label.startsWith("Team (")).map(link => link.id)};
 }

@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from "node:crypto";
-import { spawn } from "node:child_process";
+import { execFileSync, spawn } from "node:child_process";
 import { once } from "node:events";
 import { createInterface } from "node:readline";
 import { readFile } from "node:fs/promises";
@@ -14,6 +14,7 @@ import { lookupCode } from "../../examples/nextjs/lib/sharing/code-lookup";
 import { JoinCodeKey } from "../../examples/nextjs/lib/sharing/codes";
 import { createPublishedLinks, publishedLinkDigests } from "../../src/backends/published-links";
 import { parseJoinCode } from "../../src/engine/sharing/join-code";
+import {enableLocalTeamDirectory} from "../support/localTeamDirectory";
 import { localSupabase } from "../support/localSupabase";
 
 const enabled = process.env.FIGCRAFT_LOCAL_INTEGRATION === "1";
@@ -375,6 +376,59 @@ describe.skipIf(!enabled)("private online files on real local Supabase", () => {
     expect((await stranger.client.rpc("online_connection_active", {tab})).data).toBe(!claimed);
     expect(await store.owned([file])).toHaveLength(claimed ? 0 : 1);
   });
+
+  it("resolves concurrent team joins once and revokes their real Storage access on unshare", async () => {
+    const file = randomUUID(), path = owner.id + "/" + file + ".figcraft";
+    paths.push(path);
+    const writer = local!.admin;
+    const store = new SupabaseOnlineFileStore(owner.client, owner.id, id => finaliseForTest(owner.client, writer, id));
+    const guest = new SupabaseOnlineFileStore(stranger.client, stranger.id, () => Promise.reject());
+    await store.publish(file,new Blob([archive]));
+    await expect(guest.resolveTeamFile(file)).rejects.toThrow("no team list");
+    expect((await local!.client.rpc("online_team_directory")).error).toBeTruthy();
+    const disable = enableLocalTeamDirectory(local!, "comment", "https://team.example/");
+    try {
+      await expect(guest.resolveTeamFile(file)).rejects.toThrow("isn't shared");
+      const links = await changeFileLinks(writer,owner.id,file,[],"shared");
+      const directory = await guest.teamDirectory();
+      expect(directory.state === "listed" && directory.files.some(row => row.file === file && row.access === "comment")).toBe(true);
+      const ownerLinks = await ownerSharingStatus(writer,owner.id,file);
+      const receipts = await Promise.all(Array.from({length:12},() => guest.resolveTeamFile(file)));
+      const {token} = receipts[0];
+      expect(await ownerSharingStatus(writer,owner.id,file)).toEqual(ownerLinks);
+      expect(new Set(receipts.map(r => r.token)).size).toBe(1);
+      expect(JSON.stringify(directory)).not.toContain(token);
+      const session = (await stranger.client.auth.getClaims()).data!.claims.session_id as string;
+      const admitted = await readSharedDrawing(stranger.client,writer,stranger.id,session,randomUUID(),file,token);
+      expect(admitted.access).toBe("comment");
+      const storage = stranger.client.storage.from(bucket);
+      expect((await storage.download(path)).error).toBeNull();
+      if (process.env.FIGCRAFT_VERIFY_TEAM_RESTART === "1") {
+        // This dedicated check only restarts the isolated local two-account fixture.
+        const container = "supabase_db_figcraft-react";
+        const extra = execFileSync("docker",["exec","-i",container,"psql","-XqAt","-U","postgres","-d","postgres"],{
+          input:"select count(*) from auth.users where id not in ('" + owner.id + "','" + stranger.id + "')",
+          encoding:"utf8",
+        });
+        expect(extra.trim()).toBe("0");
+        execFileSync("docker",["restart",container],{stdio:"pipe",timeout:60_000});
+        await expect.poll(() => guest.resolveTeamFile(file).catch(() => null),
+          {timeout:60_000,interval:500}).toEqual({file,token});
+        expect((await storage.download(path)).error).toBeTruthy();
+        expect((await readSharedDrawing(stranger.client,writer,stranger.id,session,randomUUID(),file,token)).access).toBe("comment");
+      }
+      const [stopped, resolving] = await Promise.allSettled([
+        changeFileLinks(writer,owner.id,file,links.map(row => row.id)), guest.resolveTeamFile(file),
+      ]);
+      expect(stopped.status).toBe("fulfilled");
+      if (resolving.status === "fulfilled") expect(resolving.value.token).toBe(token);
+      await expect(guest.resolveTeamFile(file)).rejects.toThrow("isn't shared");
+      expect((await storage.download(path)).error).toBeTruthy();
+      await expect(readSharedDrawing(stranger.client,writer,stranger.id,session,randomUUID(),file,token)).rejects.toThrow();
+      await changeFileLinks(writer,owner.id,file,[],"shared");
+      expect((await guest.resolveTeamFile(file)).token).not.toBe(token);
+    } finally { disable(); }
+  }, 90_000);
 
   it("binds an invite to its Auth session and denies signed URLs, writes and downloads after revocation", async () => {
     const keys = createPublishedLinks();

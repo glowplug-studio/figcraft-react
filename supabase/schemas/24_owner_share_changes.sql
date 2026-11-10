@@ -41,7 +41,7 @@ begin
         and l.label is distinct from ('Shared (' || l.access_level || ')')) then
         raise exception 'only shared links may be stopped' using errcode = '22023';
     end if;
-    perform public.change_online_file_links(actor, target, revoke_ids, new_links, 100);
+    perform figcraft_private.change_online_file_links(actor, target, revoke_ids, new_links, figcraft_private.host_link_limit());
     insert into public.online_file_share_changes as c (file_id, revision, proof)
         values (target, revision, fingerprint) on conflict (file_id)
         do update set revision = excluded.revision, proof = excluded.proof;

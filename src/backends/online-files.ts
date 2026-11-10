@@ -1,3 +1,5 @@
+import type { TeamDirectory } from "../engine/sharing/team-directory";
+
 /** A server listing. The document itself retains the title captured at publication. */
 export interface OnlineFileInfo {
   id: string;
@@ -9,6 +11,7 @@ export interface OnlineFileInfo {
 
 /** An embedding host supplies the authenticated store. Publication IDs survive retries. */
 export interface OnlineFileStore {
+  teamDirectory?(): Promise<TeamDirectory>;
   hosting?(file?: string): Promise<{idleSeconds: string; expires: string | null}>;
   publish(id: string, snapshot: Blob): Promise<OnlineFileInfo>;
   owned(ids: readonly string[]): Promise<readonly OnlineFileInfo[]>;
@@ -69,6 +72,7 @@ export interface OnlineInvitations {
   retryNow?(connection: string): void;
   rejoin?(connection: string): Promise<OnlineGuestSession["access"]>;
   watch?(connection: string, ended: (reason: GuestSessionEnd) => void, changed?: (status: GuestConnectionStatus) => void): () => void;
+  join?(invite: string): Promise<void>;
   showJoin(): void;
   subscribe(joined: (session: OnlineGuestSession, archive: Blob) => Promise<void>): () => void;
   copyPublished(file: string, access: "edit" | "view"): Promise<void>;

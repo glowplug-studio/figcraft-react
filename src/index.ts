@@ -67,3 +67,5 @@ export { textWordStarts } from "./engine/text-word-starts";
 export type { OnlineFileInfo, OnlineFileStore, OnlineGuestSession, GuestSessionEnd, GuestConnectionStatus, OwnerShareSummary, OnlineOwnerSharing, OnlineInvitations, OnlineWorkspaceHost, OnlineFileDevice, OnlineFileRegistry, PendingOnlinePublication, RememberedOnlineFile } from "./backends/online-files";
 
 export { isSharedCredentials, type DeviceOwnerSharing, type PendingSharingChange, type SharedCredential } from "./backends/browser/owner-sharing";
+
+export type { TeamDirectory, TeamFile } from "./engine/sharing/team-directory";

@@ -1,3 +1,4 @@
+import { readTeamDirectory } from "../../engine/sharing/team-directory";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { OnlineFileInfo, OnlineFileStore } from "../online-files";
 
@@ -28,6 +29,28 @@ export class SupabaseOnlineFileStore implements OnlineFileStore {
     private principal: string,
     private finalise: (id: string) => Promise<OnlineFileInfo>,
   ) {}
+
+  async teamDirectory() {
+    const {data, error} = await this.client.rpc("online_team_directory");
+    if (error?.code === "PGRST202") return {state:"none" as const};
+    if (error) throw error;
+    return readTeamDirectory(data);
+  }
+
+  async resolveTeamFile(file: string): Promise<{file: string; token: string}> {
+    // Native file IDs are broader than this provider's UUID keys.
+    const {data, error} = await this.client.rpc("resolve_team_file", {target: uuid.test(file) ? file : null});
+    if (error) throw new Error("The team file could not be reached");
+    if (data?.status === "disabled") throw new Error("This server keeps no team list");
+    if (data?.status === "unshared") throw new Error("This file isn't shared now");
+    if (data?.status === "full" && typeof data.limit === "string" && /^\d+$/.test(data.limit)) {
+      throw new Error("A file has at most " + data.limit + " links: revoke one first");
+    }
+    if (data?.file !== file || typeof data.token !== "string" || !/^[a-zA-Z0-9_-]{16,128}$/.test(data.token)) {
+      throw new Error("Invalid team file receipt");
+    }
+    return {file, token:data.token};
+  }
 
   async hosting(file?: string) {
     const result = await this.client.rpc("online_host_information", {target: file ?? null})

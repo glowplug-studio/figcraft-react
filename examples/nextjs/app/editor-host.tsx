@@ -40,7 +40,7 @@ export function EditorHost({ identity }: { identity: Extract<IdentitySnapshot, {
     const invites = new BrowserInvitations(store, identity.principal.id, server,
       (connection, ended) => watchSupabaseGuest(getBrowserSupabase(), connection, ended), () => {
       setJoinError(""); joinDialog.current?.showModal();
-    }, setError);
+    }, setError, file => files.resolveTeamFile(file));
     setInviteHost(invites);
     setOnline({ server, store: files, device: store, invitations: invites, sharing: new BrowserOwnerSharing(store, identity.principal.id, server) });
     setRecovery(store);

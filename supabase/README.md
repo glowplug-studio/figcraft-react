@@ -33,3 +33,24 @@ on conflict (singleton) do update set idle_seconds = excluded.idle_seconds;
 ```
 
 Run `node scripts/verify-local-retirement.mjs` on an empty local stack to test the installed schedule, actual Storage removal and recovery of a committed claim after a PostgreSQL restart. To exercise an interrupted browser publication through the real ten-minute staging interval, start the local production preview and run `FIGCRAFT_VERIFY_STAGING_CLEANUP=1 npx playwright test tests/e2e/preview.spec.ts --grep 'interrupted publication before server confirmation' --workers=1`. Allow up to 21 minutes for the next eligible sweep.
+
+## Team directory
+
+Discovery is off by default. As the database operator, enable a view-only, comment or edit directory by setting its access level. An optional HTTP(S) browser URL enables **Copy browser link**. Use the editor's actual public URL at installation. The host omits that action when the URL is empty.
+
+```sql
+insert into figcraft_private.team_directory_settings (access_level,web_url)
+values ('view','https://editor.example.org/')
+on conflict (singleton) do update set access_level=excluded.access_level, web_url=excluded.web_url;
+```
+
+Changing the role or deleting the settings row revokes existing team grants. Changing only the web URL preserves them. The local signed-in browser lists up to 500 currently shared files. An owner must start sharing before a file appears. Original publication grants survive when the owner stops sharing. To disable the directory or change the default 100-link cap, use the relevant statement below.
+
+```sql
+delete from figcraft_private.team_directory_settings;
+
+insert into figcraft_private.online_link_settings (max_links) values (150)
+on conflict (singleton) do update set max_links=excluded.max_links;
+```
+
+Run `supabase test db --local` and `npm run test:integration` against the migrated local stack. With its production preview running, use `npx playwright test tests/e2e/preview.spec.ts --grep 'second account discovers' --workers=1`. This two-account test temporarily enables the directory on the local fixture host and restores its disabled state.

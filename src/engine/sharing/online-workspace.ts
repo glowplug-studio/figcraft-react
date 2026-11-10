@@ -1,3 +1,4 @@
+import {teamFileLink} from "./team-directory";
 import type { OnlineFileInfo, OnlineFileRegistry, OnlineWorkspaceHost, PendingOnlinePublication, RememberedOnlineFile } from "../../backends/online-files";
 import type { EditorWorkspace } from "../workspace";
 import { cleanOnlineName, prepareOnlineSnapshot } from "./publication";
@@ -60,6 +61,28 @@ export class OnlineWorkspace {
   leaveTab(id: number) {
     const file = this.publishedFile(id);
     if (file) this.tabs.delete(file);
+  }
+
+  async teamDirectory() {
+    this.check();
+    if (this.server.replace(/^https:/, "wss:") === "wss://collab.craftapps.dev") return {state: "none" as const};
+    const directory = await this.host.store.teamDirectory?.() ?? {state: "none" as const};
+    this.check();
+    return directory;
+  }
+
+  teamLink(file: string) {
+    const address = this.host.server.split("?",1)[0].trim().replace(/^http/i, "ws");
+    const endpoint = new URL(address).pathname === "/" && !address.endsWith("/") ? address + "/" : address;
+    return teamFileLink(endpoint, file);
+  }
+
+  async openTeam(file: string) {
+    this.check();
+    const invitations = this.host.invitations;
+    if (!invitations?.join) throw new Error("The host cannot open this invite");
+    await invitations.join(this.teamLink(file));
+    this.check();
   }
 
   private check() {

@@ -1,3 +1,4 @@
+import {teamWebLink, type TeamDirectory} from "./engine/sharing/team-directory";
 import { serverUtcDate } from "./engine/sharing/server-date";
 import { OwnerShareControls } from "./OwnerShareControls";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
@@ -67,6 +68,54 @@ export function PublishOnlineDialog({ online, tab, close, published }: {
   </Modal>;
 }
 
+function TeamFiles({online, revision, opened}: {online: OnlineWorkspace; revision: number; opened: () => void}) {
+  const [directory, setDirectory] = useState<TeamDirectory | {state: "offline"}>();
+  const [joining, setJoining] = useState(false);
+  const [message, setMessage] = useState("");
+  useEffect(() => {
+    let current = true;
+    setDirectory(undefined);
+    setMessage("");
+    void online.teamDirectory().then(value => { if (current) setDirectory(value); },
+      () => { if (current) setDirectory({state:"offline"}); });
+    return () => { current = false; };
+  }, [online, revision]);
+  if (!directory || directory.state === "none") return null;
+  const host = new URL(online.server).host;
+  const heading = "Shared by your team on " + host;
+  async function open(file: string) {
+    setJoining(true);
+    setMessage("");
+    try { await online.openTeam(file); opened(); }
+    catch (error) { setMessage(failure(error)); }
+    finally { setJoining(false); }
+  }
+  async function copy(link: string, web?: string) {
+    try {
+      await navigator.clipboard.writeText(web ? teamWebLink(web, link) : link);
+      setMessage(web ? "Link copied: it opens the file in the browser" : "Link copied: it opens the file in FigCraft");
+    } catch { setMessage("Could not copy the link"); }
+  }
+  return <section aria-label={heading}>
+    <h3>{heading}</h3>
+    {directory.state === "offline" ? <p role="alert">Couldn't reach {host} for its team list.</p> :
+      directory.files.length === 0 ? <p>Nobody shares a file there now.</p> : <>
+        <p>Everyone who reaches this server can open these files while they are shared.</p>
+        <ul>{directory.files.map(row => <li key={row.file}>
+          <button type="button" disabled={joining} onClick={() => void open(row.file)}>
+            <strong>{row.name}</strong><small>{row.people > 0 && row.people + " in it now · "}Changed {serverUtcDate(row.updated).slice(0,10)}</small>
+          </button>
+          <details name="figcraft-online-actions"><summary aria-label={"Actions for " + row.name}>•••</summary><div>
+            <button type="button" disabled={joining} onClick={() => void open(row.file)}>Open</button>
+            <button type="button" onClick={() => void copy(online.teamLink(row.file))}>Copy link</button>
+            {directory.web && <button type="button" onClick={() => void copy(online.teamLink(row.file), directory.web)}>Copy browser link</button>}
+          </div></details>
+        </li>)}</ul>
+      </>}
+    {message && <p role="status">{message}</p>}
+  </section>;
+}
+
 export function OnlineFilesPanel({ online, opened }: { online: OnlineWorkspace; opened: () => void }) {
   const [rows, setRows] = useState<OnlineRow[]>([]);
   const [busy, setBusy] = useState(true);
@@ -76,10 +125,15 @@ export function OnlineFilesPanel({ online, opened }: { online: OnlineWorkspace; 
   const [dialog, setDialog] = useState<{ row: OnlineRow; action: "remove" | "rename" }>();
   const [name, setName] = useState("");
   const [actions, setActions] = useState<string>();
+  const [teamRefresh, setTeamRefresh] = useState(0);
   const [shared, setShared] = useState<Record<string, boolean>>({});
   const updateShared = useCallback((file: string, value: boolean) => {
     setShared(previous => previous[file] === value ? previous : { ...previous, [file]: value });
   }, []);
+  const sharingChanged = useCallback((file: string, value: boolean) => {
+    updateShared(file, value);
+    setTeamRefresh(n => n + 1);
+  }, [updateShared]);
   const host = hostName(online.server);
   useEffect(() => {
     let active = true;
@@ -114,6 +168,7 @@ export function OnlineFilesPanel({ online, opened }: { online: OnlineWorkspace; 
       setRows(await online.list());
       setDialog(undefined);
       if (showFile) opened();
+      else setTeamRefresh(n => n + 1);
     } catch (problem) { setError(failure(problem)); }
     finally { setBusy(false); }
   };
@@ -135,13 +190,14 @@ export function OnlineFilesPanel({ online, opened }: { online: OnlineWorkspace; 
         </> : row.state === "gone" ? <button disabled={busy} onClick={() => void run(() => online.forget(row.file))}>Clear from this list</button> : <>
           <button disabled={busy} onClick={() => void run(() => online.open(row.file), true)}>Open</button>
           {row.expires && <p>The server deletes this file if nobody opens it before {serverUtcDate(row.expires)}.</p>}
-          {online.sharing && actions === row.file && <OwnerShareControls file={row.file} sharing={online.sharing} changed={updateShared} />}
+          {online.sharing && actions === row.file && <OwnerShareControls file={row.file} sharing={online.sharing} changed={sharingChanged} />}
           <button disabled={busy} onClick={() => { setName(row.name); setDialog({ row, action: "rename" }); }}>Rename on the server…</button>
           <button disabled={busy} onClick={() => setDialog({ row, action: "remove" })}>Remove from server…</button>
           <button disabled={busy} onClick={() => void run(() => online.forget(row.file))}>Forget on this computer</button>
         </>}
       </div></details>
     </li>)}</ul>
+    <TeamFiles key={online.server} online={online} revision={teamRefresh + retry} opened={opened} />
     {dialog && <Modal title={dialog.action === "rename" ? "Rename on the server" : "Remove from server"} close={() => setDialog(undefined)}>
       <form onSubmit={event => {
         event.preventDefault();

@@ -60,7 +60,7 @@ dd { margin: 0; }
   :is(.figcraft-mobile-pages, .figcraft-mobile-layers, .figcraft-mobile-assets) > section { position: absolute; z-index: 2; top: 100%; left: 8px; width: min(300px, calc(100vw - 16px)); max-height: 70dvh; overflow: auto; background: #fff; border: 1px solid #ddd; padding: 16px; }
   .figcraft-workspace { grid-template-columns: minmax(200px, 1fr) 190px; }
   .figcraft-layers { display: none; }
-  .figcraft-document-bar span { display: none; }
+  .figcraft-document-bar span:not([data-live-status]) { display: none; }
   .figcraft-document-bar h1 { margin-right: auto; }
 }
 @media (max-width: 480px) {
