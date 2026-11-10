@@ -1,13 +1,17 @@
 const srgbChromaticities = [.3127,.3290,.64,.33,.30,.60,.15,.06];
 
 // Validate ancillary colour metadata before using it.
-export function validPngChunk(bytes: Uint8Array, at: number, size: number, view: DataView) {
+export function pngChunkCrc(bytes: Uint8Array, start: number, end: number) {
   let crc = 0xffffffff;
-  for (let i=at+4; i<at+8+size; i++) {
+  for (let i=start; i<end; i++) {
     crc ^= bytes[i];
     for (let bit=0; bit<8; bit++) crc = (crc >>> 1) ^ ((crc & 1) ? 0xedb88320 : 0);
   }
-  return ((crc ^ 0xffffffff) >>> 0) === view.getUint32(at+8+size);
+  return (crc ^ 0xffffffff) >>> 0;
+}
+
+export function validPngChunk(bytes: Uint8Array, at: number, size: number, view: DataView) {
+  return pngChunkCrc(bytes, at+4, at+8+size) === view.getUint32(at+8+size);
 }
 
 /** A PNG with no usable ICC profile may describe its colour space before the first IDAT. */

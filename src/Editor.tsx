@@ -108,6 +108,7 @@ export function DocumentEditor({ identity, capabilities, engine: suppliedEngine,
   const linkDialog = useRef<HTMLDialogElement>(null);
   const missingFontsDialog = useRef<HTMLDialogElement>(null);
   useEffect(() => { if (snapshot.missingFonts) missingFontsDialog.current?.showModal(); }, [snapshot.missingFonts]);
+  const exportDialog = useRef<HTMLDialogElement>(null);
   const replaceDialog = useRef<HTMLDialogElement>(null);
   const initialPrincipal = useRef(identity.getSnapshot().principal?.id);
   const canvas = useRef<HTMLCanvasElement>(null);
@@ -450,6 +451,22 @@ export function DocumentEditor({ identity, capabilities, engine: suppliedEngine,
     } catch (caught) { setError(caught instanceof Error ? caught.message : "File could not be opened"); }
     finally { setBusy(false); setOpeningTab(false); }
   }
+  async function exportPng(scale: number) {
+    exportDialog.current?.close();
+    setBusy(true); setError("");
+    try {
+      const { document: design, selection } = engine.getSnapshot();
+      const first = selection[0] ?? pageOf(design).children[0];
+      const name = (design.nodes[first]?.name ?? "Export") + (scale === 1 ? "" : "@" + scale + "x") + ".png";
+      const { blob } = await engine.exportRaster({ format: "png", scale });
+      const link = document.createElement("a"), url = URL.createObjectURL(blob);
+      try {
+        link.href = url; link.download = name;
+        document.body.append(link); link.click();
+      } finally { link.remove(); setTimeout(() => URL.revokeObjectURL(url), 1000); }
+    } catch (error) { setError(error instanceof Error ? error.message : "Export failed"); }
+    finally { setBusy(false); }
+  }
   async function save() {
     setBusy(true); setError("");
     try {
@@ -530,7 +547,10 @@ export function DocumentEditor({ identity, capabilities, engine: suppliedEngine,
       else if (!e.clipboardData.types.length && engine.hasCopiedLayers()) { e.preventDefault(); dispatch("edit.paste"); }
     }}>
       <header className="figcraft-document-bar"><h1>{snapshot.document.name}</h1><span>{snapshot.dirty ? "Unsaved" : snapshot.hasSaved ? "Downloaded" : "Unmodified"} · Local document</span>
-        <details><summary>File</summary>{fileMenu}
+        <details className="figcraft-bar-menu"><summary>File</summary><div className="figcraft-menu-items">{fileMenu}
+          <button type="button" disabled={!signedIn || busy || recoveryStatus === "loading"} onClick={event => {
+            event.currentTarget.closest("details")?.removeAttribute("open"); exportDialog.current?.showModal();
+          }}>Export…</button>
           {(["Version history", "Save to version history…", ...(workspace && !workspace.onBranch ? ["Create branch…"] : [])]).map((label, index) => <button key={label} type="button"
             disabled={!signedIn || busy || recoveryStatus === "loading" || !capabilities.includes("document.edit")} onClick={event => {
               event.currentTarget.closest("details")?.removeAttribute("open"); setNewVersionForm(index === 2 ? "branch" : index === 1 ? "new" : undefined);
@@ -538,8 +558,8 @@ export function DocumentEditor({ identity, capabilities, engine: suppliedEngine,
             }}>{label}</button>)}
           <button disabled={!editable || busy} type="button" onClick={event => {
           event.currentTarget.closest("details")?.removeAttribute("open"); dispatch("file.colorProfile");
-        }}>Color profile</button></details>
-        <details><summary>Edit</summary>
+        }}>Color profile</button></div></details>
+        <details className="figcraft-bar-menu"><summary>Edit</summary><div className="figcraft-menu-items">
           {([
             ["Cut", "edit.cut", editable && canCopyLayers],
             ["Copy", "edit.copy", canCopyLayers],
@@ -556,7 +576,7 @@ export function DocumentEditor({ identity, capabilities, engine: suppliedEngine,
               else dispatch(command);
               canvas.current?.focus();
             }}>{label}</button>)}
-        </details>
+        </div></details>
         <details><summary>Libraries</summary>
           {([["libraries.open","Open libraries"],["libraries.publish","Publish library…"]] as const).map(([command,label])=>
             <button key={command} type="button" disabled={!editable || busy} onClick={event=>{
@@ -615,6 +635,11 @@ export function DocumentEditor({ identity, capabilities, engine: suppliedEngine,
       </dialog>}
       {snapshot.profileDialog && editable && <ColourProfileDialog current={snapshot.document.colourProfile ?? "srgb"}
         close={() => engine.closeProfileDialog()} apply={(profile, convert) => dispatch("file.colorProfile", {profile, convert})} />}
+      <dialog ref={exportDialog} aria-label="Export">
+        <p>{snapshot.selection.length || page.children.length} layers as one file</p>
+        {[1, 2, 3].map(scale => <button type="button" key={scale} onClick={() => void exportPng(scale)}>PNG @{scale}x</button>)}
+        <button type="button" onClick={() => exportDialog.current?.close()}>Close</button>
+      </dialog>
       <dialog ref={replaceDialog} aria-label="Replace unsaved document" onCancel={() => setPendingFile(null)}>
         <p>Open {pendingFile?.name} and replace the unsaved document?</p>
         <button onClick={() => setPendingFile(null)}>Cancel</button>

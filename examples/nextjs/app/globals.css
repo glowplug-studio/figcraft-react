@@ -16,6 +16,10 @@ dialog { max-width: min(480px, 90vw); border: 1px solid #ddd; border-radius: 8px
 dialog::backdrop { background: #0006; }
 dialog button + button { margin-left: 12px; }
 .figcraft-document-bar { display: flex; gap: 12px; align-items: center; padding: 8px 16px; border-bottom: 1px solid #ddd; height: 48px; }
+.figcraft-bar-menu { position: relative; }
+.figcraft-bar-menu > summary { cursor: pointer; }
+.figcraft-menu-items { position: absolute; z-index: 12; top: 100%; left: 0; width: max-content; max-width: min(18rem, 90vw); max-height: 70dvh; overflow: auto; padding: 4px; background: #fff; border: 1px solid #aaa; }
+.figcraft-menu-items > button, .figcraft-menu-items > details { display: block; width: 100%; text-align: left; }
 .figcraft-document-bar h1 { font-size: 14px; margin: 0; }
 .figcraft-document-bar span { color: #666; margin-right: auto; }
 .figcraft-workspace { display: grid; grid-template-columns: 200px minmax(200px, 1fr) 240px; height: calc(100dvh - 96px); min-height: 400px; }

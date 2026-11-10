@@ -6840,3 +6840,17 @@ test("linked layer paste retains the native library record and image across reco
   expect(doc.nodes["2"]).toMatchObject({ kind: "instance", component: record.root, source: record.root });
   expect(Object.keys(doc.images ?? {})).toHaveLength(1);
 });
+
+test("export selection downloads a scaled PNG and keeps the drawing unsaved", async ({ page }) => {
+  await login(page);
+  await createNamedRectangle(page, "Cover", 30, 20, 15, 12);
+  const bar = page.locator(".figcraft-document-bar");
+  await bar.getByText("File", { exact: true }).click();
+  await bar.getByRole("button", { name: "Export…", exact: true }).click();
+  const result = page.waitForEvent("download");
+  await page.getByRole("dialog", { name: "Export" }).getByRole("button", { name: "PNG @2x" }).click();
+  const download = await result, bytes = await readFile((await download.path())!);
+  expect(download.suggestedFilename()).toBe("Cover@2x.png");
+  expect([bytes.readUInt32BE(16), bytes.readUInt32BE(20)]).toEqual([30, 24]);
+  await expect(bar.getByText("Unsaved · Local document", { exact: true })).toBeVisible();
+});

@@ -1,3 +1,5 @@
+import type { ColourProfile } from "./colour-spaces";
+import { rasterExportPlan } from "./export-area";
 import { drawLayoutGuides } from "./layout-guides";
 import { fontGeometryCache } from "./font-generation";
 import { prepareDocumentText, documentTextReady } from "./text-node-layout";
@@ -430,9 +432,22 @@ function* drawChildren(context: CanvasRenderingContext2D, document: Document, ch
   }
 }
 
+function* drawExportLayers(ctx: CanvasRenderingContext2D, doc: Document, ids: readonly string[], scale: number): PaintSteps {
+  for (const id of ids) {
+    const node = doc.nodes[id];
+    if (!node) continue;
+    if (node.kind === "page") { yield* drawChildren(ctx, doc, node.children, 0, 0, scale); continue; }
+    ctx.save();
+    try {
+      ctx.transform(...worldTransform(doc, node.parent));
+      yield* drawLayer(ctx, doc, node, 0, 0, scale);
+    } finally { ctx.restore(); }
+  }
+}
+
 /** File previews include the page colour. Asset previews use the same paint pipeline on transparency. */
-async function thumbnailPixels(canvas: HTMLCanvasElement, doc: Document, bound: Rectangle, scale: number,
-  solo: string | undefined, signal?: AbortSignal, rounding = 0, background?: PageNode) {
+async function renderAreaPixels(canvas: HTMLCanvasElement, doc: Document, bound: Rectangle, scale: number,
+  roots: readonly string[] | undefined, signal?: AbortSignal, rounding = 0, background?: PageNode, profile: ColourProfile = "srgb") {
   if (!documentTextReady(doc)) await prepareDocumentText(doc);
   if (signal?.aborted) return false;
   canvas.width = Math.max(1, Math.ceil(scale * bound.width - rounding));
@@ -447,12 +462,8 @@ async function thumbnailPixels(canvas: HTMLCanvasElement, doc: Document, bound: 
   ctx.translate(-bound.x, -bound.y);
   beginGlassFrame();
   let steps: PaintSteps;
-  if (solo) {
-    const node = doc.nodes[solo];
-    if (!node || node.kind === "page") return false;
-    ctx.transform(...worldTransform(doc, node.parent));
-    steps = drawLayer(ctx, doc, node, 0, 0, scale);
-  } else {
+  if (roots) steps = drawExportLayers(ctx, doc, roots, scale);
+  else {
     const page = doc.nodes[doc.pages[0]];
     if (page.kind !== "page") return false;
     steps = drawChildren(ctx, doc, page.children, 0, 0, scale);
@@ -468,9 +479,9 @@ async function thumbnailPixels(canvas: HTMLCanvasElement, doc: Document, bound: 
         wait = images.paint(...args);
       }
     }
-    if (doc.colourProfile === "displayP3") {
+    if ((doc.colourProfile ?? "srgb") !== profile) {
       const pixels = ctx.getImageData(0, 0, canvas.width, canvas.height);
-      convertColourPixels(pixels.data, "displayP3", "srgb");
+      convertColourPixels(pixels.data, doc.colourProfile ?? "srgb", profile);
       ctx.putImageData(pixels, 0, 0);
     }
     return true;
@@ -483,10 +494,22 @@ export async function renderAssetThumbnail(canvas: HTMLCanvasElement, doc: Docum
   const scratch = canvas.ownerDocument.createElement("canvas");
   try {
     const scale = Math.min(2, pixels / Math.max(bound.width, bound.height));
-    if (!await thumbnailPixels(scratch, doc, bound, scale, id, signal, 1e-6) || signal.aborted) return;
+    if (!await renderAreaPixels(scratch, doc, bound, scale, [id], signal, 1e-6) || signal.aborted) return;
     canvas.width = scratch.width;
     canvas.height = scratch.height;
     canvas.getContext("2d")?.drawImage(scratch, 0, 0);
+  } finally { scratch.width = scratch.height = 0; }
+}
+
+export async function renderPngExport(doc: Document, selection: readonly string[], params: Record<string, unknown>) {
+  const plan = rasterExportPlan(doc, selection, params);
+  const scratch = globalThis.document.createElement("canvas");
+  try {
+    const rendered = await renderAreaPixels(scratch, doc, plan.area, plan.scale, plan.drawn, undefined, 1e-6, undefined, plan.profile);
+    if (!rendered) throw new Error("Could not render the export area");
+    const blob = await new Promise<Blob | null>(resolve => scratch.toBlob(resolve, "image/png"));
+    if (!blob) throw new Error("Could not encode PNG at the requested size");
+    return (await import("./export-png")).tagExportPng(blob, plan.profile);
   } finally { scratch.width = scratch.height = 0; }
 }
 
@@ -511,7 +534,7 @@ export async function renderFileThumbnail(doc: Document): Promise<Blob | undefin
   try {
     const scale = Math.min(2, 400 / Math.max(1, bound.width, bound.height));
     const background = doc.nodes[pageId];
-    if (background?.kind !== "page" || !await thumbnailPixels(scratch, doc, bound, scale, solo, undefined, 0, background)) return;
+    if (background?.kind !== "page" || !await renderAreaPixels(scratch, doc, bound, scale, solo ? [solo] : undefined, undefined, 0, background)) return;
     return await new Promise<Blob | undefined>(resolve => scratch.toBlob(blob => resolve(blob ?? undefined), "image/png"));
   } finally { scratch.width = scratch.height = 0; }
 }

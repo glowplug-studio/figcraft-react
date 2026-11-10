@@ -206,6 +206,7 @@ export const commandSpecs = Object.freeze({
   "edit.redo": { label: "Redo", undo: false },
   "edit.duplicate": { label: "Duplicate", undo: true },
   "image.place": { label: "Place image", undo: true },
+  "file.export": { label: "Export", undo: false },
   "file.import": { label: "Import", undo: true },
   "file.placeImage": { label: "Place image", undo: true },
   "file.saveVersion": { label: "Save to version history", undo: false },
@@ -1129,6 +1130,7 @@ export class EditorEngine {
   execute(command: string, input: unknown = {}): Record<string, unknown> | Variables | ReturnType<typeof listStyles> | ReturnType<typeof listComponents> | ReturnType<typeof listPages> | typeof framePresets | ReturnType<typeof versionDetails>[] | ReturnType<typeof queryFonts> | null {
     if (!Object.hasOwn(commandSpecs, command)) throw new Error(`Unsupported command: ${command}`);
     if (!this.#hostEditable) throw new Error("Sign in to edit this document");
+    if (command === "file.export") throw new Error("Use executeAsync to export a file");
     if (command === "version.exitPreview") return { ended: this.exitVersionPreview() };
     if (this.#preview) {
       if (command === "file.markSaved" || command === "file.saveVersion") this.exitVersionPreview();
@@ -1642,6 +1644,10 @@ export class EditorEngine {
   async executeAsync(command: "node.get", input: unknown): Promise<ReturnType<typeof getNode>>;
   async executeAsync(command: string, input?: unknown): Promise<Record<string, unknown>>;
   async executeAsync(command: string, input: unknown = {}): Promise<Record<string, unknown> | Variables | ReturnType<typeof listStyles> | ReturnType<typeof listComponents> | ReturnType<typeof queryFonts> | null> {
+    if (command === "file.export") {
+      const { blob, format } = await this.exportRaster(parameters(input));
+      return { format, data: base64Bytes(new Uint8Array(await blob.arrayBuffer())) };
+    }
     if (command === "version.restore" || command === "version.preview") return this.#showVersion(command, parameters(input));
     if (command.startsWith("version.") || command === "file.saveVersion" || command === "file.versionHistory") return this.execute(command, input);
     if (command!=="text.preview" && command!=="text.endPreview") this.endTextPreview();
@@ -1686,6 +1692,17 @@ export class EditorEngine {
       }
     }
     return this.#executeFileCommand(command, input);
+  }
+  async exportRaster(params: Record<string, unknown> = {}) {
+    if (!this.#hostEditable) throw new Error("Sign in to export this document");
+    if (params.path != null) throw new Error("Use a browser download to choose the export destination");
+    const format = parseString(params.format)?.toLowerCase() ?? "png";
+    if (format !== "png") throw new Error("This exporter supports PNG");
+    const opening = this.#openSequence, { document, selection } = this.#snapshot;
+    const { renderPngExport } = await import("./canvas");
+    const blob = await renderPngExport(document, selection, params);
+    if (opening !== this.#openSequence || !this.#hostEditable) throw new Error("Export was cancelled because the document or identity changed");
+    return { format, blob };
   }
   async #prepareSave<T>(output: (archive: Blob) => Promise<T>) {
     this.exitVersionPreview();

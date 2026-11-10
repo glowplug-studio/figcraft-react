@@ -1,0 +1,446 @@
+[
+  {
+    "name": "selected contents",
+    "commands": [
+      [
+        "shape.rectangle",
+        {
+          "name": "Red",
+          "x": 0,
+          "y": 0,
+          "width": 12,
+          "height": 8,
+          "props": {
+            "fill": "#ff0000"
+          }
+        }
+      ],
+      [
+        "shape.rectangle",
+        {
+          "name": "Green",
+          "x": 4,
+          "y": 2,
+          "width": 3,
+          "height": 3,
+          "props": {
+            "fill": "#00ff00"
+          }
+        }
+      ],
+      [
+        "file.export",
+        {
+          "format": "png",
+          "ids": [
+            3
+          ]
+        }
+      ]
+    ],
+    "width": 3,
+    "height": 3,
+    "png": "iVBORw0KGgoAAAANSUhEUgAAAAMAAAADCAYAAABWKLW/AAAAAXNSR0IArs4c6QAAADJJREFUeAEBJwDY/wAA/wD/AP8A/wD/AP8AAP8A/wD/AP8A/wD/AAD/AP8A/wD/AP8A/1TgEe+9i84hAAAAAElFTkSuQmCC"
+  },
+  {
+    "name": "page contents under selection",
+    "commands": [
+      [
+        "shape.rectangle",
+        {
+          "name": "Red",
+          "x": 0,
+          "y": 0,
+          "width": 12,
+          "height": 8,
+          "props": {
+            "fill": "#ff0000"
+          }
+        }
+      ],
+      [
+        "shape.rectangle",
+        {
+          "name": "Green",
+          "x": 4,
+          "y": 2,
+          "width": 3,
+          "height": 3,
+          "props": {
+            "fill": "#00ff00",
+            "opacity": 0.5
+          }
+        }
+      ],
+      [
+        "file.export",
+        {
+          "format": "png",
+          "ids": [
+            3
+          ],
+          "contentsOnly": false
+        }
+      ]
+    ],
+    "width": 3,
+    "height": 3,
+    "png": "iVBORw0KGgoAAAANSUhEUgAAAAMAAAADCAYAAABWKLW/AAAAAXNSR0IArs4c6QAAADJJREFUeAEBJwDY/wCAgAD/gIAA/4CAAP8AgIAA/4CAAP+AgAD/AICAAP+AgAD/gIAA/1oUEfg+nb7vAAAAAElFTkSuQmCC"
+  },
+  {
+    "name": "transparent background",
+    "commands": [
+      [
+        "shape.rectangle",
+        {
+          "name": "Red",
+          "x": 0,
+          "y": 0,
+          "width": 12,
+          "height": 8,
+          "props": {
+            "fill": "#ff0000"
+          }
+        }
+      ],
+      [
+        "shape.rectangle",
+        {
+          "name": "Blue",
+          "x": 18,
+          "y": 4,
+          "width": 6,
+          "height": 12,
+          "props": {
+            "fill": "#0000ff"
+          }
+        }
+      ],
+      [
+        "select.none",
+        {}
+      ],
+      [
+        "file.export",
+        {
+          "format": "png"
+        }
+      ]
+    ],
+    "width": 24,
+    "height": 16,
+    "png": "iVBORw0KGgoAAAANSUhEUgAAABgAAAAQCAYAAAAMJL+VAAAAAXNSR0IArs4c6QAAAHZJREFUeAHtwAOgJFmWxvH/d+6NyMyncktjrm3btm3btm3btm1pjJ6WSq+eMjMi7vl2t2p6poc7a9WvGsy/gkC86Aj+cxH85yL4z0XlP4zN8yL4z0Xwn4vgPxdVIP7zEPznIvjPRfCfi+A/F8F/LoL/XAT/ufhHIs0EJ2ncG2EAAAAASUVORK5CYII="
+  },
+  {
+    "name": "outline and effect extent",
+    "commands": [
+      [
+        "shape.rectangle",
+        {
+          "name": "Outline",
+          "x": -15,
+          "y": 7,
+          "width": 8,
+          "height": 10,
+          "props": {
+            "fill": "#882266",
+            "stroke": "#3366ff",
+            "strokeAlign": "outside",
+            "strokeWeight": 2
+          }
+        }
+      ],
+      [
+        "file.export",
+        {
+          "format": "png",
+          "size": "@2x"
+        }
+      ]
+    ],
+    "width": 24,
+    "height": 28,
+    "png": "iVBORw0KGgoAAAANSUhEUgAAABgAAAAcCAYAAAB75n/uAAAAAXNSR0IArs4c6QAAAKdJREFUeAHtwAOgJFmWxvH/d+6NyMyncktjrm3btm3btm3btm1pjJ6WSq+eMjMi7vl2t2p6poc7a9WvvtwH2vznIfjPRfCfi+A/F5Xn8g6//kH8e/zY638LD0Dwn4vgPxfBfy6C/1wE/7kI/nMR/Oci+M9F8J+L4D8XwX8ugv9cBP+5CP5zEfznIvjPRfCfi+A/F8F/LvRyH2jzn4fgPxfBfy6C/1z8I26RCGok1WgDAAAAAElFTkSuQmCC"
+  },
+  {
+    "name": "geometric box",
+    "commands": [
+      [
+        "shape.rectangle",
+        {
+          "name": "Outline",
+          "x": -15,
+          "y": 7,
+          "width": 8,
+          "height": 10,
+          "props": {
+            "fill": "#882266",
+            "stroke": "#3366ff",
+            "strokeAlign": "outside",
+            "strokeWeight": 2
+          }
+        }
+      ],
+      [
+        "file.export",
+        {
+          "format": "png",
+          "includeBoundingBox": true,
+          "size": "12w"
+        }
+      ]
+    ],
+    "width": 12,
+    "height": 15,
+    "png": "iVBORw0KGgoAAAANSUhEUgAAAAwAAAAPCAYAAADQ4S5JAAAAAXNSR0IArs4c6QAAAG1JREFUeAHtwAOgJFmWxvH/d+6NyMyncktjrm3btm3btm3btm1pjJ6WSq+eMjMi7vl2t2p6poc7a9WvfvFDP9C86Aj+dQj+dQj+dQj+dQj+dQj+dQj+dQj+dQj+dQj+dQj+dQj+dQj+dQj+dfhHGf4CMHd7PPMAAAAASUVORK5CYII="
+  },
+  {
+    "name": "visible only",
+    "commands": [
+      [
+        "shape.rectangle",
+        {
+          "name": "Red",
+          "x": 0,
+          "y": 0,
+          "width": 12,
+          "height": 8,
+          "props": {
+            "fill": "#ff0000"
+          }
+        }
+      ],
+      [
+        "shape.rectangle",
+        {
+          "name": "Invisible",
+          "x": 50,
+          "y": 80,
+          "width": 12,
+          "height": 9,
+          "props": {
+            "fill": "#334455",
+            "visible": false
+          }
+        }
+      ],
+      [
+        "file.export",
+        {
+          "format": "png",
+          "ids": [
+            2,
+            3
+          ],
+          "size": {
+            "by": "height",
+            "value": 4
+          }
+        }
+      ]
+    ],
+    "width": 6,
+    "height": 4,
+    "png": "iVBORw0KGgoAAAANSUhEUgAAAAYAAAAECAYAAACtBE5DAAAAAXNSR0IArs4c6QAAAEhJREFUeAHtwAOgJFmWxvH/d+6NyMyncktjrm3btm3btm3btm1pjJ6WSq+eMjMi7vl2t2p6poc7a9WvGszzInj+CJ4/guePfwTFXQIJ0yzq3AAAAABJRU5ErkJggg=="
+  },
+  {
+    "name": "hidden only",
+    "commands": [
+      [
+        "shape.rectangle",
+        {
+          "name": "Invisible",
+          "x": 15,
+          "y": 20,
+          "width": 4,
+          "height": 4,
+          "props": {
+            "fill": "#112233",
+            "visible": false
+          }
+        }
+      ],
+      [
+        "file.export",
+        {
+          "format": "png"
+        }
+      ]
+    ],
+    "width": 4,
+    "height": 4,
+    "png": "iVBORw0KGgoAAAANSUhEUgAAAAQAAAAECAYAAACp8Z5+AAAAAXNSR0IArs4c6QAAAEZJREFUeAHtwAOgJFmWxvH/d+6NyMyncktjrm3btm3btm3btm1pjJ6WSq+eMjMi7vl2t2p6poc7a9UveE4Ez4ngORE8J/4RAZgACRoVXv4AAAAASUVORK5CYII="
+  },
+  {
+    "name": "p3 tag",
+    "commands": [
+      [
+        "shape.rectangle",
+        {
+          "name": "Red",
+          "x": 0,
+          "y": 0,
+          "width": 12,
+          "height": 8,
+          "props": {
+            "fill": "#ff0000"
+          }
+        }
+      ],
+      [
+        "file.export",
+        {
+          "format": "png",
+          "colorProfile": "displayP3"
+        }
+      ]
+    ],
+    "width": 12,
+    "height": 8,
+    "png": "iVBORw0KGgoAAAANSUhEUgAAAAwAAAAICAYAAADN5B7xAAAABGNJQ1AMDQABbgPj7wAAAUJpQ0NQXwAAeJylkDFLw1AUhU9TpaB1EDs6ZBEcIgQr6OJSBUFEpFawOqVpkgppDEmKdnZ1EPwFuji7WRzq6OAgCE6izo4qLlqe5yVCQFAQ7+O+93HeuZfLBZQKGH060PSioLxQUterG2ruCRmeOAwz9PFrvN0m3psJ/D0G6lZo8v1g6qYfREBGIy/tRL7kXXLBbBh18j5ZCzgg+UzqTsJXkmsJP0oOKuU58itZdWJWCpJrCU9Jbrot82sGOX3e8tZWZS1zFPPYQggfLgy0oWIFxR/8euxfxjZdJm+f/oDVDhqIoFFtsZPF16Zu8bhoyx1/311oFyeT7vkS0H8vxMsYkDsEegdCvB8J0TsGsnfAhZfW7z0As10hxHmqLXaB02mutpNq4zPA8CBw2fGNwIilLFOxbeD5BBiqAiPXrNn87/8nmwhn3UYo/QcAAABYSURBVHgB7cADoCRZlsbx/3fujcjMp3JLY65t27Zt27Zt27ZtaYyelkqvnjIzIu75drdqeqaHO2vVr973cg8zLzqCfx2Cfx2Cfx2Cfx2Cfx2Cfx2Cfx3+EX1QAlJ6zuMwAAAAAElFTkSuQmCC"
+  },
+  {
+    "name": "float edge",
+    "commands": [
+      [
+        "shape.rectangle",
+        {
+          "name": "Odd",
+          "x": 2.5,
+          "y": 1.1,
+          "width": 12.1,
+          "height": 9.5,
+          "props": {
+            "fill": "#00ff00"
+          }
+        }
+      ],
+      [
+        "file.export",
+        {
+          "format": "png",
+          "size": "0.5x"
+        }
+      ]
+    ],
+    "width": 7,
+    "height": 5,
+    "png": "iVBORw0KGgoAAAANSUhEUgAAAAcAAAAFCAYAAACJmvbYAAAAAXNSR0IArs4c6QAAAFJJREFUeAHtwAOgJFmWxvH/d+6NyMyncktjrm3btm3btm3btm1pjJ6WSq+eMjMi7vl2t2p6poc7a9WvYszzAqHg+QMgeP4ACJ4/ACrwOzwvAP4RNAsC0DvGBVkAAAAASUVORK5CYII="
+  },
+  {
+    "name": "no drawing",
+    "commands": [
+      [
+        "file.export",
+        {
+          "format": "png"
+        }
+      ]
+    ],
+    "error": "command `file.export` is not available right now: nothing to export"
+  },
+  {
+    "name": "oversized",
+    "commands": [
+      [
+        "shape.rectangle",
+        {
+          "name": "Large",
+          "x": 0,
+          "y": 0,
+          "width": 4096,
+          "height": 1,
+          "props": {
+            "fill": "#332211"
+          }
+        }
+      ],
+      [
+        "file.export",
+        {
+          "format": "png",
+          "scale": 5
+        }
+      ]
+    ],
+    "error": "render failed (empty or too large)"
+  },
+  {
+    "name": "bad size",
+    "commands": [
+      [
+        "shape.rectangle",
+        {
+          "name": "Red",
+          "x": 0,
+          "y": 0,
+          "width": 12,
+          "height": 8,
+          "props": {
+            "fill": "#ff0000"
+          }
+        }
+      ],
+      [
+        "file.export",
+        {
+          "format": "png",
+          "size": "0w"
+        }
+      ]
+    ],
+    "error": "invalid parameters for `file.export`: size: 2x, 512w or 512h (or {by: scale|width|height, value})"
+  },
+  {
+    "name": "bad profile",
+    "commands": [
+      [
+        "shape.rectangle",
+        {
+          "name": "Red",
+          "x": 0,
+          "y": 0,
+          "width": 12,
+          "height": 8,
+          "props": {
+            "fill": "#ff0000"
+          }
+        }
+      ],
+      [
+        "file.export",
+        {
+          "format": "png",
+          "colorProfile": "rgb"
+        }
+      ]
+    ],
+    "error": "invalid parameters for `file.export`: colorProfile: sameAsFile|srgb|displayP3"
+  },
+  {
+    "name": "bad quality",
+    "commands": [
+      [
+        "shape.rectangle",
+        {
+          "name": "Red",
+          "x": 0,
+          "y": 0,
+          "width": 12,
+          "height": 8,
+          "props": {
+            "fill": "#ff0000"
+          }
+        }
+      ],
+      [
+        "file.export",
+        {
+          "format": "png",
+          "quality": 101
+        }
+      ]
+    ],
+    "error": "invalid parameters for `file.export`: quality: a whole number from 1 to 100 (JPG)"
+  }
+]
