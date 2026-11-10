@@ -423,6 +423,26 @@ function deviceBounds(context: CanvasRenderingContext2D, document: Document, nod
   return paddedRect(bounds,reach.page*scale+outlinePad(matrix,reach.local));
 }
 
+// Root layers keep their parent-space extent through pans and immutable preview edits.
+// Screen-space stroke masks use a different transform and cannot supply this bound.
+const rootCullBounds = new WeakMap<LayerNode, Rectangle | null>();
+
+function childCullBounds(node: LayerNode, depth: number): Rectangle | null {
+  const cacheable = depth === 0 && node.kind !== "text";
+  if (cacheable) {
+    const known = rootCullBounds.get(node);
+    if (known !== undefined) return known;
+  }
+  const confined = (depth === 0 ? isLeaf(node) : node.kind === "rectangle") || isFrameLike(node) && node.clip;
+  let bounds: Rectangle | null = null;
+  if (confined && !usesPixelLayer(node)) {
+    if (hasVisibleStroke(node)) bounds = strokeBounds(node, rectangleTransform(node));
+    else bounds = node.transform ? transformBounds(node.transform, node.width, node.height) : node;
+  }
+  if (cacheable) rootCullBounds.set(node, bounds);
+  return bounds;
+}
+
 function* drawChildren(context: CanvasRenderingContext2D, document: Document, children: readonly string[],
   depth: number, nesting: number, scale: number, view?: Rectangle, reverseZ = false): PaintSteps {
   const order = reverseZ ? reversedRuns(document, children) : undefined;
@@ -437,11 +457,10 @@ function* drawChildren(context: CanvasRenderingContext2D, document: Document, ch
       if (!order) cursor = end - 1;
       continue;
     }
-    // A clipped frame confines every child to its outline. Its own stroke can extend beyond it.
-    const confined = (depth===0 ? isLeaf(node) : node.kind==="rectangle") || isFrameLike(node) && node.clip;
-    if (view && confined && !usesPixelLayer(node)) {
-      const bounds = hasVisibleStroke(node) ? strokeBounds(node, rectangleTransform(node)) : node.transform ? transformBounds(node.transform, node.width, node.height) : node;
-      if (bounds.x > view.x + view.width || bounds.y > view.y + view.height || bounds.x + bounds.width < view.x || bounds.y + bounds.height < view.y) continue;
+    if (view) {
+      const bounds = childCullBounds(node, depth);
+      if (bounds && (bounds.x > view.x + view.width || bounds.y > view.y + view.height
+        || bounds.x + bounds.width < view.x || bounds.y + bounds.height < view.y)) continue;
     }
     yield* drawLayer(context, document, node, depth, nesting, scale, view);
   }
