@@ -67,14 +67,19 @@ class Occupancy {
 }
 
 function computeGridCells(doc: Document, frame: FrameLikeNode) {
-  const layout = frame.layout!;
+  const flow = frame.children.filter(id => placementState(doc.nodes[id]));
+  return placeGridFlow(doc, frame.layout!, flow);
+}
+
+/** Explicit flow lets interchange include hidden grid items in native export order. */
+export function placeGridFlow(doc: Document, layout: NonNullable<FrameLikeNode["layout"]>, flow: readonly NodeId[]) {
   const columns = Math.min(1000, Math.max(1, layout.gridColumns));
   const maxRows = Math.min(1000, Math.floor(1_000_000 / columns));
   let rows = Math.min(1000, Math.max(1, layout.gridRows));
   // Unanchored unit cells occupy consecutive slots, including when hidden siblings are skipped.
-  const plain = frame.children.every(id => {
+  const plain = flow.every(id => {
     const child = doc.nodes[id];
-    if (!child || child.kind === "page" || child.visible === false || child.childLayout?.absolute) return true;
+    if (!child || child.kind === "page") return true;
     const cl = child.childLayout;
     return !cl || (cl.gridColumn === undefined && cl.gridRow === undefined &&
       (cl.gridColumnSpan ?? 0) <= 1 && (cl.gridRowSpan ?? 0) <= 1);
@@ -82,9 +87,9 @@ function computeGridCells(doc: Document, frame: FrameLikeNode) {
   if (plain) {
     const cells = new Map<NodeId, GridCell>();
     const capacity = columns * maxRows;
-    for (const id of frame.children) {
+    for (const id of flow) {
       const child = doc.nodes[id];
-      if (!child || child.kind === "page" || child.visible === false || child.childLayout?.absolute) continue;
+      if (!child || child.kind === "page") continue;
       const at = cells.size, row = Math.min(maxRows-1, Math.floor(at / columns));
       cells.set(id, {column: at < capacity ? at % columns : 0, row, columnSpan: 1, rowSpan: 1});
     }
@@ -100,9 +105,9 @@ function computeGridCells(doc: Document, frame: FrameLikeNode) {
     rows = Math.max(rows, row + rowSpan);
   };
 
-  for (const id of frame.children) {
+  for (const id of flow) {
     const child = doc.nodes[id];
-    if (!child || child.kind === "page" || child.visible === false || child.childLayout?.absolute) continue;
+    if (!child || child.kind === "page") continue;
     const props = child.childLayout;
     const columnSpan = Math.min(columns, Math.max(1, props?.gridColumnSpan ?? 0));
     const rowSpan = Math.min(maxRows, Math.max(1, props?.gridRowSpan ?? 0));
@@ -140,7 +145,7 @@ function computeGridCells(doc: Document, frame: FrameLikeNode) {
   }
   // Geometry consumers iterate in layer order even when later children were anchored first.
   const ordered = new Map<NodeId, GridCell>();
-  for (const id of frame.children) {
+  for (const id of flow) {
     const cell = cells.get(id);
     if (cell) ordered.set(id, cell);
   }
