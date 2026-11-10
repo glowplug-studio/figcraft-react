@@ -42,7 +42,8 @@ import { LayoutSpacingInteraction } from "./layout-spacing-interaction";
 import { BlurInteraction } from "./blur-interaction";
 import { GradientInteraction } from "./gradient-interaction";
 import { ImagePage } from "./image-page";
-import { resolveLayerPaints } from "./pattern-renderer";
+import { patternResolution, type PatternCell } from "./pattern";
+import { paintPatternTiles, resolveLayerPaints } from "./pattern-renderer";
 import { CanvasImages, type LayerPaintSteps, type PaintSteps } from "./image-renderer";
 import { paintPath } from "./paint-path";
 import { pathBounds } from "./vector-path";
@@ -415,22 +416,51 @@ function* drawChildren(context: CanvasRenderingContext2D, document: Document, ch
   }
 }
 
-function* drawExportLayers(ctx: CanvasRenderingContext2D, doc: Document, ids: readonly string[], scale: number): PaintSteps {
+function* drawExportLayers(ctx: CanvasRenderingContext2D, doc: Document, ids: readonly string[], scale: number, depth=0): PaintSteps {
   for (const id of ids) {
     const node = doc.nodes[id];
     if (!node) continue;
-    if (node.kind === "page") { yield* drawChildren(ctx, doc, node.children, 0, 0, scale); continue; }
+    if (node.kind === "page") { yield* drawChildren(ctx, doc, node.children, depth, 0, scale); continue; }
     ctx.save();
     try {
       ctx.transform(...worldTransform(doc, node.parent));
-      yield* drawLayer(ctx, doc, node, 0, 0, scale);
+      yield* drawLayer(ctx, doc, node, depth, 0, scale);
     } finally { ctx.restore(); }
   }
 }
 
+async function paintExportSteps(doc:Document,steps:PaintSteps,signal?:AbortSignal) {
+  const images = new CanvasImages();
+  try {
+    if (doc.images) images.begin(doc.images, () => {}, doc.colourProfile);
+    for (const args of steps) {
+      let wait = images.paint(...args);
+      while (wait) {
+        await wait;
+        if (signal?.aborted) return false;
+        wait = images.paint(...args);
+      }
+    }
+    return true;
+  } finally { steps.return(); images.clear(); }
+}
+
+export async function renderPatternTile(doc:Document,source:LayerNode,cell:PatternCell,depth:number,nesting:number) {
+  const r=patternResolution(cell,2);
+  if (!r || nesting>=2 || depth>=256) return;
+  const canvas=window.document.createElement("canvas");
+  try {
+    canvas.width=r.width; canvas.height=r.height;
+    const ctx=canvas.getContext("2d")!;
+    const steps=paintPatternTiles(ctx,doc,source,cell,r.kx,r.ky,depth,nesting,drawLayer);
+    await paintExportSteps(doc,steps);
+    return await new Promise<Blob>((resolve,reject)=>canvas.toBlob(b=>b ? resolve(b) : reject(new Error("Could not encode SVG pattern tile")),"image/png"));
+  } finally { canvas.width=canvas.height=0; }
+}
+
 /** File previews include the page colour. Asset previews use the same paint pipeline on transparency. */
-async function renderAreaPixels(canvas: HTMLCanvasElement, doc: Document, bound: Rectangle, scale: number,
-  roots: readonly string[] | undefined, signal?: AbortSignal, rounding = 0, background?: PageNode, profile: ColourProfile = "srgb", flatten = false) {
+export async function renderAreaPixels(canvas: HTMLCanvasElement, doc: Document, bound: Rectangle, scale: number,
+  roots: readonly string[] | undefined, signal?: AbortSignal, rounding = 0, background?: PageNode, profile: ColourProfile = "srgb", flatten = false, depth=0) {
   if (!documentTextReady(doc)) await prepareDocumentText(doc);
   if (signal?.aborted) return false;
   canvas.width = Math.max(1, Math.ceil(scale * bound.width - rounding));
@@ -445,37 +475,26 @@ async function renderAreaPixels(canvas: HTMLCanvasElement, doc: Document, bound:
   ctx.translate(-bound.x, -bound.y);
   beginGlassFrame();
   let steps: PaintSteps;
-  if (roots) steps = drawExportLayers(ctx, doc, roots, scale);
+  if (roots) steps = drawExportLayers(ctx, doc, roots, scale, depth);
   else {
     const page = doc.nodes[doc.pages[0]];
     if (page.kind !== "page") return false;
     steps = drawChildren(ctx, doc, page.children, 0, 0, scale);
   }
-  const images = new CanvasImages();
-  try {
-    if (doc.images) images.begin(doc.images, () => {}, doc.colourProfile);
-    for (const args of steps) {
-      let wait = images.paint(...args);
-      while (wait) {
-        await wait;
-        if (signal?.aborted) return false;
-        wait = images.paint(...args);
-      }
+  if (!await paintExportSteps(doc,steps,signal)) return false;
+  if (flatten) {
+    ctx.save(); ctx.resetTransform(); ctx.globalCompositeOperation = "destination-over";
+    ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, canvas.width, canvas.height); ctx.restore();
+  }
+  if ((doc.colourProfile ?? "srgb") !== profile) {
+    const rows = Math.max(1, Math.floor(1048576 / canvas.width));
+    for (let y = 0; y < canvas.height; y += rows) {
+      const pixels = ctx.getImageData(0, y, canvas.width, Math.min(rows, canvas.height - y));
+      convertColourPixels(pixels.data, doc.colourProfile ?? "srgb", profile);
+      ctx.putImageData(pixels, 0, y);
     }
-    if (flatten) {
-      ctx.save(); ctx.resetTransform(); ctx.globalCompositeOperation = "destination-over";
-      ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, canvas.width, canvas.height); ctx.restore();
-    }
-    if ((doc.colourProfile ?? "srgb") !== profile) {
-      const rows = Math.max(1, Math.floor(1048576 / canvas.width));
-      for (let y = 0; y < canvas.height; y += rows) {
-        const pixels = ctx.getImageData(0, y, canvas.width, Math.min(rows, canvas.height - y));
-        convertColourPixels(pixels.data, doc.colourProfile ?? "srgb", profile);
-        ctx.putImageData(pixels, 0, y);
-      }
-    }
-    return true;
-  } finally { steps.return(); images.clear(); }
+  }
+  return true;
 }
 
 export async function renderAssetThumbnail(canvas: HTMLCanvasElement, doc: Document, id: string, pixels: number, signal: AbortSignal) {

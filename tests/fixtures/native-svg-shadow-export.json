@@ -1,0 +1,644 @@
+[
+  {
+    "name": "uniform blur",
+    "commands": [
+      [
+        "shape.rectangle",
+        {
+          "x": 5,
+          "y": 9,
+          "width": 30,
+          "height": 20,
+          "name": "Ink",
+          "props": {
+            "fill": "#d9438780"
+          }
+        }
+      ],
+      [
+        "node.set",
+        {
+          "props": {
+            "effects": [
+              {
+                "type": "layerBlur",
+                "radius": 4
+              }
+            ]
+          }
+        }
+      ],
+      [
+        "file.exportSvg",
+        {
+          "svgIdAttribute": true
+        }
+      ]
+    ],
+    "svg": "<svg width=\"42\" height=\"32\" viewBox=\"0 0 42 32\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\"><g id=\"Ink\" filter=\"url(#filter1)\"><path transform=\"matrix(1 0 0 1 6 6)\" d=\"M0 0L30 0L30 20L0 20Z\" fill=\"#D94387\" fill-opacity=\"0.502\"/></g><defs><filter id=\"filter1\" filterUnits=\"userSpaceOnUse\" x=\"-8\" y=\"-8\" width=\"58\" height=\"48\" color-interpolation-filters=\"sRGB\"><feGaussianBlur in=\"SourceGraphic\" stdDeviation=\"2\" result=\"l0\"/><feMerge><feMergeNode in=\"l0\"/></feMerge></filter></defs></svg>\n"
+  },
+  {
+    "name": "zero blur",
+    "commands": [
+      [
+        "shape.rectangle",
+        {
+          "x": 5,
+          "y": 9,
+          "width": 30,
+          "height": 20,
+          "name": "Ink",
+          "props": {
+            "fill": "#d9438780"
+          }
+        }
+      ],
+      [
+        "node.set",
+        {
+          "props": {
+            "effects": [
+              {
+                "type": "layerBlur",
+                "radius": 0
+              }
+            ]
+          }
+        }
+      ],
+      [
+        "file.exportSvg",
+        {
+          "svgIdAttribute": true
+        }
+      ]
+    ],
+    "svg": "<svg width=\"30\" height=\"20\" viewBox=\"0 0 30 20\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\"><g id=\"Ink\" filter=\"url(#filter1)\"><path transform=\"matrix(1 0 0 1 0 0)\" d=\"M0 0L30 0L30 20L0 20Z\" fill=\"#D94387\" fill-opacity=\"0.502\"/></g><defs><filter id=\"filter1\" filterUnits=\"userSpaceOnUse\" x=\"0\" y=\"0\" width=\"30\" height=\"20\" color-interpolation-filters=\"sRGB\"><feMerge><feMergeNode in=\"SourceGraphic\"/></feMerge></filter></defs></svg>\n"
+  },
+  {
+    "name": "stacked blurs",
+    "commands": [
+      [
+        "shape.rectangle",
+        {
+          "x": 5,
+          "y": 9,
+          "width": 30,
+          "height": 20,
+          "name": "Ink",
+          "props": {
+            "fill": "#d9438780"
+          }
+        }
+      ],
+      [
+        "node.set",
+        {
+          "props": {
+            "effects": [
+              {
+                "type": "layerBlur",
+                "radius": 4
+              },
+              {
+                "type": "layerBlur",
+                "radius": 3
+              }
+            ]
+          }
+        }
+      ],
+      [
+        "file.exportSvg",
+        {
+          "svgIdAttribute": true
+        }
+      ]
+    ],
+    "svg": "<svg width=\"45\" height=\"35\" viewBox=\"0 0 45 35\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\"><g id=\"Ink\" filter=\"url(#filter1)\"><path transform=\"matrix(1 0 0 1 7.5 7.5)\" d=\"M0 0L30 0L30 20L0 20Z\" fill=\"#D94387\" fill-opacity=\"0.502\"/></g><defs><filter id=\"filter1\" filterUnits=\"userSpaceOnUse\" x=\"-14\" y=\"-14\" width=\"73\" height=\"63\" color-interpolation-filters=\"sRGB\"><feGaussianBlur in=\"SourceGraphic\" stdDeviation=\"2\" result=\"l0\"/><feGaussianBlur in=\"l0\" stdDeviation=\"1.5\" result=\"l1\"/><feMerge><feMergeNode in=\"l1\"/></feMerge></filter></defs></svg>\n"
+  },
+  {
+    "name": "hidden blur",
+    "commands": [
+      [
+        "shape.rectangle",
+        {
+          "x": 5,
+          "y": 9,
+          "width": 30,
+          "height": 20,
+          "name": "Ink",
+          "props": {
+            "fill": "#d9438780"
+          }
+        }
+      ],
+      [
+        "node.set",
+        {
+          "props": {
+            "effects": [
+              {
+                "type": "layerBlur",
+                "radius": 7,
+                "visible": false
+              }
+            ]
+          }
+        }
+      ],
+      [
+        "file.exportSvg",
+        {
+          "svgIdAttribute": true
+        }
+      ]
+    ],
+    "svg": "<svg width=\"30\" height=\"20\" viewBox=\"0 0 30 20\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\"><g id=\"Ink\"><path transform=\"matrix(1 0 0 1 0 0)\" d=\"M0 0L30 0L30 20L0 20Z\" fill=\"#D94387\" fill-opacity=\"0.502\"/></g></svg>\n"
+  },
+  {
+    "name": "covered drop shadow",
+    "commands": [
+      [
+        "shape.rectangle",
+        {
+          "x": 5,
+          "y": 9,
+          "width": 30,
+          "height": 20,
+          "name": "Ink",
+          "props": {
+            "fill": "#d9438780"
+          }
+        }
+      ],
+      [
+        "node.set",
+        {
+          "props": {
+            "effects": [
+              {
+                "type": "dropShadow",
+                "offset": [
+                  -3,
+                  5
+                ],
+                "radius": 6,
+                "color": "#22aa6680"
+              }
+            ]
+          }
+        }
+      ],
+      [
+        "file.exportSvg",
+        {
+          "svgIdAttribute": true
+        }
+      ]
+    ],
+    "svg": "<svg width=\"48\" height=\"38\" viewBox=\"0 0 48 38\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\"><g id=\"Ink\" filter=\"url(#filter1)\"><path transform=\"matrix(1 0 0 1 12 4)\" d=\"M0 0L30 0L30 20L0 20Z\" fill=\"#D94387\" fill-opacity=\"0.502\"/></g><defs><filter id=\"filter1\" filterUnits=\"userSpaceOnUse\" x=\"-20\" y=\"-20\" width=\"88\" height=\"78\" color-interpolation-filters=\"sRGB\"><feImage href=\"data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjExIDMgMzIgMjIiIHdpZHRoPSIzMiIgaGVpZ2h0PSIyMiI+PHBhdGggdHJhbnNmb3JtPSJtYXRyaXgoMSAwIDAgMSAxMiA0KSIgZD0iTTAgMEwzMCAwTDMwIDIwTDAgMjBaIi8+PC9zdmc+\" x=\"11\" y=\"3\" width=\"32\" height=\"22\" preserveAspectRatio=\"none\" result=\"cover\"/><feOffset in=\"SourceAlpha\" dx=\"-3\" dy=\"5\"/><feGaussianBlur stdDeviation=\"3\"/><feColorMatrix type=\"matrix\" values=\"0 0 0 0 0.133 0 0 0 0 0.667 0 0 0 0 0.4 0 0 0 0.502 0\" result=\"s0\"/><feComposite in=\"s0\" in2=\"cover\" operator=\"out\" result=\"s0\"/><feMerge><feMergeNode in=\"s0\"/><feMergeNode in=\"SourceGraphic\"/></feMerge></filter></defs></svg>\n"
+  },
+  {
+    "name": "uncovered drop shadow",
+    "commands": [
+      [
+        "shape.rectangle",
+        {
+          "x": 5,
+          "y": 9,
+          "width": 30,
+          "height": 20,
+          "name": "Ink",
+          "props": {
+            "fill": "#d9438780"
+          }
+        }
+      ],
+      [
+        "node.set",
+        {
+          "props": {
+            "effects": [
+              {
+                "type": "dropShadow",
+                "offset": [
+                  3,
+                  -2
+                ],
+                "radius": 3,
+                "color": "#2288ff80",
+                "showBehind": true
+              }
+            ]
+          }
+        }
+      ],
+      [
+        "file.exportSvg",
+        {
+          "svgIdAttribute": true
+        }
+      ]
+    ],
+    "svg": "<svg width=\"39\" height=\"29\" viewBox=\"0 0 39 29\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\"><g id=\"Ink\" filter=\"url(#filter1)\"><path transform=\"matrix(1 0 0 1 1.5 6.5)\" d=\"M0 0L30 0L30 20L0 20Z\" fill=\"#D94387\" fill-opacity=\"0.502\"/></g><defs><filter id=\"filter1\" filterUnits=\"userSpaceOnUse\" x=\"-11\" y=\"-11\" width=\"61\" height=\"51\" color-interpolation-filters=\"sRGB\"><feOffset in=\"SourceAlpha\" dx=\"3\" dy=\"-2\"/><feGaussianBlur stdDeviation=\"1.5\"/><feColorMatrix type=\"matrix\" values=\"0 0 0 0 0.133 0 0 0 0 0.533 0 0 0 0 1 0 0 0 0.502 0\" result=\"s0\"/><feMerge><feMergeNode in=\"s0\"/><feMergeNode in=\"SourceGraphic\"/></feMerge></filter></defs></svg>\n"
+  },
+  {
+    "name": "blur and shadows",
+    "commands": [
+      [
+        "shape.rectangle",
+        {
+          "x": 5,
+          "y": 9,
+          "width": 30,
+          "height": 20,
+          "name": "Ink",
+          "props": {
+            "fill": "#d9438780"
+          }
+        }
+      ],
+      [
+        "node.set",
+        {
+          "props": {
+            "effects": [
+              {
+                "type": "dropShadow"
+              },
+              {
+                "type": "layerBlur",
+                "radius": 2
+              },
+              {
+                "type": "dropShadow",
+                "showBehind": true,
+                "offset": [
+                  -4,
+                  2
+                ]
+              }
+            ]
+          }
+        }
+      ],
+      [
+        "file.exportSvg",
+        {
+          "svgIdAttribute": true
+        }
+      ]
+    ],
+    "svg": "<svg width=\"52\" height=\"40\" viewBox=\"0 0 52 40\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\"><g id=\"Ink\" filter=\"url(#filter1)\"><path transform=\"matrix(1 0 0 1 13 7)\" d=\"M0 0L30 0L30 20L0 20Z\" fill=\"#D94387\" fill-opacity=\"0.502\"/></g><defs><filter id=\"filter1\" filterUnits=\"userSpaceOnUse\" x=\"-18\" y=\"-18\" width=\"88\" height=\"76\" color-interpolation-filters=\"sRGB\"><feGaussianBlur in=\"SourceGraphic\" stdDeviation=\"1\" result=\"l1\"/><feColorMatrix in=\"l1\" type=\"matrix\" values=\"0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0\" result=\"la\"/><feOffset in=\"la\" dx=\"0\" dy=\"4\"/><feGaussianBlur stdDeviation=\"2\"/><feColorMatrix type=\"matrix\" values=\"0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.25 0\" result=\"s0\"/><feComposite in=\"s0\" in2=\"l1\" operator=\"out\" result=\"s0\"/><feOffset in=\"la\" dx=\"-4\" dy=\"2\"/><feGaussianBlur stdDeviation=\"2\"/><feColorMatrix type=\"matrix\" values=\"0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.25 0\" result=\"s2\"/><feMerge><feMergeNode in=\"s0\"/><feMergeNode in=\"s2\"/><feMergeNode in=\"l1\"/></feMerge></filter></defs></svg>\n"
+  },
+  {
+    "name": "spread group",
+    "commands": [
+      [
+        "shape.rectangle",
+        {
+          "x": 5,
+          "y": 9,
+          "width": 30,
+          "height": 20,
+          "name": "Ink",
+          "props": {
+            "fill": "#d9438780"
+          }
+        }
+      ],
+      [
+        "shape.ellipse",
+        {
+          "x": 19,
+          "y": 17,
+          "width": 18,
+          "height": 13
+        }
+      ],
+      [
+        "object.group",
+        {
+          "ids": [
+            2,
+            3
+          ]
+        }
+      ],
+      [
+        "node.set",
+        {
+          "props": {
+            "effects": [
+              {
+                "type": "dropShadow",
+                "spread": 2
+              }
+            ]
+          }
+        }
+      ],
+      [
+        "file.exportSvg",
+        {
+          "svgIdAttribute": true
+        }
+      ]
+    ],
+    "svg": "<svg width=\"60\" height=\"49\" viewBox=\"0 0 60 49\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\"><g id=\"Group_1\" filter=\"url(#filter1)\"><g id=\"Ink\"><path transform=\"matrix(1 0 0 1 14 10)\" d=\"M0 0L30 0L30 20L0 20Z\" fill=\"#D94387\" fill-opacity=\"0.502\"/></g><g id=\"Ellipse\"><path transform=\"matrix(1 0 0 1 28 18)\" d=\"M18 6.5C18 10.09 13.971 13 9 13C4.029 13 0 10.09 0 6.5C0 2.91 4.029 0 9 0C13.971 0 18 2.91 18 6.5\" fill=\"#D9D9D9\"/></g></g><defs><filter id=\"filter1\" filterUnits=\"userSpaceOnUse\" x=\"-20\" y=\"-20\" width=\"100\" height=\"89\" color-interpolation-filters=\"sRGB\"><feMorphology in=\"SourceAlpha\" operator=\"dilate\" radius=\"2\" result=\"s0m\"/><feOffset in=\"s0m\" dx=\"0\" dy=\"4\"/><feGaussianBlur stdDeviation=\"2\"/><feColorMatrix type=\"matrix\" values=\"0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.25 0\" result=\"s0\"/><feComposite in=\"s0\" in2=\"SourceAlpha\" operator=\"out\" result=\"s0\"/><feMerge><feMergeNode in=\"s0\"/><feMergeNode in=\"SourceGraphic\"/></feMerge></filter></defs></svg>\n"
+  },
+  {
+    "name": "eroded group",
+    "commands": [
+      [
+        "shape.rectangle",
+        {
+          "x": 5,
+          "y": 9,
+          "width": 30,
+          "height": 20,
+          "name": "Ink",
+          "props": {
+            "fill": "#d9438780"
+          }
+        }
+      ],
+      [
+        "shape.ellipse",
+        {
+          "x": 19,
+          "y": 17,
+          "width": 18,
+          "height": 13
+        }
+      ],
+      [
+        "object.group",
+        {
+          "ids": [
+            2,
+            3
+          ]
+        }
+      ],
+      [
+        "node.set",
+        {
+          "props": {
+            "effects": [
+              {
+                "type": "dropShadow",
+                "spread": -1
+              }
+            ]
+          }
+        }
+      ],
+      [
+        "file.exportSvg",
+        {
+          "svgIdAttribute": true
+        }
+      ]
+    ],
+    "svg": "<svg width=\"44\" height=\"33\" viewBox=\"0 0 44 33\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\"><g id=\"Group_1\" filter=\"url(#filter1)\"><g id=\"Ink\"><path transform=\"matrix(1 0 0 1 6 2)\" d=\"M0 0L30 0L30 20L0 20Z\" fill=\"#D94387\" fill-opacity=\"0.502\"/></g><g id=\"Ellipse\"><path transform=\"matrix(1 0 0 1 20 10)\" d=\"M18 6.5C18 10.09 13.971 13 9 13C4.029 13 0 10.09 0 6.5C0 2.91 4.029 0 9 0C13.971 0 18 2.91 18 6.5\" fill=\"#D9D9D9\"/></g></g><defs><filter id=\"filter1\" filterUnits=\"userSpaceOnUse\" x=\"-16\" y=\"-16\" width=\"76\" height=\"65\" color-interpolation-filters=\"sRGB\"><feMorphology in=\"SourceAlpha\" operator=\"erode\" radius=\"1\" result=\"s0m\"/><feOffset in=\"s0m\" dx=\"0\" dy=\"4\"/><feGaussianBlur stdDeviation=\"2\"/><feColorMatrix type=\"matrix\" values=\"0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.25 0\" result=\"s0\"/><feComposite in=\"s0\" in2=\"SourceAlpha\" operator=\"out\" result=\"s0\"/><feMerge><feMergeNode in=\"s0\"/><feMergeNode in=\"SourceGraphic\"/></feMerge></filter></defs></svg>\n"
+  },
+  {
+    "name": "spread outline",
+    "commands": [
+      [
+        "shape.rectangle",
+        {
+          "x": 5,
+          "y": 9,
+          "width": 30,
+          "height": 20,
+          "name": "Ink",
+          "props": {
+            "fill": "#d9438780"
+          }
+        }
+      ],
+      [
+        "node.set",
+        {
+          "props": {
+            "effects": [
+              {
+                "type": "dropShadow",
+                "spread": 2
+              }
+            ]
+          }
+        }
+      ],
+      [
+        "file.exportSvg",
+        {
+          "svgIdAttribute": true
+        }
+      ]
+    ],
+    "svg": "<svg width=\"46\" height=\"36\" viewBox=\"0 0 46 36\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\"><g opacity=\"0.25\"><g filter=\"url(#filter1)\"><path transform=\"matrix(1 0 0 1 8 8)\" d=\"M0 0L30 0L30 20L0 20Z\" fill=\"#000000\"/><path transform=\"matrix(1 0 0 1 8 8)\" d=\"M0 0L30 0L30 20L0 20Z\" fill=\"none\" stroke=\"#000000\" stroke-width=\"4\" stroke-linejoin=\"miter\" stroke-miterlimit=\"4\"/></g></g><g id=\"Ink\"><path transform=\"matrix(1 0 0 1 8 4)\" d=\"M0 0L30 0L30 20L0 20Z\" fill=\"#D94387\" fill-opacity=\"0.502\"/></g><defs><filter id=\"filter1\" filterUnits=\"userSpaceOnUse\" x=\"-8\" y=\"-8\" width=\"62\" height=\"52\" color-interpolation-filters=\"sRGB\"><feGaussianBlur stdDeviation=\"2\" result=\"b\"/><feImage href=\"data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjcgMyAzMiAyMiIgd2lkdGg9IjMyIiBoZWlnaHQ9IjIyIj48cGF0aCB0cmFuc2Zvcm09Im1hdHJpeCgxIDAgMCAxIDggNCkiIGQ9Ik0wIDBMMzAgMEwzMCAyMEwwIDIwWiIvPjwvc3ZnPg==\" x=\"7\" y=\"3\" width=\"32\" height=\"22\" preserveAspectRatio=\"none\" result=\"cover\"/><feComposite in=\"b\" in2=\"cover\" operator=\"out\"/></filter></defs></svg>\n"
+  },
+  {
+    "name": "inset outline",
+    "commands": [
+      [
+        "shape.rectangle",
+        {
+          "x": 5,
+          "y": 9,
+          "width": 30,
+          "height": 20,
+          "name": "Ink",
+          "props": {
+            "fill": "#d9438780"
+          }
+        }
+      ],
+      [
+        "node.set",
+        {
+          "props": {
+            "effects": [
+              {
+                "type": "dropShadow",
+                "spread": -2
+              }
+            ]
+          }
+        }
+      ],
+      [
+        "file.exportSvg",
+        {
+          "svgIdAttribute": true
+        }
+      ]
+    ],
+    "svg": "<svg width=\"42\" height=\"32\" viewBox=\"0 0 42 32\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\"><g opacity=\"0.25\"><g filter=\"url(#filter1)\"><g mask=\"url(#mask2)\"><path transform=\"matrix(1 0 0 1 6 6)\" d=\"M0 0L30 0L30 20L0 20Z\" fill=\"#000000\"/></g></g></g><g id=\"Ink\"><path transform=\"matrix(1 0 0 1 6 2)\" d=\"M0 0L30 0L30 20L0 20Z\" fill=\"#D94387\" fill-opacity=\"0.502\"/></g><defs><filter id=\"filter1\" filterUnits=\"userSpaceOnUse\" x=\"-10\" y=\"-10\" width=\"62\" height=\"52\" color-interpolation-filters=\"sRGB\"><feGaussianBlur stdDeviation=\"2\" result=\"b\"/><feImage href=\"data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjUgMSAzMiAyMiIgd2lkdGg9IjMyIiBoZWlnaHQ9IjIyIj48cGF0aCB0cmFuc2Zvcm09Im1hdHJpeCgxIDAgMCAxIDYgMikiIGQ9Ik0wIDBMMzAgMEwzMCAyMEwwIDIwWiIvPjwvc3ZnPg==\" x=\"5\" y=\"1\" width=\"32\" height=\"22\" preserveAspectRatio=\"none\" result=\"cover\"/><feComposite in=\"b\" in2=\"cover\" operator=\"out\"/></filter><mask id=\"mask2\" maskUnits=\"userSpaceOnUse\" x=\"5\" y=\"5\" width=\"32\" height=\"22\"><path transform=\"matrix(1 0 0 1 6 6)\" d=\"M0 0L30 0L30 20L0 20Z\" fill=\"white\"/><path transform=\"matrix(1 0 0 1 6 6)\" d=\"M0 0L30 0L30 20L0 20Z\" fill=\"none\" stroke=\"black\" stroke-width=\"4\" stroke-linejoin=\"miter\" stroke-miterlimit=\"4\"/></mask></defs></svg>\n"
+  },
+  {
+    "name": "spread without blur",
+    "commands": [
+      [
+        "shape.rectangle",
+        {
+          "x": 5,
+          "y": 9,
+          "width": 30,
+          "height": 20,
+          "name": "Ink",
+          "props": {
+            "fill": "#d9438780"
+          }
+        }
+      ],
+      [
+        "node.set",
+        {
+          "props": {
+            "effects": [
+              {
+                "type": "dropShadow",
+                "spread": 3,
+                "showBehind": true,
+                "radius": 0,
+                "blend": "multiply"
+              }
+            ]
+          }
+        }
+      ],
+      [
+        "file.exportSvg",
+        {
+          "svgIdAttribute": true
+        }
+      ]
+    ],
+    "svg": "<svg width=\"36\" height=\"27\" viewBox=\"0 0 36 27\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\"><g opacity=\"0.25\" style=\"mix-blend-mode:multiply\"><g><path transform=\"matrix(1 0 0 1 3 4)\" d=\"M0 0L30 0L30 20L0 20Z\" fill=\"#000000\"/><path transform=\"matrix(1 0 0 1 3 4)\" d=\"M0 0L30 0L30 20L0 20Z\" fill=\"none\" stroke=\"#000000\" stroke-width=\"6\" stroke-linejoin=\"miter\" stroke-miterlimit=\"4\"/></g></g><g id=\"Ink\"><path transform=\"matrix(1 0 0 1 3 0)\" d=\"M0 0L30 0L30 20L0 20Z\" fill=\"#D94387\" fill-opacity=\"0.502\"/></g></svg>\n"
+  },
+  {
+    "name": "inner shadow",
+    "commands": [
+      [
+        "shape.rectangle",
+        {
+          "x": 5,
+          "y": 9,
+          "width": 30,
+          "height": 20,
+          "name": "Ink",
+          "props": {
+            "fill": "#d9438780"
+          }
+        }
+      ],
+      [
+        "node.set",
+        {
+          "props": {
+            "effects": [
+              {
+                "type": "innerShadow",
+                "offset": [
+                  -1,
+                  3
+                ],
+                "radius": 4,
+                "color": "#0088aa80"
+              }
+            ]
+          }
+        }
+      ],
+      [
+        "file.exportSvg",
+        {
+          "svgIdAttribute": true
+        }
+      ]
+    ],
+    "svg": "<svg width=\"30\" height=\"20\" viewBox=\"0 0 30 20\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\"><g id=\"Ink\"><path transform=\"matrix(1 0 0 1 0 0)\" d=\"M0 0L30 0L30 20L0 20Z\" fill=\"#D94387\" fill-opacity=\"0.502\"/><g clip-path=\"url(#clip1)\"><g opacity=\"0.502\" filter=\"url(#filter3)\"><g mask=\"url(#mask2)\"><rect x=\"-11\" y=\"-11\" width=\"52\" height=\"42\" fill=\"#0088AA\"/></g></g></g></g><defs><clipPath id=\"clip1\"><path transform=\"matrix(1 0 0 1 0 0)\" d=\"M0 0L30 0L30 20L0 20Z\"/></clipPath><mask id=\"mask2\" maskUnits=\"userSpaceOnUse\" x=\"-11\" y=\"-11\" width=\"52\" height=\"42\"><rect x=\"-11\" y=\"-11\" width=\"52\" height=\"42\" fill=\"white\"/><path transform=\"matrix(1 0 0 1 -1 3)\" d=\"M0 0L30 0L30 20L0 20Z\" fill=\"black\"/></mask><filter id=\"filter3\" filterUnits=\"userSpaceOnUse\" x=\"-11\" y=\"-11\" width=\"52\" height=\"42\" color-interpolation-filters=\"sRGB\"><feGaussianBlur stdDeviation=\"2\" result=\"b\"/></filter></defs></svg>\n"
+  },
+  {
+    "name": "spread inner shadow",
+    "commands": [
+      [
+        "shape.rectangle",
+        {
+          "x": 5,
+          "y": 9,
+          "width": 30,
+          "height": 20,
+          "name": "Ink",
+          "props": {
+            "fill": "#d9438780"
+          }
+        }
+      ],
+      [
+        "node.set",
+        {
+          "props": {
+            "effects": [
+              {
+                "type": "innerShadow",
+                "spread": 2
+              }
+            ]
+          }
+        }
+      ],
+      [
+        "file.exportSvg",
+        {
+          "svgIdAttribute": true
+        }
+      ]
+    ],
+    "svg": "<svg width=\"30\" height=\"20\" viewBox=\"0 0 30 20\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\"><g id=\"Ink\"><path transform=\"matrix(1 0 0 1 0 0)\" d=\"M0 0L30 0L30 20L0 20Z\" fill=\"#D94387\" fill-opacity=\"0.502\"/><g clip-path=\"url(#clip1)\"><g opacity=\"0.25\" filter=\"url(#filter4)\"><g mask=\"url(#mask3)\"><rect x=\"-20\" y=\"-20\" width=\"70\" height=\"60\" fill=\"#000000\"/></g></g></g></g><defs><clipPath id=\"clip1\"><path transform=\"matrix(1 0 0 1 0 0)\" d=\"M0 0L30 0L30 20L0 20Z\"/></clipPath><mask id=\"mask2\" maskUnits=\"userSpaceOnUse\" x=\"-1\" y=\"3\" width=\"32\" height=\"22\"><path transform=\"matrix(1 0 0 1 0 4)\" d=\"M0 0L30 0L30 20L0 20Z\" fill=\"white\"/><path transform=\"matrix(1 0 0 1 0 4)\" d=\"M0 0L30 0L30 20L0 20Z\" fill=\"none\" stroke=\"black\" stroke-width=\"4\" stroke-linejoin=\"miter\" stroke-miterlimit=\"4\"/></mask><mask id=\"mask3\" maskUnits=\"userSpaceOnUse\" x=\"-20\" y=\"-20\" width=\"70\" height=\"60\"><rect x=\"-20\" y=\"-20\" width=\"70\" height=\"60\" fill=\"white\"/><g mask=\"url(#mask2)\"><path transform=\"matrix(1 0 0 1 0 4)\" d=\"M0 0L30 0L30 20L0 20Z\" fill=\"black\"/></g></mask><filter id=\"filter4\" filterUnits=\"userSpaceOnUse\" x=\"-20\" y=\"-20\" width=\"70\" height=\"60\" color-interpolation-filters=\"sRGB\"><feGaussianBlur stdDeviation=\"2\" result=\"b\"/></filter></defs></svg>\n"
+  },
+  {
+    "name": "inner without blur",
+    "commands": [
+      [
+        "shape.rectangle",
+        {
+          "x": 5,
+          "y": 9,
+          "width": 30,
+          "height": 20,
+          "name": "Ink",
+          "props": {
+            "fill": "#d9438780"
+          }
+        }
+      ],
+      [
+        "node.set",
+        {
+          "props": {
+            "effects": [
+              {
+                "type": "innerShadow",
+                "spread": -1,
+                "radius": 0
+              }
+            ]
+          }
+        }
+      ],
+      [
+        "file.exportSvg",
+        {
+          "svgIdAttribute": true
+        }
+      ]
+    ],
+    "svg": "<svg width=\"30\" height=\"20\" viewBox=\"0 0 30 20\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\"><g id=\"Ink\"><path transform=\"matrix(1 0 0 1 0 0)\" d=\"M0 0L30 0L30 20L0 20Z\" fill=\"#D94387\" fill-opacity=\"0.502\"/><g clip-path=\"url(#clip1)\"><g opacity=\"0.25\"><g mask=\"url(#mask2)\"><rect x=\"-10\" y=\"-10\" width=\"50\" height=\"40\" fill=\"#000000\"/></g></g></g></g><defs><clipPath id=\"clip1\"><path transform=\"matrix(1 0 0 1 0 0)\" d=\"M0 0L30 0L30 20L0 20Z\"/></clipPath><mask id=\"mask2\" maskUnits=\"userSpaceOnUse\" x=\"-10\" y=\"-10\" width=\"50\" height=\"40\"><rect x=\"-10\" y=\"-10\" width=\"50\" height=\"40\" fill=\"white\"/><path transform=\"matrix(1 0 0 1 0 4)\" d=\"M0 0L30 0L30 20L0 20Z\" fill=\"black\"/><path transform=\"matrix(1 0 0 1 0 4)\" d=\"M0 0L30 0L30 20L0 20Z\" fill=\"none\" stroke=\"black\" stroke-width=\"2\" stroke-linejoin=\"miter\" stroke-miterlimit=\"4\"/></mask></defs></svg>\n"
+  }
+]

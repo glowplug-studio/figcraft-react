@@ -3,6 +3,9 @@ import { createRequire } from "node:module";
 import { build } from "vite";
 import cases from "../fixtures/native-png-exports.json" with { type: "json" };
 import svgScenes from "../fixtures/native-svg-export.json" with { type: "json" };
+import svgShadows from "../fixtures/native-svg-shadow-export.json" with { type: "json" };
+import svgDashes from "../fixtures/native-svg-dash-export.json" with { type: "json" };
+import svgImages from "../fixtures/native-svg-effect-images.json" with { type: "json" };
 import jobCases from "../fixtures/native-export-jobs.json" with { type: "json" };
 import codecs from "../fixtures/native-raster-codecs.json" with { type: "json" };
 import { embeddedIcc } from "../../src/engine/icc-container";
@@ -17,7 +20,7 @@ const { PNG } = createRequire(import.meta.url)("playwright-core/lib/utilsBundle"
 let script: string;
 test.beforeAll(async () => {
   const bundle = await build({ configFile: false, logLevel: "silent", build: { write: false,
-    rollupOptions: {output:{inlineDynamicImports:true}},
+    rolldownOptions: {output:{codeSplitting:false}},
     lib: { entry: "tests/fixtures/raster-export.ts", formats: ["es"] } } });
   const output = (Array.isArray(bundle) ? bundle[0] : bundle) as { output: { type: string; code?: string }[] };
   const code = output.output.find(chunk => chunk.type === "chunk")?.code;
@@ -128,31 +131,72 @@ test("a 4K JPEG export keeps its dimensions and releases its encoder worker", as
   await test.info().attach("4k-jpeg",{body:JSON.stringify({durationMs:Date.now()-before,bytes:bytes.length,workerCountAfter:workers.size}),contentType:"application/json"});
 });
 
-test("exported SVGs match native browser rendering for paths, clips, masks, text and paint", async ({page}) => {
-  await loadExporter(page);
-  for (const scene of svgScenes) {
-    const result = await page.evaluate(async ({commands,svg})=>{
-      const fixture = (window as unknown as {FigcraftRaster:{replaySvg:typeof import("../fixtures/raster-export").replaySvg}}).FigcraftRaster;
-      const actual = await fixture.replaySvg(commands);
-      async function decode(text:string) {
-        const root = new DOMParser().parseFromString(text,"image/svg+xml").documentElement;
-        if (root.localName !== "svg") throw new Error("Invalid XML");
-        const width = Number(root.getAttribute("width")), height = Number(root.getAttribute("height"));
-        const img = new Image(), url = URL.createObjectURL(new Blob([text],{type:"image/svg+xml"}));
-        try {
-          img.src = url; await img.decode();
-          const canvas=document.createElement("canvas"), scale=Math.min(1,256/Math.max(width,height));
-          canvas.width=Math.max(1,Math.ceil(width*scale));canvas.height=Math.max(1,Math.ceil(height*scale));
-          const ctx=canvas.getContext("2d")!;ctx.drawImage(img,0,0,canvas.width,canvas.height);
-          return {width,height,data:ctx.getImageData(0,0,canvas.width,canvas.height).data};
-        } finally { URL.revokeObjectURL(url); }
+async function compareSvg(page:Page,scene:{commands:unknown[][];svg:string}) {
+  return page.evaluate(async ({commands,svg})=>{
+    const fixture=(window as unknown as {FigcraftRaster:{replaySvg:typeof import("../fixtures/raster-export").replaySvg}}).FigcraftRaster;
+    const actual=await fixture.replaySvg(commands);
+    async function decode(text:string) {
+      const root=new DOMParser().parseFromString(text,"image/svg+xml").documentElement;
+      if (root.localName!=="svg") throw new Error("Invalid SVG");
+      const width=Number(root.getAttribute("width")), height=Number(root.getAttribute("height"));
+      const img=new Image(), url=URL.createObjectURL(new Blob([text],{type:"image/svg+xml"}));
+      try {
+        img.src=url; await img.decode();
+        const canvas=document.createElement("canvas"), scale=Math.min(1,256/Math.max(width,height));
+        canvas.width=Math.max(1,Math.ceil(width*scale)); canvas.height=Math.max(1,Math.ceil(height*scale));
+        const ctx=canvas.getContext("2d")!;
+        ctx.drawImage(img,0,0,canvas.width,canvas.height);
+        return {width,height,data:ctx.getImageData(0,0,canvas.width,canvas.height).data};
+      } finally { URL.revokeObjectURL(url); }
+    }
+    const a=await decode(actual), b=await decode(svg);
+    if (a.width!==b.width || a.height!==b.height) throw new Error("Different SVG bounds");
+    let max=0, maxPremult=0, total=0;
+    for (let i=0;i<a.data.length;i+=4) {
+      for (let channel=0;channel<4;channel++) {
+        const x=a.data[i+channel], y=b.data[i+channel];
+        max=Math.max(max,Math.abs(x-y));
+        const delta=channel===3 ? Math.abs(x-y) : Math.abs(x*a.data[i+3]-y*b.data[i+3])/255;
+        maxPremult=Math.max(maxPremult,delta);
+        total+=delta;
       }
-      const a=await decode(actual), b=await decode(svg);
-      let max=0;
-      if (a.width!==b.width || a.height!==b.height) throw new Error("Different bounds");
-      for(let i=0;i<a.data.length;i++) max=Math.max(max,Math.abs(a.data[i]-b.data[i]));
-      return max;
-    },scene);
-    expect(result, scene.name).toBe(0);
+    }
+    const structure=(xml:string)=>xml.replace(/data:image\/png;base64,[A-Za-z0-9+/=]+/g,"embedded-png");
+    return {max,maxPremult,mean:total/a.data.length,structureMatches:structure(actual)===structure(svg)};
+  },scene);
+}
+
+test("exported SVGs match native browser rendering for paths, clips, masks, text and paint",async ({page})=>{
+  await loadExporter(page);
+  for (const scene of [...svgScenes,...svgShadows,...svgDashes]) expect((await compareSvg(page,scene)).max,scene.name).toBe(0);
+});
+
+test("SVG export embeds the native effect layers, extents and isolated artwork",async ({page})=>{
+  await loadExporter(page);
+  for (const scene of svgImages) {
+    const measured=await compareSvg(page,scene);
+    await test.info().attach(scene.name,{body:JSON.stringify(measured),contentType:"application/json"});
+    expect.soft(measured.structureMatches,scene.name).toBe(true);
+    expect.soft(measured.mean,scene.name).toBeLessThan(0.25);
+    expect.soft(measured.maxPremult,scene.name).toBeLessThanOrEqual(10);
+  }
+});
+
+test("rasterised SVG patterns share the export root's remaining nesting depth",async ({page})=>{
+  await loadExporter(page);
+  for (const [outer,red] of [[1,true],[200,false]] as const) {
+    const containsRed=await page.evaluate(async outer=>{
+      const fixture=(window as unknown as {FigcraftRaster:{exportDeepPattern:typeof import("../fixtures/raster-export").exportDeepPattern}}).FigcraftRaster;
+      const svg=await fixture.exportDeepPattern(outer,100);
+      const element=new DOMParser().parseFromString(svg,"image/svg+xml").querySelector("image");
+      if (!element) throw new Error("Missing embedded pattern image");
+      const im=new Image(); im.src=element.getAttribute("href")!; await im.decode();
+      const c=document.createElement("canvas"); c.width=im.width; c.height=im.height;
+      const ctx=c.getContext("2d")!; ctx.drawImage(im,0,0);
+      const rgba=ctx.getImageData(0,0,c.width,c.height).data;
+      for (let i=0;i<rgba.length;i+=4) if (rgba[i]>200 && rgba[i+1]<60 && rgba[i+3]>200) return true;
+      return false;
+    },outer);
+    expect(containsRed).toBe(red);
   }
 });

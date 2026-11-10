@@ -64,6 +64,16 @@ export interface EditorProps {
   recoveryStore?: RecoveryStore;
 }
 
+async function writeClipboard(type:"text/plain"|"image/png",prepare:()=>Promise<Blob>) {
+  if (navigator.clipboard?.write && typeof ClipboardItem!=="undefined") {
+    // Reserve the browser's clipboard write inside the original user gesture.
+    const blob=prepare();
+    await Promise.all([blob,navigator.clipboard.write([new ClipboardItem({[type]:blob})])]);
+  } else if (type==="text/plain" && navigator.clipboard?.writeText) {
+    await navigator.clipboard.writeText(await (await prepare()).text());
+  } else throw new Error("This browser cannot write the requested clipboard format.");
+}
+
 function HistoryButtons({ engine, editable, undo, redo, dispatch }: { engine: EditorEngine; editable: boolean; undo: boolean; redo: boolean; dispatch: (command: string) => void }) {
   const pen = useSyncExternalStore(engine.pen.subscribeHistory, engine.pen.getHistory, engine.pen.getHistory);
   return <><button disabled={!editable || (!undo && !(pen & 1))} onClick={() => dispatch("edit.undo")}>Undo</button>
@@ -298,6 +308,9 @@ export function DocumentEditor({ identity, capabilities, engine: suppliedEngine,
         !macGrid && event.code === "Digit4" && event.ctrlKey && event.shiftKey)) command = "view.layoutGrids";
     if (!event.metaKey && !event.ctrlKey && event.altKey && event.shiftKey && event.code === "KeyF" || (event.metaKey || event.ctrlKey) && !event.altKey && !event.shiftKey && event.key.toLowerCase() === "e") command = "vector.flatten";
     if ((event.metaKey || event.ctrlKey) && !event.shiftKey && !event.altKey && event.key.toLowerCase() === "d") command = "edit.duplicate";
+    if ((event.metaKey || event.ctrlKey) && event.shiftKey && !event.altKey && event.code==="KeyC") {
+      event.preventDefault(); copyAs("png",event.isTrusted); return;
+    }
     if ((event.metaKey || event.ctrlKey) && event.altKey && !event.shiftKey) {
       if (event.code === "KeyC") command = "edit.copyProperties";
       if (event.code === "KeyV") command = "edit.pasteProperties";
@@ -383,20 +396,46 @@ export function DocumentEditor({ identity, capabilities, engine: suppliedEngine,
     catch (e) { setError(e instanceof Error ? e.message : "File drop failed"); }
     finally {setBusy(false);}
   }
-  function copyLayers(command: "edit.copy" | "edit.cut", event?: ClipboardEvent) {
-    if (!canCopyLayers || command === "edit.cut" && !editable) return;
+  function copyLayers(command:"edit.copy"|"edit.cut",event?:ClipboardEvent,trusted=event?.isTrusted) {
+    if (!canCopyLayers || command==="edit.cut" && !editable) return;
     if (event?.target instanceof Element && event.target.closest("input,textarea,select,dialog,[contenteditable]:not([contenteditable=false])")) return;
-    const selected = snapshot.selection.map(id => snapshot.document.nodes[id]);
-    const mirror = selected.every(node => node.kind === "text") && selected.map(node => node.text.characters).join("\n")
-      || "figcraft://clipboard/" + selected.length;
-    if (!dispatch(command)) return;
-    engine.markLayerClipboardMirror(mirror);
+    const selected=snapshot.selection.map(id=>snapshot.document.nodes[id]);
+    const text=selected.every(node=>node.kind==="text") && selected.map(node=>node.text.characters).join("\n");
+    if (!dispatch(command) || !trusted) return;
+    const fallback=text || "figcraft://clipboard/"+selected.length;
+    const mirrored=engine.trackLayerClipboardMirror(fallback);
     if (event) {
       event.preventDefault();
-      event.clipboardData.setData("text/plain", mirror);
-    } else if (navigator.clipboard?.writeText) {
-      void navigator.clipboard.writeText(mirror).catch(() => setError("Layers copied in Figcraft. Browser clipboard access was denied."));
+      event.clipboardData.setData("text/plain",fallback);
+      if (text) return;
     }
+    let exported=fallback;
+    void writeClipboard("text/plain",async()=>{
+      exported=text || await engine.prepareLayerClipboardMirror(fallback);
+      return new Blob([exported],{type:"text/plain"});
+    }).then(()=>mirrored(exported))
+      .catch(()=>setError("Layers copied in Figcraft. The browser could not write the system clipboard."));
+  }
+
+  function copyAs(format:"svg"|"png",trusted:boolean) {
+    if (!trusted || !canCopyLayers) return;
+    const type=format==="png" ? "image/png" : "text/plain";
+    setError("");
+    void writeClipboard(type,async()=>{
+      const {blob}=await engine.exportGraphic({format,colorProfile:"srgb",scale:format==="png" ? 2 : 1});
+      return format==="png" ? blob : blob.slice(0,blob.size,type);
+    }).catch(error=>setError(error instanceof Error ? error.message : "Could not copy artwork"));
+  }
+  function copyAsMenu(context=false) {
+    return <details onToggle={context ? positionCanvasMenu : undefined}><summary>Copy as</summary>
+      {(["svg","png"] as const).map(format=><button type="button" key={format} disabled={!canCopyLayers} onClick={event=>{
+        copyAs(format,event.isTrusted);
+        event.currentTarget.closest("details")?.removeAttribute("open");
+        if (context) pasteMenu.current?.hidePopover();
+        else event.currentTarget.closest(".figcraft-bar-menu")?.removeAttribute("open");
+        canvas.current?.focus();
+      }}>Copy as {format.toUpperCase()}</button>)}
+    </details>;
   }
 
   function pasteText(text: string, point?: Point) {
@@ -588,11 +627,12 @@ export function DocumentEditor({ identity, capabilities, engine: suppliedEngine,
           ] as const).map(([label, command, enabled]) =>
             <button key={command} type="button" disabled={busy || !enabled} onClick={event => {
               event.currentTarget.closest("details")?.removeAttribute("open");
-              if (command === "edit.copy" || command === "edit.cut") copyLayers(command);
+              if (command === "edit.copy" || command === "edit.cut") copyLayers(command,undefined,event.isTrusted);
               else if (command === "edit.paste") void paste();
               else dispatch(command);
               canvas.current?.focus();
             }}>{label}</button>)}
+          {copyAsMenu()}
         </div></details>
         <details><summary>Libraries</summary>
           {([["libraries.open","Open libraries"],["libraries.publish","Publish library…"]] as const).map(([command,label])=>
@@ -694,6 +734,7 @@ export function DocumentEditor({ identity, capabilities, engine: suppliedEngine,
                 {layer.name || layer.type.toLowerCase()}
               </button>)}</div>
             </details>}
+            {canCopyLayers && copyAsMenu(true)}
             {canCrop && <button onClick={()=>{pasteMenu.current?.hidePopover();dispatch("image.crop");canvas.current?.focus();}}>Crop image</button>}
             {snapshot.selection.length > 0 && <>
               <button onClick={()=>{pasteMenu.current?.hidePopover();dispatch("layout.add");canvas.current?.focus();}}>Add auto layout</button>

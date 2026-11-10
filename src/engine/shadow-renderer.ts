@@ -8,10 +8,11 @@ import type { Effect } from "./effects";
 import { opaqueImageFill } from "./image-renderer";
 import { reserveLayerPixels } from "./mask-renderer";
 import { normaliseBooleanPath } from "./path-boolean";
+import { defaultStroke, hasVisibleStroke } from "./stroke";
 import { isClosedShape, shapePath } from "./shape-path";
 
 type Shadow = Extract<Effect, { type: "dropShadow" | "innerShadow" }>;
-type Outline = { path: readonly PathCommand[]; rule: CanvasFillRule };
+export type ShadowOutline = { path: readonly PathCommand[]; rule: CanvasFillRule };
 
 export function hasShadows(node: LayerNode) {
   return node.effects?.some(e => e.visible && (e.type === "dropShadow" || e.type === "innerShadow"));
@@ -25,31 +26,35 @@ function alphaPixels(ctx: CanvasRenderingContext2D) {
   return alpha;
 }
 
-function filledShape(doc: Document, node: LayerNode): Outline | undefined {
+function filledShape(doc: Document, node: LayerNode): ShadowOutline | undefined {
   if (node.kind === "group") return;
-  if (node.kind === "vector") return maskOutline(doc,node,0);
+  if (node.kind === "vector" || node.kind === "booleanOp") return maskOutline(doc,node,0);
   return {path:shapePath(node), rule:"nonzero"};
 }
 
-function alphaFills(doc: Document, node: LayerNode, includeZero: boolean) {
+export function alphaFills(doc: Document, node: LayerNode, includeZero: boolean) {
   const paints = rectanglePaints(node).filter(p => p.visible && (includeZero || p.opacity > 0));
   return paints.length > 0 && paints.every(p => p.type === "pattern" || p.type === "image" && !opaqueImageFill(doc.images?.[p.image],p,node.width,node.height));
 }
 
-function outlines(doc: Document, node: LayerNode, includeZero: boolean): Outline[] | undefined {
-  if (node.kind === "group" || alphaFills(doc,node,includeZero)) return;
+export function shadowOutlines(doc: Document, node: LayerNode, includeZero: boolean): ShadowOutline[] | undefined {
+  if (node.kind === "group" || node.kind === "text" && hasVisibleStroke(node) || alphaFills(doc,node,includeZero)) return;
   const filled = rectanglePaints(node).some(p => p.visible && (includeZero || p.opacity > 0));
-  if (!isLeaf(node) && node.children.some(id => { const child = doc.nodes[id]; return child && child.kind !== "page" && child.visible !== false; })
+  if (!isLeaf(node) && node.kind !== "booleanOp" && node.children.some(id => { const child = doc.nodes[id]; return child && child.kind !== "page" && child.visible !== false; })
     && !(isFrameLike(node) && node.clip && filled)) return;
-  const result: Outline[] = [];
+  const result: ShadowOutline[] = [];
   const shape = filled && isClosedShape(node) ? filledShape(doc,node) : undefined;
   if (shape) result.push(shape);
   const stroke = paintedStrokePath(doc,node);
-  if (stroke?.length) result.push({path:stroke,rule:"nonzero"});
+  if (stroke?.length) {
+    const s=node.stroke ?? defaultStroke;
+    const even=!!s.sides || !s.dashes.length && isClosedShape(node) && s.align!=="center";
+    result.push({path:stroke,rule:even ? "evenodd" : "nonzero"});
+  }
   return result.length ? result : undefined;
 }
 
-function outlineAlpha(canvas: HTMLCanvasElement, width: number, height: number, geometry: readonly Outline[],
+function outlineAlpha(canvas: HTMLCanvasElement, width: number, height: number, geometry: readonly ShadowOutline[],
   matrix: DOMMatrix, spread = 0, dx = 0, dy = 0) {
   canvas.width = width; canvas.height = height;
   const ctx = canvas.getContext("2d",{willReadFrequently:true})!;
@@ -122,9 +127,9 @@ export class ShadowLayer {
     if (!drop?.length) return;
     const alpha = alphaPixels(layer);
     const moved = node.effects?.some(e=>e.visible && (e.type==="layerBlur" && blurRadius(e)>0 || e.type==="texture" && !e.clipToShape && e.radius!==0));
-    const hiding = !moved && drop.some(e=>!e.showBehind) && outlines(this.doc,node,true);
+    const hiding = !moved && drop.some(e=>!e.showBehind) && shadowOutlines(this.doc,node,true);
     const cover = hiding ? outlineAlpha(surface,width,height,hiding,matrix) : alpha;
-    const casting = drop.some(e=>e.spread !== 0) && outlines(this.doc,node,false);
+    const casting = drop.some(e=>e.spread !== 0) && shadowOutlines(this.doc,node,false);
     for (const e of drop) {
       const spread = e.spread && casting ? outlineAlpha(surface,width,height,casting,matrix,e.spread,e.offset[0]*scale,e.offset[1]*scale) : undefined;
       const rgba = dropShadowPixels(alpha,width,height,e,scale,cover,spread);

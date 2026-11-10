@@ -323,8 +323,24 @@ export class EditorEngine {
   #libraryRevision=0;
   get libraryRevision() {return this.#libraryRevision;}
   #clipboard: EditorClipboard = {};
-  markLayerClipboardMirror(text: string) { if (this.#clipboard.layers) this.#clipboard.layers.mirror = text; }
-  ownsLayerClipboardText(text: string) { return !!this.#clipboard.layers && (this.#clipboard.layers.mirror === text || text.startsWith("figcraft://clipboard/")); }
+  ownsLayerClipboardText(text:string) { return this.#clipboard.layers?.mirror===text; }
+  trackLayerClipboardMirror(fallback:string) {
+    const clip=this.#clipboard.layers;
+    if (clip) clip.mirror=fallback;
+    return (text:string)=>{ if (clip===this.#clipboard.layers && clip) clip.mirror=text; };
+  }
+  async prepareLayerClipboardMirror(fallback:string) {
+    const clip=this.#clipboard.layers, opening=this.#openSequence;
+    if (!clip || !this.#hostEditable) throw new Error("No copied layers");
+    let text=fallback;
+    try {
+      const {renderSvgExport}=await import("./export-svg");
+      text=await (await renderSvgExport(clip.source,clip.roots,{})).text();
+    } catch { /* Unsupported or over-depth art keeps the native layer marker. */ }
+    this.#assertExportAccess(opening);
+    if (clip!==this.#clipboard.layers) throw new Error("A newer selection was copied");
+    return text;
+  }
   hasCopiedProperties = (): boolean => !!this.#clipboard.properties;
   hasCopiedLayers = (): boolean => !!this.#clipboard.layers;
   hasCopiedEffect = (): boolean => !!this.#clipboard.effect;

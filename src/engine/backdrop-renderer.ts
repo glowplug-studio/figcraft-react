@@ -19,20 +19,24 @@ export function nestedBackdrop(doc:Document,node:LayerNode) {
   });
 }
 
+export function backdropPadding(node:LayerNode,scale:number) {
+  let maxRadius=0;
+  for (const e of node.effects ?? []) {
+    if (!e.visible) continue;
+    if (e.type === "backgroundBlur") maxRadius = Math.max(maxRadius, blurRadius(e));
+    if (e.type === "glass") maxRadius = Math.max(maxRadius, glassBackdropRadius(e));
+  }
+  return maxRadius ? Math.min(2048,Math.ceil(1.5*maxRadius*scale+3)) : 0;
+}
+
 /** Captures background blur separately from the content that casts shadows.
  * Each entry samples the same backdrop, then composites through the shape. */
 export function renderBackdrop(ctx:CanvasRenderingContext2D, doc:Document, node:LayerNode,
   left:number, top:number, width:number, height:number, xf:Affine, scale:number) {
   const outline=isFrameLike(node) ? {path:shapePath(node),rule:"nonzero" as const} : maskOutline(doc,node,0);
   if (!outline?.path.length) return;
-  let maxRadius=0;
   if (!hasBackdrop(node)) return;
-  for (const e of node.effects ?? []) {
-    if (!e.visible) continue;
-    if (e.type === "backgroundBlur") maxRadius = Math.max(maxRadius, blurRadius(e));
-    if (e.type === "glass") maxRadius = Math.max(maxRadius, glassBackdropRadius(e));
-  }
-  const pad=maxRadius ? Math.min(2048,Math.ceil(1.5*maxRadius*scale+3)) : 0, w=width+pad*2,h=height+pad*2;
+  const pad=backdropPadding(node,scale), w=width+pad*2,h=height+pad*2;
   const release=reserveLayerPixels(w,h,3);
   if (!release) return;
   const make=()=>ctx.canvas.ownerDocument.createElement("canvas");

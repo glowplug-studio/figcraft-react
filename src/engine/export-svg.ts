@@ -1,3 +1,5 @@
+import { SvgShadows } from "./svg-shadows";
+import { setDocumentProfile } from "./document-profile";
 import { reversedRuns } from "./paint-runs";
 import { glyphPaintPaths, liveSvgText } from "./svg-text";
 import { patternCell } from "./pattern";
@@ -11,12 +13,13 @@ import { ellipsePath, fullSweep } from "./ellipse";
 import { exportRegion } from "./export-area";
 import { fileExportSetting, type ExportSetting } from "./export-settings";
 import { sortedStops } from "./gradient";
-import { worldTransform } from "./hierarchy";
+import { subtreeIds, worldTransform } from "./hierarchy";
 import { imageTransform } from "./image-placement";
 import { base64Bytes } from "./recovery";
 import { isClosedShape, shapePath, strokeGeometry } from "./shape-path";
 import type { Paint } from "./solid-paint";
-import { defaultStroke, hasVisibleStroke } from "./stroke";
+import { cubicLength } from "./cubic";
+import { bandCaps, dashPattern, lineDashes, defaultStroke, hasVisibleStroke } from "./stroke";
 import { svgBlend, svgMatrix, svgNumber as num, svgPath, xmlText } from "./svg-format";
 import { documentTextReady, prepareDocumentText } from "./text-node-layout";
 import { vectorPaintRegions } from "./vector-presentation";
@@ -50,10 +53,11 @@ function outline(doc: Document, node: DocumentNode): Path | undefined {
 
 function simpleStroke(node: LayerNode): Path | undefined {
   const stroke = node.stroke ?? defaultStroke;
-  if (stroke.sides || stroke.widthProfile || stroke.brush || stroke.dashes.length ||
+  if (stroke.sides || stroke.widthProfile?.points.length || stroke.brush || !(stroke.weight > 0) ||
     !["none","round","square"].includes(stroke.capStart) || !["none","round","square"].includes(stroke.capEnd) ||
-    node.kind === "vector" && node.network.vertices.some(v => v.join && v.join !== stroke.join || v.cap && v.cap !== "none")) return;
+    node.kind === "vector" && node.network.vertices.some(v => v.join && v.join !== stroke.join || v.cap !== undefined)) return;
   if (stroke.align === "center") return ["text","booleanOp","group"].includes(node.kind) ? undefined : strokeGeometry(node);
+  if (stroke.dashes.length) return;
   const d = (stroke.align === "inside" ? -1 : 1) * stroke.weight / 2;
   const width = node.width + 2*d, height = node.height + 2*d;
   if (width <= 0 || height <= 0) return;
@@ -68,13 +72,45 @@ function simpleStroke(node: LayerNode): Path | undefined {
   return mapped(path,[1,0,0,1,-d,-d]);
 }
 
+function dashedPieces(path:Path,dashes:readonly number[]) {
+  const pattern=dashPattern(dashes);
+  if (!pattern) return [{d:svgPath(path),attrs:""}];
+  const result:{d:string;attrs:string}[]=[];
+  let start=0;
+  while (start<path.length) {
+    let end=start+1;
+    while (end<path.length && path[end][0]!=="M") end++;
+    const part=path.slice(start,end), closed=part.at(-1)?.[0]==="Z";
+    let length=0, pen={x:0,y:0};
+    if (!closed) for (const c of part) {
+      if (c[0]==="M") pen={x:c[1],y:c[2]};
+      if (c[0]==="L") { length+=Math.hypot(c[1]-pen.x,c[2]-pen.y); pen={x:c[1],y:c[2]}; }
+      if (c[0]==="C") {
+        const to={x:c[5],y:c[6]};
+        length+=cubicLength([pen,{x:c[1],y:c[2]},{x:c[3],y:c[4]},to]);
+        pen=to;
+      }
+    }
+    const fitted=lineDashes(length,closed,pattern);
+    const attrs=attr("stroke-dasharray",fitted.pattern.map(num).join(" "))+(fitted.offset>0 ? attr("stroke-dashoffset",num(fitted.offset)) : "");
+    result.push({d:svgPath(part),attrs});
+    start=end;
+  }
+  return result;
+}
+
 class SvgWriter {
   readonly defs: string[] = [];
   private used = new Set<string>();
   private suffix = new Map<string,number>();
   private serial = 0;
   private patternDepth = 0;
-  constructor(private doc: Document, private settings: ExportSetting) {}
+  private patternEffects = new Map<string,boolean>();
+  private depth = -1;
+  private shadows: SvgShadows;
+  constructor(private doc: Document, private settings: ExportSetting, private roots:readonly string[], private origin:Affine) {
+    this.shadows=new SvgShadows(doc,this.defs,prefix=>this.id(prefix));
+  }
   private id(prefix: string) {
     let id: string;
     do { id = prefix + ++this.serial; } while (this.used.has(id));
@@ -125,7 +161,17 @@ class SvgWriter {
     const cell = patternCell(p,source.width,source.height,w,h);
     if (!cell) return;
     const tiles: string[] = [];
-    if (this.patternDepth < 2) {
+    let withEffects=this.patternEffects.get(source.id);
+    if (withEffects===undefined) {
+      withEffects=subtreeIds(this.doc,source.id).some(id=>this.doc.nodes[id].effects?.some(e=>e.visible));
+      this.patternEffects.set(source.id,withEffects);
+    }
+    if (withEffects) {
+      const {renderPatternTile}=await import("./canvas");
+      const tile=await renderPatternTile(this.doc,source,cell,this.depth,this.patternDepth);
+      if (!tile) return;
+      tiles.push('<image width="'+num(cell.size[0])+'" height="'+num(cell.size[1])+'" preserveAspectRatio="none" href="data:image/png;base64,'+base64Bytes(new Uint8Array(await tile.arrayBuffer()))+'"/>');
+    } else if (this.patternDepth < 2) {
       this.patternDepth++;
       try {
         for (const [x,y] of cell.tiles) {
@@ -158,29 +204,56 @@ class SvgWriter {
       return this.paths(area,xf,paints,node.width,node.height,even ? "evenodd" : "nonzero");
     }
     const out = [];
+    const pieces=dashedPieces(path,s.dashes);
     for (const p of paints) {
       const paint = await this.paint(p,node.width,node.height);
       if (!paint) continue;
-      const cap = s.capStart === "round" || s.capStart === "square" ? attr("stroke-linecap",s.capStart) : "";
+      const startCap=bandCaps(s)[0];
+      const cap = startCap === "round" || startCap === "square" ? attr("stroke-linecap",startCap) : "";
       const join = s.join !== "miter" ? attr("stroke-linejoin",s.join) : s.miterLimit !== 4 ? attr("stroke-miterlimit",num(Math.max(1,s.miterLimit))) : "";
-      out.push('<path'+attr("transform",svgMatrix(xf))+attr("d",svgPath(path))+' fill="none"'+paint.replace(" fill="," stroke=").replace(" fill-opacity="," stroke-opacity=")+attr("stroke-width",num(s.weight))+cap+join+'/>');
+      for (const piece of pieces) out.push('<path'+attr("transform",svgMatrix(xf))+attr("d",piece.d)+' fill="none"'+paint.replace(" fill="," stroke=").replace(" fill-opacity="," stroke-opacity=")+attr("stroke-width",num(s.weight))+cap+join+piece.attrs+'/>');
     }
     return out.join("");
   }
   async node(id: string, parent: Affine, inherited?: string, maskRoot?: string): Promise<string> {
+    if (this.depth >= 256) return "";
+    this.depth++;
+    try { return await this.layer(id,parent,inherited,maskRoot); }
+    finally { this.depth--; }
+  }
+  private async layer(id:string,parent:Affine,inherited?:string,maskRoot?:string):Promise<string> {
     const n = this.doc.nodes[id];
     if (!n || n.kind !== "page" && n.visible === false || n.isMask && id !== maskRoot) return "";
-    if (n.effects?.some(e=>e.visible)) throw new Error("SVG export of layer effects is unavailable");
+
     const xf = n.kind === "page" ? parent : multiply(parent,layerTransform(n));
     let attrs = this.settings.svgIdAttribute ? attr("id",this.layerId(n.name)) : "";
-    if ((n.opacity ?? 1) < .999) attrs += attr("opacity",num(n.opacity!));
     const blend = n.kind === "page" ? n.blend ?? "passThrough" : layerBlend(n);
-    const style = svgBlend(blend) || (blend === "normal" && !isLeaf(n) && n.kind !== "booleanOp" && n.children.length ? ' style="isolation:isolate"' : "");
-    attrs += style;
-    const isolate = !!style || (n.opacity ?? 1) < .999 || isLeaf(n) || n.kind === "booleanOp" || !n.children.length;
+    const active = n.effects?.some(e=>e.visible);
+    let grains="", backdrop="", behind="", filter="";
+    if (active && n.kind!=="page") {
+      const hasImages=n.effects?.some(e=>e.visible && e.type!=="dropShadow" && (e.type!=="layerBlur" || e.blurType==="progressive"));
+      if (hasImages) {
+        const images=await import("./svg-effect-images");
+        if (images.rasterWhole(this.doc,n)) {
+          const rendered=await images.wholeEffectImage(this.doc,n,this.origin,this.depth);
+          if (rendered) {
+            const opacity=(n.opacity ?? 1)<.999 ? attr("opacity",num(n.opacity!)) : "";
+            backdrop=await images.backdropImage(this.doc,n,this.roots,this.origin,opacity);
+            return '<g'+attrs+svgBlend(blend)+refAttr("clip-path",inherited)+'>'+backdrop+rendered+'</g>';
+          }
+        }
+        grains=await images.grainImages(this.doc,n,this.origin,this.depth);
+        backdrop=await images.backdropImage(this.doc,n,this.roots,this.origin);
+      }
+      ({behind,filter}=this.shadows.outer(n,xf,inherited));
+    }
+    if ((n.opacity ?? 1) < .999) attrs += attr("opacity",num(n.opacity!));
+    const style = svgBlend(blend) || (grains || blend === "normal" && !isLeaf(n) && n.kind !== "booleanOp" && n.children.length ? ' style="isolation:isolate"' : "");
+    attrs += style+filter;
+    const isolate = active || !!style || (n.opacity ?? 1) < .999 || isLeaf(n) || n.kind === "booleanOp" || !n.children.length;
     if (isolate) attrs += refAttr("clip-path",inherited);
     const clip = isolate ? undefined : inherited;
-    const path = outline(this.doc,n), body: string[] = [];
+    const path = outline(this.doc,n), body: string[] = [backdrop];
     const live = n.kind === "text" && this.settings.svgOutlineText === false && !n.text.path;
     const styledGlyphs = n.kind === "text" && !live ? glyphPaintPaths(n) : undefined;
     if (live) {
@@ -195,6 +268,11 @@ class SvgWriter {
       }
     } else if (path && n.kind !== "page" && isClosedShape(n)) {
       body.push(clipElement(await this.paths(path,xf,rectanglePaints(n),n.width,n.height,n.kind === "booleanOp" ? "evenodd" : "nonzero"),clip));
+    }
+    if (path && active && n.kind !== "page") {
+      const even=n.kind==="booleanOp" || n.kind==="vector" && n.network.regions.some(region=>region.winding==="evenOdd");
+      for (const e of n.effects ?? []) if (e.visible && e.type==="innerShadow")
+        body.push(this.shadows.inner(e,{path,rule:even ? "evenodd" : "nonzero"},xf));
     }
     if (!isLeaf(n) && n.kind !== "booleanOp" && n.children.length) {
       let kidClip = clip;
@@ -227,15 +305,16 @@ class SvgWriter {
       }
     }
     if (n.kind !== "page" && hasVisibleStroke(n)) body.push(clipElement(await this.strokes(n,xf),clip));
-    return '<g'+attrs+'>'+body.join("")+'</g>';
+    return behind+'<g'+attrs+'>'+body.join("")+grains+'</g>';
   }
 }
 
 export async function renderSvgExport(doc:Document, selection:readonly string[], p:Record<string,unknown>, saved?:ExportSetting) {
   const setting = saved ?? fileExportSetting({...p,format:"svg"});
+  doc=setDocumentProfile(doc,"srgb",true);
   if (!documentTextReady(doc)) await prepareDocumentText(doc);
   const {area,drawn} = exportRegion(doc,selection,p,roots=>checkVectorDepth(doc,roots));
-  const origin: Affine = [1,0,0,1,-area.x,-area.y], writer = new SvgWriter(doc,setting);
+  const origin: Affine = [1,0,0,1,-area.x,-area.y], writer = new SvgWriter(doc,setting,drawn,origin);
   const nodes: string[] = [];
   for (const id of drawn) {
     const parent = doc.nodes[id]?.parent;

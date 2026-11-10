@@ -27,3 +27,9 @@ export async function replaySvg(commands: readonly (readonly unknown[])[]) {
   const file = await engine.exportGraphic({...commands.at(-1)![1] as Record<string,unknown>,format:"svg"});
   return file.blob.text();
 }
+
+export async function exportDeepPattern(outer:number,inner:number) {
+  const {deepPatternDocument}=await import("./svg-depth");
+  const {renderSvgExport}=await import("../../src/engine/export-svg");
+  return (await renderSvgExport(deepPatternDocument(outer,inner,true),["2"],{})).text();
+}

@@ -7,10 +7,10 @@ import type { Rectangle } from "./geometry";
 import { worldTransform } from "./hierarchy";
 import { bandCaps, defaultStroke, hasVisibleStroke, strokeMaxWeight, type StrokeCap } from "./stroke";
 
-function expand(box:Rectangle, x:number, y=x, dx=0, dy=0):Rectangle {
+export function expand(box:Rectangle, x:number, y=x, dx=0, dy=0):Rectangle {
   return {x:box.x-x+dx,y:box.y-y+dy,width:box.width+2*x,height:box.height+2*y};
 }
-function union(a:Rectangle | undefined,b:Rectangle) {
+export function union(a:Rectangle | undefined,b:Rectangle) {
   if (!a) return b;
   const x=Math.min(a.x,b.x), y=Math.min(a.y,b.y);
   return {x,y,width:Math.max(a.x+a.width,b.x+b.width)-x,height:Math.max(a.y+a.height,b.y+b.height)-y};

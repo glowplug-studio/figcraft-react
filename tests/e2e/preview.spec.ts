@@ -6762,7 +6762,7 @@ test("layer clipboard crosses file tabs, respects newer system text and pastes a
   const layers = page.getByRole("region", { name: "Layers", exact: true });
   await canvas.focus();
   await page.keyboard.press("ControlOrMeta+c");
-  await expect.poll(() => page.evaluate(() => navigator.clipboard.readText())).toContain("figcraft://clipboard/");
+  await expect.poll(() => page.evaluate(() => navigator.clipboard.readText())).toContain("<svg width=");
   await bar.getByText("File", { exact: true }).click();
   await bar.getByRole("button", { name: "New file", exact: true }).click();
   await canvas.focus();
@@ -6937,4 +6937,33 @@ test("the signed-in editor downloads editable SVG paths and saved SVG assets", a
   const source=await readFile((await (await pending).path())!,"utf8");
   expect(source).toContain('<g id="Design_&amp;_Art"><path');
   expect(source).not.toContain("<image");
+});
+
+test("Copy as SVG and PNG writes the selected art through menus and the two-times PNG shortcut",async ({page,context})=>{
+  await login(page);
+  await context.grantPermissions(["clipboard-read","clipboard-write"],{origin:new URL(page.url()).origin});
+  await createNamedRectangle(page,"Clipboard art",10,15,40,20);
+  const bar=page.locator(".figcraft-document-bar"), canvas=page.getByLabel("Design canvas",{exact:true});
+  await bar.getByText("Edit",{exact:true}).click();
+  await bar.getByText("Copy as",{exact:true}).click();
+  await bar.getByRole("button",{name:"Copy as SVG",exact:true}).click();
+  await expect.poll(()=>page.evaluate(()=>navigator.clipboard.readText())).toContain('<svg width="40" height="20"');
+  async function pngSize() {
+    return page.evaluate(async()=>{
+      const item=(await navigator.clipboard.read()).find(i=>i.types.includes("image/png"));
+      if (!item) return [];
+      const bitmap=await createImageBitmap(await item.getType("image/png"));
+      try {return [bitmap.width,bitmap.height];} finally {bitmap.close();}
+    });
+  }
+  const at=await canvasPoint(page,25,22);
+  await page.mouse.click(at.x,at.y,{button:"right"});
+  const menu=page.getByRole("group",{name:"Canvas actions",exact:true});
+  await menu.getByText("Copy as",{exact:true}).click();
+  await menu.getByRole("button",{name:"Copy as PNG",exact:true}).click();
+  await expect.poll(pngSize).toEqual([80,40]);
+  await page.evaluate(()=>navigator.clipboard.writeText("before shortcut"));
+  await canvas.focus();
+  await page.keyboard.press("ControlOrMeta+Shift+c");
+  await expect.poll(pngSize).toEqual([80,40]);
 });
