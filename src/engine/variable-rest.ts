@@ -17,7 +17,7 @@ function entries(value:unknown,max:number) {
   return record(value) ? Object.keys(value).sort(compareScalarKeys).slice(0,max).map(k=>[k,value[k]] as const) : [];
 }
 const kinds=new Map<string,VariableType>([["COLOR","color"],["FLOAT","number"],["STRING","string"],["BOOLEAN","boolean"]]);
-function readValue(kind:VariableType,raw:unknown):VariableValue|undefined {
+export function readRestVariableValue(kind:VariableType,raw:unknown):VariableValue|undefined {
   if (record(raw) && raw.type==="VARIABLE_ALIAS" && typeof raw.id==="string" && raw.id) return {type:"alias",value:clip(raw.id)};
   switch (kind) {
     case "number": if (typeof raw==="number" && Number.isFinite(raw)) return {type:kind,value:Math.max(-1e9,Math.min(1e9,raw))}; break;
@@ -79,7 +79,7 @@ export function readRestVariables(input:unknown, prior?:Variables) {
     const values:Record<string,VariableValue>=Object.create(null);
     let unreadable=false;
     for (const [mid,raw] of entries(v.valuesByMode,1000)) if (modes.has(mid)) {
-      const val=readValue(kind,raw);
+      const val=readRestVariableValue(kind,raw);
       if (val) values[mid]=Object.freeze(val);else unreadable=true;
     }
     if (unreadable) warn("variable values that don't match their type (or composed colours) were skipped");

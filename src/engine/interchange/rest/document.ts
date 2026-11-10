@@ -1,3 +1,4 @@
+import { ImportPrototypes } from "./prototype";
 import {restoreOutlinedStroke} from "./outlined-stroke";
 import { unfoldRestAlpha } from "./paint-bindings";
 import { refreshBoundStyles } from "../../style-application";
@@ -18,7 +19,7 @@ import { vectorFields } from "./vector";
 import { restProperties } from "./properties";
 import { ImportWarnings, children, clamp, clipped, entries, numeric, object, restColour, string, type JsonObject } from "./values";
 
-const simpleKinds=new Map([["RECTANGLE","rectangle"],["FRAME","frame"],["GROUP","group"],["LINE","line"],["COMPONENT","component"],["COMPONENT_SET","componentSet"]]);
+const simpleKinds=new Map([["SLICE","slice"],["RECTANGLE","rectangle"],["FRAME","frame"],["GROUP","group"],["LINE","line"],["COMPONENT","component"],["COMPONENT_SET","componentSet"]]);
 function shape(n:JsonObject,warnings:ImportWarnings,images:ImportImages):Record<string,unknown>|undefined {
   const ty=string(n.type);
   if (!ty) {warnings.add("layers without a type were skipped");return;}
@@ -44,7 +45,7 @@ function shape(n:JsonObject,warnings:ImportWarnings,images:ImportImages):Record<
     case "INSTANCE": case "SLOT": return {type:"frame"};
     case "VECTOR": return {type:"vector"};
     case "TEXT": return {type:"text",...textFields(n,images,warnings)};
-    case "SECTION": case "SLICE": throw new Error("REST "+ty+" layer import is not supported yet");
+    case "SECTION": throw new Error("REST "+ty+" layer import is not supported yet");
     default: warnings.add(clipped(ty)+" layers are not supported and were skipped");return;
   }
 }
@@ -80,6 +81,7 @@ export async function importRestDocument(input:unknown,checkCurrent:()=>void=()=
   let next=2, count=0, visited=0, lastYield=performance.now(), loose:string|undefined;
   const components=new Map<string,string>(), sets=new Map<string,string>();
   const importedIds=new Map<string,string>();
+  const prototypes=new ImportPrototypes(importedIds,warnings);
   const componentImport=new ImportComponents(base,importedIds,warnings);
   for (const e of roots) {
     for (const [field,map] of [["components",components],["componentSets",sets]] as const) {
@@ -91,6 +93,7 @@ export async function importRestDocument(input:unknown,checkCurrent:()=>void=()=
     const id=String(next++);
     base.nodes[id]=readNode(id,{type:"page",id:wireId(id),name:clipped(string(n.name) ?? fallback),width:0,height:0,
       var_modes:variables.modes(n),background:restColour(n.backgroundColor) ?? "#f5f5f5"});
+    prototypes.page(id,n);
     pages.push(id);
     childLists.set(id,[]);
     return id;
@@ -120,6 +123,7 @@ export async function importRestDocument(input:unknown,checkCurrent:()=>void=()=
       const description=(type==="component" ? components : sets).get(restId ?? "") ?? "";
       const props=restProperties(n,type,images,warnings);
       componentImport.register(id,n);
+      prototypes.layer(id,n);
       const layout=isFrameLikeKind(type) ? restLayout(n) : undefined;
       const grids=isFrameLikeKind(type) ? layoutGrids(n.layoutGrids) : [];
       const bindings=variables.fields(n,type,!!layout,props,grids);
@@ -166,8 +170,9 @@ export async function importRestDocument(input:unknown,checkCurrent:()=>void=()=
     base.nodes["1"]=readNode("1",{id:wireId("1"),width:0,height:0,type:"page",name:(initial.nodes["1"] as PageNode).name});
   }
   styles.takeBindings(base);
-  styles.settleText(base);
   componentImport.finish();
+  prototypes.finish(base,variables.values);
+  styles.settleText(base);
   images.finish(warnings);
   const shared=styles.finish();
   const document:Document=Object.freeze({...initial,pages:Object.freeze(pages),currentPage:pages[0],nodes:Object.freeze(base.nodes),

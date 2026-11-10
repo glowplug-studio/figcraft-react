@@ -13,7 +13,7 @@ import { rebaseOwnedInstance } from "./component-sync";
 import { isLeaf, type Document, type InstanceNode, type LayerNode, type NodeId } from "./document";
 import { ancestors, HierarchyDraft, pageForNode, subtreeIds } from "./hierarchy";
 import { inspectedId, parseBoolean, parseNodeId, parseNumber, parseString } from "./parameters";
-import { remapPatternSources } from "./pattern-sources";
+import { remapLayerReferences } from "./pattern-sources";
 
 export const instanceCommandSpecs = {
   ...definitionCommands,
@@ -134,7 +134,7 @@ function restoreMain(draft: HierarchyDraft, instance: InstanceNode, nextId: bigi
   }
   draft.remove(instance.id);
   for (const layer of layers) {
-    const restored = remapPatternSources(layer,source=>ids.get(source));
+    const restored = remapLayerReferences(layer,source=>ids.get(source));
     const id = ids.get(layer.id)!;
     const root = id === main;
     draft.insert({...restored,id,...(!isLeaf(restored) && {children:Object.freeze([])})},root ? parent.id : ids.get(layer.parent)!,root ? index : undefined);

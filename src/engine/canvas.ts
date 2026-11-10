@@ -30,7 +30,7 @@ import { renderColour } from "./colour";
 import { EditorEngine } from "./editor";
 import { type Point, type Rectangle } from "./geometry";
 import { multiply, transformBounds, transformPoint, type Affine } from "./affine";
-import { pageForNode, worldTransform } from "./hierarchy";
+import { pageForNode, subtreeIds, worldTransform } from "./hierarchy";
 import { boundsOf, pageToScreen, screenToPage, scrollView, viewOrigin, zoomAt, type Viewport } from "./viewport";
 import { SmartHandles } from "./smart-handles";
 import { MoveInteraction } from "./move-interaction";
@@ -251,6 +251,33 @@ export function renderDocument(context: CanvasRenderingContext2D, document: Docu
   drawDocumentFrame(context, document, width, height, selection, preview, view, editingId, invalidate);
 }
 
+const sliceGuides = new WeakMap<Document, readonly string[]>();
+
+function drawSliceGuides(ctx: CanvasRenderingContext2D, doc: Document, zoom: number) {
+  let ids = sliceGuides.get(doc);
+  if (!ids) {
+    ids = subtreeIds(doc, doc.currentPage).filter(id => {
+      const node = doc.nodes[id];
+      return node.kind === "slice" && node.visible !== false;
+    });
+    sliceGuides.set(doc, ids);
+  }
+  if (!ids.length) return;
+  ctx.save();
+  ctx.lineWidth = 1 / zoom;
+  ctx.setLineDash([4 / zoom, 3 / zoom]);
+  ctx.strokeStyle = "#6e6e6e";
+  for (const id of ids) {
+    const corners = originBoxPoints(doc, [id])!;
+    ctx.beginPath();
+    ctx.moveTo(corners[0].x, corners[0].y);
+    for (let i = 1; i < 4; i++) ctx.lineTo(corners[i].x, corners[i].y);
+    ctx.closePath();
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
 function drawDocumentFrame(context: CanvasRenderingContext2D, document: Document, width: number, height: number, selection: readonly string[], preview?: Rectangle, view?: Viewport, editingId?: string, invalidate?: () => void, drawImageOverlay?: (images?: CanvasImages) => void): void {
   beginGlassFrame();
   let images = imageCaches.get(context);
@@ -317,6 +344,7 @@ function drawDocumentFrame(context: CanvasRenderingContext2D, document: Document
   }
   context.save();
   context.scale(zoom, zoom); context.translate(-origin.x, -origin.y);
+  if (view && view.slices !== false) drawSliceGuides(context, document, zoom);
   if (view && view.layoutGrids !== false) drawLayoutGuides(context, document, {...origin, width:width/zoom, height:height/zoom}, zoom);
   context.strokeStyle = canvasAccent(document);
   context.lineWidth = 1 / zoom;
@@ -516,11 +544,11 @@ export async function renderAssetThumbnail(canvas: HTMLCanvasElement, doc: Docum
   } finally { scratch.width = scratch.height = 0; }
 }
 
-export async function renderRasterExport(doc: Document, selection: readonly string[], params: Record<string, unknown>, format: "png" | "jpg" | "webp", savedSize?: import("./export-area").ExportSize) {
+export async function renderRasterExport(doc: Document, selection: readonly string[], params: Record<string, unknown>, format: "png" | "jpg" | "webp", savedSize?: import("./export-area").ExportSize, drawn?: readonly string[]) {
   const plan = rasterExportPlan(doc, selection, params, savedSize);
   const scratch = globalThis.document.createElement("canvas");
   try {
-    const rendered = await renderAreaPixels(scratch, doc, plan.area, plan.scale, plan.drawn, undefined, 1e-6, undefined, plan.profile, format === "jpg");
+    const rendered = await renderAreaPixels(scratch, doc, plan.area, plan.scale, drawn ?? plan.drawn, undefined, 1e-6, undefined, plan.profile, format === "jpg");
     if (!rendered) throw new Error("Could not render the export area");
     const mime = format === "jpg" ? "image/jpeg" : "image/" + format;
     const blob = format === "jpg"

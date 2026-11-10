@@ -325,6 +325,7 @@ export function DocumentEditor({ identity, capabilities, engine: suppliedEngine,
     if (event.key === "Delete" || event.key === "Backspace") command = "edit.delete";
     if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "z") command = event.shiftKey ? "edit.redo" : "edit.undo";
     else if (!event.metaKey && !event.ctrlKey && !event.altKey) {
+      if (event.key.toLowerCase() === "s" && !event.shiftKey) command = "tool.slice";
       if (event.key.toLowerCase() === "o") command = "tool.ellipse";
       if (event.key.toLowerCase() === "l") command = event.shiftKey ? "tool.arrow" : "tool.line";
       if (event.key.toLowerCase() === "t") command = "tool.text";
@@ -423,7 +424,7 @@ export function DocumentEditor({ identity, capabilities, engine: suppliedEngine,
     const type=format==="png" ? "image/png" : "text/plain";
     setError("");
     void writeClipboard(type,async()=>{
-      const {blob}=await engine.exportGraphic({format,colorProfile:"srgb",scale:format==="png" ? 2 : 1});
+      const {blob}=format === "png" ? await engine.exportRaster({format,colorProfile:"srgb",scale:2}, true) : await engine.exportGraphic({format});
       return format==="png" ? blob : blob.slice(0,blob.size,type);
     }).catch(error=>setError(error instanceof Error ? error.message : "Could not copy artwork"));
   }
@@ -675,10 +676,10 @@ export function DocumentEditor({ identity, capabilities, engine: suppliedEngine,
           if (file) void place(file);
         }} />
         <button disabled={(!editable && !snapshot.previewVersionId) || !signedIn || busy} onClick={() => void save()}>Save as</button>
-        <input ref={importInput} aria-label="Import into current document" type="file" accept=".figcraft,.fig,.jam,.json,.svg,.svgz,.png,.jpg,.jpeg,.webp,.gif,.bmp,.tif,.tiff" hidden onChange={event=>{
+        <input ref={importInput} aria-label="Import into current document" type="file" accept=".figcraft,.fig,.jam,.sketch,.json,.svg,.svgz,.png,.jpg,.jpeg,.webp,.gif,.bmp,.tif,.tiff" hidden onChange={event=>{
           const file=event.currentTarget.files?.[0];event.currentTarget.value="";if (file) void drop([file]);
         }}/>
-        <input ref={fileInput} aria-label="Open Figcraft file" type="file" accept=".figcraft,.fig,.jam,.json,.svg,.svgz,.png,.jpg,.jpeg,.webp,.gif,.bmp,.tif,.tiff" hidden onChange={event => {
+        <input ref={fileInput} aria-label="Open Figcraft file" type="file" accept=".figcraft,.fig,.jam,.sketch,.json,.svg,.svgz,.png,.jpg,.jpeg,.webp,.gif,.bmp,.tif,.tiff" hidden onChange={event => {
           const file = event.currentTarget.files?.[0]; event.currentTarget.value = "";
           if (!file) return;
           requestOpen(file);
@@ -832,6 +833,7 @@ export function DocumentEditor({ identity, capabilities, engine: suppliedEngine,
             <button disabled={!editable} aria-pressed={snapshot.tool === "ellipse"} onClick={() => { dispatch("tool.ellipse"); canvas.current?.focus(); }}>Ellipse</button>
             <button disabled={!editable} aria-pressed={snapshot.tool === "polygon"} onClick={() => { dispatch("tool.polygon"); canvas.current?.focus(); }}>Polygon</button>
             <button disabled={!editable} aria-pressed={snapshot.tool === "star"} onClick={() => { dispatch("tool.star"); canvas.current?.focus(); }}>Star</button>
+            <button disabled={!editable} aria-pressed={snapshot.tool === "slice"} onClick={() => { dispatch("tool.slice"); canvas.current?.focus(); }}>Slice</button>
             <button disabled={!editable} aria-pressed={snapshot.tool === "line"} onClick={() => { dispatch("tool.line"); canvas.current?.focus(); }}>Line</button>
             <button disabled={!editable} aria-pressed={snapshot.tool === "arrow"} onClick={() => { dispatch("tool.arrow"); canvas.current?.focus(); }}>Arrow</button>
             <button disabled={!editable} aria-pressed={snapshot.tool === "rectangle"} onClick={() => { dispatch("tool.rectangle"); canvas.current?.focus(); }}>Rectangle</button>

@@ -1,3 +1,4 @@
+import { remapInteractions } from "./prototype-data";
 import { pageOf, type Document, type LayerNode, type NodeId } from "./document";
 import { ancestors } from "./hierarchy";
 import type { Paint } from "./solid-paint";
@@ -21,7 +22,7 @@ export function patternSources(document: Document, targets: readonly NodeId[]): 
 }
 
 /** Rewrite only references whose source was included in the duplication. */
-export function remapPatternSources(node: LayerNode, lookup: (id: NodeId) => NodeId | undefined): LayerNode {
+function remapPatternSources(node: LayerNode, lookup: (id: NodeId) => NodeId | undefined): LayerNode {
   function remap(stack: readonly Paint[] | undefined) {
     if (!stack?.some(p => p.type === "pattern" && lookup(p.source) !== undefined)) return stack;
     return Object.freeze(stack.map(p => {
@@ -38,4 +39,10 @@ export function remapPatternSources(node: LayerNode, lookup: (id: NodeId) => Nod
   });
   return regions.some((r,i) => r !== node.network.regions[i])
     ? Object.freeze({...node, network:Object.freeze({...node.network, regions:Object.freeze(regions)})}) : node;
+}
+
+/** References carried with a copied subtree keep external targets and adopt copied target IDs. */
+export function remapLayerReferences(node: LayerNode, lookup: (id: NodeId) => NodeId | undefined): LayerNode {
+  const copy = remapPatternSources(node, lookup);
+  return copy.interactions?.length ? Object.freeze({...copy, interactions:remapInteractions(copy.interactions,lookup)}) : copy;
 }

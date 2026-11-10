@@ -7,7 +7,7 @@ import { isFrameLike, isLeaf, rectanglePaints, withLayerTransform, type Document
 import { ancestors, HierarchyDraft, rootIds, subtreeIds, worldTransform, zSorted } from "./hierarchy";
 import { countLibraryInstances } from "./library-store";
 import { inspectedId, parseNodeId, parseNumber } from "./parameters";
-import { remapPatternSources } from "./pattern-sources";
+import { remapLayerReferences } from "./pattern-sources";
 import { validateChangedGeometry } from "./rotation";
 import { boundsOf, viewOrigin, type Viewport } from "./viewport";
 
@@ -80,7 +80,7 @@ function pasteInto(document: Document, parent: string, at: Point | undefined, cl
     for (const old of ids) {
       const node = clip.source.nodes[old];
       if (node.kind === "page") throw new Error("Pages cannot be pasted");
-      let copy = remapPatternSources(node, key => own.get(key));
+      let copy = remapLayerReferences(node, key => own.get(key));
       if (copy.kind === "instance" && own.has(copy.component)) copy = { ...copy, component: own.get(copy.component)! };
       if (old === root) copy = withLayerTransform(copy, transform);
       const id = own.get(old)!;

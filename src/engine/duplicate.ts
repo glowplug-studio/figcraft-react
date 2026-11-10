@@ -1,4 +1,4 @@
-import { remapPatternSources } from "./pattern-sources";
+import { remapLayerReferences } from "./pattern-sources";
 import { insertInstance } from "./component-instances";
 import { isFrameLike, isLeaf, layerTransform } from "./document";
 import type { Document, NodeId } from "./document";
@@ -91,7 +91,7 @@ export function duplicateInto(draft: HierarchyDraft, sourceId: NodeId, parent: N
   for (const id of map.values()) {
     const node = draft.nodes[id];
     if (node.kind === "page") continue;
-    const copy = remapPatternSources(node,source=>map.get(source));
+    const copy = remapLayerReferences(node,source=>map.get(source));
     if (copy !== node) draft.set(copy);
   }
   return {id:map.get(sourceId)!,map,nextId};

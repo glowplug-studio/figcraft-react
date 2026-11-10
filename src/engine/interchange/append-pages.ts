@@ -1,9 +1,10 @@
+import { remapFlows } from "../prototype-data";
 import { isLeaf, newDocument, type Document, type DocumentNode, type LayerNode, type PageNode } from "../document";
 import { subtreeIds } from "../hierarchy";
 import { localiseComponent } from "../library-components";
 import type { ImportedComponent } from "../library-store";
 import { U64_MAX } from "../native-values";
-import { remapPatternSources } from "../pattern-sources";
+import { remapLayerReferences } from "../pattern-sources";
 import type { ImportedRecord } from "../published-library";
 import { appendedAssets } from "./append-assets";
 
@@ -60,13 +61,13 @@ export function appendPages(doc:Document,other:Document,nextId:bigint,client=0) 
       const layer:LayerNode={...copy,id:ids.get(old)!,parent:old===root ? parent : ids.get(node.parent)!,
         ...(!isLeaf(node) && {children:node.children.map(id=>ids.get(id)!)}),
         ...(node.source && ids.has(node.source) && {source:ids.get(node.source)})};
-      nodes[layer.id]=remapPatternSources(layer,id=>ids.get(id));
+      nodes[layer.id]=remapLayerReferences(layer,id=>ids.get(id));
     }
   }
   for (const id of other.pages) {
     const p=other.nodes[id] as PageNode, target=ids.get(id)!;
     nodes[target]={id:target,kind:"page",name:p.name,parent:null,children:p.children.map(ch=>ids.get(ch)!),background:p.background,
-      ...(p.backgroundColor && {backgroundColor:p.backgroundColor}),...(p.prototypeBackground && {prototypeBackground:p.prototypeBackground})};
+      ...(p.flows?.length && {flows:remapFlows(p.flows,id=>ids.get(id))}),...(p.backgroundColor && {backgroundColor:p.backgroundColor}),...(p.prototypeBackground && {prototypeBackground:p.prototypeBackground})};
     for (const root of p.children) copyTree(root,target);
   }
   if (targetStore && (cached.length || fresh.length)) {

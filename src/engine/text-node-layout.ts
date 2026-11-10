@@ -20,11 +20,16 @@ export async function askForLocalFonts() {
 }
 
 let fonts: FontLibrary | undefined;
+const pendingFaces=new Set<Promise<void>>();
 let loading: Promise<void> | undefined;
 
 async function loadCatalogue() {
   const { readBundledFonts } = await import("#figcraft-font-assets");
-  const library:FontLibrary = new FontLibrary(font=>{void localFonts.load(library,font);});
+  const library:FontLibrary = new FontLibrary(font=>{
+    const read=localFonts.load(library,font);
+    pendingFaces.add(read);
+    void read.finally(()=>pendingFaces.delete(read));
+  });
   for (const bytes of await readBundledFonts()) {
     for (const face of await readFontFaces(bytes)) library.add(face);
   }
@@ -37,6 +42,13 @@ export async function prepareText(characters = "") {
   await Promise.all([loading, prepareWordSegmenter(characters)]);
 }
 
+export async function prepareImportFonts() {
+  await prepareText();
+  return fonts!;
+}
+export async function waitForFontReads() {
+  if (pendingFaces.size) await Promise.all([...pendingFaces]);
+}
 export const hasFontFamily = (family:string) => fonts?.hasFamily(family) ?? false;
 export const localOnlyFont = (family:string) => fonts?.localOnly(family) ?? false;
 export const fontFamilies = () => fonts?.families() ?? [];

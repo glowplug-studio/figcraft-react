@@ -56,7 +56,7 @@ function alignOffset(align: string, free: number) {
   return align === "center" ? free/2 : align === "max" ? free : 0;
 }
 
-function reflowFrame(draft: HierarchyDraft, frame: FrameLikeNode, depth: number, settled: SettledFrames) {
+export function reflowFrame(draft: HierarchyDraft, frame: FrameLikeNode, depth = 0, settled: SettledFrames = new Map()) {
   if (depth >= 256) return;
   const prior = settled.get(frame.id);
   if (prior && prior[0] === frame.width && prior[1] === frame.height) return;

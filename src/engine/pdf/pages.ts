@@ -33,7 +33,7 @@ export function pdfPages(doc:Document,selection:readonly string[],params:Record<
     const id=parseNodeId(params.id);
     const targets=Array.isArray(params.ids) ? params.ids.map(parseNodeId).filter((id):id is string=>!!id) : id ? [id] : selection;
     const ids=targets.length ? targets : pageOf(doc).children;
-    const own=setting.contentsOnly!==false && !setting.includeBoundingBox;
+    const own=setting.contentsOnly!==false && !setting.includeBoundingBox && !ids.some(id=>doc.nodes[id]?.kind==="slice");
     groups=own && ids.length && ids.every(id=>doc.nodes[id] && isFrameLike(doc.nodes[id])) ? ids.map(id=>[id]) : [drawn];
     if (!own && area.width>0 && area.height>0) explicit=area;
   }

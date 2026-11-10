@@ -20,7 +20,12 @@ export function ViewMenu({ engine, editable, dispatch }: Parameters<typeof ViewC
   const checked = () => engine.getView().proofSrgb === true;
   const proof = useSyncExternalStore(engine.subscribeView, checked, checked);
   const grids = useSyncExternalStore(engine.subscribeView, () => engine.getView().layoutGrids !== false, () => true);
+  const slices = useSyncExternalStore(engine.subscribeView, () => engine.getView().slices !== false, () => true);
   return <details><summary>View</summary>
+    <button type="button" disabled={!editable} aria-pressed={slices} onClick={event=>{
+      event.currentTarget.closest("details")?.removeAttribute("open");
+      dispatch("view.slices");
+    }}>Slices</button>
     <button type="button" disabled={!editable} aria-pressed={grids} onClick={event=>{
       event.currentTarget.closest("details")?.removeAttribute("open");
       dispatch("view.layoutGrids");

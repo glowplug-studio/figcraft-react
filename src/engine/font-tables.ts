@@ -72,3 +72,38 @@ export function fontVariations(table: DataView | undefined, nameOf: (id: number)
   }
   return result();
 }
+
+/** Normal horizontal tracking in an sfnt trak table, with all offsets relative to the table. */
+export function normalFontTrack(table?:DataView):readonly (readonly [number,number])[] {
+  if (!table || table.byteLength<8) return [];
+  const start=table.getUint16(6);
+  if (!start || start+8>table.byteLength) return [];
+  const count=Math.min(64,table.getUint16(start)),sizes=Math.min(256,table.getUint16(start+2));
+  const positions=table.getUint32(start+4);
+  if (positions+sizes*4>table.byteLength) return [];
+  for (let i=0;i<count;i++) {
+    const record=start+8+i*8;
+    if (record+8>table.byteLength) return [];
+    if (table.getInt32(record)!==0) continue;
+    const values=table.getUint16(record+6);
+    if (values+sizes*2>table.byteLength) return [];
+    const track:[number,number][]=[];
+    for (let j=0;j<sizes;j++) {
+      const size=table.getInt32(positions+4*j)/65536;
+      if (j && size<=track[j-1][0]) return [];
+      track.push([size,table.getInt16(values+2*j)]);
+    }
+    return track;
+  }
+  return [];
+}
+
+export function fontTracking(track:ReturnType<typeof normalFontTrack>,size:number,upem:number) {
+  if (!track.length || !Number.isFinite(size) || upem<=0) return 0;
+  let units=track[0][1];
+  for (let i=1;i<track.length && size>track[i-1][0];i++) {
+    const [x,a]=track[i-1],[y,b]=track[i];
+    units=size>=y ? b : a+(b-a)*(size-x)/(y-x);
+  }
+  return units*size/upem;
+}

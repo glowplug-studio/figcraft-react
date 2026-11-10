@@ -65,7 +65,7 @@ import { type FileBranch, readVersionDocument, decodePublishedLibrary, decodeFig
 import { executePage, listPages, pageSpecs } from "./pages";
 import { executeSelection, layersAt, selectionSpecs } from "./selection";
 import { setRectangleProperties, setPageGeometryFields } from "./properties";
-import { HierarchyDraft, pageForNode, worldTransform } from "./hierarchy";
+import { HierarchyDraft, pageForNode, worldTransform, zSorted } from "./hierarchy";
 import { applyBuilder } from "./shape-builder-commands";
 import { builderArrangement, builderTargets, readBuilderRegions } from "./shape-builder";
 import { copyLayerProperties, pasteLayerProperties } from "./property-clipboard";
@@ -195,6 +195,7 @@ export const commandSpecs = Object.freeze({
   "node.create": { label: "Create layer", undo: true },
   "vector.create": { label: "Vector", undo: true },
   "tool.ellipse": { label: "Ellipse", undo: false },
+  "tool.slice": { label: "Slice", undo: false },
   "tool.rectangle": { label: "Rectangle", undo: false },
   "tool.move": { label: "Move", undo: false },
   "tool.scale": { label: "Scale", undo: false },
@@ -1008,7 +1009,7 @@ export class EditorEngine {
   }
   subscribeView = (listener: () => void): (() => void) => { this.#viewListeners.add(listener); return () => { this.#viewListeners.delete(listener); }; };
   updateView(view: Viewport): void {
-    if ([view.cx, view.cy, view.zoom, view.vw, view.vh].some(value => !Number.isFinite(value)) || [view.snapObjects, view.snapPixel, view.proofSrgb, view.layoutGrids].some(value => value !== undefined && typeof value !== "boolean") || view.zoom < 0.02 || view.zoom > 256 || view.vw <= 0 || view.vh <= 0) throw new Error("Invalid viewport");
+    if ([view.cx, view.cy, view.zoom, view.vw, view.vh].some(value => !Number.isFinite(value)) || [view.snapObjects, view.snapPixel, view.proofSrgb, view.slices, view.layoutGrids].some(value => value !== undefined && typeof value !== "boolean") || view.zoom < 0.02 || view.zoom > 256 || view.vw <= 0 || view.vh <= 0) throw new Error("Invalid viewport");
     if ((Object.keys(view) as (keyof Viewport)[]).every(key => view[key] === this.#view[key])) return;
     this.#view = Object.freeze({ ...view }); this.#viewListeners.forEach(listener => listener());
   }
@@ -1639,7 +1640,7 @@ export class EditorEngine {
     if (command.startsWith("file.") || command === "image.place" || command === "image.replace") throw new Error(`${command} requires executeAsync`);
     if (command === "text.create" || command === "vector.create" || command === "shape.line" || command === "shape.arrow" || command === "shape.polygon" || command === "shape.star" || command === "shape.ellipse" || command === "shape.rectangle" || command === "frame.create" || command === "node.create") return this.#create(command, p);
     if (Object.keys(p).length) throw new Error(`${command} takes no parameters`);
-    if (command === "tool.text" || command==="tool.textOnPath" || command === "tool.shapeBuilder" || command === "tool.pencil" || command === "tool.pen" || command === "tool.line" || command === "tool.arrow" || command === "tool.polygon" || command === "tool.star" || command === "tool.ellipse" || command === "tool.rectangle" || command === "tool.move" || command === "tool.scale") {
+    if (command === "tool.text" || command==="tool.textOnPath" || command === "tool.shapeBuilder" || command === "tool.pencil" || command === "tool.pen" || command === "tool.line" || command === "tool.arrow" || command === "tool.polygon" || command === "tool.star" || command === "tool.ellipse" || command === "tool.slice" || command === "tool.rectangle" || command === "tool.move" || command === "tool.scale") {
       const end = this.#vectorEdit && command !== "tool.move" && command !== "tool.scale" ? executeVectorEdit("vector.edit.end", this.#snapshot.document, this.#snapshot.selection, this.#vectorEdit, {}) : undefined;
       if (end) this.#vectorEdit = undefined;
       this.#publish({ ...(end ? { document: end.document, selection: end.selection } : {}), tool: command.slice(5) as EditorSnapshot["tool"] });
@@ -1767,7 +1768,7 @@ export class EditorEngine {
     this.#assertExportAccess(opening);
     return { format:"svg" as const, blob };
   }
-  async exportRaster(params: Record<string, unknown> = {}) {
+  async exportRaster(params: Record<string, unknown> = {}, clipboard = false) {
     if (!this.#hostEditable) throw new Error("Sign in to export this document");
     if (params.path != null) throw new Error("Use a browser download to choose the export destination");
     const requested = parseString(params.format)?.toLowerCase() ?? "png";
@@ -1775,7 +1776,7 @@ export class EditorEngine {
     if (format !== "png" && format !== "jpg" && format !== "webp") throw new Error("Choose PNG, JPG or WebP for raster export");
     const opening = this.#openSequence, { document, selection } = this.#snapshot;
     const { renderRasterExport } = await import("./canvas");
-    const blob = await renderRasterExport(document, selection, params, format);
+    const blob = await renderRasterExport(document, selection, params, format, undefined, clipboard ? zSorted(document, selection) : undefined);
     this.#assertExportAccess(opening);
     return { format, blob };
   }
@@ -1886,7 +1887,7 @@ export class EditorEngine {
     const raster = command === "file.open" && typeof p.name === "string" && rasterFilename.test(p.name);
     const svg = (importing || command === "file.open") && typeof p.name === "string" && /\.svgz?$/i.test(p.name);
     const variables=importing || command==="file.open" ? fileVariablesParam(p.variables) : undefined;
-    const pages=importing && typeof p.name==="string" && /\.(?:figcraft|json|fig|jam)$/i.test(p.name);
+    const pages=importing && typeof p.name==="string" && /\.(?:figcraft|json|fig|jam|sketch)$/i.test(p.name);
     if (source && !pages && (placing || replacing || raster || svg) && source.file.size > MAX_IMAGE_BYTES) throw new Error("Image exceeds the 256 MiB external input limit");
     const allowed = importing ? ["name","data","x","y","center","variables"] : replacing ? ["data", "ids", "id", "target", "index"] : placing ? ["data", "name", "target", "mode", "width", "height", "parent", "x", "y"] : command==="file.open" ? ["data","name","variables"] : ["data", "name"];
     if (Object.keys(p).some(key => !allowed.includes(key)) || !source && typeof p.data !== "string" || (!importing && p.name !== undefined && typeof p.name !== "string")) throw new Error("File import requires base64 data and supported parameters");

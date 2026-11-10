@@ -1,6 +1,7 @@
 import { sameComponentValue } from "../component-groups";
 import type { Document, LayerNode } from "../document";
 import { remapVariableReferences } from "../library-variables";
+import type { PrototypeAction, PrototypeExpression } from "../prototype-data";
 import { U64_MAX } from "../native-values";
 import type { SharedStyle, StyleRefs } from "../shared-styles";
 import type { TextStyle } from "../text-style";
@@ -94,9 +95,26 @@ export function appendedAssets(doc:Document,other:Document,client:number,allocat
     values:Object.fromEntries(Object.entries(v.values).map(([m,value])=>[mode(v.collection,m),remapVariableReferences(value,vars)])),
     ...(v.extends && {extends:vars(v.extends)}),...(v.overrides && {overrides:v.overrides.map(m=>mode(v.collection,m))})}));
   const style=(s:TextStyle)=>s.styleId && ids.styles.has(s.styleId) ? {...s,styleId:ids.styles.get(s.styleId)!} : s;
+  const variableCollections=new Map(incoming.variables.map(v=>[v.id,v.collection]));
+  function expression(e:PrototypeExpression,depth=0):PrototypeExpression {
+    if ("value" in e) return {value:remapVariableReferences(e.value,vars)};
+    if ("op" in e) return depth<32 ? {op:{...e.op,args:e.op.args.map(x=>expression(x,depth+1))}} : e;
+    if ("mode" in e) return {mode:{collection:rename("collections",e.mode.collection)}};
+    const {variable,mode:id}=e.inMode, collection=variableCollections.get(variable);
+    return {inMode:{variable:vars(variable),mode:collection ? mode(collection,id) : id}};
+  }
+  function action(a:PrototypeAction,depth:number):PrototypeAction {
+    if (a.type==="setVariable") return {...a,variable:vars(a.variable),...(a.expr && {expr:expression(a.expr)})};
+    if (a.type==="setVariableMode") return {...a,collection:rename("collections",a.collection),mode:mode(a.collection,a.mode)};
+    if (a.type==="conditional") return {...a,blocks:a.blocks.map(b=>({
+      ...(b.condition && {condition:expression(b.condition)}),actions:depth<16 ? b.actions.map(x=>action(x,depth+1)) : b.actions
+    }))};
+    return a;
+  }
   function apply(n:LayerNode):LayerNode {
     if (!ids.styles.size && !ids.collections.size && !ids.variables.size) return n;
     let copy={...n};
+    if (n.interactions?.length) copy.interactions=n.interactions.map(i=>({...i,actions:i.actions.map(a=>action(a,0))}));
     if (n.styles) copy.styles=Object.fromEntries(Object.entries(n.styles).map(([k,v])=>[k,v && rename("styles",v)])) as StyleRefs;
     if (n.boundVariables) copy.boundVariables=bound(n.boundVariables);
     if (n.variableModes) copy.variableModes=Object.fromEntries(Object.entries(n.variableModes).map(([c,m])=>[rename("collections",c),mode(c,m)]));

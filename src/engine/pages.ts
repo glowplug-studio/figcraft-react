@@ -1,4 +1,5 @@
-import { remapPatternSources } from "./pattern-sources";
+import { remapFlows } from "./prototype-data";
+import { remapLayerReferences } from "./pattern-sources";
 import { isLeaf, withPageColour, type Document, type DocumentNode, type LayerNode, type NodeId, type PageNode } from "./document";
 import { parseColour } from "./colour-css";
 import { parseNodeId as parseId, parseString as stringValue, parseIndex } from "./parameters";
@@ -165,10 +166,10 @@ export function executePage(command: string, document: Document, selection: read
         const copy = !isLeaf(child)
           ? Object.freeze({ ...child, id, parent, children: Object.freeze(child.children.map(candidate => ids.get(candidate)!)) })
           : Object.freeze({ ...child, id, parent });
-        nodes[id] = remapPatternSources(copy, target => target === source.id ? undefined : ids.get(target));
+        nodes[id] = remapLayerReferences(copy, target => target === source.id ? undefined : ids.get(target));
       }
       const copied = source.children.map(child => ids.get(child)!);
-      nodes[copyId] = Object.freeze({ ...source, id: copyId, name: `Copy of ${source.name}`, children: Object.freeze(copied) });
+      nodes[copyId] = Object.freeze({ ...source, ...(source.flows && {flows:remapFlows(source.flows,id=>id===source.id ? undefined : ids.get(id))}), id: copyId, name: `Copy of ${source.name}`, children: Object.freeze(copied) });
       const pages = [...document.pages];
       pages.splice(pages.indexOf(id) + 1, 0, copyId);
       updated = Object.freeze({ ...document, currentPage: copyId, pages: Object.freeze(pages), nodes: Object.freeze(nodes) });

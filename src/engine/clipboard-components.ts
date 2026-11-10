@@ -6,7 +6,7 @@ import { libraryComponent, type ImportedComponent } from "./library-store";
 import { subtreeIds } from "./hierarchy";
 import { parseNodeId } from "./parameters";
 import { U64_MAX, wireId } from "./native-values";
-import { remapPatternSources } from "./pattern-sources";
+import { remapLayerReferences } from "./pattern-sources";
 
 const numeric = (a: string, b: string) => a.length - b.length || (a < b ? -1 : a > b ? 1 : 0);
 
@@ -72,7 +72,7 @@ export function adoptClipboardComponents(document: Document, source: Document, c
         const pasted: LayerNode = { ...node, id: maps.get(id)!, parent: id === record.root ? root : maps.get(original.parent)!,
           ...(!isLeaf(original) && { children: original.children.map(child => maps.get(child)!) }),
           ...(previous && maps.has(previous) && { source: maps.get(previous) }) };
-        nodes[pasted.id] = remapPatternSources(pasted, key => maps.get(key));
+        nodes[pasted.id] = remapLayerReferences(pasted, key => maps.get(key));
       }
     }
     nodes[root] = { ...(page ?? newDocument().nodes["1"] as PageNode), id: root, name: page?.name ?? "Library components",

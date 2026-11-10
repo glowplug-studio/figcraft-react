@@ -23,7 +23,7 @@ export type { WorkspaceRecoveryStore, WorkspaceArchive } from "./backends/recove
 export { Editor, type EditorProps } from "./Editor";
 export { EditorWorkspace, type DocumentTab } from "./engine/workspace";
 export { EditorEngine, commandSpecs, type EditorSnapshot, type CommandId } from "./engine/editor";
-export { newDocument, pageOf, type Document, type DocumentNode, type RectangleNode, type PageNode, type NodeId } from "./engine/document";
+export { newDocument, pageOf, type Document, type DocumentNode, type RectangleNode, type SliceNode, type PageNode, type NodeId } from "./engine/document";
 export { layerTransform, withLayerTransform, type LayerNode, type GroupNode, type FrameNode, type ComponentNode, type ComponentSetNode, type InstanceNode, type FrameLikeNode, type Constraints } from "./engine/document";
 export { worldTransform, frameRelative, pageForNode, subtreeIds } from "./engine/hierarchy";
 export { renderDocument, CanvasController } from "./engine/canvas";

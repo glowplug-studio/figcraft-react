@@ -39,6 +39,17 @@ export async function loadDesignDocument(source:Source,variables:unknown,checkCu
     const decoded=await importFig(source,zipped,name,checkCurrent);
     if (decoded) return {decoded,external:true};
   }
+  if (zipped || prefix.startsWith("SQLite format 3\0")) {
+    const {withSketchArchive,sketchTooOld}=await import("./sketch/archive");
+    if (!zipped) throw new Error(sketchTooOld);
+    const decoded=await withSketchArchive(source,checkCurrent,async archive=>{
+      const {sketchScene}=await import("./sketch/scene");
+      const filename=name.split(/[\\/]/).at(-1) || "Untitled";
+      const stem=filename.lastIndexOf(".")>0 ? filename.slice(0,filename.lastIndexOf(".")) : filename;
+      return sketchScene(archive,stem,Math.min(2000000,Math.max(200000,Math.floor(size/8))),checkCurrent);
+    });
+    if (decoded) return {decoded,external:true};
+  }
   if (start && start!=="{") return native();
   const external=async()=>{
     const json=await textOf(source);

@@ -1,4 +1,4 @@
-import { type Document, pageOf } from "./document";
+import { type Document, isFrameLike, pageOf } from "./document";
 import { pageForNode, rootIds, zSorted } from "./hierarchy";
 import { parseBoolean, parseNodeId, parseNumber } from "./parameters";
 import { worldRenderBounds } from "./render-bounds";
@@ -41,14 +41,25 @@ export function exportRegion(doc: Document, selection: readonly string[], p: Rec
   const layers = ids.filter(id => doc.nodes[id]);
   const pageId = layers.length ? pageForNode(doc, layers[0]) : undefined, page = pageId ? doc.nodes[pageId] : undefined;
   const parentPage = page?.kind === "page" ? page : currentPage;
-  const drawn = contentsOnly ? zSorted(doc, rootIds(doc, layers)) : parentPage.children;
+  const roots: string[] = [];
+  let wholePage = !contentsOnly;
+  if (contentsOnly) {
+    for (const id of layers) {
+      const node = doc.nodes[id];
+      if (node.kind !== "slice") { roots.push(id); continue; }
+      const container = doc.nodes[node.parent];
+      if (container && (isFrameLike(container) || container.kind === "group")) roots.push(container.id);
+      else { wholePage = true; break; }
+    }
+  }
+  const drawn = wholePage ? parentPage.children : zSorted(doc, rootIds(doc, roots));
   if (beforeBounds) beforeBounds(drawn);
   const anyVisible = layers.some(id => { const n = doc.nodes[id]; return n.kind === "page" || n.visible !== false; });
   let area: Rectangle | undefined;
   for (const id of layers) {
     const n = doc.nodes[id];
-    if (!boundingBox && anyVisible && n.kind !== "page" && n.visible === false) continue;
-    const box = boundingBox || n.kind === "page" ? boundsOf(doc, [id]) : worldRenderBounds(doc, id);
+    if (!boundingBox && anyVisible && n.kind !== "slice" && n.kind !== "page" && n.visible === false) continue;
+    const box = boundingBox || n.kind === "slice" || n.kind === "page" ? boundsOf(doc, [id]) : worldRenderBounds(doc, id);
     if (!box) continue;
     if (!area) area = box;
     else {

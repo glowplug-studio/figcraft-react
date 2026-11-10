@@ -1,3 +1,4 @@
+import type { PrototypeFlow, PrototypeInteraction } from "./prototype-data";
 import type { LayerVariableModes } from "./variable-modes";
 import type { ExportSetting } from "./export-settings";
 import type { Variables } from "./variables";
@@ -40,6 +41,7 @@ export function withMaskProperties<T extends MaskProperties>(node:T, isMask = no
   return Object.freeze({...rest,...(isMask && {isMask:true}),...(maskType !== "alpha" && {maskType})}) as T;
 }
 export interface PageNode extends MaskProperties, ComponentLinks, LayerStyles, LayerVariableModes {
+  readonly interactions?: readonly PrototypeInteraction[];
   readonly stroke?: StrokeProps;
   readonly blend?: BlendMode;
   readonly opacity?: number;
@@ -56,6 +58,7 @@ export interface PageNode extends MaskProperties, ComponentLinks, LayerStyles, L
   readonly background: string;
   readonly backgroundColor?: Colour;
   readonly prototypeBackground?: Colour;
+  readonly flows?: readonly PrototypeFlow[];
 }
 export interface Constraints {
   readonly horizontal: "left" | "right" | "leftRight" | "center" | "scale";
@@ -63,6 +66,7 @@ export interface Constraints {
 }
 export const defaultConstraints: Constraints = Object.freeze({ horizontal: "left", vertical: "top" });
 export interface LayerProperties extends MaskProperties, ComponentLinks, LayerStyles, LayerVariableModes {
+  readonly interactions?: readonly PrototypeInteraction[];
   readonly thumbnailFlag?: string;
   readonly exports?: readonly ExportSetting[];
   readonly childLayout?: ChildLayout;
@@ -91,13 +95,14 @@ export interface LayerProperties extends MaskProperties, ComponentLinks, LayerSt
   readonly corners?: Corners;
 }
 export interface RectangleNode extends LayerProperties { readonly kind: "rectangle" }
+export interface SliceNode extends LayerProperties { readonly kind: "slice" }
 export interface LineNode extends LayerProperties { readonly kind: "line" }
 export interface EllipseNode extends LayerProperties { readonly kind: "ellipse"; readonly start: number; readonly sweep: number; readonly inner: number }
 export interface PolygonNode extends LayerProperties { readonly kind: "polygon"; readonly count: number }
 export interface StarNode extends LayerProperties { readonly kind: "star"; readonly count: number; readonly innerRatio: number }
 export interface VectorNode extends LayerProperties { readonly kind: "vector"; readonly network: VectorNetwork }
 export interface TextNode extends LayerProperties { readonly kind: "text"; readonly text: TextData; readonly textSizing?: LayerSizing; readonly charactersOverridden?: true }
-export type LeafNode = RectangleNode | EllipseNode | PolygonNode | StarNode | LineNode | VectorNode | TextNode;
+export type LeafNode = RectangleNode | EllipseNode | PolygonNode | StarNode | LineNode | SliceNode | VectorNode | TextNode;
 export type DrawShapeKind = Exclude<LeafNode["kind"], "vector" | "text"> | "arrow";
 export interface GroupNode extends LayerProperties {
   readonly kind: "group";
@@ -148,7 +153,7 @@ export function nodeTypeName(node: DocumentNode): string {
   return node.kind.toUpperCase();
 }
 export const isGroupLike = (node: DocumentNode | undefined): node is GroupNode | BooleanNode => node?.kind === "group" || node?.kind === "booleanOp";
-export const isLeafKind = (kind: unknown): kind is LeafNode["kind"] => kind === "rectangle" || kind === "ellipse" || kind === "polygon" || kind === "star" || kind === "line" || kind === "vector" || kind === "text";
+export const isLeafKind = (kind: unknown): kind is LeafNode["kind"] => kind === "rectangle" || kind === "ellipse" || kind === "polygon" || kind === "star" || kind === "line" || kind === "slice" || kind === "vector" || kind === "text";
 export const isDrawTool = (kind: unknown): kind is DrawShapeKind => isLeafKind(kind) && kind !== "vector" && kind !== "text" || kind === "arrow";
 export const isLeaf = (node: DocumentNode): node is LeafNode => isLeafKind(node.kind);
 export const layerBlend = (node: LayerNode): BlendMode => node.blend ?? (isLeaf(node) ? "normal" : "passThrough");

@@ -7,7 +7,7 @@ import type {ImportedComponent,LibraryStore} from "./library-store";
 import {importLibraryVariables} from "./library-variables";
 import {U64_MAX,wireId} from "./native-values";
 import {parseNodeId} from "./parameters";
-import {remapPatternSources} from "./pattern-sources";
+import {remapLayerReferences} from "./pattern-sources";
 import {libraryImageKeys,type PublishedLibrary} from "./published-library";
 import type {StyleRefs} from "./shared-styles";
 import type {TextStyle} from "./text-style";
@@ -61,7 +61,7 @@ function localiseNode(source:Document,node:LayerNode,parent:string,ids:IdMap,sty
     };
     copy={...copy,text:{...copy.text,style:localStyle(copy.text.style),runs:copy.text.runs.map(run=>({...run,style:localStyle(run.style)}))}};
   }
-  return remapPatternSources(copy,id=>ids.get(id));
+  return remapLayerReferences(copy,id=>ids.get(id));
 }
 
 export function importLibraryComponents(doc:Document,lib:PublishedLibrary,keys:readonly string[],nextId:bigint,update=false) {

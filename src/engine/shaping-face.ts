@@ -1,7 +1,7 @@
 import type { LocalFontName } from "./font-library";
 import * as hb from "#figcraft-harfbuzz";
 import { FontColourTables } from "./font-colour";
-import { fontTables, fontVariations, normaliseFontStyle, type FontAxis, type FontInstance } from "./font-tables";
+import { fontTables, fontVariations, normalFontTrack, fontTracking, normaliseFontStyle, type FontAxis, type FontInstance } from "./font-tables";
 import { styleWeight, type TextStyle } from "./text-style";
 import { fontOutlinePath } from "./text-glyph-path";
 import type { CurveElement } from "./curve-flatten";
@@ -53,6 +53,8 @@ export class ShapingFace {
   readonly strikePosition: number;
   readonly descent: number;
   readonly lineGap: number;
+  readonly #track: ReturnType<typeof normalFontTrack>;
+  tracking(size:number) { return fontTracking(this.#track,size,this.upem); }
   readonly axes: Readonly<Record<string,FontAxis>>;
   readonly superscript: readonly [number,number];
   readonly subscript: readonly [number,number];
@@ -72,6 +74,7 @@ export class ShapingFace {
   readonly #buffer = new hb.Buffer();
 
   private constructor(face: hb.Face, family: string, style: string, tables: ReadonlyMap<string,DataView>, blob:hb.Blob, byteOffset:number, byteLength:number, index:number) {
+    this.#track=normalFontTrack(tables.get("trak"));
     this.truetype=tables.has("glyf");
     this.pdfFontSource=()=>{
       const data=hb.fontTableView(blob,0,byteLength);

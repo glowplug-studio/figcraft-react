@@ -774,5 +774,418 @@
       ]
     ],
     "svg": "<svg width=\"16\" height=\"15\" viewBox=\"0 0 16 15\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\"><g id=\"Group_1\"><g clip-path=\"url(#clip1)\"><g id=\"Ink\"><path transform=\"matrix(1 0 0 1 0 0)\" d=\"M0 0L24 0L24 16L0 16Z\" fill=\"#661188\"/></g></g></g><defs><clipPath id=\"clip1\"><path transform=\"matrix(1 0 0 1 -4 -5)\" d=\"M0 0L20 0L20 20L0 20Z\"/></clipPath></defs></svg>\n"
+  },
+  {
+    "name": "slice page crop",
+    "commands": [
+      [
+        "shape.rectangle",
+        {
+          "props": {
+            "fill": "#ff0000"
+          },
+          "width": 18,
+          "height": 9
+        }
+      ],
+      [
+        "frame.create",
+        {
+          "x": 3,
+          "y": 2,
+          "width": 10,
+          "height": 6
+        }
+      ],
+      [
+        "shape.rectangle",
+        {
+          "props": {
+            "fill": "#00ff00"
+          },
+          "parent": 3,
+          "width": 5,
+          "height": 3
+        }
+      ],
+      [
+        "node.create",
+        {
+          "type": "slice",
+          "x": 2,
+          "y": 1,
+          "width": 7,
+          "height": 4,
+          "props": {
+            "fill": "#0000ff"
+          }
+        }
+      ],
+      [
+        "file.exportSvg",
+        {
+          "id": 5
+        }
+      ]
+    ],
+    "svg": "<svg width=\"7\" height=\"4\" viewBox=\"0 0 7 4\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\"><g><path transform=\"matrix(1 0 0 1 -2 -1)\" d=\"M0 0L18 0L18 9L0 9Z\" fill=\"#FF0000\"/></g><g><path transform=\"matrix(1 0 0 1 1 1)\" d=\"M0 0L10 0L10 6L0 6Z\" fill=\"#FFFFFF\"/><g clip-path=\"url(#clip1)\"><path transform=\"matrix(1 0 0 1 1 1)\" d=\"M0 0L5 0L5 3L0 3Z\" fill=\"#00FF00\"/></g></g><g><path transform=\"matrix(1 0 0 1 0 0)\" d=\"M0 0L7 0L7 4L0 4Z\" fill=\"#0000FF\"/></g><defs><clipPath id=\"clip1\"><path d=\"M1 1L11 1L11 7L1 7Z\"/></clipPath></defs></svg>\n"
+  },
+  {
+    "name": "slice frame contents",
+    "commands": [
+      [
+        "shape.rectangle",
+        {
+          "props": {
+            "fill": "#ff0000"
+          },
+          "width": 18,
+          "height": 9
+        }
+      ],
+      [
+        "frame.create",
+        {
+          "x": 3,
+          "y": 2,
+          "width": 10,
+          "height": 6
+        }
+      ],
+      [
+        "shape.rectangle",
+        {
+          "props": {
+            "fill": "#00ff00"
+          },
+          "parent": 3,
+          "width": 5,
+          "height": 3
+        }
+      ],
+      [
+        "node.create",
+        {
+          "type": "slice",
+          "parent": 3,
+          "x": -1,
+          "y": -1,
+          "width": 7,
+          "height": 4
+        }
+      ],
+      [
+        "file.exportSvg",
+        {
+          "id": 5
+        }
+      ]
+    ],
+    "svg": "<svg width=\"7\" height=\"4\" viewBox=\"0 0 7 4\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\"><g><path transform=\"matrix(1 0 0 1 1 1)\" d=\"M0 0L10 0L10 6L0 6Z\" fill=\"#FFFFFF\"/><g clip-path=\"url(#clip1)\"><path transform=\"matrix(1 0 0 1 1 1)\" d=\"M0 0L5 0L5 3L0 3Z\" fill=\"#00FF00\"/></g><g clip-path=\"url(#clip1)\"></g></g><defs><clipPath id=\"clip1\"><path d=\"M1 1L11 1L11 7L1 7Z\"/></clipPath></defs></svg>\n"
+  },
+  {
+    "name": "slice frame through page",
+    "commands": [
+      [
+        "shape.rectangle",
+        {
+          "props": {
+            "fill": "#ff0000"
+          },
+          "width": 18,
+          "height": 9
+        }
+      ],
+      [
+        "frame.create",
+        {
+          "x": 3,
+          "y": 2,
+          "width": 10,
+          "height": 6
+        }
+      ],
+      [
+        "shape.rectangle",
+        {
+          "props": {
+            "fill": "#00ff00"
+          },
+          "parent": 3,
+          "width": 5,
+          "height": 3
+        }
+      ],
+      [
+        "node.create",
+        {
+          "type": "slice",
+          "parent": 3,
+          "x": -1,
+          "y": -1,
+          "width": 7,
+          "height": 4
+        }
+      ],
+      [
+        "file.exportSvg",
+        {
+          "id": 5,
+          "contentsOnly": false
+        }
+      ]
+    ],
+    "svg": "<svg width=\"7\" height=\"4\" viewBox=\"0 0 7 4\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\"><g><path transform=\"matrix(1 0 0 1 -2 -1)\" d=\"M0 0L18 0L18 9L0 9Z\" fill=\"#FF0000\"/></g><g><path transform=\"matrix(1 0 0 1 1 1)\" d=\"M0 0L10 0L10 6L0 6Z\" fill=\"#FFFFFF\"/><g clip-path=\"url(#clip1)\"><path transform=\"matrix(1 0 0 1 1 1)\" d=\"M0 0L5 0L5 3L0 3Z\" fill=\"#00FF00\"/></g><g clip-path=\"url(#clip1)\"></g></g><defs><clipPath id=\"clip1\"><path d=\"M1 1L11 1L11 7L1 7Z\"/></clipPath></defs></svg>\n"
+  },
+  {
+    "name": "slice hidden mixed",
+    "commands": [
+      [
+        "shape.rectangle",
+        {
+          "props": {
+            "fill": "#ff0000"
+          },
+          "width": 18,
+          "height": 9
+        }
+      ],
+      [
+        "frame.create",
+        {
+          "x": 3,
+          "y": 2,
+          "width": 10,
+          "height": 6
+        }
+      ],
+      [
+        "shape.rectangle",
+        {
+          "props": {
+            "fill": "#00ff00"
+          },
+          "parent": 3,
+          "width": 5,
+          "height": 3
+        }
+      ],
+      [
+        "node.create",
+        {
+          "type": "slice",
+          "x": -2,
+          "y": -1,
+          "width": 6,
+          "height": 4,
+          "props": {
+            "visible": false
+          }
+        }
+      ],
+      [
+        "file.exportSvg",
+        {
+          "ids": [
+            4,
+            5
+          ]
+        }
+      ]
+    ],
+    "svg": "<svg width=\"10\" height=\"6\" viewBox=\"0 0 10 6\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\"><g><path transform=\"matrix(1 0 0 1 2 1)\" d=\"M0 0L18 0L18 9L0 9Z\" fill=\"#FF0000\"/></g><g><path transform=\"matrix(1 0 0 1 5 3)\" d=\"M0 0L10 0L10 6L0 6Z\" fill=\"#FFFFFF\"/><g clip-path=\"url(#clip1)\"><path transform=\"matrix(1 0 0 1 5 3)\" d=\"M0 0L5 0L5 3L0 3Z\" fill=\"#00FF00\"/></g></g><defs><clipPath id=\"clip1\"><path d=\"M5 3L15 3L15 9L5 9Z\"/></clipPath></defs></svg>\n"
+  },
+  {
+    "name": "slice parent deduplication",
+    "commands": [
+      [
+        "shape.rectangle",
+        {
+          "props": {
+            "fill": "#ff0000"
+          },
+          "width": 18,
+          "height": 9
+        }
+      ],
+      [
+        "frame.create",
+        {
+          "x": 3,
+          "y": 2,
+          "width": 10,
+          "height": 6
+        }
+      ],
+      [
+        "shape.rectangle",
+        {
+          "props": {
+            "fill": "#00ff00"
+          },
+          "parent": 3,
+          "width": 5,
+          "height": 3
+        }
+      ],
+      [
+        "node.create",
+        {
+          "type": "slice",
+          "parent": 3,
+          "x": -1,
+          "y": -1,
+          "width": 7,
+          "height": 4
+        }
+      ],
+      [
+        "file.exportSvg",
+        {
+          "ids": [
+            3,
+            4,
+            5
+          ]
+        }
+      ]
+    ],
+    "svg": "<svg width=\"11\" height=\"7\" viewBox=\"0 0 11 7\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\"><g><path transform=\"matrix(1 0 0 1 1 1)\" d=\"M0 0L10 0L10 6L0 6Z\" fill=\"#FFFFFF\"/><g clip-path=\"url(#clip1)\"><path transform=\"matrix(1 0 0 1 1 1)\" d=\"M0 0L5 0L5 3L0 3Z\" fill=\"#00FF00\"/></g><g clip-path=\"url(#clip1)\"></g></g><defs><clipPath id=\"clip1\"><path d=\"M1 1L11 1L11 7L1 7Z\"/></clipPath></defs></svg>\n"
+  },
+  {
+    "name": "slice rotated page crop",
+    "commands": [
+      [
+        "shape.rectangle",
+        {
+          "props": {
+            "fill": "#ff0000"
+          },
+          "width": 18,
+          "height": 9
+        }
+      ],
+      [
+        "frame.create",
+        {
+          "x": 3,
+          "y": 2,
+          "width": 10,
+          "height": 6
+        }
+      ],
+      [
+        "shape.rectangle",
+        {
+          "props": {
+            "fill": "#00ff00"
+          },
+          "parent": 3,
+          "width": 5,
+          "height": 3
+        }
+      ],
+      [
+        "node.create",
+        {
+          "type": "slice",
+          "x": 2,
+          "y": 1,
+          "width": 7,
+          "height": 4,
+          "props": {
+            "fill": "#0000ff"
+          }
+        }
+      ],
+      [
+        "object.rotateRight",
+        {
+          "id": 5
+        }
+      ],
+      [
+        "file.exportSvg",
+        {
+          "id": 5
+        }
+      ]
+    ],
+    "svg": "<svg width=\"4\" height=\"7\" viewBox=\"0 0 4 7\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\"><g><path transform=\"matrix(1 0 0 1 -3.5 0.5)\" d=\"M0 0L18 0L18 9L0 9Z\" fill=\"#FF0000\"/></g><g><path transform=\"matrix(1 0 0 1 -0.5 2.5)\" d=\"M0 0L10 0L10 6L0 6Z\" fill=\"#FFFFFF\"/><g clip-path=\"url(#clip1)\"><path transform=\"matrix(1 0 0 1 -0.5 2.5)\" d=\"M0 0L5 0L5 3L0 3Z\" fill=\"#00FF00\"/></g></g><g><path transform=\"matrix(0 1 -1 0 4 0)\" d=\"M0 0L7 0L7 4L0 4Z\" fill=\"#0000FF\"/></g><defs><clipPath id=\"clip1\"><path d=\"M-0.5 2.5L9.5 2.5L9.5 8.5L-0.5 8.5Z\"/></clipPath></defs></svg>\n"
+  },
+  {
+    "name": "slice isolated crop",
+    "commands": [
+      [
+        "node.create",
+        {
+          "type": "slice",
+          "width": 12,
+          "height": 8,
+          "props": {
+            "fill": "#0000ff"
+          }
+        }
+      ],
+      [
+        "file.exportSvg",
+        {
+          "id": 2
+        }
+      ]
+    ],
+    "svg": "<svg width=\"12\" height=\"8\" viewBox=\"0 0 12 8\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\"><g><path transform=\"matrix(1 0 0 1 0 0)\" d=\"M0 0L12 0L12 8L0 8Z\" fill=\"#0000FF\"/></g></svg>\n"
+  },
+  {
+    "name": "slice without paint",
+    "commands": [
+      [
+        "shape.rectangle",
+        {
+          "props": {
+            "fill": "#ff0000"
+          },
+          "width": 18,
+          "height": 9
+        }
+      ],
+      [
+        "frame.create",
+        {
+          "x": 3,
+          "y": 2,
+          "width": 10,
+          "height": 6
+        }
+      ],
+      [
+        "shape.rectangle",
+        {
+          "props": {
+            "fill": "#00ff00"
+          },
+          "parent": 3,
+          "width": 5,
+          "height": 3
+        }
+      ],
+      [
+        "node.create",
+        {
+          "type": "slice",
+          "x": 2,
+          "y": 1,
+          "width": 7,
+          "height": 4
+        }
+      ],
+      [
+        "file.exportSvg",
+        {
+          "id": 5
+        }
+      ]
+    ],
+    "svg": "<svg width=\"7\" height=\"4\" viewBox=\"0 0 7 4\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\"><g><path transform=\"matrix(1 0 0 1 -2 -1)\" d=\"M0 0L18 0L18 9L0 9Z\" fill=\"#FF0000\"/></g><g><path transform=\"matrix(1 0 0 1 1 1)\" d=\"M0 0L10 0L10 6L0 6Z\" fill=\"#FFFFFF\"/><g clip-path=\"url(#clip1)\"><path transform=\"matrix(1 0 0 1 1 1)\" d=\"M0 0L5 0L5 3L0 3Z\" fill=\"#00FF00\"/></g></g><g></g><defs><clipPath id=\"clip1\"><path d=\"M1 1L11 1L11 7L1 7Z\"/></clipPath></defs></svg>\n"
   }
 ]

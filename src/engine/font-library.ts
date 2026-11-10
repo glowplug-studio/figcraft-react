@@ -167,6 +167,17 @@ export class FontLibrary {
       key.startsWith(prefix) && weightsOnly(key.slice(prefix.length).split(/\s+/)));
   }
 
+  postscriptNames() {
+    const names=new Map<string,{family:string;style:string}>();
+    const add=(face:{postscript:string;family:string;style:string})=>{
+      const key=face.postscript.toLowerCase();
+      if (key && !names.has(key)) names.set(key,{family:face.family,style:face.style});
+    };
+    for (const group of this.#families.values()) for (const face of group) add(face);
+    for (const entries of this.#pending.values()) for (const entry of entries) add(entry);
+    return names;
+  }
+
   families(): string[] {
     return [...this.#names.keys()].sort(compareScalarKeys).map(key=>this.#names.get(key)!);
   }

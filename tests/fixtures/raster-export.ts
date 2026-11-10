@@ -123,9 +123,9 @@ export async function largeRestImport(count:number) {
   } finally {clearInterval(timer);}
 }
 
-export async function measureFigImport(base64:string) {
+export async function measureDesignImport(base64:string,filename:string) {
   const data=Uint8Array.from(atob(base64),c=>c.charCodeAt(0));
-  const file=new File([data],"Tiles.fig"), engine=new EditorEngine();
+  const file=new File([data],filename), engine=new EditorEngine();
   let previous=performance.now(),largestGap=0,ticks=0;
   const start=previous;
   const sample=()=>{const now=performance.now();largestGap=Math.max(largestGap,now-previous);previous=now;};
@@ -151,4 +151,21 @@ export async function measureFigExport(base64:string) {
     const {summary}=await new EditorEngine().openFile(new File([blob],"Again.fig"));
     return {...summary,warnings,bytes:blob.size,milliseconds,ticks:count,largestGap:gap};
   } finally {clearInterval(timer);}
+}
+
+export async function supersedeSketchImport(base64:string) {
+  const engine=new EditorEngine(), original=Worker.prototype.postMessage;
+  let replacement:Promise<unknown>|undefined;
+  const newDrawing=new File([JSON.stringify({name:"Replacement",document:{type:"DOCUMENT",children:[]}})],"Replacement.json");
+  // Supersede the open after the production worker actually receives the large member.
+  Worker.prototype.postMessage=function(this:Worker,message:unknown,options?:Transferable[]|StructuredSerializeOptions) {
+    Reflect.apply(original,this,[message,options]);
+    if (message && typeof message==="object" && "name" in message && message.name==="pages/P.json" && !replacement) replacement=engine.openFile(newDrawing);
+  };
+  try {
+    const file=new File([Uint8Array.from(atob(base64),c=>c.charCodeAt(0))],"Cancelled.sketch");
+    const rejected=await engine.openFile(file).then(()=>"",e=>String(e));
+    await replacement;
+    return {rejected,replaced:!!replacement,name:engine.getSnapshot().document.name};
+  } finally {Worker.prototype.postMessage=original;}
 }

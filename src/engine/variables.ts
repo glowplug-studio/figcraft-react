@@ -50,7 +50,7 @@ function operand(raw:unknown):Operand {
   if (Object.hasOwn(v,"literal") && !Object.hasOwn(v,"variable")) return Object.freeze({literal:readColour(v.literal)});
   return fail("invalid variable colour operand");
 }
-function readValue(raw:unknown):VariableValue {
+export function readVariableValue(raw:unknown):VariableValue {
   const v=fields(raw,["type","value"]), type=textEnum(v.type,[...kinds,"alias","colorAlpha","colorMix"],"variable value type");
   switch(type) {
     case "color": return Object.freeze({type,value:readColour(v.value)});
@@ -72,7 +72,7 @@ function readVariable(raw:unknown):Variable {
   const overrides=v.overrides===undefined ? [] : [...new Set(list(v.overrides,string))].sort(compareScalarKeys);
   const syntax=v.codeSyntax===undefined ? undefined : mapValues(v.codeSyntax,string);
   return Object.freeze({...identity(v),collection:string(v.collection),resolvedType:textEnum(v.resolvedType,kinds,"variable type"),
-    values:mapValues(v.values,readValue),description:v.description===undefined ? "" : string(v.description),
+    values:mapValues(v.values,readVariableValue),description:v.description===undefined ? "" : string(v.description),
     ...(v.extends!=null && {extends:string(v.extends)}),...(v.scopes!=null && {scopes:list(v.scopes,string)}),
     ...(v.hiddenFromPublishing!==undefined && textBool(v.hiddenFromPublishing,"publishing flag") && {hiddenFromPublishing:true as const}),
     ...(overrides.length>0 && {overrides:Object.freeze(overrides)}),...(syntax && Object.keys(syntax).length>0 && {codeSyntax:syntax})});

@@ -16,7 +16,7 @@ import {writeFigArchive} from "./write-archive";
 
 const rootFields={visible:true,opacity:1,transform:wireMatrix(identity),strokeWeight:0,strokeAlign:"CENTER",strokeJoin:"BEVEL"};
 const constraint={top:"MIN",bottom:"MAX",left:"MIN",right:"MAX",leftRight:"STRETCH",topBottom:"STRETCH",center:"CENTER",scale:"SCALE"} as const;
-const kinds={rectangle:"ROUNDED_RECTANGLE",frame:"FRAME",group:"FRAME",booleanOp:"BOOLEAN_OPERATION",polygon:"REGULAR_POLYGON",
+const kinds={slice:"SLICE",rectangle:"ROUNDED_RECTANGLE",frame:"FRAME",group:"FRAME",booleanOp:"BOOLEAN_OPERATION",polygon:"REGULAR_POLYGON",
   star:"STAR",line:"LINE",ellipse:"ELLIPSE",vector:"VECTOR",text:"TEXT",component:"SYMBOL",componentSet:"FRAME",instance:"INSTANCE"} as const;
 
 async function writeLayer(node:LayerNode,paints:FigPaintWriter,blobs:FigBlobs):Promise<KiwiObject> {

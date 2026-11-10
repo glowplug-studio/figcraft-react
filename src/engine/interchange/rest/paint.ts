@@ -4,7 +4,7 @@ import { defaultGradient, type GradientHandle, type GradientKind } from "../../g
 import { validImageKey, type ImageResource } from "../../image-resource";
 import type { Paint } from "../../solid-paint";
 import { restTransform } from "./placement";
-import { stripesPng } from "./stripes";
+import { missingImagePng } from "./stripes";
 import { clamp, clipped, entries, finite, list, numeric, object, restColour, string, type ImportWarnings, type JsonObject } from "./values";
 
 const blendNames=new Map(blendModes.map(mode=>[mode.replace(/[A-Z]/g,c=>"_"+c).toUpperCase(),mode]));
@@ -34,7 +34,7 @@ export class ImportImages {
     } else {
       const candidate=clipped(ref);
       key=validImageKey(candidate) && !/^[a-f0-9]{64}$/i.test(candidate) ? candidate : "rest-image-missing";
-      this.#placeholder??={bytes:new Blob([Uint8Array.from(atob(stripesPng),s=>s.charCodeAt(0))],{type:"image/png"}),width:256,height:256};
+      this.#placeholder??={bytes:missingImagePng(),width:256,height:256};
       this.resources[key]??=this.#placeholder;
       this.#missing++;
       this.figWarnings?.add("image fills whose image isn't in the file show a missing-image placeholder and keep its name");

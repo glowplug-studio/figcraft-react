@@ -7231,3 +7231,60 @@ test("export the whole signed-in drawing as Fig and reopen the download with its
   const saved=await decodeFigcraft(await readFile((await (await saving).path())!));
   expect(saved.document).toEqual(expected);
 });
+
+test("Sketch open, save, append and undo preserve native symbol overrides and embedded pixels",async({page})=>{
+  await login(page);
+  const corpus=unzipSync(await readFile(new URL("../fixtures/native-sketch-files.zip",import.meta.url)));
+  const source="symbols_tests-string_override-0", extra="style_tests-bitmap_image_under_its_fills-0";
+  const original=(await decodeFigcraft(corpus[source+".figcraft"])).document;
+  const imageDoc=(await decodeFigcraft(corpus[extra+".figcraft"])).document;
+  const file=(id:string)=>({name:"Original.sketch",mimeType:"application/octet-stream",buffer:Buffer.from(corpus[id+".sketch"])});
+  const save=async()=>{
+    const download=page.waitForEvent("download");
+    await page.getByRole("button",{name:"Save as",exact:true}).click();
+    return (await decodeFigcraft(await readFile((await (await download).path())!))).document;
+  };
+  await page.getByLabel("Open Figcraft file",{exact:true}).setInputFiles(file(source));
+  await expect(page.getByRole("heading",{name:"Original",exact:true})).toBeVisible();
+  expect(await save()).toEqual(original);
+  await page.getByLabel("Import into current document",{exact:true}).setInputFiles(file(extra));
+  await expect.poll(async()=>(await save()).pages.length).toBe(original.pages.length+imageDoc.pages.length);
+  const appended=await save();
+  for (const [id,image] of Object.entries(imageDoc.images ?? {})) {
+    expect(await appended.images?.[id].bytes.arrayBuffer()).toEqual(await image.bytes.arrayBuffer());
+  }
+  await page.getByLabel("Design canvas",{exact:true}).focus();
+  await page.keyboard.press("ControlOrMeta+z");
+  expect(await save()).toEqual(original);
+});
+
+test("Slice shortcut draws an editable export region with a switchable canvas guide",async({page})=>{
+  await login(page);
+  const canvas=page.getByLabel("Design canvas",{exact:true});
+  await canvas.focus();
+  await page.keyboard.press("s");
+  await expect(page.getByRole("button",{name:"Slice",exact:true})).toHaveAttribute("aria-pressed","true");
+  const start=await canvasPoint(page,120,120),end=await canvasPoint(page,230,174);
+  await page.mouse.move(start.x,start.y);
+  await page.mouse.down();
+  await page.mouse.move(end.x,end.y,{steps:4});
+  await page.mouse.up();
+  await expect(page.getByRole("button",{name:"Slice 1",exact:true})).toBeVisible();
+  const outside=await canvasPoint(page,240,186);
+  await page.mouse.click(outside.x,outside.y);
+  const row=()=>canvas.evaluate((el:HTMLCanvasElement)=>{
+    const x=Math.round((130-Number(el.dataset.viewOriginX))*Number(el.dataset.viewZoom));
+    const y=Math.round((120-Number(el.dataset.viewOriginY))*Number(el.dataset.viewZoom));
+    return Array.from(el.getContext("2d")!.getImageData(x,y,70,1).data).filter((_,i)=>i%4===0);
+  });
+  await expect.poll(async()=>new Set(await row()).size).toBeGreaterThan(1);
+  await page.getByText("View",{exact:true}).filter({visible:true}).first().click();
+  await page.getByRole("button",{name:"Slices",exact:true}).click();
+  await expect.poll(async()=>new Set(await row()).size).toBe(1);
+  const download=page.waitForEvent("download");
+  await page.getByRole("button",{name:"Save as",exact:true}).click();
+  const saved=(await decodeFigcraft(await readFile((await (await download).path())!))).document;
+  expect(Object.values(saved.nodes).find(n=>n.kind==="slice")).toMatchObject({
+    name:"Slice 1",x:120,y:120,width:110,height:54,fill:"transparent"
+  });
+});
