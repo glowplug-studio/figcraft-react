@@ -1,3 +1,4 @@
+import { hidesContents } from "./document";
 import { isFrameLike, isLeaf } from "./document";
 import type { Document, NodeId } from "./document";
 import { inverse, transformBounds, transformPoint } from "./affine";
@@ -49,7 +50,7 @@ export function frameAt(document: Document, point: Point, exclude: readonly Node
   const visit = (id: NodeId, depth: number, inLayout: boolean, insideInstance: boolean): NodeId | undefined => {
     const node = document.nodes[id];
     if (!node || node.kind === "page" || depth > 128 || omitted.has(id) || node.visible === false || node.locked) return;
-    if (isLeaf(node)) return;
+    if (isLeaf(node) || hidesContents(node)) return;
     if (isFrameLike(node)) {
       try {
         const matrix = worldTransform(document,id);
@@ -95,7 +96,7 @@ export function marqueeSelection(document: Document, box: Rectangle, within: Nod
   const hits: NodeId[] = [];
   const walk = (parent: NodeId, depth: number): void => {
     const node = document.nodes[parent];
-    if (!node || isLeaf(node)) return;
+    if (!node || isLeaf(node) || hidesContents(node)) return;
     for (const id of node.children) {
       const child = document.nodes[id];
       if (!child || child.kind === "page" || child.visible === false || child.locked) continue;

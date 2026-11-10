@@ -8,6 +8,7 @@ import { ancestors, HierarchyDraft, rootIds, subtreeIds, worldTransform, zSorted
 import { countLibraryInstances } from "./library-store";
 import { inspectedId, parseNodeId, parseNumber } from "./parameters";
 import { remapLayerReferences } from "./pattern-sources";
+import { autoSizeText } from "./text-node-layout";
 import { validateChangedGeometry } from "./rotation";
 import { boundsOf, viewOrigin, type Viewport } from "./viewport";
 
@@ -89,6 +90,11 @@ function pasteInto(document: Document, parent: string, at: Point | undefined, cl
     }
     pasted.push(own.get(root)!);
   }
+  for (const id of mapping.values()) {
+    const node = draft.nodes[id];
+    if (node.kind === "text") draft.set(autoSizeText(node));
+  }
+  draft.normaliseGroups();
   let output = validateChangedGeometry(draft);
   if (!local) {
     const adopted = adoptClipboardComponents(output, clip.source, mapping, nextId);

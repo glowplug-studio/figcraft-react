@@ -97,7 +97,7 @@ export function adoptClipboardComponents(document: Document, source: Document, c
   const nodes = { ...document.nodes };
   for (const [oldId, newId] of [...copied].sort(([a], [b]) => numeric(a, b))) {
     const original = source.nodes[oldId], node = nodes[newId];
-    if (original.kind === "page" || node.kind === "page") continue;
+    if (!node || original.kind === "page" || node.kind === "page") continue;
     let remapped = node;
     if (original.source) remapped = { ...remapped, source: follow(original.source) };
     if (node.kind === "instance" && original.kind === "instance") {

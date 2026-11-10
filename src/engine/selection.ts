@@ -1,3 +1,4 @@
+import { hidesContents } from "./document";
 import { fontGeometryCache } from "./font-generation";
 import { booleanResult } from "./boolean-result";
 import { isFrameLike, isLeaf, nodeTypeName, type LayerNode, type LeafNode } from "./document";
@@ -139,7 +140,7 @@ function hitsLayer(node:LayerNode, world:Affine, point:Point, tolerance:number):
   if (node.kind==="group" || node.kind==="booleanOp") return false;
   const local=world[0]===1 && world[1]===0 && world[2]===0 && world[3]===1
     ? {x:point.x-world[4],y:point.y-world[5]} : transformPoint(inverse(world),point);
-  if (isFrameLike(node) || node.kind==="slice" || node.kind==="text") return local.x>=-tolerance && local.x<node.width+tolerance
+  if (isFrameLike(node) || node.kind==="section" || node.kind==="slice" || node.kind==="text") return local.x>=-tolerance && local.x<node.width+tolerance
     && local.y>=-tolerance && local.y<node.height+tolerance;
   if (node.kind==="line") {
     const half=Math.max(strokeMaxWeight(node.stroke??defaultStroke)/2,tolerance*2.5);
@@ -163,7 +164,7 @@ function covers(document:Document,node:LayerNode,parent:Affine,point:Point,depth
   if (depth>=512) return false;
   const world=worldFrom(parent,node);
   if (hitsLayer(node,world,point,0)) return true;
-  return !isLeaf(node) && node.children.some(id=>{
+  return !isLeaf(node) && !hidesContents(node) && node.children.some(id=>{
     const child=document.nodes[id];
     return child && child.kind!=="page" && child.visible!==false && !child.isMask && covers(document,child,world,point,depth+1);
   });
@@ -202,7 +203,7 @@ function queryPoint(document:Document,point:Point,tolerance:number,selection:rea
     const world=worldFrom(parent,node);
     if (isFrameLike(node) && node.clip && !hitsLayer(node,world,point,0)) return;
     if (pathHit) {
-      if (node.kind==="booleanOp") return;
+      if (node.kind==="booleanOp" || hidesContents(node)) return;
       if (!isLeaf(node)) return visitChildren(node.children,node.id,world,depth+1);
       return !node.isMask && pathHit(node,world) ? node.id : undefined;
     }
@@ -215,7 +216,7 @@ function queryPoint(document:Document,point:Point,tolerance:number,selection:rea
         if (hitsLayer(result,world,point,tolerance)) leaf=node.id;
       } else leaf=visitChildren(node.children,node.id,world,depth+1);
     } else {
-      if (!isLeaf(node)) leaf=visitChildren(node.children,node.id,world,depth+1,output);
+      if (!isLeaf(node) && !hidesContents(node)) leaf=visitChildren(node.children,node.id,world,depth+1,output);
       if (!leaf && hitsLayer(node,world,point,tolerance)) leaf=node.id;
     }
     if (leaf && output) output.splice(at,0,{id:inspectedId(node.id),name:node.name,type:nodeTypeName(node),depth});

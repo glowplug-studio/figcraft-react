@@ -7,8 +7,7 @@ import {decodeFigcraft} from "../../src/engine/file-format";
 // Captured from upstream file.export and a fresh file.open/saveAs for each container.
 // Both routes carry the same message. Metadata names and external ZIP resources can differ.
 const files=unzipSync(readFileSync(new URL("../fixtures/native-fig-imports.zip",import.meta.url)));
-// Section and Slice do not yet have native document models in the browser.
-const cases=Object.keys(files).filter(name=>name.endsWith(".fig") && name!=="section-and-slice.fig").map(name=>name.slice(0,-4));
+const cases=Object.keys(files).filter(name=>name.endsWith(".fig")).map(name=>name.slice(0,-4));
 for (const route of ["zip","raw"]) it.each(cases)("opens "+route+" Fig input and matches its native archive for %s",async name=>{
   const file=files[name+".fig"];
   const source=route==="zip" ? file : unzipSync(file)["canvas.fig"];

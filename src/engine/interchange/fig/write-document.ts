@@ -16,7 +16,7 @@ import {writeFigArchive} from "./write-archive";
 
 const rootFields={visible:true,opacity:1,transform:wireMatrix(identity),strokeWeight:0,strokeAlign:"CENTER",strokeJoin:"BEVEL"};
 const constraint={top:"MIN",bottom:"MAX",left:"MIN",right:"MAX",leftRight:"STRETCH",topBottom:"STRETCH",center:"CENTER",scale:"SCALE"} as const;
-const kinds={slice:"SLICE",rectangle:"ROUNDED_RECTANGLE",frame:"FRAME",group:"FRAME",booleanOp:"BOOLEAN_OPERATION",polygon:"REGULAR_POLYGON",
+const kinds={section:"SECTION",slice:"SLICE",rectangle:"ROUNDED_RECTANGLE",frame:"FRAME",group:"FRAME",booleanOp:"BOOLEAN_OPERATION",polygon:"REGULAR_POLYGON",
   star:"STAR",line:"LINE",ellipse:"ELLIPSE",vector:"VECTOR",text:"TEXT",component:"SYMBOL",componentSet:"FRAME",instance:"INSTANCE"} as const;
 
 async function writeLayer(node:LayerNode,paints:FigPaintWriter,blobs:FigBlobs):Promise<KiwiObject> {
@@ -29,6 +29,7 @@ async function writeLayer(node:LayerNode,paints:FigPaintWriter,blobs:FigBlobs):P
   if (node.effects?.length) out.effects=node.effects.map(e=>wireEffect(e,paints.warn));
   if (node.kind==="componentSet") out.isStateGroup=true;
   if ((node.kind==="component" || node.kind==="componentSet") && node.description) out.symbolDescription=node.description;
+  if (node.kind==="section") {out.sectionContentsHidden=node.contentsHidden;out.frameMaskDisabled=true;}
   if (node.kind==="group") out.resizeToFit=true;
   if (node.kind==="ellipse") {
     const tau=2*Math.PI,angle=Math.atan2(Math.sin(node.start),Math.cos(node.start));
@@ -39,7 +40,7 @@ async function writeLayer(node:LayerNode,paints:FigPaintWriter,blobs:FigBlobs):P
   if (node.kind==="star") out.starInnerScale=node.innerRatio;
   if (node.kind==="booleanOp") out.booleanOperation=node.op==="exclude" ? "XOR" : node.op.toUpperCase();
   if (isFrameLike(node)) out.frameMaskDisabled=!node.clip;
-  const box=node.kind==="rectangle" || isFrameLike(node);
+  const box=node.kind==="rectangle" || node.kind==="section" || isFrameLike(node);
   if (box || node.kind==="star" || node.kind==="polygon" || node.kind==="vector") {
     const corners=node.corners ?? zeroCorners,[tl,tr,br,bl]=corners.radii;
     out.cornerRadius=tl;

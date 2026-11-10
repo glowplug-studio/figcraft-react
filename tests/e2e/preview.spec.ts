@@ -6795,6 +6795,44 @@ test("layer clipboard crosses file tabs, respects newer system text and pastes a
   expect(Object.values(doc.nodes).some(n => n.kind === "text" && n.text.characters === "From another app")).toBe(true);
 });
 
+test("native Sections paint their own fill and hide nested artwork when folded",async({page})=>{
+  await login(page);
+  const files=unzipSync(await readFile(new URL("../fixtures/native-section-contents.zip",import.meta.url)));
+  for (const [name,rgba] of [["shown",[255,0,0,255]],["hidden",[255,255,255,255]]] as const) {
+    await page.getByLabel("Open Figcraft file",{exact:true}).setInputFiles({
+      name:name+".figcraft",mimeType:"application/octet-stream",buffer:Buffer.from(files[name+".figcraft"]),
+    });
+    await expectCanvasPixel(page,60,60,rgba);
+  }
+});
+
+test("external design HTML pastes editable layers before image or text and falls back on invalid markers", async ({page}) => {
+  await login(page);
+  const fixtures=unzipSync(await readFile(new URL("../fixtures/native-design-clipboard.zip",import.meta.url)));
+  const original=unzipSync(await readFile(new URL("../fixtures/native-fig-imports.zip",import.meta.url)));
+  const canvas=page.getByLabel("Design canvas",{exact:true});
+  const layers=page.getByRole("region",{name:"Layers",exact:true});
+  const paste=async(data:string,text:string,image=false)=>{
+    await canvas.focus();
+    await canvas.evaluate((target,{data,text,image})=>{
+      const transfer=new DataTransfer();
+      transfer.setData("text/html","<span><!--(figma)"+data+"(/figma)--></span>");
+      transfer.setData("text/plain",text);
+      if (image) transfer.items.add(new File(["invalid image"],"alternative.png",{type:"image/png"}));
+      target.dispatchEvent(new ClipboardEvent("paste",{clipboardData:transfer,bubbles:true,cancelable:true}));
+    },{data,text,image});
+  };
+  await paste(Buffer.from(fixtures["copied-card.fig"]).toString("base64"),"Alternative text",true);
+  await expect(layers.getByRole("button",{name:"Card",exact:true})).toBeVisible();
+  await expect(layers.getByRole("button",{name:"Dot",exact:true})).toBeVisible();
+  await canvas.press("ControlOrMeta+z");
+  await expect(layers.getByRole("button",{name:"Card",exact:true})).toHaveCount(0);
+  await paste("invalid!","Fallback from clipboard");
+  await expect(layers.getByRole("button",{name:"Fallback from clipboard",exact:true})).toBeVisible();
+  await paste(Buffer.from(original["missing-images.fig"]).toString("base64"),"Image fallback");
+  await expect(page.getByText(/clipboard didn't carry the images of: Rectangle/)).toBeVisible();
+});
+
 test("copy properties transfers appearance across tabs and undo restores the destination", async ({ page }) => {
   await login(page);
   await createNamedRectangle(page, "Style source", 20, 30);

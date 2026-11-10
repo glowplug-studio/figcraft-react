@@ -38,7 +38,7 @@ export class FigBlobs {
   }
 }
 export function shapeGeometry(out:KiwiObject,node:LayerNode,blobs:FigBlobs) {
-  const box=node.kind==="rectangle" || isFrameLike(node),curved=["ellipse","polygon","star"].includes(node.kind);
+  const box=node.kind==="rectangle" || node.kind==="section" || isFrameLike(node),curved=["ellipse","polygon","star"].includes(node.kind);
   if (box || curved) blobs.path(out,"fillGeometry",shapePath(node));
   const stroke=node.stroke ?? defaultStroke,w=stroke.weight;
   if (!node.strokes?.some(s=>s.visible) || w<=0 || stroke.dashes.length || stroke.sides || stroke.widthProfile?.points.length || stroke.brush) return;

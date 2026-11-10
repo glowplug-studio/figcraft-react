@@ -152,7 +152,7 @@ const declarations:readonly [string,number,string][]=[
     " rectangleBottomLeftCornerRadius:float=147 horizontalConstraint:ConstraintType=28" +
     " verticalConstraint:ConstraintType=37 frameMaskDisabled:bool=115 resizeToFit:bool=117" +
     " isStateGroup:bool=225 stateGroupPropertyValueOrders:StateGroupPropertyValueOrder[]=238" +
-    " backgroundColor:Color=50 stackMode:StackMode=105 stackSpacing:float=107 stackCounterSpacing:float=324" +
+    " sectionContentsHidden:bool=283 backgroundColor:Color=50 stackMode:StackMode=105 stackSpacing:float=107 stackCounterSpacing:float=324" +
     " stackWrap:StackWrap=323 stackCounterAlignContent:StackCounterAlignContent=343" +
     " stackHorizontalPadding:float=209 stackVerticalPadding:float=210 stackPaddingRight:float=233" +
     " stackPaddingBottom:float=234 stackPrimaryAlignItems:StackJustify=230" +

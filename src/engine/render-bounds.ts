@@ -1,3 +1,4 @@
+import { hidesContents } from "./document";
 import { multiply, transformBounds, type Affine } from "./affine";
 import { blurRadius } from "./blur-renderer";
 import { isFrameLike, isLeaf, layerTransform, type Document, type LayerNode } from "./document";
@@ -84,7 +85,7 @@ export function worldRenderBounds(doc:Document,id:string):Rectangle | undefined 
         own=union(own,expand(outline,g,g,...shadow.offset));
       }
     }
-    if (isLeaf(node) || depth>=256 || isFrameLike(node) && node.clip) return own;
+    if (isLeaf(node) || hidesContents(node) || depth>=256 || isFrameLike(node) && node.clip) return own;
     let kids:Rectangle|undefined, mask:Rectangle|undefined, run:Rectangle|undefined;
     function finishRun() {
       const visible=run && mask ? intersect(run,mask) : run;

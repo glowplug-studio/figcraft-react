@@ -1,3 +1,4 @@
+import { hidesContents } from "./document";
 import { reversedRuns } from "./paint-runs";
 import type { ColourProfile } from "./colour-spaces";
 import { rasterExportPlan } from "./export-area";
@@ -155,7 +156,7 @@ function paintedGroupBounds(context: CanvasRenderingContext2D, document: Documen
     const reach = current.effects?.length ? effectReach(current) : undefined;
     const stackMargin = item.margin + (reach?.page ?? 0);
     margin = Math.max(margin, stackMargin);
-    if (!isLeaf(current)) {
+    if (!isLeaf(current) && !hidesContents(current)) {
       for (const id of current.children) {
         const child = document.nodes[id];
         if (child && child.kind !== "page") pending.push({ node: child, parent: matrix, depth: item.depth + 1, margin: stackMargin });
@@ -191,18 +192,19 @@ function* drawLayer(context: CanvasRenderingContext2D, document: Document, node:
   const effect = usesPixelLayer(node) ? { doc: document, scale } : undefined;
   const blended = node.blend !== undefined && node.blend !== "normal" && node.blend !== "passThrough";
   if (!isLeaf(node)) {
+    const paintedBox = isFrameLike(node) || node.kind === "section";
     const composite = effect || blended || node.blend === "normal" && node.children.length || (node.opacity ?? 1) < .999;
     const childView = view && !composite && !node.transform
       ? {x:view.x-node.x, y:view.y-node.y, width:view.width, height:view.height} : undefined;
     const draw = function* (target: CanvasRenderingContext2D, shadows?: ShadowLayer): PaintSteps {
-      if (isFrameLike(node)) yield* resolveLayerPaints(paintRectangle(target, node, 1, false), document, depth, nesting, drawLayer, !!shadows);
-      if (isFrameLike(node)) shadows?.inner();
+      if (paintedBox) yield* resolveLayerPaints(paintRectangle(target, node, 1, false), document, depth, nesting, drawLayer, !!shadows);
+      if (paintedBox) shadows?.inner();
       target.save(); target.transform(...rectangleTransform(node));
       if (isFrameLike(node) && node.clip) { target.beginPath(); tracePath(target, shapePath(node)); target.clip(); }
-      yield* drawChildren(target, document, node.children, depth + 1, nesting, scale, childView, isFrameLike(node) && node.layout?.reverseZ);
+      if (!hidesContents(node)) yield* drawChildren(target, document, node.children, depth + 1, nesting, scale, childView, isFrameLike(node) && node.layout?.reverseZ);
       target.restore();
       if (node.kind === "group") shadows?.inner();
-      if (isFrameLike(node) && hasVisibleStroke(node)) yield* resolveLayerPaints(paintLayerStroke(target, node), document, depth, nesting, drawLayer);
+      if (paintedBox && hasVisibleStroke(node)) yield* resolveLayerPaints(paintLayerStroke(target, node), document, depth, nesting, drawLayer);
     };
     if (composite) {
       const bounds = paintedGroupBounds(context, document, node, scale);

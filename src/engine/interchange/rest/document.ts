@@ -45,7 +45,7 @@ function shape(n:JsonObject,warnings:ImportWarnings,images:ImportImages):Record<
     case "INSTANCE": case "SLOT": return {type:"frame"};
     case "VECTOR": return {type:"vector"};
     case "TEXT": return {type:"text",...textFields(n,images,warnings)};
-    case "SECTION": throw new Error("REST "+ty+" layer import is not supported yet");
+    case "SECTION": return {type:"section",contents_hidden:n.sectionContentsHidden===true};
     default: warnings.add(clipped(ty)+" layers are not supported and were skipped");return;
   }
 }

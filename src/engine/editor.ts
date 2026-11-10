@@ -102,6 +102,7 @@ export const commandSpecs = Object.freeze({
   "edit.copyProperties": { label: "Copy properties", undo: false },
   "edit.pasteProperties": { label: "Paste properties", undo: true },
   ...layerClipboardSpecs,
+  "edit.pasteDesignLayers": {label:"Paste design layers",undo:true},
   ...effectSpecs,
   ...strokeSpecs,
   ...textFormatSpecs,
@@ -1183,6 +1184,7 @@ export class EditorEngine {
       return result;
     }
     if (command === "text.fonts") return queryFonts(p);
+    if (command==="edit.pasteDesignLayers") throw new Error(command+" requires executeAsync");
     if (command === "text.loadFont") throw new Error("text.loadFont requires executeAsync");
     if (command === "text.rescanFonts") return {added:[],refitted:[]};
     if (command === "text.openLink") {
@@ -1667,6 +1669,12 @@ export class EditorEngine {
   async executeAsync(command: "node.get", input: unknown): Promise<ReturnType<typeof getNode>>;
   async executeAsync(command: string, input?: unknown): Promise<Record<string, unknown>>;
   async executeAsync(command: string, input: unknown = {}): Promise<Record<string, unknown> | Variables | ReturnType<typeof listStyles> | ReturnType<typeof listComponents> | ReturnType<typeof queryFonts> | null> {
+    if (command==="edit.pasteDesignLayers") {
+      const p=parameters(input);
+      const result=await this.pasteDesignLayers(p);
+      if (!result) throw new Error("edit.pasteDesignLayers: "+(typeof p.html==="string" ? "the HTML holds no copied design layers" : "the data is not copied design layers"));
+      return result;
+    }
     if (command === "file.exportLayers") {
       const opening = this.#openSequence;
       const { output, files, skipped } = await this.prepareLayerExports(parameters(input), false);
@@ -1735,6 +1743,38 @@ export class EditorEngine {
     const opening = this.#openSequence, {document,selection} = this.#snapshot;
     const { renderLayerExports } = await import("./export-layers");
     return renderLayerExports(document, selection, params, download, () => this.#assertExportAccess(opening));
+  }
+  async pasteDesignLayers(params:{html?:unknown;data?:unknown} & Record<string,unknown>) {
+    const before=this.#snapshot,opening=this.#openSequence;
+    const check=()=>{
+      if (!before.editable || !this.#snapshot.editable || before.document!==this.#snapshot.document || opening!==this.#openSequence)
+        throw new Error("Paste was cancelled because the drawing or editing access changed");
+    };
+    check();
+    const {readDesignClipboard,missingClipboardImages}=await import("./interchange/fig/clipboard");
+    const decoded=await readDesignClipboard(params,check);
+    check();
+    if (!decoded) return;
+    const source=decoded.document,roots=source.pages.flatMap(id=>{
+      const page=source.nodes[id];
+      return page?.kind==="page" ? page.children : [];
+    });
+    if (!roots.length) throw new Error("command `edit.pasteDesignLayers` is not available right now: the copied layers came in empty");
+    await prepareDocumentText(source);
+    check();
+    const clip=captureLayers(source,roots,{},Symbol(),false);
+    const next=pasteLayers("edit.paste",before.document,before.selection,this.#nextId,params,clip,this.#documentIdentity,this.#view);
+    const missing=await missingClipboardImages(next.document,next.selection.filter(id=>next.document.nodes[id]));
+    check();
+    const previous=this.#clipboard.layers;
+    this.#clipboard.layers=clip;
+    try {
+      this.#commitEdit({document:next.document,selection:next.selection},{nextId:next.nextId,libraryEdit:true});
+    } catch (error) {
+      this.#clipboard.layers=previous;
+      throw error;
+    }
+    return {...next.result,...(missing.length && {missingImages:missing}),...(decoded.issues.length && {warnings:decoded.issues})};
   }
   async exportGraphic(params: Record<string,unknown> = {}, frames = false): Promise<{format:string; blob:Blob; warnings?:string[]; pages?:number}> {
     const format=parseString(params.format)?.toLowerCase().replace(/^\.+/,"");

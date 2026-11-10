@@ -133,7 +133,7 @@ export async function figScene(msg:KiwiValue,name:string,checkCurrent:()=>void,l
       constraints:{horizontal:constraint(n.horizontalConstraint,"LEFT","RIGHT"),vertical:constraint(n.verticalConstraint,"TOP","BOTTOM")},
       rectangleCornerRadii:n.rectangleCornerRadiiIndependent ? [n.rectangleTopLeftCornerRadius ?? 0,n.rectangleTopRightCornerRadius ?? 0,
         n.rectangleBottomRightCornerRadius ?? 0,n.rectangleBottomLeftCornerRadius ?? 0] : undefined,
-      clipsContent:n.frameMaskDisabled!==true,booleanOperation:n.booleanOperation==="XOR" ? "EXCLUDE" : n.booleanOperation,
+      sectionContentsHidden:n.sectionContentsHidden,clipsContent:n.frameMaskDisabled!==true,booleanOperation:n.booleanOperation==="XOR" ? "EXCLUDE" : n.booleanOperation,
       pointCount:n.count,innerRadius:n.starInnerScale
     };
     if (type==="TEXT") {

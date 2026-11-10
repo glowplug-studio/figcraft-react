@@ -7,8 +7,7 @@ import {writeFigDocument} from "../../src/engine/interchange/fig/write-document"
 import native from "../fixtures/native-rest-documents.json";
 
 const expected=unzipSync(readFileSync(new URL("../fixtures/native-fig-imports.zip",import.meta.url)));
-const supported=native.filter(c=>c.name!=="section and slice");
-it.each(supported)("reopens browser-written Fig output against the native writer for $name",async input=>{
+it.each(native)("reopens browser-written Fig output against the native writer for $name",async input=>{
   const name=input.name.replaceAll(" ","-");
   const source=await decodeFigcraft(Uint8Array.from(Buffer.from(input.archive,"base64")));
   const file=await writeFigDocument(source.document,()=>{});

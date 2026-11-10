@@ -453,25 +453,41 @@ export function DocumentEditor({ identity, capabilities, engine: suppliedEngine,
       .catch(error => setError(error instanceof Error ? error.message : "Could not paste text"));
   }
 
-  async function paste(file?:File, point?:Point) {
+  async function paste(file?:File, point?:Point, transfer?:{html:string;text:string;image?:File}) {
     const document = engine.getSnapshot().document;
     controller.current?.cancel(); setBusy(true); setError("");
     try {
       if (!file) {
-        if (!navigator.clipboard?.read) {
-          if (engine.hasCopiedLayers()) { dispatch("edit.paste", point); return; }
-          throw new Error("Use the browser’s Paste command");
+        let items:ClipboardItems=[],html=transfer?.html ?? "",text=transfer?.text ?? "";
+        if (!transfer) {
+          if (!navigator.clipboard?.read) {
+            if (engine.hasCopiedLayers()) { dispatch("edit.paste", point); return; }
+            throw new Error("Use the browser’s Paste command");
+          }
+          try { items = await navigator.clipboard.read(); } catch (error) {
+            if (document === engine.getSnapshot().document && engine.hasCopiedLayers()) { dispatch("edit.paste", point); return; }
+            throw error;
+          }
+          const readText=async(type:string)=>{
+            const item=items.find(item=>item.types.includes(type));
+            return item ? (await item.getType(type)).text() : "";
+          };
+          html=await readText("text/html");
+          text=await readText("text/plain");
         }
-        let items: ClipboardItems;
-        try { items = await navigator.clipboard.read(); } catch (error) {
-          if (document === engine.getSnapshot().document && engine.hasCopiedLayers()) { dispatch("edit.paste", point); return; }
-          throw error;
-        }
-        const itemWithText = items.find(item => item.types.includes("text/plain"));
-        const text = itemWithText ? await (await itemWithText.getType("text/plain")).text() : "";
         if (document !== engine.getSnapshot().document) throw new Error("Paste was cancelled because the drawing changed");
+        if (html.includes("(figma)")) {
+          const result=await engine.pasteDesignLayers({html,...point});
+          if (result) {
+            engine.trackLayerClipboardMirror(text);
+            if (result.missingImages?.length) setError("Pasted design layers; the clipboard didn't carry the images of: "+result.missingImages.join(", "));
+            else if (result.warnings?.length) setError(result.warnings.join("\n"));
+            return;
+          }
+        }
         if (text && engine.ownsLayerClipboardText(text)) { pasteText(text, point); return; }
         if (looksLikeSvg(text)) file=new File([text],"Pasted SVG.svg",{type:"image/svg+xml"});
+        file??=transfer?.image;
         for (const item of items) {
           if (file) break;
           const type = item.types.includes("image/svg+xml") ? "image/svg+xml" : item.types.includes("image/png") ? "image/png" : item.types.find(type=>type.startsWith("image/"));
@@ -479,6 +495,7 @@ export function DocumentEditor({ identity, capabilities, engine: suppliedEngine,
         }
         if (!file && text) { pasteText(text, point); return; }
         if (!file && engine.hasCopiedLayers()) { dispatch("edit.paste", point); return; }
+        if (!file && transfer) return;
         if (!file) throw new Error("The clipboard is empty");
       }
       if (document !== engine.getSnapshot().document) throw new Error("Paste was cancelled because the drawing changed");
@@ -606,11 +623,12 @@ export function DocumentEditor({ identity, capabilities, engine: suppliedEngine,
       if (!editable || busy || pendingFile || modifiedPaste.current) return;
       if (e.target instanceof Element && e.target.closest("input,textarea,select,dialog,[contenteditable]:not([contenteditable=false])")) return;
       const text = e.clipboardData.getData("text/plain") || e.clipboardData.getData("image/svg+xml");
-      if (text && (engine.ownsLayerClipboardText(text) || looksLikeSvg(text))) { e.preventDefault(); pasteText(text); return; }
-      const file = Array.from(e.clipboardData.files).find(file=>file.type.startsWith("image/"));
-      if (file) { e.preventDefault(); void paste(file); }
-      else if (text) { e.preventDefault(); pasteText(text); }
-      else if (!e.clipboardData.types.length && engine.hasCopiedLayers()) { e.preventDefault(); dispatch("edit.paste"); }
+      const html=e.clipboardData.getData("text/html");
+      const image=Array.from(e.clipboardData.files).find(file=>file.type.startsWith("image/"));
+      if (html.includes("(figma)") || text || image || !e.clipboardData.types.length && engine.hasCopiedLayers()) {
+        e.preventDefault();
+        void paste(undefined,undefined,{html,text,image});
+      }
     }}>
       <header className="figcraft-document-bar"><h1>{snapshot.document.name}</h1><span>{snapshot.dirty ? "Unsaved" : snapshot.hasSaved ? "Downloaded" : "Unmodified"} · Local document</span>
         <details className="figcraft-bar-menu"><summary>File</summary><div className="figcraft-menu-items">{fileMenu}

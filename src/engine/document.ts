@@ -113,6 +113,11 @@ export interface VectorNode extends LayerProperties { readonly kind: "vector"; r
 export interface TextNode extends LayerProperties { readonly kind: "text"; readonly text: TextData; readonly textSizing?: LayerSizing; readonly charactersOverridden?: true }
 export type LeafNode = RectangleNode | EllipseNode | PolygonNode | StarNode | LineNode | SliceNode | VectorNode | TextNode;
 export type DrawShapeKind = Exclude<LeafNode["kind"], "vector" | "text"> | "arrow";
+export interface SectionNode extends LayerProperties {
+  readonly kind: "section";
+  readonly contentsHidden: boolean;
+  readonly children: readonly NodeId[];
+}
 export interface GroupNode extends LayerProperties {
   readonly kind: "group";
   readonly children: readonly NodeId[];
@@ -138,13 +143,14 @@ export interface BooleanNode extends LayerProperties {
   readonly op: BooleanOperation;
   readonly children: readonly NodeId[];
 }
-export type LayerNode = LeafNode | GroupNode | FrameLikeNode | BooleanNode;
+export type LayerNode = LeafNode | GroupNode | SectionNode | FrameLikeNode | BooleanNode;
 export function commonProperties(node: LayerNode): LayerProperties {
   switch (node.kind) {
     case "component": { const { description, props, propOrder, ...frame } = node; return commonProperties({ ...frame, kind: "frame" }); }
     case "componentSet": { const { description, ...frame } = node; return commonProperties({ ...frame, kind: "frame" }); }
     case "instance": { const { component, props, ...frame } = node; return commonProperties({ ...frame, kind: "frame" }); }
     case "frame": { const { kind: _kind, children: _children, clip: _clip, layout: _layout, ...common } = node; return common; }
+    case "section": { const { kind, children, contentsHidden, ...common } = node; return common; }
     case "group": { const { kind: _kind, children: _children, ...common } = node; return common; }
     case "booleanOp": { const { kind: _kind, children: _children, op: _op, ...common } = node; return common; }
     case "ellipse": { const { kind: _kind, start: _start, sweep: _sweep, inner: _inner, ...common } = node; return common; }
@@ -161,6 +167,7 @@ export function nodeTypeName(node: DocumentNode): string {
   if (node.kind === "componentSet") return "COMPONENT_SET";
   return node.kind.toUpperCase();
 }
+export const hidesContents = (node: DocumentNode): boolean => node.kind === "section" && node.contentsHidden;
 export const isGroupLike = (node: DocumentNode | undefined): node is GroupNode | BooleanNode => node?.kind === "group" || node?.kind === "booleanOp";
 export const isLeafKind = (kind: unknown): kind is LeafNode["kind"] => kind === "rectangle" || kind === "ellipse" || kind === "polygon" || kind === "star" || kind === "line" || kind === "slice" || kind === "vector" || kind === "text";
 export const isDrawTool = (kind: unknown): kind is DrawShapeKind => isLeafKind(kind) && kind !== "vector" && kind !== "text" || kind === "arrow";

@@ -3,8 +3,7 @@ import { decodeFigcraft } from "../../src/engine/file-format";
 import { importRestDocument } from "../../src/engine/interchange/rest/document";
 import corpus from "../fixtures/native-rest-documents.json";
 
-const fixtures=corpus.filter(c=>c.name!=="section and slice");
-it.each(fixtures)("reads the native REST file and warnings for $name",async entry=>{
+it.each(corpus)("reads the native REST file and warnings for $name",async entry=>{
   const actual=await importRestDocument(entry.source,undefined,undefined,"variables" in entry ? entry.variables : undefined);
   const expected=await decodeFigcraft(Uint8Array.from(Buffer.from(entry.archive,"base64")));
   expect(actual?.issues).toEqual(entry.opened.warnings);
