@@ -196,6 +196,7 @@ export const commandSpecs = Object.freeze({
   "node.create": { label: "Create layer", undo: true },
   "vector.create": { label: "Vector", undo: true },
   "tool.ellipse": { label: "Ellipse", undo: false },
+  "tool.section": { label:"Section", undo:false },
   "tool.slice": { label: "Slice", undo: false },
   "tool.rectangle": { label: "Rectangle", undo: false },
   "tool.move": { label: "Move", undo: false },
@@ -707,6 +708,27 @@ export class EditorEngine {
     const { angle = 0, ...dimensions } = box, c = Math.cos(angle), s = Math.sin(angle);
     const next = createLayer(interaction.base, this.#nextId, `shape.${kind}`, { ...dimensions, parent }, this.#view, [c, s, -s, c, box.x, box.y]);
     interaction.document = next.document; interaction.selection = next.selection; interaction.nextId = next.nextId; this.#notifyCanvas();
+  }
+  finishDraw():void {
+    const gesture=this.#interaction;
+    if (gesture?.base.tool==="section" && gesture.selection.length===1) {
+      const {document}=gesture, id=gesture.selection[0], section=document.nodes[id];
+      if (section.kind==="section") {
+        const parent=document.nodes[section.parent], area=boundsOf(document,[id]);
+        if (area && "children" in parent) {
+          const draft=new HierarchyDraft(document);
+          for (const sibling of parent.children) {
+            const node=document.nodes[sibling];
+            if (sibling===id || node.kind==="page" || node.visible===false || node.locked) continue;
+            const box=boundsOf(document,[sibling]);
+            if (box && box.x>=area.x && box.y>=area.y && box.x+box.width<area.x+area.width && box.y+box.height<area.y+area.height)
+              draft.reparent(sibling,id);
+          }
+          gesture.document=draft.finish();
+        }
+      }
+    }
+    this.commitInteraction();
   }
   previewPenPath(points: readonly PenAnchor[], parent: NodeId, closed: boolean, join?: number): NodeId {
     const interaction = this.#interaction; if (!interaction) throw new Error("No active Pen interaction");
@@ -1421,7 +1443,7 @@ export class EditorEngine {
       if (command === "component.properties" || command === "instance.exposed") return next.result;
       const document=command==="instance.create" || command==="instance.place" ? countLibraryInstances(next.document,next.selection,"inserted") :
         command==="component.detach" ? countLibraryInstances(next.document,next.selection,"detached",before.document) : next.document;
-      this.#commitEdit({document, selection:next.selection}, {record:command==="component.resetInstance" || !sameContent(before.document,next.document), nextId:next.nextId});
+      this.#commitEdit({document, selection:next.selection}, {record:command==="section.toggleContents" || command==="component.resetInstance" || !sameContent(before.document,next.document), nextId:next.nextId});
       if (command === "component.goToMain") {
         const bounds = boundsOf(next.document,next.selection);
         if (bounds) this.updateView(fitView(this.#view,bounds,2));
@@ -1642,7 +1664,7 @@ export class EditorEngine {
     if (command.startsWith("file.") || command === "image.place" || command === "image.replace") throw new Error(`${command} requires executeAsync`);
     if (command === "text.create" || command === "vector.create" || command === "shape.line" || command === "shape.arrow" || command === "shape.polygon" || command === "shape.star" || command === "shape.ellipse" || command === "shape.rectangle" || command === "frame.create" || command === "node.create") return this.#create(command, p);
     if (Object.keys(p).length) throw new Error(`${command} takes no parameters`);
-    if (command === "tool.text" || command==="tool.textOnPath" || command === "tool.shapeBuilder" || command === "tool.pencil" || command === "tool.pen" || command === "tool.line" || command === "tool.arrow" || command === "tool.polygon" || command === "tool.star" || command === "tool.ellipse" || command === "tool.slice" || command === "tool.rectangle" || command === "tool.move" || command === "tool.scale") {
+    if (command === "tool.text" || command==="tool.textOnPath" || command === "tool.shapeBuilder" || command === "tool.pencil" || command === "tool.pen" || command === "tool.line" || command === "tool.arrow" || command === "tool.polygon" || command === "tool.star" || command === "tool.ellipse" || command === "tool.section" || command === "tool.slice" || command === "tool.rectangle" || command === "tool.move" || command === "tool.scale") {
       const end = this.#vectorEdit && command !== "tool.move" && command !== "tool.scale" ? executeVectorEdit("vector.edit.end", this.#snapshot.document, this.#snapshot.selection, this.#vectorEdit, {}) : undefined;
       if (end) this.#vectorEdit = undefined;
       this.#publish({ ...(end ? { document: end.document, selection: end.selection } : {}), tool: command.slice(5) as EditorSnapshot["tool"] });

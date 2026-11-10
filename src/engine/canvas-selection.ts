@@ -50,8 +50,9 @@ export function frameAt(document: Document, point: Point, exclude: readonly Node
   const visit = (id: NodeId, depth: number, inLayout: boolean, insideInstance: boolean): NodeId | undefined => {
     const node = document.nodes[id];
     if (!node || node.kind === "page" || depth > 128 || omitted.has(id) || node.visible === false || node.locked) return;
-    if (isLeaf(node) || hidesContents(node)) return;
-    if (isFrameLike(node)) {
+    if (isLeaf(node)) return;
+    const board=isFrameLike(node) || node.kind==="section";
+    if (board) {
       try {
         const matrix = worldTransform(document,id);
         const local = transformPoint(inverse(matrix),point);
@@ -67,7 +68,7 @@ export function frameAt(document: Document, point: Point, exclude: readonly Node
       const found = visit(child, depth + 1, flow, locked);
       if (found) return found;
     }
-    return isFrameLike(node) && !locked && (!inLayout || node.layout || slot) ? id : undefined;
+    return board && !locked && (!inLayout || isFrameLike(node) && node.layout || slot) ? id : undefined;
   };
   const page = document.nodes[document.currentPage];
   if (page.kind !== "page") return;

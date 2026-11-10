@@ -5,6 +5,15 @@ import { isDivider } from "./pages";
 import { parseBoolean, parseNumber } from "./parameters";
 import type { Point, Rectangle } from "./geometry";
 
+/** Frame export descends through Sections, including folded Sections, but stops at each frame. */
+export function* visibleTopFrames(document:Document,children:readonly NodeId[],depth=0):Generator<NodeId> {
+  for (const id of children) {
+    const node=document.nodes[id];
+    if (isFrameLike(node) && node.visible!==false) yield id;
+    else if (node?.kind==="section" && depth<64) yield* visibleTopFrames(document,node.children,depth+1);
+  }
+}
+
 export interface Viewport { readonly cx: number; readonly cy: number; readonly zoom: number; readonly vw: number; readonly vh: number; readonly slices?: boolean; readonly layoutGrids?: boolean; readonly snapObjects?: boolean; readonly snapPixel?: boolean; readonly proofSrgb?: boolean }
 export const defaultViewport: Viewport = Object.freeze({ cx: 0, cy: 0, zoom: 1, vw: 1200, vh: 800 });
 export const minimumZoom = 0.02, maximumZoom = 256;

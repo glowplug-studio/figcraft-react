@@ -5,7 +5,7 @@ import { checkVectorDepth } from "../export-svg";
 import type { Rectangle } from "../geometry";
 import { parseNodeId } from "../parameters";
 import { union, worldRenderBounds } from "../render-bounds";
-import { boundsOf } from "../viewport";
+import { boundsOf, visibleTopFrames } from "../viewport";
 import { printSheet } from "./sheet";
 
 export interface PdfPage {
@@ -21,11 +21,12 @@ export function pdfPages(doc:Document,selection:readonly string[],params:Record<
     const id=parseNodeId(params.page);
     const page=id ? doc.nodes[id] : pageOf(doc);
     if (page?.kind!=="page") throw new Error("`page` is not a page");
-    const ordered=page.children.flatMap(id=>{
-      const n=doc.nodes[id];
-      const bounds=n && isFrameLike(n) && n.visible!==false ? boundsOf(doc,[id]) : undefined;
-      return bounds ? [{id,bounds}] : [];
-    }).sort((a,b)=>a.bounds.y-b.bounds.y || a.bounds.x-b.bounds.x);
+    const ordered:{id:string;bounds:Rectangle}[]=[];
+    for (const id of visibleTopFrames(doc,page.children)) {
+      const bounds=boundsOf(doc,[id]);
+      if (bounds) ordered.push({id,bounds});
+    }
+    ordered.sort((a,b)=>a.bounds.y-b.bounds.y || a.bounds.x-b.bounds.x);
     if (!ordered.length) throw new Error("the page has no visible frames");
     groups=ordered.map(({id})=>[id]);
   } else {

@@ -140,6 +140,7 @@ function inspect(doc: Document, node: DocumentNode, depth: number, fields?: Set<
     if (node.kind === "text") {
       inspectText(node.text,outline,wants,put);
     }
+    if (node.kind==="section") put("sectionContentsHidden",node.contentsHidden);
     if (isFrameLike(node)) put("clip", node.clip);
     if (node.kind === "component") {
       if (node.description) put("description", node.description);

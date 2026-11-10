@@ -112,11 +112,19 @@ export interface StarNode extends LayerProperties { readonly kind: "star"; reado
 export interface VectorNode extends LayerProperties { readonly kind: "vector"; readonly network: VectorNetwork }
 export interface TextNode extends LayerProperties { readonly kind: "text"; readonly text: TextData; readonly textSizing?: LayerSizing; readonly charactersOverridden?: true }
 export type LeafNode = RectangleNode | EllipseNode | PolygonNode | StarNode | LineNode | SliceNode | VectorNode | TextNode;
-export type DrawShapeKind = Exclude<LeafNode["kind"], "vector" | "text"> | "arrow";
+export type DrawShapeKind = Exclude<LeafNode["kind"], "vector" | "text"> | "arrow" | "section";
 export interface SectionNode extends LayerProperties {
   readonly kind: "section";
   readonly contentsHidden: boolean;
   readonly children: readonly NodeId[];
+}
+export function newSection(base:Omit<LayerProperties,"fill">):SectionNode {
+  return Object.freeze({...base,kind:"section",contentsHidden:false,children:Object.freeze([]),
+    fill:"#ffffff",blend:"passThrough",corners:{radii:[2,2,2,2] as const,smoothing:0},
+    strokes:Object.freeze([solidPaint(fromRgba8(230,230,230))])});
+}
+export function takesSections(node:DocumentNode | undefined) {
+  return node?.kind==="page" || node?.kind==="section";
 }
 export interface GroupNode extends LayerProperties {
   readonly kind: "group";
@@ -170,7 +178,7 @@ export function nodeTypeName(node: DocumentNode): string {
 export const hidesContents = (node: DocumentNode): boolean => node.kind === "section" && node.contentsHidden;
 export const isGroupLike = (node: DocumentNode | undefined): node is GroupNode | BooleanNode => node?.kind === "group" || node?.kind === "booleanOp";
 export const isLeafKind = (kind: unknown): kind is LeafNode["kind"] => kind === "rectangle" || kind === "ellipse" || kind === "polygon" || kind === "star" || kind === "line" || kind === "slice" || kind === "vector" || kind === "text";
-export const isDrawTool = (kind: unknown): kind is DrawShapeKind => isLeafKind(kind) && kind !== "vector" && kind !== "text" || kind === "arrow";
+export const isDrawTool = (kind: unknown): kind is DrawShapeKind => isLeafKind(kind) && kind !== "vector" && kind !== "text" || kind === "arrow" || kind === "section";
 export const isLeaf = (node: DocumentNode): node is LeafNode => isLeafKind(node.kind);
 export const layerBlend = (node: LayerNode): BlendMode => node.blend ?? (isLeaf(node) ? "normal" : "passThrough");
 export interface Document {

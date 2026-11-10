@@ -6795,6 +6795,53 @@ test("layer clipboard crosses file tabs, respects newer system text and pastes a
   expect(Object.values(doc.nodes).some(n => n.kind === "text" && n.text.characters === "From another app")).toBe(true);
 });
 
+test("draw, wrap, convert and toggle editable Sections in the signed-in editor",async({page})=>{
+  await login(page);
+  await createNamedRectangle(page,"Child",55,55,20,20);
+  const canvas=page.getByLabel("Design canvas",{exact:true});
+  const layers=page.getByRole("region",{name:"Layers",exact:true});
+  await canvas.focus();
+  await canvas.press("Shift+s");
+  const origin=await canvasPoint(page,20,20),end=await canvasPoint(page,145,145);
+  await page.mouse.move(origin.x,origin.y);await page.mouse.down();
+  await page.mouse.move(end.x,end.y,{steps:4});await page.mouse.up();
+  await expect(layers.getByRole("button",{name:"Section 1",exact:true})).toBeVisible();
+  await expectCanvasPixel(page,65,65,[217,217,217,255]);
+  await layers.getByRole("button",{name:"Hide/Show section contents"}).click();
+  await expectCanvasPixel(page,65,65,[255,255,255,255]);
+  await canvas.press("ControlOrMeta+z");
+  await expectCanvasPixel(page,65,65,[217,217,217,255]);
+  await layers.getByRole("button",{name:"Convert to frame",exact:true}).click();
+  await layers.getByRole("button",{name:"Convert to section",exact:true}).click();
+  await layers.getByRole("button",{name:"Wrap in new section",exact:true}).click();
+  const save=page.waitForEvent("download");
+  await page.getByRole("button",{name:"Save as",exact:true}).click();
+  const doc=(await decodeFigcraft(await readFile((await (await save).path())!))).document;
+  const nodes=Object.values(doc.nodes),outer=nodes.find(n=>n.name==="Section 2")!,inner=nodes.find(n=>n.name==="Section 1")!;
+  expect(outer).toMatchObject({kind:"section",x:-20,y:-20,width:205,height:205});
+  expect(inner).toMatchObject({kind:"section",contentsHidden:false,parent:outer.id});
+  expect(nodes.find(n=>n.name==="Child")?.parent).toBe(inner.id);
+});
+
+test("frame PDF download finds nested frames in a folded Section and keeps native reading order",async({page})=>{
+  await login(page);
+  const files=unzipSync(await readFile(new URL("../fixtures/native-section-frame-export.zip",import.meta.url)));
+  await page.getByLabel("Open Figcraft file",{exact:true}).setInputFiles({name:"nested.figcraft",mimeType:"application/octet-stream",buffer:Buffer.from(files["nested.figcraft"])});
+  const bar=page.locator(".figcraft-document-bar");
+  await bar.getByText("File",{exact:true}).click();
+  const download=page.waitForEvent("download");
+  await bar.getByRole("button",{name:"Export frames to PDF…",exact:true}).click();
+  const exported=await readFile((await (await download).path())!);
+  const count=/\/Type \/Pages\b[^>]*\/Count (\d+)/.exec(exported.toString("latin1"));
+  expect(count?.[1]).toBe("3");
+  const {execFileSync}=await import("node:child_process");
+  for (const index of ["1","2","3"]) {
+    const args=["-f",index,"-l",index,"-r","72","-singlefile","-"];
+    const baseline=execFileSync("pdftoppm",args,{input:files["frames.pdf"]});
+    expect(execFileSync("pdftoppm",args,{input:exported}).equals(baseline)).toBe(true);
+  }
+});
+
 test("native Sections paint their own fill and hide nested artwork when folded",async({page})=>{
   await login(page);
   const files=unzipSync(await readFile(new URL("../fixtures/native-section-contents.zip",import.meta.url)));

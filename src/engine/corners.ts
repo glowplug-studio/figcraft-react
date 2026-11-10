@@ -89,7 +89,7 @@ export function mapVectorPath(path: readonly PathCommand[], map: (p: Point) => P
 }
 
 const paths = new WeakMap<Corners, Map<string, readonly PathCommand[]>>();
-export const hasRoundedCorners = (n: LayerNode): boolean => (n.kind === "rectangle" || isFrameLike(n)) && Boolean(n.corners?.radii.some(r => r > 0));
+export const hasRoundedCorners = (n: LayerNode): boolean => (n.kind === "rectangle" || n.kind === "section" || isFrameLike(n)) && Boolean(n.corners?.radii.some(r => r > 0));
 export function cornerPath(node: LayerNode): readonly PathCommand[] {
   const corners = node.corners ?? zeroCorners, key = `${node.width}:${node.height}`;
   let cache = paths.get(corners); if (!cache) { cache = new Map(); paths.set(corners, cache); }

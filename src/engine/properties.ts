@@ -41,7 +41,7 @@ const geometryKeys = new Set(["x", "y", "width", "height", "w", "h", "rotation"]
 const styleSlots = new Map<string, StyleSlot>([
   ["effectStyle","effect"], ["fillStyle","fill"], ["gridStyle","grid"], ["strokeStyle","stroke"], ["textStyle","text"],
 ]);
-const appearanceKeys = new Set([...styleSlots.keys(), "boundVariables", "variableModes", "grids", "layoutGrids", "exports", "exportSettings", "description", "effects", "isMask", "maskType", "booleanOperation", "operandOperation", "name", "visible", "locked", "opacity", "blend", "blendMode", "fill", "fills", "clip", "constraints", "constrainProportions"]);
+const appearanceKeys = new Set([...styleSlots.keys(), "boundVariables", "variableModes", "grids", "layoutGrids", "exports", "exportSettings", "sectionContentsHidden", "description", "effects", "isMask", "maskType", "booleanOperation", "operandOperation", "name", "visible", "locked", "opacity", "blend", "blendMode", "fill", "fills", "clip", "constraints", "constrainProportions"]);
 
 export function supportsLayerProperty(key:string) {
   return geometryKeys.has(key) || appearanceKeys.has(key) || childLayoutKeys.has(key) || frameTuning.has(key) ||
@@ -295,6 +295,11 @@ export function writeProperties(draft: HierarchyDraft, document: Document, selec
       const description = typeof raw === "string" || typeof raw === "number" ? String(raw) : "";
       if (description !== updated.description) updated = {...updated,description};
     }
+    const sectionChanged = updated.kind==="section" && "sectionContentsHidden" in props && updated.contentsHidden!==props.sectionContentsHidden;
+    if (sectionChanged && updated.kind==="section") {
+      if (typeof props.sectionContentsHidden!=="boolean") throw new Error("sectionContentsHidden must be a boolean");
+      updated={...updated,contentsHidden:props.sectionContentsHidden};
+    }
     if (effects) updated = withEffects(updated, effects);
     if ("isMask" in props || "maskType" in props) updated = mask(updated);
     if (cornersChanged) updated = Object.freeze({ ...updated, corners });
@@ -308,7 +313,7 @@ export function writeProperties(draft: HierarchyDraft, document: Document, selec
     if (opacity !== undefined && opacity !== (node.opacity ?? 1)) updated = Object.freeze({ ...updated, opacity });
     if (paints && !samePaints(rectanglePaints(node), paints)) updated = withRectanglePaints(updated, paints);
     updated = styleProperties(updated,node);
-    if (wrappers.size || updated.boundVariables!==node.boundVariables || updated.variableModes!==node.variableModes || links.length || grids || exports || "description" in props || textKeys.length || updated.effects !== node.effects || updated.isMask !== node.isMask || updated.maskType !== node.maskType || changeBlend || arcNode !== node || updated.kind === "vector" && "cornerRadius" in props || cornersChanged || "constrainProportions" in props && props.constrainProportions !== (node.constrainProportions ?? false) || constraintsChanged || "clip" in props && isFrameLike(node) && props.clip !== node.clip || width !== node.width || height !== node.height || transform.some((value, index) => value !== rectangleTransform(node)[index])
+    if (sectionChanged || wrappers.size || updated.boundVariables!==node.boundVariables || updated.variableModes!==node.variableModes || links.length || grids || exports || "description" in props || textKeys.length || updated.effects !== node.effects || updated.isMask !== node.isMask || updated.maskType !== node.maskType || changeBlend || arcNode !== node || updated.kind === "vector" && "cornerRadius" in props || cornersChanged || "constrainProportions" in props && props.constrainProportions !== (node.constrainProportions ?? false) || constraintsChanged || "clip" in props && isFrameLike(node) && props.clip !== node.clip || width !== node.width || height !== node.height || transform.some((value, index) => value !== rectangleTransform(node)[index])
       || name !== undefined && name !== node.name || "visible" in props && props.visible !== (node.visible ?? true)
       || "locked" in props && props.locked !== (node.locked ?? false) || opacity !== undefined && opacity !== (node.opacity ?? 1)
       || paints && !samePaints(rectanglePaints(node), paints)) {

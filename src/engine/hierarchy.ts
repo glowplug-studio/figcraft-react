@@ -1,3 +1,4 @@
+import { takesSections } from "./document";
 import { cohereEdits } from "./child-layout-properties";
 import { reflowChangedFrames } from "./layout-reflow";
 import { isLeaf, isGroupLike } from "./document";
@@ -162,6 +163,7 @@ export class HierarchyDraft {
   reparent(id: NodeId, parent: NodeId, index?: number): void {
     const document = this.document, node = nodeOf(document, id), destination = nodeOf(document, parent);
     if (node.kind === "page") throw new Error("Pages cannot be reparented");
+    if (node.kind === "section" && !takesSections(destination)) throw new Error("sections go on the page or in other sections");
     if (isLeaf(destination)) throw new Error(`${parent} is not a container`);
     if (id === parent || ancestors(document, parent).includes(id)) throw new Error("Cyclic node hierarchy");
     if (index !== undefined && (!Number.isSafeInteger(index) || index < 0)) throw new Error("Invalid child index");

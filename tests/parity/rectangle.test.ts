@@ -126,7 +126,7 @@ describe("rectangle port boundary and transaction safety", () => {
     ["shape.rectangle", { index: -1 }],
     ["shape.rectangle", { index: 0.5 }],
     ["shape.rectangle", { index: 1e9 }],
-    ["node.create", { type: "section" }],
+    ["node.create", { type: "unknown-kind" }],
     ["shape.rectangle", null],
     ["edit.undo", { extra: true }],
   ] as const)("rejects %s invalid input atomically (%j)", (command, params) => {

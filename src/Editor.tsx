@@ -36,7 +36,7 @@ import type { DocumentCapability } from "./backends/access";
 import type { IdentityAdapter } from "./backends/identity";
 import { hitRectangle, type layersAt } from "./engine/selection";
 import { topImageFill } from "./engine/image-commands";
-import { screenToPage } from "./engine/viewport";
+import { screenToPage, visibleTopFrames } from "./engine/viewport";
 import type { Point } from "./engine/geometry";
 import { CanvasController } from "./engine/canvas";
 import { EditorEngine } from "./engine/editor";
@@ -325,7 +325,7 @@ export function DocumentEditor({ identity, capabilities, engine: suppliedEngine,
     if (event.key === "Delete" || event.key === "Backspace") command = "edit.delete";
     if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "z") command = event.shiftKey ? "edit.redo" : "edit.undo";
     else if (!event.metaKey && !event.ctrlKey && !event.altKey) {
-      if (event.key.toLowerCase() === "s" && !event.shiftKey) command = "tool.slice";
+      if (event.key.toLowerCase() === "s") command = event.shiftKey ? "tool.section" : "tool.slice";
       if (event.key.toLowerCase() === "o") command = "tool.ellipse";
       if (event.key.toLowerCase() === "l") command = event.shiftKey ? "tool.arrow" : "tool.line";
       if (event.key.toLowerCase() === "t") command = "tool.text";
@@ -639,9 +639,7 @@ export function DocumentEditor({ identity, capabilities, engine: suppliedEngine,
             event.currentTarget.closest("details")?.removeAttribute("open");
             setExportJobs(layerExportJobs(snapshot.document,snapshot.selection,{}).jobs); exportDialog.current?.showModal();
           }}>Export…</button>
-          <button type="button" disabled={!signedIn || busy || recoveryStatus === "loading" || !page.children.some(id => {
-            const n=snapshot.document.nodes[id]; return n && isFrameLike(n) && n.visible!==false;
-          })} onClick={event => {
+          <button type="button" disabled={!signedIn || busy || recoveryStatus === "loading" || visibleTopFrames(snapshot.document,page.children).next().done} onClick={event => {
             event.currentTarget.closest("details")?.removeAttribute("open");
             void exportDrawing("pdf",1,"frames");
           }}>Export frames to PDF…</button>
@@ -852,6 +850,7 @@ export function DocumentEditor({ identity, capabilities, engine: suppliedEngine,
             <button disabled={!editable} aria-pressed={snapshot.tool === "ellipse"} onClick={() => { dispatch("tool.ellipse"); canvas.current?.focus(); }}>Ellipse</button>
             <button disabled={!editable} aria-pressed={snapshot.tool === "polygon"} onClick={() => { dispatch("tool.polygon"); canvas.current?.focus(); }}>Polygon</button>
             <button disabled={!editable} aria-pressed={snapshot.tool === "star"} onClick={() => { dispatch("tool.star"); canvas.current?.focus(); }}>Star</button>
+            <button disabled={!editable} aria-pressed={snapshot.tool === "section"} title="Section · Shift+S" onClick={() => { dispatch("tool.section"); canvas.current?.focus(); }}>Section</button>
             <button disabled={!editable} aria-pressed={snapshot.tool === "slice"} onClick={() => { dispatch("tool.slice"); canvas.current?.focus(); }}>Slice</button>
             <button disabled={!editable} aria-pressed={snapshot.tool === "line"} onClick={() => { dispatch("tool.line"); canvas.current?.focus(); }}>Line</button>
             <button disabled={!editable} aria-pressed={snapshot.tool === "arrow"} onClick={() => { dispatch("tool.arrow"); canvas.current?.focus(); }}>Arrow</button>

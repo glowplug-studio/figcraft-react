@@ -15,7 +15,9 @@ export class DrawInteraction {
   down(point: Point): boolean {
     const s = this.engine.getSnapshot(); if (!s.editable || !isDrawTool(s.tool)) return false;
     this.engine.beginInteraction();
-    this.#gesture = { start: point, parent: frameAt(s.document, point, []) ?? s.document.currentPage, kind: s.tool, targets: new SnapTargets(s.document, []), moved: false }; return true;
+    const hit=frameAt(s.document,point,[]);
+    const parent=hit && (s.tool!=="section" || s.document.nodes[hit].kind==="section") ? hit : s.document.currentPage;
+    this.#gesture = { start: point, parent, kind: s.tool, targets: new SnapTargets(s.document, []), moved: false }; return true;
   }
   move(point: Point, modifiers: MoveModifiers): void {
     const g = this.#gesture; if (!g) return;
@@ -36,9 +38,9 @@ export class DrawInteraction {
     try {
       if (!g.moved || Math.hypot(point.x - g.start.x, point.y - g.start.y) * this.engine.getView().zoom < 3) {
         const line = g.kind === "line" || g.kind === "arrow";
-        this.engine.previewDraw(g.kind, (line ? drawnLine : drawnRectangle)(g.start, { x: g.start.x + 100, y: g.start.y + (line ? 0 : 100) }, false, false, this.engine.getView().snapPixel !== false), g.parent);
+        this.engine.previewDraw(g.kind, (line ? drawnLine : drawnRectangle)(g.start, { x: g.start.x + (g.kind==="section" ? 400 : 100), y: g.start.y + (line ? 0 : g.kind==="section" ? 300 : 100) }, false, false, this.engine.getView().snapPixel !== false), g.parent);
       }
-      this.engine.commitInteraction(); this.engine.execute("tool.move");
+      this.engine.finishDraw(); this.engine.execute("tool.move");
     } catch (error) { this.#fail(error); }
   }
   cancel(): void { if (this.#gesture) { this.#gesture = undefined; this.#guides = []; this.engine.cancelInteraction(); } }

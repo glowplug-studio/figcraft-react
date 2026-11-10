@@ -113,7 +113,11 @@ export function targetForLeaf(document: Document, leaf: NodeId, selection: reado
     const at = chain.indexOf(parent);
     if (at >= 0 && at + 1 < chain.length) target = Math.max(target, at + 1);
   }
-  if (target === 0 && chain.length > 1 && isFrameLike(document.nodes[chain[0]])) target = 1;
+  const board = (id:NodeId) => isFrameLike(document.nodes[id]) || document.nodes[id]?.kind==="section";
+  if (target===0 && chain.length>1 && board(chain[0])) {
+    target=1;
+    while (target+1<chain.length && document.nodes[chain[target-1]].kind==="section" && board(chain[target])) target++;
+  }
   return chain[target] ?? leaf;
 }
 

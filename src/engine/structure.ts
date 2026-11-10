@@ -1,4 +1,7 @@
 import { owningInstance } from "./component-tree";
+import { boundsOf } from "./viewport";
+import { newSection, takesSections, type SectionNode } from "./document";
+import { frameTuning } from "./layout-properties";
 import { newComponentKind } from "./component-properties";
 import { setChildProperty } from "./child-layout-properties";
 import { editLayoutStructure } from "./layout-structure";
@@ -7,8 +10,8 @@ import { fromRgba8 } from "./colour";
 import { solidPaint } from "./solid-paint";
 import { inverse, transformBounds } from "./affine";
 import { type Document, type GroupNode, type FrameNode, type NodeId } from "./document";
-import { HierarchyDraft, pageForNode, rootIds, worldTransform, zSorted } from "./hierarchy";
-import { parseIndex, parseNodeId, parseNumber, parseString } from "./parameters";
+import { ancestors, HierarchyDraft, pageForNode, rootIds, worldTransform, zSorted } from "./hierarchy";
+import { inspectedId, parseBoolean, parseIndex, parseNodeId, parseNumber, parseString } from "./parameters";
 
 export const structureSpecs = Object.freeze({
   "component.create": { label: "Create component", undo: true },
@@ -24,6 +27,9 @@ export const structureSpecs = Object.freeze({
   "object.mask": { label: "Use as mask", undo: true },
   "object.releaseMask": { label: "Release mask", undo: true },
   "object.group": { label: "Group selection", undo: true },
+  "section.toggleContents": { label:"Hide/Show section contents", undo:true },
+  "object.wrapInSection": { label:"Wrap in new section", undo:true },
+  "object.convertToSection": { label:"Convert to section", undo:true },
   "object.frameSelection": { label: "Frame selection", undo: true },
   "object.removeFrame": { label: "Remove frame", undo: true },
   "object.convertToFrame": { label: "Convert to frame", undo: true },
@@ -83,9 +89,10 @@ export function executeStructure(command: string, document: Document, selection:
   const mask = command === "object.mask", releaseMask = command === "object.releaseMask";
   const layoutCommand = command.startsWith("layout.");
   const createComponent = command === "component.create" || command === "component.createMultiple";
-  const strictTargets = createComponent || !!operation || mask || releaseMask || layoutCommand;
-  const wraps = mask || command === "object.group" || command === "object.frameSelection" || operation !== undefined;
-  const allowed = command === "layout.add" || command === "layout.suggest" ? ["id","ids","direction"] : wraps && !mask ? ["ids", "id", "name"] : command === "node.reparent" ? ["ids", "id", "parent", "index"] : ["ids", "id"];
+  const strictTargets = command==="section.toggleContents" || command==="object.wrapInSection" || command==="object.convertToSection" || createComponent || !!operation || mask || releaseMask || layoutCommand;
+  const sectionWrap = command === "object.wrapInSection";
+  const wraps = sectionWrap || mask || command === "object.group" || command === "object.frameSelection" || operation !== undefined;
+  const allowed = command === "section.toggleContents" ? ["ids","id","hidden"] : command === "layout.add" || command === "layout.suggest" ? ["id","ids","direction"] : wraps && !mask ? ["ids", "id", "name"] : command === "node.reparent" ? ["ids", "id", "parent", "index"] : ["ids", "id"];
   if (!Object.hasOwn(structureSpecs, command)) throw new Error(`Unsupported structure command: ${command}`);
   for (const key of Object.keys(params)) if (!allowed.includes(key)) throw new Error(`Unsupported ${command} parameter: ${key}`);
   const raw = params.ids ?? params.id;
@@ -106,19 +113,20 @@ export function executeStructure(command: string, document: Document, selection:
     if (!top.parent) throw new Error("Cannot group a page");
     const parent = draft.nodes[top.parent];
     if (isLeaf(parent)) throw new Error("Parent cannot contain layers");
-    const boxes = ids.map(id => {
-      const node = document.nodes[id];
-      if (node.kind === "page") throw new Error("Cannot group a page");
-      return transformBounds(worldTransform(document, id), node.width, node.height);
-    });
-    const x = Math.min(...boxes.map(box => box.x)), y = Math.min(...boxes.map(box => box.y));
-    const width = Math.max(...boxes.map(box => box.x + box.width)) - x, height = Math.max(...boxes.map(box => box.y + box.height)) - y;
+    if (sectionWrap && ids.some(id=>!takesSections(document.nodes[document.nodes[id].parent ?? ""])))
+      throw new Error("only layers on the page or in a section can be wrapped in a section");
+    if (!sectionWrap && ids.some(id=>document.nodes[id].kind==="section")) throw new Error("sections can't go in groups or frames");
+    if (ids.some(id=>document.nodes[id].kind==="page")) throw new Error("Cannot group a page");
+    const bounds=boundsOf(document,ids)!;
+    const padding = sectionWrap ? 40 : 0;
+    const x=bounds.x-padding, y=bounds.y-padding, width=bounds.width+2*padding, height=bounds.height+2*padding;
     const inv = inverse(worldTransform(document, parent.id));
     const local = transformBounds([inv[0], inv[1], inv[2], inv[3], inv[0] * x + inv[2] * y + inv[4], inv[1] * x + inv[3] * y + inv[5]], width, height);
     if (allocator > maximumId || draft.nodes[String(allocator)]) throw new Error("Document identifiers are exhausted");
     const id = String(allocator);
-    let group: GroupNode | FrameNode | BooleanNode = Object.freeze({ id, ...(frame ? { kind: "frame" as const, clip: true } : { kind: "group" as const }), name: mask ? "Mask group" : parseString(params.name) ?? nextLayerName(document, frame ? "Frame" : "Group"), parent: parent.id,
+    let group: GroupNode | FrameNode | BooleanNode | SectionNode = Object.freeze({ id, ...(frame ? { kind: "frame" as const, clip: true } : { kind: "group" as const }), name: mask ? "Mask group" : parseString(params.name) ?? nextLayerName(document, sectionWrap ? "Section" : frame ? "Frame" : "Group"), parent: parent.id,
       children: Object.freeze([]), x: local.x, y: local.y, width: local.width, height: local.height, fill: frame ? "#ffffff" : "transparent", blend: "passThrough" });
+    if (sectionWrap) group = newSection(group);
     if (operation) {
       const source = document.nodes[operation === "subtract" ? ids[0] : top.id];
       if (source.kind === "page") throw new Error("Cannot group a page");
@@ -132,7 +140,7 @@ export function executeStructure(command: string, document: Document, selection:
       if (operation) clearOperand(draft, child);
     }
     if (mask) draft.set(withMaskProperties(draft.nodes[ids[0]],true));
-    if (!frame) draft.fitToChildren(id);
+    if (!frame && !sectionWrap) draft.fitToChildren(id);
     if (allocator < maximumId) allocator++;
     return id;
   };
@@ -161,7 +169,40 @@ export function executeStructure(command: string, document: Document, selection:
       return { document: draft.finish(), selection, nextId, result: { ids: targets, operation } };
     }
   }
-  if (createComponent) {
+  if (command==="section.toggleContents") {
+    const sections=targets.filter(id=>draft.nodes[id].kind==="section");
+    if (!sections.length) throw new Error("select a section");
+    const hide=parseBoolean(params.hidden) ?? !sections.every(id=>(draft.nodes[id] as SectionNode).contentsHidden);
+    if (hide) selected=[...new Set(selection.map(id=>{
+      const parents=ancestors(document,id);
+      return sections.find(section=>parents.includes(section)) ?? id;
+    }))];
+    for (const id of sections) {
+      const node=draft.nodes[id] as SectionNode;
+      if (node.contentsHidden!==hide) draft.set({...node,contentsHidden:hide});
+    }
+    result={ids:sections.map(inspectedId),hidden:hide};
+  } else if (command==="object.convertToSection") {
+    const converted:NodeId[]=[];
+    for (const id of targets) {
+      const node=draft.nodes[id];
+      if (node.kind==="section") continue;
+      if (node.kind!=="frame") throw new Error('"'+node.name+'" '+(node.kind==="instance" ? "is an instance: its layers come from its main component (detach it first)" :
+        node.kind==="component" || node.kind==="componentSet" ? "is a main component, which stays a frame" : "is not a frame"));
+      if (!takesSections(draft.nodes[node.parent])) throw new Error('"'+node.name+'" is inside a frame or group: only frames on the page or in a section become sections');
+      const {clip,layout,grids,guides,boundVariables,styles,...rest}=node;
+      const bound=Object.entries(boundVariables ?? {}).filter(([field])=>!frameTuning.has(field));
+      const keptStyles=styles && {...styles,grid:null};
+      draft.set({...rest,kind:"section",contentsHidden:false,...(bound.length && {boundVariables:Object.fromEntries(bound)}),
+        ...(keptStyles && Object.values(keptStyles).some(Boolean) && {styles:keptStyles})});
+      for (const child of node.children) {
+        const layer=draft.nodes[child];
+        if (layer.kind!=="page" && layer.childLayout?.absolute) draft.set(setChildProperty(draft,layer,"absolute",false));
+      }
+      converted.push(id);
+    }
+    result={ids:converted.map(inspectedId)};
+  } else if (createComponent) {
     const make = (items: readonly NodeId[]): NodeId => {
       const current = draft.document;
       if (items.some(id => owningInstance(current, id, false)))
@@ -197,7 +238,7 @@ export function executeStructure(command: string, document: Document, selection:
     }
   } else if (wraps) {
     const id = wrapLayers(targets,command === "object.frameSelection");
-    selected = [id]; result = { id };
+    selected = [id]; result = { id:sectionWrap ? inspectedId(id) : id };
   } else if (command === "object.ungroup" || command === "object.removeFrame") {
     const out: NodeId[] = [];
     for (const id of targets) {
@@ -220,6 +261,13 @@ export function executeStructure(command: string, document: Document, selection:
     const toFrame = command === "object.convertToFrame", converted: NodeId[] = [];
     for (const id of targets) {
       const node = draft.nodes[id];
+      if (toFrame && node.kind==="section") {
+        if (node.children.some(child=>draft.nodes[child].kind==="section")) throw new Error(`"${node.name}" holds sections, which can't go inside a frame: convert those first`);
+        const {contentsHidden,...rest}=node;
+        draft.set({...rest,kind:"frame",clip:false});
+        converted.push(id);
+        continue;
+      }
       if (node.kind !== "frame" && node.kind !== "group") throw new Error(`"${node.name}" is neither a frame nor a group`);
       if (!toFrame && node.kind === "frame" && node.children.length === 0) throw new Error(`"${node.name}" is empty: a group needs layers`);
       if (toFrame === (node.kind === "frame")) continue;

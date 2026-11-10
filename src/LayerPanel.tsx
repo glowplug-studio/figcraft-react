@@ -96,9 +96,14 @@ export function LayerPanel({ document, selection, editable, dispatch }: LayerPan
         <button type="button" disabled={!editable} onClick={()=>dispatch("component.addVariant")}>Add variant</button>}
       <button type="button" disabled={!editable || !selection.length} onClick={() => dispatch("component.create")}>Create component</button>
       <button type="button" disabled={!editable || !selection.length} onClick={() => dispatch("component.createMultiple")}>Create multiple components</button>
+      <button type="button" disabled={!editable || !selection.length} onClick={()=>dispatch("object.wrapInSection")}>Wrap in new section</button>
+      {selection.some(id=>document.nodes[id]?.kind==="section") &&
+        <button type="button" disabled={!editable} onClick={()=>dispatch("section.toggleContents")}>Hide/Show section contents</button>}
+      {selection.some(id=>document.nodes[id]?.kind==="frame") &&
+        <button type="button" disabled={!editable} onClick={()=>dispatch("object.convertToSection")}>Convert to section</button>}
       <button type="button" disabled={!editable || selection.length === 0} onClick={() => dispatch("object.frameSelection", { ids: selection })}>Frame selection</button>
       <button type="button" disabled={!editable || !selection.some(id => document.nodes[id]?.kind === "frame")} onClick={() => dispatch("object.removeFrame", { ids: selection })}>Remove frame</button>
-      <button type="button" disabled={!editable || !selection.some(id => document.nodes[id]?.kind === "group")} onClick={() => dispatch("object.convertToFrame", { ids: selection })}>Convert to frame</button>
+      <button type="button" disabled={!editable || !selection.some(id => ["group","section"].includes(document.nodes[id]?.kind))} onClick={() => dispatch("object.convertToFrame", { ids: selection })}>Convert to frame</button>
       <button type="button" disabled={!editable || !selection.some(id => document.nodes[id]?.kind === "frame")} onClick={() => dispatch("object.convertToGroup", { ids: selection })}>Convert to group</button>
       <button type="button" disabled={!editable || selection.length === 0} onClick={() => dispatch("edit.delete", { ids: selection })}>Delete layers</button>
       <button type="button" disabled={!editable || position < 0 || position === siblings.length - 1} onClick={() => reorder(position + 1)}>Move layer up</button>
