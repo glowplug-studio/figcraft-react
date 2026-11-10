@@ -309,3 +309,40 @@ test("the upstream SVG corpus retains its pixels over two editable round trips",
   }
   test.info().annotations.push({type:"maximum-mean-round-trip-difference",description:JSON.stringify([0,1].map(i=>Math.max(...errors.map(v=>v[i]))))});
 });
+
+test("Android XML stroke outlines retain the native painted area across path representations",async({page})=>{
+  await loadExporter(page);
+  const {default:drawables}=await import("../fixtures/native-vector-drawable.json",{with:{type:"json"}});
+  const outlines=new Set(["outside stroke","fitted line","closed dash","odd dash","square dash","butt dash","two dash subpaths","curved dash"]);
+  for (const entry of drawables.filter(e=>outlines.has(e.name.replace(/ bestEffort$/,"")))) {
+    const result=await page.evaluate(async({commands,xml})=>{
+      const exporter=(window as unknown as {FigcraftRaster:{replay:typeof replay}}).FigcraftRaster;
+      const source=atob(await exporter.replay(commands));
+      const parser=new DOMParser(), native=parser.parseFromString(xml,"application/xml");
+      const actual=parser.parseFromString(source,"application/xml"), ns="http://schemas.android.com/apk/res/android";
+      const width=Math.ceil(4*Number(native.documentElement.getAttributeNS(ns,"viewportWidth")));
+      const height=Math.ceil(4*Number(native.documentElement.getAttributeNS(ns,"viewportHeight")));
+      function pixels(path:Element) {
+        const canvas=new OffscreenCanvas(width,height), ctx=canvas.getContext("2d")!;
+        ctx.scale(4,4);
+        ctx.fill(new Path2D(path.getAttributeNS(ns,"pathData")!),path.getAttributeNS(ns,"fillType")==="evenOdd" ? "evenodd" : "nonzero");
+        return ctx.getImageData(0,0,width,height).data;
+      }
+      const expected=[...native.getElementsByTagName("path")], observed=[...actual.getElementsByTagName("path")];
+      if (expected.length!==observed.length) throw new Error("Drawable path count changed");
+      return expected.map((path,i)=>{
+        const a=pixels(path), b=pixels(observed[i]);
+        let total=0,ink=0,max=0;
+        for (let j=3;j<a.length;j+=4) {
+          const d=Math.abs(a[j]-b[j]); total+=d; ink+=Math.max(a[j],b[j]); max=Math.max(max,d);
+        }
+        return {mean:total/(width*height),relative:total/Math.max(1,ink),max};
+      });
+    },entry);
+    test.info().annotations.push({type:entry.name,description:JSON.stringify(result)});
+    for (const diff of result) {
+      expect(diff.relative,entry.name).toBeLessThan(.01);
+      expect(diff.mean,entry.name).toBeLessThan(1);
+    }
+  }
+});

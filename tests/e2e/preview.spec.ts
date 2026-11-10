@@ -6577,6 +6577,8 @@ test("version history previews read-only designs, restores in one undo and persi
   await panel.getByRole("button", { name: "Save version" }).click();
   await expect(page.locator(".figcraft-recovery")).toHaveText("Recovery saved on this device");
   await page.reload();
+  await expect(button("Create rectangle")).toBeEnabled();
+  await expectCanvasPixel(page, 250, 90, [217, 217, 217, 255]);
   await fileMenu.click(); await button("Version history").click();
   const saved = panel.getByRole("listitem", { name: "Milestone" });
   await expect(saved).toBeVisible();
@@ -7003,4 +7005,27 @@ test("open, drop and paste SVG as editable layers, undo and reopen the saved arc
   await picker.setInputFiles({name:"Saved copy.figcraft",buffer:pasted.bytes,mimeType:"application/octet-stream"});
   await expect(layers).toContainText("Pasted SVG");
   expect(Object.values((await saved()).document.nodes).filter(n=>n.kind==="rectangle")).toHaveLength(2);
+});
+
+test("Android XML downloads honour the saved layer name and compatibility setting",async({page})=>{
+  await login(page); await createNamedRectangle(page,"Design & Art",8,9,31,24);
+  const bar=page.locator(".figcraft-document-bar"), panel=page.getByRole("group",{name:"Layer export",exact:true});
+  await bar.getByText("File",{exact:true}).click();
+  await bar.getByRole("button",{name:"Export…",exact:true}).click();
+  let pending=page.waitForEvent("download");
+  await page.getByRole("dialog",{name:"Export",exact:true}).getByRole("button",{name:"Android XML",exact:true}).click();
+  const first=await pending;
+  expect(first.suggestedFilename()).toBe("Design & Art.xml");
+  expect(await readFile((await first.path())!,"utf8")).toContain('android:viewportWidth="31"');
+  await panel.getByRole("button",{name:"Add export setting"}).click();
+  const setting=panel.getByRole("group",{name:"Export setting 1"});
+  await setting.getByLabel("Export format").selectOption("vectorDrawable");
+  await setting.getByText("Export options",{exact:true}).click();
+  await setting.getByLabel("Include id attribute").check();
+  await setting.getByLabel("Compatibility").selectOption("exact");
+  pending=page.waitForEvent("download");
+  await panel.getByRole("button",{name:"Export Design & Art"}).click();
+  const source=await readFile((await (await pending).path())!,"utf8");
+  expect(source).toContain('android:name="Design &amp; Art"');
+  expect(source).toContain('android:pathData="M0,0 L31,0 L31,24 L0,24 Z"');
 });

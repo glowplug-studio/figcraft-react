@@ -1674,10 +1674,10 @@ export class EditorEngine {
     }
     if (command === "file.export" || command === "file.exportSvg") {
       const opening = this.#openSequence, params = parameters(input);
-      const { blob, format } = await this.exportGraphic(command === "file.exportSvg" ? {...params,format:"svg"} : params);
-      const bytes = await blob.arrayBuffer();
+      const graphic = await this.exportGraphic(command === "file.exportSvg" ? {...params,format:"svg"} : params);
+      const bytes = await graphic.blob.arrayBuffer();
       this.#assertExportAccess(opening);
-      return { format, data: base64Bytes(new Uint8Array(bytes)) };
+      return { format:graphic.format, data:base64Bytes(new Uint8Array(bytes)), ...(graphic.warnings && {warnings:graphic.warnings}) };
     }
     if (command === "version.restore" || command === "version.preview") return this.#showVersion(command, parameters(input));
     if (command.startsWith("version.") || command === "file.saveVersion" || command === "file.versionHistory") return this.execute(command, input);
@@ -1733,11 +1733,19 @@ export class EditorEngine {
     const { renderLayerExports } = await import("./export-layers");
     return renderLayerExports(document, selection, params, download, () => this.#assertExportAccess(opening));
   }
-  async exportGraphic(params: Record<string,unknown> = {}) {
-    if (parseString(params.format)?.toLowerCase().replace(/^\.+/, "") !== "svg") return this.exportRaster(params);
+  async exportGraphic(params: Record<string,unknown> = {}): Promise<{format:string; blob:Blob; warnings?:string[]}> {
+    const format=parseString(params.format)?.toLowerCase().replace(/^\.+/,"");
+    const drawable=format==="xml" || format==="vd" || format==="vectordrawable";
+    if (!drawable && format!=="svg") return this.exportRaster(params);
     if (!this.#hostEditable) throw new Error("Sign in to export this document");
     if (params.path != null) throw new Error("Use a browser download to choose the export destination");
     const opening = this.#openSequence, {document,selection} = this.#snapshot;
+    if (drawable) {
+      const {renderDrawable}=await import("./vector-drawable/export");
+      const file=await renderDrawable(document,selection,params);
+      this.#assertExportAccess(opening);
+      return file;
+    }
     const { renderSvgExport } = await import("./export-svg");
     const blob = await renderSvgExport(document,selection,params);
     this.#assertExportAccess(opening);

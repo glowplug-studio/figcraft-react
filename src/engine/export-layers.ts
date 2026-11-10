@@ -6,7 +6,7 @@ import { batchExportOptions } from "./export-settings";
 import { inspectedId, parseBoolean } from "./parameters";
 import { base64Bytes } from "./recovery";
 
-export interface ExportedFile { id: number | string; name: string; bytes: number; data?: string }
+export interface ExportedFile { id: number | string; name: string; bytes: number; data?: string; warnings?:string[] }
 export async function renderLayerExports(doc: Document, selection: readonly string[], params: Record<string, unknown>,
   download: boolean, assertAccess: () => void) {
   const { jobs, skipped } = layerExportJobs(doc, selection, params);
@@ -21,8 +21,11 @@ export async function renderLayerExports(doc: Document, selection: readonly stri
   for (const {setting,id,name} of jobs) {
     assertAccess();
     const {format} = setting;
-    let blob: Blob;
-    if (format === "svg") {
+    let blob: Blob, warnings:string[] | undefined;
+    if (format === "vectorDrawable") {
+      const {renderDrawable}=await import("./vector-drawable/export");
+      ({blob,warnings}=await renderDrawable(doc,[id],{...setting,...overrides}));
+    } else if (format === "svg") {
       const {renderSvgExport} = await import("./export-svg");
       blob = await renderSvgExport(doc,[id],{...setting,...overrides},setting);
     } else {
@@ -30,7 +33,7 @@ export async function renderLayerExports(doc: Document, selection: readonly stri
       blob = await renderRasterExport(doc,[id],{...setting, ...overrides, quality:Math.max(1,Math.min(100,setting.quality ?? 90))},format,setting.size);
     }
     assertAccess();
-    const file: ExportedFile = {id:inspectedId(id),name,bytes:blob.size};
+    const file: ExportedFile = {id:inspectedId(id),name,bytes:blob.size,...(warnings && {warnings})};
     if (writer) {
       total += blob.size;
       if (total > 256 * 1024 * 1024) throw new Error("the files would pass 256 MB as one zip: export fewer layers at a time, or to a folder");

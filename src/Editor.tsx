@@ -513,20 +513,22 @@ export function DocumentEditor({ identity, capabilities, engine: suppliedEngine,
     exportDialog.current?.close();
     setBusy(true); setError("");
     try {
-      const {output,name} = await engine.prepareLayerExports({});
+      const {output,name,files} = await engine.prepareLayerExports({});
       if (output) downloadBlob(output,name);
+      setError(files.flatMap(f=>(f.warnings ?? []).map(w=>files.length>1 ? f.name+": "+w : w)).join("\n"));
     } catch (caught) { setError(caught instanceof Error ? caught.message : "Export failed"); }
     finally { setBusy(false); }
   }
-  async function exportDrawing(format: "png" | "jpg" | "webp" | "svg", scale: number, wholePage = false) {
+  async function exportDrawing(format: "png" | "jpg" | "webp" | "svg" | "xml", scale: number, wholePage = false) {
     exportDialog.current?.close();
     setBusy(true); setError("");
     try {
       const { document: design, selection } = engine.getSnapshot();
       const first = selection[0] ?? pageOf(design).children[0];
       const name = (wholePage ? pageOf(design).name : design.nodes[first]?.name ?? "Export") + (scale === 1 ? "" : "@" + scale + "x") + "." + format;
-      const { blob } = await engine.exportGraphic({ format, scale, ...(wholePage && {ids: pageOf(design).children}) });
-      downloadBlob(blob,name);
+      const graphic = await engine.exportGraphic({ format, scale, ...(wholePage && {ids: pageOf(design).children}) });
+      downloadBlob(graphic.blob,name);
+      if (graphic.warnings) setError(graphic.warnings.join("\n"));
     } catch (error) { setError(error instanceof Error ? error.message : "Export failed"); }
     finally { setBusy(false); }
   }
@@ -709,6 +711,7 @@ export function DocumentEditor({ identity, capabilities, engine: suppliedEngine,
         {([["png",1], ["png",2], ["png",3], ["jpg",2], ["webp",2]] as const).map(([format, scale]) =>
           <button type="button" key={format + scale} onClick={() => void exportDrawing(format, scale)}>{format.toUpperCase()} @{scale}x</button>)}
         <button type="button" onClick={()=>void exportDrawing("svg",1)}>SVG</button>
+        <button type="button" onClick={()=>void exportDrawing("xml",1)}>Android XML</button>
         <button type="button" onClick={() => exportDialog.current?.close()}>Close</button>
       </dialog>
       <dialog ref={replaceDialog} aria-label="Replace unsaved document" onCancel={() => setPendingFile(null)}>
