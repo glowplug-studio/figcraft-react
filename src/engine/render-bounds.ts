@@ -15,7 +15,7 @@ export function union(a:Rectangle | undefined,b:Rectangle) {
   const x=Math.min(a.x,b.x), y=Math.min(a.y,b.y);
   return {x,y,width:Math.max(a.x+a.width,b.x+b.width)-x,height:Math.max(a.y+a.height,b.y+b.height)-y};
 }
-function intersect(a:Rectangle,b:Rectangle) {
+export function intersect(a:Rectangle,b:Rectangle) {
   const x=Math.max(a.x,b.x), y=Math.max(a.y,b.y);
   const width=Math.min(a.x+a.width,b.x+b.width)-x, height=Math.min(a.y+a.height,b.y+b.height)-y;
   return width>0 && height>0 ? {x,y,width,height} : undefined;

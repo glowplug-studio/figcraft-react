@@ -76,3 +76,36 @@ export async function svgImportRoundTrips(svg:string) {
   }
   return images;
 }
+
+export async function replayPdf(commands: readonly (readonly unknown[])[]) {
+  const engine=new EditorEngine();
+  for (const [command,params] of commands.slice(0,-1)) await engine.executeAsync(String(command),params);
+  const before=engine.getSnapshot(), history=engine.getUndoDepth();
+  const [command,params]=commands.at(-1)!;
+  const result=await engine.executeAsync(String(command),params);
+  if (engine.getSnapshot().document!==before.document || engine.getUndoDepth()!==history || engine.getSnapshot().dirty!==before.dirty)
+    throw new Error("PDF export mutated the document");
+  return result;
+}
+
+export async function largePdfExport(count:number) {
+  const {renderPdf}=await import("../../src/engine/pdf/export");
+  const engine=new EditorEngine();
+  engine.execute("frame.create",{width:1000,height:500});
+  engine.execute("shape.rectangle",{parent:2,width:10,height:10});
+  const doc=engine.getSnapshot().document, frame=doc.nodes["2"], sample=doc.nodes["3"];
+  if (frame.kind!=="frame" || sample.kind!=="rectangle") throw new Error("Missing benchmark layers");
+  const nodes={...doc.nodes},children:string[]=[];
+  for (let i=0;i<count;i++) {
+    const id=String(i+3);
+    nodes[id]={...sample,id,x:(i%100)*10,y:Math.floor(i/100)*10};
+    children.push(id);
+  }
+  nodes["2"]={...frame,children};
+  let ticks=0;
+  const timer=window.setInterval(()=>ticks++,0), start=performance.now();
+  try {
+    const file=await renderPdf({...doc,nodes},["2"],{});
+    return {pages:file.pages,bytes:file.blob.size,milliseconds:performance.now()-start,ticks};
+  } finally {clearInterval(timer);}
+}

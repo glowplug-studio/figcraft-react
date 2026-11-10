@@ -7029,3 +7029,37 @@ test("Android XML downloads honour the saved layer name and compatibility settin
   expect(source).toContain('android:name="Design &amp; Art"');
   expect(source).toContain('android:pathData="M0,0 L31,0 L31,24 L0,24 Z"');
 });
+
+test("signed-in PDF downloads preserve selection size, saved print options and frame page count",async({page})=>{
+  await login(page);
+  await createNamedRectangle(page,"Cover",8,9,31,24);
+  const bar=page.locator(".figcraft-document-bar"), panel=page.getByRole("group",{name:"Layer export",exact:true});
+  await bar.getByText("File",{exact:true}).click();
+  const frames=bar.getByRole("button",{name:"Export frames to PDF…",exact:true});
+  await expect(frames).toBeDisabled();
+  await bar.getByRole("button",{name:"Export…",exact:true}).click();
+  let pending=page.waitForEvent("download");
+  await page.getByRole("dialog",{name:"Export",exact:true}).getByRole("button",{name:"PDF",exact:true}).click();
+  let saved=await pending;
+  expect(saved.suggestedFilename()).toBe("Cover.pdf");
+  expect(await readFile((await saved.path())!,"latin1")).toContain("/MediaBox [0 0 31 24]");
+  await panel.getByRole("button",{name:"Add export setting"}).click();
+  const setting=panel.getByRole("group",{name:"Export setting 1"});
+  await setting.getByLabel("Export format").selectOption("pdf");
+  await setting.getByText("Print options",{exact:true}).click();
+  const bleed=setting.getByLabel("Bleed",{exact:true});
+  await bleed.fill("6 pt"); await bleed.press("Enter");
+  await setting.getByLabel("Crop marks").check();
+  pending=page.waitForEvent("download");
+  await panel.getByRole("button",{name:"Export Cover",exact:true}).click();
+  saved=await pending;
+  expect(await readFile((await saved.path())!,"latin1")).toContain("/TrimBox [30 30 61 54] /BleedBox [24 24 67 60]");
+  const create=page.getByRole("button",{name:"Create frame",exact:true});
+  await create.click(); await create.click();
+  await bar.getByText("File",{exact:true}).click();
+  pending=page.waitForEvent("download");
+  await frames.click();
+  saved=await pending;
+  expect(saved.suggestedFilename()).toBe("Untitled.pdf");
+  expect(await readFile((await saved.path())!,"latin1")).toContain("/Type /Pages /Count 2");
+});

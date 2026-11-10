@@ -22,7 +22,10 @@ export async function renderLayerExports(doc: Document, selection: readonly stri
     assertAccess();
     const {format} = setting;
     let blob: Blob, warnings:string[] | undefined;
-    if (format === "vectorDrawable") {
+    if (format === "pdf") {
+      const {renderPdf}=await import("./pdf/export");
+      ({blob}=await renderPdf(doc,[id],{...setting,...setting.print,...overrides},false,assertAccess));
+    } else if (format === "vectorDrawable") {
       const {renderDrawable}=await import("./vector-drawable/export");
       ({blob,warnings}=await renderDrawable(doc,[id],{...setting,...overrides}));
     } else if (format === "svg") {

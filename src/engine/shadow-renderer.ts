@@ -104,7 +104,7 @@ export class ShadowLayer {
     this.matrix = layer.getTransform().multiply(new DOMMatrix([...layerTransform(node)]));
     this.surface = layer.canvas.ownerDocument.createElement("canvas");
   }
-  inner() {
+  inner(target=this.layer) {
     const {node,layer,surface,scale,matrix} = this, {width,height} = layer.canvas;
     const inner = node.effects?.filter((e): e is Shadow => e.visible && e.type === "innerShadow");
     if (!inner?.length) return;
@@ -117,7 +117,7 @@ export class ShadowLayer {
       try {
         const expanded = shape ? outlineAlpha(surface,w,h,[shape],matrix,-e.spread,pad+e.offset[0]*scale,pad+e.offset[1]*scale) : undefined;
         const rgba = innerShadowPixels(cover,width,height,e,scale,expanded);
-        compositeSurface(layer,writeShadow(surface,rgba,width,height),0,0,width,height,"normal",1);
+        compositeSurface(target,writeShadow(surface,rgba,width,height),0,0,width,height,"normal",1);
       } finally { release(); }
     }
   }

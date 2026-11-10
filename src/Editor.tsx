@@ -519,14 +519,14 @@ export function DocumentEditor({ identity, capabilities, engine: suppliedEngine,
     } catch (caught) { setError(caught instanceof Error ? caught.message : "Export failed"); }
     finally { setBusy(false); }
   }
-  async function exportDrawing(format: "png" | "jpg" | "webp" | "svg" | "xml", scale: number, wholePage = false) {
+  async function exportDrawing(format: "png" | "jpg" | "webp" | "svg" | "xml" | "pdf", scale: number, scope?: "page" | "frames") {
     exportDialog.current?.close();
     setBusy(true); setError("");
     try {
       const { document: design, selection } = engine.getSnapshot();
       const first = selection[0] ?? pageOf(design).children[0];
-      const name = (wholePage ? pageOf(design).name : design.nodes[first]?.name ?? "Export") + (scale === 1 ? "" : "@" + scale + "x") + "." + format;
-      const graphic = await engine.exportGraphic({ format, scale, ...(wholePage && {ids: pageOf(design).children}) });
+      const name = (scope === "frames" ? design.name : scope === "page" ? pageOf(design).name : design.nodes[first]?.name ?? "Export") + (scale === 1 ? "" : "@" + scale + "x") + "." + format;
+      const graphic = await engine.exportGraphic({ format, scale, ...(scope === "page" && {ids: pageOf(design).children}) },scope === "frames");
       downloadBlob(graphic.blob,name);
       if (graphic.warnings) setError(graphic.warnings.join("\n"));
     } catch (error) { setError(error instanceof Error ? error.message : "Export failed"); }
@@ -617,6 +617,12 @@ export function DocumentEditor({ identity, capabilities, engine: suppliedEngine,
             event.currentTarget.closest("details")?.removeAttribute("open");
             setExportJobs(layerExportJobs(snapshot.document,snapshot.selection,{}).jobs); exportDialog.current?.showModal();
           }}>Export…</button>
+          <button type="button" disabled={!signedIn || busy || recoveryStatus === "loading" || !page.children.some(id => {
+            const n=snapshot.document.nodes[id]; return n && isFrameLike(n) && n.visible!==false;
+          })} onClick={event => {
+            event.currentTarget.closest("details")?.removeAttribute("open");
+            void exportDrawing("pdf",1,"frames");
+          }}>Export frames to PDF…</button>
           {(["Version history", "Save to version history…", ...(workspace && !workspace.onBranch ? ["Create branch…"] : [])]).map((label, index) => <button key={label} type="button"
             disabled={!signedIn || busy || recoveryStatus === "loading" || !capabilities.includes("document.edit")} onClick={event => {
               event.currentTarget.closest("details")?.removeAttribute("open"); setNewVersionForm(index === 2 ? "branch" : index === 1 ? "new" : undefined);
@@ -711,6 +717,7 @@ export function DocumentEditor({ identity, capabilities, engine: suppliedEngine,
         {([["png",1], ["png",2], ["png",3], ["jpg",2], ["webp",2]] as const).map(([format, scale]) =>
           <button type="button" key={format + scale} onClick={() => void exportDrawing(format, scale)}>{format.toUpperCase()} @{scale}x</button>)}
         <button type="button" onClick={()=>void exportDrawing("svg",1)}>SVG</button>
+        <button type="button" onClick={()=>void exportDrawing("pdf",1)}>PDF</button>
         <button type="button" onClick={()=>void exportDrawing("xml",1)}>Android XML</button>
         <button type="button" onClick={() => exportDialog.current?.close()}>Close</button>
       </dialog>
@@ -891,7 +898,7 @@ export function DocumentEditor({ identity, capabilities, engine: suppliedEngine,
           {!editingVector && <VariableModesPanel document={snapshot.document} selection={snapshot.selection} enabled={editable && !busy} run={dispatch}/>}
           {!editingVector && !snapshot.selection.length && <VariablesPanel documentName={snapshot.document.name} importFile={file=>engine.importVariableFile(file)} error={error} data={snapshot.document.variables} enabled={editable && !busy} run={dispatch}/>}
           {!editingVector && <SharedStylesPanel engine={engine} enabled={editable && !busy} run={dispatch} leave={()=>controller.current?.finishText()}/>}
-          {!editingVector && !snapshot.selection.length && <fieldset><legend>Export</legend><button type="button" disabled={!signedIn || busy} onClick={()=>void exportDrawing("png",1,true)}>Export page as PNG</button></fieldset>}
+          {!editingVector && !snapshot.selection.length && <fieldset><legend>Export</legend><button type="button" disabled={!signedIn || busy} onClick={()=>void exportDrawing("png",1,"page")}>Export page as PNG</button></fieldset>}
           {!editingVector && <ExportPanel key={"ExportPanel:"+snapshot.selection.join(",")} doc={snapshot.document} ids={snapshot.selection} enabled={editable && !busy}
             run={dispatch} download={()=>void exportLayers()}/>}
         </aside>

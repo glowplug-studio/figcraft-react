@@ -42,6 +42,7 @@ import { LayoutSpacingInteraction } from "./layout-spacing-interaction";
 import { BlurInteraction } from "./blur-interaction";
 import { GradientInteraction } from "./gradient-interaction";
 import { ImagePage } from "./image-page";
+import type { PatternPaint } from "./solid-paint";
 import { patternResolution, type PatternCell } from "./pattern";
 import { paintPatternTiles, resolveLayerPaints } from "./pattern-renderer";
 import { CanvasImages, type LayerPaintSteps, type PaintSteps } from "./image-renderer";
@@ -443,6 +444,11 @@ async function paintExportSteps(doc:Document,steps:PaintSteps,signal?:AbortSigna
     }
     return true;
   } finally { steps.return(); images.clear(); }
+}
+
+export async function renderPatternPaint(ctx:CanvasRenderingContext2D,doc:Document,paint:PatternPaint,width:number,height:number,depth:number,nesting:number) {
+  function* fill():LayerPaintSteps { yield [ctx,paint,width,height]; }
+  await paintExportSteps(doc,resolveLayerPaints(fill(),doc,depth,nesting,drawLayer));
 }
 
 export async function renderPatternTile(doc:Document,source:LayerNode,cell:PatternCell,depth:number,nesting:number) {

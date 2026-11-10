@@ -1,4 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
+import { execFileSync } from "node:child_process";
+import pdfScenes from "../fixtures/native-pdf-export.json" with {type:"json"};
 import { createRequire } from "node:module";
 import { build } from "vite";
 import cases from "../fixtures/native-png-exports.json" with { type: "json" };
@@ -345,4 +347,54 @@ test("Android XML stroke outlines retain the native painted area across path rep
       expect(diff.mean,entry.name).toBeLessThan(1);
     }
   }
+});
+
+test("PDF downloads match native page pixels, text resources, print bounds and validation",async({page})=>{
+  test.setTimeout(120000);
+  await loadExporter(page);
+  for (const entry of pdfScenes) {
+    const actual=await page.evaluate(async commands=>{
+      const {FigcraftRaster}=window as unknown as {FigcraftRaster:typeof import("../fixtures/raster-export")};
+      try {return await FigcraftRaster.replayPdf(commands);} catch (e) {return {error:String((e as Error).message)};}
+    },entry.commands);
+    if (entry.error) {
+      expect(actual.error,entry.name).toBeTruthy();
+      expect(entry.error,entry.name).toContain(String(actual.error));
+      continue;
+    }
+    expect(actual.error,entry.name).toBeUndefined();
+    const bytes=Buffer.from(String(actual.data),"base64"), text=bytes.toString("latin1");
+    expect(actual.format,entry.name).toBe("pdf");
+    expect(text,entry.name).toContain("/Type /Pages /Count "+entry.pages!.length+" ");
+    if (entry.commands.at(-1)![0]==="file.exportFramesPdf") expect(actual.pages).toBe(entry.pages!.length);
+    for (const [i,expected] of entry.pages!.entries()) {
+      if (expected.text) expect(text,entry.name).toContain("/ToUnicode ");
+      for (const url of expected.links) expect(text,entry.name).toContain("/URI ("+url+")");
+      if (!("png" in expected)) continue;
+      const native=PNG.sync.read(Buffer.from(expected.png,"base64"));
+      const pageNumber=String(i+1);
+      const image=PNG.sync.read(execFileSync("pdftoppm",["-f",pageNumber,"-l",pageNumber,"-singlefile","-r","72","-png","-"],{input:bytes}));
+      expect([image.width,image.height],entry.name).toEqual([native.width,native.height]);
+      let total=0,maximum=0;
+      for (let at=0;at<image.data.length;at++) if (at%4!==3) {
+        const delta=Math.abs(image.data[at]-native.data[at]);
+        total+=delta;maximum=Math.max(maximum,delta);
+      }
+      const cff=entry.name==="CFF outlines and selection", dash=["closed dash","curved dash"].includes(entry.name);
+      const jpeg=entry.name==="JPEG adjusted CMYK";
+      expect(total/(3*image.width*image.height),entry.name).toBeLessThanOrEqual(cff ? 1.1 : jpeg ? .65 : .3);
+      expect(maximum,entry.name).toBeLessThanOrEqual(dash ? 120 : cff ? 48 : 10);
+    }
+  }
+});
+
+test("a PDF export of 5,000 vector layers yields to browser input",async({page})=>{
+  await loadExporter(page);
+  const measured=await page.evaluate(()=>(
+    window as unknown as {FigcraftRaster:typeof import("../fixtures/raster-export")}
+  ).FigcraftRaster.largePdfExport(5000));
+  expect(measured.pages).toBe(1);
+  expect(measured.bytes).toBeGreaterThan(1000);
+  expect(measured.ticks).toBeGreaterThan(0);
+  test.info().annotations.push({type:"5,000 PDF layers",description:JSON.stringify(measured)});
 });

@@ -64,12 +64,20 @@ export class ShapingFace {
   readonly features: readonly string[];
   readonly #colour?:FontColourTables;
   readonly #glyphCount: number;
+  readonly truetype:boolean;
+  readonly pdfFontSource:()=>{bytes:Uint8Array;index:number};
   readonly #outlines = new Map<string,readonly CurveElement[]>();
   #outlineCommands = 0;
   readonly #font: hb.Font;
   readonly #buffer = new hb.Buffer();
 
-  private constructor(face: hb.Face, family: string, style: string, tables: ReadonlyMap<string,DataView>, blob:hb.Blob, byteOffset:number) {
+  private constructor(face: hb.Face, family: string, style: string, tables: ReadonlyMap<string,DataView>, blob:hb.Blob, byteOffset:number, byteLength:number, index:number) {
+    this.truetype=tables.has("glyf");
+    this.pdfFontSource=()=>{
+      const data=hb.fontTableView(blob,0,byteLength);
+      if (!data) throw new Error("Font binary is unavailable");
+      return {bytes:new Uint8Array(data.buffer,data.byteOffset,data.byteLength),index};
+    };
     this.family = family;
     this.style = style;
     this.postscript = faceName(face,6);
@@ -131,7 +139,7 @@ export class ShapingFace {
       const family = local?.family.trim() || faceName(face,16) || faceName(face,1);
       if (!family) continue;
       const style = local?.style.trim() || faceName(face,17) || faceName(face,2) || "Regular";
-      faces.push(new ShapingFace(face,family,style,tables,blob,bytes.byteOffset));
+      faces.push(new ShapingFace(face,family,style,tables,blob,bytes.byteOffset,bytes.length,index));
     }
     return Object.freeze(faces);
   }
