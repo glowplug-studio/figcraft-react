@@ -64,6 +64,6 @@ export { textCaret, textHit, textSelectionRects, textVisualStep } from "./engine
 export { textWarpPoint, TextOnPath } from "./engine/text-on-path";
 export { layoutText, layoutTextFlow, type FlowGlyph, type FlowLine } from "./engine/text-flow";
 export { textWordStarts } from "./engine/text-word-starts";
-export type { OnlineFileInfo, OnlineFileStore, OnlineGuestSession, GuestSessionEnd, OwnerShareSummary, OnlineOwnerSharing, OnlineInvitations, OnlineWorkspaceHost, OnlineFileDevice, OnlineFileRegistry, PendingOnlinePublication, RememberedOnlineFile } from "./backends/online-files";
+export type { OnlineFileInfo, OnlineFileStore, OnlineGuestSession, GuestSessionEnd, GuestConnectionStatus, OwnerShareSummary, OnlineOwnerSharing, OnlineInvitations, OnlineWorkspaceHost, OnlineFileDevice, OnlineFileRegistry, PendingOnlinePublication, RememberedOnlineFile } from "./backends/online-files";
 
 export { isSharedCredentials, type DeviceOwnerSharing, type PendingSharingChange, type SharedCredential } from "./backends/browser/owner-sharing";

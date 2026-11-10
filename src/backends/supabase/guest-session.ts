@@ -1,15 +1,28 @@
 import type { RealtimeChannel, SupabaseClient } from "@supabase/supabase-js";
 import type { GuestSessionEnd } from "../online-files";
 
-/** A private broadcast wakes an open tab. A fresh grant check covers missed broadcasts. */
+// A welcomed native session sends a ping every 15 seconds and ends after 45 seconds of silence.
+const keepaliveMs = 15_000;
+const silenceMs = 45_000;
+
+/** A private broadcast wakes an open tab. Heartbeats renew the authenticated database grant. */
 export function watchSupabaseGuest(client: SupabaseClient, connection: string, ended: (reason: GuestSessionEnd) => void) {
   let closed = false;
   let channel: RealtimeChannel | undefined;
   let retry: ReturnType<typeof setTimeout> | undefined;
   let subscribed = false;
+  let heartbeat: ReturnType<typeof setInterval>;
+  let deadline: ReturnType<typeof setTimeout>;
+
+  const heard = () => {
+    clearTimeout(deadline);
+    deadline = setTimeout(() => finish("unavailable"), silenceMs);
+  };
 
   const dispose = () => {
     closed = true;
+    clearInterval(heartbeat);
+    clearTimeout(deadline);
     clearTimeout(retry);
     if (channel) void client.removeChannel(channel);
     channel = undefined;
@@ -33,6 +46,8 @@ export function watchSupabaseGuest(client: SupabaseClient, connection: string, e
       if (closed) return;
       if (error) { retryCheck(); return; }
       if (data === false) { finish("unavailable"); return; }
+      if (data !== true) { retryCheck(); return; }
+      heard();
       if (!channel) await connect();
       if (!subscribed) retryCheck();
     } catch { retryCheck(); }
@@ -57,6 +72,8 @@ export function watchSupabaseGuest(client: SupabaseClient, connection: string, e
   }
   window.addEventListener("online", reconcile);
   document.addEventListener("visibilitychange", visible);
+  heard();
+  heartbeat = setInterval(() => { void reconcile(); }, keepaliveMs);
   void reconcile();
   return dispose;
 }

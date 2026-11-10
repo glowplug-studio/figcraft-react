@@ -1,7 +1,7 @@
 import { OwnerShareControls } from "./OwnerShareControls";
 import { OnlineFilesPanel, PublishOnlineDialog } from "./OnlineFilesPanel";
 import { OnlineWorkspace } from "./engine/sharing/online-workspace";
-import type { GuestSessionEnd, OnlineInvitations, OnlineWorkspaceHost } from "./backends/online-files";
+import type { GuestConnectionStatus, GuestSessionEnd, OnlineInvitations, OnlineWorkspaceHost } from "./backends/online-files";
 import { defaultPrint, type PrintSettings } from "./engine/export-settings";
 import { ImportReportPanel } from "./ImportReportPanel";
 import { importNotice, readImportReport, type ImportReport } from "./engine/interchange/import-report";
@@ -14,12 +14,14 @@ import { WorkspaceRecovery, type WorkspaceRecoveryState } from "./engine/workspa
 
 type WorkspaceProps = Omit<EditorProps, "engine" | "recoveryStore"> & { recoveryStore: WorkspaceRecoveryStore; onlineHost?: OnlineWorkspaceHost };
 
-function GuestSubscription({connection, invitations, ended}: {
+function GuestSubscription({connection, invitations, ended, changed}: {
   connection: string;
   invitations: OnlineInvitations;
+  changed: (connection: string, status: GuestConnectionStatus) => void;
   ended: (connection: string, reason: GuestSessionEnd) => void;
 }) {
-  useEffect(() => invitations.watch?.(connection, reason => ended(connection, reason)), [connection, invitations, ended]);
+  useEffect(() => invitations.watch?.(connection, reason => ended(connection, reason),
+    status => changed(connection, status)), [connection, invitations, ended, changed]);
   return null;
 }
 
@@ -83,6 +85,12 @@ export function WorkspaceEditor({ identity, capabilities, recoveryStore, onlineH
     const notice = {removed: "The file was removed from the server", stopped: "Sharing was stopped", unavailable: "The session is no longer available"};
     setNotice(notice[reason]);
   }, [workspace]);
+  const connectionChanged = useCallback((connection: string, status: GuestConnectionStatus) => {
+    const session = workspace.getSnapshot().find(tab => tab.guest?.connection === connection)?.guest;
+    if (!session || session.ended) return;
+    workspace.setGuestSession("attempt" in status ? {...session, reconnectAttempt: status.attempt}
+      : {file: session.file, connection, access: status.access});
+  }, [workspace]);
   const guest = active?.guest;
   const tabCapabilities = useMemo(() => guest && !guest.ended && guest.access !== "edit" ? capabilities.filter(cap => cap === "document.read"
     || (guest.access === "comment" && cap === "document.comment")) : capabilities, [capabilities, guest]);
@@ -138,6 +146,8 @@ export function WorkspaceEditor({ identity, capabilities, recoveryStore, onlineH
     {invitations && <button type="button" disabled={!enabled} onClick={event => {
       event.currentTarget.closest("details")?.removeAttribute("open"); invitations.showJoin();
     }}>Join live session…</button>}
+    {guest?.reconnectAttempt && !guest.ended && invitations?.retryNow && <button type="button"
+      onClick={() => invitations.retryNow?.(guest.connection)}>Retry now</button>}
     {guest?.ended && invitations?.rejoin && <button type="button" onClick={async () => {
       try {
         const access = await invitations.rejoin!(guest.connection);
@@ -169,7 +179,7 @@ export function WorkspaceEditor({ identity, capabilities, recoveryStore, onlineH
     }
   }}>
     {enabled && invitations?.watch && tabs.map(tab => tab.guest && !tab.guest.ended &&
-      <GuestSubscription key={tab.guest.connection} connection={tab.guest.connection} invitations={invitations} ended={ended} />)}
+      <GuestSubscription key={tab.guest.connection} connection={tab.guest.connection} invitations={invitations} ended={ended} changed={connectionChanged} />)}
     {tabs.length > 1 && <div role="tablist" aria-label="Open files" className="figcraft-file-tabs">
       {tabs.map(tab => <button key={tab.id} type="button" role="tab" disabled={!enabled} aria-selected={tab.active}
         aria-label={tab.guest?.ended ? tab.name + ", disconnected from its live session" : undefined}
@@ -196,7 +206,7 @@ export function WorkspaceEditor({ identity, capabilities, recoveryStore, onlineH
         <button onClick={() => { workspace.execute("file.new"); setHome(undefined); }}>New file</button>
       </section>}
     </section> : active ? <DocumentEditor key={active.id} identity={identity} capabilities={tabCapabilities} engine={workspace.activeEngine}
-      shareMenu={shareMenu} menuGroup={menuGroup} sessionLabel={guest && (guest.ended ? "Disconnected" : guest.access === "view" ? "View only" : guest.access === "comment" ? "Can comment" : "Can edit")}
+      shareMenu={shareMenu} menuGroup={menuGroup} sessionLabel={guest && (guest.ended ? "Disconnected" : guest.reconnectAttempt ? "Connection lost, reconnecting (attempt " + guest.reconnectAttempt + ")…" : guest.access === "view" ? "View only" : guest.access === "comment" ? "Can comment" : "Can edit")}
       onHome={online && enabled ? () => setHome("recent") : undefined}
       workspacePrint={pdfPrint} onWorkspacePrint={setPdfPrint}
       onImportReport={(value, owner = active.id) => setReport({ value, owner })}

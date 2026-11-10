@@ -573,6 +573,13 @@ test("the published view and edit invites open the original drawing in another s
     await dialog.getByRole("button", { name: "Join", exact: true }).click();
     await expect(toolbar.getByText(/Can edit/)).toBeVisible();
     await expect(guest.getByRole("button", { name: "Create rectangle", exact: true })).toBeEnabled();
+    // Closing the browser page bypasses Figcraft's explicit Leave command.
+    const vanished = await visitor.newPage();
+    const joined = vanished.waitForRequest(request => new URL(request.url()).pathname === "/api/online-files/join");
+    await vanished.goto(edit);
+    const vanishedId = (await joined).postDataJSON().tab as string;
+    await expect(vanished.locator(".figcraft-document-bar").getByText(/Can edit/)).toBeVisible();
+    await vanished.close();
     const viewer = await visitor.newPage();
     const viewerBar = viewer.locator(".figcraft-document-bar");
     let validations = 0;
@@ -582,7 +589,25 @@ test("the published view and edit invites open the original drawing in another s
     await viewer.goto(view);
     await expect(viewerBar.getByText(/View only/)).toBeVisible();
     await expect.poll(() => validations, {timeout: 15000}).toBeGreaterThanOrEqual(2);
+    // Suppress just this tab's contact with the host. Its sibling keeps its
+    // real heartbeat, despite both pages sharing one authenticated login.
+    const heartbeatUrl = "**/rest/v1/rpc/online_connection_active";
+    const redeemUrl = "**/api/online-files/join";
+    const beforeSilence = validations;
+    await viewer.route(heartbeatUrl, route => route.abort("connectionreset"));
+    await viewer.route(redeemUrl, route => route.abort("connectionreset"));
+    await expect(viewerBar.getByText(/reconnecting \(attempt/)).toBeVisible({timeout: 55_000});
+    await expect(toolbar.getByText(/Can edit/)).toBeVisible();
+    await expect(viewer.getByRole("button", {name: "Create rectangle", exact: true})).toBeDisabled();
+    await viewer.unroute(heartbeatUrl);
+    await viewer.unroute(redeemUrl);
+    await expect(viewerBar.getByText(/View only/)).toBeVisible({timeout: 15_000});
+    await expect.poll(() => validations).toBeGreaterThan(beforeSilence);
+    await expect(viewerBar.getByRole("heading", {name: "Original invite drawing"})).toBeVisible();
     if (backend) {
+      const abandoned = await backend.admin.from("online_file_connections").select("id").eq("id", vanishedId);
+      expect(abandoned.error).toBeNull();
+      expect(abandoned.data).toEqual([]);
       const revoked = await backend.admin.from("online_file_links").delete().eq("file_id", fileId!).eq("access_level", "view").select("id");
       expect(revoked.error).toBeNull();
       expect(revoked.data).toHaveLength(1);

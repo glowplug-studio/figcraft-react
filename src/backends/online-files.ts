@@ -54,11 +54,14 @@ export interface OnlineGuestSession {
   connection: string;
   access: "edit" | "view" | "comment";
   ended?: GuestSessionEnd;
+  reconnectAttempt?: number;
 }
 export type GuestSessionEnd = "stopped" | "removed" | "unavailable";
+export type GuestConnectionStatus = {attempt: number} | {access: OnlineGuestSession["access"]};
 export interface OnlineInvitations {
+  retryNow?(connection: string): void;
   rejoin?(connection: string): Promise<OnlineGuestSession["access"]>;
-  watch?(connection: string, ended: (reason: GuestSessionEnd) => void): () => void;
+  watch?(connection: string, ended: (reason: GuestSessionEnd) => void, changed?: (status: GuestConnectionStatus) => void): () => void;
   showJoin(): void;
   subscribe(joined: (session: OnlineGuestSession, archive: Blob) => Promise<void>): () => void;
   copyPublished(file: string, access: "edit" | "view"): Promise<void>;

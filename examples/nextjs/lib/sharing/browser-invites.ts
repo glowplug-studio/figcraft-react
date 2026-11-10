@@ -1,17 +1,26 @@
-import type { GuestSessionEnd, IndexedDbRecoveryStore, OnlineGuestSession, OnlineInvitations } from "@glowplug-studio/figcraft-react";
+import type { GuestConnectionStatus, GuestSessionEnd, IndexedDbRecoveryStore, OnlineGuestSession, OnlineInvitations } from "@glowplug-studio/figcraft-react";
 import { nativeInviteLink, parseInviteServer, parseSessionInvite } from "@glowplug-studio/figcraft-react/sharing/invite";
 
 export const inviteAfterLogin = "figcraft-join-after-login";
+
+// GuestConfig::pause restarts the backoff after each round of twelve attempts.
+export function guestReconnectDelay(attempt: number) {
+  const index = (attempt - 1) % 12;
+  return index === 0 && attempt > 1 ? 60_000 : Math.min(10_000, 500 * 2 ** index);
+}
+
+class RefusedInvite extends Error {}
 
 export class BrowserInvitations implements OnlineInvitations {
   private listener?: (session: OnlineGuestSession, bytes: Blob) => Promise<void>;
   private readonly endpoint;
   private joining = false;
+  private readonly waiting = new Map<string, () => void>();
   // Retain a manual rejoin credential only while its tab belongs to this signed-in host.
-  private readonly tabs = new Map<string, {file: string; token: string; ended: boolean}>();
+  private readonly tabs = new Map<string, {file: string; token: string; physical: string; ended: boolean}>();
 
 
-  constructor(private device: IndexedDbRecoveryStore, private principal: string, private server: string,
+  constructor(private device: Pick<IndexedDbRecoveryStore, "readPublishedLinks">, private principal: string, private server: string,
     private readonly monitor: NonNullable<OnlineInvitations["watch"]>, readonly showJoin: () => void, private report: (message: string) => void) {
     this.endpoint = parseInviteServer(server.replace(/^http/, "ws")).server;
   }
@@ -74,7 +83,7 @@ export class BrowserInvitations implements OnlineInvitations {
       redeeming = true;
       const {access, bytes} = await this.redeem(connection, grant);
       if (this.listener !== receive) throw new Error("The signed-in workspace changed");
-      this.tabs.set(connection, {file: grant.file, token: grant.token, ended: false});
+      this.tabs.set(connection, {file: grant.file, token: grant.token, physical: connection, ended: false});
       await receive({ file: grant.file, connection, access }, bytes);
       attached = true;
     } finally {
@@ -94,38 +103,104 @@ export class BrowserInvitations implements OnlineInvitations {
   private async redeem(connection: string, invite: {file: string; token: string}): Promise<{access: OnlineGuestSession["access"]; bytes: Blob}> {
     const response = await fetch("/api/online-files/join", { method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ tab: connection, file: invite.file, token: invite.token }) });
-    if (!response.ok) throw new Error("The invite is unavailable");
+    if (response.status === 401 || response.status === 403) throw new RefusedInvite("The invite is unavailable");
+    if (!response.ok) throw new Error("The session could not be reached");
     const access = response.headers.get("X-Figcraft-Access");
     if (access !== "view" && access !== "edit" && access !== "comment") throw new Error("Invalid session access");
     const bytes = await response.blob();
     return {access, bytes};
   }
 
-  watch(connection: string, ended: (reason: GuestSessionEnd) => void) {
-    return this.monitor(connection, reason => {
-      const tab = this.tabs.get(connection);
-      if (tab) tab.ended = true;
+  watch(connection: string, ended: (reason: GuestSessionEnd) => void, changed?: (status: GuestConnectionStatus) => void) {
+    const tab = this.tabs.get(connection);
+    if (!tab) return () => {};
+    let disposed = false;
+    let attempt = 0;
+    let timer: ReturnType<typeof setTimeout>;
+    let stop: (() => void) | undefined;
+    const current = () => !disposed && this.tabs.get(connection) === tab;
+    const finish = (reason: GuestSessionEnd) => {
+      if (!current()) return;
+      tab.ended = true;
       ended(reason);
+    };
+    const schedule = () => {
+      attempt++;
+      changed?.({attempt});
+      this.waiting.set(connection, () => { clearTimeout(timer); attempt = 0; void recover(); });
+      timer = setTimeout(() => { void recover(); }, guestReconnectDelay(attempt));
+    };
+    const observe = () => this.monitor(tab.physical, reason => {
+      if (!current()) return;
+      if (reason === "unavailable") schedule();
+      else finish(reason);
     });
+    const recover = async () => {
+      this.waiting.delete(connection);
+      if (!current()) return;
+      try {
+        const access = await this.restore(connection, current);
+        if (!current()) return;
+        attempt = 0;
+        changed?.({access});
+        stop = observe();
+      } catch (error) {
+        if (!current()) return;
+        if (error instanceof RefusedInvite) finish("unavailable");
+        else schedule();
+      }
+    };
+    stop = observe();
+    return () => {
+      disposed = true;
+      this.waiting.delete(connection);
+      clearTimeout(timer);
+      stop?.();
+    };
+  }
+
+  retryNow(connection: string) { this.waiting.get(connection)?.(); }
+
+  // The logical editor tab survives reconnects. A new physical grant lets an
+  // interrupted or superseded request release only its own database connection.
+  private async restore(connection: string, current: () => boolean) {
+    const tab = this.tabs.get(connection);
+    if (!tab) throw new Error("The session tab closed");
+    const physical = crypto.randomUUID();
+    try {
+      const {access} = await this.redeem(physical, tab);
+      if (this.tabs.get(connection) !== tab || !current()) throw new Error("The session tab closed");
+      const previous = tab.physical;
+      tab.physical = physical;
+      void this.release(previous).catch(() => undefined);
+      return access;
+    } catch (error) {
+      // A lost response may have created this grant. The idle deadline also
+      // covers the case where the network is unavailable for the release.
+      void this.release(physical).catch(() => undefined);
+      throw error;
+    }
   }
 
   async rejoin(connection: string) {
     const tab = this.tabs.get(connection);
     if (!tab?.ended) throw new Error("The session cannot be rejoined");
-    const {access} = await this.redeem(connection, tab);
-    if (this.tabs.get(connection) !== tab) {
-      await this.leave(connection);
-      throw new Error("The session tab closed");
-    }
+    const access = await this.restore(connection, () => this.tabs.get(connection) === tab);
     tab.ended = false;
     return access;
   }
 
-  async leave(connection: string) {
-    if (this.tabs.get(connection)?.ended) { this.tabs.delete(connection); return; }
-    const response = await fetch("/api/online-files/leave", { method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ connection }) });
+  private async release(physical: string) {
+    const response = await fetch("/api/online-files/leave", { method: "POST", signal: AbortSignal.timeout(5000), headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ connection: physical }) });
     if (!response.ok) throw new Error("Could not leave the session");
+  }
+
+  async leave(connection: string) {
+    const tab = this.tabs.get(connection);
     this.tabs.delete(connection);
+    // Leaving is final on the device even when the server cannot be reached.
+    // A missed leave expires under the same deadline as an abruptly closed page.
+    if (!tab?.ended) await this.release(tab?.physical ?? connection).catch(() => undefined);
   }
 }

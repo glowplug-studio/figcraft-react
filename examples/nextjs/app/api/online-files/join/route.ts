@@ -1,5 +1,5 @@
 import { onlinePost } from "../../../../lib/supabase/online-post";
-import { readSharedDrawing } from "../../../../lib/sharing/join";
+import { readSharedDrawing, UnavailableInvite } from "../../../../lib/sharing/join";
 
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
@@ -18,7 +18,8 @@ export async function POST(request: Request) {
     return new Response(result.bytes, { headers: {
       "Content-Type": "application/octet-stream", "Cache-Control": "private, no-store", "X-Figcraft-Access": result.access,
     } });
-  } catch {
-    return Response.json({ error: "The invite is unavailable" }, { status: 403, headers: { "Cache-Control": "private, no-store" } });
+  } catch (error) {
+    const refused = error instanceof UnavailableInvite;
+    return Response.json({ error: refused ? "The invite is unavailable" : "The session could not be reached" }, { status: refused ? 403 : 503, headers: { "Cache-Control": "private, no-store" } });
   }
 }

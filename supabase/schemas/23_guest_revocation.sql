@@ -1,16 +1,22 @@
 -- The guest can check its own tab after subscribing or reconnecting.
 create function figcraft_private.connection_active(tab uuid) returns boolean
-language sql stable security definer set search_path = ''
+language sql volatile security definer set search_path = ''
 as $$
-    select exists (select 1 from public.online_file_connections c
-        where c.id = tab and c.principal_id = (select auth.uid())
-        and c.session_id = (select nullif(auth.jwt()->>'session_id', '')::uuid));
+    with renewed as (
+        update public.online_file_connections
+            set heard_at = greatest(heard_at,statement_timestamp())
+            where id = tab and principal_id = (select auth.uid())
+            and session_id = (select nullif(auth.jwt()->>'session_id', '')::uuid)
+            and heard_at > figcraft_private.connection_cutoff()
+            returning id
+    )
+    select exists(select from renewed);
 $$;
 revoke all on function figcraft_private.connection_active(uuid) from public, anon, authenticated;
 grant execute on function figcraft_private.connection_active(uuid) to authenticated;
 
 create function public.online_connection_active(tab uuid) returns boolean
-language sql stable security invoker set search_path = ''
+language sql volatile security invoker set search_path = ''
 as $$ select figcraft_private.connection_active(tab); $$;
 revoke all on function public.online_connection_active(uuid) from public, anon, authenticated;
 grant execute on function public.online_connection_active(uuid) to authenticated;
