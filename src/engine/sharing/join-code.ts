@@ -44,6 +44,15 @@ export function parseJoinCode(typed: string): JoinCode {
   return { kind: "local", link: `figcraft://join?host=${address}:${port}&file=local&token=local-${token}` };
 }
 
+/** Nine Crockford symbols carry the low 45 bits supplied by the issuer. */
+export function encodeOnlineJoinCode(random: bigint): string {
+  let code = "";
+  for (let shift = 40n; shift >= 0n; shift -= 5n) {
+    code += alphabet[Number((random >> shift) & 31n)];
+  }
+  return code;
+}
+
 export function groupedJoinCode(code: string): string {
   const width = code.length === 9 ? 3 : 5;
   const groups: string[] = [];
