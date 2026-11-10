@@ -59,25 +59,36 @@ export class BrowserInvitations implements OnlineInvitations {
     if (input.startsWith("#join=")) {
       try { input = decodeURIComponent(input.slice(6)); } catch { throw new Error("Invalid invite fragment"); }
     }
-    const invite = parseSessionInvite(input);
+    const invite = input.includes("://") ? parseSessionInvite(input) : {kind: "code" as const, server: this.endpoint, code: input};
     if (invite.server.secure !== this.endpoint.secure || invite.server.host.toLowerCase() !== this.endpoint.host.toLowerCase()
         || invite.server.path !== this.endpoint.path) {
       throw new Error("This invite belongs to another server");
     }
-    if (invite.kind !== "link") throw new Error("This host requires an invite link for this session");
+    if (invite.kind === "team") throw new Error("This host requires an invite link for this session");
     this.joining = true;
     const connection = crypto.randomUUID();
-    let attached = false;
+    let attached = false, redeeming = false;
     try {
-      const {access, bytes} = await this.redeem(connection, invite);
+      const grant = invite.kind === "code" ? await this.lookup(invite.code) : invite;
       if (this.listener !== receive) throw new Error("The signed-in workspace changed");
-      this.tabs.set(connection, {file: invite.file, token: invite.token, ended: false});
-      await receive({ file: invite.file, connection, access }, bytes);
+      redeeming = true;
+      const {access, bytes} = await this.redeem(connection, grant);
+      if (this.listener !== receive) throw new Error("The signed-in workspace changed");
+      this.tabs.set(connection, {file: grant.file, token: grant.token, ended: false});
+      await receive({ file: grant.file, connection, access }, bytes);
       attached = true;
     } finally {
       this.joining = false;
-      if (!attached) await this.leave(connection).catch(() => undefined);
+      if (redeeming && !attached) await this.leave(connection).catch(() => undefined);
     }
+  }
+
+  private async lookup(code: string): Promise<{file: string; token: string}> {
+    const response = await fetch("/api/online-files/code", {method: "POST", body: code});
+    const result = await response.json();
+    if (!response.ok) throw new Error(typeof result.error === "string" ? result.error : "Code lookup failed");
+    if (typeof result.file !== "string" || typeof result.token !== "string") throw new Error("Invalid code receipt");
+    return {file: result.file, token: result.token};
   }
 
   private async redeem(connection: string, invite: {file: string; token: string}): Promise<{access: OnlineGuestSession["access"]; bytes: Blob}> {

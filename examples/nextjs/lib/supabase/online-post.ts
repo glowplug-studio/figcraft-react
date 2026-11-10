@@ -2,12 +2,12 @@ import { createClient } from "@supabase/supabase-js";
 import { getServerSupabase } from "./server";
 import { supabaseConfig } from "./config";
 
-export async function onlinePost(request: Request) {
+export async function onlinePost(request: Request, mediaType: "application/json" | "text/plain" = "application/json") {
   const origin = request.headers.get("origin");
   const host = request.headers.get("host");
   if (!origin || !host || !URL.canParse(origin) || new URL(origin).host !== host
       || request.headers.get("sec-fetch-site") === "cross-site") return new Response(null, { status: 403 });
-  if (request.headers.get("content-type")?.split(";")[0] !== "application/json") return new Response(null, { status: 415 });
+  if (request.headers.get("content-type")?.split(";")[0] !== mediaType) return new Response(null, { status: 415 });
   const user = await getServerSupabase();
   const actor = await user.auth.getClaims();
   if (actor.error || !actor.data?.claims.sub) return new Response(null, { status: 401 });

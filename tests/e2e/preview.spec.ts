@@ -44,7 +44,21 @@ test.beforeAll(async () => {
     userId = result.data.user?.id;
   }
 });
-test.afterAll(async () => { if (backend && userId) await backend.admin.auth.admin.deleteUser(userId); });
+test.afterAll(async () => {
+  if (!backend || !userId) return;
+  // This suite creates its own local account. A failed workflow can leave an
+  // upload whose Auth owner would otherwise be removed before Storage cleanup.
+  const storage = backend.admin.storage.from("figcraft-files");
+  for (;;) {
+    const objects = await storage.list(userId, {limit: 100});
+    if (objects.error) throw objects.error;
+    if (!objects.data.length) break;
+    const removed = await storage.remove(objects.data.map(object => userId + "/" + object.name));
+    if (removed.error) throw removed.error;
+  }
+  const deleted = await backend.admin.auth.admin.deleteUser(userId);
+  if (deleted.error) throw deleted.error;
+});
 async function login(page: Page, normaliseView = true) {
   await page.goto("/");
   await expect(page).toHaveURL(/\/login\?next=/);
@@ -435,7 +449,44 @@ test("the published view and edit invites open the original drawing in another s
     const commentBar = commenter.locator(".figcraft-document-bar");
     await expect(commentBar.getByText(/Can comment/)).toBeVisible();
     await expect(commenter.getByRole("button", {name: "Create rectangle", exact: true})).toBeDisabled();
+    const codeGuest = await visitor.newPage();
+    await codeGuest.goto("/");
+    const codeBar = codeGuest.locator(".figcraft-document-bar");
+    const codeDialog = codeGuest.getByRole("dialog", {name: "Join live session"});
+    const enterCode = async (value: string) => {
+      await codeBar.getByText("Share", {exact: true}).click();
+      await codeBar.getByText("Share", {exact: true}).locator("..").getByRole("button", {name: "Join live session…"}).click();
+      await codeDialog.getByLabel("Invite link or code").fill(value);
+      await codeDialog.getByRole("button", {name: "Join", exact: true}).click();
+    };
+    let retiredCode = "";
+    for (const [role, label] of [["edit", "Can edit"], ["view", "View only"], ["comment", "Can comment"]]) {
+      await bar.getByLabel("Access", {exact: true}).selectOption(role);
+      const code = await bar.getByLabel("Join code").innerText();
+      retiredCode = code;
+      const native = new URL(decodeURIComponent(new URL(comment).hash.slice(6)));
+      native.searchParams.delete("file"); native.searchParams.delete("token"); native.searchParams.set("code", code);
+      await enterCode(role === "view" ? native.toString() : code.toLowerCase().replaceAll("-", " "));
+      await expect(codeBar.getByText(new RegExp(label))).toBeVisible();
+      await expect(codeBar.getByRole("heading", {name: "Original invite drawing"})).toBeVisible();
+      const create = codeGuest.getByRole("button", {name: "Create rectangle", exact: true});
+      if (role === "edit") await expect(create).toBeEnabled();
+      else await expect(create).toBeDisabled();
+      await codeBar.getByText("File", {exact: true}).click();
+      await codeBar.getByRole("button", {name: "Leave session"}).click();
+      await expect(codeBar.getByText(/Local document/)).toBeVisible();
+    }
     await bar.getByRole("button", {name: "Stop sharing", exact: true}).click();
+    await enterCode(retiredCode);
+    await expect(codeDialog.getByRole("alert")).toHaveText("That code has expired or its sharing was stopped");
+    await codeDialog.getByRole("button", {name: "Cancel"}).click();
+    await bar.getByRole("button", {name: "Start sharing", exact: true}).click();
+    await bar.getByLabel("Access", {exact: true}).selectOption("edit");
+    await enterCode(await bar.getByLabel("Join code").innerText());
+    await expect(codeBar.getByText(/Can edit/)).toBeVisible();
+    await bar.getByRole("button", {name: "Stop sharing", exact: true}).click();
+    await expect(codeBar.getByText(/Disconnected/)).toBeVisible();
+    await codeGuest.close();
     await expect(commentBar.getByText(/Disconnected/)).toBeVisible({timeout: 15000});
     await expect(toolbar.getByText(/View only/)).toBeVisible();
     await commenter.close();

@@ -6,7 +6,7 @@ import { defaultPrint, type PrintSettings } from "./engine/export-settings";
 import { ImportReportPanel } from "./ImportReportPanel";
 import { importNotice, readImportReport, type ImportReport } from "./engine/interchange/import-report";
 import { BranchReviewDialog } from "./BranchReviewDialog";
-import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useId, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { DocumentEditor, type EditorProps } from "./Editor";
 import type { WorkspaceRecoveryStore } from "./backends/recovery";
 import { EditorWorkspace } from "./engine/workspace";
@@ -86,6 +86,7 @@ export function WorkspaceEditor({ identity, capabilities, recoveryStore, onlineH
   const guest = active?.guest;
   const tabCapabilities = useMemo(() => guest && !guest.ended && guest.access !== "edit" ? capabilities.filter(cap => cap === "document.read"
     || (guest.access === "comment" && cap === "document.comment")) : capabilities, [capabilities, guest]);
+  const menuGroup = useId();
   const [openShareTab, setOpenShareTab] = useState<number>();
   const publishedId = active && online?.publishedFile(active.id);
 
@@ -121,10 +122,13 @@ export function WorkspaceEditor({ identity, capabilities, recoveryStore, onlineH
     try { await invitations.leave(guest.connection); workspace.leaveSession(guest.connection); setNotice("Left session"); }
     catch { setNotice("Could not leave the session"); }
   };
-  const shareMenu = enabled && active && online && !guest && (online.sharing || (invitations && publishedId)) && <details className="figcraft-bar-menu"
+  const shareMenu = enabled && active && online && !guest && (online.sharing || (invitations && publishedId)) && <details name={menuGroup} className="figcraft-bar-menu"
     onToggle={event => setOpenShareTab(event.currentTarget.open ? active.id : undefined)}><summary>Share</summary><div className="figcraft-menu-items">
     {online.sharing && openShareTab === active.id && <OwnerShareControls sharing={online.sharing} file={publishedId}
       publish={async () => (await online.publish(active.id, active.name)).id} published={() => setNotice("Published " + active.name)} />}
+    {invitations && <button type="button" onClick={event => {
+      event.currentTarget.closest("details")?.removeAttribute("open"); invitations.showJoin();
+    }}>Join live session…</button>}
     {invitations && publishedId && (["edit", "view"] as const).map(access => <button key={access} type="button" onClick={async () => {
       try { await invitations.copyPublished(publishedId, access); setNotice(access === "edit" ? "Edit link copied" : "View link copied"); }
       catch { setNotice("Could not copy the published link"); }
@@ -192,7 +196,7 @@ export function WorkspaceEditor({ identity, capabilities, recoveryStore, onlineH
         <button onClick={() => { workspace.execute("file.new"); setHome(undefined); }}>New file</button>
       </section>}
     </section> : active ? <DocumentEditor key={active.id} identity={identity} capabilities={tabCapabilities} engine={workspace.activeEngine}
-      shareMenu={shareMenu} sessionLabel={guest && (guest.ended ? "Disconnected" : guest.access === "view" ? "View only" : guest.access === "comment" ? "Can comment" : "Can edit")}
+      shareMenu={shareMenu} menuGroup={menuGroup} sessionLabel={guest && (guest.ended ? "Disconnected" : guest.access === "view" ? "View only" : guest.access === "comment" ? "Can comment" : "Can edit")}
       onHome={online && enabled ? () => setHome("recent") : undefined}
       workspacePrint={pdfPrint} onWorkspacePrint={setPdfPrint}
       onImportReport={(value, owner = active.id) => setReport({ value, owner })}

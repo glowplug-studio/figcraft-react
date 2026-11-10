@@ -7,6 +7,7 @@ import { SupabaseOnlineFileStore } from "../../src/backends/supabase/online-file
 import { finaliseOnlineFile } from "../../src/backends/supabase/publication";
 import { applyOwnerSharing, changeFileLinks, ownerSharingStatus } from "../../examples/nextjs/lib/sharing/links";
 import { readSharedDrawing } from "../../examples/nextjs/lib/sharing/join";
+import { lookupCode } from "../../examples/nextjs/lib/sharing/code-lookup";
 import { JoinCodeKey } from "../../examples/nextjs/lib/sharing/codes";
 import { createPublishedLinks, publishedLinkDigests } from "../../src/backends/published-links";
 import { parseJoinCode } from "../../src/engine/sharing/join-code";
@@ -212,6 +213,16 @@ describe.skipIf(!enabled)("private online files on real local Supabase", () => {
     expect(a).toEqual(b);
     expect(a.map(row => row.access)).toEqual(["edit", "view", "comment"]);
     const ids = a.map(row => row.id);
+    const network = "2001:db8:" + randomUUID().slice(0,4) + ":";
+    const attempts = await Promise.all(Array.from({length: 12}, () => lookupCode(writer, network + "1::1", a[0].code!)));
+    expect(attempts.filter(receipt => receipt.status === 200)).toHaveLength(10);
+    expect(attempts.filter(receipt => receipt.status === 429)).toHaveLength(2);
+    for (const receipt of attempts.filter(receipt => receipt.status === 200)) {
+      expect(receipt.body).toEqual({file, token: a[0].token});
+    }
+    const callerIp = network + "201::1";
+    for (const role of a) expect(await lookupCode(writer, callerIp, role.code!)).toEqual({status: 200, body: {file, token: role.token}});
+    expect((await stranger.client.rpc("lookup_online_code", {address: callerIp, symbols: "000000000"})).error?.code).toBe("42501");
     const state = () => ownerSharingStatus(writer, owner.id, file);
     expect((await state()).ids.sort()).toEqual([...ids, published.edit.id, published.view.id].sort());
     await expect(applyOwnerSharing(writer, stranger.id, file, null, first, [], seed)).rejects.toThrow("unavailable");
@@ -228,6 +239,7 @@ describe.skipIf(!enabled)("private online files on real local Supabase", () => {
     await Promise.all([1,2].map(() => applyOwnerSharing(writer, owner.id, file, first, stop, ids, null)));
     await expect(start()).rejects.toThrow("Sharing changed elsewhere");
     expect(await state()).toMatchObject({revision:stop});
+    expect((await lookupCode(writer, callerIp, a[0].code!)).status).toBe(410);
     expect((await state()).ids.sort()).toEqual([published.edit.id,published.view.id].sort());
     const renewed = await applyOwnerSharing(writer, owner.id, file, stop, randomUUID(), [], seed);
     expect(renewed.every(link => !ids.includes(link.id))).toBe(true);

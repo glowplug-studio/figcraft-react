@@ -73,7 +73,7 @@ export function EditorHost({ identity }: { identity: Extract<IdentitySnapshot, {
         } catch (error) { setJoinError(error instanceof Error ? error.message : "The invite is unavailable"); }
         finally { setJoining(false); }
       }}>
-        <h2>Join live session</h2><label>Invite link<input name="invite" required autoComplete="off" /></label>
+        <h2>Join live session</h2><label>Invite link or code<input name="invite" required autoComplete="off" /></label>
         {joinError && <p role="alert">{joinError}</p>}
         <button disabled={joining}>Join</button><button type="button" disabled={joining} onClick={() => joinDialog.current?.close()}>Cancel</button>
       </form>

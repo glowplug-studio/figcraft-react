@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
+import { codeLookupAddress } from "../../examples/nextjs/lib/sharing/code-lookup";
 import { JoinCodeKey, type SealedJoinCode } from "../../examples/nextjs/lib/sharing/codes";
 import { encodeOnlineJoinCode } from "../../src/engine/sharing/join-code";
 
@@ -34,4 +35,12 @@ describe("pinned native server join-code records", () => {
     expect(correct.open({ ...stored, token: "ZZ" })).toBeUndefined();
     expect(correct.open({ ...stored, token: "00".repeat(33) })).toBeUndefined();
   });
+});
+
+it("uses the configured ingress address and a shared local fallback", () => {
+  const headers = new Headers({"x-forwarded-for": "198.51.100.1", "x-vercel-forwarded-for": "2001:db8::19"});
+  expect(codeLookupAddress(headers, false)).toBe("127.0.0.1");
+  expect(codeLookupAddress(headers, true)).toBe("2001:db8::19");
+  headers.set("x-vercel-forwarded-for", "198.51.100.1, 192.0.2.1");
+  expect(codeLookupAddress(headers, true)).toBe("127.0.0.1");
 });

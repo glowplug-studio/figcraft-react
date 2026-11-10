@@ -34,7 +34,7 @@ import { framePresets } from "./engine/frame-presets";
 import { ChildLayoutPanel } from "./ChildLayoutPanel";
 import { FrameLayoutPanel } from "./FrameLayoutPanel";
 import { GridTrackPanel } from "./GridTrackPanel";
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type ClipboardEvent, type FormEvent, type KeyboardEvent } from "react";
+import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type ClipboardEvent, type FormEvent, type KeyboardEvent } from "react";
 import type { DocumentCapability } from "./backends/access";
 import type { IdentityAdapter } from "./backends/identity";
 import { hitRectangle, type layersAt } from "./engine/selection";
@@ -90,11 +90,12 @@ function HistoryButtons({ engine, editable, undo, redo, dispatch }: { engine: Ed
 /** Embeddable local rectangle workflow. The host owns authentication and styling. */
 export function Editor(props: EditorProps) { return <DocumentEditor {...props} />; }
 
-export function DocumentEditor({ identity, capabilities, engine: suppliedEngine, recoveryStore, workspace, workspaceRecovery, fileMenu, shareMenu, sessionLabel, onHome, onWorkspaceNotice, onReviewBranch, onImportReport, workspacePrint, onWorkspacePrint }: EditorProps & {
+export function DocumentEditor({ identity, capabilities, engine: suppliedEngine, recoveryStore, workspace, workspaceRecovery, fileMenu, shareMenu, menuGroup, sessionLabel, onHome, onWorkspaceNotice, onReviewBranch, onImportReport, workspacePrint, onWorkspacePrint }: EditorProps & {
   workspace?: EditorWorkspace;
   workspaceRecovery?: WorkspaceRecoveryState;
   fileMenu?: ReactNode;
   shareMenu?: ReactNode;
+  menuGroup?: string;
   sessionLabel?: string;
   onHome?: () => void;
   onWorkspaceNotice?: (message: string) => void;
@@ -103,6 +104,7 @@ export function DocumentEditor({ identity, capabilities, engine: suppliedEngine,
   onImportReport?: (report: ImportReport, owner?: number) => void;
   onReviewBranch?: (id: string) => void;
 }) {
+  const localMenuGroup = useId();
   const [engine] = useState(() => suppliedEngine ?? new EditorEngine());
   useEffect(()=>engine.observeLocalFonts(),[engine]);
   const snapshot = useSyncExternalStore(engine.subscribe, engine.getSnapshot, engine.getSnapshot);
@@ -700,7 +702,7 @@ export function DocumentEditor({ identity, capabilities, engine: suppliedEngine,
       }
     }}>
       <header className="figcraft-document-bar">{onHome && <button type="button" onClick={onHome}>Home</button>}<h1>{snapshot.document.name}</h1><span>{snapshot.dirty ? "Unsaved" : snapshot.hasSaved ? "Downloaded" : "Unmodified"} · {sessionLabel ?? "Local document"}</span>{shareMenu}
-        <details className="figcraft-bar-menu"><summary>File</summary><div className="figcraft-menu-items">{fileMenu}
+        <details name={menuGroup ?? localMenuGroup} className="figcraft-bar-menu"><summary>File</summary><div className="figcraft-menu-items">{fileMenu}
           <button type="button" disabled={!editable || busy || recoveryStatus==="loading"} onClick={event=>{
             event.currentTarget.closest("details")?.removeAttribute("open");importInput.current?.click();
           }}>Import…</button>
@@ -720,7 +722,7 @@ export function DocumentEditor({ identity, capabilities, engine: suppliedEngine,
           <button disabled={!editable || busy} type="button" onClick={event => {
           event.currentTarget.closest("details")?.removeAttribute("open"); dispatch("file.colorProfile");
         }}>Color profile</button></div></details>
-        <details className="figcraft-bar-menu"><summary>Edit</summary><div className="figcraft-menu-items">
+        <details name={menuGroup ?? localMenuGroup} className="figcraft-bar-menu"><summary>Edit</summary><div className="figcraft-menu-items">
           {([
             ["Cut", "edit.cut", editable && canCopyLayers],
             ["Copy", "edit.copy", canCopyLayers],
