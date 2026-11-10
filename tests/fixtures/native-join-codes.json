@@ -1,0 +1,697 @@
+[
+  {
+    "typed": "",
+    "kind": "error",
+    "result": "type the join code you were given"
+  },
+  {
+    "typed": " - ",
+    "kind": "error",
+    "result": "type the join code you were given"
+  },
+  {
+    "typed": "K7M-2QX-9TD",
+    "kind": "online",
+    "result": "K7M-2QX-9TD"
+  },
+  {
+    "typed": "O0o–IiL—l1X",
+    "kind": "online",
+    "result": "000-111-11X"
+  },
+  {
+    "typed": "k7m_2qx.9td",
+    "kind": "online",
+    "result": "K7M-2QX-9TD"
+  },
+  {
+    "typed": "K7M2QX　9TD",
+    "kind": "online",
+    "result": "K7M-2QX-9TD"
+  },
+  {
+    "typed": "K7M﻿2QX9TD",
+    "kind": "error",
+    "result": "a join code has only letters and digits (and no U): check it and try again"
+  },
+  {
+    "typed": "k7m2qx9tſ",
+    "kind": "error",
+    "result": "a join code has only letters and digits (and no U): check it and try again"
+  },
+  {
+    "typed": "K7M2QU9TD",
+    "kind": "error",
+    "result": "a join code has only letters and digits (and no U): check it and try again"
+  },
+  {
+    "typed": "K7M2QX9T€",
+    "kind": "error",
+    "result": "a join code has only letters and digits (and no U): check it and try again"
+  },
+  {
+    "typed": "zzzzzzzzz",
+    "kind": "online",
+    "result": "ZZZ-ZZZ-ZZZ"
+  },
+  {
+    "typed": "12345678",
+    "kind": "error",
+    "result": "a join code has 9 characters (20 on the local network); that one has 8"
+  },
+  {
+    "typed": "1234567890",
+    "kind": "error",
+    "result": "a join code has 9 characters (20 on the local network); that one has 10"
+  },
+  {
+    "typed": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+    "kind": "error",
+    "result": "a join code has 9 characters (20 on the local network); that one has 128"
+  },
+  {
+    "typed": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+    "kind": "error",
+    "result": "that is too long to be a join code"
+  },
+  {
+    "typed": "                                        123456789",
+    "kind": "error",
+    "result": "that is too long to be a join code"
+  },
+  {
+    "typed": "                                       123456789",
+    "kind": "online",
+    "result": "123-456-789"
+  },
+  {
+    "typed": "figcraft://join?file=f&token=example",
+    "kind": "error",
+    "result": "a join code has only letters and digits (and no U): check it and try again"
+  },
+  {
+    "typed": "00000000000000000000",
+    "kind": "error",
+    "result": "that local network code has a typing mistake: check it and try again"
+  },
+  {
+    "typed": "r2m02-50fs0-00000-0005h",
+    "kind": "local",
+    "result": "figcraft://join?host=192.168.1.20:4040&file=local&token=local-00000000000"
+  },
+  {
+    "typed": "R2M02-50FS0-00000-00050",
+    "kind": "error",
+    "result": "that local network code has a typing mistake: check it and try again"
+  },
+  {
+    "typed": "04106-17zzz-zzzzz-zzzy4",
+    "kind": "local",
+    "result": "figcraft://join?host=1.2.3.4:65535&file=local&token=local-fffffffffff"
+  },
+  {
+    "typed": "04106-17ZZZ-ZZZZZ-ZZZY0",
+    "kind": "error",
+    "result": "that local network code has a typing mistake: check it and try again"
+  },
+  {
+    "typed": "zzzzz-zr004-00000-00099",
+    "kind": "local",
+    "result": "figcraft://join?host=255.255.255.255:1&file=local&token=local-00000000001"
+  },
+  {
+    "typed": "ZZZZZ-ZR004-00000-00090",
+    "kind": "error",
+    "result": "that local network code has a typing mistake: check it and try again"
+  },
+  {
+    "typed": "00000-00004-00000-04qrb",
+    "kind": "error",
+    "result": "that local network code has a typing mistake: check it and try again"
+  },
+  {
+    "typed": "00000-00004-00000-04QR0",
+    "kind": "error",
+    "result": "that local network code has a typing mistake: check it and try again"
+  },
+  {
+    "typed": "fw000-08000-00000-00sze",
+    "kind": "error",
+    "result": "that local network code has a typing mistake: check it and try again"
+  },
+  {
+    "typed": "FW000-08000-00000-00SZ0",
+    "kind": "error",
+    "result": "that local network code has a typing mistake: check it and try again"
+  },
+  {
+    "typed": "k5cz3-fthpg-mr5ra-seccs",
+    "kind": "local",
+    "result": "figcraft://join?host=153.89.241.191:20916&file=local&token=local-2982e159731"
+  },
+  {
+    "typed": "K5CZ3-FTHPG-MR5RA-SECC0",
+    "kind": "error",
+    "result": "that local network code has a typing mistake: check it and try again"
+  },
+  {
+    "typed": "mxttf-km8ge-at4fv-fvh4f",
+    "kind": "local",
+    "result": "figcraft://join?host=167.117.167.206:34947&file=local&token=local-95a23f6fdc4"
+  },
+  {
+    "typed": "MXTTF-KM8GE-AT4FV-FVH40",
+    "kind": "error",
+    "result": "that local network code has a typing mistake: check it and try again"
+  },
+  {
+    "typed": "pkjwt-whcpg-tqj28-g5jvq",
+    "kind": "local",
+    "result": "figcraft://join?host=180.229.205.114:11444&file=local&token=local-357909102cb"
+  },
+  {
+    "typed": "PKJWT-WHCPG-TQJ28-G5JV0",
+    "kind": "error",
+    "result": "that local network code has a typing mistake: check it and try again"
+  },
+  {
+    "typed": "zsmmw-msmte-8a8ex-zeyjr",
+    "kind": "local",
+    "result": "figcraft://join?host=254.105.78.83:13523&file=local&token=local-90a43bbf77a"
+  },
+  {
+    "typed": "ZSMMW-MSMTE-8A8EX-ZEYJ0",
+    "kind": "error",
+    "result": "that local network code has a typing mistake: check it and try again"
+  },
+  {
+    "typed": "44jss-xgd27-nw2kq-xbe50",
+    "kind": "local",
+    "result": "figcraft://join?host=33.37.156.246:3345&file=local&token=local-ebc14efd5b8"
+  },
+  {
+    "typed": "44JSS-XGD27-NW2KQ-XBE51",
+    "kind": "error",
+    "result": "that local network code has a typing mistake: check it and try again"
+  },
+  {
+    "typed": "rsxz6-q0pmg-fj6xs-68kea",
+    "kind": "local",
+    "result": "figcraft://join?host=198.123.243.92:5796&file=local&token=local-1f23772644d"
+  },
+  {
+    "typed": "RSXZ6-Q0PMG-FJ6XS-68KE0",
+    "kind": "error",
+    "result": "that local network code has a typing mistake: check it and try again"
+  },
+  {
+    "typed": "xzf2m-gydfk-xrz5a-r5ffs",
+    "kind": "local",
+    "result": "figcraft://join?host=239.222.42.67:52604&file=local&token=local-fb8f95582bd"
+  },
+  {
+    "typed": "XZF2M-GYDFK-XRZ5A-R5FF0",
+    "kind": "error",
+    "result": "that local network code has a typing mistake: check it and try again"
+  },
+  {
+    "typed": "565va-jq1qm-a06zr-afs5y",
+    "kind": "local",
+    "result": "figcraft://join?host=41.139.181.74:57789&file=local&token=local-14037f0a7e4"
+  },
+  {
+    "typed": "565VA-JQ1QM-A06ZR-AFS50",
+    "kind": "error",
+    "result": "that local network code has a typing mistake: check it and try again"
+  },
+  {
+    "typed": "ztdma-91q4d-g71j4-b6805",
+    "kind": "local",
+    "result": "figcraft://join?host=254.155.69.36:14115&file=local&token=local-6070c88b320"
+  },
+  {
+    "typed": "ZTDMA-91Q4D-G71J4-B6800",
+    "kind": "error",
+    "result": "that local network code has a typing mistake: check it and try again"
+  },
+  {
+    "typed": "j85a0-3q0se-x4ecz-68g39",
+    "kind": "local",
+    "result": "figcraft://join?host=146.10.160.14:57547&file=local&token=local-ba4733e6440"
+  },
+  {
+    "typed": "J85A0-3Q0SE-X4ECZ-68G30",
+    "kind": "error",
+    "result": "that local network code has a typing mistake: check it and try again"
+  },
+  {
+    "typed": "fzpca-nyaw7-vxp66-p5skm",
+    "kind": "local",
+    "result": "figcraft://join?host=127.236.197.87:51937&file=local&token=local-f7db18d62e6"
+  },
+  {
+    "typed": "FZPCA-NYAW7-VXP66-P5SK0",
+    "kind": "error",
+    "result": "that local network code has a typing mistake: check it and try again"
+  },
+  {
+    "typed": "cbggf-380yb-rsshe-erqan",
+    "kind": "local",
+    "result": "figcraft://join?host=98.225.7.141:242&file=local&token=local-f19cc5cec5d"
+  },
+  {
+    "typed": "CBGGF-380YB-RSSHE-ERQA0",
+    "kind": "error",
+    "result": "that local network code has a typing mistake: check it and try again"
+  },
+  {
+    "typed": "mk9nx-crexg-651b4-8bmqe",
+    "kind": "local",
+    "result": "figcraft://join?host=164.211.94.179:3820&file=local&token=local-0c50ac885d2"
+  },
+  {
+    "typed": "MK9NX-CREXG-651B4-8BMQ0",
+    "kind": "error",
+    "result": "that local network code has a typing mistake: check it and try again"
+  },
+  {
+    "typed": "xge4e-av9wp-wz20m-m38z7",
+    "kind": "local",
+    "result": "figcraft://join?host=236.28.71.43:27109&file=local&token=local-b9f102941a3"
+  },
+  {
+    "typed": "XGE4E-AV9WP-WZ20M-M38Z0",
+    "kind": "error",
+    "result": "that local network code has a typing mistake: check it and try again"
+  },
+  {
+    "typed": "15w4z-kxk14-9j12d-y6z0g",
+    "kind": "local",
+    "result": "figcraft://join?host=9.120.79.207:45833&file=local&token=local-132089be37c"
+  },
+  {
+    "typed": "15W4Z-KXK14-9J12D-Y6Z00",
+    "kind": "error",
+    "result": "that local network code has a typing mistake: check it and try again"
+  },
+  {
+    "typed": "y1vnr-x2men-27pyt-0zaev",
+    "kind": "local",
+    "result": "figcraft://join?host=240.119.92.116:21621&file=local&token=local-447b7b40fa9"
+  },
+  {
+    "typed": "Y1VNR-X2MEN-27PYT-0ZAE0",
+    "kind": "error",
+    "result": "that local network code has a typing mistake: check it and try again"
+  },
+  {
+    "typed": "4kj2j-40snt-pxhra-xz2y7",
+    "kind": "local",
+    "result": "figcraft://join?host=36.228.41.16:6574&file=local&token=local-add8e15df8b"
+  },
+  {
+    "typed": "4KJ2J-40SNT-PXHRA-XZ2Y0",
+    "kind": "error",
+    "result": "that local network code has a typing mistake: check it and try again"
+  },
+  {
+    "typed": "e5ya8-crm45-h9c59-44c0p",
+    "kind": "local",
+    "result": "figcraft://join?host=113.124.164.51:5153&file=local&token=local-62961524230"
+  },
+  {
+    "typed": "E5YA8-CRM45-H9C59-44C00",
+    "kind": "error",
+    "result": "that local network code has a typing mistake: check it and try again"
+  },
+  {
+    "typed": "c7c3t-ve8ax-7z5zf-0mfwr",
+    "kind": "local",
+    "result": "figcraft://join?host=97.216.61.109:51287&file=local&token=local-4ff2fde0a3f"
+  },
+  {
+    "typed": "C7C3T-VE8AX-7Z5ZF-0MFW0",
+    "kind": "error",
+    "result": "that local network code has a typing mistake: check it and try again"
+  },
+  {
+    "typed": "4qzqc-qkenq-svtse-dzznn",
+    "kind": "local",
+    "result": "figcraft://join?host=37.255.118.94:28333&file=local&token=local-f3bd65cdffe"
+  },
+  {
+    "typed": "4QZQC-QKENQ-SVTSE-DZZN0",
+    "kind": "error",
+    "result": "that local network code has a typing mistake: check it and try again"
+  },
+  {
+    "typed": "3sfw4-2hvs9-j813q-8xv3e",
+    "kind": "local",
+    "result": "figcraft://join?host=30.95.194.10:15306&file=local&token=local-64808ee8eec"
+  },
+  {
+    "typed": "3SFW4-2HVS9-J813Q-8XV30",
+    "kind": "error",
+    "result": "that local network code has a typing mistake: check it and try again"
+  },
+  {
+    "typed": "qckbb-8bw8c-ctp02-4bsv7",
+    "kind": "local",
+    "result": "figcraft://join?host=187.38.181.161:31811&file=local&token=local-19ab00445e7"
+  },
+  {
+    "typed": "QCKBB-8BW8C-CTP02-4BSV0",
+    "kind": "error",
+    "result": "that local network code has a typing mistake: check it and try again"
+  },
+  {
+    "typed": "v3bm7-ka0qf-zywp2-z12rw",
+    "kind": "local",
+    "result": "figcraft://join?host=216.215.67.205:16571&file=local&token=local-ffee585f08b"
+  },
+  {
+    "typed": "V3BM7-KA0QF-ZYWP2-Z12R0",
+    "kind": "error",
+    "result": "that local network code has a typing mistake: check it and try again"
+  },
+  {
+    "typed": "5xvz4-wa05p-94107-fzzf5",
+    "kind": "local",
+    "result": "figcraft://join?host=47.119.242.113:16429&file=local&token=local-924080efffd"
+  },
+  {
+    "typed": "5XVZ4-WA05P-94107-FZZF0",
+    "kind": "error",
+    "result": "that local network code has a typing mistake: check it and try again"
+  },
+  {
+    "typed": "kx093-cafay-8g7n7-c3sft",
+    "kind": "local",
+    "result": "figcraft://join?host=159.64.145.177:20311&file=local&token=local-9103d4ec1e5"
+  },
+  {
+    "typed": "KX093-CAFAY-8G7N7-C3SF0",
+    "kind": "error",
+    "result": "that local network code has a typing mistake: check it and try again"
+  },
+  {
+    "typed": "rqnfg-dv4hv-cdknc-kj2t7",
+    "kind": "local",
+    "result": "figcraft://join?host=197.234.248.55:25742&file=local&token=local-d8d9d59390b"
+  },
+  {
+    "typed": "RQNFG-DV4HV-CDKNC-KJ2T0",
+    "kind": "error",
+    "result": "that local network code has a typing mistake: check it and try again"
+  },
+  {
+    "typed": "kzn28-2r08c-stfph-fg6ef",
+    "kind": "local",
+    "result": "figcraft://join?host=159.234.36.11:67&file=local&token=local-33a7da2f819"
+  },
+  {
+    "typed": "KZN28-2R08C-STFPH-FG6E0",
+    "kind": "error",
+    "result": "that local network code has a typing mistake: check it and try again"
+  },
+  {
+    "typed": "rszbt-7dy47-3xwvs-5rwap",
+    "kind": "local",
+    "result": "figcraft://join?host=198.126.189.29:48673&file=local&token=local-c7de6f25c71"
+  },
+  {
+    "typed": "RSZBT-7DY47-3XWVS-5RWA0",
+    "kind": "error",
+    "result": "that local network code has a typing mistake: check it and try again"
+  },
+  {
+    "typed": "tk54c-24wqd-h6j0a-nfkqk",
+    "kind": "local",
+    "result": "figcraft://join?host=212.202.70.8:40123&file=local&token=local-626901557ce"
+  },
+  {
+    "typed": "TK54C-24WQD-H6J0A-NFKQ0",
+    "kind": "error",
+    "result": "that local network code has a typing mistake: check it and try again"
+  },
+  {
+    "typed": "e9j69-n998n-ghh8k-5b2dh",
+    "kind": "local",
+    "result": "figcraft://join?host=114.100.100.213:10565&file=local&token=local-6118a265589"
+  },
+  {
+    "typed": "E9J69-N998N-GHH8K-5B2D0",
+    "kind": "error",
+    "result": "that local network code has a typing mistake: check it and try again"
+  },
+  {
+    "typed": "6y145-qverb-q8nev-ws6b9",
+    "kind": "local",
+    "result": "figcraft://join?host=55.130.66.223:28354&file=local&token=local-ee8abb7cc99"
+  },
+  {
+    "typed": "6Y145-QVERB-Q8NEV-WS6B0",
+    "kind": "error",
+    "result": "that local network code has a typing mistake: check it and try again"
+  },
+  {
+    "typed": "a4zqm-rv2y7-tsyjv-he3kb",
+    "kind": "local",
+    "result": "figcraft://join?host=81.63.122.99:25329&file=local&token=local-f59f4b7170e"
+  },
+  {
+    "typed": "A4ZQM-RV2Y7-TSYJV-HE3K0",
+    "kind": "error",
+    "result": "that local network code has a typing mistake: check it and try again"
+  },
+  {
+    "typed": "s368y-fc7gf-2dwqq-hgncq",
+    "kind": "local",
+    "result": "figcraft://join?host=200.204.143.61:34691&file=local&token=local-c4de5ef1855"
+  },
+  {
+    "typed": "S368Y-FC7GF-2DWQQ-HGNC0",
+    "kind": "error",
+    "result": "that local network code has a typing mistake: check it and try again"
+  },
+  {
+    "typed": "jmxhv-ydcz5-fpt4c-hpt7e",
+    "kind": "local",
+    "result": "figcraft://join?host=149.59.29.249:44281&file=local&token=local-5f6d1191b68"
+  },
+  {
+    "typed": "JMXHV-YDCZ5-FPT4C-HPT70",
+    "kind": "error",
+    "result": "that local network code has a typing mistake: check it and try again"
+  },
+  {
+    "typed": "j1s0c-sd66m-yn53w-82g3n",
+    "kind": "local",
+    "result": "figcraft://join?host=144.114.6.101:42549&file=local&token=local-3d528f88140"
+  },
+  {
+    "typed": "J1S0C-SD66M-YN53W-82G30",
+    "kind": "error",
+    "result": "that local network code has a typing mistake: check it and try again"
+  },
+  {
+    "typed": "2c52v-ebp1g-j0w2g-pytx7",
+    "kind": "local",
+    "result": "figcraft://join?host=19.10.45.185:30220&file=local&token=local-240e0a16f6b"
+  },
+  {
+    "typed": "2C52V-EBP1G-J0W2G-PYTX0",
+    "kind": "error",
+    "result": "that local network code has a typing mistake: check it and try again"
+  },
+  {
+    "typed": "eg7xn-szq5q-95d3g-sm9fe",
+    "kind": "local",
+    "result": "figcraft://join?host=116.15.218.231:63277&file=local&token=local-d2568e19a25"
+  },
+  {
+    "typed": "EG7XN-SZQ5Q-95D3G-SM9F0",
+    "kind": "error",
+    "result": "that local network code has a typing mistake: check it and try again"
+  },
+  {
+    "typed": "y5gad-yx3zd-zd3xr-2watg",
+    "kind": "local",
+    "result": "figcraft://join?host=241.96.166.251:41979&file=local&token=local-7ed1f702e2b"
+  },
+  {
+    "typed": "Y5GAD-YX3ZD-ZD3XR-2WAT0",
+    "kind": "error",
+    "result": "that local network code has a typing mistake: check it and try again"
+  },
+  {
+    "typed": "v9ed6-hwgej-r6zmv-nmk6v",
+    "kind": "local",
+    "result": "figcraft://join?host=218.92.211.71:36980&file=local&token=local-b06fd375a4c"
+  },
+  {
+    "typed": "V9ED6-HWGEJ-R6ZMV-NMK60",
+    "kind": "error",
+    "result": "that local network code has a typing mistake: check it and try again"
+  },
+  {
+    "typed": "9yr5h-b0ecz-hg30r-g293t",
+    "kind": "local",
+    "result": "figcraft://join?host=79.176.88.172:3687&file=local&token=local-e3018310124"
+  },
+  {
+    "typed": "9YR5H-B0ECZ-HG30R-G2930",
+    "kind": "error",
+    "result": "that local network code has a typing mistake: check it and try again"
+  },
+  {
+    "typed": "dqeby-agvj8-kr581-t8a7e",
+    "kind": "local",
+    "result": "figcraft://join?host=109.220.191.42:7058&file=local&token=local-2782a03a428"
+  },
+  {
+    "typed": "DQEBY-AGVJ8-KR581-T8A70",
+    "kind": "error",
+    "result": "that local network code has a typing mistake: check it and try again"
+  },
+  {
+    "typed": "ftks1-d4w1p-8mfrn-fxraq",
+    "kind": "local",
+    "result": "figcraft://join?host=126.167.144.180:39949&file=local&token=local-9147e2afee1"
+  },
+  {
+    "typed": "FTKS1-D4W1P-8MFRN-FXRA0",
+    "kind": "error",
+    "result": "that local network code has a typing mistake: check it and try again"
+  },
+  {
+    "typed": "0g946-fda0t-4h4dv-w1ch0",
+    "kind": "local",
+    "result": "figcraft://join?host=4.18.67.61:43526&file=local&token=local-8912377c0b2"
+  },
+  {
+    "typed": "0G946-FDA0T-4H4DV-W1CH1",
+    "kind": "error",
+    "result": "that local network code has a typing mistake: check it and try again"
+  },
+  {
+    "typed": "s12wn-63wzp-yn5fp-wqjf2",
+    "kind": "local",
+    "result": "figcraft://join?host=200.69.202.152:31997&file=local&token=local-bd52bedcbc9"
+  },
+  {
+    "typed": "S12WN-63WZP-YN5FP-WQJF0",
+    "kind": "error",
+    "result": "that local network code has a typing mistake: check it and try again"
+  },
+  {
+    "typed": "hapx9-sdtqh-yg8m2-7hzjm",
+    "kind": "local",
+    "result": "figcraft://join?host=138.173.212.229:47804&file=local&token=local-7d0450478fe"
+  },
+  {
+    "typed": "HAPX9-SDTQH-YG8M2-7HZJ0",
+    "kind": "error",
+    "result": "that local network code has a typing mistake: check it and try again"
+  },
+  {
+    "typed": "ff2xq-7vwy2-rfx6t-ma5bm",
+    "kind": "local",
+    "result": "figcraft://join?host=123.197.219.159:31984&file=local&token=local-b0fe9b54515"
+  },
+  {
+    "typed": "FF2XQ-7VWY2-RFX6T-MA5B0",
+    "kind": "error",
+    "result": "that local network code has a typing mistake: check it and try again"
+  },
+  {
+    "typed": "0sjg0-bqk84-gsfp9-f5cgd",
+    "kind": "local",
+    "result": "figcraft://join?host=6.101.0.46:62273&file=local&token=local-2197d92f2b2"
+  },
+  {
+    "typed": "0SJG0-BQK84-GSFP9-F5CG0",
+    "kind": "error",
+    "result": "that local network code has a typing mistake: check it and try again"
+  },
+  {
+    "typed": "bd7j8-m38bd-4dw8h-w4yar",
+    "kind": "local",
+    "result": "figcraft://join?host=91.79.36.80:26715&file=local&token=local-48de223c279"
+  },
+  {
+    "typed": "BD7J8-M38BD-4DW8H-W4YA0",
+    "kind": "error",
+    "result": "that local network code has a typing mistake: check it and try again"
+  },
+  {
+    "typed": "6kw0j-gjv27-kn8ah-ybkdd",
+    "kind": "local",
+    "result": "figcraft://join?host=52.248.9.66:23313&file=local&token=local-e7542a3e5cd"
+  },
+  {
+    "typed": "6KW0J-GJV27-KN8AH-YBKD0",
+    "kind": "error",
+    "result": "that local network code has a typing mistake: check it and try again"
+  },
+  {
+    "typed": "nrbrq-afqsz-7pdx6-kqwpf",
+    "kind": "local",
+    "result": "figcraft://join?host=174.23.139.169:63439&file=local&token=local-cf66f4d3bf2"
+  },
+  {
+    "typed": "NRBRQ-AFQSZ-7PDX6-KQWP0",
+    "kind": "error",
+    "result": "that local network code has a typing mistake: check it and try again"
+  },
+  {
+    "typed": "6051f-z2xqt-296w3-35nag",
+    "kind": "local",
+    "result": "figcraft://join?host=48.10.23.252:23998&file=local&token=local-849370632d5"
+  },
+  {
+    "typed": "6051F-Z2XQT-296W3-35NA0",
+    "kind": "error",
+    "result": "that local network code has a typing mistake: check it and try again"
+  },
+  {
+    "typed": "mffh3-zgvt7-j6jky-0t8tv",
+    "kind": "local",
+    "result": "figcraft://join?host=163.223.17.254:7121&file=local&token=local-e4694fc0d23"
+  },
+  {
+    "typed": "MFFH3-ZGVT7-J6JKY-0T8T0",
+    "kind": "error",
+    "result": "that local network code has a typing mistake: check it and try again"
+  },
+  {
+    "typed": "s2jbx-qh4fw-vvy7m-chdja",
+    "kind": "local",
+    "result": "figcraft://join?host=200.164.190.222:9343&file=local&token=local-37bf1e8c8b6"
+  },
+  {
+    "typed": "S2JBX-QH4FW-VVY7M-CHDJ0",
+    "kind": "error",
+    "result": "that local network code has a typing mistake: check it and try again"
+  },
+  {
+    "typed": "46sa3-avw73-28fxr-1g8k4",
+    "kind": "local",
+    "result": "figcraft://join?host=33.178.161.171:31800&file=local&token=local-c487f701822"
+  },
+  {
+    "typed": "46SA3-AVW73-28FXR-1G8K0",
+    "kind": "error",
+    "result": "that local network code has a typing mistake: check it and try again"
+  },
+  {
+    "typed": "d1529-7w986-h7bae-kpn5y",
+    "kind": "local",
+    "result": "figcraft://join?host=104.74.36.159:35137&file=local&token=local-a275a9d3b54"
+  },
+  {
+    "typed": "D1529-7W986-H7BAE-KPN50",
+    "kind": "error",
+    "result": "that local network code has a typing mistake: check it and try again"
+  }
+]
