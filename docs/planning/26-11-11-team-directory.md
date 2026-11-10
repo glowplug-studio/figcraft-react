@@ -10,3 +10,16 @@ Row 13 follows idle-file expiry. Reference revision `a2e87433`. Directory implem
 | 4 | Update the ownership matrix and tracker, then run the local migration, security, provider, native reference and production browser gates. | Record source revision, concrete case results and remaining dependencies. The first ordered-edit fixture in row 14 must also exercise a team guest. |
 
 Start with the [server list and issuer](../../original/figcraft/apps/figcraft-server/src/store/team.rs) and [upstream server and app fixtures](../../original/figcraft/apps/figcraft-server/src/team_tests.rs). The [engine directory and URL rules](../../original/figcraft/crates/engine/src/sharing/team.rs) and [Online panel](../../original/figcraft/crates/ui-egui/src/home/online.rs) define the visible behaviour. The existing [browser invite adapter](../../examples/nextjs/lib/sharing/browser-invites.ts) is the admission entry point. Use the [current handover](26-11-07-full-port-resume.md#continue-from-here) for the preceding verification gate.
+
+## Source mapping and verification
+
+| Native symbol | Browser target | Observable comparison |
+|---|---|---|
+| `Store::team`, `shared`, `Store::info` | Private directory query and host store contract | Same sorted rows, role, active people and whole-second update time. Preserve name ordering by UTF-8 byte value across database locales. Never replace document update time with room activity. |
+| `Store::team_link`, `team_unshared`, `drop_stale_team_links`, `team_admits` | Private team grant storage, authenticated resolver and existing guest admission | Reuse an issued token until the last coded owner grant or operator setting invalidates it. Owner revocation, removal and configuration changes must revoke existing guest sessions through the same mechanism as other grants. |
+| `team_link`, `web_link`, `valid_id`, `valid_web`, `listed` | Framework-independent link and directory formatting | Test query stripping, case-sensitive proxy paths, IPv6, allowed file characters, UTF-8 length limits, control characters and fragment-only browser links. Independent runs of the pinned Rust functions produced 60 URL pairs and 16 validation results. |
+| `Session::team_refresh`, `team_json`, `team_section`, `team_row` | Online workspace, Home → Online, browser invitation adapter | Test a second account with no owned files, disabled, empty and offline lists, stale requests after changing server, click to join and both clipboard formats. [Native UI fixtures](../../original/figcraft/crates/ui-egui/src/online_tests.rs). |
+
+The operator and browser sanitise different inputs. Operator configuration rejects a query and fragment in the web address. An upstream directory response permits a query but rejects fragments, whitespace, controls and addresses exceeding 500 UTF-8 bytes. Native team URLs contain the supplied server address stripped of any query. Use the server’s configured path and spelling when formatting copy links. Only admission compares canonical endpoint identities.
+
+Directory refresh is a bounded Home operation. It has no document serialisation, undo or canvas rendering effects. The existing private snapshot remains behind the ordinary guest admission. The browser host supplies the validated session; directory membership alone grants no ownership or management action.
