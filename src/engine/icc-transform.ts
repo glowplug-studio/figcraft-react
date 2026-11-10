@@ -1,7 +1,7 @@
 /// <reference path="./lcms.d.ts" />
 import { loadRuntime } from "#figcraft-icc-runtime";
 
-import { displayP3Icc } from "./working-icc";
+import { workingIcc } from "./working-icc";
 import type { ColourProfile } from "./colour-spaces";
 
 let p3Profile: Uint8Array<ArrayBuffer> | undefined;
@@ -19,7 +19,7 @@ export async function openIccTransform(profile:Uint8Array, grey:boolean, target:
 
   try {
     if (target === "displayP3") {
-      p3Profile ??= displayP3Icc();
+      p3Profile ??= workingIcc("displayP3");
       output = lib.cmsOpenProfileFromMem(p3Profile, p3Profile.length);
     } else {
       output = lib.cmsCreate_sRGBProfile();

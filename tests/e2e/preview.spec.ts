@@ -6854,3 +6854,22 @@ test("export selection downloads a scaled PNG and keeps the drawing unsaved", as
   expect([bytes.readUInt32BE(16), bytes.readUInt32BE(20)]).toEqual([30, 24]);
   await expect(bar.getByText("Unsaved · Local document", { exact: true })).toBeVisible();
 });
+
+test("the export dialog downloads colour-tagged baseline JPEG and lossless WebP presets", async ({ page }) => {
+  await login(page); await createNamedRectangle(page, "Swatch", 10, 20, 12, 15);
+  const bar = page.locator(".figcraft-document-bar");
+  for (const format of ["jpg", "webp"] as const) {
+    await bar.getByText("File", { exact: true }).click();
+    await bar.getByRole("button", { name: "Export…", exact: true }).click();
+    const download = page.waitForEvent("download");
+    await page.getByRole("dialog", { name: "Export" }).getByRole("button", { name: format.toUpperCase() + " @2x" }).click();
+    const saved = await download;
+    expect(saved.suggestedFilename()).toBe("Swatch@2x." + format);
+    const bytes = await readFile((await saved.path())!);
+    if (format === "jpg") {
+      expect(bytes.readUInt16BE(0)).toBe(0xffd8);
+      expect(bytes.includes(Buffer.from("ICC_PROFILE"))).toBe(true);
+    } else expect(bytes.includes(Buffer.from("VP8L"))).toBe(true);
+  }
+  await expect(bar.getByText("Unsaved · Local document", { exact: true })).toBeVisible();
+});

@@ -451,14 +451,14 @@ export function DocumentEditor({ identity, capabilities, engine: suppliedEngine,
     } catch (caught) { setError(caught instanceof Error ? caught.message : "File could not be opened"); }
     finally { setBusy(false); setOpeningTab(false); }
   }
-  async function exportPng(scale: number) {
+  async function exportDrawing(format: "png" | "jpg" | "webp", scale: number) {
     exportDialog.current?.close();
     setBusy(true); setError("");
     try {
       const { document: design, selection } = engine.getSnapshot();
       const first = selection[0] ?? pageOf(design).children[0];
-      const name = (design.nodes[first]?.name ?? "Export") + (scale === 1 ? "" : "@" + scale + "x") + ".png";
-      const { blob } = await engine.exportRaster({ format: "png", scale });
+      const name = (design.nodes[first]?.name ?? "Export") + (scale === 1 ? "" : "@" + scale + "x") + "." + format;
+      const { blob } = await engine.exportRaster({ format, scale });
       const link = document.createElement("a"), url = URL.createObjectURL(blob);
       try {
         link.href = url; link.download = name;
@@ -637,7 +637,8 @@ export function DocumentEditor({ identity, capabilities, engine: suppliedEngine,
         close={() => engine.closeProfileDialog()} apply={(profile, convert) => dispatch("file.colorProfile", {profile, convert})} />}
       <dialog ref={exportDialog} aria-label="Export">
         <p>{snapshot.selection.length || page.children.length} layers as one file</p>
-        {[1, 2, 3].map(scale => <button type="button" key={scale} onClick={() => void exportPng(scale)}>PNG @{scale}x</button>)}
+        {([["png",1], ["png",2], ["png",3], ["jpg",2], ["webp",2]] as const).map(([format, scale]) =>
+          <button type="button" key={format + scale} onClick={() => void exportDrawing(format, scale)}>{format.toUpperCase()} @{scale}x</button>)}
         <button type="button" onClick={() => exportDialog.current?.close()}>Close</button>
       </dialog>
       <dialog ref={replaceDialog} aria-label="Replace unsaved document" onCancel={() => setPendingFile(null)}>

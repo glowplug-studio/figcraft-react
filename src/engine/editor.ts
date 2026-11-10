@@ -1645,8 +1645,11 @@ export class EditorEngine {
   async executeAsync(command: string, input?: unknown): Promise<Record<string, unknown>>;
   async executeAsync(command: string, input: unknown = {}): Promise<Record<string, unknown> | Variables | ReturnType<typeof listStyles> | ReturnType<typeof listComponents> | ReturnType<typeof queryFonts> | null> {
     if (command === "file.export") {
+      const opening = this.#openSequence;
       const { blob, format } = await this.exportRaster(parameters(input));
-      return { format, data: base64Bytes(new Uint8Array(await blob.arrayBuffer())) };
+      const bytes = await blob.arrayBuffer();
+      if (opening !== this.#openSequence || !this.#hostEditable) throw new Error("Export was cancelled because the document or identity changed");
+      return { format, data: base64Bytes(new Uint8Array(bytes)) };
     }
     if (command === "version.restore" || command === "version.preview") return this.#showVersion(command, parameters(input));
     if (command.startsWith("version.") || command === "file.saveVersion" || command === "file.versionHistory") return this.execute(command, input);
@@ -1696,11 +1699,12 @@ export class EditorEngine {
   async exportRaster(params: Record<string, unknown> = {}) {
     if (!this.#hostEditable) throw new Error("Sign in to export this document");
     if (params.path != null) throw new Error("Use a browser download to choose the export destination");
-    const format = parseString(params.format)?.toLowerCase() ?? "png";
-    if (format !== "png") throw new Error("This exporter supports PNG");
+    const requested = parseString(params.format)?.toLowerCase() ?? "png";
+    const format = requested === "jpeg" ? "jpg" : requested;
+    if (format !== "png" && format !== "jpg" && format !== "webp") throw new Error("Choose PNG, JPG or WebP for raster export");
     const opening = this.#openSequence, { document, selection } = this.#snapshot;
-    const { renderPngExport } = await import("./canvas");
-    const blob = await renderPngExport(document, selection, params);
+    const { renderRasterExport } = await import("./canvas");
+    const blob = await renderRasterExport(document, selection, params, format);
     if (opening !== this.#openSequence || !this.#hostEditable) throw new Error("Export was cancelled because the document or identity changed");
     return { format, blob };
   }

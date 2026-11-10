@@ -95,6 +95,7 @@
     "vitest": "5.1.0"
   },
   "dependencies": {
+    "@jsquash/jpeg": "1.6.0",
     "@noble/hashes": "2.4.0",
     "@zip.js/zip.js": "2.24.0",
     "fflate": "0.8.3",

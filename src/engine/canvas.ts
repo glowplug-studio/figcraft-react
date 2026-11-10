@@ -447,7 +447,7 @@ function* drawExportLayers(ctx: CanvasRenderingContext2D, doc: Document, ids: re
 
 /** File previews include the page colour. Asset previews use the same paint pipeline on transparency. */
 async function renderAreaPixels(canvas: HTMLCanvasElement, doc: Document, bound: Rectangle, scale: number,
-  roots: readonly string[] | undefined, signal?: AbortSignal, rounding = 0, background?: PageNode, profile: ColourProfile = "srgb") {
+  roots: readonly string[] | undefined, signal?: AbortSignal, rounding = 0, background?: PageNode, profile: ColourProfile = "srgb", flatten = false) {
   if (!documentTextReady(doc)) await prepareDocumentText(doc);
   if (signal?.aborted) return false;
   canvas.width = Math.max(1, Math.ceil(scale * bound.width - rounding));
@@ -479,10 +479,17 @@ async function renderAreaPixels(canvas: HTMLCanvasElement, doc: Document, bound:
         wait = images.paint(...args);
       }
     }
+    if (flatten) {
+      ctx.save(); ctx.resetTransform(); ctx.globalCompositeOperation = "destination-over";
+      ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, canvas.width, canvas.height); ctx.restore();
+    }
     if ((doc.colourProfile ?? "srgb") !== profile) {
-      const pixels = ctx.getImageData(0, 0, canvas.width, canvas.height);
-      convertColourPixels(pixels.data, doc.colourProfile ?? "srgb", profile);
-      ctx.putImageData(pixels, 0, 0);
+      const rows = Math.max(1, Math.floor(1048576 / canvas.width));
+      for (let y = 0; y < canvas.height; y += rows) {
+        const pixels = ctx.getImageData(0, y, canvas.width, Math.min(rows, canvas.height - y));
+        convertColourPixels(pixels.data, doc.colourProfile ?? "srgb", profile);
+        ctx.putImageData(pixels, 0, y);
+      }
     }
     return true;
   } finally { steps.return(); images.clear(); }
@@ -501,15 +508,20 @@ export async function renderAssetThumbnail(canvas: HTMLCanvasElement, doc: Docum
   } finally { scratch.width = scratch.height = 0; }
 }
 
-export async function renderPngExport(doc: Document, selection: readonly string[], params: Record<string, unknown>) {
+export async function renderRasterExport(doc: Document, selection: readonly string[], params: Record<string, unknown>, format: "png" | "jpg" | "webp") {
   const plan = rasterExportPlan(doc, selection, params);
   const scratch = globalThis.document.createElement("canvas");
   try {
-    const rendered = await renderAreaPixels(scratch, doc, plan.area, plan.scale, plan.drawn, undefined, 1e-6, undefined, plan.profile);
+    const rendered = await renderAreaPixels(scratch, doc, plan.area, plan.scale, plan.drawn, undefined, 1e-6, undefined, plan.profile, format === "jpg");
     if (!rendered) throw new Error("Could not render the export area");
-    const blob = await new Promise<Blob | null>(resolve => scratch.toBlob(resolve, "image/png"));
-    if (!blob) throw new Error("Could not encode PNG at the requested size");
-    return (await import("./export-png")).tagExportPng(blob, plan.profile);
+    const mime = format === "jpg" ? "image/jpeg" : "image/" + format;
+    const blob = format === "jpg"
+      ? await (await import("./export-jpeg")).encodeExportJpeg(scratch.getContext("2d")!.getImageData(0, 0, scratch.width, scratch.height), plan.quality)
+      : await new Promise<Blob | null>(resolve => scratch.toBlob(resolve, mime, format === "webp" ? 1 : undefined));
+    if (!blob) throw new Error("Could not encode the requested raster size");
+    if (format === "png") return (await import("./export-png")).tagExportPng(blob, plan.profile);
+    const { tagExportJpeg, tagExportWebp } = await import("./export-image-profile");
+    return format === "jpg" ? tagExportJpeg(blob, plan.profile) : tagExportWebp(blob, plan.profile);
   } finally { scratch.width = scratch.height = 0; }
 }
 

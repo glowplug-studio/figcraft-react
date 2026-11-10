@@ -4,7 +4,7 @@ import { colour, fromRgba8, toRgba8 } from "../../src/engine/colour";
 import { convertColour, convertColourPixels, outsideSrgb, parseColourProfile } from "../../src/engine/colour-spaces";
 import { decodeFigcraft, encodeFigcraft } from "../../src/engine/file-format";
 import { EditorEngine } from "../../src/engine/editor";
-import { displayP3Icc } from "../../src/engine/working-icc";
+import { workingIcc } from "../../src/engine/working-icc";
 import { iccDescription } from "../../src/engine/image-profile";
 import { openIccTransform } from "../../src/engine/icc-transform";
 import { base64Bytes } from "../../src/engine/recovery";
@@ -50,7 +50,7 @@ describe("document working space", () => {
   });
 
   it("targets Display P3 directly without clipping wide source channels through sRGB", async () => {
-    const profile = displayP3Icc();
+    const profile = workingIcc("displayP3");
     expect(iccDescription(profile)).toEqual({name: "Display P3", grey: false});
     const p3 = await openIccTransform(profile, false, "displayP3");
     const srgb = await openIccTransform(profile, false);

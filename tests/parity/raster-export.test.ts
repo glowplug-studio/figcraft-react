@@ -1,4 +1,4 @@
-import { expect, it } from "vitest";
+import { expect, it, vi } from "vitest";
 import { EditorEngine } from "../../src/engine/editor";
 import { rasterExportPlan } from "../../src/engine/export-area";
 import cases from "../fixtures/native-png-exports.json";
@@ -12,4 +12,15 @@ it.each(cases)("matches native raster sizing or error for $name", ({ commands, w
     const message = error.replace(/^invalid parameters for .+?: /, "").replace(/^command .+?right now: /, "");
     expect(plan).toThrow(message);
   } else expect(plan()).toMatchObject({ width, height });
+});
+
+it("discards encoded bytes when access is revoked during the final read", async () => {
+  const engine = new EditorEngine();
+  const blob = new Blob(["private"]);
+  vi.spyOn(blob, "arrayBuffer").mockImplementation(async () => {
+    engine.setEditable(false);
+    return new ArrayBuffer(blob.size);
+  });
+  vi.spyOn(engine, "exportRaster").mockResolvedValue({ format: "png", blob });
+  await expect(engine.executeAsync("file.export")).rejects.toThrow("Export was cancelled");
 });

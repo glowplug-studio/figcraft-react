@@ -1,4 +1,6 @@
-/** ICC v4 Display P3 destination, built from D50-adapted primaries and the sRGB transfer curve. */
+import type { ColourProfile } from "./colour-spaces";
+
+/** ICC v4 display profiles use D50-adapted primaries and the sRGB transfer curve. */
 function field(signature: string, length: number) {
   const bytes = new Uint8Array(length);
   bytes.set(new TextEncoder().encode(signature));
@@ -20,17 +22,18 @@ function description(text: string) {
   return bytes;
 }
 
-export function displayP3Icc(): Uint8Array<ArrayBuffer> {
+export function workingIcc(profile: ColourProfile): Uint8Array<ArrayBuffer> {
+  const p3 = profile === "displayP3";
   const white = [0.9642, 1, 0.8249];
   const curve = numbers("para", [2.4, 1 / 1.055, 0.055 / 1.055, 1 / 12.92, 0.04045], 12);
   new DataView(curve.buffer).setUint16(8, 3);
   const tags: [string, Uint8Array][] = [
-    ["desc", description("Display P3")], ["cprt", description("No copyright, use freely")],
+    ["desc", description(p3 ? "Display P3" : "sRGB")], ["cprt", description("No copyright, use freely")],
     ["wtpt", numbers("XYZ ", white)],
     ["chad", numbers("sf32", [1.0478860032, 0.0229187652, -0.0502160953, 0.0295817825, 0.9904835185, -0.0170787077, -0.0092518808, 0.0150726075, 0.7516781336])],
-    ["rXYZ", numbers("XYZ ", [0.5151187009, 0.2411891678, -0.0010504527])],
-    ["gXYZ", numbers("XYZ ", [0.2919778320, 0.6922440506, 0.0418791201])],
-    ["bXYZ", numbers("XYZ ", [0.1571034670, 0.0665667815, 0.7840713326])],
+    ["rXYZ", numbers("XYZ ", p3 ? [0.5151187009, 0.2411891678, -0.0010504527] : [0.43603516, 0.22248840, 0.01391602])],
+    ["gXYZ", numbers("XYZ ", p3 ? [0.2919778320, 0.6922440506, 0.0418791201] : [0.38511658, 0.71690369, 0.09706116])],
+    ["bXYZ", numbers("XYZ ", p3 ? [0.1571034670, 0.0665667815, 0.7840713326] : [0.14305115, 0.06060791, 0.71391296])],
     ["rTRC", curve], ["gTRC", curve], ["bTRC", curve],
   ];
   const tableEnd = 132 + tags.length * 12;

@@ -1,7 +1,7 @@
 import { zlibSync } from "fflate";
 import type { ColourProfile } from "./colour-spaces";
 import { pngChunkCrc } from "./image-profile";
-import { displayP3Icc } from "./working-icc";
+import { workingIcc } from "./working-icc";
 
 function chunk(type: string, payload: Uint8Array) {
   const out = new Uint8Array(payload.length + 12);
@@ -26,7 +26,7 @@ export async function tagExportPng(blob: Blob, profile: ColourProfile) {
     if (type === "IHDR") {
       if (profile === "srgb") parts.push(chunk("sRGB", Uint8Array.of(0)));
       else {
-        const name = new TextEncoder().encode("Display P3"), compressed = zlibSync(displayP3Icc());
+        const name = new TextEncoder().encode("Display P3"), compressed = zlibSync(workingIcc("displayP3"));
         const payload = new Uint8Array(name.length + 2 + compressed.length);
         payload.set(name); payload.set(compressed, name.length + 2);
         parts.push(chunk("iCCP", payload), chunk("cICP", Uint8Array.of(12, 13, 0, 1)));
