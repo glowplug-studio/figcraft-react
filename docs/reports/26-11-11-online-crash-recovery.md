@@ -10,4 +10,4 @@ Eight native application tests passed. Five archived native welcome pairs were c
 
 The scoped Figcraft Supabase MCP returned zero hosted public tables. The existing local schema, Auth, object storage and live host handled the tests. This slice required no migration or hosted mutation. Graphify indexed 8,318 React nodes and 27,676 Rust nodes, with 35,994 nodes and 122,701 edges in the merged graph. The graph excludes binary archives and CSS, which were checked directly where relevant.
 
-The cumulative 373-workflow run is pending. The remaining online commands are publish, share, stop and manageFile. See the [resume handover](../planning/26-11-07-full-port-resume.md). No user action is required.
+All 373 Chromium workflows passed in 938.235 seconds with zero retries, skips, flakes or suite errors. All ten local fixture counts were zero afterwards. The remaining online commands are publish, share, stop and manageFile. See the [resume handover](../planning/26-11-07-full-port-resume.md). No user action is required.

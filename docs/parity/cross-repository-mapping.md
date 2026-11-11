@@ -609,3 +609,5 @@ Native `requests::key_over_tls` and loopback dial filtering at `0f082690` map to
 Native `open_file`, `join_recorded` and `online_session` at `0f082690` map to `OnlineWorkspace.openRecorded`, `BrowserInvitations.beginOwned` and `LiveSessions.recorded`. [Native receipts, authenticated browser and multi-server coverage](../reports/26-11-11-recorded-online-open-parity.html).
 
 Native app recovery sidecars, process locking and online_merge at `9e815546` map to WorkspaceRecovery, claimWorkspaceScope, ownerRecoveryLock, recoveredDrawing and LivePeer. [Native archives, device lifecycle and authenticated reload](../reports/26-11-11-online-crash-recovery-parity.html).
+
+Native start_publish, share and stop at `7bf098d7` map to OnlineWorkspace, LiveSessions, BrowserOwnerSharing and the [public command fixture and matrix](../reports/26-11-11-online-publication-commands-parity.html).
