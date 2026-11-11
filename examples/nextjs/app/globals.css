@@ -196,3 +196,17 @@ dd { margin: 0; }
   .figcraft-home { display: block; }
   .figcraft-home nav { flex-direction: row; }
 }
+
+.figcraft-comment-pin { position:absolute; transform:translateY(-100%); width:max-content; min-width:28px; height:28px; padding:0 5px; border:2px solid white; border-radius:50% 50% 50% 0; background:#364c75; color:white; font-weight:bold; touch-action:none; }
+.figcraft-comment-pin:hover:not(:disabled) { background:#263855; }
+.figcraft-comment-list,.figcraft-comment-thread { position:absolute; z-index:3; padding:6px; border:1px solid #bbb; border-radius:6px; background:white; max-height:65%; overflow:auto; }
+.figcraft-comment-list { top:44px; right:4px; max-width:min(220px,45%); }
+.figcraft-comment-list section { display:grid; gap:3px; min-width:0; }
+.figcraft-comment-list input,.figcraft-comment-list select { width:100%; min-width:0; }
+.figcraft-comment-thread { z-index:4; width:min(278px,95%); }
+.figcraft-comment-thread article { padding:4px; border-bottom:1px solid #ddd; }
+.figcraft-comment-thread p,.figcraft-comment-list button { white-space:pre-wrap; overflow-wrap:anywhere; }
+.figcraft-comment-thread textarea { width:100%; resize:vertical; }
+@media (max-width:600px) {
+  .figcraft-canvas-area:has(.figcraft-comment-thread) .figcraft-comment-list { visibility:hidden; }
+}

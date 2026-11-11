@@ -2,7 +2,7 @@
 
 import "@glowplug-studio/figcraft-react/fonts.css";
 import { useEffect, useRef, useState } from "react";
-import { WorkspaceEditor, FigcraftRoot, IndexedDbRecoveryStore, type OnlineWorkspaceHost, type DeviceOwnerSharing, type IdentitySnapshot, type DocumentCapability } from "@glowplug-studio/figcraft-react";
+import { DisplayNameField, WorkspaceEditor, FigcraftRoot, IndexedDbRecoveryStore, type OnlineWorkspaceHost, type DeviceOwnerSharing, type IdentitySnapshot, type DocumentCapability } from "@glowplug-studio/figcraft-react";
 import { SupabaseIdentityAdapter, SupabaseOnlineFileStore, publishedLinkDigests, watchSupabaseGuest } from "@glowplug-studio/figcraft-react/backends/supabase";
 import { BrowserTeamLibraries } from "../lib/sharing/team-libraries";
 import { BrowserOwnerSharing } from "../lib/sharing/owner-sharing";
@@ -11,7 +11,7 @@ import { useRouter } from "next/navigation";
 import { supabaseConfig } from "../lib/supabase/config";
 import { getBrowserSupabase } from "../lib/supabase/browser";
 
-const localCapabilities: readonly DocumentCapability[] = Object.freeze(["document.read", "document.edit"]);
+const localCapabilities: readonly DocumentCapability[] = Object.freeze(["document.read", "document.edit", "document.comment"]);
 
 export function EditorHost({ identity }: { identity: Extract<IdentitySnapshot, { status: "authenticated" }> }) {
   const router = useRouter();
@@ -93,7 +93,7 @@ export function EditorHost({ identity }: { identity: Extract<IdentitySnapshot, {
         } catch (error) { setJoinError(error instanceof Error ? error.message : "The invite is unavailable"); }
         finally { setJoining(false); }
       }}>
-        <h2>Join live session</h2><label>Invite link or code<input name="invite" required autoComplete="off" /></label>
+        <h2>Join live session</h2><DisplayNameField principal={identity.principal.id}/><label>Invite link or code<input name="invite" required autoComplete="off" /></label>
         {joinError && <p role="alert">{joinError}</p>}
         <button disabled={joining}>Join</button><button type="button" disabled={joining} onClick={() => joinDialog.current?.close()}>Cancel</button>
       </form>

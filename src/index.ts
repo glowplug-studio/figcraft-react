@@ -1,3 +1,4 @@
+export { DisplayNameField } from "./DisplayNameField";
 export { FigcraftRoot, type FigcraftRootProps } from "./FigcraftRoot";
 export {
   can,

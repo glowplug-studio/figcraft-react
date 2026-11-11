@@ -8,6 +8,7 @@ import type { LiveTransport, LiveUpdate } from "./live-transport";
 
 export interface LiveEditor {
   current(): Document;
+  recordsEdit?(document: Document): boolean;
   receive(document: Document): void;
   subscribe(listener: () => void): () => void;
   interacting(): boolean;
@@ -77,11 +78,13 @@ export class LivePeer {
       const next = this.edits[0], before = this.local;
       const diff = await diffLive(before,next);
       if (diff.changes.length) {
-        const step = await captureLiveStep(before,diff.replica,diff.changes);
+        const step = this.editor.recordsEdit?.(next) === false ? undefined : await captureLiveStep(before,diff.replica,diff.changes);
         this.pending.push({base:this.sequence ?? "0",changes:diff.changes,step,direction:"edit"});
-        this.undo.push(step);
-        if (this.undo.length > 1000) this.undo.shift();
-        this.redo = [];
+        if (step) {
+          this.undo.push(step);
+          if (this.undo.length > 1000) this.undo.shift();
+          this.redo = [];
+        }
       }
       this.local = diff.replica;
       this.edits.shift();

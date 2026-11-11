@@ -1,3 +1,5 @@
+import {DisplayNameField,useDisplayName} from "./DisplayNameField";
+import {CommentOverlay} from "./CommentOverlay";
 import type {OnlineTeamLibraries} from "./backends/online-files";
 import { ImportReportPanel } from "./ImportReportPanel";
 import { importNotice, readImportReport, type ImportReport } from "./engine/interchange/import-report";
@@ -159,6 +161,7 @@ export function DocumentEditor({ identity, capabilities, engine: suppliedEngine,
   const exportDialog = useRef<HTMLDialogElement>(null);
   const replaceDialog = useRef<HTMLDialogElement>(null);
   const initialPrincipal = useRef(identity.getSnapshot().principal?.id);
+  const preferredName=useDisplayName(initialPrincipal.current??"");
   const canvas = useRef<HTMLCanvasElement>(null);
   const root = useRef<HTMLDivElement>(null);
   const controller = useRef<CanvasController | null>(null);
@@ -183,10 +186,13 @@ export function DocumentEditor({ identity, capabilities, engine: suppliedEngine,
       setSignedIn(authenticated);
       if (!authenticated) { setLocalReport(undefined); setCopyNotice(""); setError(""); }
       engine.setEditable(authenticated && capabilities.includes("document.edit"));
+      engine.setCommentAccess(authenticated && (capabilities.includes("document.edit") || capabilities.includes("document.comment")),
+        preferredName || current.principal?.displayName, authenticated && capabilities.includes("document.read"));
     };
     update();
-    return identity.subscribe(update);
-  }, [engine, identity, capabilities]);
+    const unsubscribe = identity.subscribe(update);
+    return () => { unsubscribe(); engine.setCommentAccess(false); };
+  }, [engine, identity, capabilities, preferredName]);
   useEffect(() => {
     if (workspace || !recoveryStore || !initialPrincipal.current) return;
     const recovery = new RecoveryController(engine, recoveryStore, initialPrincipal.current, (status, message) => {
@@ -235,6 +241,14 @@ export function DocumentEditor({ identity, capabilities, engine: suppliedEngine,
     catch (caught) { setError(caught instanceof Error ? caught.message : "Command failed"); }
   }
   function key(event: KeyboardEvent) {
+    if (!busy && signedIn && event.code==="KeyC" && !event.ctrlKey && !event.metaKey && !event.altKey
+      && !(event.target instanceof Element && event.target.closest("input,textarea,select,[contenteditable=true]"))) {
+      event.preventDefault();dispatch(event.shiftKey?"view.comments":"tool.comment");canvas.current?.focus();return;
+    }
+    if (!editable && !busy && signedIn && capabilities.includes("document.comment") && engine.liveHistory &&
+      (event.ctrlKey || event.metaKey) && event.key.toLowerCase()==="z" && !(event.target instanceof Element && event.target.closest("input,textarea,select,[contenteditable=true]"))) {
+      event.preventDefault();dispatch(event.shiftKey?"edit.redo":"edit.undo");return;
+    }
     if (!editable || busy) return;
     if (snapshot.crop && !event.altKey && !event.ctrlKey && !event.metaKey && !event.shiftKey && (event.key==="Escape" || event.key==="Enter") && !(event.target instanceof Element && event.target.closest("input,textarea,select,[contenteditable=true]"))) {
       event.preventDefault(); engine.finishCrop(); canvas.current?.focus(); return;
@@ -754,6 +768,7 @@ export function DocumentEditor({ identity, capabilities, engine: suppliedEngine,
     }}>
       <header className="figcraft-document-bar">{onHome && <button type="button" onClick={onHome}>Home</button>}<h1>{snapshot.document.name}</h1><span data-live-status={sessionLabel ? true : undefined}>{snapshot.dirty ? "Unsaved" : snapshot.hasSaved ? "Downloaded" : "Unmodified"} · {sessionLabel ?? "Local document"}</span>{shareMenu}
         <details name={menuGroup ?? localMenuGroup} className="figcraft-bar-menu"><summary>File</summary><div className="figcraft-menu-items">{fileMenu}
+          {initialPrincipal.current && <details><summary>Preferences</summary><DisplayNameField principal={initialPrincipal.current}/></details>}
           <button type="button" disabled={!editable || busy || recoveryStatus==="loading"} onClick={event=>{
             event.currentTarget.closest("details")?.removeAttribute("open");importInput.current?.click();
           }}>Import…</button>
@@ -801,7 +816,7 @@ export function DocumentEditor({ identity, capabilities, engine: suppliedEngine,
             event.currentTarget.closest("details")?.removeAttribute("open");dispatch("component.hideWhenPublishing");
           }}>Hide when publishing</button>
         </details>
-        <ViewMenu engine={engine} editable={editable && !busy} dispatch={dispatch} />
+        <ViewMenu engine={engine} editable={editable && !busy} dispatch={dispatch} readComments={signedIn && capabilities.includes("document.read")} />
         <details><summary>Object</summary><button type="button" disabled={!editable || busy || !selected || !isFrameLike(selected)}
           onClick={event => { event.currentTarget.closest("details")?.removeAttribute("open"); dispatch("object.setThumbnail"); }}>Set as thumbnail</button>
           <button disabled={!canCrop || busy} type="button" onClick={e=>{
@@ -822,7 +837,7 @@ export function DocumentEditor({ identity, capabilities, engine: suppliedEngine,
           if (!file) return;
           requestOpen(file);
         }} />
-        <HistoryButtons engine={engine} editable={editable} undo={snapshot.canUndo} redo={snapshot.canRedo} dispatch={dispatch} />
+        <HistoryButtons engine={engine} editable={editable || !!engine.liveHistory && signedIn && capabilities.includes("document.comment")} undo={snapshot.canUndo} redo={snapshot.canRedo} dispatch={dispatch} />
         <details className="figcraft-mobile-pages"><summary>Pages</summary>
           <PagePanel document={snapshot.document} editable={editable && !busy} dispatch={dispatch} />
         </details>
@@ -946,13 +961,17 @@ export function DocumentEditor({ identity, capabilities, engine: suppliedEngine,
             positionCanvasMenu();
             menu.querySelector<HTMLElement>("summary,button")?.focus();
           }} aria-label="Design canvas" tabIndex={0} aria-describedby="canvas-instructions" />
+          {signedIn && (snapshot.tool==="comment" || snapshot.showComments!==false && !!snapshot.document.comments?.length || snapshot.openComment) && <CommentOverlay
+            engine={engine} snapshot={snapshot} canvas={canvas} write={!busy && !snapshot.previewVersionId && (editable || capabilities.includes("document.comment"))} dispatch={dispatch}/>}
           <ViewControls engine={engine} editable={editable && !busy} dispatch={dispatch} />
           <p id="canvas-instructions" className="figcraft-instructions">R: rectangle · O: ellipse · Space/middle drag: pan · Z: zoom · Ctrl/⌘ wheel: zoom · Escape: cancel</p>
-          {snapshot.tool === "shapeBuilder" ? <div className="figcraft-toolbar" role="toolbar" aria-label="Shape Builder">
+          {snapshot.tool==="comment" ? <div className="figcraft-toolbar" role="toolbar" aria-label="Comment tools"><button onClick={()=>dispatch("tool.move")}>Done</button></div>
+          : snapshot.tool === "shapeBuilder" ? <div className="figcraft-toolbar" role="toolbar" aria-label="Shape Builder">
             {(["merge", "remove"] as const).map(mode => <button key={mode} disabled={!editable || busy} aria-pressed={snapshot.builderMode === mode} onClick={() => { dispatch("shapeBuilder.mode", {mode}); canvas.current?.focus(); }}>{mode === "merge" ? "Merge regions" : "Remove regions"}</button>)}
             <span>{!availableBuilderArrangement(snapshot.document, snapshot.selection)?.regions.length ? "Select overlapping shapes" : snapshot.builderMode === "merge" ? "Click or drag to merge · Alt removes" : "Click or drag to remove · Alt merges"}</span>
             <button disabled={!editable || busy} onClick={() => { dispatch("tool.move"); canvas.current?.focus(); }}>Done</button>
           </div> : editingVector ? <VectorToolbar engine={engine} editable={editable && !busy} dispatch={(command, params) => { dispatch(command, params); canvas.current?.focus(); }} /> : <div className="figcraft-toolbar" role="toolbar" aria-label="Tools">
+            <button disabled={!signedIn || busy || !(editable || capabilities.includes("document.comment"))} aria-pressed={false} title="Comment · C" onClick={()=>{dispatch("tool.comment");canvas.current?.focus();}}>Comment</button>
             <button disabled={!editable} aria-pressed={snapshot.tool === "move"} onClick={() => { dispatch("tool.move"); canvas.current?.focus(); }}>Move</button>
             <button disabled={!editable} aria-pressed={snapshot.tool === "text" || snapshot.tool === "textOnPath"}
               aria-haspopup="dialog" title="Text · T · Text tool options" onClick={event=>{

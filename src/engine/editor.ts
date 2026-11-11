@@ -1,5 +1,8 @@
+import {commentBrief} from "./comment-brief";
+import {commentQueries,queryComments,readCommentsCommand} from "./comment-query";
+import {cleanDisplayName,commentActions,commentId,editComment} from "./comment-actions";
 import {normaliseLive} from "./sharing/live-normalise";
-import {followCommentAnchors} from "./comments";
+import {commentPosition,followCommentAnchors} from "./comments";
 import {libraryUsageReport} from "./sharing/library-usage";
 import type {OnlineTeamLibraries} from "../backends/online-files";
 import { nextBranchId, nextScopedId } from "./branch-ids";
@@ -103,6 +106,15 @@ interface FileSource {file:Blob;folder?:import("./interchange/rest/companions").
 type OpenResult = { warnings?: readonly string[]; repairs: readonly string[]; summary: {name:string; pages:number; layers:number; images:number} }
 
 export const commandSpecs = Object.freeze({
+  ...commentActions,
+  ...commentQueries,
+  "comment.prompt": {label:"Copy comments for AI",undo:false},
+  "pref.userName": {label:"Your name",undo:false},
+  "tool.comment": {label:"Comment",undo:false},
+  "view.comments": {label:"Comments",undo:false},
+  "comment.open": {label:"Open comment",undo:false},
+  "comment.next": {label:"Next comment",undo:false},
+  "comment.zoom": {label:"Zoom to comments",undo:false},
   "edit.copyProperties": { label: "Copy properties", undo: false },
   "edit.pasteProperties": { label: "Paste properties", undo: true },
   ...layerClipboardSpecs,
@@ -254,7 +266,9 @@ export interface EditorSnapshot {
   readonly crop?: CropTarget;
   readonly document: Document;
   readonly selection: readonly NodeId[];
-  readonly tool: "move" | DrawShapeKind | "scale" | "text" | "textOnPath" | "pen" | "pencil" | "shapeBuilder";
+  readonly openComment?: string;
+  readonly showComments?: boolean;
+  readonly tool: "comment" | "move" | DrawShapeKind | "scale" | "text" | "textOnPath" | "pen" | "pencil" | "shapeBuilder";
   readonly builderMode: "merge" | "remove";
   readonly scaleAnchor: ScaleAnchor;
   readonly canUndo: boolean;
@@ -361,6 +375,17 @@ export class EditorEngine {
   #viewportAttached = false;
   #viewConfigured = false;
   #hostEditable = true;
+  #commentRead = true;
+  #commentAccess = true;
+  #commentName = "You";
+  readonly #unrecordedLiveEdits = new WeakSet<Document>();
+  recordsLiveEdit(document: Document) { return !this.#unrecordedLiveEdits.has(document); }
+  setCommentAccess(writable: boolean, name = "You", readable = writable) {
+    this.#commentRead = readable;
+    this.#commentAccess = writable;
+    this.#commentName = cleanDisplayName(name);
+  }
+  get commentName() { return this.#commentName; }
   #preview?: { id: string; document: Document; selection: readonly NodeId[] };
   #versionRead = 0;
   #history = new VersionHistory();
@@ -425,10 +450,23 @@ export class EditorEngine {
   setLiveHistory(history?: typeof this.liveHistory) {
     const previous = this.#liveHistory;
     this.#liveHistory = history;
+    if (!history) {this.#commentPage=undefined;this.#sharedDrawing=undefined;}
     if (!!history !== !!previous) { this.#undo = []; this.#redo = []; }
     if (!!history !== !!previous || previous?.canUndo !== history?.canUndo || previous?.canRedo !== history?.canRedo) this.#publish({});
   }
   get liveHistory() { return this.#liveHistory; }
+  #commentPage?: {local:string;shared:string};
+  #sharedDrawing?: {source:Document;value:Document};
+  liveDrawing() {
+    const source=this.#fileDocument(), page=this.#commentPage;
+    if (!page || source.currentPage!==page.local || !source.pages.includes(page.shared)) return source;
+    if (this.#sharedDrawing?.source!==source) {
+      const value=Object.freeze({...source,currentPage:page.shared});
+      if (!this.recordsLiveEdit(source)) this.#unrecordedLiveEdits.add(value);
+      this.#sharedDrawing={source,value};
+    }
+    return this.#sharedDrawing.value;
+  }
 
   repairLiveDocument(before: Document, after: Document, touched: ReadonlySet<string>) {
     const result = normaliseLive(before,after,touched,this.#idClient,this.#nextId);
@@ -439,6 +477,14 @@ export class EditorEngine {
 
   receiveLiveDocument(incoming: Document) {
     const current = this.#fileDocument();
+    if (this.#commentPage) {
+      const local=this.#commentPage.local;
+      this.#sharedDrawing=undefined;
+      if (incoming.pages.includes(local)) {
+        this.#commentPage={local,shared:incoming.currentPage};
+        incoming={...incoming,currentPage:local};
+      } else this.#commentPage=undefined;
+    }
     const document = current.published ? Object.freeze({...incoming,published:current.published}) : incoming;
     if (this.#idClient) this.#nextId = nextScopedId(document,this.#idClient,this.#nextId);
     const surviving = (ids: readonly NodeId[]) => ids.filter(id => document.nodes[id]);
@@ -511,6 +557,7 @@ export class EditorEngine {
     }
     return this.#archiveRevision;
   }
+  closeComment() { if (this.#snapshot.openComment) this.#publish({openComment:undefined}); }
   closeVersionPanel() { if (this.#snapshot.versionPanel) this.#publish({ versionPanel: false }); }
 
   #saved: Document | null = null;
@@ -1283,6 +1330,7 @@ export class EditorEngine {
     if ("vectorEdit" in options) this.#vectorEdit = options.vectorEdit;
     const selection = patch.selection ?? before.selection;
     const surviving = selection.every(id=>document.nodes[id]) ? selection : Object.freeze(selection.filter(id=>document.nodes[id]));
+    if (options.record === false) this.#unrecordedLiveEdits.add(document);
     this.#publish({...patch, document, selection:surviving});
   }
   #publish(patch: Partial<EditorSnapshot>): void {
@@ -1303,6 +1351,7 @@ export class EditorEngine {
   }
   setEditable(editable: boolean): void {
     this.#hostEditable = editable;
+    this.setCommentAccess(editable,this.#commentName);
     if (!editable) this.exitVersionPreview();
     if (editable && this.#preview) return;
     if (!editable) this.endTextPreview();
@@ -1312,6 +1361,49 @@ export class EditorEngine {
     if (!editable) {this.#importedTeamInvites=new Map();this.#teamSubmission=undefined;this.cancelPendingFiles();this.#libraryFiles.clear();this.#libraryRevision++;}
     if (!editable) { this.#vectorEdit = undefined; this.#clipboard.properties = undefined; this.#clipboard.layers = undefined; this.#clipboard.paint = undefined; this.#clipboard.effect = undefined; }
     if (editable !== this.#snapshot.editable) this.#publish({ editable, tool: "move", profileDialog: false, libraryPanel:undefined, missingFonts: undefined });
+  }
+  #navigateComment(command:string,p:Record<string,unknown>):Record<string,unknown> {
+    const doc=this.#snapshot.document;
+    if (command==="comment.zoom") {
+      const ids=new Set(Array.isArray(p.ids)?p.ids.map(parseNodeId):[]);
+      const points=(doc.comments??[]).filter(c=>c.page===doc.currentPage && ids.has(c.id)).map(c=>commentPosition(doc,c));
+      if (!points.length) throw new Error("No comments on this page");
+      let left=points[0].x,right=left,top=points[0].y,bottom=top;
+      for(const point of points) {
+        left=Math.min(left,point.x);right=Math.max(right,point.x);top=Math.min(top,point.y);bottom=Math.max(bottom,point.y);
+      }
+      const fit=fitView(this.#view,{x:left,y:top,width:right-left,height:bottom-top});
+      this.updateView({...fit,zoom:Math.min(256,Math.max(this.#view.zoom*2,fit.zoom))});
+      return {zoom:this.#view.zoom};
+    }
+    const who=typeof p.author==="string" && p.author.trim() || this.#commentName;
+    let id=commentId(p);
+    if (command==="comment.next") {
+      const list=queryComments(doc,p,who),at=list.findIndex(c=>String(c.id)===id),dir=Number(p.dir)<0?-1:1;
+      if (!list.length) throw new Error("No comments in the list");
+      id=String(list[at<0?(dir<0?list.length-1:0):Math.max(0,Math.min(list.length-1,at+dir))].id);
+    }
+    const how=command==="comment.next"?"center":p.view??"fit";
+    if (!["fit","keep","center"].some(v=>v===how)) throw new Error("Unknown comment view");
+    const c=doc.comments?.find(t=>t.id===id);
+    if (!c || !doc.pages.includes(c.page)) throw new Error("No such comment on an existing page");
+    const switched=doc.currentPage!==c.page;
+    if (switched && this.#liveHistory) {
+      this.#commentPage={local:c.page,shared:this.liveDrawing().currentPage};
+      this.#sharedDrawing=undefined;
+    }
+    let current=switched?Object.freeze({...doc,currentPage:c.page}):doc;
+    if (this.#commentAccess && !this.#preview) current=editComment(current,"comment.markRead",{id},who).document;
+    if(current!==doc) this.#unrecordedLiveEdits.add(current);
+    this.#publish({document:current,...(switched && {selection:[]}),openComment:c.id});
+    const row=queryComments(current,{page:c.page,author:who},who).find(t=>String(t.id)===c.id)!;
+    const view=switched?fitPage(this.#view,current):this.#view;
+    const box=row.frame!==null?boundsOf(current,[String(row.frame)]):undefined;
+    if (how==="fit" && box) {
+      const x=Math.min(row.x,box.x),y=Math.min(row.y,box.y);
+      this.updateView(fitView(view,{x,y,width:Math.max(row.x,box.x+box.width)-x,height:Math.max(row.y,box.y+box.height)-y},1));
+    } else if(how!=="keep" || switched) this.updateView({...view,cx:row.x,cy:row.y,zoom:how==="fit"?Math.max(1,view.zoom):view.zoom});
+    return row;
   }
   execute(command: "file.versionHistory" | "version.list", input?: unknown): ReturnType<typeof versionDetails>[];
   execute(command:"text.edit.selection",input?:unknown):EditSelection|null;
@@ -1328,6 +1420,51 @@ export class EditorEngine {
   execute(command: string, input?: unknown): Record<string, unknown>;
   execute(command: string, input: unknown = {}): Record<string, unknown> | Variables | ReturnType<typeof listStyles> | ReturnType<typeof listComponents> | ReturnType<typeof listPages> | typeof framePresets | ReturnType<typeof versionDetails>[] | ReturnType<typeof queryFonts> | null {
     if (!Object.hasOwn(commandSpecs, command)) throw new Error(`Unsupported command: ${command}`);
+    if (command==="pref.userName") {
+      const {name}=parameters(input);
+      if (typeof name!=="string") throw new Error("Your name must be text");
+      this.#commentName=cleanDisplayName(name);
+      this.#publish({});
+      return {name:this.#commentName};
+    }
+    if (command==="view.comments" || command==="tool.comment") {
+      if (!this.#commentRead || command==="tool.comment" && (!this.#commentAccess || this.#preview)) throw new Error("Comments are read-only");
+      if (command==="view.comments") {
+        const on=parseBoolean(parameters(input).on)??(this.#snapshot.showComments===false);
+        this.#publish({showComments:on});
+        return {on};
+      }
+      this.cancelInteraction();
+      this.#publish({tool:"comment"});
+      return {tool:"comment"};
+    }
+    if (command==="tool.move" && this.#snapshot.tool==="comment" && this.#commentRead) {
+      this.#publish({tool:"move",openComment:undefined}); return {tool:"move"};
+    }
+    if (command==="comment.open" || command==="comment.next" || command==="comment.zoom") {
+      if (!this.#commentRead) throw new Error("Sign in to read comments");
+      return this.#navigateComment(command,parameters(input));
+    }
+    if (command==="comment.prompt") {
+      if (!this.#commentRead) throw new Error("Sign in to read comments");
+      return commentBrief(this.#snapshot.document,parameters(input),this.#commentName);
+    }
+    if (Object.hasOwn(commentQueries,command)) {
+      if (!this.#commentRead) throw new Error("Sign in to read comments");
+      return readCommentsCommand(this.#snapshot.document,command,parameters(input),this.#commentName);
+    }
+    if (Object.hasOwn(commentActions,command)) {
+      if (!this.#commentAccess || this.#preview) throw new Error("This document is read-only");
+      this.cancelInteraction();
+      const before=this.#snapshot.document, ids=this.#assetIds();
+      const next=editComment(before,command,parameters(input),this.#commentName,ids.allocate);
+      if (next.document!==before) this.#commitEdit({document:next.document},{nextId:ids.next(),record:command!=="comment.markRead"});
+      return next.result;
+    }
+    if (!this.#hostEditable && this.#commentAccess && this.#liveHistory && (command==="edit.undo" || command==="edit.redo")) {
+      const undo=command==="edit.undo";
+      return {[undo?"undone":"redone"]:this.#liveHistory.travel(undo)};
+    }
     if (!this.#hostEditable) throw new Error("Sign in to edit this document");
     if (command === "file.export" || command === "file.exportSvg" || command === "file.exportFramesPdf" || command === "file.exportLayers") throw new Error("Use executeAsync to export a file");
     if (command === "version.exitPreview") return { ended: this.exitVersionPreview() };

@@ -16,12 +16,15 @@ export function ViewControls({ engine, editable, dispatch }: { engine: EditorEng
   </div>;
 }
 
-export function ViewMenu({ engine, editable, dispatch }: Parameters<typeof ViewControls>[0]) {
+export function ViewMenu({ engine, editable, dispatch, readComments }: Parameters<typeof ViewControls>[0] & {readComments:boolean}) {
   const checked = () => engine.getView().proofSrgb === true;
   const proof = useSyncExternalStore(engine.subscribeView, checked, checked);
   const grids = useSyncExternalStore(engine.subscribeView, () => engine.getView().layoutGrids !== false, () => true);
   const slices = useSyncExternalStore(engine.subscribeView, () => engine.getView().slices !== false, () => true);
   return <details><summary>View</summary>
+    <button disabled={!readComments} aria-pressed={engine.getSnapshot().showComments!==false} onClick={event=>{
+      event.currentTarget.closest("details")?.removeAttribute("open");dispatch("view.comments");
+    }}>Comments</button>
     <button type="button" disabled={!editable} aria-pressed={slices} onClick={event=>{
       event.currentTarget.closest("details")?.removeAttribute("open");
       dispatch("view.slices");

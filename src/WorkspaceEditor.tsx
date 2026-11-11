@@ -1,3 +1,4 @@
+import {DisplayNameField} from "./DisplayNameField";
 import { OwnerShareControls } from "./OwnerShareControls";
 import { OnlineFilesPanel, OnlineHostingInformation, PublishOnlineDialog, ServerKeyField } from "./OnlineFilesPanel";
 import type { EditorEngine } from "./engine/editor";
@@ -28,7 +29,8 @@ function GuestSubscription({connection, invitations, ended, changed, engine, cli
   useEffect(() => {
     const transport = invitations.live?.(connection);
     if (!transport || !client) return;
-    const peer = new LivePeer({current:() => engine.archiveRevision.document,receive:d => engine.receiveLiveDocument(d),
+    const peer = new LivePeer({current:() => engine.liveDrawing(),receive:d => engine.receiveLiveDocument(d),
+      recordsEdit:d => engine.recordsLiveEdit(d),
       normalise:(before,after,touched) => engine.repairLiveDocument(before,after,touched),
       subscribe:engine.subscribe,interacting:() => engine.interacting,history:h => engine.setLiveHistory(h)},transport,client,notice);
     return peer.start();
@@ -147,6 +149,7 @@ export function WorkspaceEditor({ identity, capabilities, recoveryStore, onlineH
   };
   const shareMenu = enabled && active && online && (!guest || managing) && (online.sharing || (invitations && publishedId)) && <details name={menuGroup} className="figcraft-bar-menu"
     onToggle={event => setOpenShareTab(event.currentTarget.open ? active.id : undefined)}><summary>Share</summary><div className="figcraft-menu-items">
+    {principal && <DisplayNameField principal={principal}/>}
     {online.supportsServerKey && openShareTab === active.id && <details><summary>Advanced</summary>
       <ServerKeyField online={online} />
     </details>}

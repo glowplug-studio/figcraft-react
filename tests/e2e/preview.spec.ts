@@ -856,7 +856,7 @@ if (!process.env.PLAYWRIGHT_BASE_URL) test("a second account discovers, opens an
   }
 });
 
-async function withSharedDrawing(page:Page,browser:Browser,seed:()=>Promise<void>,exercise:(peer:Page,file:string)=>Promise<void>) {
+async function withSharedDrawing(page:Page,browser:Browser,seed:()=>Promise<void>,exercise:(peer:Page,file:string)=>Promise<void>,role:"edit"|"comment"|"view"="edit") {
   await login(page);
   const guestEmail = "ordered-"+randomUUID()+"@example.test", guestPassword = "Guest-"+randomUUID()+"!";
   const user = await backend!.admin.auth.admin.createUser({email:guestEmail,password:guestPassword,email_confirm:true});
@@ -874,8 +874,17 @@ async function withSharedDrawing(page:Page,browser:Browser,seed:()=>Promise<void
     await form.getByRole("button",{name:"Publish",exact:true}).click();
     file=(await (await receipt).json()).id;
     await bar.getByText("Share",{exact:true}).click();
-    await bar.getByRole("button",{name:"Copy edit link"}).click();
-    await expect(page.getByText("Edit link copied",{exact:true})).toBeVisible();
+    if (role==="edit") {
+      await bar.getByRole("button",{name:"Copy edit link"}).click();
+      await expect(page.getByText("Edit link copied",{exact:true})).toBeVisible();
+    } else {
+      await expect(bar.getByRole("button",{name:/^(Start|Stop) sharing$/})).toBeEnabled();
+      const start=bar.getByRole("button",{name:"Start sharing",exact:true});
+      if (await start.count()) await start.click();
+      await bar.getByLabel("Access",{exact:true}).selectOption(role);
+      await bar.getByRole("button",{name:"Copy link",exact:true}).click();
+      await expect(page.getByText("Link copied",{exact:true})).toBeVisible();
+    }
     await peer.goto(await page.evaluate(()=>navigator.clipboard.readText()));
     await peer.getByLabel("Email",{exact:true}).fill(guestEmail);
     await peer.getByLabel("Password",{exact:true}).fill(guestPassword);
@@ -891,6 +900,83 @@ async function withSharedDrawing(page:Page,browser:Browser,seed:()=>Promise<void
     }
   }
 }
+
+async function setCommentName(page:Page,name:string) {
+  const file=page.locator(".figcraft-document-bar").getByText("File",{exact:true});
+  await file.click();
+  const menu=page.locator("details[open]").filter({has:page.locator("summary").filter({hasText:/^Preferences$/})}).first();
+  await menu.getByText("Preferences",{exact:true}).click();
+  const field=menu.getByLabel("Your name",{exact:true});
+  await field.fill(name);await field.press("Enter");await file.click();
+}
+
+if (!process.env.PLAYWRIGHT_BASE_URL) test("a comment-only phone replies to a pinned thread without editing its drawing",async({page,browser},info)=>{
+  test.setTimeout(75_000);
+  await withSharedDrawing(page,browser,async()=>{
+    await setCommentName(page,"Ari");
+    await page.getByRole("button",{name:"Comment",exact:true}).click();
+    await page.getByLabel("Design canvas",{exact:true}).click({position:{x:96,y:180}});
+    const draft=page.getByRole("region",{name:"New comment"});
+    await draft.getByLabel("Comment",{exact:true}).fill("Review this drawing");
+    await draft.getByRole("button",{name:"Post comment"}).click();
+    await expect(page.getByRole("article").getByText("Ari",{exact:true})).toBeVisible();
+    await page.getByLabel("Close comment").click();
+    await page.getByRole("toolbar",{name:"Comment tools"}).getByRole("button",{name:"Done"}).click();
+  },async(peer)=>{
+    await expect(peer.getByRole("button",{name:"Rectangle",exact:true})).toBeDisabled();
+    await setCommentName(peer,"Bea");
+    await peer.getByRole("button",{name:"Comment",exact:true}).click();
+    await peer.getByRole("region",{name:"Comment list"}).getByRole("button",{name:"Ari · Review this drawing"}).click();
+    const thread=peer.getByRole("region",{name:"Comment thread"});
+    await expect(thread.getByRole("button",{name:"Edit",exact:true})).toHaveCount(0);
+    await thread.getByRole("textbox",{name:"Reply"}).fill("Agreed @Ar");
+    await thread.getByRole("option",{name:"Ari",exact:true}).click();
+    await expect(thread.getByRole("textbox",{name:"Reply"})).toHaveValue("Agreed @Ari ");
+    await thread.getByRole("button",{name:"Reply",exact:true}).click();
+    await expect(thread.getByRole("article").filter({hasText:"Agreed @Ari"})).toContainText("Bea");
+    await thread.getByText("React",{exact:true}).first().click();
+    await thread.getByRole("button",{name:"React with 👍",exact:true}).first().click();
+    await expect(thread.getByRole("button",{name:"👍 Bea"})).toBeVisible();
+    await page.getByRole("button",{name:"Comment",exact:true}).click();
+    await page.getByRole("region",{name:"Comment list"}).getByRole("button",{name:"Ari · Review this drawing"}).click();
+    const owner=page.getByRole("region",{name:"Comment thread"});
+    await expect(owner.getByText("Agreed @Ari")).toBeVisible();
+    await expect(owner.getByRole("button",{name:"👍 Bea"})).toBeVisible();
+    await info.attach("comment-phone",{body:await peer.screenshot(),contentType:"image/png"});
+    await owner.getByRole("button",{name:"Resolve",exact:true}).click();
+    await expect(thread.getByRole("button",{name:"Reopen"})).toBeVisible();
+    await thread.getByRole("button",{name:"Reopen"}).click();
+    await expect(owner.getByRole("button",{name:"Resolve",exact:true})).toBeVisible();
+    const download=page.waitForEvent("download");
+    await page.getByRole("button",{name:"Save as",exact:true}).click();
+    const saved=await decodeFigcraft(await readFile((await (await download).path())!));
+    expect(saved.document.comments).toMatchObject([{author:"Ari",text:"Review this drawing",resolved:false,
+      reactions:[{emoji:"👍",users:["Bea"]}],replies:[{author:"Bea",text:"Agreed @Ari"}]}]);
+  },"comment");
+});
+
+if (!process.env.PLAYWRIGHT_BASE_URL) test("a view-only phone reads existing comments without submission rights",async({page,browser})=>{
+  test.setTimeout(60_000);
+  const posts:string[]=[];
+  await withSharedDrawing(page,browser,async()=>{
+    await page.getByLabel("Open Figcraft file",{exact:true}).setInputFiles(new URL("../fixtures/native-comment-threads.figcraft",import.meta.url).pathname);
+    await expect(page.getByRole("button",{name:/Comment by|[0-9]+ comments/}).first()).toBeVisible();
+  },async(peer)=>{
+    peer.on("request",r=>{
+      if (new URL(r.url()).pathname==="/api/online-files/live" && r.method()==="POST" && r.postDataJSON().action==="submit") posts.push("submit");
+    });
+    await expect(peer.getByRole("button",{name:"Comment",exact:true})).toBeDisabled();
+    const pin=peer.getByRole("button",{name:/^Comment by/}).first();
+    await pin.click();
+    const thread=peer.getByRole("region",{name:"Comment thread"});
+    await expect(thread.getByRole("article").first()).toBeVisible();
+    await expect(thread.getByRole("textbox")).toHaveCount(0);
+    await expect(thread.getByRole("button",{name:"Resolve",exact:true})).toHaveCount(0);
+    await expect(thread.getByRole("button",{name:"Edit",exact:true})).toHaveCount(0);
+    await expect(thread.getByRole("button",{name:"Copy link"})).toBeVisible();
+    expect(posts).toEqual([]);
+  },"view");
+});
 
 if (!process.env.PLAYWRIGHT_BASE_URL) test("two editors converge after a lost acknowledgement and undo only their own shape",async({page,browser},info) => {
   test.setTimeout(90_000);
