@@ -10,4 +10,4 @@ All 4,579 pure checks, 408 SQL assertions and 25 provider integrations passed. S
 
 The scoped Figcraft Supabase MCP returned the intended project and zero hosted public tables. This slice uses the preceding local schema. The [local adapter instructions](../../supabase/README.md) cover setup. Hosted publication follows the complete-product audit.
 
-The independent 369-workflow cumulative check is running. The [handover](../planning/26-11-07-full-port-resume.md) identifies the exact result to collect. The next collaboration property is removing a participant and preventing that address from rejoining the same file. The remaining roadmap and deferred review queue still apply.
+The complete Chromium run at `6b6de34` passed all 369 workflows in 962.943 seconds, with zero skips, retries, flakes or suite errors. No test accounts, files, stored objects, rooms, batches, presence registrations or peer names remained. The next collaboration property is removing a participant and preventing that address from rejoining the same file. The remaining roadmap and deferred review queue still apply.

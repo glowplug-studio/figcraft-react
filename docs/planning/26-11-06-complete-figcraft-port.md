@@ -6,16 +6,16 @@
 |---|---|
 | Overall status | Active after the app update. [Resume checkpoint and deferred review queue](26-11-07-full-port-resume.md#continue-from-here). |
 | Active slice | Row 14. [Ordered live collaboration](26-11-11-ordered-live-collaboration.md). |
-| Active phase | Row 14. The People query and authenticated welcome roster passed cumulative Chromium verification. Join, leave and offline conflict recovery passed focused verification. The 369-workflow cumulative check is running. |
+| Active phase | Row 14. The People query and authenticated welcome roster passed cumulative Chromium verification. Join, leave and offline conflict recovery passed full Chromium verification. Participant removal passed focused local verification. The 370-workflow Chromium regression is running. |
 | Upstream baseline | Pinned reference be991533. Home sidebar Preferences, Cmd/Ctrl+comma and Escape queued in row 19. Styles reference a2e87433. Components reference 79c36346. Global supported baseline 8eb0b876. |
-| Branch and last verified commit | prompt/full-figcraft-port, 6b6de34 focused. All 367 workflows passed at f68fa96. |
+| Branch and last verified commit | prompt/full-figcraft-port, 3c746b8 focused. All 369 workflows passed at 6b6de34. |
 | Completed slices | Rectangle/host-auth, bounded native persistence/recovery, supported-model pages, affine rectangle geometry/selection and solid appearance, plus nested group hierarchy, Frame containers, movement/transform gestures, rounded corners, ellipse/arc/ring and Polygon/Star editing verified locally; Line/Arrow and uniform solid strokes also verified; per-side Rectangle/Frame strokes, variable-width profiles and procedural brushes verified; vector networks, solid region/stroke rendering and Flatten/Reverse also verified; foundation commit `154f5a7`. Gradient, image, pattern, blend and mask releases now have local property matrices. [Blend evidence](../reports/26-11-09-blend-modes-parity.html). Auto layout and constraints passed the local release gate. [Release evidence](../reports/26-11-09-auto-layout.md). [Local components, instances, variant properties, slots and Assets](../reports/26-11-09-components-instances.md) passed the 0.51.0 gate. |
 | Remaining slices | Continue incomplete roadmap rows, excluding the user-deferred plugin and widget family. See each slice matrix for outstanding integrations. |
-| Tests last passed | 4,579 pure checks, 408 SQL assertions, 25 provider integrations, strict types, both builds and three focused browser workflows. [Latest evidence](../reports/26-11-11-live-session-actions.md). |
+| Tests last passed | 4,580 pure checks, 430 SQL assertions, 26 provider integrations, strict types, both builds and four focused browser workflows. [Latest evidence](../reports/26-11-11-live-participant-removal.md). |
 | Files currently in progress | [Live presence, outstanding tests and native references](26-11-11-live-presence.md). |
 | Blockers | No hosted change is required for the local collaboration gate. |
 | Exact next action | Follow the [current action in the resume handover](26-11-07-full-port-resume.md#continue-from-here), then its dependency-ordered review queue. |
-| Last updated | 2026-11-11 19:45 ICT |
+| Last updated | 2026-11-11 20:08 ICT |
 
 ## Scope and continuation
 

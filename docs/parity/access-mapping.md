@@ -40,3 +40,7 @@ Idle retirement removes the listing and session grants before physical cleanup. 
 The enabled team directory lists coded, owner-shared files for signed-in users. Its tokenless file URL resolves to one file-scoped grant at the operator's current access level. A team member cannot manage the listing. The underlying grant disappears when the owner stops sharing or the operator changes access. Copies of the old grant then fail at admission and Storage. [Source mapping and real-role evidence](../planning/26-11-11-team-directory.md).
 
 A live file participant can report abuse through the signed-in host, including a viewer. The host binds the report to the actual tab, session and link. The operator alone receives retained report details. Closing the connection ends this capability. [Participant report evidence](../reports/26-11-11-participant-reports-parity.html).
+
+## Live participant removal
+
+The [native editor](../../original/figcraft/crates/engine/src/sharing/live/join.rs) and the [hub](../../original/figcraft/crates/collab-net/src/hub.rs) distinguish an editor’s owner authority from an authenticated operator management connection. The browser checks actual account ownership, live membership and a named peer. The separate management endpoint verifies the operator key. The database binds the target to its room and physical login. An ordinary editor or guest cannot elevate access with a role field. [Property and access checks](../reports/26-11-11-live-participant-removal-parity.html).
