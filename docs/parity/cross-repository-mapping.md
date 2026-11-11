@@ -583,3 +583,5 @@ At `892f67a`, native `doc::Comment`, `cmd::comment::follow_anchors`, `version::r
 | Rust comment commands, canvas threads and keyed comment replacement | [Browser comment commands](../../src/engine/comment-actions.ts), [queries](../../src/engine/comment-query.ts), [thread controls](../../src/CommentOverlay.tsx) | [Role verification and native concurrent read fixture](../reports/26-11-11-comment-interactions.html) |
 
 | Native peer presence, signals, camera following and remote pointers | [Browser session](../../src/engine/sharing/live-people.ts), [editor overlay](../../src/LivePeopleControls.tsx), [private grant resolution](../../supabase/schemas/42_live_presence.sql) | [Native fixture, real provider, desktop and phone verification](../reports/26-11-11-live-presence.html) |
+
+| Native `Event::PeerLeft`, `live_signal_in`, `spotlight_banner`, `follow_frame` | [Physical departure](../../supabase/schemas/42_live_presence.sql), [presenter selection](../../src/engine/sharing/live-people.ts), [canvas controls](../../src/LivePeopleControls.tsx) | [Real transport, phone and recovery verification](../reports/26-11-11-peer-departure-parity.html) |
