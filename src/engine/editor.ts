@@ -1,3 +1,4 @@
+import {onlineCommands,emptyOnlineFiles,type OnlineWorkspace,type OnlineCommand} from "./sharing/online-workspace";
 import {participantReportReason} from "./sharing/participant-report";
 import {hostingSummary,type SessionHostContext,sessionCommands,unavailableSession,type SessionAction,type SessionCommand,type LiveSummary} from "./sharing/live-session-summary";
 import {peopleCommands,executePeople,type LivePeople} from "./sharing/live-people";
@@ -113,6 +114,7 @@ type OpenResult = { warnings?: readonly string[]; repairs: readonly string[]; su
 export const commandSpecs = Object.freeze({
   ...peopleCommands,
   ...sessionCommands,
+  ...onlineCommands,
   "collab.report":{label:"Report this file",undo:false},
   "collab.serverInfo":{label:"About this server",undo:false},
   "collab.removePerson":{label:"Remove from session",undo:false},
@@ -471,6 +473,8 @@ export class EditorEngine {
   #people?:LivePeople;
   #inspectSession?:()=>LiveSummary;
   #sessionAction?:SessionAction;
+  #online?:()=>OnlineWorkspace|undefined;
+  setOnlineCommands(online?:()=>OnlineWorkspace|undefined){this.#online=online;}
   #sessionHost?:()=>SessionHostContext|undefined;
   get canRemovePeople(){
     const context=this.#sessionHost?.();
@@ -647,7 +651,7 @@ export class EditorEngine {
     engine.#publish({});
     return engine;
   }
-  closeTab() { this.setSessionInspector(); this.#clipboard = {}; this.setEditable(false); }
+  closeTab() { this.setOnlineCommands(); this.setSessionInspector(); this.#clipboard = {}; this.setEditable(false); }
   duplicateTab(): EditorEngine {
     this.exitVersionPreview();
     return this.#copyTab(this.#snapshot.document, this.#nextId, this.#snapshot.document.name + " (Copy)");
@@ -1499,6 +1503,7 @@ export class EditorEngine {
   execute(command: string, input?: unknown): Record<string, unknown>;
   execute(command: string, input: unknown = {}): Record<string, unknown> | Variables | ReturnType<typeof listStyles> | ReturnType<typeof listComponents> | ReturnType<typeof listPages> | typeof framePresets | ReturnType<typeof versionDetails>[] | ReturnType<typeof queryFonts> | null {
     if (!Object.hasOwn(commandSpecs, command)) throw new Error(`Unsupported command: ${command}`);
+    if(Object.hasOwn(onlineCommands,command))throw new Error(command+" requires executeAsync");
     if(command==="collab.removePerson" || command==="collab.serverInfo")throw new Error(command+" requires executeAsync");
     if(command==="collab.report"){
       const {receipt,notify}=this.#sendReport(input);
@@ -2076,6 +2081,15 @@ export class EditorEngine {
   async executeAsync(command: "node.get", input: unknown): Promise<ReturnType<typeof getNode>>;
   async executeAsync(command: string, input?: unknown): Promise<Record<string, unknown>>;
   async executeAsync(command: string, input: unknown = {}): Promise<Record<string, unknown> | Variables | ReturnType<typeof listStyles> | ReturnType<typeof listComponents> | ReturnType<typeof queryFonts> | null> {
+    if(Object.hasOwn(onlineCommands,command)){
+      const online=this.#online?.(),params=parameters(input);
+      if(online)return online.execute(command as OnlineCommand,params);
+      if(command==="collab.files"){
+        if(params.refresh!==undefined && typeof params.refresh!=="boolean")throw new Error("refresh must be true or false");
+        return emptyOnlineFiles();
+      }
+      throw new Error("No online file with that id is recorded on this computer");
+    }
     if(command==="collab.report"){
       await this.#sendReport(input).receipt;
       return {sent:true};

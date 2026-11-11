@@ -54,15 +54,25 @@ export class BrowserOwnerSharing implements OnlineOwnerSharing {
     const state: {revision: string | null; ids: string[]} = await response.json();
     return state;
   }
+  private async reconcile(file:string,observed:DeviceOwnerSharing,ids:readonly string[]) {
+    const prior=observed.links.map(link=>link.id);
+    if(observed.pending || prior.every(id=>ids.includes(id)))return observed;
+    return this.record(file,now=>!now.pending && now.links.length===prior.length
+      && now.links.every(link=>prior.includes(link.id)) ? {links:[]} : now);
+  }
+  async prepareRefresh(file:string) {
+    const before=await this.record(file);
+    return async (ids:readonly string[])=>{
+      // A newer, separately issued group may have appeared while this request was in flight.
+      if(!before.pending && before.links.some(link=>!ids.includes(link.id)))
+        this.observed(file,await this.reconcile(file,before,ids));
+    };
+  }
   async read(file: string, refresh = false) {
     let row = await this.record(file);
     if (refresh && row.links.length && !row.pending) {
       const status = await this.status(file);
-      const observed = row.links.map(link => link.id);
-      if (!observed.every(id => status.ids.includes(id))) {
-        row = await this.record(file, now => !now.pending && now.links.length === observed.length
-          && now.links.every(link => observed.includes(link.id)) ? {links: []} : now);
-      }
+      row=await this.reconcile(file,row,status.ids);
     }
     return this.observed(file,row);
   }

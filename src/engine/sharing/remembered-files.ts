@@ -13,7 +13,7 @@ export function onlineServerKey(server: string): string {
   } catch { return ""; }
 }
 
-export function readRememberedFiles(stored: unknown): RememberedOnlineFile[] {
+export function readRememberedFiles(stored: unknown, preserveAddress=false): RememberedOnlineFile[] {
   const files: RememberedOnlineFile[] = [];
   if (!Array.isArray(stored)) return files;
   const seen = new Set<string>();
@@ -27,7 +27,10 @@ export function readRememberedFiles(stored: unknown): RememberedOnlineFile[] {
     const identity = key + "?" + file;
     if (seen.has(identity)) continue;
     seen.add(identity);
-    files.push({ server: key, file, name: Array.from(name.replace(/^\p{White_Space}+|\p{White_Space}+$/gu, "").replace(/\p{Cc}/gu, "")).slice(0, 256).join(""), created, opened });
+    const original=(value as Partial<RememberedOnlineFile>).recordedAddress;
+    const raw=typeof original==="string" && onlineServerKey(original)===key ? original : server!;
+    const plain=raw.split("?",1)[0].trim();
+    files.push({ server: key, ...(preserveAddress && plain!==key && {recordedAddress:plain}), file, name: Array.from(name.replace(/^\p{White_Space}+|\p{White_Space}+$/gu, "").replace(/\p{Cc}/gu, "")).slice(0, 256).join(""), created, opened });
     if (files.length === MAX_ONLINE_FILES) break;
   }
   return files;
@@ -36,10 +39,10 @@ export function readRememberedFiles(stored: unknown): RememberedOnlineFile[] {
 /** Earlier versions stored the confirmed list directly at the same IndexedDB key. */
 export function readOnlineRegistry(stored: unknown): OnlineFileRegistry {
   if (!stored || Array.isArray(stored) || typeof stored !== "object") {
-    return { files: readRememberedFiles(stored), pending: [] };
+    return { files: readRememberedFiles(stored,true), pending: [] };
   }
   const registry = stored as Partial<OnlineFileRegistry>;
-  const files = readRememberedFiles(registry.files);
+  const files = readRememberedFiles(registry.files,true);
   const pending: PendingOnlinePublication[] = [];
   const seen = new Set(files.map(row => row.server + "?" + row.file));
   if (Array.isArray(registry.pending)) {

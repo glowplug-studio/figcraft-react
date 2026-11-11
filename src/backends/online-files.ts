@@ -7,6 +7,8 @@ export interface OnlineFileInfo {
   name: string;
   created: string;
   managedByKey?: true;
+  /** Identifiers reported in a checked owner listing, including an empty list after revocation. */
+  linkIds?:readonly string[];
   /** UTC epoch seconds as decimal text to preserve the native u64 range. */
   expires?: string | null;
 }
@@ -26,7 +28,7 @@ export interface OnlineFileStore {
   teamDirectory?(): Promise<TeamDirectory>;
   hosting?(file?: string): Promise<OnlineHostInformation>;
   publish(id: string, snapshot: Blob, serverKey?: string): Promise<OnlineFileInfo>;
-  owned(ids: readonly string[]): Promise<readonly OnlineFileInfo[]>;
+  owned(ids: readonly string[],includeLinkIds?:boolean): Promise<readonly OnlineFileInfo[]>;
   open(id: string): Promise<Blob>;
   rename(id: string, name: string): Promise<OnlineFileInfo>;
   remove(id: string): Promise<void>;
@@ -34,6 +36,8 @@ export interface OnlineFileStore {
 
 /** Account-scoped device preference. Authority is checked afresh by the configured server. */
 export interface RememberedOnlineFile {
+  /** Original credential-free address when its spelling differs from the device lookup key. */
+  recordedAddress?:string;
   server: string;
   file: string;
   name: string;
@@ -57,6 +61,7 @@ export interface OnlineFileRegistry {
 }
 
 export interface OnlineFileDevice {
+  cachedCodes?(principal:string,server:string,file:string):Promise<OwnerShareSummary["codes"]>;
   onlineRegistry(
     principal: string,
     update?: (current: OnlineFileRegistry) => OnlineFileRegistry,
@@ -121,6 +126,8 @@ export interface OwnerShareSummary {
   pending?: "start" | "stop";
 }
 export interface OnlineOwnerSharing {
+  /** Capture the locally issued group before the server checks it, so a later reshare survives an old reply. */
+  prepareRefresh?(file:string):Promise<(retained:readonly string[])=>Promise<void>>;
   read(file: string, refresh?: boolean): Promise<OwnerShareSummary>;
   access?(file:string):OnlineGuestSession["access"];
   selectAccess?(file:string,access:OnlineGuestSession["access"]):void;
@@ -129,6 +136,8 @@ export interface OnlineOwnerSharing {
 }
 
 export interface OnlineWorkspaceHost {
+  /** Optional authenticated adapter for another server remembered on this device. */
+  forServer?(server:string):OnlineWorkspaceHost|undefined;
   libraries?: OnlineTeamLibraries;
   supportsServerKey?: boolean;
   releasePublished?(file: string): void;

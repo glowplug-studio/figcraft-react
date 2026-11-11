@@ -149,6 +149,11 @@ export class IndexedDbRecoveryStore implements WorkspaceRecoveryStore, OnlineFil
     });
   }
 
+  async cachedCodes(principal:string,server:string,file:string) {
+    return this.#transaction(principal,"readonly",store=>store.get([principal,"owner-sharing",onlineServerKey(server),file]),
+      stored=>Object.fromEntries(readDeviceOwnerSharing(stored).links.map(link=>[link.access,link.code])));
+  }
+
   readPublishedLinks(principal: string, server: string, file: string): Promise<PublishedLinks | undefined> {
     return this.#transaction(principal, "readonly", store => store.get([principal, "published-links", onlineServerKey(server), file]),
       value => value as PublishedLinks | undefined);

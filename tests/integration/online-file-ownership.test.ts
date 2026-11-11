@@ -101,6 +101,7 @@ describe.skipIf(!enabled)("private online files on real local Supabase", () => {
     expect(first).toEqual(second);
     expect(first.name).toBe("Untitled");
     await expect(store.owned([invalid, id])).resolves.toEqual([first]);
+    expect((await store.owned([id],true))[0].linkIds).toHaveLength(2);
     await expect(store.publish(id, new Blob(["changed"]))).rejects.toThrow("different snapshot");
     await expect(finaliseForTest(stranger.client, local!.admin, id)).rejects.toBeTruthy();
     await expect(store.publish(invalid, new Blob(["not a drawing"]))).rejects.toBeTruthy();
@@ -212,6 +213,10 @@ describe.skipIf(!enabled)("private online files on real local Supabase", () => {
     const read = () => writer.from("online_file_links").select("*").eq("file_id", id);
     await expect(changeFileLinks(writer, stranger.id, id, [], "shared")).rejects.toMatchObject({ code: "42501" });
     await expect(changeFileLinks(owner.client, owner.id, id, [], "shared")).rejects.toBeTruthy();
+    const listed=await store.owned([id],true);
+    expect(listed[0].linkIds).toEqual([keys.edit.id,keys.view.id].sort());
+    const otherStore=ownedStore(stranger.client,stranger.id,async()=>{throw new Error("unexpected publication");});
+    expect(await otherStore.owned([id],true)).toEqual([]);
     const published = (["edit", "view"] as const).map(access => ({ ...keys[access], access, code: undefined }));
     expect(published.map(link => link.access)).toEqual(["edit", "view"]);
     expect(published.every(link => !link.code)).toBe(true);

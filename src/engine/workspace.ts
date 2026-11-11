@@ -1,3 +1,5 @@
+import {onlineServerKey} from "./sharing/remembered-files";
+import type {OnlineWorkspace} from "./sharing/online-workspace";
 import type {Document} from "./document";
 import {LiveSessions,type SessionCommand} from "./sharing/live-session-summary";
 import type { OnlineInvitations, OnlineGuestSession } from "../backends/online-files";
@@ -48,6 +50,16 @@ let nextDocumentId = 1;
 
 export class EditorWorkspace {
   #sessions=new LiveSessions();
+  #online?:OnlineWorkspace;
+  setOnlineWorkspace(online?:OnlineWorkspace){this.#online=online;}
+  onlineSession(file:string,server:string){
+    for(const tab of this.#tabs){
+      const session=tab.guest && this.#sessions.find(tab.id)?.[1];
+      if(!session?.guest || session.status==="failed")continue;
+      const published=this.#sessions.host?.inspect?.(session.guest.connection)?.published;
+      if(published?.file===file && onlineServerKey(published.server)===server)return {id:session.id,document:this.#tabs.indexOf(tab)};
+    }
+  }
   mergeStrandedDrawing=(connection:string,confirmed:Document,client:number)=>{
     const tab=this.#tabs.find(t=>t.guest?.connection===connection);
     if(!tab?.stranded || !tab.guest || tab.guest.ended)return;
@@ -165,6 +177,7 @@ export class EditorWorkspace {
       this.#publish();
     });
     const id=nextDocumentId++;
+    engine.setOnlineCommands(()=>this.#online);
     engine.setSessionInspector(()=>this.#sessions.inspect(id,this.#tabs),(command,params)=>this.#sessionAction(id,command,params),()=>{
       const session=this.#sessions.find(id)?.[1],host=this.#sessions.host;
       if(!host)return;
@@ -195,7 +208,7 @@ export class EditorWorkspace {
     this.#editable = editable;
     this.#generation++;
     if (!editable) {
-      this.setInvitations(undefined);
+      this.setInvitations(undefined);this.setOnlineWorkspace(undefined);
       this.#sourceFiles.clear();
       delete this.#clipboard.properties;
       delete this.#clipboard.layers;

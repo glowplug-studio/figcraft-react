@@ -66,3 +66,21 @@ it("asks only the configured endpoint about hosting before a file is open",async
   await expect(invitations.serverInfo("wss://FILES.example:443/service")).resolves.toMatchObject({open:true});
   expect(hosting.mock.calls).toEqual([[]]);
 });
+
+it("discards a revoked code group only if it is still the group the directory checked",async()=>{
+  const group=(prefix:string)=>({links:(["edit","view","comment"] as const).map(access=>({access,
+    token:(prefix+access).padEnd(22,"x"),id:prefix+access,code:prefix+access}))});
+  let row:DeviceOwnerSharing=group("first");
+  const sharing=new BrowserOwnerSharing({ownerSharing:async(_principal,_address,_file,update)=>row=update ? update(row) : row},
+    "principal","https://files.example");
+  const stale=await sharing.prepareRefresh("f");
+  row=group("next");
+  await stale([]);
+  expect((await sharing.read("f")).codes.edit).toBe("nextedit");
+  const matching=await sharing.prepareRefresh("f");
+  await matching(row.links.map(link=>link.id));
+  expect((await sharing.read("f")).codes.edit).toBe("nextedit");
+  const revoked=await sharing.prepareRefresh("f");
+  await revoked(["nextview"]);
+  expect((await sharing.read("f")).codes).toEqual({});
+});

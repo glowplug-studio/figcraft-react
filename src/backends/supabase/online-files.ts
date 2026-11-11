@@ -12,8 +12,8 @@ export function onlineSnapshotPath(principal: string, id: string) {
   return principal + "/" + id + ".figcraft";
 }
 
-export function onlineFileInfo(row: { id: string; name: string; created_at: string; online_expiry_epoch?: string | null }): OnlineFileInfo {
-  return { id: row.id, name: row.name, created: row.created_at, expires: row.online_expiry_epoch };
+export function onlineFileInfo(row: { id: string; name: string; created_at: string; online_expiry_epoch?: string | null;online_owned_link_ids?:string[]|null }): OnlineFileInfo {
+  return { id: row.id, name: row.name, created: row.created_at, expires: row.online_expiry_epoch, ...(row.online_owned_link_ids && {linkIds:row.online_owned_link_ids}) };
 }
 
 async function sameBytes(first: Blob, second: Blob) {
@@ -95,11 +95,16 @@ export class SupabaseOnlineFileStore implements OnlineFileStore {
     return this.finalise(id,serverKey);
   }
 
-  async owned(ids: readonly string[]) {
+  async owned(ids: readonly string[],includeLinkIds=false) {
     if (!ids.length) return [];
     if (ids.length > 200) throw new Error("Ask about at most 200 files at a time");
     for (const id of ids) onlineSnapshotPath(this.principal, id);
-    const { data, error } = await this.client.from("online_files").select(columns).eq("owner_id", this.principal).in("id", ids);
+    const query=()=>this.client.from("online_files");
+    const expanded=includeLinkIds ? await query().select("id,name,created_at,online_expiry_epoch,online_owned_link_ids")
+      .eq("owner_id",this.principal).in("id",ids) : undefined;
+    // Older servers still support ownership and expiry. Check sharing separately there.
+    const {data,error}=!expanded || expanded.error && ["42703","PGRST204"].includes(expanded.error.code)
+      ? await query().select(columns).eq("owner_id",this.principal).in("id",ids) : expanded;
     if (error) throw error;
     const byId = new Map(data.map(row => [row.id, onlineFileInfo(row)]));
     return ids.flatMap(id => byId.get(id) ?? []);

@@ -322,3 +322,91 @@ it("bounds a server key by Unicode scalars and forgets it across workspaces", ()
   first.setServerKey("\n\t\u009f");
   expect(first.serverKey).toBe("");
 });
+
+it.each(["empty","corrupt preferences","normalised address and case-sensitive path","device bounds","maximum examined preferences",
+  "a restart forgets state and expiry","bounded Unicode title","offline and no live transport","open unknown or ambiguous file"])(
+  "lists the complete public result for the native %s device without a server read",async title=>{
+    const fixture=JSON.parse(strFromU8(native[title+".json"]));
+    const {workspace,device,online,store}=setup(),read=vi.spyOn(store,"owned");
+    await device.onlineRegistry("owner",()=>({files:fixture.preferences.online_files,pending:[]}));
+    workspace.setOnlineWorkspace(online);
+    const at=fixture.commands.findIndex(([command]:[string,unknown])=>command==="collab.files");
+    const result=await workspace.activeEngine!.executeAsync("collab.files");
+    expect(result).toEqual(fixture.expected[at]);
+    expect(read).not.toHaveBeenCalled();
+    expect(JSON.stringify(result)).not.toMatch(/example-owner|example-edit|[?&]key=/);
+    device.close();
+  });
+
+it("forgets an unambiguous record atomically, retains the remote file and keeps pending uploads private",async()=>{
+  const {workspace,device,online,store}=setup(),remove=vi.spyOn(store,"remove");
+  const base={file:"file",name:"One",created:1,opened:2};
+  const records=["wss://one.example/","wss://two.example/"].map(server=>({...base,server}));
+  await device.onlineRegistry("owner",()=>({files:records,pending:[{...base,file:"pending",server:"wss://one.example/",started:5,snapshot:new Blob(["secret"])}]}));
+  workspace.setOnlineWorkspace(online);
+  const engine=workspace.activeEngine!;
+  await expect(engine.executeAsync("collab.files",{refresh:"true"})).rejects.toThrow("true or false");
+  await expect(engine.executeAsync("collab.forgetFile",{file:"file"})).rejects.toThrow("several servers");
+  await expect(engine.executeAsync("collab.forgetFile",{file:"pending"})).rejects.toThrow("No online file");
+  await expect(engine.executeAsync("collab.forgetFile",{server:"wss://ONE.example:443/",file:" file "})).resolves.toEqual({
+    file:"file",forgotten:true,onServer:true,server:"wss://one.example/"});
+  const left=await engine.executeAsync("collab.files");
+  expect(left.files).toMatchObject([{server:"wss://two.example/",session:null,document:null}]);
+  expect(JSON.stringify(left)).not.toContain("pending");expect(remove).not.toHaveBeenCalled();
+  device.close();
+});
+
+it("refreshes each remembered server with its own adapter and preserves cached results across failures",async()=>{
+  const {workspace,device,host,store}=setup();
+  const b="https://other.example/Studio",a=host.server;
+  const base={file:"same",opened:2,created:1,name:"Same"};
+  await device.onlineFiles("owner",()=>[{...base,server:a},{...base,server:b},{...base,file:"gone",server:a}]);
+  const lookup=vi.spyOn(store,"owned").mockResolvedValue([{id:"same",created:"",name:"First",expires:"18446744073709551615"}]);
+  const foreign=vi.fn().mockRejectedValue(new Error("message couldn't be read"));
+  const team=vi.fn().mockResolvedValue({state:"listed",web:"https://team.example/",files:[{file:"same",name:"Shared",access:"view",people:2,updated:"5"}]});
+  const online=new OnlineWorkspace(workspace,{...host,store:{...store,teamDirectory:team},forServer:address=>address===b ?
+    {...host,server:b,store:{...store,owned:foreign}} : undefined},"owner",()=>true);
+  workspace.setOnlineWorkspace(online);
+  const engine=workspace.activeEngine!;
+  await expect(engine.executeAsync("collab.files")).resolves.toMatchObject({team:null,problems:[]});
+  expect(lookup).not.toHaveBeenCalled();expect(foreign).not.toHaveBeenCalled();expect(team).not.toHaveBeenCalled();
+  const initial=await engine.executeAsync("collab.files",{refresh:true});
+  expect(initial).toMatchObject({files:[{name:"First",expires:"18446744073709551615",state:"online"},
+    {name:"Same",state:"unknown"},{file:"gone",state:"gone"}],problems:[{server:b,state:"unsupported",reason:null}],
+    team:{state:"listed",reason:null,web:"https://team.example/",files:[{updated:5,people:2,access:"view",link:online.teamLink("same") }]}});
+  expect(lookup.mock.calls).toEqual([[["same","gone"]]]);expect(foreign.mock.calls).toEqual([[["same"]]]);
+  expect(await engine.executeAsync("collab.files",{refresh:false})).toEqual(initial);
+  expect(team).toHaveBeenCalledTimes(1);
+  lookup.mockRejectedValueOnce(new Error("Remote offline"));foreign.mockResolvedValue([]);team.mockRejectedValueOnce(new Error("No directory"));
+  const next=await engine.executeAsync("collab.files",{refresh:true});
+  expect(next).toMatchObject({files:[{name:"First",state:"online"},{file:"same",state:"gone"},{file:"gone",state:"gone"}],
+    problems:[{state:"offline",server:a,reason:"Remote offline"}],team:{state:"offline",reason:"No directory",files:[]}});
+  await expect(engine.executeAsync("collab.forgetFile",{file:"gone"})).resolves.toMatchObject({onServer:false});
+  device.close();
+});
+
+it("returns only handout codes and the owner live handle at the current tab index",async()=>{
+  const {device,workspace,online,host}=setup(),file="codes";
+  const record={file,name:"Shared drawing",server:host.server,created:1,opened:2};
+  await device.onlineFiles("owner",()=>[record]);
+  const links=(["edit","view","comment"] as const).map((access,i)=>({access,id:String(i+1).repeat(16),
+    token:"private"+String(i).repeat(15),code:["ABC-DEF-GHJ","JKM-NPQ-RST","STV-WXY-Z01"][i]}));
+  await device.ownerSharing("owner",host.server,file,()=>({links}));
+  workspace.setInvitations({inspect:key=>({link:"private",url:"private",address:"files.example",network:true,
+    published:key==="owner-tab" ? {server:host.server,file,name:"Shared drawing",edit:"private-edit",view:"private-view",owner:null,expires:null} : undefined}),
+    showJoin(){},subscribe:()=>()=>{},async copyPublished(){},async leave(){}});
+  workspace.setOnlineWorkspace(online);
+  await workspace.attachGuestSession(workspace.getSnapshot()[0].id,{file,access:"edit",connection:"owner-tab",openedAsOwner:true});
+  workspace.execute("file.new");
+  const engine=workspace.activeEngine!;
+  const first=await engine.executeAsync("collab.files");
+  expect(first.files).toMatchObject([{session:1,document:0,shared:true,code:links[0].code,viewCode:links[1].code,commentCode:links[2].code}]);
+  expect(JSON.stringify(first)).not.toMatch(/private|owner-tab/);
+  workspace.execute("file.moveTab",{from:0,to:1});
+  workspace.setGuestSession({file,access:"edit",connection:"owner-tab",reconnectAttempt:1});
+  await expect(engine.executeAsync("collab.files")).resolves.toMatchObject({files:[{session:1,document:1}]});
+  workspace.setGuestSession({file,access:"edit",connection:"owner-tab",ended:"removed"});
+  await expect(engine.executeAsync("collab.files")).resolves.toMatchObject({files:[{session:null,document:null}]});
+  expect((await device.onlineRegistry("owner")).files).toEqual([record]);
+  device.close();
+});

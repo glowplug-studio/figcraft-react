@@ -126,6 +126,10 @@ export function WorkspaceEditor({ identity, capabilities, recoveryStore, onlineH
       unsubscribe(); controller?.dispose(); workspace.setEditable(false);
     };
   }, [identity, principal, capabilities, recoveryStore, workspace]);
+  useEffect(()=>{
+    workspace.setOnlineWorkspace(enabled ? online : undefined);
+    return ()=>workspace.setOnlineWorkspace(undefined);
+  },[workspace,enabled,online]);
   const invitations = onlineHost?.invitations;
   useEffect(() => {
     if (!enabled || !invitations) return;

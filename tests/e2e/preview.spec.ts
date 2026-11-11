@@ -524,6 +524,21 @@ test("publish, reopen and manage a device-owned file in Home Online", async ({ p
     await expect(panel.getByRole("button", { name: /^Owner drawing/ })).toBeEnabled();
     await expect(panel.locator("small")).toContainText(new URL(url).host + " · Not shared · Opened ");
     await expect(panel).toHaveScreenshot("online-files-owner.png", { mask: [panel.locator("small")], maskColor: "#e1e5e8" });
+    const {build}=await import("vite");
+    const bundle=await build({configFile:false,logLevel:"silent",define:{"process.env.NODE_ENV":JSON.stringify("production")},build:{write:false,
+      lib:{entry:"tests/fixtures/browser-online-directory.ts",name:"FigcraftDirectory",formats:["iife"]}}});
+    const output=(Array.isArray(bundle) ? bundle[0] : bundle) as {output:{type:string;code?:string}[]};
+    const script=output.output.find(item=>item.type==="chunk")?.code;
+    if(!script)throw new Error("The embedded directory fixture did not build");
+    await page.addScriptTag({content:script});
+    const publicDirectory=await page.evaluate(async args=>{
+      const fixture=(window as unknown as {FigcraftDirectory:typeof import("../fixtures/browser-online-directory")}).FigcraftDirectory;
+      return fixture.cachedDirectory(args.principal,args.server);
+    },{principal:signIn.data.user.id,server:url});
+    expect(publicDirectory).toMatchObject({max:200,problems:[],team:null,files:[{server:url,file:paths[0].split("/")[1].replace(".figcraft",""),
+      name:"Owner drawing",hasOwnerToken:true,state:"unknown",shared:false,code:null,document:null,session:null}]});
+    expect(Object.keys((publicDirectory.files as object[])[0]).sort()).toEqual([
+      "code","commentCode","created","document","expires","file","hasOwnerToken","host","name","opened","server","session","shared","state","viewCode"]);
     await actions("Owner drawing").click();
     await panel.getByRole("button", { name: "Rename on the server…" }).click();
     const rename = page.getByRole("dialog", { name: "Rename on the server" });

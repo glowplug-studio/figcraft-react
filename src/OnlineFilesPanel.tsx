@@ -188,7 +188,7 @@ export function OnlineFilesPanel({ online, opened }: { online: OnlineWorkspace; 
         if (online.sharing) {
           for (const row of fresh) {
             if (row.state !== "online" || !active) continue;
-            const sharing = await online.sharing.read(row.file, true);
+            const sharing = await online.sharing.read(row.file);
             if (active) updateShared(row.file, Boolean(sharing.codes.edit));
           }
         }
@@ -227,13 +227,13 @@ export function OnlineFilesPanel({ online, opened }: { online: OnlineWorkspace; 
           {row.requiresKey && <ServerKeyField online={online} disabled={busy} />}
           <button disabled={busy} onClick={() => void run(() => online.retryPublication(row.file),row.requiresKey)}>Retry publication</button>
           <button disabled={busy} onClick={() => void run(() => online.forget(row.file))}>Forget on this computer</button>
-        </> : row.state === "gone" ? <button disabled={busy} onClick={() => void run(() => online.forget(row.file))}>Clear from this list</button> : <>
+        </> : row.state === "gone" ? <button disabled={busy} onClick={() => void run(async () => { await online.forgetRecord({file:row.file,server:row.server}); })}>Clear from this list</button> : <>
           <button disabled={busy} onClick={() => void run(() => online.open(row.file), true)}>Open</button>
           {row.expires && <p>The server deletes this file if nobody opens it before {serverUtcDate(row.expires)}.</p>}
           {online.sharing && actions === row.file && <OwnerShareControls file={row.file} sharing={online.sharing} changed={sharingChanged} />}
           <button disabled={busy} onClick={() => { setName(row.name); setDialog({ row, action: "rename" }); }}>Rename on the server…</button>
           <button disabled={busy} onClick={() => setDialog({ row, action: "remove" })}>Remove from server…</button>
-          <button disabled={busy} onClick={() => void run(() => online.forget(row.file))}>Forget on this computer</button>
+          <button disabled={busy} onClick={() => void run(async () => { await online.forgetRecord({file:row.file,server:row.server}); })}>Forget on this computer</button>
         </>}
       </div></details>
     </li>)}</ul>

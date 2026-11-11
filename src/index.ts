@@ -22,6 +22,7 @@ export {
 export { WorkspaceEditor } from "./WorkspaceEditor";
 export type { WorkspaceRecoveryStore, WorkspaceArchive } from "./backends/recovery";
 export { Editor, type EditorProps } from "./Editor";
+export {OnlineWorkspace} from "./engine/sharing/online-workspace";
 export { EditorWorkspace, type DocumentTab } from "./engine/workspace";
 export { EditorEngine, commandSpecs, type EditorSnapshot, type CommandId } from "./engine/editor";
 export { newDocument, pageOf, type Document, type DocumentNode, type RectangleNode, type SliceNode, type PageNode, type NodeId } from "./engine/document";
