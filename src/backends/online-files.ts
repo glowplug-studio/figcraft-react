@@ -100,6 +100,8 @@ export interface OnlineInvitations {
   live?(connection: string): import("../engine/sharing/live-transport").LiveTransport | undefined;
   /** Redeem this device's original edit link. Older records may predate link storage. */
   joinOwned?(file: string, managedByKey?: boolean, listing?:Pick<OnlineFileInfo,"name"|"expires">, recorded?:boolean): Promise<{session: OnlineGuestSession; archive: Blob} | undefined>;
+  sessionHosting?(connection:string):Promise<OnlineHostInformation>;
+  serverInfo?(server:string):Promise<OnlineHostInformation>;
   removePerson?(connection:string,client:number):Promise<{removed:number;name:string|null}>;
   report?(connection: string, reason: string): Promise<void>;
   retryNow?(connection: string): void;

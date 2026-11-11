@@ -1557,6 +1557,11 @@ test("the published view and edit invites open the original drawing in another s
         await expect(control).toBeInViewport({ratio:1});
       }
       await testInfo.attach("participant-report-phone",{body:await toolbar.locator("details[open] .figcraft-menu-items").first().screenshot(),contentType:"image/png"});
+      await guest.route("**/api/online-files/report",route=>route.fulfill({status:503,json:{error:"Operator temporarily unavailable"}}),{times:1});
+      await reason.press("Enter");
+      await expect(toolbar.getByText("The report wasn't sent: Operator temporarily unavailable",{exact:true})).toBeVisible();
+      await expect(reason).toHaveValue("Participant review");
+      await expect(toolbar.getByText("Your report was sent to the server's operator",{exact:true})).toHaveCount(0);
       reportFile = fileId;
       const receipt = guest.waitForResponse(r => new URL(r.url()).pathname === "/api/online-files/report");
       await reason.press("Enter");

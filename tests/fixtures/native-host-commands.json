@@ -1,0 +1,22 @@
+{
+  "hosting": {
+    "expires": 1800000000,
+    "idleDays": 1.04,
+    "maxFileMb": 300,
+    "open": false,
+    "operator": "Studio🎨",
+    "terms": "https://site.example/terms"
+  },
+  "reason": "Spam today🎨",
+  "report": {
+    "sent": true
+  },
+  "server": {
+    "expires": 1800000000,
+    "idleDays": 1.04,
+    "maxFileMb": 300,
+    "open": false,
+    "operator": "Studio🎨",
+    "terms": "https://site.example/terms"
+  }
+}

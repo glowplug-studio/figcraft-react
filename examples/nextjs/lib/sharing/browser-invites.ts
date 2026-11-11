@@ -1,5 +1,5 @@
 import {parseJoinCode} from "@glowplug-studio/figcraft-react/sharing/join-code";
-import {participantReportReason,readPeopleWelcome,readDisplayName,type PeopleWelcome} from "@glowplug-studio/figcraft-react";
+import {hostingSummary,readPeopleWelcome,readDisplayName,type PeopleWelcome} from "@glowplug-studio/figcraft-react";
 import type { OnlineFileInfo, OnlineHostInformation, SessionDetails, LiveTransport, GuestConnectionStatus, GuestSessionEnd, IndexedDbRecoveryStore, OnlineGuestSession, OnlineInvitations } from "@glowplug-studio/figcraft-react";
 import { type SessionInvite,inviteEndpoint, nativeInviteLink, parseInviteServer, parseSessionInvite } from "@glowplug-studio/figcraft-react/sharing/invite";
 
@@ -38,7 +38,7 @@ export class BrowserInvitations implements OnlineInvitations {
   constructor(private device: Pick<IndexedDbRecoveryStore, "readPublishedLinks">, private principal: string, private server: string,
     private readonly monitor: (connection:string,ended:(reason:GuestSessionEnd)=>void,edits?:()=>void,people?:(message:unknown)=>void,ready?:()=>void)=>()=>void, readonly showJoin: () => void, private readonly notify: (message: string) => void,
     private resolveTeam?: (file: string) => Promise<{file: string; token: string}>,
-    private metadata?:{hosting(file:string):Promise<OnlineHostInformation>;sharing(file:string,recorded:boolean):SessionDetails["share"];loadSharing(file:string):Promise<unknown>}) {
+    private metadata?:{hosting(file?:string):Promise<OnlineHostInformation>;sharing(file:string,recorded:boolean):SessionDetails["share"];loadSharing(file:string):Promise<unknown>}) {
     this.endpoint = parseInviteServer(server.replace(/^http/, "ws")).server;
   }
 
@@ -94,14 +94,29 @@ export class BrowserInvitations implements OnlineInvitations {
       submit:(batch,base,changes) => request({action:"submit",batch,base,changes})};
   }
 
+  async serverInfo(server:string) {
+    const address=parseInviteServer(server).server;
+    if (!this.matchesEndpoint(address)) throw new Error("This address belongs to another server");
+    if (!this.metadata) throw new Error("Server information is unavailable here");
+    return this.metadata.hosting();
+  }
+
+  private matchesEndpoint(address:ReturnType<typeof parseInviteServer>["server"]) {
+    return address.secure===this.endpoint.secure && address.host.toLowerCase()===this.endpoint.host.toLowerCase() && address.path===this.endpoint.path;
+  }
+
+  async sessionHosting(connection:string) {
+    const tab=this.tabs.get(connection);
+    if(!tab || tab.ended || !this.metadata)throw new Error("Session hosting information is unavailable");
+    const info=await this.metadata.hosting(tab.file);
+    if(this.tabs.get(connection)!==tab || tab.ended)throw new Error("The shared connection has ended");
+    tab.hosting=hostingSummary(info);
+    return info;
+  }
+
   private addGrant(connection:string,tab:Grant) {
     this.tabs.set(connection,tab);
-    void this.metadata?.hosting(tab.file).then(info=>{
-      if(this.tabs.get(connection)!==tab || tab.ended || info.maxFileMb===undefined || info.open===undefined)return;
-      const seconds=Number(info.idleSeconds);
-      tab.hosting={open:info.open,operator:info.operator ?? "",terms:info.terms ?? "",
-        idleDays:seconds>0 ? Math.round(seconds/864)/100 : null,maxFileMb:info.maxFileMb,expires:epoch(info.expires)};
-    }).catch(()=>{});
+    void this.sessionHosting(connection).catch(()=>{});
     if(tab.published) void this.metadata?.loadSharing(tab.file).catch(()=>{});
   }
 
@@ -178,8 +193,7 @@ export class BrowserInvitations implements OnlineInvitations {
       const code=parseJoinCode(input);
       invite=code.kind==="local" ? parseSessionInvite(code.link) : {kind:"code",server:this.endpoint,code:code.code};
     }
-    if (invite.server.secure !== this.endpoint.secure || invite.server.host.toLowerCase() !== this.endpoint.host.toLowerCase()
-        || invite.server.path !== this.endpoint.path) {
+    if (!this.matchesEndpoint(invite.server)) {
       throw new Error("This invite belongs to another server");
     }
 
@@ -315,8 +329,7 @@ export class BrowserInvitations implements OnlineInvitations {
     return {removed:client,name:result.name as string|null};
   }
 
-  async report(connection: string, text: string) {
-    const reason = participantReportReason(text);
+  async report(connection: string, reason: string) {
     const tab = this.tabs.get(connection);
     if (!tab || tab.ended) throw new Error("Join a file on a FigCraft server first");
     const response = await fetch("/api/online-files/report", {method:"POST",headers:{"Content-Type":"application/json"},

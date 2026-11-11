@@ -1,7 +1,9 @@
 import {expect,it,vi} from "vitest";
+import hostCommands from "../fixtures/native-host-commands.json";
 import native from "../fixtures/native-session-summary.json";
 import {EditorEngine} from "../../src/engine/editor";
 import {EditorWorkspace} from "../../src/engine/workspace";
+import {hostingSummary} from "../../src/engine/sharing/live-session-summary";
 import {LivePeer} from "../../src/engine/sharing/live-peer";
 import {makeLiveCheckpoint} from "../../src/engine/sharing/live-checkpoint";
 import {liveReplica} from "../../src/engine/sharing/live-changes";
@@ -165,4 +167,75 @@ it("only an authorised live editor can remove a named peer and waits for the pro
     expect(editor.canRemovePeople).toBe(false);
     await expect(remove(1)).rejects.toThrow("live session");
   }finally{stop();}
+});
+
+it("queues one cleaned participant report and attributes the server receipt to the same session",async()=>{
+  const workspace=new EditorWorkspace(),notice=vi.fn();
+  const report=vi.fn<(key:string,text:string)=>Promise<void>>();
+  let metadata=false;
+  const details={open:true,operator:"",terms:"",idleDays:null,maxFileMb:4,expires:null};
+  workspace.setInvitations({...host,report,inspect:key=>({...host.inspect!(key)!,hosting:metadata ? details : undefined})},notice);
+  const send=(engine:EditorEngine,reason:unknown)=>engine.execute("collab.report",{reason});
+  expect(()=>send(workspace.activeEngine!,3)).toThrow("text");
+  expect(()=>send(workspace.activeEngine!," \t ")).toThrow("few words");
+  expect(()=>send(workspace.activeEngine!,"spam")).toThrow("Join a file");
+  await workspace.open(await archive(),guest);
+  const engine=workspace.activeEngine!;
+  expect(()=>send(engine,"spam")).toThrow("doesn't take reports");
+  expect(report).not.toHaveBeenCalled();
+  metadata=true;
+  let accept!:()=>void;
+  report.mockImplementationOnce(()=>new Promise(done=>{accept=done;}));
+  expect(send(engine,"　a\u0000"+"🎨".repeat(505)+"  ")).toEqual({sent:true});
+  expect(report.mock.calls).toEqual([[connection,"a "+"🎨".repeat(498)]]);
+  expect(notice).not.toHaveBeenCalled();
+  accept();await Promise.resolve();
+  expect(notice).toHaveBeenLastCalledWith("Your report was sent to the server's operator");
+  report.mockRejectedValueOnce(new Error("Quota reached"));
+  expect(send(engine,"second")).toEqual({sent:true});await Promise.resolve();
+  expect(notice).toHaveBeenLastCalledWith("The report wasn't sent: Quota reached");
+  report.mockRejectedValueOnce(new Error("Reports disabled"));
+  await expect(engine.executeAsync("collab.report",{reason:"third"})).rejects.toThrow("Reports disabled");
+  expect(notice).toHaveBeenCalledTimes(2);
+  workspace.setGuestSession({...guest,reconnectAttempt:1});
+  expect(()=>send(engine,"offline")).toThrow("Join a file");
+  workspace.setGuestSession(guest);
+  report.mockImplementationOnce(()=>new Promise(done=>{accept=done;}));
+  send(engine,"stale");
+  workspace.leaveSession(connection);
+  accept();await Promise.resolve();expect(notice).toHaveBeenCalledTimes(2);
+});
+
+it("asks the selected server without joining and returns the native hosting fields",async()=>{
+  const workspace=new EditorWorkspace(),engine=workspace.activeEngine!;
+  const server="wss://studio.example/";
+  const info={idleSeconds:"90000",expires:"18446744073709551615",open:false,maxFileMb:300,
+    terms:"  https://site.example/te\u0000rms\u3000",operator:"\u3000St\u0080udio"+"🎨".repeat(125)};
+  const serverInfo=vi.fn(async()=>info);
+  await expect(engine.executeAsync("collab.serverInfo",{server})).rejects.toThrow("unavailable");
+  workspace.setInvitations({...host,serverInfo});
+  await expect(engine.executeAsync("collab.serverInfo",{server:4})).rejects.toThrow("server address");
+  expect(serverInfo).not.toHaveBeenCalled();
+  await expect(engine.executeAsync("collab.serverInfo",{server:" "+server+" "})).resolves.toEqual({open:false,
+    maxFileMb:300,idleDays:1.04,expires:info.expires,operator:"Studio"+"🎨".repeat(114),terms:"https://site.example/terms"});
+  expect(serverInfo).toHaveBeenCalledWith(server);
+  for(const terms of ["HTTPS://host/","https://host/a\u0085b c","javascript:alert(1)"]){
+    serverInfo.mockResolvedValueOnce({...info,terms,idleSeconds:"0",expires:"1800000000"});
+    await expect(engine.executeAsync("collab.serverInfo",{server})).resolves.toMatchObject({terms:"",idleDays:null,expires:1800000000});
+  }
+  serverInfo.mockRejectedValueOnce(new Error("Offline"));
+  await expect(engine.executeAsync("collab.serverInfo",{server})).rejects.toThrow("Offline");
+});
+
+it("replays native hosting and report results on a joined view-only tab",async()=>{
+  const workspace=new EditorWorkspace(),report=vi.fn(async()=>{});
+  const info={idleSeconds:"90000",expires:"1800000000",open:false,maxFileMb:300,
+    terms:"  https://site.example/te\u0000rms　",operator:"　St\u0080udio🎨　"};
+  workspace.setInvitations({...host,serverInfo:async()=>info,report,inspect:key=>({...host.inspect!(key)!,hosting:hostingSummary(info)})});
+  await workspace.open(await archive(),guest);
+  const engine=workspace.activeEngine!;
+  expect(engine.execute("collab.peers").hosting).toEqual(hostCommands.hosting);
+  await expect(engine.executeAsync("collab.serverInfo",{server:"wss://studio.example/"})).resolves.toEqual(hostCommands.server);
+  expect(engine.execute("collab.report",{reason:"　Spam\u0000today🎨　"})).toEqual(hostCommands.report);
+  expect(report).toHaveBeenCalledWith(connection,hostCommands.reason);
 });

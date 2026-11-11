@@ -54,3 +54,15 @@ it("keeps original links and role-selected codes on the publishing session when 
     await invitations.leave(joined);expect(invitations.inspect(joined)).toBeUndefined();
   }finally{unsubscribe();}
 });
+
+it("asks only the configured endpoint about hosting before a file is open",async()=>{
+  const hosting=vi.fn(async()=>({idleSeconds:"0",expires:null,maxFileMb:1,open:true}));
+  const invitations=new BrowserInvitations({readPublishedLinks:async()=>undefined},"account","https://files.example/service",
+    ()=>()=>{},()=>{},()=>{},undefined,{hosting,sharing:()=>undefined,loadSharing:async()=>undefined});
+  for(const remote of ["ws://files.example/service/","wss://foreign.example/service/","wss://files.example/","wss://files.example:444/service/"]){
+    await expect(invitations.serverInfo(remote)).rejects.toThrow("another server");
+  }
+  expect(hosting).not.toHaveBeenCalled();
+  await expect(invitations.serverInfo("wss://FILES.example:443/service")).resolves.toMatchObject({open:true});
+  expect(hosting.mock.calls).toEqual([[]]);
+});

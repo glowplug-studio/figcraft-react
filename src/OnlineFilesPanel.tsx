@@ -44,8 +44,8 @@ function ParticipantReport({send}: {send: (reason: string) => Promise<void>}) {
   </>;
 }
 
-export function OnlineHostingInformation({online, file, report}: {
-  online: OnlineWorkspace; file?: string; report?: (reason: string) => Promise<void>;
+export function OnlineHostingInformation({online, file, connection, report}: {
+  online: OnlineWorkspace; file?: string; connection?: string; report?: (reason: string) => Promise<void>;
 }) {
   const [request, setRequest] = useState(0);
   const [info, setInfo] = useState<Awaited<ReturnType<OnlineWorkspace["hosting"]>>>();
@@ -54,10 +54,10 @@ export function OnlineHostingInformation({online, file, report}: {
     if (!request && !file) return;
     let current = true;
     setFailed(false);
-    void online.hosting(file).then(value => { if (current) setInfo(value); },
+    void online.hosting(file,connection).then(value => { if (current) setInfo(value); },
       () => { if (current) setFailed(true); });
     return () => { current = false; };
-  }, [online, file, request]);
+  }, [online, file, connection, request]);
   if (!online.hasHostingInfo) return null;
   const days = (BigInt(info?.idleSeconds ?? "0") + 86399n) / 86400n;
   return <>

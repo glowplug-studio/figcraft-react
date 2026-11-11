@@ -30,9 +30,13 @@ export class OnlineWorkspace {
 
   get hasHostingInfo() { return !!this.host.store.hosting; }
 
-  async hosting(file?: string) {
+  async hosting(file?: string, connection?:string) {
     this.check();
-    const info = await this.host.store.hosting?.(file);
+    const invites=this.host.invitations;
+    let info;
+    if(connection && invites?.sessionHosting) info=await invites.sessionHosting(connection);
+    else if(!file && invites?.serverInfo) info=await invites.serverInfo(this.server.replace(/^http/, "ws"));
+    else info=await this.host.store.hosting?.(file);
     this.check();
     return info;
   }

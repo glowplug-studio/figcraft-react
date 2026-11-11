@@ -1,4 +1,4 @@
-import type {OnlineGuestSession, OnlineInvitations} from "../../backends/online-files";
+import type {OnlineGuestSession, OnlineHostInformation, OnlineInvitations, SessionDetails} from "../../backends/online-files";
 import type {Document} from "../document";
 import type {EditorEngine} from "../editor";
 import {inspectedId} from "../parameters";
@@ -11,6 +11,23 @@ export const sessionCommands={
 };
 export type SessionCommand=keyof typeof sessionCommands;
 export type SessionAction=(command:SessionCommand,params:Record<string,unknown>)=>Record<string,unknown>;
+
+export interface SessionHostContext {
+  host:OnlineInvitations;
+  guest?:OnlineGuestSession;
+  notify(message:string):void;
+}
+
+/** The native hosting JSON is shared by the session inspector and server information command. */
+export function hostingSummary(info:OnlineHostInformation):NonNullable<SessionDetails["hosting"]> {
+  if (info.open===undefined || info.maxFileMb===undefined) throw new Error("The server did not supply hosting information");
+  const clean=(text:string|undefined,limit:number)=>Array.from((text ?? "").replace(/^\p{White_Space}+|\p{White_Space}+$/gu,"")
+    .replace(/\p{Cc}/gu,"")).slice(0,limit).join("");
+  const terms=clean(info.terms,500),seconds=Number(info.idleSeconds);
+  const expires=info.expires===null || !Number.isSafeInteger(Number(info.expires)) ? info.expires : Number(info.expires);
+  return {open:info.open,operator:clean(info.operator,120),terms:/^https?:\/\//.test(terms) && !/\p{White_Space}/u.test(terms) ? terms : "",
+    idleDays:seconds>0 ? Math.round(seconds/86400*100)/100 : null,maxFileMb:info.maxFileMb,expires};
+}
 
 export const guestEnding = {
   expelled: "You were removed from this session. Your copy stays open",

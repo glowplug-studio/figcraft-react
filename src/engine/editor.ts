@@ -1,4 +1,5 @@
-import {sessionCommands,unavailableSession,type SessionAction,type SessionCommand,type LiveSummary} from "./sharing/live-session-summary";
+import {participantReportReason} from "./sharing/participant-report";
+import {hostingSummary,type SessionHostContext,sessionCommands,unavailableSession,type SessionAction,type SessionCommand,type LiveSummary} from "./sharing/live-session-summary";
 import {peopleCommands,executePeople,type LivePeople} from "./sharing/live-people";
 import type {LivePresence} from "./sharing/live-presence";
 import {commentBrief} from "./comment-brief";
@@ -108,11 +109,12 @@ import { parseBrush, wireBrush, type Brush } from "./brush";
 interface FileSource {file:Blob;folder?:import("./interchange/rest/companions").RestFolder; picker?:PaintPicker; paste?:boolean; centre?:boolean}
 type OpenResult = { warnings?: readonly string[]; repairs: readonly string[]; summary: {name:string; pages:number; layers:number; images:number} }
 
-type ParticipantRemoval=()=>((id:number)=>Promise<{removed:number;name:string|null}>)|undefined;
 
 export const commandSpecs = Object.freeze({
   ...peopleCommands,
   ...sessionCommands,
+  "collab.report":{label:"Report this file",undo:false},
+  "collab.serverInfo":{label:"About this server",undo:false},
   "collab.removePerson":{label:"Remove from session",undo:false},
   ...commentActions,
   ...commentQueries,
@@ -469,10 +471,23 @@ export class EditorEngine {
   #people?:LivePeople;
   #inspectSession?:()=>LiveSummary;
   #sessionAction?:SessionAction;
-  #participantRemoval?:ParticipantRemoval;
-  get canRemovePeople(){return !!this.#participantRemoval?.();}
-  setSessionInspector(inspect?:()=>LiveSummary,action?:SessionAction,removal?:ParticipantRemoval) {
-    this.#inspectSession=inspect;this.#sessionAction=action;this.#participantRemoval=removal;
+  #sessionHost?:()=>SessionHostContext|undefined;
+  get canRemovePeople(){
+    const context=this.#sessionHost?.();
+    return !!(context?.guest?.canRemovePeople && context.host.removePerson);
+  }
+  setSessionInspector(inspect?:()=>LiveSummary,action?:SessionAction,host?:()=>SessionHostContext|undefined) {
+    this.#inspectSession=inspect;this.#sessionAction=action;this.#sessionHost=host;
+  }
+  #sendReport(input:unknown) {
+    const {reason}=parameters(input);
+    if(typeof reason!=="string")throw new Error("Give the report reason as text");
+    const text=participantReportReason(reason),context=this.#sessionHost?.();
+    if(!context?.guest)throw new Error("Join a file on a FigCraft server first: reports go to that server's operator");
+    const {host,guest,notify}=context;
+    if(!host.report || (host.inspect && !host.inspect(guest.connection)?.hosting))
+      throw new Error("This server doesn't take reports; contact its operator another way");
+    return {receipt:host.report(guest.connection,text),notify};
   }
   #followingView=false;
   get people() {return this.#people;}
@@ -1484,7 +1499,13 @@ export class EditorEngine {
   execute(command: string, input?: unknown): Record<string, unknown>;
   execute(command: string, input: unknown = {}): Record<string, unknown> | Variables | ReturnType<typeof listStyles> | ReturnType<typeof listComponents> | ReturnType<typeof listPages> | typeof framePresets | ReturnType<typeof versionDetails>[] | ReturnType<typeof queryFonts> | null {
     if (!Object.hasOwn(commandSpecs, command)) throw new Error(`Unsupported command: ${command}`);
-    if(command==="collab.removePerson")throw new Error("collab.removePerson requires executeAsync");
+    if(command==="collab.removePerson" || command==="collab.serverInfo")throw new Error(command+" requires executeAsync");
+    if(command==="collab.report"){
+      const {receipt,notify}=this.#sendReport(input);
+      void receipt.then(()=>notify("Your report was sent to the server's operator"),
+        (error:unknown)=>notify("The report wasn't sent: "+(error instanceof Error ? error.message : String(error))));
+      return {sent:true};
+    }
     if(command==="collab.peers")return this.#inspectSession?.() ?? unavailableSession();
     if(Object.hasOwn(sessionCommands,command)){
       if(this.#sessionAction)return this.#sessionAction(command as SessionCommand,parameters(input));
@@ -2055,6 +2076,16 @@ export class EditorEngine {
   async executeAsync(command: "node.get", input: unknown): Promise<ReturnType<typeof getNode>>;
   async executeAsync(command: string, input?: unknown): Promise<Record<string, unknown>>;
   async executeAsync(command: string, input: unknown = {}): Promise<Record<string, unknown> | Variables | ReturnType<typeof listStyles> | ReturnType<typeof listComponents> | ReturnType<typeof queryFonts> | null> {
+    if(command==="collab.report"){
+      await this.#sendReport(input).receipt;
+      return {sent:true};
+    }
+    if(command==="collab.serverInfo"){
+      const {server}=parameters(input),host=this.#sessionHost?.()?.host;
+      if(typeof server!=="string")throw new Error("Give a server address");
+      if(!host?.serverInfo)throw new Error("Server information is unavailable here");
+      return hostingSummary(await host.serverInfo(server.trim()));
+    }
     if(command==="collab.removePerson"){
       const {client}=parameters(input);
       if(typeof client!=="number" || !Number.isInteger(client) || client<0 || client>0xffffffff)throw new Error("Give a numeric client id");
@@ -2062,10 +2093,12 @@ export class EditorEngine {
       if(session.status!=="live")throw new Error("The open file isn't in a live session");
       const peer=session.peers.find(p=>p.id===client);
       if(!peer)throw new Error("Nobody with client id "+client+" is in the session");
-      const remove=this.#participantRemoval?.();
-      if(!remove)throw new Error("Only the file's owner can remove people from it");
-      const receipt=await remove(client);
-      return {removed:receipt.removed,name:receipt.name ?? peer.name};
+      const context=this.#sessionHost?.();
+      if(!context?.guest?.canRemovePeople || !context.host.removePerson)throw new Error("Only the file's owner can remove people from it");
+      const receipt=await context.host.removePerson(context.guest.connection,client);
+      const name=receipt.name ?? peer.name;
+      context.notify(name+" was removed from the session");
+      return {removed:receipt.removed,name};
     }
     if (command==="edit.pasteDesignLayers") {
       const p=parameters(input);
