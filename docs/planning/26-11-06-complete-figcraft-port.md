@@ -6,16 +6,16 @@
 |---|---|
 | Overall status | Active after the app update. [Resume checkpoint and deferred review queue](26-11-07-full-port-resume.md#continue-from-here). |
 | Active slice | Row 14. [Ordered live collaboration](26-11-11-ordered-live-collaboration.md). |
-| Active phase | Row 14. The People query and authenticated welcome roster passed cumulative Chromium verification. Join, leave and offline conflict recovery passed full Chromium verification. Participant removal passed all 370 local Chromium workflows. Reporting and server information passed all 370 workflows. Online listings and forgetting passed focused verification, with recorded opening and recovery next. |
-| Upstream baseline | Pinned reference be991533. Home sidebar Preferences, Cmd/Ctrl+comma and Escape queued in row 19. Styles reference a2e87433. Components reference 79c36346. Global supported baseline 8eb0b876. |
-| Branch and last verified commit | prompt/full-figcraft-port, 1229543 focused. All 370 workflows passed at ccd6b01. |
+| Active phase | Row 14. The People query and authenticated welcome roster passed cumulative Chromium verification. Join, leave and offline conflict recovery passed full Chromium verification. Participant removal passed all 370 local Chromium workflows. Reporting and server information passed all 370 workflows. Online listings and forgetting passed all 370 workflows. The upstream operator-key transport fix is in verification, followed by recorded opening and recovery. |
+| Upstream baseline | Reference checkout 0f082690. Home sidebar Preferences, Cmd/Ctrl+comma and Escape queued in row 19. Styles reference a2e87433. Components reference 79c36346. Global supported baseline 8eb0b876. |
+| Branch and last verified commit | prompt/full-figcraft-port, bb8b08d focused. All 370 Chromium workflows passed at 1229543. |
 | Completed slices | Rectangle/host-auth, bounded native persistence/recovery, supported-model pages, affine rectangle geometry/selection and solid appearance, plus nested group hierarchy, Frame containers, movement/transform gestures, rounded corners, ellipse/arc/ring and Polygon/Star editing verified locally; Line/Arrow and uniform solid strokes also verified; per-side Rectangle/Frame strokes, variable-width profiles and procedural brushes verified; vector networks, solid region/stroke rendering and Flatten/Reverse also verified; foundation commit `154f5a7`. Gradient, image, pattern, blend and mask releases now have local property matrices. [Blend evidence](../reports/26-11-09-blend-modes-parity.html). Auto layout and constraints passed the local release gate. [Release evidence](../reports/26-11-09-auto-layout.md). [Local components, instances, variant properties, slots and Assets](../reports/26-11-09-components-instances.md) passed the 0.51.0 gate. |
 | Remaining slices | Continue incomplete roadmap rows, excluding the user-deferred plugin and widget family. See each slice matrix for outstanding integrations. |
-| Tests last passed | 4,597 pure tests, 437 SQL assertions, 26 provider checks, strict types, both builds and three focused Chromium workflows at 1229543. [Latest evidence](../reports/26-11-11-online-directory-commands.md). |
+| Tests last passed | 4,612 pure tests, strict types, both builds and four focused Chromium workflows at bb8b08d. The full 371-workflow regression is in progress. [Evidence](../reports/26-11-11-operator-key-transport.md). |
 | Files currently in progress | [Live presence, outstanding tests and native references](26-11-11-live-presence.md). |
 | Blockers | No hosted change is required for the local collaboration gate. |
 | Exact next action | Follow the [current action in the resume handover](26-11-07-full-port-resume.md#continue-from-here), then its dependency-ordered review queue. |
-| Last updated | 2026-11-11 20:42 ICT |
+| Last updated | 2026-11-11 20:57 ICT |
 
 ## Scope and continuation
 
