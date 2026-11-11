@@ -99,7 +99,13 @@ export interface SessionDetails {
   code?:string|null;
   hosting?:{open:boolean;operator:string;terms:string;idleDays:number|null;maxFileMb:number;expires:number|string|null};
 }
+export interface OwnerJoin {
+  connection: string;
+  completed: Promise<{session: OnlineGuestSession; archive: Blob}>;
+}
 export interface OnlineInvitations {
+  /** Resolve the device edit grant locally, then return before the server welcomes it. */
+  beginOwned?(file: string, managedByKey: boolean, listing: Pick<OnlineFileInfo, "name" | "expires">, recorded: boolean): Promise<OwnerJoin | undefined>;
   /** Read authorised, in-memory invitation details for this logical session only. */
   inspect?(connection:string):SessionDetails|undefined;
   live?(connection: string): import("../engine/sharing/live-transport").LiveTransport | undefined;

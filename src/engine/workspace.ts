@@ -1,4 +1,3 @@
-import {onlineServerKey} from "./sharing/remembered-files";
 import type {OnlineWorkspace} from "./sharing/online-workspace";
 import type {Document} from "./document";
 import {LiveSessions,type SessionCommand} from "./sharing/live-session-summary";
@@ -53,13 +52,16 @@ export class EditorWorkspace {
   #online?:OnlineWorkspace;
   setOnlineWorkspace(online?:OnlineWorkspace){this.#online=online;}
   onlineSession(file:string,server:string){
-    for(const tab of this.#tabs){
-      const session=tab.guest && this.#sessions.find(tab.id)?.[1];
-      if(!session?.guest || session.status==="failed")continue;
-      const published=this.#sessions.host?.inspect?.(session.guest.connection)?.published;
-      if(published?.file===file && onlineServerKey(published.server)===server)return {id:session.id,document:this.#tabs.indexOf(tab)};
-    }
+    return this.#sessions.recorded(file,server,this.#tabs);
   }
+  beginRecorded(connection:string, server:string, file:string, host:OnlineInvitations) {
+    return this.#sessions.startRecorded(connection,this.#active?.id,server,file,host);
+  }
+  wantsRecorded(connection:string,session:number) {
+    const found=this.#sessions.find(0,session);
+    return found?.[0]===connection && found[1].status!=="failed";
+  }
+  sessionInvitations(connection:string) {return this.#sessions.hostFor(connection);}
   mergeStrandedDrawing=(connection:string,confirmed:Document,client:number)=>{
     const tab=this.#tabs.find(t=>t.guest?.connection===connection);
     if(!tab?.stranded || !tab.guest || tab.guest.ended)return;
@@ -179,10 +181,11 @@ export class EditorWorkspace {
     const id=nextDocumentId++;
     engine.setOnlineCommands(()=>this.#online);
     engine.setSessionInspector(()=>this.#sessions.inspect(id,this.#tabs),(command,params)=>this.#sessionAction(id,command,params),()=>{
-      const session=this.#sessions.find(id)?.[1],host=this.#sessions.host;
+      const found=this.#sessions.find(id),session=found?.[1];
+      const host=found ? this.sessionInvitations(found[0]) : this.#sessions.host;
       if(!host)return;
       return {host,guest:session?.status==="live" ? session.guest : undefined,notify:message=>{
-        if(this.#sessions.host===host && this.#sessions.find(id)?.[1]===session && session?.status==="live")
+        if(this.#sessions.find(id)?.[1]===session && session?.status==="live")
           this.#sessionNotice?.(message);
       }};
     });
@@ -300,7 +303,7 @@ export class EditorWorkspace {
   attachGuestSession(id: number, session: OnlineGuestSession) {
     const tab = this.#tabs.find(tab => tab.id === id);
     if (!tab || !this.#editable) return false;
-    if(tab.guest?.connection!==session.connection && this.#sessions.host?.canAttach?.(session.connection)===false)return false;
+    if(tab.guest?.connection!==session.connection && this.sessionInvitations(session.connection)?.canAttach?.(session.connection)===false)return false;
     if(tab.guest && tab.guest.connection!==session.connection)delete tab.stranded;
     if(session.ended && !tab.stranded)tab.stranded=tab.engine.liveHistory?.confirmed?.() ?? tab.engine.liveDrawing();
     if (session.ended || tab.guest?.client !== session.client || tab.guest?.room !== session.room || tab.guest?.file !== session.file) delete tab.liveBranches;
@@ -314,8 +317,8 @@ export class EditorWorkspace {
   }
 
   #sessionAction(tab:number,command:SessionCommand,params:Record<string,unknown>):Record<string,unknown> {
-    const host=this.#sessions.host;
     if(command==="collab.join"){
+      const host=this.#sessions.host;
       if(!host?.beginJoin)throw new Error("Live sessions are unavailable here");
       const input=parseString(params.code) ?? parseString(params.link);
       if(input===undefined)throw new Error("Give the join code you were told, or the invite link");
@@ -331,6 +334,7 @@ export class EditorWorkspace {
     const id=command==="collab.leave" ? params.session : undefined;
     if(id!==undefined && (typeof id!=="number" || !Number.isSafeInteger(id) || id<0))throw new Error("Give a numeric session id");
     const found=this.#sessions.find(tab,id);
+    const host=found && this.sessionInvitations(found[0]);
     if(command==="collab.leave"){
       if(!found)return {ended:false};
       const [key,entry]=found,active=entry.status!=="failed";
@@ -352,7 +356,7 @@ export class EditorWorkspace {
     }
     if(entry.status!=="failed" || !host.rejoin)throw new Error("This file has no lost live session to reconnect");
     entry.status="connecting";entry.reason=null;
-    const current=()=>this.#sessions.host===host && this.#sessions.find(tab,entry.id)?.[1]===entry;
+    const current=()=>this.#sessions.find(tab,entry.id)?.[1]===entry;
     void host.rejoin(guest.connection).then(async result=>{
       if(!current()){await host.leave(guest.connection);return;}
       const welcome=typeof result==="string" ? {access:result} : result;
@@ -385,7 +389,7 @@ export class EditorWorkspace {
     const origin = this.#active;
     const result = await engine.openTabFile(file);
     if (generation !== this.#generation) throw new Error("Open cancelled because the identity changed");
-    if(guest && this.#sessions.host?.canAttach?.(guest.connection)===false)throw new Error("The join was cancelled");
+    if(guest && this.sessionInvitations(guest.connection)?.canAttach?.(guest.connection)===false)throw new Error("The join was cancelled");
     if (stillWanted && !stillWanted()) throw new Error(guest ? "The join was cancelled" : "The source instance changed during navigation");
     if (!guest && origin && !this.#tabs.includes(origin)) throw new Error("Open cancelled because the source tab closed");
     this.#filenames.set(engine, file.name);

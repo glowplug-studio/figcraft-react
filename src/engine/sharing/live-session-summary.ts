@@ -1,4 +1,5 @@
 import type {OnlineGuestSession, OnlineHostInformation, OnlineInvitations, SessionDetails} from "../../backends/online-files";
+import {onlineServerKey} from "./remembered-files";
 import type {Document} from "../document";
 import type {EditorEngine} from "../editor";
 import {inspectedId} from "../parameters";
@@ -43,6 +44,7 @@ interface Session {
   status:Status;
   reason:string|null;
   guest?:OnlineGuestSession;
+  recorded?:{server:string;file:string;host:OnlineInvitations};
   fileName?:string;
   pages?:{id:number|string;name:string}[];
   name?:string;
@@ -115,6 +117,23 @@ export class LiveSessions {
     }
     this.entries.set(connection,{id:this.next++,tab,status:"connecting",reason:null});
   }
+  hostFor(connection:string) {return this.entries.get(connection)?.recorded?.host ?? this.invitations;}
+  startRecorded(connection:string, tab:number|undefined, server:string, file:string, host:OnlineInvitations) {
+    this.start(connection,tab);
+    const entry=this.entries.get(connection);
+    if(!entry)throw new Error("Live sessions are unavailable here");
+    entry.recorded={server,file,host};
+    return entry.id;
+  }
+  recorded(file:string,server:string,tabs:readonly Tab[]) {
+    for(const [connection,entry] of this.entries) {
+      if(entry.status==="failed")continue;
+      const record=entry.recorded ?? (entry.guest && this.invitations?.inspect?.(connection)?.published);
+      if(record?.file!==file || onlineServerKey(record.server)!==server)continue;
+      const index=entry.guest ? tabs.findIndex(tab=>tab.id===entry.tab) : -1;
+      return {id:entry.id, status:entry.status, document:index<0 ? null : index};
+    }
+  }
   failed(connection:string,reason:string) {
     const entry=this.entries.get(connection);
     if (entry && !entry.guest) { entry.status="failed";entry.reason=reason; }
@@ -166,7 +185,7 @@ export class LiveSessions {
     for (const [key,entry] of this.entries) {
       const index=entry.guest ? tabs.findIndex(t=>t.id===entry.tab) : -1;
       const editor=tabs[index]?.engine;
-      const info=entry.guest ? this.invitations.inspect?.(key) : undefined;
+      const info=entry.guest ? this.hostFor(key)?.inspect?.(key) : undefined;
       const brief:Brief={session:entry.id,document:index>=0 ? index : null,status:entry.status,reason:entry.reason,
         role:entry.guest ? "guest" : null,fileName:entry.fileName ?? null,link:info?.link ?? null,
         peers:entry.status==="live" ? editor?.people?.getSnapshot().length ?? 0 : 0};

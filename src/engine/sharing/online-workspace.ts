@@ -19,16 +19,24 @@ function timestamp(decimal:string|null|undefined) {
 
 export const onlineCommands={
   "collab.files":{label:"List online files",undo:false},
+  "collab.openFile":{label:"Open online file",undo:false},
   "collab.forgetFile":{label:"Forget online file",undo:false},
 };
 export type OnlineCommand=keyof typeof onlineCommands;
 export const emptyOnlineFiles=()=>({files:[],problems:[],max:MAX_ONLINE_FILES,team:null});
+
+interface RecordedOpening {
+  connection:string;
+  session:number;
+  completed:Promise<void>;
+}
 
 export class OnlineWorkspace {
   readonly server: string;
   private states = new Map<string, OnlineRow["state"]>();
   private expiries = new Map<string, string | null>();
   private tabs = new Map<string, number>();
+  private starting = new Map<string,Promise<RecordedOpening | undefined>>();
   private publishingTabs = new Map<number, string>();
   private otherServers=new Map<string,OnlineWorkspace>();
   private problems=new Map<string,{state:"unsupported"|"offline";reason:string|null}>();
@@ -95,7 +103,14 @@ export class OnlineWorkspace {
     }
   }
 
+  forTab(id:number):OnlineWorkspace {
+    for(const source of this.otherServers.values())if(source.publishedFile(id))return source;
+    return this;
+  }
+
   leaveTab(id: number) {
+    const source=this.forTab(id);
+    if(source!==this){source.leaveTab(id);return;}
     const file = this.publishedFile(id);
     if (file) {
       this.tabs.delete(file);
@@ -186,6 +201,11 @@ export class OnlineWorkspace {
     return current;
   }
 
+  private recordProblem(address:string,error:unknown) {
+    const reason=serverReason(error);
+    this.problems.set(address,reason.includes("couldn't be read") ? {state:"unsupported",reason:null} : {state:"offline",reason});
+  }
+
   private async refreshDirectory(records:readonly RememberedOnlineFile[]) {
     for(const address of new Set(records.map(row=>row.server))){
       const source=this.forServer(address);
@@ -195,8 +215,7 @@ export class OnlineWorkspace {
         this.problems.delete(address);
       }catch(error){
         this.check();
-        const reason=serverReason(error);
-        this.problems.set(address,reason.includes("couldn't be read") ? {state:"unsupported",reason:null} : {state:"offline",reason});
+        this.recordProblem(address,error);
       }
     }
     try{await this.teamDirectory();}catch{this.check();}
@@ -215,7 +234,7 @@ export class OnlineWorkspace {
 
   private namedRecord(records:readonly RememberedOnlineFile[],params:Record<string,unknown>) {
     if(typeof params.file!=="string")throw new Error("file must be a string");
-    const id=params.file.trim(),server=typeof params.server==="string" ? onlineServerKey(params.server) : undefined;
+    const id=params.file.replace(/^\p{White_Space}+|\p{White_Space}+$/gu,""),server=typeof params.server==="string" ? onlineServerKey(params.server) : undefined;
     const matches=records.filter(row=>row.file===id && (server===undefined || row.server===server));
     if(!matches.length)throw new Error("No online file with that id is recorded on this computer");
     if(matches.length>1)throw new Error("Files on several servers have that id: say which with server");
@@ -237,6 +256,15 @@ export class OnlineWorkspace {
   }
 
   async execute(command:OnlineCommand,params:Record<string,unknown>) {
+    if(command==="collab.openFile"){
+      const {files}=await this.registry();
+      this.check();
+      const record=this.namedRecord(files,params),source=this.forServer(record.server);
+      if(!source)throw new Error("This server is unavailable in the current host");
+      const result=await source.openRecorded(record);
+      if(!result)throw new Error("The original edit link is unavailable");
+      return result.brief;
+    }
     if(command==="collab.forgetFile")return this.forgetRecord(params);
     const {refresh}=params;
     if(refresh!==undefined && typeof refresh!=="boolean")throw new Error("refresh must be true or false");
@@ -298,9 +326,16 @@ export class OnlineWorkspace {
       for (let i = 0; i < remembered.length; i += MAX_ONLINE_FILES) {
         this.check();
         const ids=remembered.slice(i,i+MAX_ONLINE_FILES).map(row=>row.file);
-        const rows=checks.size ? await this.host.store.owned(ids,true) : await this.host.store.owned(ids);
-        for (const row of rows) byId.set(row.id, row);
+        try {
+          const rows=checks.size ? await this.host.store.owned(ids,true) : await this.host.store.owned(ids);
+          for (const row of rows) byId.set(row.id, row);
+        } catch(error) {
+          this.check();
+          this.recordProblem(this.server,error);
+          throw error;
+        }
       }
+      this.problems.delete(this.server);
       const prior = new Map(remembered.map(row => [row.file, row]));
       // Only confirmed listings can resolve a lost acknowledgement. A refresh never uploads bytes.
       await this.registry(current => {
@@ -439,23 +474,101 @@ export class OnlineWorkspace {
     for (const [file, id] of this.tabs) if (id === tab) return file;
   }
 
+  private async beginRecorded(record:RememberedOnlineFile):Promise<RecordedOpening|undefined> {
+    const invites=this.host.invitations, file=record.file;
+    if(!invites?.beginOwned)throw new Error("Live sessions are unavailable here");
+    const start=await invites.beginOwned(file,false,{name:record.name,expires:this.expiries.get(file)},true);
+    if(!start)return;
+    // A cancelled or immediately refused welcome may settle during the device transaction.
+    void start.completed.catch(()=>{});
+    const connection=start.connection;
+    let session:number;
+    try {
+      this.check();
+      session=this.workspace.beginRecorded(connection,this.server,file,invites);
+      await this.records(records=>{
+        const current=records.find(row=>this.matches(row,file));
+        if(!current)throw new Error("No online file with that id is recorded on this computer");
+        return [{...current,opened:Math.floor(Date.now()/1000)},...records.filter(row=>row!==current)];
+      });
+    }catch(error){
+      this.workspace.leaveSession(connection);
+      await invites.leave(connection);
+      throw error;
+    }
+    const attach = async () => {
+      const joined = await start.completed;
+      try {
+        const current = () => this.authorised() && this.workspace.wantsRecorded(connection, session);
+        if (!current() || joined.session.connection !== connection) throw new Error("The join was cancelled");
+        const tab = await this.workspace.open(new File([joined.archive], record.name + ".figcraft"), joined.session, current);
+        this.bindTab(file, tab.tabId);
+        this.states.set(file, "online");
+      } catch (error) {
+        await invites.leave(connection);
+        throw error;
+      }
+    };
+    const completed = attach().catch(error => {
+      this.workspace.joining(connection, serverReason(error));
+      throw error;
+    });
+    return {connection, session, completed};
+  }
+
+  private async openRecorded(record: RememberedOnlineFile) {
+    const {file, name} = record;
+    const server = record.recordedAddress ?? record.server;
+    if (this.states.get(file) === "gone") throw new Error("This file is no longer on its server (it was removed or expired)");
+    for (;;) {
+      let pending = this.starting.get(file);
+      const current = this.workspace.onlineSession(file, this.server);
+      if (current && (!pending || current.document !== null)) {
+        if (current.document !== null) this.workspace.execute("doc.switch", {index: current.document});
+        return {brief: {session: current.id, status: current.status, document: current.document, alreadyOpen: true, file, server, name}};
+      }
+      const alreadyOpen = !!pending;
+      if (!pending) {
+        pending = this.beginRecorded(record);
+        this.starting.set(file, pending);
+        // Keep the first request discoverable until its archive is attached or its join fails.
+        void pending.then(opening => opening?.completed).catch(() => {}).finally(() => {
+          if (this.starting.get(file) === pending) this.starting.delete(file);
+        });
+      }
+      const opening = await pending;
+      if (!opening) return;
+      if (alreadyOpen && !this.workspace.wantsRecorded(opening.connection, opening.session)) {
+        if (this.starting.get(file) === pending) this.starting.delete(file);
+        continue;
+      }
+      const brief = {session: opening.session, status: "connecting", document: null, alreadyOpen, file, server, name};
+      return {brief, completed: opening.completed};
+    }
+  }
+
   async open(id: string) {
     return this.run(async () => {
       const entry = (await this.list()).find(record => record.file === id);
       if (entry?.state === "pending") throw new Error("This publication has not been confirmed");
       if (!entry || entry.state === "gone") throw new Error("This file is no longer on its server");
       const tab = this.workspace.getSnapshot().find(tab => tab.id === this.tabs.get(id));
-      if (tab) {
+      if (tab && !tab.guest?.ended) {
         this.workspace.execute("doc.switch", { index: tab.index });
         return;
       }
       const invitations = this.host.invitations;
-      const listing=invitations?.joinOwned ? (await this.host.store.owned([id]))[0] : undefined;
-      if (invitations?.joinOwned && !listing) {
+      if(invitations?.beginOwned){
+        const result=await this.openRecorded(entry);
+        if(result){await result.completed;return;}
+      }
+      const legacyJoin=!invitations?.beginOwned && invitations?.joinOwned;
+      const listing=legacyJoin ? (await this.host.store.owned([id]))[0] : undefined;
+      if (legacyJoin && !listing) {
         throw new Error("This file is no longer on its server");
       }
       this.check();
-      const joined = await invitations?.joinOwned?.(id,false,listing,true);
+      const joined = legacyJoin ? await legacyJoin.call(invitations,id,false,listing,true) : undefined;
       let attached = false;
       try {
         // Older device records have no original edit credential. Their owner

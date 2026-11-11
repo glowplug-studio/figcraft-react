@@ -442,3 +442,130 @@ it("retains a failed keyed publication for retry after the host moves to clearte
   expect((await device.onlineRegistry("owner")).pending.map(row => row.file)).toEqual([attempt.file]);
   device.close();
 });
+
+async function recordedOpen() {
+  const {workspace, device, store, host}=setup();
+  const native=JSON.parse(readFileSync(new URL("../fixtures/native-recorded-open.json",import.meta.url),"utf8"));
+  const {file,server,name}=native.first;
+  const bytes=(await workspace.activeEngine!.saveFile()).data;
+  await device.onlineFiles("owner",()=>[{file,server,name,created:1,opened:1}]);
+  let resolve!:()=>void, reject!:(error:Error)=>void;
+  const promise=new Promise<void>((ok,fail)=>{resolve=ok;reject=fail;});
+  const welcome={promise,resolve,reject};
+  const invitations:OnlineInvitations={
+    showJoin(){},subscribe:()=>()=>{},copyPublished:vi.fn(),leave:vi.fn(async()=>{}),
+    beginOwned:vi.fn(async file=>{
+      const connection=crypto.randomUUID();
+      return {connection,completed:welcome.promise.then(()=>({
+        session:{connection,file,access:"edit" as const,openedAsOwner:true as const},archive:bytes,
+      }))};
+    }),
+  };
+  const primary={...invitations,beginOwned:vi.fn(),leave:vi.fn(async()=>{})};
+  workspace.setInvitations(primary);
+  const online=new OnlineWorkspace(workspace,{...host,invitations:primary,forServer:()=>({...host,server,invitations})},"owner",()=>true);
+  workspace.setOnlineWorkspace(online);
+  const engine=workspace.activeEngine!;
+  return {native,file,workspace,device,store,invitations,primary,welcome,online,engine,
+    open:()=>engine.executeAsync("collab.openFile",{file})};
+}
+
+it("matches the native recorded-open initial, duplicate, directory and switched-tab receipts on a second server",async()=>{
+  const {native,file,workspace,device,invitations,primary,welcome,engine,open}=await recordedOpen();
+  try {
+    const [first,queued]=await Promise.all([open(),open()]);
+    expect(first).toEqual(native.first);
+    expect(queued).toEqual(native.whileConnecting);
+    expect(await open()).toEqual(native.whileConnecting);
+    const listed=await engine.executeAsync("collab.files");
+    expect(listed.files).toEqual([expect.objectContaining(native.pendingListing)]);
+    expect((await device.onlineFiles("owner"))[0].opened).toBeGreaterThan(1);
+    expect(primary.beginOwned).not.toHaveBeenCalled();
+    expect(invitations.beginOwned).toHaveBeenCalledOnce();
+    welcome.resolve();
+    await vi.waitFor(()=>expect(workspace.getSnapshot()).toHaveLength(2));
+    expect(workspace.getSnapshot()[1].guest?.file).toBe(file);
+    workspace.execute("doc.switch",{index:0});
+    expect(await open()).toEqual(native.afterWelcome);
+    expect(workspace.getSnapshot().find(tab=>tab.active)?.index).toBe(native.active);
+    expect(workspace.activeEngine!.execute("collab.leave")).toEqual({ended:true});
+    expect(invitations.leave).toHaveBeenCalledOnce();
+    expect(primary.leave).not.toHaveBeenCalled();
+  } finally {device.close();}
+});
+
+it("cancels a pending recorded join by logical session and releases a late grant on its own adapter",async()=>{
+  const {open,engine,welcome,workspace,device,invitations}=await recordedOpen();
+  try {
+    const {session}=await open();
+    expect(engine.execute("collab.leave",{session})).toEqual({ended:true});
+    welcome.resolve();
+    await vi.waitFor(()=>expect(invitations.leave).toHaveBeenCalledTimes(2));
+    expect(workspace.getSnapshot()).toHaveLength(1);
+    const listing=await engine.executeAsync("collab.files");
+    expect(listing.files).toEqual([expect.objectContaining({session:null,document:null})]);
+  } finally {device.close();}
+});
+
+it("starts a new recorded session after cancellation while the original server response is still pending",async()=>{
+  const {open,engine,welcome,workspace,device,invitations}=await recordedOpen();
+  try {
+    const first=await open();
+    expect(engine.execute("collab.leave",{session:first.session})).toEqual({ended:true});
+    const next=await open();
+    expect(next).toMatchObject({alreadyOpen:false,status:"connecting"});
+    expect(next.session).not.toBe(first.session);
+    expect(invitations.beginOwned).toHaveBeenCalledTimes(2);
+    welcome.resolve();
+    await vi.waitFor(()=>expect(workspace.getSnapshot()).toHaveLength(2));
+    expect(await open()).toMatchObject({session:next.session,status:"live",document:1});
+  } finally {device.close();}
+});
+
+it("keeps a failed recorded welcome visible and allows a fresh session to retry",async()=>{
+  const {open,engine,welcome,workspace,device,invitations}=await recordedOpen();
+  try {
+    const first=await open();
+    welcome.reject(new Error("Original link revoked"));
+    await vi.waitFor(()=>expect(engine.execute("collab.peers")).toMatchObject({status:"failed",reason:"Original link revoked"}));
+    expect(workspace.getSnapshot()).toHaveLength(1);
+    expect((await open()).session).not.toBe(first.session);
+    expect(invitations.beginOwned).toHaveBeenCalledTimes(2);
+  } finally {device.close();}
+});
+
+it("reports and clears Home owner refresh failures in the public cached directory",async()=>{
+  const {online,workspace,store,device}=setup();
+  try {
+    await online.publish(workspace.getSnapshot()[0].id,"Drawing");
+    vi.spyOn(store,"owned").mockRejectedValueOnce(new Error("timed out"));
+    await expect(online.refresh()).rejects.toThrow("timed out");
+    expect(await online.execute("collab.files",{})).toMatchObject({problems:[
+      {server:online.server,host:"files.example",state:"offline",reason:"timed out"},
+    ]});
+    await online.refresh();
+    expect(await online.execute("collab.files",{})).toMatchObject({problems:[]});
+  } finally {device.close();}
+});
+
+it("rejects missing, ambiguous, unavailable and gone recorded files before issuing a join", async () => {
+  const {workspace,host,store,device}=setup();
+  const first="wss://one.example",second="wss://two.example",file="same";
+  const invitations:OnlineInvitations={beginOwned:vi.fn(),showJoin(){},subscribe:()=>()=>{},copyPublished:vi.fn(),leave:vi.fn()};
+  const online=new OnlineWorkspace(workspace,{...host,server:first,invitations},"owner",()=>true);
+  workspace.setInvitations(invitations);
+  workspace.setOnlineWorkspace(online);
+  try{
+    await device.onlineFiles("owner",()=>[first,second].map(server=>({server,file,name:"Shared",created:1,opened:1})));
+    const open=(params:Record<string,unknown>)=>workspace.activeEngine!.executeAsync("collab.openFile",params);
+    await expect(open({file:null})).rejects.toThrow("file must be a string");
+    await expect(open({file:"absent"})).rejects.toThrow("No online file");
+    await expect(open({file:"\ufeffsame"})).rejects.toThrow("No online file");
+    await expect(open({file})).rejects.toThrow("several servers");
+    await expect(open({file,server:second})).rejects.toThrow("unavailable");
+    vi.spyOn(store,"owned").mockResolvedValue([]);
+    await online.refresh();
+    await expect(open({file,server:first})).rejects.toThrow("no longer on its server");
+    expect(invitations.beginOwned).not.toHaveBeenCalled();
+  } finally {device.close();}
+});

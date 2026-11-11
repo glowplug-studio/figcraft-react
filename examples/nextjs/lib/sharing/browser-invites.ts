@@ -150,13 +150,26 @@ export class BrowserInvitations implements OnlineInvitations {
   canAttach(connection:string) {const tab=this.tabs.get(connection);return !!tab && !tab.ended;}
 
   async joinOwned(file: string, managedByKey = false, listing?:Pick<OnlineFileInfo,"name"|"expires">, recorded=false) {
+    const joined = await this.beginOwned(file, managedByKey, listing, recorded);
+    return joined?.completed;
+  }
+
+  async beginOwned(file: string, managedByKey: boolean, listing: Pick<OnlineFileInfo, "name"|"expires"> | undefined, recorded: boolean) {
     const listener=this.listener;
     const links = await this.device.readPublishedLinks(this.principal, this.server, file);
     if(listener!==this.listener)throw new Error("The join was cancelled");
     if (!links) return undefined;
-    const connection = crypto.randomUUID(), resume = crypto.randomUUID();
-    const token = links.edit.token;
-    const stage=this.stage;this.pending.add(connection);stage?.(connection);
+    const connection = crypto.randomUUID();
+    const stage = this.stage;
+    this.pending.add(connection);
+    stage?.(connection);
+    return {connection, completed: this.finishOwned(connection, file, links, managedByKey, listing, recorded, stage)};
+  }
+
+  private async finishOwned(connection: string, file: string,
+    links: NonNullable<Awaited<ReturnType<IndexedDbRecoveryStore["readPublishedLinks"]>>>, managedByKey: boolean,
+    listing: Pick<OnlineFileInfo, "name"|"expires"> | undefined, recorded: boolean, stage: typeof this.stage) {
+    const resume = crypto.randomUUID(), token = links.edit.token;
     try {
       const {access, client, room, bytes,welcome,canRemovePeople} = await this.redeem(connection, {file, token, resume});
       if(!this.pending.has(connection) || stage!==this.stage)throw new Error("The join was cancelled");

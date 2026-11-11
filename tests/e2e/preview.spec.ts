@@ -539,6 +539,32 @@ test("publish, reopen and manage a device-owned file in Home Online", async ({ p
       name:"Owner drawing",hasOwnerToken:true,state:"unknown",shared:false,code:null,document:null,session:null}]});
     expect(Object.keys((publicDirectory.files as object[])[0]).sort()).toEqual([
       "code","commentCode","created","document","expires","file","hasOwnerToken","host","name","opened","server","session","shared","state","viewCode"]);
+    const file=(publicDirectory.files as {file:string}[])[0].file;
+    const embedded=await page.evaluateHandle(({principal,server})=>{
+      const fixture=(window as unknown as {FigcraftDirectory:typeof import("../fixtures/browser-online-directory")}).FigcraftDirectory;
+      return fixture.recordedEditor(principal,server);
+    },{principal:signIn.data.user.id,server:url});
+    let resume!:()=>void;
+    const hold=new Promise<void>(resolve=>{resume=resolve;});
+    let joins=0;
+    await page.route("**/api/online-files/join",async route=>{joins++;await hold;await route.continue();});
+    try{
+      const first=await embedded.evaluate((app,id)=>app.open(id),file);
+      expect(first).toMatchObject({file,server:url,document:null,status:"connecting",alreadyOpen:false,name:"Owner drawing"});
+      expect(await embedded.evaluate((app,id)=>app.open(id),file)).toEqual({...first,alreadyOpen:true});
+      expect((await embedded.evaluate(app=>app.list())).files).toEqual([expect.objectContaining({file,document:null,session:first.session})]);
+      resume();
+      await expect.poll(()=>embedded.evaluate(app=>app.tabs())).toHaveLength(2);
+      await embedded.evaluate(app=>app.switchAway());
+      expect(await embedded.evaluate((app,id)=>app.open(id),file)).toEqual({...first,status:"live",document:1,alreadyOpen:true});
+      expect(await embedded.evaluate(app=>app.tabs())).toEqual([{index:0,active:false},{index:1,active:true}]);
+      expect(joins).toBe(1);
+    }finally{
+      resume();
+      await page.unroute("**/api/online-files/join");
+      await embedded.evaluate(app=>app.close());
+      await embedded.dispose();
+    }
     await actions("Owner drawing").click();
     await panel.getByRole("button", { name: "Rename on the server…" }).click();
     const rename = page.getByRole("dialog", { name: "Rename on the server" });
