@@ -1,3 +1,4 @@
+import {LivePeopleControls,LivePeopleOverlay} from "./LivePeopleControls";
 import {DisplayNameField,useDisplayName} from "./DisplayNameField";
 import {CommentOverlay} from "./CommentOverlay";
 import type {OnlineTeamLibraries} from "./backends/online-files";
@@ -241,6 +242,9 @@ export function DocumentEditor({ identity, capabilities, engine: suppliedEngine,
     catch (caught) { setError(caught instanceof Error ? caught.message : "Command failed"); }
   }
   function key(event: KeyboardEvent) {
+    if(event.key==="Escape" && engine.people?.following!==undefined && !(event.target instanceof Element && event.target.closest("input,textarea,select,[contenteditable=true]"))){
+      event.preventDefault();engine.execute("collab.follow");return;
+    }
     if (!busy && signedIn && event.code==="KeyC" && !event.ctrlKey && !event.metaKey && !event.altKey
       && !(event.target instanceof Element && event.target.closest("input,textarea,select,[contenteditable=true]"))) {
       event.preventDefault();dispatch(event.shiftKey?"view.comments":"tool.comment");canvas.current?.focus();return;
@@ -766,7 +770,7 @@ export function DocumentEditor({ identity, capabilities, engine: suppliedEngine,
         void paste(undefined,undefined,{html,text,image});
       }
     }}>
-      <header className="figcraft-document-bar">{onHome && <button type="button" onClick={onHome}>Home</button>}<h1>{snapshot.document.name}</h1><span data-live-status={sessionLabel ? true : undefined}>{snapshot.dirty ? "Unsaved" : snapshot.hasSaved ? "Downloaded" : "Unmodified"} · {sessionLabel ?? "Local document"}</span>{shareMenu}
+      <header className="figcraft-document-bar">{onHome && <button type="button" onClick={onHome}>Home</button>}<h1>{snapshot.document.name}</h1><span data-live-status={sessionLabel ? true : undefined}>{snapshot.dirty ? "Unsaved" : snapshot.hasSaved ? "Downloaded" : "Unmodified"} · {sessionLabel ?? "Local document"}</span>{shareMenu}{engine.people && <LivePeopleControls room={engine.people} engine={engine}/>}
         <details name={menuGroup ?? localMenuGroup} className="figcraft-bar-menu"><summary>File</summary><div className="figcraft-menu-items">{fileMenu}
           {initialPrincipal.current && <details><summary>Preferences</summary><DisplayNameField principal={initialPrincipal.current}/></details>}
           <button type="button" disabled={!editable || busy || recoveryStatus==="loading"} onClick={event=>{
@@ -961,6 +965,7 @@ export function DocumentEditor({ identity, capabilities, engine: suppliedEngine,
             positionCanvasMenu();
             menu.querySelector<HTMLElement>("summary,button")?.focus();
           }} aria-label="Design canvas" tabIndex={0} aria-describedby="canvas-instructions" />
+          {signedIn && engine.people && <LivePeopleOverlay room={engine.people} engine={engine} canvas={canvas}/>}
           {signedIn && (snapshot.tool==="comment" || snapshot.showComments!==false && !!snapshot.document.comments?.length || snapshot.openComment) && <CommentOverlay
             engine={engine} snapshot={snapshot} canvas={canvas} write={!busy && !snapshot.previewVersionId && (editable || capabilities.includes("document.comment"))} dispatch={dispatch}/>}
           <ViewControls engine={engine} editable={editable && !busy} dispatch={dispatch} />

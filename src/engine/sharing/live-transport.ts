@@ -1,3 +1,4 @@
+import type {LivePeerSample} from "./live-presence";
 import type { LiveChange } from "./live-changes";
 import type { LiveCheckpoint } from "./live-checkpoint";
 
@@ -8,6 +9,10 @@ export interface LiveUpdate {
 }
 export interface LiveTransport {
   archive: Blob;
+  people?: {
+    send(sample:LivePeerSample):Promise<{client:number;name:string;colour:string;generation:string}>;
+    listen(receive:(message:unknown)=>void,ready:()=>void):()=>void;
+  };
   listen?(wake: () => void): () => void;
   read(after: string | null): Promise<LiveUpdate>;
   submit(batch: string, base: string, changes: readonly LiveChange[]): Promise<{

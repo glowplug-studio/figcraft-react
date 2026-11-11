@@ -55,7 +55,7 @@ export function EditorHost({ identity }: { identity: Extract<IdentitySnapshot, {
     const invites = new BrowserInvitations({
       readPublishedLinks: async (principal,address,file) => operators.get(file)?.pair ?? store.readPublishedLinks(principal,address,file),
     }, identity.principal.id, server,
-      (connection, ended, edits) => watchSupabaseGuest(getBrowserSupabase(), connection, ended, edits), () => {
+      (connection, ended, edits, people, ready) => watchSupabaseGuest(getBrowserSupabase(), connection, ended, edits, people, ready), () => {
       setJoinError(""); joinDialog.current?.showModal();
     }, setError, file => files.resolveTeamFile(file));
     setInviteHost(invites);

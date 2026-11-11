@@ -978,6 +978,64 @@ if (!process.env.PLAYWRIGHT_BASE_URL) test("a view-only phone reads existing com
   },"view");
 });
 
+if (!process.env.PLAYWRIGHT_BASE_URL) test("a view-only phone sees a live pointer, follows its owner and can spotlight without editing",async({page,browser},info)=>{
+  test.setTimeout(90_000);
+  await withSharedDrawing(page,browser,()=>setCommentName(page,"Ari"),async(peer)=>{
+    const requestErrors:string[]=[],submits:string[]=[];
+    for(const actor of [page,peer]){
+      actor.on("pageerror",e=>requestErrors.push(e.message));
+      actor.on("request",r=>{
+        if(new URL(r.url()).pathname==="/api/online-files/live" && r.postDataJSON()?.action==="submit")submits.push("edit");
+      });
+    }
+    await setCommentName(peer,"Bea");
+    const ownerRoster=page.locator(".figcraft-live-people"),guestRoster=peer.locator(".figcraft-live-people");
+    await expect(guestRoster.locator("summary")).toHaveText("People (2)");
+    await guestRoster.locator("summary").click();
+    await guestRoster.getByRole("button",{name:"Follow Ari"}).click();
+    await expect(guestRoster.getByRole("button",{name:"Unfollow Ari"})).toHaveAttribute("aria-pressed","true");
+    await guestRoster.locator("summary").click();
+    const ownerCanvas=page.getByLabel("Design canvas",{exact:true});
+    const tip=await ownerCanvas.evaluate((el:HTMLCanvasElement)=>{
+      const rect=el.getBoundingClientRect(),dx=Math.round(rect.width/2),dy=Math.round(rect.height/2),zoom=Number(el.dataset.viewZoom);
+      return {x:rect.left+dx,y:rect.top+dy,pageX:Number(el.dataset.viewOriginX)+dx/zoom,pageY:Number(el.dataset.viewOriginY)+dy/zoom};
+    });
+    const sent=page.waitForResponse(r=>{
+      if(new URL(r.url()).pathname!=="/api/online-files/presence" || !r.ok())return false;
+      const cursor=r.request().postDataJSON()?.sample?.presence?.cursor;
+      return !!cursor && Math.abs(cursor[1]-tip.pageX)<2 && Math.abs(cursor[2]-tip.pageY)<2;
+    });
+    await page.mouse.move(tip.x,tip.y);await ownerCanvas.focus();
+    const receipt=await sent, sample=receipt.request().postDataJSON().sample, identity=await receipt.json();
+    const [,x,y]=sample.presence.cursor;
+    // Read the guest overlay at the reported page point, using the guest's own viewport and DPR.
+    await expect.poll(()=>peer.locator(".figcraft-people-overlay").evaluate((el:HTMLCanvasElement,p)=>{
+      const view=el.parentElement!.querySelector<HTMLCanvasElement>("canvas[aria-label='Design canvas']")!;
+      const screenX=(p.x-Number(view.dataset.viewOriginX))*Number(view.dataset.viewZoom)+4;
+      const screenY=(p.y-Number(view.dataset.viewOriginY))*Number(view.dataset.viewZoom)+5;
+      const pixel=el.getContext("2d")!.getImageData(Math.round(screenX*devicePixelRatio),Math.round(screenY*devicePixelRatio),1,1).data;
+      return "#"+Array.from(pixel.slice(0,3)).map(v=>v.toString(16).padStart(2,"0")).join("").toUpperCase();
+    },{x,y})).toBe(identity.colour);
+    await page.keyboard.press("/");const input=page.getByRole("textbox",{name:"Cursor chat",exact:true});
+    await expect(input).toBeFocused();
+    const chatted=page.waitForResponse(r=>new URL(r.url()).pathname==="/api/online-files/presence" && r.request().postDataJSON()?.sample?.chat==="Look here" && r.ok());
+    await input.fill("Look here");await chatted;await input.press("Enter");
+    await expect.poll(()=>peer.locator(".figcraft-people-overlay").evaluate((el:HTMLCanvasElement,p)=>{
+      const view=el.parentElement!.querySelector<HTMLCanvasElement>("canvas[aria-label='Design canvas']")!;
+      const left=(p.x-Number(view.dataset.viewOriginX))*Number(view.dataset.viewZoom)+18;
+      const top=(p.y-Number(view.dataset.viewOriginY))*Number(view.dataset.viewZoom)+39;
+      const pixels=el.getContext("2d")!.getImageData(Math.round(left*devicePixelRatio),Math.round(top*devicePixelRatio),12,3).data;
+      return pixels.some((v,i)=>i%4===3 && v>220);
+    },{x,y})).toBe(true);
+    await peer.screenshot({path:info.outputPath("live-cursor-chat-phone.png")});
+    await guestRoster.locator("summary").click();await guestRoster.getByRole("button",{name:"Spotlight me"}).click();
+    await ownerRoster.locator("summary").click();await expect(ownerRoster.getByRole("button",{name:"Unfollow Bea"})).toBeVisible();
+    await guestRoster.getByRole("button",{name:"Stop spotlight"}).click();await expect(ownerRoster.getByRole("button",{name:"Follow Bea"})).toBeVisible();
+    await peer.screenshot({path:info.outputPath("live-people-phone.png")});
+    expect(submits).toEqual([]);expect(requestErrors).toEqual([]);
+  },"view");
+});
+
 if (!process.env.PLAYWRIGHT_BASE_URL) test("two editors converge after a lost acknowledgement and undo only their own shape",async({page,browser},info) => {
   test.setTimeout(90_000);
   await withSharedDrawing(page,browser,()=>page.getByRole("button",{name:"Create rectangle",exact:true}).click(),async(peer,file)=>{

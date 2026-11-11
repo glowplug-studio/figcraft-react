@@ -30,3 +30,5 @@ export async function joinLiveFile(writer: SupabaseClient, request: {
 
 export { readLiveUpdates, submitLiveBatch } from "./live-journal";
 export { maxLiveMessageBytes } from "../../engine/sharing/live-wire";
+
+export {sendLivePresence,presenceBroadcaster} from "./live-presence";

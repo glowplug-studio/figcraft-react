@@ -19,11 +19,13 @@ export class BrowserInvitations implements OnlineInvitations {
   private readonly listeners = new Map<string,() => void>();
   private readonly waiting = new Map<string, () => void>();
   // Retain a manual rejoin credential only while its tab belongs to this signed-in host.
+  private readonly peopleReady=new Map<string,()=>void>();
+  private readonly peopleListeners = new Map<string,(value:unknown)=>void>();
   private readonly tabs = new Map<string, {file: string; token: string; resume: string; physical: string; ended: boolean; archive: Blob}>();
 
 
   constructor(private device: Pick<IndexedDbRecoveryStore, "readPublishedLinks">, private principal: string, private server: string,
-    private readonly monitor: (connection:string,ended:(reason:GuestSessionEnd)=>void,edits?:()=>void)=>()=>void, readonly showJoin: () => void, private readonly notify: (message: string) => void,
+    private readonly monitor: (connection:string,ended:(reason:GuestSessionEnd)=>void,edits?:()=>void,people?:(message:unknown)=>void,ready?:()=>void)=>()=>void, readonly showJoin: () => void, private readonly notify: (message: string) => void,
     private resolveTeam?: (file: string) => Promise<{file: string; token: string}>) {
     this.endpoint = parseInviteServer(server.replace(/^http/, "ws")).server;
   }
@@ -55,15 +57,21 @@ export class BrowserInvitations implements OnlineInvitations {
   live(connection: string): LiveTransport | undefined {
     const tab = this.tabs.get(connection);
     if (!tab || tab.ended) return;
-    const request = async (body: object) => {
+    const request = async (body: object, path="live") => {
       const physical = tab.physical;
       if (tab.ended || this.tabs.get(connection) !== tab) throw new Error("The shared connection has ended");
-      const result = await fetch("/api/online-files/live",{method:"POST",headers:{"Content-Type":"application/json"},
+      const result = await fetch("/api/online-files/"+path,{method:"POST",headers:{"Content-Type":"application/json"},
         body:JSON.stringify({file:tab.file,tab:physical,...body})});
       if (!result.ok || physical !== tab.physical || tab.ended) throw new Error("Shared edits are temporarily unavailable");
       return result.json();
     };
-    return {archive:tab.archive,listen:wake => {
+    return {archive:tab.archive,people:{
+      send:sample=>request({sample},"presence"),
+      listen:(receive,ready)=>{this.peopleListeners.set(connection,receive);this.peopleReady.set(connection,ready);return ()=>{
+        if(this.peopleReady.get(connection)===ready)this.peopleReady.delete(connection);
+        if(this.peopleListeners.get(connection)===receive)this.peopleListeners.delete(connection);
+      };},
+    },listen:wake => {
       this.listeners.set(connection,wake);
       return () => { if (this.listeners.get(connection) === wake) this.listeners.delete(connection); };
     },read:after => request({action:"read",after}),
@@ -189,7 +197,7 @@ export class BrowserInvitations implements OnlineInvitations {
       if (!current()) return;
       if (reason === "unavailable") schedule();
       else finish(reason);
-    },() => this.listeners.get(connection)?.());
+    },() => this.listeners.get(connection)?.(),message=>this.peopleListeners.get(connection)?.(message),()=>this.peopleReady.get(connection)?.());
     const recover = async () => {
       this.waiting.delete(connection);
       if (!current()) return;

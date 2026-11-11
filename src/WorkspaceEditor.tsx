@@ -2,6 +2,7 @@ import {DisplayNameField} from "./DisplayNameField";
 import { OwnerShareControls } from "./OwnerShareControls";
 import { OnlineFilesPanel, OnlineHostingInformation, PublishOnlineDialog, ServerKeyField } from "./OnlineFilesPanel";
 import type { EditorEngine } from "./engine/editor";
+import { LivePeople } from "./engine/sharing/live-people";
 import { LivePeer } from "./engine/sharing/live-peer";
 import { OnlineWorkspace } from "./engine/sharing/online-workspace";
 import type { GuestConnectionStatus, GuestSessionEnd, OnlineInvitations, OnlineWorkspaceHost } from "./backends/online-files";
@@ -17,8 +18,8 @@ import { WorkspaceRecovery, type WorkspaceRecoveryState } from "./engine/workspa
 
 type WorkspaceProps = Omit<EditorProps, "engine" | "recoveryStore"> & { recoveryStore: WorkspaceRecoveryStore; onlineHost?: OnlineWorkspaceHost };
 
-function GuestSubscription({connection, invitations, ended, changed, engine, client, notice}: {
-  engine:EditorEngine; client?:number; notice:(text:string)=>void;
+function GuestSubscription({connection, invitations, ended, changed, engine, client, notice, active}: {
+  active:boolean; engine:EditorEngine; client?:number; notice:(text:string)=>void;
   connection: string;
   invitations: OnlineInvitations;
   changed: (connection: string, status: GuestConnectionStatus) => void;
@@ -33,8 +34,22 @@ function GuestSubscription({connection, invitations, ended, changed, engine, cli
       recordsEdit:d => engine.recordsLiveEdit(d),
       normalise:(before,after,touched) => engine.repairLiveDocument(before,after,touched),
       subscribe:engine.subscribe,interacting:() => engine.interacting,history:h => engine.setLiveHistory(h)},transport,client,notice);
-    return peer.start();
+    const stop=peer.start();
+    if(!transport.people)return stop;
+    const room=new LivePeople({
+      capture:cursor=>engine.capturePresence(cursor),
+      name:()=>engine.commentName,
+      subscribe:changed=>{
+        const listeners=[engine.subscribe(changed),engine.subscribeView(changed),engine.subscribeCanvas(changed)];
+        return ()=>listeners.forEach(unsubscribe=>unsubscribe());
+      },
+      follow:other=>engine.followViewport(other.presence.viewport),
+    },transport.people,client);
+    engine.setPeople(room);
+    const leave=room.start();
+    return ()=>{leave();engine.setPeople(undefined);stop();};
   },[client,connection,engine,invitations,notice]);
+  useEffect(()=>{engine.people?.setActive(active);},[active,client,connection,engine,invitations,notice]);
   return null;
 }
 
@@ -203,7 +218,7 @@ export function WorkspaceEditor({ identity, capabilities, recoveryStore, onlineH
     }
   }}>
     {enabled && invitations?.watch && tabs.map(tab => tab.guest && !tab.guest.ended &&
-      <GuestSubscription key={tab.guest.connection} connection={tab.guest.connection} invitations={invitations} engine={workspace.engines[tab.index]} client={tab.guest.client} notice={setNotice} ended={ended} changed={connectionChanged} />)}
+      <GuestSubscription active={tab.active && !home} key={tab.guest.connection} connection={tab.guest.connection} invitations={invitations} engine={workspace.engines[tab.index]} client={tab.guest.client} notice={setNotice} ended={ended} changed={connectionChanged} />)}
     {tabs.length > 1 && <div role="tablist" aria-label="Open files" className="figcraft-file-tabs">
       {tabs.map(tab => <button key={tab.id} type="button" role="tab" disabled={!enabled} aria-selected={tab.active}
         aria-label={tab.guest?.ended ? tab.name + ", disconnected from its live session" : undefined}

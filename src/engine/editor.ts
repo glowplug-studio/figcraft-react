@@ -1,3 +1,5 @@
+import {peopleCommands,executePeople,type LivePeople} from "./sharing/live-people";
+import type {LivePresence} from "./sharing/live-presence";
 import {commentBrief} from "./comment-brief";
 import {commentQueries,queryComments,readCommentsCommand} from "./comment-query";
 import {cleanDisplayName,commentActions,commentId,editComment} from "./comment-actions";
@@ -82,7 +84,7 @@ import { executeStructure, structureSpecs } from "./structure";
 import { executeVector, isVectorJoin, vectorSpecs } from "./vector-commands";
 import { executeVectorEdit, vectorEditSpecs, type VectorEditCommand } from "./vector-edit-commands";
 import { clampVectorEdit, vectorNetwork, type VectorEditState } from "./vector-edit";
-import { boundsOf, defaultViewport, executeView, fitPage, fitView, viewSpecs, type Viewport } from "./viewport";
+import { boundsOf, defaultViewport, executeView, fitPage, fitView, maximumZoom, minimumZoom, viewOrigin, viewSpecs, type Viewport } from "./viewport";
 import { framePresets } from "./frame-presets";
 import { parseColourProfile } from "./colour-spaces";
 import { setDocumentProfile } from "./document-profile";
@@ -106,6 +108,7 @@ interface FileSource {file:Blob;folder?:import("./interchange/rest/companions").
 type OpenResult = { warnings?: readonly string[]; repairs: readonly string[]; summary: {name:string; pages:number; layers:number; images:number} }
 
 export const commandSpecs = Object.freeze({
+  ...peopleCommands,
   ...commentActions,
   ...commentQueries,
   "comment.prompt": {label:"Copy comments for AI",undo:false},
@@ -384,6 +387,7 @@ export class EditorEngine {
     this.#commentRead = readable;
     this.#commentAccess = writable;
     this.#commentName = cleanDisplayName(name);
+    this.#people?.refreshName();
   }
   get commentName() { return this.#commentName; }
   #preview?: { id: string; document: Document; selection: readonly NodeId[] };
@@ -450,15 +454,48 @@ export class EditorEngine {
   setLiveHistory(history?: typeof this.liveHistory) {
     const previous = this.#liveHistory;
     this.#liveHistory = history;
-    if (!history) {this.#commentPage=undefined;this.#sharedDrawing=undefined;}
+    if (!history) {this.#livePage=undefined;this.#sharedDrawing=undefined;}
     if (!!history !== !!previous) { this.#undo = []; this.#redo = []; }
     if (!!history !== !!previous || previous?.canUndo !== history?.canUndo || previous?.canRedo !== history?.canRedo) this.#publish({});
   }
   get liveHistory() { return this.#liveHistory; }
-  #commentPage?: {local:string;shared:string};
+  #livePage?: {local:string;shared:string};
   #sharedDrawing?: {source:Document;value:Document};
+  #people?:LivePeople;
+  #followingView=false;
+  get people() {return this.#people;}
+  setPeople(room?:LivePeople) {
+    if(this.#people===room)return;
+    this.#people=room;
+    this.#publish({});
+  }
+  capturePresence(cursor:Point|null):LivePresence {
+    const document=this.#snapshot.document,selection=this.getRenderSelection(),view=this.#view, origin=viewOrigin(view), range=this.getTextRange();
+    return {
+      cursor:cursor?[document.currentPage,cursor.x,cursor.y]:null,
+      selection:[...selection].slice(0,10000),
+      viewport:[document.currentPage,origin.x,origin.y,view.vw/view.zoom,view.vh/view.zoom],
+      editingText:range?{node:range.node.id,caret:range.caret,selection:range.start!==range.end?[range.start,range.end]:null}:null,
+    };
+  }
+  followViewport(viewport:LivePresence["viewport"]) {
+    if(!viewport)return;
+    const [page,x,y,width,height]=viewport,view=this.#view;
+    this.#followingView=true;
+    try {
+      if(this.#liveHistory && this.#snapshot.document.currentPage!==page && this.#snapshot.document.pages.includes(page)){
+        this.cancelInteraction();
+        const doc=this.#snapshot.document;
+        this.#livePage={local:page,shared:this.liveDrawing().currentPage};
+        this.#sharedDrawing=undefined;
+        this.#publish({document:Object.freeze({...doc,currentPage:page}),selection:[]});
+      }
+      this.updateView({...view,cx:x+width/2,cy:y+height/2,
+        zoom:Math.max(minimumZoom,Math.min(maximumZoom,view.vw/width,view.vh/height))});
+    } finally {this.#followingView=false;}
+  }
   liveDrawing() {
-    const source=this.#fileDocument(), page=this.#commentPage;
+    const source=this.#fileDocument(), page=this.#livePage;
     if (!page || source.currentPage!==page.local || !source.pages.includes(page.shared)) return source;
     if (this.#sharedDrawing?.source!==source) {
       const value=Object.freeze({...source,currentPage:page.shared});
@@ -477,13 +514,13 @@ export class EditorEngine {
 
   receiveLiveDocument(incoming: Document) {
     const current = this.#fileDocument();
-    if (this.#commentPage) {
-      const local=this.#commentPage.local;
+    if (this.#livePage) {
+      const local=this.#livePage.local;
       this.#sharedDrawing=undefined;
       if (incoming.pages.includes(local)) {
-        this.#commentPage={local,shared:incoming.currentPage};
+        this.#livePage={local,shared:incoming.currentPage};
         incoming={...incoming,currentPage:local};
-      } else this.#commentPage=undefined;
+      } else this.#livePage=undefined;
     }
     const document = current.published ? Object.freeze({...incoming,published:current.published}) : incoming;
     if (this.#idClient) this.#nextId = nextScopedId(document,this.#idClient,this.#nextId);
@@ -1128,6 +1165,7 @@ export class EditorEngine {
   updateView(view: Viewport): void {
     if ([view.cx, view.cy, view.zoom, view.vw, view.vh].some(value => !Number.isFinite(value)) || [view.snapObjects, view.snapPixel, view.proofSrgb, view.slices, view.layoutGrids].some(value => value !== undefined && typeof value !== "boolean") || view.zoom < 0.02 || view.zoom > 256 || view.vw <= 0 || view.vh <= 0) throw new Error("Invalid viewport");
     if ((Object.keys(view) as (keyof Viewport)[]).every(key => view[key] === this.#view[key])) return;
+    if(!this.#followingView && this.#people?.following!==undefined && (view.cx!==this.#view.cx || view.cy!==this.#view.cy || view.zoom!==this.#view.zoom))this.#people.setFollow();
     this.#view = Object.freeze({ ...view }); this.#viewListeners.forEach(listener => listener());
   }
   resizeViewport(width: number, height: number): void {
@@ -1335,6 +1373,7 @@ export class EditorEngine {
   }
   #publish(patch: Partial<EditorSnapshot>): void {
     const document = patch.document ?? this.#snapshot.document;
+    if(!this.#followingView && this.#people?.following!==undefined && document.currentPage!==this.#snapshot.document.currentPage)this.#people.setFollow();
     if (document !== this.#snapshot.document) this.#preparedEdit = undefined;
     if (patch.editable === false || patch.selection && !sameIds(patch.selection, this.#snapshot.selection)) patch = { ...patch, paintPicker: undefined, openEffects: undefined };
     this.#snapshot = Object.freeze({ ...this.#snapshot, ...patch, canUndo: this.#liveHistory?.canUndo ?? this.#undo.length > 0, canRedo: this.#liveHistory?.canRedo ?? this.#redo.length > 0, dirty: !sameContent(this.#preview?.document ?? document, this.#saved) || this.#history.records !== this.#savedVersions || this.#branches !== this.#savedBranches, hasSaved: this.#downloaded });
@@ -1389,7 +1428,7 @@ export class EditorEngine {
     if (!c || !doc.pages.includes(c.page)) throw new Error("No such comment on an existing page");
     const switched=doc.currentPage!==c.page;
     if (switched && this.#liveHistory) {
-      this.#commentPage={local:c.page,shared:this.liveDrawing().currentPage};
+      this.#livePage={local:c.page,shared:this.liveDrawing().currentPage};
       this.#sharedDrawing=undefined;
     }
     let current=switched?Object.freeze({...doc,currentPage:c.page}):doc;
@@ -1420,6 +1459,7 @@ export class EditorEngine {
   execute(command: string, input?: unknown): Record<string, unknown>;
   execute(command: string, input: unknown = {}): Record<string, unknown> | Variables | ReturnType<typeof listStyles> | ReturnType<typeof listComponents> | ReturnType<typeof listPages> | typeof framePresets | ReturnType<typeof versionDetails>[] | ReturnType<typeof queryFonts> | null {
     if (!Object.hasOwn(commandSpecs, command)) throw new Error(`Unsupported command: ${command}`);
+    if(Object.hasOwn(peopleCommands,command))return executePeople(this.#people,command,parameters(input));
     if (command==="pref.userName") {
       const {name}=parameters(input);
       if (typeof name!=="string") throw new Error("Your name must be text");

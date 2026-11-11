@@ -14,5 +14,5 @@ export function localSupabase() {
   catch { throw new Error("Local Supabase status discovery failed or exceeded 45 seconds"); }
   if (status.API_URL !== url) throw new Error("Local Supabase project URL mismatch");
   const options = { auth: { persistSession: false, autoRefreshToken: false } };
-  return { url, key: values.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY, client: createClient(url, values.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY, options), admin: createClient(url, status.SECRET_KEY, options) };
+  return { url, serviceKey:status.SECRET_KEY, key: values.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY, client: createClient(url, values.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY, options), admin: createClient(url, status.SECRET_KEY, options) };
 }

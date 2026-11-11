@@ -1,3 +1,5 @@
+import {EditorEngine} from "../../src/engine/editor";
+import {sendLivePresence,presenceBroadcaster} from "../../src/backends/supabase/live-presence";
 import { decodeFigcraft, encodeFigcraftBlob } from "../../src/engine/file-format";
 import {restoreLiveCheckpoint} from "../../src/engine/sharing/live-checkpoint";
 import {readLiveUpdates,submitLiveBatch} from "../../src/backends/supabase/live-journal";
@@ -8,7 +10,7 @@ import { createInterface } from "node:readline";
 import { readFile } from "node:fs/promises";
 import { createClient, type SupabaseClient, type RealtimeChannel } from "@supabase/supabase-js";
 import { unzipSync } from "fflate";
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { SupabaseOnlineFileStore } from "../../src/backends/supabase/online-files";
 import {fetchTeamLibrary,publishTeamLibrary,readTeamLibraryUsage} from "../../src/backends/supabase/team-library";
 import { finaliseOnlineFile, finaliseOperatorFile, manageOwnedFile } from "../../src/backends/supabase/publication";
@@ -615,6 +617,53 @@ describe.skipIf(!enabled)("private online files on real local Supabase", () => {
       presented_hash:proof.edit.hash,resume_hash:proof.edit.hash})).error).toBeTruthy();
     await changeFile(owner.id,file,null);
     expect(await bound()).toBe(0);
+  });
+
+  it("relays ephemeral presence through private Realtime to current grants without recording pointer or drawing history",async()=>{
+    const writer=local!.admin,file=randomUUID(),keys=createPublishedLinks(),proof=await publishedLinkDigests(keys);
+    paths.push(owner.id+"/"+file+".figcraft");
+    await ownedStore(owner.client,owner.id,id=>finaliseForTest(owner.client,writer,id,proof)).publish(file,await encodeFigcraftBlob(new EditorEngine().getSnapshot().document));
+    async function enter(user:typeof owner,token:string,resume?:string) {
+      const login=(await user.client.auth.getClaims()).data!.claims.session_id as string,tab=randomUUID();
+      await readSharedDrawing(user.client,writer,user.id,login,tab,file,token,resume);
+      return {actor:user.id,login,tab,target:file};
+    }
+    const resume=randomUUID(), first=await enter(owner,keys.edit.token),second=await enter(stranger,keys.view.token,resume);
+    const topic="figcraft-connection:"+second.login+":"+second.tab;
+    const channel=stranger.client.channel(topic,{config:{private:true}}), packets:unknown[]=[];
+    try {
+      await new Promise<void>((resolve,reject)=>channel.on("broadcast",{event:"presence"},({payload})=>packets.push(payload)).subscribe(s=>{
+        if(s==="SUBSCRIBED")resolve();
+        else if(s==="CHANNEL_ERROR"||s==="TIMED_OUT")reject(Error(s));
+      }));
+      const deliver=presenceBroadcaster(local!.url,local!.serviceKey);
+      const sample={sequence:1,name:"Ari",chat:"",hello:true,left:false,spotlight:false,
+        presence:{cursor:["1",17,25],selection:["18446744073709551615"]}};
+      const me=await sendLivePresence(writer,first,sample,deliver);
+      await vi.waitFor(()=>expect(packets).toHaveLength(1));
+      expect(packets[0]).toMatchObject({client:me.client,name:"Ari",colour:"#0D99FF",presence:{cursor:["1",17,25]}});
+      const guest=await sendLivePresence(writer,second,{...sample,name:""},deliver);
+      expect(guest).toMatchObject({colour:"#9747FF",name:"Guest 1"});
+      const latest=await sendLivePresence(writer,second,{...sample,sequence:2},deliver);
+      expect(latest.generation).toBe(guest.generation);
+      expect((await stranger.client.rpc("live_presence_targets",{...first,anonymous_name:false})).error).toBeTruthy();
+      await expect(sendLivePresence(writer,{...first,login:second.login},sample,deliver)).rejects.toMatchObject({code:"42501"});
+      expect((await readLiveUpdates(writer,first,"0")).sequence).toBe("0");
+      expect(localOperatorSql(local!,"select count(*) from realtime.messages where topic=:'topic' and event='presence'",{topic})).toBe("0");
+      await expect(sendLivePresence(writer,{...second,target:randomUUID()},sample,deliver)).rejects.toMatchObject({code:"42501"});
+      const replacement=await enter(stranger,keys.view.token,resume);
+      await expect(sendLivePresence(writer,second,sample,deliver)).rejects.toMatchObject({code:"42501"});
+      const continued=await sendLivePresence(writer,replacement,{...sample,name:"",sequence:1},deliver);
+      expect(continued.client).toBe(guest.client);
+      expect(BigInt(continued.generation)).toBeGreaterThan(BigInt(guest.generation));
+      expect(continued).toMatchObject({colour:"#9747FF",name:"Guest 2"});
+      const effective:string[]=[];
+      await sendLivePresence(writer,first,sample,async targets=>{effective.push(...targets);});
+      expect(effective).toEqual(["figcraft-connection:"+replacement.login+":"+replacement.tab]);
+      await changeFile(owner.id,file,null);
+      await expect(sendLivePresence(writer,replacement,sample,deliver)).rejects.toMatchObject({code:"42501"});
+      await expect(sendLivePresence(writer,second,sample,deliver)).rejects.toMatchObject({code:"42501"});
+    } finally {await stranger.client.removeChannel(channel);}
   });
 
   it("orders concurrent writers, remembers refused and acknowledged batches, and denies a revoked reader", async () => {

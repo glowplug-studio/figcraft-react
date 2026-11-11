@@ -75,3 +75,4 @@ export {participantReportReason} from "./engine/sharing/participant-report";
 export type {LibraryUsageData,LibraryUsageReport,LibraryUsageSummary} from "./engine/sharing/library-usage";
 
 export type { LiveTransport } from "./engine/sharing/live-transport";
+export type {LivePeerSample,LivePeerMessage,LivePresence} from "./engine/sharing/live-presence";

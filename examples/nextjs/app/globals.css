@@ -213,3 +213,9 @@ dd { margin: 0; }
 
 .figcraft-toolbar[aria-label="Tools"] { column-gap: 6px; }
 .figcraft-comment-tool { display:grid; place-items:center; padding:5px; }
+
+.figcraft-people-overlay { position:absolute; inset:0; pointer-events:none; }
+.figcraft-cursor-chat { position:absolute; width:min(210px,95%); z-index:3; }
+.figcraft-live-people { position:relative; }
+.figcraft-live-people > div { position:absolute; right:0; z-index:5; display:grid; min-width:9rem; background:white; padding:.35rem; border:1px solid #bbb; }
+.figcraft-live-people button { text-align:start; white-space:nowrap; }

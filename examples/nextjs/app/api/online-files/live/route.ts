@@ -1,3 +1,4 @@
+import {boundedJson} from "../../../../lib/sharing/bounded-body";
 import { maxLiveMessageBytes, readLiveUpdates, submitLiveBatch } from "@glowplug-studio/figcraft-react/backends/supabase/live-session";
 import { onlinePost } from "../../../../lib/supabase/online-post";
 
@@ -5,32 +6,11 @@ const uuid = /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/;
 const u64 = (v: unknown): v is string => typeof v === "string" && /^(?:0|[1-9][0-9]{0,19})$/.test(v) && BigInt(v) <= BigInt("18446744073709551615");
 const json = (data: unknown,status = 200) => Response.json(data,{status,headers:{"Cache-Control":"private, no-store"}});
 
-async function boundedJson(request: Request) {
-  if (Number(request.headers.get("content-length")) > maxLiveMessageBytes) return new Response(null,{status:413});
-  const reader = request.body?.getReader();
-  if (!reader) return new Response(null,{status:400});
-  const decoder = new TextDecoder("utf-8",{fatal:true});
-  const parts: string[] = [];
-  let total = 0;
-  try {
-    for (;;) {
-      const chunk = await reader.read();
-      if (chunk.done) break;
-      total += chunk.value.byteLength;
-      if (total > maxLiveMessageBytes) { await reader.cancel(); return new Response(null,{status:413}); }
-      parts.push(decoder.decode(chunk.value,{stream:true}));
-    }
-    parts.push(decoder.decode());
-    return JSON.parse(parts.join(""));
-  } catch { return new Response(null,{status:400}); }
-  finally { reader.releaseLock(); }
-}
-
 export async function POST(request: Request) {
   const host = await onlinePost(request);
   if (host instanceof Response) return host;
   if (typeof host.session !== "string") return new Response(null,{status:401});
-  const data = await boundedJson(request);
+  const data = await boundedJson(request,maxLiveMessageBytes);
   if (data instanceof Response) return data;
   if (!data || typeof data.file !== "string" || !uuid.test(data.file) || typeof data.tab !== "string" || !uuid.test(data.tab)) {
     return json({error:"Invalid live connection"},400);
