@@ -2,7 +2,7 @@ import { expectSolid } from "../fixtures/expect-solid";
 import { createHash, randomUUID } from "node:crypto";
 import { join } from "node:path";
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
-import { chromium, expect, test, type Page } from "@playwright/test";
+import { chromium, expect, test, type Browser, type Page } from "@playwright/test";
 import {localOperatorSql} from "../support/localOperatorSql";
 import {enableLocalTeamDirectory} from "../support/localTeamDirectory";
 import { localSupabase } from "../support/localSupabase";
@@ -573,7 +573,7 @@ test("publish, reopen and manage a device-owned file in Home Online", async ({ p
     await expect(panel.getByText("Nothing online yet.")).toBeVisible();
     expect((await client.from("online_files").select("id").eq("id", paths[0].split("/")[1].split(".")[0])).data).toEqual([]);
     await home.getByRole("button", { name: "Recents" }).click();
-    await home.getByRole("button", { name: "Owner drawing", exact: true }).click();
+    await home.getByRole("region",{name:"Open files",exact:true}).locator('button[aria-current="page"]').click();
     await publish("Forget me");
     await showList(); await actions("Forget me").click();
     await panel.getByRole("button", { name: "Forget on this computer" }).click();
@@ -581,14 +581,15 @@ test("publish, reopen and manage a device-owned file in Home Online", async ({ p
     expect((await client.storage.from("figcraft-files").download(paths[1])).error).toBeNull();
 
     await home.getByRole("button", { name: "Recents" }).click();
-    await home.getByRole("button", { name: "Owner drawing", exact: true }).click();
+    await home.getByRole("region",{name:"Open files",exact:true}).locator('button[aria-current="page"]').click();
     await publish("Removed elsewhere");
+    await expect(bar.getByRole("heading",{name:"Removed elsewhere",exact:true})).toBeVisible();
     if (backend) {
       const thirdId = paths[2].split("/")[1].replace(".figcraft", "");
       const revoked = await backend.admin.from("online_file_links").delete().eq("file_id", thirdId).eq("access_level", "edit").select("id");
       expect(revoked.error).toBeNull();
       expect(revoked.data).toHaveLength(1);
-      await expect(page.getByRole("tab", {name: /Owner drawing, disconnected from its live session/, selected: true})).toBeVisible({timeout: 15_000});
+      await expect(page.getByRole("tab", {name: /Removed elsewhere, disconnected from its live session/, selected: true})).toBeVisible({timeout: 15_000});
       await bar.getByText("File", {exact: true}).click();
       await bar.getByRole("button", {name: "Leave session"}).click();
       await showList();
@@ -596,7 +597,7 @@ test("publish, reopen and manage a device-owned file in Home Online", async ({ p
       await expect(panel.getByRole("alert")).toHaveText("The invite is unavailable");
       expect((await client.storage.from("figcraft-files").download(paths[2])).error).toBeNull();
       await home.getByRole("button", {name: "Recents"}).click();
-      await home.getByRole("button", {name: "Owner drawing", exact: true}).click();
+      await home.getByRole("region",{name:"Open files",exact:true}).locator('button[aria-current="page"]').click();
     }
     await removeOnlineFixture(page,paths[2].split("/")[1].replace(".figcraft",""));
     await showList();
@@ -855,8 +856,7 @@ if (!process.env.PLAYWRIGHT_BASE_URL) test("a second account discovers, opens an
   }
 });
 
-if (!process.env.PLAYWRIGHT_BASE_URL) test("two editors converge after a lost acknowledgement and undo only their own shape",async({page,browser},info) => {
-  test.setTimeout(90_000);
+async function withSharedDrawing(page:Page,browser:Browser,seed:()=>Promise<void>,exercise:(peer:Page,file:string)=>Promise<void>) {
   await login(page);
   const guestEmail = "ordered-"+randomUUID()+"@example.test", guestPassword = "Guest-"+randomUUID()+"!";
   const user = await backend!.admin.auth.admin.createUser({email:guestEmail,password:guestPassword,email_confirm:true});
@@ -866,7 +866,7 @@ if (!process.env.PLAYWRIGHT_BASE_URL) test("two editors converge after a lost ac
   let file: string | undefined;
   try {
     await page.context().grantPermissions(["clipboard-read","clipboard-write"],{origin});
-    await page.getByRole("button",{name:"Create rectangle",exact:true}).click();
+    await seed();
     await bar.getByText("File",{exact:true}).click();
     await bar.getByRole("button",{name:"Publish to server…"}).click();
     const form = page.getByRole("dialog",{name:"Publish to server"}), receipt = page.waitForResponse(r=>new URL(r.url()).pathname==="/api/online-files");
@@ -882,6 +882,19 @@ if (!process.env.PLAYWRIGHT_BASE_URL) test("two editors converge after a lost ac
     const welcome = peer.waitForResponse(r=>new URL(r.url()).pathname==="/api/online-files/live" && r.status()===200);
     await peer.getByRole("button",{name:"Sign in",exact:true}).click();
     await welcome;
+    await exercise(peer,file!);
+  } finally {
+    try { await phone.close(); }
+    finally {
+      try { if(file) await removeOnlineFixture(page,file); }
+      finally { await backend!.admin.auth.admin.deleteUser(user.data.user.id); }
+    }
+  }
+}
+
+if (!process.env.PLAYWRIGHT_BASE_URL) test("two editors converge after a lost acknowledgement and undo only their own shape",async({page,browser},info) => {
+  test.setTimeout(90_000);
+  await withSharedDrawing(page,browser,()=>page.getByRole("button",{name:"Create rectangle",exact:true}).click(),async(peer,file)=>{
     const liveUrl="**/api/online-files/live", requests: string[]=[];
     let dropped = false;
     await peer.route(liveUrl,async route=>{
@@ -919,11 +932,42 @@ if (!process.env.PLAYWRIGHT_BASE_URL) test("two editors converge after a lost ac
     expect(Object.keys(copies[0].nodes).sort()).toEqual(Object.keys(copies[1].nodes).sort());
     expect(new Set(requests).size).toBe(3);
     await info.attach("converged-phone",{body:await peer.screenshot(),contentType:"image/png"});
-  } finally {
-    await phone.close();
-    if(file) await removeOnlineFixture(page,file);
-    await backend!.admin.auth.admin.deleteUser(user.data.user.id);
-  }
+  });
+});
+
+if (!process.env.PLAYWRIGHT_BASE_URL) test("concurrent child resizes repair the shared hug frame at desktop and phone widths",async({page,browser})=>{
+  test.setTimeout(90_000);
+  await withSharedDrawing(page,browser,async()=>{
+    await page.getByLabel("Open Figcraft file",{exact:true}).setInputFiles(new URL("../fixtures/native-live-hug.figcraft",import.meta.url).pathname);
+    await expect(page.locator('li[data-layer-id="2"]')).toContainText("Frame");
+  },async(peer,file)=>{
+    const live="**/api/online-files/live", seen=new Set<Page>();
+    let release!:()=>void;
+    const both=new Promise<void>(r=>{release=r;});
+    try {
+      for (const p of [page,peer]) await p.route(live, async route=>{
+        if (route.request().postDataJSON().action==="submit" && !seen.has(p)) {
+          seen.add(p);
+          if (seen.size===2) release();
+          await both;
+        }
+        await route.continue();
+      });
+      async function resize(p:Page,id:string,width:string) {
+        const mobile=p.locator(".figcraft-mobile-layers > summary");
+        if(await mobile.isVisible()) await mobile.click();
+        await p.locator('li[data-layer-id="'+id+'"]').getByRole("button",{name:"Rectangle",exact:true}).click();
+        await p.getByLabel("Edit Width",{exact:true}).fill(width);
+        await p.getByRole("button",{name:"Apply geometry",exact:true}).click();
+      }
+      await Promise.all([resize(page,"3","55"),resize(peer,"4","72")]);
+      await expect.poll(()=>Number(localOperatorSql(backend!,"select seq from figcraft_private.live_rooms where file_id=:'f'",{f:file})),{timeout:15000}).toBe(3);
+      for (const p of [page,peer]) {
+        await p.locator('li[data-layer-id="2"]').getByRole("button",{name:"Frame 1",exact:true}).click();
+        await expect(p.getByLabel("Edit Width",{exact:true})).toHaveValue("143");
+      }
+    } finally {release();}
+  });
 });
 
 test("the published view and edit invites open the original drawing in another signed-in browser", async ({ page, browser }, testInfo) => {

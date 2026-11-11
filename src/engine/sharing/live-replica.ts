@@ -39,14 +39,13 @@ function createLayer(change: Extract<LiveChange,{type:"create"}>) {
 
 /** Apply on an isolated draft. Strict errors leave the caller's entire replica untouched. */
 export async function applyLive(from: LiveReplica, changes: readonly LiveChange[], mode: "strict" | "lenient" = "strict") {
-  const deleted = new Set<string>();
-  if (!changes.length) return { replica:from, skipped:0, deleted };
+  const deleted = new Set<string>(), touched = new Set<string>();
+  if (!changes.length) return { replica:from, skipped:0, deleted, touched };
   let doc = from.document, skipped = 0;
   const hasLayerChanges = changes.some(change => ["create","delete","set"].includes(change.type));
   const nodes: Record<string,DocumentNode> = hasLayerChanges ? Object.assign(Object.create(null),doc.nodes) : doc.nodes;
   const changedPositions = hasLayerChanges ? new Map(from.positions) : undefined;
   const positions = changedPositions ?? from.positions, families = new Map<string | null,Set<string>>();
-  const touched = new Set<string>();
   const children = (parent: string | null) => {
     let result = families.get(parent);
     if (!result) {
@@ -96,6 +95,7 @@ export async function applyLive(from: LiveReplica, changes: readonly LiveChange[
           const next = stack.pop()!;
           for (const child of children(next)) stack.push(child);
           families.set(next,new Set());
+          touched.add(next);
           deleted.add(next);
           delete nodes[next];
           changedPositions!.delete(next);
@@ -138,6 +138,7 @@ export async function applyLive(from: LiveReplica, changes: readonly LiveChange[
   };
   let pages = doc.pages;
   for (const [parent,ids] of families) {
+    if (parent !== null) touched.add(parent);
     if (parent === null) {
       pages = Object.freeze([...ids].filter(key => key !== doc.libraryStore?.root && nodes[key]?.kind === "page").sort(sort));
     } else if (nodes[parent]) {
@@ -155,5 +156,5 @@ export async function applyLive(from: LiveReplica, changes: readonly LiveChange[
     if (n.width > 1e9 || n.height > 1e9 || layerTransform(n).some(v => Math.abs(v) > 1e9)) throw new Error("Layer geometry exceeds the live coordinate limit");
   }
   const currentPage = pages.includes(doc.currentPage) ? doc.currentPage : pages[0];
-  return { replica:{document:Object.freeze({...doc,nodes:Object.freeze(nodes),pages,currentPage}), positions}, skipped, deleted };
+  return { replica:{document:Object.freeze({...doc,nodes:Object.freeze(nodes),pages,currentPage}), positions}, skipped, deleted, touched };
 }

@@ -1,3 +1,4 @@
+import {normaliseLive} from "./sharing/live-normalise";
 import {followCommentAnchors} from "./comments";
 import {libraryUsageReport} from "./sharing/library-usage";
 import type {OnlineTeamLibraries} from "../backends/online-files";
@@ -428,6 +429,13 @@ export class EditorEngine {
     if (!!history !== !!previous || previous?.canUndo !== history?.canUndo || previous?.canRedo !== history?.canRedo) this.#publish({});
   }
   get liveHistory() { return this.#liveHistory; }
+
+  repairLiveDocument(before: Document, after: Document, touched: ReadonlySet<string>) {
+    const result = normaliseLive(before,after,touched,this.#idClient,this.#nextId);
+    if (this.#idClient && result.nextId > ((BigInt(this.#idClient)+1n)<<32n)) throw new Error("Live client identifiers are exhausted");
+    this.#nextId = result.nextId;
+    return result.document;
+  }
 
   receiveLiveDocument(incoming: Document) {
     const current = this.#fileDocument();

@@ -1,4 +1,5 @@
 import { decodeFigcraft, encodeFigcraftBlob } from "../../src/engine/file-format";
+import {restoreLiveCheckpoint} from "../../src/engine/sharing/live-checkpoint";
 import {readLiveUpdates,submitLiveBatch} from "../../src/backends/supabase/live-journal";
 import { createHash, randomUUID } from "node:crypto";
 import { execFileSync, spawn } from "node:child_process";
@@ -648,6 +649,41 @@ describe.skipIf(!enabled)("private online files on real local Supabase", () => {
     await expect(readLiveUpdates(writer,viewer.conn,"2")).rejects.toMatchObject({code:"42501"});
     await changeFile(owner.id,file,null);
     expect((await writer.rpc("read_live_journal",{...alice.conn,after_seq:null,validation:true})).error?.code).toBe("42501");
+  },90_000);
+
+  it("restores a compacted drawing and its processed IDs across a change of physical connection",async()=>{
+    const writer=local!.admin, file=randomUUID(), keys=createPublishedLinks(), proof=await publishedLinkDigests(keys);
+    paths.push(owner.id+"/"+file+".figcraft");
+    const store=ownedStore(owner.client,owner.id,id=>finaliseForTest(owner.client,writer,id,proof));
+    const fixture=await readFile(new URL("../fixtures/native-comment-threads.figcraft",import.meta.url));
+    await store.publish(file,await encodeFigcraftBlob((await decodeFigcraft(fixture)).document));
+    const login=(await stranger.client.auth.getClaims()).data!.claims.session_id as string, resume=randomUUID();
+    const open=async()=>{
+      const tab=randomUUID();
+      const welcome=await readSharedDrawing(stranger.client,writer,stranger.id,login,tab,file,keys.edit.token,resume);
+      return {conn:{actor:stranger.id,login,tab,target:file},client:welcome.client};
+    };
+    const initial=await open();
+    const update=(value:string)=>[{type:"setDoc",prop:"name",value:JSON.stringify(value)}];
+    expect(await submitLiveBatch(writer,initial.conn,"1","0",update("First"))).toMatchObject({decision:"accepted"});
+    // Force the normal compaction path with a full byte budget. No large synthetic drawing is needed.
+    localOperatorSql(local!,"update figcraft_private.live_rooms set log_bytes=67108864 where file_id=:'f'; update figcraft_private.live_batches set byte_count=67108864 where file_id=:'f'",{f:file});
+    expect(await submitLiveBatch(writer,initial.conn,"2","1",update("Compacted"))).toMatchObject({decision:"accepted"});
+    if (process.env.FIGCRAFT_VERIFY_ORDERED_RESTART==="1") {
+      expect(localOperatorSql(local!,"select count(*) from auth.users where id not in (:'a',:'b')",{a:owner.id,b:stranger.id})).toBe("0");
+      execFileSync("docker",["restart","supabase_db_figcraft-react"],{stdio:"pipe",timeout:60_000});
+      await expect.poll(async()=>!(await writer.from("online_files").select("id").eq("id",file)).error,{timeout:30_000}).toBe(true);
+    }
+    const resumed=await open();
+    expect(resumed.client).toBe(initial.client);
+    await expect(readLiveUpdates(writer,initial.conn,"1")).rejects.toMatchObject({code:"42501"});
+    const caught=await readLiveUpdates(writer,resumed.conn,"0");
+    expect(caught).toMatchObject({reset:true,sequence:"2",checkpointSeq:"2",lastBatch:"2",batches:[]});
+    expect((await restoreLiveCheckpoint(caught.checkpoint!)).document.name).toBe("Compacted");
+    expect(await submitLiveBatch(writer,resumed.conn,"2","1",update("Wrong"))).toMatchObject({decision:"processed",sequence:"2"});
+    expect(await submitLiveBatch(writer,resumed.conn,"3","2",update("Recovered"))).toMatchObject({decision:"accepted",sequence:"3"});
+    expect((await readLiveUpdates(writer,resumed.conn,"2")).batches[0].changes).toEqual(update("Recovered"));
+    await changeFile(owner.id,file,null);
   },90_000);
 
   it("binds an invite to its Auth session and denies signed URLs, writes and downloads after revocation", async () => {

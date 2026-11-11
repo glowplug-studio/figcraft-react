@@ -11,9 +11,10 @@ export interface LiveEditor {
   receive(document: Document): void;
   subscribe(listener: () => void): () => void;
   interacting(): boolean;
+  normalise(before: Document, after: Document, touched: ReadonlySet<string>): Document;
   history(controller?: {canUndo: boolean; canRedo: boolean; travel(undo: boolean): boolean}): void;
 }
-type Pending = {base: string; batch?: string; changes: LiveChange[]; step: LiveStep; direction: "edit"|"undo"|"redo"};
+type Pending = {base: string; batch?: string; changes: LiveChange[]; step?: LiveStep; rebased?: boolean; direction: "edit"|"undo"|"redo"|"followUp"};
 
 /** One ordered writer per physical editor. In-flight IDs survive a lost reply and a physical reconnect. */
 export class LivePeer {
@@ -78,7 +79,9 @@ export class LivePeer {
       if (diff.changes.length) {
         const step = await captureLiveStep(before,diff.replica,diff.changes);
         this.pending.push({base:this.sequence ?? "0",changes:diff.changes,step,direction:"edit"});
-        this.undo.push(step); this.redo = [];
+        this.undo.push(step);
+        if (this.undo.length > 1000) this.undo.shift();
+        this.redo = [];
       }
       this.local = diff.replica;
       this.edits.shift();
@@ -102,19 +105,22 @@ export class LivePeer {
     for (const b of update.batches) {
       if (BigInt(b.sequence) !== ++seq) throw new Error("Missing ordered edits");
       const before = state;
-      state = (await applyLive(state,b.changes)).replica;
+      const applied = await applyLive(state,b.changes);
+      state = applied.replica;
       if (b.client === this.client) {
         const own = this.pending.find(p => p.batch === b.batch);
         if (own) {
-          if (own.direction === "edit") {
+          if (own.step && own.direction === "edit") {
             const fresh = await captureLiveStep(before,state,b.changes);
             own.step.backward = fresh.backward;
           }
-          own.step.confirmed = true;
+          if (own.step) own.step.confirmed = true;
+          if (own.rebased) await this.repair(before,state,applied.touched,b.sequence,own);
         } else this.redraw = true;
       } else {
         this.redraw = true;
         for (const step of [...this.undo,...this.redo]) if (step.confirmed) taintStep(step,b.changes);
+        for (const item of this.pending) item.rebased = true;
       }
     }
     if (seq !== BigInt(update.sequence)) throw new Error("Incomplete ordered edits");
@@ -128,12 +134,24 @@ export class LivePeer {
         this.redraw = true;
         this.undo = this.undo.filter(s => s !== p.step);
         this.redo = this.redo.filter(s => s !== p.step);
-        if (p.direction === "undo") this.undo.push(p.step);
-        if (p.direction === "redo") this.redo.push(p.step);
+        if (p.step && p.direction === "undo") this.undo.push(p.step);
+        if (p.step && p.direction === "redo") this.redo.push(p.step);
         this.notice("Your shared edit was refused.");
-      } else p.step.confirmed = true;
+      } else if (p.step) p.step.confirmed = true;
       return false;
     });
+  }
+
+  private async repair(before: LiveReplica, after: LiveReplica, touched: ReadonlySet<string>, base: string, owner: Pending) {
+    const fixed = this.editor.normalise(before.document,after.document,touched);
+    const diff = await diffLive(after,fixed);
+    const later = new Set(this.pending.slice(this.pending.indexOf(owner)+1).flatMap(p =>
+      p.changes.filter(c => c.type === "set").map(c => c.id+"/"+c.prop)));
+    const changes = diff.changes.filter(c => c.type !== "set" || !later.has(c.id+"/"+c.prop));
+    if (changes.length) {
+      this.pending.push({base,changes,direction:"followUp"});
+      this.redraw = true;
+    }
   }
 
   private async reconcile() {
@@ -149,18 +167,22 @@ export class LivePeer {
       if (travel !== undefined) {
         this.travelRequest = undefined;
         const from = travel ? this.undo : this.redo, to = travel ? this.redo : this.undo;
-        const step = from.pop();
-        if (step) {
+        while (from.length) {
+          const step = from.pop()!;
           const wanted = travelLiveStep(step,travel,view.document);
           const result = await applyLive(view,wanted,"lenient");
           const changes = (await diffLive(view,result.replica.document)).changes;
-          if (changes.length) {
-            this.pending.push({base:this.sequence!,changes,step,direction:travel?"undo":"redo"});
-            step.confirmed = false;
-            view = result.replica;
-            this.redraw = true;
-          }
+          if (!changes.length) continue;
+          const base = this.sequence!;
+          this.pending.push({base,changes,step,direction:travel?"undo":"redo"});
+          step.confirmed = false;
+          const normalised = this.editor.normalise(view.document,result.replica.document,result.touched);
+          const follow = await diffLive(result.replica,normalised);
+          if (follow.changes.length) this.pending.push({base,changes:follow.changes,direction:"followUp"});
+          view = follow.replica;
+          this.redraw = true;
           to.push(step);
+          break;
         }
       }
       if (this.edits.length) { this.redraw = true; continue; }

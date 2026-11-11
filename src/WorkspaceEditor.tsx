@@ -29,6 +29,7 @@ function GuestSubscription({connection, invitations, ended, changed, engine, cli
     const transport = invitations.live?.(connection);
     if (!transport || !client) return;
     const peer = new LivePeer({current:() => engine.archiveRevision.document,receive:d => engine.receiveLiveDocument(d),
+      normalise:(before,after,touched) => engine.repairLiveDocument(before,after,touched),
       subscribe:engine.subscribe,interacting:() => engine.interacting,history:h => engine.setLiveHistory(h)},transport,client,notice);
     return peer.start();
   },[client,connection,engine,invitations,notice]);
@@ -220,7 +221,7 @@ export function WorkspaceEditor({ identity, capabilities, recoveryStore, onlineH
         <button aria-pressed={home === "online"} onClick={() => setHome("online")}>Online</button>
       </nav>
       {home === "online" ? <OnlineFilesPanel online={online} opened={() => setHome(undefined)} /> : <section aria-label="Open files">
-        <h2>Open files</h2>{tabs.map(tab => <button key={tab.id} onClick={() => {
+        <h2>Open files</h2>{tabs.map(tab => <button key={tab.id} aria-current={tab.active ? "page" : undefined} onClick={() => {
           workspace.execute("doc.switch", { index: tab.index }); setHome(undefined);
         }}>{tab.name}</button>)}
         <button onClick={() => { workspace.execute("file.new"); setHome(undefined); }}>New file</button>
