@@ -53,3 +53,9 @@ At React 9503e36 the six native cases, authenticated browser replacement and rea
 ### Compacted history and lost travel
 
 Pinned Rust `Client::rejoin(CatchUp::Snapshot)` and `Step::{settle,verify,lost}` settle the processed batch before verifying each value against the side written by its last confirmed edit, undo or redo. Establish expected name, width, undo/redo availability, resend count and journal sequence with two clients and a two-batch native log. Replay accepted edits, accepted travel and lost travel against the TypeScript peer. Include suffix batches after a checkpoint because the browser host can retain a newer journal suffix. Check the authenticated phone's undo after another editor writes the same property during disconnection.
+
+### Random session replay
+
+Use the pinned Rust random edits from `sim_tests.rs` and the `run_with_undo` driver from `undo_tests.rs`. Observe incoming changes and the server decision in `Sim::step`, preserving its original delay, ordering and admission. Replay the requests against TypeScript admission, then compare every node, fractional key, document property and keyed entry in the final native replica. Cover two to five clients, short journals, missed replies, solo undo/redo and concurrent tree, style and page operations. Native seed 2043 includes a current-page write naming a page another participant already deleted. The native collaboration replica preserves it while `DocState` selects the first visible page for display.
+
+At `875461a` all 15 native session traces and 10 checkpoint-history replays passed. The graph merged 35,696 nodes and 121,898 edges from Rust `a2e87433` and this React slice. It resolves the native `run_with_undo`, `remake_front` and browser admission symbols. The assertions inside the test cases were checked directly in source. [Property report and phone verification](../reports/26-11-11-compacted-undo-parity.html).
