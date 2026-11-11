@@ -4,9 +4,9 @@
 
 | Field | Current value |
 |---|---|
-| Overall status | Paused at the user’s request for an app update. [Resume checkpoint and deferred review queue](26-11-07-full-port-resume.md#continue-from-here). |
+| Overall status | Active after the app update. [Resume checkpoint and deferred review queue](26-11-07-full-port-resume.md#continue-from-here). |
 | Active slice | Row 14. [Ordered live collaboration](26-11-11-ordered-live-collaboration.md). |
-| Active phase | Comment controls and role verification. The second focused browser run exposed a missing reaction on the owner. Investigate before further publication gates. |
+| Active phase | Comment controls and role verification. Concurrent whole-thread replacements now match both independently executed native outcomes. Eight role workflows and six engine cases passed. Collect the full browser run and continue presence. |
 | Upstream baseline | Styles reference a2e87433. Components reference 79c36346. Global supported baseline 8eb0b876. |
 | Branch and last verified commit | `prompt/full-figcraft-port`, `2f1e534`. All 359 production Chromium workflows passed in 1,104.27 seconds. |
 | Completed slices | Rectangle/host-auth, bounded native persistence/recovery, supported-model pages, affine rectangle geometry/selection and solid appearance, plus nested group hierarchy, Frame containers, movement/transform gestures, rounded corners, ellipse/arc/ring and Polygon/Star editing verified locally; Line/Arrow and uniform solid strokes also verified; per-side Rectangle/Frame strokes, variable-width profiles and procedural brushes verified; vector networks, solid region/stroke rendering and Flatten/Reverse also verified; foundation commit `154f5a7`. Gradient, image, pattern, blend and mask releases now have local property matrices. [Blend evidence](../reports/26-11-09-blend-modes-parity.html). Auto layout and constraints passed the local release gate. [Release evidence](../reports/26-11-09-auto-layout.md). [Local components, instances, variant properties, slots and Assets](../reports/26-11-09-components-instances.md) passed the 0.51.0 gate. |
@@ -15,7 +15,7 @@
 | Files currently in progress | [Comment interactions, role tests and exact next action](26-11-11-comment-interactions.md#pause-before-the-app-update). |
 | Blockers | No hosted change is required for the local collaboration gate. |
 | Exact next action | Follow the [current action in the resume handover](26-11-07-full-port-resume.md#continue-from-here), then its dependency-ordered review queue. |
-| Last updated | 2026-11-11 15:36 ICT |
+| Last updated | 2026-11-11 16:42 ICT |
 
 ## Scope and continuation
 

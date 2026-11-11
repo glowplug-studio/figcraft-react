@@ -579,3 +579,5 @@ At `892f67a`, native `doc::Comment`, `cmd::comment::follow_anchors`, `version::r
 | `collab::{server,message,client,history}` ordered acceptance, processed IDs, reconnect, optimistic replay and per-client targets | [Admission](../../src/engine/sharing/live-admission.ts), [Supabase journal](../../supabase/schemas/41_live_journal.sql), [client](../../src/engine/sharing/live-peer.ts), [history](../../src/engine/sharing/live-history.ts) | [Property report, limits and outstanding fault simulations](../reports/26-11-11-ordered-edits-parity.html) |
 
 | Native collaboration rebase follow-up and retained snapshot catch-up | [Derived repair](../../src/engine/sharing/live-normalise.ts), [browser peer](../../src/engine/sharing/live-peer.ts) | [Native hug fixture and real database restart](../reports/26-11-11-ordered-edits-parity.html) |
+
+| Rust comment commands, canvas threads and keyed comment replacement | [Browser comment commands](../../src/engine/comment-actions.ts), [queries](../../src/engine/comment-query.ts), [thread controls](../../src/CommentOverlay.tsx) | [Role verification and native concurrent read fixture](../reports/26-11-11-comment-interactions.html) |

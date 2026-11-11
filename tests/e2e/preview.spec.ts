@@ -929,6 +929,9 @@ if (!process.env.PLAYWRIGHT_BASE_URL) test("a comment-only phone replies to a pi
     await peer.getByRole("region",{name:"Comment list"}).getByRole("button",{name:"Ari · Review this drawing"}).click();
     const thread=peer.getByRole("region",{name:"Comment thread"});
     await expect(thread.getByRole("button",{name:"Edit",exact:true})).toHaveCount(0);
+    await page.getByRole("button",{name:"Comment",exact:true}).click();
+    await page.getByRole("region",{name:"Comment list"}).getByRole("button",{name:"Ari · Review this drawing"}).click();
+    const owner=page.getByRole("region",{name:"Comment thread"});
     await thread.getByRole("textbox",{name:"Reply"}).fill("Agreed @Ar");
     await thread.getByRole("option",{name:"Ari",exact:true}).click();
     await expect(thread.getByRole("textbox",{name:"Reply"})).toHaveValue("Agreed @Ari ");
@@ -937,9 +940,6 @@ if (!process.env.PLAYWRIGHT_BASE_URL) test("a comment-only phone replies to a pi
     await thread.getByText("React",{exact:true}).first().click();
     await thread.getByRole("button",{name:"React with 👍",exact:true}).first().click();
     await expect(thread.getByRole("button",{name:"👍 Bea"})).toBeVisible();
-    await page.getByRole("button",{name:"Comment",exact:true}).click();
-    await page.getByRole("region",{name:"Comment list"}).getByRole("button",{name:"Ari · Review this drawing"}).click();
-    const owner=page.getByRole("region",{name:"Comment thread"});
     await expect(owner.getByText("Agreed @Ari")).toBeVisible();
     await expect(owner.getByRole("button",{name:"👍 Bea"})).toBeVisible();
     await info.attach("comment-phone",{body:await peer.screenshot(),contentType:"image/png"});

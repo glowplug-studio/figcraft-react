@@ -1,0 +1,60 @@
+[
+  {
+    "comment": {
+      "anchor": null,
+      "author": "Ari",
+      "created": 0,
+      "id": 1,
+      "page": 1,
+      "read_by": [
+        "Bea",
+        "Ari"
+      ],
+      "replies": [
+        {
+          "author": "Bea",
+          "created": 1,
+          "text": "Agreed"
+        }
+      ],
+      "resolved": false,
+      "text": "Review",
+      "x": 0.0,
+      "y": 0.0
+    },
+    "staleRead": true
+  },
+  {
+    "comment": {
+      "anchor": null,
+      "author": "Ari",
+      "created": 0,
+      "id": 1,
+      "page": 1,
+      "reactions": [
+        {
+          "emoji": "👍",
+          "users": [
+            "Bea"
+          ]
+        }
+      ],
+      "read_by": [
+        "Bea",
+        "Ari"
+      ],
+      "replies": [
+        {
+          "author": "Bea",
+          "created": 1,
+          "text": "Agreed"
+        }
+      ],
+      "resolved": false,
+      "text": "Review",
+      "x": 0.0,
+      "y": 0.0
+    },
+    "staleRead": false
+  }
+]

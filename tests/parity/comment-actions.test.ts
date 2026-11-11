@@ -1,3 +1,7 @@
+import {parse} from "lossless-json";
+import {diffLive,liveReplica} from "../../src/engine/sharing/live-changes";
+import {applyLive} from "../../src/engine/sharing/live-replica";
+import {readComments} from "../../src/engine/comments";
 import {readFileSync} from "node:fs";
 import {afterEach,expect,it,vi} from "vitest";
 import {EditorEngine} from "../../src/engine/editor";
@@ -82,4 +86,25 @@ it("limits feedback to 200 threads and 256 KiB without splitting UTF-8 character
   expect(new TextEncoder().encode(String(brief.text)).length).toBeLessThanOrEqual(256*1024);
   expect(String(brief.text)).not.toContain("\uFFFD");
   expect(e.execute("pref.userName",{name:"  "+"X".repeat(70)+"  "}).name).toBe("X".repeat(64));
+});
+
+it("replays an acknowledged reaction and either version of a competing read exactly as the native replica",async()=>{
+  const orders=parse(readFileSync(new URL("../fixtures/native-comment-order.json",import.meta.url),"utf8")) as {staleRead:boolean;comment:unknown}[];
+  const author=new EditorEngine();
+  vi.useFakeTimers();vi.setSystemTime(0);
+  author.execute("comment.add",{author:"Ari",text:"Review",x:0,y:0});
+  vi.setSystemTime(1000);
+  author.execute("comment.reply",{author:"Bea",id:1,text:"Agreed"});
+  const original=liveReplica(author.getSnapshot().document);
+  author.execute("comment.react",{author:"Bea",id:1,emoji:"👍"});
+  const change=await diffLive(original,author.getSnapshot().document);
+  const reacted=(await applyLive(original,change.changes)).replica;
+  for (const order of orders) {
+    const reader=new EditorEngine(), base=order.staleRead?original:reacted;
+    reader.receiveLiveDocument(base.document);
+    reader.execute("comment.markRead",{id:1,author:"Ari"});
+    const {changes}=await diffLive(base,reader.getSnapshot().document);
+    const final=(await applyLive(reacted,changes)).replica;
+    expect(final.document.comments).toEqual(readComments([order.comment]));
+  }
 });
