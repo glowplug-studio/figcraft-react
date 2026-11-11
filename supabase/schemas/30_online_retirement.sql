@@ -66,9 +66,10 @@ begin
         (o.owner_id is not null and split_part(o.name,'/',1)=o.owner_id and
          o.name ~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}[.]figcraft$') or
         (o.owner_id is null and
-         o.name ~ '^operator/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/[0-9a-f]{64}[.]figcraft$'))
+         o.name ~ '^(operator|library)/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/[0-9a-f]{64}[.]figcraft$'))
         for key share;
     if not found then return; end if;
+    if exists(select from figcraft_private.team_libraries l where l.snapshot_id=target) then return; end if;
     if not exists(select from figcraft_private.online_retirements where snapshot_id = target) then
         select f.* into listing from public.online_files f where f.snapshot_id = target;
         if found then

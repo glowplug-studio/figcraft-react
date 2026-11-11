@@ -13,6 +13,7 @@ export default defineConfig({
         "sharing/join-code": resolve(import.meta.dirname, "src/engine/sharing/join-code.ts"),
         "icc-node": resolve(import.meta.dirname, "src/engine/icc-node.ts"),
         "icc-browser": resolve(import.meta.dirname, "src/engine/icc-browser.ts"),
+        "backends/supabase/team-library": resolve(import.meta.dirname, "src/backends/supabase/team-library.ts"),
         "backends/supabase/publication": resolve(import.meta.dirname, "src/backends/supabase/publication.ts"),
         "backends/supabase/index": resolve(
           import.meta.dirname,

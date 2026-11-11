@@ -1,3 +1,4 @@
+import type {OnlineTeamLibraries} from "./backends/online-files";
 import { ImportReportPanel } from "./ImportReportPanel";
 import { importNotice, readImportReport, type ImportReport } from "./engine/interchange/import-report";
 import { droppedDesigns,type DroppedDesign } from "./rest-folder-drop";
@@ -90,9 +91,11 @@ function HistoryButtons({ engine, editable, undo, redo, dispatch }: { engine: Ed
 /** Embeddable local rectangle workflow. The host owns authentication and styling. */
 export function Editor(props: EditorProps) { return <DocumentEditor {...props} />; }
 
-export function DocumentEditor({ identity, capabilities, engine: suppliedEngine, recoveryStore, workspace, workspaceRecovery, fileMenu, shareMenu, menuGroup, sessionLabel, onHome, onWorkspaceNotice, onReviewBranch, onImportReport, workspacePrint, onWorkspacePrint }: EditorProps & {
+export function DocumentEditor({ identity, capabilities, engine: suppliedEngine, recoveryStore, workspace, workspaceRecovery, teamLibraries, teamConnection, fileMenu, shareMenu, menuGroup, sessionLabel, onHome, onWorkspaceNotice, onReviewBranch, onImportReport, workspacePrint, onWorkspacePrint }: EditorProps & {
   workspace?: EditorWorkspace;
   workspaceRecovery?: WorkspaceRecoveryState;
+  teamLibraries?: OnlineTeamLibraries;
+  teamConnection?: string;
   fileMenu?: ReactNode;
   shareMenu?: ReactNode;
   menuGroup?: string;
@@ -659,11 +662,32 @@ export function DocumentEditor({ identity, capabilities, engine: suppliedEngine,
     void restore();
     return ()=>{active=false;};
   },[editable,engine,recoveryStore,snapshot.document.libraryLinks]);
+  useEffect(()=>{
+    if (!teamLibraries || !signedIn) return;
+    // Import credentials into private host storage without fetching a library.
+    // Foreign host links stay unavailable until the user selects the corresponding host.
+    for (const invite of engine.importedTeamInvites.values()) void teamLibraries.fromInvite(invite).catch(()=>undefined);
+  },[engine,engine.importedTeamInvites,teamLibraries,signedIn]);
   const libraryVariables=useMemo(()=>libraryCatalogues(snapshot.document.libraryLinks,snapshot.document.libraryRecords,path=>engine.librarySource(path)),
     [engine,engine.libraryRevision,snapshot.document.libraryLinks,snapshot.document.libraryRecords]);
   const publishableSelection=useMemo(()=>snapshot.selection.length>0 &&
     snapshot.selection.every(id=>componentRoot(snapshot.document,id)),[snapshot.document,snapshot.selection]);
   const assetsPanel = <AssetsPanel publish={snapshot.libraryPanel?.publish ?? false} key={engine.fileGeneration} save={save} doc={snapshot.document} editable={editable && !busy} dispatch={dispatch}
+    team={teamLibraries && {
+      inSession:!!teamConnection,
+      load:async (input,isPath) => {
+        const principal=initialPrincipal.current;
+        const invite=isPath ? engine.importedTeamInvites.get(input) : input;
+        const path=invite ? await teamLibraries.fromInvite(invite) : input;
+        return engine.loadTeamLibrary(path,teamLibraries,principal && recoveryStore?.writeLibrary
+          ? (key,archive)=>recoveryStore.writeLibrary!(principal,key,archive) : undefined);
+      },
+      publish:async (params,invite) => {
+        const path=invite ? await teamLibraries.fromInvite(invite) : teamConnection ? await teamLibraries.fromSession(teamConnection) : undefined;
+        if (!path) throw new Error("Choose an edit link or open the file from its server");
+        return engine.publishTeamLibrary(path,teamLibraries,params);
+      },
+    }}
     source={path=>engine.librarySource(path)}
     addLibrary={async file=>{
       const principal=initialPrincipal.current;

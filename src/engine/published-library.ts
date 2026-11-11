@@ -1,3 +1,6 @@
+import {sha256} from "@noble/hashes/sha2.js";
+import {bytesToHex} from "@noble/hashes/utils.js";
+import {parseSessionInvite,nativeInviteLink} from "./sharing/invite";
 import type {Document} from "./document";
 import type {ComponentCount,LibraryStore} from "./library-store";
 import {fail,id,idString,wireId} from "./native-values";
@@ -30,10 +33,18 @@ export interface LibraryLink {
   readonly path:string;
   readonly version:string;
 }
-export function readLibraryLinks(value:unknown) {
+export function readLibraryLinks(value:unknown, imported:Map<string,string>) {
   return entries(value,r=>{
-    const path=string(r.path);
-    if (/^(?:figcraft|wss?):\/\//i.test(path.trimStart())) fail("team library share links require online workspace support");
+    let path=string(r.path);
+    if (/^(?:figcraft|wss?):\/\//i.test(path.trimStart())) {
+      let invite=path;
+      try {
+        const grant=parseSessionInvite(path);
+        if (grant.kind==="link") invite=nativeInviteLink(grant);
+      } catch { /* An unrecognised address remains an unavailable, repairable reference. */ }
+      path="team-library:"+bytesToHex(sha256(new TextEncoder().encode(invite)));
+      imported.set(path,invite);
+    }
     return {id:string(r.id),name:string(r.name),path,version:uint(r.version)};
   });
 }

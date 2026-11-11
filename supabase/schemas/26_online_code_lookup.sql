@@ -11,15 +11,19 @@ create table figcraft_private.online_code_budgets (
     admin_used_at timestamptz,
     report_tokens double precision,
     report_used_at timestamptz,
+    download_tokens double precision,
+    download_used_at timestamptz,
     publish_tokens double precision,
     publish_used_at timestamptz
 );
-create index online_code_budgets_age on figcraft_private.online_code_budgets(greatest(used_at,publish_used_at,report_used_at,admin_used_at));
+create index online_code_budgets_age on figcraft_private.online_code_budgets(greatest(used_at,publish_used_at,report_used_at,admin_used_at,download_used_at));
 create table figcraft_private.online_code_global (
     singleton boolean primary key check (singleton),
     tokens double precision not null,
     sampled_at timestamptz not null,
     store_started timestamptz not null,
+    download_tokens double precision,
+    download_used_at timestamptz,
     publish_tokens double precision,
     publish_used_at timestamptz
 );
@@ -54,7 +58,7 @@ begin
         insert into figcraft_private.online_code_global(singleton,tokens,sampled_at,store_started)
             values(true,1000,sampled,pg_postmaster_start_time()) on conflict (singleton) do update
             set tokens = 1000, sampled_at = excluded.sampled_at, store_started = excluded.store_started,
-                publish_tokens = null, publish_used_at = null;
+                publish_tokens = null, publish_used_at = null, download_tokens = null, download_used_at = null;
     end if;
     return sampled;
 end;
@@ -71,8 +75,8 @@ begin
     if found then return budget; end if;
     if (select count(*) from figcraft_private.online_code_budgets) >= 10000 then
         delete from figcraft_private.online_code_budgets where not (block = any(participating))
-            and greatest(used_at,publish_used_at,report_used_at,admin_used_at) <= (select greatest(used_at,publish_used_at,report_used_at,admin_used_at)
-            from figcraft_private.online_code_budgets order by greatest(used_at,publish_used_at,report_used_at,admin_used_at) offset 5000 limit 1);
+            and greatest(used_at,publish_used_at,report_used_at,admin_used_at,download_used_at) <= (select greatest(used_at,publish_used_at,report_used_at,admin_used_at,download_used_at)
+            from figcraft_private.online_code_budgets order by greatest(used_at,publish_used_at,report_used_at,admin_used_at,download_used_at) offset 5000 limit 1);
     end if;
     insert into figcraft_private.online_code_budgets(block,tokens,used_at)
         values(b,case masklen(b) when 48 then 40 when 56 then 20 else 10 end,sampled) returning * into budget;

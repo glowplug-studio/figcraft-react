@@ -23,6 +23,18 @@ async function sameBytes(first: Blob, second: Blob) {
   return new Uint8Array(a).every((byte, index) => byte === other[index]);
 }
 
+export async function stageOnlineSnapshot(client: SupabaseClient, principal: string, id: string, snapshot: Blob) {
+  const path = onlineSnapshotPath(principal, id);
+  const storage = client.storage.from(bucket);
+  const uploaded = await storage.upload(path, snapshot, { contentType: "application/octet-stream", upsert: false });
+  if (uploaded.error) {
+    if (uploaded.error.status !== 409 && uploaded.error.statusCode !== "Duplicate" && uploaded.error.statusCode !== "409") throw uploaded.error;
+    const previous = await storage.download(path);
+    if (previous.error) throw previous.error;
+    if (!await sameBytes(previous.data, snapshot)) throw new Error("This publication ID already has a different snapshot");
+  }
+}
+
 /** The request-scoped publisher validates staged bytes before making a listing visible. */
 export class SupabaseOnlineFileStore implements OnlineFileStore {
   constructor(
@@ -63,15 +75,7 @@ export class SupabaseOnlineFileStore implements OnlineFileStore {
   }
 
   async publish(id: string, snapshot: Blob, serverKey?:string) {
-    const path = onlineSnapshotPath(this.principal, id);
-    const storage = this.client.storage.from(bucket);
-    const uploaded = await storage.upload(path, snapshot, { contentType: "application/octet-stream", upsert: false });
-    if (uploaded.error) {
-      if (uploaded.error.status !== 409 && uploaded.error.statusCode !== "Duplicate" && uploaded.error.statusCode !== "409") throw uploaded.error;
-      const previous = await storage.download(path);
-      if (previous.error) throw previous.error;
-      if (!await sameBytes(previous.data, snapshot)) throw new Error("This publication ID already has a different snapshot");
-    }
+    await stageOnlineSnapshot(this.client,this.principal,id,snapshot);
     return this.finalise(id,serverKey);
   }
 

@@ -1,12 +1,30 @@
 import {readFileSync} from "node:fs";
 import {strFromU8,strToU8,unzipSync,zipSync} from "fflate";
 import {describe,expect,it} from "vitest";
-import {decodeFigcraft,decodePublishedLibrary,encodeFigcraft} from "../../src/engine/file-format";
+import {decodeFigcraft,decodePublishedLibrary,encodePublishedLibrary,encodeFigcraft} from "../../src/engine/file-format";
 
 // Rust a2e87433: variable and component fixture, image.replace, library.publish, unpublished rename, file.saveAs.
 const fixture=readFileSync(new URL("../fixtures/native-published-library.figcraft",import.meta.url));
 const manifest="library/manifest.json",snapshot="library/document.json";
 describe("native published library archives",()=>{
+  it("charges only library members and omits an image one byte above the host budget",async()=>{
+    const files=unzipSync(fixture);
+    const required=files[manifest].length+files[snapshot].length;
+    const image=Object.keys(files).find(key=>key.startsWith("images/"))!;
+    const exact=required+files[image].length;
+    await expect(decodePublishedLibrary(fixture,required-1)).rejects.toThrow("library byte budget");
+    const without=await decodePublishedLibrary(fixture,exact-1);
+    expect(Object.keys(without!.document.images ?? {})).toHaveLength(0);
+    const source=await decodePublishedLibrary(fixture,exact);
+    expect(Object.keys(source!.document.images!)).toHaveLength(1);
+    const held=await encodePublishedLibrary(source!);
+    const copy=await decodeFigcraft(held);
+    expect(copy.document.name).toBe(source!.manifest.name);
+    expect(Object.keys(copy.document.nodes)).toEqual(["1"]);
+    expect(copy.document.published?.document.nodes["5"].name).toBe("Button");
+    expect(copy.document.published).toEqual(source);
+    expect(Object.keys(unzipSync(new Uint8Array(await held.arrayBuffer()))).some(key=>key.startsWith("versions/") || key.startsWith("branches/"))).toBe(false);
+  });
   it("keeps the author's edits separate from the publication through a save",async()=>{
     const {document,issues}=await decodeFigcraft(fixture);
     expect(issues).toBeUndefined();
@@ -142,4 +160,20 @@ it("opens the library browser and publication form without modifying the file or
   expect(e.getSnapshot().document).toBe(before);
   expect(e.getUndoDepth()).toBe(0);
   e.setEditable(false);expect(e.getSnapshot().libraryPanel).toBeUndefined();
+});
+
+it("imports a native team library invite without writing its bearer secret to a drawing or recovery archive",async()=>{
+  const members=unzipSync(fixture);
+  const raw=JSON.parse(strFromU8(members["document.json"]));
+  const token="0123456789abcdef012345";
+  const path="figcraft://join?host=localhost:47900&file=my-file&token="+token;
+  raw.libraries={...raw.libraries,enabled:[{id:"team-kit",name:"Team kit",version:3,path}]};
+  members["document.json"]=strToU8(JSON.stringify(raw));
+  const opened=await decodeFigcraft(zipSync(members));
+  const savedPath=opened.document.libraryLinks![0].path;
+  expect(savedPath).toMatch(/^team-library:[a-f0-9]{64}$/);
+  expect(opened.teamLibraryInvites?.get(savedPath)).toBe(path);
+  const saved=unzipSync(await encodeFigcraft(opened.document));
+  expect(strFromU8(saved["document.json"])).toContain(savedPath);
+  expect(Object.values(saved).some(bytes=>strFromU8(bytes).includes(token))).toBe(false);
 });

@@ -106,6 +106,19 @@ export async function finaliseOnlineFile(user: SupabaseClient, writer: SupabaseC
   }
 }
 
+/** Store content under an immutable, private host namespace. A lost acknowledgement can reuse the object. */
+export async function keepHostArchive(writer: SupabaseClient, namespace: "operator" | "library", id: string, archive: Blob) {
+  const checksum = new Uint8Array(await crypto.subtle.digest("SHA-256",await archive.arrayBuffer()));
+  const hash = Array.from(checksum,b => b.toString(16).padStart(2,"0")).join("");
+  const destination = namespace + "/" + id + "/" + hash + ".figcraft";
+  const bucket = writer.storage.from("figcraft-files");
+  const saved = await bucket.upload(destination,archive,{upsert:false,contentType:"application/octet-stream"});
+  if (saved.error && saved.error.status !== 409 && saved.error.statusCode !== "Duplicate" && saved.error.statusCode !== "409") throw saved.error;
+  const snapshot = saved.data?.id ?? (await bucket.info(destination)).data?.id;
+  if (!snapshot) throw new Error("The host archive is unavailable");
+  return snapshot;
+}
+
 export class OperatorRateError extends Error {}
 
 /** Only a trusted, key-authenticated host may call this with its privileged writer. */
@@ -133,14 +146,7 @@ export async function finaliseOperatorFile(user: SupabaseClient, writer: Supabas
   if (upload.error) throw upload.error;
   const archive = upload.data;
   const validated = await validateOnlineSnapshot(archive,id,prior ? Infinity : maxFileMb * 1024 * 1024);
-  const checksum = new Uint8Array(await crypto.subtle.digest("SHA-256",await archive.arrayBuffer()));
-  const hash = Array.from(checksum,b => b.toString(16).padStart(2,"0")).join("");
-  const destination = "operator/" + id + "/" + hash + ".figcraft";
-  const bucket = writer.storage.from("figcraft-files");
-  const saved = await bucket.upload(destination,archive,{upsert:false,contentType:"application/octet-stream"});
-  if (saved.error && saved.error.status !== 409 && saved.error.statusCode !== "Duplicate" && saved.error.statusCode !== "409") throw saved.error;
-  const snapshot = saved.data?.id ?? (await bucket.info(destination)).data?.id;
-  if (!snapshot) throw new Error("Operator archive is unavailable");
+  const snapshot = await keepHostArchive(writer,"operator",id,archive);
   const result = await writer.rpc("keep_operator_publication",{target:id,snapshot,title:validated.name,links,
     measured:validated.snapshotBytes,...(capacity.max_files === undefined ? {} : {max_files:capacity.max_files})})
     .single<{id:string;name:string;created_at:string}>();

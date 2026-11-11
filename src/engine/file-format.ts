@@ -14,7 +14,7 @@ import { sha256 } from "@noble/hashes/sha2.js";
 import { bytesToHex } from "@noble/hashes/utils.js";
 import { readNativeJson } from "./native-json";
 import { readVectorNetwork, wireVectorNetwork } from "./vector-codec";
-import { isFrameLikeKind, isFrameLike, isMaskType, layerBlend, isBooleanOperation, isLeaf, isLeafKind } from "./document";
+import { newDocument, isFrameLikeKind, isFrameLike, isMaskType, layerBlend, isBooleanOperation, isLeaf, isLeafKind } from "./document";
 import { type Corners, type Radii } from "./corners";
 import { readImageFilters } from "./image-filters";
 import { archivedImage, validImageKey, type ImageResource } from "./image-resource";
@@ -53,7 +53,7 @@ export interface FileBranch {
   readonly versions: readonly FileVersion[];
 }
 
-export interface DecodedFigcraft { document: Document; nextId: string; versions?: readonly FileVersion[]; branches?: readonly FileBranch[]; issues?: readonly string[] }
+export interface DecodedFigcraft { teamLibraryInvites?: ReadonlyMap<string,string>; document: Document; nextId: string; versions?: readonly FileVersion[]; branches?: readonly FileBranch[]; issues?: readonly string[] }
 
 function nativeEffects(value: unknown) {
   try { return readEffects(appearanceValue(value), "archive"); }
@@ -261,7 +261,8 @@ function decodeDocument(raw: unknown, parsedNodes?: Record<string,DocumentNode>)
   fields(libraries,["enabled","variables","collections","styles","store","components","detached","inserted"],documentDefaults.libraries,"libraries");
   const libraryStore=readLibraryStore(libraries);
   const libraryRecords=readImportedRecords(libraries);
-  const libraryLinks=readLibraryLinks(libraries.enabled);
+  const teamLibraryInvites=new Map<string,string>();
+  const libraryLinks=readLibraryLinks(libraries.enabled,teamLibraryInvites);
   const profile = root.color_profile === undefined ? "srgb" : root.color_profile;
   if (profile !== "srgb" && profile !== "displayP3") fail("invalid document colour profile");
   const palette = root.document_colors === undefined ? [] : list(root.document_colors, "document colors").map(c => nativeColour(c, "document color"));
@@ -293,7 +294,7 @@ function decodeDocument(raw: unknown, parsedNodes?: Record<string,DocumentNode>)
   if (!pages.includes(currentPage)) fail("current page is not listed");
   const declared = BigInt(id(root.next_id, "next_id"));
   const minimum = maximum < U64_MAX ? maximum + 1n : U64_MAX;
-  return { document: Object.freeze({ ...(libraryStore && {libraryStore}), ...(libraryRecords && {libraryRecords}), ...(libraryLinks.length && {libraryLinks}), ...(variables !== emptyVariables && {variables}), ...(styles?.length && { styles }), ...(profile === "displayP3" && {colourProfile: "displayP3" as const}), ...(palette.length > 0 && {documentColours: Object.freeze(palette)}), ...(presets.length ? { imagePresets: Object.freeze(presets) } : {}), name: text(root.name, "document name"), pages: Object.freeze(pages), currentPage, nodes: parsedNodes ?? Object.freeze(nodes) }), nextId: (declared < minimum ? minimum : declared).toString() };
+  return { ...(teamLibraryInvites.size && {teamLibraryInvites}), document: Object.freeze({ ...(libraryStore && {libraryStore}), ...(libraryRecords && {libraryRecords}), ...(libraryLinks.length && {libraryLinks}), ...(variables !== emptyVariables && {variables}), ...(styles?.length && { styles }), ...(profile === "displayP3" && {colourProfile: "displayP3" as const}), ...(palette.length > 0 && {documentColours: Object.freeze(palette)}), ...(presets.length ? { imagePresets: Object.freeze(presets) } : {}), name: text(root.name, "document name"), pages: Object.freeze(pages), currentPage, nodes: parsedNodes ?? Object.freeze(nodes) }), nextId: (declared < minimum ? minimum : declared).toString() };
 }
 
 async function parseDocument(source: Uint8Array | Blob) {
@@ -419,7 +420,8 @@ function addLibraryMember(members:Map<string,FileEntry>,file:Entry) {
   return true;
 }
 /** A consumer can use a published snapshot without reading the author's editable drawing or history. */
-export async function decodePublishedLibrary(source:Uint8Array | Blob) {
+export async function decodePublishedLibrary(source:Uint8Array | Blob, unpackedLimit = MAX_UNPACKED_BYTES) {
+  if (!Number.isSafeInteger(unpackedLimit) || unpackedLimit < 0) throw new Error("Invalid library archive budget");
   const reader=new ZipReader(new ArchiveReader(source),archiveOptions);
   try {
     const members=new Map<string,FileEntry>(),images=new Map<string,FileEntry>();
@@ -428,8 +430,13 @@ export async function decodePublishedLibrary(source:Uint8Array | Blob) {
       const key=file.filename.slice(7);
       if (validImageKey(key)) images.set(key,file);
     }
-    return await readPublished(members,{},images,MAX_UNPACKED_BYTES,source instanceof Blob ? source : undefined);
+    return await readPublished(members,{},images,Math.min(unpackedLimit,MAX_UNPACKED_BYTES),source instanceof Blob ? source : undefined);
   } finally { await reader.close(); }
+}
+
+/** The server archive has an empty editable document and only the published library. */
+export function encodePublishedLibrary(library: PublishedLibrary) {
+  return encodeFigcraftBlob({...newDocument(library.manifest.name), published:library});
 }
 
 function subsetImages(images: Readonly<Record<string, ImageResource>>, list: unknown): Readonly<Record<string, ImageResource>> {

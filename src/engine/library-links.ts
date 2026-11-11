@@ -24,7 +24,7 @@ export function removeLibrary(doc:Document,key:string) {
   return {document:pruneLibraryAssets(Object.freeze({...base,...(rest.length && {libraryLinks:rest})}),link.id),result:{removed:link.id}};
 }
 export function describeLibrary(doc:Document,link:LibraryLink,source:PublishedLibrary | undefined,withAssets:boolean) {
-  const info={id:link.id,name:link.name,path:link.path,server:false,seenVersion:inspectedId(link.version)};
+  const info={id:link.id,name:link.name,path:link.path,server:link.path.startsWith("team-library:"),seenVersion:inspectedId(link.version)};
   if (!source) return {...info,error:"Choose the published library file to read its assets."};
   if (source.manifest.id!==link.id) return {...info,error:'the file now holds another library ("'+source.manifest.name+'")'};
   const pending=pendingLibraryAssets(doc,source);

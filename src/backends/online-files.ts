@@ -103,6 +103,7 @@ export interface OnlineOwnerSharing {
 }
 
 export interface OnlineWorkspaceHost {
+  libraries?: OnlineTeamLibraries;
   supportsServerKey?: boolean;
   releasePublished?(file: string): void;
   serverKeyChanged?(key: string): void;
@@ -111,4 +112,15 @@ export interface OnlineWorkspaceHost {
   store: OnlineFileStore;
   device: OnlineFileDevice;
   invitations?: OnlineInvitations;
+}
+
+export type TeamLibraryReply = {state:"empty"} | {state:"unchanged"; version:string} |
+  {state:"available"; version:string; archive:Blob};
+
+/** Paths identify a private credential held by the host. They may be saved in a drawing. */
+export interface OnlineTeamLibraries {
+  fromInvite(text: string): Promise<string>;
+  fromSession(connection: string): Promise<string>;
+  fetch(path: string, have: string | null): Promise<TeamLibraryReply>;
+  publish(path: string, archive: Blob, submission: string): Promise<string>;
 }

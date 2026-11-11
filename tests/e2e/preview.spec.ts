@@ -316,6 +316,88 @@ if (!process.env.PLAYWRIGHT_BASE_URL) test("recovers a private keyed publication
   }
 });
 
+if (!process.env.PLAYWRIGHT_BASE_URL) test("publishes a team library and checks a later revision from a second account",async({page,browser})=>{
+  test.setTimeout(100_000);
+  if (!backend || !userId) throw new Error("Team library fixture requires local Supabase");
+  const local=backend, key=randomUUID(), viewerEmail="library-"+randomUUID()+"@example.test", viewerPassword=randomUUID()+"Aa!";
+  const visitor=await browser.newContext();
+  const viewer=await local.admin.auth.admin.createUser({email:viewerEmail,password:viewerPassword,email_confirm:true});
+  if (viewer.error) throw viewer.error;
+  const digest=createHash("sha256").update(key).digest("hex");
+  let file:string|undefined;
+  try {
+    localOperatorSql(local,"insert into figcraft_private.online_publication_policy(open_publish,server_key_sha256) values(true,:'digest')",{digest});
+    await login(page);
+    await page.context().grantPermissions(["clipboard-read","clipboard-write"],{origin:new URL(page.url()).origin});
+    await page.getByLabel("Open Figcraft file",{exact:true}).setInputFiles(new URL("../fixtures/native-published-library.figcraft",import.meta.url).pathname);
+    await expect(page.getByRole("region",{name:"Layers",exact:true}).locator('[data-layer-id="5"]')).toContainText("Unpublished rename");
+    const bar=page.locator(".figcraft-document-bar");
+    await bar.getByText("File",{exact:true}).click();
+    await bar.getByRole("button",{name:"Publish to server…"}).click();
+    const fileForm=page.getByRole("dialog",{name:"Publish to server",exact:true});
+    await fileForm.getByLabel("Server key").fill(key);
+    const pub=page.waitForResponse(r=>new URL(r.url()).pathname==="/api/online-files");
+    await fileForm.getByRole("button",{name:"Publish",exact:true}).click();
+    file=(await (await pub).json()).id;
+    await expect(fileForm).toHaveCount(0);
+    await bar.getByText("Share",{exact:true}).click();
+    await bar.getByRole("button",{name:"Copy view link"}).click();
+    await expect(page.getByText("View link copied",{exact:true})).toBeVisible();
+    const view=await page.evaluate(()=>navigator.clipboard.readText());
+    await bar.getByText("Share",{exact:true}).click();
+    const menu=page.locator("details").filter({has:page.locator("summary").filter({hasText:/^Libraries$/})});
+    await menu.locator("summary").click();
+    await menu.getByRole("button",{name:"Publish library…",exact:true}).click();
+    const form=page.getByRole("form",{name:"Publish library",exact:true});
+    async function publish(description:string) {
+      await form.getByLabel("Description (optional)").fill(description);
+      await form.getByRole("button",{name:"Publish to server…",exact:true}).click();
+      const result=page.waitForResponse(r=>new URL(r.url()).pathname==="/api/online-files/library" && r.request().postDataJSON().action==="publish");
+      await form.getByRole("button",{name:"Publish team library",exact:true}).click();
+      const reply=await result;
+      expect(reply.status()).toBe(200);
+      const version=(await reply.json()).version as string;
+      await expect(form.getByText("Published team library version "+version,{exact:true})).toBeVisible();
+      return version;
+    }
+    const first=await publish("First team release");
+    const guest=await visitor.newPage();
+    await guest.goto(new URL(page.url()).origin);
+    await guest.getByLabel("Email",{exact:true}).fill(viewerEmail);
+    await guest.getByLabel("Password",{exact:true}).fill(viewerPassword);
+    await guest.getByRole("button",{name:"Sign in",exact:true}).click();
+    await guest.getByRole("button",{name:"Assets",exact:true}).click();
+    const assets=guest.getByRole("region",{name:"Assets",exact:true});
+    await assets.getByRole("button",{name:"Add team library…"}).click();
+    await assets.getByLabel("Team library link").fill(view);
+    await assets.getByRole("button",{name:"Add team library",exact:true}).click();
+    await expect(assets.getByText("Published version "+first,{exact:true})).toBeVisible();
+    const second=await publish("Second team release");
+    expect(BigInt(second)).toBe(BigInt(first)+1n);
+    await assets.getByRole("button",{name:"Check for updates"}).click();
+    await expect(assets.getByText("Published version "+second,{exact:true})).toBeVisible();
+    await expect(guest.locator(".figcraft-recovery")).toHaveText("Recovery saved on this device");
+    await guest.reload();
+    await guest.getByRole("button",{name:"Assets",exact:true}).click();
+    await expect(assets.getByText("Published version "+second,{exact:true})).toBeVisible();
+    const check=guest.waitForResponse(r=>new URL(r.url()).pathname==="/api/online-files/library");
+    await assets.getByRole("button",{name:"Check for updates"}).click();
+    expect(await (await check).json()).toEqual({state:"unchanged",version:second});
+  } finally {
+    await visitor.close();
+    localOperatorSql(local,"delete from figcraft_private.online_publication_policy where server_key_sha256=:'digest'",{digest});
+    if (file) {
+      const storage=local.admin.storage.from("figcraft-files");
+      for (const prefix of ["library/"+file,"operator/"+file]) {
+        const list=await storage.list(prefix);
+        if (list.error) throw list.error;
+        if (list.data.length) expect((await storage.remove(list.data.map(o=>prefix+"/"+o.name))).error).toBeNull();
+      }
+    }
+    expect((await local.admin.auth.admin.deleteUser(viewer.data.user.id)).error).toBeNull();
+  }
+});
+
 test("publish, reopen and manage a device-owned file in Home Online", async ({ page, browser }) => {
   test.setTimeout(90_000);
   await login(page);

@@ -51,6 +51,12 @@ export class BrowserInvitations implements OnlineInvitations {
     };
   }
 
+  libraryInvite(connection: string) {
+    const tab = this.tabs.get(connection);
+    if (!tab || tab.ended) throw new Error("Reconnect to the file to use its team library");
+    return nativeInviteLink({kind:"link",server:this.endpoint,file:tab.file,token:tab.token});
+  }
+
   async copyPublished(file: string, access: "edit" | "view") {
     const links = await this.device.readPublishedLinks(this.principal, this.server, file);
     if (!links) throw new Error("This device does not have those links");

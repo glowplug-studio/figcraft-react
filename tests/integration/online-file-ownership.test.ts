@@ -7,6 +7,7 @@ import { createClient, type RealtimeChannel } from "@supabase/supabase-js";
 import { unzipSync } from "fflate";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { SupabaseOnlineFileStore } from "../../src/backends/supabase/online-files";
+import {fetchTeamLibrary,publishTeamLibrary} from "../../src/backends/supabase/team-library";
 import { finaliseOnlineFile, finaliseOperatorFile } from "../../src/backends/supabase/publication";
 import { applyOwnerSharing, changeFileLinks, ownerSharingStatus } from "../../examples/nextjs/lib/sharing/links";
 import { readSharedDrawing } from "../../examples/nextjs/lib/sharing/join";
@@ -121,6 +122,33 @@ describe.skipIf(!enabled)("private online files on real local Supabase", () => {
     }
     expect((await writer.storage.from(bucket).remove([stored])).error).toBeNull();
     expect((await writer.from("online_files").select("id").eq("id",file)).data).toEqual([]);
+  });
+
+  it("publishes and fetches team libraries using independent edit and view grants",async()=>{
+    const file=randomUUID(), submission=randomUUID(), address=fixtureIngress+"::1";
+    const keys=createPublishedLinks(), proof=await publishedLinkDigests(keys), writer=local!.admin;
+    const input=new Uint8Array(await readFile(new URL("../fixtures/native-component-library-v1.figcraft",import.meta.url)));
+    const keptFile="operator/"+file+"/"+createHash("sha256").update(archive).digest("hex")+".figcraft";
+    const keptLibrary="library/"+file+"/"+createHash("sha256").update(input).digest("hex")+".figcraft";
+    const stage=stranger.id+"/"+submission+".figcraft";
+    paths.push(owner.id+"/"+file+".figcraft",stage,keptFile,keptLibrary);
+    const original=new SupabaseOnlineFileStore(owner.client,owner.id,id=>finaliseOperatorFile(owner.client,writer,id,proof,{address},16));
+    await original.publish(file,new Blob([archive]));
+    expect((await stranger.client.storage.from(bucket).upload(stage,input,{contentType:"application/octet-stream"})).error).toBeNull();
+    expect(await fetchTeamLibrary(writer,file,proof.view.hash,null,address)).toEqual({state:"empty"});
+    await expect(publishTeamLibrary(stranger.client,writer,file,proof.view.hash,submission)).rejects.toMatchObject({status:403});
+    await expect(publishTeamLibrary(owner.client,writer,file,proof.edit.hash,submission)).rejects.toMatchObject({status:422});
+    const acknowledgements=await Promise.all([0,1].map(()=>publishTeamLibrary(stranger.client,writer,file,proof.edit.hash,submission)));
+    expect(acknowledgements).toEqual(["1","1"]);
+    expect((await stranger.client.storage.from(bucket).download(keptLibrary)).error).toBeTruthy();
+    const got=await fetchTeamLibrary(writer,file,proof.view.hash,null,address);
+    expect(got.state).toBe("available");
+    if (got.state!=="available") throw new Error("Expected library download");
+    expect(new Uint8Array(await got.archive.arrayBuffer())).toEqual(input);
+    expect(await fetchTeamLibrary(writer,file,proof.view.hash,"1",address)).toEqual({state:"unchanged",version:"1"});
+    expect((await writer.from("online_file_links").delete().eq("file_id",file).eq("id",keys.view.id)).error).toBeNull();
+    await expect(fetchTeamLibrary(writer,file,proof.view.hash,"1",address)).rejects.toMatchObject({status:403});
+    expect((await writer.storage.from(bucket).remove([keptLibrary,keptFile])).error).toBeNull();
   });
 
   it("atomically issues, rotates and revokes scoped file links without persisting bearer secrets", async () => {

@@ -1,3 +1,4 @@
+import type {OnlineTeamLibraries} from "../backends/online-files";
 import { nextBranchId } from "./branch-ids";
 import { VersionHistory, versionDetails, type FileVersion } from "./file-versions";
 import {documentColours} from "./document-colours";
@@ -61,7 +62,7 @@ import { MAX_IMAGE_BYTES } from "./image-resource";
 import { fileData } from "./file-bytes";
 import { readFontInput } from "./font-source";
 import { base64Bytes } from "./recovery";
-import { type FileBranch, readVersionDocument, decodePublishedLibrary, decodeFigcraft, encodeFigcraft, encodeFigcraftBlob, prepareArchive, MAX_UNPACKED_BYTES } from "./file-format";
+import { type FileBranch, readVersionDocument, encodePublishedLibrary, decodePublishedLibrary, decodeFigcraft, encodeFigcraft, encodeFigcraftBlob, prepareArchive, MAX_UNPACKED_BYTES } from "./file-format";
 import { executePage, listPages, pageSpecs } from "./pages";
 import { executeSelection, layersAt, selectionSpecs } from "./selection";
 import { setRectangleProperties, setPageGeometryFields } from "./properties";
@@ -324,6 +325,8 @@ export class EditorEngine {
   #documentIdentity = Symbol();
   #libraryFiles=new Map<string,PublishedLibrary>();
   #libraryPick=0;
+  #importedTeamInvites: ReadonlyMap<string,string> = new Map();
+  #teamSubmission?: {path:string; document:Document; options:string; id:string; archive:Blob; library:PublishedLibrary};
   #libraryRevision=0;
   get libraryRevision() {return this.#libraryRevision;}
   #clipboard: EditorClipboard = {};
@@ -1053,7 +1056,33 @@ export class EditorEngine {
   }
   get fileGeneration() {return this.#openSequence;}
   librarySource(path:string) { return this.#libraryFiles.get(path); }
-  async pickLibrary(file:File,remember?:(path:string,publication:Blob)=>Promise<void>) {
+  get importedTeamInvites() { return this.#importedTeamInvites; }
+  pickLibrary(file:File,remember?:(path:string,publication:Blob)=>Promise<void>) {
+    return this.loadLibrary(async () => {
+      if (file.size>1024 ** 3) throw Error("The library file exceeds 1 GiB");
+      const source=await decodePublishedLibrary(file);
+      if (!source) throw Error("This file has no published library");
+      return {source,path:"library-file:"+source.manifest.id+"/"+encodeURIComponent(file.name)};
+    },remember);
+  }
+
+  loadTeamLibrary(path:string, host:OnlineTeamLibraries, remember?:(path:string,publication:Blob)=>Promise<void>) {
+    return this.loadLibrary(async () => {
+      const cached=this.librarySource(path);
+      const reply=await host.fetch(path,cached?.manifest.version ?? null);
+      if (reply.state==="empty") throw new Error("That file has no library on the server yet");
+      if (reply.state==="unchanged" && cached?.manifest.version===reply.version) return {source:cached,path};
+      if (reply.state!=="available") throw new Error("Invalid library receipt");
+      const source=await decodePublishedLibrary(reply.archive);
+      if (!source || source.manifest.version!==reply.version) throw new Error("The archive does not match the advertised library version");
+      const linked=this.#snapshot.document.libraryLinks?.find(link=>link.path===path);
+      if (linked && source.manifest.id!==linked.id) throw new Error("This file now holds another library");
+      return {source,path};
+    },remember);
+  }
+
+  private async loadLibrary(load:()=>Promise<{source:PublishedLibrary;path:string}>,
+    remember?: (path:string,publication:Blob)=>Promise<void>) {
     const identity=this.#documentIdentity,opening=this.#openSequence,pick=++this.#libraryPick;
     const current=()=>{
       if (!this.#snapshot.editable || identity!==this.#documentIdentity || opening!==this.#openSequence || pick!==this.#libraryPick) {
@@ -1061,19 +1090,57 @@ export class EditorEngine {
       }
     };
     current();
-    if (file.size>1024 ** 3) throw Error("The library file exceeds 1 GiB");
-    const source=await decodePublishedLibrary(file);current();
-    if (!source) throw Error("This file has no published library");
-    const path="library-file:"+source.manifest.id+"/"+encodeURIComponent(file.name);
+    const {source,path}=await load();
+    current();
     if (this.#snapshot.document.published?.manifest.id===source.manifest.id) throw Error('this file is the library "'+source.manifest.name+'"');
     await prepareDocumentText(source.document);current();
     if (remember) {
-      const archive=await encodeFigcraftBlob({...newDocument(),published:source});
+      const archive=await encodePublishedLibrary(source);
       current();await remember(path,archive);current();
     }
     this.#cacheLibrary(path,source);
     return this.execute("library.add",{path});
   }
+  async publishTeamLibrary(path:string,host:OnlineTeamLibraries,params:Record<string,unknown>) {
+    const base=this.#snapshot.document, identity=this.#documentIdentity, opening=this.#openSequence;
+    const check=()=>{
+      if (!this.#snapshot.editable || this.#documentIdentity!==identity || opening!==this.#openSequence) throw new Error("The source document changed");
+    };
+    check();
+    const options=JSON.stringify(params);
+    let pending=this.#teamSubmission;
+    if (!pending || pending.path!==path || pending.document!==base || pending.options!==options) {
+      const reply=await host.fetch(path,null);
+      if (reply.state==="unchanged") throw new Error("Unexpected library receipt");
+      const remote=reply.state==="available" ? await decodePublishedLibrary(reply.archive) : undefined;
+      if (reply.state==="available" && (!remote || remote.manifest.version!==reply.version)) throw new Error("Invalid server library archive");
+      const doc=remote ? {...base,published:remote} : base;
+      let library: PublishedLibrary;
+      try { library=publishLibrary(doc,params).document.published; }
+      catch (error) {
+        if (remote || !base.published || !(error instanceof Error) || !error.message.startsWith("no changes to publish")) throw error;
+        library=base.published;
+      }
+      const archive=await encodePublishedLibrary(library);
+      check();
+      pending={path,document:base,options,id:crypto.randomUUID(),archive,library};
+      this.#teamSubmission=pending;
+    }
+    let version:string;
+    try { version=await host.publish(path,pending.archive,pending.id); }
+    catch (error) {
+      if (this.#teamSubmission===pending && error && typeof error==="object" && "status" in error &&
+        [400,403,409,413,422].includes(Number(error.status))) this.#teamSubmission=undefined;
+      throw error;
+    }
+    if (pending.library.manifest.version!==version) throw new Error("Invalid server library receipt");
+    check();
+    if (this.#teamSubmission===pending) this.#teamSubmission=undefined;
+    this.#cacheLibrary(path,pending.library);
+    this.#publish({});
+    return version;
+  }
+
   async restoreLibrary(link:LibraryLink,read:(path:string)=>Promise<Blob|null>) {
     const identity=this.#documentIdentity,opening=this.#openSequence;
     const current=()=>this.#snapshot.editable && identity===this.#documentIdentity && opening===this.#openSequence &&
@@ -1155,7 +1222,7 @@ export class EditorEngine {
     if (!editable) this.pencil.cancel();
     if (!editable) this.pen.cancel();
     if (!editable) this.cancelInteraction();
-    if (!editable) {this.cancelPendingFiles();this.#libraryFiles.clear();this.#libraryRevision++;}
+    if (!editable) {this.#importedTeamInvites=new Map();this.#teamSubmission=undefined;this.cancelPendingFiles();this.#libraryFiles.clear();this.#libraryRevision++;}
     if (!editable) { this.#vectorEdit = undefined; this.#clipboard.properties = undefined; this.#clipboard.layers = undefined; this.#clipboard.paint = undefined; this.#clipboard.effect = undefined; }
     if (editable !== this.#snapshot.editable) this.#publish({ editable, tool: "move", profileDialog: false, libraryPanel:undefined, missingFonts: undefined });
   }
@@ -2041,6 +2108,8 @@ export class EditorEngine {
     }
     checkCurrent();
     this.#documentIdentity = Symbol();
+    this.#importedTeamInvites=decoded.teamLibraryInvites ?? new Map();
+    this.#teamSubmission=undefined;
     this.#nextId = BigInt(decoded.nextId);
     this.#branches = decoded.branches ?? Object.freeze([]);
     this.#savedBranches = this.#branches;

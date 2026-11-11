@@ -85,7 +85,14 @@ function folders(tiles:readonly Tile[],search:string) {
   return result;
 }
 
+export interface TeamLibraryControls {
+  inSession:boolean;
+  load(input:string,isPath?:boolean):Promise<unknown>;
+  publish(params:Record<string,unknown>,invite?:string):Promise<string>;
+}
+
 interface AssetProps {
+  team?: TeamLibraryControls;
   publish:boolean;
   doc: Document;
   editable: boolean;
@@ -98,12 +105,20 @@ interface AssetProps {
   end(): void;
 }
 
-export function AssetsPanel({doc,editable,dispatch,place,start,end,source,addLibrary,save,publish}:AssetProps) {
+export function AssetsPanel({doc,editable,dispatch,place,start,end,source,addLibrary,save,publish,team}:AssetProps) {
   const {sources}=useLibraryVariables();
   const catalogues=useMemo(()=>new Map(sources.map(s=>[s.id,s])),[sources]);
   const [query,setQuery] = useState("");
   const [collapsed,setCollapsed] = useState<ReadonlySet<string>>(()=>new Set());
   const [libraryStatus,setLibraryStatus]=useState("");
+  const [teamLink,setTeamLink]=useState<string>();
+  const loadTeam=async (value:string,isPath=false)=>{
+    if (!team || loadingLibrary) return;
+    setLoadingLibrary(true); setLibraryStatus("");
+    try {await team.load(value,isPath);setTeamLink(undefined);setLibraryStatus(isPath ? "Checked for library updates" : "Team library added");}
+    catch (error) {setLibraryStatus(error instanceof Error ? error.message : "Could not read team library");}
+    finally {setLoadingLibrary(false);}
+  };
   const [swapping,setSwapping]=useState<string>();
   const [loadingLibrary,setLoadingLibrary]=useState(false);
   const picker=useRef<HTMLInputElement>(null);
@@ -147,7 +162,7 @@ export function AssetsPanel({doc,editable,dispatch,place,start,end,source,addLib
   return <section className="figcraft-assets" aria-label="Assets" onKeyDown={e=>{if(e.key === "Escape") {setMenu(undefined);setSwapping(undefined);setQuery("");}}}>
     <input aria-label="Search assets" placeholder="Search assets" type="search" value={query} onChange={e=>setQuery(e.target.value)}/>
     <button type="button" aria-expanded={publish} onClick={()=>dispatch(publish ? "libraries.open" : "libraries.publish",{})}>Publish library…</button>
-    {publish && <LibraryPublishForm doc={doc} editable={editable} dispatch={dispatch} save={save}/>}
+    {publish && <LibraryPublishForm doc={doc} editable={editable} dispatch={dispatch} save={save} team={team}/>}
     <button type="button" disabled={!editable || loadingLibrary} onClick={()=>picker.current?.click()}>Add library…</button>
     <input type="file" ref={picker} hidden aria-label="Choose published library" accept=".figcraft" onChange={async e=>{
       const file=e.currentTarget.files?.[0];e.currentTarget.value="";
@@ -157,6 +172,12 @@ export function AssetsPanel({doc,editable,dispatch,place,start,end,source,addLib
       catch (error) {setLibraryStatus(error instanceof Error ? error.message : "Could not add library");}
       finally {setLoadingLibrary(false);}
     }}/>
+    {team && (teamLink===undefined ? <button type="button" disabled={!editable || loadingLibrary} onClick={()=>setTeamLink("")}>Add team library…</button> :
+      <form onSubmit={e=>{e.preventDefault();void loadTeam(teamLink);}}>
+        <label>Team library link<input type="password" autoComplete="off" value={teamLink} onChange={e=>setTeamLink(e.target.value)}/></label>
+        <button disabled={!editable || loadingLibrary || !teamLink.trim()}>Add team library</button>
+        <button type="button" disabled={loadingLibrary} onClick={()=>setTeamLink(undefined)}>Cancel</button>
+      </form>)}
     {libraryStatus && <p role="status">{libraryStatus}</p>}
     {!!doc.libraryLinks?.length && <section aria-label="Enabled libraries"><h3>Enabled libraries</h3>
       {doc.libraryLinks.map(link=>{
@@ -170,13 +191,15 @@ export function AssetsPanel({doc,editable,dispatch,place,start,end,source,addLib
         const key=JSON.stringify([link.id]),expanded=!!search || !collapsed.has(key);
         return <div key={link.id} role="group" aria-label={link.name+" assets"}>
           <button type="button" aria-expanded={expanded} onClick={()=>toggle(key)}>{link.name}</button>
-          <p>{loaded ? "Published version "+loaded.manifest.version : "Choose the library file to load its assets."}</p>
+          <p>{loaded ? "Published version "+loaded.manifest.version : link.path.startsWith("team-library:") ? "Check for updates to load this team library." : "Choose the library file to load its assets."}</p>
           {expanded && loaded && renderFolders(tiles,loaded)}
           {expanded && styles.map(style=>
               <button key={style.id} type="button" disabled={!editable} className="figcraft-style-asset"
                 title={style.description || style.name} onClick={()=>dispatch("library.applyStyle",{library:link.id,style:style.id})}>
                 <StyleSwatch style={style}/>{style.name}
               </button>)}
+          {team && link.path.startsWith("team-library:") && <button type="button" disabled={!editable || loadingLibrary}
+            onClick={()=>void loadTeam(link.path,true)}>Check for updates</button>}
           {count>0 && <button type="button" disabled={!editable} onClick={()=>dispatch("library.acceptUpdates",{ids:[link.id]})}>
             Accept {count} {count===1 ? "update" : "updates"}</button>}
           {doc.libraryLinks!.length>1 && <button type="button" disabled={!editable}

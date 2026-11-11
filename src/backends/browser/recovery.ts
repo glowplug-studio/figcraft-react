@@ -179,6 +179,17 @@ export class IndexedDbRecoveryStore implements WorkspaceRecoveryStore, OnlineFil
     return registry.files;
   }
 
+  teamLibraryInvite(principal: string, server: string, path: string, invite?: string) {
+    const key = [principal,"team-library-invites",onlineServerKey(server)];
+    return this.#transaction(principal,invite === undefined ? "readonly" : "readwrite",store => store.get(key),(value,store) => {
+      const saved: [string,string][] = Array.isArray(value) ? value.filter(row => Array.isArray(row) && row.length===2
+        && typeof row[0]==="string" && typeof row[1]==="string") : [];
+      if (invite === undefined) return saved.find(row => row[0]===path)?.[1];
+      store.put([[path,invite],...saved.filter(row => row[0]!==path).slice(0,499)],key);
+      return invite;
+    });
+  }
+
   readLibrary(principalId:string,path:string):Promise<Blob|null> {
     return this.#transaction(principalId,"readonly",store=>store.get([principalId,"library",path]),value=>{
       if (value===undefined) return null;

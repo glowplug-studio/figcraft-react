@@ -4,6 +4,7 @@ import "@glowplug-studio/figcraft-react/fonts.css";
 import { useEffect, useRef, useState } from "react";
 import { WorkspaceEditor, FigcraftRoot, IndexedDbRecoveryStore, type OnlineWorkspaceHost, type DeviceOwnerSharing, type IdentitySnapshot, type DocumentCapability } from "@glowplug-studio/figcraft-react";
 import { SupabaseIdentityAdapter, SupabaseOnlineFileStore, publishedLinkDigests, watchSupabaseGuest } from "@glowplug-studio/figcraft-react/backends/supabase";
+import { BrowserTeamLibraries } from "../lib/sharing/team-libraries";
 import { BrowserOwnerSharing } from "../lib/sharing/owner-sharing";
 import { BrowserInvitations } from "../lib/sharing/browser-invites";
 import { useRouter } from "next/navigation";
@@ -58,7 +59,7 @@ export function EditorHost({ identity }: { identity: Extract<IdentitySnapshot, {
       setJoinError(""); joinDialog.current?.showModal();
     }, setError, file => files.resolveTeamFile(file));
     setInviteHost(invites);
-    setOnline({ server, supportsServerKey:true, serverKeyChanged:key => { currentKey = key; }, releasePublished:file => { operators.delete(file); }, store: files, device: store, invitations: invites, sharing });
+    setOnline({ server, libraries:new BrowserTeamLibraries(store,identity.principal.id,server,getBrowserSupabase(),invites), supportsServerKey:true, serverKeyChanged:key => { currentKey = key; }, releasePublished:file => { operators.delete(file); }, store: files, device: store, invitations: invites, sharing });
     setRecovery(store);
     setAdapter(next);
     const unsubscribe = next.subscribe(snapshot => {
