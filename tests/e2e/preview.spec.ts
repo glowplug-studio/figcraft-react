@@ -848,10 +848,19 @@ if (!process.env.PLAYWRIGHT_BASE_URL) test("a second account discovers, opens an
     expect(await guest.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     await expect(guest.getByRole("button",{name:"Create rectangle",exact:true})).toBeDisabled();
     const linked = await visitor.newPage();
+    // Reproduce revocation before the link tab's first heartbeat can open its private subscription.
+    let resumeHeartbeat!:()=>void, checking=false;
+    const held=new Promise<void>(resolve=>{resumeHeartbeat=resolve;});
+    await linked.route("**/rpc/online_connection_active",async route=>{
+      checking=true;await held;await route.continue();
+    });
     await linked.goto(web);
     await expect(linked.locator(".figcraft-document-bar").getByText(/View only/)).toBeVisible();
     expect(new URL(linked.url()).hash).toBe("");
+    await expect.poll(()=>checking).toBe(true);
     await ownerBar.getByRole("button",{name:"Stop sharing",exact:true}).click();
+    await expect(ownerBar.getByRole("button",{name:"Start sharing",exact:true})).toBeVisible();
+    resumeHeartbeat();
     await expect(guest.getByText("Sharing was stopped",{exact:true})).toBeVisible({timeout:15_000});
     await expect(linked.getByText("Sharing was stopped",{exact:true})).toBeVisible();
     await guestBar.getByRole("button",{name:"Home",exact:true}).click();

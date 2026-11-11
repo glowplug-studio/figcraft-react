@@ -45,7 +45,13 @@ export function watchSupabaseGuest(client: SupabaseClient, connection: string, e
       const {data, error} = await client.rpc("online_connection_active", {tab: connection});
       if (closed) return;
       if (error) { retryCheck(); return; }
-      if (data === false) { finish("unavailable"); return; }
+      if (data === false) {
+        const result=await client.rpc("online_connection_ending",{tab:connection});
+        if(closed)return;
+        if(result.error){retryCheck();return;}
+        finish(result.data==="stopped" || result.data==="removed"?result.data:"unavailable");
+        return;
+      }
       if (data !== true) { retryCheck(); return; }
       heard();
       if (!channel) await connect();

@@ -897,6 +897,7 @@ describe.skipIf(!enabled)("private online files on real local Supabase", () => {
     await store.publish(file, new Blob([archive]));
     const session = (await stranger.client.auth.getClaims()).data!.claims.session_id as string;
     const topic = (tab: string) => "figcraft-connection:" + session + ":" + tab;
+    const ending=(account:typeof stranger,tab:string)=>account.client.rpc("online_connection_ending",{tab});
     const active = (account: typeof stranger, tab: string) => account.client.rpc("online_connection_active", {tab});
     const view = stranger.client.channel(topic(viewTab), {config: {private: true}});
     const edit = stranger.client.channel(topic(editTab), {config: {private: true}});
@@ -920,9 +921,13 @@ describe.skipIf(!enabled)("private online files on real local Supabase", () => {
       await expect.poll(() => events, {timeout: 8000}).toEqual(["view:stopped"]);
       expect((await active(stranger, viewTab)).data).toBe(false);
       expect((await active(stranger, editTab)).data).toBe(true);
+      expect(await ending(stranger,viewTab)).toMatchObject({data:"stopped",error:null});
+      expect(await ending(stranger,editTab)).toMatchObject({data:null,error:null});
+      expect(await ending(owner,viewTab)).toMatchObject({data:null,error:null});
       await store.remove(file);
       await expect.poll(() => events, {timeout: 8000}).toEqual(["view:stopped", "edit:removed"]);
       expect((await active(stranger, editTab)).data).toBe(false);
+      expect(await ending(stranger,editTab)).toMatchObject({data:"removed",error:null});
     } finally {
       await Promise.all([stranger.client.removeChannel(view), stranger.client.removeChannel(edit), owner.client.removeChannel(unrelated)]);
     }

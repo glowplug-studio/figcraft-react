@@ -21,6 +21,27 @@ as $$ select figcraft_private.connection_active(tab); $$;
 revoke all on function public.online_connection_active(uuid) from public, anon, authenticated;
 grant execute on function public.online_connection_active(uuid) to authenticated;
 
+-- A revoked grant can vanish between redemption and the private subscription.
+-- Return only the recent terminal reason on this login's physical-tab topic.
+create function figcraft_private.connection_ending(tab uuid) returns text
+language sql stable security definer set search_path = ''
+as $$
+    select m.payload->>'reason' from realtime.messages m
+    where m.extension = 'broadcast' and m.private is true and m.event = 'ended'
+        and m.inserted_at >= statement_timestamp() - interval '45 seconds'
+        and m.topic = 'figcraft-connection:' || ((select auth.jwt())->>'session_id') || ':' || tab::text
+        and m.payload->>'reason' in ('stopped','removed')
+    order by m.inserted_at desc limit 1;
+$$;
+revoke all on function figcraft_private.connection_ending(uuid) from public, anon, authenticated, service_role;
+grant execute on function figcraft_private.connection_ending(uuid) to authenticated;
+
+create function public.online_connection_ending(tab uuid) returns text
+language sql stable security invoker set search_path = ''
+as $$ select figcraft_private.connection_ending(tab); $$;
+revoke all on function public.online_connection_ending(uuid) from public, anon, authenticated, service_role;
+grant execute on function public.online_connection_ending(uuid) to authenticated;
+
 create policy "Guests receive notices for their login session" on realtime.messages
     for select to authenticated using (
         extension = 'broadcast' and topic = (select realtime.topic())
