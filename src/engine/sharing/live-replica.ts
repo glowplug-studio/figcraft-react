@@ -5,7 +5,7 @@ import { isDocumentNodeKind, layerTransform, type DocumentNode } from "../docume
 import { readNode } from "../file-format";
 import { id, idString, wireId } from "../native-values";
 import { blankNode, sessionNodeFields } from "./document-session";
-import type { LiveChange, LiveReplica } from "./live-changes";
+import {livePageReference,type LiveChange,type LiveReplica} from "./live-changes";
 import { applyLiveDocumentChange } from "./live-document";
 
 export class MissingLiveLayer extends Error {
@@ -46,6 +46,7 @@ export async function applyLive(from: LiveReplica, changes: readonly LiveChange[
   const deleted = new Set<string>(), touched = new Set<string>();
   if (!changes.length) return { replica:from, skipped:0, deleted, touched };
   let doc = from.document, skipped = 0;
+  let preferredPage=livePageReference(from);
   const hasLayerChanges = changes.some(change => ["create","delete","set"].includes(change.type));
   const nodes: Record<string,DocumentNode> = hasLayerChanges ? Object.assign(Object.create(null),doc.nodes) : doc.nodes;
   const changedPositions = hasLayerChanges ? new Map(from.positions) : undefined;
@@ -61,17 +62,19 @@ export async function applyLive(from: LiveReplica, changes: readonly LiveChange[
     return result;
   };
   const parentFor = (key: string, parent: string | null, page: boolean) => {
-    if ((parent === null) !== page) throw new Error("Only pages have no parent");
+    if ((parent === null) !== page) throw new Error("pages, and only pages, have no parent");
     if (parent === null) return;
-    if (!nodes[parent] || !("children" in nodes[parent])) throw new Error("A layer requires a container parent");
+    if (!nodes[parent]) throw new MissingLiveLayer(parent);
+    if (!("children" in nodes[parent])) throw new Error(parent+" can't contain children");
     for (let cursor: string | null = parent; cursor !== null; cursor = nodes[cursor].parent) {
-      if (cursor === key) throw new Error("Cyclic layer parent");
+      if (cursor === key) throw new Error("moving "+key+" into "+parent+" would create a cycle");
     }
   };
   for (const change of changes) {
     try {
       if (change.type === "setDoc" || change.type === "put" || change.type === "remove") {
         doc = await applyLiveDocumentChange(doc,change);
+        if(change.type==="setDoc" && change.prop==="currentPage")preferredPage=change.value.trim()==="null"?null:doc.currentPage;
         if (change.type === "setDoc" && change.prop === "libraries") children(null);
         continue;
       }
@@ -79,7 +82,7 @@ export async function applyLive(from: LiveReplica, changes: readonly LiveChange[
       if (typeof change.id !== "string") throw new Error("Invalid live layer ID");
       const key = idString(change.id,"live layer"), prior = nodes[key];
       if (change.type === "create") {
-        if (prior) throw new Error("Layer already exists: " + key);
+        if (prior) throw new Error("node " + key + " already exists");
         validatePosition(change.position);
         const node = createLayer(change);
         parentFor(key,change.parent,node.kind === "page");
@@ -91,9 +94,11 @@ export async function applyLive(from: LiveReplica, changes: readonly LiveChange[
         if (prior.kind === "page") {
           const roots = children(null);
           const visiblePages = roots.size - Number(!!doc.libraryStore?.root && roots.has(doc.libraryStore.root));
-          if (visiblePages <= 1) throw new Error("A drawing needs at least one page");
+          if (visiblePages <= 1) throw new Error("a file needs at least one page");
         }
-        children(prior.parent).delete(key);
+        const siblings=children(prior.parent);
+        siblings.delete(key);
+        if(prior.kind==="page" && preferredPage===key)preferredPage=[...siblings].find(id=>id!==doc.libraryStore?.root)??null;
         const stack = [key];
         while (stack.length) {
           const next = stack.pop()!;
@@ -124,7 +129,7 @@ export async function applyLive(from: LiveReplica, changes: readonly LiveChange[
           const fields = sessionNodeFields(prior);
           setField(fields,change.prop,change.value);
           const node = readLayer(key,prior.parent,fields);
-          if ((node.kind === "page") !== (prior.kind === "page")) throw new Error("A page cannot become a layer");
+          if ((node.kind === "page") !== (prior.kind === "page")) throw new Error("a node can't become or stop being a page");
           if (mode === "lenient" && "children" in prior && !("children" in node) && children(key).size) throw new Error("This layer still has children");
           if ("children" in prior || "children" in node) children(key);
           nodes[key] = node;
@@ -151,7 +156,7 @@ export async function applyLive(from: LiveReplica, changes: readonly LiveChange[
       else if (ids.size) throw new Error("This layer cannot contain children");
     }
   }
-  if (!pages.length) throw new Error("A drawing needs at least one page");
+  if (!pages.length) throw new Error("a file needs at least one page");
   if (mode === "strict") for (const key of touched) {
     const n = nodes[key];
     if (!n) continue;
@@ -159,6 +164,6 @@ export async function applyLive(from: LiveReplica, changes: readonly LiveChange[
     if (n.kind === "page") continue;
     if (n.width > 1e9 || n.height > 1e9 || layerTransform(n).some(v => Math.abs(v) > 1e9)) throw new Error("Layer geometry exceeds the live coordinate limit");
   }
-  const currentPage = pages.includes(doc.currentPage) ? doc.currentPage : pages[0];
-  return { replica:{document:Object.freeze({...doc,nodes:Object.freeze(nodes),pages,currentPage}), positions}, skipped, deleted, touched };
+  const currentPage=preferredPage!==null && pages.includes(preferredPage)?preferredPage:pages[0];
+  return { replica:{document:Object.freeze({...doc,nodes:Object.freeze(nodes),pages,currentPage}),positions,...(currentPage!==preferredPage && {currentPageReference:preferredPage})}, skipped, deleted, touched };
 }

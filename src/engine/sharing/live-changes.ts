@@ -18,11 +18,17 @@ export type LiveChange = InitialChange
 
 export interface LiveReplica {
   readonly document: Document;
+  /** A concurrent current-page write can name a deleted page, or clear the preference. */
+  readonly currentPageReference?:string|null;
   readonly positions: ReadonlyMap<string, string>;
 }
 
 export function liveReplica(document: Document): LiveReplica {
   return { document, positions: initialPositions(document) };
+}
+
+export function livePageReference(state:LiveReplica) {
+  return state.currentPageReference===undefined?state.document.currentPage:state.currentPageReference;
 }
 
 const omitted: WireFields = {
@@ -89,7 +95,7 @@ export async function diffLive(from: LiveReplica, to: Document): Promise<{change
   if (from.document.nodes === to.nodes && from.document.pages === to.pages) {
     const changes: LiveChange[] = [];
     await documentChanges(from.document,to,changes);
-    return {changes,replica:{document:to,positions:from.positions}};
+    return {changes,replica:{...from,document:to,...(to.currentPage!==from.document.currentPage && {currentPageReference:undefined})}};
   }
   const delta = treeDiff(from.document, to, from.positions);
   const changes: LiveChange[] = [];
@@ -128,5 +134,45 @@ export async function diffLive(from: LiveReplica, to: Document): Promise<{change
   }
   for (const id of deleted.sort(numericOrder)) changes.push({type:"delete", id});
   await documentChanges(from.document,to,changes);
-  return {changes, replica:{document:to, positions:delta.positions}};
+  return {changes, replica:{document:to,positions:delta.positions,currentPageReference:to.currentPage===from.document.currentPage?from.currentPageReference:undefined}};
+}
+
+/** Read one undo target from the typed replica, using the same encodings as an outgoing diff. */
+export async function liveTargetValue(state:LiveReplica, change:Exclude<LiveChange,{type:"create"|"delete"}>):Promise<string|undefined> {
+  const doc=state.document;
+  if(change.type==="set"){
+    const node=doc.nodes[change.id];
+    if(!node)return undefined;
+    if(change.prop==="position")return sessionJson(state.positions.get(node.id));
+    if(change.prop==="parent")return node.parent??"null";
+    return jsonField(node,sessionNodeFields(node),change.prop);
+  }
+  function list<T extends {id:string}>(items:readonly T[],render:(item:T)=>string) {
+    if(change.type==="setDoc"){
+      if(change.prop.endsWith("Order"))return sessionJson(items.map(item=>change.prop==="commentOrder"?wireId(item.id):item.id));
+      return "["+items.map(render).join(",")+"]";
+    }
+    if(change.type==="put" || change.type==="remove"){
+      const item=items.find(item=>item.id===change.key);
+      return item && render(item);
+    }
+  }
+  const target=change.type==="setDoc"?change.prop:change.entry;
+  switch(target){
+    case "name":return sessionJson(doc.name);
+    case "currentPage":return livePageReference(state)??"null";
+    case "documentColors":return sessionJson(doc.documentColours??[]);
+    case "colorProfile":return sessionJson(doc.colourProfile??"srgb");
+    case "imagePresets":return sessionJson(doc.imagePresets??[]);
+    case "libraries":return sessionJson(wireLibraryLinks(doc.libraryLinks??[],doc.libraryRecords,doc.libraryStore));
+    case "style":case "styleOrder":case "styles":return list(doc.styles??[],s=>sessionStyle(wireSharedStyle(s)));
+    case "comment":case "commentOrder":case "comments":return list(doc.comments??[],c=>sessionJson(wireComment(c)));
+    case "variable":case "variableOrder":case "variables":return list(doc.variables?.variables??[],sessionJson);
+    case "collection":case "collectionOrder":case "collections":return list(doc.variables?.collections??[],sessionJson);
+    case "image":{
+      if(change.type==="setDoc")return undefined;
+      const image=doc.images?.[change.key];
+      return image && imageValue(base64Bytes(new Uint8Array(await image.bytes.arrayBuffer())),image.height,image.width);
+    }
+  }
 }

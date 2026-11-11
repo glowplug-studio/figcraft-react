@@ -1,0 +1,102 @@
+[
+  {
+    "afterTravel": {
+      "canRedo": true,
+      "canUndo": false,
+      "name": "Box",
+      "pending": 0,
+      "sequence": 6,
+      "width": 73.0
+    },
+    "mode": "edit-accepted",
+    "resends": 0,
+    "restored": {
+      "canRedo": false,
+      "canUndo": true,
+      "name": "A name",
+      "pending": 0,
+      "sequence": 5,
+      "width": 73.0
+    }
+  },
+  {
+    "afterTravel": {
+      "canRedo": false,
+      "canUndo": true,
+      "name": "A name",
+      "pending": 0,
+      "sequence": 7,
+      "width": 73.0
+    },
+    "mode": "undo-accepted",
+    "resends": 0,
+    "restored": {
+      "canRedo": true,
+      "canUndo": false,
+      "name": "Box",
+      "pending": 0,
+      "sequence": 6,
+      "width": 73.0
+    }
+  },
+  {
+    "afterTravel": {
+      "canRedo": false,
+      "canUndo": true,
+      "name": "A name",
+      "pending": 0,
+      "sequence": 7,
+      "width": 73.0
+    },
+    "mode": "undo-lost",
+    "resends": 1,
+    "restored": {
+      "canRedo": true,
+      "canUndo": false,
+      "name": "Box",
+      "pending": 0,
+      "sequence": 6,
+      "width": 73.0
+    }
+  },
+  {
+    "afterTravel": {
+      "canRedo": true,
+      "canUndo": false,
+      "name": "Box",
+      "pending": 0,
+      "sequence": 8,
+      "width": 73.0
+    },
+    "mode": "redo-accepted",
+    "resends": 0,
+    "restored": {
+      "canRedo": false,
+      "canUndo": true,
+      "name": "A name",
+      "pending": 0,
+      "sequence": 7,
+      "width": 73.0
+    }
+  },
+  {
+    "afterTravel": {
+      "canRedo": true,
+      "canUndo": false,
+      "name": "Box",
+      "pending": 0,
+      "sequence": 8,
+      "width": 73.0
+    },
+    "mode": "redo-lost",
+    "resends": 1,
+    "restored": {
+      "canRedo": false,
+      "canUndo": true,
+      "name": "A name",
+      "pending": 0,
+      "sequence": 7,
+      "width": 73.0
+    }
+  }
+]

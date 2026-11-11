@@ -2,7 +2,7 @@ import type { Document } from "../document";
 import { decodeFigcraft } from "../file-format";
 import { diffLive, liveReplica, type LiveChange, type LiveReplica } from "./live-changes";
 import { restoreLiveCheckpoint } from "./live-checkpoint";
-import { captureLiveStep, taintStep, travelLiveStep, type LiveStep } from "./live-history";
+import { captureLiveStep, loseLiveTravel, refreshLiveTravel, sendLiveTravel, settleLiveStep, taintStep, travelLiveStep, verifyLiveSteps, type LiveStep } from "./live-history";
 import { applyLive } from "./live-replica";
 import type { LiveIdentity, LiveTransport, LiveUpdate } from "./live-transport";
 
@@ -15,7 +15,7 @@ export interface LiveEditor {
   normalise(before: Document, after: Document, touched: ReadonlySet<string>): Document;
   history(controller?: {canUndo: boolean; canRedo: boolean; travel(undo: boolean): boolean}): void;
 }
-type Pending = {reason?:string; base: string; batch?: string; changes: LiveChange[]; step?: LiveStep; rebased?: boolean; direction: "edit"|"undo"|"redo"|"followUp"};
+type Pending = {uncertain?:boolean; reason?:string; base: string; batch?: string; changes: LiveChange[]; step?: LiveStep; rebased?: boolean; direction: "edit"|"undo"|"redo"|"followUp"};
 
 /** One ordered writer per physical editor. In-flight IDs survive a lost reply and a physical reconnect. */
 export class LivePeer {
@@ -101,11 +101,23 @@ export class LivePeer {
   private async receive(update: LiveUpdate) {
     if (update.client !== this.client) throw new Error("The session's editing identity changed");
     let state = this.confirmed, seq = BigInt(this.sequence ?? "0");
+    const processed=BigInt(update.lastBatch),refused=new Set(update.refused);
+    for(const item of this.pending){
+      if(item.uncertain && item.batch && BigInt(item.batch)>processed && item.step?.inFlight){
+        loseLiveTravel(item.step);
+        this.redraw=true;
+      }
+    }
     if (update.reset) {
       state = await this.initialState(update);
       if (this.confirmed && BigInt(update.checkpointSeq ?? "0") >= BigInt(this.sequence ?? "0")) {
-        const unseen = (await diffLive(this.confirmed,state.document)).changes;
-        for (const step of [...this.undo,...this.redo]) if (step.confirmed) taintStep(step,unseen);
+        const suffix=new Set(update.batches.filter(batch=>batch.client===this.client).map(batch=>batch.batch));
+        for(const item of this.pending){
+          if(item.step && item.batch && BigInt(item.batch)<=processed && !refused.has(item.batch) && !suffix.has(item.batch) && item.direction!=="followUp")
+            settleLiveStep(item.step,item.direction!=="undo");
+          item.rebased=true;
+        }
+        await verifyLiveSteps([...this.undo,...this.redo],state);
       }
       seq = BigInt(update.checkpointSeq ?? "0");
       this.redraw = true;
@@ -123,19 +135,21 @@ export class LivePeer {
             const fresh = await captureLiveStep(before,state,b.changes);
             own.step.backward = fresh.backward;
           }
-          if (own.step) own.step.confirmed = true;
+          if(own.step && own.direction!=="followUp"){
+            if(own.direction!=="edit")await refreshLiveTravel(own.step,own.direction==="redo",before,state,b.changes);
+            settleLiveStep(own.step,own.direction!=="undo");
+          }
           if (own.rebased) await this.repair(before,state,applied.touched,b.sequence,own);
         } else this.redraw = true;
       } else {
         this.redraw = true;
-        for (const step of [...this.undo,...this.redo]) if (step.confirmed) taintStep(step,b.changes);
+        for (const step of [...this.undo,...this.redo]) if (step.confirmed || step.inFlight) taintStep(step,b.changes);
         for (const item of this.pending) item.rebased = true;
       }
     }
     if (seq !== BigInt(update.sequence)) throw new Error("Incomplete ordered edits");
     this.confirmed = state;
     this.sequence = update.sequence;
-    const processed = BigInt(update.lastBatch), refused = new Set(update.refused);
     this.next = this.next > processed ? this.next : processed+1n;
     const droppedSteps=new Set<LiveStep>();
     this.pending = this.pending.filter(p => {
@@ -143,14 +157,14 @@ export class LivePeer {
       if (!p.batch || BigInt(p.batch)>processed) return true;
       if (refused.has(p.batch)) {
         this.redraw = true;
-        this.undo = this.undo.filter(s => s !== p.step);
-        this.redo = this.redo.filter(s => s !== p.step);
-        if(p.step)droppedSteps.add(p.step);
         if(p.direction!=="followUp"){
+          this.undo = this.undo.filter(s => s !== p.step);
+          this.redo = this.redo.filter(s => s !== p.step);
+          if(p.step)droppedSteps.add(p.step);
           const prefix=p.direction==="undo"?"Couldn't undo":p.direction==="redo"?"Couldn't redo":"Your change couldn't be applied";
           this.notice(prefix+": "+(p.reason??"it no longer applied when the connection came back"));
         }
-      } else if (p.step) p.step.confirmed = true;
+      }
       return false;
     });
   }
@@ -188,10 +202,9 @@ export class LivePeer {
           if (!changes.length) continue;
           const base = this.sequence!;
           this.pending.push({base,changes,step,direction:travel?"undo":"redo"});
-          step.confirmed = false;
           const normalised = this.editor.normalise(view.document,result.replica.document,result.touched);
           const follow = await diffLive(result.replica,normalised);
-          if (follow.changes.length) this.pending.push({base,changes:follow.changes,direction:"followUp"});
+          if (follow.changes.length) this.pending.push({base,changes:follow.changes,step,direction:"followUp"});
           view = follow.replica;
           this.redraw = true;
           to.push(step);
@@ -206,12 +219,38 @@ export class LivePeer {
         this.installing = true;
         try { if (different) this.editor.receive(view.document); this.seen = this.editor.current(); }
         finally { this.installing = false; }
-        this.local = {document:this.seen,positions:view.positions};
+        this.local = {...view,document:this.seen};
         this.redraw = false;
       }
       this.history();
       return;
     } while (this.alive);
+  }
+
+  /** A queued or lost travel uses the latest confirmed ownership before it goes on the wire. */
+  private async prepareTravel(item:Pending) {
+    const state=this.confirmed,step=item.step;
+    if(!state || !step || (item.direction!=="undo" && item.direction!=="redo") || step.inFlight)return;
+    // Native remakes only the most recent travel of this step. Earlier queued travel keeps its preview.
+    if(this.pending.slice(1).some(p=>p.step===step && (p.direction==="undo" || p.direction==="redo")))return;
+    const wanted=travelLiveStep(step,item.direction==="undo",state.document);
+    const result=await applyLive(state,wanted,"lenient");
+    const changes=(await diffLive(state,result.replica.document)).changes;
+    const follow=this.pending[1];
+    if(follow?.direction==="followUp" && follow.step===step)this.pending.splice(1,1);
+    if(!changes.length){
+      this.undo=this.undo.filter(s=>s!==step);
+      this.redo=this.redo.filter(s=>s!==step);
+      this.pending=this.pending.filter(p=>p.step!==step);
+    }else{
+      item.base=this.sequence!;
+      item.changes=changes;
+      sendLiveTravel(step,changes);
+      const fixed=this.editor.normalise(state.document,result.replica.document,result.touched);
+      const diff=await diffLive(result.replica,fixed);
+      if(diff.changes.length)this.pending.splice(1,0,{base:item.base,changes:diff.changes,step,direction:"followUp"});
+    }
+    this.redraw=true;
   }
 
   private sameIdentity(left?:LiveIdentity,right?:LiveIdentity) {
@@ -241,7 +280,7 @@ export class LivePeer {
     this.undo=[];this.redo=[];this.pending=[];
     this.travelRequest=undefined;
     this.sequence=update.sequence;this.confirmed=state;this.next=next;
-    this.local={document:this.seen,positions:state.positions};
+    this.local={...state,document:this.seen};
     this.redraw=false;
     this.history();
     if(lost)this.notice("The live session restarted: "+lost+" unsent change"+(lost===1?"":"s")+" couldn't be kept");
@@ -264,8 +303,13 @@ export class LivePeer {
       await this.reconcile();
       const head = this.pending[0];
       if (head && this.alive && this.sameIdentity(welcome,this.transport.identity)) {
+        await this.prepareTravel(head);
+        if(!this.alive || !this.sameIdentity(welcome,this.transport.identity))return;
+        if(this.pending[0]!==head){nextPoll=0;await this.reconcile();return;}
         head.batch ??= String(this.next++);
+        head.uncertain=true;
         const result=await this.transport.submit(head.batch,head.base,head.changes);
+        head.uncertain=false;
         if(result.refused)head.reason=result.reason;
         nextPoll = 0;
       }

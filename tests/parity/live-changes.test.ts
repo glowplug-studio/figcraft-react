@@ -1,44 +1,28 @@
 import { readFileSync } from "node:fs";
 import { unzipSync, strFromU8 } from "fflate";
-import { parse, stringify, type LosslessNumber } from "lossless-json";
+import { parse } from "lossless-json";
 import { expect, it } from "vitest";
 import { decodeFigcraft } from "../../src/engine/file-format";
 import { applyLive } from "../../src/engine/sharing/live-replica";
 import { initialDocumentState } from "../../src/engine/sharing/document-session";
-import { diffLive, liveReplica, type LiveChange } from "../../src/engine/sharing/live-changes";
+import { diffLive, liveReplica, liveTargetValue, type LiveChange } from "../../src/engine/sharing/live-changes";
+
+import {nativeLiveChange,type NativeChange} from "../support/nativeLiveChange";
 
 const corpus = unzipSync(readFileSync(new URL("../fixtures/native-ordered-changes.zip",import.meta.url)));
-type NativeChange =
-  | { create: {id: LosslessNumber; parent: LosslessNumber | null; position: string; kind: unknown; props: [string,unknown][]} }
-  | { delete: {id: LosslessNumber} }
-  | { set: {id: LosslessNumber; prop: string; value: unknown} }
-  | { setDoc: {prop: string; value: unknown} }
-  | { put: {entry: Record<string,string | LosslessNumber>; value: unknown} }
-  | { remove: {entry: Record<string,string | LosslessNumber>} };
-
-function reference(c: NativeChange): LiveChange {
-  if ("create" in c) {
-    const n = c.create;
-    return {type:"create", id:String(n.id), parent:n.parent === null ? null : String(n.parent),
-      kind:stringify(n.kind)!, position:n.position, props:n.props.map(([p,v]) => [p,stringify(v)!])};
-  }
-  if ("delete" in c) return {type:"delete", id:String(c.delete.id)};
-  if ("set" in c) return {type:"set", id:String(c.set.id), prop:c.set.prop, value:stringify(c.set.value)!};
-  if ("setDoc" in c) return {type:"setDoc", prop:c.setDoc.prop, value:stringify(c.setDoc.value)!};
-  const [[entry,k]] = Object.entries("put" in c ? c.put.entry : c.remove.entry);
-  const key = String(k);
-  return "put" in c ? {type:"put",entry,key,value:stringify(c.put.value)!} : {type:"remove",entry,key};
-}
-
 it("produces the complete native property batches for edit, reparent, reply, deletion, page change and undo", async () => {
   let replica = liveReplica((await decodeFigcraft(corpus["0.figcraft"])).document);
   const batches = strFromU8(corpus["changes.jsonl"]).trim().split("\n");
   for (const [i,line] of batches.entries()) {
     const next = (await decodeFigcraft(corpus[(i+1)+".figcraft"])).document;
     const result = await diffLive(replica, next);
-    expect(result.changes, "native batch " + (i+1)).toEqual((parse(line) as NativeChange[]).map(reference));
+    expect(result.changes, "native batch " + (i+1)).toEqual((parse(line) as NativeChange[]).map(nativeLiveChange));
     const applied = await applyLive(replica, result.changes);
     expect(applied.skipped).toBe(0);
+    for(const change of result.changes){
+      if(change.type==="create" || change.type==="delete")continue;
+      expect(await liveTargetValue(applied.replica,change)).toBe(change.type==="remove"?undefined:change.value);
+    }
     expect(await initialDocumentState(applied.replica.document, 17n), "native replica " + (i+1))
       .toEqual(await initialDocumentState(next, 17n));
     expect(applied.replica.positions).toEqual(result.replica.positions);

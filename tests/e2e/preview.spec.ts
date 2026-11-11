@@ -1234,6 +1234,54 @@ if (!process.env.PLAYWRIGHT_BASE_URL) test("two editors converge after a lost ac
   });
 });
 
+if (!process.env.PLAYWRIGHT_BASE_URL) test("phone undo after a compacted lost acknowledgement preserves the owner's later width",async({page,browser})=>{
+  test.setTimeout(75_000);
+  await withSharedDrawing(page,browser,async()=>{
+    const create=page.getByRole("button",{name:"Create rectangle",exact:true});
+    await create.click();await create.click();
+  },async(peer,file)=>{
+    const sql=(statement:string)=>localOperatorSql(backend!,statement,{file});
+    let offline=false,dropped=false;
+    await peer.route("**/api/online-files/live",async route=>{
+      if(offline){await route.fulfill({status:503,body:""});return;}
+      if(!dropped && route.request().postDataJSON()?.action==="submit"){
+        const accepted=await route.fetch();
+        expect((await accepted.json()).decision).toBe("accepted");
+        dropped=true;offline=true;await route.abort("connectionreset");return;
+      }
+      await route.continue();
+    });
+    const resize=async(p:Page,width:string)=>{
+      await p.getByLabel("Edit Width",{exact:true}).fill(width);
+      await p.getByRole("button",{name:"Apply geometry",exact:true}).click();
+    };
+    const canvas=peer.getByLabel("Design canvas",{exact:true});
+    await canvas.focus();await peer.keyboard.press("ControlOrMeta+a");
+    await resize(peer,"30");await expect.poll(()=>dropped).toBe(true);
+    await page.locator('li[data-layer-id="2"] [data-select-layer]').click();
+    await expect(page.getByLabel("Edit Width",{exact:true})).toHaveValue("30");
+    // Put this fixture at the journal's byte limit. The owner's next edit takes the normal compaction path.
+    sql("begin; update figcraft_private.live_rooms set log_bytes=67108864 where file_id=:'file'; update figcraft_private.live_batches set byte_count=67108864 where file_id=:'file'; commit");
+    await resize(page,"73");
+    await expect.poll(()=>sql("select checkpoint_seq from figcraft_private.live_rooms where file_id=:'file'")).toBe("2");
+    const restored=peer.waitForResponse(async r=>{
+      if(new URL(r.url()).pathname!=="/api/online-files/live" || !r.ok() || r.request().postDataJSON()?.action!=="read")return false;
+      const receipt=await r.json();return receipt.reset && receipt.checkpointSeq==="2" && receipt.lastBatch==="1";
+    });
+    offline=false;await restored;
+    await peer.getByRole("button",{name:"Undo",exact:true}).click();
+    await expect.poll(()=>sql("select seq from figcraft_private.live_rooms where file_id=:'file'")).toBe("3");
+    const widths=async(p:Page)=>{
+      const download=p.waitForEvent("download");
+      await p.getByRole("button",{name:"Save as",exact:true}).click();
+      const doc=(await decodeFigcraft(await readFile((await (await download).path())!))).document;
+      return ["2","3"].map(id=>{const n=doc.nodes[id];return n && "width" in n?n.width:undefined;});
+    };
+    await expect.poll(()=>widths(page)).toEqual([73,100]);
+    expect(await widths(peer)).toEqual([73,100]);
+  });
+});
+
 if (!process.env.PLAYWRIGHT_BASE_URL) test("concurrent child resizes repair the shared hug frame at desktop and phone widths",async({page,browser})=>{
   test.setTimeout(90_000);
   await withSharedDrawing(page,browser,async()=>{
