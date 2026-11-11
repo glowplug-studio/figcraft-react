@@ -75,3 +75,5 @@ An attached participant can report the current file through its File menu. The s
 Set the optional public contact and web terms in the single row of `figcraft_private.online_host_contact`. Signed-in clients receive them through `online_host_information`. A missing row leaves both fields empty.
 
 On the local stack, `supabase test db --local` exercises the admission and retention limits. To test persistence across an actual database restart, run the two-account procedure in the [participant report checkpoint](../docs/planning/26-11-11-participant-reports.md#execution-checkpoint).
+
+Home sends owner renames and removals to the authenticated `/api/online-files/manage` endpoint. Hosts with a different route can pass their transport as the fourth `SupabaseOnlineFileStore` constructor argument. The trusted host supplies the source address. Removing a file retires the immutable object and disconnects guests in one transaction. A scoped Storage request removes its bytes, with the local retirement worker available for retries. Direct authenticated Storage calls can discard an owner’s unlisted staging upload.

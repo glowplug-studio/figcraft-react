@@ -61,6 +61,12 @@ test.afterAll(async () => {
   const deleted = await backend.admin.auth.admin.deleteUser(userId);
   if (deleted.error) throw deleted.error;
 });
+async function removeOnlineFixture(page:Page,id:string) {
+  const origin=new URL(page.url()).origin;
+  const reply=await page.request.post(origin+"/api/online-files/manage",{headers:{origin},data:{id,name:null}});
+  expect(reply.status()).toBe(204);
+}
+
 async function login(page: Page, normaliseView = true) {
   await page.goto("/");
   await expect(page).toHaveURL(/\/login\?next=/);
@@ -509,6 +515,21 @@ test("publish, reopen and manage a device-owned file in Home Online", async ({ p
     await panel.getByRole("button", { name: "Rename on the server…" }).click();
     const rename = page.getByRole("dialog", { name: "Rename on the server" });
     await rename.getByLabel("File name").fill("Server listing");
+    if (backend) {
+      const address="127.0.0.1/32";
+      const prior=JSON.parse(localOperatorSql(backend,"select json_build_object('tokens',admin_tokens,'at',admin_used_at) from figcraft_private.online_code_budgets where block=:'addr'::cidr",{addr:address}));
+      try {
+        localOperatorSql(backend,"update figcraft_private.online_code_budgets set admin_tokens=0,admin_used_at=clock_timestamp()+interval '1 minute' where block=:'addr'::cidr",{addr:address});
+        const rejected=page.waitForResponse(r=>new URL(r.url()).pathname==="/api/online-files/manage");
+        await rename.getByRole("button",{name:"Rename",exact:true}).click();
+        expect((await rejected).status()).toBe(429);
+        await expect(rename.getByRole("alert")).toContainText("Too many changes");
+        expect((await client.from("online_files").select("name").eq("id",paths[0].split("/")[1].replace(".figcraft","")).single()).data?.name).toBe("Owner drawing");
+      } finally {
+        localOperatorSql(backend,"update figcraft_private.online_code_budgets set admin_tokens=nullif(:'tokens','')::float8,admin_used_at=nullif(:'at','')::timestamptz where block=:'addr'::cidr",
+          {addr:address,tokens:String(prior.tokens ?? ""),at:prior.at ?? ""});
+      }
+    }
     await rename.getByRole("button", { name: "Rename", exact: true }).click();
     await panel.getByRole("button", { name: /^Server listing/ }).click();
     await expect(page.getByRole("tablist", { name: "Open files" })).toHaveCount(0);
@@ -576,14 +597,14 @@ test("publish, reopen and manage a device-owned file in Home Online", async ({ p
       await home.getByRole("button", {name: "Recents"}).click();
       await home.getByRole("button", {name: "Owner drawing", exact: true}).click();
     }
-    expect((await client.storage.from("figcraft-files").remove([paths[2]])).error).toBeNull();
+    await removeOnlineFixture(page,paths[2].split("/")[1].replace(".figcraft",""));
     await showList();
     await expect(panel.getByRole("button", { name: /Removed elsewhere.*No longer on the server/ })).toBeDisabled();
     await actions("Removed elsewhere").click();
     await panel.getByRole("button", { name: "Clear from this list" }).click();
     await expect(panel.getByText("Nothing online yet.")).toBeVisible();
   } finally {
-    if (paths.length) expect((await client.storage.from("figcraft-files").remove(paths)).error).toBeNull();
+    for (const path of paths) await removeOnlineFixture(page,path.split("/")[1].replace(".figcraft",""));
   }
 });
 
@@ -662,8 +683,7 @@ for (const confirmed of [true, false]) {
       expect(intercepted).toBe(1);
     } finally {
       if (fileId) {
-        const removed = await client.storage.from("figcraft-files").remove([session.data.user.id + "/" + fileId + ".figcraft"]);
-        expect(removed.error).toBeNull();
+        await removeOnlineFixture(page,fileId);
       }
     }
   });
@@ -1054,7 +1074,7 @@ test("the published view and edit invites open the original drawing in another s
     expect((await closed).status()).toBe(204);
     await expect(toolbar.getByText(/Local document/)).toBeVisible();
     await visitor.setOffline(true);
-    expect((await owner.storage.from("figcraft-files").remove([auth.data.user.id + "/" + fileId + ".figcraft"])).error).toBeNull();
+    await removeOnlineFixture(page,fileId!);
     fileId = undefined;
     await visitor.setOffline(false);
     await expect(viewerBar.getByText(/Disconnected/)).toBeVisible({timeout: 15000});
@@ -1072,7 +1092,7 @@ test("the published view and edit invites open the original drawing in another s
       if (reportFile) localOperatorSql(backend,"delete from figcraft_private.online_participant_reports where file_id=:'file'",{file:reportFile});
     }
     await visitor.close();
-    if (fileId) expect((await owner.storage.from("figcraft-files").remove([auth.data.user.id + "/" + fileId + ".figcraft"])).error).toBeNull();
+    if (fileId) await removeOnlineFixture(page,fileId!);
     if (backend && guestId) await backend.admin.auth.admin.deleteUser(guestId);
   }
 });

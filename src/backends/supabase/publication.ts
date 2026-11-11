@@ -1,4 +1,4 @@
-import type { SupabaseClient } from "@supabase/supabase-js";
+import {createClient,type SupabaseClient} from "@supabase/supabase-js";
 import { createPublishedLinks, isPublishedLinkDigests, publishedLinkDigests, type PublishedLinkDigests } from "../published-links";
 import { PUBLIC_FILE_BYTES, validateOnlineSnapshot } from "../../engine/sharing/publication";
 import { onlineFileInfo, onlineSnapshotPath } from "./online-files";
@@ -153,4 +153,37 @@ export async function finaliseOperatorFile(user: SupabaseClient, writer: Supabas
   if (result.error?.code === "FC002") throw new PublicationCapacityError(result.error.message);
   if (result.error) throw result.error;
   return {id:result.data.id,name:result.data.name,created:result.data.created_at,expires:null,managedByKey:true as const};
+}
+
+export class OwnerFileError extends Error {
+  constructor(message:string,readonly status:number) {super(message);}
+}
+
+/** The trusted HTTP host supplies the verified actor, source address and its own Storage gateway. */
+export async function manageOwnedFile(writer:SupabaseClient,actor:string,id:string,name:string|null,address:string,
+  storage:{url:string;publishableKey:string}) {
+  const request=()=>writer.rpc("manage_owned_online_file",{actor,target:id,title:name,address});
+  let reply=await request();
+  for (let attempt=0;reply.data?.state==="contended" && attempt<8;attempt++) {
+    await new Promise(resolve=>setTimeout(resolve,10*2**attempt));
+    reply=await request();
+  }
+  const {data,error}=reply;
+  if (error) throw error;
+  if (data?.state==="contended") throw new OwnerFileError("The file is changing. Try again.",409);
+  if (data?.state==="busy") throw new OwnerFileError("Too many changes to this server's files from your address: wait a minute and try again",429);
+  if (data?.state==="invalid") throw new OwnerFileError("Give the file a name",422);
+  if (data?.state==="unavailable") {
+    if (name===null) return null;
+    throw new OwnerFileError("This file is no longer on its server",404);
+  }
+  if (data?.state==="renamed" && name!==null && data.file?.id===id) return onlineFileInfo(data.file);
+  if (data?.state!=="removed" || name!==null || data.path!==onlineSnapshotPath(actor,id) ||
+    typeof data.claim!=="string" || !/^[0-9a-f]{64}$/.test(data.claim)) throw new Error("Invalid file management receipt");
+  // The SQL transaction has hidden the file and retired precisely this object.
+  // A failed physical delete is retried by the existing retirement worker.
+  const worker=createClient(storage.url,storage.publishableKey,{auth:{persistSession:false,autoRefreshToken:false},
+    global:{headers:{"x-figcraft-retirement":data.claim}}});
+  await worker.storage.from("figcraft-files").remove([data.path]).catch(()=>undefined);
+  return null;
 }

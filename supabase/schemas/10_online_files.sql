@@ -16,19 +16,14 @@ create index online_files_owner_id_idx on public.online_files (owner_id);
 alter table public.online_files enable row level security;
 
 revoke all on public.online_files from public, anon, authenticated;
-grant select, update (name) on public.online_files to authenticated;
+grant select on public.online_files to authenticated;
 grant select, insert, update, delete on public.online_files to service_role;
 
 create policy "Owners see their online files" on public.online_files
     for select to authenticated
     using (owner_id = (select auth.uid()));
 
-create policy "Owners rename their online files" on public.online_files
-    for update to authenticated
-    using (owner_id = (select auth.uid()))
-    with check (owner_id = (select auth.uid()));
-
--- Match the server's rename operation even for direct Data API callers.
+-- Apply the native cleaning rule to trusted rename operations.
 create function public.clean_online_file_rename() returns trigger
 language plpgsql security invoker set search_path = ''
 as $$
@@ -59,7 +54,3 @@ create policy "Owners upload private Figcraft snapshots" on storage.objects
         and name ~ ('^' || (select auth.uid())::text ||
             '/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}[.]figcraft$')
     );
-
-create policy "Owners remove private Figcraft snapshots" on storage.objects
-    for delete to authenticated
-    using (bucket_id = 'figcraft-files' and owner_id = (select auth.uid())::text);

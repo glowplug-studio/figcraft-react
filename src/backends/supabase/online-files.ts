@@ -36,11 +36,27 @@ export async function stageOnlineSnapshot(client: SupabaseClient, principal: str
 }
 
 /** The request-scoped publisher validates staged bytes before making a listing visible. */
+/** Hosts may inject a transport when their authenticated management endpoint lives elsewhere. */
+async function requestOwnedFileChange(id:string,name:string|null) {
+  const response=await fetch("/api/online-files/manage",{
+    method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({id,name}),
+  });
+  if (!response.ok) {
+    const reason=await response.json().catch(()=>null);
+    throw new Error(typeof reason?.error==="string" ? reason.error : "The file change could not be completed");
+  }
+  if (name===null) return null;
+  const file=await response.json();
+  if (file?.id!==id || typeof file.name!=="string" || typeof file.created!=="string") throw new Error("Invalid rename receipt");
+  return file as OnlineFileInfo;
+}
+
 export class SupabaseOnlineFileStore implements OnlineFileStore {
   constructor(
     private client: SupabaseClient,
     private principal: string,
     private finalise: (id: string, serverKey?:string) => Promise<OnlineFileInfo>,
+    private manage: (id:string,name:string|null)=>Promise<OnlineFileInfo|null> = requestOwnedFileChange,
   ) {}
 
   async teamDirectory() {
@@ -98,13 +114,14 @@ export class SupabaseOnlineFileStore implements OnlineFileStore {
   }
 
   async rename(id: string, name: string) {
-    const { data, error } = await this.client.from("online_files").update({ name }).eq("id", id).select(columns).single();
-    if (error) throw error;
-    return onlineFileInfo(data);
+    onlineSnapshotPath(this.principal,id);
+    const file=await this.manage(id,name);
+    if (!file) throw new Error("This file is no longer on its server");
+    return file;
   }
 
   async remove(id: string) {
-    const { error } = await this.client.storage.from(bucket).remove([onlineSnapshotPath(this.principal, id)]);
-    if (error) throw error;
+    onlineSnapshotPath(this.principal,id);
+    await this.manage(id,null);
   }
 }

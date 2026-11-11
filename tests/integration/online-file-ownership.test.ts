@@ -3,12 +3,12 @@ import { execFileSync, spawn } from "node:child_process";
 import { once } from "node:events";
 import { createInterface } from "node:readline";
 import { readFile } from "node:fs/promises";
-import { createClient, type RealtimeChannel } from "@supabase/supabase-js";
+import { createClient, type SupabaseClient, type RealtimeChannel } from "@supabase/supabase-js";
 import { unzipSync } from "fflate";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { SupabaseOnlineFileStore } from "../../src/backends/supabase/online-files";
 import {fetchTeamLibrary,publishTeamLibrary,readTeamLibraryUsage} from "../../src/backends/supabase/team-library";
-import { finaliseOnlineFile, finaliseOperatorFile } from "../../src/backends/supabase/publication";
+import { finaliseOnlineFile, finaliseOperatorFile, manageOwnedFile } from "../../src/backends/supabase/publication";
 import { applyOwnerSharing, changeFileLinks, ownerSharingStatus } from "../../examples/nextjs/lib/sharing/links";
 import { readSharedDrawing } from "../../examples/nextjs/lib/sharing/join";
 import { lookupCode } from "../../examples/nextjs/lib/sharing/code-lookup";
@@ -33,6 +33,12 @@ describe.skipIf(!enabled)("private online files on real local Supabase", () => {
   });
   function finaliseForTest(...[user, writer, id, links, capacity]: Parameters<typeof finaliseOnlineFile>) {
     return finaliseOnlineFile(user, writer, id, links, capacity ?? {address: fixtureIngress + "::1"});
+  }
+  function changeFile(actor:string,id:string,name:string|null,address=fixtureIngress+"::1") {
+    return manageOwnedFile(local!.admin,actor,id,name,address,{url:local!.url,publishableKey:local!.key});
+  }
+  function ownedStore(client:SupabaseClient,actor:string,finalise:ConstructorParameters<typeof SupabaseOnlineFileStore>[2]) {
+    return new SupabaseOnlineFileStore(client,actor,finalise,(id,name)=>changeFile(actor,id,name));
   }
   async function account() {
     const email = `online-${randomUUID()}@example.test`;
@@ -65,7 +71,7 @@ describe.skipIf(!enabled)("private online files on real local Supabase", () => {
     const invalid = randomUUID();
     paths.push(owner.id + "/" + id + ".figcraft", owner.id + "/" + invalid + ".figcraft");
     let loseReply = true;
-    const store = new SupabaseOnlineFileStore(owner.client, owner.id, async file => {
+    const store = ownedStore(owner.client, owner.id, async file => {
       const published = await finaliseForTest(owner.client, local!.admin, file);
       if (loseReply) { loseReply = false; throw new Error("response interrupted"); }
       return published;
@@ -87,6 +93,23 @@ describe.skipIf(!enabled)("private online files on real local Supabase", () => {
     await expect(store.open(id)).rejects.toThrow("no longer on its server");
   });
 
+  it("serialises staging deletion against publication and blocks direct removal of a winning publication",async()=>{
+    const file=randomUUID(),path=owner.id+"/"+file+".figcraft",writer=local!.admin;
+    paths.push(path);
+    expect((await owner.client.storage.from(bucket).upload(path,archive,{contentType:"application/octet-stream"})).error).toBeNull();
+    const [publication]=await Promise.allSettled([finaliseForTest(owner.client,writer,file),owner.client.storage.from(bucket).remove([path])]);
+    const read=await writer.from("online_files").select("id").eq("id",file);
+    if (publication.status==="fulfilled") {
+      expect(read.data).toEqual([{id:file}]);
+      await owner.client.storage.from(bucket).remove([path]);
+      expect((await owner.client.storage.from(bucket).download(path)).error).toBeNull();
+      await changeFile(owner.id,file,null);
+    } else {
+      expect(read.data).toEqual([]);
+      expect((await owner.client.storage.from(bucket).download(path)).error).toBeTruthy();
+    }
+  });
+
   it("retains operator files and live grants after deleting the uploading account", async () => {
     const uploader = await account(), writer = local!.admin, file = randomUUID();
     const links = createPublishedLinks(), proof = await publishedLinkDigests(links);
@@ -94,7 +117,7 @@ describe.skipIf(!enabled)("private online files on real local Supabase", () => {
     const stage = uploader.id + "/" + file + ".figcraft";
     const stored = "operator/" + file + "/" + createHash("sha256").update(archive).digest("hex") + ".figcraft";
     paths.push(stage,stored);
-    const store = new SupabaseOnlineFileStore(uploader.client,uploader.id,
+    const store = ownedStore(uploader.client,uploader.id,
       id => finaliseOperatorFile(uploader.client,writer,id,proof,capacity,64));
     const blob = new Blob([archive]);
     const [one,two] = await Promise.all([store.publish(file,blob),store.publish(file,blob)]);
@@ -132,7 +155,7 @@ describe.skipIf(!enabled)("private online files on real local Supabase", () => {
     const keptLibrary="library/"+file+"/"+createHash("sha256").update(input).digest("hex")+".figcraft";
     const stage=stranger.id+"/"+submission+".figcraft";
     paths.push(owner.id+"/"+file+".figcraft",stage,keptFile,keptLibrary);
-    const original=new SupabaseOnlineFileStore(owner.client,owner.id,id=>finaliseOperatorFile(owner.client,writer,id,proof,{address},16));
+    const original=ownedStore(owner.client,owner.id,id=>finaliseOperatorFile(owner.client,writer,id,proof,{address},16));
     await original.publish(file,new Blob([archive]));
     expect((await stranger.client.storage.from(bucket).upload(stage,input,{contentType:"application/octet-stream"})).error).toBeNull();
     expect(await fetchTeamLibrary(writer,file,proof.view.hash,null,address)).toEqual({state:"empty"});
@@ -164,7 +187,7 @@ describe.skipIf(!enabled)("private online files on real local Supabase", () => {
     paths.push(path);
     const keys = createPublishedLinks();
     const proof = await publishedLinkDigests(keys);
-    const store = new SupabaseOnlineFileStore(owner.client, owner.id, file => finaliseForTest(owner.client, local!.admin, file, proof));
+    const store = ownedStore(owner.client, owner.id, file => finaliseForTest(owner.client, local!.admin, file, proof));
     await store.publish(id, new Blob([archive]));
     const writer = local!.admin;
     const read = () => writer.from("online_file_links").select("*").eq("file_id", id);
@@ -256,7 +279,7 @@ describe.skipIf(!enabled)("private online files on real local Supabase", () => {
     expect(attempts[other]).toMatchObject({status: "rejected", reason: {message: "Your address has reached its retained file limit"}});
     expect((await local!.admin.from("online_file_links").select("id").eq("file_id", ids[other])).data).toEqual([]);
     expect(await publish(winner, "192.0.2.50")).toMatchObject({id: ids[winner]});
-    expect((await users[winner].client.storage.from(bucket).remove([users[winner].id + "/" + ids[winner] + ".figcraft"])).error).toBeNull();
+    await changeFile(users[winner].id,ids[winner],null);
     expect(await publish(other)).toMatchObject({id: ids[other]});
   });
 
@@ -317,7 +340,7 @@ describe.skipIf(!enabled)("private online files on real local Supabase", () => {
     const keys = createPublishedLinks();
     const proof = await publishedLinkDigests(keys);
     const writer = local!.admin;
-    const store = new SupabaseOnlineFileStore(owner.client, owner.id, id => finaliseForTest(owner.client, writer, id, proof));
+    const store = ownedStore(owner.client, owner.id, id => finaliseForTest(owner.client, writer, id, proof));
     paths.push(owner.id + "/" + file + ".figcraft");
     await store.publish(file, new Blob([archive]));
     const session = (await stranger.client.auth.getClaims()).data!.claims.session_id;
@@ -350,6 +373,21 @@ describe.skipIf(!enabled)("private online files on real local Supabase", () => {
     expect((await stranger.client.rpc("online_connection_active", {tab: viewers[0]})).data).toBe(false);
     const reopened = await Promise.all(editors.slice(1).map(tab => admit(tab, proof.edit.hash)));
     expect(reopened.every(result => result.error === null)).toBe(true);
+    // A leaving session may already hold the child while its activity trigger
+    // needs a key-share lock on the parent. Removal must yield before admission.
+    const blocker=spawn("docker",["exec","-i","supabase_db_figcraft-react","psql","-XqAt","-v","ON_ERROR_STOP=1","-U","postgres","-d","postgres"]);
+    const lines=createInterface({input:blocker.stdout}),closed=once(blocker,"close");
+    try {
+      const ready=once(lines,"line",{signal:AbortSignal.timeout(4000)});
+      blocker.stdin.write("begin; select 'locked' from public.online_file_connections where id='"+editors[0]+"' for update;\n");
+      expect((await ready)[0]).toBe("locked");
+      const probe=await writer.rpc("manage_owned_online_file",{actor:owner.id,target:file,title:null,address:"198.51.100.169"});
+      expect(probe.error).toBeNull();
+      expect(probe.data).toEqual({state:"contended"});
+      expect(localOperatorSql(local!,"select count(*) from figcraft_private.online_code_budgets where block='198.51.100.169/32'")).toBe("0");
+    } finally {
+      blocker.stdin.end("rollback;\n");await closed;lines.close();
+    }
     const [closing] = await Promise.all([
       writer.from("online_file_connections").delete().in("id", editors.slice(1)),
       store.remove(file),
@@ -363,7 +401,7 @@ describe.skipIf(!enabled)("private online files on real local Supabase", () => {
     paths.push(path);
     const writer = local!.admin, links = createPublishedLinks(), proof = await publishedLinkDigests(links);
     const bytes = new Blob([archive]);
-    const store = new SupabaseOnlineFileStore(owner.client, owner.id, id => finaliseForTest(owner.client, writer, id, proof));
+    const store = ownedStore(owner.client, owner.id, id => finaliseForTest(owner.client, writer, id, proof));
     await store.publish(file, bytes);
     const info = await owner.client.storage.from(bucket).info(path);
     if (info.error) throw info.error;
@@ -411,7 +449,7 @@ describe.skipIf(!enabled)("private online files on real local Supabase", () => {
     const file = randomUUID(), path = owner.id + "/" + file + ".figcraft";
     paths.push(path);
     const writer = local!.admin, links = createPublishedLinks(), proof = await publishedLinkDigests(links);
-    const store = new SupabaseOnlineFileStore(owner.client, owner.id, id => finaliseForTest(owner.client, writer, id, proof));
+    const store = ownedStore(owner.client, owner.id, id => finaliseForTest(owner.client, writer, id, proof));
     await store.publish(file, new Blob([archive]));
     const object = await owner.client.storage.from(bucket).info(path);
     if (object.error) throw object.error;
@@ -454,8 +492,8 @@ describe.skipIf(!enabled)("private online files on real local Supabase", () => {
     const file = randomUUID(), path = owner.id + "/" + file + ".figcraft";
     paths.push(path);
     const writer = local!.admin;
-    const store = new SupabaseOnlineFileStore(owner.client, owner.id, id => finaliseForTest(owner.client, writer, id));
-    const guest = new SupabaseOnlineFileStore(stranger.client, stranger.id, () => Promise.reject());
+    const store = ownedStore(owner.client, owner.id, id => finaliseForTest(owner.client, writer, id));
+    const guest = ownedStore(stranger.client, stranger.id, () => Promise.reject());
     await store.publish(file,new Blob([archive]));
     await expect(guest.resolveTeamFile(file)).rejects.toThrow("no team list");
     expect((await local!.client.rpc("online_team_directory")).error).toBeTruthy();
@@ -507,7 +545,7 @@ describe.skipIf(!enabled)("private online files on real local Supabase", () => {
     const file = randomUUID(), tab = randomUUID(), keys = createPublishedLinks();
     const proof = await publishedLinkDigests(keys);
     const writer = local!.admin;
-    const store = new SupabaseOnlineFileStore(owner.client, owner.id, id => finaliseForTest(owner.client, writer, id, proof));
+    const store = ownedStore(owner.client, owner.id, id => finaliseForTest(owner.client, writer, id, proof));
     paths.push(owner.id + "/" + file + ".figcraft");
     await store.publish(file, new Blob([archive]));
     const session = (await stranger.client.auth.getClaims()).data!.claims.session_id as string;
@@ -552,7 +590,7 @@ describe.skipIf(!enabled)("private online files on real local Supabase", () => {
     const file = randomUUID(), tab = randomUUID(), path = owner.id + "/" + file + ".figcraft";
     paths.push(path);
     const writer = local!.admin;
-    const store = new SupabaseOnlineFileStore(owner.client, owner.id, id => finaliseForTest(owner.client, writer, id, proof));
+    const store = ownedStore(owner.client, owner.id, id => finaliseForTest(owner.client, writer, id, proof));
     await store.publish(file, new Blob([archive]));
     const guest = stranger.client.storage.from(bucket);
     const session = (await stranger.client.auth.getClaims()).data!.claims.session_id as string;
@@ -610,7 +648,7 @@ describe.skipIf(!enabled)("private online files on real local Supabase", () => {
     const seed = "73".repeat(32);
     const published = createPublishedLinks(), proof = await publishedLinkDigests(published);
     paths.push(owner.id + "/" + file + ".figcraft");
-    const store = new SupabaseOnlineFileStore(owner.client, owner.id, id => finaliseForTest(owner.client, writer, id, proof));
+    const store = ownedStore(owner.client, owner.id, id => finaliseForTest(owner.client, writer, id, proof));
     await store.publish(file, new Blob([archive]));
     const address = fixtureIngress + "::1";
     const start = () => applyOwnerSharing(writer, owner.id, file, null, first, [], seed, address);
@@ -665,7 +703,7 @@ describe.skipIf(!enabled)("private online files on real local Supabase", () => {
     const writer = local!.admin, file = randomUUID(), viewTab = randomUUID(), editTab = randomUUID();
     const keys = createPublishedLinks(), proof = await publishedLinkDigests(keys);
     paths.push(owner.id + "/" + file + ".figcraft");
-    const store = new SupabaseOnlineFileStore(owner.client, owner.id, id => finaliseForTest(owner.client, writer, id, proof));
+    const store = ownedStore(owner.client, owner.id, id => finaliseForTest(owner.client, writer, id, proof));
     await store.publish(file, new Blob([archive]));
     const session = (await stranger.client.auth.getClaims()).data!.claims.session_id as string;
     const topic = (tab: string) => "figcraft-connection:" + session + ":" + tab;
@@ -735,12 +773,15 @@ describe.skipIf(!enabled)("private online files on real local Supabase", () => {
     await stranger.client.from("online_files").update({ name: "Spoof" }).eq("id", file);
     await foreign.remove([path]);
     expect((await listing()).data?.name).toBe("Cover");
-    expect((await owner.client.from("online_files").update({ name: " \tRenamed\u202e " }).eq("id", file)).error).toBeNull();
+    expect((await owner.client.from("online_files").update({name:"Budget bypass"}).eq("id",file)).error).toBeTruthy();
+    await changeFile(owner.id,file," \tRenamed\u202e ");
     expect((await listing()).data?.name).toBe("Renamed");
-    expect((await owner.client.from("online_files").update({ name: " \t " }).eq("id", file)).error?.code).toBe("22023");
+    await expect(changeFile(owner.id,file," \t ")).rejects.toMatchObject({status:422});
     expect(new Uint8Array(await (await mine.download(path)).data!.arrayBuffer())).toEqual(archive);
     expect((await owner.client.from("online_files").delete().eq("id", file)).error).toBeTruthy();
-    expect((await mine.remove([path])).error).toBeNull();
+    expect((await mine.remove([path])).data).toEqual([]);
+    expect((await listing()).data?.name).toBe("Renamed");
+    await changeFile(owner.id,file,null);
     expect((await owner.client.from("online_files").select("id").eq("id", file)).data).toEqual([]);
     expect((await mine.download(path)).error).toBeTruthy();
   });
