@@ -215,6 +215,13 @@ dd { margin: 0; }
 .figcraft-comment-tool { display:grid; place-items:center; padding:5px; }
 
 .figcraft-people-overlay { position:absolute; inset:0; pointer-events:none; }
+.figcraft-follow-name, .figcraft-spotlight-banner { position:absolute; top:2px; left:50%; transform:translateX(-50%); max-width:95%; width:max-content; padding:3px 8px; border-radius:0 0 6px 6px; font:600 11px/1.4 system-ui; }
+.figcraft-follow-name { pointer-events:none; }
+.figcraft-spotlight-banner { top:4px; display:flex; align-items:center; gap:8px; background:#fff; color:#1e1e1e; border:1px solid #ccc; border-radius:6px; }
+.figcraft-canvas-area:has(.figcraft-spotlight-banner,.figcraft-follow-name) .figcraft-instructions { visibility:hidden; }
+@media (min-width:801px) {
+  .figcraft-canvas-area:has(.figcraft-spotlight-banner,.figcraft-follow-name) .figcraft-view-controls { top:48px; }
+}
 .figcraft-cursor-chat { position:absolute; width:min(210px,95%); z-index:3; }
 .figcraft-live-people { position:relative; }
 .figcraft-live-people > div { position:absolute; right:0; z-index:5; display:grid; min-width:9rem; background:white; padding:.35rem; border:1px solid #bbb; }

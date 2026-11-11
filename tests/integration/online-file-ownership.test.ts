@@ -1,5 +1,5 @@
 import {EditorEngine} from "../../src/engine/editor";
-import {sendLivePresence,presenceBroadcaster} from "../../src/backends/supabase/live-presence";
+import {leaveLiveConnection,sendLivePresence,presenceBroadcaster} from "../../src/backends/supabase/live-presence";
 import { decodeFigcraft, encodeFigcraftBlob } from "../../src/engine/file-format";
 import {restoreLiveCheckpoint} from "../../src/engine/sharing/live-checkpoint";
 import {readLiveUpdates,submitLiveBatch} from "../../src/backends/supabase/live-journal";
@@ -651,6 +651,27 @@ describe.skipIf(!enabled)("private online files on real local Supabase", () => {
       expect((await readLiveUpdates(writer,first,"0")).sequence).toBe("0");
       expect(localOperatorSql(local!,"select count(*) from realtime.messages where topic=:'topic' and event='presence'",{topic})).toBe("0");
       await expect(sendLivePresence(writer,{...second,target:randomUUID()},sample,deliver)).rejects.toMatchObject({code:"42501"});
+      const departingResume=randomUUID(), departing=await enter(owner,keys.edit.token,departingResume);
+      const identity=await sendLivePresence(writer,departing,sample,deliver);
+      const unexpected=vi.fn(async()=>{});
+      await leaveLiveConnection(writer,{...departing,actor:stranger.id},unexpected);
+      await leaveLiveConnection(writer,{...departing,login:second.login},unexpected);
+      await leaveLiveConnection(writer,departing,deliver);
+      await leaveLiveConnection(writer,departing,unexpected);
+      expect(unexpected).not.toHaveBeenCalled();
+      await vi.waitFor(()=>expect(packets).toContainEqual({
+        client:identity.client,generation:identity.generation,colour:identity.colour,sequence:Number.MAX_SAFE_INTEGER,
+        left:true,hello:false,spotlight:false,name:"",chat:"",presence:{cursor:null,viewport:null,selection:null,editingText:null},
+      }));
+      await expect(sendLivePresence(writer,departing,sample,deliver)).rejects.toMatchObject({code:"42501"});
+      expect((await readLiveUpdates(writer,second,"0")).sequence).toBe("0");
+      const returned=await enter(owner,keys.edit.token,departingResume);
+      const fresh=await sendLivePresence(writer,returned,sample,deliver);
+      expect(fresh.client).toBe(identity.client);
+      expect(BigInt(fresh.generation)).toBeGreaterThan(BigInt(identity.generation));
+      await leaveLiveConnection(writer,returned,async()=>{throw new Error("Realtime unavailable");});
+      await expect(readLiveUpdates(writer,returned,"0")).rejects.toMatchObject({code:"42501"});
+      expect(localOperatorSql(local!,"select count(*) from realtime.messages where topic=:'topic' and event='presence'",{topic})).toBe("0");
       const replacement=await enter(stranger,keys.view.token,resume);
       await expect(sendLivePresence(writer,second,sample,deliver)).rejects.toMatchObject({code:"42501"});
       const continued=await sendLivePresence(writer,replacement,{...sample,name:"",sequence:1},deliver);

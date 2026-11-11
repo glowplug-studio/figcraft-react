@@ -16,6 +16,19 @@ export async function sendLivePresence(writer:SupabaseClient,connection:LiveConn
   return {client:peer.client,colour:peer.colour,name,generation:peer.generation};
 }
 
+/** Releasing a grant is final even if its best-effort Realtime notification is lost. */
+export async function leaveLiveConnection(writer:SupabaseClient,{actor,login,tab}:Omit<LiveConnection,"target">,
+  deliver:(targets:readonly string[],payload:LivePeerMessage)=>Promise<void>) {
+  const {data,error}=await writer.rpc("leave_live_connection",{actor,login,tab});
+  if(error)throw error;
+  if(!data?.targets.length)return;
+  // A late sample from this physical connection must never reinstate the departed peer.
+  await deliver(data.targets,{
+    client:data.client,colour:presenceColours[data.colour],generation:data.generation,sequence:Number.MAX_SAFE_INTEGER,
+    left:true,hello:false,spotlight:false,name:"",chat:"",presence:{cursor:null,selection:null,viewport:null,editingText:null},
+  }).catch(()=>{ /* The remote heartbeat expires disconnected peers after transport failure. */ });
+}
+
 /** Direct private HTTP broadcasts omit database retention. Bound each batch by bytes as well as channel count. */
 export function presenceBroadcaster(projectUrl:string,serviceKey:string) {
   const url=new URL("/realtime/v1/api/broadcast",projectUrl),headers={"Content-Type":"application/json",apikey:serviceKey,Authorization:"Bearer "+serviceKey};

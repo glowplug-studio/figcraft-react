@@ -36,6 +36,7 @@ export class LivePeople {
   private followed?:number;
   private chat="";
   private spotlight=false;
+  private presenterId?:number;
   constructor(private editor:PeopleEditor,private transport:NonNullable<LiveTransport["people"]>,private client:number){}
   getSnapshot=()=>this.list??=(Array.from(this.entries.values(),entry=>entry.message).sort((a,b)=>a.client-b.client));
   subscribe=(f:()=>void)=>{this.listeners.add(f);return ()=>{this.listeners.delete(f);};};
@@ -52,6 +53,7 @@ export class LivePeople {
     return names[0]+" and "+(names.length-1)+" others are editing this text";
   }
   get following(){return this.followed;}
+  get presenter(){return this.presenterId;}
   get spotlighting(){return this.spotlight;}
   get cursorChat(){return this.chat;}
   setFollow(id?:number) {
@@ -60,7 +62,11 @@ export class LivePeople {
     if(peer)this.editor.follow(peer);
     this.publish();
   }
-  setSpotlight(on:boolean){if(on)this.followed=undefined;this.spotlight=on;this.changed();this.publish();}
+  setSpotlight(on:boolean){
+    if(on===this.spotlight)return;
+    if(on){this.followed=undefined;this.presenterId=undefined;}
+    this.spotlight=on;this.changed();this.publish();
+  }
   setChat(value:string){const signal=cleanPresenceSignal({kind:"chat",text:value});if(signal){this.chat=signal.text;this.changed();}}
   setActive(on:boolean){if(this.active===on)return;this.active=on;this.cursor=null;this.changed();}
   point(p:Point|null){this.cursor=p;this.changed();}
@@ -78,23 +84,32 @@ export class LivePeople {
     let peer:LivePeerMessage;
     try{peer=readPeerMessage(input);}catch{return;}
     if(peer.client===this.client)return;
-    const old=this.entries.get(peer.client)?.message, previousFollow=this.followed;
+    const old=this.entries.get(peer.client)?.message, previousFollow=this.followed, previousPresenter=this.presenterId;
     const last=old??this.departed.get(peer.client);
     if(last && (BigInt(peer.generation)<BigInt(last.generation) || peer.generation===last.generation && peer.sequence<=last.sequence))return;
     if(peer.left) {
       this.rememberDeparture(peer);
       if(!old)return;
-      this.entries.delete(peer.client);if(this.followed===peer.client)this.followed=undefined;
+      this.entries.delete(peer.client);
+      if(this.presenterId===peer.client)this.presenterId=undefined;
+      if(this.followed===peer.client)this.followed=undefined;
     } else {
       if(!old && this.entries.size>=4096)return;
       this.departed.delete(peer.client);
       this.entries.set(peer.client,{message:peer,heard:performance.now()});
       if(peer.hello){this.resend=true;this.changed();}
-      if(peer.spotlight && !old?.spotlight)this.followed=peer.client;
-      if(old?.spotlight && !peer.spotlight && this.followed===peer.client)this.followed=undefined;
+      if(peer.spotlight && (!old?.spotlight || old.generation!==peer.generation)){
+        this.presenterId=peer.client;
+        this.followed=peer.client;
+        if(this.spotlight){this.spotlight=false;this.changed();}
+      }
+      if(!peer.spotlight && this.presenterId===peer.client){
+        this.presenterId=undefined;
+        if(this.followed===peer.client)this.followed=undefined;
+      }
       if(this.followed===peer.client)this.editor.follow(peer);
     }
-    this.publish(!old || peer.left || old.name!==peer.name || old.colour!==peer.colour || previousFollow!==this.followed);
+    this.publish(!old || peer.left || old.name!==peer.name || old.colour!==peer.colour || previousFollow!==this.followed || previousPresenter!==this.presenterId);
   };
   start() {
     this.alive=true;
@@ -107,6 +122,7 @@ export class LivePeople {
         if(entry.heard>=cutoff)continue;
         this.rememberDeparture(entry.message);
         this.entries.delete(id);
+        if(this.presenterId===id)this.presenterId=undefined;
         if(this.followed===id)this.followed=undefined;
         expired=true;
       }
@@ -116,7 +132,7 @@ export class LivePeople {
     return ()=>{
       this.alive=false;clearTimeout(this.timer);clearInterval(this.heartbeat);unwatch();unlisten();
       if(this.sequence)void this.transport.send({...this.sample(),sequence:++this.sequence,left:true}).catch(()=>{});
-      this.entries.clear();this.followed=undefined;this.publish();
+      this.entries.clear();this.followed=undefined;this.presenterId=undefined;this.publish();
     };
   }
   private sample() {

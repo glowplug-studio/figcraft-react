@@ -10,11 +10,11 @@ import {textCaret,textSelectionRects} from "./engine/text-caret";
 import {documentTextReady,prepareDocumentText,textNodeLayout} from "./engine/text-node-layout";
 import type {Document} from "./engine/document";
 
-export function LivePeopleControls({room,engine}:{room:LivePeople;engine:EditorEngine}) {
+export function LivePeopleControls({room,engine,menuGroup}:{room:LivePeople;engine:EditorEngine;menuGroup:string}) {
   // Cursor coordinates need not repaint the document header.
   useSyncExternalStore(room.subscribe,room.rosterKey,room.rosterKey);
   const peers=room.getSnapshot();
-  return <details className="figcraft-live-people"><summary>People ({peers.length+1})</summary><div>
+  return <details name={menuGroup} className="figcraft-live-people"><summary>People ({peers.length+1})</summary><div>
     {peers.map(peer=><button type="button" key={peer.client} aria-pressed={room.following===peer.client}
       onClick={()=>engine.execute("collab.follow",room.following===peer.client?{}:{client:peer.client})}>
       <span aria-hidden="true" style={{color:peer.colour}}>● </span>{room.following===peer.client?"Unfollow ":"Follow "}{peer.name}</button>)}
@@ -22,6 +22,11 @@ export function LivePeopleControls({room,engine}:{room:LivePeople;engine:EditorE
       {room.spotlighting?"Stop spotlight":"Spotlight me"}</button>
     <button type="button" onClick={()=>engine.execute("collab.cursorChat")}>Cursor chat</button>
   </div></details>;
+}
+
+function textOn(colour:string) {
+  const rgb=Number.parseInt(colour.slice(1),16);
+  return ((rgb>>16)*0.299+(rgb>>8&255)*0.587+(rgb&255)*0.114)>170?"#1e1e1e":"#fff";
 }
 
 function drawName(ctx:CanvasRenderingContext2D,name:string,chat:string,colour:string,x:number,y:number) {
@@ -35,14 +40,16 @@ function drawName(ctx:CanvasRenderingContext2D,name:string,chat:string,colour:st
   const width=Math.max(...lines.map(value=>ctx.measureText(value).width))+12;
   ctx.fillStyle=colour;
   ctx.beginPath();ctx.roundRect(x,y,width,lines.length*15+4,4);ctx.fill();
-  const rgb=Number.parseInt(colour.slice(1),16);
-  ctx.fillStyle=((rgb>>16)*0.299+(rgb>>8&255)*0.587+(rgb&255)*0.114)>170?"#1e1e1e":"#fff";ctx.textBaseline="top";
+  ctx.fillStyle=textOn(colour);ctx.textBaseline="top";
   lines.forEach((value,index)=>ctx.fillText(value,x+6,y+3+index*15));
 }
 
 export function LivePeopleOverlay({room,engine,canvas}:{room:LivePeople;engine:EditorEngine;canvas:RefObject<HTMLCanvasElement|null>}) {
   const layer=useRef<HTMLCanvasElement>(null),point=useRef<Point|null>(null),input=useRef<HTMLInputElement>(null);
   const [chatAt,setChatAt]=useState<Point|null>(null);
+  useSyncExternalStore(room.subscribe,room.rosterKey,room.rosterKey);
+  const following=room.getSnapshot().find(peer=>peer.client===room.following);
+  const presenter=room.getSnapshot().find(peer=>peer.client===room.presenter);
   const localTyped=useRef(-Infinity),redraw=useRef<()=>void>(()=>{});
   const closeTimer=useRef<ReturnType<typeof setTimeout>|undefined>(undefined);
   useEffect(()=>{
@@ -84,7 +91,7 @@ export function LivePeopleOverlay({room,engine,canvas}:{room:LivePeople;engine:E
       last=now;
       for(const peer of peers) {
         const {cursor,selection,viewport,editingText}=peer.presence;
-        if(room.following===peer.client){c.strokeStyle=peer.colour;c.lineWidth=4;c.strokeRect(1,1,rect.width-2,rect.height-2);}
+        if(room.following===peer.client){c.strokeStyle=peer.colour;c.lineWidth=2;c.strokeRect(1,1,rect.width-2,rect.height-2);}
         if((viewport?.[0]??cursor?.[0])===doc.currentPage){
           c.save();c.translate(origin.x,origin.y);c.scale(view.zoom,view.zoom);
           c.strokeStyle=peer.colour;c.lineWidth=1.5/view.zoom;
@@ -166,6 +173,12 @@ export function LivePeopleOverlay({room,engine,canvas}:{room:LivePeople;engine:E
     redraw.current();
   },[chatAt]);
   return <><canvas aria-hidden="true" ref={layer} className="figcraft-people-overlay"/>
+    {following && <div className="figcraft-follow-name" style={{background:following.colour,color:textOn(following.colour)}}>
+      Following {following.name} · Escape to stop</div>}
+    {room.spotlighting ? <div className="figcraft-spotlight-banner">You're spotlighting: everyone follows your view
+      <button type="button" onClick={()=>engine.execute("collab.spotlight",{on:false})}>Stop</button></div>
+      : presenter && presenter!==following && <div className="figcraft-spotlight-banner">{presenter.name} is spotlighting
+        <button type="button" onClick={()=>engine.execute("collab.follow",{client:presenter.client})}>Follow</button></div>}
     {chatAt && <input ref={input} className="figcraft-cursor-chat" aria-label="Cursor chat" defaultValue={room.cursorChat}
       style={{left:chatAt.x,top:chatAt.y}} onChange={e=>{engine.execute("collab.cursorChat",{text:e.target.value});e.target.value=room.cursorChat;
         localTyped.current=performance.now();expireChat();}}

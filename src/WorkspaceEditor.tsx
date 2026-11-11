@@ -219,6 +219,9 @@ export function WorkspaceEditor({ identity, capabilities, recoveryStore, onlineH
         onClick={() => workspace.execute("file.moveTab", { from: active.index, to })}>Move tab {offset < 0 ? "left" : "right"}</button>;
     })}
   </>;
+  if (recovery.status === "loading" && identity.getSnapshot().status === "authenticated") {
+    return <p className="figcraft-recovery" role="status">Restoring local recovery…</p>;
+  }
   return <div className="figcraft-file-workspace" onKeyDown={event => {
     if (enabled && event.ctrlKey && event.key === "Tab" && !event.altKey && !event.metaKey && active) {
       event.preventDefault();

@@ -423,7 +423,19 @@ if (!process.env.PLAYWRIGHT_BASE_URL) test("publishes a team library and checks 
     expect(bounds && bounds.x>=0 && bounds.x+bounds.width<=391).toBe(true);
     await test.info().attach("team-library-usage-narrow",{body:await narrowUsage.screenshot(),contentType:"image/png"});
     await expect(guest.locator(".figcraft-recovery")).toHaveText("Recovery saved on this device");
+    // Hold the archived drawing read to exercise a slow device. Controls must belong to the restored tab.
+    await guest.addInitScript(() => {
+      const resume = new Promise<void>(resolve => window.addEventListener("resume-archive-read", () => resolve(), {once:true}));
+      const read = Blob.prototype.arrayBuffer;
+      Blob.prototype.arrayBuffer = async function () {
+        await resume;
+        return read.call(this);
+      };
+    });
     await guest.reload();
+    await expect(guest.getByText("Restoring local recovery…",{exact:true})).toBeVisible();
+    await expect(guest.getByRole("button",{name:"Assets",exact:true})).toHaveCount(0);
+    await guest.evaluate(() => window.dispatchEvent(new Event("resume-archive-read")));
     await guest.getByRole("button",{name:"Assets",exact:true}).click();
     await expect(assets.getByText("Published version "+second,{exact:true})).toBeVisible();
     const check=guest.waitForResponse(r=>new URL(r.url()).pathname==="/api/online-files/library");
@@ -992,8 +1004,8 @@ if (!process.env.PLAYWRIGHT_BASE_URL) test("a view-only phone sees a live pointe
     const ownerRoster=page.locator(".figcraft-live-people"),guestRoster=peer.locator(".figcraft-live-people");
     await expect(guestRoster.locator("summary")).toHaveText("People (2)");
     await guestRoster.locator("summary").click();
-    await guestRoster.getByRole("button",{name:"Follow Ari"}).click();
-    await expect(guestRoster.getByRole("button",{name:"Unfollow Ari"})).toHaveAttribute("aria-pressed","true");
+    await guestRoster.getByRole("button",{name:"Follow Ari",exact:true}).click();
+    await expect(guestRoster.getByRole("button",{name:"Unfollow Ari",exact:true})).toHaveAttribute("aria-pressed","true");
     await guestRoster.locator("summary").click();
     const ownerCanvas=page.getByLabel("Design canvas",{exact:true});
     const tip=await ownerCanvas.evaluate((el:HTMLCanvasElement)=>{
@@ -1029,9 +1041,28 @@ if (!process.env.PLAYWRIGHT_BASE_URL) test("a view-only phone sees a live pointe
     },{x,y})).toBe(true);
     await peer.screenshot({path:info.outputPath("live-cursor-chat-phone.png")});
     await guestRoster.locator("summary").click();await guestRoster.getByRole("button",{name:"Spotlight me"}).click();
-    await ownerRoster.locator("summary").click();await expect(ownerRoster.getByRole("button",{name:"Unfollow Bea"})).toBeVisible();
-    await guestRoster.getByRole("button",{name:"Stop spotlight"}).click();await expect(ownerRoster.getByRole("button",{name:"Follow Bea"})).toBeVisible();
+    await ownerRoster.locator("summary").click();await expect(ownerRoster.getByRole("button",{name:"Unfollow Bea",exact:true})).toBeVisible();
+    await expect(peer.locator(".figcraft-spotlight-banner")).toContainText("everyone follows your view");
+    await ownerRoster.locator("summary").click();
+    await ownerCanvas.focus();await page.keyboard.press("Escape");
+    const banner=page.locator(".figcraft-spotlight-banner");
+    await expect(banner).toContainText("Bea is spotlighting");
+    await banner.getByRole("button",{name:"Follow",exact:true}).click();
+    await expect(page.locator(".figcraft-follow-name")).toHaveText("Following Bea · Escape to stop");
+    await guestRoster.locator("summary").click();
+    await peer.screenshot({path:info.outputPath("spotlight-presenter-phone.png")});
+    await peer.locator(".figcraft-spotlight-banner").getByRole("button",{name:"Stop",exact:true}).click();
+    await ownerRoster.locator("summary").click();
+    await expect(ownerRoster.getByRole("button",{name:"Follow Bea",exact:true})).toBeVisible();
     await peer.screenshot({path:info.outputPath("live-people-phone.png")});
+    await ownerRoster.getByRole("button",{name:"Follow Bea",exact:true}).click();
+    await expect(ownerRoster.getByRole("button",{name:"Unfollow Bea",exact:true})).toBeVisible();
+    const guestBar=peer.locator(".figcraft-document-bar");
+    await guestBar.getByText("File",{exact:true}).click();
+    await guestBar.getByRole("button",{name:"Leave session"}).click();
+    await expect(peer.getByText("Left session",{exact:true})).toBeVisible();
+    await expect(ownerRoster.locator("summary")).toHaveText("People (1)",{timeout:5000});
+    await expect(ownerRoster.getByRole("button",{name:"Unfollow Bea",exact:true})).toHaveCount(0);
     expect(submits).toEqual([]);expect(requestErrors).toEqual([]);
   },"view");
 });

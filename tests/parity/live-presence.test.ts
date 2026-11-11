@@ -79,6 +79,24 @@ it("fits the peer viewport locally and stops following on pan or when the spotli
   }finally{stop();}
 });
 
+it("hands a spotlight between presenters, keeps the banner after unfollow and clears the departed presenter",()=>{
+  vi.useFakeTimers();const {room,receive,stop}=session();
+  try {
+    room.setSpotlight(true);
+    receive(message({spotlight:true}));
+    expect([room.spotlighting,room.presenter,room.following]).toEqual([false,2,2]);
+    room.setFollow();
+    expect([room.presenter,room.following]).toEqual([2,undefined]);
+    receive(message({client:3,spotlight:true}));
+    receive(message({sequence:2,spotlight:false}));
+    expect([room.presenter,room.following]).toEqual([3,3]);
+    receive(message({client:3,sequence:Number.MAX_SAFE_INTEGER,left:true}));
+    receive(message({client:3,sequence:10,spotlight:true}));
+    expect([room.presenter,room.following]).toEqual([undefined,undefined]);
+    expect(room.getSnapshot().map(p=>p.client)).toEqual([2]);
+  }finally{stop();}
+});
+
 it("follows a different page locally while a later shared edit and the native archive keep the original active page",()=>{
   const editor=new EditorEngine();
   editor.execute("page.add",{name:"Other"});

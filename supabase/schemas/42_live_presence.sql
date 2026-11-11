@@ -9,13 +9,21 @@ create table figcraft_private.live_presence_connections (
 alter table figcraft_private.live_presence_connections enable row level security;
 revoke all on figcraft_private.live_presence_connections from public,anon,authenticated,service_role;
 
+create function figcraft_private.live_recipient_topics(target uuid, tab uuid)
+returns jsonb language sql stable security invoker set search_path='' as $$
+    select coalesce(jsonb_agg('figcraft-connection:'||c.session_id::text||':'||c.id::text),'[]'::jsonb)
+        from public.online_file_connections c
+        join figcraft_private.live_clients lc on lc.connection_id=c.id and lc.file_id=c.file_id
+        where c.file_id=target and c.id<>tab and c.heard_at>figcraft_private.connection_cutoff();
+$$;
+revoke all on function figcraft_private.live_recipient_topics(uuid,uuid) from public,anon,authenticated,service_role;
+
 create function figcraft_private.live_presence_targets(actor uuid, login uuid, tab uuid, target uuid, anonymous_name boolean)
 returns jsonb language plpgsql security definer set search_path='' as $$
 declare
     sender bigint;
     registration figcraft_private.live_presence_connections;
     used smallint[];
-    targets jsonb;
 begin
     -- Match admission lock order. Subsequent samples only read their existing allocation.
     if not exists(select 1 from figcraft_private.live_presence_connections where connection_id=tab) then
@@ -38,12 +46,8 @@ begin
         insert into figcraft_private.live_presence_connections(connection_id,colour,guest_number)
             values(tab,registration.colour,registration.guest_number) returning * into registration;
     end if;
-    select coalesce(jsonb_agg('figcraft-connection:'||c.session_id::text||':'||c.id::text),'[]'::jsonb)
-        into targets from public.online_file_connections c
-        join figcraft_private.live_clients lc on lc.connection_id=c.id and lc.file_id=c.file_id
-        where c.file_id=target and c.id<>tab and c.heard_at>figcraft_private.connection_cutoff();
     return jsonb_build_object('client',sender,'colour',registration.colour,'guest',registration.guest_number,
-        'generation',(extract(epoch from registration.generation)*1000000)::bigint::text,'targets',targets);
+        'generation',(extract(epoch from registration.generation)*1000000)::bigint::text,'targets',figcraft_private.live_recipient_topics(target,tab));
 end;
 $$;
 revoke all on function figcraft_private.live_presence_targets(uuid,uuid,uuid,uuid,boolean) from public,anon,authenticated,service_role;
@@ -55,3 +59,38 @@ returns jsonb language sql security invoker set search_path='' as $$
 $$;
 revoke all on function public.live_presence_targets(uuid,uuid,uuid,uuid,boolean) from public,anon,authenticated,service_role;
 grant execute on function public.live_presence_targets(uuid,uuid,uuid,uuid,boolean) to service_role;
+
+-- Capture the current physical generation before the foreign keys clear its allocation.
+create function figcraft_private.leave_live_connection(actor uuid, login uuid, tab uuid)
+returns jsonb language plpgsql security definer set search_path='' as $$
+declare
+    target uuid;
+    receipt jsonb;
+begin
+    select file_id into target from public.online_file_connections
+        where id=tab and principal_id=actor and session_id=login;
+    if not found then return null; end if;
+    perform from public.online_files where id=target for key share;
+    perform from figcraft_private.live_rooms where file_id=target for update;
+    perform from public.online_file_connections where id=tab and file_id=target
+        and principal_id=actor and session_id=login for update;
+    if not found then return null; end if;
+    select jsonb_build_object('client',lc.client_id,'colour',pc.colour,
+        'generation',(extract(epoch from pc.generation)*1000000)::bigint::text,
+        'targets',figcraft_private.live_recipient_topics(target,tab))
+        into receipt from figcraft_private.live_clients lc
+        join figcraft_private.live_presence_connections pc on pc.connection_id=lc.connection_id
+        where lc.file_id=target and lc.connection_id=tab and lc.session_id=login;
+    delete from public.online_file_connections where id=tab;
+    return receipt;
+end;
+$$;
+revoke all on function figcraft_private.leave_live_connection(uuid,uuid,uuid) from public,anon,authenticated,service_role;
+grant execute on function figcraft_private.leave_live_connection(uuid,uuid,uuid) to service_role;
+
+create function public.leave_live_connection(actor uuid, login uuid, tab uuid)
+returns jsonb language sql security invoker set search_path='' as $$
+    select figcraft_private.leave_live_connection(actor,login,tab);
+$$;
+revoke all on function public.leave_live_connection(uuid,uuid,uuid) from public,anon,authenticated,service_role;
+grant execute on function public.leave_live_connection(uuid,uuid,uuid) to service_role;
