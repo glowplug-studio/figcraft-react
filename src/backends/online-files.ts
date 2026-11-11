@@ -77,11 +77,13 @@ export interface OnlineGuestSession {
   access: "edit" | "view" | "comment";
   /** The device opened its recorded publication. This flag confers no management authority. */
   openedAsOwner?: true;
+  /** The current authenticated account owns this file. The server rechecks every removal. */
+  canRemovePeople?: boolean;
   ended?: GuestSessionEnd;
   reconnectAttempt?: number;
 }
-export type GuestSessionEnd = "stopped" | "removed" | "unavailable";
-export type GuestWelcome = Pick<OnlineGuestSession, "access" | "client" | "room">;
+export type GuestSessionEnd = "stopped" | "removed" | "expelled" | "unavailable";
+export type GuestWelcome = Pick<OnlineGuestSession, "access" | "client" | "room" | "canRemovePeople">;
 export type GuestConnectionStatus = {attempt: number} | GuestWelcome;
 export interface SessionDetails {
   identity?:{name:string;colour:string};
@@ -98,6 +100,7 @@ export interface OnlineInvitations {
   live?(connection: string): import("../engine/sharing/live-transport").LiveTransport | undefined;
   /** Redeem this device's original edit link. Older records may predate link storage. */
   joinOwned?(file: string, managedByKey?: boolean, listing?:Pick<OnlineFileInfo,"name"|"expires">, recorded?:boolean): Promise<{session: OnlineGuestSession; archive: Blob} | undefined>;
+  removePerson?(connection:string,client:number):Promise<{removed:number;name:string|null}>;
   report?(connection: string, reason: string): Promise<void>;
   retryNow?(connection: string): void;
   rejoin?(connection: string): Promise<OnlineGuestSession["access"] | GuestWelcome>;

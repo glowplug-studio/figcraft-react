@@ -12,6 +12,7 @@ export function guestReconnectDelay(attempt: number) {
 }
 
 class RefusedInvite extends Error {}
+class BarredInvite extends RefusedInvite {}
 
 type Grant = {file:string;token:string;resume:string;physical:string;ended:boolean;archive:Blob;room:string;client:number;
   welcome?:PeopleWelcome;recorded?:boolean;published?:SessionDetails["published"];hosting?:SessionDetails["hosting"]};
@@ -142,14 +143,14 @@ export class BrowserInvitations implements OnlineInvitations {
     const token = links.edit.token;
     const stage=this.stage;this.pending.add(connection);stage?.(connection);
     try {
-      const {access, client, room, bytes,welcome} = await this.redeem(connection, {file, token, resume});
+      const {access, client, room, bytes,welcome,canRemovePeople} = await this.redeem(connection, {file, token, resume});
       if(!this.pending.has(connection) || stage!==this.stage)throw new Error("The join was cancelled");
       if (access !== "edit") throw new Error("The original edit link is unavailable");
       const wayIn=(token:string)=>nativeInviteLink({kind:"link",server:this.endpoint,file,token});
       const published=listing && {server:this.server,file,name:listing.name,owner:null,expires:epoch(listing.expires),
         edit:wayIn(token),view:wayIn(links.view.token)};
       this.addGrant(connection, {file, token,published,recorded, resume, physical: connection, ended: false, archive:bytes, room, client,welcome});
-      return {session: {file, connection, access, client, room, ...(!managedByKey && {openedAsOwner: true as const})}, archive: bytes};
+      return {session: {file, connection, access, client, room, canRemovePeople, ...(!managedByKey && {openedAsOwner: true as const})}, archive: bytes};
     } catch (error) {
       if(this.pending.has(connection) && stage===this.stage) stage?.(connection,error instanceof Error ? error.message : "The invite is unavailable");
       void this.release(connection).catch(() => undefined);
@@ -202,14 +203,14 @@ export class BrowserInvitations implements OnlineInvitations {
       }
       if (!current()) throw new Error("The join was cancelled");
       redeeming = true;
-      const {access, client, room, bytes,welcome} = await this.redeem(connection, {...grant, resume});
+      const {access, client, room, bytes,welcome,canRemovePeople} = await this.redeem(connection, {...grant, resume});
       if (!current()) throw new Error("The join was cancelled");
       this.addGrant(connection, {file: grant.file, token: grant.token, resume, physical: connection, ended: false, archive:bytes, room, client,welcome});
-      await receive({ file: grant.file, connection, access, client, room }, bytes,current);
+      await receive({ file: grant.file, connection, access, client, room,canRemovePeople }, bytes,current);
       attached = true;
     } catch (error) {
       // Revocation can land between a successful code lookup and its separate join.
-      const failure=invite.kind === "code" && error instanceof RefusedInvite ? new Error("That code has expired or its sharing was stopped") : error;
+      const failure=invite.kind === "code" && error instanceof RefusedInvite && !(error instanceof BarredInvite) ? new Error("That code has expired or its sharing was stopped") : error;
       if(current())this.stage?.(connection,failure instanceof Error ? failure.message : "The invite is unavailable");
       throw failure;
     } finally {
@@ -229,7 +230,11 @@ export class BrowserInvitations implements OnlineInvitations {
   private async redeem(connection: string, invite: {file: string; token: string; resume: string}) {
     const response = await fetch("/api/online-files/join", { method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ tab: connection, file: invite.file, token: invite.token, resume: invite.resume }) });
-    if (response.status === 401 || response.status === 403) throw new RefusedInvite("The invite is unavailable");
+    if (response.status === 401 || response.status === 403) {
+      const reason=await response.json().catch(()=>null);
+      if(reason?.error==="you were removed from this session")throw new BarredInvite(reason.error);
+      throw new RefusedInvite("The invite is unavailable");
+    }
     if (!response.ok) throw new Error("The session could not be reached");
     const access = response.headers.get("X-Figcraft-Access");
     if (access !== "view" && access !== "edit" && access !== "comment") throw new Error("Invalid session access");
@@ -247,7 +252,7 @@ export class BrowserInvitations implements OnlineInvitations {
       welcome=readPeopleWelcome(await roster.json());
       if(welcome.me.client!==client)throw new Error("Invalid participant identity");
     }
-    return {access: access as OnlineGuestSession["access"], client, room, bytes,welcome};
+    return {access: access as OnlineGuestSession["access"], client, room, bytes,welcome,canRemovePeople:response.headers.get("X-Figcraft-Remove-People")==="true"};
   }
 
   watch(connection: string, ended: (reason: GuestSessionEnd) => void, changed?: (status: GuestConnectionStatus) => void) {
@@ -286,7 +291,7 @@ export class BrowserInvitations implements OnlineInvitations {
         stop = observe();
       } catch (error) {
         if (!current()) return;
-        if (error instanceof RefusedInvite) finish("unavailable");
+        if (error instanceof RefusedInvite) finish(error instanceof BarredInvite?"expelled":"unavailable");
         else schedule();
       }
     };
@@ -297,6 +302,17 @@ export class BrowserInvitations implements OnlineInvitations {
       clearTimeout(timer);
       stop?.();
     };
+  }
+
+  async removePerson(connection:string,client:number) {
+    const tab=this.tabs.get(connection);
+    if(!tab || tab.ended)throw new Error("The open file isn't in a live session");
+    const response=await fetch("/api/online-files/people",{method:"POST",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({file:tab.file,tab:tab.physical,client})});
+    const result=await response.json();
+    if(!response.ok)throw new Error(result.error ?? "Could not remove the participant");
+    if(result.removed!==client || (result.name!==null && typeof result.name!=="string"))throw new Error("Invalid participant removal receipt");
+    return {removed:client,name:result.name as string|null};
   }
 
   async report(connection: string, text: string) {
@@ -320,13 +336,13 @@ export class BrowserInvitations implements OnlineInvitations {
     if (!tab) throw new Error("The session tab closed");
     const physical = crypto.randomUUID();
     try {
-      const {access, client, room, bytes,welcome} = await this.redeem(physical, tab);
+      const {access, client, room, bytes,welcome,canRemovePeople} = await this.redeem(physical, tab);
       if (this.tabs.get(connection) !== tab || !current()) throw new Error("The session tab closed");
       const previous = tab.physical;
       tab.physical = physical;
       tab.room=room;tab.client=client;tab.archive=bytes;tab.welcome=welcome;
       void this.release(previous).catch(() => undefined);
-      return { access, client, room };
+      return { access, client, room,canRemovePeople };
     } catch (error) {
       // A lost response may have created this grant. The idle deadline also
       // covers the case where the network is unavailable for the release.

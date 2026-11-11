@@ -31,12 +31,28 @@ export async function leaveLiveConnection(writer:SupabaseClient,{actor,login,tab
   deliver:(targets:readonly string[],payload:LivePeerMessage)=>Promise<void>) {
   const {data,error}=await writer.rpc("leave_live_connection",{actor,login,tab});
   if(error)throw error;
+  await announceDeparture(data,deliver);
+}
+
+type Departure={targets:string[];client:number;colour:number;generation:string};
+async function announceDeparture(data:Departure|null,deliver:(targets:readonly string[],payload:LivePeerMessage)=>Promise<void>) {
   if(!data?.targets.length)return;
   // A late sample from this physical connection must never reinstate the departed peer.
   await deliver(data.targets,{
     client:data.client,colour:presenceColours[data.colour],generation:data.generation,sequence:Number.MAX_SAFE_INTEGER,
     left:true,hello:false,spotlight:false,name:"",chat:"",presence:{cursor:null,selection:null,viewport:null,editingText:null},
   }).catch(()=>{ /* The remote heartbeat expires disconnected peers after transport failure. */ });
+}
+
+/** Owner or server-operator verification precedes the transaction that expels a single physical client. */
+export async function removeLiveParticipant(writer:SupabaseClient,request:{
+  actor:string;login:string;target:string;tab:string|null;peer:number;server_operator:boolean;
+},deliver:(targets:readonly string[],payload:LivePeerMessage)=>Promise<void>) {
+  const {data,error}=await writer.rpc("remove_live_participant",request);
+  if(error)throw error;
+  if(!data || data.removed!==request.peer)throw new Error("Invalid removal receipt");
+  await announceDeparture(data.departure,deliver);
+  return {removed:request.peer,name:data.name as string|null};
 }
 
 /** Direct private HTTP broadcasts omit database retention. Bound each batch by bytes as well as channel count. */

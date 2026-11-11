@@ -1,3 +1,4 @@
+import {ingressAddress} from "../../../../lib/sharing/ingress-address";
 import { onlinePost } from "../../../../lib/supabase/online-post";
 import { readSharedDrawing, UnavailableInvite } from "../../../../lib/sharing/join";
 
@@ -19,13 +20,14 @@ export async function POST(request: Request) {
     const limit = configured === undefined ? 256 : Number(configured);
     if (!Number.isSafeInteger(limit) || limit < 0) throw new Error("Invalid participant limit");
     const result = await readSharedDrawing(host.user, host.writer, host.principal, host.session, body.tab, body.file, body.token,
-      "resume" in body ? body.resume as string : undefined, Math.min(limit, 4096));
+      "resume" in body ? body.resume as string : undefined, Math.min(limit, 4096), ingressAddress(request.headers,process.env.VERCEL==="1"));
     return new Response(result.bytes, { headers: {
       "Content-Type": "application/octet-stream", "Cache-Control": "private, no-store", "X-Figcraft-Access": result.access,
-      "X-Figcraft-Client": String(result.client), "X-Figcraft-Room": result.room,
+      "X-Figcraft-Remove-People": String(result.canRemovePeople), "X-Figcraft-Client": String(result.client), "X-Figcraft-Room": result.room,
     } });
   } catch (error) {
     const code = error && typeof error === "object" && "code" in error ? error.code : undefined;
+    if (code === "FC043") return Response.json({error:"you were removed from this session"},{status:403});
     if (code === "54000") return Response.json({error: "The room has reached its client limit"}, {status: 409});
     const refused = error instanceof UnavailableInvite || code === "42501";
     return Response.json({ error: refused ? "The invite is unavailable" : "The session could not be reached" }, { status: refused ? 403 : 503, headers: { "Cache-Control": "private, no-store" } });

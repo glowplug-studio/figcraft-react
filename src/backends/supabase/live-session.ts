@@ -6,11 +6,11 @@ type Welcome = { room: string; client: number; access: "view" | "edit" | "commen
 
 /** Validate the stored snapshot on first join, then atomically grant one physical connection and one namespace. */
 export async function joinLiveFile(writer: SupabaseClient, request: {
-  actor: string; auth_session: string; tab: string; target: string; presented_hash: string; resume_hash: string; peer_limit: number;
+  actor: string; auth_session: string; tab: string; target: string; presented_hash: string; resume_hash: string; peer_limit: number; address?: string;
 }): Promise<Welcome> {
   let snapshot: string | null = null, floor: number | null = null;
   for (let attempt = 0; attempt < 3; attempt++) {
-    const result = await writer.rpc("join_live_file", { ...request, scanned_snapshot: snapshot, scanned_floor: floor });
+    const result = await writer.rpc("join_live_file_at_address", { ...request, address:request.address ?? "127.0.0.1", scanned_snapshot: snapshot, scanned_floor: floor });
     if (result.error) throw result.error;
     const data: Partial<Welcome> & { scan?: string } = result.data ?? {};
     if (typeof data?.path !== "string") throw new Error("Invalid live file receipt");
@@ -32,4 +32,4 @@ export async function joinLiveFile(writer: SupabaseClient, request: {
 export { readLiveUpdates, submitLiveBatch } from "./live-journal";
 export { maxLiveMessageBytes } from "../../engine/sharing/live-wire";
 
-export {welcomeLivePeople,leaveLiveConnection,sendLivePresence,presenceBroadcaster} from "./live-presence";
+export {removeLiveParticipant,welcomeLivePeople,leaveLiveConnection,sendLivePresence,presenceBroadcaster} from "./live-presence";

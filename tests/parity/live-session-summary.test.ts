@@ -136,3 +136,33 @@ it("takes the welcome title and pages from the confirmed checkpoint and its orde
     }));
   }finally{stop();}
 });
+
+it("only an authorised live editor can remove a named peer and waits for the provider receipt",async()=>{
+  const removePerson=vi.fn(async()=>({removed:1,name:"Hana"}));
+  const workspace=new EditorWorkspace();
+  workspace.setInvitations({...host,removePerson});
+  await expect(workspace.activeEngine!.executeAsync("collab.removePerson",{client:1})).rejects.toThrow("live session");
+  await workspace.open(await archive(),guest);
+  const editor=workspace.activeEngine!;
+  const room=new LivePeople({capture:cursor=>editor.capturePresence(cursor),name:()=>"Me",subscribe:()=>()=>{},follow(){}},
+    {welcome,listen:()=>()=>{},async send(){return welcome.me;}},2);
+  const stop=room.start();editor.setPeople(room);
+  try{
+    const remove=(client:unknown)=>editor.executeAsync("collab.removePerson",{client});
+    for(const invalid of [-1,"1",2**32])await expect(remove(invalid)).rejects.toThrow("client id");
+    for(const absent of [2,99])await expect(remove(absent)).rejects.toThrow("Nobody with client id");
+    await expect(remove(1)).rejects.toThrow("owner");
+    expect(removePerson).not.toHaveBeenCalled();
+    workspace.setGuestSession({...guest,canRemovePeople:true});
+    expect(editor.canRemovePeople).toBe(true);
+    await expect(remove(1)).resolves.toEqual({removed:1,name:"Hana"});
+    expect(removePerson).toHaveBeenCalledWith(connection,1);
+    // The roster reflects the server's departure event, including after a refusal.
+    expect(editor.execute("collab.peers").peers).toHaveLength(1);
+    removePerson.mockRejectedValueOnce(new Error("Server unavailable"));
+    await expect(remove(1)).rejects.toThrow("Server unavailable");
+    workspace.setGuestSession({...guest,canRemovePeople:true,reconnectAttempt:1});
+    expect(editor.canRemovePeople).toBe(false);
+    await expect(remove(1)).rejects.toThrow("live session");
+  }finally{stop();}
+});

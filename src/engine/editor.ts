@@ -108,9 +108,12 @@ import { parseBrush, wireBrush, type Brush } from "./brush";
 interface FileSource {file:Blob;folder?:import("./interchange/rest/companions").RestFolder; picker?:PaintPicker; paste?:boolean; centre?:boolean}
 type OpenResult = { warnings?: readonly string[]; repairs: readonly string[]; summary: {name:string; pages:number; layers:number; images:number} }
 
+type ParticipantRemoval=()=>((id:number)=>Promise<{removed:number;name:string|null}>)|undefined;
+
 export const commandSpecs = Object.freeze({
   ...peopleCommands,
   ...sessionCommands,
+  "collab.removePerson":{label:"Remove from session",undo:false},
   ...commentActions,
   ...commentQueries,
   "comment.prompt": {label:"Copy comments for AI",undo:false},
@@ -466,8 +469,10 @@ export class EditorEngine {
   #people?:LivePeople;
   #inspectSession?:()=>LiveSummary;
   #sessionAction?:SessionAction;
-  setSessionInspector(inspect?:()=>LiveSummary,action?:SessionAction) {
-    this.#inspectSession=inspect;this.#sessionAction=action;
+  #participantRemoval?:ParticipantRemoval;
+  get canRemovePeople(){return !!this.#participantRemoval?.();}
+  setSessionInspector(inspect?:()=>LiveSummary,action?:SessionAction,removal?:ParticipantRemoval) {
+    this.#inspectSession=inspect;this.#sessionAction=action;this.#participantRemoval=removal;
   }
   #followingView=false;
   get people() {return this.#people;}
@@ -1479,6 +1484,7 @@ export class EditorEngine {
   execute(command: string, input?: unknown): Record<string, unknown>;
   execute(command: string, input: unknown = {}): Record<string, unknown> | Variables | ReturnType<typeof listStyles> | ReturnType<typeof listComponents> | ReturnType<typeof listPages> | typeof framePresets | ReturnType<typeof versionDetails>[] | ReturnType<typeof queryFonts> | null {
     if (!Object.hasOwn(commandSpecs, command)) throw new Error(`Unsupported command: ${command}`);
+    if(command==="collab.removePerson")throw new Error("collab.removePerson requires executeAsync");
     if(command==="collab.peers")return this.#inspectSession?.() ?? unavailableSession();
     if(Object.hasOwn(sessionCommands,command)){
       if(this.#sessionAction)return this.#sessionAction(command as SessionCommand,parameters(input));
@@ -2049,6 +2055,18 @@ export class EditorEngine {
   async executeAsync(command: "node.get", input: unknown): Promise<ReturnType<typeof getNode>>;
   async executeAsync(command: string, input?: unknown): Promise<Record<string, unknown>>;
   async executeAsync(command: string, input: unknown = {}): Promise<Record<string, unknown> | Variables | ReturnType<typeof listStyles> | ReturnType<typeof listComponents> | ReturnType<typeof queryFonts> | null> {
+    if(command==="collab.removePerson"){
+      const {client}=parameters(input);
+      if(typeof client!=="number" || !Number.isInteger(client) || client<0 || client>0xffffffff)throw new Error("Give a numeric client id");
+      const session=this.execute("collab.peers");
+      if(session.status!=="live")throw new Error("The open file isn't in a live session");
+      const peer=session.peers.find(p=>p.id===client);
+      if(!peer)throw new Error("Nobody with client id "+client+" is in the session");
+      const remove=this.#participantRemoval?.();
+      if(!remove)throw new Error("Only the file's owner can remove people from it");
+      const receipt=await remove(client);
+      return {removed:receipt.removed,name:receipt.name ?? peer.name};
+    }
     if (command==="edit.pasteDesignLayers") {
       const p=parameters(input);
       const result=await this.pasteDesignLayers(p);

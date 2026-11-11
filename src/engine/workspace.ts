@@ -165,7 +165,18 @@ export class EditorWorkspace {
       this.#publish();
     });
     const id=nextDocumentId++;
-    engine.setSessionInspector(()=>this.#sessions.inspect(id,this.#tabs),(command,params)=>this.#sessionAction(id,command,params));
+    engine.setSessionInspector(()=>this.#sessions.inspect(id,this.#tabs),(command,params)=>this.#sessionAction(id,command,params),()=>{
+      const session=this.#sessions.find(id)?.[1],host=this.#sessions.host;
+      if(session?.status!=="live" || !session.guest?.canRemovePeople || !host?.removePerson)return;
+      const remove=host.removePerson.bind(host,session.guest.connection);
+      return async client=>{
+        const name=engine.people?.getSnapshot().find(p=>p.client===client)?.name;
+        const result=await remove(client);
+        if(this.#sessions.host===host && this.#sessions.find(id)?.[1]===session)
+          this.#sessionNotice?.((result.name ?? name ?? "Participant")+" was removed from the session");
+        return result;
+      };
+    });
     return { id, engine, unsubscribe, branch };
   }
 

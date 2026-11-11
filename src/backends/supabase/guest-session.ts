@@ -49,7 +49,7 @@ export function watchSupabaseGuest(client: SupabaseClient, connection: string, e
         const result=await client.rpc("online_connection_ending",{tab:connection});
         if(closed)return;
         if(result.error){retryCheck();return;}
-        finish(result.data==="stopped" || result.data==="removed"?result.data:"unavailable");
+        finish(result.data==="stopped" || result.data==="removed" || result.data==="expelled"?result.data:"unavailable");
         return;
       }
       if (data !== true) { retryCheck(); return; }
@@ -66,7 +66,7 @@ export function watchSupabaseGuest(client: SupabaseClient, connection: string, e
     if (typeof session !== "string") { retryCheck(); return; }
     channel = client.channel("figcraft-connection:" + session + ":" + connection, {config: {private: true}});
     channel.on("broadcast", {event: "ended"}, ({payload}) => {
-      if (payload?.reason === "stopped" || payload?.reason === "removed") finish(payload.reason);
+      if (payload?.reason === "stopped" || payload?.reason === "removed" || payload?.reason === "expelled") finish(payload.reason);
     }).on("broadcast",{event:"presence"},({payload})=>{if(!closed)people?.(payload);}).on("broadcast",{event:"edits"},() => { if (!closed) edits?.(); }).subscribe(status => {
       if (closed) return;
       subscribed = status === "SUBSCRIBED";

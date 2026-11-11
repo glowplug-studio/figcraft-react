@@ -1,4 +1,4 @@
-import {useEffect,useRef,useState,useSyncExternalStore,type RefObject} from "react";
+import {Fragment,useEffect,useRef,useState,useSyncExternalStore,type RefObject} from "react";
 import type {EditorEngine} from "./engine/editor";
 import {pageForNode,worldTransform} from "./engine/hierarchy";
 import {transformPoint} from "./engine/affine";
@@ -10,14 +10,23 @@ import {textCaret,textSelectionRects} from "./engine/text-caret";
 import {documentTextReady,prepareDocumentText,textNodeLayout} from "./engine/text-node-layout";
 import type {Document} from "./engine/document";
 
-export function LivePeopleControls({room,engine,menuGroup}:{room:LivePeople;engine:EditorEngine;menuGroup:string}) {
+export function LivePeopleControls({room,engine,menuGroup,notify}:{room:LivePeople;engine:EditorEngine;menuGroup:string;notify:(message:string)=>void}) {
   // Cursor coordinates need not repaint the document header.
   useSyncExternalStore(room.subscribe,room.rosterKey,room.rosterKey);
   const {peers}=engine.execute("collab.peers");
   return <details name={menuGroup} className="figcraft-live-people"><summary>People ({peers.length+1})</summary><div>
-    {peers.map(peer=><button type="button" key={peer.id} aria-pressed={room.following===peer.id}
+    {peers.map(peer=><Fragment key={peer.id}><button type="button" onContextMenu={event=>{
+      if(!engine.canRemovePeople)return;
+      event.preventDefault();(event.currentTarget.nextElementSibling as HTMLButtonElement|null)?.focus();
+    }} aria-pressed={room.following===peer.id}
       onClick={()=>engine.execute("collab.follow",room.following===peer.id?{}:{client:peer.id})}>
-      <span aria-hidden="true" style={{color:peer.color}}>● </span>{room.following===peer.id?"Unfollow ":"Follow "}{peer.name}</button>)}
+      <span aria-hidden="true" style={{color:peer.color}}>● </span>{room.following===peer.id?"Unfollow ":"Follow "}{peer.name}</button>
+      {engine.canRemovePeople && <button type="button" onClick={async event=>{
+        event.currentTarget.closest("details")?.removeAttribute("open");
+        try{
+          await engine.executeAsync("collab.removePerson",{client:peer.id});
+        }catch(error){notify(error instanceof Error?error.message:"Could not remove the participant");}
+      }}>Remove {peer.name} from session</button>}</Fragment>)}
     <button type="button" aria-pressed={room.spotlighting} onClick={()=>engine.execute("collab.spotlight")}>
       {room.spotlighting?"Stop spotlight":"Spotlight me"}</button>
     <button type="button" onClick={()=>engine.execute("collab.cursorChat")}>Cursor chat</button>

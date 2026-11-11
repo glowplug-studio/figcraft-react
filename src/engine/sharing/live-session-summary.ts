@@ -13,6 +13,7 @@ export type SessionCommand=keyof typeof sessionCommands;
 export type SessionAction=(command:SessionCommand,params:Record<string,unknown>)=>Record<string,unknown>;
 
 export const guestEnding = {
+  expelled: "You were removed from this session. Your copy stays open",
   removed: "The file was removed from the server",
   stopped: "Sharing was stopped",
   unavailable: "The session is no longer available",

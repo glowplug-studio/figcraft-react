@@ -99,7 +99,7 @@ grant execute on function figcraft_private.issue_live_client(uuid,uuid,uuid,uuid
 -- Grant the physical connection and bind its namespace in one transaction. On a
 -- cache miss we return the validated object's identity for a trusted read, but
 -- roll back the provisional grant (including its room-activity notifications).
-create function public.join_live_file(actor uuid, auth_session uuid, tab uuid, target uuid,
+create function figcraft_private.admit_live_file(actor uuid, auth_session uuid, tab uuid, target uuid,
     presented_hash text, resume_hash text, peer_limit integer default 256,
     scanned_snapshot uuid default null, scanned_floor bigint default null)
 returns jsonb language plpgsql security invoker set search_path = ''
@@ -121,5 +121,4 @@ begin
     return identity || jsonb_build_object('access',grant_row.access_level,'path',grant_row.object_path);
 end;
 $$;
-revoke all on function public.join_live_file(uuid,uuid,uuid,uuid,text,text,integer,uuid,bigint) from public, anon, authenticated, service_role;
-grant execute on function public.join_live_file(uuid,uuid,uuid,uuid,text,text,integer,uuid,bigint) to service_role;
+revoke all on function figcraft_private.admit_live_file(uuid,uuid,uuid,uuid,text,text,integer,uuid,bigint) from public, anon, authenticated, service_role;

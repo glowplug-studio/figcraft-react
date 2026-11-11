@@ -129,19 +129,20 @@ export function WorkspaceEditor({ identity, capabilities, recoveryStore, onlineH
   const invitations = onlineHost?.invitations;
   useEffect(() => {
     if (!enabled || !invitations) return;
-    workspace.setInvitations(invitations,setNotice,id=>online?.leaveTab(id));
+    workspace.setInvitations(invitations,setLiveNotice,id=>online?.leaveTab(id));
     const unsubscribe=invitations.subscribe(async (session, bytes,current) => {
       await workspace.open(new File([bytes], session.file + ".figcraft"), session,current);
       setHome(undefined);
       setNotice("");
     },(connection,failed)=>workspace.joining(connection,failed));
     return ()=>{unsubscribe();workspace.setInvitations(undefined);};
-  }, [workspace, enabled, invitations,online,setNotice]);
+  }, [workspace, enabled, invitations,online,setNotice,setLiveNotice]);
   const ended = useCallback((connection: string, reason: GuestSessionEnd) => {
     const session = workspace.getSnapshot().find(tab => tab.guest?.connection === connection)?.guest;
     if (!session || !workspace.setGuestSession({...session, ended: reason})) return;
-    setNotice(guestEnding[reason]);
-  }, [workspace]);
+    if(reason==="expelled")setLiveNotice(guestEnding[reason]);
+    else setNotice(guestEnding[reason]);
+  }, [workspace,setLiveNotice,setNotice]);
   const connectionChanged = useCallback((connection: string, status: GuestConnectionStatus) => {
     const session = workspace.getSnapshot().find(tab => tab.guest?.connection === connection)?.guest;
     if (!session || session.ended) return;

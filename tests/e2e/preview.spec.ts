@@ -1268,6 +1268,57 @@ if (!process.env.PLAYWRIGHT_BASE_URL) test("two editors converge after a lost ac
   });
 });
 
+if (!process.env.PLAYWRIGHT_BASE_URL) test("an owner removes one participant and a forged forwarding header cannot rejoin the file",async({page,browser},info)=>{
+  test.setTimeout(55_000);
+  await withSharedDrawing(page,browser,async()=>{
+    await setCommentName(page,"Ari");
+    await page.getByRole("button",{name:"Create rectangle",exact:true}).click();
+  },async(peer,file)=>{
+    const bar=peer.locator(".figcraft-document-bar");
+    const tab=localOperatorSql(backend!,"select c.id from public.online_file_connections c join public.online_files f on f.id=c.file_id where f.id=:'file' and c.principal_id<>f.owner_id",{file});
+    const owner=Number(localOperatorSql(backend!,"select lc.client_id from figcraft_private.live_clients lc join public.online_file_connections c on c.id=lc.connection_id join public.online_files f on f.id=c.file_id where f.id=:'file' and c.principal_id=f.owner_id",{file}));
+    await peer.getByText("People (2)",{exact:true}).click();
+    await expect(peer.getByRole("button",{name:"Follow Ari"})).toBeVisible();
+    await expect(peer.getByRole("button",{name:/Remove .* from session/})).toHaveCount(0);
+    const forged=await peer.evaluate(async payload=>(await fetch("/api/online-files/people",{method:"POST",
+      headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)})).status,{file,tab,client:owner,server_operator:true});
+    expect(forged).toBe(403);
+    await page.getByText("People (2)",{exact:true}).click();
+    await page.getByRole("button",{name:/^Follow /}).click({button:"right"});
+    const remove=page.getByRole("button",{name:/^Remove .+ from session$/});
+    await expect(remove).toBeFocused();
+    await page.screenshot({path:info.outputPath("owner-people-menu.png")});
+    const removed=page.waitForResponse(r=>new URL(r.url()).pathname==="/api/online-files/people");
+    await remove.press("Enter");
+    expect((await removed).status()).toBe(200);
+    await expect(bar.getByText(/Disconnected/)).toBeVisible();
+    await expect(peer.getByText("You were removed from this session. Your copy stays open",{exact:true})).toBeInViewport({ratio:1});
+    await peer.screenshot({path:info.outputPath("removed-participant-phone.png")});
+    await expect(page.getByText("People (1)",{exact:true})).toBeVisible();
+    await peer.getByRole("button",{name:"Create rectangle",exact:true}).click();
+    const edit=page.getByRole("button",{name:"Create rectangle",exact:true});
+    await expect(edit).toBeEnabled();
+    await peer.route("**/api/online-files/join",route=>route.continue({headers:{...route.request().headers(),
+      "x-forwarded-for":"192.0.2.111","x-vercel-forwarded-for":"192.0.2.111"}}));
+    await bar.getByText("File",{exact:true}).click();
+    await bar.getByRole("button",{name:"Reconnect",exact:true}).click();
+    await expect(peer.getByText("you were removed from this session",{exact:true})).toBeVisible();
+    expect(localOperatorSql(backend!,"select count(*) from public.online_file_connections where file_id=:'file'",{file})).toBe("1");
+    const serverKey=randomUUID(),digest=createHash("sha256").update(serverKey).digest("hex");
+    localOperatorSql(backend!,"insert into figcraft_private.online_publication_policy(open_publish,server_key_sha256) values(true,:'digest')",{digest});
+    try{
+      const manage=(key:string)=>peer.evaluate(async payload=>(await fetch("/api/online-files/people",{method:"POST",
+        headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)})).status,{file,client:owner,serverKey:key});
+      expect(await manage("wrong")).toBe(403);
+      expect(await manage(serverKey)).toBe(200);
+      await expect(page.locator(".figcraft-document-bar").getByText(/Disconnected/)).toBeVisible();
+      expect(localOperatorSql(backend!,"select count(*) from figcraft_private.live_barred_addresses where file_id=:'file'",{file})).toBe("0");
+    }finally{
+      localOperatorSql(backend!,"delete from figcraft_private.online_publication_policy where server_key_sha256=:'digest'",{digest});
+    }
+  });
+});
+
 if (!process.env.PLAYWRIGHT_BASE_URL) test("manual rejoin merges independent phone edits and keeps a conflicting offline copy",async({page,browser})=>{
   test.setTimeout(75_000);
   await withSharedDrawing(page,browser,async()=>{

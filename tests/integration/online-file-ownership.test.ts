@@ -1,5 +1,5 @@
 import {EditorEngine} from "../../src/engine/editor";
-import {welcomeLivePeople,leaveLiveConnection,sendLivePresence,presenceBroadcaster} from "../../src/backends/supabase/live-presence";
+import {removeLiveParticipant,welcomeLivePeople,leaveLiveConnection,sendLivePresence,presenceBroadcaster} from "../../src/backends/supabase/live-presence";
 import { decodeFigcraft, encodeFigcraftBlob } from "../../src/engine/file-format";
 import {restoreLiveCheckpoint} from "../../src/engine/sharing/live-checkpoint";
 import {readLiveUpdates,submitLiveBatch} from "../../src/backends/supabase/live-journal";
@@ -30,6 +30,15 @@ const bucket = "figcraft-files";
 
 function subscribe(channel:RealtimeChannel) {
   return new Promise<string>(resolve=>channel.subscribe(status=>resolve(status),8000));
+}
+
+// PostgREST can answer while Realtime is still reconnecting its database tenant after a restart.
+async function expectRealtimeReady(user:SupabaseClient,conn:{login:string;tab:string}) {
+  await expect.poll(async()=>{
+    const channel=user.channel("figcraft-connection:"+conn.login+":"+conn.tab,{config:{private:true}}).on("broadcast",{event:"edits"},()=>{});
+    try{return await subscribe(channel);}
+    finally{await user.removeChannel(channel);}
+  },{timeout:45000,interval:750}).toBe("SUBSCRIBED");
 }
 
 describe.skipIf(!enabled)("private online files on real local Supabase", () => {
@@ -594,6 +603,46 @@ describe.skipIf(!enabled)("private online files on real local Supabase", () => {
     }
   },90_000);
 
+  it("removes a physical client, preserves its neighbours and clears the address bar on server restart",async()=>{
+    const writer=local!.admin,file=randomUUID(),keys=createPublishedLinks(),proof=await publishedLinkDigests(keys);
+    const path=owner.id+"/"+file+".figcraft";paths.push(path);
+    const store=ownedStore(owner.client,owner.id,id=>finaliseForTest(owner.client,writer,id,proof));
+    await store.publish(file,await encodeFigcraftBlob(EditorEngine.newTab("Removal").liveDrawing()));
+    const join=async(user:typeof owner,ip:string)=>{
+      const login=(await user.client.auth.getClaims()).data!.claims.session_id as string,tab=randomUUID();
+      const conn={actor:user.id,login,tab,target:file};
+      const drawing=await readSharedDrawing(user.client,writer,user.id,login,tab,file,keys.edit.token,undefined,256,ip);
+      await welcomeLivePeople(writer,conn,user.id===owner.id?"Ari":"Bea");
+      return {...drawing,conn};
+    };
+    try{
+      const admin=await join(owner,"192.0.2.1"),victim=await join(stranger,"2001:db8::2"),sibling=await join(stranger,"2001:db8::2");
+      expect(admin.canRemovePeople).toBe(true);expect(victim.canRemovePeople).toBe(false);
+      const sent=vi.fn(async()=>{});
+      const request={...admin.conn,peer:victim.client,server_operator:false};
+      await expect(removeLiveParticipant(writer,{...request,...sibling.conn},sent)).rejects.toMatchObject({code:"42501"});
+      expect(await removeLiveParticipant(writer,request,sent)).toEqual({removed:victim.client,name:"Bea"});
+      expect(sent).toHaveBeenCalledWith(expect.arrayContaining(["figcraft-connection:"+sibling.conn.login+":"+sibling.conn.tab]),
+        expect.objectContaining({client:victim.client,left:true}));
+      expect((await stranger.client.rpc("online_connection_ending",{tab:victim.conn.tab})).data).toBe("expelled");
+      expect((await owner.client.rpc("online_connection_ending",{tab:victim.conn.tab})).data).toBeNull();
+      await expect(readLiveUpdates(writer,victim.conn,null)).rejects.toMatchObject({code:"42501"});
+      expect((await readLiveUpdates(writer,sibling.conn,null)).client).toBe(sibling.client);
+      await expect(join(stranger,"2001:db8::2")).rejects.toMatchObject({code:"FC043"});
+      expect((await join(stranger,"2001:db8::3")).client).toBeGreaterThan(sibling.client);
+      if(process.env.FIGCRAFT_VERIFY_REMOVAL_RESTART==="1"){
+        expect(localOperatorSql(local!,"select count(*) from auth.users where id not in (:'a',:'b')",{a:owner.id,b:stranger.id})).toBe("0");
+        execFileSync("docker",["restart","supabase_db_figcraft-react"],{stdio:"pipe",timeout:60000});
+        let restored:Awaited<ReturnType<typeof join>>|undefined;
+        await expect.poll(async()=>{
+          restored=await join(stranger,"2001:db8::2").catch(()=>undefined);
+          return restored?.access;
+        },{timeout:60000,interval:500}).toBe("edit");
+        await expectRealtimeReady(stranger.client,restored!.conn);
+      }
+    }finally{await changeFile(owner.id,file,null);}
+  },90000);
+
   it("issues distinct live namespaces above native comments and resumes the correct tab after concurrent joins", async () => {
     const writer = local!.admin, file = randomUUID(), keys = createPublishedLinks();
     const proof = await publishedLinkDigests(keys);
@@ -763,13 +812,7 @@ describe.skipIf(!enabled)("private online files on real local Supabase", () => {
     expect(resumed.client).toBe(initial.client);
     expect(resumed.room).toBe(initial.room);
     if(process.env.FIGCRAFT_VERIFY_ORDERED_RESTART==="1"){
-      // PostgreSQL and PostgREST can be ready before Realtime reopens its tenant database connection.
-      const topic="figcraft-connection:"+login+":"+resumed.conn.tab;
-      await expect.poll(async()=>{
-        const channel=stranger.client.channel(topic,{config:{private:true}}).on("broadcast",{event:"edits"},()=>{});
-        try{return await subscribe(channel);}
-        finally{await stranger.client.removeChannel(channel);}
-      },{timeout:45000,interval:750}).toBe("SUBSCRIBED");
+      await expectRealtimeReady(stranger.client,resumed.conn);
     }
     await expect(readLiveUpdates(writer,initial.conn,"1")).rejects.toMatchObject({code:"42501"});
     const caught=await readLiveUpdates(writer,resumed.conn,"0");

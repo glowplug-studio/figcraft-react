@@ -30,7 +30,7 @@ as $$
     where m.extension = 'broadcast' and m.private is true and m.event = 'ended'
         and m.inserted_at >= statement_timestamp() - interval '45 seconds'
         and m.topic = 'figcraft-connection:' || ((select auth.jwt())->>'session_id') || ':' || tab::text
-        and m.payload->>'reason' in ('stopped','removed')
+        and m.payload->>'reason' in ('stopped','removed','expelled')
     order by m.inserted_at desc limit 1;
 $$;
 revoke all on function figcraft_private.connection_ending(uuid) from public, anon, authenticated, service_role;
