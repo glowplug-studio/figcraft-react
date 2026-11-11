@@ -1,3 +1,4 @@
+import { decodeFigcraft, encodeFigcraftBlob } from "../../src/engine/file-format";
 import { createHash, randomUUID } from "node:crypto";
 import { execFileSync, spawn } from "node:child_process";
 import { once } from "node:events";
@@ -583,6 +584,36 @@ describe.skipIf(!enabled)("private online files on real local Supabase", () => {
       sql("delete from figcraft_private.online_participant_reports where file_id=:'file'");
     }
   },90_000);
+
+  it("issues distinct live namespaces above native comments and resumes the correct tab after concurrent joins", async () => {
+    const writer = local!.admin, file = randomUUID(), keys = createPublishedLinks();
+    const proof = await publishedLinkDigests(keys);
+    paths.push(owner.id + "/" + file + ".figcraft");
+    const fixture = await readFile(new URL("../fixtures/native-comment-threads.figcraft", import.meta.url));
+    const { document } = await decodeFigcraft(fixture);
+    const comments = document.comments!.map((c, i) => i ? c : { ...c, id: "9007199254740993" });
+    const store = ownedStore(owner.client, owner.id, id => finaliseForTest(owner.client, writer, id, proof));
+    await store.publish(file, await encodeFigcraftBlob({ ...document, comments }));
+    const session = (await stranger.client.auth.getClaims()).data!.claims.session_id as string;
+    const resumes = Array.from({ length: 6 }, () => randomUUID());
+    const open = (secret: string, limit = 256) => readSharedDrawing(stranger.client, writer, stranger.id, session,
+      randomUUID(), file, keys.edit.token, secret, limit);
+    const receipts = await Promise.all(resumes.map(secret => open(secret)));
+    expect(receipts.map(r => r.client).sort((a,b) => a-b)).toEqual([2097153,2097154,2097155,2097156,2097157,2097158]);
+    const bound = async () => (await writer.from("online_file_connections").select("id", {count:"exact", head:true}).eq("file_id",file)).count;
+    expect(await bound()).toBe(6);
+    await expect(open(randomUUID(), 6)).rejects.toMatchObject({code:"54000"});
+    expect(await bound()).toBe(6);
+    expect((await open(resumes[2], 6)).client).toBe(receipts[2].client);
+    expect(await bound()).toBe(6);
+    const foreignSession = (await owner.client.auth.getClaims()).data!.claims.session_id as string;
+    const other = await readSharedDrawing(owner.client,writer,owner.id,foreignSession,randomUUID(),file,keys.edit.token,resumes[2]);
+    expect(other.client).toBe(2097159);
+    expect((await stranger.client.rpc("join_live_file", {actor:stranger.id,auth_session:session,tab:randomUUID(),target:file,
+      presented_hash:proof.edit.hash,resume_hash:proof.edit.hash})).error).toBeTruthy();
+    await changeFile(owner.id,file,null);
+    expect(await bound()).toBe(0);
+  });
 
   it("binds an invite to its Auth session and denies signed URLs, writes and downloads after revocation", async () => {
     const keys = createPublishedLinks();

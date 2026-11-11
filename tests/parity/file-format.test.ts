@@ -168,7 +168,7 @@ describe("bounded native Figcraft file adapter", () => {
 
   it.each([
     ["future version", (value: ReturnType<typeof fixture>) => { value.version = 2; }],
-    ["comments", (value: ReturnType<typeof fixture>) => { value.comments = [{ text: "preserve me" }]; }],
+    ["future comment fields", (value: ReturnType<typeof fixture>) => { value.comments = [{ id: 1, page: 1, x: 0, y: 0, author: "Reviewer", text: "Note", future: "preserve me" }]; }],
     ["unknown layer kind", (value: ReturnType<typeof fixture>) => { value.nodes["2"].type = "futureLayer"; }],
     ["paint blend", (value: ReturnType<typeof fixture>) => { value.nodes["2"].fills = [{ type: "solid", color: "#ffffff", blend: "unknownMode" }]; }],
     ["node blend", (value: ReturnType<typeof fixture>) => { value.nodes["2"].blend = "futureBlendMode"; }],

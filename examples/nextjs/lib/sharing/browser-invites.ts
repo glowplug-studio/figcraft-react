@@ -18,7 +18,7 @@ export class BrowserInvitations implements OnlineInvitations {
   private joining = false;
   private readonly waiting = new Map<string, () => void>();
   // Retain a manual rejoin credential only while its tab belongs to this signed-in host.
-  private readonly tabs = new Map<string, {file: string; token: string; physical: string; ended: boolean}>();
+  private readonly tabs = new Map<string, {file: string; token: string; resume: string; physical: string; ended: boolean}>();
 
 
   constructor(private device: Pick<IndexedDbRecoveryStore, "readPublishedLinks">, private principal: string, private server: string,
@@ -67,13 +67,13 @@ export class BrowserInvitations implements OnlineInvitations {
   async joinOwned(file: string, managedByKey = false) {
     const links = await this.device.readPublishedLinks(this.principal, this.server, file);
     if (!links) return undefined;
-    const connection = crypto.randomUUID();
+    const connection = crypto.randomUUID(), resume = crypto.randomUUID();
     const token = links.edit.token;
     try {
-      const {access, bytes} = await this.redeem(connection, {file, token});
+      const {access, client, bytes} = await this.redeem(connection, {file, token, resume});
       if (access !== "edit") throw new Error("The original edit link is unavailable");
-      this.tabs.set(connection, {file, token, physical: connection, ended: false});
-      return {session: {file, connection, access, ...(!managedByKey && {openedAsOwner: true as const})}, archive: bytes};
+      this.tabs.set(connection, {file, token, resume, physical: connection, ended: false});
+      return {session: {file, connection, access, client, ...(!managedByKey && {openedAsOwner: true as const})}, archive: bytes};
     } catch (error) {
       void this.release(connection).catch(() => undefined);
       throw error;
@@ -99,7 +99,7 @@ export class BrowserInvitations implements OnlineInvitations {
     }
 
     this.joining = true;
-    const connection = crypto.randomUUID();
+    const connection = crypto.randomUUID(), resume = crypto.randomUUID();
     let attached = false, redeeming = false;
     try {
       let grant: {file: string; token: string};
@@ -111,10 +111,10 @@ export class BrowserInvitations implements OnlineInvitations {
       }
       if (this.listener !== receive) throw new Error("The signed-in workspace changed");
       redeeming = true;
-      const {access, bytes} = await this.redeem(connection, grant);
+      const {access, client, bytes} = await this.redeem(connection, {...grant, resume});
       if (this.listener !== receive) throw new Error("The signed-in workspace changed");
-      this.tabs.set(connection, {file: grant.file, token: grant.token, physical: connection, ended: false});
-      await receive({ file: grant.file, connection, access }, bytes);
+      this.tabs.set(connection, {file: grant.file, token: grant.token, resume, physical: connection, ended: false});
+      await receive({ file: grant.file, connection, access, client }, bytes);
       attached = true;
     } finally {
       this.joining = false;
@@ -130,15 +130,17 @@ export class BrowserInvitations implements OnlineInvitations {
     return {file: result.file, token: result.token};
   }
 
-  private async redeem(connection: string, invite: {file: string; token: string}): Promise<{access: OnlineGuestSession["access"]; bytes: Blob}> {
+  private async redeem(connection: string, invite: {file: string; token: string; resume: string}) {
     const response = await fetch("/api/online-files/join", { method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ tab: connection, file: invite.file, token: invite.token }) });
+      body: JSON.stringify({ tab: connection, file: invite.file, token: invite.token, resume: invite.resume }) });
     if (response.status === 401 || response.status === 403) throw new RefusedInvite("The invite is unavailable");
     if (!response.ok) throw new Error("The session could not be reached");
     const access = response.headers.get("X-Figcraft-Access");
     if (access !== "view" && access !== "edit" && access !== "comment") throw new Error("Invalid session access");
     const bytes = await response.blob();
-    return {access, bytes};
+    const client = Number(response.headers.get("X-Figcraft-Client"));
+    if (!Number.isInteger(client) || client < 1 || client >= 0xffffffff) throw new Error("Invalid live client number");
+    return {access: access as OnlineGuestSession["access"], client, bytes};
   }
 
   watch(connection: string, ended: (reason: GuestSessionEnd) => void, changed?: (status: GuestConnectionStatus) => void) {
@@ -169,10 +171,10 @@ export class BrowserInvitations implements OnlineInvitations {
       this.waiting.delete(connection);
       if (!current()) return;
       try {
-        const access = await this.restore(connection, current);
+        const welcome = await this.restore(connection, current);
         if (!current()) return;
         attempt = 0;
-        changed?.({access});
+        changed?.(welcome);
         stop = observe();
       } catch (error) {
         if (!current()) return;
@@ -210,12 +212,12 @@ export class BrowserInvitations implements OnlineInvitations {
     if (!tab) throw new Error("The session tab closed");
     const physical = crypto.randomUUID();
     try {
-      const {access} = await this.redeem(physical, tab);
+      const {access, client} = await this.redeem(physical, tab);
       if (this.tabs.get(connection) !== tab || !current()) throw new Error("The session tab closed");
       const previous = tab.physical;
       tab.physical = physical;
       void this.release(previous).catch(() => undefined);
-      return access;
+      return { access, client };
     } catch (error) {
       // A lost response may have created this grant. The idle deadline also
       // covers the case where the network is unavailable for the release.

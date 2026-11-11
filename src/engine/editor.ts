@@ -1,6 +1,7 @@
+import {followCommentAnchors} from "./comments";
 import {libraryUsageReport} from "./sharing/library-usage";
 import type {OnlineTeamLibraries} from "../backends/online-files";
-import { nextBranchId } from "./branch-ids";
+import { nextBranchId, nextScopedId } from "./branch-ids";
 import { VersionHistory, versionDetails, type FileVersion } from "./file-versions";
 import {documentColours} from "./document-colours";
 import {swapLibrary} from "./library-swap";
@@ -402,9 +403,11 @@ export class EditorEngine {
       return versionDetails(version, index);
     }
     if (!this.#branchTab && this.#history.changed(current.document)) this.#history.add(current.document, String(this.#nextId), {}, true);
-    const restored = Object.freeze({ ...shown, name: current.document.name, published: current.document.published });
+    const restored = followCommentAnchors(Object.freeze({ ...shown, name: current.document.name, published: current.document.published, comments:current.document.comments }),current.document);
     this.#undo.push({ document: current.document, selection: current.selection }); this.#redo = [];
-    this.#nextId = this.#nextId > BigInt(nextId) ? this.#nextId : BigInt(nextId);
+    const snapshotNext = BigInt(nextId);
+    if ((!this.#idClient || snapshotNext >> 32n === BigInt(this.#idClient)) && snapshotNext > this.#nextId) this.#nextId = snapshotNext;
+    if (this.#idClient) this.#nextId = nextScopedId(restored, this.#idClient, this.#nextId);
     this.#history.mark(restored);
     this.#publish({ document: restored, selection: Object.freeze([]) });
     const restoredIndex = this.versions.findIndex(v => v.id === version.id);
@@ -414,12 +417,23 @@ export class EditorEngine {
   #branches: readonly FileBranch[] = Object.freeze([]);
   get branches() { return this.#branches; }
   #savedBranches = this.#branches;
-  #branchClient = 0;
+  #idClient = 0;
+  #liveCounters = new Map<number, bigint>();
   #branchTab = false;
+  setLiveClient(client: number) {
+    if (this.#branchTab || client === this.#idClient) return;
+    if (!Number.isInteger(client) || client < 0 || client >= 0xffffffff) throw new Error("Invalid live client number");
+    this.cancelInteraction();
+    if (this.#idClient) this.#liveCounters.set(this.#idClient, this.#nextId);
+    const stored = client ? this.#liveCounters.get(client) ?? this.#nextId : 1n;
+    this.#nextId = nextScopedId(this.#snapshot.document, client, stored);
+    this.#idClient = client;
+    this.#archiveRevision = undefined;
+  }
   #assetIds() {
     let next = this.#interaction?.nextId ?? this.#nextId;
-    const allocate = this.#branchClient ? () => {
-      if (next >> 32n !== BigInt(this.#branchClient)) throw new Error("Branch identifiers are exhausted");
+    const allocate = this.#idClient ? () => {
+      if (next >> 32n !== BigInt(this.#idClient)) throw new Error(this.#branchTab ? "Branch identifiers are exhausted" : "Live client identifiers are exhausted");
       return next++;
     } : undefined;
     return { allocate, next: () => next };
@@ -430,12 +444,12 @@ export class EditorEngine {
     this.#publish({});
   }
 
-  openBranch(branch: FileBranch) {
+  openBranch(branch: FileBranch, nextId = nextBranchId(branch)) {
     const tab = EditorEngine.newTab(undefined, this.#clipboard);
     const { document } = branch.head;
-    tab.#branchClient = branch.client;
+    tab.#idClient = branch.client;
     tab.#branchTab = true;
-    tab.#nextId = nextBranchId(branch);
+    tab.#nextId = nextId;
     tab.#saved = document;
     tab.#history = new VersionHistory(branch.versions);
     tab.#savedVersions = tab.#history.records;
@@ -451,7 +465,7 @@ export class EditorEngine {
     let nextId = beforeId;
     for (const key of Object.keys(document.nodes)) {
       const id = BigInt(key);
-      if ((!this.#branchClient || id >> 32n === BigInt(this.#branchClient)) && id >= nextId) nextId = id + 1n;
+      if ((!this.#idClient || id >> 32n === BigInt(this.#idClient)) && id >= nextId) nextId = id + 1n;
     }
     this.#commitEdit({ document }, { nextId, record: !update, libraryEdit: true });
     if (update) { this.#undo = []; this.#redo = []; }
@@ -1227,8 +1241,9 @@ export class EditorEngine {
   } = {}) {
     const before = this.#snapshot;
     const proposed=options.duplicated ? countLibraryInstances(patch.document,options.duplicated.copies,"inserted") : patch.document;
-    const {document,nextId} = this.#prepareEdit(proposed, options.nextId ?? this.#nextId);
-    if (this.#branchClient && nextId > ((BigInt(this.#branchClient) + 1n) << 32n)) throw new Error("Branch identifiers are exhausted");
+    const prepared = this.#prepareEdit(proposed, options.nextId ?? this.#nextId);
+    const nextId=prepared.nextId,document=followCommentAnchors(prepared.document,before.document);
+    if (this.#idClient && nextId > ((BigInt(this.#idClient) + 1n) << 32n)) throw new Error(this.#branchTab ? "Branch identifiers are exhausted" : "Live client identifiers are exhausted");
     guardLibraryVariables(before.document,document);
     if (!options.libraryEdit) guardLibraryStore(before.document,document);
     if (options.record !== false) {
@@ -2099,7 +2114,7 @@ export class EditorEngine {
       const incoming=loaded.document;
       await prepareDocumentText(incoming);
       checkCurrent();
-      const next=appendPages(before.document,incoming,this.#nextId,this.#branchClient);
+      const next=appendPages(before.document,incoming,this.#nextId,this.#idClient);
       const prepared=this.#prepareEdit(next.document,next.nextId);
       await prepareArchive(prepared.document,String(prepared.nextId));
       checkCurrent();
@@ -2157,7 +2172,8 @@ export class EditorEngine {
     this.#nextId = BigInt(decoded.nextId);
     this.#branches = decoded.branches ?? Object.freeze([]);
     this.#savedBranches = this.#branches;
-    this.#branchClient = 0;
+    this.#idClient = 0;
+    this.#liveCounters.clear();
     this.#branchTab = false;
     this.#history = new VersionHistory(decoded.versions);
     this.#savedVersions = this.#history.records;

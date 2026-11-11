@@ -1,3 +1,5 @@
+import { highestIdSpace } from "../branch-ids";
+import { wireComment } from "../comments";
 import { identity } from "../affine";
 import { initialPositions, layerFields, nodePropertyOrder, numericOrder, type WireFields } from "../branch-diff";
 import { fromRgba8 } from "../colour";
@@ -73,26 +75,6 @@ function createNode(node: DocumentNode, position: string): InitialChange {
   return { type: "create", id: node.id, parent: node.parent, position, kind: sessionKind(kind), props };
 }
 
-function nextClient(document: Document): number {
-  let maximum = 0;
-  function observe(digits: string | undefined) {
-    if (!digits || !/^\d+$/.test(digits)) return;
-    const significant = digits.replace(/^0+/, "");
-    if (!significant || significant.length > 20) return;
-    const n = BigInt(significant);
-    const space = Number(n >> 32n);
-    if (space < 0xffffffff && space > maximum) maximum = space;
-  }
-  for (const id of Object.keys(document.nodes)) observe(id);
-  for (const style of document.styles ?? []) if (style.id.startsWith("S:")) observe(style.id.slice(2));
-  for (const v of document.variables?.variables ?? []) if (v.id.startsWith("VariableID:")) observe(v.id.slice(11));
-  for (const c of document.variables?.collections ?? []) {
-    if (c.id.startsWith("VariableCollectionId:")) observe(c.id.slice(21));
-    for (const mode of c.modes) observe(/\/mode(\d+)$/.exec(mode.id)?.[1]);
-  }
-  return maximum + 1;
-}
-
 function* putList<T extends {id: string}>(prop: string, entry: string,
   items: readonly T[], render: (item: T) => string): Generator<InitialChange> {
   if (new Set(items.map(item => item.id)).size !== items.length) {
@@ -123,6 +105,7 @@ function* documentChanges(document: Document): Generator<InitialChange> {
     if (!sameComponentValue(libraries, wireLibraryLinks([]))) yield set("libraries", libraries);
   }
   yield* putList("styles", "style", document.styles ?? [], s => sessionStyle(wireSharedStyle(s)));
+  yield* putList("comments", "comment", document.comments ?? [], c => sessionJson(wireComment(c)));
   yield* putList("collections", "collection", document.variables?.collections ?? [], sessionJson);
   yield* putList("variables", "variable", document.variables?.variables ?? [], sessionJson);
 }
@@ -136,13 +119,13 @@ export async function initialDocumentState(document: Document, session: bigint):
     const data = base64Bytes(new Uint8Array(await bytes.arrayBuffer()));
     changes.push({type: "put", entry: "image", key, value: imageValue(data, height, width)});
   }
-  return {session, changes, nextClient: nextClient(document)};
+  return {session, changes, nextClient: highestIdSpace(document) + 1};
 }
 
 /** Returns the exact framed size, or a lower bound once the supplied limit is exceeded. */
 export async function measureDocumentSnapshot(document: Document, session: bigint, limit = Infinity) {
   const measure = new InitialSnapshotMeasure();
-  const client = nextClient(document);
+  const client = highestIdSpace(document) + 1;
   let count = 0, yielded = performance.now();
   // Count the immutable image members first. Their contributions are additive
   // and equal for any content of the same length, including the final padding.

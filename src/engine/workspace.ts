@@ -5,7 +5,7 @@ import { branchReview } from "./branch-review";
 import { EditorEngine, type EditorClipboard } from "./editor";
 import { clippedText } from "./file-versions";
 import type { FileBranch } from "./file-format";
-import { nextBranchClient } from "./branch-ids";
+import { foreignBranchAddition, liveBranchStart, nextBranchClient, openedBranchStart } from "./branch-ids";
 import { owningInstance } from "./component-tree";
 import { libraryComponent } from "./library-store";
 import { MAX_CACHED_LIBRARIES } from "./library-links";
@@ -29,6 +29,7 @@ interface OpenTab {
   engine: EditorEngine;
   unsubscribe: () => void;
   guest?: OnlineGuestSession;
+  liveBranches?: Set<string>;
   branch?: { main: EditorEngine; id: string };
 }
 
@@ -124,7 +125,11 @@ export class EditorWorkspace {
 
   #append(engine: EditorEngine, activate = true, branch?: OpenTab["branch"], guest?: OnlineGuestSession) {
     const tab: OpenTab = this.#attach(engine, branch);
-    if (guest) { tab.guest = guest; engine.setEditable(this.#editable && guest.access === "edit"); }
+    if (guest) {
+      tab.guest = guest;
+      engine.setLiveClient(guest.client ?? 0);
+      engine.setEditable(this.#editable && guest.access === "edit");
+    }
     this.#tabs.push(tab);
     if (activate || !this.#active) this.#active = tab;
     this.#publish();
@@ -227,7 +232,9 @@ export class EditorWorkspace {
   attachGuestSession(id: number, session: OnlineGuestSession) {
     const tab = this.#tabs.find(tab => tab.id === id);
     if (!tab || !this.#editable) return false;
+    if (session.ended || tab.guest?.client !== session.client || tab.guest?.file !== session.file) delete tab.liveBranches;
     tab.guest = session;
+    tab.engine.setLiveClient(session.ended ? 0 : session.client ?? 0);
     tab.engine.setEditable(this.#editable && (!!session.ended || session.access === "edit"));
     this.#publish();
     return true;
@@ -237,6 +244,8 @@ export class EditorWorkspace {
     const tab = this.#tabs.find(tab => tab.guest?.connection === connection);
     if (!tab) return;
     delete tab.guest;
+    delete tab.liveBranches;
+    tab.engine.setLiveClient(0);
     tab.engine.setEditable(this.#editable);
     this.#publish();
   }
@@ -267,6 +276,12 @@ export class EditorWorkspace {
     const active = this.#active;
     if (!active) throw new Error("No document");
     const main = active.branch?.main ?? active.engine;
+    const mainTab = this.#tabs.find(tab => tab.engine === main)!;
+    const liveClient = !mainTab.guest?.ended && mainTab.guest?.client;
+    const counters = () => [main.archiveRevision.nextId, ...main.branches.map(b => BigInt(b.head.nextId)),
+      ...this.#tabs.filter(tab => tab.branch?.main === main).map(tab => tab.engine.archiveRevision.nextId)];
+    const openBranch = (record: FileBranch) => liveClient
+      ? main.openBranch(record, openedBranchStart(record, liveClient, main.archiveRevision.nextId, counters())) : main.openBranch(record);
     const openIndex = (id: string) => this.#tabs.findIndex(tab => tab.branch?.main === main && tab.branch.id === id);
     if (command === "branch.list") return main.branches.map(({ id, name, time, state }) => {
       const index = openIndex(id);
@@ -276,16 +291,18 @@ export class EditorWorkspace {
       if (active.branch) throw new Error("This tab is a branch: make branches from the main file");
       if (main.branches.length >= 100) throw new Error("The file has the most branches it can keep (100)");
       const { document, nextId } = main.archiveRevision;
-      const client = nextBranchClient(document, main.branches);
+      const client = liveClient || nextBranchClient(document, main.branches);
+      const start = liveClient ? liveBranchStart(client, counters()) : (BigInt(client) << 32n) + 1n;
       const name = clippedText(parseString(params.name)?.trim() || "Branch " + (main.branches.length + 1), 200);
       const now = Date.now();
       let stamp = now;
       while (main.branches.some(b => b.id === stamp.toString(16))) stamp++;
       const id = stamp.toString(16);
       const branch: FileBranch = Object.freeze({ id, name, client, state: "active", time: String(Math.floor(now / 1000)),
-        base: { document, nextId: String(nextId) }, head: { document: Object.freeze({ ...document, name }), nextId: String((BigInt(client) << 32n) + 1n) },
+        base: { document, nextId: String(nextId) }, head: { document: Object.freeze({ ...document, name }), nextId: String(start) },
         versions: Object.freeze([]) });
       main.replaceBranches([...main.branches, branch]);
+      if (liveClient) (mainTab.liveBranches ??= new Set()).add(id);
       const engine = main.openBranch(branch);
       const { index } = this.#append(engine, true, { main, id });
       engine.execute("file.saveVersion", { name: "Branch created" });
@@ -308,6 +325,8 @@ export class EditorWorkspace {
       const doc = applyBranch(plan, side, picks as Record<string, unknown>);
       const counts = { changes: plan[side].count, conflicts: plan.conflicts.length };
       if (side === "branch") {
+        const foreign = liveClient && foreignBranchAddition(plan, doc, liveClient, mainTab.liveBranches?.has(id) ?? false);
+        if (foreign) throw new Error("The branch adds " + foreign + " outside this live session. Merge it after leaving the session.");
         main.applyBranchDocument(doc, "Merged “" + record.name + "”", false);
         main.replaceBranches(main.branches.map(b => b.id === id ? Object.freeze({ ...b, state: "merged" }) : b));
         if (index >= 0) this.#removeTab(this.#tabs[index]);
@@ -315,12 +334,13 @@ export class EditorWorkspace {
         this.#publish();
         return { ...counts, merged: true, index: this.#tabs.indexOf(this.#active!) };
       }
-      const engine = index >= 0 ? this.#tabs[index].engine : main.openBranch(record);
+      const engine = index >= 0 ? this.#tabs[index].engine : openBranch(record);
       engine.applyBranchDocument(doc, "Updated from main", true);
       const head = engine.archiveRevision;
       main.replaceBranches(main.branches.map(b => b.id === id ? Object.freeze({ ...b,
         base: { document: current.document, nextId: String(current.nextId) },
         head: { document: head.document, nextId: String(head.nextId) }, versions: head.versions }) : b));
+      if (liveClient) (mainTab.liveBranches ??= new Set()).add(id);
       return { ...counts, updated: true };
     }
     if (command === "branch.archive") {
@@ -330,7 +350,7 @@ export class EditorWorkspace {
       this.#publish();
       return { archived: true };
     }
-    if (index < 0) return this.#append(main.openBranch(record), true, { main, id });
+    if (index < 0) return this.#append(openBranch(record), true, { main, id });
     this.#active = this.#tabs[index];
     this.#publish();
     return { index };

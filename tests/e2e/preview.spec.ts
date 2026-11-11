@@ -1004,10 +1004,19 @@ test("the published view and edit invites open the original drawing in another s
     await join.click();
     const dialog = guest.getByRole("dialog", { name: "Join live session" });
     await dialog.getByLabel("Invite link").fill(edit);
+    const editReceipt = guest.waitForResponse(r => new URL(r.url()).pathname === "/api/online-files/join");
     await dialog.getByRole("button", { name: "Join", exact: true }).click();
     await expect(toolbar.getByText(/Can edit/)).toBeVisible();
     await expect(guest.getByRole("button", { name: "Create rectangle", exact: true })).toBeEnabled();
     // Closing the browser page bypasses Figcraft's explicit Leave command.
+    const client = Number((await editReceipt).headers()["x-figcraft-client"]);
+    expect(client).toBeGreaterThan(0);
+    await guest.getByRole("button", {name:"Create rectangle", exact:true}).click();
+    const downloaded = guest.waitForEvent("download");
+    await guest.getByRole("button", {name:"Save as", exact:true}).click();
+    const bytes = await readFile((await (await downloaded).path())!);
+    const {document: drawing} = await decodeFigcraft(bytes);
+    expect(Object.keys(drawing.nodes).some(id => BigInt(id) >> 32n === BigInt(client))).toBe(true);
     const vanished = await visitor.newPage();
     const joined = vanished.waitForRequest(request => new URL(request.url()).pathname === "/api/online-files/join");
     await vanished.goto(edit);
@@ -1017,9 +1026,14 @@ test("the published view and edit invites open the original drawing in another s
     const viewer = await visitor.newPage();
     const viewerBar = viewer.locator(".figcraft-document-bar");
     const validations = new Map<string, number>();
+    const welcomed = new Map<string,string>();
     const joinedTab = () => viewer.waitForResponse(response =>
       new URL(response.url()).pathname === "/api/online-files/join" && response.ok())
-      .then(response => response.request().postDataJSON().tab as string);
+      .then(response => {
+        const physical = response.request().postDataJSON().tab as string;
+        welcomed.set(physical, response.headers()["x-figcraft-client"]);
+        return physical;
+      });
     viewer.on("response", async response => {
       if (!new URL(response.url()).pathname.endsWith("/rpc/online_connection_active") || !response.ok()) return;
       if (await response.json().catch(() => false) !== true) return;
@@ -1046,6 +1060,8 @@ test("the published view and edit invites open the original drawing in another s
     await expect(viewerBar.getByText(/View only/)).toBeVisible({timeout: 15_000});
     const recoveredGrant = await recoveredJoin;
     expect(recoveredGrant).not.toBe(firstGrant);
+    expect(welcomed.get(firstGrant)).toMatch(/^[1-9][0-9]*$/);
+    expect(welcomed.get(recoveredGrant)).toBe(welcomed.get(firstGrant));
     // Exercise revocation of an established subscription: the first check
     // opens the private channel and the second confirms the grant on subscribe.
     await expect.poll(() => validations.get(recoveredGrant) ?? 0, {timeout: 10_000}).toBeGreaterThanOrEqual(2);
@@ -1321,6 +1337,28 @@ test("native image archive preserves original bytes through browser open, edits,
   const saved = JSON.parse(strFromU8(members["document.json"]!));
   expect(saved.imageIndex).toEqual(formats.map(hash => ({ hash, width: 3, height: 2 })));
   expect(saved.image_presets).toEqual([{ name: "Camera flash", filters: { exposure: -0.5, shadows: 0.25, highlights: 0, tint: 0, temperature: 0, saturation: 0, contrast: 0 } }]);
+});
+
+test("native pinned conversations survive a layer deletion, device recovery and browser download", async ({ page }) => {
+  await login(page);
+  await page.getByLabel("Open Figcraft file", { exact: true }).setInputFiles(
+    new URL("../fixtures/native-comment-threads.figcraft", import.meta.url).pathname);
+  const layers = page.getByRole("region", { name: "Layers", exact: true });
+  await layers.getByRole("button", { name: "Screen", exact: true }).click();
+  await page.keyboard.press("Delete");
+  await expect(layers.getByRole("button", { name: "Screen", exact: true })).toHaveCount(0);
+  await expect(page.getByText("Recovery saved on this device", { exact: true })).toBeVisible();
+  await page.reload();
+  await expect(page.getByRole("button", { name: "Create rectangle", exact: true })).toBeEnabled();
+  const download = page.waitForEvent("download");
+  await page.getByRole("button", { name: "Save as", exact: true }).click();
+  const { document, versions } = await decodeFigcraft(await readFile((await (await download).path())!));
+  expect(document.comments).toMatchObject([
+    { anchor: null, x: 130, y: 140, text: "Current inset", replies: [{ author: "Sam", text: "Looks right" }],
+      reactions: [{ emoji: "👍", users: ["Lin"] }], readBy: ["Sam"] },
+    { anchor: null, x: 7, y: 9, resolved: true, text: "Loose pin" },
+  ]);
+  expect(versions?.some(version => version.name === "Review")).toBe(true);
 });
 
 test("image paints draw original pixels and retain placed files through undo, recovery and download", async ({ page }) => {

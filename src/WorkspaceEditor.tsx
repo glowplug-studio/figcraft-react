@@ -89,7 +89,7 @@ export function WorkspaceEditor({ identity, capabilities, recoveryStore, onlineH
     const session = workspace.getSnapshot().find(tab => tab.guest?.connection === connection)?.guest;
     if (!session || session.ended) return;
     workspace.setGuestSession("attempt" in status ? {...session, reconnectAttempt: status.attempt}
-      : {...session, reconnectAttempt: undefined, access: status.access});
+      : {...session, reconnectAttempt: undefined, ...status});
   }, [workspace]);
   const guest = active?.guest;
   const tabCapabilities = useMemo(() => guest && !guest.ended && guest.access !== "edit" ? capabilities.filter(cap => cap === "document.read"
@@ -159,8 +159,9 @@ export function WorkspaceEditor({ identity, capabilities, recoveryStore, onlineH
       onClick={() => invitations.retryNow?.(guest.connection)}>Retry now</button>}
     {guest?.ended && invitations?.rejoin && <button type="button" onClick={async () => {
       try {
-        const access = await invitations.rejoin!(guest.connection);
-        if (!workspace.setGuestSession({...guest, ended: undefined, reconnectAttempt: undefined, access})) await invitations.leave(guest.connection);
+        const result = await invitations.rejoin!(guest.connection);
+        const welcome = typeof result === "string" ? { access: result } : result;
+        if (!workspace.setGuestSession({...guest, ended: undefined, reconnectAttempt: undefined, ...welcome})) await invitations.leave(guest.connection);
         else setNotice("Rejoined session");
       } catch { setNotice("The invite is unavailable"); }
     }}>Reconnect</button>}

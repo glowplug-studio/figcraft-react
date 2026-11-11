@@ -71,6 +71,7 @@ export interface OnlineFileDevice {
 export interface OnlineGuestSession {
   file: string;
   connection: string;
+  client?: number;
   access: "edit" | "view" | "comment";
   /** The device opened its recorded publication. This flag confers no management authority. */
   openedAsOwner?: true;
@@ -78,13 +79,14 @@ export interface OnlineGuestSession {
   reconnectAttempt?: number;
 }
 export type GuestSessionEnd = "stopped" | "removed" | "unavailable";
-export type GuestConnectionStatus = {attempt: number} | {access: OnlineGuestSession["access"]};
+export type GuestWelcome = Pick<OnlineGuestSession, "access" | "client">;
+export type GuestConnectionStatus = {attempt: number} | GuestWelcome;
 export interface OnlineInvitations {
   /** Redeem this device's original edit link. Older records may predate link storage. */
   joinOwned?(file: string, managedByKey?: boolean): Promise<{session: OnlineGuestSession; archive: Blob} | undefined>;
   report?(connection: string, reason: string): Promise<void>;
   retryNow?(connection: string): void;
-  rejoin?(connection: string): Promise<OnlineGuestSession["access"]>;
+  rejoin?(connection: string): Promise<OnlineGuestSession["access"] | GuestWelcome>;
   watch?(connection: string, ended: (reason: GuestSessionEnd) => void, changed?: (status: GuestConnectionStatus) => void): () => void;
   join?(invite: string): Promise<void>;
   showJoin(): void;

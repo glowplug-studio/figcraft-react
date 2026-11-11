@@ -31,7 +31,7 @@ function mergeEntries<T extends { id: string }>(list: readonly T[], changes: Rea
 function applyFileFields(to: Document, from: Document, changes: Map<string, FileEdit>) {
   if (!changes.size) return to;
   const result = { ...to };
-  const take = <K extends "libraryLinks" | "libraryRecords" | "libraryStore" | "imagePresets" | "documentColours" | "colourProfile">(key: K) => {
+  const take = <K extends "comments" | "libraryLinks" | "libraryRecords" | "libraryStore" | "imagePresets" | "documentColours" | "colourProfile">(key: K) => {
     if (from[key] === undefined) delete result[key]; else result[key] = from[key];
   };
   if (changes.has("doc/libraries")) { take("libraryLinks"); take("libraryRecords"); take("libraryStore"); }
@@ -39,6 +39,11 @@ function applyFileFields(to: Document, from: Document, changes: Map<string, File
   if (changes.has("doc/documentColors")) take("documentColours");
   if (changes.has("doc/colorProfile")) take("colourProfile");
   const changed = (kind: string) => [...changes.keys()].some(key => key.startsWith(kind + "/") || key === "doc/" + kind + "Order");
+  if (changes.has("doc/comments")) take("comments");
+  else if (changed("comment")) {
+    const comments=mergeEntries(to.comments ?? [],changes,"comment",from.comments ?? []);
+    if (comments.length) result.comments=Object.freeze(comments); else delete result.comments;
+  }
   if (changed("style")) {
     const styles = mergeEntries(to.styles ?? [], changes, "style", from.styles ?? []);
     if (styles.length) result.styles = Object.freeze(styles); else delete result.styles;

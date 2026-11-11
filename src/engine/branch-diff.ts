@@ -81,6 +81,11 @@ export function fileChanges(base: Document, to: Document) {
     if (!natural.every((item, i) => item.id === next[i].id)) add("doc/" + kind + "Order", from.map(item => item.id), next.map(item => item.id));
   };
   list("style", base.styles, to.styles);
+  if (base.comments !== to.comments) {
+    const repeated = (items: Document["comments"]) => items && new Set(items.map(item => item.id)).size !== items.length;
+    if (repeated(base.comments) || repeated(to.comments)) add("doc/comments", base.comments, to.comments);
+    else list("comment", base.comments, to.comments);
+  }
   list("collection", base.variables?.collections, to.variables?.collections);
   list("variable", base.variables?.variables, to.variables?.variables);
   if (base.images !== to.images) {

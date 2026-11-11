@@ -63,6 +63,10 @@
       "types": "./dist/backends/memory/index.d.ts",
       "import": "./dist/backends/memory/index.js"
     },
+    "./backends/supabase/live-session": {
+      "types": "./dist/backends/supabase/live-session.d.ts",
+      "import": "./dist/backends/supabase/live-session.js"
+    },
     "./backends/supabase/team-library": {
       "types": "./dist/backends/supabase/team-library.d.ts",
       "import": "./dist/backends/supabase/team-library.js"
