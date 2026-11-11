@@ -5,17 +5,17 @@
 | Field | Current value |
 |---|---|
 | Overall status | In progress. [Continue handover and deferred review queue](26-11-07-full-port-resume.md#continue-from-here). |
-| Active slice | Row 13. Online files, ownership and grants. [Dated plan](26-11-10-online-file-ownership.md). |
-| Active phase | At `e4458f6` all 355 production browser checks passed in 845.1 seconds without skips or retries. [Team library storage and browser flows](26-11-11-team-libraries.md) are undergoing verification. |
+| Active slice | Row 14. [Ordered live collaboration](26-11-11-ordered-live-collaboration.md). |
+| Active phase | Comment and client ID gates passed. Collect cumulative results for `892f67a` and implement ordered property batches. |
 | Upstream baseline | Styles reference a2e87433. Components reference 79c36346. Global supported baseline 8eb0b876. |
-| Branch and last verified commit | `prompt/full-figcraft-port`. All 356 production Chromium workflows passed at `1ac66bd`, including the two-account team library usage and privacy checks. The owner rename/removal slice passed focused gates at `e39c77f`. |
+| Branch and last verified commit | `prompt/full-figcraft-port`, `7f67b1f`. Owner rename, removal, sharing and library workflows passed the complete Chromium gate. |
 | Completed slices | Rectangle/host-auth, bounded native persistence/recovery, supported-model pages, affine rectangle geometry/selection and solid appearance, plus nested group hierarchy, Frame containers, movement/transform gestures, rounded corners, ellipse/arc/ring and Polygon/Star editing verified locally; Line/Arrow and uniform solid strokes also verified; per-side Rectangle/Frame strokes, variable-width profiles and procedural brushes verified; vector networks, solid region/stroke rendering and Flatten/Reverse also verified; foundation commit `154f5a7`. Gradient, image, pattern, blend and mask releases now have local property matrices. [Blend evidence](../reports/26-11-09-blend-modes-parity.html). Auto layout and constraints passed the local release gate. [Release evidence](../reports/26-11-09-auto-layout.md). [Local components, instances, variant properties, slots and Assets](../reports/26-11-09-components-instances.md) passed the 0.51.0 gate. |
 | Remaining slices | Continue incomplete roadmap rows, excluding the user-deferred plugin and widget family. See each slice matrix for outstanding integrations. |
-| Tests last passed | At `624e7a5` all 354 production Chromium workflows passed in 792.7 seconds without skips, retries or flakes. Clean replay passed 268 SQL assertions. All 18 provider integrations and 4,484 pure checks passed. |
-| Files currently in progress | [Operator publication](26-11-11-operator-publication.md). Keyed publishing, private host policy, immutable server-owned objects, participant access and Home retry. Clean replay passed 288 SQL assertions and 19 provider integrations. |
-| Blockers | Figcraft MCP reauthorisation succeeded. A fresh scoped project read confirmed zero public tables. |
+| Tests last passed | All 356 production Chromium workflows passed in 1,152.0 s without skips or retries. The owner slice passed 344 SQL assertions, 21 real provider checks and 4,492 pure checks. |
+| Files currently in progress | [Row 14 plan and source links](26-11-11-ordered-live-collaboration.md), comment file model, editor allocator, physical join and private room state. |
+| Blockers | No hosted change is required for the local collaboration gate. |
 | Exact next action | Follow the [current action in the resume handover](26-11-07-full-port-resume.md#continue-from-here), then its dependency-ordered review queue. |
-| Last updated | 2026-11-11 13:25 ICT |
+| Last updated | 2026-11-11 14:00 ICT |
 
 ## Scope and continuation
 
@@ -54,8 +54,8 @@ Full-host performance obligation: the user specifically asks about browser RAM, 
 | 10 | Styles, variables/collections/modes/expressions and IO, libraries/assets and updates; `doc/src/{styles,library}.rs`, `cmd/{styles,variables,variables_io,library}.rs` | 2–9 | Local 0.52.0 release passed 292/292 Chromium tests. The [property audit](../reports/26-11-10-styles-variables-libraries-parity.html) carries linked clipboard transfer, source navigation and team-service features into their owning rows. [Style and variable plan](26-11-09-styles-variables-libraries.md). |
 | 11 | File workspace, thumbnails, history/checkpoints, branches and conflict review; `cmd/file`, engine branches and library | 1–10 | Active entry checks. [Workspace and history plan](26-11-10-file-workspace-history.md). |
 | 12 | SVG/raster, REST, .fig, Penpot, Sketch imports and exports; native bundles, SVG/PDF/VectorDrawable/code/raster exports; current format/export crates | 1–11; current source determines actual supported subsets | In progress. PNG, JPEG, WebP, SVG, PDF, Android XML, REST, Fig, Sketch and Penpot have local reference and browser evidence. Import reports and [clipboard code export](../reports/26-11-10-clipboard-code-parity.html) passed focused gates and subsequent cumulative regressions. Recheck the complete format inventory during the final audit |
-| 13 | Online files/dashboard, ownership and share grants, profile data where required, database/Storage RLS; server store and host-neutral adapters | 1–12; verified account mapping | Ownership, sharing, expiry, team discovery, participant reports, operator publication, server libraries, usage and owner mutation admission passed focused gates. Cumulative owner verification is running. |
-| 14 | Ordered live collaboration, reconnect/revocation, presence, comments and per-client live undo; `collab`, `engine/src/sharing`, server stores | 13 and stable commands | [Source mapping and independent ordering trace](26-11-11-ordered-live-collaboration.md). Durable live editing is pending |
+| 13 | Online files/dashboard, ownership and share grants, profile data where required, database/Storage RLS; server store and host-neutral adapters | 1–12; verified account mapping | Ownership, sharing, expiry, team discovery, participant reports, operator publication, server libraries, usage and owner mutation admission passed focused gates. All 356 cumulative workflows passed at `7f67b1f`. |
+| 14 | Ordered live collaboration, reconnect/revocation, presence, comments and per-client live undo; `collab`, `engine/src/sharing`, server stores | 13 and stable commands | [Native comment files and client identity](../reports/26-11-11-live-client-parity.html) passed focused gates at `892f67a`. Ordered changes and shared editing are pending. |
 | 15 | Prototype interactions, triggers/actions/expressions, overlays, transitions, scrolling and presenter; `doc/src/proto*`, engine prototype runtime and UI | 2–14 as applicable | Not implemented |
 | 16 | Boards: shapes/connectors/stickies/stamps/tables/templates; facilitation timer/voting/history; `doc/src/{board,facilitation}.rs`, board commands/tools | 2–14 | Not implemented |
 | 17 | Dev Mode inspection/code generation, code connect, annotations/resources/status and changed-state review; engine dev and handoff modules | 2–16 | Not implemented |
