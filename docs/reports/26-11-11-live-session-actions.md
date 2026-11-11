@@ -1,0 +1,13 @@
+# Join, leave and manual reconnect
+
+React `6b6de34` on `prompt/full-figcraft-port` implements the collaboration commands against native reference `be991533`. The browser host uses authenticated invitations, HTTP archive delivery and private Realtime. A cancelled grant is released even if the response or decoder returns after cancellation. Confirmed welcome metadata comes from the ordered document. The application-wide supported reference remains `8eb0b876`.
+
+A stranded drawing retains its last confirmed version and client namespace. Manual reconnect applies independent changes as one undoable edit. When both sides edited the same property, the server value wins there and the guest’s complete version opens beside it. A new namespace or a reduced grant can also require a local copy. The complete [property matrix](26-11-11-live-session-actions-parity.html) includes reproduction steps and limitations.
+
+A separate read-only upstream build ran all 17 native engine collaboration tests at the pinned commit. All 17 passed, including unchanged, conflicting, resumed and newly allocated client states. The Rust compilation warned that its optional font catalogue was absent. These tests exercise the collaboration engine.
+
+All 4,579 pure checks, 408 SQL assertions and 25 provider integrations passed. Strict TypeScript, library and production Next.js builds passed. Three focused Chromium workflows passed in 21.786 seconds. The first phone test initially attempted to select a layer with the drawer closed. After that test was corrected the next run exposed a real obstruction. The File menu still covered Save as after reconnect. The session actions now dismiss that menu. The rerun verified widths in both accounts’ downloads and the guest’s offline copy. A separate delayed welcome created a real database grant, then Cancel returned the connection count to its original value. A guest fixture from the timed-out run was removed. All seven fixture counts were zero before the cumulative suite began.
+
+The scoped Figcraft Supabase MCP returned the intended project and zero hosted public tables. This slice uses the preceding local schema. The [local adapter instructions](../../supabase/README.md) cover setup. Hosted publication follows the complete-product audit.
+
+The independent 369-workflow cumulative check is running. The [handover](../planning/26-11-07-full-port-resume.md) identifies the exact result to collect. The next collaboration property is removing a participant and preventing that address from rejoining the same file. The remaining roadmap and deferred review queue still apply.

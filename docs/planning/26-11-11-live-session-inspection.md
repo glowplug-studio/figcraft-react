@@ -21,3 +21,5 @@ The production phone showed “Follow Ari” even while the test withheld every 
 [Property matrix and manual checks](../reports/26-11-11-live-session-inspection-parity.html). All 4,568 pure tests passed on the committed implementation.
 
 The first 367-test run reached the default publication limit and stopped its serial suite. It passed 128, failed one and skipped 238, with zero retries or flaky tests. Browser error text confirmed that the sharing test had not yet reached its lost-acknowledgement request. Seven local fixture checks returned zero. The normal cumulative fixture uses 1,000 publishes/hour on the local host. The default and low-rate admissions have separate SQL and browser coverage.
+
+The repeat at `f68fa96` passed all 367 production Chromium workflows in 902.268 seconds. Zero skipped, retried or flaky cases and zero suite errors. Accounts, published files, stored objects, rooms, batches, presence registrations and peer names each returned to zero.

@@ -591,3 +591,10 @@ At `892f67a`, native `doc::Comment`, `cmd::comment::follow_anchors`, `version::r
 | Native snapshot reconnect, step ownership and random fault admissions | [Step verification](../../src/engine/sharing/live-history.ts), [ordered peer](../../src/engine/sharing/live-peer.ts), [replica and page reference](../../src/engine/sharing/live-replica.ts) | [Native traces and authenticated phone undo](../reports/26-11-11-compacted-undo-parity.html) |
 
 | Native `Session::live_summary`, `Sessions::shown`, `welcome_in` and peer typing | [Session directory and query](../../src/engine/sharing/live-session-summary.ts), [authenticated welcome](../../src/backends/supabase/live-presence.ts), [People menu](../../src/LivePeopleControls.tsx) | [Native snapshots, tab lifecycle, provider and phone results](../reports/26-11-11-live-session-inspection-parity.html) |
+
+### Session commands and stranded files
+
+| Native source | React implementation | Verification |
+|---|---|---|
+| [Join, leave and reconnect](../../original/figcraft/crates/engine/src/sharing/live/join.rs) | [Workspace session actions](../../src/engine/workspace.ts) and [browser admission](../../examples/nextjs/lib/sharing/browser-invites.ts) | [Contracts](../../tests/contracts/live-session-actions.test.ts) and two authenticated accounts exercising a cancelled welcome. |
+| [Confirmed welcome and three-way recovery](../../original/figcraft/crates/engine/src/sharing/live/events.rs) | [Ordered peer](../../src/engine/sharing/live-peer.ts) and the existing [branch merge](../../src/engine/branch-merge.ts) | [Five stranded states](../../tests/parity/live-stranded-work.test.ts), [metadata assertions](../../tests/parity/live-session-summary.test.ts) and [phone download comparison](../reports/26-11-11-live-session-actions-parity.html). |
