@@ -44,3 +44,5 @@ A live file participant can report abuse through the signed-in host, including a
 ## Live participant removal
 
 The [native editor](../../original/figcraft/crates/engine/src/sharing/live/join.rs) and the [hub](../../original/figcraft/crates/collab-net/src/hub.rs) distinguish an editor’s owner authority from an authenticated operator management connection. The browser checks actual account ownership, live membership and a named peer. The separate management endpoint verifies the operator key. The database binds the target to its room and physical login. An ordinary editor or guest cannot elevate access with a role field. [Property and access checks](../reports/26-11-11-live-participant-removal-parity.html).
+
+The online directory exposes device-issued handout codes and active owner session numbers. Its owner-only computed field checks the real listing against the signed-in principal before returning link identifiers. Browser roles cannot select the link credential table. Forgetting is a device action. [Directory access and two-account evidence](../reports/26-11-11-online-directory-commands-parity.html).
