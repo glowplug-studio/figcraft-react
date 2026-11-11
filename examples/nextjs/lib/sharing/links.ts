@@ -37,9 +37,12 @@ export async function changeFileLinks(writer: SupabaseClient, owner: string, fil
   throw new Error("Could not issue unique share links");
 }
 
+export class AdminRateError extends Error {}
+
 /** Rebuild the exact receipt after a lost response; only the issuer holds the random seed. */
+
 export async function applyOwnerSharing(writer: SupabaseClient, owner: string, file: string,
-  expected: string | null, revision: string, revoke: readonly string[], seed: string | null) {
+  expected: string | null, revision: string, revoke: readonly string[], seed: string | null, address: string) {
   const before = await ownerSharingStatus(writer, owner, file);
   if (seed !== null && !/^[0-9a-f]{64}$/.test(seed)) throw new Error("Invalid sharing credential");
   const links = seed === null ? [] : (["edit", "view", "comment"] as const).map(access => {
@@ -55,10 +58,12 @@ export async function applyOwnerSharing(writer: SupabaseClient, owner: string, f
     }
     throw new Error("Sharing changed elsewhere");
   }
-  const result = await writer.rpc("apply_online_share_change", {
-    actor: owner, target: file, expected, revision, revoke_ids: revoke, new_links: links.map(link => link.record),
+  const result = await writer.rpc("apply_addressed_share_change", {
+    address, actor: owner, target: file, expected, revision, revoke_ids: revoke, new_links: links.map(link => link.record),
   });
   if (result.error) throw result.error;
+  if (result.data === false) throw new AdminRateError("Too many changes to this server's files from your address: wait a minute and try again");
+  if (result.data !== true) throw new Error("Invalid sharing receipt");
   if (before.revision === revision && links.some(link => !before.ids.includes(link.receipt.id))) {
     throw new Error("Sharing changed elsewhere");
   }

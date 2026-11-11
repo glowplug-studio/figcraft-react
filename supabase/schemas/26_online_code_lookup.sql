@@ -7,12 +7,14 @@ create table figcraft_private.online_code_budgets (
     wrong integer not null default 0,
     wrong_at timestamptz,
     locked_until timestamptz,
+    admin_tokens double precision,
+    admin_used_at timestamptz,
     report_tokens double precision,
     report_used_at timestamptz,
     publish_tokens double precision,
     publish_used_at timestamptz
 );
-create index online_code_budgets_age on figcraft_private.online_code_budgets(greatest(used_at,publish_used_at,report_used_at));
+create index online_code_budgets_age on figcraft_private.online_code_budgets(greatest(used_at,publish_used_at,report_used_at,admin_used_at));
 create table figcraft_private.online_code_global (
     singleton boolean primary key check (singleton),
     tokens double precision not null,
@@ -39,7 +41,7 @@ as $$
 $$;
 revoke all on function figcraft_private.publication_blocks(inet) from public, anon, authenticated, service_role;
 
--- Both actions share the native server lifetime and bounded address inventory.
+-- All actions share the native server lifetime and bounded address inventory.
 -- Each action has its own refill clock. Sample time after acquiring the lock.
 create function figcraft_private.admission_clock(sampled timestamptz)
 returns timestamptz language plpgsql security invoker set search_path = ''
@@ -69,8 +71,8 @@ begin
     if found then return budget; end if;
     if (select count(*) from figcraft_private.online_code_budgets) >= 10000 then
         delete from figcraft_private.online_code_budgets where not (block = any(participating))
-            and greatest(used_at,publish_used_at,report_used_at) <= (select greatest(used_at,publish_used_at,report_used_at)
-            from figcraft_private.online_code_budgets order by greatest(used_at,publish_used_at,report_used_at) offset 5000 limit 1);
+            and greatest(used_at,publish_used_at,report_used_at,admin_used_at) <= (select greatest(used_at,publish_used_at,report_used_at,admin_used_at)
+            from figcraft_private.online_code_budgets order by greatest(used_at,publish_used_at,report_used_at,admin_used_at) offset 5000 limit 1);
     end if;
     insert into figcraft_private.online_code_budgets(block,tokens,used_at)
         values(b,case masklen(b) when 48 then 40 when 56 then 20 else 10 end,sampled) returning * into budget;

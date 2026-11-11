@@ -540,9 +540,18 @@ describe.skipIf(!enabled)("private online files on real local Supabase", () => {
     paths.push(owner.id + "/" + file + ".figcraft");
     const store = new SupabaseOnlineFileStore(owner.client, owner.id, id => finaliseForTest(owner.client, writer, id, proof));
     await store.publish(file, new Blob([archive]));
-    const start = () => applyOwnerSharing(writer, owner.id, file, null, first, [], seed);
+    const address = fixtureIngress + "::1";
+    const start = () => applyOwnerSharing(writer, owner.id, file, null, first, [], seed, address);
+    const sql = (query: string) => localOperatorSql(local!,query,{address});
+    sql("select figcraft_private.take_admin_request(:'address',null)");
+    sql("update figcraft_private.online_code_budgets set admin_tokens=5,admin_used_at=clock_timestamp() where block=network(set_masklen(:'address'::inet,64))");
+    await expect(start()).rejects.toThrow("wait a minute");
+    expect((await ownerSharingStatus(writer,owner.id,file)).revision).toBeNull();
+    expect((await ownerSharingStatus(writer,owner.id,file)).ids).toHaveLength(2);
+    sql("update figcraft_private.online_code_budgets set admin_tokens=60,admin_used_at=clock_timestamp()+interval '1 minute' where block=network(set_masklen(:'address'::inet,64))");
     const [a, b] = await Promise.all([start(), start()]);
     expect(a).toEqual(b);
+    expect(Number(sql("select admin_tokens from figcraft_private.online_code_budgets where block=network(set_masklen(:'address'::inet,64))"))).toBeCloseTo(54,0);
     expect(a.map(row => row.access)).toEqual(["edit", "view", "comment"]);
     const ids = a.map(row => row.id);
     const network = "2001:db8:" + randomUUID().slice(0,4) + ":";
@@ -557,8 +566,8 @@ describe.skipIf(!enabled)("private online files on real local Supabase", () => {
     expect((await stranger.client.rpc("lookup_online_code", {address: callerIp, symbols: "000000000"})).error?.code).toBe("42501");
     const state = () => ownerSharingStatus(writer, owner.id, file);
     expect((await state()).ids.sort()).toEqual([...ids, published.edit.id, published.view.id].sort());
-    await expect(applyOwnerSharing(writer, stranger.id, file, null, first, [], seed)).rejects.toThrow("unavailable");
-    await expect(applyOwnerSharing(writer, owner.id, file, null, first, [], "36".repeat(32))).rejects.toMatchObject({code:"22023"});
+    await expect(applyOwnerSharing(writer, stranger.id, file, null, first, [], seed, address)).rejects.toThrow("unavailable");
+    await expect(applyOwnerSharing(writer, owner.id, file, null, first, [], "36".repeat(32), address)).rejects.toMatchObject({code:"22023"});
     const rows = await writer.from("online_file_links").select("id,code_hash,wrapped_token").in("id", ids);
     expect(rows.error).toBeNull();
     for (const receipt of a) {
@@ -567,13 +576,13 @@ describe.skipIf(!enabled)("private online files on real local Supabase", () => {
       const row = rows.data!.find(link => link.id === receipt.id)!;
       expect(new JoinCodeKey(symbols.code).open({hash: row.code_hash, token: row.wrapped_token})).toBe(receipt.token);
     }
-    await expect(applyOwnerSharing(writer, owner.id, file, first, stop, [published.view.id], null)).rejects.toMatchObject({code:"22023"});
-    await Promise.all([1,2].map(() => applyOwnerSharing(writer, owner.id, file, first, stop, ids, null)));
+    await expect(applyOwnerSharing(writer, owner.id, file, first, stop, [published.view.id], null, address)).rejects.toMatchObject({code:"22023"});
+    await Promise.all([1,2].map(() => applyOwnerSharing(writer, owner.id, file, first, stop, ids, null, address)));
     await expect(start()).rejects.toThrow("Sharing changed elsewhere");
     expect(await state()).toMatchObject({revision:stop});
     expect((await lookupCode(writer, callerIp, a[0].code!)).status).toBe(410);
     expect((await state()).ids.sort()).toEqual([published.edit.id,published.view.id].sort());
-    const renewed = await applyOwnerSharing(writer, owner.id, file, stop, randomUUID(), [], seed);
+    const renewed = await applyOwnerSharing(writer, owner.id, file, stop, randomUUID(), [], seed, address);
     expect(renewed.every(link => !ids.includes(link.id))).toBe(true);
     expect((await owner.client.from("online_file_share_changes").select("*")).error).toBeTruthy();
     await store.remove(file);

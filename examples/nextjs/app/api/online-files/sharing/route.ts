@@ -1,5 +1,6 @@
 import { onlinePost } from "../../../../lib/supabase/online-post";
-import { applyOwnerSharing, ownerSharingStatus } from "../../../../lib/sharing/links";
+import { ingressAddress } from "../../../../lib/sharing/ingress-address";
+import { AdminRateError, applyOwnerSharing, ownerSharingStatus } from "../../../../lib/sharing/links";
 
 const uuid = (value: unknown): value is string => typeof value === "string" &&
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(value);
@@ -19,9 +20,11 @@ export async function POST(request: Request) {
       || (body.seed !== null && (typeof body.seed !== "string" || !/^[0-9a-f]{64}$/.test(body.seed)))) {
       return reply({error: "Invalid sharing change"}, 400);
     }
-    const links = await applyOwnerSharing(host.writer, host.principal, body.file, body.expected, body.revision, body.revoke, body.seed);
+    const links = await applyOwnerSharing(host.writer, host.principal, body.file, body.expected, body.revision, body.revoke, body.seed,
+      ingressAddress(request.headers,process.env.VERCEL === "1"));
     return reply({links});
   } catch (error) {
+    if (error instanceof AdminRateError) return reply({error:error.message},429);
     if (error instanceof Error && error.message === "The file is unavailable") return reply({error: "The file is unavailable"}, 403);
     if ((error instanceof Error && error.message === "Sharing changed elsewhere")
       || (error && typeof error === "object" && "code" in error && error.code === "40001")) {

@@ -38,6 +38,10 @@ export class BrowserOwnerSharing implements OnlineOwnerSharing {
   private async submit(file: string, pending: PendingSharingChange) {
     const response = await post(file, {action: "change", ...pending});
     if (!response.ok) {
+      if (response.status === 429) {
+        const refusal = await response.json().catch(() => null);
+        throw new Error(typeof refusal?.error === "string" ? refusal.error : "Try sharing again in a minute");
+      }
       if ([400, 403, 409, 422].includes(response.status)) {
         await this.record(file, row => row.pending?.revision === pending.revision ? {links: row.links} : row);
       }

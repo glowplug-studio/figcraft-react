@@ -558,8 +558,26 @@ if (!process.env.PLAYWRIGHT_BASE_URL) test("a second account discovers, opens an
     await expect(team.getByText("Nobody shares a file there now.")).toBeVisible();
     await page.getByRole("button",{name:"Create rectangle",exact:true}).click();
     await ownerBar.getByText("Share",{exact:true}).click();
-    await ownerBar.getByRole("button",{name:"Start sharing",exact:true}).click();
-    await expect(ownerBar.getByRole("button",{name:"Stop sharing"})).toBeEnabled();
+    // Give the shared local ingress five admin tokens. Creating three links
+    // and issuing three codes needs six. Restore only this fixture's budget.
+    localOperatorSql(backend,"select (figcraft_private.admission_bucket('127.0.0.1/32',array['127.0.0.1/32'::cidr],figcraft_private.admission_clock(null))).block");
+    const prior = JSON.parse(localOperatorSql(backend,
+      "select json_build_object('tokens',admin_tokens,'at',admin_used_at) from figcraft_private.online_code_budgets where block='127.0.0.1/32'"));
+    try {
+      localOperatorSql(backend,"update figcraft_private.online_code_budgets set admin_tokens=5,admin_used_at=clock_timestamp()+interval '1 minute' where block='127.0.0.1/32'");
+      const refused = page.waitForResponse(r => r.url().endsWith("/api/online-files/sharing") && r.status() === 429);
+      await ownerBar.getByRole("button",{name:"Start sharing",exact:true}).click();
+      expect((await refused).status()).toBe(429);
+      await expect(ownerBar.getByRole("button",{name:"Retry start sharing"})).toBeEnabled();
+      await refresh();
+      await expect(team.getByText("Nobody shares a file there now.")).toBeVisible();
+      localOperatorSql(backend,"update figcraft_private.online_code_budgets set admin_tokens=6,admin_used_at=clock_timestamp() where block='127.0.0.1/32'");
+      await ownerBar.getByRole("button",{name:"Retry start sharing"}).click();
+      await expect(ownerBar.getByRole("button",{name:"Stop sharing"})).toBeEnabled();
+    } finally {
+      localOperatorSql(backend,"update figcraft_private.online_code_budgets set admin_tokens=nullif(:'tokens','')::float8,admin_used_at=nullif(:'at','')::timestamptz where block='127.0.0.1/32'",
+        {tokens:String(prior.tokens ?? ""),at:prior.at ?? ""});
+    }
     await refresh();
     const row = team.getByRole("button",{name:/^Untitled/});
     await expect(row).toContainText("1 in it now");
@@ -600,7 +618,7 @@ if (!process.env.PLAYWRIGHT_BASE_URL) test("a second account discovers, opens an
   }
 });
 
-test("the published view and edit invites open the original drawing in another signed-in browser", async ({ page, browser }) => {
+test("the published view and edit invites open the original drawing in another signed-in browser", async ({ page, browser }, testInfo) => {
   test.setTimeout(90_000);
   await login(page);
   const url = backend?.url ?? process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -651,7 +669,9 @@ test("the published view and edit invites open the original drawing in another s
     await guest.goto(view);
     await guest.getByLabel("Email", { exact: true }).fill(guestEmail);
     await guest.getByLabel("Password", { exact: true }).fill(guestPassword);
+    const admission = guest.waitForResponse(r => new URL(r.url()).pathname === "/api/online-files/join");
     await guest.getByRole("button", { name: "Sign in", exact: true }).click();
+    expect((await admission).status()).toBe(200);
     const toolbar = guest.locator(".figcraft-document-bar");
     await expect(toolbar.getByRole("heading", { name: "Original invite drawing" })).toBeVisible();
     await expect(toolbar.getByText(/View only/)).toBeVisible();
@@ -676,6 +696,7 @@ test("the published view and edit invites open the original drawing in another s
       for (const control of [reason, toolbar.getByRole("button",{name:"Send report"}), toolbar.getByRole("button",{name:"Cancel",exact:true})]) {
         await expect(control).toBeInViewport({ratio:1});
       }
+      await testInfo.attach("participant-report-phone",{body:await toolbar.locator("details[open] .figcraft-menu-items").first().screenshot(),contentType:"image/png"});
       reportFile = fileId;
       const receipt = guest.waitForResponse(r => new URL(r.url()).pathname === "/api/online-files/report");
       await reason.press("Enter");
