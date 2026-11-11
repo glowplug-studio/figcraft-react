@@ -58,7 +58,7 @@ export class BrowserInvitations implements OnlineInvitations {
     await navigator.clipboard.writeText(location.origin + "/#join=" + encodeURIComponent(link));
   }
 
-  async joinOwned(file: string) {
+  async joinOwned(file: string, managedByKey = false) {
     const links = await this.device.readPublishedLinks(this.principal, this.server, file);
     if (!links) return undefined;
     const connection = crypto.randomUUID();
@@ -67,7 +67,7 @@ export class BrowserInvitations implements OnlineInvitations {
       const {access, bytes} = await this.redeem(connection, {file, token});
       if (access !== "edit") throw new Error("The original edit link is unavailable");
       this.tabs.set(connection, {file, token, physical: connection, ended: false});
-      return {session: {file, connection, access, openedAsOwner: true as const}, archive: bytes};
+      return {session: {file, connection, access, ...(!managedByKey && {openedAsOwner: true as const})}, archive: bytes};
     } catch (error) {
       void this.release(connection).catch(() => undefined);
       throw error;

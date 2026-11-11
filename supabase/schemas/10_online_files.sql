@@ -2,11 +2,11 @@
 -- The validator inserts the listing after decoding the uploaded archive.
 create table public.online_files (
     id uuid primary key,
-    owner_id uuid not null references auth.users (id) on delete cascade,
+    owner_id uuid references auth.users (id) on delete cascade,
     snapshot_id uuid not null unique references storage.objects (id) on delete cascade,
     published_link_fingerprint text check (published_link_fingerprint ~ '^[0-9a-f]{64}$'),
     name text not null check (char_length(name) <= 256),
-    published_without_key boolean not null default true,
+    published_without_key boolean not null default true check (owner_id is not null or not published_without_key),
     document_updated_at timestamptz,
     created_at timestamptz not null default now()
 );

@@ -231,6 +231,91 @@ if (hourlyFixture || process.env.FIGCRAFT_E2E_RETAINED_LIMIT === "1") {
   });
 }
 
+if (!process.env.PLAYWRIGHT_BASE_URL) test("recovers a private keyed publication into a live tab without an owner listing", async ({page}) => {
+  test.setTimeout(90_000);
+  await login(page);
+  if (!backend || !userId) throw new Error("Operator publication requires the local test host");
+  const key = randomUUID(), name = "Private drawing " + randomUUID();
+  const sql = (query: string) => localOperatorSql(backend!,query,{digest:createHash("sha256").update(key).digest("hex")});
+  const bar = page.locator(".figcraft-document-bar");
+  const panel = page.getByRole("region",{name:"Online files",exact:true});
+  const endpoint = "**/api/online-files";
+  let id: string | undefined;
+  let secretInUrl = false;
+  page.on("request",r => { secretInUrl ||= r.url().includes(key); });
+  sql("insert into figcraft_private.online_publication_policy(open_publish, server_key_sha256) values(false, :'digest')");
+  try {
+    await page.getByRole("button",{name:"Create rectangle",exact:true}).click();
+    await bar.getByText("File",{exact:true}).click();
+    await bar.getByRole("button",{name:"Publish to server…"}).click();
+    const form = page.getByRole("dialog",{name:"Publish to server"});
+    const submit = form.getByRole("button",{name:"Publish",exact:true});
+    await form.getByLabel("File name").fill(name);
+    await submit.click();
+    await expect(form.getByRole("alert")).toContainText("only from people who have its key");
+    const field = form.getByLabel("Server key");
+    await expect(field).toHaveAttribute("type","password");
+    await field.fill("wrong");
+    await submit.click();
+    await expect(form.getByRole("alert")).toHaveText("Wrong server key");
+    sql("update figcraft_private.online_publication_policy set open_publish=true");
+    await submit.click();
+    await expect(form.getByRole("alert")).toContainText("open to the public");
+    await field.fill(key.slice(0,8) + " " + key.slice(8));
+    expect(await field.inputValue() === key).toBe(true);
+    await page.route(endpoint,async route => {
+      id = route.request().postDataJSON().id;
+      const receipt = await route.fetch();
+      expect(receipt.status()).toBe(200);
+      await route.fulfill({status:503,json:{error:"Interrupted receipt"}});
+    });
+    await submit.click();
+    await expect(form.getByRole("alert")).toContainText("could not be published");
+    await page.unroute(endpoint);
+    sql("update figcraft_private.online_publication_policy set open_publish=false");
+    await page.reload();
+    await bar.getByRole("button",{name:"Home",exact:true}).click();
+    await page.getByRole("button",{name:"Online",exact:true}).click();
+    await panel.getByLabel("Actions for " + name).click();
+    await expect(panel.getByLabel("Server key")).toHaveValue("");
+    await panel.getByRole("button",{name:"Retry publication"}).click();
+    await expect(panel.getByRole("alert")).toContainText("Enter the server key");
+    await panel.getByLabel("Server key").fill(key);
+    await panel.getByRole("button",{name:"Retry publication"}).click();
+    await expect(bar.getByRole("heading",{name,exact:true})).toBeVisible();
+    await expect(bar.getByText(/Can edit/)).toBeVisible();
+    await expect(page.getByRole("region",{name:"Layers"}).getByRole("button",{name:"Rectangle",exact:true})).toBeVisible();
+    await bar.getByText("Share",{exact:true}).click();
+    const advanced = bar.getByText("Advanced",{exact:true});
+    await advanced.click();
+    await bar.getByLabel("Server key").fill("revoked");
+    await advanced.click();
+    await bar.getByRole("button",{name:"Start sharing",exact:true}).click();
+    await expect(bar.getByText("Wrong server key",{exact:true})).toBeVisible();
+    await advanced.click();
+    await bar.getByLabel("Server key").fill(key);
+    await advanced.click();
+    await bar.getByRole("button",{name:"Start sharing",exact:true}).click();
+    await expect(bar.getByRole("button",{name:"Stop sharing"})).toBeEnabled();
+    await bar.getByRole("button",{name:"Stop sharing"}).click();
+    await expect(bar.getByRole("button",{name:"Start sharing",exact:true})).toBeEnabled();
+    await bar.getByText("Share",{exact:true}).click();
+    await bar.getByRole("button",{name:"Home",exact:true}).click();
+    await page.getByRole("button",{name:"Online",exact:true}).click();
+    await expect(panel.getByText("Nothing online yet.")).toBeVisible();
+    expect(secretInUrl).toBe(false);
+  } finally {
+    sql("delete from figcraft_private.online_publication_policy where server_key_sha256=:'digest'");
+    if (id) {
+      const storage = backend.admin.storage.from("figcraft-files");
+      const prefix = "operator/" + id;
+      const copies = await storage.list(prefix);
+      if (copies.error) throw copies.error;
+      expect((await storage.remove([userId + "/" + id + ".figcraft",...copies.data.map(row => prefix + "/" + row.name)])).error).toBeNull();
+    }
+  }
+});
+
 test("publish, reopen and manage a device-owned file in Home Online", async ({ page, browser }) => {
   test.setTimeout(90_000);
   await login(page);

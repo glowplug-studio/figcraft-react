@@ -1,6 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createPublishedLinks, isPublishedLinkDigests, publishedLinkDigests, type PublishedLinkDigests } from "../published-links";
-import { validateOnlineSnapshot } from "../../engine/sharing/publication";
+import { PUBLIC_FILE_BYTES, validateOnlineSnapshot } from "../../engine/sharing/publication";
 import { onlineFileInfo, onlineSnapshotPath } from "./online-files";
 
 /** Only the trusted host supplies these overrides. PostgreSQL owns the native defaults. */
@@ -14,6 +14,7 @@ export interface PublicationCapacity {
 }
 
 export class PublicationCapacityError extends Error {}
+export class PublicationKeyError extends Error {}
 export class PublicationRateError extends Error {
   constructor() { super("Too many files published from your address lately: try again in an hour"); }
 }
@@ -54,6 +55,10 @@ export async function finaliseOnlineFile(user: SupabaseClient, writer: SupabaseC
   const object = await storage.info(path);
   if (object.error) throw object.error;
   if (links !== undefined && !isPublishedLinkDigests(links)) throw new Error("Invalid published links");
+  const host = await user.rpc("online_host_information",{target:null})
+    .single<{open_publish?:boolean;file_mb?:number}>();
+  if (host.error) throw host.error;
+  const fileLimit = host.data.file_mb === undefined ? PUBLIC_FILE_BYTES : host.data.file_mb * 1024 * 1024;
   const { publishes_per_hour, ...retained } = capacity;
   const readPrior = async () => {
     const prior = await user.from("online_files").select("name").eq("id", id)
@@ -63,6 +68,7 @@ export async function finaliseOnlineFile(user: SupabaseClient, writer: SupabaseC
   };
   let prior = await readPrior();
   if (!prior) {
+    if (host.data.open_publish === false) throw new PublicationKeyError("This server takes files only from people who have its key");
     const admitted = await writer.rpc("admit_online_publication", {
       address: capacity.address, ...(publishes_per_hour !== undefined && {hourly: publishes_per_hour}),
     });
@@ -79,7 +85,7 @@ export async function finaliseOnlineFile(user: SupabaseClient, writer: SupabaseC
   else {
     const download = await storage.download(path);
     if (download.error) throw download.error;
-    const validated = await validateOnlineSnapshot(download.data, id);
+    const validated = await validateOnlineSnapshot(download.data, id, fileLimit);
     name = validated.name;
     measured = validated.snapshotBytes;
   }
@@ -98,4 +104,47 @@ export async function finaliseOnlineFile(user: SupabaseClient, writer: SupabaseC
     if (reply.error.code !== "FC001") throw reply.error;
     await measurePriorPublications(writer);
   }
+}
+
+export class OperatorRateError extends Error {}
+
+/** Only a trusted, key-authenticated host may call this with its privileged writer. */
+export async function finaliseOperatorFile(user: SupabaseClient, writer: SupabaseClient, id: string,
+  links: PublishedLinkDigests, capacity: PublicationCapacity, maxFileMb: number) {
+  const claims = await user.auth.getClaims();
+  const actor = claims.data?.claims.sub;
+  if (claims.error || !actor) throw new Error("Sign in to publish a file");
+  const readPrior = async () => {
+    const {data,error} = await writer.from("online_files").select("published_without_key").eq("id",id).maybeSingle();
+    if (error) throw error;
+    if (data?.published_without_key) throw new Error("The file already has a different publication receipt");
+    return data;
+  };
+  let prior = await readPrior();
+  if (!prior) {
+    const admission = await writer.rpc("admit_keyed_publication",{address:capacity.address});
+    if (admission.error) throw admission.error;
+    if (admission.data !== true) {
+      prior = await readPrior();
+      if (!prior) throw new OperatorRateError("Too many changes to this server's files from your address: wait a minute and try again");
+    }
+  }
+  const upload = await user.storage.from("figcraft-files").download(onlineSnapshotPath(actor,id));
+  if (upload.error) throw upload.error;
+  const archive = upload.data;
+  const validated = await validateOnlineSnapshot(archive,id,prior ? Infinity : maxFileMb * 1024 * 1024);
+  const checksum = new Uint8Array(await crypto.subtle.digest("SHA-256",await archive.arrayBuffer()));
+  const hash = Array.from(checksum,b => b.toString(16).padStart(2,"0")).join("");
+  const destination = "operator/" + id + "/" + hash + ".figcraft";
+  const bucket = writer.storage.from("figcraft-files");
+  const saved = await bucket.upload(destination,archive,{upsert:false,contentType:"application/octet-stream"});
+  if (saved.error && saved.error.status !== 409 && saved.error.statusCode !== "Duplicate" && saved.error.statusCode !== "409") throw saved.error;
+  const snapshot = saved.data?.id ?? (await bucket.info(destination)).data?.id;
+  if (!snapshot) throw new Error("Operator archive is unavailable");
+  const result = await writer.rpc("keep_operator_publication",{target:id,snapshot,title:validated.name,links,
+    measured:validated.snapshotBytes,...(capacity.max_files === undefined ? {} : {max_files:capacity.max_files})})
+    .single<{id:string;name:string;created_at:string}>();
+  if (result.error?.code === "FC002") throw new PublicationCapacityError(result.error.message);
+  if (result.error) throw result.error;
+  return {id:result.data.id,name:result.data.name,created:result.data.created_at,expires:null,managedByKey:true as const};
 }

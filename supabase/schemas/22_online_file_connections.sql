@@ -51,8 +51,8 @@ begin
         and c.session_id = auth_session and c.principal_id = actor) then
         raise exception 'the connection is unavailable' using errcode = '42501';
     end if;
-    return query select chosen.access_level, f.owner_id::text || '/' || f.id::text || '.figcraft'
-        from public.online_files f where f.id = target;
+    return query select chosen.access_level, o.name
+        from public.online_files f join storage.objects o on o.id=f.snapshot_id where f.id=target;
 end;
 $$;
 revoke all on function public.join_online_file(uuid,uuid,uuid,uuid,text) from public, anon, authenticated;

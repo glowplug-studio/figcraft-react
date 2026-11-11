@@ -7,7 +7,7 @@ import { createClient, type RealtimeChannel } from "@supabase/supabase-js";
 import { unzipSync } from "fflate";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { SupabaseOnlineFileStore } from "../../src/backends/supabase/online-files";
-import { finaliseOnlineFile } from "../../src/backends/supabase/publication";
+import { finaliseOnlineFile, finaliseOperatorFile } from "../../src/backends/supabase/publication";
 import { applyOwnerSharing, changeFileLinks, ownerSharingStatus } from "../../examples/nextjs/lib/sharing/links";
 import { readSharedDrawing } from "../../examples/nextjs/lib/sharing/join";
 import { lookupCode } from "../../examples/nextjs/lib/sharing/code-lookup";
@@ -84,6 +84,43 @@ describe.skipIf(!enabled)("private online files on real local Supabase", () => {
     expect(new Uint8Array(await downloaded.arrayBuffer())).toEqual(archive);
     await store.remove(id);
     await expect(store.open(id)).rejects.toThrow("no longer on its server");
+  });
+
+  it("retains operator files and live grants after deleting the uploading account", async () => {
+    const uploader = await account(), writer = local!.admin, file = randomUUID();
+    const links = createPublishedLinks(), proof = await publishedLinkDigests(links);
+    const capacity = {address:fixtureIngress + "::1"};
+    const stage = uploader.id + "/" + file + ".figcraft";
+    const stored = "operator/" + file + "/" + createHash("sha256").update(archive).digest("hex") + ".figcraft";
+    paths.push(stage,stored);
+    const store = new SupabaseOnlineFileStore(uploader.client,uploader.id,
+      id => finaliseOperatorFile(uploader.client,writer,id,proof,capacity,64));
+    const blob = new Blob([archive]);
+    const [one,two] = await Promise.all([store.publish(file,blob),store.publish(file,blob)]);
+    expect(one).toEqual(two);
+    expect(one).toMatchObject({id:file,managedByKey:true,expires:null});
+    expect(await store.owned([file])).toEqual([]);
+    expect((await uploader.client.storage.from(bucket).download(stored)).error).toBeTruthy();
+    await expect(finaliseOperatorFile(uploader.client,writer,file,await publishedLinkDigests(createPublishedLinks()),capacity,64))
+      .rejects.toMatchObject({code:"22023"});
+    await expect(ownerSharingStatus(writer,uploader.id,file)).rejects.toThrow("unavailable");
+    const state = await ownerSharingStatus(writer,null,file);
+    expect(state.ids.sort()).toEqual([links.edit.id,links.view.id].sort());
+    const shared = await applyOwnerSharing(writer,null,file,null,randomUUID(),[],createHash("sha256").update(randomUUID()).digest("hex"),capacity.address);
+    expect(shared).toHaveLength(3);
+    const disposed = await uploader.client.storage.from(bucket).remove([stage,stored]);
+    expect(disposed.error).toBeNull();
+    expect(disposed.data?.map(object => object.name)).toEqual([stage]);
+    expect((await writer.auth.admin.deleteUser(uploader.id)).error).toBeNull();
+    users.splice(users.indexOf(uploader.id),1);
+    const session = (await stranger.client.auth.getClaims()).data!.claims.session_id as string;
+    for (const level of ["edit","view"] as const) {
+      const joined = await readSharedDrawing(stranger.client,writer,stranger.id,session,randomUUID(),file,links[level].token);
+      expect(joined.access).toBe(level);
+      expect(new Uint8Array(await joined.bytes.arrayBuffer())).toEqual(archive);
+    }
+    expect((await writer.storage.from(bucket).remove([stored])).error).toBeNull();
+    expect((await writer.from("online_files").select("id").eq("id",file)).data).toEqual([]);
   });
 
   it("atomically issues, rotates and revokes scoped file links without persisting bearer secrets", async () => {
@@ -493,7 +530,7 @@ describe.skipIf(!enabled)("private online files on real local Supabase", () => {
       if (result.error) throw result.error;
       return result.data;
     };
-    expect(await hosting()).toEqual({idle_seconds:"2592000",expires:null,operator_contact:"",terms_url:"",accepts_reports:true});
+    expect(await hosting()).toEqual({idle_seconds:"2592000",expires:null,operator_contact:"",terms_url:"",accepts_reports:true,open_publish:true,file_mb:16});
     const first = await join(keys.view.token);
     expect((await hosting()).expires).toMatch(/^\d+$/);
     expect(first.access).toBe("view");

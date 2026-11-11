@@ -1,5 +1,5 @@
 import { OwnerShareControls } from "./OwnerShareControls";
-import { OnlineFilesPanel, OnlineHostingInformation, PublishOnlineDialog } from "./OnlineFilesPanel";
+import { OnlineFilesPanel, OnlineHostingInformation, PublishOnlineDialog, ServerKeyField } from "./OnlineFilesPanel";
 import { OnlineWorkspace } from "./engine/sharing/online-workspace";
 import type { GuestConnectionStatus, GuestSessionEnd, OnlineInvitations, OnlineWorkspaceHost } from "./backends/online-files";
 import { defaultPrint, type PrintSettings } from "./engine/export-settings";
@@ -123,7 +123,10 @@ export function WorkspaceEditor({ identity, capabilities, recoveryStore, onlineH
     }
     const current = workspace.getSnapshot().find(item => item.id === id);
     if (current?.dirty && !current.branchId && !force) { setCloseId(id); return; }
-    if (current) workspace.execute("file.close", { index: current.index, force });
+    if (current) {
+      workspace.execute("file.close", { index: current.index, force });
+      if (!workspace.getSnapshot().some(item => item.id === id)) online?.leaveTab(id);
+    }
     setCloseId(undefined);
   };
   const leave = async () => {
@@ -133,6 +136,9 @@ export function WorkspaceEditor({ identity, capabilities, recoveryStore, onlineH
   };
   const shareMenu = enabled && active && online && (!guest || managing) && (online.sharing || (invitations && publishedId)) && <details name={menuGroup} className="figcraft-bar-menu"
     onToggle={event => setOpenShareTab(event.currentTarget.open ? active.id : undefined)}><summary>Share</summary><div className="figcraft-menu-items">
+    {online.supportsServerKey && openShareTab === active.id && <details><summary>Advanced</summary>
+      <ServerKeyField online={online} />
+    </details>}
     {online.sharing && openShareTab === active.id && <OwnerShareControls sharing={online.sharing} file={publishedId}
       publish={async () => (await online.publish(active.id, active.name)).id} published={() => setNotice("Published " + active.name)} />}
     {invitations && <button type="button" onClick={event => {

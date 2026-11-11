@@ -61,17 +61,18 @@ begin
         raise exception 'invalid idle period' using errcode = '22023';
     end if;
     perform pg_advisory_xact_lock(650130, 3);
-    -- Match Storage deletion's object-before-listing order. Only Figcraft's
-    -- immutable owner/UUID namespace participates in staging recovery.
-    select o.* into obj from storage.objects o where o.id = target
-        and o.bucket_id = 'figcraft-files' and o.owner_id is not null
-        and split_part(o.name,'/',1) = o.owner_id
-        and o.name ~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}[.]figcraft$'
+    -- Eligible objects occupy one of the two immutable publication namespaces.
+    select o.* into obj from storage.objects o where o.id=target and o.bucket_id='figcraft-files' and (
+        (o.owner_id is not null and split_part(o.name,'/',1)=o.owner_id and
+         o.name ~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}[.]figcraft$') or
+        (o.owner_id is null and
+         o.name ~ '^operator/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/[0-9a-f]{64}[.]figcraft$'))
         for key share;
     if not found then return; end if;
     if not exists(select from figcraft_private.online_retirements where snapshot_id = target) then
         select f.* into listing from public.online_files f where f.snapshot_id = target;
         if found then
+            if not listing.published_without_key then return; end if;
             if obj.name <> (listing.owner_id::text || '/' || listing.id::text || '.figcraft') then return; end if;
             delete from public.online_file_connections where file_id = listing.id
                 and heard_at <= figcraft_private.connection_cutoff();
@@ -96,7 +97,7 @@ begin
     end if;
     secret := encode(extensions.gen_random_bytes(32),'hex');
     insert into figcraft_private.online_retirements(snapshot_id, owner_id, token_hash)
-        values(target, obj.owner_id, sha256(convert_to(secret,'UTF8')))
+        values(target, coalesce(obj.owner_id,'operator'), sha256(convert_to(secret,'UTF8')))
         on conflict(snapshot_id) do update set token_hash=excluded.token_hash;
     return query select obj.name, secret;
 end;

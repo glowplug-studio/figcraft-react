@@ -43,7 +43,7 @@ begin
     if jsonb_array_length(new_links) not in (0,3) then raise exception 'invalid sharing change' using errcode='22023'; end if;
     -- Reports hold file/key-share before spending admission credit. Exclude
     -- that lock before taking the budget lock and later revoking guest links.
-    perform 1 from public.online_files f where f.id=target and f.owner_id=actor for update;
+    perform 1 from public.online_files f where f.id=target and f.owner_id is not distinct from actor for update;
     if not found then raise exception 'this file is unavailable' using errcode='42501'; end if;
     select c.revision into current_revision from public.online_file_share_changes c where c.file_id=target;
     if current_revision is distinct from revision and current_revision is not distinct from expected then

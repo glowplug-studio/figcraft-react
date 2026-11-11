@@ -53,7 +53,7 @@ export function readOnlineRegistry(stored: unknown): OnlineFileRegistry {
       const identity = key + "?" + file;
       if (seen.has(identity)) continue;
       seen.add(identity);
-      pending.push({ server: key, file, name, started, snapshot });
+      pending.push({ server: key, file, name, started, snapshot, ...(item.requiresKey === true && {requiresKey:true}) });
     }
   }
   return { files, pending };

@@ -18,7 +18,7 @@ function initialSessionId(file: string) {
 
 async function publicationSize(document: Document, file: string, limit = PUBLIC_FILE_BYTES) {
   const size = await measureDocumentSnapshot(document, initialSessionId(file), limit);
-  if (size > limit) throw new Error("This server keeps files up to 16 MiB");
+  if (size > limit) throw new Error("This server keeps files up to " + (limit / (1024 * 1024)) + " MiB");
   return size;
 }
 
@@ -29,10 +29,10 @@ export function cleanOnlineName(value: string): string {
 }
 
 /** Publish the current document. Private version and branch histories stay on the device. */
-export async function prepareOnlineSnapshot(document: Document, nextId: bigint, file: string, requestedName = "") {
+export async function prepareOnlineSnapshot(document: Document, nextId: bigint, file: string, requestedName = "", limit = PUBLIC_FILE_BYTES) {
   const name = cleanOnlineName(requestedName) || cleanOnlineName(document.name);
   const published = { ...document, name };
-  await publicationSize(published, file);
+  await publicationSize(published, file, limit);
   const archive = await encodeFigcraftBlob(published, String(nextId));
   if (archive.size > ONLINE_ARCHIVE_BYTES) throw new Error("The uploaded archive exceeds the 50 MiB transfer limit");
   return archive;

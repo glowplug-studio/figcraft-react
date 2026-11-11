@@ -2,7 +2,7 @@
 
 import "@glowplug-studio/figcraft-react/fonts.css";
 import { useEffect, useRef, useState } from "react";
-import { WorkspaceEditor, FigcraftRoot, IndexedDbRecoveryStore, type OnlineWorkspaceHost, type IdentitySnapshot, type DocumentCapability } from "@glowplug-studio/figcraft-react";
+import { WorkspaceEditor, FigcraftRoot, IndexedDbRecoveryStore, type OnlineWorkspaceHost, type DeviceOwnerSharing, type IdentitySnapshot, type DocumentCapability } from "@glowplug-studio/figcraft-react";
 import { SupabaseIdentityAdapter, SupabaseOnlineFileStore, publishedLinkDigests, watchSupabaseGuest } from "@glowplug-studio/figcraft-react/backends/supabase";
 import { BrowserOwnerSharing } from "../lib/sharing/owner-sharing";
 import { BrowserInvitations } from "../lib/sharing/browser-invites";
@@ -26,23 +26,39 @@ export function EditorHost({ identity }: { identity: Extract<IdentitySnapshot, {
     const next = new SupabaseIdentityAdapter(getBrowserSupabase().auth, identity);
     const store = new IndexedDbRecoveryStore();
     const server = supabaseConfig().url.replace(/\/+$/, "");
-    const files = new SupabaseOnlineFileStore(getBrowserSupabase(), identity.principal.id, async id => {
-      const links = await publishedLinkDigests(await store.publicationLinks(identity.principal.id, server, id));
+    let currentKey = "";
+    const operators = new Map<string, {pair: Awaited<ReturnType<typeof store.publicationLinks>>;
+      sharing: DeviceOwnerSharing}>();
+    const sharing = new BrowserOwnerSharing({
+      ownerSharing: async (principal,address,file,update) => {
+        const operator = operators.get(file);
+        if (!operator) return store.ownerSharing(principal,address,file,update);
+        if (update) operator.sharing = update(operator.sharing);
+        return operator.sharing;
+      },
+    }, identity.principal.id, server, file => operators.has(file) ? currentKey : undefined);
+    const files = new SupabaseOnlineFileStore(getBrowserSupabase(), identity.principal.id, async (id,serverKey) => {
+      const pair = await store.publicationLinks(identity.principal.id,server,id);
+      const links = await publishedLinkDigests(pair);
       const response = await fetch("/api/online-files", {
-        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, links }),
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, links, ...(serverKey && {serverKey}) }),
       });
       if (!response.ok) {
-        const reason = response.status === 409 || response.status === 429 ? await response.json().catch(() => null) : null;
+        const reason = [403,409,429].includes(response.status) ? await response.json().catch(() => null) : null;
         throw new Error(typeof reason?.error === "string" ? reason.error : "The online file could not be published");
       }
-      return response.json();
+      const receipt = await response.json();
+      if (serverKey && receipt?.managedByKey === true) operators.set(id, {pair, sharing:operators.get(id)?.sharing ?? {links:[]}});
+      return receipt;
     });
-    const invites = new BrowserInvitations(store, identity.principal.id, server,
+    const invites = new BrowserInvitations({
+      readPublishedLinks: async (principal,address,file) => operators.get(file)?.pair ?? store.readPublishedLinks(principal,address,file),
+    }, identity.principal.id, server,
       (connection, ended) => watchSupabaseGuest(getBrowserSupabase(), connection, ended), () => {
       setJoinError(""); joinDialog.current?.showModal();
     }, setError, file => files.resolveTeamFile(file));
     setInviteHost(invites);
-    setOnline({ server, store: files, device: store, invitations: invites, sharing: new BrowserOwnerSharing(store, identity.principal.id, server) });
+    setOnline({ server, supportsServerKey:true, serverKeyChanged:key => { currentKey = key; }, releasePublished:file => { operators.delete(file); }, store: files, device: store, invitations: invites, sharing });
     setRecovery(store);
     setAdapter(next);
     const unsubscribe = next.subscribe(snapshot => {

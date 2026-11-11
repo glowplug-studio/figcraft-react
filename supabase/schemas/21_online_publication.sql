@@ -23,10 +23,10 @@ begin
         raise exception 'invalid published links' using errcode = '22023';
     end if;
 
-    insert into public.online_files (id, owner_id, snapshot_id, name)
-        values (target, actor, snapshot, title) on conflict on constraint online_files_pkey do nothing;
+    insert into public.online_files (id, owner_id, snapshot_id, name, published_without_key)
+        values (target, actor, snapshot, title, actor is not null) on conflict on constraint online_files_pkey do nothing;
     select f.* into strict listing from public.online_files f
-        where f.id = target and f.owner_id = actor and f.snapshot_id = snapshot for no key update;
+        where f.id = target and f.owner_id is not distinct from actor and f.snapshot_id = snapshot for no key update;
 
     -- Rebuild the input before hashing. Only the accepted ID and digest fields participate.
     select jsonb_object_agg(role, jsonb_build_object('id', links->role->>'id', 'hash', links->role->>'hash')),

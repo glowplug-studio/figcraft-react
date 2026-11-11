@@ -28,7 +28,7 @@ export class SupabaseOnlineFileStore implements OnlineFileStore {
   constructor(
     private client: SupabaseClient,
     private principal: string,
-    private finalise: (id: string) => Promise<OnlineFileInfo>,
+    private finalise: (id: string, serverKey?:string) => Promise<OnlineFileInfo>,
   ) {}
 
   async teamDirectory() {
@@ -55,14 +55,14 @@ export class SupabaseOnlineFileStore implements OnlineFileStore {
 
   async hosting(file?: string) {
     const result = await this.client.rpc("online_host_information", {target: file ?? null})
-      .single<{idle_seconds: string; expires: string | null; operator_contact?: string; terms_url?: string; accepts_reports?: boolean}>();
+      .single<{idle_seconds: string; expires: string | null; operator_contact?: string; terms_url?: string; accepts_reports?: boolean; open_publish?: boolean; file_mb?: number}>();
     if (result.error) throw result.error;
     const info = result.data;
     return {idleSeconds: info.idle_seconds, expires: info.expires, operator: info.operator_contact,
-      terms: info.terms_url, reports: info.accepts_reports === true, open: true, maxFileMb: PUBLIC_FILE_BYTES / (1024 * 1024)};
+      terms: info.terms_url, reports: info.accepts_reports === true, open: info.open_publish ?? true, maxFileMb: info.file_mb ?? PUBLIC_FILE_BYTES / (1024 * 1024)};
   }
 
-  async publish(id: string, snapshot: Blob) {
+  async publish(id: string, snapshot: Blob, serverKey?:string) {
     const path = onlineSnapshotPath(this.principal, id);
     const storage = this.client.storage.from(bucket);
     const uploaded = await storage.upload(path, snapshot, { contentType: "application/octet-stream", upsert: false });
@@ -72,7 +72,7 @@ export class SupabaseOnlineFileStore implements OnlineFileStore {
       if (previous.error) throw previous.error;
       if (!await sameBytes(previous.data, snapshot)) throw new Error("This publication ID already has a different snapshot");
     }
-    return this.finalise(id);
+    return this.finalise(id,serverKey);
   }
 
   async owned(ids: readonly string[]) {

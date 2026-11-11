@@ -41,7 +41,7 @@ export class AdminRateError extends Error {}
 
 /** Rebuild the exact receipt after a lost response; only the issuer holds the random seed. */
 
-export async function applyOwnerSharing(writer: SupabaseClient, owner: string, file: string,
+export async function applyOwnerSharing(writer: SupabaseClient, owner: string | null, file: string,
   expected: string | null, revision: string, revoke: readonly string[], seed: string | null, address: string) {
   const before = await ownerSharingStatus(writer, owner, file);
   if (seed !== null && !/^[0-9a-f]{64}$/.test(seed)) throw new Error("Invalid sharing credential");
@@ -70,9 +70,10 @@ export async function applyOwnerSharing(writer: SupabaseClient, owner: string, f
   return links.map(link => link.receipt);
 }
 
-export async function ownerSharingStatus(writer: SupabaseClient, owner: string, file: string) {
-  const response = await writer.from("online_files")
-    .select("id, online_file_share_changes(revision), online_file_links(id,label)").eq("id", file).eq("owner_id", owner)
+export async function ownerSharingStatus(writer: SupabaseClient, owner: string | null, file: string) {
+  const query = writer.from("online_files")
+    .select("id, online_file_share_changes(revision), online_file_links(id,label)").eq("id", file);
+  const response = await (owner === null ? query.is("owner_id", null) : query.eq("owner_id", owner))
     .maybeSingle<{id: string; online_file_share_changes: {revision: string} | null; online_file_links: {id: string; label: string}[]}>();
   if (response.error) throw response.error;
   if (!response.data) throw new Error("The file is unavailable");

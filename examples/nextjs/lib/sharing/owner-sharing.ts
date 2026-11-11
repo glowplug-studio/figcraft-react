@@ -7,19 +7,24 @@ const summary = (row: DeviceOwnerSharing): OwnerShareSummary => ({
   ...(row.pending && {pending: row.pending.seed === null ? "stop" : "start"}),
 });
 
-async function post(file: string, body: Record<string, unknown>) {
-  return fetch("/api/online-files/sharing", {method: "POST", headers: {"Content-Type": "application/json"},
-    body: JSON.stringify({file, ...body})});
-}
-
 export class BrowserOwnerSharing implements OnlineOwnerSharing {
-  constructor(private device: IndexedDbRecoveryStore, private principal: string, private server: string) {}
+  constructor(private device: Pick<IndexedDbRecoveryStore,"ownerSharing">, private principal: string,
+    private server: string, private operatorKey?: (file: string) => string | undefined) {}
+
+  private post(file: string, body: Record<string, unknown>) {
+    const serverKey = this.operatorKey?.(file);
+    return fetch("/api/online-files/sharing", {method: "POST", headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({file, ...body, ...(serverKey !== undefined && {serverKey})})});
+  }
   private record(file: string, update?: (row: DeviceOwnerSharing) => DeviceOwnerSharing) {
     return this.device.ownerSharing(this.principal, this.server, file, update);
   }
   private async status(file: string) {
-    const response = await post(file, {action: "status"});
-    if (!response.ok) throw new Error("The file is unavailable");
+    const response = await this.post(file, {action: "status"});
+    if (!response.ok) {
+      const reason = response.status === 403 ? await response.json().catch(() => null) : null;
+      throw new Error(typeof reason?.error === "string" ? reason.error : "The file is unavailable");
+    }
     const state: {revision: string | null; ids: string[]} = await response.json();
     return state;
   }
@@ -36,7 +41,7 @@ export class BrowserOwnerSharing implements OnlineOwnerSharing {
     return summary(row);
   }
   private async submit(file: string, pending: PendingSharingChange) {
-    const response = await post(file, {action: "change", ...pending});
+    const response = await this.post(file, {action: "change", ...pending});
     if (!response.ok) {
       if (response.status === 429) {
         const refusal = await response.json().catch(() => null);

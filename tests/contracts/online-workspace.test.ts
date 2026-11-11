@@ -311,3 +311,14 @@ it("formats native UTC minutes throughout the unsigned server clock range", () =
   expect(serverUtcDate("951782400")).toBe("2000-02-29 00:00 UTC");
   expect(serverUtcDate("18446744073709551615")).toBe("584554051223-11-09 07:00 UTC");
 });
+
+it("bounds a server key by Unicode scalars and forgets it across workspaces", () => {
+  const {workspace,host} = setup();
+  const first = new OnlineWorkspace(workspace,{...host,supportsServerKey:true},"owner",() => true);
+  const second = new OnlineWorkspace(workspace,{...host,server:"https://another.example"},"owner",() => true);
+  first.setServerKey(" \u0001\u00a0secret\u0085" + "🚢".repeat(160));
+  expect(first.serverKey).toBe("secret" + "🚢".repeat(122));
+  expect(second.serverKey).toBe("");
+  first.setServerKey("\n\t\u009f");
+  expect(first.serverKey).toBe("");
+});

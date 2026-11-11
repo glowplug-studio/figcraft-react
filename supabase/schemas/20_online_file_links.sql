@@ -34,7 +34,7 @@ as $$
 declare
     retained bigint;
 begin
-    perform 1 from public.online_files where id = target and owner_id = actor for no key update;
+    perform 1 from public.online_files where id = target and owner_id is not distinct from actor for no key update;
     if not found then
         raise exception 'this file is unavailable' using errcode = '42501';
     end if;

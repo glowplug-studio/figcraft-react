@@ -4,7 +4,7 @@ import type { EditorWorkspace } from "../workspace";
 import { cleanOnlineName, prepareOnlineSnapshot } from "./publication";
 import { MAX_ONLINE_FILES, onlineServerKey } from "./remembered-files";
 
-export type OnlineRow = RememberedOnlineFile & { expires?: string | null; state: "unknown" | "online" | "gone" | "pending" };
+export type OnlineRow = RememberedOnlineFile & { requiresKey?:true; expires?: string | null; state: "unknown" | "online" | "gone" | "pending" };
 
 export class OnlineWorkspace {
   readonly server: string;
@@ -13,11 +13,19 @@ export class OnlineWorkspace {
   private tabs = new Map<string, number>();
   private publishingTabs = new Map<number, string>();
   private operation = false;
+  private key = "";
 
   constructor(private workspace: EditorWorkspace, private host: OnlineWorkspaceHost,
     private principal: string, private authorised: () => boolean) {
     this.server = onlineServerKey(host.server);
     if (!this.server) throw new Error("Invalid online server address");
+  }
+
+  get supportsServerKey() { return this.host.supportsServerKey === true; }
+  get serverKey() { return this.key; }
+  setServerKey(value: string) {
+    this.key = [...value.replace(/[\p{White_Space}\p{Cc}]/gu,"")].slice(0,128).join("");
+    this.host.serverKeyChanged?.(this.key);
   }
 
   get hasHostingInfo() { return !!this.host.store.hosting; }
@@ -33,22 +41,23 @@ export class OnlineWorkspace {
 
   private bindTab(file: string, tab: number) {
     const previous = this.publishedFile(tab);
-    if (previous) this.tabs.delete(previous);
+    if (previous && previous !== file) this.leaveTab(tab);
     this.tabs.set(file, tab);
   }
 
-  private async attachPublished(file: string, tabId: number) {
+  private async attachPublished(file: string, tabId: number, managedByKey = false) {
     const invitations = this.host.invitations;
-    const joined = await invitations?.joinOwned?.(file);
+    const joined = await invitations?.joinOwned?.(file, managedByKey);
     if (!joined) {
       this.check();
+      if (managedByKey) throw new Error("The original edit link is unavailable");
       this.bindTab(file, tabId);
       return;
     }
     try {
       this.check();
       const previous = this.workspace.getSnapshot().find(tab => tab.id === tabId)?.guest;
-      if (!this.workspace.attachGuestSession(tabId, joined.session)) return;
+      if (!this.workspace.attachGuestSession(tabId, joined.session)) throw new Error("The source file closed");
       this.bindTab(file, tabId);
       if (previous) await invitations!.leave(previous.connection);
     } finally {
@@ -60,7 +69,11 @@ export class OnlineWorkspace {
 
   leaveTab(id: number) {
     const file = this.publishedFile(id);
-    if (file) this.tabs.delete(file);
+    if (file) {
+      this.tabs.delete(file);
+      this.host.releasePublished?.(file);
+    }
+    this.publishingTabs.delete(id);
   }
 
   async teamDirectory() {
@@ -116,8 +129,8 @@ export class OnlineWorkspace {
     const { files, pending } = await this.registry();
     this.check();
     return [
-      ...pending.filter(row => row.server === this.server).map(({ server, file, name, started }) => ({
-        server, file, name, created: started, opened: started, state: "pending" as const,
+      ...pending.filter(row => row.server === this.server).map(({ server, file, name, started, requiresKey }) => ({
+        server, file, name, ...(requiresKey && {requiresKey}), created: started, opened: started, state: "pending" as const,
       })),
       ...files.filter(row => row.server === this.server).map(row => ({
         ...row, expires: this.expiries.get(row.file), state: this.states.get(row.file) ?? "unknown" as const,
@@ -149,7 +162,7 @@ export class OnlineWorkspace {
         const recovered: RememberedOnlineFile[] = [];
         const pending = current.pending.filter(attempt => {
           const listing = byId.get(attempt.file);
-          if (attempt.server !== this.server || !listing || prior.get(attempt.file)?.state !== "pending") return true;
+          if (attempt.requiresKey || attempt.server !== this.server || !listing || prior.get(attempt.file)?.state !== "pending") return true;
           recovered.push(this.confirmed(attempt, listing));
           return false;
         });
@@ -173,8 +186,13 @@ export class OnlineWorkspace {
 
   private async send(attempt: PendingOnlinePublication) {
     this.check();
-    const file = await this.host.store.publish(attempt.file, attempt.snapshot);
+    if (attempt.requiresKey && !this.key) throw new Error("Enter the server key to retry this publication");
+    const file = attempt.requiresKey ? await this.host.store.publish(attempt.file, attempt.snapshot, this.key)
+      : await this.host.store.publish(attempt.file, attempt.snapshot);
+    if (Boolean(file.managedByKey) !== Boolean(attempt.requiresKey)) throw new Error("Unexpected publication authority");
     const confirmed = this.confirmed(attempt, file);
+    // A keyed file has no Home listing. Retain the recovery record until its tab has opened.
+    if (file.managedByKey) return file;
     await this.registry(current => {
       if (!current.pending.some(row => this.matches(row, file.id))) return current;
       return { files: [confirmed, ...current.files],
@@ -209,9 +227,12 @@ export class OnlineWorkspace {
       if (!attempt) {
         const { document, nextId } = engine.archiveRevision;
         const file = crypto.randomUUID();
-        const snapshot = await prepareOnlineSnapshot(document, nextId, file, listingName);
+        const policy = this.supportsServerKey ? await this.hosting() : undefined;
+        if (policy?.open === false && !this.key) throw new Error("This server takes files only from people who have its key");
+        const snapshot = await prepareOnlineSnapshot(document,nextId,file,listingName,
+          policy?.maxFileMb === undefined ? undefined : policy.maxFileMb * 1024 * 1024);
         if (!this.workspace.getSnapshot().some(tab => tab.id === tabId)) throw new Error("The source file closed");
-        const stage = { file, server: this.server, name: listingName, snapshot, started: Math.floor(Date.now() / 1000) };
+        const stage = { ...(this.key && this.supportsServerKey && {requiresKey:true as const}), file, server: this.server, name: listingName, snapshot, started: Math.floor(Date.now() / 1000) };
         await this.registry(current => {
           if (current.pending.length >= MAX_ONLINE_FILES) throw new Error("Resolve a pending publication before starting another");
           return { ...current, pending: [stage, ...current.pending] };
@@ -220,17 +241,45 @@ export class OnlineWorkspace {
         this.publishingTabs.set(tabId, attempt.file);
       }
       const file = await this.send(attempt);
-      await this.attachPublished(file.id, tabId);
+      await this.attachPublished(file.id, tabId, file.managedByKey);
+      if (file.managedByKey) await this.finishKeyed(file.id);
       this.publishingTabs.delete(tabId);
       return file;
     });
+  }
+
+  private async finishKeyed(id: string) {
+    await this.registry(current => ({...current, pending:current.pending.filter(row => !this.matches(row,id))}));
   }
 
   async retryPublication(id: string) {
     return this.run(async () => {
       const current = await this.registry();
       const attempt = current.pending.find(row => this.matches(row, id));
-      if (attempt) await this.send(attempt);
+      if (!attempt) return;
+      const file = await this.send(attempt);
+      if (!file.managedByKey) return;
+      const source = this.workspace.getSnapshot().find(tab => this.publishingTabs.get(tab.id) === id);
+      if (source) {
+        this.workspace.execute("doc.switch", {index:source.index});
+        await this.attachPublished(id,source.id,true);
+        this.publishingTabs.delete(source.id);
+      } else {
+        const invites = this.host.invitations;
+        const joined = await invites?.joinOwned?.(id,true);
+        if (!joined) throw new Error("The original edit link is unavailable");
+        let attached = false;
+        try {
+          this.check();
+          const tab = await this.workspace.open(new File([joined.archive], file.name + ".figcraft"), joined.session);
+          this.check();
+          this.bindTab(id,tab.tabId);
+          attached = true;
+        } finally {
+          if (!attached) await invites!.leave(joined.session.connection);
+        }
+      }
+      await this.finishKeyed(id);
     });
   }
 

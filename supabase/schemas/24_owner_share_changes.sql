@@ -17,7 +17,7 @@ declare
     prior public.online_file_share_changes;
     fingerprint text;
 begin
-    perform 1 from public.online_files f where f.id = target and f.owner_id = actor for no key update;
+    perform 1 from public.online_files f where f.id = target and f.owner_id is not distinct from actor for no key update;
     if not found then raise exception 'this file is unavailable' using errcode = '42501'; end if;
     if revision is null or revision = expected or new_links is null or jsonb_typeof(new_links) <> 'array'
         or revoke_ids is null then raise exception 'invalid sharing change' using errcode = '22023'; end if;

@@ -34,6 +34,19 @@ on conflict (singleton) do update set idle_seconds = excluded.idle_seconds;
 
 Run `node scripts/verify-local-retirement.mjs` on an empty local stack to test the installed schedule, actual Storage removal and recovery of a committed claim after a PostgreSQL restart. To exercise an interrupted browser publication through the real ten-minute staging interval, start the local production preview and run `FIGCRAFT_VERIFY_STAGING_CLEANUP=1 npx playwright test tests/e2e/preview.spec.ts --grep 'interrupted publication before server confirmation' --workers=1`. Allow up to 21 minutes for the next eligible sweep.
 
+## Operator publication
+
+An installation without a policy row accepts keyless publications with a 16 MiB framed file limit. A private host defaults to 64 MiB. The separate Storage transport ceiling is 50 MiB per compressed archive. As database operator, configure a strong Figcraft server key using its lowercase SHA-256 hex digest. Supply the digest through the psql variable `key_digest`. Keep the raw key with the people who may publish or manage operator files.
+
+```sql
+insert into figcraft_private.online_publication_policy (open_publish,server_key_sha256)
+values (false, :'key_digest')
+on conflict (singleton) do update set
+    open_publish=excluded.open_publish, server_key_sha256=excluded.server_key_sha256;
+```
+
+Set `open_publish=true` to permit both publication modes. Set `max_file_mb` to an integer from 1 to 4096 to override the framed limit. Keyed files belong to the host and survive deletion of the uploader. The browser holds the server key in memory for the signed-in workspace. **File → Publish to server** and **Share → Advanced** use the same key. A pending publication recovered from Home asks for it again after reload. An operator can rotate the digest with the same statement, then enter the new key in Share. The service-only verifier and immutable host-owned archives are covered by `supabase test db --local`, `npm run test:integration` and the local production Playwright workflow named `recovers a private keyed publication`.
+
 ## Team directory
 
 Discovery is off by default. As the database operator, enable a view-only, comment or edit directory by setting its access level. An optional HTTP(S) browser URL enables **Copy browser link**. Use the editor's actual public URL at installation. The host omits that action when the URL is empty.

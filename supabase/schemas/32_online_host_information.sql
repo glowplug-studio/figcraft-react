@@ -49,10 +49,32 @@ $$;
 revoke all on function figcraft_private.host_contact() from public, anon, authenticated, service_role;
 grant execute on function figcraft_private.host_contact() to authenticated;
 
+-- A missing row preserves public publication on pre-policy installations.
+create table figcraft_private.online_publication_policy (
+    singleton boolean primary key default true check (singleton),
+    open_publish boolean not null default true,
+    server_key_sha256 text check (server_key_sha256 ~ '^[0-9a-f]{64}$'),
+    max_file_mb integer check (max_file_mb between 1 and 4096)
+);
+alter table figcraft_private.online_publication_policy enable row level security;
+revoke all on figcraft_private.online_publication_policy from public, anon, authenticated, service_role;
+
+create function figcraft_private.host_publication_policy() returns table(open_publish boolean,file_mb integer)
+language sql stable security definer set search_path = ''
+as $$
+    select coalesce(p.open_publish,true),
+        coalesce(p.max_file_mb,case when p.open_publish is false then 64 else 16 end)
+    from (values(true)) as defaults(singleton)
+    left join figcraft_private.online_publication_policy p using(singleton);
+$$;
+revoke all on function figcraft_private.host_publication_policy() from public, anon, authenticated, service_role;
+grant execute on function figcraft_private.host_publication_policy() to authenticated;
+
 create function public.online_host_information(target uuid default null)
-returns table(idle_seconds text, expires text, operator_contact text, terms_url text, accepts_reports boolean)
+returns table(idle_seconds text, expires text, operator_contact text, terms_url text, accepts_reports boolean, open_publish boolean, file_mb integer)
 language sql stable security invoker set search_path = ''
 as $$ select trunc(figcraft_private.host_idle_seconds())::text, figcraft_private.visible_online_expiry(target),
-    c.operator_contact,c.terms_url,true from figcraft_private.host_contact() c; $$;
+    c.operator_contact,c.terms_url,true,p.open_publish,p.file_mb from figcraft_private.host_contact() c
+    cross join figcraft_private.host_publication_policy() p; $$;
 revoke all on function public.online_host_information(uuid) from public, anon, authenticated, service_role;
 grant execute on function public.online_host_information(uuid) to authenticated;

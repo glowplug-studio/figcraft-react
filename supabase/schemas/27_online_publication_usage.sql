@@ -47,6 +47,7 @@ declare
     usage record;
     file_count bigint;
     total_bytes numeric;
+    policy record;
 begin
     -- Admission and reservation are one transaction across all host workers.
     perform pg_advisory_xact_lock(650130, 3);
@@ -56,6 +57,13 @@ begin
     select exists(select from public.online_files f
         where f.id = target and f.owner_id = actor and f.snapshot_id = snapshot) into existing;
     if not existing then
+        select * into policy from figcraft_private.host_publication_policy();
+        if actor is null or not policy.open_publish then
+            raise exception 'This server takes files only from people who have its key' using errcode = '42501';
+        end if;
+        if measured > policy.file_mb::bigint * 1048576 then
+            raise exception 'This server keeps files up to % MiB',policy.file_mb using errcode = 'FC002';
+        end if;
         if address is null or measured is null or measured < 17 or max_files is null or max_files < 0
            or max_files_per_ip is null or max_files_per_ip < 0 or max_bytes_per_ip is null or max_bytes_per_ip < 0
            or max_total_bytes is null or max_total_bytes < 0 then

@@ -5,6 +5,7 @@ export interface OnlineFileInfo {
   id: string;
   name: string;
   created: string;
+  managedByKey?: true;
   /** UTC epoch seconds as decimal text to preserve the native u64 range. */
   expires?: string | null;
 }
@@ -23,7 +24,7 @@ export interface OnlineHostInformation {
 export interface OnlineFileStore {
   teamDirectory?(): Promise<TeamDirectory>;
   hosting?(file?: string): Promise<OnlineHostInformation>;
-  publish(id: string, snapshot: Blob): Promise<OnlineFileInfo>;
+  publish(id: string, snapshot: Blob, serverKey?: string): Promise<OnlineFileInfo>;
   owned(ids: readonly string[]): Promise<readonly OnlineFileInfo[]>;
   open(id: string): Promise<Blob>;
   rename(id: string, name: string): Promise<OnlineFileInfo>;
@@ -46,6 +47,7 @@ export interface PendingOnlinePublication {
   server: string;
   started: number;
   snapshot: Blob;
+  requiresKey?: true;
 }
 
 export interface OnlineFileRegistry {
@@ -78,7 +80,7 @@ export type GuestSessionEnd = "stopped" | "removed" | "unavailable";
 export type GuestConnectionStatus = {attempt: number} | {access: OnlineGuestSession["access"]};
 export interface OnlineInvitations {
   /** Redeem this device's original edit link. Older records may predate link storage. */
-  joinOwned?(file: string): Promise<{session: OnlineGuestSession; archive: Blob} | undefined>;
+  joinOwned?(file: string, managedByKey?: boolean): Promise<{session: OnlineGuestSession; archive: Blob} | undefined>;
   report?(connection: string, reason: string): Promise<void>;
   retryNow?(connection: string): void;
   rejoin?(connection: string): Promise<OnlineGuestSession["access"]>;
@@ -101,6 +103,9 @@ export interface OnlineOwnerSharing {
 }
 
 export interface OnlineWorkspaceHost {
+  supportsServerKey?: boolean;
+  releasePublished?(file: string): void;
+  serverKeyChanged?(key: string): void;
   sharing?: OnlineOwnerSharing;
   server: string;
   store: OnlineFileStore;

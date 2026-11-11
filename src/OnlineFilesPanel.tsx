@@ -65,6 +65,7 @@ export function OnlineHostingInformation({online, file, report}: {
     {info?.terms && /^https?:\/\//.test(info.terms) && <a href={info.terms} target="_blank" rel="noreferrer">Terms</a>}
     {request && info ? <div className="figcraft-hosting-information">
       {!file && info.open && <p>This server is open to the public: no key needed.</p>}
+      {!file && info.open === false && <p>This server takes files only with its key.</p>}
       {days > 0n && <p>Files nobody opens for {days.toString()} {days === 1n ? "day" : "days"} are deleted.</p>}
       {info.expires && <p>The server deletes this file if nobody opens it before {serverUtcDate(info.expires)}.</p>}
       <p>The server operator can read files hosted here.</p>
@@ -73,6 +74,12 @@ export function OnlineHostingInformation({online, file, report}: {
     </button>}
     {info?.reports && report && <ParticipantReport send={report} />}
   </>;
+}
+
+export function ServerKeyField({online,disabled}: {online: OnlineWorkspace; disabled?: boolean}) {
+  const [value,setValue] = useState(online.serverKey);
+  return <label>Server key<input type="password" value={value} autoComplete="off" spellCheck={false}
+    disabled={disabled} onChange={event => {online.setServerKey(event.target.value); setValue(online.serverKey);}} /></label>;
 }
 
 export function PublishOnlineDialog({ online, tab, close, published }: {
@@ -91,6 +98,7 @@ export function PublishOnlineDialog({ online, tab, close, published }: {
       finally { setBusy(false); }
     }}>
       <label>Server address<input readOnly value={online.server} /></label>
+      {online.supportsServerKey && <ServerKeyField online={online} disabled={busy} />}
       <OnlineHostingInformation online={online} />
       <label>File name<input autoFocus value={name} disabled={busy} onFocus={e => e.currentTarget.select()} onChange={e => setName(e.target.value)} /></label>
       {error && <p role="alert">{error}</p>}
@@ -216,7 +224,8 @@ export function OnlineFilesPanel({ online, opened }: { online: OnlineWorkspace; 
       </button>
       <details name="figcraft-online-actions" onToggle={event => { const open = event.currentTarget.open; setActions(current => open ? row.file : current === row.file ? undefined : current); }}><summary aria-label={"Actions for " + row.name}>•••</summary><div>
         {row.state === "pending" ? <>
-          <button disabled={busy} onClick={() => void run(() => online.retryPublication(row.file))}>Retry publication</button>
+          {row.requiresKey && <ServerKeyField online={online} disabled={busy} />}
+          <button disabled={busy} onClick={() => void run(() => online.retryPublication(row.file),row.requiresKey)}>Retry publication</button>
           <button disabled={busy} onClick={() => void run(() => online.forget(row.file))}>Forget on this computer</button>
         </> : row.state === "gone" ? <button disabled={busy} onClick={() => void run(() => online.forget(row.file))}>Clear from this list</button> : <>
           <button disabled={busy} onClick={() => void run(() => online.open(row.file), true)}>Open</button>
