@@ -6,16 +6,16 @@
 |---|---|
 | Overall status | In progress. [Continue handover and deferred review queue](26-11-07-full-port-resume.md#continue-from-here). |
 | Active slice | Row 14. [Ordered live collaboration](26-11-11-ordered-live-collaboration.md). |
-| Active phase | Comment and client ID gates passed. All 357 Chromium workflows passed at `892f67a`. Ordered editing and authenticated concurrency passed focused gates at `e15a58e`. The cumulative run caught an ambiguous active-file selector. Its correction, two-browser layout repair and compacted database restart passed focused checks. Repeat the cumulative suite and continue row 14. |
+| Active phase | Ordered editing, concurrent derived layout and retained restart passed. Comment interactions are in implementation and browser verification. |
 | Upstream baseline | Styles reference a2e87433. Components reference 79c36346. Global supported baseline 8eb0b876. |
-| Branch and last verified commit | `prompt/full-figcraft-port`, `892f67a`. Comment archives, owner operations and live client admission passed the complete 357-workflow Chromium gate. |
+| Branch and last verified commit | `prompt/full-figcraft-port`, `2f1e534`. All 359 production Chromium workflows passed in 1,104.27 seconds. |
 | Completed slices | Rectangle/host-auth, bounded native persistence/recovery, supported-model pages, affine rectangle geometry/selection and solid appearance, plus nested group hierarchy, Frame containers, movement/transform gestures, rounded corners, ellipse/arc/ring and Polygon/Star editing verified locally; Line/Arrow and uniform solid strokes also verified; per-side Rectangle/Frame strokes, variable-width profiles and procedural brushes verified; vector networks, solid region/stroke rendering and Flatten/Reverse also verified; foundation commit `154f5a7`. Gradient, image, pattern, blend and mask releases now have local property matrices. [Blend evidence](../reports/26-11-09-blend-modes-parity.html). Auto layout and constraints passed the local release gate. [Release evidence](../reports/26-11-09-auto-layout.md). [Local components, instances, variant properties, slots and Assets](../reports/26-11-09-components-instances.md) passed the 0.51.0 gate. |
 | Remaining slices | Continue incomplete roadmap rows, excluding the user-deferred plugin and widget family. See each slice matrix for outstanding integrations. |
-| Tests last passed | All 356 production Chromium workflows passed in 1,152.0 s without skips or retries. The owner slice passed 344 SQL assertions, 21 real provider checks and 4,492 pure checks. |
-| Files currently in progress | [Row 14 plan and source links](26-11-11-ordered-live-collaboration.md), comment file model, editor allocator, physical join and private room state. |
+| Tests last passed | 4,514 pure, 24 provider and 359 production Chromium tests at `2f1e534`. Zero browser failures, skips, retries or flakes. The SQL journal passed 381 assertions. Five additional native comment tests passed on the current working tree. |
+| Files currently in progress | [Comment command corpus, editor grants, canvas pins and panel](26-11-11-comment-interactions.md). The independent Rust command receipts, messages and query passed three focused tests. Production interaction verification is pending. |
 | Blockers | No hosted change is required for the local collaboration gate. |
 | Exact next action | Follow the [current action in the resume handover](26-11-07-full-port-resume.md#continue-from-here), then its dependency-ordered review queue. |
-| Last updated | 2026-11-11 14:00 ICT |
+| Last updated | 2026-11-11 15:30 ICT |
 
 ## Scope and continuation
 
