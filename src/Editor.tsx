@@ -668,6 +668,27 @@ export function DocumentEditor({ identity, capabilities, engine: suppliedEngine,
     // Foreign host links stay unavailable until the user selects the corresponding host.
     for (const invite of engine.importedTeamInvites.values()) void teamLibraries.fromInvite(invite).catch(()=>undefined);
   },[engine,engine.importedTeamInvites,teamLibraries,signedIn]);
+  useEffect(()=>{
+    if (!teamLibraries?.trusted || !editable || !(assetsOpen || mobileAssetsOpen)) return;
+    const paths=snapshot.document.libraryLinks?.map(link=>link.path).filter(path=>path.startsWith("team-library:")) ?? [];
+    if (!paths.length) return;
+    let active=true;
+    let timer:ReturnType<typeof setTimeout>;
+    const refresh=async()=>{
+      try {
+        const allowed=new Set(await teamLibraries.trusted!());
+        const principal=initialPrincipal.current;
+        for (const path of paths) {
+          if (!active) break;
+          if (!allowed.has(path)) continue;
+          await engine.refreshTeamLibrary(path,teamLibraries,principal && recoveryStore?.writeLibrary
+            ? (key,archive)=>recoveryStore.writeLibrary!(principal,key,archive) : undefined).catch(()=>undefined);
+        }
+      } finally {if (active) timer=setTimeout(()=>void refresh().catch(()=>undefined),30000);}
+    };
+    void refresh().catch(()=>undefined);
+    return ()=>{active=false;clearTimeout(timer);};
+  },[assetsOpen,mobileAssetsOpen,editable,engine,teamLibraries,recoveryStore,snapshot.document.libraryLinks]);
   const libraryVariables=useMemo(()=>libraryCatalogues(snapshot.document.libraryLinks,snapshot.document.libraryRecords,path=>engine.librarySource(path)),
     [engine,engine.libraryRevision,snapshot.document.libraryLinks,snapshot.document.libraryRecords]);
   const publishableSelection=useMemo(()=>snapshot.selection.length>0 &&
@@ -679,9 +700,15 @@ export function DocumentEditor({ identity, capabilities, engine: suppliedEngine,
         const principal=initialPrincipal.current;
         const invite=isPath ? engine.importedTeamInvites.get(input) : input;
         const path=invite ? await teamLibraries.fromInvite(invite) : input;
-        return engine.loadTeamLibrary(path,teamLibraries,principal && recoveryStore?.writeLibrary
+        const result=await engine.loadTeamLibrary(path,teamLibraries,principal && recoveryStore?.writeLibrary
           ? (key,archive)=>recoveryStore.writeLibrary!(principal,key,archive) : undefined);
+        await teamLibraries.trusted?.(path);
+        return result;
       },
+      usage:teamConnection && teamLibraries.usage ? async days=>{
+        const path=await teamLibraries.fromSession(teamConnection);
+        return engine.readTeamLibraryUsage(path,teamLibraries,days);
+      } : undefined,
       publish:async (params,invite) => {
         const path=invite ? await teamLibraries.fromInvite(invite) : teamConnection ? await teamLibraries.fromSession(teamConnection) : undefined;
         if (!path) throw new Error("Choose an edit link or open the file from its server");

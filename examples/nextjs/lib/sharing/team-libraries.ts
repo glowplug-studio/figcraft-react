@@ -1,5 +1,5 @@
 import {stageOnlineSnapshot} from "@glowplug-studio/figcraft-react/backends/supabase";
-import type {IndexedDbRecoveryStore,OnlineTeamLibraries,TeamLibraryReply} from "@glowplug-studio/figcraft-react";
+import type {IndexedDbRecoveryStore,OnlineTeamLibraries,TeamLibraryReply,LibraryUsageReport,LibraryUsageSummary} from "@glowplug-studio/figcraft-react";
 import {nativeInviteLink,parseInviteServer,parseSessionInvite} from "@glowplug-studio/figcraft-react/sharing/invite";
 import type {SupabaseClient} from "@supabase/supabase-js";
 import type {BrowserInvitations} from "./browser-invites";
@@ -40,8 +40,12 @@ export class BrowserTeamLibraries implements OnlineTeamLibraries {
     }
     return response;
   }
-  async fetch(path: string, have: string | null): Promise<TeamLibraryReply> {
-    const response = await this.post(path,{action:"fetch",have});
+  trusted(remember?:string) { return this.device.trustedTeamLibraries(this.principal,this.server,remember); }
+  async usage(path:string,days:number):Promise<LibraryUsageSummary> {
+    return (await this.post(path,{action:"usage",days})).json();
+  }
+  async fetch(path: string, have: string | null, usage?:LibraryUsageReport): Promise<TeamLibraryReply> {
+    const response = await this.post(path,{action:"fetch",have,...(usage && {usage})});
     const version = response.headers.get("X-Figcraft-Library-Version");
     if (version !== null) return {state:"available",version,archive:await response.blob()};
     const result = await response.json();

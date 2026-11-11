@@ -317,7 +317,7 @@ if (!process.env.PLAYWRIGHT_BASE_URL) test("recovers a private keyed publication
 });
 
 if (!process.env.PLAYWRIGHT_BASE_URL) test("publishes a team library and checks a later revision from a second account",async({page,browser})=>{
-  test.setTimeout(100_000);
+  test.setTimeout(150_000);
   if (!backend || !userId) throw new Error("Team library fixture requires local Supabase");
   const local=backend, key=randomUUID(), viewerEmail="library-"+randomUUID()+"@example.test", viewerPassword=randomUUID()+"Aa!";
   const visitor=await browser.newContext();
@@ -366,16 +366,55 @@ if (!process.env.PLAYWRIGHT_BASE_URL) test("publishes a team library and checks 
     await guest.getByLabel("Email",{exact:true}).fill(viewerEmail);
     await guest.getByLabel("Password",{exact:true}).fill(viewerPassword);
     await guest.getByRole("button",{name:"Sign in",exact:true}).click();
+    const nativeMembers=unzipSync(await readFile(new URL("../fixtures/native-library-component-consumer.figcraft",import.meta.url)));
+    const drawing=JSON.parse(strFromU8(nativeMembers["document.json"]));
+    drawing.name="Imported consumer";
+    drawing.libraries.enabled[0].path=decodeURIComponent(new URL(view).hash.slice(6));
+    nativeMembers["document.json"]=strToU8(JSON.stringify(drawing));
+    let fetches=0;
+    guest.on("request",r=>{if (new URL(r.url()).pathname==="/api/online-files/library") fetches++;});
+    await guest.getByLabel("Open Figcraft file",{exact:true}).setInputFiles({name:"Imported consumer.figcraft",
+      mimeType:"application/octet-stream",buffer:Buffer.from(zipSync(nativeMembers))});
     await guest.getByRole("button",{name:"Assets",exact:true}).click();
     const assets=guest.getByRole("region",{name:"Assets",exact:true});
+    await expect(assets.getByText("Check for updates to load this team library.")).toBeVisible();
+    // The document alone must never beacon to its author, even after a whole refresh interval.
+    const untrusted=await guest.waitForRequest(r=>new URL(r.url()).pathname==="/api/online-files/library",
+      {timeout:31_000}).then(()=>true,()=>false);
+    expect(untrusted).toBe(false);
+    expect(fetches).toBe(0);
     await assets.getByRole("button",{name:"Add team library…"}).click();
     await assets.getByLabel("Team library link").fill(view);
     await assets.getByRole("button",{name:"Add team library",exact:true}).click();
     await expect(assets.getByText("Published version "+first,{exact:true})).toBeVisible();
     const second=await publish("Second team release");
     expect(BigInt(second)).toBe(BigInt(first)+1n);
+    // Fresh data arrives through the real periodic check while the Assets tab remains open.
+    await expect(assets.getByText("Published version "+second,{exact:true})).toBeVisible({timeout:40_000});
+    await assets.getByRole("button",{name:"Place Unpublished rename",exact:true}).click();
+    await guest.getByRole("button",{name:"Detach instance",exact:true}).click();
     await assets.getByRole("button",{name:"Check for updates"}).click();
-    await expect(assets.getByText("Published version "+second,{exact:true})).toBeVisible();
+    await expect(assets.getByText("Checked for library updates",{exact:true})).toBeVisible();
+    const usage=page.getByRole("region",{name:"Team library usage"});
+    await usage.getByRole("button",{name:"Show usage"}).click();
+    await expect(usage.getByText("Used in 1 file · 1 instance · 1 detached")).toBeVisible();
+    await expect(usage.getByText(/Past 30 days · [1-9][0-9]* insertions? · 1 detachment/)).toBeVisible();
+    await usage.getByLabel("Usage period").selectOption("90");
+    await expect(usage.getByText(/Past 90 days/)).toBeVisible();
+    await usage.getByText("Component usage",{exact:true}).click();
+    await expect(usage.getByText(/Unpublished rename · 1 instance/)).toBeVisible();
+    await test.info().attach("team-library-usage",{body:await usage.screenshot(),contentType:"image/png"});
+    await page.setViewportSize({width:390,height:844});
+    const mobileAssets=page.locator(".figcraft-mobile-assets");
+    if (!await mobileAssets.evaluate(e=>(e as HTMLDetailsElement).open)) {
+      await mobileAssets.locator("summary").click();
+    }
+    const narrowUsage=mobileAssets.getByRole("region",{name:"Team library usage"});
+    await narrowUsage.getByRole("button",{name:"Show usage"}).click();
+    await expect(narrowUsage.getByText("Used in 1 file · 1 instance · 1 detached")).toBeVisible();
+    const bounds=await narrowUsage.boundingBox();
+    expect(bounds && bounds.x>=0 && bounds.x+bounds.width<=391).toBe(true);
+    await test.info().attach("team-library-usage-narrow",{body:await narrowUsage.screenshot(),contentType:"image/png"});
     await expect(guest.locator(".figcraft-recovery")).toHaveText("Recovery saved on this device");
     await guest.reload();
     await guest.getByRole("button",{name:"Assets",exact:true}).click();
@@ -383,6 +422,16 @@ if (!process.env.PLAYWRIGHT_BASE_URL) test("publishes a team library and checks 
     const check=guest.waitForResponse(r=>new URL(r.url()).pathname==="/api/online-files/library");
     await assets.getByRole("button",{name:"Check for updates"}).click();
     expect(await (await check).json()).toEqual({state:"unchanged",version:second});
+    drawing.name="Second consumer";
+    nativeMembers["document.json"]=strToU8(JSON.stringify(drawing));
+    const reported=guest.waitForResponse(r=>new URL(r.url()).pathname==="/api/online-files/library" &&
+      r.request().postDataJSON().usage?.file==="Second consumer",{timeout:40_000});
+    await guest.getByLabel("Open Figcraft file",{exact:true}).setInputFiles({name:"Second consumer.figcraft",
+      mimeType:"application/octet-stream",buffer:Buffer.from(zipSync(nativeMembers))});
+    await guest.getByRole("button",{name:"Assets",exact:true}).click();
+    expect((await reported).ok()).toBe(true);
+    await narrowUsage.getByRole("button",{name:"Show usage"}).click();
+    await expect(narrowUsage.getByText("Used in 2 files · 2 instances · 1 detached")).toBeVisible();
   } finally {
     await visitor.close();
     localOperatorSql(local,"delete from figcraft_private.online_publication_policy where server_key_sha256=:'digest'",{digest});

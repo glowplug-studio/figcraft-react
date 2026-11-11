@@ -1,3 +1,4 @@
+import {readLibraryUsageReport,summariseLibraryUsage} from "../../engine/sharing/library-usage";
 import type {SupabaseClient} from "@supabase/supabase-js";
 import {decodePublishedLibrary} from "../../engine/file-format";
 import {ONLINE_ARCHIVE_BYTES} from "../../engine/sharing/publication";
@@ -51,7 +52,21 @@ export async function publishTeamLibrary(user: SupabaseClient, writer: SupabaseC
   return version;
 }
 
-export async function fetchTeamLibrary(writer: SupabaseClient, file: string, hash: string, have: string | null, address: string) {
+export async function readTeamLibraryUsage(writer:SupabaseClient,file:string,hash:string,days:number,maxAssetRows=Infinity) {
+  const reply=await writer.rpc("read_library_usage",{target:file,presented_hash:hash,days});
+  if (reply.error?.code==="42501") throw new TeamLibraryError("The invite is unavailable",403);
+  if (reply.error) throw reply.error;
+  return summariseLibraryUsage(reply.data,maxAssetRows);
+}
+
+export async function fetchTeamLibrary(writer: SupabaseClient, file: string, hash: string, have: string | null, address: string, usage?:unknown) {
+  if (usage!==undefined) {
+    let report;
+    try {report=readLibraryUsageReport(usage);} catch {throw new TeamLibraryError("Invalid library usage report",422);}
+    const kept=await writer.rpc("report_library_usage",{target:file,presented_hash:hash,report});
+    if (kept.error?.code==="42501") throw new TeamLibraryError("The invite is unavailable",403);
+    if (kept.error) throw kept.error;
+  }
   const {data,error} = await writer.rpc("fetch_team_library",{target:file,presented_hash:hash,have,address});
   if (error?.code === "42501") throw new TeamLibraryError("The invite is unavailable",403);
   if (error) throw error;

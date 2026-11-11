@@ -179,6 +179,18 @@ export class IndexedDbRecoveryStore implements WorkspaceRecoveryStore, OnlineFil
     return registry.files;
   }
 
+  trustedTeamLibraries(principal:string,server:string,remember?:string):Promise<readonly string[]> {
+    const key=[principal,"trusted-team-libraries",onlineServerKey(server)];
+    return this.#transaction(principal,remember ? "readwrite" : "readonly",store=>store.get(key),(value,store)=>{
+      const rows:string[]=Array.isArray(value) ? value.filter(path=>typeof path==="string" && /^team-library:[0-9a-f]{64}$/.test(path)).slice(0,500) : [];
+      if (remember===undefined || rows[0]===remember) return rows;
+      if (!/^team-library:[0-9a-f]{64}$/.test(remember)) throw new Error("Invalid team library reference");
+      const next=[remember,...rows.filter(path=>path!==remember).slice(0,499)];
+      store.put(next,key);
+      return next;
+    });
+  }
+
   teamLibraryInvite(principal: string, server: string, path: string, invite?: string) {
     const key = [principal,"team-library-invites",onlineServerKey(server)];
     return this.#transaction(principal,invite === undefined ? "readonly" : "readwrite",store => store.get(key),(value,store) => {

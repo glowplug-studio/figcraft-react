@@ -1,3 +1,4 @@
+import {libraryUsageReport} from "./sharing/library-usage";
 import type {OnlineTeamLibraries} from "../backends/online-files";
 import { nextBranchId } from "./branch-ids";
 import { VersionHistory, versionDetails, type FileVersion } from "./file-versions";
@@ -325,6 +326,7 @@ export class EditorEngine {
   #documentIdentity = Symbol();
   #libraryFiles=new Map<string,PublishedLibrary>();
   #libraryPick=0;
+  #teamChecking=new Set<string>();
   #importedTeamInvites: ReadonlyMap<string,string> = new Map();
   #teamSubmission?: {path:string; document:Document; options:string; id:string; archive:Blob; library:PublishedLibrary};
   #libraryRevision=0;
@@ -1069,7 +1071,9 @@ export class EditorEngine {
   loadTeamLibrary(path:string, host:OnlineTeamLibraries, remember?:(path:string,publication:Blob)=>Promise<void>) {
     return this.loadLibrary(async () => {
       const cached=this.librarySource(path);
-      const reply=await host.fetch(path,cached?.manifest.version ?? null);
+      const doc=this.#snapshot.document;
+      const link=doc.libraryLinks?.find(l=>l.path===path);
+      const reply=await host.fetch(path,cached?.manifest.version ?? null,libraryUsageReport(doc,link?.id ?? ""));
       if (reply.state==="empty") throw new Error("That file has no library on the server yet");
       if (reply.state==="unchanged" && cached?.manifest.version===reply.version) return {source:cached,path};
       if (reply.state!=="available") throw new Error("Invalid library receipt");
@@ -1079,6 +1083,43 @@ export class EditorEngine {
       if (linked && source.manifest.id!==linked.id) throw new Error("This file now holds another library");
       return {source,path};
     },remember);
+  }
+
+  async readTeamLibraryUsage(path:string,host:OnlineTeamLibraries,days:number) {
+    if (!host.usage) throw new Error("The host cannot report library usage");
+    let library=this.librarySource(path);
+    if (!library) {
+      const reply=await host.fetch(path,null);
+      if (reply.state==="empty") throw new Error("That file has no library on the server yet");
+      if (reply.state!=="available") throw new Error("Invalid library receipt");
+      library=await decodePublishedLibrary(reply.archive) ?? undefined;
+      if (!library || library.manifest.version!==reply.version) throw new Error("Invalid server library archive");
+    }
+    return {data:await host.usage(path,days),library};
+  }
+
+  async refreshTeamLibrary(path:string,host:OnlineTeamLibraries,remember?:(path:string,archive:Blob)=>Promise<void>) {
+    const doc=this.#snapshot.document,enabled=doc.libraryLinks?.find(l=>l.path===path);
+    if (!enabled || this.#teamChecking.has(path)) return;
+    const identity=this.#documentIdentity,opening=this.#openSequence,initial=this.librarySource(path);
+    const active=()=>identity===this.#documentIdentity && opening===this.#openSequence && this.#snapshot.editable &&
+      this.#snapshot.document.libraryLinks?.some(l=>l.id===enabled.id && l.path===path) && initial===this.librarySource(path);
+    this.#teamChecking.add(path);
+    try {
+      const report=libraryUsageReport(doc,enabled.id);
+      const reply=await host.fetch(path,initial?.manifest.version ?? null,report);
+      if (reply.state!=="available" || !active()) return;
+      const source=await decodePublishedLibrary(reply.archive);
+      if (!source || source.manifest.id!==enabled.id || source.manifest.version!==reply.version || !active()) return;
+      await prepareDocumentText(source.document);
+      if (!active()) return;
+      if (remember) {
+        const archive=await encodePublishedLibrary(source);
+        if (!active()) return;
+        await remember(path,archive);
+      }
+      if (active()) {this.#cacheLibrary(path,source);this.#publish({});}
+    } finally {this.#teamChecking.delete(path);}
   }
 
   private async loadLibrary(load:()=>Promise<{source:PublishedLibrary;path:string}>,
@@ -1092,6 +1133,9 @@ export class EditorEngine {
     current();
     const {source,path}=await load();
     current();
+    if (source===this.librarySource(path) && this.#snapshot.document.libraryLinks?.some(link=>link.id===source.manifest.id && link.path===path)) {
+      return {id:source.manifest.id,path,version:source.manifest.version};
+    }
     if (this.#snapshot.document.published?.manifest.id===source.manifest.id) throw Error('this file is the library "'+source.manifest.name+'"');
     await prepareDocumentText(source.document);current();
     if (remember) {

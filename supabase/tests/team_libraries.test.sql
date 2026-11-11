@@ -73,8 +73,71 @@ update figcraft_private.team_libraries set version=18446744073709551614 where fi
 select is(pg_temp.store(3,18446744073709551615),'18446744073709551615','private host accepts an edit grant and preserves the exact last u64 revision');
 select is(pg_temp.fetch('view','18446744073709551615')->>'state','unchanged','the last u64 revision survives the fetch protocol');
 select throws_ok($$select pg_temp.store(3,18446744073709551616)$$,'22023','Invalid team library manifest','version cannot exceed u64');
+select ok(not has_function_privilege('authenticated','public.read_library_usage(uuid,text,integer)','execute')
+    and not has_function_privilege('anon','public.report_library_usage(uuid,text,jsonb)','execute')
+    and not has_function_privilege('service_role','figcraft_private.report_library_usage(uuid,text,jsonb,timestamptz)','execute')
+    and not has_table_privilege('authenticated','figcraft_private.library_consumers','select'),'only trusted ingress submits or reads reports and cannot set the clock');
+create function pg_temp.sample(body jsonb,stamp timestamptz default now()) returns void language sql as $$
+    select figcraft_private.report_library_usage(md5('library-file')::uuid,encode(sha256(convert_to('view','UTF8')),'hex'),body,stamp);
+$$;
+create function pg_temp.stats(days integer default 30) returns jsonb language sql as $$
+    select public.read_library_usage(md5('library-file')::uuid,encode(sha256(convert_to('edit','UTF8')),'hex'),days);
+$$;
+do $$
+declare stamp timestamptz; n integer; key text; attr text; pairs jsonb;
+begin
+    for i in 0..2099 loop
+        stamp := to_timestamp(1735516800+(i/35)*604800);
+        n := (i/19+i%7)%91;
+        key := ((i*13+i/19)%27)::text;
+        attr := case when i%3=0 then 'detached' else 'inserted' end;
+        pairs := jsonb_build_array(jsonb_build_array(key,case when n=0 then 2 else n end));
+        perform pg_temp.sample(jsonb_build_object('file','fixture'||(i%7),'components','[]'::jsonb,attr,pairs),stamp);
+    end loop;
+end;
+$$;
+select is((select encode(sha256(convert_to(string_agg(concat_ws(',',week,component,insertions,detachments)||chr(10),'' order by week,component),'UTF8')),'hex')
+    from figcraft_private.library_action_weeks),'b3303050209dd2abe76f8f506bd2dc14162ad7ae70351be93634f8f047d7a6c2',
+    '2100 mixed reports across 60 weeks and seven consumers match the pinned Rust growth and retention trace');
+truncate figcraft_private.library_consumers,figcraft_private.library_action_peaks,figcraft_private.library_action_weeks;
+select pg_temp.sample('{"file":"Manual","components":[["8",3]],"detached":[["8",1]],"inserted":[["8",4]],"styles":[["S",2]],"variables":[["V",2]]}',date_trunc('week',now(),'UTC')-interval '1 second');
+select pg_temp.sample('{"file":"Manual","components":[["8",3]],"detached":[["8",1]],"inserted":[["8",4]]}',now());
+select is((select updated from figcraft_private.library_consumers),extract(epoch from date_trunc('week',now(),'UTC'))::bigint-1,'unchanged report preserves its usage timestamp');
+select pg_temp.sample('{"file":"Manual","components":[],"detached":[],"inserted":[["8",1]]}');
+select pg_temp.sample('{"file":"Manual","components":[],"detached":[["8",2]],"inserted":[["8",5]]}');
+select is((select sum(insertions)::bigint from figcraft_private.library_action_weeks),5::bigint,'undo, resend and subsequent growth count only increases past the original peak');
+select is((select count(distinct week) from figcraft_private.library_action_weeks),2::bigint,'Sunday and Monday reports use separate UTC weeks');
+select is(pg_temp.stats()->'files'->0->'styles','[["S",2]]'::jsonb,'absent asset reports preserve existing counts');
+select is(pg_temp.stats()->'files'->0->'detached','[["8",2]]'::jsonb,'detached totals are independent of the action period');
+insert into figcraft_private.library_action_weeks(file_id,week,component,insertions)
+    select md5('library-file')::uuid,extract(epoch from date_trunc('week',now(),'UTC'))::bigint-86400*7*i,999,1
+    from unnest(array[2,6,14]) i;
+select is((select count(*) from jsonb_array_elements(pg_temp.stats(30)->'weeks') w where w->>'component'='999'),1::bigint,'30-day period includes the two-week fixture only');
+select is((select count(*) from jsonb_array_elements(pg_temp.stats(90)->'weeks') w where w->>'component'='999'),2::bigint,'90-day period includes the six-week fixture');
+select is((select count(*) from jsonb_array_elements(pg_temp.stats(365)->'weeks') w where w->>'component'='999'),3::bigint,'year period includes the fourteen-week fixture');
+select pg_temp.sample('{"file":"Large A","components":[],"inserted":[["8",4294967295]]}');
+select pg_temp.sample('{"file":"Large B","components":[],"inserted":[["8",4294967295]]}');
+select is((select max(insertions) from figcraft_private.library_action_weeks),4294967295::bigint,'per-component weekly total saturates at u32 max');
+select pg_temp.sample(jsonb_build_object('file','Peak cap','components','[]'::jsonb,'inserted',
+    (select jsonb_agg(jsonb_build_array(i::text,1) order by i) from generate_series(1,1000)i)));
+select pg_temp.sample('{"file":"Peak cap","components":[],"inserted":[["1000",3],["1001",9]]}');
+select is((select count(*) from figcraft_private.library_action_peaks where consumer='Peak cap'),1000::bigint,'new IDs cannot displace the first 1000 peaks');
+select is((select inserted from figcraft_private.library_action_peaks where consumer='Peak cap' and component=1000),3::bigint,'a known peak keeps growing at capacity');
+do $$ begin
+    for i in 1..201 loop perform pg_temp.sample(jsonb_build_object('file','file'||i,'components','[]'::jsonb),now()+i*interval '1 second'); end loop;
+end $$;
+select is((select count(*) from figcraft_private.library_consumers),200::bigint,'most recent 200 named consumers survive');
+select ok(not exists(select from figcraft_private.library_action_peaks where consumer='Peak cap'),'eviction cascades to per-file peaks');
+truncate figcraft_private.library_action_weeks;
+insert into figcraft_private.library_action_weeks(file_id,week,component,insertions)
+    select md5('library-file')::uuid,extract(epoch from date_trunc('week',now(),'UTC'))::bigint-7*86400,i,1 from generate_series(1,20000)i;
+select pg_temp.sample('{"file":"file201","components":[],"inserted":[["1",2]]}');
+select is((select count(*) from figcraft_private.library_action_weeks),20000::bigint,'new activity retains at most 20000 weekly rows');
+select ok(not exists(select from figcraft_private.library_action_weeks where component=20000),'equal-week cutoff retains earlier rows first');
 delete from public.online_file_links where token_hash=encode(sha256(convert_to('view','UTF8')),'hex') and file_id=md5('library-file')::uuid;
 select throws_ok($$select pg_temp.fetch('view')$$,'42501','The invite is unavailable','revoked link cannot fetch or probe a version');
+select throws_ok($$select pg_temp.sample('{"file":"Revoked","components":[]}')$$,'42501','The invite is unavailable','revoked viewer cannot submit library usage');
+select throws_ok($$select public.read_library_usage(md5('library-file')::uuid,'alien',30)$$,'42501','The invite is unavailable','unrelated grant cannot read private usage');
 delete from public.online_files where id=md5('library-file')::uuid;
 select is((select count(*) from public.claim_online_retirement(md5('library-object3')::uuid,1)),1::bigint,'deleting the team file releases its library archive');
 select * from finish();

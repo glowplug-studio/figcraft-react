@@ -181,7 +181,7 @@ export class EditorWorkspace {
     if (!instance || !remote) return consumer.execute("component.goToMain", params);
     const link = document.libraryLinks?.find(item => item.id === remote.library);
     if (!link) throw new Error("The library was removed from this file");
-    if (/^\s*(figcraft|wss?):\/\//i.test(link.path)) throw new Error("Open the team library file from the server to edit its main component");
+    if (link.path.startsWith("team-library:") || /^\s*(figcraft|wss?):\/\//i.test(link.path)) throw new Error("Open the team library file from the server to edit its main component");
     const key = Object.entries(remote.ids).find(([, local]) => local === instance.component)?.[0] ?? remote.key;
     const candidates = this.#tabs.filter(tab => tab.engine.getSnapshot().document.published?.manifest.id === link.id);
     const source = picked ?? this.#sourceFiles.get(link.path);

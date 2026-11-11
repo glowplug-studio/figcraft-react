@@ -215,7 +215,7 @@ export function WorkspaceEditor({ identity, capabilities, recoveryStore, onlineH
         <button onClick={() => { workspace.execute("file.new"); setHome(undefined); }}>New file</button>
       </section>}
     </section> : active ? <DocumentEditor key={active.id} identity={identity} capabilities={tabCapabilities} engine={workspace.activeEngine}
-      teamLibraries={onlineHost?.libraries} teamConnection={guest && !guest.ended ? guest.connection : undefined}
+      teamLibraries={onlineHost?.libraries} teamConnection={guest?.access==="edit" && !guest.ended ? guest.connection : undefined}
       shareMenu={shareMenu} menuGroup={menuGroup} sessionLabel={guest && (guest.ended ? "Disconnected" : guest.reconnectAttempt ? "Connection lost, reconnecting (attempt " + guest.reconnectAttempt + ")…" : guest.access === "view" ? "View only" : guest.access === "comment" ? "Can comment" : "Can edit")}
       onHome={online && enabled ? () => setHome("recent") : undefined}
       workspacePrint={pdfPrint} onWorkspacePrint={setPdfPrint}

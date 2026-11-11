@@ -1,3 +1,5 @@
+import {TeamLibraryUsage} from "./TeamLibraryUsage";
+import type {LibraryUsageSummary} from "./engine/sharing/library-usage";
 import {useLibraryVariables} from "./LibraryVariablesContext";
 import {pendingLibraryAssets} from "./engine/library-updates";
 import {localStyles} from "./engine/library-styles";
@@ -87,6 +89,7 @@ function folders(tiles:readonly Tile[],search:string) {
 
 export interface TeamLibraryControls {
   inSession:boolean;
+  usage?(days:number):Promise<{data:LibraryUsageSummary;library?:PublishedLibrary}>;
   load(input:string,isPath?:boolean):Promise<unknown>;
   publish(params:Record<string,unknown>,invite?:string):Promise<string>;
 }
@@ -178,6 +181,7 @@ export function AssetsPanel({doc,editable,dispatch,place,start,end,source,addLib
         <button disabled={!editable || loadingLibrary || !teamLink.trim()}>Add team library</button>
         <button type="button" disabled={loadingLibrary} onClick={()=>setTeamLink(undefined)}>Cancel</button>
       </form>)}
+    {team?.usage && <TeamLibraryUsage read={team.usage}/>}
     {libraryStatus && <p role="status">{libraryStatus}</p>}
     {!!doc.libraryLinks?.length && <section aria-label="Enabled libraries"><h3>Enabled libraries</h3>
       {doc.libraryLinks.map(link=>{

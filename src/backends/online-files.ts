@@ -1,3 +1,4 @@
+import type {LibraryUsageSummary,LibraryUsageReport} from "../engine/sharing/library-usage";
 import type { TeamDirectory } from "../engine/sharing/team-directory";
 
 /** A server listing. The document itself retains the title captured at publication. */
@@ -121,6 +122,8 @@ export type TeamLibraryReply = {state:"empty"} | {state:"unchanged"; version:str
 export interface OnlineTeamLibraries {
   fromInvite(text: string): Promise<string>;
   fromSession(connection: string): Promise<string>;
-  fetch(path: string, have: string | null): Promise<TeamLibraryReply>;
+  fetch(path: string, have: string | null, usage?:LibraryUsageReport): Promise<TeamLibraryReply>;
+  trusted?(remember?:string):Promise<readonly string[]>;
+  usage?(path:string,days:number):Promise<LibraryUsageSummary>;
   publish(path: string, archive: Blob, submission: string): Promise<string>;
 }

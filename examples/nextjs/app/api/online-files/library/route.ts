@@ -1,5 +1,5 @@
 import {createHash} from "node:crypto";
-import {fetchTeamLibrary,publishTeamLibrary,TeamLibraryError} from "@glowplug-studio/figcraft-react/backends/supabase/team-library";
+import {fetchTeamLibrary,publishTeamLibrary,readTeamLibraryUsage,TeamLibraryError} from "@glowplug-studio/figcraft-react/backends/supabase/team-library";
 import {onlinePost} from "../../../../lib/supabase/online-post";
 import {ingressAddress} from "../../../../lib/sharing/ingress-address";
 
@@ -21,10 +21,13 @@ export async function POST(request: Request) {
       const version = await publishTeamLibrary(host.user,host.writer,body.file,hash,body.submission);
       return answer({version});
     }
+    if (body.action==="usage" && typeof body.days==="number" && Number.isFinite(body.days)) {
+      return answer(await readTeamLibraryUsage(host.writer,body.file,hash,Math.min(365,Math.max(1,Math.round(body.days))),8));
+    }
     if (body.action !== "fetch" || (body.have !== null && (typeof body.have !== "string" || !/^(0|[1-9][0-9]{0,19})$/.test(body.have)))) {
       return answer({error:"Invalid library request"},400);
     }
-    const result = await fetchTeamLibrary(host.writer,body.file,hash,body.have,ingressAddress(request.headers,process.env.VERCEL==="1"));
+    const result = await fetchTeamLibrary(host.writer,body.file,hash,body.have,ingressAddress(request.headers,process.env.VERCEL==="1"),body.usage);
     if (result.state !== "available") return answer(result);
     return new Response(result.archive.stream(),{headers:{...privateHeaders,"Content-Type":"application/octet-stream",
       "X-Figcraft-Library-Version":result.version}});

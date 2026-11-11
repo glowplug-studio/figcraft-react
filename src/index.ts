@@ -70,3 +70,5 @@ export { isSharedCredentials, type DeviceOwnerSharing, type PendingSharingChange
 
 export type { TeamDirectory, TeamFile } from "./engine/sharing/team-directory";
 export {participantReportReason} from "./engine/sharing/participant-report";
+
+export type {LibraryUsageData,LibraryUsageReport,LibraryUsageSummary} from "./engine/sharing/library-usage";
