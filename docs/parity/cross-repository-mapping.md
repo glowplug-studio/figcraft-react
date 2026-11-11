@@ -607,3 +607,5 @@ At `892f67a`, native `doc::Comment`, `cmd::comment::follow_anchors`, `version::r
 Native `requests::key_over_tls` and loopback dial filtering at `0f082690` map to the browser workspace guard and the Next.js [keyed request helper](../../examples/nextjs/lib/sharing/operator-request.ts). [Transport properties and browser limits](../reports/26-11-11-operator-key-transport-parity.html).
 
 Native `open_file`, `join_recorded` and `online_session` at `0f082690` map to `OnlineWorkspace.openRecorded`, `BrowserInvitations.beginOwned` and `LiveSessions.recorded`. [Native receipts, authenticated browser and multi-server coverage](../reports/26-11-11-recorded-online-open-parity.html).
+
+Native app recovery sidecars, process locking and online_merge at `9e815546` map to WorkspaceRecovery, claimWorkspaceScope, ownerRecoveryLock, recoveredDrawing and LivePeer. [Native archives, device lifecycle and authenticated reload](../reports/26-11-11-online-crash-recovery-parity.html).
