@@ -17,9 +17,25 @@ export interface RecoveryStore {
   close(): void;
 }
 
+/** Host-private material for reclaiming a device's previous editing client. */
+export interface OnlineResumeKey {
+  handle: string;
+  secret: string;
+}
+export interface OnlineRecoveryNote {
+  server: string;
+  file: string;
+  room: string;
+  client: number;
+  sequence: string;
+  resume: OnlineResumeKey;
+}
+
 /** One atomic, ordered set of native archives for a signed-in browser workspace. */
 export interface WorkspaceArchive {
   files: readonly Blob[];
+  /** Entries refer to files at the same index in this atomic write. */
+  online?: readonly (OnlineRecoveryNote | null)[];
   active: number;
 }
 

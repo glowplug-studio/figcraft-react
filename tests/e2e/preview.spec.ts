@@ -587,6 +587,10 @@ test("publish, reopen and manage a device-owned file in Home Online", async ({ p
     await rename.getByRole("button", { name: "Rename", exact: true }).click();
     await panel.getByRole("button", { name: /^Server listing/ }).click();
     await expect(page.getByRole("tablist", { name: "Open files" })).toHaveCount(0);
+    // This workflow covers the manual Home reopen after deliberately leaving the live file.
+    await bar.getByText("File",{exact:true}).click();
+    await bar.getByRole("button",{name:"Leave session"}).click();
+    await expect(page.locator(".figcraft-recovery")).toHaveText("Recovery saved on this device");
     await page.reload();
     await expect(bar.getByRole("button", { name: "Home", exact: true })).toBeEnabled();
     await page.route("**/rest/v1/online_files?**", route => route.fulfill({ status: 400, json: { message: "offline fixture" } }));
@@ -743,6 +747,96 @@ for (const confirmed of [true, false]) {
     }
   });
 }
+
+if (!process.env.PLAYWRIGHT_BASE_URL) for(const diverged of [false,true]) test(diverged
+  ? "diverged online crash recovery preserves both drawings and opens the copy offline after server refusal"
+  : "an owner recovers unsent edits after reload without taking over another open window",async({page})=>{
+  test.setTimeout(90_000);
+  await login(page);
+  const bar=page.locator(".figcraft-document-bar");
+  const live="**/api/online-files/live";
+  let file:string|undefined,second:Page|undefined;
+  try{
+    await page.getByRole("button",{name:"Create rectangle",exact:true}).click();
+    await bar.getByText("File",{exact:true}).click();
+    await bar.getByRole("button",{name:"Publish to server…"}).click();
+    const form=page.getByRole("dialog",{name:"Publish to server",exact:true});
+    await form.getByLabel("File name").fill("Crash recovery");
+    const published=page.waitForResponse(r=>new URL(r.url()).pathname==="/api/online-files");
+    const initialJoin=page.waitForResponse(r=>new URL(r.url()).pathname==="/api/online-files/join");
+    await form.getByRole("button",{name:"Publish",exact:true}).click();
+    file=(await (await published).json()).id;
+    const initial=await initialJoin,identity=initial.headers()["x-figcraft-client"];
+    await expect(bar.getByText(/Can edit/)).toBeVisible();
+    const submitHeld=page.waitForRequest(r=>new URL(r.url()).pathname==="/api/online-files/live" && r.postDataJSON().action==="submit");
+    const originalTab=initial.request().postDataJSON().tab;
+    let partitioned=false;
+    await page.route(live,route=>{
+      const {tab,action}=route.request().postDataJSON();
+      if(tab===originalTab && action==="submit")partitioned=true;
+      if(tab===originalTab && partitioned && (action==="submit" || action==="read")){
+        return route.fulfill({status:503,json:{error:"offline"}});
+      }
+      return route.continue();
+    });
+    await page.getByRole("button",{name:"Create ellipse",exact:true}).click();
+    await submitHeld;
+    await expect(page.locator(".figcraft-recovery")).toHaveText("Recovery saved on this device");
+    second=await page.context().newPage();
+    let otherJoins=0;
+    second.on("request",r=>{if(new URL(r.url()).pathname==="/api/online-files/join")otherJoins++;});
+    await second.goto("/");
+    await expect(second.getByRole("button",{name:"Create rectangle",exact:true})).toBeVisible();
+    await second.getByRole("button",{name:"Create rectangle",exact:true}).click();
+    await expect(second.locator(".figcraft-recovery")).toHaveText("Recovery saved on this device");
+    expect(otherJoins).toBe(0);
+    if(diverged){
+      const otherBar=second.locator(".figcraft-document-bar");
+      await otherBar.getByRole("button",{name:"Home",exact:true}).click();
+      const home=second.getByRole("region",{name:"Home",exact:true});
+      await home.getByRole("button",{name:"Online",exact:true}).click();
+      await home.getByRole("button",{name:/^Crash recovery/}).click();
+      await expect(otherBar.getByText(/Can edit/)).toBeVisible();
+      const changed=second.waitForResponse(r=>new URL(r.url()).pathname==="/api/online-files/live" &&
+        r.request().postDataJSON().action==="submit");
+      await second.getByRole("button",{name:"Create rectangle",exact:true}).click();
+      expect((await (await changed).json()).decision).toBe("accepted");
+    }
+    const rejoined=page.waitForResponse(r=>new URL(r.url()).pathname==="/api/online-files/join");
+    const replay=diverged ? undefined : page.waitForResponse(r=>new URL(r.url()).pathname==="/api/online-files/live" && r.request().postDataJSON().action==="submit");
+    await page.reload();
+    const recovered=await rejoined;
+    expect(recovered.ok()).toBe(true);
+    expect(recovered.headers()["x-figcraft-client"]).toBe(identity);
+    expect(recovered.headers()["x-figcraft-room"]).toBe(initial.headers()["x-figcraft-room"]);
+    if(diverged){
+      const tabs=page.getByRole("tablist",{name:"Open files"});
+      const layers=page.getByRole("region",{name:"Layers",exact:true});
+      await expect(tabs.getByRole("tab",{name:/^Crash recovery \(recovered copy\)(?:unsaved)?$/})).toBeVisible();
+      await expect(layers.getByRole("button",{name:"Ellipse",exact:true})).toHaveCount(0);
+      await tabs.getByRole("tab",{name:/^Crash recovery \(recovered copy\)(?:unsaved)?$/}).click();
+      await expect(layers.getByRole("button",{name:"Ellipse",exact:true})).toBeVisible();
+      await expect(page.locator(".figcraft-recovery")).toHaveText("Recovery saved on this device");
+      await page.route("**/api/online-files/join",route=>route.fulfill({status:503,json:{error:"unreachable"}}));
+      const refused=page.waitForResponse(r=>new URL(r.url()).pathname==="/api/online-files/join");
+      await page.reload();
+      expect((await refused).status()).toBe(503);
+      await expect(tabs.getByRole("tab",{name:/^Crash recovery(?:unsaved)?$/})).toBeVisible();
+      await expect(bar.getByText(/Can edit/)).toHaveCount(0);
+      await expect(page.locator(".figcraft-recovery")).toHaveText("Recovery saved on this device");
+      return;
+    }
+    expect((await (await replay!).json()).decision).toBe("accepted");
+    await expect(page.getByRole("region",{name:"Layers",exact:true}).getByRole("button",{name:"Ellipse",exact:true})).toBeVisible();
+    await expect(page.getByRole("tablist",{name:"Open files"})).toHaveCount(0);
+    await expect(bar.getByText(/Can edit/)).toBeVisible();
+    await page.getByRole("button",{name:"Undo",exact:true}).click();
+    await expect(page.getByRole("region",{name:"Layers",exact:true}).getByRole("button",{name:"Ellipse",exact:true})).toHaveCount(0);
+  } finally {
+    await second?.close();
+    if(file)await removeOnlineFixture(page,file);
+  }
+});
 
 test("owner sharing retries a lost reply and rotates three roles from Home Online", async ({page}) => {
   test.setTimeout(90_000);

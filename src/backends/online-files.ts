@@ -1,3 +1,4 @@
+import type {OnlineResumeKey} from "./recovery";
 import type {LibraryUsageSummary,LibraryUsageReport} from "../engine/sharing/library-usage";
 import type { TeamDirectory } from "../engine/sharing/team-directory";
 
@@ -105,7 +106,9 @@ export interface OwnerJoin {
 }
 export interface OnlineInvitations {
   /** Resolve the device edit grant locally, then return before the server welcomes it. */
-  beginOwned?(file: string, managedByKey: boolean, listing: Pick<OnlineFileInfo, "name" | "expires">, recorded: boolean): Promise<OwnerJoin | undefined>;
+  beginOwned?(file: string, managedByKey: boolean, listing: Pick<OnlineFileInfo, "name" | "expires">, recorded: boolean, resume?: OnlineResumeKey): Promise<OwnerJoin | undefined>;
+  /** Available only to the local recovery writer while the device owns its live client. */
+  recoveryKey?(connection:string):OnlineResumeKey | undefined;
   /** Read authorised, in-memory invitation details for this logical session only. */
   inspect?(connection:string):SessionDetails|undefined;
   live?(connection: string): import("../engine/sharing/live-transport").LiveTransport | undefined;

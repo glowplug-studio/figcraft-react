@@ -1,3 +1,5 @@
+import type {OnlineResumeKey} from "../../backends/recovery";
+import type {OnlineRecoveryPosition} from "./online-recovery";
 import {checkOperatorTransport} from "./operator-transport";
 import {teamWebLink,teamFileLink,type TeamDirectory} from "./team-directory";
 import type { OnlineFileInfo, OnlineFileRegistry, OnlineWorkspaceHost, PendingOnlinePublication, RememberedOnlineFile } from "../../backends/online-files";
@@ -19,12 +21,18 @@ function timestamp(decimal:string|null|undefined) {
 
 export const onlineCommands={
   "collab.files":{label:"List online files",undo:false},
+  "collab.recoverFile":{label:"Recover online file",undo:false},
   "collab.openFile":{label:"Open online file",undo:false},
   "collab.forgetFile":{label:"Forget online file",undo:false},
 };
 export type OnlineCommand=keyof typeof onlineCommands;
 export const emptyOnlineFiles=()=>({files:[],problems:[],max:MAX_ONLINE_FILES,team:null});
 
+interface RecordedRecovery {
+  tab:number;
+  position:OnlineRecoveryPosition;
+  resume?:OnlineResumeKey;
+}
 interface RecordedOpening {
   connection:string;
   session:number;
@@ -256,6 +264,7 @@ export class OnlineWorkspace {
   }
 
   async execute(command:OnlineCommand,params:Record<string,unknown>) {
+    if(command==="collab.recoverFile")return this.recoverFile(params);
     if(command==="collab.openFile"){
       const {files}=await this.registry();
       this.check();
@@ -474,10 +483,49 @@ export class OnlineWorkspace {
     for (const [file, id] of this.tabs) if (id === tab) return file;
   }
 
-  private async beginRecorded(record:RememberedOnlineFile):Promise<RecordedOpening|undefined> {
+  async restoreSaved(current:()=>boolean) {
+    // Start each original in recovery order. The individual welcomes can complete independently.
+    for(const {path,note} of this.workspace.savedOnlineFiles){
+      if(!current())return;
+      try {
+        await this.recoverFile({path,file:note.file,server:note.server,session:note.room,client:note.client,seq:note.sequence,secret:note.resume.secret});
+      } catch(error) {
+        if(!current())return;
+        const source=this.workspace.recoverySource(path);
+        if(source)this.workspace.keepRecovery(source.id,serverReason(error)+". Your recovered copy is open");
+      }
+    }
+  }
+
+  private async recoverFile(params:Record<string,unknown>) {
+    if(typeof params.path!=="string")throw new Error("path must name a recovered archive");
+    const {files}=await this.registry();
+    this.check();
+    const record=this.namedRecord(files,params),owner=this.forServer(record.server);
+    if(!owner)throw new Error("This server is unavailable in the current host");
+    const integer=(value:unknown,key:string)=>{
+      if(typeof value==="number" && Number.isSafeInteger(value) && value>=0)return String(value);
+      if(typeof value==="string" && /^(0|[1-9]\d{0,19})$/.test(value) && BigInt(value)<=0xffffffffffffffffn)return value;
+      throw new Error(key+" must be a whole number");
+    };
+    const room=typeof params.session==="string" && /^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(params.session)
+      ? params.session : integer(params.session,"session");
+    const client=Number(integer(params.client,"client")),sequence=integer(params.seq,"seq");
+    if(client>0xffffffff)throw new Error("client must be a client id");
+    const source=this.workspace.recoverySource(params.path);
+    if(!source)throw new Error("The recovery archive is unavailable on this device");
+    const note=source.note;
+    const resume=note && note.file===record.file && onlineServerKey(note.server)===record.server &&
+      params.secret===note.resume.secret ? note.resume : undefined;
+    const result=await owner.openRecorded(record,{tab:source.id,position:{room,client,sequence},resume});
+    if(!result)throw new Error("The original edit link is unavailable");
+    return {session:result.brief.session,status:"connecting"};
+  }
+
+  private async beginRecorded(record:RememberedOnlineFile,recovery?:RecordedRecovery):Promise<RecordedOpening|undefined> {
     const invites=this.host.invitations, file=record.file;
     if(!invites?.beginOwned)throw new Error("Live sessions are unavailable here");
-    const start=await invites.beginOwned(file,false,{name:record.name,expires:this.expiries.get(file)},true);
+    const start=await invites.beginOwned(file,false,{name:record.name,expires:this.expiries.get(file)},true,recovery?.resume);
     if(!start)return;
     // A cancelled or immediately refused welcome may settle during the device transaction.
     void start.completed.catch(()=>{});
@@ -486,6 +534,7 @@ export class OnlineWorkspace {
     try {
       this.check();
       session=this.workspace.beginRecorded(connection,this.server,file,invites);
+      if(recovery)this.workspace.waitForRecoveredFile(connection,recovery.tab,recovery.position);
       await this.records(records=>{
         const current=records.find(row=>this.matches(row,file));
         if(!current)throw new Error("No online file with that id is recorded on this computer");
@@ -511,25 +560,27 @@ export class OnlineWorkspace {
     };
     const completed = attach().catch(error => {
       this.workspace.joining(connection, serverReason(error));
+      if(recovery && this.authorised())this.workspace.keepRecovery(recovery.tab,serverReason(error)+". Your recovered copy is open");
       throw error;
     });
     return {connection, session, completed};
   }
 
-  private async openRecorded(record: RememberedOnlineFile) {
+  private async openRecorded(record: RememberedOnlineFile,recovery?:RecordedRecovery) {
     const {file, name} = record;
     const server = record.recordedAddress ?? record.server;
     if (this.states.get(file) === "gone") throw new Error("This file is no longer on its server (it was removed or expired)");
     for (;;) {
       let pending = this.starting.get(file);
       const current = this.workspace.onlineSession(file, this.server);
+      if(recovery && (pending || current))throw new Error("This file is open already");
       if (current && (!pending || current.document !== null)) {
         if (current.document !== null) this.workspace.execute("doc.switch", {index: current.document});
         return {brief: {session: current.id, status: current.status, document: current.document, alreadyOpen: true, file, server, name}};
       }
       const alreadyOpen = !!pending;
       if (!pending) {
-        pending = this.beginRecorded(record);
+        pending = this.beginRecorded(record,recovery);
         this.starting.set(file, pending);
         // Keep the first request discoverable until its archive is attached or its join fails.
         void pending.then(opening => opening?.completed).catch(() => {}).finally(() => {

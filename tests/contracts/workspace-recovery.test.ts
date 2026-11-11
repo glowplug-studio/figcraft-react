@@ -72,3 +72,46 @@ it("keeps a corrupt recovery record recoverable while the user edits a fresh dra
   controller.dispose();
   store.close();
 });
+
+it("stores the installed owner position with the exact archive and clears it on leave", async () => {
+  const store=new IndexedDbRecoveryStore({indexedDB:new IDBFactory()});
+  const workspace=new EditorWorkspace();
+  const controller=new WorkspaceRecovery(workspace,store,"owner",vi.fn());
+  await controller.start();
+  try {
+    const key={handle:"device-handle",secret:"fixture-resume"};
+    const guest={file:"drawing",connection:"connection",room:"room",client:2,access:"edit" as const,openedAsOwner:true as const};
+    workspace.setInvitations({
+      recoveryKey:()=>key, inspect:()=>({address:"example",network:true,link:"fixture",url:"fixture",published:{
+        file:"drawing",server:"https://files.example",name:"Drawing",view:"",edit:"",owner:null,expires:null,
+      }}),showJoin(){},subscribe:()=>()=>{},copyPublished:async()=>{},leave:async()=>{},
+    });
+    const archive=(await workspace.activeEngine!.saveFile()).data;
+    await workspace.open(new File([archive],"Drawing.figcraft"),guest);
+    workspace.installedSessionPosition("connection",{room:"room",client:2,sequence:"12"});
+    await controller.flush();
+    const stored=await store.readWorkspace("owner");
+    expect(stored?.online).toEqual([null,{file:"drawing",server:"https://files.example",room:"room",client:2,sequence:"12",resume:key}]);
+    expect(stored?.files).toHaveLength(2);
+    expect(await store.readWorkspace("other")).toBeNull();
+    workspace.installedSessionPosition("connection",{room:"earlier",client:2,sequence:"40"});
+    await controller.flush();
+    expect((await store.readWorkspace("owner"))?.online?.[1]?.sequence).toBe("12");
+    workspace.leaveSession("connection");
+    await controller.flush();
+    expect((await store.readWorkspace("owner"))?.online).toBeUndefined();
+  }finally{controller.dispose();store.close();}
+});
+
+it("retains the drawing when its optional online recovery position is malformed",async()=>{
+  const store=new IndexedDbRecoveryStore({indexedDB:new IDBFactory()});
+  const archive=(await new EditorEngine("Recover me").saveFile()).data;
+  try{
+    await store.writeWorkspace("owner",{files:[archive],active:0,online:[
+      {server:"https://example.test/?key=bad",file:"f",room:"r",client:1,sequence:"0",resume:{handle:"h",secret:"s"}},
+    ]});
+    const saved=await store.readWorkspace("owner");
+    expect(saved?.online).toBeUndefined();
+    expect(await saved?.files[0].arrayBuffer()).toEqual(await archive.arrayBuffer());
+  }finally{store.close();}
+});

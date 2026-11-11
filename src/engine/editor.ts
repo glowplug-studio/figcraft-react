@@ -1217,8 +1217,8 @@ export class EditorEngine {
     this.#viewportAttached = true;
   }
   subscribe = (listener: () => void): (() => void) => { this.#listeners.add(listener); return () => { this.#listeners.delete(listener); }; };
-  captureNativeSnapshot() {
-    const { document, nextId, versions, branches } = this.archiveRevision;
+  captureNativeSnapshot(document = this.archiveRevision.document) {
+    const { nextId, versions, branches } = this.archiveRevision;
     return () => encodeFigcraftBlob(document, String(nextId), versions, undefined, branches);
   }
   nativeSnapshot = (): Promise<Uint8Array> => encodeFigcraft(this.#fileDocument(), String(this.#nextId), this.#history.records, this.#branches);

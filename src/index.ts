@@ -20,7 +20,7 @@ export {
   type Unsubscribe,
 } from "./backends/identity";
 export { WorkspaceEditor } from "./WorkspaceEditor";
-export type { WorkspaceRecoveryStore, WorkspaceArchive } from "./backends/recovery";
+export type { WorkspaceRecoveryStore, WorkspaceArchive, OnlineRecoveryNote, OnlineResumeKey } from "./backends/recovery";
 export { Editor, type EditorProps } from "./Editor";
 export {OnlineWorkspace} from "./engine/sharing/online-workspace";
 export { EditorWorkspace, type DocumentTab } from "./engine/workspace";

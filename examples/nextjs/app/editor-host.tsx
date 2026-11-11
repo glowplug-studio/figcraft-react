@@ -68,7 +68,7 @@ export function EditorHost({ identity }: { identity: Extract<IdentitySnapshot, {
       else if (snapshot.status === "authenticated" && snapshot.principal.id !== identity.principal.id) router.refresh();
     });
     void next.refresh();
-    return () => { unsubscribe(); next.dispose(); store.close(); };
+    return () => { unsubscribe(); invites.dispose(); next.dispose(); store.close(); };
   }, [identity, router]);
   function cancelJoin() {
     const connection=joinAttempt.current;

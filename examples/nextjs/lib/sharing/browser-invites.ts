@@ -1,6 +1,7 @@
+import {ownerRecoveryLock,type OwnerRecoveryLock} from "./owner-recovery-lock";
 import {parseJoinCode} from "@glowplug-studio/figcraft-react/sharing/join-code";
 import {hostingSummary,readPeopleWelcome,readDisplayName,type PeopleWelcome} from "@glowplug-studio/figcraft-react";
-import type { OnlineFileInfo, OnlineHostInformation, SessionDetails, LiveTransport, GuestConnectionStatus, GuestSessionEnd, IndexedDbRecoveryStore, OnlineGuestSession, OnlineInvitations } from "@glowplug-studio/figcraft-react";
+import type { OnlineResumeKey, OnlineFileInfo, OnlineHostInformation, SessionDetails, LiveTransport, GuestConnectionStatus, GuestSessionEnd, IndexedDbRecoveryStore, OnlineGuestSession, OnlineInvitations } from "@glowplug-studio/figcraft-react";
 import { type SessionInvite,inviteEndpoint, nativeInviteLink, parseInviteServer, parseSessionInvite } from "@glowplug-studio/figcraft-react/sharing/invite";
 
 export const inviteAfterLogin = "figcraft-join-after-login";
@@ -14,7 +15,7 @@ export function guestReconnectDelay(attempt: number) {
 class RefusedInvite extends Error {}
 class BarredInvite extends RefusedInvite {}
 
-type Grant = {file:string;token:string;resume:string;physical:string;ended:boolean;archive:Blob;room:string;client:number;
+type Grant = {recovery?:OwnerRecoveryLock;file:string;token:string;resume:string;physical:string;ended:boolean;archive:Blob;room:string;client:number;
   welcome?:PeopleWelcome;recorded?:boolean;published?:SessionDetails["published"];hosting?:SessionDetails["hosting"]};
 
 function epoch(value?:string|null) {
@@ -63,8 +64,18 @@ export class BrowserInvitations implements OnlineInvitations {
     queueMicrotask(() => consume(true));
     return () => {
       window.removeEventListener("hashchange", changed);
-      if (this.listener === listener) {this.listener = undefined;this.stage=undefined;this.pending.clear();}
+      if (this.listener === listener) {
+        this.listener=undefined;this.stage=undefined;this.pending.clear();
+      }
     };
+  }
+
+  dispose() {
+    this.listener=undefined;
+    this.stage=undefined;
+    this.pending.clear();
+    for(const tab of this.tabs.values())tab.recovery?.release();
+    this.tabs.clear();
   }
 
   live(connection: string): LiveTransport | undefined {
@@ -147,6 +158,11 @@ export class BrowserInvitations implements OnlineInvitations {
     await navigator.clipboard.writeText(location.origin + "/#join=" + encodeURIComponent(link));
   }
 
+  recoveryKey(connection:string) {
+    const tab=this.tabs.get(connection);
+    if(tab && !tab.ended && tab.recovery)return {...tab.recovery.key};
+  }
+
   canAttach(connection:string) {const tab=this.tabs.get(connection);return !!tab && !tab.ended;}
 
   async joinOwned(file: string, managedByKey = false, listing?:Pick<OnlineFileInfo,"name"|"expires">, recorded=false) {
@@ -154,22 +170,24 @@ export class BrowserInvitations implements OnlineInvitations {
     return joined?.completed;
   }
 
-  async beginOwned(file: string, managedByKey: boolean, listing: Pick<OnlineFileInfo, "name"|"expires"> | undefined, recorded: boolean) {
+  async beginOwned(file: string, managedByKey: boolean, listing: Pick<OnlineFileInfo, "name"|"expires"> | undefined, recorded: boolean, saved?:OnlineResumeKey) {
     const listener=this.listener;
     const links = await this.device.readPublishedLinks(this.principal, this.server, file);
     if(listener!==this.listener)throw new Error("The join was cancelled");
     if (!links) return undefined;
+    const recovery=managedByKey ? undefined : await ownerRecoveryLock(this.principal,this.server,saved);
+    if(listener!==this.listener){recovery?.release();throw new Error("The join was cancelled");}
     const connection = crypto.randomUUID();
     const stage = this.stage;
     this.pending.add(connection);
     stage?.(connection);
-    return {connection, completed: this.finishOwned(connection, file, links, managedByKey, listing, recorded, stage)};
+    return {connection, completed: this.finishOwned(connection, file, links, managedByKey, listing, recorded, stage, recovery)};
   }
 
   private async finishOwned(connection: string, file: string,
     links: NonNullable<Awaited<ReturnType<IndexedDbRecoveryStore["readPublishedLinks"]>>>, managedByKey: boolean,
-    listing: Pick<OnlineFileInfo, "name"|"expires"> | undefined, recorded: boolean, stage: typeof this.stage) {
-    const resume = crypto.randomUUID(), token = links.edit.token;
+    listing: Pick<OnlineFileInfo, "name"|"expires"> | undefined, recorded: boolean, stage: typeof this.stage, recovery?:OwnerRecoveryLock) {
+    const resume = recovery?.key.secret ?? crypto.randomUUID(), token = links.edit.token;
     try {
       const {access, client, room, bytes,welcome,canRemovePeople} = await this.redeem(connection, {file, token, resume});
       if(!this.pending.has(connection) || stage!==this.stage)throw new Error("The join was cancelled");
@@ -177,9 +195,10 @@ export class BrowserInvitations implements OnlineInvitations {
       const wayIn=(token:string)=>nativeInviteLink({kind:"link",server:this.endpoint,file,token});
       const published=listing && {server:this.server,file,name:listing.name,owner:null,expires:epoch(listing.expires),
         edit:wayIn(token),view:wayIn(links.view.token)};
-      this.addGrant(connection, {file, token,published,recorded, resume, physical: connection, ended: false, archive:bytes, room, client,welcome});
+      this.addGrant(connection, {file, token,published,recorded, recovery,resume, physical: connection, ended: false, archive:bytes, room, client,welcome});
       return {session: {file, connection, access, client, room, canRemovePeople, ...(!managedByKey && {openedAsOwner: true as const})}, archive: bytes};
     } catch (error) {
+      recovery?.release();
       if(this.pending.has(connection) && stage===this.stage) stage?.(connection,error instanceof Error ? error.message : "The invite is unavailable");
       void this.release(connection).catch(() => undefined);
       throw error;
@@ -396,6 +415,7 @@ export class BrowserInvitations implements OnlineInvitations {
     if(pending)this.stage?.(connection,null);
     const tab = this.tabs.get(connection);
     this.tabs.delete(connection);
+    tab?.recovery?.release();
     // Leaving is final on the device even when the server cannot be reached.
     // A missed leave expires under the same deadline as an abruptly closed page.
     if (pending && !tab)return;

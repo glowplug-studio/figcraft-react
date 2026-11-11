@@ -10,6 +10,9 @@ export interface LiveEditor {
   current(): Document;
   recordsEdit?(document: Document): boolean;
   welcome?(document:Document):void;
+  recover?(confirmed:LiveReplica,position:LiveIdentity & {sequence:string},access:LiveUpdate["access"]):
+    Promise<{document?:Document;installed():void}|undefined>;
+  installed?(position:LiveIdentity & {sequence:string}):void;
   mergeStranded?(document:Document,client:number):Document|undefined;
   receive(document: Document, restartedClient?:number): void;
   subscribe(listener: () => void): () => void;
@@ -40,6 +43,7 @@ export class LivePeer {
   private installing = false;
   private redraw = false;
   private welcomePending=false;
+  private recovered?:()=>void;
 
   constructor(private editor: LiveEditor, private transport: LiveTransport, private client: number, private notice: (message: string) => void) {
     this.identity = transport.identity;
@@ -309,7 +313,11 @@ export class LivePeer {
         if(this.editor.interacting()){nextPoll=100;return;}
         const snapshot=this.confirmed.document;
         this.editor.welcome?.(snapshot);
-        const merged=this.editor.mergeStranded?.(snapshot,this.client);
+        const recovery=welcome && this.editor.recover && this.sequence !== null ?
+          await this.editor.recover(this.confirmed,{...welcome,sequence:this.sequence},update.access) : undefined;
+        if(!this.alive || !this.sameIdentity(welcome,this.transport.identity))return;
+        if(recovery)this.recovered=recovery.installed;
+        const merged=recovery?.document ?? this.editor.mergeStranded?.(snapshot,this.client);
         if(merged){
           // The three-way result includes all work in the stranded tab before and during rejoin.
           this.edits=[];this.pending=[];this.undo=[];this.redo=[];this.travelRequest=undefined;
@@ -322,6 +330,11 @@ export class LivePeer {
         this.welcomePending=false;
       }
       await this.reconcile();
+      if (welcome && !this.redraw && !this.welcomePending && this.sequence !== null && this.alive &&
+          this.sameIdentity(welcome,this.transport.identity)) {
+        this.editor.installed?.({...welcome,sequence:this.sequence});
+        this.recovered?.();this.recovered=undefined;
+      }
       const head = this.pending[0];
       if (head && this.alive && this.sameIdentity(welcome,this.transport.identity)) {
         await this.prepareTravel(head);

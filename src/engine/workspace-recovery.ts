@@ -13,7 +13,7 @@ export class WorkspaceRecovery {
   #timer?: ReturnType<typeof setTimeout>;
   #running?: Promise<void>;
   #detach: (() => void)[] = [];
-  #archives = new WeakMap<object, Blob>();
+  #archives = new WeakMap<object, {document:object;blob:Blob}>();
   constructor(private workspace: EditorWorkspace, private store: WorkspaceRecoveryStore, private principal: string,
     private notify: (state: WorkspaceRecoveryState) => void) {}
 
@@ -21,10 +21,10 @@ export class WorkspaceRecovery {
     try {
       const saved = await this.store.readWorkspace(this.principal);
       if (this.#disposed) return;
-      const repairs = saved && await this.workspace.restore(saved.files, saved.active, () => this.#disposed);
+      const repairs = saved && await this.workspace.restore(saved.files, saved.active, () => this.#disposed,saved.online);
       if (this.#disposed) return;
       // Keep original archives, including repaired data, until this particular drawing changes.
-      if (saved && repairs) this.workspace.engines.forEach((engine, i) => this.#archives.set(engine.archiveRevision, saved.files[i]));
+      if (saved && repairs) this.workspace.engines.forEach((engine, i) => this.#archives.set(engine.archiveRevision,{document:engine.archiveRevision.document,blob:saved.files[i]}));
       this.notify({ status: "ready", message: repairs?.join("\n") });
     } catch (error) {
       if (this.#disposed) return;
@@ -53,19 +53,22 @@ export class WorkspaceRecovery {
     try {
       while (!this.#disposed && this.#written !== this.#revision) {
         attempted = this.#revision;
-        const { active, engines } = this.workspace.recoveryFiles;
-        const pending = engines.map(engine => ({
-          doc: engine.archiveRevision, encode: engine.captureNativeSnapshot(),
-        }));
+        const { active, engines, online } = this.workspace.recoveryFiles;
+        const pending = engines.map((engine,index) => {
+          const revision=engine.archiveRevision;
+          const drawing=online?.[index] ? engine.liveDrawing() : revision.document;
+          return {revision,drawing,encode:engine.captureNativeSnapshot(drawing)};
+        });
         const files: Blob[] = [];
-        for (const { doc, encode } of pending) {
-          let blob = this.#archives.get(doc);
-          if (!blob) { blob = await encode(); this.#archives.set(doc, blob); }
+        for (const {revision,drawing,encode} of pending) {
+          const cached=this.#archives.get(revision);
+          const blob=cached?.document===drawing ? cached.blob : await encode();
+          this.#archives.set(revision,{document:drawing,blob});
           if (this.#disposed) return;
           files.push(blob);
         }
         if (attempted !== this.#revision) continue;
-        await this.store.writeWorkspace(this.principal, { active, files });
+        await this.store.writeWorkspace(this.principal, { active, files, ...(online && {online}) });
         this.#written = attempted;
         if (!this.#disposed && attempted === this.#revision) this.notify({ status: "stored" });
       }

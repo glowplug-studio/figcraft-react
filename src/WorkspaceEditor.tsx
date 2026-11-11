@@ -19,8 +19,10 @@ import { WorkspaceRecovery, type WorkspaceRecoveryState } from "./engine/workspa
 
 type WorkspaceProps = Omit<EditorProps, "engine" | "recoveryStore"> & { recoveryStore: WorkspaceRecoveryStore; onlineHost?: OnlineWorkspaceHost };
 
-function GuestSubscription({connection, confirmed, mergeStranded, invitations, ended, changed, engine, client, roomId, notice, active}: {
+function GuestSubscription({connection, confirmed, installed, recover, mergeStranded, invitations, ended, changed, engine, client, roomId, notice, active}: {
   confirmed:EditorWorkspace["confirmedSessionDrawing"];
+  installed:EditorWorkspace["installedSessionPosition"];
+  recover:EditorWorkspace["recoverSessionDrawing"];
   mergeStranded:EditorWorkspace["mergeStrandedDrawing"];
   active:boolean; engine:EditorEngine; client?:number; roomId?:string; notice:(text:string)=>void;
   connection: string;
@@ -35,12 +37,12 @@ function GuestSubscription({connection, confirmed, mergeStranded, invitations, e
   useEffect(() => {
     const initialClient=transport?.identity?.client ?? fallbackClient;
     if (!transport || !initialClient) return;
-    const peer = new LivePeer({current:() => engine.liveDrawing(),welcome:d=>confirmed(connection,d),mergeStranded:(d,id)=>mergeStranded(connection,d,id),receive:(d,restartedClient) => engine.receiveLiveDocument(d,restartedClient),
+    const peer = new LivePeer({current:() => engine.liveDrawing(),welcome:d=>confirmed(connection,d),installed:p=>installed(connection,p),recover:(replica,p,access)=>recover(connection,replica,p,access),mergeStranded:(d,id)=>mergeStranded(connection,d,id),receive:(d,restartedClient) => engine.receiveLiveDocument(d,restartedClient),
       recordsEdit:d => engine.recordsLiveEdit(d),
       normalise:(before,after,touched) => engine.repairLiveDocument(before,after,touched),
       subscribe:engine.subscribe,interacting:() => engine.interacting,history:h => engine.setLiveHistory(h)},transport,initialClient,notice);
     return peer.start();
-  },[engine,transport,fallbackClient,notice,confirmed,mergeStranded,connection]);
+  },[engine,transport,fallbackClient,notice,confirmed,installed,recover,mergeStranded,connection]);
   useEffect(()=>{
     const people=invitations.live?.(connection)?.people;
     if(!people || !client)return;
@@ -139,7 +141,9 @@ export function WorkspaceEditor({ identity, capabilities, recoveryStore, onlineH
       setHome(undefined);
       setNotice("");
     },(connection,failed)=>workspace.joining(connection,failed));
-    return ()=>{unsubscribe();workspace.setInvitations(undefined);};
+    let current=true;
+    queueMicrotask(()=>{if(current)void online?.restoreSaved(()=>current);});
+    return ()=>{current=false;unsubscribe();workspace.setInvitations(undefined);};
   }, [workspace, enabled, primaryInvitations,online,setNotice,setLiveNotice]);
   const ended = useCallback((connection: string, reason: GuestSessionEnd) => {
     const session = workspace.getSnapshot().find(tab => tab.guest?.connection === connection)?.guest;
@@ -257,7 +261,7 @@ export function WorkspaceEditor({ identity, capabilities, recoveryStore, onlineH
     {enabled && tabs.map(tab => {
       const guestHost=tab.guest && workspace.sessionInvitations(tab.guest.connection);
       if(!guestHost?.watch || !tab.guest || tab.guest.ended)return null;
-      return <GuestSubscription mergeStranded={workspace.mergeStrandedDrawing} confirmed={workspace.confirmedSessionDrawing} active={tab.active && !home} key={tab.guest.connection} connection={tab.guest.connection} invitations={guestHost} engine={workspace.engines[tab.index]} client={tab.guest.client} roomId={tab.guest.room} notice={setLiveNotice} ended={ended} changed={connectionChanged} />;
+      return <GuestSubscription recover={workspace.recoverSessionDrawing} installed={workspace.installedSessionPosition} mergeStranded={workspace.mergeStrandedDrawing} confirmed={workspace.confirmedSessionDrawing} active={tab.active && !home} key={tab.guest.connection} connection={tab.guest.connection} invitations={guestHost} engine={workspace.engines[tab.index]} client={tab.guest.client} roomId={tab.guest.room} notice={setLiveNotice} ended={ended} changed={connectionChanged} />;
     })}
     {tabs.length > 1 && <div role="tablist" aria-label="Open files" className="figcraft-file-tabs">
       {tabs.map(tab => <button key={tab.id} type="button" role="tab" disabled={!enabled} aria-selected={tab.active}

@@ -1,3 +1,5 @@
+import {claimWorkspaceScope,type WorkspaceScope} from "./workspace-scope";
+import {readOnlineNote} from "../../engine/sharing/online-recovery";
 import { readDeviceOwnerSharing, type DeviceOwnerSharing } from "./owner-sharing";
 import { createPublishedLinks, type PublishedLinks } from "../published-links";
 import type { OnlineFileDevice, OnlineFileRegistry, RememberedOnlineFile } from "../online-files";
@@ -20,6 +22,8 @@ export class IndexedDbRecoveryStore implements WorkspaceRecoveryStore, OnlineFil
   #cancelOpen: (() => void) | undefined;
   #transactions = new Set<IDBTransaction>();
   #closed = false;
+  #scopes=new Map<string,Promise<WorkspaceScope>>();
+  #adopted=new Set<WorkspaceScope>();
 
   constructor(options: IndexedDbRecoveryOptions = {}) {
     this.#options = options;
@@ -228,35 +232,80 @@ export class IndexedDbRecoveryStore implements WorkspaceRecoveryStore, OnlineFil
     return this.#transaction(principalId, "readwrite", store => store.put(copy, principalId), () => undefined);
   }
 
-  async readWorkspace(principal: string): Promise<WorkspaceArchive | null> {
-    const stored = await this.#transaction(principal, "readonly", store => store.get([principal, "workspace"]), value => {
+  private workspaceKey(principal:string,scope:string):string[] {
+    return scope ? [principal,"workspace",scope] : [principal,"workspace"];
+  }
+
+  private workspaceScope(principal:string) {
+    let pending=this.#scopes.get(principal);
+    if(!pending){
+      const name=this.#options.databaseName ?? "figcraft-recovery";
+      pending=claimWorkspaceScope(name,principal,()=>this.#transaction(principal,"readonly",store=>
+        store.getAllKeys(IDBKeyRange.bound([principal,"workspace"],[principal,"workspace",[]])),value=>
+        (value as IDBValidKey[]).flatMap(key=>Array.isArray(key) && key[1]==="workspace" ? [String(key[2] ?? "")] : [])));
+      this.#scopes.set(principal,pending);
+      void pending.catch(()=>this.#scopes.delete(principal));
+    }
+    return pending;
+  }
+
+  private readScope(principal:string,scope:string) {
+    return this.#transaction(principal, "readonly", store => store.get(this.workspaceKey(principal,scope)), value => {
       if (value === undefined) return null;
       const record = value as Partial<WorkspaceArchive>;
       if (!Array.isArray(record.files) || !record.files.every(file => file instanceof Blob)
         || !Number.isInteger(record.active) || record.active! < 0 || record.active! >= Math.max(1, record.files.length)) {
         throw new Error("Invalid stored file workspace");
       }
-      return { files: record.files as Blob[], active: record.active! };
+      const online=Array.isArray(record.online) && record.online.length===record.files.length ? record.online.map(readOnlineNote) : [];
+      return { files: record.files as Blob[], active: record.active!, ...(online.some(Boolean) && {online}) };
     });
-    if (stored) return stored;
-    const legacy = await this.readBlob(principal);
-    return legacy ? { files: [legacy], active: 0 } : null;
   }
 
-  writeWorkspace(principal: string, archive: WorkspaceArchive): Promise<void> {
-    return this.#transaction(principal, "readwrite", store => {
-      store.delete(principal);
-      return store.put(archive, [principal, "workspace"]);
+  async readWorkspace(principal:string):Promise<WorkspaceArchive|null> {
+    const scope=await this.workspaceScope(principal);
+    let archive=await this.readScope(principal,scope.current);
+    if(!archive && !scope.current){
+      const legacy=await this.readBlob(principal);
+      if(legacy)archive={files:[legacy],active:0};
+    }
+    for(const previous of scope.adopted){
+      const other=await this.readScope(principal,previous);
+      if(!other)continue;
+      if(!archive){archive=other;continue;}
+      const files=[...archive.files,...other.files];
+      const notes=[...(archive.online ?? archive.files.map(()=>null)),...(other.online ?? other.files.map(()=>null))];
+      archive={files,active:archive.active,...(notes.some(Boolean) && {online:notes})};
+    }
+    this.#adopted.add(scope);
+    return archive;
+  }
+
+  async writeWorkspace(principal: string, archive: WorkspaceArchive): Promise<void> {
+    const scope=await this.workspaceScope(principal);
+    await this.#transaction(principal, "readwrite", store => {
+      if(!scope.current || this.#adopted.has(scope) && scope.adopted.includes(""))store.delete(principal);
+      if(this.#adopted.has(scope))for(const old of scope.adopted)store.delete(this.workspaceKey(principal,old));
+      return store.put(archive,this.workspaceKey(principal,scope.current));
     }, () => undefined);
+    if(this.#adopted.has(scope))scope.adopted.length=0;
   }
 
-  remove(principalId: string): Promise<void> {
-    return this.#transaction(principalId, "readwrite", store => { store.delete([principalId, "workspace"]); return store.delete(principalId); }, () => undefined);
+  async remove(principal: string): Promise<void> {
+    const scope=await this.workspaceScope(principal);
+    await this.#transaction(principal,"readwrite",store=>{
+      for(const previous of scope.adopted)store.delete(this.workspaceKey(principal,previous));
+      store.delete(this.workspaceKey(principal,scope.current));
+      return store.delete(principal);
+    },()=>undefined);
+    scope.adopted.length=0;
   }
 
   close(): void {
     if (this.#closed) return;
     this.#closed = true;
+    for(const scope of this.#scopes.values())void scope.then(current=>current.release()).catch(()=>{});
+    this.#scopes.clear();
     this.#cancelOpen?.();
     for (const transaction of this.#transactions) {
       try { transaction.abort(); } catch { /* It may already have committed. */ }

@@ -1,5 +1,8 @@
+import type {OnlineRecoveryNote} from "../backends/recovery";
+import {recoveredDrawing,type OnlineRecoveryPosition} from "./sharing/online-recovery";
 import type {OnlineWorkspace} from "./sharing/online-workspace";
 import type {Document} from "./document";
+import type {LiveReplica} from "./sharing/live-changes";
 import {LiveSessions,type SessionCommand} from "./sharing/live-session-summary";
 import type { OnlineInvitations, OnlineGuestSession } from "../backends/online-files";
 import { planBranch } from "./branch-merge";
@@ -34,6 +37,8 @@ interface OpenTab {
   guest?: OnlineGuestSession;
   liveBranches?: Set<string>;
   stranded?:Document;
+  onlineNote?:OnlineRecoveryNote;
+  restored?:{path:string;revision:EditorEngine["archiveRevision"]};
   branch?: { main: EditorEngine; id: string };
 }
 
@@ -91,6 +96,71 @@ export class EditorWorkspace {
     this.#sessionNotice?.(message);
     return merged;
   };
+  #recoveries = new Map<string,{source:OpenTab; at:OnlineRecoveryPosition}>();
+  get savedOnlineFiles() {
+    return this.#tabs.flatMap(tab=>tab.restored && tab.onlineNote ? [{path:tab.restored.path,note:tab.onlineNote}] : []);
+  }
+  recoverySource(path:string) {
+    const tab=this.#tabs.find(item=>item.restored?.path===path);
+    return tab && {id:tab.id,note:tab.onlineNote};
+  }
+  waitForRecoveredFile(connection:string,id:number,at:OnlineRecoveryPosition) {
+    const source=this.#tabs.find(tab=>tab.id===id);
+    if(!source?.restored)throw new Error("The recovery copy has closed");
+    this.#recoveries.set(connection,{source,at});
+  }
+  keepRecovery(id:number,reason:string) {
+    const tab=this.#tabs.find(item=>item.id===id);
+    if(!tab?.restored)return;
+    delete tab.onlineNote;delete tab.restored;
+    for(const [key,recovery] of this.#recoveries)if(recovery.source===tab)this.#recoveries.delete(key);
+    this.#active=tab;
+    this.#sessionNotice?.(reason);
+    this.#publish();
+  }
+  recoverSessionDrawing=async(connection:string,confirmed:LiveReplica,position:OnlineRecoveryPosition,access:OnlineGuestSession["access"])=>{
+    const recovery=this.#recoveries.get(connection);
+    if(!recovery)return;
+    const {source,at}=recovery, generation=this.#generation;
+    const stamp=source.engine.archiveRevision;
+    const decision=await recoveredDrawing(confirmed,source.engine.liveDrawing(),at,position,access);
+    if(generation!==this.#generation || !this.#editable || this.#recoveries.get(connection)!==recovery || !this.#tabs.includes(source))return;
+    const name=source.engine.liveDrawing().name;
+    const retain=decision==="copy" || stamp!==source.restored?.revision || stamp!==source.engine.archiveRevision;
+    return {
+      document: !retain && decision==="apply" ? source.engine.liveDrawing() : undefined,
+      installed:()=>{
+        if(generation!==this.#generation || !this.#editable || this.#recoveries.get(connection)!==recovery)return;
+        this.#recoveries.delete(connection);
+        const target=this.#tabs.find(tab=>tab.guest?.connection===connection);
+        if(target)target.engine.setEditable(this.#editable && target.guest?.access==="edit");
+        if(!this.#tabs.includes(source))return;
+        if(target){
+          this.#tabs.splice(this.#tabs.indexOf(target),1);
+          this.#tabs.splice(this.#tabs.indexOf(source),0,target);
+        }
+        delete source.onlineNote;delete source.restored;
+        if(retain || stamp!==source.engine.archiveRevision || this.#tabs.some(tab=>tab.branch?.main===source.engine)){
+          source.engine.execute("file.rename",{name:name+" (recovered copy)"});
+          this.#sessionNotice?.(name+" changed before recovery finished. Your recovered copy is open beside it");
+        }else{
+          this.#removeTab(source);
+          if(decision==="apply")this.#sessionNotice?.("Recovered your changes to "+name+" that hadn't reached the server");
+        }
+        this.#publish();
+      },
+    };
+  };
+  installedSessionPosition=(connection:string,position:OnlineRecoveryPosition)=>{
+    const tab=this.#tabs.find(item=>item.guest?.connection===connection);
+    if(!tab?.guest?.openedAsOwner || tab.guest.ended || position.room!==tab.guest.room || position.client!==tab.guest.client)return;
+    const prior=tab.onlineNote;
+    if(prior && prior.room===position.room && prior.client===position.client && prior.sequence===position.sequence)return;
+    const host=this.sessionInvitations(connection),resume=host?.recoveryKey?.(connection),published=host?.inspect?.(connection)?.published;
+    if(!resume || !published || published.file!==tab.guest.file)return;
+    tab.onlineNote={server:published.server,file:published.file,...position,resume};
+    for(const notify of this.#documentListeners)notify();
+  };
   confirmedSessionDrawing=(connection:string,document:Document)=>this.#sessions.drawing(connection,document);
   #sessionNotice?:(text:string)=>void;
   #leftTab?:(tab:number)=>void;
@@ -134,9 +204,10 @@ export class EditorWorkspace {
 
   // Recovery writes each file once. A branch is already included in its owning archive.
   get recoveryFiles() {
-    const mains = this.#tabs.filter(tab => !tab.branch);
+    const mains = this.#tabs.filter(tab => !tab.branch && !(tab.guest && this.#recoveries.has(tab.guest.connection)));
     const selected = this.#active?.branch?.main ?? this.activeEngine;
-    return { engines: mains.map(tab => tab.engine), active: Math.max(0, mains.findIndex(tab => tab.engine === selected)) };
+    const online=mains.map(tab=>tab.onlineNote ?? null);
+    return { ...(online.some(Boolean) && {online}), engines: mains.map(tab => tab.engine), active: Math.max(0, mains.findIndex(tab => tab.engine === selected)) };
   }
 
   async prepareDownload() {
@@ -198,7 +269,7 @@ export class EditorWorkspace {
       this.#sessions.welcome(guest,tab);
       tab.guest = guest;
       engine.setLiveClient(guest.client ?? 0);
-      engine.setEditable(this.#editable && guest.access === "edit");
+      engine.setEditable(this.#editable && guest.access === "edit" && !this.#recoveries.has(guest.connection));
     }
     this.#tabs.push(tab);
     if (activate || !this.#active) this.#active = tab;
@@ -221,7 +292,7 @@ export class EditorWorkspace {
     for (const tab of this.#tabs) tab.engine.setEditable(editable && (!tab.guest || !!tab.guest.ended || tab.guest.access === "edit"));
   }
 
-  async restore(files: readonly Blob[], active: number, cancelled: () => boolean) {
+  async restore(files: readonly Blob[], active: number, cancelled: () => boolean, notes?:readonly (OnlineRecoveryNote|null)[]) {
     const generation = this.#generation;
     const tabs: EditorEngine[] = [], repairs: string[] = [];
     for (const file of files) {
@@ -233,7 +304,13 @@ export class EditorWorkspace {
     }
     if (cancelled() || generation !== this.#generation) return;
     for (const tab of this.#tabs) { this.#sessions.close(tab.id);tab.unsubscribe(); tab.engine.closeTab(); }
-    this.#tabs = tabs.map(engine => this.#attach(engine));
+    this.#recoveries.clear();
+    this.#tabs = tabs.map((engine,index) => {
+      const tab:OpenTab=this.#attach(engine);
+      tab.restored={path:"recovery://workspace/"+index,revision:engine.archiveRevision};
+      tab.onlineNote=notes?.[index] ?? undefined;
+      return tab;
+    });
     this.#active = this.#tabs[active];
     this.#publish();
     return repairs;
@@ -305,13 +382,16 @@ export class EditorWorkspace {
     if (!tab || !this.#editable) return false;
     if(tab.guest?.connection!==session.connection && this.sessionInvitations(session.connection)?.canAttach?.(session.connection)===false)return false;
     if(tab.guest && tab.guest.connection!==session.connection)delete tab.stranded;
+    if(session.ended || tab.guest?.connection!==session.connection || tab.guest.room!==session.room || tab.guest.client!==session.client)delete tab.onlineNote;
+    const recovery=session.ended && this.#recoveries.get(session.connection);
+    if(recovery)this.keepRecovery(recovery.source.id,"The server could not be reached. Your unsaved recovery copy is open");
     if(session.ended && !tab.stranded)tab.stranded=tab.engine.liveHistory?.confirmed?.() ?? tab.engine.liveDrawing();
     if (session.ended || tab.guest?.client !== session.client || tab.guest?.room !== session.room || tab.guest?.file !== session.file) delete tab.liveBranches;
     if (tab.guest && tab.guest.connection!==session.connection) this.#sessions.leave(tab.guest.connection);
     this.#sessions.welcome(session,tab);
     tab.guest = session;
     tab.engine.setLiveClient(session.client ?? 0);
-    tab.engine.setEditable(this.#editable && (!!session.ended || session.access === "edit"));
+    tab.engine.setEditable(this.#editable && (!!session.ended || session.access === "edit" && !this.#recoveries.has(session.connection)));
     this.#publish();
     return true;
   }
@@ -372,10 +452,13 @@ export class EditorWorkspace {
 
   leaveSession(connection: string) {
     this.#sessions.leave(connection);
+    const recovery=this.#recoveries.get(connection);
+    if(recovery)this.keepRecovery(recovery.source.id,"The session ended. Your unsaved recovery copy is open");
     const tab = this.#tabs.find(tab => tab.guest?.connection === connection);
     if (!tab) return;
     delete tab.stranded;
     delete tab.guest;
+    delete tab.onlineNote;
     delete tab.liveBranches;
     tab.engine.setLiveClient(0);
     tab.engine.setEditable(this.#editable);
@@ -399,6 +482,21 @@ export class EditorWorkspace {
 
   #removeTab(tab: OpenTab) {
     const index = this.#tabs.indexOf(tab);
+    for(const [connection,recovery] of this.#recoveries){
+      if(recovery.source===tab){
+        this.#recoveries.delete(connection);
+        const target=this.#tabs.find(other=>other.guest?.connection===connection);
+        if(target){
+          target.engine.setEditable(this.#editable && target.guest?.access==="edit");
+        }else{
+          const host=this.sessionInvitations(connection);
+          this.#sessions.leave(connection);
+          void host?.leave(connection).catch(()=>{});
+        }
+      }else if(tab.guest?.connection===connection){
+        this.keepRecovery(recovery.source.id,"The session closed. Your unsaved recovery copy is open");
+      }
+    }
     tab.unsubscribe();
     tab.engine.closeTab();
     this.#tabs.splice(index, 1);
