@@ -410,3 +410,35 @@ it("returns only handout codes and the owner live handle at the current tab inde
   expect((await device.onlineRegistry("owner")).files).toEqual([record]);
   device.close();
 });
+
+it("refuses an operator key on a remote cleartext proxy before querying policy or staging any upload",async()=>{
+  const {workspace,host,device,store}=setup();
+  const publish=vi.spyOn(store,"publish"),hosting=vi.fn(async()=>({idleSeconds:"0",expires:null,open:true}));
+  const online=new OnlineWorkspace(workspace,{...host,store:{...store,hosting},supportsServerKey:true,
+    operatorOrigin:"http://office.example:9000"},"owner",()=>true);
+  online.setServerKey("key");
+  await expect(online.publish(workspace.getSnapshot()[0].id,"Drawing")).rejects.toThrow("encrypted connection");
+  expect(hosting).not.toHaveBeenCalled();expect(publish).not.toHaveBeenCalled();
+  expect(await device.onlineRegistry("owner")).toEqual({files:[],pending:[]});
+  online.setServerKey("");
+  await expect(online.publish(workspace.getSnapshot()[0].id,"Drawing")).resolves.toMatchObject({name:"Remote"});
+  device.close();
+});
+
+it("retains a failed keyed publication for retry after the host moves to cleartext", async () => {
+  const { workspace, host, device, store } = setup();
+  const publish = vi.spyOn(store, "publish").mockRejectedValueOnce(new Error("Connection lost"));
+  const secure = new OnlineWorkspace(workspace, { ...host, supportsServerKey: true }, "owner", () => true);
+  secure.setServerKey("fixture");
+  await expect(secure.publish(workspace.getSnapshot()[0].id, "Drawing")).rejects.toThrow("Connection lost");
+  const [attempt] = (await device.onlineRegistry("owner")).pending;
+  expect(attempt.requiresKey).toBe(true);
+  const cleartext = new OnlineWorkspace(workspace, {
+    ...host, supportsServerKey: true, operatorOrigin: "http://office.example",
+  }, "owner", () => true);
+  cleartext.setServerKey("fixture");
+  await expect(cleartext.retryPublication(attempt.file)).rejects.toThrow("encrypted connection");
+  expect(publish).toHaveBeenCalledTimes(1);
+  expect((await device.onlineRegistry("owner")).pending.map(row => row.file)).toEqual([attempt.file]);
+  device.close();
+});

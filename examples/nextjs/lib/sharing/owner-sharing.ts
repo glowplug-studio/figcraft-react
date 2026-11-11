@@ -1,3 +1,4 @@
+import {postOperatorRequest} from "./operator-request";
 import { isSharedCredentials, type DeviceOwnerSharing, type IndexedDbRecoveryStore, type OnlineGuestSession,
   type OnlineOwnerSharing, type OwnerShareSummary, type SessionDetails, type PendingSharingChange } from "@glowplug-studio/figcraft-react";
 import { nativeInviteLink, parseInviteServer } from "@glowplug-studio/figcraft-react/sharing/invite";
@@ -39,8 +40,7 @@ export class BrowserOwnerSharing implements OnlineOwnerSharing {
 
   private post(file: string, body: Record<string, unknown>) {
     const serverKey = this.operatorKey?.(file);
-    return fetch("/api/online-files/sharing", {method: "POST", headers: {"Content-Type": "application/json"},
-      body: JSON.stringify({file, ...body, ...(serverKey !== undefined && {serverKey})})});
+    return postOperatorRequest("/api/online-files/sharing",{file,...body},serverKey);
   }
   private record(file: string, update?: (row: DeviceOwnerSharing) => DeviceOwnerSharing) {
     return this.device.ownerSharing(this.principal, this.server, file, update);

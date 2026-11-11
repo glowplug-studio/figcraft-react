@@ -1,5 +1,6 @@
 "use client";
 
+import {postOperatorRequest} from "../lib/sharing/operator-request";
 import "@glowplug-studio/figcraft-react/fonts.css";
 import { useEffect, useRef, useState } from "react";
 import { DisplayNameField, WorkspaceEditor, FigcraftRoot, IndexedDbRecoveryStore, type OnlineWorkspaceHost, type DeviceOwnerSharing, type IdentitySnapshot, type DocumentCapability } from "@glowplug-studio/figcraft-react";
@@ -42,9 +43,7 @@ export function EditorHost({ identity }: { identity: Extract<IdentitySnapshot, {
     const files = new SupabaseOnlineFileStore(getBrowserSupabase(), identity.principal.id, async (id,serverKey) => {
       const pair = await store.publicationLinks(identity.principal.id,server,id);
       const links = await publishedLinkDigests(pair);
-      const response = await fetch("/api/online-files", {
-        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, links, ...(serverKey && {serverKey}) }),
-      });
+      const response = await postOperatorRequest("/api/online-files",{id,links},serverKey);
       if (!response.ok) {
         const reason = [403,409,429].includes(response.status) ? await response.json().catch(() => null) : null;
         throw new Error(typeof reason?.error === "string" ? reason.error : "The online file could not be published");
@@ -61,7 +60,7 @@ export function EditorHost({ identity }: { identity: Extract<IdentitySnapshot, {
     }, setError, file => files.resolveTeamFile(file),{hosting:file=>files.hosting(file),
       sharing:(file,recorded)=>sharing.inspect(file,recorded),loadSharing:file=>sharing.read(file,true)});
     setInviteHost(invites);
-    setOnline({ server, libraries:new BrowserTeamLibraries(store,identity.principal.id,server,getBrowserSupabase(),invites), supportsServerKey:true, serverKeyChanged:key => { currentKey = key; }, releasePublished:file => { operators.delete(file); }, store: files, device: store, invitations: invites, sharing });
+    setOnline({ server, libraries:new BrowserTeamLibraries(store,identity.principal.id,server,getBrowserSupabase(),invites), supportsServerKey:true, operatorOrigin:location.origin, serverKeyChanged:key => { currentKey = key; }, releasePublished:file => { operators.delete(file); }, store: files, device: store, invitations: invites, sharing });
     setRecovery(store);
     setAdapter(next);
     const unsubscribe = next.subscribe(snapshot => {

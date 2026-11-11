@@ -71,6 +71,7 @@ export type { SessionDetails, OnlineTeamLibraries, TeamLibraryReply, OnlineFileI
 export { isSharedCredentials, type DeviceOwnerSharing, type PendingSharingChange, type SharedCredential } from "./backends/browser/owner-sharing";
 
 export type { TeamDirectory, TeamFile } from "./engine/sharing/team-directory";
+export {checkOperatorTransport} from "./engine/sharing/operator-transport";
 export {hostingSummary} from "./engine/sharing/live-session-summary";
 export {participantReportReason} from "./engine/sharing/participant-report";
 

@@ -140,6 +140,8 @@ export interface OnlineWorkspaceHost {
   forServer?(server:string):OnlineWorkspaceHost|undefined;
   libraries?: OnlineTeamLibraries;
   supportsServerKey?: boolean;
+  /** Destination receiving the raw key when the host proxies administrative requests. */
+  operatorOrigin?:string;
   releasePublished?(file: string): void;
   serverKeyChanged?(key: string): void;
   sharing?: OnlineOwnerSharing;

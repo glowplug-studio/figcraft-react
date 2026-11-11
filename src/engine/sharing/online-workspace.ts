@@ -1,3 +1,4 @@
+import {checkOperatorTransport} from "./operator-transport";
 import {teamWebLink,teamFileLink,type TeamDirectory} from "./team-directory";
 import type { OnlineFileInfo, OnlineFileRegistry, OnlineWorkspaceHost, PendingOnlinePublication, RememberedOnlineFile } from "../../backends/online-files";
 import type { EditorWorkspace } from "../workspace";
@@ -336,6 +337,7 @@ export class OnlineWorkspace {
   private async send(attempt: PendingOnlinePublication) {
     this.check();
     if (attempt.requiresKey && !this.key) throw new Error("Enter the server key to retry this publication");
+    if(attempt.requiresKey)checkOperatorTransport(this.host.operatorOrigin ?? this.server,this.key);
     const file = attempt.requiresKey ? await this.host.store.publish(attempt.file, attempt.snapshot, this.key)
       : await this.host.store.publish(attempt.file, attempt.snapshot);
     if (Boolean(file.managedByKey) !== Boolean(attempt.requiresKey)) throw new Error("Unexpected publication authority");
@@ -357,6 +359,7 @@ export class OnlineWorkspace {
       const active = this.workspace.getSnapshot().find(tab => tab.active);
       const engine = this.workspace.activeEngine;
       if (!engine || active?.id !== tabId) throw new Error("The source file changed");
+      if(this.supportsServerKey)checkOperatorTransport(this.host.operatorOrigin ?? this.server,this.key);
       const listingName = cleanOnlineName(name) || cleanOnlineName(engine.archiveRevision.document.name);
       const previous = this.publishingTabs.get(tabId);
       let attempt: PendingOnlinePublication | undefined;
