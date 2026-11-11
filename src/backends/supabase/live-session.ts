@@ -27,3 +27,6 @@ export async function joinLiveFile(writer: SupabaseClient, request: {
   }
   throw new Error("The shared snapshot changed during admission");
 }
+
+export { readLiveUpdates, submitLiveBatch } from "./live-journal";
+export { maxLiveMessageBytes } from "../../engine/sharing/live-wire";

@@ -855,6 +855,77 @@ if (!process.env.PLAYWRIGHT_BASE_URL) test("a second account discovers, opens an
   }
 });
 
+if (!process.env.PLAYWRIGHT_BASE_URL) test("two editors converge after a lost acknowledgement and undo only their own shape",async({page,browser},info) => {
+  test.setTimeout(90_000);
+  await login(page);
+  const guestEmail = "ordered-"+randomUUID()+"@example.test", guestPassword = "Guest-"+randomUUID()+"!";
+  const user = await backend!.admin.auth.admin.createUser({email:guestEmail,password:guestPassword,email_confirm:true});
+  if (user.error) throw user.error;
+  const phone = await browser.newContext({viewport:{width:390,height:844}}), peer = await phone.newPage();
+  const origin = new URL(page.url()).origin, bar = page.locator(".figcraft-document-bar");
+  let file: string | undefined;
+  try {
+    await page.context().grantPermissions(["clipboard-read","clipboard-write"],{origin});
+    await page.getByRole("button",{name:"Create rectangle",exact:true}).click();
+    await bar.getByText("File",{exact:true}).click();
+    await bar.getByRole("button",{name:"Publish to server…"}).click();
+    const form = page.getByRole("dialog",{name:"Publish to server"}), receipt = page.waitForResponse(r=>new URL(r.url()).pathname==="/api/online-files");
+    await form.getByLabel("File name").fill("Ordered drawing");
+    await form.getByRole("button",{name:"Publish",exact:true}).click();
+    file=(await (await receipt).json()).id;
+    await bar.getByText("Share",{exact:true}).click();
+    await bar.getByRole("button",{name:"Copy edit link"}).click();
+    await expect(page.getByText("Edit link copied",{exact:true})).toBeVisible();
+    await peer.goto(await page.evaluate(()=>navigator.clipboard.readText()));
+    await peer.getByLabel("Email",{exact:true}).fill(guestEmail);
+    await peer.getByLabel("Password",{exact:true}).fill(guestPassword);
+    const welcome = peer.waitForResponse(r=>new URL(r.url()).pathname==="/api/online-files/live" && r.status()===200);
+    await peer.getByRole("button",{name:"Sign in",exact:true}).click();
+    await welcome;
+    const liveUrl="**/api/online-files/live", requests: string[]=[];
+    let dropped = false;
+    await peer.route(liveUrl,async route=>{
+      const data = route.request().postDataJSON();
+      if (data.action==="submit") {
+        requests.push(data.batch);
+        if (!dropped) {
+          const response=await route.fetch();
+          expect((await response.json()).decision).toBe("accepted");
+          dropped=true;
+          await route.abort("connectionreset");
+          return;
+        }
+      }
+      await route.continue();
+    });
+    await Promise.all([peer,page].map(p=>p.getByRole("button",{name:"Create rectangle",exact:true}).click()));
+    const count = (p:Page) => p.locator('ul[aria-label="Page layers"] li').count();
+    await expect.poll(()=>Promise.all([count(peer),count(page)]),{timeout:15000}).toEqual([3,3]);
+    expect(dropped).toBe(true);
+    const sequences=()=>Number(localOperatorSql(backend!,"select seq from figcraft_private.live_rooms where file_id=:'id'",{id:file!}));
+    await expect.poll(sequences).toBe(2);
+    await peer.getByRole("button",{name:"Undo",exact:true}).click();
+    await expect.poll(()=>Promise.all([count(peer),count(page)]),{timeout:15000}).toEqual([2,2]);
+    await page.getByRole("button",{name:"Undo",exact:true}).click();
+    await expect.poll(()=>Promise.all([count(peer),count(page)]),{timeout:15000}).toEqual([1,1]);
+    await peer.getByRole("button",{name:"Redo",exact:true}).click();
+    await expect.poll(()=>Promise.all([count(peer),count(page)]),{timeout:15000}).toEqual([2,2]);
+    await expect.poll(sequences).toBe(5);
+    const copies=await Promise.all([page,peer].map(async p=>{
+      const download=p.waitForEvent("download");
+      await p.getByRole("button",{name:"Save as",exact:true}).click();
+      return (await decodeFigcraft(await readFile((await (await download).path())!))).document;
+    }));
+    expect(Object.keys(copies[0].nodes).sort()).toEqual(Object.keys(copies[1].nodes).sort());
+    expect(new Set(requests).size).toBe(3);
+    await info.attach("converged-phone",{body:await peer.screenshot(),contentType:"image/png"});
+  } finally {
+    await phone.close();
+    if(file) await removeOnlineFixture(page,file);
+    await backend!.admin.auth.admin.deleteUser(user.data.user.id);
+  }
+});
+
 test("the published view and edit invites open the original drawing in another signed-in browser", async ({ page, browser }, testInfo) => {
   test.setTimeout(90_000);
   await login(page);

@@ -1,0 +1,203 @@
+import type { Document } from "../document";
+import { decodeFigcraft } from "../file-format";
+import { diffLive, liveReplica, type LiveChange, type LiveReplica } from "./live-changes";
+import { restoreLiveCheckpoint } from "./live-checkpoint";
+import { captureLiveStep, taintStep, travelLiveStep, type LiveStep } from "./live-history";
+import { applyLive } from "./live-replica";
+import type { LiveTransport, LiveUpdate } from "./live-transport";
+
+export interface LiveEditor {
+  current(): Document;
+  receive(document: Document): void;
+  subscribe(listener: () => void): () => void;
+  interacting(): boolean;
+  history(controller?: {canUndo: boolean; canRedo: boolean; travel(undo: boolean): boolean}): void;
+}
+type Pending = {base: string; batch?: string; changes: LiveChange[]; step: LiveStep; direction: "edit"|"undo"|"redo"};
+
+/** One ordered writer per physical editor. In-flight IDs survive a lost reply and a physical reconnect. */
+export class LivePeer {
+  private confirmed?: LiveReplica;
+  private local: LiveReplica;
+  private seen: Document;
+  private sequence: string | null = null;
+  private next = 1n;
+  private edits: Document[] = [];
+  private pending: Pending[] = [];
+  private undo: LiveStep[] = [];
+  private redo: LiveStep[] = [];
+  private travelRequest?: boolean;
+  private timer?: ReturnType<typeof setTimeout>;
+  private detach?: () => void;
+  private running = false;
+  private notified = false;
+  private alive = false;
+  private installing = false;
+  private redraw = false;
+
+  constructor(private editor: LiveEditor, private transport: LiveTransport, private client: number, private notice: (message: string) => void) {
+    this.seen = editor.current();
+    this.local = liveReplica(this.seen);
+  }
+
+  start() {
+    this.alive = true;
+    this.detach = this.editor.subscribe(() => {
+      const current = this.editor.current();
+      if (this.installing || this.seen === current) return;
+      this.seen = current;
+      this.edits.push(current);
+      this.wake();
+    });
+    const stopListening = this.transport.listen?.(() => { this.notified = true; this.wake(); });
+    this.history();
+    this.wake();
+    return () => { this.alive = false; stopListening?.(); clearTimeout(this.timer); this.detach?.(); this.editor.history(); };
+  }
+
+  private wake(delay=0) {
+    if (!this.alive || this.running) return;
+    clearTimeout(this.timer);
+    this.timer = setTimeout(() => { void this.run(); },delay);
+  }
+
+  private history() {
+    if (!this.alive) return;
+    this.editor.history({canUndo:!!this.undo.length,canRedo:!!this.redo.length,travel:undo => {
+      if (this.travelRequest !== undefined || !(undo ? this.undo : this.redo).length) return false;
+      this.travelRequest = undo;
+      this.wake();
+      return true;
+    }});
+  }
+
+  private async capture() {
+    while (this.edits.length && this.alive) {
+      const next = this.edits[0], before = this.local;
+      const diff = await diffLive(before,next);
+      if (diff.changes.length) {
+        const step = await captureLiveStep(before,diff.replica,diff.changes);
+        this.pending.push({base:this.sequence ?? "0",changes:diff.changes,step,direction:"edit"});
+        this.undo.push(step); this.redo = [];
+      }
+      this.local = diff.replica;
+      this.edits.shift();
+    }
+    this.history();
+  }
+
+  private async receive(update: LiveUpdate) {
+    if (update.client !== this.client) throw new Error("The session's editing identity changed");
+    let state = this.confirmed, seq = BigInt(this.sequence ?? "0");
+    if (update.reset) {
+      state = update.checkpoint ? await restoreLiveCheckpoint(update.checkpoint) : liveReplica((await decodeFigcraft(this.transport.archive)).document);
+      if (this.confirmed && BigInt(update.checkpointSeq ?? "0") >= BigInt(this.sequence ?? "0")) {
+        const unseen = (await diffLive(this.confirmed,state.document)).changes;
+        for (const step of [...this.undo,...this.redo]) if (step.confirmed) taintStep(step,unseen);
+      }
+      seq = BigInt(update.checkpointSeq ?? "0");
+      this.redraw = true;
+    }
+    if (!state) throw new Error("Missing initial live drawing");
+    for (const b of update.batches) {
+      if (BigInt(b.sequence) !== ++seq) throw new Error("Missing ordered edits");
+      const before = state;
+      state = (await applyLive(state,b.changes)).replica;
+      if (b.client === this.client) {
+        const own = this.pending.find(p => p.batch === b.batch);
+        if (own) {
+          if (own.direction === "edit") {
+            const fresh = await captureLiveStep(before,state,b.changes);
+            own.step.backward = fresh.backward;
+          }
+          own.step.confirmed = true;
+        } else this.redraw = true;
+      } else {
+        this.redraw = true;
+        for (const step of [...this.undo,...this.redo]) if (step.confirmed) taintStep(step,b.changes);
+      }
+    }
+    if (seq !== BigInt(update.sequence)) throw new Error("Incomplete ordered edits");
+    this.confirmed = state;
+    this.sequence = update.sequence;
+    const processed = BigInt(update.lastBatch), refused = new Set(update.refused);
+    this.next = this.next > processed ? this.next : processed+1n;
+    this.pending = this.pending.filter(p => {
+      if (!p.batch || BigInt(p.batch)>processed) return true;
+      if (refused.has(p.batch)) {
+        this.redraw = true;
+        this.undo = this.undo.filter(s => s !== p.step);
+        this.redo = this.redo.filter(s => s !== p.step);
+        if (p.direction === "undo") this.undo.push(p.step);
+        if (p.direction === "redo") this.redo.push(p.step);
+        this.notice("Your shared edit was refused.");
+      } else p.step.confirmed = true;
+      return false;
+    });
+  }
+
+  private async reconcile() {
+    if (!this.confirmed) return;
+    do {
+      await this.capture();
+      if (!this.alive || this.editor.interacting()) return;
+      let view = this.confirmed;
+      if (this.redraw) for (const p of this.pending) view = (await applyLive(view,p.changes,"lenient")).replica;
+      else view = this.local;
+      if (this.edits.length) continue;
+      const travel = this.travelRequest;
+      if (travel !== undefined) {
+        this.travelRequest = undefined;
+        const from = travel ? this.undo : this.redo, to = travel ? this.redo : this.undo;
+        const step = from.pop();
+        if (step) {
+          const wanted = travelLiveStep(step,travel,view.document);
+          const result = await applyLive(view,wanted,"lenient");
+          const changes = (await diffLive(view,result.replica.document)).changes;
+          if (changes.length) {
+            this.pending.push({base:this.sequence!,changes,step,direction:travel?"undo":"redo"});
+            step.confirmed = false;
+            view = result.replica;
+            this.redraw = true;
+          }
+          to.push(step);
+        }
+      }
+      if (this.edits.length) { this.redraw = true; continue; }
+      if (this.redraw && this.alive && !this.editor.interacting()) {
+        const different = (await diffLive(this.local,view.document)).changes.length > 0;
+        if (this.edits.length) continue;
+        if (!this.alive || this.editor.interacting()) return;
+        this.installing = true;
+        try { if (different) this.editor.receive(view.document); this.seen = this.editor.current(); }
+        finally { this.installing = false; }
+        this.local = {document:this.seen,positions:view.positions};
+        this.redraw = false;
+      }
+      this.history();
+      return;
+    } while (this.alive);
+  }
+
+  private async run() {
+    if (!this.alive || this.running) return;
+    this.running = true;
+    this.notified = false;
+    let nextPoll = this.transport.listen ? 10_000 : 1200, failed = false;
+    try {
+      await this.capture();
+      if (this.travelRequest !== undefined && this.confirmed) await this.reconcile();
+      const update = await this.transport.read(this.sequence);
+      if (!this.alive) return;
+      await this.receive(update);
+      await this.reconcile();
+      const head = this.pending[0];
+      if (head && this.alive) {
+        head.batch ??= String(this.next++);
+        await this.transport.submit(head.batch,head.base,head.changes);
+        nextPoll = 0;
+      }
+    } catch { failed = true; nextPoll = 1800; }
+    finally { this.running = false; this.wake(!failed && (this.notified || (this.edits.length || this.travelRequest !== undefined) && !this.editor.interacting()) ? 0 : nextPoll); }
+  }
+}

@@ -82,6 +82,7 @@ export type GuestSessionEnd = "stopped" | "removed" | "unavailable";
 export type GuestWelcome = Pick<OnlineGuestSession, "access" | "client">;
 export type GuestConnectionStatus = {attempt: number} | GuestWelcome;
 export interface OnlineInvitations {
+  live?(connection: string): import("../engine/sharing/live-transport").LiveTransport | undefined;
   /** Redeem this device's original edit link. Older records may predate link storage. */
   joinOwned?(file: string, managedByKey?: boolean): Promise<{session: OnlineGuestSession; archive: Blob} | undefined>;
   report?(connection: string, reason: string): Promise<void>;

@@ -420,6 +420,26 @@ export class EditorEngine {
   #idClient = 0;
   #liveCounters = new Map<number, bigint>();
   #branchTab = false;
+  #liveHistory?: {canUndo:boolean; canRedo:boolean; travel(undo:boolean):boolean};
+  setLiveHistory(history?: typeof this.liveHistory) {
+    const previous = this.#liveHistory;
+    this.#liveHistory = history;
+    if (!!history !== !!previous) { this.#undo = []; this.#redo = []; }
+    if (!!history !== !!previous || previous?.canUndo !== history?.canUndo || previous?.canRedo !== history?.canRedo) this.#publish({});
+  }
+  get liveHistory() { return this.#liveHistory; }
+
+  receiveLiveDocument(incoming: Document) {
+    const current = this.#fileDocument();
+    const document = current.published ? Object.freeze({...incoming,published:current.published}) : incoming;
+    if (this.#idClient) this.#nextId = nextScopedId(document,this.#idClient,this.#nextId);
+    const surviving = (ids: readonly NodeId[]) => ids.filter(id => document.nodes[id]);
+    if (this.#preview) {
+      this.#preview = {...this.#preview,document,selection:surviving(this.#preview.selection)};
+      this.#publish({});
+    } else this.#publish({document,selection:surviving(this.#snapshot.selection)});
+  }
+
   setLiveClient(client: number) {
     if (this.#branchTab || client === this.#idClient) return;
     if (!Number.isInteger(client) || client < 0 || client >= 0xffffffff) throw new Error("Invalid live client number");
@@ -1246,7 +1266,7 @@ export class EditorEngine {
     if (this.#idClient && nextId > ((BigInt(this.#idClient) + 1n) << 32n)) throw new Error(this.#branchTab ? "Branch identifiers are exhausted" : "Live client identifiers are exhausted");
     guardLibraryVariables(before.document,document);
     if (!options.libraryEdit) guardLibraryStore(before.document,document);
-    if (options.record !== false) {
+    if (options.record !== false && !this.#liveHistory) {
       this.#undo.push({ document: before.document, selection: before.selection });
       this.#redo = [];
     }
@@ -1261,7 +1281,7 @@ export class EditorEngine {
     const document = patch.document ?? this.#snapshot.document;
     if (document !== this.#snapshot.document) this.#preparedEdit = undefined;
     if (patch.editable === false || patch.selection && !sameIds(patch.selection, this.#snapshot.selection)) patch = { ...patch, paintPicker: undefined, openEffects: undefined };
-    this.#snapshot = Object.freeze({ ...this.#snapshot, ...patch, canUndo: this.#undo.length > 0, canRedo: this.#redo.length > 0, dirty: !sameContent(this.#preview?.document ?? document, this.#saved) || this.#history.records !== this.#savedVersions || this.#branches !== this.#savedBranches, hasSaved: this.#downloaded });
+    this.#snapshot = Object.freeze({ ...this.#snapshot, ...patch, canUndo: this.#liveHistory?.canUndo ?? this.#undo.length > 0, canRedo: this.#liveHistory?.canRedo ?? this.#redo.length > 0, dirty: !sameContent(this.#preview?.document ?? document, this.#saved) || this.#history.records !== this.#savedVersions || this.#branches !== this.#savedBranches, hasSaved: this.#downloaded });
     if (this.#lastDuplicate && !duplicateSelection(this.#lastDuplicate, this.#snapshot.selection)) this.#lastDuplicate = undefined;
     if (this.#vectorEdit) this.#vectorEdit = pageForNode(document, this.#vectorEdit.id) === document.currentPage ? clampVectorEdit(document, this.#vectorEdit) : undefined;
     if (this.#snapshot.crop && (!this.#snapshot.editable || !this.pickedCrop())) {
@@ -1797,6 +1817,7 @@ export class EditorEngine {
       return {};
     }
     const undo = command === "edit.undo";
+    if (this.#liveHistory) return { [undo ? "undone" : "redone"]:this.#liveHistory.travel(undo) };
     const source = undo ? this.#undo : this.#redo;
     const target = undo ? this.#redo : this.#undo;
     const entry = source.pop();

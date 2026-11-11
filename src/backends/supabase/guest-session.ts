@@ -6,7 +6,7 @@ const keepaliveMs = 15_000;
 const silenceMs = 45_000;
 
 /** A private broadcast wakes an open tab. Heartbeats renew the authenticated database grant. */
-export function watchSupabaseGuest(client: SupabaseClient, connection: string, ended: (reason: GuestSessionEnd) => void) {
+export function watchSupabaseGuest(client: SupabaseClient, connection: string, ended: (reason: GuestSessionEnd) => void, edits?: () => void) {
   let closed = false;
   let channel: RealtimeChannel | undefined;
   let retry: ReturnType<typeof setTimeout> | undefined;
@@ -61,9 +61,10 @@ export function watchSupabaseGuest(client: SupabaseClient, connection: string, e
     channel = client.channel("figcraft-connection:" + session + ":" + connection, {config: {private: true}});
     channel.on("broadcast", {event: "ended"}, ({payload}) => {
       if (payload?.reason === "stopped" || payload?.reason === "removed") finish(payload.reason);
-    }).subscribe(status => {
+    }).on("broadcast",{event:"edits"},() => { if (!closed) edits?.(); }).subscribe(status => {
       if (closed) return;
       subscribed = status === "SUBSCRIBED";
+      if (subscribed) edits?.();
       if (subscribed) {
         clearTimeout(retry);
         void reconcile();

@@ -1,5 +1,5 @@
 import {participantReportReason} from "@glowplug-studio/figcraft-react";
-import type { GuestConnectionStatus, GuestSessionEnd, IndexedDbRecoveryStore, OnlineGuestSession, OnlineInvitations } from "@glowplug-studio/figcraft-react";
+import type { LiveTransport, GuestConnectionStatus, GuestSessionEnd, IndexedDbRecoveryStore, OnlineGuestSession, OnlineInvitations } from "@glowplug-studio/figcraft-react";
 import { nativeInviteLink, parseInviteServer, parseSessionInvite } from "@glowplug-studio/figcraft-react/sharing/invite";
 
 export const inviteAfterLogin = "figcraft-join-after-login";
@@ -16,13 +16,14 @@ export class BrowserInvitations implements OnlineInvitations {
   private listener?: (session: OnlineGuestSession, bytes: Blob) => Promise<void>;
   private readonly endpoint;
   private joining = false;
+  private readonly listeners = new Map<string,() => void>();
   private readonly waiting = new Map<string, () => void>();
   // Retain a manual rejoin credential only while its tab belongs to this signed-in host.
-  private readonly tabs = new Map<string, {file: string; token: string; resume: string; physical: string; ended: boolean}>();
+  private readonly tabs = new Map<string, {file: string; token: string; resume: string; physical: string; ended: boolean; archive: Blob}>();
 
 
   constructor(private device: Pick<IndexedDbRecoveryStore, "readPublishedLinks">, private principal: string, private server: string,
-    private readonly monitor: NonNullable<OnlineInvitations["watch"]>, readonly showJoin: () => void, private readonly notify: (message: string) => void,
+    private readonly monitor: (connection:string,ended:(reason:GuestSessionEnd)=>void,edits?:()=>void)=>()=>void, readonly showJoin: () => void, private readonly notify: (message: string) => void,
     private resolveTeam?: (file: string) => Promise<{file: string; token: string}>) {
     this.endpoint = parseInviteServer(server.replace(/^http/, "ws")).server;
   }
@@ -51,6 +52,24 @@ export class BrowserInvitations implements OnlineInvitations {
     };
   }
 
+  live(connection: string): LiveTransport | undefined {
+    const tab = this.tabs.get(connection);
+    if (!tab || tab.ended) return;
+    const request = async (body: object) => {
+      const physical = tab.physical;
+      if (tab.ended || this.tabs.get(connection) !== tab) throw new Error("The shared connection has ended");
+      const result = await fetch("/api/online-files/live",{method:"POST",headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({file:tab.file,tab:physical,...body})});
+      if (!result.ok || physical !== tab.physical || tab.ended) throw new Error("Shared edits are temporarily unavailable");
+      return result.json();
+    };
+    return {archive:tab.archive,listen:wake => {
+      this.listeners.set(connection,wake);
+      return () => { if (this.listeners.get(connection) === wake) this.listeners.delete(connection); };
+    },read:after => request({action:"read",after}),
+      submit:(batch,base,changes) => request({action:"submit",batch,base,changes})};
+  }
+
   libraryInvite(connection: string) {
     const tab = this.tabs.get(connection);
     if (!tab || tab.ended) throw new Error("Reconnect to the file to use its team library");
@@ -72,7 +91,7 @@ export class BrowserInvitations implements OnlineInvitations {
     try {
       const {access, client, bytes} = await this.redeem(connection, {file, token, resume});
       if (access !== "edit") throw new Error("The original edit link is unavailable");
-      this.tabs.set(connection, {file, token, resume, physical: connection, ended: false});
+      this.tabs.set(connection, {file, token, resume, physical: connection, ended: false, archive:bytes});
       return {session: {file, connection, access, client, ...(!managedByKey && {openedAsOwner: true as const})}, archive: bytes};
     } catch (error) {
       void this.release(connection).catch(() => undefined);
@@ -113,9 +132,13 @@ export class BrowserInvitations implements OnlineInvitations {
       redeeming = true;
       const {access, client, bytes} = await this.redeem(connection, {...grant, resume});
       if (this.listener !== receive) throw new Error("The signed-in workspace changed");
-      this.tabs.set(connection, {file: grant.file, token: grant.token, resume, physical: connection, ended: false});
+      this.tabs.set(connection, {file: grant.file, token: grant.token, resume, physical: connection, ended: false, archive:bytes});
       await receive({ file: grant.file, connection, access, client }, bytes);
       attached = true;
+    } catch (error) {
+      // Revocation can land between a successful code lookup and its separate join.
+      if (invite.kind === "code" && error instanceof RefusedInvite) throw new Error("That code has expired or its sharing was stopped");
+      throw error;
     } finally {
       this.joining = false;
       if (redeeming && !attached) await this.leave(connection).catch(() => undefined);
@@ -166,7 +189,7 @@ export class BrowserInvitations implements OnlineInvitations {
       if (!current()) return;
       if (reason === "unavailable") schedule();
       else finish(reason);
-    });
+    },() => this.listeners.get(connection)?.());
     const recover = async () => {
       this.waiting.delete(connection);
       if (!current()) return;
@@ -175,6 +198,7 @@ export class BrowserInvitations implements OnlineInvitations {
         if (!current()) return;
         attempt = 0;
         changed?.(welcome);
+        this.listeners.get(connection)?.();
         stop = observe();
       } catch (error) {
         if (!current()) return;

@@ -79,6 +79,7 @@ export interface LayerProperties extends NativeLayerRecords, MaskProperties, Com
   readonly thumbnailFlag?: string;
   readonly exports?: readonly ExportSetting[];
   readonly childLayout?: ChildLayout;
+  readonly clip?: boolean;
   readonly sizing?: LayerSizing;
   readonly effects?: readonly Effect[];
   readonly boolOp?: BooleanOperation;
@@ -178,6 +179,8 @@ export function nodeTypeName(node: DocumentNode): string {
 export const hidesContents = (node: DocumentNode): boolean => node.kind === "section" && node.contentsHidden;
 export const isGroupLike = (node: DocumentNode | undefined): node is GroupNode | BooleanNode => node?.kind === "group" || node?.kind === "booleanOp";
 export const isLeafKind = (kind: unknown): kind is LeafNode["kind"] => kind === "rectangle" || kind === "ellipse" || kind === "polygon" || kind === "star" || kind === "line" || kind === "slice" || kind === "vector" || kind === "text";
+export const isDocumentNodeKind = (kind: unknown): kind is DocumentNode["kind"] =>
+  kind === "page" || kind === "group" || kind === "section" || kind === "booleanOp" || isFrameLikeKind(kind) || isLeafKind(kind);
 export const isDrawTool = (kind: unknown): kind is DrawShapeKind => isLeafKind(kind) && kind !== "vector" && kind !== "text" || kind === "arrow" || kind === "section";
 export const isLeaf = (node: DocumentNode): node is LeafNode => isLeafKind(node.kind);
 export const layerBlend = (node: LayerNode): BlendMode => node.blend ?? (isLeaf(node) ? "normal" : "passThrough");

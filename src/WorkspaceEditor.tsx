@@ -1,5 +1,7 @@
 import { OwnerShareControls } from "./OwnerShareControls";
 import { OnlineFilesPanel, OnlineHostingInformation, PublishOnlineDialog, ServerKeyField } from "./OnlineFilesPanel";
+import type { EditorEngine } from "./engine/editor";
+import { LivePeer } from "./engine/sharing/live-peer";
 import { OnlineWorkspace } from "./engine/sharing/online-workspace";
 import type { GuestConnectionStatus, GuestSessionEnd, OnlineInvitations, OnlineWorkspaceHost } from "./backends/online-files";
 import { defaultPrint, type PrintSettings } from "./engine/export-settings";
@@ -14,7 +16,8 @@ import { WorkspaceRecovery, type WorkspaceRecoveryState } from "./engine/workspa
 
 type WorkspaceProps = Omit<EditorProps, "engine" | "recoveryStore"> & { recoveryStore: WorkspaceRecoveryStore; onlineHost?: OnlineWorkspaceHost };
 
-function GuestSubscription({connection, invitations, ended, changed}: {
+function GuestSubscription({connection, invitations, ended, changed, engine, client, notice}: {
+  engine:EditorEngine; client?:number; notice:(text:string)=>void;
   connection: string;
   invitations: OnlineInvitations;
   changed: (connection: string, status: GuestConnectionStatus) => void;
@@ -22,6 +25,13 @@ function GuestSubscription({connection, invitations, ended, changed}: {
 }) {
   useEffect(() => invitations.watch?.(connection, reason => ended(connection, reason),
     status => changed(connection, status)), [connection, invitations, ended, changed]);
+  useEffect(() => {
+    const transport = invitations.live?.(connection);
+    if (!transport || !client) return;
+    const peer = new LivePeer({current:() => engine.archiveRevision.document,receive:d => engine.receiveLiveDocument(d),
+      subscribe:engine.subscribe,interacting:() => engine.interacting,history:h => engine.setLiveHistory(h)},transport,client,notice);
+    return peer.start();
+  },[client,connection,engine,invitations,notice]);
   return null;
 }
 
@@ -189,7 +199,7 @@ export function WorkspaceEditor({ identity, capabilities, recoveryStore, onlineH
     }
   }}>
     {enabled && invitations?.watch && tabs.map(tab => tab.guest && !tab.guest.ended &&
-      <GuestSubscription key={tab.guest.connection} connection={tab.guest.connection} invitations={invitations} ended={ended} changed={connectionChanged} />)}
+      <GuestSubscription key={tab.guest.connection} connection={tab.guest.connection} invitations={invitations} engine={workspace.engines[tab.index]} client={tab.guest.client} notice={setNotice} ended={ended} changed={connectionChanged} />)}
     {tabs.length > 1 && <div role="tablist" aria-label="Open files" className="figcraft-file-tabs">
       {tabs.map(tab => <button key={tab.id} type="button" role="tab" disabled={!enabled} aria-selected={tab.active}
         aria-label={tab.guest?.ended ? tab.name + ", disconnected from its live session" : undefined}

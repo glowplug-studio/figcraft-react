@@ -25,12 +25,12 @@ const prototype = { device: "None", rotation: "portrait", background: fromRgba8(
 const ordinaryStroke = wireStroke(defaultStroke);
 const blankFields = new Map<DocumentNode["kind"], WireFields>();
 
-function blankNode(node: DocumentNode): WireFields {
-  const k = node.kind, saved = blankFields.get(k);
+export function blankNode(k: DocumentNode["kind"]): WireFields {
+  const saved = blankFields.get(k);
   if (saved) return saved;
   const fills = ["frame", "component", "section"].includes(k) ? white :
     ["rectangle", "ellipse", "polygon", "star", "vector"].includes(k) ? grey : k === "text" ? black : [];
-  const fields = { name: "", visible: true, locked: false, opacity: 1, blend: "children" in node ? "passThrough" : "normal",
+  const fields = { name: "", visible: true, locked: false, opacity: 1, blend: ["page", "frame", "group", "section", "booleanOp", "component", "componentSet", "instance"].includes(k) ? "passThrough" : "normal",
     transform: identity, width: 0, height: 0, fills, strokes: k === "line" ? black : k === "componentSet" ? purple : [],
     stroke: k === "line" || k === "vector" ? {...ordinaryStroke, align: "center"} :
       k === "componentSet" ? {...ordinaryStroke, dashes: [10, 5]} : ordinaryStroke,
@@ -53,7 +53,7 @@ function matchesBlank(name: string, value: unknown, blank: unknown) {
   return sameComponentValue(actual, expected);
 }
 
-function createNode(node: DocumentNode, position: string): InitialChange {
+export function sessionNodeFields(node: DocumentNode): WireFields {
   const fields = layerFields(node);
   const kind = fields.kind as WireFields;
   if (node.kind === "page") {
@@ -66,7 +66,13 @@ function createNode(node: DocumentNode, position: string): InitialChange {
   fields.strokes ??= [];
   fields.stroke ??= ordinaryStroke;
   fields.corners ??= zeroCorners;
-  const blank = blankNode(node), props: [string, string][] = [];
+  return fields;
+}
+
+export function createNode(node: DocumentNode, position: string): Extract<InitialChange, { type: "create" }> {
+  const fields = sessionNodeFields(node);
+  const kind = fields.kind as WireFields;
+  const blank = blankNode(node.kind), props: [string, string][] = [];
   for (const name of nodePropertyOrder) {
     const value = fields[name];
     if (name === "kind" || value === undefined || matchesBlank(name, value, blank[name])) continue;
@@ -110,7 +116,7 @@ function* documentChanges(document: Document): Generator<InitialChange> {
   yield* putList("variables", "variable", document.variables?.variables ?? [], sessionJson);
 }
 
-const imageValue = (data: string, height: number, width: number) => JSON.stringify({bytes: data, height, width});
+export const imageValue = (data: string, height: number, width: number) => JSON.stringify({bytes: data, height, width});
 
 export async function initialDocumentState(document: Document, session: bigint): Promise<InitialSession> {
   const changes = [...documentChanges(document)];

@@ -12,6 +12,8 @@ function integer(key: string) {
   return key.slice(0, size);
 }
 
+export function validatePosition(key: string) { integer(key); }
+
 function neighbour(value: string, direction: 1 | -1) {
   const head = value[0], digits = value.slice(1).split("");
   for (let i = digits.length - 1; i >= 0; i--) {

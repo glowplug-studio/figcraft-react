@@ -15,7 +15,7 @@ const fields = {
   devResources: "dev_resources", measurements: "measurements", board: "board",
 } as const;
 export const nodePropertyOrder = ["name", "kind", ...Object.keys(fields).slice(1), "parent"];
-const standardFields = new Set<string>(["id", "parent", "children", ...Object.values(fields)]);
+export const standardFields: ReadonlySet<string> = new Set<string>(["id", "parent", "children", ...Object.values(fields)]);
 export type WireFields = Record<string, unknown>;
 
 export function layerFields(node: DocumentNode): WireFields {
@@ -97,7 +97,7 @@ export function fileChanges(base: Document, to: Document) {
   return changes;
 }
 
-export function branchDiff(base: Document, to: Document, initial: ReadonlyMap<string, string>) {
+export function treeDiff(base: Document, to: Document, initial: ReadonlyMap<string, string>) {
   const changes: LayerEdit[] = [], parents = new Set<string | null>(), positions = new Map(initial);
   const ids = Object.keys(to.nodes).sort(numericOrder);
   const added = new Set<string>();
@@ -128,6 +128,11 @@ export function branchDiff(base: Document, to: Document, initial: ReadonlyMap<st
     positions.delete(id);
     if (!node.parent || to.nodes[node.parent]) changes.push({ type: "delete", id });
   }
+  return { changes, positions };
+}
+
+export function branchDiff(base: Document, to: Document, initial: ReadonlyMap<string, string>) {
+  const { changes, positions } = treeDiff(base, to, initial);
   const files = fileChanges(base, to);
   const count = changes.length + changes.filter(c => c.type === "move" && c.parentChanged).length + files.size;
   return { changes, positions, files, count, document: to };

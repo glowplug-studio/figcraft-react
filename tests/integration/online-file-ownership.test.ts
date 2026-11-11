@@ -1,4 +1,5 @@
 import { decodeFigcraft, encodeFigcraftBlob } from "../../src/engine/file-format";
+import {readLiveUpdates,submitLiveBatch} from "../../src/backends/supabase/live-journal";
 import { createHash, randomUUID } from "node:crypto";
 import { execFileSync, spawn } from "node:child_process";
 import { once } from "node:events";
@@ -614,6 +615,40 @@ describe.skipIf(!enabled)("private online files on real local Supabase", () => {
     await changeFile(owner.id,file,null);
     expect(await bound()).toBe(0);
   });
+
+  it("orders concurrent writers, remembers refused and acknowledged batches, and denies a revoked reader", async () => {
+    const writer = local!.admin, file = randomUUID(), keys = createPublishedLinks(), proof = await publishedLinkDigests(keys);
+    paths.push(owner.id + "/" + file + ".figcraft");
+    const store = ownedStore(owner.client,owner.id,id => finaliseForTest(owner.client,writer,id,proof));
+    const fixture = await readFile(new URL("../fixtures/native-comment-threads.figcraft",import.meta.url));
+    await store.publish(file,await encodeFigcraftBlob((await decodeFigcraft(fixture)).document));
+    async function peer(user: typeof owner, token: string) {
+      const login = (await user.client.auth.getClaims()).data!.claims.session_id as string, tab = randomUUID();
+      const welcome = await readSharedDrawing(user.client,writer,user.id,login,tab,file,token);
+      return {conn:{actor:user.id,login,tab,target:file},id:welcome.client};
+    }
+    const [alice,bob,viewer] = await Promise.all([peer(owner,keys.edit.token),peer(stranger,keys.edit.token),peer(stranger,keys.view.token)]);
+    const set = (value: string) => [{type:"setDoc",prop:"name",value:JSON.stringify(value)}];
+    const concurrent = await Promise.all([submitLiveBatch(writer,alice.conn,"1","0",set("Owner")),
+      submitLiveBatch(writer,bob.conn,"1","0",set("Guest"))]);
+    expect(concurrent.map(r => r.sequence).sort()).toEqual(["1","2"]);
+    expect(await submitLiveBatch(writer,alice.conn,"1","0",set("Duplicate"))).toMatchObject({decision:"processed",refused:false});
+    const updates = await readLiveUpdates(writer,viewer.conn,"0");
+    expect(updates.batches.map(b => b.sequence)).toEqual(["1","2"]);
+    expect(new Set(updates.batches.map(b => b.client))).toEqual(new Set([alice.id,bob.id]));
+    expect(updates).not.toHaveProperty("path");
+    expect(updates).not.toHaveProperty("issued");
+    expect(await submitLiveBatch(writer,viewer.conn,"1","2",set("Disallowed"))).toMatchObject({decision:"refused",sequence:"2"});
+    expect(await submitLiveBatch(writer,viewer.conn,"1","2",[])).toMatchObject({decision:"processed",refused:true});
+    expect(await submitLiveBatch(writer,bob.conn,"2","9",set("Future"))).toMatchObject({decision:"refused",sequence:"2"});
+    expect(await submitLiveBatch(writer,bob.conn,"3","0",set("Offline edit"))).toMatchObject({decision:"accepted",sequence:"3"});
+    expect((await readLiveUpdates(writer,alice.conn,"2")).batches.map(b=>b.sequence)).toEqual(["3"]);
+    await expect(readLiveUpdates(writer,{...alice.conn,login:bob.conn.login},"0")).rejects.toMatchObject({code:"42501"});
+    await changeFileLinks(writer,owner.id,file,[keys.view.id]);
+    await expect(readLiveUpdates(writer,viewer.conn,"2")).rejects.toMatchObject({code:"42501"});
+    await changeFile(owner.id,file,null);
+    expect((await writer.rpc("read_live_journal",{...alice.conn,after_seq:null,validation:true})).error?.code).toBe("42501");
+  },90_000);
 
   it("binds an invite to its Auth session and denies signed URLs, writes and downloads after revocation", async () => {
     const keys = createPublishedLinks();
