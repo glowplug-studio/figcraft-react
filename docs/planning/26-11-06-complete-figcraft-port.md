@@ -6,16 +6,16 @@
 |---|---|
 | Overall status | In progress. [Continue handover and deferred review queue](26-11-07-full-port-resume.md#continue-from-here). |
 | Active slice | Row 13. Online files, ownership and grants. [Dated plan](26-11-10-online-file-ownership.md). |
-| Active phase | Keyed publication at `e4458f6` passed focused verification. Cumulative regression in progress. [Team library archives](26-11-11-team-libraries.md) are the next implementation dependency. |
+| Active phase | At `e4458f6` all 355 production browser checks passed in 845.1 seconds without skips or retries. [Team library storage and browser flows](26-11-11-team-libraries.md) are undergoing verification. |
 | Upstream baseline | Styles reference a2e87433. Components reference 79c36346. Global supported baseline 8eb0b876. |
-| Branch and last verified commit | `prompt/full-figcraft-port`. Focused keyed publication at `e4458f6`, full browser regression at `624e7a5`. |
+| Branch and last verified commit | `prompt/full-figcraft-port`. Focused team library revision verification at `08cca69`. Full browser regression at `e4458f6`. |
 | Completed slices | Rectangle/host-auth, bounded native persistence/recovery, supported-model pages, affine rectangle geometry/selection and solid appearance, plus nested group hierarchy, Frame containers, movement/transform gestures, rounded corners, ellipse/arc/ring and Polygon/Star editing verified locally; Line/Arrow and uniform solid strokes also verified; per-side Rectangle/Frame strokes, variable-width profiles and procedural brushes verified; vector networks, solid region/stroke rendering and Flatten/Reverse also verified; foundation commit `154f5a7`. Gradient, image, pattern, blend and mask releases now have local property matrices. [Blend evidence](../reports/26-11-09-blend-modes-parity.html). Auto layout and constraints passed the local release gate. [Release evidence](../reports/26-11-09-auto-layout.md). [Local components, instances, variant properties, slots and Assets](../reports/26-11-09-components-instances.md) passed the 0.51.0 gate. |
 | Remaining slices | Continue incomplete roadmap rows, excluding the user-deferred plugin and widget family. See each slice matrix for outstanding integrations. |
 | Tests last passed | At `624e7a5` all 354 production Chromium workflows passed in 792.7 seconds without skips, retries or flakes. Clean replay passed 268 SQL assertions. All 18 provider integrations and 4,484 pure checks passed. |
 | Files currently in progress | [Operator publication](26-11-11-operator-publication.md). Keyed publishing, private host policy, immutable server-owned objects, participant access and Home retry. Clean replay passed 288 SQL assertions and 19 provider integrations. |
 | Blockers | Figcraft MCP reauthorisation succeeded. A fresh scoped project read confirmed zero public tables. |
 | Exact next action | Follow the [current action in the resume handover](26-11-07-full-port-resume.md#continue-from-here), then its dependency-ordered review queue. |
-| Last updated | 2026-11-11 12:04 ICT |
+| Last updated | 2026-11-11 12:29 ICT |
 
 ## Scope and continuation
 
