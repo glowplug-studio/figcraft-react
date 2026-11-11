@@ -1,5 +1,8 @@
 import type {OnlineResumeKey} from "../../backends/recovery";
 import type {OnlineRecoveryPosition} from "./online-recovery";
+import {parseInviteServer} from "./invite";
+import type {EditorEngine} from "../editor";
+import type {OnlineGuestSession} from "../../backends/online-files";
 import {checkOperatorTransport} from "./operator-transport";
 import {teamWebLink,teamFileLink,type TeamDirectory} from "./team-directory";
 import type { OnlineFileInfo, OnlineFileRegistry, OnlineWorkspaceHost, PendingOnlinePublication, RememberedOnlineFile } from "../../backends/online-files";
@@ -20,6 +23,8 @@ function timestamp(decimal:string|null|undefined) {
 }
 
 export const onlineCommands={
+  "collab.publish":{label:"Publish to server",undo:false},
+  "collab.share":{label:"Share file",undo:false},
   "collab.files":{label:"List online files",undo:false},
   "collab.recoverFile":{label:"Recover online file",undo:false},
   "collab.openFile":{label:"Open online file",undo:false},
@@ -28,6 +33,12 @@ export const onlineCommands={
 export type OnlineCommand=keyof typeof onlineCommands;
 export const emptyOnlineFiles=()=>({files:[],problems:[],max:MAX_ONLINE_FILES,team:null});
 
+interface PublicationCommand {
+  connection:string;
+  session:number;
+  key:string;
+  access?:OnlineGuestSession["access"];
+}
 interface RecordedRecovery {
   tab:number;
   position:OnlineRecoveryPosition;
@@ -88,21 +99,38 @@ export class OnlineWorkspace {
     this.tabs.set(file, tab);
   }
 
-  private async attachPublished(listing:OnlineFileInfo, tabId: number) {
+  private async attachPublished(listing:OnlineFileInfo, tabId: number, command?:PublicationCommand) {
     const invitations = this.host.invitations;
     const {id:file,managedByKey}=listing;
-    const joined = await invitations?.joinOwned?.(file, managedByKey,listing);
+    if(command && !this.workspace.wantsRecorded(command.connection,command.session))throw new Error("Publication cancelled");
+    const joined = command ? await invitations?.joinOwned?.(file,managedByKey,listing,false,command.connection)
+      : await invitations?.joinOwned?.(file, managedByKey,listing);
     if (!joined) {
       this.check();
-      if (managedByKey) throw new Error("The original edit link is unavailable");
+      if (managedByKey || command) throw new Error("The original edit link is unavailable");
       this.bindTab(file, tabId);
       return;
     }
     try {
       this.check();
+      let shareFailure:string|undefined;
+      if(command){
+        if(!this.workspace.wantsRecorded(command.connection,command.session))throw new Error("Publication cancelled");
+        if(managedByKey && command.key)this.host.retainOperatorKey?.(file,command.key);
+        if(command.access){
+          if(!this.sharing)throw new Error("The host cannot share this file");
+          try{
+            await this.sharing.change(file,true);
+            this.sharing.selectAccess?.(file,this.workspace.pendingShare(tabId)?.share?.access ?? command.access);
+          }catch(error){shareFailure=serverReason(error);}
+        }
+        this.check();
+        if(invitations?.canAttach?.(joined.session.connection)===false || !this.workspace.acceptPublication(command.connection,joined.session.connection))throw new Error("Publication cancelled");
+      }
       const previous = this.workspace.getSnapshot().find(tab => tab.id === tabId)?.guest;
       if (!this.workspace.attachGuestSession(tabId, joined.session)) throw new Error("The source file closed");
       this.bindTab(file, tabId);
+      if(shareFailure)this.workspace.publicationNotice("The file was published but couldn’t be shared: "+shareFailure);
       if (previous) await invitations!.leave(previous.connection);
     } finally {
       if (!this.workspace.getSnapshot().some(tab => tab.guest?.connection === joined.session.connection)) {
@@ -263,7 +291,63 @@ export class OnlineWorkspace {
     return {forgotten:true,file,server:recordedAddress ?? server,onServer};
   }
 
-  async execute(command:OnlineCommand,params:Record<string,unknown>) {
+  private async publishCommand(command:"collab.publish"|"collab.share",params:Record<string,unknown>,engine?:EditorEngine) {
+    this.check();
+    const tab=this.workspace.getSnapshot().find(item=>this.workspace.engines[item.index]===(engine ?? this.workspace.activeEngine));
+    if(!tab)throw new Error("No open file");
+    const sharing=command==="collab.share";
+    const via=typeof params.via==="string" ? params.via.trim() : "online";
+    const access=typeof params.access==="string" ? params.access.trim().toLowerCase() : undefined;
+    if(sharing){
+      if(via!=="local" && via!=="online")throw new Error('the via parameter must be "online" or "local"');
+      if(access!==undefined && access!=="edit" && access!=="comment" && access!=="view")throw new Error('the access parameter must be "edit", "comment" or "view"');
+      const pending=this.workspace.pendingShare(tab.id);
+      if(pending){
+        if(via==="local")throw new Error("This file is shared the other way already: stop sharing it first");
+        return this.workspace.pendingShare(tab.id,access)!;
+      }
+      const active=this.forTab(tab.id),file=active.publishedFile(tab.id),guest=tab.guest;
+      const host=guest && this.workspace.sessionInvitations(guest.connection);
+      if(file && guest && !guest.ended && host?.inspect?.(guest.connection)?.published){
+        if(via==="local")throw new Error("This file is shared the other way already: stop sharing it first");
+        if(!active.sharing)throw new Error("The host cannot share this file");
+        await active.sharing.change(file,true);
+        if(access)active.sharing.selectAccess?.(file,access);
+        this.check();
+        const current=this.workspace.getSnapshot().find(item=>item.id===tab.id && item.guest?.connection===guest.connection);
+        if(!current)throw new Error("The session changed");
+        return this.workspace.engines[current.index].execute("collab.peers");
+      }
+      if(via==="local")throw new Error(access==="comment" ? "Share online for a comment code" : "Local network hosting is unavailable in a browser");
+    }
+    const address=typeof params.server==="string" ? params.server.trim() : sharing ? this.host.server.replace(/^http/,"ws") : "";
+    if(!address)throw new Error("Give a server address");
+    const parsed=parseInviteServer(address);
+    const key=parsed.query.get("key") || (typeof params.key==="string" ? params.key.trim() : "");
+    const server=onlineServerKey(address), source=server===this.server || server.replace(/^ws/,"http")===this.server.replace(/^ws/,"http") ? this : this.forServer(server);
+    if(!source?.host.invitations?.joinOwned)throw new Error("This server is unavailable in the current host");
+    if(key){
+      if(!source.supportsServerKey)throw new Error("This host cannot use an operator key");
+      checkOperatorTransport(address,key);
+      checkOperatorTransport(source.host.operatorOrigin ?? source.server,key);
+    }
+    if(sharing && !source.sharing)throw new Error("The host cannot share this file");
+    const connection=crypto.randomUUID();
+    const requested=sharing ? (access ?? "edit") as OnlineGuestSession["access"] : undefined;
+    // Republishing replaces the old live session. A lost receipt remains recoverable in Home.
+    const before=engine?.execute("collab.peers");
+    if(before?.status==="connecting" && before.document!==null)source.publishingTabs.delete(tab.id);
+    const summary=this.workspace.beginPublication(connection,tab.id,source.host.invitations,requested);
+    const publication={connection,session:summary.session!,key,access:requested};
+    const name=typeof params.name==="string" ? params.name : tab.name;
+    void source.publish(tab.id,name,publication).catch(error=>{
+      this.workspace.failPublication(connection,tab.id,serverReason(error));
+    });
+    return summary;
+  }
+
+  async execute(command:OnlineCommand,params:Record<string,unknown>,engine?:EditorEngine) {
+    if(command==="collab.publish" || command==="collab.share")return this.publishCommand(command,params,engine);
     if(command==="collab.recoverFile")return this.recoverFile(params);
     if(command==="collab.openFile"){
       const {files}=await this.registry();
@@ -378,11 +462,11 @@ export class OnlineWorkspace {
     });
   }
 
-  private async send(attempt: PendingOnlinePublication) {
+  private async send(attempt: PendingOnlinePublication,key=this.key) {
     this.check();
-    if (attempt.requiresKey && !this.key) throw new Error("Enter the server key to retry this publication");
-    if(attempt.requiresKey)checkOperatorTransport(this.host.operatorOrigin ?? this.server,this.key);
-    const file = attempt.requiresKey ? await this.host.store.publish(attempt.file, attempt.snapshot, this.key)
+    if (attempt.requiresKey && !key) throw new Error("Enter the server key to retry this publication");
+    if(attempt.requiresKey)checkOperatorTransport(this.host.operatorOrigin ?? this.server,key);
+    const file = attempt.requiresKey ? await this.host.store.publish(attempt.file, attempt.snapshot, key)
       : await this.host.store.publish(attempt.file, attempt.snapshot);
     if (Boolean(file.managedByKey) !== Boolean(attempt.requiresKey)) throw new Error("Unexpected publication authority");
     const confirmed = this.confirmed(attempt, file);
@@ -398,12 +482,15 @@ export class OnlineWorkspace {
     return file;
   }
 
-  async publish(tabId: number, name: string) {
-    return this.run(async () => {
-      const active = this.workspace.getSnapshot().find(tab => tab.active);
-      const engine = this.workspace.activeEngine;
+  async publish(tabId: number, name: string,command?:PublicationCommand) {
+    const action=async () => {
+      this.check();
+      const key=command?.key ?? this.key;
+      const current=()=>!command || this.workspace.wantsRecorded(command.connection,command.session);
+      const active = this.workspace.getSnapshot().find(tab => command ? tab.id===tabId : tab.active);
+      const engine = active && this.workspace.engines[active.index];
       if (!engine || active?.id !== tabId) throw new Error("The source file changed");
-      if(this.supportsServerKey)checkOperatorTransport(this.host.operatorOrigin ?? this.server,this.key);
+      if(this.supportsServerKey)checkOperatorTransport(this.host.operatorOrigin ?? this.server,key);
       const listingName = cleanOnlineName(name) || cleanOnlineName(engine.archiveRevision.document.name);
       const previous = this.publishingTabs.get(tabId);
       let attempt: PendingOnlinePublication | undefined;
@@ -413,7 +500,7 @@ export class OnlineWorkspace {
           const [file] = await this.host.store.owned([previous]);
           this.check();
           if (!file) throw new Error("This file is no longer on its server");
-          await this.attachPublished(file,tabId);
+          await this.attachPublished(file,tabId,command);
           this.publishingTabs.delete(tabId);
           return file;
         }
@@ -424,24 +511,30 @@ export class OnlineWorkspace {
         const { document, nextId } = engine.archiveRevision;
         const file = crypto.randomUUID();
         const policy = this.supportsServerKey ? await this.hosting() : undefined;
-        if (policy?.open === false && !this.key) throw new Error("This server takes files only from people who have its key");
+        if (policy?.open === false && !key) throw new Error("This server takes files only from people who have its key");
         const snapshot = await prepareOnlineSnapshot(document,nextId,file,listingName,
           policy?.maxFileMb === undefined ? undefined : policy.maxFileMb * 1024 * 1024);
-        if (!this.workspace.getSnapshot().some(tab => tab.id === tabId)) throw new Error("The source file closed");
-        const stage = { ...(this.key && this.supportsServerKey && {requiresKey:true as const}), file, server: this.server, name: listingName, snapshot, started: Math.floor(Date.now() / 1000) };
-        await this.registry(current => {
-          if (current.pending.length >= MAX_ONLINE_FILES) throw new Error("Resolve a pending publication before starting another");
-          return { ...current, pending: [stage, ...current.pending] };
+        if (!current() || !this.workspace.getSnapshot().some(tab => tab.id === tabId)) throw new Error("The source file closed");
+        const stage = { ...(key && this.supportsServerKey && {requiresKey:true as const}), file, server: this.server, name: listingName, snapshot, started: Math.floor(Date.now() / 1000) };
+        await this.registry(registry => {
+          if(!current())throw new Error("Publication cancelled");
+          if (registry.pending.length >= MAX_ONLINE_FILES) throw new Error("Resolve a pending publication before starting another");
+          return { ...registry, pending: [stage, ...registry.pending] };
         });
+        if(!current()){
+          await this.registry(registry=>({...registry,pending:registry.pending.filter(row=>!this.matches(row,file))}));
+          throw new Error("Publication cancelled");
+        }
         attempt = stage;
         this.publishingTabs.set(tabId, attempt.file);
       }
-      const file = await this.send(attempt);
-      await this.attachPublished(file,tabId);
+      const file = await this.send(attempt,key);
+      await this.attachPublished(file,tabId,command);
       if (file.managedByKey) await this.finishKeyed(file.id);
-      this.publishingTabs.delete(tabId);
+      if(this.publishingTabs.get(tabId)===attempt.file)this.publishingTabs.delete(tabId);
       return file;
-    });
+    };
+    return command ? action() : this.run(action);
   }
 
   private async finishKeyed(id: string) {

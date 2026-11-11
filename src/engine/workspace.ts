@@ -62,6 +62,36 @@ export class EditorWorkspace {
   beginRecorded(connection:string, server:string, file:string, host:OnlineInvitations) {
     return this.#sessions.startRecorded(connection,this.#active?.id,server,file,host);
   }
+  beginPublication(key:string,tab:number,host:OnlineInvitations,access?:OnlineGuestSession["access"]) {
+    const source=this.#tabs.find(item=>item.id===tab);
+    if(!source || !this.#editable)throw new Error("The source file closed");
+    const prior=this.#sessions.find(tab);
+    if(prior && (prior[1].publication || prior[1].guest)){
+      void this.sessionInvitations(prior[0])?.leave(prior[0]).catch(()=>{});
+      this.leaveSession(prior[0]);
+    }
+    this.#sessions.startPublication(key,tab,host,access);
+    source.engine.setEditable(false);
+    return this.#sessions.inspect(tab,this.#tabs,key);
+  }
+  pendingShare(tab:number,access?:OnlineGuestSession["access"]) {
+    const found=this.#sessions.find(tab), entry=found?.[1];
+    if(!found || entry?.status!=="connecting" || !entry.publication?.access)return;
+    if(access)entry.publication.access=access;
+    return this.#sessions.inspect(tab,this.#tabs,found[0]);
+  }
+  acceptPublication(key:string,connection:string) {
+    return this.#sessions.acceptPublication(key,connection);
+  }
+  publicationNotice(message:string){this.#sessionNotice?.(message);}
+  failPublication(key:string,tab:number,reason:string) {
+    const pending=this.#sessions.find(tab);
+    if(pending?.[0]!==key || !pending[1].publication)return;
+    this.#sessions.failed(key,reason);
+    this.#tabs.find(item=>item.id===tab)?.engine.setEditable(this.#editable);
+    this.#sessionNotice?.(reason);
+    this.#publish();
+  }
   wantsRecorded(connection:string,session:number) {
     const found=this.#sessions.find(0,session);
     return found?.[0]===connection && found[1].status!=="failed";
@@ -255,7 +285,7 @@ export class EditorWorkspace {
       const found=this.#sessions.find(id),session=found?.[1];
       const host=found ? this.sessionInvitations(found[0]) : this.#sessions.host;
       if(!host)return;
-      return {host,guest:session?.status==="live" ? session.guest : undefined,notify:message=>{
+      return {host,sharing:this.#online?.forTab(id).sharing,guest:session?.status==="live" ? session.guest : undefined,notify:message=>{
         if(this.#sessions.find(id)?.[1]===session && session?.status==="live")
           this.#sessionNotice?.(message);
       }};
@@ -451,7 +481,9 @@ export class EditorWorkspace {
   }
 
   leaveSession(connection: string) {
+    const pending=this.#tabs.find(tab=>this.#sessions.find(tab.id)?.[0]===connection && !tab.guest);
     this.#sessions.leave(connection);
+    if(pending)pending.engine.setEditable(this.#editable);
     const recovery=this.#recoveries.get(connection);
     if(recovery)this.keepRecovery(recovery.source.id,"The session ended. Your unsaved recovery copy is open");
     const tab = this.#tabs.find(tab => tab.guest?.connection === connection);
@@ -482,6 +514,11 @@ export class EditorWorkspace {
 
   #removeTab(tab: OpenTab) {
     const index = this.#tabs.indexOf(tab);
+    const found=this.#sessions.find(tab.id);
+    if(found?.[1].publication){
+      void this.sessionInvitations(found[0])?.leave(found[0]).catch(()=>{});
+      this.#sessions.leave(found[0]);
+    }
     for(const [connection,recovery] of this.#recoveries){
       if(recovery.source===tab){
         this.#recoveries.delete(connection);

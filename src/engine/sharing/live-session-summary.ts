@@ -1,4 +1,4 @@
-import type {OnlineGuestSession, OnlineHostInformation, OnlineInvitations, SessionDetails} from "../../backends/online-files";
+import type {OnlineGuestSession, OnlineHostInformation, OnlineInvitations, OnlineOwnerSharing, SessionDetails} from "../../backends/online-files";
 import {onlineServerKey} from "./remembered-files";
 import type {Document} from "../document";
 import type {EditorEngine} from "../editor";
@@ -15,6 +15,7 @@ export type SessionAction=(command:SessionCommand,params:Record<string,unknown>)
 
 export interface SessionHostContext {
   host:OnlineInvitations;
+  sharing?:OnlineOwnerSharing;
   guest?:OnlineGuestSession;
   notify(message:string):void;
 }
@@ -44,6 +45,8 @@ interface Session {
   status:Status;
   reason:string|null;
   guest?:OnlineGuestSession;
+  issued?:Session["publication"];
+  publication?:{host:OnlineInvitations;access?:OnlineGuestSession["access"]};
   recorded?:{server:string;file:string;host:OnlineInvitations};
   fileName?:string;
   pages?:{id:number|string;name:string}[];
@@ -51,7 +54,7 @@ interface Session {
   colour?:string;
 }
 interface Tab {id:number;engine:EditorEngine}
-interface Brief {
+export interface LiveSessionBrief {
   session:number;document:number|null;status:Status;reason:string|null;role:"guest"|null;
   fileName:string|null;link:string|null;peers:number;
 }
@@ -72,9 +75,10 @@ function peerValues(engine?:EditorEngine) {
   }) ?? [];
 }
 
-function summary(available:boolean, sessions:Brief[], current?:Session, brief?:Brief, engine?:EditorEngine,
+function summary(available:boolean, sessions:LiveSessionBrief[], current?:Session, brief?:LiveSessionBrief, engine?:EditorEngine,
     details?:ReturnType<NonNullable<OnlineInvitations["inspect"]>>) {
   const guest=current?.guest, status=current?.status ?? "off";
+  const requested=current?.publication?.access ?? current?.issued?.access;
   const people=status==="live" ? engine?.people : undefined;
   const range=engine?.getTextRange();
   const syncing=!!guest && (status==="live" || status==="reconnecting");
@@ -83,8 +87,8 @@ function summary(available:boolean, sessions:Brief[], current?:Session, brief?:B
     me:guest?.client ?? null,name:people?.confirmedName ?? current?.name ?? details?.identity?.name ?? null,
     color:people?.confirmedColour ?? current?.colour ?? details?.identity?.colour ?? null,fileName:brief?.fileName ?? null,pages:current?.pages ?? null,
     link:brief?.link ?? null,url:details?.url ?? null,address:details?.address ?? null,network:details?.network ?? null,
-    access:guest?.access ?? null,readOnly:syncing && guest?.access!=="edit",published:details?.published ?? null,
-    code:details?.code ?? null,share:details?.share ?? null,hosting:status==="failed" ? null : details?.hosting ?? null,
+    access:guest?.access ?? null,readOnly:!!current?.publication && status==="connecting" || syncing && guest?.access!=="edit",published:details?.published ?? null,
+    code:details?.code ?? null,share:details?.share ?? (requested ? {via:"online" as const,access:requested,shared:false,editCode:null,viewCode:null,commentCode:null,editLink:null,viewLink:null,commentLink:null} : null),hosting:status==="failed" ? null : details?.hosting ?? null,
     follow:(syncing ? engine?.people?.following : undefined) ?? null,signals:people?.signals ?? false,chat:people?.cursorChat ?? "",
     spotlight:people?.presenter ?? null,spotlighting:syncing && !!engine?.people?.spotlighting,syncing,document:brief?.document ?? null,
     editing:range ? {node:inspectedId(range.node.id),layer:range.node.name,caret:range.caret,
@@ -109,7 +113,7 @@ export class LiveSessions {
     if (!this.invitations)return;
     const existing=this.entries.get(connection);
     if(existing){
-      if(existing.status==="connecting" && !existing.guest)existing.tab=tab;
+      if(existing.status==="connecting" && !existing.guest && !existing.publication)existing.tab=tab;
       return;
     }
     for (const [key,entry] of this.entries) {
@@ -117,7 +121,24 @@ export class LiveSessions {
     }
     this.entries.set(connection,{id:this.next++,tab,status:"connecting",reason:null});
   }
-  hostFor(connection:string) {return this.entries.get(connection)?.recorded?.host ?? this.invitations;}
+  hostFor(connection:string) {
+    const entry=this.entries.get(connection);
+    return entry?.issued?.host ?? entry?.publication?.host ?? entry?.recorded?.host ?? this.invitations;
+  }
+  startPublication(key:string,tab:number,host:OnlineInvitations,access?:OnlineGuestSession["access"]) {
+    this.start(key,tab);
+    const entry=this.entries.get(key);
+    if(!entry)throw new Error("Live sessions are unavailable here");
+    entry.publication={host,access};
+  }
+  acceptPublication(key:string,connection:string) {
+    const entry=this.entries.get(key);
+    if(!entry?.publication || entry.status!=="connecting")return false;
+    entry.issued=entry.publication;
+    if(key!==connection){this.entries.delete(key);this.entries.set(connection,entry);}
+    delete entry.publication;
+    return true;
+  }
   startRecorded(connection:string, tab:number|undefined, server:string, file:string, host:OnlineInvitations) {
     this.start(connection,tab);
     const entry=this.entries.get(connection);
@@ -128,7 +149,7 @@ export class LiveSessions {
   recorded(file:string,server:string,tabs:readonly Tab[]) {
     for(const [connection,entry] of this.entries) {
       if(entry.status==="failed")continue;
-      const record=entry.recorded ?? (entry.guest && this.invitations?.inspect?.(connection)?.published);
+      const record=entry.recorded ?? (entry.guest && this.hostFor(connection)?.inspect?.(connection)?.published);
       if(record?.file!==file || onlineServerKey(record.server)!==server)continue;
       const index=entry.guest ? tabs.findIndex(tab=>tab.id===entry.tab) : -1;
       return {id:entry.id, status:entry.status, document:index<0 ? null : index};
@@ -178,15 +199,15 @@ export class LiveSessions {
   }
   inspect(tab:number,tabs:readonly Tab[],joined?:string) {
     if (!this.invitations) return unavailableSession();
-    const briefs:Brief[]=[];
-    let shown:Session|undefined, active:Brief|undefined, engine:EditorEngine|undefined;
+    const briefs:LiveSessionBrief[]=[];
+    let shown:Session|undefined, active:LiveSessionBrief|undefined, engine:EditorEngine|undefined;
     let details:ReturnType<NonNullable<OnlineInvitations["inspect"]>>;
     const wanted=joined ?? this.find(tab)?.[0];
     for (const [key,entry] of this.entries) {
-      const index=entry.guest ? tabs.findIndex(t=>t.id===entry.tab) : -1;
+      const index=entry.guest || entry.publication ? tabs.findIndex(t=>t.id===entry.tab) : -1;
       const editor=tabs[index]?.engine;
       const info=entry.guest ? this.hostFor(key)?.inspect?.(key) : undefined;
-      const brief:Brief={session:entry.id,document:index>=0 ? index : null,status:entry.status,reason:entry.reason,
+      const brief:LiveSessionBrief={session:entry.id,document:index>=0 ? index : null,status:entry.status,reason:entry.reason,
         role:entry.guest ? "guest" : null,fileName:entry.fileName ?? null,link:info?.link ?? null,
         peers:entry.status==="live" ? editor?.people?.getSnapshot().length ?? 0 : 0};
       briefs.push(brief);

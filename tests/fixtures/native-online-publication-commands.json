@@ -1,0 +1,397 @@
+{
+  "afterStop": {
+    "access": "edit",
+    "address": "wss://share.example:443/",
+    "attempt": null,
+    "available": true,
+    "canHost": false,
+    "chat": "",
+    "code": null,
+    "color": "#0D99FF",
+    "document": 0,
+    "editing": null,
+    "fileName": "Untitled",
+    "follow": null,
+    "hosting": null,
+    "link": "figcraft://join?server=wss://share.example:443/&file=f1&token=EditEditEditEditEdit00",
+    "me": 1,
+    "name": "Me",
+    "network": true,
+    "pages": [],
+    "peers": [],
+    "published": {
+      "edit": "figcraft://join?server=wss://share.example:443/&file=f1&token=EditEditEditEditEdit00",
+      "expires": null,
+      "file": "f1",
+      "name": "Untitled",
+      "owner": "OwnerOwnerOwnerOwner00",
+      "server": "wss://share.example:443/",
+      "view": "figcraft://join?server=wss://share.example:443/&file=f1&token=ViewViewViewViewView00"
+    },
+    "readOnly": true,
+    "reason": null,
+    "role": "guest",
+    "session": 1,
+    "sessions": [
+      {
+        "document": 0,
+        "fileName": "Untitled",
+        "link": "figcraft://join?server=wss://share.example:443/&file=f1&token=EditEditEditEditEdit00",
+        "peers": 0,
+        "reason": null,
+        "role": "guest",
+        "session": 1,
+        "status": "live"
+      }
+    ],
+    "share": {
+      "access": "view",
+      "commentCode": null,
+      "commentLink": null,
+      "editCode": null,
+      "editLink": null,
+      "shared": false,
+      "via": "online",
+      "viewCode": null,
+      "viewLink": null
+    },
+    "signals": false,
+    "spotlight": null,
+    "spotlighting": false,
+    "status": "live",
+    "syncing": false,
+    "url": ""
+  },
+  "createComment": {
+    "access": "comment",
+    "id": "fixture-link-id",
+    "link": "figcraft://join?server=wss://share.example:443/&file=f1&token=SyntheticTestLink001"
+  },
+  "createDefault": {
+    "access": "view",
+    "id": "fixture-link-id",
+    "link": "figcraft://join?server=wss://share.example:443/&file=f1&token=SyntheticTestLink001"
+  },
+  "initialStop": {
+    "ended": false
+  },
+  "leaveUnshared": {
+    "ended": true
+  },
+  "list": {
+    "links": [
+      {
+        "access": "view",
+        "created": 1730000000,
+        "id": "fixture-link-id",
+        "label": "QA view"
+      }
+    ]
+  },
+  "publish": {
+    "access": null,
+    "address": null,
+    "attempt": null,
+    "available": true,
+    "canHost": false,
+    "chat": "",
+    "code": null,
+    "color": null,
+    "document": 0,
+    "editing": null,
+    "fileName": null,
+    "follow": null,
+    "hosting": null,
+    "link": null,
+    "me": null,
+    "name": null,
+    "network": null,
+    "pages": null,
+    "peers": [],
+    "published": null,
+    "readOnly": true,
+    "reason": null,
+    "role": null,
+    "session": 1,
+    "sessions": [
+      {
+        "document": 0,
+        "fileName": null,
+        "link": null,
+        "peers": 0,
+        "reason": null,
+        "role": null,
+        "session": 1,
+        "status": "connecting"
+      }
+    ],
+    "share": null,
+    "signals": false,
+    "spotlight": null,
+    "spotlighting": false,
+    "status": "connecting",
+    "syncing": false,
+    "url": null
+  },
+  "remove": {
+    "done": true
+  },
+  "rename": {
+    "done": true
+  },
+  "repeat": {
+    "access": "edit",
+    "address": "wss://share.example:443/",
+    "attempt": null,
+    "available": true,
+    "canHost": false,
+    "chat": "",
+    "code": "4FH-J8R-2WN",
+    "color": "#0D99FF",
+    "document": 0,
+    "editing": null,
+    "fileName": "Untitled",
+    "follow": null,
+    "hosting": null,
+    "link": "figcraft://join?server=wss://share.example:443/&file=f1&token=EditEditEditEditEdit00",
+    "me": 1,
+    "name": "Me",
+    "network": true,
+    "pages": [],
+    "peers": [],
+    "published": {
+      "edit": "figcraft://join?server=wss://share.example:443/&file=f1&token=EditEditEditEditEdit00",
+      "expires": null,
+      "file": "f1",
+      "name": "Untitled",
+      "owner": "OwnerOwnerOwnerOwner00",
+      "server": "wss://share.example:443/",
+      "view": "figcraft://join?server=wss://share.example:443/&file=f1&token=ViewViewViewViewView00"
+    },
+    "readOnly": true,
+    "reason": null,
+    "role": "guest",
+    "session": 1,
+    "sessions": [
+      {
+        "document": 0,
+        "fileName": "Untitled",
+        "link": "figcraft://join?server=wss://share.example:443/&file=f1&token=EditEditEditEditEdit00",
+        "peers": 0,
+        "reason": null,
+        "role": "guest",
+        "session": 1,
+        "status": "live"
+      }
+    ],
+    "share": {
+      "access": "view",
+      "commentCode": null,
+      "commentLink": null,
+      "editCode": "K7M-2QX-9TD",
+      "editLink": "figcraft://join?server=wss://share.example:443/&file=f1&token=ShareeditShareedit00",
+      "shared": true,
+      "via": "online",
+      "viewCode": "4FH-J8R-2WN",
+      "viewLink": "figcraft://join?server=wss://share.example:443/&file=f1&token=ShareviewShareview00"
+    },
+    "signals": false,
+    "spotlight": null,
+    "spotlighting": false,
+    "status": "live",
+    "syncing": false,
+    "url": ""
+  },
+  "reshare": {
+    "access": "edit",
+    "address": "wss://share.example:443/",
+    "attempt": null,
+    "available": true,
+    "canHost": false,
+    "chat": "",
+    "code": "NEW-ED1-T01",
+    "color": "#0D99FF",
+    "document": 0,
+    "editing": null,
+    "fileName": "Untitled",
+    "follow": null,
+    "hosting": null,
+    "link": "figcraft://join?server=wss://share.example:443/&file=f1&token=EditEditEditEditEdit00",
+    "me": 1,
+    "name": "Me",
+    "network": true,
+    "pages": [],
+    "peers": [],
+    "published": {
+      "edit": "figcraft://join?server=wss://share.example:443/&file=f1&token=EditEditEditEditEdit00",
+      "expires": null,
+      "file": "f1",
+      "name": "Untitled",
+      "owner": "OwnerOwnerOwnerOwner00",
+      "server": "wss://share.example:443/",
+      "view": "figcraft://join?server=wss://share.example:443/&file=f1&token=ViewViewViewViewView00"
+    },
+    "readOnly": true,
+    "reason": null,
+    "role": "guest",
+    "session": 1,
+    "sessions": [
+      {
+        "document": 0,
+        "fileName": "Untitled",
+        "link": "figcraft://join?server=wss://share.example:443/&file=f1&token=EditEditEditEditEdit00",
+        "peers": 0,
+        "reason": null,
+        "role": "guest",
+        "session": 1,
+        "status": "live"
+      }
+    ],
+    "share": {
+      "access": "edit",
+      "commentCode": null,
+      "commentLink": null,
+      "editCode": "NEW-ED1-T01",
+      "editLink": "figcraft://join?server=wss://share.example:443/&file=f1&token=ShareeditShareedit01",
+      "shared": true,
+      "via": "online",
+      "viewCode": "NEW-V1E-W01",
+      "viewLink": "figcraft://join?server=wss://share.example:443/&file=f1&token=ShareviewShareview01"
+    },
+    "signals": false,
+    "spotlight": null,
+    "spotlighting": false,
+    "status": "live",
+    "syncing": false,
+    "url": ""
+  },
+  "revoke": {
+    "done": true
+  },
+  "secondStop": {
+    "ended": false,
+    "shared": false
+  },
+  "share": {
+    "access": null,
+    "address": null,
+    "attempt": null,
+    "available": true,
+    "canHost": false,
+    "chat": "",
+    "code": null,
+    "color": null,
+    "document": 0,
+    "editing": null,
+    "fileName": null,
+    "follow": null,
+    "hosting": null,
+    "link": null,
+    "me": null,
+    "name": null,
+    "network": null,
+    "pages": null,
+    "peers": [],
+    "published": null,
+    "readOnly": true,
+    "reason": null,
+    "role": null,
+    "session": 1,
+    "sessions": [
+      {
+        "document": 0,
+        "fileName": null,
+        "link": null,
+        "peers": 0,
+        "reason": null,
+        "role": null,
+        "session": 1,
+        "status": "connecting"
+      }
+    ],
+    "share": {
+      "access": "edit",
+      "commentCode": null,
+      "commentLink": null,
+      "editCode": null,
+      "editLink": null,
+      "shared": false,
+      "via": "online",
+      "viewCode": null,
+      "viewLink": null
+    },
+    "signals": false,
+    "spotlight": null,
+    "spotlighting": false,
+    "status": "connecting",
+    "syncing": false,
+    "url": null
+  },
+  "stopShared": {
+    "ended": false,
+    "shared": false
+  },
+  "view": {
+    "access": "edit",
+    "address": "wss://share.example:443/",
+    "attempt": null,
+    "available": true,
+    "canHost": false,
+    "chat": "",
+    "code": "4FH-J8R-2WN",
+    "color": "#0D99FF",
+    "document": 0,
+    "editing": null,
+    "fileName": "Untitled",
+    "follow": null,
+    "hosting": null,
+    "link": "figcraft://join?server=wss://share.example:443/&file=f1&token=EditEditEditEditEdit00",
+    "me": 1,
+    "name": "Me",
+    "network": true,
+    "pages": [],
+    "peers": [],
+    "published": {
+      "edit": "figcraft://join?server=wss://share.example:443/&file=f1&token=EditEditEditEditEdit00",
+      "expires": null,
+      "file": "f1",
+      "name": "Untitled",
+      "owner": "OwnerOwnerOwnerOwner00",
+      "server": "wss://share.example:443/",
+      "view": "figcraft://join?server=wss://share.example:443/&file=f1&token=ViewViewViewViewView00"
+    },
+    "readOnly": true,
+    "reason": null,
+    "role": "guest",
+    "session": 1,
+    "sessions": [
+      {
+        "document": 0,
+        "fileName": "Untitled",
+        "link": "figcraft://join?server=wss://share.example:443/&file=f1&token=EditEditEditEditEdit00",
+        "peers": 0,
+        "reason": null,
+        "role": "guest",
+        "session": 1,
+        "status": "live"
+      }
+    ],
+    "share": {
+      "access": "view",
+      "commentCode": null,
+      "commentLink": null,
+      "editCode": "K7M-2QX-9TD",
+      "editLink": "figcraft://join?server=wss://share.example:443/&file=f1&token=ShareeditShareedit00",
+      "shared": true,
+      "via": "online",
+      "viewCode": "4FH-J8R-2WN",
+      "viewLink": "figcraft://join?server=wss://share.example:443/&file=f1&token=ShareviewShareview00"
+    },
+    "signals": false,
+    "spotlight": null,
+    "spotlighting": false,
+    "status": "live",
+    "syncing": false,
+    "url": ""
+  }
+}

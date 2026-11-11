@@ -1,13 +1,11 @@
 "use client";
 
-import {postOperatorRequest} from "../lib/sharing/operator-request";
+import {browserOnlineHost} from "../lib/sharing/browser-online-host";
 import "@glowplug-studio/figcraft-react/fonts.css";
 import { useEffect, useRef, useState } from "react";
-import { DisplayNameField, WorkspaceEditor, FigcraftRoot, IndexedDbRecoveryStore, type OnlineWorkspaceHost, type DeviceOwnerSharing, type IdentitySnapshot, type DocumentCapability } from "@glowplug-studio/figcraft-react";
-import { SupabaseIdentityAdapter, SupabaseOnlineFileStore, publishedLinkDigests, watchSupabaseGuest } from "@glowplug-studio/figcraft-react/backends/supabase";
-import { BrowserTeamLibraries } from "../lib/sharing/team-libraries";
-import { BrowserOwnerSharing } from "../lib/sharing/owner-sharing";
-import { BrowserInvitations } from "../lib/sharing/browser-invites";
+import { DisplayNameField, WorkspaceEditor, FigcraftRoot, IndexedDbRecoveryStore, type OnlineWorkspaceHost, type IdentitySnapshot, type DocumentCapability } from "@glowplug-studio/figcraft-react";
+import { SupabaseIdentityAdapter } from "@glowplug-studio/figcraft-react/backends/supabase";
+import type { BrowserInvitations } from "../lib/sharing/browser-invites";
 import { useRouter } from "next/navigation";
 import { supabaseConfig } from "../lib/supabase/config";
 import { getBrowserSupabase } from "../lib/supabase/browser";
@@ -29,38 +27,11 @@ export function EditorHost({ identity }: { identity: Extract<IdentitySnapshot, {
     const next = new SupabaseIdentityAdapter(getBrowserSupabase().auth, identity);
     const store = new IndexedDbRecoveryStore();
     const server = supabaseConfig().url.replace(/\/+$/, "");
-    let currentKey = "";
-    const operators = new Map<string, {pair: Awaited<ReturnType<typeof store.publicationLinks>>;
-      sharing: DeviceOwnerSharing}>();
-    const sharing = new BrowserOwnerSharing({
-      ownerSharing: async (principal,address,file,update) => {
-        const operator = operators.get(file);
-        if (!operator) return store.ownerSharing(principal,address,file,update);
-        if (update) operator.sharing = update(operator.sharing);
-        return operator.sharing;
-      },
-    }, identity.principal.id, server, file => operators.has(file) ? currentKey : undefined);
-    const files = new SupabaseOnlineFileStore(getBrowserSupabase(), identity.principal.id, async (id,serverKey) => {
-      const pair = await store.publicationLinks(identity.principal.id,server,id);
-      const links = await publishedLinkDigests(pair);
-      const response = await postOperatorRequest("/api/online-files",{id,links},serverKey);
-      if (!response.ok) {
-        const reason = [403,409,429].includes(response.status) ? await response.json().catch(() => null) : null;
-        throw new Error(typeof reason?.error === "string" ? reason.error : "The online file could not be published");
-      }
-      const receipt = await response.json();
-      if (serverKey && receipt?.managedByKey === true) operators.set(id, {pair, sharing:operators.get(id)?.sharing ?? {links:[]}});
-      return receipt;
-    });
-    const invites = new BrowserInvitations({
-      readPublishedLinks: async (principal,address,file) => operators.get(file)?.pair ?? store.readPublishedLinks(principal,address,file),
-    }, identity.principal.id, server,
-      (connection, ended, edits, people, ready) => watchSupabaseGuest(getBrowserSupabase(), connection, ended, edits, people, ready), () => {
+    const host=browserOnlineHost(getBrowserSupabase(),store,identity.principal.id,server,()=>{
       setJoinError(""); joinDialog.current?.showModal();
-    }, setError, file => files.resolveTeamFile(file),{hosting:file=>files.hosting(file),
-      sharing:(file,recorded)=>sharing.inspect(file,recorded),loadSharing:file=>sharing.read(file,true)});
-    setInviteHost(invites);
-    setOnline({ server, libraries:new BrowserTeamLibraries(store,identity.principal.id,server,getBrowserSupabase(),invites), supportsServerKey:true, operatorOrigin:location.origin, serverKeyChanged:key => { currentKey = key; }, releasePublished:file => { operators.delete(file); }, store: files, device: store, invitations: invites, sharing });
+    },setError);
+    setInviteHost(host.invitations);
+    setOnline(host);
     setRecovery(store);
     setAdapter(next);
     const unsubscribe = next.subscribe(snapshot => {
@@ -68,7 +39,7 @@ export function EditorHost({ identity }: { identity: Extract<IdentitySnapshot, {
       else if (snapshot.status === "authenticated" && snapshot.principal.id !== identity.principal.id) router.refresh();
     });
     void next.refresh();
-    return () => { unsubscribe(); invites.dispose(); next.dispose(); store.close(); };
+    return () => { unsubscribe(); host.invitations.dispose(); next.dispose(); store.close(); };
   }, [identity, router]);
   function cancelJoin() {
     const connection=joinAttempt.current;

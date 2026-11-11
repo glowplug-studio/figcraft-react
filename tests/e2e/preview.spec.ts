@@ -67,6 +67,16 @@ async function removeOnlineFixture(page:Page,id:string) {
   expect(reply.status()).toBe(204);
 }
 
+async function loadEmbeddedOnlineEditor(page:Page) {
+  const {build}=await import("vite");
+  const bundle=await build({configFile:false,logLevel:"silent",define:{"process.env.NODE_ENV":JSON.stringify("production")},build:{write:false,
+    lib:{entry:"tests/fixtures/browser-online-directory.ts",name:"FigcraftDirectory",formats:["iife"]}}});
+  const output=(Array.isArray(bundle) ? bundle[0] : bundle) as {output:{type:string;code?:string}[]};
+  const script=output.output.find(item=>item.type==="chunk")?.code;
+  if(!script)throw new Error("The embedded directory fixture did not build");
+  await page.addScriptTag({content:script});
+}
+
 async function login(page: Page, normaliseView = true) {
   await page.goto("/");
   await expect(page).toHaveURL(/\/login\?next=/);
@@ -524,13 +534,7 @@ test("publish, reopen and manage a device-owned file in Home Online", async ({ p
     await expect(panel.getByRole("button", { name: /^Owner drawing/ })).toBeEnabled();
     await expect(panel.locator("small")).toContainText(new URL(url).host + " · Not shared · Opened ");
     await expect(panel).toHaveScreenshot("online-files-owner.png", { mask: [panel.locator("small")], maskColor: "#e1e5e8" });
-    const {build}=await import("vite");
-    const bundle=await build({configFile:false,logLevel:"silent",define:{"process.env.NODE_ENV":JSON.stringify("production")},build:{write:false,
-      lib:{entry:"tests/fixtures/browser-online-directory.ts",name:"FigcraftDirectory",formats:["iife"]}}});
-    const output=(Array.isArray(bundle) ? bundle[0] : bundle) as {output:{type:string;code?:string}[]};
-    const script=output.output.find(item=>item.type==="chunk")?.code;
-    if(!script)throw new Error("The embedded directory fixture did not build");
-    await page.addScriptTag({content:script});
+    await loadEmbeddedOnlineEditor(page);
     const publicDirectory=await page.evaluate(async args=>{
       const fixture=(window as unknown as {FigcraftDirectory:typeof import("../fixtures/browser-online-directory")}).FigcraftDirectory;
       return fixture.cachedDirectory(args.principal,args.server);
@@ -834,6 +838,66 @@ if (!process.env.PLAYWRIGHT_BASE_URL) for(const diverged of [false,true]) test(d
     await expect(page.getByRole("region",{name:"Layers",exact:true}).getByRole("button",{name:"Ellipse",exact:true})).toHaveCount(0);
   } finally {
     await second?.close();
+    if(file)await removeOnlineFixture(page,file);
+  }
+});
+
+if(!process.env.PLAYWRIGHT_BASE_URL)test("public sharing commands lock the publishing tab, select roles and retire guest codes before the owner leaves",async({page})=>{
+  test.setTimeout(90_000);
+  await login(page);
+  await loadEmbeddedOnlineEditor(page);
+  const app=await page.evaluateHandle(async({principal,server,key})=>{
+    const fixture=(window as unknown as {FigcraftDirectory:typeof import("../fixtures/browser-online-directory")}).FigcraftDirectory;
+    return fixture.publicationEditor(principal,server,key);
+  },{principal:userId!,server:backend!.url,key:backend!.key});
+  let file:string|undefined,release!:()=>void;
+  const delayed=new Promise<void>(done=>{release=done;});
+  let posts=0;
+  const path="**/api/online-files";
+  await page.route(path,async route=>{posts++;await delayed;await route.continue();});
+  try{
+    const connecting=await app.evaluate(client=>client.command("collab.share",{name:"Scripted online drawing"}));
+    expect(connecting).toMatchObject({session:1,status:"connecting",readOnly:true,document:0,share:{access:"edit",shared:false}});
+    expect(await app.evaluate(client=>client.editable())).toBe(false);
+    const switched=await app.evaluate(client=>client.command("collab.share",{access:"comment"}));
+    expect(switched).toMatchObject({session:1,status:"connecting",share:{access:"comment"}});
+    const published=page.waitForResponse(r=>new URL(r.url()).pathname==="/api/online-files");
+    release();
+    file=(await (await published).json()).id;
+    await expect.poll(()=>app.evaluate(client=>client.peers().status)).toBe("live");
+    expect(await app.evaluate(client=>client.editable())).toBe(true);
+    const oldCode=await app.evaluate(client=>client.peers().code);
+    expect(oldCode).toMatch(/^([0-9A-Z]{3}-){2}[0-9A-Z]{3}$/);
+    expect(await app.evaluate(client=>client.peers().share?.access)).toBe("comment");
+    await page.setViewportSize({width:390,height:844});
+    const selected=await app.evaluate(async client=>{
+      const answer=await client.command("collab.share",{access:"view"});
+      return {changed:answer.code!==null && answer.code===client.peers().share?.viewCode,id:answer.session};
+    });
+    expect(selected).toEqual({changed:true,id:1});
+    const changing="**/api/online-files/sharing";
+    await page.route(changing,route=>route.request().postDataJSON().action==="change"
+      ? route.fulfill({status:503,json:{error:"offline"}}) : route.continue());
+    expect(await app.evaluate(async client=>client.command("collab.stop").then(()=>false,e=>e.message.includes("others can still get in")))).toBe(true);
+    expect(await app.evaluate(client=>client.peers().share?.shared)).toBe(true);
+    await page.unroute(changing);
+    expect(await app.evaluate(client=>client.command("collab.stop"))).toEqual({ended:false,shared:false});
+    expect(await app.evaluate(client=>client.peers().status)).toBe("live");
+    const afterStop=await backend!.admin.from("online_file_links").select("label").eq("file_id",file!);
+    expect(afterStop.error).toBeNull();
+    expect(afterStop.data?.map(row=>row.label).sort()).toEqual(["Published (edit)","Published (view)"]);
+    await app.evaluate(client=>client.command("collab.share",{access:"comment"}).then(()=>{}));
+    expect(await app.evaluate(client=>client.peers().code!==null)).toBe(true);
+    expect(await app.evaluate(client=>client.peers().code)).not.toBe(oldCode);
+    expect(posts).toBe(1);
+    await app.evaluate(client=>client.command("collab.stop"));
+    expect(await app.evaluate(client=>client.command("collab.stop"))).toEqual({ended:true});
+    expect(await app.evaluate(client=>client.peers().status)).toBe("off");
+  }finally{
+    release();
+    await page.unroute(path);
+    await app.evaluate(client=>client.close());
+    await app.dispose();
     if(file)await removeOnlineFixture(page,file);
   }
 });

@@ -116,6 +116,7 @@ export const commandSpecs = Object.freeze({
   ...sessionCommands,
   ...onlineCommands,
   "collab.report":{label:"Report this file",undo:false},
+  "collab.stop":{label:"Stop sharing",undo:false},
   "collab.serverInfo":{label:"About this server",undo:false},
   "collab.removePerson":{label:"Remove from session",undo:false},
   ...commentActions,
@@ -1504,7 +1505,7 @@ export class EditorEngine {
   execute(command: string, input: unknown = {}): Record<string, unknown> | Variables | ReturnType<typeof listStyles> | ReturnType<typeof listComponents> | ReturnType<typeof listPages> | typeof framePresets | ReturnType<typeof versionDetails>[] | ReturnType<typeof queryFonts> | null {
     if (!Object.hasOwn(commandSpecs, command)) throw new Error(`Unsupported command: ${command}`);
     if(Object.hasOwn(onlineCommands,command))throw new Error(command+" requires executeAsync");
-    if(command==="collab.removePerson" || command==="collab.serverInfo")throw new Error(command+" requires executeAsync");
+    if(command==="collab.removePerson" || command==="collab.stop" || command==="collab.serverInfo")throw new Error(command+" requires executeAsync");
     if(command==="collab.report"){
       const {receipt,notify}=this.#sendReport(input);
       void receipt.then(()=>notify("Your report was sent to the server's operator"),
@@ -2083,7 +2084,8 @@ export class EditorEngine {
   async executeAsync(command: string, input: unknown = {}): Promise<Record<string, unknown> | Variables | ReturnType<typeof listStyles> | ReturnType<typeof listComponents> | ReturnType<typeof queryFonts> | null> {
     if(Object.hasOwn(onlineCommands,command)){
       const online=this.#online?.(),params=parameters(input);
-      if(online)return online.execute(command as OnlineCommand,params);
+      if(online)return online.execute(command as OnlineCommand,params,this);
+      if(command==="collab.publish" || command==="collab.share")throw new Error("Live sessions are unavailable here");
       if(command==="collab.files"){
         if(params.refresh!==undefined && typeof params.refresh!=="boolean")throw new Error("refresh must be true or false");
         return emptyOnlineFiles();
@@ -2093,6 +2095,23 @@ export class EditorEngine {
     if(command==="collab.report"){
       await this.#sendReport(input).receipt;
       return {sent:true};
+    }
+    if(command==="collab.stop"){
+      const params=parameters(input), context=this.#sessionHost?.(), guest=context?.guest;
+      const published=guest && context.host.inspect?.(guest.connection)?.published;
+      if(published && guest && context){
+        // A recorded file can be reopened before its device-held share group finishes loading.
+        const group=await context.sharing?.read(published.file);
+        if(this.#sessionHost?.()?.guest?.connection!==guest.connection)throw new Error("The session changed");
+        if(group?.codes.edit || context.host.inspect?.(guest.connection)?.share?.shared){
+          if(!context.sharing)throw new Error("The host cannot stop sharing this file");
+          try{await context.sharing.change(published.file,false);}
+          catch(error){throw new Error("couldn't stop sharing (the others can still get in): "+(error instanceof Error ? error.message : String(error)));}
+          context.notify("Sharing stopped: the file stays on the server, open only to you");
+          return {ended:false,shared:false};
+        }
+      }
+      return this.execute("collab.leave",params);
     }
     if(command==="collab.serverInfo"){
       const {server}=parameters(input),host=this.#sessionHost?.()?.host;

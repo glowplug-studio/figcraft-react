@@ -165,19 +165,19 @@ export class BrowserInvitations implements OnlineInvitations {
 
   canAttach(connection:string) {const tab=this.tabs.get(connection);return !!tab && !tab.ended;}
 
-  async joinOwned(file: string, managedByKey = false, listing?:Pick<OnlineFileInfo,"name"|"expires">, recorded=false) {
-    const joined = await this.beginOwned(file, managedByKey, listing, recorded);
+  async joinOwned(file: string, managedByKey = false, listing?:Pick<OnlineFileInfo,"name"|"expires">, recorded=false,connection?:string) {
+    const joined = await this.beginOwned(file, managedByKey, listing, recorded,undefined,connection);
     return joined?.completed;
   }
 
-  async beginOwned(file: string, managedByKey: boolean, listing: Pick<OnlineFileInfo, "name"|"expires"> | undefined, recorded: boolean, saved?:OnlineResumeKey) {
+  async beginOwned(file: string, managedByKey: boolean, listing: Pick<OnlineFileInfo, "name"|"expires"> | undefined, recorded: boolean, saved?:OnlineResumeKey,registered?:string) {
     const listener=this.listener;
     const links = await this.device.readPublishedLinks(this.principal, this.server, file);
     if(listener!==this.listener)throw new Error("The join was cancelled");
     if (!links) return undefined;
     const recovery=managedByKey ? undefined : await ownerRecoveryLock(this.principal,this.server,saved);
     if(listener!==this.listener){recovery?.release();throw new Error("The join was cancelled");}
-    const connection = crypto.randomUUID();
+    const connection = registered ?? crypto.randomUUID();
     const stage = this.stage;
     this.pending.add(connection);
     stage?.(connection);

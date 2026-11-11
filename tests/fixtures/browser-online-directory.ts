@@ -1,3 +1,5 @@
+import {createBrowserClient} from "@supabase/ssr";
+import {browserOnlineHost} from "../../examples/nextjs/lib/sharing/browser-online-host";
 import {EditorWorkspace,IndexedDbRecoveryStore,OnlineWorkspace} from "@glowplug-studio/figcraft-react";
 import {BrowserInvitations} from "../../examples/nextjs/lib/sharing/browser-invites";
 
@@ -29,6 +31,28 @@ export function recordedEditor(principal:string,server:string) {
       try{
         for(const tab of workspace.getSnapshot())if(tab.guest)await invitations.leave(tab.guest.connection);
       }finally{workspace.setEditable(false);device.close();}
+    },
+  };
+}
+
+/** Exercise public commands with the same authorised provider and device store as the Next.js host. */
+export async function publicationEditor(principal:string,server:string,key:string) {
+  const device=new IndexedDbRecoveryStore(),workspace=new EditorWorkspace();
+  const client=createBrowserClient(server,key);
+  const host=browserOnlineHost(client,device,principal,server,()=>{},()=>{});
+  const online=new OnlineWorkspace(workspace,host,principal,()=>true);
+  workspace.setOnlineWorkspace(online);
+  workspace.setInvitations(host.invitations,undefined,id=>online.leaveTab(id));
+  const unsub=host.invitations.subscribe(async(session,bytes)=>{
+    await workspace.open(new File([bytes],"joined.figcraft"),session);
+  },(connection,error)=>workspace.joining(connection,error));
+  return {
+    command:(name:string,params:Record<string,unknown>={})=>workspace.activeEngine!.executeAsync(name,params),
+    peers:()=>workspace.activeEngine!.execute("collab.peers"),
+    editable:()=>workspace.activeEngine!.getSnapshot().editable,
+    close:async()=>{
+      try{for(const tab of workspace.getSnapshot())if(tab.guest)await host.invitations.leave(tab.guest.connection);}
+      finally{unsub();host.invitations.dispose();workspace.setEditable(false);device.close();}
     },
   };
 }

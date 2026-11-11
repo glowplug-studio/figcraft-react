@@ -113,7 +113,7 @@ export interface OnlineInvitations {
   inspect?(connection:string):SessionDetails|undefined;
   live?(connection: string): import("../engine/sharing/live-transport").LiveTransport | undefined;
   /** Redeem this device's original edit link. Older records may predate link storage. */
-  joinOwned?(file: string, managedByKey?: boolean, listing?:Pick<OnlineFileInfo,"name"|"expires">, recorded?:boolean): Promise<{session: OnlineGuestSession; archive: Blob} | undefined>;
+  joinOwned?(file: string, managedByKey?: boolean, listing?:Pick<OnlineFileInfo,"name"|"expires">, recorded?:boolean, connection?:string): Promise<{session: OnlineGuestSession; archive: Blob} | undefined>;
   sessionHosting?(connection:string):Promise<OnlineHostInformation>;
   serverInfo?(server:string):Promise<OnlineHostInformation>;
   removePerson?(connection:string,client:number):Promise<{removed:number;name:string|null}>;
@@ -149,6 +149,8 @@ export interface OnlineWorkspaceHost {
   forServer?(server:string):OnlineWorkspaceHost|undefined;
   libraries?: OnlineTeamLibraries;
   supportsServerKey?: boolean;
+  /** Retain an explicit command key only while its operator-owned tab is open. */
+  retainOperatorKey?(file:string,key:string):void;
   /** Destination receiving the raw key when the host proxies administrative requests. */
   operatorOrigin?:string;
   releasePublished?(file: string): void;
