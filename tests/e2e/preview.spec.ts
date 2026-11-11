@@ -174,7 +174,8 @@ test("signed-in ownership finalisation validates the staged archive and safely r
     const refused = await page.request.post("/api/online-files", { headers: { Origin: "https://unrelated.example" }, data: { id } });
     expect(refused.status()).toBe(403);
   } finally {
-    expect((await storage.remove([path, oversizedPath])).error).toBeNull();
+    await removeOnlineFixture(page, id);
+    expect((await storage.remove([oversizedPath])).error).toBeNull();
   }
 });
 
@@ -695,20 +696,20 @@ test("owner sharing retries a lost reply and rotates three roles from Home Onlin
   const origin = new URL(page.url()).origin;
   await page.context().grantPermissions(["clipboard-read", "clipboard-write"], {origin});
   const bar = page.locator(".figcraft-document-bar");
-  let dropped = false;
+  let sharedFile: string | undefined;
   const endpoint = "**/api/online-files/sharing";
   await page.route(endpoint, async route => {
     const body = route.request().postDataJSON();
-    if (body.action !== "change" || dropped) return route.continue();
+    if (body.action !== "change" || sharedFile) return route.continue();
     const receipt = await route.fetch();
     expect(receipt.ok()).toBe(true);
-    dropped = true;
+    sharedFile = body.file;
     await route.fulfill({status: 503, json: {error: "Fixture discarded the acknowledgement"}});
   });
   await bar.getByText("Share", {exact: true}).click();
   await bar.getByRole("button", {name: "Start sharing", exact: true}).click();
   await expect(bar.getByRole("button", {name: "Retry start sharing"})).toBeEnabled();
-  expect(dropped).toBe(true);
+  expect(sharedFile).toBeTruthy();
   await page.unroute(endpoint);
   await bar.getByRole("button", {name: "Retry start sharing"}).click();
   await expect(bar.getByRole("button", {name: "Stop sharing"})).toBeEnabled();
@@ -737,7 +738,7 @@ test("owner sharing retries a lost reply and rotates three roles from Home Onlin
   await expect(panel.getByRole("button", {name: "Stop sharing"})).toBeEnabled();
   expect(codes.has(await panel.getByLabel("Join code").innerText())).toBe(false);
   if (backend && userId) {
-    const listing = await backend.admin.from("online_files").select("id").eq("owner_id", userId).eq("name", "Untitled").single();
+    const listing = await backend.admin.from("online_files").select("id").eq("owner_id", userId).eq("id", sharedFile!).single();
     expect(listing.error).toBeNull();
     const revoked = await backend.admin.from("online_file_links").delete().eq("file_id", listing.data!.id).eq("label", "Shared (edit)").select("id");
     expect(revoked.data).toHaveLength(1);
