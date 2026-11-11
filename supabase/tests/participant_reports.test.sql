@@ -20,6 +20,16 @@ select is(public.submit_participant_report(pg_temp.uid('viewer'),pg_temp.uid('ot
 select is((select operator_contact||terms_url from public.online_host_information(null)),'','optional host fields are empty by default');
 insert into figcraft_private.online_host_contact(operator_contact,terms_url) values('Host desk','https://example.test/terms');
 select is((select terms_url from public.online_host_information(null)),'https://example.test/terms','the configured web terms are published');
+update figcraft_private.online_host_contact set operator_contact=U&'\3000Host desk\00a0', terms_url=U&'\0009https://example.test/terms\2029';
+select is((select operator_contact||' '||terms_url from public.online_host_information(null)),'Host desk https://example.test/terms','Unicode padding is removed from both published settings');
+update figcraft_private.online_host_contact set terms_url=repeat(' ',502)||'http://'||repeat('x',493);
+select is((select octet_length(terms_url) from public.online_host_information(null)),500,'byte limit applies after trimming terms');
+select throws_ok($$update figcraft_private.online_host_contact set terms_url='https://'||repeat('é',247)$$,'23514',null,'501-plus UTF-8 bytes rejected');
+select throws_ok($$update figcraft_private.online_host_contact set terms_url=U&'https://example.test/a\202fb'$$,'23514',null,'internal narrow nonbreaking space rejected');
+select throws_ok($$update figcraft_private.online_host_contact set operator_contact=U&'Host desk\0085'$$,'23514',null,'contact controls rejected even at the boundary');
+select throws_ok($$update figcraft_private.online_host_contact set operator_contact=repeat(' ',120)||'x'$$,'23514',null,'contact length is measured before trim');
+update figcraft_private.online_host_contact set terms_url=U&'\0009\2002\3000';
+select is((select terms_url from public.online_host_information(null)),'','whitespace-only terms omit the link');
 select ok(not has_table_privilege('authenticated','figcraft_private.online_host_contact','update'),'only the operator configures public contact details');
 select throws_ok($$update figcraft_private.online_host_contact set terms_url='javascript:alert(1)'$$,'23514',null,'non-web terms rejected');
 select throws_ok($$update figcraft_private.online_host_contact set operator_contact=repeat('x',121)$$,'23514',null,'overlong contact rejected');

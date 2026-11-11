@@ -620,8 +620,9 @@ test("the published view and edit invites open the original drawing in another s
   let reportFile: string | undefined;
   const contact = "Test operator " + randomUUID();
   const terms = "https://example.test/figcraft-terms";
+  const paddedContact = "\u3000" + contact + "\u00a0";
   try {
-    if (backend) localOperatorSql(backend,"insert into figcraft_private.online_host_contact(operator_contact,terms_url) values (:'contact',:'terms')",{contact,terms});
+    if (backend) localOperatorSql(backend,"insert into figcraft_private.online_host_contact(operator_contact,terms_url) values (:'contact',:'terms')",{contact:paddedContact,terms:"\u0085" + terms + "\u2009"});
     await page.context().grantPermissions(["clipboard-read", "clipboard-write"], { origin });
     await page.getByRole("button", { name: "Create rectangle", exact: true }).click();
     const bar = page.locator(".figcraft-document-bar");
@@ -660,6 +661,7 @@ test("the published view and edit invites open the original drawing in another s
     await toolbar.getByRole("button", {name:"About this server"}).click();
     await expect(toolbar.getByText(/The server deletes this file if nobody opens it before .* UTC/)).toBeVisible();
     if (backend) {
+      await guest.setViewportSize({width:390,height:844});
       await expect(toolbar.getByText("Hosted by " + contact)).toBeVisible();
       await expect(toolbar.getByRole("link",{name:"Terms"})).toHaveAttribute("href",terms);
       await toolbar.getByRole("button",{name:"Report this file…"}).click();
@@ -671,6 +673,9 @@ test("the published view and edit invites open the original drawing in another s
       await toolbar.getByRole("button",{name:"Report this file…"}).click();
       await expect(reason).toHaveValue("");
       await reason.fill("Participant review");
+      for (const control of [reason, toolbar.getByRole("button",{name:"Send report"}), toolbar.getByRole("button",{name:"Cancel",exact:true})]) {
+        await expect(control).toBeInViewport({ratio:1});
+      }
       reportFile = fileId;
       const receipt = guest.waitForResponse(r => new URL(r.url()).pathname === "/api/online-files/report");
       await reason.press("Enter");
@@ -678,6 +683,7 @@ test("the published view and edit invites open the original drawing in another s
       await expect(toolbar.getByText("Your report was sent to the server's operator",{exact:true})).toBeVisible();
       expect(localOperatorSql(backend,"select file_name || '/' || reason from figcraft_private.online_participant_reports where file_id=:'file'",{file:fileId!}))
         .toBe("Original invite drawing/Participant review");
+      await guest.setViewportSize({width:1440,height:900});
     }
     await toolbar.getByText("File", {exact:true}).click();
     await bar.getByRole("button", {name: "Start sharing", exact: true}).click();
@@ -825,7 +831,7 @@ test("the published view and edit invites open the original drawing in another s
     expect(secretInRequestUrl).toBe(false);
   } finally {
     if (backend) {
-      localOperatorSql(backend,"delete from figcraft_private.online_host_contact where operator_contact=:'contact'",{contact});
+      localOperatorSql(backend,"delete from figcraft_private.online_host_contact where operator_contact=:'contact'",{contact:paddedContact});
       if (reportFile) localOperatorSql(backend,"delete from figcraft_private.online_participant_reports where file_id=:'file'",{file:reportFile});
     }
     await visitor.close();

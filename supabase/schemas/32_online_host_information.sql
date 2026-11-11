@@ -21,11 +21,19 @@ revoke all on function public.online_expiry_epoch(public.online_files) from publ
 grant execute on function public.online_expiry_epoch(public.online_files) to authenticated;
 
 -- Optional operator information published to people using this host.
+-- Rust str::trim and char::is_whitespace use the Unicode White_Space property.
+create function figcraft_private.host_whitespace() returns text
+language sql immutable parallel safe set search_path = ''
+as $$ select U&'\0009\000a\000b\000c\000d\0020\0085\00a0\1680\2000\2001\2002\2003\2004\2005\2006\2007\2008\2009\200a\2028\2029\202f\205f\3000'; $$;
+revoke all on function figcraft_private.host_whitespace() from public, anon, authenticated, service_role;
+
 create table figcraft_private.online_host_contact (
     singleton boolean primary key default true check (singleton),
-    operator_contact text not null default '' check (char_length(operator_contact)<=120 and operator_contact !~ '[[:cntrl:]]'),
-    terms_url text not null default '' check (terms_url='' or
-        (terms_url ~ '^https?://' and octet_length(terms_url)<=500 and terms_url !~ '[[:space:][:cntrl:]]'))
+    operator_contact text not null default '' check (char_length(operator_contact)<=120 and operator_contact !~ U&'[\0001-\001f\007f-\009f]'),
+    terms_url text not null default '' check (
+        btrim(terms_url,figcraft_private.host_whitespace()) ~ '^(https?://|$)' and
+        octet_length(btrim(terms_url,figcraft_private.host_whitespace()))<=500 and
+        btrim(terms_url,figcraft_private.host_whitespace()) !~ ('[' || figcraft_private.host_whitespace() || ']'))
 );
 alter table figcraft_private.online_host_contact enable row level security;
 revoke all on figcraft_private.online_host_contact from public, anon, authenticated, service_role;
@@ -33,7 +41,8 @@ revoke all on figcraft_private.online_host_contact from public, anon, authentica
 create function figcraft_private.host_contact() returns table(operator_contact text, terms_url text)
 language sql stable security definer set search_path = ''
 as $$
-    select coalesce(c.operator_contact,''),coalesce(c.terms_url,'')
+    select btrim(coalesce(c.operator_contact,''),figcraft_private.host_whitespace()),
+        btrim(coalesce(c.terms_url,''),figcraft_private.host_whitespace())
     from (values(true)) as defaults(singleton)
     left join figcraft_private.online_host_contact c using(singleton);
 $$;
