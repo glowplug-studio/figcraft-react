@@ -1,0 +1,9 @@
+# Live reporting and server information commands
+
+React `ccd6b01` on `prompt/full-figcraft-port` exposes `collab.report` and `collab.serverInfo` against upstream `be991533`. A separate Rust engine with a scripted browser-capable link accepted a view-only guest, refused a report before the hosting event, then emitted the cleaned reason, queued response and hosting fields in the [reference fixture](../../tests/fixtures/native-host-commands.json). The upstream hosting command validation test also passed.
+
+The report command returns when the request is queued. The phone form awaits the receipt. A refusal leaves the reason in the form for retry. A late reply from a closed session cannot display a new toast. The server information command is asynchronous and the browser adapter checks the requested endpoint before reading its configured server. Native integers beyond JavaScript's safe range use decimal text. The operator and terms string limits count Unicode scalar values.
+
+All 4,584 pure tests, strict types, library and production Next.js builds passed. Three authenticated Chromium workflows passed in 67.326 seconds. The 390 px guest saw the simulated operator refusal, kept the text, retried and received HTTP 204. The real local operator record contained the original drawing name and submitted reason. All ten local fixture counts returned to zero. No migration was required. The Figcraft MCP returned zero hosted public tables. The complete local Chromium regression is running. [Property matrix](26-11-11-live-host-commands-parity.html).
+
+Local Graphify returned 35,860 nodes and 122,296 edges across both sources. It found Rust `hosting_json` and React `hostingSummary`, `serverInfo` and `sessionHosting`. The barrel export and top-level contract tests were inspected directly. Continue with [online file queries and management](../planning/26-11-11-online-command-coverage.md). No user action is required.
