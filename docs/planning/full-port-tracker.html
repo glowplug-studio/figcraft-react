@@ -6,18 +6,18 @@ input:checked{appearance:none;align-self:flex-start;display:grid;place-items:cen
 input:checked::before{content:"";width:4px;height:8px;border:solid #20543e;border-width:0 2px 2px 0;transform:translateY(-1px) rotate(45deg)}
 @media(forced-colors:active){input:checked{appearance:auto}input:checked::before{content:none}}
 header{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:0 12px;align-items:center}header h1,header p{grid-column:1}header progress,header small{grid-column:1/-1}header small{margin-top:5px}
-.countdown-container{grid-column:2;grid-row:1/3;display:grid;place-items:center;color:var(--green);font-size:12px;font-weight:650;font-variant-numeric:tabular-nums}
-.countdown-container>*{grid-area:1/1}.countdown-container svg{display:block;width:36px;height:36px;transform:rotate(-90deg)}
+.countdown-container{grid-column:2;grid-row:1/3;display:grid;place-items:center;color:var(--green);font-size:10px;font-weight:650;font-variant-numeric:tabular-nums}
+.countdown-container>*{grid-area:1/1}.countdown-container svg{display:block;width:24px;height:24px;transform:rotate(-90deg)}
 .countdown-container circle{fill:none;stroke-width:3}.bg-circle{stroke:#dce4de}.progress-circle{stroke:var(--green);stroke-linecap:round}
 footer{margin-top:12px;padding-top:14px;border-top:1px solid #cfdbd1}footer p{margin:5px 0}
 </style><main>
 <header><h1>Figcraft port timeline</h1>
-<p><strong id="overall-label"></strong> · Estimated 30–60 active hours remaining</p>
+<p><strong id="overall-label"></strong> · Estimated 15.5–34.5 active hours remaining</p>
 <div class="countdown-container" role="timer" aria-label="Seconds until page reload" title="Page reloads every 30 seconds">
 <svg aria-hidden="true" viewBox="0 0 36 36"><circle class="bg-circle" cx="18" cy="18" r="15"/><circle class="progress-circle" cx="18" cy="18" r="15" pathLength="100" stroke-dasharray="100"/></svg>
 <span id="countdown-text">30</span></div>
 <progress aria-label="Estimated overall effort complete" max="100"></progress>
-<small>Last updated <time datetime="2026-11-09T21:55:15+07:00">09 November 2026, 21:55 ICT</time></small></header>
+<small>Last updated <time datetime="2026-11-11T17:23:00+07:00">11 November 2026, 17:23 ICT</time></small></header>
 <div class="timeline">
 <section data-effort="18"><h2>Foundation and editing</h2><div class="meter"><progress aria-label="Foundation and editing progress"></progress><small></small></div><ul>
 <li><label><input type="checkbox" disabled checked> Rectangle creation, editing and host sign-in</label></li>
@@ -28,7 +28,8 @@ footer{margin-top:12px;padding-top:14px;border-top:1px solid #cfdbd1}footer p{ma
 <li><label><input type="checkbox" disabled checked> Selection, move, resize, rotate and arrange</label></li>
 <li><label><input type="checkbox" disabled> Clipboard and remaining editing commands</label></li>
 <li><label><input type="checkbox" disabled checked> Layer tree, viewport and snap priority</label></li>
-<li><label><input type="checkbox" disabled> Rulers, grids, guides and remaining navigation</label></li>
+<li><label><input type="checkbox" disabled checked data-effort="0.25"> Edit frame layout guides, toggle overlays and snap children to grid edges</label></li>
+<li><label><input type="checkbox" disabled data-effort="0.75"> Rulers, page guides and remaining navigation</label></li>
 </ul></section>
 <section data-effort="15"><h2>Drawing, appearance and layout</h2><div class="meter"><progress aria-label="Drawing, appearance and layout progress"></progress><small></small></div><ul>
 <li><label><input type="checkbox" disabled checked> Shapes, strokes and vector point editing</label></li>
@@ -57,15 +58,101 @@ footer{margin-top:12px;padding-top:14px;border-top:1px solid #cfdbd1}footer p{ma
 <section data-effort="25"><h2>Reusable assets and file exchange</h2><div class="meter"><progress aria-label="Reusable assets and file exchange progress"></progress><small></small></div><ul>
 <li><label><input type="checkbox" disabled checked data-effort="1"> Create main components and linked instances</label></li>
 <li><label><input type="checkbox" disabled checked data-effort="1"> Propagate main edits and preserve instance overrides</label></li>
-<li><label><input type="checkbox" disabled data-effort="5"> Combine variants, edit properties and complete instance workflows</label></li>
-<li><label><input type="checkbox" disabled data-effort="7"> Styles, variables and shared libraries</label></li>
-<li><label><input type="checkbox" disabled data-effort="5"> File workspace, history, branches and conflict review</label></li>
-<li><label><input type="checkbox" disabled data-effort="6"> Design-file imports and graphics, code and document exports</label></li>
+<li><label><input type="checkbox" disabled checked data-effort="1"> Swap and detach instances, reset overrides and edit instance properties</label></li>
+<li><label><input type="checkbox" disabled checked data-effort="1"> Create and extend local component variant sets</label></li>
+<li><label><input type="checkbox" disabled checked data-effort="1"> Define and bind component properties, author slots and edit variant defaults</label></li>
+<li><label><input type="checkbox" disabled checked data-effort="2"> Browse local assets, place and swap on canvas, and verify component performance</label></li>
+<li><label><input type="checkbox" disabled checked data-effort="0.5"> Open, inspect, save and recover local shared styles and linked layers</label></li>
+<li><label><input type="checkbox" disabled checked data-effort="1.25"> Create, apply, update and detach local styles, including selected text</label></li>
+<li><label><input type="checkbox" disabled checked data-effort="0.5"> Organise style folders and edit shared paint and typography definitions</label></li>
+<li><label><input type="checkbox" disabled checked data-effort="0.75"> Resolve native variables and manage collections, modes and extensions</label></li>
+<li><label><input type="checkbox" disabled checked data-effort="0.5"> Edit variable values, aliases, metadata and inherited overrides</label></li>
+<li><label><input type="checkbox" disabled checked data-effort="0.25"> Set and inherit collection modes on frames, instances and mirrored children</label></li>
+<li><label><input type="checkbox" disabled checked data-effort="0.5"> Bind shared style fields to variables and verify 10,000 linked layers</label></li>
+<li><label><input type="checkbox" disabled checked data-effort="0.5"> Bind layer values and verify paint editing, mode changes and native recovery</label></li>
+<li><label><input type="checkbox" disabled checked data-effort="0.125"> Edit mixed character fills and copy resolved paint values</label></li>
+<li><label><input type="checkbox" disabled checked data-effort="0.5"> Bind inspector fields, switch variants and scrub a 10,000-layer drawing</label></li>
+<li><label><input type="checkbox" disabled checked data-effort="0.5"> Import variable JSON and download JSON, CSS, Tailwind and Dart files</label></li>
+<li><label><input type="checkbox" disabled checked data-effort="0.25"> Publish a local library version and recover its native snapshot</label></li>
+<li><label><input type="checkbox" disabled checked data-effort="0.125"> Link another file’s publication and restore its catalogue after reload</label></li>
+<li><label><input type="checkbox" disabled checked data-effort="0.25"> Bind and update read-only library variables, aliases and extended collections</label></li>
+<li><label><input type="checkbox" disabled checked data-effort="0.125"> Apply linked styles, update character ranges and recover imported images</label></li>
+<li><label><input type="checkbox" disabled checked data-effort="0.125"> Place linked components and keep instance overrides through library updates</label></li>
+<li><label><input type="checkbox" disabled checked data-effort="0.125"> Swap whole libraries and recover matched and unmatched assets</label></li>
+<li><label><input type="checkbox" disabled checked data-effort="0.03125"> Count page colours and reuse their opacity in fills and gradient stops</label></li>
+<li><label><input type="checkbox" disabled checked data-effort="0.09375"> Complete the local library parity audit</label></li>
+<li><label><input type="checkbox" disabled checked data-effort="0.25"> Native file-tab commands and independent editing state</label></li>
+<li><label><input type="checkbox" disabled checked data-effort="0.75"> Browser tabs and multi-document recovery</label></li>
+<li><label><input type="checkbox" disabled checked data-effort="0.25"> Navigate linked instances to editable source files</label></li>
+<li><label><input type="checkbox" disabled checked data-effort="0.75"> Save, preview, restore and duplicate native file versions</label></li>
+<li><label><input type="checkbox" disabled checked data-effort="0.125"> Measure three open 10,000-layer documents</label></li>
+<li><label><input type="checkbox" checked disabled data-effort="0.125"> Native page and selected-cover file thumbnails</label></li>
+<li><label><input type="checkbox" checked disabled data-effort="0.25"> Branch archive interchange with native history and images</label></li>
+<li><label><input type="checkbox" disabled checked data-effort="0.5"> Edit and archive branches, save and recover through their owning file</label></li>
+<li><label><input type="checkbox" disabled checked data-effort="0.75"> Review local branch conflicts, update from main and merge with per-conflict choices</label></li>
+<li><label><input type="checkbox" disabled checked data-effort="0.75"> Transfer layers, images and linked component IDs between files</label></li>
+<li><label><input type="checkbox" disabled checked data-effort="0.5"> Property clipboard and workspace release checks</label></li>
+<li><label><input type="checkbox" disabled checked data-effort="0.375"> Export PNG with native selection bounds, crop, size and colour profile</label></li>
+<li><label><input type="checkbox" disabled checked data-effort="0.25"> Download colour-profiled baseline JPEG and lossless WebP</label></li>
+<li><label><input type="checkbox" disabled checked data-effort="0.35"> Save layer export presets and download single files or batch ZIPs</label></li>
+<li><label><input type="checkbox" disabled checked data-effort="0.35"> Export editable SVG shapes, text, gradients, patterns, masks and clips</label></li>
+<li><label><input type="checkbox" disabled checked data-effort="0.325"> SVG effects, stroke dashes and system clipboard artwork</label></li>
+<li><label><input type="checkbox" disabled checked data-effort="0.45"> Open, drop, paste and save editable SVG artwork across the upstream corpus</label></li>
+<li><label><input type="checkbox" disabled checked data-effort="0.2"> Verify SVG colour, resource limits, outlined text and editable round trips</label></li>
+<li><label><input type="checkbox" disabled checked data-effort="0.25"> Export Android XML with native compatibility warnings and saved presets</label></li>
+<li><label><input type="checkbox" disabled checked data-effort="0.35"> Export selection and frame PDFs with searchable text, bleed, crop marks and CMYK</label></li>
+<li><label><input type="checkbox" disabled checked data-effort="0.20"> Append native pages, merge linked assets and undo the import</label></li>
+<li><label><input type="checkbox" disabled checked data-effort="0.30"> Open and append editable REST designs with image and variable siblings</label></li>
+<li><label><input type="checkbox" disabled checked data-effort="0.25"> Open zipped and bare Fig designs with editable layers and assets</label></li>
+<li><label><input type="checkbox" disabled checked data-effort="0.15"> Preserve nested Fig instance links, resizes and hidden library components</label></li>
+<li><label><input type="checkbox" disabled checked data-effort="0.08"> Preserve Fig text paths and saved Unicode wraps, and verify binary canvas encoding</label></li>
+<li><label><input type="checkbox" disabled checked data-effort="0.18"> Export editable Fig files and reopen them in the native engine</label></li>
+<li><label><input type="checkbox" disabled checked data-effort="0.24"> Open and append Sketch designs, resolve symbols, preserve text metrics and export slice crops (336 browser checks passed)</label></li>
+<li><label><input type="checkbox" disabled checked data-effort="0.36"> Open and append editable Penpot files, recover changes and verify 5,000-layer imports</label></li>
+<li><label><input type="checkbox" disabled checked data-effort="0.34"> Export editable Penpot files and verify 130 native reopens</label></li>
+<li><label><input type="checkbox" disabled checked data-effort="0.13"> Paste external editable Fig layers and preserve folded Sections through file exchange</label></li>
+<li><label><input type="checkbox" disabled checked data-effort="0.15"> Draw, wrap, convert and fold Sections, and export nested frames in reading order</label></li>
+<li><label><input type="checkbox" disabled checked data-effort="0.12"> Review file and clipboard Import reports across tabs</label></li>
+<li><label><input type="checkbox" disabled checked data-effort="0.37"> Copy native CSS, text and node links through both menus</label></li>
+<li><label><input type="checkbox" disabled checked data-effort="0.13"> Compare one-off PDF print controls and empty-page exports with native behaviour</label></li>
+<li><label><input type="checkbox" disabled checked data-effort="0.10"> Pass the complete interchange browser regression (347/347)</label></li>
 </ul></section>
 <section data-effort="16"><h2>Online workspace and collaboration</h2><div class="meter"><progress aria-label="Online workspace and collaboration progress"></progress><small></small></div><ul>
-<li><label><input type="checkbox" disabled> Online files, dashboard, ownership and sharing</label></li>
-<li><label><input type="checkbox" disabled> Database and storage access policies</label></li>
-<li><label><input type="checkbox" disabled> Live editing, presence, comments and reconnect</label></li>
+<li><label><input type="checkbox" disabled checked data-effort="0.30"> Publish, reopen, rename, forget and remove device-owned drawings</label></li>
+<li><label><input type="checkbox" disabled checked data-effort="0.10"> Recover interrupted publication after browser restart with the original bytes</label></li>
+<li><label><input type="checkbox" disabled checked data-effort="0.16"> Publish and reopen original edit and view links from a second signed-in browser</label></li>
+<li><label><input type="checkbox" disabled checked data-effort="0.18"> Start, stop and retry role-specific sharing from the editor and Home</label></li>
+<li><label><input type="checkbox" disabled checked data-effort="0.16"> Join by edit, comment or view code with native retirement and guessing limits</label></li>
+<li><label><input type="checkbox" disabled checked data-effort="0.10"> Discover team files, join with a tokenless link and verify revocation</label></li>
+<li><label><input type="checkbox" disabled checked data-effort="0.30"> Enforce owner-only online listings, immutable archives and validated publication</label></li>
+<li><label><input type="checkbox" disabled checked data-effort="0.12"> Issue, rotate and revoke owner-managed link sets atomically in local Supabase</label></li>
+<li><label><input type="checkbox" disabled checked data-effort="0.14"> Bind guest downloads to a login session and deny access after link revocation</label></li>
+<li><label><input type="checkbox" disabled checked data-effort="0.14"> Disconnect the revoked guest, retain its tab and recheck missed notices after reconnect</label></li>
+<li><label><input type="checkbox" disabled checked data-effort="0.09"> Enforce the native framed file limit in the browser and host</label></li>
+<li><label><input type="checkbox" disabled checked data-effort="0.08"> Reserve address-block and server capacity across concurrent publications</label></li>
+<li><label><input type="checkbox" disabled checked data-effort="0.04"> Enforce hourly publication admission and receipt recovery</label></li>
+<li><label><input type="checkbox" disabled checked data-effort="0.02"> Verify guest silence, abrupt closure and automatic rejoin</label></li>
+<li><label><input type="checkbox" disabled checked data-effort="0.02"> Attach owner tabs with the saved edit grant; verify publishing, reopening and revocation</label></li>
+<li><label><input type="checkbox" disabled checked data-effort="0.01"> Record first room open and final departure across concurrent connections</label></li>
+<li><label><input type="checkbox" disabled checked data-effort="0.03"> Verify file expiry, scheduled deletion and cleanup after restart</label></li>
+<li><label><input type="checkbox" disabled checked data-effort="0.01"> Recover an abandoned upload in the browser after scheduled deletion</label></li>
+<li><label><input type="checkbox" disabled checked data-effort="0.06"> Submit a participant report and verify operator-only retention</label></li>
+<li><label><input type="checkbox" disabled checked data-effort="0.01"> Pass all 354 production workflows with participant reporting</label></li>
+<li><label><input type="checkbox" disabled checked data-effort="0.02"> Verify contact whitespace and phone report layout</label></li>
+<li><label><input type="checkbox" disabled checked data-effort="0.02"> Verify shared link rate limits, refusals and retries</label></li>
+<li><label><input type="checkbox" disabled checked data-effort="0.04"> Publish with a server key and recover host-owned files</label></li>
+<li><label><input type="checkbox" disabled checked data-effort="0.04"> Publish team library revisions and check them from another account</label></li>
+<li><label><input type="checkbox" disabled checked data-effort="0.04"> Trusted library refresh, usage reports and weekly actions</label></li>
+<li><label><input type="checkbox" disabled checked data-effort="0.02"> Owner rename and removal rate limits</label></li>
+<li><label><input type="checkbox" disabled checked data-effort="0.01"> Pass all 356 workflows after owner removal and file cleanup</label></li>
+<li><label><input type="checkbox" disabled checked data-effort="0.04"> Native comment archives, layer anchors and scoped client IDs on reconnect (357 browser workflows passed)</label></li>
+<li><label><input type="checkbox" disabled checked data-effort="0.18"> Ordered edits, idempotent retries and independent undo in two browsers</label></li>
+<li><label><input type="checkbox" disabled checked data-effort="0.08"> Compacted restart and concurrent auto-layout repair on desktop and phone (359 browser workflows passed)</label></li>
+<li><label><input type="checkbox" disabled checked data-effort="0.035"> Native comment receipts, named authors, bounded feedback export, links and read grants</label></li>
+<li><label><input type="checkbox" disabled checked data-effort="0.065"> Phone comment and view grants, mention picker, reactions, native download and concurrent read behaviour (361 browser workflows passed)</label></li>
+<li><label><input type="checkbox" disabled checked data-effort="0.04"> Private peer broadcasts verified with two accounts and revocation</label></li>
+<li><label><input type="checkbox" disabled checked data-effort="0.14"> Native signals, visible pointer and cursor chat, follow and spotlight on desktop and phone</label></li>
+<li><label><input type="checkbox" disabled data-effort="0.16"> Remote typing, session inspection and remaining offline reconciliation</label></li>
 </ul></section>
 <section data-effort="14"><h2>Prototyping, boards and Dev Mode</h2><div class="meter"><progress aria-label="Prototyping, boards and Dev Mode progress"></progress><small></small></div><ul>
 <li><label><input type="checkbox" disabled> Prototype interactions, transitions and presentation</label></li>
@@ -94,7 +181,8 @@ function updateProgress() {
     const checked = items.filter(item => item.checked);
     const effort = list => list.reduce((sum, item) => sum + Number(item.dataset.effort ?? 1), 0);
     const sectionWeight = Number(section.dataset.effort);
-    const share = effort(checked) / effort(items);
+    const planned = effort(items);
+    const share = planned ? effort(checked) / planned : 0;
     section.querySelector('progress').max = 100;
     section.querySelector('progress').value = share * 100;
     section.querySelector('.meter small').textContent = checked.length + '/' + items.length + ' verified';
@@ -105,6 +193,18 @@ function updateProgress() {
   document.querySelector('header progress').value = percent;
   document.getElementById('overall-label').textContent = '~' + percent + '% complete';
 }
+const timeline = document.querySelector('.timeline');
+timeline.addEventListener('change', updateProgress);
+new MutationObserver(changes => {
+  // Ignore the meter text written by updateProgress itself.
+  const affectsChecklist = change => change.type === 'attributes' ||
+    [...change.addedNodes, ...change.removedNodes].some(node =>
+      node instanceof Element && (node.matches('section, input') || node.querySelector('input'))
+    );
+  if (changes.some(affectsChecklist)) updateProgress();
+}).observe(timeline, {
+  subtree: true, childList: true, attributes: true, attributeFilter: ['checked', 'data-effort']
+});
 updateProgress();
 
 const refreshMs = 30_000;
