@@ -210,3 +210,6 @@ dd { margin: 0; }
 @media (max-width:600px) {
   .figcraft-canvas-area:has(.figcraft-comment-thread) .figcraft-comment-list { visibility:hidden; }
 }
+
+.figcraft-toolbar[aria-label="Tools"] { column-gap: 6px; }
+.figcraft-comment-tool { display:grid; place-items:center; padding:5px; }

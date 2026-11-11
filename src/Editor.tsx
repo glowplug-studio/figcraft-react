@@ -971,7 +971,6 @@ export function DocumentEditor({ identity, capabilities, engine: suppliedEngine,
             <span>{!availableBuilderArrangement(snapshot.document, snapshot.selection)?.regions.length ? "Select overlapping shapes" : snapshot.builderMode === "merge" ? "Click or drag to merge · Alt removes" : "Click or drag to remove · Alt merges"}</span>
             <button disabled={!editable || busy} onClick={() => { dispatch("tool.move"); canvas.current?.focus(); }}>Done</button>
           </div> : editingVector ? <VectorToolbar engine={engine} editable={editable && !busy} dispatch={(command, params) => { dispatch(command, params); canvas.current?.focus(); }} /> : <div className="figcraft-toolbar" role="toolbar" aria-label="Tools">
-            <button disabled={!signedIn || busy || !(editable || capabilities.includes("document.comment"))} aria-pressed={false} title="Comment · C" onClick={()=>{dispatch("tool.comment");canvas.current?.focus();}}>Comment</button>
             <button disabled={!editable} aria-pressed={snapshot.tool === "move"} onClick={() => { dispatch("tool.move"); canvas.current?.focus(); }}>Move</button>
             <button disabled={!editable} aria-pressed={snapshot.tool === "text" || snapshot.tool === "textOnPath"}
               aria-haspopup="dialog" title="Text · T · Text tool options" onClick={event=>{
@@ -1002,6 +1001,7 @@ export function DocumentEditor({ identity, capabilities, engine: suppliedEngine,
             <button disabled={!editable} aria-pressed={snapshot.tool === "arrow"} onClick={() => { dispatch("tool.arrow"); canvas.current?.focus(); }}>Arrow</button>
             <button disabled={!editable} aria-pressed={snapshot.tool === "rectangle"} onClick={() => { dispatch("tool.rectangle"); canvas.current?.focus(); }}>Rectangle</button>
             <button disabled={!editable || busy} title="Shape Builder · Shift+M" onClick={() => { dispatch("tool.shapeBuilder"); canvas.current?.focus(); }}>Shape Builder</button>
+            <button disabled={!signedIn || busy || !(editable || capabilities.includes("document.comment"))} className="figcraft-comment-tool" aria-label="Comment" aria-pressed={false} title="Comment · C" onClick={()=>{dispatch("tool.comment");canvas.current?.focus();}}><svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16"><path d="M3.88 9.41 A5 5 0 1 1 6.65 12.14 L2.5 13.5 Z" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/></svg></button>
           </div>}
         </div>
         <aside className="figcraft-properties" aria-label="Design"><div style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}><h2>Design</h2>
