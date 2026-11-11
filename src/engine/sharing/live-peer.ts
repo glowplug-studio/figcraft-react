@@ -9,11 +9,13 @@ import type { LiveIdentity, LiveTransport, LiveUpdate } from "./live-transport";
 export interface LiveEditor {
   current(): Document;
   recordsEdit?(document: Document): boolean;
+  welcome?(document:Document):void;
+  mergeStranded?(document:Document,client:number):Document|undefined;
   receive(document: Document, restartedClient?:number): void;
   subscribe(listener: () => void): () => void;
   interacting(): boolean;
   normalise(before: Document, after: Document, touched: ReadonlySet<string>): Document;
-  history(controller?: {canUndo: boolean; canRedo: boolean; travel(undo: boolean): boolean}): void;
+  history(controller?: {confirmed?:()=>Document|undefined;pending?:()=>boolean;canUndo: boolean; canRedo: boolean; travel(undo: boolean): boolean}): void;
 }
 type Pending = {uncertain?:boolean; reason?:string; base: string; batch?: string; changes: LiveChange[]; step?: LiveStep; rebased?: boolean; direction: "edit"|"undo"|"redo"|"followUp"};
 
@@ -37,6 +39,7 @@ export class LivePeer {
   private alive = false;
   private installing = false;
   private redraw = false;
+  private welcomePending=false;
 
   constructor(private editor: LiveEditor, private transport: LiveTransport, private client: number, private notice: (message: string) => void) {
     this.identity = transport.identity;
@@ -67,7 +70,7 @@ export class LivePeer {
 
   private history() {
     if (!this.alive) return;
-    this.editor.history({canUndo:!!this.undo.length,canRedo:!!this.redo.length,travel:undo => {
+    this.editor.history({confirmed:()=>this.confirmed?.document,pending:()=>!!(this.edits.length || this.pending.length || this.travelRequest!==undefined),canUndo:!!this.undo.length,canRedo:!!this.redo.length,travel:undo => {
       if (this.travelRequest !== undefined || !(undo ? this.undo : this.redo).length) return false;
       this.travelRequest = undo;
       this.wake();
@@ -298,8 +301,26 @@ export class LivePeer {
       const replace=welcome && !this.sameIdentity(welcome,this.identity);
       const update = await this.transport.read(replace ? null : this.sequence);
       if (!this.alive || !this.sameIdentity(welcome,this.transport.identity))return;
+      const firstWelcome=!this.confirmed || replace;
       if(replace)await this.restart(welcome,update);
       else await this.receive(update);
+      if(firstWelcome)this.welcomePending=true;
+      if(this.welcomePending && this.confirmed && this.alive && this.sameIdentity(welcome,this.transport.identity)){
+        if(this.editor.interacting()){nextPoll=100;return;}
+        const snapshot=this.confirmed.document;
+        this.editor.welcome?.(snapshot);
+        const merged=this.editor.mergeStranded?.(snapshot,this.client);
+        if(merged){
+          // The three-way result includes all work in the stranded tab before and during rejoin.
+          this.edits=[];this.pending=[];this.undo=[];this.redo=[];this.travelRequest=undefined;
+          this.installing=true;
+          try{this.editor.receive(merged);this.seen=this.editor.current();}finally{this.installing=false;}
+          this.local=this.confirmed;
+          this.edits.push(this.seen);
+          this.redraw=true;
+        }
+        this.welcomePending=false;
+      }
       await this.reconcile();
       const head = this.pending[0];
       if (head && this.alive && this.sameIdentity(welcome,this.transport.identity)) {

@@ -1,6 +1,7 @@
+import {parseJoinCode} from "@glowplug-studio/figcraft-react/sharing/join-code";
 import {participantReportReason,readPeopleWelcome,readDisplayName,type PeopleWelcome} from "@glowplug-studio/figcraft-react";
 import type { OnlineFileInfo, OnlineHostInformation, SessionDetails, LiveTransport, GuestConnectionStatus, GuestSessionEnd, IndexedDbRecoveryStore, OnlineGuestSession, OnlineInvitations } from "@glowplug-studio/figcraft-react";
-import { inviteEndpoint, nativeInviteLink, parseInviteServer, parseSessionInvite } from "@glowplug-studio/figcraft-react/sharing/invite";
+import { type SessionInvite,inviteEndpoint, nativeInviteLink, parseInviteServer, parseSessionInvite } from "@glowplug-studio/figcraft-react/sharing/invite";
 
 export const inviteAfterLogin = "figcraft-join-after-login";
 
@@ -21,10 +22,10 @@ function epoch(value?:string|null) {
 }
 
 export class BrowserInvitations implements OnlineInvitations {
-  private listener?: (session: OnlineGuestSession, bytes: Blob) => Promise<void>;
-  private stage?: (connection:string,failed?:string)=>void;
+  private listener?: (session: OnlineGuestSession, bytes: Blob,current?:()=>boolean) => Promise<void>;
+  private stage?: (connection:string,failed?:string|null)=>void;
   private readonly endpoint;
-  private joining = false;
+  private readonly pending=new Set<string>();
   private readonly listeners = new Map<string,() => void>();
   private readonly waiting = new Map<string, () => void>();
   // Retain a manual rejoin credential only while its tab belongs to this signed-in host.
@@ -40,7 +41,7 @@ export class BrowserInvitations implements OnlineInvitations {
     this.endpoint = parseInviteServer(server.replace(/^http/, "ws")).server;
   }
 
-  subscribe(listener: (session: OnlineGuestSession, bytes: Blob) => Promise<void>, stage?:(connection:string,failed?:string)=>void) {
+  subscribe(listener: (session: OnlineGuestSession, bytes: Blob,current?:()=>boolean) => Promise<void>, stage?:(connection:string,failed?:string|null)=>void) {
     this.listener = listener;
     this.stage = stage;
     const consume = (afterLogin: boolean) => {
@@ -61,7 +62,7 @@ export class BrowserInvitations implements OnlineInvitations {
     queueMicrotask(() => consume(true));
     return () => {
       window.removeEventListener("hashchange", changed);
-      if (this.listener === listener) {this.listener = undefined;this.stage=undefined;}
+      if (this.listener === listener) {this.listener = undefined;this.stage=undefined;this.pending.clear();}
     };
   }
 
@@ -130,14 +131,19 @@ export class BrowserInvitations implements OnlineInvitations {
     await navigator.clipboard.writeText(location.origin + "/#join=" + encodeURIComponent(link));
   }
 
+  canAttach(connection:string) {const tab=this.tabs.get(connection);return !!tab && !tab.ended;}
+
   async joinOwned(file: string, managedByKey = false, listing?:Pick<OnlineFileInfo,"name"|"expires">, recorded=false) {
+    const listener=this.listener;
     const links = await this.device.readPublishedLinks(this.principal, this.server, file);
+    if(listener!==this.listener)throw new Error("The join was cancelled");
     if (!links) return undefined;
     const connection = crypto.randomUUID(), resume = crypto.randomUUID();
     const token = links.edit.token;
-    const stage=this.stage;stage?.(connection);
+    const stage=this.stage;this.pending.add(connection);stage?.(connection);
     try {
       const {access, client, room, bytes,welcome} = await this.redeem(connection, {file, token, resume});
+      if(!this.pending.has(connection) || stage!==this.stage)throw new Error("The join was cancelled");
       if (access !== "edit") throw new Error("The original edit link is unavailable");
       const wayIn=(token:string)=>nativeInviteLink({kind:"link",server:this.endpoint,file,token});
       const published=listing && {server:this.server,file,name:listing.name,owner:null,expires:epoch(listing.expires),
@@ -145,15 +151,17 @@ export class BrowserInvitations implements OnlineInvitations {
       this.addGrant(connection, {file, token,published,recorded, resume, physical: connection, ended: false, archive:bytes, room, client,welcome});
       return {session: {file, connection, access, client, room, ...(!managedByKey && {openedAsOwner: true as const})}, archive: bytes};
     } catch (error) {
-      if(stage===this.stage) stage?.(connection,error instanceof Error ? error.message : "The invite is unavailable");
+      if(this.pending.has(connection) && stage===this.stage) stage?.(connection,error instanceof Error ? error.message : "The invite is unavailable");
       void this.release(connection).catch(() => undefined);
       throw error;
-    }
+    }finally{this.pending.delete(connection);}
   }
 
-  async join(text: string) {
+  async join(text:string) {await this.beginJoin(text).completed;}
+
+  beginJoin(text: string) {
     const receive = this.listener;
-    if (!receive || this.joining) throw new Error("The editor is busy");
+    if (!receive) throw new Error("The signed-in workspace is unavailable");
     let input = text.trim();
     if (/^https?:\/\//i.test(input)) {
       const address = new URL(input);
@@ -163,15 +171,26 @@ export class BrowserInvitations implements OnlineInvitations {
     if (input.startsWith("#join=")) {
       try { input = decodeURIComponent(input.slice(6)); } catch { throw new Error("Invalid invite fragment"); }
     }
-    const invite = input.includes("://") ? parseSessionInvite(input) : {kind: "code" as const, server: this.endpoint, code: input};
+    let invite:SessionInvite;
+    if(input.includes("://")) invite=parseSessionInvite(input);
+    else{
+      const code=parseJoinCode(input);
+      invite=code.kind==="local" ? parseSessionInvite(code.link) : {kind:"code",server:this.endpoint,code:code.code};
+    }
     if (invite.server.secure !== this.endpoint.secure || invite.server.host.toLowerCase() !== this.endpoint.host.toLowerCase()
         || invite.server.path !== this.endpoint.path) {
       throw new Error("This invite belongs to another server");
     }
 
-    this.joining = true;
-    const connection = crypto.randomUUID(), resume = crypto.randomUUID();
+    const connection=crypto.randomUUID();
+    this.pending.add(connection);
     this.stage?.(connection);
+    return {connection,completed:this.finishJoin(connection,invite,receive)};
+  }
+
+  private async finishJoin(connection:string,invite:SessionInvite,receive:NonNullable<typeof this.listener>) {
+    const resume=crypto.randomUUID();
+    const current=()=>this.listener===receive && this.pending.has(connection);
     let attached = false, redeeming = false;
     try {
       let grant: {file: string; token: string};
@@ -181,20 +200,20 @@ export class BrowserInvitations implements OnlineInvitations {
       } else {
         grant = invite.kind === "code" ? await this.lookup(invite.code) : invite;
       }
-      if (this.listener !== receive) throw new Error("The signed-in workspace changed");
+      if (!current()) throw new Error("The join was cancelled");
       redeeming = true;
       const {access, client, room, bytes,welcome} = await this.redeem(connection, {...grant, resume});
-      if (this.listener !== receive) throw new Error("The signed-in workspace changed");
+      if (!current()) throw new Error("The join was cancelled");
       this.addGrant(connection, {file: grant.file, token: grant.token, resume, physical: connection, ended: false, archive:bytes, room, client,welcome});
-      await receive({ file: grant.file, connection, access, client, room }, bytes);
+      await receive({ file: grant.file, connection, access, client, room }, bytes,current);
       attached = true;
     } catch (error) {
       // Revocation can land between a successful code lookup and its separate join.
       const failure=invite.kind === "code" && error instanceof RefusedInvite ? new Error("That code has expired or its sharing was stopped") : error;
-      if(this.listener===receive)this.stage?.(connection,failure instanceof Error ? failure.message : "The invite is unavailable");
+      if(current())this.stage?.(connection,failure instanceof Error ? failure.message : "The invite is unavailable");
       throw failure;
     } finally {
-      this.joining = false;
+      this.pending.delete(connection);
       if (redeeming && !attached) await this.leave(connection).catch(() => undefined);
     }
   }
@@ -331,10 +350,13 @@ export class BrowserInvitations implements OnlineInvitations {
   }
 
   async leave(connection: string) {
+    const pending=this.pending.delete(connection);
+    if(pending)this.stage?.(connection,null);
     const tab = this.tabs.get(connection);
     this.tabs.delete(connection);
     // Leaving is final on the device even when the server cannot be reached.
     // A missed leave expires under the same deadline as an abruptly closed page.
+    if (pending && !tab)return;
     if (!tab?.ended) await this.release(tab?.physical ?? connection).catch(() => undefined);
   }
 }

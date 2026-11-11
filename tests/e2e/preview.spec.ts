@@ -1094,7 +1094,7 @@ if (!process.env.PLAYWRIGHT_BASE_URL) test("a view-only phone sees a live pointe
     const guestBar=peer.locator(".figcraft-document-bar");
     await guestBar.getByText("File",{exact:true}).click();
     await guestBar.getByRole("button",{name:"Leave session"}).click();
-    await expect(peer.getByText("Left session",{exact:true})).toBeVisible();
+    await expect(peer.getByText("You left the session; your copy stays open here",{exact:true})).toBeVisible();
     await expect(ownerRoster.locator("summary")).toHaveText("People (1)",{timeout:5000});
     await expect(ownerRoster.getByRole("button",{name:"Unfollow Bea",exact:true})).toHaveCount(0);
     expect(submits).toEqual([]);expect(requestErrors).toEqual([]);
@@ -1265,6 +1265,82 @@ if (!process.env.PLAYWRIGHT_BASE_URL) test("two editors converge after a lost ac
     expect(Object.keys(copies[0].nodes).sort()).toEqual(Object.keys(copies[1].nodes).sort());
     expect(new Set(requests).size).toBe(3);
     await info.attach("converged-phone",{body:await peer.screenshot(),contentType:"image/png"});
+  });
+});
+
+if (!process.env.PLAYWRIGHT_BASE_URL) test("manual rejoin merges independent phone edits and keeps a conflicting offline copy",async({page,browser})=>{
+  test.setTimeout(75_000);
+  await withSharedDrawing(page,browser,async()=>{
+    const create=page.getByRole("button",{name:"Create rectangle",exact:true});
+    await create.click();await create.click();
+  },async(peer,file)=>{
+    const bar=peer.locator(".figcraft-document-bar");
+    const resize=async(editor:Page,id:number,width:string)=>{
+      const layer=editor.locator('li[data-layer-id="'+id+'"] [data-select-layer]:visible');
+      const drawer=editor.locator(".figcraft-mobile-layers > summary");
+      if(!await layer.count())await drawer.click();
+      await layer.click();
+      if(await drawer.locator("..").getAttribute("open")!==null)await drawer.click();
+      await editor.getByLabel("Edit Width",{exact:true}).fill(width);
+      await editor.getByRole("button",{name:"Apply geometry",exact:true}).click();
+    };
+    const widths=async(editor:Page)=>{
+      const download=editor.waitForEvent("download");
+      await editor.getByRole("button",{name:"Save as",exact:true}).click();
+      const {document}=await decodeFigcraft(await readFile((await (await download).path())!));
+      return ["2","3"].map(id=>{const node=document.nodes[id];return "width" in node?node.width:undefined;});
+    };
+    await expect(bar.getByText(/Can edit/)).toBeVisible();
+    const heartbeat="**/rest/v1/rpc/online_connection_active",join="**/api/online-files/join";
+    await peer.route(heartbeat,route=>route.fulfill({json:false}));
+    await peer.route(join,route=>route.fulfill({status:403,body:""}));
+    await peer.evaluate(()=>window.dispatchEvent(new Event("online")));
+    await expect(bar.getByText(/Disconnected/)).toBeVisible({timeout:20_000});
+    await peer.unroute(heartbeat);await peer.unroute(join);
+    await resize(peer,2,"42");await resize(peer,3,"55");await resize(page,2,"73");
+    const sequence=()=>localOperatorSql(backend!,"select seq from figcraft_private.live_rooms where file_id=:'file'",{file});
+    await expect.poll(sequence).toBe("1");
+    await bar.getByText("File",{exact:true}).click();
+    await bar.getByRole("button",{name:"Reconnect",exact:true}).click();
+    const copy=peer.getByRole("tab",{name:/\(offline copy\)/});
+    await expect(copy).toHaveAttribute("aria-selected","false");
+    await expect(bar.getByText(/Can edit/)).toBeVisible();
+    await expect.poll(sequence).toBe("2");
+    expect(await widths(peer)).toEqual([73,55]);
+    await expect.poll(()=>widths(page)).toEqual([73,55]);
+    await copy.click();
+    expect(await widths(peer)).toEqual([42,55]);
+  });
+});
+
+if (!process.env.PLAYWRIGHT_BASE_URL) test("cancelling a delayed welcome releases the redeemed grant and keeps the original tab",async({page,browser})=>{
+  await withSharedDrawing(page,browser,async()=>{},async(peer,file)=>{
+    const link=await page.evaluate(()=>navigator.clipboard.readText());
+    const menu=peer.locator(".figcraft-document-bar").getByText("File",{exact:true});
+    const dialog=peer.getByRole("dialog",{name:"Join live session"});
+    const tabs=peer.getByRole("tablist",{name:"Open files"}).getByRole("tab");
+    const count=await tabs.count();
+    const grants=()=>localOperatorSql(backend!,"select count(*) from public.online_file_connections where file_id=:'file'",{file});
+    const before=Number(grants());
+    let resume!:()=>void,received=false;
+    const hold=new Promise<void>(resolve=>{resume=resolve;});
+    await peer.route("**/api/online-files/join",async route=>{
+      const response=await route.fetch();
+      received=response.ok();
+      await hold;await route.fulfill({response});
+    });
+    try{
+      await menu.click();
+      await menu.locator("..").getByRole("button",{name:"Join live session…"}).click();
+      await dialog.getByLabel("Invite link or code").fill(link);
+      await dialog.getByRole("button",{name:"Join",exact:true}).click();
+      await expect.poll(()=>received).toBe(true);
+      expect(Number(grants())).toBe(before+1);
+      await dialog.getByRole("button",{name:"Cancel"}).click();await expect(dialog).toBeHidden();
+    }finally{resume();}
+    await expect.poll(()=>Number(grants())).toBe(before);
+    await expect(tabs).toHaveCount(count);
+    await expect(peer.locator(".figcraft-document-bar").getByText(/Can edit/)).toBeVisible();
   });
 });
 

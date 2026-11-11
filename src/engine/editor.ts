@@ -1,4 +1,4 @@
-import {unavailableSession,type LiveSummary} from "./sharing/live-session-summary";
+import {sessionCommands,unavailableSession,type SessionAction,type SessionCommand,type LiveSummary} from "./sharing/live-session-summary";
 import {peopleCommands,executePeople,type LivePeople} from "./sharing/live-people";
 import type {LivePresence} from "./sharing/live-presence";
 import {commentBrief} from "./comment-brief";
@@ -110,6 +110,7 @@ type OpenResult = { warnings?: readonly string[]; repairs: readonly string[]; su
 
 export const commandSpecs = Object.freeze({
   ...peopleCommands,
+  ...sessionCommands,
   ...commentActions,
   ...commentQueries,
   "comment.prompt": {label:"Copy comments for AI",undo:false},
@@ -451,7 +452,7 @@ export class EditorEngine {
   #idClient = 0;
   #liveCounters = new Map<number, bigint>();
   #branchTab = false;
-  #liveHistory?: {canUndo:boolean; canRedo:boolean; travel(undo:boolean):boolean};
+  #liveHistory?: {confirmed?:()=>Document|undefined;pending?:()=>boolean;canUndo:boolean; canRedo:boolean; travel(undo:boolean):boolean};
   setLiveHistory(history?: typeof this.liveHistory) {
     const previous = this.#liveHistory;
     this.#liveHistory = history;
@@ -464,7 +465,10 @@ export class EditorEngine {
   #sharedDrawing?: {source:Document;value:Document};
   #people?:LivePeople;
   #inspectSession?:()=>LiveSummary;
-  setSessionInspector(inspect?:()=>LiveSummary) {this.#inspectSession=inspect;}
+  #sessionAction?:SessionAction;
+  setSessionInspector(inspect?:()=>LiveSummary,action?:SessionAction) {
+    this.#inspectSession=inspect;this.#sessionAction=action;
+  }
   #followingView=false;
   get people() {return this.#people;}
   setPeople(room?:LivePeople) {
@@ -623,15 +627,19 @@ export class EditorEngine {
     engine.#publish({});
     return engine;
   }
-  closeTab() { this.#inspectSession=undefined; this.#clipboard = {}; this.setEditable(false); }
+  closeTab() { this.setSessionInspector(); this.#clipboard = {}; this.setEditable(false); }
   duplicateTab(): EditorEngine {
     this.exitVersionPreview();
     return this.#copyTab(this.#snapshot.document, this.#nextId, this.#snapshot.document.name + " (Copy)");
   }
-  #copyTab(source: Document, nextId: bigint, name: string) {
+  offlineCopy() {
+    const {document,nextId}=this.archiveRevision;
+    return this.#copyTab(document,nextId,document.name+" (offline copy)",true);
+  }
+  #copyTab(source: Document, nextId: bigint, name: string, dirty=false) {
     const document = Object.freeze({ ...source, name });
     const copy = EditorEngine.newTab(undefined, this.#clipboard);
-    copy.#saved = document;
+    copy.#saved = dirty ? null : document;
     copy.#nextId = nextId;
     copy.#publish({ document });
     copy.updateView(fitPage(defaultViewport, document));
@@ -1472,6 +1480,11 @@ export class EditorEngine {
   execute(command: string, input: unknown = {}): Record<string, unknown> | Variables | ReturnType<typeof listStyles> | ReturnType<typeof listComponents> | ReturnType<typeof listPages> | typeof framePresets | ReturnType<typeof versionDetails>[] | ReturnType<typeof queryFonts> | null {
     if (!Object.hasOwn(commandSpecs, command)) throw new Error(`Unsupported command: ${command}`);
     if(command==="collab.peers")return this.#inspectSession?.() ?? unavailableSession();
+    if(Object.hasOwn(sessionCommands,command)){
+      if(this.#sessionAction)return this.#sessionAction(command as SessionCommand,parameters(input));
+      if(command==="collab.leave")return {ended:false};
+      throw new Error("Live sessions are unavailable here");
+    }
     if(Object.hasOwn(peopleCommands,command))return executePeople(this.#people,command,parameters(input));
     if (command==="pref.userName") {
       const {name}=parameters(input);

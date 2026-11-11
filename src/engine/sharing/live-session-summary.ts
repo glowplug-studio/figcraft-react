@@ -1,7 +1,16 @@
 import type {OnlineGuestSession, OnlineInvitations} from "../../backends/online-files";
+import type {Document} from "../document";
 import type {EditorEngine} from "../editor";
 import {inspectedId} from "../parameters";
 import type {LivePresence} from "./live-presence";
+
+export const sessionCommands={
+  "collab.join":{label:"Join live session",undo:false},
+  "collab.leave":{label:"Leave live session",undo:false},
+  "collab.reconnect":{label:"Reconnect live session",undo:false},
+};
+export type SessionCommand=keyof typeof sessionCommands;
+export type SessionAction=(command:SessionCommand,params:Record<string,unknown>)=>Record<string,unknown>;
 
 export const guestEnding = {
   removed: "The file was removed from the server",
@@ -71,12 +80,18 @@ export class LiveSessions {
   private entries=new Map<string,Session>();
   private invitations?:OnlineInvitations;
 
+  get host(){return this.invitations;}
   configure(invitations?:OnlineInvitations) {
     if (this.invitations!==invitations) this.entries.clear();
     this.invitations=invitations;
   }
   start(connection:string, tab?:number) {
-    if (!this.invitations || this.entries.has(connection)) return;
+    if (!this.invitations)return;
+    const existing=this.entries.get(connection);
+    if(existing){
+      if(existing.status==="connecting" && !existing.guest)existing.tab=tab;
+      return;
+    }
     for (const [key,entry] of this.entries) {
       if (entry.tab===tab && entry.status==="failed") this.entries.delete(key);
     }
@@ -91,9 +106,7 @@ export class LiveSessions {
     this.start(guest.connection,tab.id);
     const entry=this.entries.get(guest.connection)!;
     if (!entry.guest || entry.guest.room!==guest.room) {
-      const doc=tab.engine.getSnapshot().document;
-      entry.fileName=doc.name;
-      entry.pages=doc.pages.map(id=>({id:inspectedId(id),name:doc.nodes[id]?.name ?? ""}));
+      this.drawing(guest.connection,tab.engine.getSnapshot().document);
     }
     const people=tab.engine.people;
     entry.name=people?.confirmedName ?? entry.name;
@@ -103,6 +116,12 @@ export class LiveSessions {
     entry.status=guest.ended ? "failed" : guest.reconnectAttempt ? "reconnecting" : "live";
     entry.reason=guest.ended ? guestEnding[guest.ended] : null;
   }
+  drawing(connection:string,doc:Document) {
+    const entry=this.entries.get(connection);
+    if (!entry || entry.status==="failed")return;
+    entry.fileName=doc.name;
+    entry.pages=doc.pages.map(id=>({id:inspectedId(id),name:doc.nodes[id]?.name ?? ""}));
+  }
   leave(connection:string) {this.entries.delete(connection);}
   close(tab:number,replacement?:number) {
     for (const [key,entry] of this.entries) {
@@ -111,11 +130,21 @@ export class LiveSessions {
       else this.entries.delete(key);
     }
   }
-  inspect(tab:number,tabs:readonly Tab[]) {
+  find(tab:number,id?:number) {
+    let found:[string,Session]|undefined;
+    for (const item of this.entries) {
+      const entry=item[1];
+      if(id!==undefined){if(entry.id===id)return item;continue;}
+      if(entry.tab===tab && (!found?.[1].guest || entry.guest)) found=item;
+    }
+    return found;
+  }
+  inspect(tab:number,tabs:readonly Tab[],joined?:string) {
     if (!this.invitations) return unavailableSession();
     const briefs:Brief[]=[];
     let shown:Session|undefined, active:Brief|undefined, engine:EditorEngine|undefined;
     let details:ReturnType<NonNullable<OnlineInvitations["inspect"]>>;
+    const wanted=joined ?? this.find(tab)?.[0];
     for (const [key,entry] of this.entries) {
       const index=entry.guest ? tabs.findIndex(t=>t.id===entry.tab) : -1;
       const editor=tabs[index]?.engine;
@@ -124,7 +153,7 @@ export class LiveSessions {
         role:entry.guest ? "guest" : null,fileName:entry.fileName ?? null,link:info?.link ?? null,
         peers:entry.status==="live" ? editor?.people?.getSnapshot().length ?? 0 : 0};
       briefs.push(brief);
-      if (entry.tab===tab && (!shown?.guest || entry.guest)) {
+      if (key===wanted) {
         shown=entry;active=brief;engine=editor;details=info;
       }
     }

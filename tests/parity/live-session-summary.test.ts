@@ -1,7 +1,10 @@
-import {expect,it} from "vitest";
+import {expect,it,vi} from "vitest";
 import native from "../fixtures/native-session-summary.json";
 import {EditorEngine} from "../../src/engine/editor";
 import {EditorWorkspace} from "../../src/engine/workspace";
+import {LivePeer} from "../../src/engine/sharing/live-peer";
+import {makeLiveCheckpoint} from "../../src/engine/sharing/live-checkpoint";
+import {liveReplica} from "../../src/engine/sharing/live-changes";
 import {LivePeople} from "../../src/engine/sharing/live-people";
 import {encodeFigcraftBlob} from "../../src/engine/file-format";
 import type {OnlineGuestSession,OnlineInvitations} from "../../src/backends/online-files";
@@ -112,4 +115,24 @@ it("reports the local and remote text layer, Unicode caret and full-width node i
     expect(engine.execute("collab.peers").peers[0]).toMatchObject({editing:local,presence:{cursor:[large,10,12],
       selection:[large],editing_text:{node:Number(id),caret:3,selection:[1,3]}}});
   }finally{stop();edit.finish();}
+});
+
+it("takes the welcome title and pages from the confirmed checkpoint and its ordered suffix",async()=>{
+  const workspace=new EditorWorkspace();workspace.setInvitations(host);
+  const original=await archive();await workspace.open(original,guest);
+  const engine=workspace.activeEngine!;
+  const other=EditorEngine.newTab("Compacted title");
+  other.execute("page.rename",{id:"1",name:"Shared page"});
+  const checkpoint=await makeLiveCheckpoint(liveReplica(other.getSnapshot().document));
+  const stop=new LivePeer({current:()=>engine.liveDrawing(),receive:d=>engine.receiveLiveDocument(d),subscribe:engine.subscribe,
+    welcome:d=>workspace.confirmedSessionDrawing(connection,d),interacting:()=>false,normalise:(_d,result)=>result,history(){}},
+    {archive:original,async read(after){return {client:2,access:"view",sequence:"4",lastBatch:"0",refused:[],reset:after===null,
+      checkpoint,checkpointSeq:"3",batches:after===null ? [{sequence:"4",client:6,batch:"1",changes:[
+        {type:"setDoc",prop:"name",value:JSON.stringify("Confirmed title")}]}] : []};},
+      async submit(){throw new Error("A view guest submitted an edit");}},2,()=>{}).start();
+  try{
+    await vi.waitFor(()=>expect(engine.execute("collab.peers")).toMatchObject({
+      fileName:"Confirmed title",pages:[{id:1,name:"Shared page"}],sessions:[{fileName:"Confirmed title"}],
+    }));
+  }finally{stop();}
 });

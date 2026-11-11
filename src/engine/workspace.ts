@@ -1,4 +1,5 @@
-import {LiveSessions} from "./sharing/live-session-summary";
+import type {Document} from "./document";
+import {LiveSessions,type SessionCommand} from "./sharing/live-session-summary";
 import type { OnlineInvitations, OnlineGuestSession } from "../backends/online-files";
 import { planBranch } from "./branch-merge";
 import { applyBranch } from "./branch-apply";
@@ -31,6 +32,7 @@ interface OpenTab {
   unsubscribe: () => void;
   guest?: OnlineGuestSession;
   liveBranches?: Set<string>;
+  stranded?:Document;
   branch?: { main: EditorEngine; id: string };
 }
 
@@ -46,9 +48,44 @@ let nextDocumentId = 1;
 
 export class EditorWorkspace {
   #sessions=new LiveSessions();
-  setInvitations(invitations?:OnlineInvitations) {this.#sessions.configure(invitations);}
-  joining(connection:string,failed?:string) {
-    if (failed!==undefined) this.#sessions.failed(connection,failed);
+  mergeStrandedDrawing=(connection:string,confirmed:Document,client:number)=>{
+    const tab=this.#tabs.find(t=>t.guest?.connection===connection);
+    if(!tab?.stranded || !tab.guest || tab.guest.ended)return;
+    const local=tab.engine.liveDrawing(), base=tab.stranded;
+    let merged=confirmed,copy=false,changed=false;
+    try{
+      const plan=planBranch(base,local,confirmed);
+      changed=plan.branch.count>0;
+      if(changed){
+        const own=plan.branch.changes.every(c=>c.type!=="add" || BigInt(c.id)>>32n===BigInt(client));
+        const permitted=tab.guest.access==="edit" || tab.guest.access==="comment" &&
+          !plan.branch.changes.length && [...plan.branch.files.keys()].every(key=>key.startsWith("comment/"));
+        if(own && permitted){
+          const picks=Object.fromEntries(plan.conflicts.map(c=>[c.key,"main"]));
+          merged=applyBranch(plan,"branch",picks);
+        }
+        copy=!own || !permitted || plan.conflicts.length>0;
+      }
+    }catch{copy=true;}
+    delete tab.stranded;
+    let message="Reconnected to "+local.name;
+    if(copy){
+      const offline=tab.engine.offlineCopy();
+      this.#append(offline,false);
+      message+=". Some of what you changed while disconnected couldn't go in: your whole version is open beside it as “"+offline.getSnapshot().document.name+"”";
+    }else if(changed)message+=". What you changed while disconnected is in the file";
+    this.#sessionNotice?.(message);
+    return merged;
+  };
+  confirmedSessionDrawing=(connection:string,document:Document)=>this.#sessions.drawing(connection,document);
+  #sessionNotice?:(text:string)=>void;
+  #leftTab?:(tab:number)=>void;
+  setInvitations(invitations?:OnlineInvitations,notice?:(text:string)=>void,left?:(tab:number)=>void) {
+    this.#sessions.configure(invitations);this.#sessionNotice=notice;this.#leftTab=left;
+  }
+  joining(connection:string,failed?:string|null) {
+    if (failed===null) this.leaveSession(connection);
+    else if (failed!==undefined) this.#sessions.failed(connection,failed);
     else this.#sessions.start(connection,this.#active?.id);
   }
   #tabs: OpenTab[] = [];
@@ -128,7 +165,7 @@ export class EditorWorkspace {
       this.#publish();
     });
     const id=nextDocumentId++;
-    engine.setSessionInspector(()=>this.#sessions.inspect(id,this.#tabs));
+    engine.setSessionInspector(()=>this.#sessions.inspect(id,this.#tabs),(command,params)=>this.#sessionAction(id,command,params));
     return { id, engine, unsubscribe, branch };
   }
 
@@ -151,7 +188,7 @@ export class EditorWorkspace {
     this.#editable = editable;
     this.#generation++;
     if (!editable) {
-      this.#sessions.configure(undefined);
+      this.setInvitations(undefined);
       this.#sourceFiles.clear();
       delete this.#clipboard.properties;
       delete this.#clipboard.layers;
@@ -233,7 +270,7 @@ export class EditorWorkspace {
     return this.#append(copy);
   }
 
-  open(file: File, guest?: OnlineGuestSession) { return this.#openFile(file, undefined, guest); }
+  open(file: File, guest?: OnlineGuestSession,current?:()=>boolean) { return this.#openFile(file, current, guest); }
 
   setGuestSession(session: OnlineGuestSession) {
     const tab = this.#tabs.find(tab => tab.guest?.connection === session.connection && tab.guest.file === session.file);
@@ -243,20 +280,77 @@ export class EditorWorkspace {
   attachGuestSession(id: number, session: OnlineGuestSession) {
     const tab = this.#tabs.find(tab => tab.id === id);
     if (!tab || !this.#editable) return false;
+    if(tab.guest?.connection!==session.connection && this.#sessions.host?.canAttach?.(session.connection)===false)return false;
+    if(tab.guest && tab.guest.connection!==session.connection)delete tab.stranded;
+    if(session.ended && !tab.stranded)tab.stranded=tab.engine.liveHistory?.confirmed?.() ?? tab.engine.liveDrawing();
     if (session.ended || tab.guest?.client !== session.client || tab.guest?.room !== session.room || tab.guest?.file !== session.file) delete tab.liveBranches;
     if (tab.guest && tab.guest.connection!==session.connection) this.#sessions.leave(tab.guest.connection);
     this.#sessions.welcome(session,tab);
     tab.guest = session;
-    tab.engine.setLiveClient(session.ended ? 0 : session.client ?? 0);
+    tab.engine.setLiveClient(session.client ?? 0);
     tab.engine.setEditable(this.#editable && (!!session.ended || session.access === "edit"));
     this.#publish();
     return true;
+  }
+
+  #sessionAction(tab:number,command:SessionCommand,params:Record<string,unknown>):Record<string,unknown> {
+    const host=this.#sessions.host;
+    if(command==="collab.join"){
+      if(!host?.beginJoin)throw new Error("Live sessions are unavailable here");
+      const input=parseString(params.code) ?? parseString(params.link);
+      if(input===undefined)throw new Error("Give the join code you were told, or the invite link");
+      const {connection,completed}=host.beginJoin(input);
+      this.#sessions.start(connection,tab);
+      void completed.catch(error=>{
+        if(this.#sessions.host!==host)return;
+        const reason=error instanceof Error ? error.message : "The invite is unavailable";
+        this.#sessions.failed(connection,reason);
+      });
+      return this.#sessions.inspect(tab,this.#tabs,connection);
+    }
+    const id=command==="collab.leave" ? params.session : undefined;
+    if(id!==undefined && (typeof id!=="number" || !Number.isSafeInteger(id) || id<0))throw new Error("Give a numeric session id");
+    const found=this.#sessions.find(tab,id);
+    if(command==="collab.leave"){
+      if(!found)return {ended:false};
+      const [key,entry]=found,active=entry.status!=="failed";
+      const synced=this.#tabs.find(t=>t.guest?.connection===key);
+      const pending=synced?.engine.liveHistory?.pending?.();
+      void host?.leave(key).catch(()=>{});
+      this.leaveSession(key);
+      if(synced){
+        this.#leftTab?.(synced.id);
+        if(active)this.#sessionNotice?.(pending ? "You left before your last changes were confirmed: others may not see them all, and your copy stays open here" : "You left the session; your copy stays open here");
+      }
+      return {ended:active};
+    }
+    const entry=found?.[1],guest=entry?.guest;
+    if(!host || !entry || !guest)throw new Error("This file has no lost live session to reconnect");
+    if(entry.status==="reconnecting" && host.retryNow){
+      host.retryNow(guest.connection);
+      return {status:"reconnecting"};
+    }
+    if(entry.status!=="failed" || !host.rejoin)throw new Error("This file has no lost live session to reconnect");
+    entry.status="connecting";entry.reason=null;
+    const current=()=>this.#sessions.host===host && this.#sessions.find(tab,entry.id)?.[1]===entry;
+    void host.rejoin(guest.connection).then(async result=>{
+      if(!current()){await host.leave(guest.connection);return;}
+      const welcome=typeof result==="string" ? {access:result} : result;
+      if(this.setGuestSession({...guest,ended:undefined,reconnectAttempt:undefined,...welcome}))this.#sessionNotice?.("Rejoined session");
+      else await host.leave(guest.connection);
+    }).catch(error=>{
+      if(!current())return;
+      entry.status="failed";entry.reason=error instanceof Error ? error.message : "The invite is unavailable";
+      this.#sessionNotice?.(entry.reason);
+    });
+    return {status:"connecting"};
   }
 
   leaveSession(connection: string) {
     this.#sessions.leave(connection);
     const tab = this.#tabs.find(tab => tab.guest?.connection === connection);
     if (!tab) return;
+    delete tab.stranded;
     delete tab.guest;
     delete tab.liveBranches;
     tab.engine.setLiveClient(0);
@@ -271,7 +365,8 @@ export class EditorWorkspace {
     const origin = this.#active;
     const result = await engine.openTabFile(file);
     if (generation !== this.#generation) throw new Error("Open cancelled because the identity changed");
-    if (stillWanted && !stillWanted()) throw new Error("The source instance changed during navigation");
+    if(guest && this.#sessions.host?.canAttach?.(guest.connection)===false)throw new Error("The join was cancelled");
+    if (stillWanted && !stillWanted()) throw new Error(guest ? "The join was cancelled" : "The source instance changed during navigation");
     if (!guest && origin && !this.#tabs.includes(origin)) throw new Error("Open cancelled because the source tab closed");
     this.#filenames.set(engine, file.name);
     const { index } = this.#append(engine, !!guest || this.#active === origin, undefined, guest);

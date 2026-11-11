@@ -102,9 +102,11 @@ export interface OnlineInvitations {
   retryNow?(connection: string): void;
   rejoin?(connection: string): Promise<OnlineGuestSession["access"] | GuestWelcome>;
   watch?(connection: string, ended: (reason: GuestSessionEnd) => void, changed?: (status: GuestConnectionStatus) => void): () => void;
+  canAttach?(connection:string):boolean;
+  beginJoin?(invite:string):{connection:string;completed:Promise<void>};
   join?(invite: string): Promise<void>;
   showJoin(): void;
-  subscribe(joined: (session: OnlineGuestSession, archive: Blob) => Promise<void>, joining?: (connection:string, failed?:string) => void): () => void;
+  subscribe(joined: (session: OnlineGuestSession, archive: Blob, current?:()=>boolean) => Promise<void>, joining?: (connection:string, failed?:string|null) => void): () => void;
   copyPublished(file: string, access: "edit" | "view"): Promise<void>;
   leave(connection: string): Promise<void>;
 }

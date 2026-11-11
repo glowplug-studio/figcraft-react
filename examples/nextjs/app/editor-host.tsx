@@ -22,6 +22,7 @@ export function EditorHost({ identity }: { identity: Extract<IdentitySnapshot, {
   const [inviteHost, setInviteHost] = useState<BrowserInvitations>();
   const [joining, setJoining] = useState(false);
   const [joinError, setJoinError] = useState("");
+  const joinAttempt=useRef<string|undefined>(undefined);
   const joinDialog = useRef<HTMLDialogElement>(null);
   useEffect(() => {
     const next = new SupabaseIdentityAdapter(getBrowserSupabase().auth, identity);
@@ -70,6 +71,13 @@ export function EditorHost({ identity }: { identity: Extract<IdentitySnapshot, {
     void next.refresh();
     return () => { unsubscribe(); next.dispose(); store.close(); };
   }, [identity, router]);
+  function cancelJoin() {
+    const connection=joinAttempt.current;
+    joinAttempt.current=undefined;
+    if(connection)void inviteHost?.leave(connection);
+    setJoining(false);
+    joinDialog.current?.close();
+  }
   async function logout() {
     setError("");
     const { error: failure } = await getBrowserSupabase().auth.signOut();
@@ -81,22 +89,28 @@ export function EditorHost({ identity }: { identity: Extract<IdentitySnapshot, {
     <header className="host-bar"><p>Figcraft React</p><button onClick={logout}>Sign out</button></header>
     {error && <p role="alert">{error}</p>}
     <dialog ref={joinDialog} aria-label="Join live session" className="figcraft-online-dialog"
-      onCancel={event => { if (joining) event.preventDefault(); }}
+      onCancel={event => { event.preventDefault();cancelJoin(); }}
       onClose={event => event.currentTarget.querySelector("form")?.reset()}>
       <form onSubmit={async event => {
         event.preventDefault();
         if (!inviteHost || joining) return;
         const form = event.currentTarget;
         setJoining(true); setJoinError("");
+        let connection:string|undefined;
         try {
-          await inviteHost.join(String(new FormData(form).get("invite") ?? ""));
-          joinDialog.current?.close();
-        } catch (error) { setJoinError(error instanceof Error ? error.message : "The invite is unavailable"); }
-        finally { setJoining(false); }
+          const attempt=inviteHost.beginJoin(String(new FormData(form).get("invite") ?? ""));
+          connection=attempt.connection;joinAttempt.current=connection;
+          await attempt.completed;
+          if(joinAttempt.current===connection)joinDialog.current?.close();
+        } catch (error) {
+          if(joinAttempt.current===connection)setJoinError(error instanceof Error ? error.message : "The invite is unavailable");
+        } finally {
+          if(joinAttempt.current===connection){joinAttempt.current=undefined;setJoining(false);}
+        }
       }}>
         <h2>Join live session</h2><DisplayNameField principal={identity.principal.id}/><label>Invite link or code<input name="invite" required autoComplete="off" /></label>
         {joinError && <p role="alert">{joinError}</p>}
-        <button disabled={joining}>Join</button><button type="button" disabled={joining} onClick={() => joinDialog.current?.close()}>Cancel</button>
+        <button disabled={joining}>Join</button><button type="button" onClick={cancelJoin}>Cancel</button>
       </form>
     </dialog>
     <FigcraftRoot>{adapter && recovery ? <WorkspaceEditor key={identity.principal.id} identity={adapter} capabilities={localCapabilities} recoveryStore={recovery} onlineHost={online} /> : <p role="status">Opening editor…</p>}</FigcraftRoot>

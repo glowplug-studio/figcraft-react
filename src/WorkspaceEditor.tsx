@@ -19,7 +19,9 @@ import { WorkspaceRecovery, type WorkspaceRecoveryState } from "./engine/workspa
 
 type WorkspaceProps = Omit<EditorProps, "engine" | "recoveryStore"> & { recoveryStore: WorkspaceRecoveryStore; onlineHost?: OnlineWorkspaceHost };
 
-function GuestSubscription({connection, invitations, ended, changed, engine, client, roomId, notice, active}: {
+function GuestSubscription({connection, confirmed, mergeStranded, invitations, ended, changed, engine, client, roomId, notice, active}: {
+  confirmed:EditorWorkspace["confirmedSessionDrawing"];
+  mergeStranded:EditorWorkspace["mergeStrandedDrawing"];
   active:boolean; engine:EditorEngine; client?:number; roomId?:string; notice:(text:string)=>void;
   connection: string;
   invitations: OnlineInvitations;
@@ -33,12 +35,12 @@ function GuestSubscription({connection, invitations, ended, changed, engine, cli
   useEffect(() => {
     const initialClient=transport?.identity?.client ?? fallbackClient;
     if (!transport || !initialClient) return;
-    const peer = new LivePeer({current:() => engine.liveDrawing(),receive:(d,restartedClient) => engine.receiveLiveDocument(d,restartedClient),
+    const peer = new LivePeer({current:() => engine.liveDrawing(),welcome:d=>confirmed(connection,d),mergeStranded:(d,id)=>mergeStranded(connection,d,id),receive:(d,restartedClient) => engine.receiveLiveDocument(d,restartedClient),
       recordsEdit:d => engine.recordsLiveEdit(d),
       normalise:(before,after,touched) => engine.repairLiveDocument(before,after,touched),
       subscribe:engine.subscribe,interacting:() => engine.interacting,history:h => engine.setLiveHistory(h)},transport,initialClient,notice);
     return peer.start();
-  },[engine,transport,fallbackClient,notice]);
+  },[engine,transport,fallbackClient,notice,confirmed,mergeStranded,connection]);
   useEffect(()=>{
     const people=invitations.live?.(connection)?.people;
     if(!people || !client)return;
@@ -127,14 +129,14 @@ export function WorkspaceEditor({ identity, capabilities, recoveryStore, onlineH
   const invitations = onlineHost?.invitations;
   useEffect(() => {
     if (!enabled || !invitations) return;
-    workspace.setInvitations(invitations);
-    const unsubscribe=invitations.subscribe(async (session, bytes) => {
-      await workspace.open(new File([bytes], session.file + ".figcraft"), session);
+    workspace.setInvitations(invitations,setNotice,id=>online?.leaveTab(id));
+    const unsubscribe=invitations.subscribe(async (session, bytes,current) => {
+      await workspace.open(new File([bytes], session.file + ".figcraft"), session,current);
       setHome(undefined);
       setNotice("");
     },(connection,failed)=>workspace.joining(connection,failed));
     return ()=>{unsubscribe();workspace.setInvitations(undefined);};
-  }, [workspace, enabled, invitations]);
+  }, [workspace, enabled, invitations,online,setNotice]);
   const ended = useCallback((connection: string, reason: GuestSessionEnd) => {
     const session = workspace.getSnapshot().find(tab => tab.guest?.connection === connection)?.guest;
     if (!session || !workspace.setGuestSession({...session, ended: reason})) return;
@@ -188,10 +190,10 @@ export function WorkspaceEditor({ identity, capabilities, recoveryStore, onlineH
     }
     setCloseId(undefined);
   };
-  const leave = async () => {
-    if (!guest || !invitations) return;
-    try { await invitations.leave(guest.connection); workspace.leaveSession(guest.connection); if (active) online?.leaveTab(active.id); setNotice("Left session"); }
-    catch { setNotice("Could not leave the session"); }
+  const sessionCommand=(button:HTMLButtonElement,command:"collab.leave"|"collab.reconnect")=>{
+    button.closest("details")?.removeAttribute("open");
+    try{workspace.activeEngine?.execute(command);}
+    catch(error){setNotice(error instanceof Error ? error.message : "The session is unavailable");}
   };
   const shareMenu = enabled && active && online && (!guest || managing) && (online.sharing || (invitations && publishedId)) && <details name={menuGroup} className="figcraft-bar-menu"
     onToggle={event => setOpenShareTab(event.currentTarget.open ? active.id : undefined)}><summary>Share</summary><div className="figcraft-menu-items">
@@ -216,16 +218,9 @@ export function WorkspaceEditor({ identity, capabilities, recoveryStore, onlineH
       event.currentTarget.closest("details")?.removeAttribute("open"); invitations.showJoin();
     }}>Join live session…</button>}
     {guest?.reconnectAttempt && !guest.ended && invitations?.retryNow && <button type="button"
-      onClick={() => invitations.retryNow?.(guest.connection)}>Retry now</button>}
-    {guest?.ended && invitations?.rejoin && <button type="button" onClick={async () => {
-      try {
-        const result = await invitations.rejoin!(guest.connection);
-        const welcome = typeof result === "string" ? { access: result } : result;
-        if (!workspace.setGuestSession({...guest, ended: undefined, reconnectAttempt: undefined, ...welcome})) await invitations.leave(guest.connection);
-        else setNotice("Rejoined session");
-      } catch { setNotice("The invite is unavailable"); }
-    }}>Reconnect</button>}
-    {guest && <button type="button" onClick={() => void leave()}>Leave session</button>}
+      onClick={event=>sessionCommand(event.currentTarget,"collab.reconnect")}>Retry now</button>}
+    {guest?.ended && invitations?.rejoin && <button type="button" onClick={event=>sessionCommand(event.currentTarget,"collab.reconnect")}>Reconnect</button>}
+    {guest && <button type="button" onClick={event=>sessionCommand(event.currentTarget,"collab.leave")}>Leave session</button>}
     <button type="button" disabled={!enabled} onClick={() => workspace.execute("file.new")}>New file</button>
     <button type="button" disabled title="Browser downloads have no writable file path">Revert to saved</button>
     <details><summary>Open recent</summary><button type="button" disabled>Clear recent</button></details>
@@ -252,7 +247,7 @@ export function WorkspaceEditor({ identity, capabilities, recoveryStore, onlineH
     }
   }}>
     {enabled && invitations?.watch && tabs.map(tab => tab.guest && !tab.guest.ended &&
-      <GuestSubscription active={tab.active && !home} key={tab.guest.connection} connection={tab.guest.connection} invitations={invitations} engine={workspace.engines[tab.index]} client={tab.guest.client} roomId={tab.guest.room} notice={setLiveNotice} ended={ended} changed={connectionChanged} />)}
+      <GuestSubscription mergeStranded={workspace.mergeStrandedDrawing} confirmed={workspace.confirmedSessionDrawing} active={tab.active && !home} key={tab.guest.connection} connection={tab.guest.connection} invitations={invitations} engine={workspace.engines[tab.index]} client={tab.guest.client} roomId={tab.guest.room} notice={setLiveNotice} ended={ended} changed={connectionChanged} />)}
     {tabs.length > 1 && <div role="tablist" aria-label="Open files" className="figcraft-file-tabs">
       {tabs.map(tab => <button key={tab.id} type="button" role="tab" disabled={!enabled} aria-selected={tab.active}
         aria-label={tab.guest?.ended ? tab.name + ", disconnected from its live session" : undefined}
