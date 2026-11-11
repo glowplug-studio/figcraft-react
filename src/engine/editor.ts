@@ -1,3 +1,4 @@
+import {unavailableSession,type LiveSummary} from "./sharing/live-session-summary";
 import {peopleCommands,executePeople,type LivePeople} from "./sharing/live-people";
 import type {LivePresence} from "./sharing/live-presence";
 import {commentBrief} from "./comment-brief";
@@ -462,6 +463,8 @@ export class EditorEngine {
   #livePage?: {local:string;shared:string};
   #sharedDrawing?: {source:Document;value:Document};
   #people?:LivePeople;
+  #inspectSession?:()=>LiveSummary;
+  setSessionInspector(inspect?:()=>LiveSummary) {this.#inspectSession=inspect;}
   #followingView=false;
   get people() {return this.#people;}
   setPeople(room?:LivePeople) {
@@ -620,7 +623,7 @@ export class EditorEngine {
     engine.#publish({});
     return engine;
   }
-  closeTab() { this.#clipboard = {}; this.setEditable(false); }
+  closeTab() { this.#inspectSession=undefined; this.#clipboard = {}; this.setEditable(false); }
   duplicateTab(): EditorEngine {
     this.exitVersionPreview();
     return this.#copyTab(this.#snapshot.document, this.#nextId, this.#snapshot.document.name + " (Copy)");
@@ -1452,6 +1455,7 @@ export class EditorEngine {
     } else if(how!=="keep" || switched) this.updateView({...view,cx:row.x,cy:row.y,zoom:how==="fit"?Math.max(1,view.zoom):view.zoom});
     return row;
   }
+  execute(command:"collab.peers", input?:unknown):LiveSummary;
   execute(command: "file.versionHistory" | "version.list", input?: unknown): ReturnType<typeof versionDetails>[];
   execute(command:"text.edit.selection",input?:unknown):EditSelection|null;
   execute(command:"text.fonts",input?:unknown):ReturnType<typeof queryFonts>;
@@ -1467,6 +1471,7 @@ export class EditorEngine {
   execute(command: string, input?: unknown): Record<string, unknown>;
   execute(command: string, input: unknown = {}): Record<string, unknown> | Variables | ReturnType<typeof listStyles> | ReturnType<typeof listComponents> | ReturnType<typeof listPages> | typeof framePresets | ReturnType<typeof versionDetails>[] | ReturnType<typeof queryFonts> | null {
     if (!Object.hasOwn(commandSpecs, command)) throw new Error(`Unsupported command: ${command}`);
+    if(command==="collab.peers")return this.#inspectSession?.() ?? unavailableSession();
     if(Object.hasOwn(peopleCommands,command))return executePeople(this.#people,command,parameters(input));
     if (command==="pref.userName") {
       const {name}=parameters(input);

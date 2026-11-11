@@ -85,10 +85,22 @@ export function readPeerSample(input:unknown):LivePeerSample {
   return {sequence:offset(p.sequence),name:name?.text??"",chat:chat.text,spotlight:p.spotlight,hello:p.hello,left:p.left,presence:readPresence(p.presence)};
 }
 
-export function readPeerMessage(input:unknown):LivePeerMessage {
+export type PeerIdentity=Pick<LivePeerMessage,"client"|"name"|"colour"|"generation">;
+export interface PeopleWelcome {me:PeerIdentity;peers:PeerIdentity[]}
+export function readPeerIdentity(input:unknown):PeerIdentity {
   const p=object(input);
   if(typeof p.client!=="number" || !Number.isInteger(p.client) || p.client<1 || p.client>=0xffffffff ||
     typeof p.colour!=="string" || !presenceColours.some(c=>c===p.colour) ||
     typeof p.generation!=="string" || !/^[1-9][0-9]{0,19}$/.test(p.generation)) throw new Error("Invalid live peer");
-  return {...readPeerSample(p),client:p.client,colour:p.colour,generation:p.generation};
+  const name=cleanPresenceSignal({kind:"name",text:p.name});
+  if (!name && p.name!=="") throw new Error("Invalid participant name");
+  return {name:name?.text ?? "",client:p.client,colour:p.colour,generation:p.generation};
+}
+export function readPeopleWelcome(input:unknown):PeopleWelcome {
+  const value=object(input);
+  if (!Array.isArray(value.peers) || value.peers.length>4096) throw new Error("Invalid participant list");
+  return {me:readPeerIdentity(value.me),peers:value.peers.map(readPeerIdentity)};
+}
+export function readPeerMessage(input:unknown):LivePeerMessage {
+  return {...readPeerSample(input),...readPeerIdentity(input)};
 }

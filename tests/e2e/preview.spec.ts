@@ -999,6 +999,31 @@ if (!process.env.PLAYWRIGHT_BASE_URL) test("a view-only phone reads existing com
   },"view");
 });
 
+if (!process.env.PLAYWRIGHT_BASE_URL) test("the phone People menu names the owner before the first pointer sample",async({page,browser})=>{
+  test.setTimeout(60_000);
+  let held=0;
+  await withSharedDrawing(page,browser,async()=>{
+    await setCommentName(page,"Ari");
+    await page.route("**/api/online-files/presence",route=>{
+      if(route.request().postDataJSON().action==="welcome")return route.continue();
+      held++;
+      return route.fulfill({status:503,body:""});
+    });
+  },async peer=>{
+    const people=peer.locator(".figcraft-live-people");
+    await expect(people.locator("summary")).toHaveText("People (2)");
+    await people.locator("summary").click();
+    await expect(people.getByRole("button",{name:"Follow Ari",exact:true})).toBeVisible();
+    expect(held).toBeGreaterThan(0);
+    const bar=peer.locator(".figcraft-document-bar");
+    await bar.getByText("File",{exact:true}).click();
+    await bar.getByRole("button",{name:"New file",exact:true}).click();
+    await expect(people).toHaveCount(0);
+    await peer.getByRole("tab",{name:"Ordered drawing",exact:true}).click();
+    await expect(people.locator("summary")).toHaveText("People (2)");
+  },"view");
+});
+
 if (!process.env.PLAYWRIGHT_BASE_URL) test("a view-only phone sees a live pointer, follows its owner and can spotlight without editing",async({page,browser},info)=>{
   test.setTimeout(90_000);
   await withSharedDrawing(page,browser,()=>setCommentName(page,"Ari"),async(peer)=>{

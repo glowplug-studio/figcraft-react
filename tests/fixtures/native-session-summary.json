@@ -1,0 +1,450 @@
+[
+  {
+    "result": {
+      "access": null,
+      "address": null,
+      "attempt": null,
+      "available": false,
+      "canHost": false,
+      "chat": "",
+      "code": null,
+      "color": null,
+      "document": null,
+      "editing": null,
+      "fileName": null,
+      "follow": null,
+      "hosting": null,
+      "link": null,
+      "me": null,
+      "name": null,
+      "network": null,
+      "pages": null,
+      "peers": [],
+      "published": null,
+      "readOnly": false,
+      "reason": null,
+      "role": null,
+      "session": null,
+      "sessions": [],
+      "share": null,
+      "signals": false,
+      "spotlight": null,
+      "spotlighting": false,
+      "status": "off",
+      "syncing": false,
+      "url": null
+    },
+    "stage": "unavailable"
+  },
+  {
+    "result": {
+      "access": null,
+      "address": null,
+      "attempt": null,
+      "available": true,
+      "canHost": false,
+      "chat": "",
+      "code": null,
+      "color": null,
+      "document": null,
+      "editing": null,
+      "fileName": null,
+      "follow": null,
+      "hosting": null,
+      "link": null,
+      "me": null,
+      "name": null,
+      "network": null,
+      "pages": null,
+      "peers": [],
+      "published": null,
+      "readOnly": false,
+      "reason": null,
+      "role": null,
+      "session": null,
+      "sessions": [],
+      "share": null,
+      "signals": false,
+      "spotlight": null,
+      "spotlighting": false,
+      "status": "off",
+      "syncing": false,
+      "url": null
+    },
+    "stage": "off"
+  },
+  {
+    "result": {
+      "access": null,
+      "address": null,
+      "attempt": null,
+      "available": true,
+      "canHost": false,
+      "chat": "",
+      "code": null,
+      "color": null,
+      "document": null,
+      "editing": null,
+      "fileName": null,
+      "follow": null,
+      "hosting": null,
+      "link": null,
+      "me": null,
+      "name": null,
+      "network": null,
+      "pages": null,
+      "peers": [],
+      "published": null,
+      "readOnly": false,
+      "reason": null,
+      "role": null,
+      "session": 1,
+      "sessions": [
+        {
+          "document": null,
+          "fileName": null,
+          "link": null,
+          "peers": 0,
+          "reason": null,
+          "role": null,
+          "session": 1,
+          "status": "connecting"
+        }
+      ],
+      "share": null,
+      "signals": false,
+      "spotlight": null,
+      "spotlighting": false,
+      "status": "connecting",
+      "syncing": false,
+      "url": null
+    },
+    "stage": "connecting"
+  },
+  {
+    "result": {
+      "access": "view",
+      "address": "127.0.0.1:47900",
+      "attempt": null,
+      "available": true,
+      "canHost": false,
+      "chat": "",
+      "code": null,
+      "color": "#0D99FF",
+      "document": 1,
+      "editing": null,
+      "fileName": "Team file",
+      "follow": null,
+      "hosting": null,
+      "link": "figcraft://join?host=127.0.0.1:47900&file=f&token=t",
+      "me": 2,
+      "name": "Me",
+      "network": false,
+      "pages": [
+        {
+          "id": 1,
+          "name": "Page 1"
+        }
+      ],
+      "peers": [
+        {
+          "chat": null,
+          "color": "#9747FF",
+          "editing": null,
+          "id": 1,
+          "name": "Hana",
+          "presence": null
+        }
+      ],
+      "published": null,
+      "readOnly": true,
+      "reason": null,
+      "role": "guest",
+      "session": 1,
+      "sessions": [
+        {
+          "document": 1,
+          "fileName": "Team file",
+          "link": "figcraft://join?host=127.0.0.1:47900&file=f&token=t",
+          "peers": 1,
+          "reason": null,
+          "role": "guest",
+          "session": 1,
+          "status": "live"
+        }
+      ],
+      "share": null,
+      "signals": false,
+      "spotlight": null,
+      "spotlighting": false,
+      "status": "live",
+      "syncing": true,
+      "url": "ws://127.0.0.1:47900/?file=f&token=t"
+    },
+    "stage": "view"
+  },
+  {
+    "result": {
+      "access": "view",
+      "address": "127.0.0.1:47900",
+      "attempt": null,
+      "available": true,
+      "canHost": false,
+      "chat": "",
+      "code": null,
+      "color": "#0D99FF",
+      "document": 1,
+      "editing": null,
+      "fileName": "Team file",
+      "follow": null,
+      "hosting": null,
+      "link": "figcraft://join?host=127.0.0.1:47900&file=f&token=t",
+      "me": 2,
+      "name": "Me",
+      "network": false,
+      "pages": [
+        {
+          "id": 1,
+          "name": "Page 1"
+        }
+      ],
+      "peers": [
+        {
+          "chat": "Hi",
+          "color": "#9747FF",
+          "editing": null,
+          "id": 1,
+          "name": "Hana",
+          "presence": {
+            "cursor": null,
+            "editing_text": null,
+            "selection": [],
+            "viewport": [
+              1,
+              10.0,
+              20.0,
+              40.0,
+              60.0
+            ]
+          }
+        }
+      ],
+      "published": null,
+      "readOnly": true,
+      "reason": null,
+      "role": "guest",
+      "session": 1,
+      "sessions": [
+        {
+          "document": 1,
+          "fileName": "Team file",
+          "link": "figcraft://join?host=127.0.0.1:47900&file=f&token=t",
+          "peers": 1,
+          "reason": null,
+          "role": "guest",
+          "session": 1,
+          "status": "live"
+        }
+      ],
+      "share": null,
+      "signals": false,
+      "spotlight": null,
+      "spotlighting": false,
+      "status": "live",
+      "syncing": true,
+      "url": "ws://127.0.0.1:47900/?file=f&token=t"
+    },
+    "stage": "presence"
+  },
+  {
+    "result": {
+      "access": null,
+      "address": null,
+      "attempt": null,
+      "available": true,
+      "canHost": false,
+      "chat": "",
+      "code": null,
+      "color": null,
+      "document": null,
+      "editing": null,
+      "fileName": null,
+      "follow": null,
+      "hosting": null,
+      "link": null,
+      "me": null,
+      "name": null,
+      "network": null,
+      "pages": null,
+      "peers": [],
+      "published": null,
+      "readOnly": false,
+      "reason": null,
+      "role": null,
+      "session": null,
+      "sessions": [
+        {
+          "document": 1,
+          "fileName": "Team file",
+          "link": "figcraft://join?host=127.0.0.1:47900&file=f&token=t",
+          "peers": 1,
+          "reason": null,
+          "role": "guest",
+          "session": 1,
+          "status": "live"
+        }
+      ],
+      "share": null,
+      "signals": false,
+      "spotlight": null,
+      "spotlighting": false,
+      "status": "off",
+      "syncing": false,
+      "url": null
+    },
+    "stage": "background"
+  },
+  {
+    "result": {
+      "access": "view",
+      "address": "127.0.0.1:47900",
+      "attempt": 2,
+      "available": true,
+      "canHost": false,
+      "chat": "",
+      "code": null,
+      "color": "#0D99FF",
+      "document": 1,
+      "editing": null,
+      "fileName": "Team file",
+      "follow": null,
+      "hosting": null,
+      "link": "figcraft://join?host=127.0.0.1:47900&file=f&token=t",
+      "me": 2,
+      "name": "Me",
+      "network": false,
+      "pages": [
+        {
+          "id": 1,
+          "name": "Page 1"
+        }
+      ],
+      "peers": [],
+      "published": null,
+      "readOnly": true,
+      "reason": null,
+      "role": "guest",
+      "session": 1,
+      "sessions": [
+        {
+          "document": 1,
+          "fileName": "Team file",
+          "link": "figcraft://join?host=127.0.0.1:47900&file=f&token=t",
+          "peers": 0,
+          "reason": null,
+          "role": "guest",
+          "session": 1,
+          "status": "reconnecting"
+        }
+      ],
+      "share": null,
+      "signals": false,
+      "spotlight": null,
+      "spotlighting": false,
+      "status": "reconnecting",
+      "syncing": true,
+      "url": "ws://127.0.0.1:47900/?file=f&token=t"
+    },
+    "stage": "reconnecting"
+  },
+  {
+    "result": {
+      "access": "view",
+      "address": "127.0.0.1:47900",
+      "attempt": null,
+      "available": true,
+      "canHost": false,
+      "chat": "",
+      "code": null,
+      "color": "#0D99FF",
+      "document": 1,
+      "editing": null,
+      "fileName": "Team file",
+      "follow": null,
+      "hosting": null,
+      "link": "figcraft://join?host=127.0.0.1:47900&file=f&token=t",
+      "me": 2,
+      "name": "Me",
+      "network": false,
+      "pages": [
+        {
+          "id": 1,
+          "name": "Page 1"
+        }
+      ],
+      "peers": [],
+      "published": null,
+      "readOnly": false,
+      "reason": "Session closed",
+      "role": "guest",
+      "session": 1,
+      "sessions": [
+        {
+          "document": 1,
+          "fileName": "Team file",
+          "link": "figcraft://join?host=127.0.0.1:47900&file=f&token=t",
+          "peers": 0,
+          "reason": "Session closed",
+          "role": "guest",
+          "session": 1,
+          "status": "failed"
+        }
+      ],
+      "share": null,
+      "signals": false,
+      "spotlight": null,
+      "spotlighting": false,
+      "status": "failed",
+      "syncing": false,
+      "url": "ws://127.0.0.1:47900/?file=f&token=t"
+    },
+    "stage": "failed"
+  },
+  {
+    "result": {
+      "access": null,
+      "address": null,
+      "attempt": null,
+      "available": true,
+      "canHost": false,
+      "chat": "",
+      "code": null,
+      "color": null,
+      "document": null,
+      "editing": null,
+      "fileName": null,
+      "follow": null,
+      "hosting": null,
+      "link": null,
+      "me": null,
+      "name": null,
+      "network": null,
+      "pages": null,
+      "peers": [],
+      "published": null,
+      "readOnly": false,
+      "reason": null,
+      "role": null,
+      "session": null,
+      "sessions": [],
+      "share": null,
+      "signals": false,
+      "spotlight": null,
+      "spotlighting": false,
+      "status": "off",
+      "syncing": false,
+      "url": null
+    },
+    "stage": "left"
+  }
+]

@@ -1,4 +1,4 @@
-import type {LivePeerSample} from "./live-presence";
+import type {LivePeerSample,PeopleWelcome} from "./live-presence";
 import type { LiveChange } from "./live-changes";
 import type { LiveCheckpoint } from "./live-checkpoint";
 
@@ -13,6 +13,7 @@ export interface LiveTransport {
   /** Current authenticated welcome. Both values survive a physical reconnect. */
   readonly identity?: LiveIdentity;
   people?: {
+    readonly welcome?:PeopleWelcome;
     send(sample:LivePeerSample):Promise<{client:number;name:string;colour:string;generation:string}>;
     listen(receive:(message:unknown)=>void,ready:()=>void):()=>void;
   };

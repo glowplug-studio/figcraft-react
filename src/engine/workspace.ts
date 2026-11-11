@@ -1,4 +1,5 @@
-import type { OnlineGuestSession } from "../backends/online-files";
+import {LiveSessions} from "./sharing/live-session-summary";
+import type { OnlineInvitations, OnlineGuestSession } from "../backends/online-files";
 import { planBranch } from "./branch-merge";
 import { applyBranch } from "./branch-apply";
 import { branchReview } from "./branch-review";
@@ -44,6 +45,12 @@ export class LibrarySourceNeeded extends Error {}
 let nextDocumentId = 1;
 
 export class EditorWorkspace {
+  #sessions=new LiveSessions();
+  setInvitations(invitations?:OnlineInvitations) {this.#sessions.configure(invitations);}
+  joining(connection:string,failed?:string) {
+    if (failed!==undefined) this.#sessions.failed(connection,failed);
+    else this.#sessions.start(connection,this.#active?.id);
+  }
   #tabs: OpenTab[] = [];
   #active?: OpenTab;
   #editable = true;
@@ -120,12 +127,15 @@ export class EditorWorkspace {
       dirty = state.dirty;
       this.#publish();
     });
-    return { id: nextDocumentId++, engine, unsubscribe, branch };
+    const id=nextDocumentId++;
+    engine.setSessionInspector(()=>this.#sessions.inspect(id,this.#tabs));
+    return { id, engine, unsubscribe, branch };
   }
 
   #append(engine: EditorEngine, activate = true, branch?: OpenTab["branch"], guest?: OnlineGuestSession) {
     const tab: OpenTab = this.#attach(engine, branch);
     if (guest) {
+      this.#sessions.welcome(guest,tab);
       tab.guest = guest;
       engine.setLiveClient(guest.client ?? 0);
       engine.setEditable(this.#editable && guest.access === "edit");
@@ -141,6 +151,7 @@ export class EditorWorkspace {
     this.#editable = editable;
     this.#generation++;
     if (!editable) {
+      this.#sessions.configure(undefined);
       this.#sourceFiles.clear();
       delete this.#clipboard.properties;
       delete this.#clipboard.layers;
@@ -161,7 +172,7 @@ export class EditorWorkspace {
       tabs.push(engine);
     }
     if (cancelled() || generation !== this.#generation) return;
-    for (const tab of this.#tabs) { tab.unsubscribe(); tab.engine.closeTab(); }
+    for (const tab of this.#tabs) { this.#sessions.close(tab.id);tab.unsubscribe(); tab.engine.closeTab(); }
     this.#tabs = tabs.map(engine => this.#attach(engine));
     this.#active = this.#tabs[active];
     this.#publish();
@@ -233,6 +244,8 @@ export class EditorWorkspace {
     const tab = this.#tabs.find(tab => tab.id === id);
     if (!tab || !this.#editable) return false;
     if (session.ended || tab.guest?.client !== session.client || tab.guest?.room !== session.room || tab.guest?.file !== session.file) delete tab.liveBranches;
+    if (tab.guest && tab.guest.connection!==session.connection) this.#sessions.leave(tab.guest.connection);
+    this.#sessions.welcome(session,tab);
     tab.guest = session;
     tab.engine.setLiveClient(session.ended ? 0 : session.client ?? 0);
     tab.engine.setEditable(this.#editable && (!!session.ended || session.access === "edit"));
@@ -241,6 +254,7 @@ export class EditorWorkspace {
   }
 
   leaveSession(connection: string) {
+    this.#sessions.leave(connection);
     const tab = this.#tabs.find(tab => tab.guest?.connection === connection);
     if (!tab) return;
     delete tab.guest;
@@ -258,9 +272,9 @@ export class EditorWorkspace {
     const result = await engine.openTabFile(file);
     if (generation !== this.#generation) throw new Error("Open cancelled because the identity changed");
     if (stillWanted && !stillWanted()) throw new Error("The source instance changed during navigation");
-    if (origin && !this.#tabs.includes(origin)) throw new Error("Open cancelled because the source tab closed");
+    if (!guest && origin && !this.#tabs.includes(origin)) throw new Error("Open cancelled because the source tab closed");
     this.#filenames.set(engine, file.name);
-    const { index } = this.#append(engine, this.#active === origin, undefined, guest);
+    const { index } = this.#append(engine, !!guest || this.#active === origin, undefined, guest);
     return { ...result, index, tabId: this.#tabs[index].id };
   }
 
@@ -270,6 +284,7 @@ export class EditorWorkspace {
     tab.engine.closeTab();
     this.#tabs.splice(index, 1);
     if (tab === this.#active) this.#active = this.#tabs[Math.min(index, this.#tabs.length - 1)];
+    this.#sessions.close(tab.id,this.#active?.id);
   }
 
   #branchCommand(command: BranchCommand, params: Record<string, unknown>) {

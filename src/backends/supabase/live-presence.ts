@@ -1,6 +1,16 @@
 import type {SupabaseClient} from "@supabase/supabase-js";
-import {presenceColours,readPeerSample,type LivePeerMessage} from "../../engine/sharing/live-presence";
+import {cleanPresenceSignal,presenceColours,readPeerSample,type LivePeerMessage} from "../../engine/sharing/live-presence";
 import type {LiveConnection} from "./live-journal";
+
+export async function welcomeLivePeople(writer:SupabaseClient,connection:LiveConnection,input:unknown) {
+  if(typeof input!=="string")throw Object.assign(new Error("Invalid display name"),{code:"22023"});
+  const display=cleanPresenceSignal({kind:"name",text:input})?.text ?? "";
+  const {data,error}=await writer.rpc("live_participants",{...connection,display,welcome:true});
+  if(error)throw error;
+  const identity=(p:{client:number;name:string;generation:string;colour:number})=>
+    ({client:p.client,name:p.name,generation:p.generation,colour:presenceColours[p.colour]});
+  return {me:identity(data),peers:data.peers.map(identity)};
+}
 
 /** The host supplies the current JWT principal and login. A browser never chooses its sender or recipients. */
 export async function sendLivePresence(writer:SupabaseClient,connection:LiveConnection,input:unknown,
@@ -8,9 +18,9 @@ export async function sendLivePresence(writer:SupabaseClient,connection:LiveConn
   let sample;
   try {sample=readPeerSample(input);}
   catch(error){throw Object.assign(new Error("Invalid presence sample",{cause:error}),{code:"22023"});}
-  const {data,error}=await writer.rpc("live_presence_targets",{...connection,anonymous_name:!sample.name});
+  const {data,error}=await writer.rpc("live_participants",{...connection,display:sample.name,welcome:false});
   if(error)throw error;
-  const name=sample.name || "Guest "+(data.guest??data.client);
+  const name=data.name;
   const peer={...sample,name,client:data.client,colour:presenceColours[data.colour],generation:data.generation};
   if (data.targets.length) await deliver(data.targets,peer);
   return {client:peer.client,colour:peer.colour,name,generation:peer.generation};

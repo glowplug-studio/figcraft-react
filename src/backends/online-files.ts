@@ -83,17 +83,28 @@ export interface OnlineGuestSession {
 export type GuestSessionEnd = "stopped" | "removed" | "unavailable";
 export type GuestWelcome = Pick<OnlineGuestSession, "access" | "client" | "room">;
 export type GuestConnectionStatus = {attempt: number} | GuestWelcome;
+export interface SessionDetails {
+  identity?:{name:string;colour:string};
+  link:string;url:string;address:string;network:boolean;
+  published?:{server:string;file:string;name:string;edit:string;view:string;owner:null;expires:number|string|null};
+  share?:{via:"online";access:OnlineGuestSession["access"];shared:boolean;editCode:string|null;commentCode:string|null;
+    viewCode:string|null;editLink:string|null;commentLink:string|null;viewLink:string|null};
+  code?:string|null;
+  hosting?:{open:boolean;operator:string;terms:string;idleDays:number|null;maxFileMb:number;expires:number|string|null};
+}
 export interface OnlineInvitations {
+  /** Read authorised, in-memory invitation details for this logical session only. */
+  inspect?(connection:string):SessionDetails|undefined;
   live?(connection: string): import("../engine/sharing/live-transport").LiveTransport | undefined;
   /** Redeem this device's original edit link. Older records may predate link storage. */
-  joinOwned?(file: string, managedByKey?: boolean): Promise<{session: OnlineGuestSession; archive: Blob} | undefined>;
+  joinOwned?(file: string, managedByKey?: boolean, listing?:Pick<OnlineFileInfo,"name"|"expires">, recorded?:boolean): Promise<{session: OnlineGuestSession; archive: Blob} | undefined>;
   report?(connection: string, reason: string): Promise<void>;
   retryNow?(connection: string): void;
   rejoin?(connection: string): Promise<OnlineGuestSession["access"] | GuestWelcome>;
   watch?(connection: string, ended: (reason: GuestSessionEnd) => void, changed?: (status: GuestConnectionStatus) => void): () => void;
   join?(invite: string): Promise<void>;
   showJoin(): void;
-  subscribe(joined: (session: OnlineGuestSession, archive: Blob) => Promise<void>): () => void;
+  subscribe(joined: (session: OnlineGuestSession, archive: Blob) => Promise<void>, joining?: (connection:string, failed?:string) => void): () => void;
   copyPublished(file: string, access: "edit" | "view"): Promise<void>;
   leave(connection: string): Promise<void>;
 }
@@ -104,6 +115,8 @@ export interface OwnerShareSummary {
 }
 export interface OnlineOwnerSharing {
   read(file: string, refresh?: boolean): Promise<OwnerShareSummary>;
+  access?(file:string):OnlineGuestSession["access"];
+  selectAccess?(file:string,access:OnlineGuestSession["access"]):void;
   change(file: string, enabled: boolean): Promise<OwnerShareSummary>;
   copy(file: string, access: OnlineGuestSession["access"], format: "code" | "link"): Promise<void>;
 }

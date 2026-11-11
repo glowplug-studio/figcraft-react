@@ -13,11 +13,11 @@ import type {Document} from "./engine/document";
 export function LivePeopleControls({room,engine,menuGroup}:{room:LivePeople;engine:EditorEngine;menuGroup:string}) {
   // Cursor coordinates need not repaint the document header.
   useSyncExternalStore(room.subscribe,room.rosterKey,room.rosterKey);
-  const peers=room.getSnapshot();
+  const {peers}=engine.execute("collab.peers");
   return <details name={menuGroup} className="figcraft-live-people"><summary>People ({peers.length+1})</summary><div>
-    {peers.map(peer=><button type="button" key={peer.client} aria-pressed={room.following===peer.client}
-      onClick={()=>engine.execute("collab.follow",room.following===peer.client?{}:{client:peer.client})}>
-      <span aria-hidden="true" style={{color:peer.colour}}>● </span>{room.following===peer.client?"Unfollow ":"Follow "}{peer.name}</button>)}
+    {peers.map(peer=><button type="button" key={peer.id} aria-pressed={room.following===peer.id}
+      onClick={()=>engine.execute("collab.follow",room.following===peer.id?{}:{client:peer.id})}>
+      <span aria-hidden="true" style={{color:peer.color}}>● </span>{room.following===peer.id?"Unfollow ":"Follow "}{peer.name}</button>)}
     <button type="button" aria-pressed={room.spotlighting} onClick={()=>engine.execute("collab.spotlight")}>
       {room.spotlighting?"Stop spotlight":"Spotlight me"}</button>
     <button type="button" onClick={()=>engine.execute("collab.cursorChat")}>Cursor chat</button>

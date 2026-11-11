@@ -1,6 +1,6 @@
 import type {Point} from "../geometry";
 import type {LiveTransport} from "./live-transport";
-import {cleanPresenceSignal,readPeerMessage,presenceInterval,presenceColours,type LivePeerMessage,type LivePresence} from "./live-presence";
+import {cleanPresenceSignal,readPeerMessage,presenceInterval,presenceColours,type LivePeerMessage,type LivePresence,type PeopleWelcome} from "./live-presence";
 
 const empty:LivePresence={cursor:null,selection:null,viewport:null,editingText:null};
 interface PeopleEditor {
@@ -25,6 +25,8 @@ export class LivePeople {
   private previous="";
   private sequence=0;
   private sending=false;
+  private suspended=false;
+  private signalReady=false;
   private resend=true;
   private hello=true;
   private active=false;
@@ -32,6 +34,10 @@ export class LivePeople {
   private cursor:Point|null=null;
   private retainedName="";
   private ownColour:string=presenceColours[0];
+  private identity?:{name:string;colour:string};
+  get confirmedName(){return this.identity?.name;}
+  get confirmedColour(){return this.identity?.colour;}
+  get signals(){return this.signalReady && this.identity!==undefined;}
   get colour(){return this.ownColour;}
   private followed?:number;
   private chat="";
@@ -81,6 +87,7 @@ export class LivePeople {
     if(this.departed.size>4096)this.departed.delete(this.departed.keys().next().value!);
   }
   private accept=(input:unknown)=>{
+    if(this.suspended || !this.alive)return;
     let peer:LivePeerMessage;
     try{peer=readPeerMessage(input);}catch{return;}
     if(peer.client===this.client)return;
@@ -111,9 +118,30 @@ export class LivePeople {
     }
     this.publish(!old || peer.left || old.name!==peer.name || old.colour!==peer.colour || previousFollow!==this.followed || previousPresenter!==this.presenterId);
   };
+  hasPresence(client:number){return (this.entries.get(client)?.message.sequence ?? -1)>=0;}
+  reconnect(){
+    if(this.suspended)return;
+    this.suspended=true;this.readyEpoch++;this.signalReady=false;
+    this.entries.clear();this.departed.clear();this.chat="";this.presenterId=undefined;
+    this.publish();
+  }
+  welcome(welcome?:PeopleWelcome) {
+    this.suspended=false;this.hello=true;this.resend=true;
+    if(welcome && welcome.me.client===this.client){
+      this.identity=welcome.me;this.ownColour=welcome.me.colour;
+      const heard=performance.now();
+      for(const peer of welcome.peers) {
+        if(peer.client===this.client || this.entries.has(peer.client))continue;
+        this.entries.set(peer.client,{heard,message:{...peer,sequence:-1,chat:"",spotlight:false,hello:false,left:false,presence:empty}});
+      }
+      if(this.followed!==undefined && !this.entries.has(this.followed))this.followed=undefined;
+    }
+    this.publish();this.changed();
+  }
   start() {
     this.alive=true;
-    const unlisten=this.transport.listen(this.accept,()=>{this.readyEpoch++;this.hello=true;this.resend=true;this.changed();}),unwatch=this.editor.subscribe(this.changed);
+    this.welcome(this.transport.welcome);
+    const unlisten=this.transport.listen(this.accept,()=>{this.readyEpoch++;this.signalReady=true;this.hello=true;this.resend=true;this.changed();}),unwatch=this.editor.subscribe(this.changed);
     this.changed();
     this.heartbeat=setInterval(()=>{
       const cutoff=performance.now()-45000;
@@ -142,17 +170,21 @@ export class LivePeople {
       presence:this.active?this.editor.capture(this.cursor):empty,hello:this.hello,left:false};
   }
   private changed=()=>{
-    if(!this.alive || this.sending || this.timer!==undefined)return;
+    if(!this.alive || this.suspended || this.sending || this.timer!==undefined)return;
     this.timer=setTimeout(()=>{this.timer=undefined;void this.send();},Math.max(0,this.lastSend+presenceInterval-performance.now()));
   };
   private async send(){
+    if(this.suspended || !this.alive)return;
     const epoch=this.readyEpoch,sample=this.sample(),key=JSON.stringify(sample);
     if(!this.resend && key===this.previous)return;
     this.sending=true;this.resend=false;this.lastSend=performance.now();
     let failed=false;
     try{
       const receipt=await this.transport.send({...sample,sequence:++this.sequence});
-      if(presenceColours.some(colour=>colour===receipt.colour))this.ownColour=receipt.colour;
+      if(this.alive && !this.suspended && presenceColours.some(colour=>colour===receipt.colour)){
+        this.ownColour=receipt.colour;
+        this.identity={name:receipt.name,colour:receipt.colour};
+      }
       if(epoch===this.readyEpoch)this.hello=false;this.previous=JSON.stringify({...sample,hello:false});
     }catch{this.resend=true;failed=true;}
     finally{
@@ -164,6 +196,7 @@ export class LivePeople {
 }
 
 export const peopleCommands={
+  "collab.peers":{label:"People in this file",undo:false},
   "collab.cursor":{label:"Show cursor at",undo:false},
   "collab.cursorChat":{label:"Cursor chat",undo:false},
   "collab.follow":{label:"Follow",undo:false},

@@ -57,7 +57,8 @@ export function EditorHost({ identity }: { identity: Extract<IdentitySnapshot, {
     }, identity.principal.id, server,
       (connection, ended, edits, people, ready) => watchSupabaseGuest(getBrowserSupabase(), connection, ended, edits, people, ready), () => {
       setJoinError(""); joinDialog.current?.showModal();
-    }, setError, file => files.resolveTeamFile(file));
+    }, setError, file => files.resolveTeamFile(file),{hosting:file=>files.hosting(file),
+      sharing:(file,recorded)=>sharing.inspect(file,recorded),loadSharing:file=>sharing.read(file,true)});
     setInviteHost(invites);
     setOnline({ server, libraries:new BrowserTeamLibraries(store,identity.principal.id,server,getBrowserSupabase(),invites), supportsServerKey:true, serverKeyChanged:key => { currentKey = key; }, releasePublished:file => { operators.delete(file); }, store: files, device: store, invitations: invites, sharing });
     setRecovery(store);

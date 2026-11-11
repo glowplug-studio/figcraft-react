@@ -45,9 +45,10 @@ export class OnlineWorkspace {
     this.tabs.set(file, tab);
   }
 
-  private async attachPublished(file: string, tabId: number, managedByKey = false) {
+  private async attachPublished(listing:OnlineFileInfo, tabId: number) {
     const invitations = this.host.invitations;
-    const joined = await invitations?.joinOwned?.(file, managedByKey);
+    const {id:file,managedByKey}=listing;
+    const joined = await invitations?.joinOwned?.(file, managedByKey,listing);
     if (!joined) {
       this.check();
       if (managedByKey) throw new Error("The original edit link is unavailable");
@@ -217,7 +218,7 @@ export class OnlineWorkspace {
           const [file] = await this.host.store.owned([previous]);
           this.check();
           if (!file) throw new Error("This file is no longer on its server");
-          await this.attachPublished(file.id, tabId);
+          await this.attachPublished(file,tabId);
           this.publishingTabs.delete(tabId);
           return file;
         }
@@ -241,7 +242,7 @@ export class OnlineWorkspace {
         this.publishingTabs.set(tabId, attempt.file);
       }
       const file = await this.send(attempt);
-      await this.attachPublished(file.id, tabId, file.managedByKey);
+      await this.attachPublished(file,tabId);
       if (file.managedByKey) await this.finishKeyed(file.id);
       this.publishingTabs.delete(tabId);
       return file;
@@ -262,11 +263,11 @@ export class OnlineWorkspace {
       const source = this.workspace.getSnapshot().find(tab => this.publishingTabs.get(tab.id) === id);
       if (source) {
         this.workspace.execute("doc.switch", {index:source.index});
-        await this.attachPublished(id,source.id,true);
+        await this.attachPublished(file,source.id);
         this.publishingTabs.delete(source.id);
       } else {
         const invites = this.host.invitations;
-        const joined = await invites?.joinOwned?.(id,true);
+        const joined = await invites?.joinOwned?.(id,true,file);
         if (!joined) throw new Error("The original edit link is unavailable");
         let attached = false;
         try {
@@ -298,11 +299,12 @@ export class OnlineWorkspace {
         return;
       }
       const invitations = this.host.invitations;
-      if (invitations?.joinOwned && !(await this.host.store.owned([id])).length) {
+      const listing=invitations?.joinOwned ? (await this.host.store.owned([id]))[0] : undefined;
+      if (invitations?.joinOwned && !listing) {
         throw new Error("This file is no longer on its server");
       }
       this.check();
-      const joined = await invitations?.joinOwned?.(id);
+      const joined = await invitations?.joinOwned?.(id,false,listing,true);
       let attached = false;
       try {
         // Older device records have no original edit credential. Their owner

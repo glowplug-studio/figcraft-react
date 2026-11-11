@@ -1,5 +1,5 @@
 import {EditorEngine} from "../../src/engine/editor";
-import {leaveLiveConnection,sendLivePresence,presenceBroadcaster} from "../../src/backends/supabase/live-presence";
+import {welcomeLivePeople,leaveLiveConnection,sendLivePresence,presenceBroadcaster} from "../../src/backends/supabase/live-presence";
 import { decodeFigcraft, encodeFigcraftBlob } from "../../src/engine/file-format";
 import {restoreLiveCheckpoint} from "../../src/engine/sharing/live-checkpoint";
 import {readLiveUpdates,submitLiveBatch} from "../../src/backends/supabase/live-journal";
@@ -650,10 +650,15 @@ describe.skipIf(!enabled)("private online files on real local Supabase", () => {
       const me=await sendLivePresence(writer,first,sample,deliver);
       await vi.waitFor(()=>expect(packets).toHaveLength(1));
       expect(packets[0]).toMatchObject({client:me.client,name:"Ari",colour:"#0D99FF",presence:{cursor:["1",17,25]}});
+      const welcome=await welcomeLivePeople(writer,second,"");
+      expect(welcome.peers).toEqual([me]);
+      expect(welcome.me.name).toBe("Guest 1");
+      await expect(welcomeLivePeople(writer,{...second,login:first.login},"")).rejects.toMatchObject({code:"42501"});
       const guest=await sendLivePresence(writer,second,{...sample,name:""},deliver);
       expect(guest).toMatchObject({colour:"#9747FF",name:"Guest 1"});
       const latest=await sendLivePresence(writer,second,{...sample,sequence:2},deliver);
       expect(latest.generation).toBe(guest.generation);
+      expect((await welcomeLivePeople(writer,first,"Ari")).peers).toEqual([latest]);
       expect((await stranger.client.rpc("live_presence_targets",{...first,anonymous_name:false})).error).toBeTruthy();
       await expect(sendLivePresence(writer,{...first,login:second.login},sample,deliver)).rejects.toMatchObject({code:"42501"});
       expect((await readLiveUpdates(writer,first,"0")).sequence).toBe("0");
@@ -667,6 +672,8 @@ describe.skipIf(!enabled)("private online files on real local Supabase", () => {
       await leaveLiveConnection(writer,departing,deliver);
       await leaveLiveConnection(writer,departing,unexpected);
       expect(unexpected).not.toHaveBeenCalled();
+      expect((await welcomeLivePeople(writer,first,"Ari")).peers).toEqual([latest]);
+      expect(localOperatorSql(local!,"select count(*) from figcraft_private.live_peer_names where connection_id=:'tab'::uuid",{tab:departing.tab})).toBe("0");
       await vi.waitFor(()=>expect(packets).toContainEqual({
         client:identity.client,generation:identity.generation,colour:identity.colour,sequence:Number.MAX_SAFE_INTEGER,
         left:true,hello:false,spotlight:false,name:"",chat:"",presence:{cursor:null,viewport:null,selection:null,editingText:null},

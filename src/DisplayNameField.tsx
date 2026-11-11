@@ -3,7 +3,7 @@ import {useEffect,useState,useSyncExternalStore} from "react";
 
 const memory=new Map<string,string>();
 const eventName="figcraft-display-name";
-function read(principal:string) {
+export function readDisplayName(principal:string) {
   if(typeof window==="undefined") return "";
   try {return localStorage.getItem("figcraft.name."+principal)??memory.get(principal)??"";}
   catch {return memory.get(principal)??"";}
@@ -13,7 +13,7 @@ function listen(notify:()=>void) {
   return ()=>{window.removeEventListener(eventName,notify);window.removeEventListener("storage",notify);};
 }
 export function useDisplayName(principal:string) {
-  return useSyncExternalStore(listen,()=>read(principal),()=>"");
+  return useSyncExternalStore(listen,()=>readDisplayName(principal),()=>"");
 }
 export function DisplayNameField({principal}:{principal:string}) {
   const name=useDisplayName(principal);

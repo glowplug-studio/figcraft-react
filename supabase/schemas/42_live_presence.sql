@@ -94,3 +94,50 @@ returns jsonb language sql security invoker set search_path='' as $$
 $$;
 revoke all on function public.leave_live_connection(uuid,uuid,uuid) from public,anon,authenticated,service_role;
 grant execute on function public.leave_live_connection(uuid,uuid,uuid) to service_role;
+
+-- A welcome needs the current display names before peers send their next pointer sample.
+-- Only a live grant can read this roster. Leaving the physical connection removes its name.
+create unlogged table figcraft_private.live_peer_names (
+    connection_id uuid primary key references figcraft_private.live_presence_connections(connection_id) on delete cascade,
+    display_name text not null check(char_length(display_name) between 1 and 64)
+);
+alter table figcraft_private.live_peer_names enable row level security;
+revoke all on figcraft_private.live_peer_names from public,anon,authenticated,service_role;
+
+create function figcraft_private.live_participants(actor uuid,login uuid,tab uuid,target uuid,display text,welcome boolean)
+returns jsonb language plpgsql security definer set search_path='' as $$
+declare
+    receipt jsonb;
+    peers jsonb;
+    actual text;
+begin
+    if display is null or char_length(display)>64 or display ~ '[[:cntrl:]]' then
+        raise exception 'invalid display name' using errcode='22023';
+    end if;
+    receipt:=figcraft_private.live_presence_targets(actor,login,tab,target,display='');
+    actual:=coalesce(nullif(display,''),'Guest '||coalesce(receipt->>'guest',receipt->>'client'));
+    if not exists(select 1 from figcraft_private.live_peer_names n where n.connection_id=tab and n.display_name=actual) then
+        insert into figcraft_private.live_peer_names as n(connection_id,display_name) values(tab,actual)
+            on conflict(connection_id) do update set display_name=excluded.display_name where n.display_name<>excluded.display_name;
+    end if;
+    if welcome then
+        select coalesce(jsonb_agg(jsonb_build_object('client',lc.client_id,'colour',pc.colour,'name',n.display_name,
+            'generation',(extract(epoch from pc.generation)*1000000)::bigint::text) order by lc.client_id),'[]'::jsonb)
+        into peers from figcraft_private.live_clients lc
+        join public.online_file_connections c on c.id=lc.connection_id and c.file_id=lc.file_id
+        join figcraft_private.live_presence_connections pc on pc.connection_id=c.id
+        join figcraft_private.live_peer_names n on n.connection_id=c.id
+        where c.file_id=target and c.id<>tab and c.heard_at>figcraft_private.connection_cutoff();
+    end if;
+    return receipt||jsonb_build_object('name',actual,'peers',peers);
+end;
+$$;
+revoke all on function figcraft_private.live_participants(uuid,uuid,uuid,uuid,text,boolean) from public,anon,authenticated,service_role;
+grant execute on function figcraft_private.live_participants(uuid,uuid,uuid,uuid,text,boolean) to service_role;
+
+create function public.live_participants(actor uuid,login uuid,tab uuid,target uuid,display text,welcome boolean)
+returns jsonb language sql security invoker set search_path='' as $$
+    select figcraft_private.live_participants(actor,login,tab,target,display,welcome);
+$$;
+revoke all on function public.live_participants(uuid,uuid,uuid,uuid,text,boolean) from public,anon,authenticated,service_role;
+grant execute on function public.live_participants(uuid,uuid,uuid,uuid,text,boolean) to service_role;

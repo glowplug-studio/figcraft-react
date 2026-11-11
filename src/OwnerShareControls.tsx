@@ -12,7 +12,7 @@ export function OwnerShareControls({ sharing, file, publish, published, changed 
 }) {
   const [summary, setSummary] = useState<OwnerShareSummary>({ codes: {} });
   const accessId = useId();
-  const [role, setRole] = useState<Access>("edit");
+  const [role, setRole] = useState<Access>(()=>file ? sharing.access?.(file) ?? "edit" : "edit");
   const [busy, setBusy] = useState(Boolean(file));
   const [message, setMessage] = useState("");
   const shared = Boolean(summary.codes.edit);
@@ -21,7 +21,7 @@ export function OwnerShareControls({ sharing, file, publish, published, changed 
     let active = true;
     setBusy(true);
     sharing.read(file, true).then(value => {
-      if (active) { setSummary(value); changed?.(file, Boolean(value.codes.edit)); }
+      if (active) { setRole(sharing.access?.(file) ?? "edit"); setSummary(value); changed?.(file, Boolean(value.codes.edit)); }
     }).catch(error => { if (active) setMessage(error.message); })
       .finally(() => { if (active) setBusy(false); });
     return () => { active = false; };
@@ -49,7 +49,7 @@ export function OwnerShareControls({ sharing, file, publish, published, changed 
   }
   return <>
     <button type="button" disabled={busy} onClick={change}>{summary.pending ? "Retry " + summary.pending + " sharing" : shared ? "Stop sharing" : "Start sharing"}</button>
-    {shared && <><label htmlFor={accessId}>Access</label><select id={accessId} value={role} onChange={event => { setRole(event.target.value as Access); setMessage(""); }}>
+    {shared && <><label htmlFor={accessId}>Access</label><select id={accessId} value={role} onChange={event => { const access=event.target.value as Access;setRole(access);if(file) sharing.selectAccess?.(file,access);setMessage(""); }}>
       <option value="edit">Can edit</option><option value="comment">Can comment</option><option value="view">Can view</option>
     </select>
       <output aria-label="Join code">{summary.codes[role]}</output>

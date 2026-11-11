@@ -1,4 +1,4 @@
-import {presenceBroadcaster,sendLivePresence} from "@glowplug-studio/figcraft-react/backends/supabase/live-session";
+import {welcomeLivePeople,presenceBroadcaster,sendLivePresence} from "@glowplug-studio/figcraft-react/backends/supabase/live-session";
 import {boundedJson} from "../../../../lib/sharing/bounded-body";
 import {onlinePost} from "../../../../lib/supabase/online-post";
 import {supabaseConfig} from "../../../../lib/supabase/config";
@@ -12,7 +12,8 @@ export async function POST(request:Request) {
   if(data instanceof Response)return data;
   if(!data || typeof data.file!=="string" || !uuid.test(data.file) || typeof data.tab!=="string" || !uuid.test(data.tab)) return new Response(null,{status:400});
   try {
-    const result=await sendLivePresence(host.writer,{actor:host.principal,login:host.session,target:data.file,tab:data.tab},data.sample,
+    const conn={actor:host.principal,login:host.session,target:data.file,tab:data.tab};
+    const result=data.action==="welcome" ? await welcomeLivePeople(host.writer,conn,data.name) : await sendLivePresence(host.writer,conn,data.sample,
       presenceBroadcaster(supabaseConfig().url,process.env.SUPABASE_SECRET_KEY!));
     return Response.json(result,{headers:{"Cache-Control":"no-store"}});
   } catch(error) {

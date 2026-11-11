@@ -1,5 +1,5 @@
 import { isSharedCredentials, type DeviceOwnerSharing, type IndexedDbRecoveryStore, type OnlineGuestSession,
-  type OnlineOwnerSharing, type OwnerShareSummary, type PendingSharingChange } from "@glowplug-studio/figcraft-react";
+  type OnlineOwnerSharing, type OwnerShareSummary, type SessionDetails, type PendingSharingChange } from "@glowplug-studio/figcraft-react";
 import { nativeInviteLink, parseInviteServer } from "@glowplug-studio/figcraft-react/sharing/invite";
 
 const summary = (row: DeviceOwnerSharing): OwnerShareSummary => ({
@@ -8,6 +8,32 @@ const summary = (row: DeviceOwnerSharing): OwnerShareSummary => ({
 });
 
 export class BrowserOwnerSharing implements OnlineOwnerSharing {
+  private readonly shares=new Map<string,NonNullable<SessionDetails["share"]>>();
+  access(file:string) {return this.shares.get(file)?.access ?? "edit";}
+  selectAccess(file:string,access:OnlineGuestSession["access"]) {
+    const share=this.shares.get(file);
+    if(share) this.shares.set(file,{...share,access});
+  }
+  inspect(file:string,recorded=false):SessionDetails["share"] {
+    const share=this.shares.get(file);
+    if(share)return {...share};
+    if(recorded)return {via:"online",access:"edit",shared:false,editCode:null,viewCode:null,commentCode:null,
+      editLink:null,viewLink:null,commentLink:null};
+  }
+  private observed(file:string,row:DeviceOwnerSharing,changed=false) {
+    if(changed || row.links.length || this.shares.has(file)) {
+      const server=parseInviteServer(this.server.replace(/^http/, "ws")).server;
+      const way=(access:OnlineGuestSession["access"])=>{
+        const entry=row.links.find(link=>link.access===access);
+        return {code:entry?.code ?? null,link:entry ? nativeInviteLink({kind:"link",file,server,token:entry.token}) : null};
+      };
+      const edit=way("edit"),view=way("view"),comment=way("comment");
+      this.shares.set(file,{via:"online",access:this.access(file),shared:!!edit.link,editCode:edit.code,
+        commentCode:comment.code,viewCode:view.code,editLink:edit.link,commentLink:comment.link,viewLink:view.link});
+    }
+    return summary(row);
+  }
+
   constructor(private device: Pick<IndexedDbRecoveryStore,"ownerSharing">, private principal: string,
     private server: string, private operatorKey?: (file: string) => string | undefined) {}
 
@@ -38,7 +64,7 @@ export class BrowserOwnerSharing implements OnlineOwnerSharing {
           && now.links.every(link => observed.includes(link.id)) ? {links: []} : now);
       }
     }
-    return summary(row);
+    return this.observed(file,row);
   }
   private async submit(file: string, pending: PendingSharingChange) {
     const response = await this.post(file, {action: "change", ...pending});
@@ -59,7 +85,7 @@ export class BrowserOwnerSharing implements OnlineOwnerSharing {
   async change(file: string, enabled: boolean) {
     let row = await this.record(file);
     if (row.pending) row = await this.submit(file, row.pending);
-    if (!!row.links.length === enabled) return summary(row);
+    if (!!row.links.length === enabled) return this.observed(file,row,true);
     const state = await this.status(file);
     row = await this.record(file, now => {
       if (now.pending || !!now.links.length === enabled) return now;
@@ -69,7 +95,7 @@ export class BrowserOwnerSharing implements OnlineOwnerSharing {
     });
     if (row.pending) row = await this.submit(file, row.pending);
     if (!!row.links.length !== enabled) throw new Error("Sharing changed elsewhere");
-    return summary(row);
+    return this.observed(file,row,true);
   }
   async copy(file: string, access: OnlineGuestSession["access"], format: "code" | "link") {
     const row = await this.record(file);

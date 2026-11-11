@@ -2,6 +2,7 @@ import {DisplayNameField} from "./DisplayNameField";
 import { OwnerShareControls } from "./OwnerShareControls";
 import { OnlineFilesPanel, OnlineHostingInformation, PublishOnlineDialog, ServerKeyField } from "./OnlineFilesPanel";
 import type { EditorEngine } from "./engine/editor";
+import {guestEnding} from "./engine/sharing/live-session-summary";
 import { LivePeople } from "./engine/sharing/live-people";
 import { LivePeer } from "./engine/sharing/live-peer";
 import { OnlineWorkspace } from "./engine/sharing/online-workspace";
@@ -126,24 +127,29 @@ export function WorkspaceEditor({ identity, capabilities, recoveryStore, onlineH
   const invitations = onlineHost?.invitations;
   useEffect(() => {
     if (!enabled || !invitations) return;
-    return invitations.subscribe(async (session, bytes) => {
+    workspace.setInvitations(invitations);
+    const unsubscribe=invitations.subscribe(async (session, bytes) => {
       await workspace.open(new File([bytes], session.file + ".figcraft"), session);
       setHome(undefined);
       setNotice("");
-    });
+    },(connection,failed)=>workspace.joining(connection,failed));
+    return ()=>{unsubscribe();workspace.setInvitations(undefined);};
   }, [workspace, enabled, invitations]);
   const ended = useCallback((connection: string, reason: GuestSessionEnd) => {
     const session = workspace.getSnapshot().find(tab => tab.guest?.connection === connection)?.guest;
     if (!session || !workspace.setGuestSession({...session, ended: reason})) return;
-    const notice = {removed: "The file was removed from the server", stopped: "Sharing was stopped", unavailable: "The session is no longer available"};
-    setNotice(notice[reason]);
+    setNotice(guestEnding[reason]);
   }, [workspace]);
   const connectionChanged = useCallback((connection: string, status: GuestConnectionStatus) => {
     const session = workspace.getSnapshot().find(tab => tab.guest?.connection === connection)?.guest;
     if (!session || session.ended) return;
+    const tab=workspace.getSnapshot().find(item=>item.guest?.connection===connection);
+    const room=tab && workspace.engines[tab.index]?.people;
+    if ("attempt" in status) room?.reconnect();
+    else room?.welcome(invitations?.live?.(connection)?.people?.welcome);
     workspace.setGuestSession("attempt" in status ? {...session, reconnectAttempt: status.attempt}
       : {...session, reconnectAttempt: undefined, ...status});
-  }, [workspace]);
+  }, [workspace,invitations]);
   const guest = active?.guest;
   const tabCapabilities = useMemo(() => guest && !guest.ended && guest.access !== "edit" ? capabilities.filter(cap => cap === "document.read"
     || (guest.access === "comment" && cap === "document.comment")) : capabilities, [capabilities, guest]);
