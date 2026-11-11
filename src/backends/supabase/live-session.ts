@@ -2,7 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { highestIdSpace } from "../../engine/branch-ids";
 import { decodeFigcraft } from "../../engine/file-format";
 
-type Welcome = { client: number; access: "view" | "edit" | "comment"; path: string };
+type Welcome = { room: string; client: number; access: "view" | "edit" | "comment"; path: string };
 
 /** Validate the stored snapshot on first join, then atomically grant one physical connection and one namespace. */
 export async function joinLiveFile(writer: SupabaseClient, request: {
@@ -15,9 +15,10 @@ export async function joinLiveFile(writer: SupabaseClient, request: {
     const data: Partial<Welcome> & { scan?: string } = result.data ?? {};
     if (typeof data?.path !== "string") throw new Error("Invalid live file receipt");
     if (typeof data.scan !== "string") {
-      if (typeof data.client !== "number" || !Number.isInteger(data.client) || data.client < 1 || data.client >= 0xffffffff ||
+      if (typeof data.room !== "string" || !/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/.test(data.room) ||
+          typeof data.client !== "number" || !Number.isInteger(data.client) || data.client < 1 || data.client >= 0xffffffff ||
           (data.access !== "view" && data.access !== "edit" && data.access !== "comment")) throw new Error("Invalid live client receipt");
-      return { client: data.client, access: data.access, path: data.path };
+      return { room: data.room, client: data.client, access: data.access, path: data.path };
     }
     const read = await writer.storage.from("figcraft-files").download(data.path);
     if (read.error) throw read.error;

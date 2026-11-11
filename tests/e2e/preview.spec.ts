@@ -1148,6 +1148,49 @@ if (!process.env.PLAYWRIGHT_BASE_URL) test("a delayed phone edit rolls back afte
   });
 });
 
+if (!process.env.PLAYWRIGHT_BASE_URL) test("a replacement room restores its drawing and tells the phone how many offline edits were lost",async({page,browser},info)=>{
+  test.setTimeout(75_000);
+  await withSharedDrawing(page,browser,()=>page.getByRole("button",{name:"Create rectangle",exact:true}).click(),async(peer,file)=>{
+    const layers=(p:Page)=>p.locator('ul[aria-label="Page layers"] li');
+    const create=peer.getByRole("button",{name:"Create rectangle",exact:true});
+    const confirmed=peer.waitForResponse(async response=>{
+      if(new URL(response.url()).pathname!=="/api/online-files/live" || !response.ok() || response.request().postDataJSON()?.action!=="read")return false;
+      return (await response.json()).lastBatch==="1";
+    });
+    await create.click();await confirmed;
+    await expect(layers(page)).toHaveCount(2);
+    const sql=(command:string)=>localOperatorSql(backend!,command,{file});
+    const room=()=>sql("select room_id from figcraft_private.live_rooms where file_id=:'file'");
+    const originalRoom=room();
+    let offline=true,held=0;
+    await peer.route("**/api/online-files/live",async route=>{
+      if(offline){held++;await route.fulfill({status:503,body:""});}
+      else await route.continue();
+    });
+    await create.click();await create.click();
+    await expect(layers(peer)).toHaveCount(4);
+    await expect.poll(()=>held).toBeGreaterThan(0);
+    // Destroy only this fixture's volatile room state. The published archive and real invites survive.
+    sql("begin; delete from public.online_file_connections where file_id=:'file'; delete from figcraft_private.live_rooms where file_id=:'file'; commit");
+    offline=false;
+    const welcome=peer.waitForResponse(r=>new URL(r.url()).pathname==="/api/online-files/join" && r.ok());
+    for(const p of [page,peer])await p.evaluate(()=>window.dispatchEvent(new Event("online")));
+    const headers=await (await welcome).allHeaders();
+    expect(headers["x-figcraft-room"]).toBeTruthy();
+    expect(headers["x-figcraft-room"]).not.toBe(originalRoom);
+    const notice=peer.getByRole("alert").filter({hasText:"The live session restarted: 2 unsent changes couldn't be kept"});
+    await expect(notice).toBeInViewport({ratio:1,timeout:20000});
+    await peer.screenshot({path:info.outputPath("replacement-room-phone.png")});
+    await expect(layers(peer)).toHaveCount(1);await expect(layers(page)).toHaveCount(1);
+    await expect(peer.getByRole("button",{name:"Undo",exact:true})).toBeDisabled();
+    await expect(notice).toHaveCount(0,{timeout:5000});
+    expect(room()).toBe(headers["x-figcraft-room"]);
+    expect(sql("select seq from figcraft_private.live_rooms where file_id=:'file'")).toBe("0");
+    await create.click();await expect(layers(page)).toHaveCount(2);
+    expect(sql("select seq from figcraft_private.live_rooms where file_id=:'file'")).toBe("1");
+  });
+});
+
 if (!process.env.PLAYWRIGHT_BASE_URL) test("two editors converge after a lost acknowledgement and undo only their own shape",async({page,browser},info) => {
   test.setTimeout(90_000);
   await withSharedDrawing(page,browser,()=>page.getByRole("button",{name:"Create rectangle",exact:true}).click(),async(peer,file)=>{

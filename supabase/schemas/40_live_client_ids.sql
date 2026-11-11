@@ -2,6 +2,7 @@
 -- Removing a file removes its allocator. Leaving a tab never releases a number.
 create table figcraft_private.live_rooms (
     file_id uuid primary key references public.online_files(id) on delete cascade,
+    room_id uuid not null default gen_random_uuid(),
     scanned_snapshot uuid not null,
     highest_client bigint not null check (highest_client between 0 and 4294967294)
 );
@@ -21,8 +22,8 @@ revoke all on figcraft_private.live_rooms, figcraft_private.live_clients from pu
 
 -- A missing snapshot floor asks the host to scan the authenticated immutable
 -- archive once. Callers cannot inject an identifier through the browser API.
-create function figcraft_private.issue_live_client(actor uuid, auth_session uuid, tab uuid, target uuid,
-    snapshot uuid, resume_hash text, scanned_floor bigint, peer_limit integer) returns bigint
+create function figcraft_private.issue_live_identity(actor uuid, auth_session uuid, tab uuid, target uuid,
+    snapshot uuid, resume_hash text, scanned_floor bigint, peer_limit integer) returns jsonb
 language plpgsql security definer set search_path = ''
 as $$
 declare
@@ -70,7 +71,7 @@ begin
         if prior_tab is distinct from tab then
             delete from public.online_file_connections where id=prior_tab;
         end if;
-        return issued;
+        return jsonb_build_object('client',issued,'room',current_room.room_id);
     end if;
     if current_room.highest_client>=4294967294 then raise exception 'no client ids left in this session' using errcode='54000'; end if;
     issued := current_room.highest_client+1;
@@ -82,8 +83,16 @@ begin
             select c.client_id from figcraft_private.live_clients c where c.file_id=target and c.connection_id is null
             order by c.client_id limit 1);
     end if;
-    return issued;
+    return jsonb_build_object('client',issued,'room',current_room.room_id);
 end;
+$$;
+revoke all on function figcraft_private.issue_live_identity(uuid,uuid,uuid,uuid,uuid,text,bigint,integer) from public, anon, authenticated, service_role;
+grant execute on function figcraft_private.issue_live_identity(uuid,uuid,uuid,uuid,uuid,text,bigint,integer) to service_role;
+create function figcraft_private.issue_live_client(actor uuid, auth_session uuid, tab uuid, target uuid,
+    snapshot uuid, resume_hash text, scanned_floor bigint, peer_limit integer) returns bigint
+language sql security invoker set search_path='' as $$
+    select (figcraft_private.issue_live_identity(actor,auth_session,tab,target,snapshot,resume_hash,
+        scanned_floor,peer_limit)->>'client')::bigint;
 $$;
 revoke all on function figcraft_private.issue_live_client(uuid,uuid,uuid,uuid,uuid,text,bigint,integer) from public, anon, authenticated, service_role;
 grant execute on function figcraft_private.issue_live_client(uuid,uuid,uuid,uuid,uuid,text,bigint,integer) to service_role;
@@ -98,18 +107,18 @@ as $$
 declare
     grant_row record;
     object_id uuid;
-    issued bigint;
+    identity jsonb;
 begin
     begin
         select * into strict grant_row from public.join_online_file(actor,auth_session,tab,target,presented_hash);
         select f.snapshot_id into strict object_id from public.online_files f where f.id=target;
-        issued := figcraft_private.issue_live_client(actor,auth_session,tab,target,object_id,resume_hash,
+        identity := figcraft_private.issue_live_identity(actor,auth_session,tab,target,object_id,resume_hash,
             case when scanned_snapshot=object_id then scanned_floor end,peer_limit);
-        if issued is null then raise exception 'scan required' using errcode='FC040'; end if;
+        if identity is null then raise exception 'scan required' using errcode='FC040'; end if;
     exception when sqlstate 'FC040' then
         return jsonb_build_object('scan',object_id,'path',grant_row.object_path);
     end;
-    return jsonb_build_object('client',issued,'access',grant_row.access_level,'path',grant_row.object_path);
+    return identity || jsonb_build_object('access',grant_row.access_level,'path',grant_row.object_path);
 end;
 $$;
 revoke all on function public.join_live_file(uuid,uuid,uuid,uuid,text,text,integer,uuid,bigint) from public, anon, authenticated, service_role;

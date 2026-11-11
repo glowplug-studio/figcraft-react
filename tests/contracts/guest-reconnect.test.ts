@@ -22,7 +22,7 @@ it("releases a late reconnect grant when its logical tab has already left", asyn
   const physical: string[] = [], released: string[] = [], resumes: string[] = [];
   let finished!: () => void;
   const releasedBoth = new Promise<void>(resolve => { finished = resolve; });
-  const welcome = () => new Response(new Blob(["archive"]), {headers: {"X-Figcraft-Access": "view", "X-Figcraft-Client": "42"}});
+  const welcome = () => new Response(new Blob(["archive"]), {headers: {"X-Figcraft-Access": "view", "X-Figcraft-Client": "42", "X-Figcraft-Room":"10000000-0000-4000-8000-000000000001"}});
   vi.stubGlobal("fetch", async (url: string, init: RequestInit) => {
     const body = JSON.parse(String(init.body));
     if (url.endsWith("/leave")) {

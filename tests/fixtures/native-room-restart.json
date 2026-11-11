@@ -1,0 +1,82 @@
+[
+  {
+    "canRedo": false,
+    "canUndo": false,
+    "freshNode": "4294967297",
+    "name": "New server drawing",
+    "newId": 1,
+    "notices": [],
+    "oldId": 1,
+    "pending": 0,
+    "pendingBefore": 0,
+    "resends": 0
+  },
+  {
+    "canRedo": false,
+    "canUndo": false,
+    "freshNode": "4294967297",
+    "name": "New server drawing",
+    "newId": 1,
+    "notices": [
+      "The live session restarted: 1 unsent change couldn't be kept"
+    ],
+    "oldId": 1,
+    "pending": 0,
+    "pendingBefore": 1,
+    "resends": 0
+  },
+  {
+    "canRedo": false,
+    "canUndo": false,
+    "freshNode": "4294967297",
+    "name": "New server drawing",
+    "newId": 1,
+    "notices": [
+      "The live session restarted: 2 unsent changes couldn't be kept"
+    ],
+    "oldId": 1,
+    "pending": 0,
+    "pendingBefore": 2,
+    "resends": 0
+  },
+  {
+    "canRedo": false,
+    "canUndo": false,
+    "freshNode": "8589934593",
+    "name": "New server drawing",
+    "newId": 2,
+    "notices": [],
+    "oldId": 1,
+    "pending": 0,
+    "pendingBefore": 0,
+    "resends": 0
+  },
+  {
+    "canRedo": false,
+    "canUndo": false,
+    "freshNode": "8589934593",
+    "name": "New server drawing",
+    "newId": 2,
+    "notices": [
+      "The live session restarted: 1 unsent change couldn't be kept"
+    ],
+    "oldId": 1,
+    "pending": 0,
+    "pendingBefore": 1,
+    "resends": 0
+  },
+  {
+    "canRedo": false,
+    "canUndo": false,
+    "freshNode": "8589934593",
+    "name": "New server drawing",
+    "newId": 2,
+    "notices": [
+      "The live session restarted: 2 unsent changes couldn't be kept"
+    ],
+    "oldId": 1,
+    "pending": 0,
+    "pendingBefore": 2,
+    "resends": 0
+  }
+]

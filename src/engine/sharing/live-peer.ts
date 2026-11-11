@@ -4,12 +4,12 @@ import { diffLive, liveReplica, type LiveChange, type LiveReplica } from "./live
 import { restoreLiveCheckpoint } from "./live-checkpoint";
 import { captureLiveStep, taintStep, travelLiveStep, type LiveStep } from "./live-history";
 import { applyLive } from "./live-replica";
-import type { LiveTransport, LiveUpdate } from "./live-transport";
+import type { LiveIdentity, LiveTransport, LiveUpdate } from "./live-transport";
 
 export interface LiveEditor {
   current(): Document;
   recordsEdit?(document: Document): boolean;
-  receive(document: Document): void;
+  receive(document: Document, restartedClient?:number): void;
   subscribe(listener: () => void): () => void;
   interacting(): boolean;
   normalise(before: Document, after: Document, touched: ReadonlySet<string>): Document;
@@ -19,6 +19,7 @@ type Pending = {reason?:string; base: string; batch?: string; changes: LiveChang
 
 /** One ordered writer per physical editor. In-flight IDs survive a lost reply and a physical reconnect. */
 export class LivePeer {
+  private identity?: LiveIdentity;
   private confirmed?: LiveReplica;
   private local: LiveReplica;
   private seen: Document;
@@ -38,6 +39,7 @@ export class LivePeer {
   private redraw = false;
 
   constructor(private editor: LiveEditor, private transport: LiveTransport, private client: number, private notice: (message: string) => void) {
+    this.identity = transport.identity;
     this.seen = editor.current();
     this.local = liveReplica(this.seen);
   }
@@ -92,11 +94,15 @@ export class LivePeer {
     this.history();
   }
 
+  private async initialState(update:LiveUpdate) {
+    return update.checkpoint ? restoreLiveCheckpoint(update.checkpoint) : liveReplica((await decodeFigcraft(this.transport.archive)).document);
+  }
+
   private async receive(update: LiveUpdate) {
     if (update.client !== this.client) throw new Error("The session's editing identity changed");
     let state = this.confirmed, seq = BigInt(this.sequence ?? "0");
     if (update.reset) {
-      state = update.checkpoint ? await restoreLiveCheckpoint(update.checkpoint) : liveReplica((await decodeFigcraft(this.transport.archive)).document);
+      state = await this.initialState(update);
       if (this.confirmed && BigInt(update.checkpointSeq ?? "0") >= BigInt(this.sequence ?? "0")) {
         const unseen = (await diffLive(this.confirmed,state.document)).changes;
         for (const step of [...this.undo,...this.redo]) if (step.confirmed) taintStep(step,unseen);
@@ -208,6 +214,39 @@ export class LivePeer {
     } while (this.alive);
   }
 
+  private sameIdentity(left?:LiveIdentity,right?:LiveIdentity) {
+    return left?.room===right?.room && left?.client===right?.client;
+  }
+
+  private async restart(identity:LiveIdentity,update:LiveUpdate) {
+    if(update.client!==identity.client || !update.reset)throw new Error("Invalid replacement welcome");
+    // Decode the complete welcome before retiring any local changes or history.
+    let state=await this.initialState(update),sequence=BigInt(update.checkpointSeq??"0");
+    for(const batch of update.batches){
+      if(BigInt(batch.sequence)!==++sequence)throw new Error("Missing ordered edits");
+      state=(await applyLive(state,batch.changes)).replica;
+    }
+    if(sequence!==BigInt(update.sequence))throw new Error("Incomplete replacement welcome");
+    const next=BigInt(update.lastBatch)+1n;
+    await this.capture();
+    if(!this.alive || !this.sameIdentity(identity,this.transport.identity))return;
+    const lost=this.pending.filter(p=>p.direction!=="followUp").length;
+    this.installing=true;
+    try {
+      this.editor.receive(state.document,identity.client);
+      this.seen=this.editor.current();
+    } finally {this.installing=false;}
+    this.identity=identity;
+    this.client=identity.client;
+    this.undo=[];this.redo=[];this.pending=[];
+    this.travelRequest=undefined;
+    this.sequence=update.sequence;this.confirmed=state;this.next=next;
+    this.local={document:this.seen,positions:state.positions};
+    this.redraw=false;
+    this.history();
+    if(lost)this.notice("The live session restarted: "+lost+" unsent change"+(lost===1?"":"s")+" couldn't be kept");
+  }
+
   private async run() {
     if (!this.alive || this.running) return;
     this.running = true;
@@ -216,12 +255,15 @@ export class LivePeer {
     try {
       await this.capture();
       if (this.travelRequest !== undefined && this.confirmed) await this.reconcile();
-      const update = await this.transport.read(this.sequence);
-      if (!this.alive) return;
-      await this.receive(update);
+      const welcome=this.transport.identity;
+      const replace=welcome && !this.sameIdentity(welcome,this.identity);
+      const update = await this.transport.read(replace ? null : this.sequence);
+      if (!this.alive || !this.sameIdentity(welcome,this.transport.identity))return;
+      if(replace)await this.restart(welcome,update);
+      else await this.receive(update);
       await this.reconcile();
       const head = this.pending[0];
-      if (head && this.alive) {
+      if (head && this.alive && this.sameIdentity(welcome,this.transport.identity)) {
         head.batch ??= String(this.next++);
         const result=await this.transport.submit(head.batch,head.base,head.changes);
         if(result.refused)head.reason=result.reason;

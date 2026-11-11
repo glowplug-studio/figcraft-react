@@ -27,6 +27,11 @@ import { localSupabase } from "../support/localSupabase";
 const enabled = process.env.FIGCRAFT_LOCAL_INTEGRATION === "1";
 const bucket = "figcraft-files";
 
+
+function subscribe(channel:RealtimeChannel) {
+  return new Promise<string>(resolve=>channel.subscribe(status=>resolve(status),8000));
+}
+
 describe.skipIf(!enabled)("private online files on real local Supabase", () => {
   const local = enabled ? localSupabase() : undefined;
   const users: string[] = [];
@@ -604,6 +609,8 @@ describe.skipIf(!enabled)("private online files on real local Supabase", () => {
       randomUUID(), file, keys.edit.token, secret, limit);
     const receipts = await Promise.all(resumes.map(secret => open(secret)));
     expect(receipts.map(r => r.client).sort((a,b) => a-b)).toEqual([2097153,2097154,2097155,2097156,2097157,2097158]);
+    expect(new Set(receipts.map(r=>r.room)).size).toBe(1);
+    expect(receipts[0].room).toMatch(/^[a-f0-9-]{36}$/);
     const bound = async () => (await writer.from("online_file_connections").select("id", {count:"exact", head:true}).eq("file_id",file)).count;
     expect(await bound()).toBe(6);
     await expect(open(randomUUID(), 6)).rejects.toMatchObject({code:"54000"});
@@ -613,6 +620,7 @@ describe.skipIf(!enabled)("private online files on real local Supabase", () => {
     const foreignSession = (await owner.client.auth.getClaims()).data!.claims.session_id as string;
     const other = await readSharedDrawing(owner.client,writer,owner.id,foreignSession,randomUUID(),file,keys.edit.token,resumes[2]);
     expect(other.client).toBe(2097159);
+    expect(other.room).toBe(receipts[0].room);
     expect((await stranger.client.rpc("join_live_file", {actor:stranger.id,auth_session:session,tab:randomUUID(),target:file,
       presented_hash:proof.edit.hash,resume_hash:proof.edit.hash})).error).toBeTruthy();
     await changeFile(owner.id,file,null);
@@ -731,7 +739,7 @@ describe.skipIf(!enabled)("private online files on real local Supabase", () => {
     const open=async()=>{
       const tab=randomUUID();
       const welcome=await readSharedDrawing(stranger.client,writer,stranger.id,login,tab,file,keys.edit.token,resume);
-      return {conn:{actor:stranger.id,login,tab,target:file},client:welcome.client};
+      return {conn:{actor:stranger.id,login,tab,target:file},client:welcome.client,room:welcome.room};
     };
     const initial=await open();
     const update=(value:string)=>[{type:"setDoc",prop:"name",value:JSON.stringify(value)}];
@@ -746,6 +754,16 @@ describe.skipIf(!enabled)("private online files on real local Supabase", () => {
     }
     const resumed=await open();
     expect(resumed.client).toBe(initial.client);
+    expect(resumed.room).toBe(initial.room);
+    if(process.env.FIGCRAFT_VERIFY_ORDERED_RESTART==="1"){
+      // PostgreSQL and PostgREST can be ready before Realtime reopens its tenant database connection.
+      const topic="figcraft-connection:"+login+":"+resumed.conn.tab;
+      await expect.poll(async()=>{
+        const channel=stranger.client.channel(topic,{config:{private:true}}).on("broadcast",{event:"edits"},()=>{});
+        try{return await subscribe(channel);}
+        finally{await stranger.client.removeChannel(channel);}
+      },{timeout:45000,interval:750}).toBe("SUBSCRIBED");
+    }
     await expect(readLiveUpdates(writer,initial.conn,"1")).rejects.toMatchObject({code:"42501"});
     const caught=await readLiveUpdates(writer,resumed.conn,"0");
     expect(caught).toMatchObject({reset:true,sequence:"2",checkpointSeq:"2",lastBatch:"2",batches:[]});
@@ -880,9 +898,6 @@ describe.skipIf(!enabled)("private online files on real local Supabase", () => {
     const session = (await stranger.client.auth.getClaims()).data!.claims.session_id as string;
     const topic = (tab: string) => "figcraft-connection:" + session + ":" + tab;
     const active = (account: typeof stranger, tab: string) => account.client.rpc("online_connection_active", {tab});
-    const subscribe = (channel: RealtimeChannel) => new Promise<string>(resolve => {
-      channel.subscribe(status => resolve(status), 8000);
-    });
     const view = stranger.client.channel(topic(viewTab), {config: {private: true}});
     const edit = stranger.client.channel(topic(editTab), {config: {private: true}});
     const unrelated = owner.client.channel(topic(viewTab), {config: {private: true}});

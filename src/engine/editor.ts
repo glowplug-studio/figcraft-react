@@ -512,7 +512,15 @@ export class EditorEngine {
     return result.document;
   }
 
-  receiveLiveDocument(incoming: Document) {
+  receiveLiveDocument(incoming: Document, restartedClient?:number) {
+    if(restartedClient!==undefined){
+      this.pencil.cancel();this.pen.cancel();this.cancelInteraction();
+      this.#idClient=restartedClient;
+      this.#liveCounters.clear();
+      this.#nextId=nextScopedId(incoming,restartedClient,1n);
+      this.#undo=[];this.#redo=[];this.#livePage=undefined;this.#sharedDrawing=undefined;
+      this.#archiveRevision=undefined;
+    }
     const current = this.#fileDocument();
     if (this.#livePage) {
       const local=this.#livePage.local;

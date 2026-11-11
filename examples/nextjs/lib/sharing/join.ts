@@ -24,5 +24,5 @@ export async function readSharedDrawing(user: SupabaseClient, writer: SupabaseCl
   if (!current.data) throw new UnavailableInvite("The invite is unavailable");
   const live = await user.rpc("online_connection_active", {tab});
   if (live.error || live.data !== true) throw new Error("The session timed out");
-  return { access: grant.access, bytes: snapshot.data, client: grant.client };
+  return { access: grant.access, bytes: snapshot.data, client: grant.client, room: grant.room };
 }

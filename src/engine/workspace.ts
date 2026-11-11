@@ -232,7 +232,7 @@ export class EditorWorkspace {
   attachGuestSession(id: number, session: OnlineGuestSession) {
     const tab = this.#tabs.find(tab => tab.id === id);
     if (!tab || !this.#editable) return false;
-    if (session.ended || tab.guest?.client !== session.client || tab.guest?.file !== session.file) delete tab.liveBranches;
+    if (session.ended || tab.guest?.client !== session.client || tab.guest?.room !== session.room || tab.guest?.file !== session.file) delete tab.liveBranches;
     tab.guest = session;
     tab.engine.setLiveClient(session.ended ? 0 : session.client ?? 0);
     tab.engine.setEditable(this.#editable && (!!session.ended || session.access === "edit"));

@@ -214,6 +214,7 @@ dd { margin: 0; }
 .figcraft-toolbar[aria-label="Tools"] { column-gap: 6px; }
 .figcraft-comment-tool { display:grid; place-items:center; padding:5px; }
 
+.figcraft-live-notice { position:fixed; z-index:10; left:50%; bottom:96px; transform:translateX(-50%); width:max-content; max-width:min(480px,calc(100% - 64px)); box-sizing:content-box; margin:0; padding:10px 14px; border-radius:8px; background:#1e1e1e; color:white; font:12px/1.4 system-ui; overflow-wrap:anywhere; pointer-events:none; }
 .figcraft-people-overlay { position:absolute; inset:0; pointer-events:none; }
 .figcraft-follow-name, .figcraft-spotlight-banner { position:absolute; top:2px; left:50%; transform:translateX(-50%); max-width:95%; width:max-content; padding:3px 8px; border-radius:0 0 6px 6px; font:600 11px/1.4 system-ui; }
 .figcraft-follow-name { pointer-events:none; }

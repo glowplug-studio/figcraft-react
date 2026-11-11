@@ -7,8 +7,11 @@ export interface LiveUpdate {
   client: number; access: "edit" | "comment" | "view"; sequence: string; lastBatch: string; refused: string[];
   reset: boolean; checkpoint?: LiveCheckpoint | null; checkpointSeq?: string; batches: LiveAccepted[];
 }
+export interface LiveIdentity {room:string;client:number}
 export interface LiveTransport {
-  archive: Blob;
+  readonly archive: Blob;
+  /** Current authenticated welcome. Both values survive a physical reconnect. */
+  readonly identity?: LiveIdentity;
   people?: {
     send(sample:LivePeerSample):Promise<{client:number;name:string;colour:string;generation:string}>;
     listen(receive:(message:unknown)=>void,ready:()=>void):()=>void;

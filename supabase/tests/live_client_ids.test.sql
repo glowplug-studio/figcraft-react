@@ -18,6 +18,9 @@ create function pg_temp.issue(n integer,secret text,floor bigint default null,ca
 $$;
 select ok(not has_function_privilege('authenticated','public.join_live_file(uuid,uuid,uuid,uuid,text,text,integer,uuid,bigint)','execute')
     and not has_table_privilege('authenticated','figcraft_private.live_clients','select'),'the browser cannot issue or inspect identities');
+select ok(not has_function_privilege('authenticated','figcraft_private.issue_live_identity(uuid,uuid,uuid,uuid,uuid,text,bigint,integer)','execute')
+    and not has_function_privilege('anon','figcraft_private.issue_live_identity(uuid,uuid,uuid,uuid,uuid,text,bigint,integer)','execute'),
+    'only the trusted host can obtain a logical room welcome');
 select throws_ok($$select pg_temp.issue(1,'alpha',32)$$,'42501','connection unavailable','a validated physical grant is required');
 select is(pg_temp.connect(1),'edit','first grant');
 select is(pg_temp.issue(1,'alpha'),null::bigint,'request the floor for an unscanned immutable file');

@@ -18,8 +18,8 @@ import { WorkspaceRecovery, type WorkspaceRecoveryState } from "./engine/workspa
 
 type WorkspaceProps = Omit<EditorProps, "engine" | "recoveryStore"> & { recoveryStore: WorkspaceRecoveryStore; onlineHost?: OnlineWorkspaceHost };
 
-function GuestSubscription({connection, invitations, ended, changed, engine, client, notice, active}: {
-  active:boolean; engine:EditorEngine; client?:number; notice:(text:string)=>void;
+function GuestSubscription({connection, invitations, ended, changed, engine, client, roomId, notice, active}: {
+  active:boolean; engine:EditorEngine; client?:number; roomId?:string; notice:(text:string)=>void;
   connection: string;
   invitations: OnlineInvitations;
   changed: (connection: string, status: GuestConnectionStatus) => void;
@@ -27,15 +27,20 @@ function GuestSubscription({connection, invitations, ended, changed, engine, cli
 }) {
   useEffect(() => invitations.watch?.(connection, reason => ended(connection, reason),
     status => changed(connection, status)), [connection, invitations, ended, changed]);
+  const transport=useMemo(()=>invitations.live?.(connection),[invitations,connection]);
+  const fallbackClient=transport?.identity ? undefined : client;
   useEffect(() => {
-    const transport = invitations.live?.(connection);
-    if (!transport || !client) return;
-    const peer = new LivePeer({current:() => engine.liveDrawing(),receive:d => engine.receiveLiveDocument(d),
+    const initialClient=transport?.identity?.client ?? fallbackClient;
+    if (!transport || !initialClient) return;
+    const peer = new LivePeer({current:() => engine.liveDrawing(),receive:(d,restartedClient) => engine.receiveLiveDocument(d,restartedClient),
       recordsEdit:d => engine.recordsLiveEdit(d),
       normalise:(before,after,touched) => engine.repairLiveDocument(before,after,touched),
-      subscribe:engine.subscribe,interacting:() => engine.interacting,history:h => engine.setLiveHistory(h)},transport,client,notice);
-    const stop=peer.start();
-    if(!transport.people)return stop;
+      subscribe:engine.subscribe,interacting:() => engine.interacting,history:h => engine.setLiveHistory(h)},transport,initialClient,notice);
+    return peer.start();
+  },[engine,transport,fallbackClient,notice]);
+  useEffect(()=>{
+    const people=invitations.live?.(connection)?.people;
+    if(!people || !client)return;
     const room=new LivePeople({
       capture:cursor=>engine.capturePresence(cursor),
       name:()=>engine.commentName,
@@ -53,12 +58,12 @@ function GuestSubscription({connection, invitations, ended, changed, engine, cli
         return ()=>listeners.forEach(unsubscribe=>unsubscribe());
       },
       follow:other=>engine.followViewport(other.presence.viewport),
-    },transport.people,client);
+    },people,client);
     engine.setPeople(room);
     const leave=room.start();
-    return ()=>{leave();engine.setPeople(undefined);stop();};
-  },[client,connection,engine,invitations,notice]);
-  useEffect(()=>{engine.people?.setActive(active);},[active,client,connection,engine,invitations,notice]);
+    return ()=>{leave();engine.setPeople(undefined);};
+  },[client,roomId,connection,engine,invitations,notice]);
+  useEffect(()=>{engine.people?.setActive(active);},[active,client,roomId,engine,transport,notice]);
   return null;
 }
 
@@ -73,7 +78,18 @@ export function WorkspaceEditor({ identity, capabilities, recoveryStore, onlineH
   const [renaming, setRenaming] = useState(false);
   const [pdfPrint, setPdfPrint] = useState<PrintSettings>(defaultPrint);
   const [report, setReport] = useState<{ owner: number; value: ImportReport }>();
-  const [notice, setNotice] = useState("");
+  const [message,setMessage]=useState<{text:string;live:boolean}>();
+  const setNotice=useCallback((text:string)=>setMessage(text ? {text,live:false} : undefined),[]);
+  const setLiveNotice=useCallback((text:string)=>setMessage({text,live:true}),[]);
+  useEffect(()=>{
+    if(!message?.live)return;
+    // Start the native three-second timeout after the first frame that displays the message.
+    let timer:number|undefined;
+    let frame=requestAnimationFrame(()=>{
+      frame=requestAnimationFrame(()=>{timer=window.setTimeout(()=>setMessage(current=>current===message?undefined:current),3000);});
+    });
+    return ()=>{cancelAnimationFrame(frame);clearTimeout(timer);};
+  },[message]);
   const closeDialog = useRef<HTMLDialogElement>(null), renameDialog = useRef<HTMLDialogElement>(null);
   const openInput = useRef<HTMLInputElement>(null);
   const active = tabs.find(tab => tab.active);
@@ -230,7 +246,7 @@ export function WorkspaceEditor({ identity, capabilities, recoveryStore, onlineH
     }
   }}>
     {enabled && invitations?.watch && tabs.map(tab => tab.guest && !tab.guest.ended &&
-      <GuestSubscription active={tab.active && !home} key={tab.guest.connection} connection={tab.guest.connection} invitations={invitations} engine={workspace.engines[tab.index]} client={tab.guest.client} notice={setNotice} ended={ended} changed={connectionChanged} />)}
+      <GuestSubscription active={tab.active && !home} key={tab.guest.connection} connection={tab.guest.connection} invitations={invitations} engine={workspace.engines[tab.index]} client={tab.guest.client} roomId={tab.guest.room} notice={setLiveNotice} ended={ended} changed={connectionChanged} />)}
     {tabs.length > 1 && <div role="tablist" aria-label="Open files" className="figcraft-file-tabs">
       {tabs.map(tab => <button key={tab.id} type="button" role="tab" disabled={!enabled} aria-selected={tab.active}
         aria-label={tab.guest?.ended ? tab.name + ", disconnected from its live session" : undefined}
@@ -284,7 +300,7 @@ export function WorkspaceEditor({ identity, capabilities, recoveryStore, onlineH
       published={name => { setPublishTab(undefined); setNotice("Published " + name); }} />}
     {enabled && report && tabs.some(tab => tab.id === report.owner) && <ImportReportPanel report={report.value} close={() => setReport(undefined)} />}
     {enabled && reviewId && <BranchReviewDialog workspace={workspace} id={reviewId} close={() => setReviewId(undefined)} />}
-    {authorised && notice && <p role="alert">{notice}</p>}
+    {authorised && message && <p role="alert" className={message.live ? "figcraft-live-notice" : undefined}>{message.text}</p>}
     {closeId !== undefined && <dialog ref={closeDialog} aria-label="Close unsaved file" onCancel={() => setCloseId(undefined)}>
       <p>Discard unsaved changes to {tabs.find(tab => tab.id === closeId)?.name}?</p>
       <button autoFocus onClick={() => setCloseId(undefined)}>Cancel</button>

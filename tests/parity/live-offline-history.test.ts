@@ -55,7 +55,7 @@ it.each([4,19,37])("replays native offline edits, refusal and undo ownership on 
   });
   const stops=editors.map((engine,i)=>{
     engine.setLiveClient(i+1);
-    return new LivePeer({current:()=>engine.liveDrawing(),receive:d=>engine.receiveLiveDocument(d),subscribe:engine.subscribe,
+    return new LivePeer({current:()=>engine.liveDrawing(),receive:(d,id)=>engine.receiveLiveDocument(d,id),subscribe:engine.subscribe,
       normalise:(before,after,touched)=>engine.repairLiveDocument(before,after,touched),interacting:()=>engine.interacting,
       recordsEdit:d=>engine.recordsLiveEdit(d),history:h=>engine.setLiveHistory(h)},transport(i),i+1,text=>notices[i].push(text)).start();
   });
@@ -92,3 +92,62 @@ it.each([4,19,37])("replays native offline edits, refusal and undo ownership on 
     expect(lost).toBe(true);expect(notices[0]).toHaveLength(1);
   }finally{stops.forEach(stop=>stop());}
 },30000);
+
+interface RestartCase {freshNode:string;oldId:number;newId:number;pendingBefore:number;pending:number;resends:number;canUndo:boolean;canRedo:boolean;name:string;notices:string[]}
+const replacements:RestartCase[]=JSON.parse(readFileSync(new URL("../fixtures/native-room-restart.json",import.meta.url),"utf8"));
+it.each(replacements)("matches a fresh native room assigning client $newId with $pendingBefore queued edits",async expected=>{
+  const engine=new EditorEngine();
+  engine.setLiveClient(expected.oldId);
+  const original=await encodeFigcraftBlob(engine.liveDrawing());
+  const replacement=await encodeFigcraftBlob({...engine.liveDrawing(),name:"New server drawing"});
+  let room="first",client=expected.oldId,online=true,processed=0;
+  let truncated=expected.oldId===expected.newId && expected.pendingBefore===2,badReads=0;
+  const log:LiveAccepted[]=[],newSubmits:string[]=[],notices:string[]=[];
+  let wake=()=>{};
+  const transport:LiveTransport={
+    get archive(){
+      if(room==="first")return original;
+      if(truncated){badReads++;return new Blob([]);}
+      return replacement;
+    },
+    get identity(){return {room,client};},
+    listen(f){wake=f;return ()=>{};},
+    async read(after){
+      if(!online)throw new Error("offline");
+      return {client,access:"edit",sequence:String(log.length),lastBatch:String(processed),refused:[],
+        reset:after===null,checkpointSeq:"0",batches:log.slice(Number(after??0))};
+    },
+    async submit(batch,_base,changes){
+      if(!online)throw new Error("offline");
+      if(room!=="first")newSubmits.push(batch);
+      processed=Number(batch);
+      log.push({client,sequence:String(log.length+1),batch,changes:[...changes]});
+      return {decision:"accepted",sequence:String(log.length),refused:false};
+    },
+  };
+  const peer=new LivePeer({current:()=>engine.liveDrawing(),receive:(d,id)=>engine.receiveLiveDocument(d,id),subscribe:engine.subscribe,
+    normalise:(_before,after)=>after,interacting:()=>false,history:h=>engine.setLiveHistory(h)},transport,client,msg=>notices.push(msg));
+  const stop=peer.start();
+  try{
+    engine.execute("node.create",{type:"rectangle",name:"Before disconnect",width:10,height:10});
+    await vi.waitFor(()=>expect(processed).toBe(1));
+    expect(engine.liveHistory?.canUndo).toBe(true);
+    online=false;
+    for(let i=0;i<expected.pendingBefore;i++)engine.execute("node.create",{type:"rectangle",name:"Offline "+i,width:10,height:10});
+    room="replacement";client=expected.newId;processed=0;log.length=0;online=true;
+    wake();
+    if(truncated){
+      await vi.waitFor(()=>expect(badReads).toBeGreaterThan(0));
+      expect(engine.liveHistory?.canUndo).toBe(true);
+      expect(notices).toEqual([]);
+      truncated=false;wake();
+    }
+    await vi.waitFor(()=>expect(engine.liveDrawing().name).toBe(expected.name));
+    expect(engine.liveHistory).toMatchObject({canUndo:expected.canUndo,canRedo:expected.canRedo});
+    expect(notices).toEqual(expected.notices);
+    expect(newSubmits).toHaveLength(expected.resends);
+    engine.execute("node.create",{type:"rectangle",name:"Fresh",width:10,height:10});
+    await vi.waitFor(()=>expect(newSubmits).toEqual(["1"]));
+    expect(log[0].changes).toContainEqual(expect.objectContaining({type:"create",id:expected.freshNode}));
+  }finally{stop();}
+});

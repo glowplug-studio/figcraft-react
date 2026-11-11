@@ -22,7 +22,7 @@ export async function POST(request: Request) {
       "resume" in body ? body.resume as string : undefined, Math.min(limit, 4096));
     return new Response(result.bytes, { headers: {
       "Content-Type": "application/octet-stream", "Cache-Control": "private, no-store", "X-Figcraft-Access": result.access,
-      "X-Figcraft-Client": String(result.client),
+      "X-Figcraft-Client": String(result.client), "X-Figcraft-Room": result.room,
     } });
   } catch (error) {
     const code = error && typeof error === "object" && "code" in error ? error.code : undefined;

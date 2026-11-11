@@ -72,6 +72,8 @@ export interface OnlineGuestSession {
   file: string;
   connection: string;
   client?: number;
+  /** Logical room identity survives ordinary reconnects. */
+  room?: string;
   access: "edit" | "view" | "comment";
   /** The device opened its recorded publication. This flag confers no management authority. */
   openedAsOwner?: true;
@@ -79,7 +81,7 @@ export interface OnlineGuestSession {
   reconnectAttempt?: number;
 }
 export type GuestSessionEnd = "stopped" | "removed" | "unavailable";
-export type GuestWelcome = Pick<OnlineGuestSession, "access" | "client">;
+export type GuestWelcome = Pick<OnlineGuestSession, "access" | "client" | "room">;
 export type GuestConnectionStatus = {attempt: number} | GuestWelcome;
 export interface OnlineInvitations {
   live?(connection: string): import("../engine/sharing/live-transport").LiveTransport | undefined;
