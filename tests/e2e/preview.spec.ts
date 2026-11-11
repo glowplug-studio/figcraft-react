@@ -1036,6 +1036,87 @@ if (!process.env.PLAYWRIGHT_BASE_URL) test("a view-only phone sees a live pointe
   },"view");
 });
 
+if (!process.env.PLAYWRIGHT_BASE_URL) test("two editors see scalar text selection, a shared-layer typing notice and inactive-tab cleanup",async({page,browser},info)=>{
+  test.setTimeout(90_000);
+  const text="Shared 🙂 text";
+  async function enterText(actor:Page){
+    const canvas=actor.getByLabel("Design canvas",{exact:true});
+    await canvas.focus();await actor.keyboard.press("t");
+    const pending=actor.waitForEvent("download");
+    await actor.getByRole("button",{name:"Save as",exact:true}).click();
+    const native=await decodeFigcraft(await readFile((await (await pending).path())!));
+    const node=Object.values(native.document.nodes).find(n=>n.kind==="text" && n.text.characters===text);
+    if(!node || node.kind!=="text")throw new Error("Published drawing did not contain the seeded text");
+    const point=transformPoint(worldTransform(native.document,node.id),{x:Math.min(5,node.width/2),y:Math.min(5,node.height/2)});
+    const hit=await canvasPoint(actor,point.x,point.y);await actor.mouse.click(hit.x,hit.y);
+    const input=actor.getByRole("textbox",{name:"Edit text layer"});
+    await expect(input).toBeFocused();await expect(input).toHaveValue(text);
+    return input;
+  }
+  await withSharedDrawing(page,browser,async()=>{
+    await setCommentName(page,"Ari");
+    const canvas=page.getByLabel("Design canvas",{exact:true});
+    await canvas.focus();await page.keyboard.press("t");
+    const at=await canvasPoint(page,110,95);await page.mouse.click(at.x,at.y);
+    const input=page.getByRole("textbox",{name:"Edit text layer"});await expect(input).toBeFocused();
+    await page.keyboard.insertText(text);await expect(input).toHaveValue(text);await input.press("Escape");
+    await expect(page.getByText("1 layer",{exact:true})).toBeVisible();
+  },async(peer)=>{
+    await setCommentName(peer,"Bea");
+    const sent=page.waitForResponse(r=>new URL(r.url()).pathname==="/api/online-files/presence" &&
+      r.ok() && r.request().postDataJSON()?.sample?.presence.editingText?.selection?.[1]===[...text].length);
+    const author=await enterText(page);await author.press("ControlOrMeta+a");
+    const receipt=await sent,colour=(await receipt.json()).colour as string;
+    // An untinted overlay is transparent. Count pixels with the 25% alpha of the native character selection.
+    const tint=()=>peer.locator(".figcraft-people-overlay").evaluate((el:HTMLCanvasElement,hex)=>{
+      const rgb=Number.parseInt(hex.slice(1),16),expected=[rgb>>16,rgb>>8&255,rgb&255];
+      const p=el.getContext("2d")!.getImageData(0,0,el.width,el.height).data;
+      let count=0;
+      for(let i=0;i<p.length;i+=4)if(p[i+3]>=62 && p[i+3]<=65 && expected.every((v,c)=>Math.abs(v-p[i+c])<=4))count++;
+      return count;
+    },colour);
+    await expect.poll(tint).toBeGreaterThan(100);
+    const guest=await enterText(peer);
+    await expect(peer.getByRole("alert").filter({hasText:"Ari is editing this text too: the version finished last is kept"})).toBeVisible();
+    await peer.screenshot({path:info.outputPath("peer-text-selection-phone.png")});
+    await guest.press("Escape");
+    const inactive=page.waitForResponse(r=>new URL(r.url()).pathname==="/api/online-files/presence" && r.ok() &&
+      r.request().postDataJSON()?.sample?.presence.viewport===null);
+    await author.press("Escape");
+    const file=page.locator(".figcraft-document-bar");
+    await file.getByText("File",{exact:true}).click();await file.getByRole("button",{name:"New file",exact:true}).click();
+    await inactive;
+    await expect.poll(tint).toBeLessThan(100);
+  });
+});
+
+if (!process.env.PLAYWRIGHT_BASE_URL) test("a delayed phone edit rolls back after the owner deletes its layer and shows the native refusal",async({page,browser})=>{
+  test.setTimeout(75_000);
+  await withSharedDrawing(page,browser,()=>page.getByRole("button",{name:"Create rectangle",exact:true}).click(),async(peer,file)=>{
+    const layers=(p:Page)=>p.locator('ul[aria-label="Page layers"] li');
+    const design=(p:Page)=>p.getByLabel("Design canvas",{exact:true});
+    for(const editor of [page,peer]){
+      await expect(layers(editor)).toHaveCount(1);
+      await design(editor).focus();await editor.keyboard.press("ControlOrMeta+a");
+    }
+    let delayed=true,held=0;
+    await peer.route("**/api/online-files/live",async route=>{
+      if(delayed){held++;await route.fulfill({status:503,body:""});}
+      else await route.continue();
+    });
+    await design(peer).focus();await peer.keyboard.press("ArrowRight");
+    await expect.poll(()=>held).toBeGreaterThan(0);
+    await design(page).focus();await page.keyboard.press("Delete");
+    await expect(layers(page)).toHaveCount(0);
+    const seq=()=>Number(localOperatorSql(backend!,"select seq from figcraft_private.live_rooms where file_id=:'file'",{file}));
+    await expect.poll(seq).toBe(1);
+    delayed=false;
+    await expect(peer.getByRole("alert").filter({hasText:"Your change couldn't be applied: a layer it changes was deleted by someone else"})).toBeVisible({timeout:15000});
+    await expect(layers(peer)).toHaveCount(0);await expect(peer.getByRole("button",{name:"Undo",exact:true})).toBeDisabled();
+    expect(seq()).toBe(1);
+  });
+});
+
 if (!process.env.PLAYWRIGHT_BASE_URL) test("two editors converge after a lost acknowledgement and undo only their own shape",async({page,browser},info) => {
   test.setTimeout(90_000);
   await withSharedDrawing(page,browser,()=>page.getByRole("button",{name:"Create rectangle",exact:true}).click(),async(peer,file)=>{

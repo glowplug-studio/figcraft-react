@@ -2,7 +2,7 @@ import type { LiveUpdate } from "../../engine/sharing/live-transport";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { decodeFigcraft } from "../../engine/file-format";
 import { idString } from "../../engine/native-values";
-import { admitLiveChanges, type RemovedLiveIds } from "../../engine/sharing/live-admission";
+import { admitLiveChanges, liveRefusalReason, type RemovedLiveIds } from "../../engine/sharing/live-admission";
 import { liveReplica, type LiveChange, type LiveReplica } from "../../engine/sharing/live-changes";
 import { makeLiveCheckpoint, restoreLiveCheckpoint } from "../../engine/sharing/live-checkpoint";
 import { applyLive } from "../../engine/sharing/live-replica";
@@ -59,7 +59,7 @@ export async function submitLiveBatch(writer: SupabaseClient, conn: LiveConnecti
       proposed = await admitLiveChanges(replica,state.removed,new Set(state.issued),
         {access:state.access,client:state.client,base:baseSeq,sequence,changes});
     } catch (error) {
-      reason = error instanceof Error ? error.message : "Invalid live batch";
+      reason = liveRefusalReason(error);
     }
     const weight = proposed ? liveChangeWeight(changes) : 0;
     const snapshot = proposed && (sequence - BigInt(state.checkpointSeq) >= 127n ||

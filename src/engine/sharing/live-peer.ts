@@ -15,7 +15,7 @@ export interface LiveEditor {
   normalise(before: Document, after: Document, touched: ReadonlySet<string>): Document;
   history(controller?: {canUndo: boolean; canRedo: boolean; travel(undo: boolean): boolean}): void;
 }
-type Pending = {base: string; batch?: string; changes: LiveChange[]; step?: LiveStep; rebased?: boolean; direction: "edit"|"undo"|"redo"|"followUp"};
+type Pending = {reason?:string; base: string; batch?: string; changes: LiveChange[]; step?: LiveStep; rebased?: boolean; direction: "edit"|"undo"|"redo"|"followUp"};
 
 /** One ordered writer per physical editor. In-flight IDs survive a lost reply and a physical reconnect. */
 export class LivePeer {
@@ -131,15 +131,19 @@ export class LivePeer {
     this.sequence = update.sequence;
     const processed = BigInt(update.lastBatch), refused = new Set(update.refused);
     this.next = this.next > processed ? this.next : processed+1n;
+    const droppedSteps=new Set<LiveStep>();
     this.pending = this.pending.filter(p => {
+      if(!p.batch && p.step && droppedSteps.has(p.step))return false;
       if (!p.batch || BigInt(p.batch)>processed) return true;
       if (refused.has(p.batch)) {
         this.redraw = true;
         this.undo = this.undo.filter(s => s !== p.step);
         this.redo = this.redo.filter(s => s !== p.step);
-        if (p.step && p.direction === "undo") this.undo.push(p.step);
-        if (p.step && p.direction === "redo") this.redo.push(p.step);
-        this.notice("Your shared edit was refused.");
+        if(p.step)droppedSteps.add(p.step);
+        if(p.direction!=="followUp"){
+          const prefix=p.direction==="undo"?"Couldn't undo":p.direction==="redo"?"Couldn't redo":"Your change couldn't be applied";
+          this.notice(prefix+": "+(p.reason??"it no longer applied when the connection came back"));
+        }
       } else if (p.step) p.step.confirmed = true;
       return false;
     });
@@ -219,7 +223,8 @@ export class LivePeer {
       const head = this.pending[0];
       if (head && this.alive) {
         head.batch ??= String(this.next++);
-        await this.transport.submit(head.batch,head.base,head.changes);
+        const result=await this.transport.submit(head.batch,head.base,head.changes);
+        if(result.refused)head.reason=result.reason;
         nextPoll = 0;
       }
     } catch { failed = true; nextPoll = 1800; }

@@ -40,7 +40,16 @@ function GuestSubscription({connection, invitations, ended, changed, engine, cli
       capture:cursor=>engine.capturePresence(cursor),
       name:()=>engine.commentName,
       subscribe:changed=>{
-        const listeners=[engine.subscribe(changed),engine.subscribeView(changed),engine.subscribeCanvas(changed)];
+        let editing:string|undefined;
+        const canvasChanged=()=>{
+          const id=engine.getTextRange()?.node.id;
+          if(id && id!==editing){
+            const hint=engine.people?.typingHint(id);
+            if(hint)notice(hint+" too: the version finished last is kept");
+          }
+          editing=id;changed();
+        };
+        const listeners=[engine.subscribe(changed),engine.subscribeView(changed),engine.subscribeCanvas(canvasChanged)];
         return ()=>listeners.forEach(unsubscribe=>unsubscribe());
       },
       follow:other=>engine.followViewport(other.presence.viewport),

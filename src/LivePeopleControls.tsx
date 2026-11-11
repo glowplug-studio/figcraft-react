@@ -1,11 +1,14 @@
 import {useEffect,useRef,useState,useSyncExternalStore,type RefObject} from "react";
 import type {EditorEngine} from "./engine/editor";
 import {pageForNode,worldTransform} from "./engine/hierarchy";
+import {transformPoint} from "./engine/affine";
+import {scalarCount} from "./engine/text-ranges";
 import type {Point} from "./engine/geometry";
 import type {LivePeople} from "./engine/sharing/live-people";
 import {pageToScreen,screenToPage} from "./engine/viewport";
 import {textCaret,textSelectionRects} from "./engine/text-caret";
-import {textNodeLayout} from "./engine/text-node-layout";
+import {documentTextReady,prepareDocumentText,textNodeLayout} from "./engine/text-node-layout";
+import type {Document} from "./engine/document";
 
 export function LivePeopleControls({room,engine}:{room:LivePeople;engine:EditorEngine}) {
   // Cursor coordinates need not repaint the document header.
@@ -47,8 +50,9 @@ export function LivePeopleOverlay({room,engine,canvas}:{room:LivePeople;engine:E
     if(!surface || !overlay || !ctx)return;
     const motion=window.matchMedia("(prefers-reduced-motion: reduce)");
     const shown=new Map<number,Point>(), chats=new Map<number,{text:string;since:number}>();
-    let frame=0,last=performance.now(),wake:ReturnType<typeof setTimeout>|undefined;
-    const queue=()=>{if(!frame)frame=requestAnimationFrame(draw);};
+    const preparing=new WeakSet<Document>();
+    let mounted=true,frame=0,last=performance.now(),wake:ReturnType<typeof setTimeout>|undefined;
+    const queue=()=>{if(mounted && !frame)frame=requestAnimationFrame(draw);};
     const updatePointer=()=>room.point(point.current && screenToPage(engine.getView(),point.current));
     function pointer(event:PointerEvent) {
       const rect=surface!.getBoundingClientRect();
@@ -90,19 +94,31 @@ export function LivePeopleOverlay({room,engine,canvas}:{room:LivePeople;engine:E
             c.save();c.transform(...worldTransform(doc,id));c.strokeRect(0,0,node.width,node.height);c.restore();
             if(++outlines===500)break;
           }
-          const text=editingText && doc.nodes[editingText.node];
-          if(editingText && text?.kind==="text" && pageForNode(doc,text.id)===doc.currentPage) {
-            const {layout,dy}=textNodeLayout(text),caret=textCaret(layout,editingText.caret),line=layout.lines[caret.line];
-            c.save();c.transform(...worldTransform(doc,text.id));c.translate(0,dy);
-            c.fillStyle=peer.colour;
-            if(editingText.selection){
-              c.globalAlpha=0.25;
-              for(const r of textSelectionRects(layout,...editingText.selection))c.fillRect(r.x,r.y,r.width,r.height);
-              c.globalAlpha=1;
-            }
-            c.fillRect(caret.x,line?.top??0,1.5/view.zoom,line?.height??text.height);c.restore();
-          }
           c.restore();
+        }
+        const text=editingText && doc.nodes[editingText.node];
+        const visibleText=text?.kind==="text" && pageForNode(doc,text.id)===doc.currentPage;
+        if(visibleText && !documentTextReady(doc) && !preparing.has(doc)){
+          preparing.add(doc);
+          // The main canvas reports a failed font load. Resume this overlay once the same drawing is ready.
+          void prepareDocumentText(doc).then(queue,()=>{});
+        }
+        if(editingText && visibleText && documentTextReady(doc)) {
+          const {layout,dy}=textNodeLayout(text),length=scalarCount(text.text.characters);
+          const caret=textCaret(layout,Math.min(length,editingText.caret)),line=layout.lines[caret.line];
+          const matrix=worldTransform(doc,text.id),top=(line?.top??0)+dy;
+          if(editingText.selection && editingText.selection[0]<editingText.selection[1]){
+            c.save();c.translate(origin.x,origin.y);c.scale(view.zoom,view.zoom);c.transform(...matrix);c.translate(0,dy);
+            c.fillStyle=peer.colour;c.globalAlpha=0.25;
+            const [start,end]=editingText.selection;
+            for(const r of textSelectionRects(layout,Math.min(length,start),Math.min(length,end)))c.fillRect(r.x,r.y,r.width,r.height);
+            c.restore();
+          }
+          const start=pageToScreen(view,transformPoint(matrix,{x:caret.x,y:top}));
+          const end=pageToScreen(view,transformPoint(matrix,{x:caret.x,y:top+(line?.height??text.height)}));
+          c.beginPath();c.moveTo(start.x,start.y);c.lineTo(end.x,end.y);c.strokeStyle=peer.colour;c.lineWidth=2;c.stroke();
+          const name=engine.getTextRange()?.node.id===text.id?peer.name+" is editing this text":peer.name;
+          drawName(c,name,"",peer.colour,Math.min(start.x,end.x)-1,Math.min(start.y,end.y)-21);
         }
         let message=chats.get(peer.client);
         if(!peer.chat){chats.delete(peer.client);message=undefined;}
@@ -137,7 +153,7 @@ export function LivePeopleOverlay({room,engine,canvas}:{room:LivePeople;engine:E
     const abort=new AbortController(),options={signal:abort.signal,capture:true};
     surface.addEventListener("pointermove",pointer,options);surface.addEventListener("pointerleave",leave,options);
     window.addEventListener("keydown",shortcut,options);queue();
-    return ()=>{abort.abort();resize.disconnect();unlisten.forEach(remove=>remove());clearTimeout(wake);clearTimeout(closeTimer.current);cancelAnimationFrame(frame);room.point(null);};
+    return ()=>{mounted=false;abort.abort();resize.disconnect();unlisten.forEach(remove=>remove());clearTimeout(wake);clearTimeout(closeTimer.current);cancelAnimationFrame(frame);room.point(null);};
   },[room,engine,canvas]);
   function expireChat() {
     clearTimeout(closeTimer.current);

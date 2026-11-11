@@ -1,0 +1,155 @@
+{
+  "stages": [
+    {
+      "history": [
+        [
+          true,
+          false
+        ],
+        [
+          true,
+          false
+        ]
+      ],
+      "name": "Offline",
+      "notices": [
+        [],
+        []
+      ],
+      "rejected": 0,
+      "sequence": 2,
+      "stage": "reconnected",
+      "width": 30.0
+    },
+    {
+      "history": [
+        [
+          false,
+          true
+        ],
+        [
+          true,
+          false
+        ]
+      ],
+      "name": "Box",
+      "notices": [
+        [],
+        []
+      ],
+      "rejected": 0,
+      "sequence": 3,
+      "stage": "undo",
+      "width": 73.0
+    },
+    {
+      "history": [
+        [
+          true,
+          false
+        ],
+        [
+          true,
+          false
+        ]
+      ],
+      "name": "Offline",
+      "notices": [
+        [],
+        []
+      ],
+      "rejected": 0,
+      "sequence": 4,
+      "stage": "redo",
+      "width": 30.0
+    },
+    {
+      "history": [
+        [
+          true,
+          false
+        ],
+        [
+          true,
+          false
+        ]
+      ],
+      "name": "Offline",
+      "notices": [
+        [],
+        []
+      ],
+      "rejected": 0,
+      "sequence": 5,
+      "stage": "peer moves",
+      "width": 91.0
+    },
+    {
+      "history": [
+        [
+          false,
+          true
+        ],
+        [
+          true,
+          false
+        ]
+      ],
+      "name": "Box",
+      "notices": [
+        [],
+        []
+      ],
+      "rejected": 0,
+      "sequence": 6,
+      "stage": "undo preserves peer",
+      "width": 91.0
+    },
+    {
+      "history": [
+        [
+          false,
+          false
+        ],
+        [
+          true,
+          false
+        ]
+      ],
+      "name": null,
+      "notices": [
+        [
+          "Your change couldn't be applied: a layer it changes was deleted by someone else"
+        ],
+        []
+      ],
+      "rejected": 1,
+      "sequence": 7,
+      "stage": "stale rename",
+      "width": null
+    }
+  ],
+  "lostRefusal": {
+    "history": [
+      [
+        false,
+        false
+      ],
+      [
+        true,
+        false
+      ]
+    ],
+    "name": null,
+    "notices": [
+      [
+        "Your change couldn't be applied: it no longer applied when the connection came back"
+      ],
+      []
+    ],
+    "rejected": 0,
+    "sequence": 7,
+    "stage": "stale rename",
+    "width": null
+  }
+}

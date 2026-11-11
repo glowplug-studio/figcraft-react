@@ -8,6 +8,10 @@ import { blankNode, sessionNodeFields } from "./document-session";
 import type { LiveChange, LiveReplica } from "./live-changes";
 import { applyLiveDocumentChange } from "./live-document";
 
+export class MissingLiveLayer extends Error {
+  constructor(id:string){super("No such layer: "+id);}
+}
+
 function nodeKind(raw: string): WireFields {
   const kind = parse(raw);
   if (!kind || typeof kind !== "object" || !("type" in kind) || typeof kind.type !== "string") throw new Error("Invalid live layer kind");
@@ -101,7 +105,7 @@ export async function applyLive(from: LiveReplica, changes: readonly LiveChange[
           changedPositions!.delete(next);
         }
       } else {
-        if (!prior) throw new Error("No such layer: " + key);
+        if (!prior) throw new MissingLiveLayer(key);
         if (change.prop === "position") {
           const position = parse(change.value);
           if (typeof position !== "string") throw new Error("Invalid layer position");

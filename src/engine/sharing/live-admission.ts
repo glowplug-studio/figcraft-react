@@ -2,7 +2,7 @@ import { numericOrder } from "../branch-diff";
 import type { Document } from "../document";
 import { U64_MAX } from "../native-values";
 import type { LiveChange, LiveReplica } from "./live-changes";
-import { applyLive } from "./live-replica";
+import { applyLive,MissingLiveLayer } from "./live-replica";
 import { maxLiveChanges } from "./live-wire";
 
 export interface RemovedLiveIds {
@@ -58,6 +58,11 @@ function checkEntries(before: Document, after: Document, changes: readonly LiveC
     }
     for (const key of old) if (!next.has(key)) removed.add(family + "/" + key);
   }
+}
+
+export function liveRefusalReason(error:unknown) {
+  if(error instanceof MissingLiveLayer)return "a layer it changes was deleted by someone else";
+  return error instanceof Error ? error.message : "Invalid live batch";
 }
 
 export function permitsLiveChanges(access: "edit" | "comment" | "view", changes: readonly LiveChange[]) {

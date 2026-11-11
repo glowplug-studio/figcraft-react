@@ -44,6 +44,13 @@ export class LivePeople {
   onChat(f:()=>void){this.chatListeners.add(f);return ()=>{this.chatListeners.delete(f);};}
   openChat(){this.chatListeners.forEach(f=>f());}
   refreshName(){this.changed();}
+  typingHint(node:string) {
+    const names=this.getSnapshot().filter(p=>p.presence.editingText?.node===node).map(p=>p.name);
+    if(!names.length)return;
+    if(names.length===1)return names[0]+" is editing this text";
+    if(names.length===2)return names[0]+" and "+names[1]+" are editing this text";
+    return names[0]+" and "+(names.length-1)+" others are editing this text";
+  }
   get following(){return this.followed;}
   get spotlighting(){return this.spotlight;}
   get cursorChat(){return this.chat;}
