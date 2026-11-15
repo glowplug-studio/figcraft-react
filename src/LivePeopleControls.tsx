@@ -5,6 +5,7 @@ import {transformPoint} from "./engine/affine";
 import {scalarCount} from "./engine/text-ranges";
 import type {Point} from "./engine/geometry";
 import type {LivePeople} from "./engine/sharing/live-people";
+import {peerColour,peerTextColour} from "./engine/sharing/peer-colour";
 import {pageToScreen,screenToPage} from "./engine/viewport";
 import {textCaret,textSelectionRects} from "./engine/text-caret";
 import {documentTextReady,prepareDocumentText,textNodeLayout} from "./engine/text-node-layout";
@@ -20,7 +21,7 @@ export function LivePeopleControls({room,engine,menuGroup,notify}:{room:LivePeop
       event.preventDefault();(event.currentTarget.nextElementSibling as HTMLButtonElement|null)?.focus();
     }} aria-pressed={room.following===peer.id}
       onClick={()=>engine.execute("collab.follow",room.following===peer.id?{}:{client:peer.id})}>
-      <span aria-hidden="true" style={{color:peer.color}}>● </span>{room.following===peer.id?"Unfollow ":"Follow "}{peer.name}</button>
+      <span aria-hidden="true" style={{color:peerColour(peer.color)}}>● </span>{room.following===peer.id?"Unfollow ":"Follow "}{peer.name}</button>
       {engine.canRemovePeople && <button type="button" onClick={async event=>{
         event.currentTarget.closest("details")?.removeAttribute("open");
         try{
@@ -33,12 +34,8 @@ export function LivePeopleControls({room,engine,menuGroup,notify}:{room:LivePeop
   </div></details>;
 }
 
-function textOn(colour:string) {
-  const rgb=Number.parseInt(colour.slice(1),16);
-  return ((rgb>>16)*0.299+(rgb>>8&255)*0.587+(rgb&255)*0.114)>170?"#1e1e1e":"#fff";
-}
-
 function drawName(ctx:CanvasRenderingContext2D,name:string,chat:string,colour:string,x:number,y:number) {
+  colour=peerColour(colour);
   ctx.font="600 11px system-ui";
   const lines=name?[name]:[];let line="";
   for(const char of chat) {
@@ -49,7 +46,7 @@ function drawName(ctx:CanvasRenderingContext2D,name:string,chat:string,colour:st
   const width=Math.max(...lines.map(value=>ctx.measureText(value).width))+12;
   ctx.fillStyle=colour;
   ctx.beginPath();ctx.roundRect(x,y,width,lines.length*15+4,4);ctx.fill();
-  ctx.fillStyle=textOn(colour);ctx.textBaseline="top";
+  ctx.fillStyle=peerTextColour(colour);ctx.textBaseline="top";
   lines.forEach((value,index)=>ctx.fillText(value,x+6,y+3+index*15));
 }
 
@@ -99,11 +96,12 @@ export function LivePeopleOverlay({room,engine,canvas}:{room:LivePeople;engine:E
       const glide=motion.matches?1:1-Math.exp(-20*Math.max(0,now-last)/1000);
       last=now;
       for(const peer of peers) {
+        const colour=peerColour(peer.colour);
         const {cursor,selection,viewport,editingText}=peer.presence;
-        if(room.following===peer.client){c.strokeStyle=peer.colour;c.lineWidth=2;c.strokeRect(1,1,rect.width-2,rect.height-2);}
+        if(room.following===peer.client){c.strokeStyle=colour;c.lineWidth=2;c.strokeRect(1,1,rect.width-2,rect.height-2);}
         if((viewport?.[0]??cursor?.[0])===doc.currentPage){
           c.save();c.translate(origin.x,origin.y);c.scale(view.zoom,view.zoom);
-          c.strokeStyle=peer.colour;c.lineWidth=1.5/view.zoom;
+          c.strokeStyle=colour;c.lineWidth=1.5/view.zoom;
           let outlines=0;
           for(const id of selection??[]){
             const node=doc.nodes[id];if(!node || node.kind==="page" || pageForNode(doc,id)!==doc.currentPage)continue;
@@ -125,16 +123,16 @@ export function LivePeopleOverlay({room,engine,canvas}:{room:LivePeople;engine:E
           const matrix=worldTransform(doc,text.id),top=(line?.top??0)+dy;
           if(editingText.selection && editingText.selection[0]<editingText.selection[1]){
             c.save();c.translate(origin.x,origin.y);c.scale(view.zoom,view.zoom);c.transform(...matrix);c.translate(0,dy);
-            c.fillStyle=peer.colour;c.globalAlpha=0.25;
+            c.fillStyle=colour;c.globalAlpha=0.25;
             const [start,end]=editingText.selection;
             for(const r of textSelectionRects(layout,Math.min(length,start),Math.min(length,end)))c.fillRect(r.x,r.y,r.width,r.height);
             c.restore();
           }
           const start=pageToScreen(view,transformPoint(matrix,{x:caret.x,y:top}));
           const end=pageToScreen(view,transformPoint(matrix,{x:caret.x,y:top+(line?.height??text.height)}));
-          c.beginPath();c.moveTo(start.x,start.y);c.lineTo(end.x,end.y);c.strokeStyle=peer.colour;c.lineWidth=2;c.stroke();
+          c.beginPath();c.moveTo(start.x,start.y);c.lineTo(end.x,end.y);c.strokeStyle=colour;c.lineWidth=2;c.stroke();
           const name=engine.getTextRange()?.node.id===text.id?peer.name+" is editing this text":peer.name;
-          drawName(c,name,"",peer.colour,Math.min(start.x,end.x)-1,Math.min(start.y,end.y)-21);
+          drawName(c,name,"",colour,Math.min(start.x,end.x)-1,Math.min(start.y,end.y)-21);
         }
         let message=chats.get(peer.client);
         if(!peer.chat){chats.delete(peer.client);message=undefined;}
@@ -147,11 +145,11 @@ export function LivePeopleOverlay({room,engine,canvas}:{room:LivePeople;engine:E
         shown.set(peer.client,pos);
         const tip=pageToScreen(view,pos);c.save();c.translate(tip.x,tip.y);
         c.beginPath();c.moveTo(0,0);c.lineTo(3.5,15.5);c.lineTo(7.5,8.5);c.lineTo(15.5,4);c.closePath();
-        c.fillStyle=peer.colour;c.fill();c.strokeStyle="#fff";c.lineWidth=1.5;c.stroke();
+        c.fillStyle=colour;c.fill();c.strokeStyle="#fff";c.lineWidth=1.5;c.stroke();
         const age=message?now-message.since:Infinity;
         if(age<5000)delay=Math.min(delay,5000-age);
         else if(age<6000 && !motion.matches){c.globalAlpha=(6000-age)/1000;queue();}
-        drawName(c,peer.name,age<(motion.matches?5000:6000)?peer.chat:"",peer.colour,12,16);c.restore();
+        drawName(c,peer.name,age<(motion.matches?5000:6000)?peer.chat:"",colour,12,16);c.restore();
       }
       const localAge=now-localTyped.current;
       if(!input.current && room.cursorChat && localAge<(motion.matches?5000:6000)){
@@ -182,7 +180,7 @@ export function LivePeopleOverlay({room,engine,canvas}:{room:LivePeople;engine:E
     redraw.current();
   },[chatAt]);
   return <><canvas aria-hidden="true" ref={layer} className="figcraft-people-overlay"/>
-    {following && <div className="figcraft-follow-name" style={{background:following.colour,color:textOn(following.colour)}}>
+    {following && <div className="figcraft-follow-name" style={{background:peerColour(following.colour),color:peerTextColour(following.colour)}}>
       Following {following.name} · Escape to stop</div>}
     {room.spotlighting ? <div className="figcraft-spotlight-banner">You're spotlighting: everyone follows your view
       <button type="button" onClick={()=>engine.execute("collab.spotlight",{on:false})}>Stop</button></div>

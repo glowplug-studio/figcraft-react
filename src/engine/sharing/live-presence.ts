@@ -9,6 +9,22 @@ export interface LivePresence {
 export interface PresenceSignal {kind:"chat"|"spotlight"|"name"|"ready";text:string}
 export const presenceColours=["#0D99FF","#9747FF","#14AE5C","#F24822","#D9730D","#E83E8C","#00A3A3","#665CE0"] as const;
 export const presenceInterval=33;
+export const maxPeople=4096;
+const maxPeerName=256,maxPeerColour=32;
+
+/** Rust strings contain Unicode scalars. Reject an isolated UTF-16 surrogate in
+ * the retained prefix, and stop before examining or allocating the discarded tail. */
+function scalarPrefix(value:unknown,limit:number):string {
+  if(typeof value!=="string")throw new Error("Invalid participant identity");
+  let prefix="",count=0;
+  for(const scalar of value){
+    if(count===limit)break;
+    const code=scalar.codePointAt(0)!;
+    if(code>=0xd800 && code<=0xdfff)throw new Error("Invalid participant Unicode scalar");
+    prefix+=scalar;count++;
+  }
+  return prefix;
+}
 
 function object(value:unknown):Record<string,unknown> {
   if (!value || typeof value!=="object" || Array.isArray(value)) throw new Error("Invalid presence object");
@@ -76,31 +92,32 @@ export interface LivePeerMessage extends LivePeerSample {
   colour:string;
   generation:string;
 }
-export function readPeerSample(input:unknown):LivePeerSample {
+function readSample(input:unknown,incoming:boolean):LivePeerSample {
   const p=object(input);
   if(typeof p.name!=="string" || typeof p.chat!=="string" || typeof p.hello!=="boolean" ||
     typeof p.left!=="boolean" || typeof p.spotlight!=="boolean") throw new Error("Invalid live sample");
-  const chat=cleanPresenceSignal({kind:"chat",text:p.chat}),name=cleanPresenceSignal({kind:"name",text:p.name});
+  const chat=cleanPresenceSignal({kind:"chat",text:p.chat}),name=incoming
+    ? {text:scalarPrefix(p.name,maxPeerName)} : cleanPresenceSignal({kind:"name",text:p.name});
   if(!chat || !name && p.name.trim())throw new Error("Invalid live signal");
   return {sequence:offset(p.sequence),name:name?.text??"",chat:chat.text,spotlight:p.spotlight,hello:p.hello,left:p.left,presence:readPresence(p.presence)};
 }
+/** Client-to-provider validation remains stricter than incoming host identity bounds. */
+export function readPeerSample(input:unknown):LivePeerSample {return readSample(input,false);}
 
 export type PeerIdentity=Pick<LivePeerMessage,"client"|"name"|"colour"|"generation">;
 export interface PeopleWelcome {me:PeerIdentity;peers:PeerIdentity[]}
 export function readPeerIdentity(input:unknown):PeerIdentity {
   const p=object(input);
   if(typeof p.client!=="number" || !Number.isInteger(p.client) || p.client<1 || p.client>=0xffffffff ||
-    typeof p.colour!=="string" || !presenceColours.some(c=>c===p.colour) ||
     typeof p.generation!=="string" || !/^[1-9][0-9]{0,19}$/.test(p.generation)) throw new Error("Invalid live peer");
-  const name=cleanPresenceSignal({kind:"name",text:p.name});
-  if (!name && p.name!=="") throw new Error("Invalid participant name");
-  return {name:name?.text ?? "",client:p.client,colour:p.colour,generation:p.generation};
+  return {name:scalarPrefix(p.name,maxPeerName),client:p.client,
+    colour:scalarPrefix(p.colour,maxPeerColour),generation:p.generation};
 }
 export function readPeopleWelcome(input:unknown):PeopleWelcome {
   const value=object(input);
-  if (!Array.isArray(value.peers) || value.peers.length>4096) throw new Error("Invalid participant list");
-  return {me:readPeerIdentity(value.me),peers:value.peers.map(readPeerIdentity)};
+  if (!Array.isArray(value.peers)) throw new Error("Invalid participant list");
+  return {me:readPeerIdentity(value.me),peers:value.peers.slice(0,maxPeople).map(readPeerIdentity)};
 }
 export function readPeerMessage(input:unknown):LivePeerMessage {
-  return {...readPeerSample(input),...readPeerIdentity(input)};
+  return {...readSample(input,true),...readPeerIdentity(input)};
 }

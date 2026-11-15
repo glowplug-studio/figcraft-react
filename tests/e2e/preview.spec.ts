@@ -1311,7 +1311,7 @@ if (!process.env.PLAYWRIGHT_BASE_URL) test("a second account discovers, opens an
   }
 });
 
-async function withSharedDrawing(page:Page,browser:Browser,seed:()=>Promise<void>,exercise:(peer:Page,file:string)=>Promise<void>,role:"edit"|"comment"|"view"="edit") {
+async function withSharedDrawing(page:Page,browser:Browser,seed:()=>Promise<void>,exercise:(peer:Page,file:string)=>Promise<void>,role:"edit"|"comment"|"view"="edit",preparePeer?:(peer:Page)=>Promise<void>) {
   await login(page);
   const guestEmail = "ordered-"+randomUUID()+"@example.test", guestPassword = "Guest-"+randomUUID()+"!";
   const user = await backend!.admin.auth.admin.createUser({email:guestEmail,password:guestPassword,email_confirm:true});
@@ -1341,6 +1341,7 @@ async function withSharedDrawing(page:Page,browser:Browser,seed:()=>Promise<void
       await bar.getByRole("button",{name:"Copy link",exact:true}).click();
       await expect(page.getByText("Link copied",{exact:true})).toBeVisible();
     }
+    await preparePeer?.(peer);
     await peer.goto(await page.evaluate(()=>navigator.clipboard.readText()));
     await peer.getByLabel("Email",{exact:true}).fill(guestEmail);
     await peer.getByLabel("Password",{exact:true}).fill(guestPassword);
@@ -1461,6 +1462,52 @@ if (!process.env.PLAYWRIGHT_BASE_URL) test("the phone People menu names the owne
     await peer.getByRole("tab",{name:"Ordered drawing",exact:true}).click();
     await expect(people.locator("summary")).toHaveText("People (2)");
   },"view");
+});
+
+if (!process.env.PLAYWRIGHT_BASE_URL) test("a hostile welcome keeps the first 4096 bounded peers, renders the native accent and still syncs drawing edits",async({page,browser})=>{
+  test.setTimeout(75_000);
+  // The invalid scalar is outside the retained prefix and must never be read.
+  const name=" \t"+"🙂".repeat(100_000)+"\ud800",boundedName=" \t"+"🙂".repeat(254);
+  let welcomes=0;
+  await withSharedDrawing(page,browser,()=>page.getByRole("button",{name:"Create rectangle",exact:true}).click(),async peer=>{
+    const people=peer.locator(".figcraft-live-people");
+    await expect(people.locator("summary")).toHaveText("People (4097)");
+    await people.locator("summary").click();
+    const first=people.getByRole("button").first();
+    await expect.poll(()=>first.textContent()).toBe("● Follow "+boundedName);
+    await expect(first.locator("span")).toHaveCSS("color","rgb(0, 135, 95)");
+    await expect(people.getByRole("button",{name:"Follow Retained 4095",exact:true})).toHaveCount(1);
+    await expect(people.getByRole("button",{name:/Discarded/})).toHaveCount(0);
+    expect(welcomes).toBe(1);
+    // Following paints even a welcome-only peer's frame, exercising the Canvas fallback too.
+    await first.click();
+    await expect(first).toHaveAttribute("aria-pressed","true");
+    await people.locator("summary").click();
+    await expect.poll(()=>peer.locator(".figcraft-people-overlay").evaluate((el:HTMLCanvasElement)=>
+      Array.from(el.getContext("2d")!.getImageData(devicePixelRatio,devicePixelRatio,1,1).data))).toEqual([0,135,95,255]);
+    await people.locator("summary").click();
+    await people.getByRole("button",{name:"Follow Retained 1",exact:true}).click();
+    await expect(peer.locator(".figcraft-follow-name")).toHaveCSS("background-color","rgb(2, 248, 209)");
+    await expect(peer.locator(".figcraft-follow-name")).toHaveCSS("color","rgb(30, 30, 30)");
+    await people.locator("summary").click();
+    const layers=(actor:Page)=>actor.locator('ul[aria-label="Page layers"] li');
+    await expect(layers(peer)).toHaveCount(1);
+    await page.getByRole("button",{name:"Create rectangle",exact:true}).click();
+    await expect(layers(peer)).toHaveCount(2);
+    await peer.getByRole("button",{name:"Create rectangle",exact:true}).click();
+    await expect(layers(page)).toHaveCount(3);
+    await expect(people.locator("summary")).toHaveText("People (4097)");
+  },"edit",async peer=>{
+    await peer.route("**/api/online-files/presence",async route=>{
+      if(route.request().postDataJSON().action!=="welcome")return route.continue();
+      const response=await route.fetch(),welcome=await response.json();
+      welcomes++;
+      const peers=Array.from({length:4096},(_,index)=>({client:1_000_000+index,generation:"1",
+        name:index===0?name:"Retained "+index,colour:index===0?"not-a-colour"+"x".repeat(100_000):index===1?"#02F8D1":"#123456"}));
+      // Neither an invalid identity nor an isolated surrogate after the cap can reject the prefix.
+      await route.fulfill({response,json:{me:welcome.me,peers:[...peers,{client:2_000_000,name:"Discarded \ud800",colour:null,generation:null},null]}});
+    });
+  });
 });
 
 if (!process.env.PLAYWRIGHT_BASE_URL) test("a view-only phone sees a live pointer, follows its owner and can spotlight without editing",async({page,browser},info)=>{

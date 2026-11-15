@@ -1,6 +1,6 @@
 import type {Point} from "../geometry";
 import type {LiveTransport} from "./live-transport";
-import {cleanPresenceSignal,readPeerMessage,presenceInterval,presenceColours,type LivePeerMessage,type LivePresence,type PeopleWelcome} from "./live-presence";
+import {cleanPresenceSignal,readPeerMessage,readPeerIdentity,readPeopleWelcome,maxPeople,presenceInterval,presenceColours,type PeerIdentity,type LivePeerMessage,type LivePresence,type PeopleWelcome} from "./live-presence";
 
 const empty:LivePresence={cursor:null,selection:null,viewport:null,editingText:null};
 interface PeopleEditor {
@@ -34,7 +34,11 @@ export class LivePeople {
   private cursor:Point|null=null;
   private retainedName="";
   private ownColour:string=presenceColours[0];
-  private identity?:{name:string;colour:string};
+  private identity?:PeerIdentity;
+  private identitySequence=-1;
+  private initialWelcome?:PeopleWelcome;
+  private sendSample:NonNullable<LiveTransport["people"]>["send"];
+  private listen:NonNullable<LiveTransport["people"]>["listen"];
   get confirmedName(){return this.identity?.name;}
   get confirmedColour(){return this.identity?.colour;}
   get signals(){return this.signalReady && this.identity!==undefined;}
@@ -43,7 +47,13 @@ export class LivePeople {
   private chat="";
   private spotlight=false;
   private presenterId?:number;
-  constructor(private editor:PeopleEditor,private transport:NonNullable<LiveTransport["people"]>,private client:number){}
+  constructor(private editor:PeopleEditor,transport:NonNullable<LiveTransport["people"]>,private client:number){
+    // Keep a bounded snapshot, not a second raw welcome. Operations preserve the
+    // provider's receiver; providers must bound their own retained welcome too.
+    try{if(transport.welcome)this.initialWelcome=readPeopleWelcome(transport.welcome);}catch{}
+    this.sendSample=transport.send.bind(transport);
+    this.listen=transport.listen.bind(transport);
+  }
   getSnapshot=()=>this.list??=(Array.from(this.entries.values(),entry=>entry.message).sort((a,b)=>a.client-b.client));
   subscribe=(f:()=>void)=>{this.listeners.add(f);return ()=>{this.listeners.delete(f);};};
   rosterKey=()=>this.rosterVersion;
@@ -84,13 +94,22 @@ export class LivePeople {
   private rememberDeparture(peer:LivePeerMessage) {
     this.departed.delete(peer.client);
     this.departed.set(peer.client,{generation:peer.generation,sequence:peer.sequence});
-    if(this.departed.size>4096)this.departed.delete(this.departed.keys().next().value!);
+    if(this.departed.size>maxPeople)this.departed.delete(this.departed.keys().next().value!);
+  }
+  private confirmIdentity(peer:PeerIdentity,sequence:number){
+    if(peer.client!==this.client)return;
+    if(this.identity && (BigInt(peer.generation)<BigInt(this.identity.generation) ||
+      peer.generation===this.identity.generation && sequence<=this.identitySequence))return;
+    const changed=this.identity?.name!==peer.name || this.ownColour!==peer.colour;
+    this.identity={client:peer.client,name:peer.name,colour:peer.colour,generation:peer.generation};
+    this.identitySequence=sequence;this.ownColour=peer.colour;
+    if(changed)this.publish();
   }
   private accept=(input:unknown)=>{
     if(this.suspended || !this.alive)return;
     let peer:LivePeerMessage;
     try{peer=readPeerMessage(input);}catch{return;}
-    if(peer.client===this.client)return;
+    if(peer.client===this.client){if(!peer.left)this.confirmIdentity(peer,peer.sequence);return;}
     const old=this.entries.get(peer.client)?.message, previousFollow=this.followed, previousPresenter=this.presenterId;
     const last=old??this.departed.get(peer.client);
     if(last && (BigInt(peer.generation)<BigInt(last.generation) || peer.generation===last.generation && peer.sequence<=last.sequence))return;
@@ -101,7 +120,7 @@ export class LivePeople {
       if(this.presenterId===peer.client)this.presenterId=undefined;
       if(this.followed===peer.client)this.followed=undefined;
     } else {
-      if(!old && this.entries.size>=4096)return;
+      if(!old && this.entries.size>=maxPeople)return;
       this.departed.delete(peer.client);
       this.entries.set(peer.client,{message:peer,heard:performance.now()});
       if(peer.hello){this.resend=true;this.changed();}
@@ -126,22 +145,37 @@ export class LivePeople {
     this.publish();
   }
   welcome(welcome?:PeopleWelcome) {
+    if(!this.alive)return;
+    let bounded:PeopleWelcome|undefined;
+    try{if(welcome)bounded=readPeopleWelcome(welcome);}catch{return;}
+    if(bounded && bounded.me.client!==this.client)return;
+    // A fresh authoritative welcome supersedes acknowledgements already in flight,
+    // including providers which deliver it without a separate reconnect event.
+    this.readyEpoch++;
     this.suspended=false;this.hello=true;this.resend=true;
-    if(welcome && welcome.me.client===this.client){
-      this.identity=welcome.me;this.ownColour=welcome.me.colour;
+    if(bounded){
+      this.identity=bounded.me;this.identitySequence=-1;this.ownColour=bounded.me.colour;
       const heard=performance.now();
-      for(const peer of welcome.peers) {
-        if(peer.client===this.client || this.entries.has(peer.client))continue;
-        this.entries.set(peer.client,{heard,message:{...peer,sequence:-1,chat:"",spotlight:false,hello:false,left:false,presence:empty}});
+      const entries=new Map<number,ListEntry>();
+      for(const peer of bounded.peers) {
+        if(peer.client===this.client)continue;
+        const old=this.entries.get(peer.client)?.message;
+        const sample=old?.generation===peer.generation?old:{sequence:-1,chat:"",spotlight:false,hello:false,left:false,presence:empty};
+        entries.set(peer.client,{heard,message:{...sample,...peer}});
       }
+      this.entries=entries;
       if(this.followed!==undefined && !this.entries.has(this.followed))this.followed=undefined;
+      if(this.presenterId!==undefined && !this.entries.get(this.presenterId)?.message.spotlight){
+        if(this.followed===this.presenterId)this.followed=undefined;
+        this.presenterId=undefined;
+      }
     }
     this.publish();this.changed();
   }
   start() {
     this.alive=true;
-    this.welcome(this.transport.welcome);
-    const unlisten=this.transport.listen(this.accept,()=>{this.readyEpoch++;this.signalReady=true;this.hello=true;this.resend=true;this.changed();}),unwatch=this.editor.subscribe(this.changed);
+    this.welcome(this.initialWelcome);this.initialWelcome=undefined;
+    const unlisten=this.listen(this.accept,()=>{if(!this.alive || this.suspended)return;this.readyEpoch++;this.signalReady=true;this.hello=true;this.resend=true;this.changed();}),unwatch=this.editor.subscribe(this.changed);
     this.changed();
     this.heartbeat=setInterval(()=>{
       const cutoff=performance.now()-45000;
@@ -159,7 +193,7 @@ export class LivePeople {
     },15000);
     return ()=>{
       this.alive=false;clearTimeout(this.timer);clearInterval(this.heartbeat);unwatch();unlisten();
-      if(this.sequence)void this.transport.send({...this.sample(),sequence:++this.sequence,left:true}).catch(()=>{});
+      if(this.sequence)void this.sendSample({...this.sample(),sequence:++this.sequence,left:true}).catch(()=>{});
       this.entries.clear();this.followed=undefined;this.presenterId=undefined;this.publish();
     };
   }
@@ -180,10 +214,9 @@ export class LivePeople {
     this.sending=true;this.resend=false;this.lastSend=performance.now();
     let failed=false;
     try{
-      const receipt=await this.transport.send({...sample,sequence:++this.sequence});
-      if(this.alive && !this.suspended && presenceColours.some(colour=>colour===receipt.colour)){
-        this.ownColour=receipt.colour;
-        this.identity={name:receipt.name,colour:receipt.colour};
+      const sequence=++this.sequence,receipt=await this.sendSample({...sample,sequence});
+      if(this.alive && !this.suspended && epoch===this.readyEpoch){
+        this.confirmIdentity(readPeerIdentity(receipt),sequence);
       }
       if(epoch===this.readyEpoch)this.hello=false;this.previous=JSON.stringify({...sample,hello:false});
     }catch{this.resend=true;failed=true;}

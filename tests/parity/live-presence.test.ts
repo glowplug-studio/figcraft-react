@@ -2,7 +2,7 @@ import {readFileSync} from "node:fs";
 import {afterEach,expect,it,vi} from "vitest";
 import {EditorEngine} from "../../src/engine/editor";
 import {LivePeople} from "../../src/engine/sharing/live-people";
-import {cleanPresenceSignal,presenceColours,readPeerMessage,readPresence,type LivePeerMessage,type LivePeerSample} from "../../src/engine/sharing/live-presence";
+import {cleanPresenceSignal,presenceColours,readPeerIdentity,readPeerMessage,readPeerSample,readPeopleWelcome,readPresence,type LivePeerMessage,type LivePeerSample} from "../../src/engine/sharing/live-presence";
 
 const empty={cursor:null,viewport:null,selection:null,editingText:null};
 function message(overrides:Partial<LivePeerMessage>={}):LivePeerMessage {
@@ -132,4 +132,52 @@ it("runs the native pointer, cursor chat, follow and spotlight commands through 
     expect(editor.execute("collab.follow")).toEqual({follow:null});
     expect(editor.execute("collab.cursor")).toEqual({cursor:null});
   }finally{stop();}
+});
+
+
+it("bounds incoming names and colours by Unicode scalars without outgoing cleaning",()=>{
+  for(const length of [255,256,257]) {
+    const name="𐐷".repeat(length);
+    expect(readPeerIdentity(message({name})).name).toBe("𐐷".repeat(Math.min(length,256)));
+  }
+  for(const length of [31,32,33]) {
+    const colour="🙂".repeat(length);
+    expect(readPeerIdentity(message({colour})).colour).toBe("🙂".repeat(Math.min(length,32)));
+  }
+  const name=" \t\n"+"e\u0301".repeat(127)+"ignored";
+  expect(readPeerMessage(message({name,colour:"not a palette colour",chat:"a\nb"}))).toMatchObject({
+    name:" \t\n"+"e\u0301".repeat(126)+"e",colour:"not a palette colour",chat:"a b",
+  });
+  expect(readPeerIdentity(message({name:"",colour:""}))).toMatchObject({name:"",colour:""});
+  expect(readPeerIdentity(message({name:"x".repeat(100000),colour:"y".repeat(100000)}))).toMatchObject({name:"x".repeat(256),colour:"y".repeat(32)});
+  const multibyte="𐐷".repeat(256);
+  expect(new TextEncoder().encode("name"+multibyte).length).toBeGreaterThan(1024);
+  expect(readPeerMessage(message({name:multibyte})).name).toBe(multibyte);
+  expect(readPeerSample(message({name:"🙂".repeat(65)})).name).toBe("🙂".repeat(64));
+  expect(()=>readPeerSample(message({name:multibyte}))).toThrow();
+  expect(cleanPresenceSignal({kind:"name",text:multibyte})).toBeNull();
+});
+
+it("rejects malformed retained identities but does not inspect strings beyond their scalar prefix",()=>{
+  for(const value of [null,1,{},[]]) {
+    expect(()=>readPeerIdentity({...message(),name:value})).toThrow();
+    expect(()=>readPeerIdentity({...message(),colour:value})).toThrow();
+  }
+  for(const invalid of ["\ud800","\udfff","ok\ud800x"]) {
+    expect(()=>readPeerIdentity(message({name:invalid}))).toThrow();
+    expect(()=>readPeerMessage(message({colour:invalid}))).toThrow();
+  }
+  expect(readPeerIdentity(message({name:"🙂".repeat(256)+"\ud800",colour:"🙂".repeat(32)+"\udfff"}))).toMatchObject({name:"🙂".repeat(256),colour:"🙂".repeat(32)});
+});
+
+it("keeps the first 4096 welcome entries and ignores malformed entries outside that prefix",()=>{
+  const peers=Array.from({length:4096},(_,i)=>message({client:i+2,name:"n".repeat(257),colour:"c".repeat(33)}));
+  const trailing={get name():never{throw new Error("outside retained roster");}};
+  const welcome=readPeopleWelcome({me:message({client:1}),peers:[...peers,trailing,null]});
+  expect(welcome.peers).toHaveLength(4096);
+  expect(welcome.peers.map(p=>p.client)).toEqual(peers.map(p=>p.client));
+  expect(welcome.peers.every(p=>p.name==="n".repeat(256)&&p.colour==="c".repeat(32))).toBe(true);
+  expect(welcome.peers).not.toBe(peers);
+  expect(welcome.peers[0]).not.toBe(peers[0]);
+  expect(()=>readPeopleWelcome({me:message({client:1}),peers:[null,...peers]})).toThrow();
 });

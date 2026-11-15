@@ -13,6 +13,9 @@ export interface LiveTransport {
   /** Current authenticated welcome. Both values survive a physical reconnect. */
   readonly identity?: LiveIdentity;
   people?: {
+    /** Providers must retain only a readPeopleWelcome-normalised roster (including
+     * reconnect caches), not the raw response beside it. Core validates again at
+     * ingress. Bound operations may retain provider state through their receiver. */
     readonly welcome?:PeopleWelcome;
     send(sample:LivePeerSample):Promise<{client:number;name:string;colour:string;generation:string}>;
     listen(receive:(message:unknown)=>void,ready:()=>void):()=>void;
