@@ -3969,8 +3969,14 @@
       "command": "pref.publishServer",
       "label": "Server for online sharing",
       "source": "crates/engine/src/cmd/view.rs",
-      "line": 456,
-      "status": "Not tested"
+      "line": 507,
+      "status": "Passed",
+      "verification": {
+        "react": "6d03c89",
+        "upstream": "bad07e4433240cad046589129c084bd2fc36f097",
+        "report": "../reports/26-11-15-online-server-preference-parity.html",
+        "scope": "Native validation/reset/off; configured browser adapter default and account-scoped device persistence"
+      }
     },
     {
       "command": "pref.language",

@@ -2,10 +2,22 @@
 
 ## Execution checkpoint
 
-- Phase: source audit and planning only. No implementation or tests run for this slice.
-- Native reference: `bad07e44`. The current individual-management slice remains the prerequisite.
-- Before implementation, renew preflight after the management slice commit: inspect the branch and dirty files, record the verified React revision, check the native pin and refresh/merge local Graphify as required by `AGENTS.md`. Reconcile this plan with the resulting implementation rather than treating the audited working tree as a fixed baseline.
-- Next action: after that preflight, implement the persisted provider-neutral preference and its command before changing share/join routing.
+- Phase: 7 complete at `6d03c89`, 2026-11-15 12:16 ICT. [Report](../reports/26-11-15-online-server-preference.md) and [property matrix](../reports/26-11-15-online-server-preference-parity.html).
+- Native reference: `bad07e4433240cad046589129c084bd2fc36f097`; global supported baseline remains `8eb0b876`. Authorised upstream sync and scoped Supabase MCP read passed; hosted public tables remain empty.
+- Passed: 4,698 pure checks, 32 real provider integrations, 448 SQL assertions after reset, strict types and both builds, no drift/adviser findings. Four focused Chromium checks passed, then all 255 host cases in 718.180 seconds with zero skips/retries/flakes/errors. All 122 non-host cases passed on the same UI build; 377 cases covered across two retained runs. Twelve fixture counts zero. Preview stopped cleanly.
+- Correction: the first browser attempt exposed a true presence/removal deadlock. Deterministic regression failed on the old database and passed after the generated local migration. No hosted changes or test timeout/retry weakening.
+- Local Graphify at 6d03c89: React 8,417/36,077; native 28,939/92,127; combined 37,356/127,087 nodes/edges. OnlineServerPreference and native join_target located; SQL/data-only coverage uses source inspection.
+- Delegation returned and reviewed: model/persistence, UI/contracts, browser fixtures, reports, next-slice source audit and deterministic concurrency test. No outstanding ownership.
+- Next action: renew preflight for [incoming peer bounds](26-11-15-incoming-peer-bounds.md), then implement and verify that complete slice. No main merge or early publication. Tracker remains uncommitted.
+
+## Architecture decisions
+
+- One provider-neutral preference instance is shared by workspace tabs. The browser host persists only its URL in account-scoped local storage, with an in-memory fallback; it never enters drawing archives or stores an operator key. Missing/invalid legacy storage uses the configured browser host default; an explicit empty string stays off.
+- The synchronous public command preserves native prefix/character validation rather than introducing URL parsing. Destination parsing happens only when actually sharing/joining.
+- New default shares and bare codes use the selected address; explicit links and explicit publication bypass an off default. Existing live sessions and saved files remain bound to their original adapter. Only configured adapters can receive requests; no generic proxy or credential forwarding is introduced.
+- UI keys remain bound to adapter destinations, including existing HTTP/WebSocket aliases. Unsupported/off destinations cannot inherit the primary adapter's key.
+- Native `ui-egui/src/live.rs::open_publish` uses the last publication address **this run**, initially empty. It explicitly does not use the saved sharing preference. Preserve this distinction in the editable publication dialog and keep publication addresses/keys out of persistent preferences.
+- Browser-only substitutions: account-scoped local storage replaces desktop preferences; configured authenticated host replaces the native binary's public default; browser UI explains online-off without suggesting unavailable LAN hosting. Native local-code parsing remains supported, subject to a configured transport.
 
 ## Native contract and React targets
 
@@ -29,3 +41,11 @@
 ## Separate next slice
 
 Incoming hostile-peer bounds remain the separate row-14 follow-up in [the upstream delta queue](26-11-15-upstream-delta.md). Native `collab-net/src/join.rs::bounded` keeps 256 Unicode scalar values for names and 32 for colours and replaces the sync client's welcome roster with the same bounded roster. Reconcile `src/engine/sharing/live-presence.ts` and `live-people.ts` against `client_cap_tests.rs`, including the provider-neutral welcome path and absence of a retained raw duplicate. Do not combine that change with server-preference routing.
+
+## Regression correction: presence/removal locking
+
+The first cumulative browser run exposed SQLSTATE 40P01 during cleanup of the interrupted-publication workflow. Local PostgreSQL identified `manage_owned_online_file` waiting on `online_file_links`, while concurrent `live_participants` waited for the removal transaction. The existing management transaction prelocks the file and connections, then cascades into links. `live_presence_targets` only locks the file for an initial presence registration; subsequent grants can lock links before connections without the file guard.
+
+Correction owned by the coordinator: take the file's key-share lock for every presence request, before `live_grant`; retain the room update lock only for new registrations. This restores the documented file-before-grant ordering without serialising established presence samples on the room. No authority, role, policy or payload change. Generate a migration from the declaration, review grants, replay locally, run the deterministic held-file concurrency regression, SQL suite, provider suite, advisers/drift and browser regression. The failed 503 is not waived or hidden by a test retry. The pure UI build is unchanged by this database correction.
+
+Documentation checked for the correction: [Supabase changelog](https://supabase.com/changelog.md), [database functions](https://supabase.com/docs/guides/database/functions) and [PostgreSQL explicit locking](https://www.postgresql.org/docs/current/explicit-locking.html). CLI remains 2.116.0; its current declarative-sync help was inspected. The CLI-v3 breaking change applies on upgrade; no upgrade was performed. Root uses the repository's declarative generation workflow in preference to the generic skill's iteration procedure.
