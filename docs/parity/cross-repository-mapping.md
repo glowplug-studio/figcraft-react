@@ -624,3 +624,7 @@ Verified React `6d03c89`, native `bad07e44`: `cmd/view.rs::pref.publishServer`, 
 ## Incoming peer bounds — 15 November 2026
 
 Native bad07e44 `collab-net/join.rs::{bounded,take}` and `client_cap_tests.rs` map to incoming identity/welcome readers and LivePeople retention at 6818860. Native live UI RGB/accent/f32 contrast maps to peer-colour.ts and LivePeopleControls. Independent parity/contracts and rebuilt Chromium pass; arbitrary provider closure memory is explicitly outside core ownership. [Evidence](../reports/26-11-15-incoming-peer-bounds.md).
+
+## Public collaboration diff — 15 November 2026
+
+Native `sharing/collab.rs::diff_cmd`, `DocState::{new,unsaved,start_preview}`, `FileSnapshot::{of,save}`, branch opening and offline-copy lifecycle at `bad07e44` map to `EditorEngine`'s async command and separate comparison snapshots at `1253f41`. Native `Change`/`message::encode` map to the six-variant Postcard writer and lossless readable projection. Independent 52-case wire and 22-stage engine fixtures, 15 contracts and production Chromium pass; all 380 cumulative cases pass in one run. Local visible pages remain separate from shared/saved/historical comparison documents. Unsafe readable integers become exact decimal strings; binary measurement remains exact. [Property matrix](../reports/26-11-15-public-collaboration-diff-parity.html).

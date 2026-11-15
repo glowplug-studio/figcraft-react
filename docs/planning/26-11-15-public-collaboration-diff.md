@@ -2,11 +2,13 @@
 
 ## Execution checkpoint
 
-- Phase: source analysis and independent native oracle preparation. This slice is not implemented; no React checks have run for it.
-- Native pin: `bad07e4433240cad046589129c084bd2fc36f097` (`bad07e44`). React source checkpoint supplied by the coordinator: `414e457`, with incoming-peer-bounds changes still dirty during this analysis. This is not a verified implementation revision.
-- Prerequisite: finish the incoming-peer-bounds checkpoint. Renew branch/dirty-file, instruction, native-pin and Graphify preflight afterwards; record the actual starting revision and preserve unrelated work.
-- Next action: reconcile the comparison-baseline lifecycle below, add the shared six-variant change writer and public async command, then verify independent fixtures and browser dispatch. No hosted resources, migrations or Vercel changes are required.
-- Coordinator owns editor state, security and integration. Allocate any independent fixtures/tests to separate files before delegation.
+- Phase: complete bounded slice; full-port execution paused at the user’s request, 2026-11-15 13:24 ICT.
+- Verified product `1253f41`, branch `prompt/full-figcraft-port`; native `bad07e4433240cad046589129c084bd2fc36f097`. Global supported baseline/version remain unchanged.
+- Preflight succeeded: upstream sync, scoped Figcraft MCP read (zero public tables), local graph checks. Refreshed React graph: 8,466 nodes / 36,264 edges; native 28,939 / 92,127; combined 37,405 / 127,262. Known symbols verified; 88 unsupported-extension files and data-only modules need direct inspection.
+- Passed at `1253f41`: 4,782 pure checks; 15 public command contracts, including 22 native stages; 52 native wire cases; strict library/tests/host types; both production builds; two focused Chromium cases; all 380 cumulative Chromium cases in one run (933.894 seconds, zero skips/retries/flakes/errors); 32 real local provider integrations (18.57 seconds).
+- Cleanup: all twelve fixture counts zero. Production preview stopped cleanly. Local Supabase remains running. All delegated work has returned; no active slice processes remain. Tracker intentionally uncommitted.
+- [Report](../reports/26-11-15-public-collaboration-diff.md) and [15-property matrix](../reports/26-11-15-public-collaboration-diff-parity.html) contain reproducible evidence. No schema change, hosted write, Vercel action, push or main merge.
+- Next on `continue`: execute the [presence-readiness plan](26-11-15-presence-readiness.md), then [missing-comment-grant compatibility](26-11-15-missing-comment-grant.md). Only analysis was prepared for those slices. Renew required preflight and implement an independent failing public-command fixture before changing its core owner. Full browser parity and final publication remain unfinished.
 
 ## Source contract and mapping
 
@@ -110,3 +112,9 @@ Actual public-dispatch evidence corrects the source-only analysis: `Session::exe
 
 
 Native Debug escaping observations from the final engine oracle: NUL uses `\0`, ESC uses `\u{1b}`, U+2028 uses `\u{2028}`, and double quotes/backslashes use their escaped forms. JSON.stringify is not sufficient for every native invalid-target error. The engine oracle compiled with the source mounted read-only, one CPU/build job and exact pinned craft-libs revision; source/outputs are temporary evidence, not runtime dependencies.
+
+## Integrated source-review corrections
+
+The saved comparison baseline is separate from browser dirty/download state. Save snapshots capture the shared drawing before asynchronous encoding: native `FileSnapshot::of` keeps `doc` and the visible `page` separately, and saves `self.doc` as the baseline. A follower’s local page must not become a sync diff. The revision-specific and revisionless paths both preserve this; later remote page changes remain observable. Historical previews similarly retain the raw loaded version for comparisons while the UI keeps its chosen visible page, matching `DocState::start_preview`. Branch opening uses the installed head, as native `sharing/branches.rs::open_tab` constructs `DocState::new` from that head.
+
+The public dispatcher accepts global `id`/`ids`, rejects all other unknown keys together in scalar order and pluralises the error. Numeric invalid targets follow serde spelling after the browser JSON boundary (for example `1e-6`, `1e+20`); raw JSON token distinctions unavailable in ordinary JavaScript numbers are not invented. Rust Debug escaping was checked independently across valid scalars, with explicit Hangul filler and halfwidth-mark exceptions; permanent regression fixtures and provenance are committed. Browser/runtime Unicode-version differences remain an environment limitation for newly assigned characters.

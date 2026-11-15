@@ -59,3 +59,7 @@ At `6d03c89`, the saved default changes only the destination of new shares and b
 ## Incoming peer bounds — 15 November 2026
 
 Incoming peer identity bounds at 6818860 preserve the separation between presence and authority: names/colours are bounded display metadata, never ownership or access claims. Browser Grant retention and reconnect are verified; outgoing provider validation and all database grants remain unchanged. [Evidence](../reports/26-11-15-incoming-peer-bounds.md).
+
+## Read-only collaboration comparison
+
+At `1253f41`, `collab.diff` reads only the current editor's already loaded documents; it issues no provider request and adds no authority. View-only/live sessions may compare against saved content, while snapshot undo comparison is refused for live documents independently of per-client undo availability. Real local editor/view-link clients and the full 380-case browser suite pass. [Evidence](../reports/26-11-15-public-collaboration-diff.md).

@@ -2,7 +2,7 @@
 
 Read-only source audit on 15 November 2026: React `ac1d371` plus the existing uncommitted management work; native `bad07e44`. No tests were run by this audit. Test references below identify existing assertions, not newly verified results. The coordinator owns integrated verification and security decisions.
 
-Scope: public `collab.*` entries from `sharing/live/join.rs`, `sharing/online.rs`, `sharing/collab.rs` and `sharing/invite_links.rs`. `cmd.rs` registers all four sources. There are 22 native commands; React registers 19. Of the three absent commands, `collab.diff` remains required and two are native-only omissions.
+Scope: public `collab.*` entries from `sharing/live/join.rs`, `sharing/online.rs`, `sharing/collab.rs` and `sharing/invite_links.rs`. `cmd.rs` registers all four sources. At the original audit there were 22 native commands and 19 React registrations. Public `collab.diff` is now implemented at `1253f41`, with focused verification and all 380 cumulative browser cases passed; two commands remain explicit native-only omissions.
 
 ## Registry and evidence
 
@@ -10,7 +10,7 @@ Paths below are relative to the repository root. Native sharing paths begin `ori
 
 | Native command/source | Actual React route and existing evidence | Remaining gap |
 | --- | --- | --- |
-| `collab.diff`, `collab.rs:26–55` | Absent from `src/engine/editor.ts::commandSpecs`; underlying `sharing/live-changes.ts::diffLive` has native batch fixture comparisons in `tests/parity/live-changes.test.ts`. | Required public handler, baseline selection, native JSON receipt conversion and binary byte count; detailed slice below. |
+| `collab.diff`, `collab.rs:26–55` | Implemented at `1253f41`: async public dispatch, independent saved baseline, six-variant native receipt and exact binary byte count. | Focused parity/contracts and all 380 cumulative browser cases pass; evidence in [public diff](26-11-15-public-collaboration-diff.md). |
 | `collab.host`, `live/join.rs:195`, `live/host.rs::start_host` | Absent; `collab.peers` explicitly returns `canHost:false`; local `collab.share` rejects browser listening. | Native TCP/LAN listening is outside the browser target. Retain this explicit omission; do not claim command implementation. |
 | `collab.registerLinks`, `invite_links.rs:55–82` | Absent. Native command invokes an OS URL-scheme registrar and changes its preference. | Native installed-app registration is outside the browser target. Existing web invitation joining is a separate workflow. |
 | `collab.join`, `live/join.rs:7` | `editor.ts` → `sessionCommands` → `workspace.ts::#sessionAction` → `OnlineInvitations.beginJoin`; `tests/contracts/live-session-actions.test.ts` checks independent joins, invalid input, cancellation and late grants. | Persisted default-server selection is already planned separately; do not count it twice. No additional missing handler found. |
@@ -70,3 +70,7 @@ The chosen host currently issues exactly three grants on new sharing groups, so 
 - First implementation action: finish the already-planned persisted-server preference and incoming bounds slices according to the coordinator's order, then implement the public diff slice above before declaring collaboration registry parity.
 - Following independent checks: presence readiness and missing-grant selection. Existing handlers in the table remain subject to integrated regression, not this source-only review.
 - Native-only omissions: local TCP/LAN host commands and OS invite-link registration. Document them as omissions rather than silently counting them as implemented registry entries.
+
+## Current continuation
+
+Public diff is verified at `1253f41`. On user resumption, execute [presence readiness](26-11-15-presence-readiness.md), followed by [missing-comment-grant compatibility](26-11-15-missing-comment-grant.md). The latter corrects the original assumption above: the bundled device reader currently rejects a retained two-grant record. Actual persisted compatibility and provider-neutral mocked input require distinct evidence. No automatic grant replacement or provider-specific authorisation expansion is permitted.
