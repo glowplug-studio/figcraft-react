@@ -1,8 +1,9 @@
+import {OnlineServerPreference,ONLINE_SHARING_OFF,resolveOnlineJoinTarget} from "./server-preference";
 import type {OnlineResumeKey} from "../../backends/recovery";
 import type {OnlineRecoveryPosition} from "./online-recovery";
-import {parseInviteServer} from "./invite";
+import {parseInviteServer,parseSessionInvite,inviteEndpoint} from "./invite";
 import type {EditorEngine} from "../editor";
-import type {OnlineGuestSession,OnlineManagementAction} from "../../backends/online-files";
+import type {OnlineGuestSession,OnlineManagementAction,OnlineInvitations} from "../../backends/online-files";
 import {checkOperatorTransport} from "./operator-transport";
 import {teamWebLink,teamFileLink,type TeamDirectory} from "./team-directory";
 import type { OnlineFileInfo, OnlineFileRegistry, OnlineWorkspaceHost, PendingOnlinePublication, RememberedOnlineFile } from "../../backends/online-files";
@@ -53,6 +54,10 @@ interface RecordedOpening {
 
 export class OnlineWorkspace {
   readonly server: string;
+  readonly serverPreference:OnlineServerPreference;
+  /** Native Publish dialog remembers this run's address, separately from Preferences. */
+  lastPublishAddress="";
+  private otherInvitationSubscriptions=new Map<OnlineInvitations,()=>void>();
   private states = new Map<string, OnlineRow["state"]>();
   private expiries = new Map<string, string | null>();
   private tabs = new Map<string, number>();
@@ -69,6 +74,7 @@ export class OnlineWorkspace {
   constructor(private workspace: EditorWorkspace, private host: OnlineWorkspaceHost,
     private principal: string, private authorised: () => boolean) {
     this.server = onlineServerKey(host.server);
+    this.serverPreference=host.serverPreference ?? new OnlineServerPreference(host.server.replace(/^http/,"ws"));
     if (!this.server) throw new Error("Invalid online server address");
   }
 
@@ -95,6 +101,7 @@ export class OnlineWorkspace {
   get sharing() { return this.host.sharing; }
 
   private bindTab(file: string, tab: number) {
+    this.workspace.releasePreviousOnlineBinding(tab,this,file);
     const previous = this.publishedFile(tab);
     if (previous && previous !== file) this.leaveTab(tab);
     this.tabs.set(file, tab);
@@ -129,10 +136,12 @@ export class OnlineWorkspace {
         if(invitations?.canAttach?.(joined.session.connection)===false || !this.workspace.acceptPublication(command.connection,joined.session.connection))throw new Error("Publication cancelled");
       }
       const previous = this.workspace.getSnapshot().find(tab => tab.id === tabId)?.guest;
-      if (!this.workspace.attachGuestSession(tabId, joined.session)) throw new Error("The source file closed");
+      const previousHost=previous && (this.workspace.sessionInvitations(previous.connection)
+        ?? (this.publishedFile(tabId)===previous.file ? invitations : undefined));
+      if (!this.workspace.attachGuestSession(tabId, joined.session,invitations)) throw new Error("The source file closed");
       this.bindTab(file, tabId);
       if(shareFailure)this.workspace.publicationNotice("The file was published but couldn’t be shared: "+shareFailure);
-      if (previous) await invitations!.leave(previous.connection);
+      if (previous) await previousHost?.leave(previous.connection);
     } finally {
       if (!this.workspace.getSnapshot().some(tab => tab.guest?.connection === joined.session.connection)) {
         await invitations!.leave(joined.session.connection);
@@ -232,10 +241,65 @@ export class OnlineWorkspace {
     if(!current){
       const target=this.host.forServer?.(address);
       if(!target || onlineServerKey(target.server)!==address)return;
-      current=new OnlineWorkspace(this.workspace,{...target,device:this.host.device},this.principal,this.authorised);
+      current=new OnlineWorkspace(this.workspace,{...target,device:this.host.device,serverPreference:this.serverPreference},this.principal,this.authorised);
       this.otherServers.set(address,current);
     }
     return current;
+  }
+
+  /** Resolve only configured adapters; a preference never authorises a new destination. */
+  destination(address:string):OnlineWorkspace {
+    parseInviteServer(address);
+    const server=onlineServerKey(address);
+    const same=(value:string)=>value.replace(/^ws/,"http");
+    const source=same(server)===same(this.server) ? this : this.forServer(server) ?? this.forServer(same(server));
+    if(!source)throw new Error("This server is unavailable in the current host");
+    return source;
+  }
+
+  async publishTo(tab:number,name:string,address:string) {
+    const target=this.destination(address);
+    const key=parseInviteServer(address).query.get("key");
+    if(key){
+      if(!target.supportsServerKey)throw new Error("This host cannot use an operator key");
+      checkOperatorTransport(address,key);
+      checkOperatorTransport(target.host.operatorOrigin ?? target.server,key);
+      target.setServerKey(key);
+    }
+    this.lastPublishAddress=address;
+    return target.publish(tab,name);
+  }
+
+  preferred():OnlineWorkspace {
+    const address=this.serverPreference.getSnapshot().url;
+    if(!address)throw new Error(ONLINE_SHARING_OFF);
+    return this.destination(address);
+  }
+
+  joinTarget(input:string):{input:string;host:OnlineInvitations} {
+    // Browser wrapper links belong to the primary host, which validates their origin.
+    const trimmed=input.trim();
+    if(/^https?:\/\//i.test(trimmed) || trimmed.startsWith("#join=")) {
+      if(!this.host.invitations)throw new Error("Live sessions are unavailable here");
+      return {input,host:this.host.invitations};
+    }
+    const resolved=resolveOnlineJoinTarget(input,this.serverPreference);
+    const invite=parseSessionInvite(resolved);
+    const target=this.destination(inviteEndpoint(invite.server));
+    const host=target.host.invitations;
+    if(!host)throw new Error("Live sessions are unavailable here");
+    if(host!==this.host.invitations && !this.otherInvitationSubscriptions.has(host)) {
+      const unsubscribe=host.subscribe(async(session,bytes,current)=>{
+        await this.workspace.open(new File([bytes],session.file+".figcraft"),session,current);
+      },(connection,failed)=>this.workspace.joining(connection,failed,host));
+      this.otherInvitationSubscriptions.set(host,unsubscribe);
+    }
+    return {input:resolved,host};
+  }
+
+  disposeInvitations() {
+    for(const unsubscribe of this.otherInvitationSubscriptions.values())unsubscribe();
+    this.otherInvitationSubscriptions.clear();
   }
 
   private recordProblem(address:string,error:unknown) {
@@ -321,11 +385,11 @@ export class OnlineWorkspace {
       }
       if(via==="local")throw new Error(access==="comment" ? "Share online for a comment code" : "Local network hosting is unavailable in a browser");
     }
-    const address=typeof params.server==="string" ? params.server.trim() : sharing ? this.host.server.replace(/^http/,"ws") : "";
-    if(!address)throw new Error("Give a server address");
+    const address=typeof params.server==="string" ? params.server.trim() : sharing ? this.serverPreference.getSnapshot().url : "";
+    if(!address)throw new Error(sharing && params.server===undefined ? ONLINE_SHARING_OFF : "Give a server address");
     const parsed=parseInviteServer(address);
     const key=parsed.query.get("key") || (typeof params.key==="string" ? params.key.trim() : "");
-    const server=onlineServerKey(address), source=server===this.server || server.replace(/^ws/,"http")===this.server.replace(/^ws/,"http") ? this : this.forServer(server);
+    const source=this.destination(address);
     if(!source?.host.invitations?.joinOwned)throw new Error("This server is unavailable in the current host");
     if(key){
       if(!source.supportsServerKey)throw new Error("This host cannot use an operator key");

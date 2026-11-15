@@ -1,3 +1,4 @@
+import type {OnlineServerPreference} from "../engine/sharing/server-preference";
 import type {OnlineResumeKey} from "./recovery";
 import type {LibraryUsageSummary,LibraryUsageReport} from "../engine/sharing/library-usage";
 import type { TeamDirectory } from "../engine/sharing/team-directory";
@@ -145,6 +146,8 @@ export interface OnlineOwnerSharing {
 }
 
 export interface OnlineWorkspaceHost {
+  /** Device preference shared by tabs; never stored in a drawing or used as authority. */
+  serverPreference?:OnlineServerPreference;
   /** Optional authenticated adapter for another server remembered on this device. */
   forServer?(server:string):OnlineWorkspaceHost|undefined;
   libraries?: OnlineTeamLibraries;

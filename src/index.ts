@@ -1,3 +1,5 @@
+export {browserServerPreference} from "./backends/browser/server-preference";
+export {OnlineServerPreference,resolveOnlineJoinTarget} from "./engine/sharing/server-preference";
 export { DisplayNameField, readDisplayName } from "./DisplayNameField";
 export { FigcraftRoot, type FigcraftRootProps } from "./FigcraftRoot";
 export {

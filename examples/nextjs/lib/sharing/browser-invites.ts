@@ -1,6 +1,6 @@
 import {ownerRecoveryLock,type OwnerRecoveryLock} from "./owner-recovery-lock";
 import {parseJoinCode} from "@glowplug-studio/figcraft-react/sharing/join-code";
-import {hostingSummary,readPeopleWelcome,readDisplayName,type PeopleWelcome} from "@glowplug-studio/figcraft-react";
+import {OnlineServerPreference,resolveOnlineJoinTarget,hostingSummary,readPeopleWelcome,readDisplayName,type PeopleWelcome} from "@glowplug-studio/figcraft-react";
 import type { OnlineResumeKey, OnlineFileInfo, OnlineHostInformation, SessionDetails, LiveTransport, GuestConnectionStatus, GuestSessionEnd, IndexedDbRecoveryStore, OnlineGuestSession, OnlineInvitations } from "@glowplug-studio/figcraft-react";
 import { type SessionInvite,inviteEndpoint, nativeInviteLink, parseInviteServer, parseSessionInvite } from "@glowplug-studio/figcraft-react/sharing/invite";
 
@@ -39,7 +39,8 @@ export class BrowserInvitations implements OnlineInvitations {
   constructor(private device: Pick<IndexedDbRecoveryStore, "readPublishedLinks">, private principal: string, private server: string,
     private readonly monitor: (connection:string,ended:(reason:GuestSessionEnd)=>void,edits?:()=>void,people?:(message:unknown)=>void,ready?:()=>void)=>()=>void, readonly showJoin: () => void, private readonly notify: (message: string) => void,
     private resolveTeam?: (file: string) => Promise<{file: string; token: string}>,
-    private metadata?:{hosting(file?:string):Promise<OnlineHostInformation>;sharing(file:string,recorded:boolean):SessionDetails["share"];loadSharing(file:string):Promise<unknown>}) {
+    private metadata?:{hosting(file?:string):Promise<OnlineHostInformation>;sharing(file:string,recorded:boolean):SessionDetails["share"];loadSharing(file:string):Promise<unknown>},
+    private serverPreference?:OnlineServerPreference) {
     this.endpoint = parseInviteServer(server.replace(/^http/, "ws")).server;
   }
 
@@ -219,6 +220,7 @@ export class BrowserInvitations implements OnlineInvitations {
     if (input.startsWith("#join=")) {
       try { input = decodeURIComponent(input.slice(6)); } catch { throw new Error("Invalid invite fragment"); }
     }
+    if(this.serverPreference)input=resolveOnlineJoinTarget(input,this.serverPreference);
     let invite:SessionInvite;
     if(input.includes("://")) invite=parseSessionInvite(input);
     else{

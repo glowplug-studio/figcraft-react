@@ -40,6 +40,7 @@ export const guestEnding = {
 
 type Status = "off" | "connecting" | "live" | "reconnecting" | "failed";
 interface Session {
+  joiningHost?:OnlineInvitations;
   id:number;
   tab?:number;
   status:Status;
@@ -109,21 +110,22 @@ export class LiveSessions {
     if (this.invitations!==invitations) this.entries.clear();
     this.invitations=invitations;
   }
-  start(connection:string, tab?:number) {
+  start(connection:string, tab?:number, host?:OnlineInvitations) {
     if (!this.invitations)return;
     const existing=this.entries.get(connection);
     if(existing){
+      if(host)existing.joiningHost=host;
       if(existing.status==="connecting" && !existing.guest && !existing.publication)existing.tab=tab;
       return;
     }
     for (const [key,entry] of this.entries) {
       if (entry.tab===tab && entry.status==="failed") this.entries.delete(key);
     }
-    this.entries.set(connection,{id:this.next++,tab,status:"connecting",reason:null});
+    this.entries.set(connection,{id:this.next++,tab,status:"connecting",reason:null,joiningHost:host});
   }
   hostFor(connection:string) {
     const entry=this.entries.get(connection);
-    return entry?.issued?.host ?? entry?.publication?.host ?? entry?.recorded?.host ?? this.invitations;
+    return entry?.issued?.host ?? entry?.publication?.host ?? entry?.recorded?.host ?? entry?.joiningHost ?? this.invitations;
   }
   startPublication(key:string,tab:number,host:OnlineInvitations,access?:OnlineGuestSession["access"]) {
     this.start(key,tab);
@@ -159,9 +161,9 @@ export class LiveSessions {
     const entry=this.entries.get(connection);
     if (entry && !entry.guest) { entry.status="failed";entry.reason=reason; }
   }
-  welcome(guest:OnlineGuestSession,tab:Tab) {
+  welcome(guest:OnlineGuestSession,tab:Tab,host?:OnlineInvitations) {
     if (!this.invitations) return;
-    this.start(guest.connection,tab.id);
+    this.start(guest.connection,tab.id,host);
     const entry=this.entries.get(guest.connection)!;
     if (!entry.guest || entry.guest.room!==guest.room) {
       this.drawing(guest.connection,tab.engine.getSnapshot().document);

@@ -86,6 +86,9 @@ export function PublishOnlineDialog({ online, tab, close, published }: {
   online: OnlineWorkspace; tab: { id: number; name: string }; close: () => void; published: (name: string) => void;
 }) {
   const [name, setName] = useState(tab.name);
+  const [address,setAddress]=useState(online.lastPublishAddress);
+  let destination:OnlineWorkspace|undefined;
+  try{if(address.trim())destination=online.destination(address.trim());}catch{/* Refuse on submit, without a request. */}
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   return <Modal title="Publish to server" close={close}>
@@ -93,14 +96,17 @@ export function PublishOnlineDialog({ online, tab, close, published }: {
       event.preventDefault();
       if (busy) return;
       setError(""); setBusy(true);
-      try { const file = await online.publish(tab.id, name); published(file.name); }
+      try {
+        const file = await online.publishTo(tab.id,name,address.trim()); published(file.name);
+      }
       catch (error) { setError(failure(error)); }
       finally { setBusy(false); }
     }}>
-      <label>Server address<input readOnly value={online.server} /></label>
-      {online.supportsServerKey && <ServerKeyField online={online} disabled={busy} />}
-      <OnlineHostingInformation online={online} />
-      <label>File name<input autoFocus value={name} disabled={busy} onFocus={e => e.currentTarget.select()} onChange={e => setName(e.target.value)} /></label>
+      <label>Server address<input autoFocus value={address} disabled={busy} autoComplete="off" spellCheck={false}
+        placeholder="wss://server/ or ws://server:47900/" onChange={event=>{setAddress(event.target.value);setError("");}} /></label>
+      {destination?.supportsServerKey && <ServerKeyField key={destination.server} online={destination} disabled={busy} />}
+      {destination && <OnlineHostingInformation key={destination.server} online={destination} />}
+      <label>File name<input value={name} disabled={busy} onFocus={e => e.currentTarget.select()} onChange={e => setName(e.target.value)} /></label>
       {error && <p role="alert">{error}</p>}
       <button disabled={busy}>Publish</button><button type="button" onClick={close}>Cancel</button>
     </form>

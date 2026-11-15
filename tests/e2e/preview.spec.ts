@@ -65,6 +65,12 @@ test.afterAll(async () => {
   const deleted = await backend.admin.auth.admin.deleteUser(userId);
   if (deleted.error) throw deleted.error;
 });
+function supportedOnlineServer(): string {
+  const server = backend?.url ?? process.env.NEXT_PUBLIC_SUPABASE_URL;
+  if (!server) throw new Error("Set the hosted Supabase URL for the publication fixture");
+  return server.replace(/^http/, "ws").replace(/\/+$/, "");
+}
+
 async function removeOnlineFixture(page:Page,id:string) {
   const origin=new URL(page.url()).origin;
   const reply=await page.request.post(origin+"/api/online-files/manage",{headers:{origin},data:{id,name:null}});
@@ -144,6 +150,154 @@ test("protected host, failed login, callback failure and safe redirects", async 
   expect(denied.status()).toBe(403);
 });
 
+test("online server preferences persist off, reject invalid addresses and refuse unsupported destinations without forwarding keys", async ({page}) => {
+  await login(page);
+  const bar = page.locator(".figcraft-document-bar");
+  const preferences = bar.getByText("Preferences", {exact: true}).locator("..");
+  const field = preferences.getByLabel("Server for online sharing", {exact: true});
+  const openPreferences = async () => {
+    await bar.getByText("File", {exact: true}).click();
+    if (!await field.isVisible()) await preferences.locator("summary").click();
+  };
+  await openPreferences();
+  const configured = await field.inputValue();
+  expect(configured).toBe(supportedOnlineServer());
+  await field.fill("  wss://unsupported.example.test/selected  ");
+  await field.press("Enter");
+  await expect(field).toHaveValue("wss://unsupported.example.test/selected");
+  await page.reload();
+  await openPreferences();
+  await expect(field).toHaveValue("wss://unsupported.example.test/selected");
+  await field.fill("https://invalid.example.test/?key=must-not-persist");
+  await field.press("Enter");
+  await expect(preferences.getByRole("alert")).toContainText("without a key");
+  await page.reload();
+  await openPreferences();
+  await expect(field).toHaveValue("wss://unsupported.example.test/selected");
+  await page.setViewportSize({width:390,height:844});
+  await expect(field).toBeInViewport({ratio:1});
+  await field.fill("");
+  await field.press("Tab");
+  await expect(preferences.getByText("Online sharing is off. Choose a server to share online.")).toBeVisible();
+  await page.reload();
+  await openPreferences();
+  await expect(field).toHaveValue("");
+  await expect(preferences.getByRole("button", {name:"Reset",exact:true})).toBeInViewport({ratio:1});
+  await preferences.getByRole("button", {name: "Reset", exact: true}).click();
+  await expect(field).toHaveValue(configured);
+  await expect(preferences.getByRole("button", {name: "Reset", exact: true})).toBeDisabled();
+  await bar.getByText("File", {exact: true}).click();
+  await bar.getByText("Share", {exact: true}).click();
+  await bar.getByText("Advanced", {exact: true}).click();
+  const key = "destination-bound-" + randomUUID();
+  await bar.getByLabel("Server key", {exact: true}).fill(key);
+  await bar.getByText("Share", {exact: true}).click();
+  const requests: {url: string; body: string; headers: string}[] = [];
+  page.on("request", request => requests.push({url: request.url(), body: request.postData() ?? "", headers: JSON.stringify(request.headers())}));
+  await page.route("**/unsupported.example.test/**", route => route.fulfill({status: 500, body: "Unexpected destination"}));
+  await openPreferences();
+  await field.fill("wss://unsupported.example.test/selected");
+  await field.press("Enter");
+  await bar.getByText("File", {exact: true}).click();
+  await bar.getByText("Share", {exact: true}).click();
+  await expect(bar.getByRole("status")).toContainText("This server is unavailable in the current host");
+  await expect(bar.getByRole("button", {name: "Start sharing", exact: true})).toHaveCount(0);
+  await expect(bar.getByLabel("Server key", {exact: true})).toHaveCount(0);
+  await bar.getByText("Share", {exact: true}).click();
+  await bar.getByText("File", {exact: true}).click();
+  await bar.getByRole("button", {name: "Publish to server…", exact: true}).click();
+  const publication = page.getByRole("dialog", {name: "Publish to server", exact: true});
+  await expect(publication.getByLabel("Server address", {exact: true})).toHaveValue("");
+  await publication.getByLabel("Server address", {exact: true}).fill("wss://unsupported.example.test/selected");
+  await publication.getByRole("button", {name: "Publish", exact: true}).click();
+  await expect(publication.getByRole("alert")).toContainText("This server is unavailable in the current host");
+  expect(requests.filter(request => request.url.includes("unsupported.example.test"))).toEqual([]);
+  expect(requests.filter(request => request.url.includes(key) || request.body.includes(key) || request.headers.includes(key))).toEqual([]);
+});
+
+if (!process.env.PLAYWRIGHT_BASE_URL) test("an off default allows explicit publication and joins whilst an existing share remains operable", async ({page, browser}) => {
+  test.setTimeout(90_000);
+  await login(page);
+  const origin = new URL(page.url()).origin;
+  const bar = page.locator(".figcraft-document-bar");
+  const preferences = bar.getByText("Preferences", {exact: true}).locator("..");
+  await bar.getByText("File", {exact: true}).click();
+  await preferences.locator("summary").click();
+  await preferences.getByLabel("Server for online sharing", {exact: true}).fill("");
+  await preferences.getByLabel("Server for online sharing", {exact: true}).press("Enter");
+  await bar.getByText("File", {exact: true}).click();
+  await bar.getByText("Share", {exact: true}).click();
+  await expect(bar.getByRole("status")).toContainText("Online sharing is off");
+  await expect(bar.getByRole("button", {name: "Start sharing", exact: true})).toHaveCount(0);
+  await bar.getByText("Share", {exact: true}).click();
+  await bar.getByText("File", {exact: true}).click();
+  await bar.getByRole("button", {name: "Publish to server…", exact: true}).click();
+  const form = page.getByRole("dialog", {name: "Publish to server", exact: true});
+  await expect(form.getByLabel("Server address", {exact: true})).toHaveValue("");
+  await form.getByLabel("Server address", {exact: true}).fill(supportedOnlineServer());
+  await form.getByLabel("File name", {exact: true}).fill("Explicit publication whilst off");
+  let file: string | undefined;
+  let guest: Awaited<ReturnType<Browser["newContext"]>> | undefined;
+  try {
+    const receipt = page.waitForResponse(response => new URL(response.url()).pathname === "/api/online-files" && response.request().method() === "POST");
+    await form.getByRole("button", {name: "Publish", exact: true}).click();
+    const response = await receipt;
+    expect(response.ok()).toBe(true);
+    file = (await response.json()).id;
+    await expect(form).toHaveCount(0);
+    await bar.getByText("File", {exact:true}).click();
+    await bar.getByRole("button", {name:"Publish to server…",exact:true}).click();
+    await expect(form.getByLabel("Server address", {exact:true})).toHaveValue(supportedOnlineServer());
+    await form.getByRole("button", {name:"Cancel",exact:true}).click();
+    await bar.getByText("Share", {exact: true}).click();
+    await bar.getByRole("button", {name: "Start sharing", exact: true}).click();
+    await expect(bar.getByRole("button", {name: "Stop sharing", exact: true})).toBeEnabled();
+    await bar.getByText("Share", {exact: true}).click();
+    await bar.getByText("File", {exact: true}).click();
+    const selected = preferences.getByLabel("Server for online sharing", {exact: true});
+    if (!await selected.isVisible()) await preferences.locator("summary").click();
+    await expect(selected).toHaveValue("");
+    await preferences.getByRole("button", {name: "Reset", exact: true}).click();
+    await expect(selected).toHaveValue(supportedOnlineServer());
+    await selected.fill("");
+    await selected.press("Enter");
+    await bar.getByText("File", {exact: true}).click();
+    await bar.getByText("Share", {exact: true}).click();
+    await expect(bar.getByRole("button", {name: "Stop sharing", exact: true})).toBeEnabled();
+    await bar.getByRole("button", {name: "Stop sharing", exact: true}).click();
+    await bar.getByRole("button", {name: "Start sharing", exact: true}).click();
+    await expect(bar.getByRole("button", {name: "Stop sharing", exact: true})).toBeEnabled();
+    const code = await bar.getByLabel("Join code", {exact: true}).innerText();
+    await page.context().grantPermissions(["clipboard-read", "clipboard-write"], {origin});
+    await bar.getByRole("button", {name: "Copy link", exact: true}).click();
+    await expect(bar.getByText("Link copied", {exact: true})).toBeVisible();
+    const link = await page.evaluate(() => navigator.clipboard.readText());
+    guest = await browser.newContext({storageState: await page.context().storageState()});
+    const peer = await guest.newPage();
+    await peer.goto(origin);
+    const peerBar = peer.locator(".figcraft-document-bar");
+    await expect(peerBar.getByText(/Local document/)).toBeVisible();
+    let joins = 0;
+    peer.on("request", request => {if (new URL(request.url()).pathname === "/api/online-files/join") joins++;});
+    await peerBar.getByText("File", {exact: true}).click();
+    await peerBar.getByRole("button", {name: "Join live session…", exact: true}).click();
+    const joining = peer.getByRole("dialog", {name: "Join live session", exact: true});
+    await joining.getByLabel("Invite link or code", {exact: true}).fill(code);
+    await joining.getByRole("button", {name: "Join", exact: true}).click();
+    await expect(joining.getByRole("alert")).toContainText("online join code");
+    await expect(joining.getByRole("alert")).toContainText("Online sharing is off");
+    expect(joins).toBe(0);
+    await joining.getByLabel("Invite link or code", {exact: true}).fill(link);
+    await joining.getByRole("button", {name: "Join", exact: true}).click();
+    await expect(peerBar.getByRole("heading", {name: "Explicit publication whilst off", exact: true})).toBeVisible();
+    await expect(peerBar.getByText(/Can edit/)).toBeVisible();
+    expect(joins).toBeGreaterThan(0);
+  } finally {
+    await guest?.close();
+    if (file) await removeOnlineFixture(page, file);
+  }
+});
+
 test("signed-in ownership finalisation validates the staged archive and safely retries", async ({ page }) => {
   await login(page);
   const url = backend?.url ?? process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -213,6 +367,7 @@ if (hourlyFixture || process.env.FIGCRAFT_E2E_RETAINED_LIMIT === "1") {
     const open = async (name: string) => {
       await bar.getByText("File", {exact: true}).click();
       await bar.getByRole("button", {name: "Publish to server…", exact: true}).click();
+      await form.getByLabel("Server address", {exact: true}).fill(supportedOnlineServer());
       await form.getByLabel("File name").fill(name);
       await form.getByRole("button", {name: "Publish", exact: true}).click();
     };
@@ -239,6 +394,7 @@ if (hourlyFixture || process.env.FIGCRAFT_E2E_RETAINED_LIMIT === "1") {
       const list = () => backend!.admin.from("online_files").select("name").eq("owner_id", userId!);
       expect((await list()).data).toEqual([{name: "First capacity drawing"}]);
       expect((await storage.remove([first])).error).toBeNull();
+      await expect(form.getByLabel("Server address", {exact: true})).toHaveValue(supportedOnlineServer());
       const retried = page.waitForResponse(response => new URL(response.url()).pathname === "/api/online-files");
       await form.getByRole("button", {name: "Publish", exact: true}).click();
       expect((await retried).status()).toBe(hourlyFixture ? 429 : 200);
@@ -270,6 +426,7 @@ if (!process.env.PLAYWRIGHT_BASE_URL) test("recovers a private keyed publication
     await bar.getByText("File",{exact:true}).click();
     await bar.getByRole("button",{name:"Publish to server…"}).click();
     const form = page.getByRole("dialog",{name:"Publish to server"});
+    await form.getByLabel("Server address", {exact: true}).fill(supportedOnlineServer());
     const submit = form.getByRole("button",{name:"Publish",exact:true});
     await form.getByLabel("File name").fill(name);
     await submit.click();
@@ -356,6 +513,7 @@ if (!process.env.PLAYWRIGHT_BASE_URL) test("publishes a team library and checks 
     await bar.getByText("File",{exact:true}).click();
     await bar.getByRole("button",{name:"Publish to server…"}).click();
     const fileForm=page.getByRole("dialog",{name:"Publish to server",exact:true});
+    await fileForm.getByLabel("Server address", {exact: true}).fill(supportedOnlineServer());
     await fileForm.getByLabel("Server key").fill(key);
     const pub=page.waitForResponse(r=>new URL(r.url()).pathname==="/api/online-files");
     await fileForm.getByRole("button",{name:"Publish",exact:true}).click();
@@ -495,6 +653,7 @@ test("publish, reopen and manage a device-owned file in Home Online", async ({ p
     await bar.getByText("File", { exact: true }).click();
     await bar.getByRole("button", { name: "Publish to server…", exact: true }).click();
     const form = page.getByRole("dialog", { name: "Publish to server", exact: true });
+    await form.getByLabel("Server address", {exact: true}).fill(supportedOnlineServer());
     await form.getByRole("button", {name: "About this server"}).click();
     await expect(form.getByText("Files nobody opens for 30 days are deleted.")).toBeVisible();
     await form.getByLabel("File name").fill(name);
@@ -700,6 +859,7 @@ for (const confirmed of [true, false]) {
       await bar.getByText("File", { exact: true }).click();
       await bar.getByRole("button", { name: "Publish to server…" }).click();
       const form = page.getByRole("dialog", { name: "Publish to server" });
+      await form.getByLabel("Server address", {exact: true}).fill(supportedOnlineServer());
       const name = "Interrupted drawing " + randomUUID();
       await form.getByLabel("File name").fill(name);
       await form.getByRole("button", { name: "Publish", exact: true }).click();
@@ -769,6 +929,7 @@ if (!process.env.PLAYWRIGHT_BASE_URL) for(const diverged of [false,true]) test(d
     await bar.getByText("File",{exact:true}).click();
     await bar.getByRole("button",{name:"Publish to server…"}).click();
     const form=page.getByRole("dialog",{name:"Publish to server",exact:true});
+    await form.getByLabel("Server address", {exact: true}).fill(supportedOnlineServer());
     await form.getByLabel("File name").fill("Crash recovery");
     const published=page.waitForResponse(r=>new URL(r.url()).pathname==="/api/online-files");
     const initialJoin=page.waitForResponse(r=>new URL(r.url()).pathname==="/api/online-files/join");
@@ -1164,6 +1325,7 @@ async function withSharedDrawing(page:Page,browser:Browser,seed:()=>Promise<void
     await bar.getByText("File",{exact:true}).click();
     await bar.getByRole("button",{name:"Publish to server…"}).click();
     const form = page.getByRole("dialog",{name:"Publish to server"}), receipt = page.waitForResponse(r=>new URL(r.url()).pathname==="/api/online-files");
+    await form.getByLabel("Server address", {exact: true}).fill(supportedOnlineServer());
     await form.getByLabel("File name").fill("Ordered drawing");
     await form.getByRole("button",{name:"Publish",exact:true}).click();
     file=(await (await receipt).json()).id;
@@ -1784,6 +1946,7 @@ test("the published view and edit invites open the original drawing in another s
     await bar.getByText("File", { exact: true }).click();
     await bar.getByRole("button", { name: "Publish to server…" }).click();
     const form = page.getByRole("dialog", { name: "Publish to server" });
+    await form.getByLabel("Server address", {exact: true}).fill(supportedOnlineServer());
     await form.getByLabel("File name").fill("Original invite drawing");
     const reply = page.waitForResponse(response => new URL(response.url()).pathname === "/api/online-files");
     await form.getByRole("button", { name: "Publish", exact: true }).click();

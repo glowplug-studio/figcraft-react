@@ -1,3 +1,4 @@
+import {OnlineServerPreference,resolveOnlineJoinTarget} from "./sharing/server-preference";
 import type {OnlineRecoveryNote} from "../backends/recovery";
 import {recoveredDrawing,type OnlineRecoveryPosition} from "./sharing/online-recovery";
 import type {OnlineWorkspace} from "./sharing/online-workspace";
@@ -55,7 +56,17 @@ let nextDocumentId = 1;
 export class EditorWorkspace {
   #sessions=new LiveSessions();
   #online?:OnlineWorkspace;
-  setOnlineWorkspace(online?:OnlineWorkspace){this.#online=online;}
+  readonly defaultServerPreference=new OnlineServerPreference("");
+  get serverPreference(){return this.#online?.serverPreference ?? this.defaultServerPreference;}
+  setOnlineWorkspace(online?:OnlineWorkspace){
+    if(this.#online!==online)this.#online?.disposeInvitations();
+    this.#online=online;
+    for(const tab of this.#tabs)tab.engine.setServerPreference(this.serverPreference);
+  }
+  releasePreviousOnlineBinding(tab:number,source:OnlineWorkspace,file:string) {
+    const previous=this.#online?.forTab(tab);
+    if(previous && (previous!==source || previous.publishedFile(tab)!==file))previous.leaveTab(tab);
+  }
   onlineSession(file:string,server:string){
     return this.#sessions.recorded(file,server,this.#tabs);
   }
@@ -197,10 +208,10 @@ export class EditorWorkspace {
   setInvitations(invitations?:OnlineInvitations,notice?:(text:string)=>void,left?:(tab:number)=>void) {
     this.#sessions.configure(invitations);this.#sessionNotice=notice;this.#leftTab=left;
   }
-  joining(connection:string,failed?:string|null) {
+  joining(connection:string,failed?:string|null,host?:OnlineInvitations) {
     if (failed===null) this.leaveSession(connection);
     else if (failed!==undefined) this.#sessions.failed(connection,failed);
-    else this.#sessions.start(connection,this.#active?.id);
+    else this.#sessions.start(connection,this.#active?.id,host);
   }
   #tabs: OpenTab[] = [];
   #active?: OpenTab;
@@ -281,6 +292,7 @@ export class EditorWorkspace {
     });
     const id=nextDocumentId++;
     engine.setOnlineCommands(()=>this.#online);
+    engine.setServerPreference(this.serverPreference);
     engine.setSessionInspector(()=>this.#sessions.inspect(id,this.#tabs),(command,params)=>this.#sessionAction(id,command,params),()=>{
       const found=this.#sessions.find(id),session=found?.[1];
       const host=found ? this.sessionInvitations(found[0]) : this.#sessions.host;
@@ -407,10 +419,10 @@ export class EditorWorkspace {
     return tab ? this.attachGuestSession(tab.id, session) : false;
   }
 
-  attachGuestSession(id: number, session: OnlineGuestSession) {
+  attachGuestSession(id: number, session: OnlineGuestSession, host?:OnlineInvitations) {
     const tab = this.#tabs.find(tab => tab.id === id);
     if (!tab || !this.#editable) return false;
-    if(tab.guest?.connection!==session.connection && this.sessionInvitations(session.connection)?.canAttach?.(session.connection)===false)return false;
+    if(tab.guest?.connection!==session.connection && (host ?? this.sessionInvitations(session.connection))?.canAttach?.(session.connection)===false)return false;
     if(tab.guest && tab.guest.connection!==session.connection)delete tab.stranded;
     if(session.ended || tab.guest?.connection!==session.connection || tab.guest.room!==session.room || tab.guest.client!==session.client)delete tab.onlineNote;
     const recovery=session.ended && this.#recoveries.get(session.connection);
@@ -418,7 +430,7 @@ export class EditorWorkspace {
     if(session.ended && !tab.stranded)tab.stranded=tab.engine.liveHistory?.confirmed?.() ?? tab.engine.liveDrawing();
     if (session.ended || tab.guest?.client !== session.client || tab.guest?.room !== session.room || tab.guest?.file !== session.file) delete tab.liveBranches;
     if (tab.guest && tab.guest.connection!==session.connection) this.#sessions.leave(tab.guest.connection);
-    this.#sessions.welcome(session,tab);
+    this.#sessions.welcome(session,tab,host);
     tab.guest = session;
     tab.engine.setLiveClient(session.client ?? 0);
     tab.engine.setEditable(this.#editable && (!!session.ended || session.access === "edit" && !this.#recoveries.has(session.connection)));
@@ -428,14 +440,18 @@ export class EditorWorkspace {
 
   #sessionAction(tab:number,command:SessionCommand,params:Record<string,unknown>):Record<string,unknown> {
     if(command==="collab.join"){
-      const host=this.#sessions.host;
+      let host=this.#sessions.host;
       if(!host?.beginJoin)throw new Error("Live sessions are unavailable here");
       const input=parseString(params.code) ?? parseString(params.link);
       if(input===undefined)throw new Error("Give the join code you were told, or the invite link");
-      const {connection,completed}=host.beginJoin(input);
-      this.#sessions.start(connection,tab);
+      const target=this.#online?.joinTarget(input);
+      const resolved=target?.input ?? resolveOnlineJoinTarget(input,this.serverPreference);
+      host=target?.host ?? host;
+      if(!host.beginJoin)throw new Error("Live sessions are unavailable here");
+      const {connection,completed}=host.beginJoin(resolved);
+      this.#sessions.start(connection,tab,host);
       void completed.catch(error=>{
-        if(this.#sessions.host!==host)return;
+        if(this.#sessions.hostFor(connection)!==host)return;
         const reason=error instanceof Error ? error.message : "The invite is unavailable";
         this.#sessions.failed(connection,reason);
       });

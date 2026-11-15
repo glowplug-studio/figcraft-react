@@ -105,6 +105,8 @@ export function WorkspaceEditor({ identity, capabilities, recoveryStore, onlineH
     const current = identity.getSnapshot();
     return current.status === "authenticated" && current.principal.id === principal && capabilities.includes("document.edit");
   }) : undefined, [workspace, onlineHost, principal, identity, capabilities]);
+  const preference=online?.serverPreference ?? workspace.defaultServerPreference;
+  useSyncExternalStore(preference.subscribe,preference.getSnapshot,preference.getSnapshot);
   useEffect(() => {
     let controller: WorkspaceRecovery | undefined;
     const update = () => {
@@ -143,7 +145,7 @@ export function WorkspaceEditor({ identity, capabilities, recoveryStore, onlineH
     },(connection,failed)=>workspace.joining(connection,failed));
     let current=true;
     queueMicrotask(()=>{if(current)void online?.restoreSaved(()=>current);});
-    return ()=>{current=false;unsubscribe();workspace.setInvitations(undefined);};
+    return ()=>{current=false;unsubscribe();online?.disposeInvitations();workspace.setInvitations(undefined);};
   }, [workspace, enabled, primaryInvitations,online,setNotice,setLiveNotice]);
   const ended = useCallback((connection: string, reason: GuestSessionEnd) => {
     const session = workspace.getSnapshot().find(tab => tab.guest?.connection === connection)?.guest;
@@ -170,6 +172,11 @@ export function WorkspaceEditor({ identity, capabilities, recoveryStore, onlineH
   const [openShareTab, setOpenShareTab] = useState<number>();
   const publishedId = active && activeOnline?.publishedFile(active.id);
   const managing = publishedId !== undefined && publishedId === guest?.file;
+  let shareOnline=activeOnline,shareUnavailable="";
+  if(!publishedId && online){
+    try{shareOnline=online.preferred();}
+    catch(error){shareOnline=undefined;shareUnavailable=error instanceof Error ? error.message : "This server is unavailable";}
+  }
 
   useEffect(() => {
     if (!enabled) return;
@@ -209,11 +216,12 @@ export function WorkspaceEditor({ identity, capabilities, recoveryStore, onlineH
   const shareMenu = enabled && active && activeOnline && (!guest || managing) && (activeOnline.sharing || (invitations && publishedId)) && <details name={menuGroup} className="figcraft-bar-menu"
     onToggle={event => setOpenShareTab(event.currentTarget.open ? active.id : undefined)}><summary>Share</summary><div className="figcraft-menu-items">
     {principal && <DisplayNameField principal={principal}/>}
-    {activeOnline.supportsServerKey && openShareTab === active.id && <details><summary>Advanced</summary>
-      <ServerKeyField online={activeOnline} />
+    {shareOnline?.supportsServerKey && openShareTab === active.id && <details><summary>Advanced</summary>
+      <ServerKeyField key={shareOnline.server} online={shareOnline} />
     </details>}
-    {activeOnline.sharing && openShareTab === active.id && <OwnerShareControls sharing={activeOnline.sharing} file={publishedId}
-      publish={async () => (await activeOnline.publish(active.id, active.name)).id} published={() => setNotice("Published " + active.name)} />}
+    {shareUnavailable && <p role="status">{shareUnavailable}</p>}
+    {shareOnline?.sharing && openShareTab === active.id && <OwnerShareControls key={shareOnline.server} sharing={shareOnline.sharing} file={publishedId}
+      publish={async () => (await online!.preferred().publish(active.id, active.name)).id} published={() => setNotice("Published " + active.name)} />}
     {invitations && <button type="button" onClick={event => {
       event.currentTarget.closest("details")?.removeAttribute("open"); invitations.showJoin();
     }}>Join live session…</button>}

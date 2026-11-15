@@ -1,3 +1,4 @@
+import {OnlineServerPreference} from "./sharing/server-preference";
 import {onlineCommands,emptyOnlineFiles,type OnlineWorkspace,type OnlineCommand} from "./sharing/online-workspace";
 import {participantReportReason} from "./sharing/participant-report";
 import {hostingSummary,type SessionHostContext,sessionCommands,unavailableSession,type SessionAction,type SessionCommand,type LiveSummary} from "./sharing/live-session-summary";
@@ -122,6 +123,7 @@ export const commandSpecs = Object.freeze({
   ...commentActions,
   ...commentQueries,
   "comment.prompt": {label:"Copy comments for AI",undo:false},
+  "pref.publishServer":{label:"Server for online sharing",undo:false},
   "pref.userName": {label:"Your name",undo:false},
   "tool.comment": {label:"Comment",undo:false},
   "view.comments": {label:"Comments",undo:false},
@@ -475,6 +477,12 @@ export class EditorEngine {
   #inspectSession?:()=>LiveSummary;
   #sessionAction?:SessionAction;
   #online?:()=>OnlineWorkspace|undefined;
+  #serverPreference=new OnlineServerPreference("");
+  get serverPreference(){return this.#serverPreference;}
+  setServerPreference(preference:OnlineServerPreference){
+    if(this.#serverPreference===preference)return;
+    this.#serverPreference=preference;this.#publish({});
+  }
   setOnlineCommands(online?:()=>OnlineWorkspace|undefined){this.#online=online;}
   #sessionHost?:()=>SessionHostContext|undefined;
   get canRemovePeople(){
@@ -1519,6 +1527,7 @@ export class EditorEngine {
       throw new Error("Live sessions are unavailable here");
     }
     if(Object.hasOwn(peopleCommands,command))return executePeople(this.#people,command,parameters(input));
+    if(command==="pref.publishServer")return {...this.serverPreference.execute(parameters(input))};
     if (command==="pref.userName") {
       const {name}=parameters(input);
       if (typeof name!=="string") throw new Error("Your name must be text");

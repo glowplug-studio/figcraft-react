@@ -25,9 +25,11 @@ declare
     registration figcraft_private.live_presence_connections;
     used smallint[];
 begin
-    -- Match admission lock order. Subsequent samples only read their existing allocation.
+    -- Every grant must lock the file before its links and connection. Removal
+    -- locks the file/connections before cascading to links, including when a
+    -- subsequent sample reuses an existing presence allocation.
+    perform 1 from public.online_files where id=target for key share;
     if not exists(select 1 from figcraft_private.live_presence_connections where connection_id=tab) then
-        perform 1 from public.online_files where id=target for key share;
         perform 1 from figcraft_private.live_rooms where file_id=target for update;
     end if;
     select g.client into strict sender from figcraft_private.live_grant(actor,login,tab,target) g;

@@ -62,8 +62,9 @@ function publicationHost(){
     }),copy:unavailable};
   const host={server,device,store,invitations,sharing,supportsServerKey:true,retainOperatorKey:vi.fn()};
   workspace.setInvitations(invitations);
-  workspace.setOnlineWorkspace(new OnlineWorkspace(workspace,host,"owner",()=>true));
-  return {workspace,device,store,gate,host};
+  const online=new OnlineWorkspace(workspace,host,"owner",()=>true);
+  workspace.setOnlineWorkspace(online);
+  return {workspace,device,store,gate,host,online};
 }
 
 it.each(["share","publish"] as const)("matches the native %s connecting receipt and locks only its source document",async action=>{
@@ -147,5 +148,81 @@ it("replaces only the source session when publishing again during a held upload"
     gate.resolve();
     await vi.waitFor(()=>expect(engine.execute("collab.peers")).toMatchObject({status:"live",sessions:[{session:2,document:0}]}));
     expect(engine.getSnapshot().editable).toBe(true);
+  }finally{gate.resolve();device.close();}
+});
+
+// Native engine/src/live_share_tests.rs::the_built_in_server_is_the_default_and_can_be_changed_or_turned_off.
+it("shares the server preference across existing and new tabs without changing drawings or undo history",()=>{
+  const {workspace,device,gate,online}=publicationHost(),first=workspace.activeEngine!;
+  try{
+    first.execute("shape.rectangle");
+    const before=first.getSnapshot();
+    workspace.execute("file.new");const second=workspace.activeEngine!,blank=second.getSnapshot();
+    expect(first.execute("pref.publishServer",{url:" wss://other.example/ "})).toEqual({url:"wss://other.example/",default:"wss://share.example"});
+    expect(first.serverPreference).toBe(online.serverPreference);
+    expect(second.serverPreference).toBe(first.serverPreference);
+    expect(second.serverPreference.getSnapshot().url).toBe("wss://other.example/");
+    workspace.execute("file.new");const third=workspace.activeEngine!;
+    expect(third.serverPreference).toBe(first.serverPreference);
+    expect(third.serverPreference.getSnapshot().url).toBe("wss://other.example/");
+    expect(first.getSnapshot().document).toBe(before.document);
+    expect(first.getSnapshot().dirty).toBe(before.dirty);
+    expect(second.getSnapshot().document).toBe(blank.document);
+    expect(second.getSnapshot().dirty).toBe(blank.dirty);
+    expect(second.execute("edit.undo")).toEqual({undone:false});
+    expect(first.execute("edit.undo")).toEqual({undone:true});
+    expect(first.execute("edit.undo")).toEqual({undone:false});
+    expect(third.execute("pref.publishServer")).toEqual({url:"wss://share.example",default:"wss://share.example"});
+    expect(first.serverPreference.getSnapshot().url).toBe("wss://share.example");
+    expect(third.getSnapshot().dirty).toBe(false);
+  }finally{gate.resolve();device.close();}
+});
+
+// Native engine/src/live_share_tests.rs::online_sharing_is_off_without_a_server.
+it("refuses default sharing while off before staging or starting a session, but permits a one-shot explicit server",async()=>{
+  const {workspace,device,store,gate,host}=publicationHost(),engine=workspace.activeEngine!;
+  const registry=vi.spyOn(device,"onlineRegistry");
+  try{
+    engine.execute("pref.publishServer",{url:""});
+    await expect(engine.executeAsync("collab.share")).rejects.toThrow(/online sharing is off/i);
+    expect(registry).not.toHaveBeenCalled();
+    expect(store.publish).not.toHaveBeenCalled();
+    expect(host.invitations.joinOwned).not.toHaveBeenCalled();
+    expect(engine.execute("collab.peers").sessions).toEqual([]);
+    expect(engine.getSnapshot().editable).toBe(true);
+    await engine.executeAsync("collab.share",{server:"wss://share.example/"});
+    await vi.waitFor(()=>expect(store.publish).toHaveBeenCalledOnce());
+    expect(engine.serverPreference.getSnapshot().url).toBe("");
+    gate.resolve();
+    await vi.waitFor(()=>expect(engine.execute("collab.peers").status).toBe("live"));
+    expect(engine.serverPreference.getSnapshot().url).toBe("");
+  }finally{gate.resolve();device.close();}
+});
+
+it("keeps an existing live share usable after the default is turned off",async()=>{
+  const {workspace,device,store,gate,host}=publicationHost(),engine=workspace.activeEngine!;
+  try{
+    await engine.executeAsync("collab.share");gate.resolve();
+    await vi.waitFor(()=>expect(engine.execute("collab.peers").status).toBe("live"));
+    const session=engine.execute("collab.peers").session;
+    engine.execute("pref.publishServer",{url:""});
+    await engine.executeAsync("collab.share",{access:"view"});
+    expect(engine.execute("collab.peers")).toMatchObject({session,status:"live",share:{access:"view",shared:true}});
+    expect(store.publish).toHaveBeenCalledOnce();
+    await engine.executeAsync("collab.stop");
+    expect(engine.execute("collab.peers")).toMatchObject({session,status:"live",share:{shared:false}});
+    expect(host.invitations.leave).not.toHaveBeenCalled();
+    expect(engine.serverPreference.getSnapshot().url).toBe("");
+  }finally{gate.resolve();device.close();}
+});
+
+it("still requires an explicit collab.publish server when a default server is selected",async()=>{
+  const {workspace,device,store,gate}=publicationHost(),engine=workspace.activeEngine!;
+  const registry=vi.spyOn(device,"onlineRegistry");
+  try{
+    expect(engine.serverPreference.getSnapshot().url).toBe("wss://share.example");
+    await expect(engine.executeAsync("collab.publish")).rejects.toThrow("Give a server address");
+    expect(registry).not.toHaveBeenCalled();expect(store.publish).not.toHaveBeenCalled();
+    expect(engine.execute("collab.peers").status).toBe("off");
   }finally{gate.resolve();device.close();}
 });

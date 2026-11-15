@@ -420,6 +420,67 @@ describe.skipIf(!enabled)("private online files on real local Supabase", () => {
     expect(await grants()).toEqual([]);
   });
 
+  it("takes the file lock before child grants on an already registered presence sample",async()=>{
+    const writer=local!.admin,file=randomUUID(),keys=createPublishedLinks(),proof=await publishedLinkDigests(keys);
+    const path=owner.id+"/"+file+".figcraft";paths.push(path);
+    const store=ownedStore(owner.client,owner.id,id=>finaliseForTest(owner.client,writer,id,proof));
+    await store.publish(file,new Blob([archive]));
+    const login=(await stranger.client.auth.getClaims()).data!.claims.session_id as string,tab=randomUUID();
+    const conn={actor:stranger.id,login,tab,target:file};
+    await readSharedDrawing(stranger.client,writer,stranger.id,login,tab,file,keys.edit.token);
+    await welcomeLivePeople(writer,conn,"Before");
+    expect(localOperatorSql(local!,"select count(*) from figcraft_private.live_presence_connections where connection_id=:'tab'",{tab})).toBe("1");
+
+    const transaction=()=>{
+      const child=spawn("docker",["exec","-i","supabase_db_figcraft-react","psql","-XqAt","-v","ON_ERROR_STOP=1","-U","postgres","-d","postgres"]);
+      const lines=createInterface({input:child.stdout}),closed=once(child,"close");
+      let stderr="";child.stderr.on("data",chunk=>{stderr+=String(chunk);});
+      return {child,lines,closed,stderr:()=>stderr};
+    };
+    const blocker=transaction(),sample=transaction();
+    try {
+      const locked=once(blocker.lines,"line",{signal:AbortSignal.timeout(4000)});
+      blocker.child.stdin.write("begin; set local statement_timeout='8s'; select pg_backend_pid() from public.online_files where id='"+file+"' for update;\n");
+      const blockerPid=String((await locked)[0]);
+      expect(blockerPid).toMatch(/^\d+$/);
+      const started=once(sample.lines,"line",{signal:AbortSignal.timeout(4000)});
+      sample.child.stdin.write("begin; set local statement_timeout='8s'; set local application_name='figcraft-presence-lock-"+tab+"'; select pg_backend_pid();\n");
+      const samplePid=String((await started)[0]);
+      expect(samplePid).toMatch(/^\d+$/);
+      // A changed name exercises the later update too. The existing allocation
+      // is essential: the old function took the parent lock only at first registration.
+      sample.child.stdin.write("select 'sampled' from public.live_participants('"+stranger.id+"','"+login+"','"+tab+"','"+file+"','After',false);\n");
+      const state=()=>localOperatorSql(local!,`
+        select case
+          when wait_event_type='Lock' and :'blocker'::integer=any(pg_blocking_pids(pid)) then 'waiting on file'
+          when state='idle in transaction' and query like 'select ''sampled''%' then 'completed without file lock'
+          else 'running' end
+        from pg_stat_activity where pid=:'sample'::integer
+          and application_name=:'application';`,
+      {blocker:blockerPid,sample:samplePid,application:"figcraft-presence-lock-"+tab});
+      await expect.poll(state,{timeout:3000,interval:50}).not.toBe("running");
+      expect(state()).toBe("waiting on file");
+
+      // The blocked sample must not already own key-share locks on the link or
+      // connection: deletion takes these after the parent and would deadlock.
+      const children=once(blocker.lines,"line",{signal:AbortSignal.timeout(4000)});
+      blocker.child.stdin.write("select 'children free' from public.online_file_links l join public.online_file_connections c on c.link_id=l.id where c.id='"+tab+"' for update of l,c nowait;\n");
+      expect((await children)[0]).toBe("children free");
+      const completed=once(sample.lines,"line",{signal:AbortSignal.timeout(4000)});
+      blocker.child.stdin.end("rollback;\n");
+      expect((await completed)[0]).toBe("sampled");
+      sample.child.stdin.end("commit;\n");
+      const [[blockerExit],[sampleExit]]=await Promise.all([blocker.closed,sample.closed]);
+      expect(blockerExit,blocker.stderr()).toBe(0);
+      expect(sampleExit,sample.stderr()).toBe(0);
+    } finally {
+      if(!blocker.child.stdin.writableEnded)blocker.child.stdin.end("rollback;\n");
+      if(!sample.child.stdin.writableEnded)sample.child.stdin.end("rollback;\n");
+      await Promise.all([blocker.closed,sample.closed]);
+      blocker.lines.close();sample.lines.close();
+    }
+  });
+
   it("retires an idle listing and retries Storage deletion without touching a replacement", async () => {
     const file = randomUUID(), path = owner.id + "/" + file + ".figcraft";
     paths.push(path);

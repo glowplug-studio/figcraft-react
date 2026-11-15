@@ -1,3 +1,4 @@
+import {browserServerPreference} from "@glowplug-studio/figcraft-react";
 import type {SupabaseClient} from "@supabase/supabase-js";
 import type {IndexedDbRecoveryStore,DeviceOwnerSharing,OnlineWorkspaceHost} from "@glowplug-studio/figcraft-react";
 import {SupabaseOnlineFileStore,publishedLinkDigests,watchSupabaseGuest} from "@glowplug-studio/figcraft-react/backends/supabase";
@@ -9,6 +10,7 @@ import {browserManagement} from "./browser-management";
 
 export function browserOnlineHost(client:SupabaseClient,store:IndexedDbRecoveryStore,principal:string,server:string,
   showJoin:()=>void,notify:(message:string)=>void) {
+  const serverPreference=browserServerPreference(principal,server.replace(/^http/,"ws"));
   let currentKey = "";
   const operators = new Map<string, {pair: Awaited<ReturnType<typeof store.publicationLinks>>;
     key?:string; sharing: DeviceOwnerSharing}>();
@@ -36,9 +38,9 @@ export function browserOnlineHost(client:SupabaseClient,store:IndexedDbRecoveryS
     readPublishedLinks: async (principal,address,file) => operators.get(file)?.pair ?? store.readPublishedLinks(principal,address,file),
   }, principal, server,
     (connection, ended, edits, people, ready) => watchSupabaseGuest(client, connection, ended, edits, people, ready), showJoin, notify, file => files.resolveTeamFile(file),{hosting:file=>files.hosting(file),
-    sharing:(file,recorded)=>sharing.inspect(file,recorded),loadSharing:file=>sharing.read(file,true)});
+    sharing:(file,recorded)=>sharing.inspect(file,recorded),loadSharing:file=>sharing.read(file,true)},serverPreference);
   return {
-    server, libraries:new BrowserTeamLibraries(store,principal,server,client,invites),
+    server, serverPreference, libraries:new BrowserTeamLibraries(store,principal,server,client,invites),
     supportsServerKey:true,operatorOrigin:location.origin,serverKeyChanged:key=>{currentKey=key;},
     retainOperatorKey:(file,key)=>{const entry=operators.get(file);if(entry)entry.key=key;},
     releasePublished:file=>{operators.delete(file);},
