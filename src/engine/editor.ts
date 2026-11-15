@@ -1,4 +1,6 @@
 import {OnlineServerPreference} from "./sharing/server-preference";
+import {collaborationDiff} from "./sharing/collaboration-diff";
+import {compareScalarKeys,nativeFloat} from "./text-breaks";
 import {onlineCommands,emptyOnlineFiles,type OnlineWorkspace,type OnlineCommand} from "./sharing/online-workspace";
 import {participantReportReason} from "./sharing/participant-report";
 import {hostingSummary,type SessionHostContext,sessionCommands,unavailableSession,type SessionAction,type SessionCommand,type LiveSummary} from "./sharing/live-session-summary";
@@ -116,6 +118,7 @@ export const commandSpecs = Object.freeze({
   ...peopleCommands,
   ...sessionCommands,
   ...onlineCommands,
+  "collab.diff":{label:"Show sync changes",undo:false},
   "collab.report":{label:"Report this file",undo:false},
   "collab.stop":{label:"Stop sharing",undo:false},
   "collab.serverInfo":{label:"About this server",undo:false},
@@ -308,6 +311,17 @@ function namedParameters(input:unknown):Record<string,unknown> {
   // Native registry queries treat a non-object payload as having no named parameters.
   return input && typeof input==="object" && !Array.isArray(input) ? input as Record<string,unknown> : {};
 }
+/** Rust Debug string spelling used in native command errors. */
+function debugString(value:string):string {
+  let result='"';
+  const escaped:Record<string,string>={'\0':'\\0','\t':'\\t','\n':'\\n','\r':'\\r','"':'\\"','\\':'\\\\'};
+  for(const char of value) {
+    const hidden=/[\u115f\u1160\u3164\uffa0]/u.test(char) ||
+      char!==' ' && char!=='\uff9e' && char!=='\uff9f' && /[\p{C}\p{Z}\p{Grapheme_Extend}]/u.test(char);
+    result+=escaped[char] ?? (hidden?'\\u{'+char.codePointAt(0)!.toString(16)+'}':char);
+  }
+  return result+'"';
+}
 function fontParams(command:keyof typeof fontOptions,input:unknown) {
   const p=namedParameters(input);
   const allowed:readonly string[]=fontOptions[command];
@@ -402,7 +416,7 @@ export class EditorEngine {
     this.#people?.refreshName();
   }
   get commentName() { return this.#commentName; }
-  #preview?: { id: string; document: Document; selection: readonly NodeId[] };
+  #preview?: { id: string; document: Document; comparison:Document; selection: readonly NodeId[] };
   #versionRead = 0;
   #history = new VersionHistory();
   get versions() { return this.#history.records; }
@@ -440,7 +454,7 @@ export class EditorEngine {
     const shown = currentPage === document.currentPage ? document : Object.freeze({ ...document, currentPage });
     this.#vectorEdit = undefined;
     if (command === "version.preview") {
-      this.#preview = { id: version.id, document: current.document, selection: current.selection };
+      this.#preview = { id: version.id, document: current.document, comparison:document, selection: current.selection };
       this.#publish({ document: shown, selection: Object.freeze([]), editable: false, previewVersionId: version.id });
       return versionDetails(version, index);
     }
@@ -610,6 +624,7 @@ export class EditorEngine {
     tab.#branchTab = true;
     tab.#nextId = nextId;
     tab.#saved = document;
+    tab.#comparisonSaved = document;
     tab.#history = new VersionHistory(branch.versions);
     tab.#savedVersions = tab.#history.records;
     tab.#publish({ document });
@@ -646,12 +661,19 @@ export class EditorEngine {
   closeVersionPanel() { if (this.#snapshot.versionPanel) this.#publish({ versionPanel: false }); }
 
   #saved: Document | null = null;
+  #comparisonSaved: Document;
+  #comparisonDocument(document:Document) {
+    const page=this.#livePage;
+    return page && document.currentPage===page.local && document.pages.includes(page.shared)
+      ? Object.freeze({...document,currentPage:page.shared}):document;
+  }
   #downloaded = false;
   #saveSequence = 0;
-  #pendingSaves = new Map<number, { document: Document; branches: readonly FileBranch[]; versions: readonly FileVersion[] }>();
+  #pendingSaves = new Map<number, { document: Document; comparison:Document; branches: readonly FileBranch[]; versions: readonly FileVersion[] }>();
   #openSequence = 0;
   constructor(name?: string) {
     this.#snapshot = Object.freeze({ document: newDocument(name), selection: Object.freeze([]), tool: "move", builderMode: "merge", scaleAnchor: "tl", canUndo: false, canRedo: false, editable: true, dirty: true, hasSaved: false });
+    this.#comparisonSaved = this.#snapshot.document;
   }
   static newTab(name?: string, clipboard: EditorClipboard = {}): EditorEngine {
     const engine = new EditorEngine(name);
@@ -673,6 +695,7 @@ export class EditorEngine {
     const document = Object.freeze({ ...source, name });
     const copy = EditorEngine.newTab(undefined, this.#clipboard);
     copy.#saved = dirty ? null : document;
+    copy.#comparisonSaved = dirty ? source : document;
     copy.#nextId = nextId;
     copy.#publish({ document });
     copy.updateView(fitPage(defaultViewport, document));
@@ -1513,7 +1536,7 @@ export class EditorEngine {
   execute(command: string, input: unknown = {}): Record<string, unknown> | Variables | ReturnType<typeof listStyles> | ReturnType<typeof listComponents> | ReturnType<typeof listPages> | typeof framePresets | ReturnType<typeof versionDetails>[] | ReturnType<typeof queryFonts> | null {
     if (!Object.hasOwn(commandSpecs, command)) throw new Error(`Unsupported command: ${command}`);
     if(Object.hasOwn(onlineCommands,command))throw new Error(command+" requires executeAsync");
-    if(command==="collab.removePerson" || command==="collab.stop" || command==="collab.serverInfo")throw new Error(command+" requires executeAsync");
+    if(command==="collab.diff" || command==="collab.removePerson" || command==="collab.stop" || command==="collab.serverInfo")throw new Error(command+" requires executeAsync");
     if(command==="collab.report"){
       const {receipt,notify}=this.#sendReport(input);
       void receipt.then(()=>notify("Your report was sent to the server's operator"),
@@ -2049,10 +2072,12 @@ export class EditorEngine {
     }
     if (command === "file.markSaved") {
       if (Object.keys(p).some(key => key !== "revision")) throw new Error("Unsupported save acknowledgement parameter");
-      const saved = p.revision === undefined ? { document: this.#interaction?.document ?? this.#snapshot.document, versions: this.#history.records, branches: this.#branches }
+      const document=this.#interaction?.document ?? this.#snapshot.document;
+      const saved = p.revision === undefined ? { document, comparison:this.#comparisonDocument(document), versions: this.#history.records, branches: this.#branches }
         : typeof p.revision === "number" ? this.#pendingSaves.get(p.revision) : undefined;
       if (!saved) return { saved: false };
       this.#saved = saved.document;
+      this.#comparisonSaved = saved.comparison;
       this.#savedVersions = saved.versions;
       this.#savedBranches = saved.branches;
       this.#downloaded = true;
@@ -2091,6 +2116,26 @@ export class EditorEngine {
   async executeAsync(command: "node.get", input: unknown): Promise<ReturnType<typeof getNode>>;
   async executeAsync(command: string, input?: unknown): Promise<Record<string, unknown>>;
   async executeAsync(command: string, input: unknown = {}): Promise<Record<string, unknown> | Variables | ReturnType<typeof listStyles> | ReturnType<typeof listComponents> | ReturnType<typeof queryFonts> | null> {
+    if(command==="collab.diff"){
+      const p=namedParameters(input);
+      const unknown=Object.keys(p).filter(key=>key!=="against" && key!=="id" && key!=="ids").sort(compareScalarKeys);
+      if(unknown.length)throw new Error('invalid parameters for `collab.diff`: unknown parameter'+(unknown.length===1?'':'s')+' '+unknown.map(key=>'`'+key+'`').join(', ')+' (it takes against)');
+      let against=parseString(p.against)??"undo";
+      if(typeof p.against==="number" && Number.isFinite(p.against)){
+        // Reproduce serde's spelling after the browser's JSON numeric boundary.
+        const token=JSON.stringify(p.against),integer=/^-?\d+$/.test(token)?BigInt(token):undefined;
+        against=integer!==undefined && integer>=-9223372036854775808n && integer<=18446744073709551615n ? token:nativeFloat(p.against);
+      }
+      let before:Document;
+      if(against==="saved")before=this.#comparisonSaved;
+      else if(against==="undo"){
+        const reason=this.#liveHistory?'in a live session undo is per user: compare against "saved"':!this.#undo.length?'nothing to undo':undefined;
+        if(reason)throw new Error('command `collab.diff` is not available right now: '+reason);
+        before=this.#undo[this.#undo.length-1]!.document;
+      } else throw new Error('invalid parameters for `collab.diff`: `against` is "undo" or "saved", not '+debugString(against));
+      // Compare the shown version, while excluding a live follower's local page selection.
+      return collaborationDiff(before,this.#preview?.comparison ?? this.#comparisonDocument(this.#snapshot.document));
+    }
     if(Object.hasOwn(onlineCommands,command)){
       const online=this.#online?.(),params=parameters(input);
       if(online)return online.execute(command as OnlineCommand,params,this);
@@ -2304,6 +2349,7 @@ export class EditorEngine {
     const live=this.currentTextEdit() && this.#interaction;
     if (!live) this.cancelInteraction();
     const {document,nextId} = live ? this.#prepareEdit(live.document,live.nextId) : {document:this.#snapshot.document,nextId:this.#nextId};
+    const comparison=this.#comparisonDocument(document);
     const revision = ++this.#saveSequence, opening = this.#openSequence;
     const versions = this.#history.records;
     const branches = this.#branches;
@@ -2312,7 +2358,7 @@ export class EditorEngine {
     const archive = await encodeFigcraftBlob(document, String(nextId), versions, thumbnail, branches);
     const data = await output(archive);
     if (!this.#snapshot.editable || opening !== this.#openSequence) throw new Error("Save was cancelled because the document or identity changed");
-    this.#pendingSaves.set(revision, { document, versions, branches });
+    this.#pendingSaves.set(revision, { document, comparison, versions, branches });
     while (this.#pendingSaves.size > 16) this.#pendingSaves.delete(this.#pendingSaves.keys().next().value!);
     return {name: `${document.name}.figcraft`, bytes: archive.size, data, revision};
   }
@@ -2503,6 +2549,7 @@ export class EditorEngine {
     this.#history = new VersionHistory(decoded.versions);
     this.#savedVersions = this.#history.records;
     this.#undo = []; this.#redo = []; this.#saved = null; this.#downloaded = false; this.#pendingSaves.clear();
+    this.#comparisonSaved = command==="file.recover" ? newDocument(decoded.document.name) : decoded.document;
     this.#vectorEdit = undefined;
     this.#publish({ document: decoded.document, profileDialog: false, libraryPanel:undefined, missingFonts: undefined, selection: Object.freeze([]), tool: "move" });
     this.updateView(fitPage({ ...this.#view, proofSrgb: false }, decoded.document));

@@ -14,6 +14,11 @@ export type InitialChange =
   | {type: "setDoc"; prop: string; value: string}
   | {type: "put"; entry: string; key: string; value: string};
 
+export type SessionChange = InitialChange
+  | {type:"set"; id:string; prop:string; value:string}
+  | {type:"delete"; id:string}
+  | {type:"remove"; entry:string; key:string};
+
 export const SESSION_DISK_HEADER_BYTES = 17;
 
 class Postcard {
@@ -62,7 +67,13 @@ class Postcard {
     this.size += valueBytes;
   }
 
-  change(change: InitialChange) {
+  entry(entry:string,key:string) {
+    this.variant(entryKinds,entry);
+    if(entry==="comment" || entry==="devSnapshot")this.uint(BigInt(key));
+    else this.text(key);
+  }
+
+  change(change: SessionChange) {
     switch (change.type) {
       case "create":
         this.byte(0);
@@ -74,6 +85,16 @@ class Postcard {
         this.uint(change.props.length);
         for (const [prop, value] of change.props) { this.variant(properties, prop); this.text(value); }
         break;
+      case "set":
+        this.byte(1);
+        this.uint(BigInt(change.id));
+        this.variant(properties,change.prop);
+        this.text(change.value);
+        break;
+      case "delete":
+        this.byte(2);
+        this.uint(BigInt(change.id));
+        break;
       case "setDoc":
         this.byte(3);
         this.variant(documentProperties, change.prop);
@@ -81,10 +102,12 @@ class Postcard {
         break;
       case "put":
         this.byte(4);
-        this.variant(entryKinds, change.entry);
-        if (change.entry === "comment" || change.entry === "devSnapshot") this.uint(BigInt(change.key));
-        else this.text(change.key);
+        this.entry(change.entry,change.key);
         this.text(change.value);
+        break;
+      case "remove":
+        this.byte(5);
+        this.entry(change.entry,change.key);
         break;
     }
   }
@@ -146,5 +169,24 @@ export function initialSnapshotSize(state: InitialSession) {
 export function encodeInitialState(state: InitialSession) {
   const output = new Uint8Array(writeInitialState(state));
   writeInitialState(state, output);
+  return output;
+}
+
+function writeChangeMessage(changes:readonly SessionChange[],output?:Uint8Array) {
+  const writer=new Postcard(output);
+  writer.byte(1); // message::WIRE_VERSION, followed by the change vector alone.
+  writer.uint(changes.length);
+  for(const change of changes)writer.change(change);
+  return writer.size;
+}
+
+/** Native message::encode(Vec<Change>) size, without a session or disk envelope. */
+export function changeMessageSize(changes:readonly SessionChange[]):number {
+  return writeChangeMessage(changes);
+}
+
+export function encodeChangeMessage(changes:readonly SessionChange[]):Uint8Array {
+  const output=new Uint8Array(changeMessageSize(changes));
+  writeChangeMessage(changes,output);
   return output;
 }

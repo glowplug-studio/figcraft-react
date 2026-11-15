@@ -1,0 +1,449 @@
+{
+  "nativeRevision": "bad07e4433240cad046589129c084bd2fc36f097",
+  "stages": [
+    {
+      "command": "collab.diff",
+      "params": {
+        "against": "saved"
+      },
+      "result": {
+        "receipt": {
+          "bytes": 2,
+          "changes": [],
+          "count": 0
+        }
+      },
+      "stage": "initial-saved"
+    },
+    {
+      "command": "collab.diff",
+      "params": {},
+      "result": {
+        "error": "command `collab.diff` is not available right now: nothing to undo"
+      },
+      "stage": "initial-undo"
+    },
+    {
+      "command": "shape.rectangle",
+      "params": {
+        "height": 10,
+        "width": 10,
+        "x": 0,
+        "y": 0
+      },
+      "result": {
+        "receipt": {
+          "id": 2
+        }
+      },
+      "stage": "rectangle"
+    },
+    {
+      "command": "collab.diff",
+      "params": {},
+      "result": {
+        "receipt": {
+          "bytes": 56,
+          "changes": [
+            {
+              "create": {
+                "id": 2,
+                "kind": {
+                  "type": "rectangle"
+                },
+                "parent": 1,
+                "position": "a0",
+                "props": [
+                  [
+                    "name",
+                    "Rectangle"
+                  ],
+                  [
+                    "width",
+                    10.0
+                  ],
+                  [
+                    "height",
+                    10.0
+                  ]
+                ]
+              }
+            }
+          ],
+          "count": 1
+        }
+      },
+      "stage": "default-undo"
+    },
+    {
+      "command": "collab.diff",
+      "params": {},
+      "result": {
+        "receipt": {
+          "bytes": 56,
+          "changes": [
+            {
+              "create": {
+                "id": 2,
+                "kind": {
+                  "type": "rectangle"
+                },
+                "parent": 1,
+                "position": "a0",
+                "props": [
+                  [
+                    "name",
+                    "Rectangle"
+                  ],
+                  [
+                    "width",
+                    10.0
+                  ],
+                  [
+                    "height",
+                    10.0
+                  ]
+                ]
+              }
+            }
+          ],
+          "count": 1
+        }
+      },
+      "stage": "repeat-undo"
+    },
+    {
+      "command": "collab.diff",
+      "params": {
+        "against": "undo"
+      },
+      "result": {
+        "receipt": {
+          "bytes": 56,
+          "changes": [
+            {
+              "create": {
+                "id": 2,
+                "kind": {
+                  "type": "rectangle"
+                },
+                "parent": 1,
+                "position": "a0",
+                "props": [
+                  [
+                    "name",
+                    "Rectangle"
+                  ],
+                  [
+                    "width",
+                    10.0
+                  ],
+                  [
+                    "height",
+                    10.0
+                  ]
+                ]
+              }
+            }
+          ],
+          "count": 1
+        }
+      },
+      "stage": "explicit-undo"
+    },
+    {
+      "command": "collab.diff",
+      "params": {
+        "against": "undo",
+        "ignored": true
+      },
+      "result": {
+        "error": "invalid parameters for `collab.diff`: unknown parameter `ignored` (it takes against)"
+      },
+      "stage": "unknown-key"
+    },
+    {
+      "command": "collab.diff",
+      "params": {
+        "against": "saved"
+      },
+      "result": {
+        "receipt": {
+          "bytes": 56,
+          "changes": [
+            {
+              "create": {
+                "id": 2,
+                "kind": {
+                  "type": "rectangle"
+                },
+                "parent": 1,
+                "position": "a0",
+                "props": [
+                  [
+                    "name",
+                    "Rectangle"
+                  ],
+                  [
+                    "width",
+                    10.0
+                  ],
+                  [
+                    "height",
+                    10.0
+                  ]
+                ]
+              }
+            }
+          ],
+          "count": 1
+        }
+      },
+      "stage": "edited-saved"
+    },
+    {
+      "command": "collab.diff",
+      "params": {
+        "against": "bad\n\"🙂"
+      },
+      "result": {
+        "error": "invalid parameters for `collab.diff`: `against` is \"undo\" or \"saved\", not \"bad\\n\\\"🙂\""
+      },
+      "stage": "escaped-string"
+    },
+    {
+      "command": "collab.diff",
+      "params": {
+        "against": 1
+      },
+      "result": {
+        "error": "invalid parameters for `collab.diff`: `against` is \"undo\" or \"saved\", not \"1\""
+      },
+      "stage": "number"
+    },
+    {
+      "command": "collab.diff",
+      "params": {
+        "against": true
+      },
+      "result": {
+        "error": "invalid parameters for `collab.diff`: `against` is \"undo\" or \"saved\", not \"true\""
+      },
+      "stage": "boolean"
+    },
+    {
+      "command": "collab.diff",
+      "params": {
+        "against": null
+      },
+      "result": {
+        "receipt": {
+          "bytes": 56,
+          "changes": [
+            {
+              "create": {
+                "id": 2,
+                "kind": {
+                  "type": "rectangle"
+                },
+                "parent": 1,
+                "position": "a0",
+                "props": [
+                  [
+                    "name",
+                    "Rectangle"
+                  ],
+                  [
+                    "width",
+                    10.0
+                  ],
+                  [
+                    "height",
+                    10.0
+                  ]
+                ]
+              }
+            }
+          ],
+          "count": 1
+        }
+      },
+      "stage": "null"
+    },
+    {
+      "command": "collab.diff",
+      "params": {
+        "against": []
+      },
+      "result": {
+        "receipt": {
+          "bytes": 56,
+          "changes": [
+            {
+              "create": {
+                "id": 2,
+                "kind": {
+                  "type": "rectangle"
+                },
+                "parent": 1,
+                "position": "a0",
+                "props": [
+                  [
+                    "name",
+                    "Rectangle"
+                  ],
+                  [
+                    "width",
+                    10.0
+                  ],
+                  [
+                    "height",
+                    10.0
+                  ]
+                ]
+              }
+            }
+          ],
+          "count": 1
+        }
+      },
+      "stage": "array"
+    },
+    {
+      "command": "collab.diff",
+      "params": {
+        "against": {}
+      },
+      "result": {
+        "receipt": {
+          "bytes": 56,
+          "changes": [
+            {
+              "create": {
+                "id": 2,
+                "kind": {
+                  "type": "rectangle"
+                },
+                "parent": 1,
+                "position": "a0",
+                "props": [
+                  [
+                    "name",
+                    "Rectangle"
+                  ],
+                  [
+                    "width",
+                    10.0
+                  ],
+                  [
+                    "height",
+                    10.0
+                  ]
+                ]
+              }
+            }
+          ],
+          "count": 1
+        }
+      },
+      "stage": "object"
+    },
+    {
+      "command": "collab.diff",
+      "params": {
+        "against": "\u0000"
+      },
+      "result": {
+        "error": "invalid parameters for `collab.diff`: `against` is \"undo\" or \"saved\", not \"\\0\""
+      },
+      "stage": "nul-string"
+    },
+    {
+      "command": "collab.diff",
+      "params": {
+        "against": "\u001b"
+      },
+      "result": {
+        "error": "invalid parameters for `collab.diff`: `against` is \"undo\" or \"saved\", not \"\\u{1b}\""
+      },
+      "stage": "esc-string"
+    },
+    {
+      "command": "collab.diff",
+      "params": {
+        "against": " "
+      },
+      "result": {
+        "error": "invalid parameters for `collab.diff`: `against` is \"undo\" or \"saved\", not \"\\u{2028}\""
+      },
+      "stage": "line-separator-string"
+    },
+    {
+      "command": "collab.diff",
+      "params": {
+        "against": "quote\"slash\\end"
+      },
+      "result": {
+        "error": "invalid parameters for `collab.diff`: `against` is \"undo\" or \"saved\", not \"quote\\\"slash\\\\end\""
+      },
+      "stage": "quotes-backslash-string"
+    },
+    {
+      "command": "edit.undo",
+      "params": {},
+      "result": {
+        "receipt": {
+          "undone": true
+        }
+      },
+      "stage": "undo-edit"
+    },
+    {
+      "command": "collab.diff",
+      "params": {
+        "against": "saved"
+      },
+      "result": {
+        "receipt": {
+          "bytes": 2,
+          "changes": [],
+          "count": 0
+        }
+      },
+      "stage": "undo-to-saved"
+    },
+    {
+      "command": "file.rename",
+      "params": {
+        "name": "Renamed é🙂"
+      },
+      "result": {
+        "receipt": {
+          "ok": true
+        }
+      },
+      "stage": "rename"
+    },
+    {
+      "command": "collab.diff",
+      "params": {
+        "against": "saved"
+      },
+      "result": {
+        "receipt": {
+          "bytes": 21,
+          "changes": [
+            {
+              "setDoc": {
+                "prop": "name",
+                "value": "Renamed é🙂"
+              }
+            }
+          ],
+          "count": 1
+        }
+      },
+      "stage": "rename-saved-diff"
+    }
+  ]
+}

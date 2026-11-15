@@ -9,12 +9,9 @@ import { wireSharedStyle } from "../shared-styles";
 import { compareScalarKeys } from "../text-breaks";
 import { blankNode, createNode, imageValue, sessionNodeFields } from "./document-session";
 import { sessionJson, sessionKind, sessionProperty, sessionStyle } from "./session-json";
-import type { InitialChange } from "./session-postcard";
+import type { SessionChange } from "./session-postcard";
 
-export type LiveChange = InitialChange
-  | { type: "set"; id: string; prop: string; value: string }
-  | { type: "delete"; id: string }
-  | { type: "remove"; entry: string; key: string };
+export type LiveChange = SessionChange;
 
 export interface LiveReplica {
   readonly document: Document;

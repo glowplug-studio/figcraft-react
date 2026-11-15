@@ -1007,6 +1007,99 @@ if (!process.env.PLAYWRIGHT_BASE_URL) for(const diverged of [false,true]) test(d
   }
 });
 
+if(!process.env.PLAYWRIGHT_BASE_URL)test("public diff commands preserve the mounted editor, saved baseline and read-only state",async({page})=>{
+  test.setTimeout(75_000);
+  await login(page);
+  await loadEmbeddedOnlineEditor(page);
+  const app=await page.evaluateHandle(async({principal,server,key})=>{
+    const fixture=(window as unknown as {FigcraftDirectory:typeof import("../fixtures/browser-online-directory")}).FigcraftDirectory;
+    return fixture.publicationEditor(principal,server,key);
+  },{principal:userId!,server:backend!.url,key:backend!.key});
+  try{
+    await app.evaluate(client=>client.mount());
+    const editor=page.getByRole("region",{name:"Embedded public command editor",exact:true});
+    await expect(editor.getByLabel("Design canvas",{exact:true})).toBeVisible();
+    expect(await app.evaluate(client=>client.command("collab.diff",{against:"saved"}))).toEqual({changes:[],count:0,bytes:2});
+    expect(await app.evaluate(client=>client.command("collab.diff").then(()=>null,error=>error.message)))
+      .toBe("command `collab.diff` is not available right now: nothing to undo");
+    await app.evaluate(client=>client.command("shape.rectangle",{x:0,y:0,width:10,height:10}));
+    const layers=editor.locator('ul[aria-label="Page layers"] li');
+    await expect(layers).toHaveCount(1);
+    const before=await app.evaluate(client=>client.state());
+    const receipt=await app.evaluate(client=>client.command("collab.diff"));
+    expect(receipt).toEqual({count:1,bytes:56,changes:[{create:{id:2,kind:{type:"rectangle"},parent:1,position:"a0",
+      props:[["name","Rectangle"],["width",10],["height",10]]}}]});
+    expect(await app.evaluate(client=>client.command("collab.diff",{against:"undo"}))).toEqual(receipt);
+    expect(await app.evaluate(client=>client.command("collab.diff",{against:"saved"}))).toEqual(receipt);
+    expect(await app.evaluate(client=>client.state())).toEqual(before);
+    await expect(editor.getByRole("button",{name:"Undo",exact:true})).toBeEnabled();
+    await expect(editor.getByRole("button",{name:"Redo",exact:true})).toBeDisabled();
+    await expect(layers).toHaveCount(1);
+    const saving=await app.evaluate(client=>client.command("file.saveAs",{data:true}));
+    expect(await app.evaluate((client,revision)=>client.command("file.markSaved",{revision}),saving.revision)).toEqual({saved:true});
+    expect(await app.evaluate(client=>client.command("collab.diff",{against:"saved"}))).toEqual({changes:[],count:0,bytes:2});
+    await app.evaluate(client=>client.command("shape.ellipse",{width:10,height:10}));
+    await expect(layers).toHaveCount(2);
+    const savedDiff=await app.evaluate(client=>client.command("collab.diff",{against:"saved"}));
+    expect(savedDiff).toMatchObject({count:1,changes:[{create:{kind:{type:"ellipse"}}}]});
+    await app.evaluate(client=>client.setReadOnly(true));
+    await expect(editor.getByRole("button",{name:"Create rectangle",exact:true})).toBeDisabled();
+    const readOnly=await app.evaluate(client=>client.state());
+    expect(await app.evaluate(client=>client.command("collab.diff",{against:"saved"}))).toEqual(savedDiff);
+    expect(await app.evaluate(client=>client.state())).toEqual(readOnly);
+    await expect(layers).toHaveCount(2);
+    await expect(editor.getByRole("button",{name:"Undo",exact:true})).toBeDisabled();
+  }finally{
+    await app.evaluate(client=>client.close());await app.dispose();
+  }
+});
+
+if(!process.env.PLAYWRIGHT_BASE_URL)test("public diff commands reject live undo and allow non-mutating saved comparisons for an editor and view link",async({page})=>{
+  test.setTimeout(90_000);
+  await login(page);
+  await loadEmbeddedOnlineEditor(page);
+  const create=()=>page.evaluateHandle(async({principal,server,key})=>{
+    const fixture=(window as unknown as {FigcraftDirectory:typeof import("../fixtures/browser-online-directory")}).FigcraftDirectory;
+    return fixture.publicationEditor(principal,server,key);
+  },{principal:userId!,server:backend!.url,key:backend!.key});
+  const app=await create(),viewer=await create();
+  let file:string|undefined;
+  const liveError='command `collab.diff` is not available right now: in a live session undo is per user: compare against "saved"';
+  try{
+    await app.evaluate(client=>client.command("shape.rectangle",{width:10,height:10}));
+    const published=page.waitForResponse(response=>new URL(response.url()).pathname==="/api/online-files" && response.ok());
+    await app.evaluate(client=>client.command("collab.share",{name:"Public diff drawing"}));
+    file=(await (await published).json()).id;
+    await expect.poll(()=>app.evaluate(client=>client.peers().status)).toBe("live");
+    await app.evaluate(client=>client.startLive());
+    await app.evaluate(client=>client.command("shape.ellipse",{width:10,height:10}));
+    await expect.poll(()=>app.evaluate(client=>client.state().canUndo)).toBe(true);
+    const before=await app.evaluate(client=>client.state());
+    expect(await app.evaluate(client=>client.command("collab.diff").then(()=>null,error=>error.message))).toBe(liveError);
+    const saved=await app.evaluate(client=>client.command("collab.diff",{against:"saved"}));
+    expect(saved).toMatchObject({count:expect.any(Number),bytes:expect.any(Number),changes:expect.any(Array)});
+    expect(Number(saved.bytes)).toBeGreaterThanOrEqual(2);
+    expect(await app.evaluate(client=>client.state())).toEqual(before);
+    const link=await app.evaluate(client=>client.peers().share?.viewLink);
+    expect(link).toEqual(expect.any(String));
+    await viewer.evaluate((client,link)=>client.command("collab.join",{link}),link);
+    await expect.poll(()=>viewer.evaluate(client=>client.peers().status)).toBe("live");
+    await viewer.evaluate(client=>client.startLive());
+    await expect.poll(()=>viewer.evaluate(client=>client.state().document.includes('"Ellipse"'))).toBe(true);
+    expect(await viewer.evaluate(client=>client.editable())).toBe(false);
+    const readOnly=await viewer.evaluate(client=>client.state());
+    expect(await viewer.evaluate(client=>client.command("collab.diff").then(()=>null,error=>error.message))).toBe(liveError);
+    const comparison=await viewer.evaluate(client=>client.command("collab.diff",{against:"saved"}));
+    expect(comparison).toMatchObject({count:expect.any(Number),bytes:expect.any(Number),changes:expect.any(Array)});
+    expect(Number(comparison.bytes)).toBeGreaterThanOrEqual(2);
+    expect(await viewer.evaluate(client=>client.state())).toEqual(readOnly);
+  }finally{
+    await viewer.evaluate(client=>client.close());await viewer.dispose();
+    await app.evaluate(client=>client.close());await app.dispose();
+    if(file)await removeOnlineFixture(page,file);
+  }
+});
+
 if(!process.env.PLAYWRIGHT_BASE_URL)test("public sharing commands lock the publishing tab, select roles and retire guest codes before the owner leaves",async({page})=>{
   test.setTimeout(90_000);
   await login(page);
