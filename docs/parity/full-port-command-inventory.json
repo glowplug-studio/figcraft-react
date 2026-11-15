@@ -4785,7 +4785,13 @@
       "label": "Manage published file",
       "source": "crates/engine/src/sharing/live/join.rs",
       "line": 216,
-      "status": "Not tested"
+      "status": "Passed",
+      "verification": {
+        "react": "1ba3837",
+        "upstream": "bad07e4433240cad046589129c084bd2fc36f097",
+        "report": "../reports/26-11-15-online-file-management-parity.html",
+        "scope": "Browser account-backed host; native owner tokens are an explicit substitution"
+      }
     },
     {
       "command": "collab.report",

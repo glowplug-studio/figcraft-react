@@ -611,3 +611,7 @@ Native `open_file`, `join_recorded` and `online_session` at `0f082690` map to `O
 Native app recovery sidecars, process locking and online_merge at `9e815546` map to WorkspaceRecovery, claimWorkspaceScope, ownerRecoveryLock, recoveredDrawing and LivePeer. [Native archives, device lifecycle and authenticated reload](../reports/26-11-11-online-crash-recovery-parity.html).
 
 Native start_publish, share and stop at `7bf098d7` map to OnlineWorkspace, LiveSessions, BrowserOwnerSharing and the [public command fixture and matrix](../reports/26-11-11-online-publication-commands-parity.html).
+
+## Individual online management
+
+Verified React implementation `1ba3837`. Native `sharing/live/host.rs::manage_file`, `sharing/online.rs::{manager,managed,removed,set_shared}` and `store/links.rs::{links,create_link,revoke}` at `bad07e44` map to `OnlineWorkspace.manageFile`, the provider-neutral `OnlineFileManagement`, the browser management adapter and declarative `manage_online_link`. Native ordered metadata and issuance receipts are checked against the existing synthetic fixture; real provider tests cover three access levels, configured limits, lost replies, refusal admission and RPC denial. The authenticated browser exercises all seven actions and operator Share authority. Removal retains open drawings and isolates server/file identities, including bare-host invite addresses. Full-regression status remains in the [property matrix](../reports/26-11-15-online-file-management-parity.html).

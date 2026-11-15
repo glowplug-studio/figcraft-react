@@ -2,7 +2,7 @@
 
 ## Checkpoint
 
-Phase 1 evidence and Phase 2 plan, React `d57903d`, native `bad07e44`. Implementation is held at the required scoped Supabase MCP-read gate. Existing publishing commands passed all 374 Chromium workflows. The [upstream delta queue](26-11-15-upstream-delta.md) remains part of the full port.
+Phase 7 complete at implementation `1ba3837`, native reference `bad07e44`. Verified 4,652 pure checks, strict types, both builds, 448 SQL checks after reset, all 31 provider integrations, clean declarative drift/advisers and all 375 Chromium cases across the final 253-case host run plus 122 same-build non-host cases. The final host run took 887.196 seconds with zero retries/skips/flakes/errors; all eleven cleanup counts are zero. Three test-fixture corrections and their prior failures are recorded in the [report](../reports/26-11-15-online-file-management.md) and [property matrix](../reports/26-11-15-online-file-management-parity.html). The preview was stopped. Scoped hosted public tables remain empty; no hosted writes or publication occurred. Continue with [server preferences](26-11-15-online-server-preference.md), then peer bounds and the [command audit](26-11-15-collaboration-command-audit.md).
 
 ## Observable contracts and authority
 
@@ -44,6 +44,6 @@ The account-backed host remains authoritative. A caller-supplied `owner` string 
 
 Run owner, unrelated account, edit/comment/view guest, revoked guest and appropriate operator cases. Test unsupported server, blocked address, exhausted admission, concurrent grant creation/revocation, stale device group, lost response, removal contention and session cleanup. Keep exact fixtures and commands in the resulting report.
 
-Delegate independent fixture extraction or narrowly owned adapter tests only after the access gate clears. The coordinator owns authority design, SQL lock ordering, cross-layer integration and final verification. No implementation files are delegated or modified yet. No new canvas renderer or frame-frequency state is required; preserve the existing performance gates. Native LAN listening and binary socket interoperability remain documented browser limitations; they do not excuse missing account-backed management.
+Delegate independent fixture extraction or narrowly owned adapter tests only after the access gate clears. The coordinator owns authority design, SQL lock ordering, cross-layer integration and final verification. Contract and provider tests were delegated separately and integrated. The coordinator owns all product and security changes. No new canvas renderer or frame-frequency state is required; preserve the existing performance gates. Native LAN listening and binary socket interoperability remain documented browser limitations; they do not excuse missing account-backed management.
 
 Rollback boundary: the source pin and planning checkpoint are separate from implementation. Any future schema change must include a reproducible local reset/drift check and preserve prior migrations; no hosted rollback is needed because this slice changes only local development resources.

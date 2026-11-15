@@ -7,8 +7,8 @@
 - Reference: `7bf098d75d187416633d9ebcceb9eb83fbb10df8` → `bad07e4433240cad046589129c084bd2fc36f097`. The authorised fork fast-forwarded and was pushed successfully. The reference gitlink changed locally; the React branch has not been pushed.
 - Diff: 355 files, 21,321 insertions and 1,157 deletions. File counts include tests, documentation, translations and platform packaging; they are not feature counts.
 - Local Graphify: React 8,337 nodes / 35,796 edges; Rust 28,939 / 92,127; combined 37,276 / 126,822. Both `OnlineWorkspace` and `manage_file()` are present. React class callers include the workspace host and contract tests; native management calls resolve to `online::manager`, `set_shared` and `hosting_request`. Inferred edges are navigation hints, not proof of equivalence. SQL policies and data-only/configuration files require direct inspection; `playwright.config.ts` has no extracted symbols.
-- Gate: the hosted Figcraft Supabase read was denied. The configured scoped connection is awaiting OAuth completion. No project-local MCP definition, hosted database change or Vercel action was made.
-- Next: complete the scoped read, then implement the [individual-link plan](26-11-15-online-file-management.md). The following delta queue remains required before the full-product release gate.
+- Gate: scoped Figcraft Supabase access succeeded on 15 November; public tables remain empty. No project-local MCP definition, hosted database change or Vercel action was made.
+- Next: complete implementation and verification of the [individual-link plan](26-11-15-online-file-management.md). The following delta queue remains required before the full-product release gate.
 
 ## Dependency-ordered delta queue
 
