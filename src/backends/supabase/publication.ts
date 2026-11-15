@@ -2,6 +2,7 @@ import {createClient,type SupabaseClient} from "@supabase/supabase-js";
 import { createPublishedLinks, isPublishedLinkDigests, publishedLinkDigests, type PublishedLinkDigests } from "../published-links";
 import { PUBLIC_FILE_BYTES, validateOnlineSnapshot } from "../../engine/sharing/publication";
 import { onlineFileInfo, onlineSnapshotPath } from "./online-files";
+export {cleanOnlineName} from "../../engine/sharing/publication";
 
 /** Only the trusted host supplies these overrides. PostgreSQL owns the native defaults. */
 export interface PublicationCapacity {
@@ -161,7 +162,7 @@ export class OwnerFileError extends Error {
 
 /** The trusted HTTP host supplies the verified actor, source address and its own Storage gateway. */
 export async function manageOwnedFile(writer:SupabaseClient,actor:string,id:string,name:string|null,address:string,
-  storage:{url:string;publishableKey:string}) {
+  storage:{url:string;publishableKey:string},strict=false) {
   const request=()=>writer.rpc("manage_owned_online_file",{actor,target:id,title:name,address});
   let reply=await request();
   for (let attempt=0;reply.data?.state==="contended" && attempt<8;attempt++) {
@@ -174,7 +175,7 @@ export async function manageOwnedFile(writer:SupabaseClient,actor:string,id:stri
   if (data?.state==="busy") throw new OwnerFileError("Too many changes to this server's files from your address: wait a minute and try again",429);
   if (data?.state==="invalid") throw new OwnerFileError("Give the file a name",422);
   if (data?.state==="unavailable") {
-    if (name===null) return null;
+    if (name===null && !strict) return null;
     throw new OwnerFileError("This file is no longer on its server",404);
   }
   if (data?.state==="renamed" && name!==null && data.file?.id===id) return onlineFileInfo(data.file);

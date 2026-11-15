@@ -22,6 +22,10 @@ let userId: string | undefined;
 let backend: ReturnType<typeof localSupabase> | undefined;
 const browserFailures = new WeakMap<Page, string[]>();
 test.beforeEach(({ page }) => {
+  // Independent local scenarios share one loopback address. Start each with
+  // its own native management allowance; refusal tests spend it within a case.
+  // Hosted runs never mutate admission state through this fixture hook.
+  if(backend)localOperatorSql(backend,"update figcraft_private.online_code_budgets set admin_tokens=null,admin_used_at=null where block in (select block from figcraft_private.publication_blocks('127.0.0.1'::inet))");
   const failures: string[] = []; browserFailures.set(page, failures);
   page.on("pageerror", error => failures.push(error.message));
   page.on("requestfailed", request => {
@@ -902,6 +906,76 @@ if(!process.env.PLAYWRIGHT_BASE_URL)test("public sharing commands lock the publi
   }
 });
 
+if(!process.env.PLAYWRIGHT_BASE_URL)test("individual management commands preserve owner authority, revoke a phone grant and retain removed drawings",async({page,browser})=>{
+  test.setTimeout(120_000);
+  await withSharedDrawing(page,browser,async()=>{
+    await page.getByRole("button",{name:"Create rectangle",exact:true}).click();
+  },async(peer,file)=>{
+    await loadEmbeddedOnlineEditor(page);
+    const app=await page.evaluateHandle(async({principal,server,key})=>{
+      const fixture=(window as unknown as {FigcraftDirectory:typeof import("../fixtures/browser-online-directory")}).FigcraftDirectory;
+      return fixture.publicationEditor(principal,server,key);
+    },{principal:userId!,server:backend!.url,key:backend!.key});
+    const origin=new URL(page.url()).origin;
+    const key=randomUUID(),digest=createHash("sha256").update(key).digest("hex");
+    try {
+      await app.evaluate((client,file)=>client.command("collab.openFile",{file}),file);
+      await expect.poll(()=>app.evaluate(client=>client.peers().status)).toBe("live");
+      const list=await app.evaluate((client,file)=>client.command("collab.manageFile",{file,action:"links"}),file) as {links:{id:string;access:string;label:string;created:number}[]};
+      expect(list.links.map(row=>row.label)).toEqual(["Published (edit)","Published (view)","Shared (edit)","Shared (view)","Shared (comment)"]);
+      for(const row of list.links){
+        expect(Object.keys(row).sort()).toEqual(["access","created","id","label"]);
+        expect(row.created).toBeGreaterThan(1_700_000_000);
+      }
+      const denied=await peer.request.post(origin+"/api/online-files/links",{headers:{origin},data:{file,action:"links",actor:userId}});
+      expect(denied.status()).toBe(403);
+      const review=await app.evaluate((client,file)=>client.command("collab.manageFile",{file,action:"createLink",label:"  Review\u202e\n😀  "}),file) as {id:string;access:string;link:string};
+      expect(review.access).toBe("view");
+      const priorTabs=await peer.getByRole("tab").count();
+      const admitted=peer.waitForResponse(r=>new URL(r.url()).pathname==="/api/online-files/join");
+      await peer.goto(origin+"/#join="+encodeURIComponent(review.link));
+      expect((await admitted).ok()).toBe(true);
+      await expect(peer.getByRole("tab")).toHaveCount(priorTabs+1);
+      await expect(peer.locator(".figcraft-document-bar").getByText(/View only/)).toBeVisible();
+      await expect(peer.getByRole("button",{name:"Create rectangle",exact:true})).toBeDisabled();
+      await page.setViewportSize({width:390,height:844});
+      const updated=await app.evaluate((client,file)=>client.command("collab.manageFile",{file,action:"links"}),file) as typeof list;
+      expect(updated.links.at(-1)).toMatchObject({id:review.id,label:"Review😀"});
+      expect(await app.evaluate((client,{file,link})=>client.command("collab.manageFile",{file,action:"revoke",link}),{file,link:review.id})).toEqual({done:true});
+      await expect(peer.locator(".figcraft-document-bar").getByText(/Disconnected/)).toBeVisible({timeout:15_000});
+      await expect(peer.getByRole("button",{name:"Create rectangle",exact:true})).toBeEnabled();
+      expect(await app.evaluate((client,{file,link})=>client.command("collab.manageFile",{file,action:"revoke",link}).then(()=>false,error=>error.message.includes("no such link")),{file,link:review.id})).toBe(true);
+      expect(await app.evaluate((client,file)=>client.command("collab.manageFile",{file,action:"unshare"}),file)).toEqual({shared:false,code:null,viewCode:null,commentCode:null,editLink:null,viewLink:null,commentLink:null});
+      const shared=await app.evaluate((client,file)=>client.command("collab.manageFile",{file,action:"share"}),file);
+      expect(shared).toMatchObject({shared:true,code:expect.any(String),commentLink:expect.any(String)});
+      expect(await app.evaluate((client,file)=>client.command("collab.manageFile",{file,action:"share"}),file)).toEqual(shared);
+      expect(await app.evaluate((client,file)=>client.command("collab.manageFile",{file,action:"rename",name:"  Reviewed drawing  "}),file)).toEqual({done:true});
+      const directory=await app.evaluate(client=>client.command("collab.files")) as {files:{file:string;name:string}[]};
+      expect(directory.files.find(row=>row.file===file)?.name).toBe("Reviewed drawing");
+      // The native keyed Share path can administer an account-owned file too.
+      localOperatorSql(backend!,"insert into figcraft_private.online_publication_policy(open_publish,server_key_sha256) values(true,:'digest')",{digest});
+      await loadEmbeddedOnlineEditor(peer);
+      const operator=await peer.evaluateHandle(async({principal,server,key})=>{
+        const fixture=(window as unknown as {FigcraftDirectory:typeof import("../fixtures/browser-online-directory")}).FigcraftDirectory;
+        return fixture.publicationEditor(principal,server,key);
+      },{principal:"operator-fixture",server:backend!.url,key:backend!.key});
+      try {
+        const endpoint=backend!.url.replace(/^http/,"ws");
+        expect(await operator.evaluate((client,{file,server})=>client.command("collab.manageFile",{file,server,owner:"",action:"share"}).then(()=>false,error=>error.message.includes("Wrong server key")),{file,server:endpoint+"?key=wrong"})).toBe(true);
+        expect(await operator.evaluate((client,{file,server})=>client.command("collab.manageFile",{file,server,owner:"",action:"share"}),{file,server:endpoint+"?key="+key})).toMatchObject({shared:true,code:expect.any(String)});
+      }finally{await operator.evaluate(client=>client.close());await operator.dispose();}
+      expect(await app.evaluate((client,file)=>client.command("collab.manageFile",{file,action:"remove"}),file)).toEqual({done:true});
+      expect(await app.evaluate(client=>client.editable())).toBe(true);
+      expect(await app.evaluate(client=>client.peers().status)).toBe("off");
+      expect((await app.evaluate(client=>client.command("collab.files")) as {files:unknown[]}).files).toEqual([]);
+      expect((await backend!.admin.from("online_files").select("id").eq("id",file)).data).toEqual([]);
+    }finally{
+      localOperatorSql(backend!,"delete from figcraft_private.online_publication_policy where server_key_sha256=:'digest'",{digest});
+      await app.evaluate(client=>client.close());await app.dispose();
+    }
+  },"view");
+});
+
 test("owner sharing retries a lost reply and rotates three roles from Home Online", async ({page}) => {
   test.setTimeout(90_000);
   await login(page);
@@ -1155,10 +1229,14 @@ if (!process.env.PLAYWRIGHT_BASE_URL) test("a comment-only phone replies to a pi
     await thread.getByRole("textbox",{name:"Reply"}).fill("Agreed @Ar");
     await thread.getByRole("option",{name:"Ari",exact:true}).click();
     await expect(thread.getByRole("textbox",{name:"Reply"})).toHaveValue("Agreed @Ari ");
+    const replySaved=peer.waitForResponse(r=>new URL(r.url()).pathname==="/api/online-files/live" && r.request().postDataJSON()?.action==="submit");
     await thread.getByRole("button",{name:"Reply",exact:true}).click();
+    expect((await replySaved).ok()).toBe(true);
     await expect(thread.getByRole("article").filter({hasText:"Agreed @Ari"})).toContainText("Bea");
     await thread.getByText("React",{exact:true}).first().click();
+    const reactionSaved=peer.waitForResponse(r=>new URL(r.url()).pathname==="/api/online-files/live" && r.request().postDataJSON()?.action==="submit");
     await thread.getByRole("button",{name:"React with 👍",exact:true}).first().click();
+    expect((await reactionSaved).ok()).toBe(true);
     await expect(thread.getByRole("button",{name:"👍 Bea"})).toBeVisible();
     await expect(owner.getByText("Agreed @Ari")).toBeVisible();
     await expect(owner.getByRole("button",{name:"👍 Bea"})).toBeVisible();

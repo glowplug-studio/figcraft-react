@@ -12,7 +12,7 @@ export async function POST(request:Request) {
     (body.name!==null && typeof body.name!=="string")) return Response.json({error:"Invalid file change"},{status:400,headers});
   try {
     const file=await manageOwnedFile(host.writer,host.principal,body.id,body.name?.replaceAll("\0","\u0001") ?? null,
-      ingressAddress(request.headers,process.env.VERCEL==="1"),supabaseConfig());
+      ingressAddress(request.headers,process.env.VERCEL==="1"),supabaseConfig(),body.strict===true);
     return file ? Response.json(file,{headers}) : new Response(null,{status:204,headers});
   } catch (error) {
     if (error instanceof OwnerFileError) return Response.json({error:error.message},{status:error.status,headers});

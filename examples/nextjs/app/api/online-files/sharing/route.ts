@@ -18,7 +18,12 @@ export async function POST(request: Request) {
     let owner: string | null = host.principal;
     if ("serverKey" in body) {
       await verifyServerKey(host.user, host.writer, body.serverKey);
-      owner = null;
+      // Native keyed Share can administer any file; the verified operator is
+      // separate from its owner. Resolve the actual immutable owner server-side.
+      const listing=await host.writer.from("online_files").select("owner_id").eq("id",body.file).maybeSingle<{owner_id:string|null}>();
+      if(listing.error)throw listing.error;
+      if(!listing.data)return reply({error:"The file is unavailable"},403);
+      owner = listing.data.owner_id;
     }
     if (body.action === "status") return reply(await ownerSharingStatus(host.writer, owner, body.file));
     if (body.action !== "change" || !uuid(body.revision) || (body.expected !== null && !uuid(body.expected))

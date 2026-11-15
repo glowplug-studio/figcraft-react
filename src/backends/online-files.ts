@@ -156,10 +156,42 @@ export interface OnlineWorkspaceHost {
   releasePublished?(file: string): void;
   serverKeyChanged?(key: string): void;
   sharing?: OnlineOwnerSharing;
+  management?: OnlineFileManagement;
   server: string;
   store: OnlineFileStore;
   device: OnlineFileDevice;
   invitations?: OnlineInvitations;
+}
+
+export type OnlineManagementAction =
+  | {action:"links"}
+  | {action:"createLink";access:OnlineGuestSession["access"];label:string}
+  | {action:"revoke";link:string}
+  | {action:"share"|"unshare"}
+  | {action:"rename";name:string}
+  | {action:"remove"};
+export interface OnlineManagedLink {
+  id:string;
+  access:OnlineGuestSession["access"];
+  label:string;
+  /** Epoch seconds, decimal text when outside JavaScript's safe integer range. */
+  created:number|string;
+}
+export type OnlineManagedShare = {
+  shared:boolean;
+  code:string|null;
+  viewCode:string|null;
+  commentCode:string|null;
+  editLink:string|null;
+  viewLink:string|null;
+  commentLink:string|null;
+};
+export type OnlineManagementResult = {links:readonly OnlineManagedLink[]}
+  | {id:string;access:OnlineGuestSession["access"];link:string}
+  | {done:true} | OnlineManagedShare;
+export interface OnlineFileManagement {
+  /** Credentials stay in the adapter; supplied owner text never establishes account authority. */
+  execute(file:string,request:OnlineManagementAction,context:{owner?:string;key?:string;recorded:boolean}):Promise<OnlineManagementResult>;
 }
 
 export type TeamLibraryReply = {state:"empty"} | {state:"unchanged"; version:string} |

@@ -5,6 +5,7 @@ import {postOperatorRequest} from "./operator-request";
 import {BrowserTeamLibraries} from "./team-libraries";
 import {BrowserInvitations} from "./browser-invites";
 import {BrowserOwnerSharing} from "./owner-sharing";
+import {browserManagement} from "./browser-management";
 
 export function browserOnlineHost(client:SupabaseClient,store:IndexedDbRecoveryStore,principal:string,server:string,
   showJoin:()=>void,notify:(message:string)=>void) {
@@ -41,6 +42,6 @@ export function browserOnlineHost(client:SupabaseClient,store:IndexedDbRecoveryS
     supportsServerKey:true,operatorOrigin:location.origin,serverKeyChanged:key=>{currentKey=key;},
     retainOperatorKey:(file,key)=>{const entry=operators.get(file);if(entry)entry.key=key;},
     releasePublished:file=>{operators.delete(file);},
-    store:files,device:store,invitations:invites,sharing,
+    store:files,device:store,invitations:invites,sharing,management:browserManagement(store,principal,server,sharing),
   } satisfies OnlineWorkspaceHost;
 }

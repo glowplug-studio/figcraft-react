@@ -2,7 +2,7 @@ import type {OnlineResumeKey} from "../../backends/recovery";
 import type {OnlineRecoveryPosition} from "./online-recovery";
 import {parseInviteServer} from "./invite";
 import type {EditorEngine} from "../editor";
-import type {OnlineGuestSession} from "../../backends/online-files";
+import type {OnlineGuestSession,OnlineManagementAction} from "../../backends/online-files";
 import {checkOperatorTransport} from "./operator-transport";
 import {teamWebLink,teamFileLink,type TeamDirectory} from "./team-directory";
 import type { OnlineFileInfo, OnlineFileRegistry, OnlineWorkspaceHost, PendingOnlinePublication, RememberedOnlineFile } from "../../backends/online-files";
@@ -23,6 +23,7 @@ function timestamp(decimal:string|null|undefined) {
 }
 
 export const onlineCommands={
+  "collab.manageFile":{label:"Manage online file",undo:false},
   "collab.publish":{label:"Publish to server",undo:false},
   "collab.share":{label:"Share file",undo:false},
   "collab.files":{label:"List online files",undo:false},
@@ -347,6 +348,7 @@ export class OnlineWorkspace {
   }
 
   async execute(command:OnlineCommand,params:Record<string,unknown>,engine?:EditorEngine) {
+    if(command==="collab.manageFile")return this.manageFile(params);
     if(command==="collab.publish" || command==="collab.share")return this.publishCommand(command,params,engine);
     if(command==="collab.recoverFile")return this.recoverFile(params);
     if(command==="collab.openFile"){
@@ -738,6 +740,80 @@ export class OnlineWorkspace {
     return this.run(async () => {
       const file = await this.host.store.rename(id, name);
       await this.records(records => records.map(record => this.matches(record, id) ? { ...record, name: file.name } : record));
+    });
+  }
+
+  private async manageFile(params:Record<string,unknown>) {
+    this.check();
+    const trim=(value:string)=>value.replace(/^\p{White_Space}+|\p{White_Space}+$/gu,"");
+    const required=(key:string)=>{
+      const value=params[key];
+      if(typeof value!=="string")throw new Error(key+" must be a string");
+      return value;
+    };
+    const file=trim(required("file"));
+    const {files}=await this.registry();
+    this.check();
+    const givenServer=typeof params.server==="string" ? trim(params.server) : undefined;
+    const owner=typeof params.owner==="string" ? trim(params.owner) : undefined;
+    const serverKey=(address:string)=>onlineServerKey(address).replace(/^ws/,"http");
+    const matches=files.filter(row=>row.file===file && (givenServer===undefined || serverKey(row.server)===serverKey(givenServer)));
+    if(givenServer===undefined || owner===undefined){
+      if(!matches.length)throw new Error("No online file with that id is recorded on this computer");
+      if(matches.length>1)throw new Error("Files on several servers have that id: say which with server");
+    }
+    // Native explicit server/owner pairs can address a file absent from this device.
+    const record=matches[0];
+    const address=givenServer ?? record!.recordedAddress ?? record!.server;
+    const source=serverKey(address)===serverKey(this.server) ? this : this.forServer(record?.server ?? onlineServerKey(address));
+    if(!source?.host.management)throw new Error("This server cannot manage files in the current host");
+    const action=trim(required("action"));
+    let request:OnlineManagementAction;
+    switch(action){
+      case "links":case "remove":case "share":case "unshare":request={action};break;
+      case "revoke":request={action,link:trim(required("link"))};break;
+      case "rename":request={action,name:required("name")};break;
+      case "createLink":{
+        const access=typeof params.access==="string" ? trim(params.access).toLowerCase() : "view";
+        if(!["edit","view","comment"].includes(access))throw new Error("access must be edit, comment or view");
+        request={action,access:access as OnlineGuestSession["access"],label:typeof params.label==="string" ? params.label : ""};
+        break;
+      }
+      default:throw new Error("action must be links, createLink, revoke, share, unshare, rename or remove");
+    }
+    if(action==="unshare" && !record)throw new Error("The links others got aren't recorded on this computer: revoke them by id (action: links, then revoke)");
+    // Hosting requests ignore URL keys upstream; only Share chooses operator authority.
+    const key=action==="share" || action==="unshare" ? parseInviteServer(address.replace(/^http/,"ws")).query.get("key")?.trim() : undefined;
+    if(key){
+      if(!source.supportsServerKey)throw new Error("This host cannot use an operator key");
+      checkOperatorTransport(address,key);
+      checkOperatorTransport(source.host.operatorOrigin ?? source.server,key);
+    }
+    return source.run(async()=>{
+      const result=await source.host.management!.execute(file,request,{owner,key,recorded:!!record});
+      this.check();
+      if("done" in result && result.done){
+        if(request.action==="rename"){
+          const name=cleanOnlineName(request.name);
+          await source.records(rows=>rows.map(row=>source.matches(row,file) ? {...row,name} : row));
+        }else if(request.action==="remove"){
+          // End every matching live copy, including tabs opened through an invite.
+          for(const tab of this.workspace.getSnapshot()){
+            const guest=tab.guest;
+            if(!guest || guest.file!==file)continue;
+            const host=this.workspace.sessionInvitations(guest.connection);
+            const server=host?.inspect?.(guest.connection)?.address;
+            // Root cleartext invitations expose host:port, unlike recorded URLs.
+            const guestServer=server && serverKey(server.includes("://") ? server : "ws://"+server);
+            if((guestServer && guestServer===serverKey(source.server)) || tab.id===source.tabs.get(file)){
+              void host?.leave(guest.connection).catch(()=>{});
+              this.workspace.leaveSession(guest.connection);
+            }
+          }
+          await source.forget(file);
+        }
+      }
+      return result;
     });
   }
 

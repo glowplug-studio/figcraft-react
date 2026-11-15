@@ -11,6 +11,7 @@ create table public.online_file_links (
     code_hash text check (code_hash ~ '^[0-9a-f]{64}$'),
     wrapped_token text check (wrapped_token ~ '^([0-9a-f]{2}){1,32}$'),
     created_at timestamptz not null default now(),
+    position bigint generated always as identity,
     check ((code_hash is null) = (wrapped_token is null)),
     unique (file_id, token_hash),
     unique (id, file_id)
