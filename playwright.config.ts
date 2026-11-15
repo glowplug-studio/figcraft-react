@@ -1,7 +1,8 @@
 import { defineConfig, devices } from "@playwright/test";
 
 const externalBaseUrl = process.env.PLAYWRIGHT_BASE_URL;
-const localBaseUrl = "http://127.0.0.1:3100";
+const localPort = process.env.FIGCRAFT_LOCAL_TEST_PORT ?? "3100";
+const localBaseUrl = "http://127.0.0.1:" + localPort;
 
 export default defineConfig({
   testDir: "./tests/e2e",
@@ -33,7 +34,8 @@ export default defineConfig({
   webServer: externalBaseUrl
     ? undefined
     : {
-        command: "npm run preview:test",
+        command:
+          "npm run build && npm run dev --workspace @glowplug-studio/figcraft-react-preview -- --hostname 127.0.0.1 --port " + localPort,
         url: localBaseUrl,
         reuseExistingServer: !process.env.CI,
         timeout: 120_000,

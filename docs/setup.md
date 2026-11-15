@@ -76,6 +76,8 @@ npm run test:e2e
 
 Playwright starts the Next.js preview on an isolated local port and retains failure evidence according to its configuration.
 
+If port 3100 is occupied, use `FIGCRAFT_LOCAL_TEST_PORT=3101 npm run test:e2e` to change both the local preview port and browser base URL. Keep `PLAYWRIGHT_BASE_URL` unset for local runs so local fixture checks remain enabled.
+
 To test an already deployed preview or production URL without starting the local server:
 
 ```sh
