@@ -619,3 +619,8 @@ Verified React implementation `1ba3837`. Native `sharing/live/host.rs::manage_fi
 ## Saved online server preference
 
 Verified React `6d03c89`, native `bad07e44`: `cmd/view.rs::pref.publishServer`, `Prefs.publish_server` and `live/types.rs::join_target` map to `OnlineServerPreference`, the shared engine/workspace command and account-scoped browser persistence. Native Unicode trim, 500-byte validation, reset/null/off, unchanged refusal and non-document state have independent fixtures. `live/host.rs::share` and native UI address/key handling map to configured adapter selection, existing-session retention, destination-bound keys and separate run-local explicit publication memory. Contracts cover two distinct adapters and A → B → A replacement; Chromium covers desktop/390 px preferences, refused unsupported destinations, explicit publication/join whilst off and ongoing shares. A deterministic local provider regression also closes presence/removal lock ordering without changing authority. [Property matrix](../reports/26-11-15-online-server-preference-parity.html).
+
+
+## Incoming peer bounds — 15 November 2026
+
+Native bad07e44 `collab-net/join.rs::{bounded,take}` and `client_cap_tests.rs` map to incoming identity/welcome readers and LivePeople retention at 6818860. Native live UI RGB/accent/f32 contrast maps to peer-colour.ts and LivePeopleControls. Independent parity/contracts and rebuilt Chromium pass; arbitrary provider closure memory is explicitly outside core ownership. [Evidence](../reports/26-11-15-incoming-peer-bounds.md).

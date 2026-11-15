@@ -4,18 +4,18 @@
 
 | Field | Current value |
 |---|---|
-| Overall status | Active: incoming peer identity bounds preflight. [Resume handover](26-11-07-full-port-resume.md#continue-from-here). |
+| Overall status | Active: public collaboration diff preflight. [Resume handover](26-11-07-full-port-resume.md#continue-from-here). |
 | Active slice | Row 14. [Ordered live collaboration](26-11-11-ordered-live-collaboration.md). |
-| Active phase | [Saved-server preferences](26-11-15-online-server-preference.md) completed Phase 7 at 6d03c89. Begin Phase 1 for [incoming peer bounds](26-11-15-incoming-peer-bounds.md). |
+| Active phase | [Incoming peer bounds](26-11-15-incoming-peer-bounds.md) completed Phase 7 at 6818860. Begin Phase 1 for [public collaboration diff](26-11-15-public-collaboration-diff.md). |
 | Upstream baseline | Reference checkout bad07e44. [New upstream delta queue](26-11-15-upstream-delta.md) must be reconciled before release; prior evidence retains its original pins. Paste event text and scrollable short-window menus queued alongside the two prior UI changes. First-frame tab and page restoration and native test font readiness queued for rows 4 and 19. Home sidebar Preferences, Cmd/Ctrl+comma and Escape queued in row 19. Styles reference a2e87433. Components reference 79c36346. Global supported baseline 8eb0b876. |
-| Branch and last verified commit | prompt/full-figcraft-port, verified implementation 6d03c89; all 377 browser cases covered across retained runs. |
+| Branch and last verified commit | prompt/full-figcraft-port, verified implementation 6818860; all 378 browser cases covered across two retained runs. |
 | Completed slices | Rectangle/host-auth, bounded native persistence/recovery, supported-model pages, affine rectangle geometry/selection and solid appearance, plus nested group hierarchy, Frame containers, movement/transform gestures, rounded corners, ellipse/arc/ring and Polygon/Star editing verified locally; Line/Arrow and uniform solid strokes also verified; per-side Rectangle/Frame strokes, variable-width profiles and procedural brushes verified; vector networks, solid region/stroke rendering and Flatten/Reverse also verified; foundation commit `154f5a7`. Gradient, image, pattern, blend and mask releases now have local property matrices. [Blend evidence](../reports/26-11-09-blend-modes-parity.html). Auto layout and constraints passed the local release gate. [Release evidence](../reports/26-11-09-auto-layout.md). [Local components, instances, variant properties, slots and Assets](../reports/26-11-09-components-instances.md) passed the 0.51.0 gate. |
 | Remaining slices | Continue incomplete roadmap rows and the dependency-ordered [upstream delta queue](26-11-15-upstream-delta.md), excluding the user-deferred plugin and widget family. See each slice matrix for outstanding integrations. |
-| Tests last passed | 4,698 pure checks, 32 provider integrations, 448 SQL assertions, types/both builds, no drift/adviser findings. Final host: 255 passed in 718.180 seconds, no skips/retries/flakes/errors; 122 same-build non-host cases passed. Twelve fixture counts zero. [Report](../reports/26-11-15-online-server-preference.md). |
-| Files currently in progress | Product source/tests/migration committed. Documentation checkpoint being recorded; tracker intentionally uncommitted. No incoming-bounds implementation yet. |
+| Tests last passed | 4,713 pure, 23 focused, 32 provider checks, strict types and both builds. Final host 256 passed in 699.007 seconds, no skips/retries/flakes/errors; all 122 non-host cases passed on the same build. Twelve fixture counts zero. [Report](../reports/26-11-15-incoming-peer-bounds.md). |
+| Files currently in progress | Incoming-bounds source/tests committed. Documentation checkpoint being recorded; tracker intentionally uncommitted. Public-diff plan and native oracle data prepared; no product implementation yet. |
 | Blockers | Scoped Figcraft MCP read succeeded on 15 November; zero public tables. No current external access blocker. |
-| Exact next action | Renew upstream/MCP/local-graph preflight and execute the incoming peer-bounds plan, then the command audit queue. |
-| Last updated | 2026-11-15 12:16 ICT |
+| Exact next action | Renew upstream/MCP/local-graph preflight; implement public collaboration diff from its dated plan and independently generated native fixtures, then readiness/missing-role branches and all remaining roadmap slices. |
+| Last updated | 2026-11-15 12:54 ICT |
 
 ## Scope and continuation
 

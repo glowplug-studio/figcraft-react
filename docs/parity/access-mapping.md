@@ -54,3 +54,8 @@ Verified React implementation `1ba3837`. At native reference `bad07e44`, `collab
 ## Server preference is configuration, not authority
 
 At `6d03c89`, the saved default changes only the destination of new shares and bare join codes. It contains no key and is scoped to the browser account; it is absent from drawing serialisation. Existing sessions retain their original host. The core can select only an explicitly configured adapter, and unsupported destinations are refused before network/staging work. Operator keys stay bound to their adapter; HTTP/WebSocket aliases use the existing destination identity. Explicit invite links still require the destination's normal grant checks while the default is off. The presence lock-order migration preserves all grants, policies and validated-principal checks. [Preference evidence](../reports/26-11-15-online-server-preference-parity.html).
+
+
+## Incoming peer bounds — 15 November 2026
+
+Incoming peer identity bounds at 6818860 preserve the separation between presence and authority: names/colours are bounded display metadata, never ownership or access claims. Browser Grant retention and reconnect are verified; outgoing provider validation and all database grants remain unchanged. [Evidence](../reports/26-11-15-incoming-peer-bounds.md).

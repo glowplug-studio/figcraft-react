@@ -2,12 +2,11 @@
 
 ## Execution checkpoint
 
-- Phase: source audit and implementation planning only. No product changes or tests run for this slice.
-- Native reference: `bad07e4433240cad046589129c084bd2fc36f097` (`bad07e44`).
-- Prerequisite: complete and commit the [online server preference slice](26-11-15-online-server-preference.md). The working tree was changing during this audit; this document does not establish a verified React revision.
-- Before implementation, renew preflight: inspect branch/dirty files, record the preference commit and native pin, check repository instructions, refresh stale React/Rust Graphify indexes and merge/verify the combined graph. Preserve unrelated work. The coordinator owns security and architecture decisions.
-- Next action: reconcile the incoming/outgoing reader split below against that preflight, then implement the bounded provider-neutral identity/welcome boundary and focused tests.
-- Queue: row 7 / roadmap row 14 in [the upstream delta queue](26-11-15-upstream-delta.md). This is separate from server-preference routing.
+- Complete at implementation `6818860`, native `bad07e44`, verified 2026-11-15 12:53 ICT.
+- 4,713 pure, 23 focused, 32 provider checks, strict types and both builds pass. Final host 256 passed in 699.007 seconds; all 122 non-host cases passed on the same build. Two-run accounting, timeout/setup corrections and all twelve zero cleanup counts are retained in [the report](../reports/26-11-15-incoming-peer-bounds.md).
+- Production preview stopped. No hosted writes, Vercel, branch push or main merge. Tracker remains uncommitted.
+- Next: execute [public collaboration diff](26-11-15-public-collaboration-diff.md) after renewed preflight; then the remaining full-port roadmap.
+- Tracker reweighting: the narrow incoming compatibility delta uses weight 0.1 alongside three remaining broad families at weight 1 each, avoiding treating this small correction as one quarter of all upstream updates. Remaining active work reassessed to 18–42 hours.
 
 ## Source contract and mapping
 
@@ -84,3 +83,35 @@ Run the new Chromium cases and the existing People initial-welcome, reconnect, p
 ## Coordinator rendering follow-up
 
 The incoming-colour change also requires an actual rendering boundary. Native `ui-egui/src/live.rs::color` calls `engine/sharing/live/types.rs::parse_color` and falls back to the native accent for anything except its accepted RGB form. React `LivePeopleControls.tsx` currently puts retained colours directly into CSS `color`, Canvas `fillStyle`/`strokeStyle`, and `textOn` parsing. Previously the incoming palette restriction hid this mismatch. Preserve the arbitrary bounded string in protocol/inspection state, but derive the native accepted display colour or accent before drawing/menu styles. An invalid Canvas colour otherwise retains the previous drawing style instead of showing the accent. Make this UI file an explicit slice dependency, with native hex/fallback fixtures and a browser invalid-colour overlay assertion; do not weaken outgoing identity validation or mutate the inspected colour string merely for rendering.
+
+## Active implementation checkpoint
+
+Preflight on 15 November: authorised fork sync remained at `bad07e44`; scoped Supabase public-table read succeeded with an empty list. No hosted writes. Local Graphify source snapshot `6d03c89` matches the implementation preceding this slice: React 8,417 nodes/36,077 edges, native 28,939/92,127. Queried `LivePeople`, the three ingress readers and native `bounded`/`take`; 63 React and 22 native linked edges include the tests and driver/guest consumers. Refresh after this slice.
+
+Root owns readers, lifecycle and transport contract. Delegates own colour rendering/fixtures, core/parity tests and the authenticated browser fixture. The Unicode decision is to reject an isolated UTF-16 surrogate in the retained prefix, which cannot occur in native Rust strings; ignored tails are not validated. Bound provider methods preserve receiver semantics and can retain provider-owned state. Core keeps no direct raw welcome/transport duplicate; the bundled provider stores the normalised result. This does not claim to erase arbitrary external-host or closure-owned memory.
+
+Initial focused run: 19 tests passed across live-presence, incoming-peer-bounds and peer-colour. A further invalid-acknowledgement regression is being included in cumulative verification. Full pure tests and both builds are running; retained temporary log names are `fc-bounds-pure.log` and `fc-bounds-build.log`. Next collect those results, run strict types/provider integrations, then start the production preview on unused port 3101 and run the hostile-welcome and existing People/reconnect browser flows. Preserve the application on port 3100. No schema change is needed. Full cumulative Chromium, reports, graph refresh and implementation commit remain outstanding.
+
+### Review correction and current checks
+
+The first unrestricted pure run alongside a production build reported four timeouts: session-Postcard, wide-page file format, paint clipboard and the new retained-state assertion. The assertion unnecessarily rescanned the retained graph per peer; replacing it with Set membership makes that check linear. The next run with two workers passed 4,710 checks (32 integration checks skipped); timeouts were not increased.
+
+Review then found two direct-welcome lifecycle gaps: pending same-generation receipts could overwrite the new self identity, and a changed-generation peer could leave stale presenter state. Accepted welcomes now invalidate pending receipt epochs; a replacement without spotlight clears presenter and only its associated follow. Both new regressions pass. The first cumulative browser attempt was interrupted to rebuild these corrections, not counted as a final gate.
+
+The updated production build passed. Final full pure run (`fc-bounds-pure-release.log`), strict types (`fc-bounds-types-final.log`) and all 378 Chromium cases (`fc-bounds-release-browser.log`, one worker, zero retries) are running against this source. Production preview uses port 3101. The new browser adapter contract independently verifies actual initial/reconnect Grant storage and exposed welcome/inspection values. Before the final lifecycle corrections, all 32 real provider integrations passed in 26.72 seconds and four focused Chromium cases passed in 25.9 seconds, including hostile welcome, phone initial roster and view-only pointer/follow/spotlight. No database declarations changed; the prior 448-assertion empty replay, drift and advisers remain the applicable schema evidence.
+
+### Committed implementation, cumulative browser gate running
+
+Implementation `6818860` is the exact source of the final production build. Final pure suite: 4,713 passed, 32 provider checks skipped in that invocation; all 32 provider integrations passed separately. All 23 focused boundary checks, final strict types and both builds pass. The latest f32 contrast fixtures were independently checked using the native arithmetic in a disposable Rust process; no runtime dependency was added.
+
+Final cumulative Chromium is running with one worker and zero retries, log `fc-bounds-final-browser.log`, tool session 87233; production preview session 3214 on port 3101. Do not launch another run before collecting its result. Earlier interrupted runs are not final evidence. Local Graphify covers this committed source: React 8,436 nodes/36,153 edges; native 28,939/92,127 at bad07e44; combined 37,375/127,157. Eighty-eight unsupported-extension files and data-only test modules require direct source inspection.
+
+Next collect all 378 browser results, verify twelve fixture counts zero and stop preview cleanly; finalise property report/mappings, tracker percentage/time estimate and handover, then commit documentation excluding the tracker. Begin [public collaboration diff](26-11-15-public-collaboration-diff.md) immediately afterwards. Scope remains the full browser port; no publication or merge to main yet.
+
+### Cumulative test setup correction
+
+The first completed cumulative attempt at `6818860` is failing on owner crash recovery before that feature is exercised: the publication dialog reports the native hourly allowance refusal. The coordinator omitted the documented cumulative-only `FIGCRAFT_PUBLISHES_PER_HOUR=1000` when launching the production server. Default admission therefore correctly refuses further publications; production defaults and policy source remain unchanged. Collect the completed JSON and non-host results, stop the preview, restart only the idle local Figcraft database (ephemeral admission reset), relaunch production with that explicit setting, and rerun host verification. Do not weaken or skip the dedicated default/one-per-hour tests. Source: `supabase/README.md` cumulative verification instructions. This setup failure must remain distinct from product parity results.
+
+### Host rerun started with documented admission setup
+
+The completed full attempt at `6818860` passed 131, failed one and serial-skipped 246; all 122 non-host render/export/performance cases passed. Owner recovery failed before exercise due to the default hourly publication refusal. Preserved JSON `fc-bounds-rate-limited-browser.json` and trace `fc-bounds-rate-limit-trace.zip`. All twelve fixture counts were zero afterwards. Stopped the preview, restarted only the idle local Figcraft database, verified readiness and relaunched the same production build with `FIGCRAFT_PUBLISHES_PER_HOUR=1000`. The 256-case host rerun now uses `fc-bounds-final-host.log`, one worker and zero retries. Preview session 96869. Keep this two-run accounting explicit; there is not one green full invocation.
