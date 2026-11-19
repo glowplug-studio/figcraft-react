@@ -26,7 +26,7 @@ Author application and test source in strict TypeScript or TSX wherever the tool
 - Use `dev` for normal work. For work requiring several meaningful commits, create `prompt/<short-description>` from `dev`, then return it to `dev` through review.
 - Use `fix` for quick fixes. Before starting, update local `dev` from its remote branch, then create or reset `fix` from that latest `dev`; do not branch quick fixes from `main` or a stale `dev`.
 - Commit each significant, verified change during long-running work.
-- Start every commit title with `Authored by ChatGPT: ` followed by a simple description of the change. Record the model, effort, verification and further detail in the commit body.
+- Start every agent-authored commit title with the identity of the agent that did the work, then a colon and a simple description: `<machine label> <agent and model>: <description>`, for example `JMBP21 Claude Fable 5.2: Guard cursor chat until the host reads signals`. Name the agent and model actually running, never a previous or default one. Keep the machine label used by recent history on the branch unless the user gives another, and omit it when there is none. Record the model, effort, verification and further detail in the commit body. A person committing by hand needs no prefix.
 - Preserve unrelated changes made by the user or other agents.
 
 ## Versioning
@@ -72,6 +72,8 @@ Graphify indexes the Rust and React repositories independently; it does not infe
 
 ## Agent coordination
 
+- These instructions apply to whichever coding agent is working. Where a prompt, plan or checkpoint in `docs/` names a particular agent, model tier or tool connection, the acting agent substitutes its own identity, its nearest equivalent model tiers and its own equivalent tools. Record a substitution in the checkpoint only when it changes what evidence was gathered.
+- The user may hand the coordinating role from one agent to another at any checkpoint. The incoming agent resumes from the handover and the Git history, not from the previous agent's chat.
 - Use real tool-backed subagents for bounded, independent work when this reduces cost or latency. Never role-play subagents or generate fictional subagent dialogue.
 - The coordinating agent owns architecture, file allocation, integration and final verification. Do not give multiple agents overlapping files concurrently.
 - Delegate routine fixtures, isolated components, mechanical conversions and focused tests. Keep cross-cutting state, concurrency, security and final parity decisions with the coordinating agent.
@@ -102,3 +104,5 @@ Graphify indexes the Rust and React repositories independently; it does not infe
 
 - Keep real local values in ignored `.env`/`.env.local` files and public placeholders in `.env.local.example`.
 - Do not open OAuth links automatically; print them for the user to open.
+- Use the local Supabase stack for preflight and verification. Confirm it with `supabase status` from the repository root and one real read through the local stack, using whichever local route the agent has (the CLI, the local database or the local API). Never print or commit its keys. Read the hosted project only when a slice needs hosted evidence or at the publication gate, through whatever authenticated connection the acting agent has.
+- Synchronise upstream only when the user asks. A read-only `npm run upstream:check` is always allowed; record its result without moving the pin.
