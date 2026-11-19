@@ -84,7 +84,8 @@ export function vectorStrokePlan(node: VectorNode): VectorStrokePlan {
     const measured = runs.map(r => measure(r.path)), dash = renderDashes(measured.reduce((n, m) => n + m.length, 0), true, props, runs.length);
     runs.forEach((run, i) => bands.push({ path: run.path, measured: measured[i], closed: run.closed, caps: styled ? [cap(run.start, props.capStart), cap(run.end, props.capEnd)] : bandCaps(props), join: props.join, dash: dash ? lineDashes(measured[i].length, run.closed, dash.pattern) : null }));
     if (styled) for (let i = 0; i < net.vertices.length; i++) {
-      if (!breaks(i)) continue;
+      // Native gathers a corner's two segments counting a loop segment at one end only: it has no corner of its own.
+      if (!breaks(i) || adjacent[i][0][0] === adjacent[i][1][0]) continue;
       const v = net.vertices[i], directions = adjacent[i].map(([s, end]) => { const c = networkCubic(net, s); return c ? cubicStartDirection(end ? reverseCubic(c) : c) : undefined; });
       if (!directions[0] || !directions[1]) continue;
       const reach = Math.max(width * .05, .2), a = directions[0], b = directions[1];

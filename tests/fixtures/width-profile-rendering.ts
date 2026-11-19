@@ -46,3 +46,14 @@ export function widthProfilePixels(canvas: HTMLCanvasElement) {
   const fallback = pixel(80, 42);
   return { taper, sided, dash, dots, styles, ring, alpha, sides, culled, extremeReach, maxWidthTaper, fallback };
 }
+
+/** Upstream 554ad0ea: the dashes of all subpaths share one allowance, so the second long line draws solid. */
+export function sharedDashAllowance(canvas: HTMLCanvasElement) {
+  canvas.width = 60; canvas.height = 60; const context = canvas.getContext("2d", { willReadFrequently: true })!;
+  const engine = new EditorEngine();
+  engine.execute("vector.create", { path: "M0 20H150000 M0 40H150000", props: { fill: null, stroke: "black", strokeWeight: 4, strokeAlign: "center", widthProfile: [[0, 1], [1, 1]], dashes: [10, 10] } });
+  const doc = engine.getSnapshot().document, page = doc.nodes[doc.currentPage], start = performance.now();
+  renderDocument(context, { ...doc, nodes: { ...doc.nodes, [page.id]: { ...page, background: "#ffffff" } } } as Document, 60, 60);
+  const pixel = (x: number, y: number) => [...context.getImageData(x, y, 1, 1).data];
+  return { firstGap: pixel(10, 20), firstDash: pixel(20, 20), secondAtGap: pixel(10, 40), secondAtDash: pixel(20, 40), renderMs: performance.now() - start };
+}

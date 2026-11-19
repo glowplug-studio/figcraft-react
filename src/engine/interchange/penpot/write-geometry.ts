@@ -4,6 +4,7 @@ import {roundedRect,type PathCommand} from "../../corners";
 import {isFrameLike,rectanglePaints,type Document,type DocumentNode,type LayerNode} from "../../document";
 import {worldTransform} from "../../hierarchy";
 import {foldBooleanPaths} from "../../path-boolean";
+import {closedSubpaths} from "../../path-budget";
 import {shapePath,strokeGeometry} from "../../shape-path";
 import {mapVectorPath} from "../../vector-region-selection";
 import {parse} from "lossless-json";
@@ -63,19 +64,6 @@ export function baseShape(id:string,name:string,type:string,x:number,y:number,w:
 }
 
 type Path=readonly PathCommand[];
-function closedOperand(path:Path) {
-  const closed:PathCommand[]=[];
-  let open=false;
-  for (const command of path) {
-    if (command[0]==="M") {
-      if (open) closed.push(["Z"]);
-      open=true;
-    } else if (command[0]==="Z") open=false;
-    closed.push(command);
-  }
-  if (open) closed.push(["Z"]);
-  return closed;
-}
 function worldOutline(doc:Document,n:LayerNode,warn:Warn,depth=0):Path {
   if (depth>64) return [];
   if (n.kind==="group" || n.kind==="booleanOp") {
@@ -84,7 +72,7 @@ function worldOutline(doc:Document,n:LayerNode,warn:Warn,depth=0):Path {
       return child && child.kind!=="page" ? [{node:child,path:worldOutline(doc,child,warn,depth+1)}] : [];
     });
     if (n.kind==="group") return parts.flatMap(p=>p.path);
-    const operands=parts.map(p=>({path:closedOperand(p.path),operation:p.node.boolOp ?? n.op}));
+    const operands=parts.map(p=>({path:closedSubpaths(p.path),operation:p.node.boolOp ?? n.op}));
     try {
       return foldBooleanPaths(operands);
     } catch {

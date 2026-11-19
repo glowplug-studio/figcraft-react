@@ -50,6 +50,15 @@ describe("vector stroke styles and endpoint mathematics", () => {
     expect(plan.bands.map(b => b.dash)).toEqual([{ pattern: [10, 10], offset: 5 }, { pattern: [12.5, 12.5], offset: 6.25 }]);
     expect(vectorStrokePlan(node)).toBe(plan);
   });
+  it("draws no join corner where one segment loops back to its own point", () => {
+    // Native pathops/points.rs at bad07e44 (upstream 554ad0ea): the point's degree is two, so it breaks the run, but
+    // a loop segment counts at its `a` end only when the corner's two segments are gathered, so no corner is drawn.
+    const base = vector("M0 0C100 -100 100 100 0 0Z", { strokes: [{ type: "solid", color: "#000000" }], strokeWeight: 10 });
+    expect([base.network.vertices.length, base.network.segments.length, base.network.segments[0].a === base.network.segments[0].b]).toEqual([1, 1, true]);
+    const styled = Object.freeze({ ...base, network: freezeNetwork({ ...base.network, vertices: base.network.vertices.map(v => ({ ...v, join: "round" as const })) }) });
+    const plan = vectorStrokePlan(styled);
+    expect(plan.bands).toHaveLength(1); expect(plan.bands[0].caps).toEqual(["none", "none"]);
+  });
   it("breaks differing point joins, uses endpoint caps, and suppresses overrides for dashes/profiles/brushes", () => {
     const base = vector("M0 0H50V50", { strokeWeight: 10, strokeJoin: "miter", strokeCap: "square" });
     const styled = Object.freeze({ ...base, network: freezeNetwork({ ...base.network, vertices: base.network.vertices.map((v, i) => ({ ...v, ...(i === 1 ? { join: "round" as const } : { cap: "round" as const }) })) }) });

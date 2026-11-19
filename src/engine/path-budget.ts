@@ -40,6 +40,25 @@ function bounds({ from, to, command }: Segment): Rectangle {
   return { x: Math.min(from.x,to.x), y: Math.min(from.y,to.y), width: Math.abs(from.x-to.x), height: Math.abs(from.y-to.y) };
 }
 
+/** Native `pathops::closed`: close every open subpath, as a filled open path paints. A subpath of a lone move
+ * fills nothing and is left out. */
+export function closedSubpaths(path: Path): PathCommand[] {
+  const out: PathCommand[] = [];
+  let open = false, pending: PathCommand | undefined;
+  for (const command of path) {
+    if (command[0] === "M") {
+      if (open) out.push(["Z"]);
+      open = false; pending = command;
+      continue;
+    }
+    open = command[0] !== "Z";
+    if (pending) { out.push(pending); pending = undefined; }
+    out.push(command);
+  }
+  if (open) out.push(["Z"]);
+  return out;
+}
+
 /** Prefix counts of active interval endpoints by coordinate rank. */
 class RankCounts {
   readonly counts: Int32Array;

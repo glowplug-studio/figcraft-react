@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { PathCommand } from "../../src/engine/corners";
-import { BooleanFoldBudget, checkBooleanStep, maxPathSegments, pathComplexity } from "../../src/engine/path-budget";
+import { arrangementFaces } from "../../src/engine/path-arrangement";
+import { BooleanComplexityError, BooleanFoldBudget, checkBooleanStep, closedSubpaths, maxPathSegments, maxPossibleCrossings, pathComplexity } from "../../src/engine/path-budget";
 
 function rect(x: number, y: number, width: number, height: number): PathCommand[] {
   return [["M",x,y],["L",x+width,y],["L",x+width,y+height],["L",x,y+height],["Z"]];
@@ -33,5 +34,22 @@ describe("native path operation complexity limits", () => {
     expect(() => budget.spend(path,[])).toThrow("too complex");
     expect(() => budget.spend([],[])).toThrow("too complex");
     for (const x of [Infinity,NaN,1.5e9+1]) expect(() => checkBooleanStep([[["M",x,0]]])).toThrow("invalid coordinates");
+  });
+  // Upstream 554ad0ea (#2249), crates/pathops/src/budget_tests.rs at bad07e44.
+  it("refuses the closed inputs of an arrangement before normalising them", () => {
+    // Open L shapes whose segments never overlap but whose implicit closing edges all do.
+    const path: PathCommand[] = [];
+    for (let i = 0; i < 2200; i++) { const x = -i, y = 10_000 + i; path.push(["M",x,0],["L",x,y],["L",10_000,y]); }
+    expect(pathComplexity([path])!.crossings, "open input passes").toBeLessThanOrEqual(maxPossibleCrossings);
+    expect(() => arrangementFaces([{ path, evenOdd: false }])).toThrow(BooleanComplexityError);
+  });
+  it("leaves out subpaths of a lone move when closing", () => {
+    const path: PathCommand[] = Array.from({ length: 1000 }, (_,i): PathCommand => ["M",i,0]);
+    expect(closedSubpaths(path)).toEqual([]);
+    path.push(["L",5,5]);
+    expect(closedSubpaths(path), "the last move, the line and the close").toEqual([["M",999,0],["L",5,5],["Z"]]);
+    // A segment drawn on from a close is open again and is closed in turn.
+    expect(closedSubpaths([["M",0,0],["L",1,0],["Z"],["L",2,2],["M",9,9]])).toEqual([["M",0,0],["L",1,0],["Z"],["L",2,2],["Z"]]);
+    expect(closedSubpaths([["M",0,0],["L",1,0],["M",3,3],["L",4,3],["L",4,4],["Z"]])).toEqual([["M",0,0],["L",1,0],["Z"],["M",3,3],["L",4,3],["L",4,4],["Z"]]);
   });
 });

@@ -70,6 +70,8 @@ function outlinePiece(path: PathCommand[], points: readonly Point[], widths: rea
   for (const point of right) left.push(point);
   cap(left, first.a, { x: -first.d.x, y: -first.d.y }, first.ha[1], first.ha[0], style.capStart); contour(path, left);
 }
+/** Native `pathops::MAX_DASHES`: past it a stroke draws solid instead of one outline per dash. */
+const MAX_DASHES = 20_000;
 function dashedPieces(points: readonly Point[], widths: readonly Half[], pattern: readonly number[], offset: number): { points: Point[]; widths: Half[] }[] {
   const out: { points: Point[]; widths: Half[] }[] = []; if (!pattern.length) return out;
   let index = 0, left = Math.max(0, pattern[0] - offset), on = true;
@@ -78,7 +80,7 @@ function dashedPieces(points: readonly Point[], widths: readonly Half[], pattern
     const a = points[i], b = points[i + 1], ha = widths[i], hb = widths[i + 1], len = Math.hypot(b.x - a.x, b.y - a.y); let used = 0;
     while (len - used > left) {
       used += left; const t = len > 0 ? used / len : 0, p = mix(a, b, t), h: Half = [ha[0] + (hb[0] - ha[0]) * t, ha[1] + (hb[1] - ha[1]) * t];
-      if (on) { current.points.push(p); current.widths.push(h); out.push(current); current = { points: [], widths: [] }; if (out.length >= 20_000) return out; }
+      if (on) { current.points.push(p); current.widths.push(h); out.push(current); current = { points: [], widths: [] }; if (out.length >= MAX_DASHES) return out; }
       else current = { points: [p], widths: [h] };
       on = !on; index = (index + 1) % pattern.length; left = pattern[index];
     }
@@ -105,12 +107,18 @@ export function variableStrokeOutline(path: readonly PathCommand[], width: numbe
   const profile = sanitiseWidthProfile(rawProfile), lines = measurePath(path); if (!lines) return undefined;
   const [capStart, capEnd] = bandCaps(props), style: Style = { join: props.join, miterLimit: Math.max(1, Math.min(100, props.miterLimit)), capStart, capEnd };
   const pattern = dashPattern(props.dashes), result: PathCommand[] = []; let budget = MAX_PATH_SAMPLES;
+  // The dashes of all subpaths together stay within the allowance; the rest draw solid.
+  let dashBudget = MAX_DASHES;
   for (const line of lines) {
     const len = polylineLength(line); if (len <= 1e-9) continue;
     const samples = resample(line, budget); if (!samples) return undefined; budget -= samples.points.length;
     const widths = samples.lengths.map((s): Half => { const [left, right] = widthProfileSidesAt(profile, s / len); return [.5 * width * right, .5 * width * left]; });
-    if (pattern && len / pattern.reduce((a, b) => a + b, 0) * pattern.length < 20_000) {
-      const fitted = lineDashes(len, line.closed, pattern);
+    // Budgeted by the pattern as fitted to this line: a short line still takes a whole pattern.
+    const fitted = pattern ? lineDashes(len, line.closed, pattern) : undefined;
+    const count = fitted ? len / fitted.pattern.reduce((a, b) => a + b, 0) * fitted.pattern.length : 0;
+    const used = fitted ? Math.max(count, fitted.pattern.length) : 0;
+    if (fitted && used < dashBudget && count < MAX_DASHES) {
+      dashBudget -= used;
       for (const piece of dashedPieces(samples.points, widths, fitted.pattern, fitted.offset)) outlinePiece(result, piece.points, piece.widths, false, style);
     } else outlinePiece(result, samples.points, widths, line.closed, style);
   }

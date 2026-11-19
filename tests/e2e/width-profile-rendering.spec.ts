@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { build } from "vite";
-import type { widthProfilePixels } from "../fixtures/width-profile-rendering";
+import type { sharedDashAllowance, widthProfilePixels } from "../fixtures/width-profile-rendering";
 
 test("width profiles preserve sided bands, alignment, caps, dashes, alpha, precedence and culling", async ({ page }) => {
   const bundle = await build({ configFile: false, logLevel: "silent", build: { write: false, lib: { entry: "tests/fixtures/width-profile-rendering.ts", name: "WidthPixels", formats: ["iife"] }, minify: true } });
@@ -22,4 +22,17 @@ test("width profiles preserve sided bands, alignment, caps, dashes, alpha, prece
   expect(pixels.maxWidthTaper).toEqual(white);
   expect(pixels.culled).toEqual(black); expect(pixels.fallback).toEqual(black);
   expect(pixels.extremeReach).toBe(20000);
+});
+
+test("the dashes of a variable-width stroke share one allowance across subpaths", async ({ page }) => {
+  const bundle = await build({ configFile: false, logLevel: "silent", build: { write: false, lib: { entry: "tests/fixtures/width-profile-rendering.ts", name: "WidthPixels", formats: ["iife"] }, minify: true } });
+  const output = (Array.isArray(bundle) ? bundle[0] : bundle) as { output: { type: string; code?: string }[] };
+  const code = output.output.find(chunk => chunk.type === "chunk")?.code; if (!code) throw new Error("Width profile fixture did not build");
+  await page.setContent('<canvas aria-label="Shared dash allowance"></canvas>'); await page.addScriptTag({ content: code });
+  const pixels = await page.evaluate(() => (window as unknown as { WidthPixels: { sharedDashAllowance: typeof sharedDashAllowance } }).WidthPixels.sharedDashAllowance(document.querySelector("canvas")!));
+  await test.info().attach("shared-dash-allowance", { body: JSON.stringify(pixels), contentType: "application/json" });
+  const black = [0, 0, 0, 255], white = [255, 255, 255, 255];
+  // Two lines of 150,000 with 10-unit dashes: the first takes 15,000 of the 20,000 dashes, so the second draws solid.
+  expect([pixels.firstGap, pixels.firstDash]).toEqual([white, black]);
+  expect([pixels.secondAtGap, pixels.secondAtDash]).toEqual([black, black]);
 });
