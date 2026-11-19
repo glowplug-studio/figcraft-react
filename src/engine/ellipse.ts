@@ -38,6 +38,8 @@ export function ellipticalArcPath(cx: number, cy: number, rx: number, ry: number
   }
   return path;
 }
+/** Handle length of a quarter-circle cubic as a fraction of its radius (native `K`). */
+const circleHandle = 0.5522847498307934;
 function reverseCubics(path: readonly PathCommand[]): PathCommand[] {
   const ends: [number, number][] = [], curves: Extract<PathCommand, readonly ["C", ...number[]]>[] = [];
   for (const c of path) { if (c[0] === "M") ends.push([c[1], c[2]]); else if (c[0] === "C") { curves.push(c); ends.push([c[5], c[6]]); } }
@@ -50,10 +52,16 @@ export function ellipsePath(width: number, height: number, data: Arc): readonly 
   const rx = Math.max(0, finiteArc(width)) / 2, ry = Math.max(0, finiteArc(height)) / 2;
   const start = finiteArc(data.start), sweep = Math.max(-TAU, Math.min(TAU, finiteArc(data.sweep))), inner = Math.max(0, Math.min(1, finiteArc(data.inner)));
   if (fullSweep(sweep)) {
-    // A full native Ellipse starts on the SVD major axis, independently of arc.start/sign.
-    const major = Math.max(rx, ry), minor = Math.min(rx, ry), rotation = ry > rx ? Math.PI / 2 : 0;
-    const outer = ellipticalArcPath(rx, ry, major, minor, 0, TAU, rotation);
-    return inner <= 0 ? outer : [...outer, ...reverseCubics(ellipticalArcPath(rx, ry, major * inner, minor * inner, 0, TAU, rotation))];
+    // Native `whole`: four cubics through the right, bottom, left and top extremes (clockwise from 3 o'clock),
+    // the four anchors an ellipse has when edited as a vector, independently of arc.start/sign. The contour is closed.
+    const whole = (a: number, b: number): PathCommand[] => {
+      const kx = a * circleHandle, ky = b * circleHandle;
+      return [["M", rx + a, ry], ["C", rx + a, ry + ky, rx + kx, ry + b, rx, ry + b], ["C", rx - kx, ry + b, rx - a, ry + ky, rx - a, ry],
+        ["C", rx - a, ry - ky, rx - kx, ry - b, rx, ry - b], ["C", rx + kx, ry - b, rx + a, ry - ky, rx + a, ry], ["Z"]];
+    };
+    const outer = whole(rx, ry);
+    // A ring: outer clockwise, inner counter-clockwise.
+    return inner <= 0 ? outer : [...outer, ...reverseCubics(whole(rx * inner, ry * inner)), ["Z"]];
   }
   const path = ellipticalArcPath(rx, ry, rx, ry, start, sweep);
   if (inner > 0) {

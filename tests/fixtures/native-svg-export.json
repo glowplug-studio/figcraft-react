@@ -93,7 +93,7 @@
         {}
       ]
     ],
-    "svg": "<svg width=\"36\" height=\"22\" viewBox=\"0 0 36 22\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\"><g><path transform=\"matrix(1 0 0 1 0 0)\" d=\"M36 11C36 17.075 27.941 22 18 22C8.059 22 0 17.075 0 11C0 4.925 8.059 0 18 0C27.941 0 36 4.925 36 11\" fill=\"#992244\"/></g></svg>\n"
+    "svg": "<svg width=\"36\" height=\"22\" viewBox=\"0 0 36 22\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\"><g><path transform=\"matrix(1 0 0 1 0 0)\" d=\"M36 11C36 17.075 27.941 22 18 22C8.059 22 0 17.075 0 11C0 4.925 8.059 0 18 0C27.941 0 36 4.925 36 11Z\" fill=\"#992244\"/></g></svg>\n"
   },
   {
     "name": "star",
@@ -555,7 +555,7 @@
         {}
       ]
     ],
-    "svg": "<svg width=\"28\" height=\"18\" viewBox=\"0 0 28 18\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\"><g><path transform=\"matrix(1 0 0 1 0 0)\" d=\"M28 9C28 13.971 21.732 18 14 18C6.268 18 0 13.971 0 9C0 4.029 6.268 0 14 0C21.732 0 28 4.029 28 9\" fill=\"url(#paint1)\"/></g><defs><radialGradient id=\"paint1\" cx=\"0\" cy=\"0\" r=\"1\" gradientUnits=\"userSpaceOnUse\" gradientTransform=\"matrix(14 -1.8 5.6 9 14 9)\"><stop offset=\"0\" stop-color=\"#00FF11\"/><stop offset=\"1\" stop-color=\"#882233\" stop-opacity=\"0.502\"/></radialGradient></defs></svg>\n"
+    "svg": "<svg width=\"28\" height=\"18\" viewBox=\"0 0 28 18\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\"><g><path transform=\"matrix(1 0 0 1 0 0)\" d=\"M28 9C28 13.971 21.732 18 14 18C6.268 18 0 13.971 0 9C0 4.029 6.268 0 14 0C21.732 0 28 4.029 28 9Z\" fill=\"url(#paint1)\"/></g><defs><radialGradient id=\"paint1\" cx=\"0\" cy=\"0\" r=\"1\" gradientUnits=\"userSpaceOnUse\" gradientTransform=\"matrix(14 -1.8 5.6 9 14 9)\"><stop offset=\"0\" stop-color=\"#00FF11\"/><stop offset=\"1\" stop-color=\"#882233\" stop-opacity=\"0.502\"/></radialGradient></defs></svg>\n"
   },
   {
     "name": "bounded frame",

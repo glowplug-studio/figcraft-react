@@ -25,7 +25,8 @@ function area(a: Arc): number {
 }
 describe("source-derived ellipse geometry and command contracts", () => {
   it("matches native full, ring and half-disc areas with opposite-winding holes", () => {
-    expect(Math.abs(area(full) - Math.PI * 2500)).toBeLessThan(2);
+    // Upstream b33da8a7 widened the full-disc allowance from 2 to 5: four cubics, not a tolerance-subdivided arc.
+    expect(Math.abs(area(full) - Math.PI * 2500)).toBeLessThan(5);
     expect(Math.abs(area({ ...full, inner: .5 }) - Math.PI * 1875)).toBeLessThan(5);
     expect(Math.abs(area({ ...full, sweep: Math.PI }) - Math.PI * 1250)).toBeLessThan(2);
     const ring = ellipsePath(100, 100, { ...full, inner: .5 });
@@ -33,16 +34,57 @@ describe("source-derived ellipse geometry and command contracts", () => {
     expect(hitsPath(ring, { x: 50, y: 50 }, .5)).toBe(false);
     expect(hitsPath(ring, { x: 90, y: 50 }, .5)).toBe(true);
   });
-  it("uses full-ellipse major-axis phase, ignores full start/sign and closes partial contours", () => {
-    const tall = ellipsePath(100, 200, full); expect(tall[0][0]).toBe("M"); expect(tall[0][1]).toBeCloseTo(50); expect(tall[0][2]).toBeCloseTo(200);
+  // crates/geom/src/tests.rs at bad07e44 (upstream #2080): a whole ellipse edits as four anchors.
+  it("builds a whole ellipse as four cubics through the right, bottom, left and top extremes", () => {
+    const k = 0.5522847498307934;
+    for (const [w, h] of [[100, 100], [200, 60], [3, 900]]) {
+      const path = ellipsePath(w, h, full), rx = w / 2, ry = h / 2;
+      expect(path.map(c => c[0]).join(""), `${w}x${h}`).toBe("MCCCCZ");
+      expect(path[0]).toEqual(["M", w, ry]);
+      const want = [[rx, h], [0, ry], [rx, 0], [w, ry]];
+      let from = [w, ry];
+      path.slice(1, 5).forEach((c, i) => {
+        expect(Math.hypot((c[5] as number) - want[i][0], (c[6] as number) - want[i][1]), `${w}x${h}: anchor ${i}`).toBeLessThan(1e-9);
+        // The handle is 0.5523 of the radius along the tangent.
+        expect(Math.abs(Math.hypot((c[1] as number) - from[0], (c[2] as number) - from[1]) - k * (i % 2 === 0 ? ry : rx)), `${w}x${h}: handle ${i}`).toBeLessThan(1e-9);
+        from = [c[5] as number, c[6] as number];
+      });
+    }
+  });
+  it("builds a whole ring as four cubics per closed contour and still subdivides a sliced ellipse", () => {
+    const ring = ellipsePath(100, 100, { ...full, inner: .5 });
+    expect(ring.map(c => c[0]).join("")).toBe("MCCCCZMCCCCZ");
+    expect(ring[6]).toEqual(["M", 75, 50]);
+    // The inner contour runs the other way: its first curve ends at the top extreme.
+    expect(ring[7].slice(5)).toEqual([50, 25]);
+    const pie = ellipsePath(100, 100, { start: 0, sweep: Math.PI, inner: 0 });
+    expect(pie.filter(c => c[0] === "C").length).toBeGreaterThan(0);
+    expect(pie.at(-1)).toEqual(["Z"]);
+    expect(Math.abs(area({ ...full, sweep: Math.PI }) - Math.PI * 1250)).toBeLessThan(2);
+    expect(Math.abs(area(full) - Math.PI * 2500)).toBeLessThan(5);
+  });
+  // Observed through the native engine at bad07e44 (tests/fixtures/native-ellipse-four-anchor.provenance.md).
+  it("flattens a whole ellipse to four anchors and a whole ring to eight, as native does", () => {
+    for (const [props, count] of [[{}, 4], [{ arcInner: .5 }, 8]] as const) {
+      const e = new EditorEngine();
+      e.execute("shape.ellipse", { x: 10, y: 20, width: 100, height: 60, props });
+      // Native returns the id as a number; the port's mutation receipts return a string (carried to the final audit).
+      expect(String(e.execute("vector.flatten", { ids: [2] }).id)).toBe("3");
+      expect(e.execute("node.get", { id: 2, fields: ["type"] })).toBeNull();
+      expect(e.execute("node.get", { id: 3, fields: ["type", "vertices", "segments"] })).toEqual({ id: 3, type: "VECTOR", vertices: count, segments: count });
+    }
+  });
+  it("starts a whole ellipse at three o'clock whatever its proportions, ignores full start/sign and closes every contour", () => {
+    // Before upstream b33da8a7 a whole ellipse started on its major axis and was left open.
+    const tall = ellipsePath(100, 200, full); expect(tall[0]).toEqual(["M", 100, 100]);
     expect(tall).toEqual(ellipsePath(100, 200, { start: 2, sweep: -TAU, inner: 0 }));
-    expect(tall.some(p => p[0] === "Z")).toBe(false);
+    expect(tall.at(-1)).toEqual(["Z"]);
     expect(ellipsePath(100, 100, { start: 0, sweep: Math.PI, inner: .5 }).at(-1)).toEqual(["Z"]);
     expect(area({ ...full, sweep: -Math.PI })).toBeLessThan(0);
     expect(ellipsePath(NaN, Infinity, { start: NaN, sweep: NaN, inner: Infinity }).flat().filter(v => typeof v === "number").every(Number.isFinite)).toBe(true);
   });
   it("bounds browser path work for astronomical but finite wire dimensions", () => {
-    const path = ellipsePath(1e308, 1e308, full); expect(path).toHaveLength(4097);
+    const path = ellipsePath(1e308, 1e308, full); expect(path).toHaveLength(6);
     expect(path.flat().filter(v => typeof v === "number").every(Number.isFinite)).toBe(true);
     const contours = flattenContours(path); expect(contours[0].length).toBeLessThan(70_000);
     expect(contours[0].every(p => Number.isFinite(p.x) && Number.isFinite(p.y))).toBe(true);
