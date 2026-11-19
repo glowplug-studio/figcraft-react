@@ -5,17 +5,17 @@
 | Field | Current value |
 |---|---|
 | Overall status | Active. The user resumed the run on 19 November with a new coordinating agent. Full port unfinished. [Resume handover](26-11-07-full-port-resume.md#continue-from-here). |
-| Active slice | Row 1 of the [upstream delta queue](26-11-15-upstream-delta.md) under the [row 1 plan](26-11-19-svg-arc-flags.md): items 1 and 2 verified; item 3, four-anchor ellipses, is next. |
-| Active phase | Delta row 1 items 1–2 completed Phase 7 at 55ad7e6 and c56be59. Next: Phase 1/2 for four-anchor ellipses. |
+| Active slice | Row 1 of the [upstream delta queue](26-11-15-upstream-delta.md) under the [row 1 plan](26-11-19-svg-arc-flags.md): items 1–3 verified; item 4, Pencil and Simplify staying on their input, is next. |
+| Active phase | Delta row 1 item 3, [four-anchor ellipses](26-11-19-four-anchor-ellipse.md), completed Phase 7 at de054fa. Next: Phase 1/2 for item 4. |
 | Upstream baseline | Reference checkout bad07e44. [New upstream delta queue](26-11-15-upstream-delta.md) must be reconciled before release; prior evidence retains its original pins. Paste event text and scrollable short-window menus queued alongside the two prior UI changes. First-frame tab and page restoration and native test font readiness queued for rows 4 and 19. Home sidebar Preferences, Cmd/Ctrl+comma and Escape queued in row 19. Styles reference a2e87433. Components reference 79c36346. Global supported baseline 8eb0b876. |
-| Branch and last verified commit | prompt/full-figcraft-port, verified product c56be59; all 383 browser cases passed in one run. |
+| Branch and last verified commit | prompt/full-figcraft-port, verified product de054fa; all 383 browser cases passed in one run. |
 | Completed slices | Rectangle/host-auth, bounded native persistence/recovery, supported-model pages, affine rectangle geometry/selection and solid appearance, plus nested group hierarchy, Frame containers, movement/transform gestures, rounded corners, ellipse/arc/ring and Polygon/Star editing verified locally; Line/Arrow and uniform solid strokes also verified; per-side Rectangle/Frame strokes, variable-width profiles and procedural brushes verified; vector networks, solid region/stroke rendering and Flatten/Reverse also verified; foundation commit `154f5a7`. Gradient, image, pattern, blend and mask releases now have local property matrices. [Blend evidence](../reports/26-11-09-blend-modes-parity.html). Auto layout and constraints passed the local release gate. [Release evidence](../reports/26-11-09-auto-layout.md). [Local components, instances, variant properties, slots and Assets](../reports/26-11-09-components-instances.md) passed the 0.51.0 gate. |
 | Remaining slices | Continue incomplete roadmap rows and the dependency-ordered [upstream delta queue](26-11-15-upstream-delta.md), excluding the user-deferred plugin and widget family. See each slice matrix for outstanding integrations. |
-| Tests last passed | 4,802 pure, strict types, both builds; 383 Chromium passed in 987.433 seconds, no skips/retries/flakes/errors; 32 provider integrations passed in 14.90 seconds. Twelve fixture counts zero. [Report](../reports/26-11-19-delta-geometry-numbers.md). |
+| Tests last passed | 4,805 pure, strict types, both builds; 383 Chromium passed in 993.471 seconds, no skips/retries/flakes/errors or changed baselines; 32 provider integrations passed in 14.85 seconds. Twelve fixture counts zero. [Report](../reports/26-11-19-four-anchor-ellipse.md). |
 | Files currently in progress | No product source in progress. The tracker stays local unless the user commits it. |
 | Blockers | None. Upstream synchronisation is on hold by the user’s decision (289 commits ahead at b45255bb); verification uses the local Supabase stack. |
-| Exact next action | Follow the handover: plan and implement four-anchor ellipses with native observations at bad07e44 for every changed fixture, then delta row 1 items 4–7, the remaining delta rows and all remaining roadmap slices. |
-| Last updated | 2026-11-19 16:25 ICT |
+| Exact next action | Follow the handover: plan and port native `simplify_path` for the Pencil and Simplify, then delta row 1 items 5–7, the remaining delta rows and all remaining roadmap slices. |
+| Last updated | 2026-11-19 17:12 ICT |
 
 ## Scope and continuation
 

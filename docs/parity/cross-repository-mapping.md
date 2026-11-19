@@ -641,3 +641,7 @@ Native `sharing/live/host.rs::{share,NO_COMMENT_LINK}` and `sharing/live/types.r
 
 Native `crates/geom/src/lib.rs::{svg_path,number_past,MAX_SVG_COORD}` at `bad07e44` (upstream `832e790c`) maps to `svg-path.ts::{parseSvgPath,numberPast,maxSvgCoordinate}` at `55ad7e6`. Native `crates/geom/src/transform.rs::round_to` (upstream `c47de279`) maps to `affine.ts::roundTo` at `c56be59`, and `automation/inspect.rs::round` to `inspect.ts::round`. `cmd/props.rs::describe`, the other `round_to` caller, has no ported consumer. Restated native tests, boundary fixtures and two Chromium workflows pass. [Property matrix](../reports/26-11-19-delta-geometry-numbers-parity.html) · [Report](../reports/26-11-19-delta-geometry-numbers.md).
 
+## Delta row 1: four-anchor ellipse — 19 November 2026
+
+Native `crates/geom/src/lib.rs::ellipse` whole and ring branches and `ReverseSubpaths` at `bad07e44` (upstream `b33da8a7`, `4118be89`) map to `ellipse.ts::{ellipsePath,reverseCubics}` at `de054fa`. The SVG and Android XML writers, `text.onPath` and the text-on-a-path tool's `path_at` follow through the shared builder. Sixteen export cases, one text-path case and 26 pointer decisions were re-observed through a disposable native oracle; it reproduced every recorded case involving neither an ellipse nor fonts. [Property matrix](../reports/26-11-19-four-anchor-ellipse-parity.html) · [Report](../reports/26-11-19-four-anchor-ellipse.md) · [Provenance](../../tests/fixtures/native-ellipse-four-anchor.provenance.md).
+
