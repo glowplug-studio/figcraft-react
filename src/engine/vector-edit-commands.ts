@@ -72,6 +72,25 @@ const allowed: Record<VectorEditCommand, readonly string[]> = {
 };
 const num = (p: Record<string, unknown>, key: string, fallback: number): number => { try { return parseNumber(p[key], key); } catch { return fallback; } };
 function index(value: unknown, key: string): number { const n = parseNumber(value, key); if (n < 0 || n >= 1e9) throw new Error(`${key} out of range`); return Math.trunc(n); }
+/** One axis of `vector.edit.position`: absent or null keeps the coordinate, a number sets it, and exactly one of
+ * `{add}`, `{mul}` or `{div}` with a number is relative to each point's own value. Anything else is refused. */
+function axisEdit(p: Record<string, unknown>, key: string): (current: number) => number {
+  const junk = () => new Error(`\`${key}\` must be a number or {add|mul|div: number}`);
+  const checked = (value: number) => { if (!Number.isFinite(value)) throw new Error("The result is not a number"); return value; };
+  const value = p[key];
+  if (value === undefined || value === null) return current => current;
+  if (typeof value === "object" && !Array.isArray(value)) {
+    const entries = Object.entries(value), n = entries.length === 1 ? entries[0][1] : undefined;
+    if (typeof n !== "number" || !Number.isFinite(n)) throw junk();
+    if (entries[0][0] === "add") return current => checked(current + n);
+    if (entries[0][0] === "mul") return current => checked(current * n);
+    if (entries[0][0] === "div" && n !== 0) return current => checked(current / n);
+    throw junk();
+  }
+  if (typeof value === "boolean" || Array.isArray(value)) throw junk();
+  let set: number; try { set = parseNumber(value, key); } catch { throw junk(); }
+  return () => set;
+}
 export function vectorIndices(value: unknown): number[] | undefined {
   return Array.isArray(value) ? value.flatMap(v => { try { return [index(v, "index")]; } catch { return []; } }) : undefined;
 }
@@ -279,10 +298,21 @@ export function executeVectorEdit(command: VectorEditCommand | VectorJoinCommand
       for (const part of pointSets(document, state, {}, true)) { const local = vectorLocalOffset(worldTransform(draft.document, part.id), delta); edit(part.id, net => moveVertices(net, part.vertices, local)); } break;
     }
     case "vector.edit.position": {
-      const current = vectorSelectionPosition(document, state); if (!current) throw new Error("Select points");
+      // Each axis: a number sets every selected point's own coordinate, in the parent's coordinates; {add}, {mul} and
+      // {div} apply to each point's own. Each point moves by its own offset with its handles, in one undo step.
       const node = document.nodes[state.id]; if (node.kind !== "vector") throw new Error("Not a vector");
-      const delta = vectorLocalOffset(layerTransform(node), { x: num(p, "x", current.x) - current.x, y: num(p, "y", current.y) - current.y });
-      edit(state.id, net => moveVertices(net, selectedVectorPoints(net, state), delta)); break;
+      const ax = axisEdit(p, "x"), ay = axisEdit(p, "y"), t = layerTransform(node), back = inverse(t), moves: [number, Point][] = [];
+      for (const i of selectedVectorPoints(node.network, state)) {
+        const v = node.network.vertices[i]; if (!v) continue;
+        const current = transformPoint(t, v), target = transformPoint(back, { x: ax(current.x), y: ay(current.y) }), d = { x: target.x - v.x, y: target.y - v.y };
+        if (!Number.isFinite(d.x) || !Number.isFinite(d.y)) throw new Error("The result is not a number");
+        moves.push([i, d]);
+      }
+      if (!moves.length) throw new Error("Select points");
+      // Points that all share one offset move as one, so the regions' paint frames are carried as a drag of all of
+      // them carries them. Otherwise each point moves alone.
+      const first = moves[0][1], uniform = moves.every(([, d]) => Math.hypot(d.x - first.x, d.y - first.y) < 1e-9);
+      edit(state.id, net => uniform ? moveVertices(net, moves.map(([i]) => i), first) : moves.reduce((next, [i, d]) => moveVertices(next, [i], d), net)); break;
     }
     case "vector.edit.setHandle": {
       const segment = index(p.segment, "segment"), start = parseBoolean(p.start) ?? true, x = parseNumber(p.x, "x"), y = parseNumber(p.y, "y");

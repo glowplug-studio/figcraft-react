@@ -4306,6 +4306,37 @@ test("vector point authoring supports captured drag, one undo, controls, native 
   await page.getByRole("button", { name: "Done editing", exact: true }).click(); await expect(panel).toHaveCount(0);
 });
 
+test("several selected points show a shared X and Y or Mixed, and a typed value sets every point", async ({ page }) => {
+  await login(page);
+  const creation = page.getByRole("group", { name: "Create layer", exact: true });
+  for (const [label, value] of [["X", 200], ["Y", 180], ["Width", 160], ["Height", 120]] as const) await creation.getByLabel(label, { exact: true }).fill(String(value));
+  await creation.getByRole("button", { name: "Create rectangle", exact: true }).click();
+  await page.getByRole("button", { name: "Edit vector", exact: true }).click();
+  const panel = page.getByRole("group", { name: "Vector points", exact: true }), canvas = page.getByLabel("Design canvas", { exact: true });
+  const x = panel.getByLabel("Point X", { exact: true }), y = panel.getByLabel("Point Y", { exact: true });
+  // The two top corners differ in X and share Y (upstream 6ac20c7d).
+  const left = await canvasPoint(page, 200, 180), right = await canvasPoint(page, 360, 180);
+  await page.mouse.click(left.x, left.y); await expect(panel).toContainText("1 selected point");
+  await expect(x).toHaveValue("200"); await expect(y).toHaveValue("180");
+  await page.keyboard.down("Shift"); await page.mouse.click(right.x, right.y); await page.keyboard.up("Shift");
+  await expect(panel).toContainText("2 selected points");
+  await expect(x).toHaveValue(""); await expect(x).toHaveAttribute("placeholder", "Mixed"); await expect(y).toHaveValue("180");
+  // Y alone: both points take it and keep their own X.
+  await y.fill("150"); await panel.getByRole("button", { name: "Apply point position", exact: true }).click();
+  await expect(y).toHaveValue("150"); await expect(x).toHaveAttribute("placeholder", "Mixed");
+  // X: every selected point's own coordinate becomes it, so the two meet and the shape narrows to nothing at the top.
+  await x.fill("250"); await panel.getByRole("button", { name: "Apply point position", exact: true }).click();
+  await expect(x).toHaveValue("250"); await expect(y).toHaveValue("150");
+  await canvas.focus(); await page.keyboard.press("ControlOrMeta+z");
+  await expect(x).toHaveAttribute("placeholder", "Mixed"); await expect(y).toHaveValue("150");
+  await page.keyboard.press("ControlOrMeta+z");
+  await expect(y).toHaveValue("180"); await expect(x).toHaveAttribute("placeholder", "Mixed");
+  // The other two points never moved: the bottom-left corner is still where the rectangle put it.
+  const corner = await canvasPoint(page, 200, 300), empty = await canvasPoint(page, 440, 380);
+  await page.mouse.click(empty.x, empty.y); await page.mouse.click(corner.x, corner.y);
+  await expect(panel).toContainText("1 selected point"); await expect(x).toHaveValue("200"); await expect(y).toHaveValue("300");
+});
+
 test("Pen creates one undoable path, continues in the same vector, saves and recovers", async ({ page }) => {
   await login(page); const canvas = page.getByLabel("Design canvas", { exact: true });
   const click = async (x: number, y: number) => { const p = await canvasPoint(page, x, y); await page.mouse.click(p.x, p.y); };

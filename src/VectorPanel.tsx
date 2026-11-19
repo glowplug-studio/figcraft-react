@@ -1,6 +1,6 @@
 import { useSyncExternalStore } from "react";
 import type { EditorEngine } from "./engine/editor";
-import { selectedVectorPoints, vectorSelectionPosition } from "./engine/vector-edit";
+import { selectedParentPoints, selectedVectorPoints, sharedPointPosition } from "./engine/vector-edit";
 import { networkMirroring } from "./engine/vector-network";
 import { widthPointSides } from "./engine/width-profile";
 import { defaultStroke, strokeCaps } from "./engine/stroke";
@@ -58,19 +58,25 @@ export function VectorPanel({ engine, editable, dispatch }: Props) {
     </fieldset>;
   }
   const indices = selectedVectorPoints(net, state), vertices = indices.flatMap(i => net.vertices[i] ? [net.vertices[i]] : []);
-  const position = vectorSelectionPosition(snapshot.document, state), radius = common(vertices.map(v => v.radius));
+  // The value the selected points share on each axis, or Mixed; a typed value sets every selected point's own.
+  const position = sharedPointPosition(selectedParentPoints(snapshot.document, state)), radius = common(vertices.map(v => v.radius));
   const mirroring = common(indices.map(i => networkMirroring(net, i)));
   const cap = common(vertices.map(v => v.cap ?? "layer")), join = common(vertices.map(v => v.join ?? "layer"));
   const box = vertices.length > 1 ? vectorPointBox(snapshot.document, state) : undefined;
   return <fieldset disabled={!editable} aria-label="Vector points"><legend>{vertices.length > 1 ? "Points" : "Point"}</legend>
     {!vertices.length ? <p>Select points to edit their position, radius and mirroring.</p> : <>
       <p>{vertices.length} selected {vertices.length === 1 ? "point" : "points"}</p>
-      <form key={`${state.id}:${position?.x}:${position?.y}`} onSubmit={event => {
-        event.preventDefault(); const data = new FormData(event.currentTarget);
-        dispatch("vector.edit.position", { x: Number(data.get("x")), y: Number(data.get("y")) });
+      <form key={`${state.id}:${indices.join()}:${position.x}:${position.y}`} onSubmit={event => {
+        event.preventDefault(); const data = new FormData(event.currentTarget), params: { x?: number; y?: number } = {};
+        // An axis left as shown, or a Mixed field left empty, keeps each point's own coordinate.
+        for (const axis of ["x", "y"] as const) {
+          const text = String(data.get(axis) ?? "").trim(), value = Number(text);
+          if (text && Number.isFinite(value) && value !== position[axis]) params[axis] = value;
+        }
+        if (params.x !== undefined || params.y !== undefined) dispatch("vector.edit.position", params);
       }}>
-        <label>Point X<input name="x" type="number" step="any" required defaultValue={position?.x} /></label>
-        <label>Point Y<input name="y" type="number" step="any" required defaultValue={position?.y} /></label>
+        <label>Point X<input name="x" type="number" step="any" placeholder={position.x === undefined ? "Mixed" : undefined} defaultValue={position.x ?? ""} /></label>
+        <label>Point Y<input name="y" type="number" step="any" placeholder={position.y === undefined ? "Mixed" : undefined} defaultValue={position.y ?? ""} /></label>
         <button type="submit">Apply point position</button>
       </form>
       {box && <form key={`${state.id}:${box.width}:${box.height}`} onSubmit={event => {

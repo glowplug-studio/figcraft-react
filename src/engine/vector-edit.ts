@@ -1,5 +1,6 @@
 import { multiply, transformPoint } from "./affine";
 import { commonProperties, isLeaf, layerTransform, withLayerTransform, type Document, type LeafNode, type NodeId, type VectorNode } from "./document";
+import type { Point } from "./geometry";
 import { HierarchyDraft, worldTransform } from "./hierarchy";
 import { shapePath } from "./shape-path";
 import { defaultStroke } from "./stroke";
@@ -91,6 +92,17 @@ export function vectorSelectionPosition(document: Document, state: VectorEditSta
   const points = selectedVectorPoints(node.network, state).flatMap(i => node.network.vertices[i] ? [transformPoint(layerTransform(node), node.network.vertices[i])] : []);
   if (!points.length) return undefined;
   return points.reduce((a, b) => ({ x: Math.min(a.x, b.x), y: Math.min(a.y, b.y) }));
+}
+/** Native `selected_parent_points`: the selected points in the parent's coordinates, which the X and Y fields show. */
+export function selectedParentPoints(document: Document, state: VectorEditState): readonly Point[] {
+  const node = document.nodes[state.id]; if (node?.kind !== "vector") return [];
+  const transform = layerTransform(node);
+  return selectedVectorPoints(node.network, state).flatMap(i => node.network.vertices[i] ? [transformPoint(transform, node.network.vertices[i])] : []);
+}
+/** The value the points share on each axis (within 1e-6), to two decimals; `undefined` reads Mixed. */
+export function sharedPointPosition(points: readonly Point[]): { x: number | undefined; y: number | undefined } {
+  const shared = (axis: "x" | "y") => points.length && points.every(p => Math.abs(p[axis] - points[0][axis]) < 1e-6) ? Math.round(points[0][axis] * 100) / 100 : undefined;
+  return { x: shared("x"), y: shared("y") };
 }
 export function visibleVectorHandles(net: VectorNetwork, state: VectorEditState): readonly VectorHandle[] {
   const shown = new Set(state.vertices.filter(i => !state.regionVertices.includes(i))), segments = new Set(state.segments), result: VectorHandle[] = [];
