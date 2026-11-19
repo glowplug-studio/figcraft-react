@@ -1,6 +1,6 @@
 import { cubicDerivative, cubicLength, cubicLengthParameter, cubicPart, cubicPoint, cubicStartDirection, isStraightCubic, reverseCubic, type Cubic } from "./cubic";
 import type { Point } from "./geometry";
-import { freezeNetwork, networkCubic, vectorVertex, type VectorNetwork } from "./vector-network";
+import { closingSegment, freezeNetwork, loopIndex, loopStart, networkCubic, vectorVertex, type VectorNetwork } from "./vector-network";
 
 import { smoothedCornerCurves } from "./polygon";
 import type { VectorNode } from "./document";
@@ -72,11 +72,14 @@ export function roundedNetwork(net: VectorNetwork, smoothing = 0): VectorNetwork
     const outgoing = segments[c.two[0]]; if (c.two[1]) outgoing.a = from; else outgoing.b = from;
     arcs.set(c.vertex, { first: c.one[0], chain });
   }
+  // An open loop whose ends a segment in no loop joins is walked through that segment last, so the points at its ends
+  // are cut by arcs as the stroke's are.
+  const index = loopIndex(net);
   const regions = net.regions.map(r => ({ ...r, loops: r.loops.map(loop => {
     if (!loop.length) return loop;
-    const first = net.segments[loop[0]], second = net.segments[loop[1]], rebuilt: number[] = [];
-    let current = first ? second && (first.a === second.a || first.a === second.b) ? first.b : first.a : 0;
-    for (const i of loop) {
+    const rebuilt: number[] = [], closing = closingSegment(net, loop, index);
+    let current = loopStart(net, loop) ?? 0;
+    for (const i of closing === undefined ? loop : [...loop, closing]) {
       rebuilt.push(i);
       const segment = net.segments[i]; if (!segment) continue;
       current = segment.a === current ? segment.b : segment.a;

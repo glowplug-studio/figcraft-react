@@ -12,6 +12,7 @@ import { networkBounds } from "./vector-path";
 import { simplifyVector } from "./vector-simplify";
 import { offsetLayer } from "./vector-offset";
 import { reverseLoop, setFillRule } from "./vector-winding";
+import { drawnVectorNetwork } from "./vector-rounded";
 
 export type VectorJoinCommand = "vector.join" | "vector.smoothJoin";
 export function isVectorJoin(command: string): command is VectorJoinCommand {
@@ -54,7 +55,9 @@ function flattenedNetwork(document: Document, ids: readonly NodeId[], parent: No
       return;
     }
     if (node.kind === "group") return;
-    let part = node.kind === "vector" ? node.network : networkFromPath(shapePath(node));
+    // Rounded points bake into the path (the arc's end points joined by curves), drawn the way the layer draws them,
+    // so the shape looks the same and the box fits the real geometry.
+    let part = node.kind === "vector" ? drawnVectorNetwork(node) : networkFromPath(shapePath(node));
     if (node.kind === "vector" && part.regions.length && part.regions.every(r => r.fills === undefined && r.paintSpace === undefined)) {
       part = freezeNetwork({ ...part, regions: [{ loops: part.regions.flatMap(r => r.loops), winding: part.regions.some(r => r.winding === "evenOdd") ? "evenOdd" : "nonZero" }] });
     }

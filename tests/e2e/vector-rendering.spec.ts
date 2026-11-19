@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { build } from "vite";
-import type { vectorPixels } from "../fixtures/vector-rendering";
+import type { bridgedLoopPixels, vectorPixels } from "../fixtures/vector-rendering";
 
 test("vectors preserve fill regions, holes, open strokes, point styles, arrows and mask reuse", async ({ page }) => {
   const bundle = await build({ configFile: false, logLevel: "silent", build: { write: false, lib: { entry: "tests/fixtures/vector-rendering.ts", name: "VectorPixels", formats: ["iife"] }, minify: true } });
@@ -22,4 +22,21 @@ test("vectors preserve fill regions, holes, open strokes, point styles, arrows a
   expect(pixels.arrows).toEqual({ first: white, last: black });
   for (const [label, difference] of Object.entries(pixels.comparisons)) expect(difference, label).toBeLessThanOrEqual(2);
   expect(pixels.cacheEqual).toBe(true);
+});
+
+test("a rounded fill is cut at both ends of a bridge its loop closes through", async ({ page }) => {
+  const bundle = await build({ configFile: false, logLevel: "silent", build: { write: false, lib: { entry: "tests/fixtures/vector-rendering.ts", name: "VectorPixels", formats: ["iife"] }, minify: true } });
+  const output = (Array.isArray(bundle) ? bundle[0] : bundle) as { output: { type: string; code?: string }[] };
+  const code = output.output.find(chunk => chunk.type === "chunk")?.code; if (!code) throw new Error("Vector fixture did not build");
+  await page.setContent('<canvas aria-label="Bridged loop pixels"></canvas>'); await page.addScriptTag({ content: code });
+  const pixels = await page.evaluate(() => (window as unknown as { VectorPixels: { bridgedLoopPixels: typeof bridgedLoopPixels } }).VectorPixels.bridgedLoopPixels(document.querySelector("canvas")!));
+  await test.info().attach("bridged-loop-pixels", { body: JSON.stringify(pixels), contentType: "application/json" });
+  const black = [0, 0, 0, 255], white = [255, 255, 255, 255];
+  // Native: deleting the corner behind the bridge puts the bridge into the loop (five segments, all in the loop).
+  expect([pixels.segments, pixels.loop]).toEqual([5, 5]);
+  expect(pixels.sharp).toEqual({ topEnd: black, rightEnd: black, corner: white, middle: black, bridge: black });
+  const rounded = { topEnd: white, rightEnd: white, corner: white, middle: black, bridge: black };
+  expect(pixels.edited).toEqual(rounded);
+  // A file saved before the fix holds the loop open; rounding walks the bridge as its last segment.
+  expect(pixels.saved).toEqual(rounded);
 });

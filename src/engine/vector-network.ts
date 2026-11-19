@@ -68,6 +68,36 @@ export function networkCubic(net: VectorNetwork, index: number): Cubic | undefin
 export function networkIncident(net: VectorNetwork, v: number): readonly (readonly [number, boolean])[] {
   const out: [number, boolean][] = []; net.segments.forEach((s, i) => { if (s.a === v) out.push([i, true]); else if (s.b === v) out.push([i, false]); }); return out;
 }
+/** Which segments are in a loop, and which join each pair of points: built once for a pass over every loop. */
+export interface LoopIndex { readonly inLoop: Uint8Array; readonly byEnds: ReadonlyMap<string, readonly number[]> }
+const endsKey = (a: number, b: number) => Math.min(a, b) + ":" + Math.max(a, b);
+/** Native `VectorNetwork::loop_index`. */
+export function loopIndex(net: VectorNetwork): LoopIndex {
+  const inLoop = new Uint8Array(net.segments.length), byEnds = new Map<string, number[]>();
+  for (const region of net.regions) for (const loop of region.loops) for (const i of loop) if (i >= 0 && i < inLoop.length) inLoop[i] = 1;
+  net.segments.forEach((s, i) => { const key = endsKey(s.a, s.b), list = byEnds.get(key); if (list) list.push(i); else byEnds.set(key, [i]); });
+  return { inLoop, byEnds };
+}
+/** The point a loop is walked from: the end of its first segment that its second does not share. */
+export function loopStart(net: VectorNetwork, loop: readonly number[]): number | undefined {
+  const first = net.segments[loop[0]]; if (!first) return undefined;
+  const second = net.segments[loop[1]];
+  return second && (first.a === second.a || first.a === second.b) ? first.b : first.a;
+}
+/** Native `VectorNetwork::closing_segment`: the one segment in no loop that joins the two ends of an open loop.
+ * Only a loop that walks in order as one continuous chain has one. Rounding walks it as the loop's last segment, and
+ * removing points or segments puts it into the loop. */
+export function closingSegment(net: VectorNetwork, loop: readonly number[], index: LoopIndex): number | undefined {
+  const start = loopStart(net, loop); if (start === undefined) return undefined;
+  let current = start;
+  for (const i of loop) {
+    const s = net.segments[i]; if (!s) return undefined;
+    if (s.a === current) current = s.b; else if (s.b === current) current = s.a; else return undefined;
+  }
+  if (current === start) return undefined;
+  const joining = index.byEnds.get(endsKey(current, start))?.filter(i => !index.inLoop[i]);
+  return joining?.length === 1 ? joining[0] : undefined;
+}
 export function networkMirroring(net: VectorNetwork, v: number): HandleMirroring {
   if (net.vertices[v]?.mirror) return net.vertices[v].mirror;
   const inc = networkIncident(net, v); if (inc.length !== 2) return "none";

@@ -1,7 +1,7 @@
 import { multiply, type Affine } from "./affine";
 import { splitCubic } from "./cubic";
 import type { Point } from "./geometry";
-import { freezeNetwork, networkCubic, networkIncident, networkMirroring, sanitiseNetwork, vectorVertex, type HandleMirroring, type VectorNetwork, type VectorRegion, type VectorSegment, type VectorVertex } from "./vector-network";
+import { closingSegment, freezeNetwork, loopIndex, networkCubic, networkIncident, networkMirroring, sanitiseNetwork, vectorVertex, type HandleMirroring, type VectorNetwork, type VectorRegion, type VectorSegment, type VectorVertex } from "./vector-network";
 import { vectorLoopWalk } from "./vector-path";
 
 export type VectorHandle = readonly [segment: number, start: boolean];
@@ -93,9 +93,32 @@ export function moveHandles(net: VectorNetwork, handles: readonly VectorHandle[]
   handles.forEach(([i, st], n) => { const h = from[n]; if (h) putHandle(d, i, st, [h[0] + delta.x, h[1] + delta.y], independent); });
   return d.finish();
 }
+/** Each handle of a sharp point turned smooth by a mirror mode is this fraction of the length of its own segment. */
+const mirrorSmoothFactor = .3905;
+/** Native `smooth_sharp_point`: give a sharp point (two segments, no handles) the handles a mirror mode makes. Both
+ * lie on one line through the point, along `(B - A) / |BA|^2 + (C - B) / |BC|^2`. "Angle": each is the factor times
+ * its own segment; "angle and length": both are the factor times the shorter. Open-path ends, points with a handle
+ * already and coincident neighbours are left alone. */
+function smoothSharpPoint(d: NetworkDraft, vi: number, mode: HandleMirroring): boolean {
+  if (mode === "none") return false;
+  const inc = networkIncident(d, vi); if (inc.length !== 2) return false;
+  const [one, two] = inc, h1 = d.handle(...one), h2 = d.handle(...two); if (!h1 || !h2 || length(h1) > 1e-9 || length(h2) > 1e-9) return false;
+  const far = ([s, start]: readonly [number, boolean]) => d.vertices[start ? d.segments[s].b : d.segments[s].a];
+  const b = d.vertices[vi], a = far(one), c = far(two); if (!a || !b || !c) return false;
+  const ab: Handle = [b.x - a.x, b.y - a.y], bc: Handle = [c.x - b.x, c.y - b.y], la = length(ab), lc = length(bc);
+  if (!(la > 1e-9 && lc > 1e-9 && Number.isFinite(la) && Number.isFinite(lc))) return false;
+  const x = ab[0] / (la * la) + bc[0] / (lc * lc), y = ab[1] / (la * la) + bc[1] / (lc * lc), size = Math.hypot(x, y);
+  if (!Number.isFinite(x) || !Number.isFinite(y) || size < 1e-12) return false;
+  const shorter = mirrorSmoothFactor * Math.min(la, lc), both = mode === "angleAndLength";
+  const into = both ? shorter : mirrorSmoothFactor * la, out = both ? shorter : mirrorSmoothFactor * lc;
+  const inward: Handle = [-x / size * into, -y / size * into], outward: Handle = [x / size * out, y / size * out];
+  if (![...inward, ...outward].every(Number.isFinite)) return false;
+  d.putHandle(...one, inward); d.putHandle(...two, outward); return true;
+}
 export function setMirroring(net: VectorNetwork, values: readonly number[], mode: HandleMirroring): VectorNetwork {
   const d = new NetworkDraft(net);
   for (const vi of values) {
+    if (smoothSharpPoint(d, vi, mode)) { const v = d.vertices[vi]; if (v) d.vertex(vi, { ...v, mirror: mode }); continue; }
     const inc = networkIncident(d, vi);
     if (inc.length === 2 && mode !== "none") {
       const [first, second] = inc, h1 = d.handle(...first)!, h2 = d.handle(...second)!, l1 = length(h1), l2 = length(h2);
@@ -198,11 +221,20 @@ function reopenLoops(d: NetworkDraft): void {
     d.changed = true; return [...loop.slice(at), ...loop.slice(0, at)];
   }) }));
 }
+/** Native `close_bridged_loops`: after points or segments were removed, an open loop whose two ends a segment in no
+ * loop already joins closes through that segment, at the loop's end so its winding is kept. Every loop takes what
+ * `closingSegment` gives it against one snapshot of the network, which is what rounding walks. */
+function closeBridgedLoops(d: NetworkDraft): void {
+  const index = loopIndex(d), closings = d.regions.map(r => r.loops.map(loop => closingSegment(d, loop, index)));
+  if (!closings.some(loops => loops.some(c => c !== undefined))) return;
+  d.regions = d.regions.map((r, ri) => ({ ...r, loops: r.loops.map((loop, li) => closings[ri][li] === undefined ? loop : [...loop, closings[ri][li]!]) }));
+  d.changed = true;
+}
 export function removeSegments(net: VectorNetwork, values: readonly number[]): VectorNetwork {
   const d = new NetworkDraft(net), touched = indices(values.flatMap(i => net.segments[i] ? [net.segments[i].a, net.segments[i].b] : []), net.vertices.length);
   removeSegmentsOnly(d, values);
   for (const vi of touched.reverse()) if (!networkIncident(d, vi).length) removeVertexIndex(d, vi);
-  reopenLoops(d); return d.finish();
+  reopenLoops(d); if (d.segments.length !== net.segments.length) closeBridgedLoops(d); return d.finish();
 }
 function healHandles(net: VectorNetwork, vi: number, o1: readonly [number, Handle], o2: readonly [number, Handle]): readonly [Handle, Handle] | undefined {
   const p = net.vertices[vi], a = net.vertices[o1[0]], b = net.vertices[o2[0]]; if (!p || !a || !b) return undefined;
@@ -243,7 +275,9 @@ export function deleteVertices(net: VectorNetwork, values: readonly number[], he
   }
   const clean = sanitiseNetwork(d);
   if (clean.segments.length !== d.segments.length || clean.regions.some((r, i) => r.loops.length !== d.regions[i].loops.length)) d.changed = true;
-  d.segments = [...clean.segments]; d.regions = [...clean.regions]; reopenLoops(d); return d.finish();
+  d.segments = [...clean.segments]; d.regions = [...clean.regions]; reopenLoops(d);
+  if (d.vertices.length !== net.vertices.length) closeBridgedLoops(d);
+  return d.finish();
 }
 
 /** Dropping one point onto another keeps the destination's coordinates and styles. */

@@ -52,8 +52,15 @@ describe("native vector point and handle operations", () => {
     let n = setHandle(setHandle(line(), 0, false, [-30, 0], true), 1, true, [0, 10], true);
     n = setMirroring(n, [1], "angle"); expect(n.segments[1].ta).toEqual([10, -0]); expect(n.segments[0].tb).toEqual([-30, 0]);
     const before = n.segments[0].tb; n = setHandle(n, 1, true, [0, 0]); expect(n.segments[0].tb).toEqual(before);
+    // Both handles are zero again, so the point is sharp and a mirror mode smooths it: each handle is 0.3905 of its
+    // own 50-unit segment (upstream #2110; observed in native-vector-loop-ops.json, "handles zeroed again…").
     n = setMirroring(setHandle(n, 0, false, [0, 0], true), [1], "angle");
-    n = setHandle(n, 1, true, [0, 12]); expect(n.segments[0].tb).toEqual([-0, -12]);
+    expect(n.segments[0].tb).toEqual([-19.525000000000002, -0]); expect(n.segments[1].ta).toEqual([19.525000000000002, 0]);
+    n = setHandle(n, 1, true, [0, 12]); expect(n.segments[0].tb).toEqual([-0, -19.525000000000002]);
+    // One zero handle beside a real one is not a sharp point: it takes the other's direction and length, as before.
+    let one = setMirroring(setHandle(line(), 1, true, [0, 10], true), [1], "angle");
+    expect(one.segments[0].tb).toEqual([-0, -10]);
+    one = setHandle(one, 1, true, [0, 12]); expect(one.segments[0].tb).toEqual([-0, -10]);
   });
   it("moves selected handles from their original positions before mirroring side effects", () => {
     const n = setHandle(setMirroring(line(), [1], "angleAndLength"), 1, true, [10, 0]);

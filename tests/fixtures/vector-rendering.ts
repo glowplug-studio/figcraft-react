@@ -57,3 +57,31 @@ export function vectorPixels(canvas: HTMLCanvasElement) {
   }
   return { openFill, curve, separate, hole, alignments, regions, pointStyles, arrows, comparisons, cacheEqual };
 }
+
+/** Upstream #1951: a corner cut off by a bridge drawn before the corner point was deleted, then rounded. The fill is
+ * cut by an arc at both ends of the bridge, as the stroke is: through the editor, and for a file already saved with
+ * the loop left open and the bridge in no loop. */
+export function bridgedLoopPixels(canvas: HTMLCanvasElement) {
+  canvas.width = 130; canvas.height = 130; const ctx = canvas.getContext("2d", { willReadFrequently: true })!;
+  const pixel = (x: number, y: number) => [...ctx.getImageData(x, y, 1, 1).data];
+  const sample = (document: Document) => {
+    const page = document.nodes[document.currentPage];
+    renderDocument(ctx, { ...document, nodes: { ...document.nodes, [page.id]: { ...page, background: "#ffffff" } } } as Document, 130, 130);
+    // Just inside where the sharp points at (50, 0) and (100, 50) were, the removed corner, the middle, beside the bridge.
+    return { topEnd: pixel(59, 11), rightEnd: pixel(108, 60), corner: pixel(105, 15), middle: pixel(60, 60), bridge: pixel(82, 37) };
+  };
+  const engine = new EditorEngine();
+  const id = String(engine.execute("shape.rectangle", { x: 10, y: 10, width: 100, height: 100, props: { fill: "black", stroke: null } }).id);
+  engine.execute("vector.edit.begin", { id });
+  engine.execute("vector.edit.addVertex", { segment: 0, t: .5 }); engine.execute("vector.edit.addVertex", { segment: 1, t: .5 });
+  engine.execute("vector.edit.connect", { a: 4, b: 5 });
+  engine.execute("vector.edit.select", { vertices: [1] }); engine.execute("vector.edit.delete", {});
+  const sharp = sample(engine.getSnapshot().document);
+  engine.execute("vector.edit.cornerRadius", { radius: 43, vertices: [0, 1, 2, 3, 4] });
+  engine.execute("vector.edit.end", {});
+  const document = engine.getSnapshot().document, node = document.nodes[id] as VectorNode, loop = node.network.regions[0].loops[0];
+  const edited = sample(document);
+  const stored = freezeNetwork({ ...node.network, regions: [{ ...node.network.regions[0], loops: [loop.slice(0, -1)] }] });
+  const saved = sample({ ...document, nodes: { ...document.nodes, [id]: Object.freeze({ ...node, network: stored }) } } as Document);
+  return { loop: loop.length, segments: node.network.segments.length, sharp, edited, saved };
+}
