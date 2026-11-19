@@ -5,11 +5,22 @@ import { transformPoint } from "../../src/engine/affine";
 import { worldTransform } from "../../src/engine/hierarchy";
 import { decodeFigcraft } from "../../src/engine/file-format";
 import { pencilPointerPressure } from "../../src/engine/pencil-samples";
+import strokes from "../fixtures/native-pencil-strokes.json";
 
 const p = (x: number, y = 0) => ({ x, y });
 function setup() { const engine = new EditorEngine(); engine.execute("tool.pencil"); return engine; }
 function selected(engine: EditorEngine): VectorNode { return engine.getSnapshot().document.nodes[engine.getSnapshot().selection[0]] as VectorNode; }
 describe("native Pencil stroke lifetime", () => {
+  // Strokes drawn with the native Pencil tool at bad07e44 (tests/fixtures/native-simplify-path.provenance.md). Before
+  // upstream #1741 the fitted curve shot hundreds of units off the first two.
+  it.each(strokes.cases)("leaves the layer and outline native leaves for the stroke $name", async ({ samples, layer, svg }) => {
+    const engine = setup(), points = samples.map(([x, y]) => p(x, y));
+    engine.pencil.down(points[0]); for (const point of points.slice(1)) engine.pencil.move(point); engine.pencil.up(points.at(-1)!);
+    const id = engine.getSnapshot().selection[0];
+    expect(engine.execute("node.get", { id, fields: ["type", "vertices", "segments", "x", "y", "width", "height", "absoluteBounds"] })).toEqual(layer);
+    const { data } = await engine.executeAsync("file.exportSvg", {});
+    expect(Buffer.from(String(data), "base64").toString("utf8")).toBe(svg);
+  });
   it("creates one selected open round black stroke on release with one undo and no React preview notifications", () => {
     const engine = setup(), before = engine.getSnapshot().document; let root = 0, panel = 0;
     engine.subscribe(() => root++); engine.subscribeVectorEdit(() => panel++);

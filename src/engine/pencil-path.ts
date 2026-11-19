@@ -1,6 +1,6 @@
 import { inverse, transformPoint, type Affine } from "./affine";
 import type { Point } from "./geometry";
-import { simplifyPencil } from "./pencil-fit";
+import { simplifyPencil } from "./simplify-path";
 
 /** Fit in page coordinates, then transform into the first point's parent space, as pencil_finish. */
 export function pencilPath(points: readonly Point[], parentWorld: Affine): string {

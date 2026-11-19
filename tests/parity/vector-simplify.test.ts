@@ -11,6 +11,8 @@ import { lineMoments } from "../../src/engine/fit-polyline";
 import { normaliseBooleanPath } from "../../src/engine/path-boolean";
 import { measurePath } from "../../src/engine/path-measure";
 import { simplifyPath } from "../../src/engine/simplify-path";
+import simplifyFixture from "../fixtures/native-simplify-path.json";
+import vectorFixture from "../fixtures/native-vector-simplify.json";
 import { solidPaint } from "../../src/engine/solid-paint";
 import { vectorFillContains, vectorFillPath } from "../../src/engine/vector-path";
 
@@ -40,7 +42,11 @@ describe("native curve and vector simplification",()=>{
     const result=simplifyPath([...original,["L",100,90],["M",200,0],["L",210,10]],.01);
     expect(result.map(c=>c[0])).toEqual(["M","C","L","M","L"]);
     expect(result.slice(2)).toEqual([["L",100,90],["M",200,0],["L",210,10]]);
-    expect(result[1].slice(-2)).toEqual([100,60]);
+    // Native observation at bad07e44: the fitted end is one rounding step off the source's, as Kurbo evaluates it.
+    const native=simplifyFixture.cases.find(c=>c.name==="simplify: smooth cubic halves, a corner and a second subpath")!.results[0].native as unknown as PathCommand[];
+    expect(result.map(c=>c[0])).toEqual(native.map(c=>c[0]));
+    result.forEach((c,i)=>c.slice(1).forEach((v,j)=>expect(v as number).toBeCloseTo(native[i][j+1] as number,10)));
+    expect(result[1].slice(-2)).toEqual([100,60.00000000000001]);
     const source=measurePath(original,40000,.001)![0].lengths.at(-1)!;
     const fitted=measurePath(result.slice(0,2),40000,.001)![0].lengths.at(-1)!;
     expect(Math.abs(fitted-source)).toBeLessThan(.05);
@@ -52,9 +58,12 @@ describe("native curve and vector simplification",()=>{
     const result=e.execute("vector.simplify",{id});
     expect(result).toEqual({ok:true});
     const n=e.getSnapshot().document.nodes[id] as VectorNode;
-    expect(n.network.segments.length).toBeLessThan(orig.network.segments.length);
+    // Native observation at bad07e44: Kurbo refits each straight run of lines into more, collinear pieces, so the
+    // simplified network has more segments than the drawn one (9 segments and 10 vertices before, 17 and 18 after).
+    const observed=vectorFixture.cases.find(c=>c.name==="simplify closed and loose")!.receipts;
+    expect([orig.network.vertices.length,orig.network.segments.length]).toEqual([(observed[1] as {vertices:number}).vertices,(observed[1] as {segments:number}).segments]);
+    expect(e.execute("node.get",{id,fields:["vertices","segments","x","y","width","height"]})).toEqual(observed[3]);
     expect(n.network.regions).toHaveLength(1);
-    expect(n.network.regions[0].loops.flat().length).toBe(n.network.segments.length-1);
     expect(n).toMatchObject({x:orig.x,y:orig.y,width:orig.width,height:orig.height});
     e.execute("edit.undo");expect(e.getSnapshot().document).toBe(before);
     e.execute("vector.simplify",{id,tolerance:"invalid"});
@@ -94,14 +103,33 @@ describe("native curve and vector simplification",()=>{
     engine.execute("edit.undo");
     expect(engine.getSnapshot().document).toBe(before);
   });
+  it("places the simplified outline's points where native places them", async () => {
+    const { commands, receipts } = vectorFixture.cases.find(c => c.name === "simplify closed and loose")!;
+    const engine = new EditorEngine();
+    for (const [command, params] of commands.slice(0, 3)) engine.execute(String(command), params as Record<string, unknown>);
+    const { data } = await engine.executeAsync("file.exportSvg", {});
+    // The end point of every drawn segment, as the exported path rounds it.
+    const anchors = (svg: string) => [...new Set([.../ d="([^"]+)"/.exec(svg)![1].matchAll(/[MLC]([^MLCZ]+)/g)].map(m => m[1].trim().split(" ").slice(-2).join(",")))].sort();
+    const native = (receipts[4] as { svg: string }).svg, ours = Buffer.from(String(data), "base64").toString("utf8");
+    expect(anchors(ours)).toEqual(anchors(native));
+    // Known difference, outside this change: native's path normaliser (linesweeper) writes these straight pieces as
+    // lines and starts the contour at another vertex; the port's normaliser keeps them as straight cubics.
+    expect(native).toContain("L8.438 0L9.888 0"); expect(ours).toContain("C8.921 0 9.404 0 9.888 0");
+  });
   it("simplifies an entirely open stroke without introducing a fill", () => {
     const engine = new EditorEngine();
     const id = String(engine.execute("vector.create", { path: "M0 0H10H20H30" }).id);
     engine.execute("vector.simplify", { id, tolerance: 0 });
     const output = (engine.getSnapshot().document.nodes[id] as VectorNode).network;
     expect(output.regions).toHaveLength(0);
-    expect(output.segments).toHaveLength(1);
-    expect(output.vertices.map(v => v.x)).toEqual([0, 30]);
+    // Native observations at bad07e44: a straight three-line stroke comes back as 13 collinear pieces at tolerance 0
+    // and 7 at the default tolerance, never as one segment.
+    const observed = vectorFixture.cases.find(c => c.name === "simplify open straight")!.receipts;
+    expect(engine.execute("node.get", { id, fields: ["vertices", "segments", "x", "y", "width", "height"] })).toEqual(observed[2]);
+    expect(output.vertices.every(v => v.y === 0 && v.x >= 0 && v.x <= 30)).toBe(true);
+    const again = new EditorEngine(), other = String(again.execute("vector.create", { path: "M0 0H10H20H30" }).id);
+    again.execute("vector.simplify", { id: other });
+    expect(again.execute("node.get", { id: other, fields: ["vertices", "segments"] })).toEqual(vectorFixture.cases.find(c => c.name === "simplify open straight default")!.receipts[2]);
   });
   it("rebuilds smoothed corners within the upstream area tolerance",()=>{
     const e=new EditorEngine(),id=String(e.execute("vector.create",{path:"M0 0H100V100H0Z"}).id);

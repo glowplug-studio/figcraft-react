@@ -5,7 +5,8 @@ const signed = (magnitude: number, sign: number): number => sign < 0 || Object.i
 
 /** Ascending coefficients; stable real quadratic roots, including linear/constant degeneracy. */
 export function fitQuadratic(c0: number, c1: number, c2: number): number[] {
-  const a = c0 / c2, b = c1 / c2;
+  // Kurbo scales by the reciprocal, not by division: the last bit decides fits on nearly straight input.
+  const reciprocal = 1 / c2, a = c0 * reciprocal, b = c1 * reciprocal;
   if (!Number.isFinite(a) || !Number.isFinite(b)) {
     const root = -c0 / c1;
     return Number.isFinite(root) ? [root] : c0 === 0 && c1 === 0 ? [0] : [];
@@ -14,18 +15,19 @@ export function fitQuadratic(c0: number, c1: number, c2: number): number[] {
   if (disc < 0) return [];
   if (disc === 0) return [-.5 * b];
   const first = Number.isFinite(disc) ? -.5 * (b + signed(Math.sqrt(disc), b)) : -b, second = a / first;
-  return Number.isFinite(second) ? [first, second].sort((x, y) => x - y) : [first];
+  if (!Number.isFinite(second)) return [first];
+  return second > first ? [first, second] : [second, first];
 }
 
 /** Native candidate ordering is retained; the fitter breaks equal errors by this order. */
 export function fitCubicRoots(c0: number, c1: number, c2: number, c3: number): number[] {
-  const inverse = 1 / c3, a = c0 * inverse, b = c1 * (inverse / 3), c = c2 * (inverse / 3);
+  const third = 1 / 3, inverse = 1 / c3, a = c0 * inverse, b = c1 * (third * inverse), c = c2 * (third * inverse);
   if (![a, b, c].every(Number.isFinite)) return fitQuadratic(c0, c1, c2);
   const d0 = fitMultiplyAdd(-c, c, b), d1 = fitMultiplyAdd(-b, c, a), d2 = c * a - b * b;
   const disc = 4 * d0 * d2 - d1 * d1, depressed = fitMultiplyAdd(-2 * c, d0, d1);
   if (disc < 0) { const r = -.5 * depressed, s = Math.sqrt(-.25 * disc); return [Math.cbrt(r + s) + Math.cbrt(r - s) - c]; }
   if (disc === 0) { const t = signed(Math.sqrt(-d0), depressed); return [t - c, -2 * t - c]; }
-  const angle = Math.atan2(Math.sqrt(disc), -depressed) / 3, cosine = Math.cos(angle), sine = Math.sin(angle) * Math.sqrt(3), scale = 2 * Math.sqrt(-d0);
+  const angle = Math.atan2(Math.sqrt(disc), -depressed) * third, cosine = Math.cos(angle), sine = Math.sin(angle) * Math.sqrt(3), scale = 2 * Math.sqrt(-d0);
   return [cosine, .5 * (-cosine + sine), .5 * (-cosine - sine)].map(root => fitMultiplyAdd(scale, root, -c));
 }
 

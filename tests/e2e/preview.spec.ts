@@ -5219,7 +5219,7 @@ test("Offset path grows and erodes a ring, preserves its hole and recovers its p
   expect(layer.width).toBeCloseTo(90,2);
 });
 
-test("Simplify vector reduces editable segments and recovers a closed fill plus a loose trail", async ({ page }) => {
+test("Simplify vector refits straight runs as native does and recovers a closed fill plus a loose trail", async ({ page }) => {
   const e = new EditorEngine(), id = String(e.execute("vector.create", {
     x:130,y:130,path:"M0 0H20H40H60V60H0Z M90 20H110H130H150",
   }).id);
@@ -5243,9 +5243,13 @@ test("Simplify vector reduces editable segments and recovers a closed fill plus 
   await resetCanvasOrigin(page);
   await apply();
   const simplified=await save();
-  expect(simplified.segments.length).toBeLessThan(original.segments.length);
+  // Native observation at bad07e44 (tests/fixtures/native-vector-simplify.json, "browser: closed fill and loose trail"):
+  // Kurbo refits each straight run into more collinear pieces, so 9 segments and 10 points become 21 and 22,
+  // twelve around the fill and nine along the trail.
+  expect([original.vertices.length,original.segments.length]).toEqual([10,9]);
+  expect([simplified.vertices.length,simplified.segments.length]).toEqual([22,21]);
   expect(simplified.regions).toHaveLength(1);
-  expect(simplified.regions[0].loops.flat()).toHaveLength(simplified.segments.length-1);
+  expect(simplified.regions[0].loops.flat()).toHaveLength(12);
   const away=await canvasPoint(page,340,280);await page.mouse.click(away.x,away.y);
   await expectCanvasPixel(page,150,150,[0,136,68,255]);
   await expectCanvasPixel(page,245,150,[0,0,0,255]);

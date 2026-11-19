@@ -1,16 +1,22 @@
 // Fitting decisions follow Kurbo 0.13.1 fit.rs/simplify.rs; independent TypeScript geometry.
 // Copyright 2022 the Kurbo Authors. SPDX-License-Identifier: Apache-2.0 OR MIT
 import { cubicLength, cubicPoint, type Cubic } from "./cubic";
-import type { PathCommand } from "./corners";
+import { evalCubic } from "./fit-cubic-source";
 import { pixelRound, type Point } from "./geometry";
 import { cubicFitCandidates } from "./fit-candidates";
-import { FittingPolyline } from "./fit-polyline";
+import type { Moments } from "./fit-polyline";
 import { fitCubicRoots } from "./fit-polynomial";
 
 const distance2 = (a: Point, b: Point) => (a.x - b.x) ** 2 + (a.y - b.y) ** 2;
-const lineCubic = (a: Point, b: Point): Cubic => [a, { x: a.x + (b.x - a.x) / 3, y: a.y + (b.y - a.y) / 3 }, { x: b.x + (a.x - b.x) / 3, y: b.y + (a.y - b.y) / 3 }, b];
+const third = 1 / 3;
+/** Kurbo `lerp` a third of the way from each end. */
+const lineCubic = (a: Point, b: Point): Cubic => [a, { x: a.x + third * (b.x - a.x), y: a.y + third * (b.y - a.y) }, { x: b.x + third * (a.x - b.x), y: b.y + third * (a.y - b.y) }, b];
 
-export type FitSource = Pick<FittingPolyline, "sample" | "moments">;
+/** What the fit asks of a source: a point, tangent and parameter derivative at `t`, and moments over a span. */
+export interface FitSource {
+  sample(t: number): { point: Point; tangent: Point; derivative: Point };
+  moments(from: number, to: number): Moments;
+}
 
 function tryLine(source: FitSource, from: number, to: number, a: Point, b: Point, accuracy: number): Cubic | undefined {
   const dx = b.x - a.x, dy = b.y - a.y, length2 = dx * dx + dy * dy;
@@ -29,8 +35,9 @@ class FittingDistance {
   #arc?: number[];
   constructor(private source: FitSource, private from: number, private to: number) {
     let last: Point | undefined;
+    const step = (to - from) * (1 / 21);
     for (let i = 0; i < 22; i++) {
-      const sample = source.sample(from + i * ((to - from) / 21)), tangent = sample.tangent;
+      const sample = source.sample(from + i * step), tangent = sample.tangent;
       if (last && Math.abs(tangent.x * last.y - tangent.y * last.x) > .2 * Math.abs(tangent.x * last.x + tangent.y * last.y)) this.#spicy = true;
       last = tangent; if (i > 0 && i < 21) this.#samples.push(sample);
     }
@@ -45,7 +52,7 @@ class FittingDistance {
       const dot = (p: Point) => p.x * tangent.x + p.y * tangent.y;
       const roots = fitCubicRoots(dot({ x: a.x - point.x, y: a.y - point.y }), dot(q1), dot(q2), dot(q3));
       let best = accuracy2 + 1;
-      for (const t of roots) if (t >= 0 && t <= 1) best = Math.min(best, distance2(point, cubicPoint(curve, t)));
+      for (const t of roots) if (t >= 0 && t <= 1) best = Math.min(best, distance2(point, evalCubic(curve, t)));
       maximum = Math.max(maximum, best); if (maximum > accuracy2) return;
     }
     if (!this.#spicy) return maximum;
@@ -53,7 +60,7 @@ class FittingDistance {
       let length = 0; this.#arc = [];
       for (let i = 0; i < 21; i++) {
         for (let j = 0; j < 10; j++) {
-          const tangent = this.source.sample(this.from + (this.to - this.from) / 210 * (i * 10 + j + .5)).derivative;
+          const tangent = this.source.sample(this.from + (this.to - this.from) * (1 / 210) * (i * 10 + j + .5)).derivative;
           length += Math.hypot(tangent.x, tangent.y);
         }
         if (i < 20) this.#arc.push(length);
@@ -80,18 +87,22 @@ function fitRange(source: FitSource, from: number, to: number, accuracy: number)
   const dx = b.x - a.x, dy = b.y - a.y, chord2 = dx * dx + dy * dy, accuracy2 = accuracy * accuracy;
   if (chord2 <= accuracy2) return tryLine(source, from, to, a, b, accuracy);
   if (!Number.isFinite(chord2)) throw new Error("Pencil fitting geometry overflowed");
-  const chordAngle = Math.atan2(dy, dx), wrap = (angle: number) => { const scaled = angle * (1 / Math.PI) * .5; return 2 * Math.PI * (scaled - pixelRound(scaled)); };
+  const chordAngle = Math.atan2(dy, dx), wrap = (angle: number) => { const scaled = angle * 0.318309886183790671537767526745028724 * .5; return Math.PI * 2 * (scaled - pixelRound(scaled)); };
   const th0 = wrap(Math.atan2(start.tangent.y, start.tangent.x) - chordAngle), th1 = wrap(chordAngle - Math.atan2(end.tangent.y, end.tangent.x));
   let [area, x, y] = source.moments(from, to);
   area -= dx * (a.y + .5 * dy);
-  x -= dx * (a.x * a.y + .5 * (a.x * dy + a.y * dx) + dy / 3 * dx);
-  y -= dx * (a.y * a.y + a.y * dy + dy / 3 * dy);
+  const dyThird = dy * third;
+  x -= dx * (a.x * a.y + .5 * (a.x * dy + a.y * dx) + dyThird * dx);
+  y -= dx * (a.y * a.y + a.y * dy + dyThird * dy);
   x -= a.x * area; y = .5 * y - a.y * area;
   const moment = dx * x + dy * y, inverse = 1 / chord2, metric = new FittingDistance(source, from, to);
+  // Kurbo places a unit-chord candidate with translate · rotate(chord angle) · scale(chord length).
+  const chord = Math.sqrt(chord2), cosine = Math.cos(chordAngle), sine = Math.sin(chordAngle);
+  const m0 = cosine * chord + -sine * 0, m1 = sine * chord + cosine * 0, m2 = cosine * 0 + -sine * chord, m3 = sine * 0 + cosine * chord;
   if (![area, x, y, moment].every(Number.isFinite)) throw new Error("Pencil fitting moments overflowed");
   let best: Cubic | undefined, bestError = Infinity;
-  for (const { curve, startArm, endArm } of cubicFitCandidates(th0, th1, area * inverse, moment * inverse * inverse)) {
-    const world = curve.map(p => ({ x: a.x + dx * p.x - dy * p.y, y: a.y + dy * p.x + dx * p.y })) as unknown as Cubic;
+  for (const { curve, startArm, endArm } of cubicFitCandidates(th0, th1, area * inverse, moment * (inverse * inverse))) {
+    const world = curve.map(p => ({ x: m0 * p.x + m2 * p.y + a.x, y: m1 * p.x + m3 * p.y + a.y })) as unknown as Cubic;
     if (!world.every(p => Number.isFinite(p.x) && Number.isFinite(p.y))) continue;
     const error = metric.measure(world, accuracy2); if (error === undefined) continue;
     const penalty = (arm: number) => 1 + Math.max(0, arm - .65) * 2;
@@ -113,33 +124,4 @@ export function fitSource(source: FitSource, accuracy: number): readonly Cubic[]
     else stack.push([middle, to], [from, middle]);
   }
   return curves;
-}
-
-export function fitPencilRun(points: readonly Point[], accuracy = .75): readonly Cubic[] {
-  return fitSource(new FittingPolyline(points), accuracy);
-}
-
-/** Native Pencil's simplify_bezpath(line samples,0.75,default): preserve corners, fit smooth runs. */
-export function simplifyPencil(points: readonly Point[]): readonly PathCommand[] {
-  if (points.some(p => !Number.isFinite(p.x) || !Number.isFinite(p.y))) throw new Error("Pencil points must remain finite");
-  if (!points.length) return [];
-  let run: Point[] = [points[0]], lastDirection: Point | undefined;
-  const path: PathCommand[] = [];
-  const flush = () => {
-    if (run.length < 2) return;
-    if (!path.length) path.push(["M", run[0].x, run[0].y]);
-    if (run.length === 2) path.push(["L", run[1].x, run[1].y]);
-    else for (const [, a, b, c] of fitPencilRun(run)) path.push(["C", a.x, a.y, b.x, b.y, c.x, c.y]);
-  };
-  for (let i = 1; i < points.length; i++) {
-    const previous = run.at(-1)!, point = points[i];
-    if (previous.x === point.x && previous.y === point.y) continue;
-    const direction = { x: point.x - previous.x, y: point.y - previous.y };
-    if (!Number.isFinite(direction.x) || !Number.isFinite(direction.y)) throw new Error("Pencil segment overflowed");
-    if (lastDirection && Math.abs(lastDirection.x * direction.y - lastDirection.y * direction.x) > Math.abs(lastDirection.x * direction.x + lastDirection.y * direction.y) * 1e-3) { flush(); run = [previous]; }
-    run.push(point); lastDirection = direction;
-  }
-  flush();
-  if (path.some(command => command.slice(1).some(value => typeof value === "number" && !Number.isFinite(value)))) throw new Error("Pencil fitting geometry overflowed");
-  return path;
 }

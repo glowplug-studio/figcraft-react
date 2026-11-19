@@ -53,13 +53,14 @@ test("Offset path rebuilds 32 visible rings in 10000 nodes and undo restores the
   await test.info().attach("vector.offset", {body:JSON.stringify(result),contentType:"application/json"});
 });
 
-test("Simplify vector reduces 32 mixed paths in 10000 nodes without losing their fills or undo",async({page})=>{
+test("Simplify vector refits 32 mixed paths in 10000 nodes without losing their fills or undo",async({page})=>{
   await openBenchmark(page);
   const result=await page.evaluate(()=>(window as unknown as {VectorEditPerformance:{
     measureSimplify:typeof import("../fixtures/vector-edit-performance").measureSimplify
   }}).VectorEditPerformance.measureSimplify(document.querySelector("canvas")!));
   expect(result).toMatchObject({nodes:10000,targets:32,runs:10,sample:217});
-  expect(result.afterSegments).toBeLessThan(result.beforeSegments);
+  // Native observation at bad07e44 (tests/fixtures/native-vector-simplify.json, "benchmark: mixed path").
+  expect([result.beforeSegments,result.afterSegments]).toEqual([9,17]);
   await test.info().attach("vector.simplify",{body:JSON.stringify(result),contentType:"application/json"});
 });
 
