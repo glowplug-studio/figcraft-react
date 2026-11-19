@@ -1,7 +1,8 @@
 import { requiredTargets } from "./arrange";
 import { wireBrush } from "./brush";
+import { hasCornerRadius } from "./corner-fields";
 import { zeroCorners } from "./corners";
-import { isFrameLike, layerBlend, rectanglePaints, type Document, type DocumentNode } from "./document";
+import { layerBlend, rectanglePaints, type Document, type DocumentNode } from "./document";
 import { wireEffect } from "./effects";
 import { HierarchyDraft } from "./hierarchy";
 import { inspectedId } from "./parameters";
@@ -44,7 +45,7 @@ export function pasteLayerProperties(document: Document, selection: readonly str
     if (node.kind !== "text") {
       for (const key of ["fontFamily", "fontStyle", "fontSize", "fontVariations", "lineHeight", "letterSpacing"]) delete props[key];
     }
-    if (!isFrameLike(node) && !["rectangle", "polygon", "star", "vector"].includes(node.kind)) {
+    if (!hasCornerRadius(node)) {
       delete props.cornerRadius; delete props.cornerSmoothing;
     }
     writeProperties(draft, draft.document, selection, { id, props }, undefined, []);

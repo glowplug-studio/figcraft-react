@@ -39,7 +39,7 @@ function exportSettings(input:unknown) {
 export function restProperties(n:JsonObject,type:string,images:ImportImages,warnings:ImportWarnings) {
   const fills=restPaints(n.fills,images,warnings),strokes=restPaints(n.strokes,images,warnings);
   const radii=list(n.rectangleCornerRadii).filter(finite).map(r=>length(r,0));
-  const hasCorners=["rectangle","polygon","star","vector","section"].includes(type) || isFrameLikeKind(type);
+  const hasCorners=["rectangle","polygon","star","vector","section","booleanOp"].includes(type) || isFrameLikeKind(type);
   const constraints=object(n.constraints);
   const horizontal=new Map([["RIGHT","right"],["LEFT_RIGHT","leftRight"],["CENTER","center"],["SCALE","scale"]]);
   const vertical=new Map([["BOTTOM","bottom"],["TOP_BOTTOM","topBottom"],["CENTER","center"],["SCALE","scale"]]);

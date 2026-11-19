@@ -1,3 +1,4 @@
+import { roundCorners } from "./round-corners";
 import { fontGeometryCache } from "./font-generation";
 import { transformPoint } from "./affine";
 import type { PathCommand } from "./corners";
@@ -38,7 +39,9 @@ function samePath(a: Path, b: Path) {
 }
 function asVector(node: LayerNode, path: Path): VectorNode {
   const net = networkFromPath(path);
-  return Object.freeze({ ...node, kind: "vector", network: freezeNetwork({ ...net, regions: net.regions.map(r => ({ ...r, winding: "evenOdd" })) }) });
+  // A group's radius is already drawn into its result: the vector carries none, so nothing rounds twice.
+  const { corners: _corners, ...rest } = node;
+  return Object.freeze({ ...rest, kind: "vector", network: freezeNetwork({ ...net, regions: net.regions.map(r => ({ ...r, winding: "evenOdd" })) }) });
 }
 
 function strokeOutline(node: LayerNode, vector: VectorNode): Path {
@@ -157,7 +160,12 @@ export function booleanResult(doc: Document, node: BooleanNode, depth = 0, requi
       value = refusal.error;
       refusal.snapshot = new WeakRef(doc);
     } else {
-      try { value = asVector(node, resultPath(doc, node, depth)); }
+      try {
+        // Native `result_cached`: the fold, then the group's corner radius on every corner still sharp. The fold's
+        // prefixes are kept apart, so a new radius does not redo the boolean steps.
+        const folded = resultPath(doc, node, depth), radius = node.corners?.radii[0] ?? 0;
+        value = asVector(node, Number.isFinite(radius) && radius > 0 ? roundCorners(folded, radius, node.corners?.smoothing ?? 0) : folded);
+      }
       catch (error) {
         value = error instanceof Error ? error : new Error("Invalid boolean geometry");
         if (error instanceof BooleanComplexityError) {

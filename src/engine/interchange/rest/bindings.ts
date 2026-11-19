@@ -90,7 +90,7 @@ export class ImportVariables {
     const bound:Record<string,string>=Object.create(null);
     for (const [field,id] of found) {
       const applies=field==="gap" || field==="crossGap" || field.startsWith("padding") ? hasLayout :
-        field==="cornerRadius" || radius.includes(field) ? ["rectangle","frame","component","componentSet","instance","polygon","star","vector","section"].includes(type) :
+        field==="cornerRadius" || radius.includes(field) ? ["rectangle","frame","component","componentSet","instance","polygon","star","vector","section","booleanOp"].includes(type) :
         field==="characters" || textFields.has(field) ? type==="text" : true;
       const required=field==="fill" || field==="stroke" || field.endsWith("/color") ? "color" : ["characters","fontFamily","fontStyle"].includes(field) ? "string" :
         field==="visible" ? "boolean" : "number";

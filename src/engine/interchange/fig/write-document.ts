@@ -41,7 +41,7 @@ async function writeLayer(node:LayerNode,paints:FigPaintWriter,blobs:FigBlobs):P
   if (node.kind==="booleanOp") out.booleanOperation=node.op==="exclude" ? "XOR" : node.op.toUpperCase();
   if (isFrameLike(node)) out.frameMaskDisabled=!node.clip;
   const box=node.kind==="rectangle" || node.kind==="section" || isFrameLike(node);
-  if (box || node.kind==="star" || node.kind==="polygon" || node.kind==="vector") {
+  if (box || node.kind==="star" || node.kind==="polygon" || node.kind==="vector" || node.kind==="booleanOp") {
     const corners=node.corners ?? zeroCorners,[tl,tr,br,bl]=corners.radii;
     out.cornerRadius=tl;
     if (box && (tl>0 || corners.radii.some(r=>r!==tl))) {

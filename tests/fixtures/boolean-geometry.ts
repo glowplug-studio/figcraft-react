@@ -52,3 +52,29 @@ export function exerciseBooleanEdits() {
   const top = sample(ids[47]), bottom = sample(ids[0]);
   return { operands: ids.length, editCount: 60, vertices, top, bottom };
 }
+
+import { renderDocument } from "../../src/engine/canvas";
+
+/** Native `a_boolean_groups_radius_rounds_what_the_canvas_draws`: the L group drawn by the real canvas renderer,
+ * sharp and then with a radius of 20, sampled where the native test samples it; then a click on the cut-off corner. */
+export async function exerciseBooleanRadius(canvas: HTMLCanvasElement) {
+  const engine = new EditorEngine();
+  const a = String(engine.execute("shape.rectangle", { x: 0, y: 0, width: 200, height: 100 }).id);
+  const b = String(engine.execute("shape.rectangle", { x: 150, y: 0, width: 100, height: 200 }).id);
+  const group = String(engine.execute("bool.union", { ids: [a, b] }).id);
+  engine.execute("node.set", { ids: [group], props: { fills: [{ type: "solid", color: "#000000" }] } });
+  canvas.width = 260; canvas.height = 210;
+  const ctx = canvas.getContext("2d", { willReadFrequently: true })!, view = { cx: 130, cy: 105, zoom: 1, vw: 260, vh: 210 };
+  const dark = (x: number, y: number) => { const [r, g, bl, alpha] = ctx.getImageData(x, y, 1, 1).data; return alpha > 200 && r + g + bl < 96; };
+  const draw = async () => {
+    ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, 260, 210);
+    await renderDocument(ctx, engine.getSnapshot().document, 260, 210, [], undefined, view);
+    return [dark(1, 1), dark(148, 102), dark(100, 50)];
+  };
+  const sharp = await draw();
+  engine.execute("node.set", { ids: [group], props: { cornerRadius: 20 } });
+  const rounded = await draw();
+  engine.execute("edit.undo");
+  const undone = await draw();
+  return { sharp, rounded, undone };
+}

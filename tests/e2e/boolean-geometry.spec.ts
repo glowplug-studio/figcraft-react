@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { build } from "vite";
-import type { exerciseBooleanPaths, exerciseBooleanEdits } from "../fixtures/boolean-geometry";
+import type { exerciseBooleanPaths, exerciseBooleanEdits, exerciseBooleanRadius } from "../fixtures/boolean-geometry";
 
 test("boolean contours keep exact curved overlap pixels and normalise 4097 disjoint islands", async ({ page }) => {
   const bundle = await build({ configFile: false, logLevel: "silent", build: { write: false, lib: { entry: "tests/fixtures/boolean-geometry.ts", name: "BooleanFixture", formats: ["iife"] }, minify: true } });
@@ -26,4 +26,18 @@ test("boolean contours keep exact curved overlap pixels and normalise 4097 disjo
   expect(edits.vertices).toBeGreaterThan(48);
   await test.info().attach("boolean-edits", { body: JSON.stringify({ ...edits, heapBeforeBytes: before, heapAfterBytes: after }), contentType: "application/json" });
   await test.info().attach("boolean-geometry",{body:JSON.stringify(result),contentType:"application/json"});
+});
+
+test("a boolean group's corner radius rounds what the canvas draws", async ({ page }) => {
+  const bundle = await build({ configFile: false, logLevel: "silent", build: { write: false, lib: { entry: "tests/fixtures/boolean-geometry.ts", name: "BooleanFixture", formats: ["iife"] }, minify: true } });
+  const output = (Array.isArray(bundle) ? bundle[0] : bundle) as { output: { type: string; code?: string }[] };
+  const code = output.output.find(entry=>entry.type==="chunk")?.code;
+  if (!code) throw Error("Boolean fixture did not build");
+  await page.setContent("<canvas></canvas>"); await page.addScriptTag({content:code});
+  const result = await page.evaluate(()=>(window as unknown as { BooleanFixture: { exerciseBooleanRadius: typeof exerciseBooleanRadius } }).BooleanFixture.exerciseBooleanRadius(document.querySelector("canvas")!));
+  // crates/render/src/boolean_radius_tests.rs at bad07e44: the convex corner at (1, 1) is cut off, the concave corner at
+  // (148, 102) is filled in, and the middle stays dark.
+  expect(result.sharp).toEqual([true, false, true]);
+  expect(result.rounded).toEqual([false, true, true]);
+  expect(result.undone).toEqual([true, false, true]);
 });

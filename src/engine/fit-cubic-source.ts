@@ -19,7 +19,7 @@ export function derivCubic(c: Cubic, t: number): Point {
   return { x: x0 * a + (x1 * b + x2 * t) * t, y: y0 * a + (y1 * b + y2 * t) * t };
 }
 /** Kurbo `CubicBez::subsegment`. */
-function subsegment(c: Cubic, t0: number, t1: number): Cubic {
+export function subsegment(c: Cubic, t0: number, t1: number): Cubic {
   const p0 = evalCubic(c, t0), p3 = evalCubic(c, t1), scale = (t1 - t0) * (1 / 3), d0 = derivCubic(c, t0), d1 = derivCubic(c, t1);
   return [p0, { x: p0.x + scale * d0.x, y: p0.y + scale * d0.y }, { x: p3.x - scale * d1.x, y: p3.y - scale * d1.y }, p3];
 }
