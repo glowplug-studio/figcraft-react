@@ -63,3 +63,8 @@ Incoming peer identity bounds at 6818860 preserve the separation between presenc
 ## Read-only collaboration comparison
 
 At `1253f41`, `collab.diff` reads only the current editor's already loaded documents; it issues no provider request and adds no authority. View-only/live sessions may compare against saved content, while snapshot undo comparison is refused for live documents independently of per-client undo availability. Real local editor/view-link clients and the full 380-case browser suite pass. [Evidence](../reports/26-11-15-public-collaboration-diff.md).
+
+## Roles a share cannot give (19 November 2026)
+
+No role, capability or sharing mode was added. An existing share whose group has no link for a role refuses `collab.share` for that role with the native error and keeps its selection; the controls offer only roles with a link. `OwnerShareSummary.available` is presentation data derived from links the adapter already holds. Backend authorisation, grant issuance (three links per group) and the device record shape are unchanged. Evidence: [report](../reports/26-11-19-missing-share-grant.md).
+

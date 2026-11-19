@@ -2,11 +2,13 @@
 
 ## Execution checkpoint
 
-- Phase: bounded source analysis and implementation plan only. No product changes, tests, builds, servers or hosted calls were made for this plan.
-- Native reference: `bad07e4433240cad046589129c084bd2fc36f097` (`bad07e44`). Coordinator-supplied React preflight: `86a862a`, with the public-diff slice being verified separately. This is not a verified implementation revision for this slice.
-- Source queue: item 3, “Existing share without requested grant”, in [the collaboration command audit](26-11-15-collaboration-command-audit.md).
-- Next action: renew branch/dirty-file and instruction preflight after public diff; reconcile the persisted-record scope below; reproduce the missing-grant branch through the public async command before editing its owners.
-- Keep this slice separate from presence signal readiness, incoming identity bounds and public diff. Do not change sharing authorisation, automatically rotate grants, publish another file or add native network hosting.
+- Phase: complete through Phase 7 on 19 November 2026. Implementation `b252585` on `prompt/full-figcraft-port`; native reference `bad07e4433240cad046589129c084bd2fc36f097`.
+- Result: [report](../reports/26-11-19-missing-share-grant.md) and [property matrix](../reports/26-11-19-missing-share-grant-parity.html).
+- Coordinator decisions, which differ from the proposals below: the refusal sits only at the `collab.share` command, as in native, and the adapter's `selectAccess` stays a plain setter so a first share keeps a requested role its server does not hand out; the bundled device reader stays at zero or three grants because no host release ever stored a pair (step 4's second option); two-link evidence is provider-neutral.
+- Landed owners: `src/engine/sharing/share-access.ts` (new), `online-workspace.ts`, `src/backends/online-files.ts` (`OwnerShareSummary.available`), `src/OwnerShareControls.tsx`, `src/OnlineFilesPanel.tsx`, `src/index.ts`, `examples/nextjs/lib/sharing/owner-sharing.ts`.
+- Fixtures as landed: four cases and a coherent-link host in `tests/contracts/online-publication-commands.test.ts`, two cases in `tests/contracts/live-session-details.test.ts`, the `shareControls` mount in `tests/fixtures/browser-online-directory.ts`, the Chromium case “Share controls offer only the roles a share has links for and keep the role when a selection is refused”, and a native-order assertion in the invite workflow.
+- Next action: none for this slice.
+- The sections below are the pre-implementation analysis, kept as written.
 
 ## Native contract and source mapping
 
