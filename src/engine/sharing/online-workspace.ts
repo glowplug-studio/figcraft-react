@@ -1,3 +1,4 @@
+import {missingShareLink} from "./share-access";
 import {OnlineServerPreference,ONLINE_SHARING_OFF,resolveOnlineJoinTarget} from "./server-preference";
 import type {OnlineResumeKey} from "../../backends/recovery";
 import type {OnlineRecoveryPosition} from "./online-recovery";
@@ -377,7 +378,12 @@ export class OnlineWorkspace {
         if(via==="local")throw new Error("This file is shared the other way already: stop sharing it first");
         if(!active.sharing)throw new Error("The host cannot share this file");
         await active.sharing.change(file,true);
-        if(access)active.sharing.selectAccess?.(file,access);
+        if(access){
+          // Native `share`: an explicit role is checked against the links that exist before the selection changes.
+          const refused=missingShareLink(host.inspect?.(guest.connection)?.share,access);
+          if(refused)throw refused;
+          active.sharing.selectAccess?.(file,access);
+        }
         this.check();
         const current=this.workspace.getSnapshot().find(item=>item.id===tab.id && item.guest?.connection===guest.connection);
         if(!current)throw new Error("The session changed");

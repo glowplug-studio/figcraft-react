@@ -1,7 +1,7 @@
 import {afterEach,expect,it,vi} from "vitest";
 import {BrowserInvitations} from "../../examples/nextjs/lib/sharing/browser-invites";
 import {BrowserOwnerSharing} from "../../examples/nextjs/lib/sharing/owner-sharing";
-import type {DeviceOwnerSharing} from "../../src/backends/browser/owner-sharing";
+import {isSharedCredentials,readDeviceOwnerSharing,type DeviceOwnerSharing,type SharedCredential} from "../../src/backends/browser/owner-sharing";
 
 afterEach(()=>vi.unstubAllGlobals());
 
@@ -83,4 +83,49 @@ it("discards a revoked code group only if it is still the group the directory ch
   const revoked=await sharing.prepareRefresh("f");
   await revoked(["nextview"]);
   expect((await sharing.read("f")).codes).toEqual({});
+});
+
+const grant=(access:SharedCredential["access"],n:number):SharedCredential=>({access,id:String(n).repeat(16),
+  token:access.slice(0,1).toUpperCase().repeat(22),code:"K7M-2QX-9T"+"DEF"[n-1]});
+
+it("reports the roles a retained group has links for, in native order, and reuses the group without a request",async()=>{
+  vi.stubGlobal("location",{hash:"",origin:"https://editor.example"});
+  const requests=vi.fn(async()=>{throw new Error("Unexpected sharing request");});
+  vi.stubGlobal("fetch",requests);
+  const [edit,view,comment]=[grant("edit",1),grant("view",2),grant("comment",3)];
+  // Provider-neutral two-link group: this typed row bypasses the bundled device reader checked below.
+  const older=new BrowserOwnerSharing({ownerSharing:async()=>({links:[edit,view]})},"principal","https://files.example");
+  const pair={codes:{edit:edit.code,view:view.code},available:["edit","view"]};
+  expect(await older.read("file")).toEqual(pair);
+  expect(await older.change("file",true)).toEqual(pair);
+  expect(older.inspect("file")).toMatchObject({access:"edit",shared:true,editCode:edit.code,viewCode:view.code,commentCode:null,
+    commentLink:null,editLink:expect.stringContaining(edit.token),viewLink:expect.stringContaining(view.token)});
+  older.selectAccess("file","view");
+  expect(older.inspect("file")).toMatchObject({access:"view",commentLink:null});
+  const current=new BrowserOwnerSharing({ownerSharing:async()=>({links:[view,comment,edit]})},"principal","https://files.example");
+  expect(await current.read("file")).toEqual({codes:{edit:edit.code,view:view.code,comment:comment.code},available:["edit","comment","view"]});
+  expect(await new BrowserOwnerSharing({ownerSharing:async()=>({links:[]})},"principal","https://files.example").read("file")).toEqual({codes:{},available:[]});
+  expect(requests).not.toHaveBeenCalled();
+});
+
+it("keeps the bundled device reader and start receipts at exactly three grants",async()=>{
+  vi.stubGlobal("location",{hash:"",origin:"https://editor.example"});
+  const [edit,view,comment]=[grant("edit",1),grant("view",2),grant("comment",3)];
+  // Scope decision: no released host ever stored a two-link record, so the reader does not accept one.
+  expect(isSharedCredentials([edit,view,comment])).toBe(true);
+  for(const links of [[edit,view],[edit,comment],[view,comment],[edit]]){
+    expect(isSharedCredentials(links)).toBe(false);
+    expect(()=>readDeviceOwnerSharing({links})).toThrow("Invalid private sharing record");
+  }
+  let row:DeviceOwnerSharing={links:[]};
+  const sharing=new BrowserOwnerSharing({ownerSharing:async(_principal,_address,_file,update)=>row=update ? update(row) : row},
+    "principal","https://files.example");
+  const actions:string[]=[];
+  vi.stubGlobal("fetch",async(_url:string,options:RequestInit)=>{
+    const {action}=JSON.parse(String(options.body));actions.push(action);
+    return Response.json(action==="status" ? {revision:null,ids:[]} : {links:[edit,view]});
+  });
+  await expect(sharing.change("file",true)).rejects.toThrow("Invalid sharing receipt");
+  expect(actions).toEqual(["status","change"]);
+  expect(sharing.inspect("file")).toBeUndefined();
 });

@@ -1007,6 +1007,63 @@ if (!process.env.PLAYWRIGHT_BASE_URL) for(const diverged of [false,true]) test(d
   }
 });
 
+if(!process.env.PLAYWRIGHT_BASE_URL)test("Share controls offer only the roles a share has links for and keep the role when a selection is refused",async({page})=>{
+  await login(page);
+  await loadEmbeddedOnlineEditor(page);
+  const errors:string[]=[];page.on("pageerror",error=>errors.push(error.message));
+  const mount=(roles:("edit"|"comment"|"view")[],codes=true,refusing?:"edit"|"comment"|"view")=>page.evaluateHandle(({roles,codes,refusing})=>{
+    const fixture=(window as unknown as {FigcraftDirectory:typeof import("../fixtures/browser-online-directory")}).FigcraftDirectory;
+    return fixture.shareControls(roles,codes,refusing);
+  },{roles,codes,refusing});
+  const panel=page.getByRole("region",{name:"Embedded share controls",exact:true});
+  const choice=panel.getByLabel("Access",{exact:true}),code=panel.getByLabel("Join code",{exact:true});
+  const options=()=>choice.locator("option").allTextContents();
+  // The join-code output is a status region too; this is the controls' own message.
+  const notice=panel.locator("p[role=status]");
+  // A provider-neutral two-link share: an older server, or a share from before comment links.
+  let controls=await mount(["edit","view"]);
+  try{
+    await expect(panel.getByRole("button",{name:"Stop sharing",exact:true})).toBeEnabled();
+    expect(await options()).toEqual(["Can edit","Can view"]);
+    await expect(choice).toHaveValue("edit");await expect(code).toHaveText("CODE-EDIT");
+    await choice.selectOption("view");
+    await expect(code).toHaveText("CODE-VIEW");
+    await panel.getByRole("button",{name:"Copy link",exact:true}).click();
+    await expect(notice).toHaveText("Link copied");
+    await panel.getByRole("button",{name:"Copy code",exact:true}).click();
+    await expect(notice).toHaveText("Code copied");
+    expect(await controls.evaluate(fixture=>({selections:fixture.selections(),copies:fixture.copies(),changes:fixture.changes()})))
+      .toEqual({selections:["view"],copies:["link:view","code:view"],changes:[]});
+  }finally{await controls.evaluate(fixture=>fixture.close());await controls.dispose();}
+  // Three links keep the native order; a selection the host refuses leaves the visible role and code alone.
+  controls=await mount(["view","comment","edit"],true,"comment");
+  try{
+    await expect(code).toHaveText("CODE-EDIT");
+    expect(await options()).toEqual(["Can edit","Can comment","Can view"]);
+    await choice.selectOption("comment");
+    await expect(notice).toHaveText("This share cannot give that access");
+    await expect(choice).toHaveValue("edit");await expect(code).toHaveText("CODE-EDIT");
+    await choice.selectOption("view");
+    await expect(choice).toHaveValue("view");await expect(code).toHaveText("CODE-VIEW");
+    await expect(notice).toHaveCount(0);
+    expect(await controls.evaluate(fixture=>({selections:fixture.selections(),access:fixture.access()}))).toEqual({selections:["view"],access:"view"});
+  }finally{await controls.evaluate(fixture=>fixture.close());await controls.dispose();}
+  // One link, without a join code: the file is shared, there is no choice to offer and no code to copy.
+  controls=await mount(["edit"],false);
+  try{
+    await expect(panel.getByRole("button",{name:"Stop sharing",exact:true})).toBeEnabled();
+    await expect(choice).toHaveCount(0);
+    await expect(code).toHaveText("");
+    await expect(panel.getByRole("button",{name:"Copy code",exact:true})).toBeDisabled();
+    await panel.getByRole("button",{name:"Copy link",exact:true}).click();
+    await expect(notice).toHaveText("Link copied");
+    await panel.getByRole("button",{name:"Stop sharing",exact:true}).click();
+    await expect(panel.getByRole("button",{name:"Start sharing",exact:true})).toBeEnabled();
+    expect(await controls.evaluate(fixture=>({copies:fixture.copies(),changes:fixture.changes()}))).toEqual({copies:["link:edit"],changes:[false]});
+  }finally{await controls.evaluate(fixture=>fixture.close());await controls.dispose();}
+  expect(errors).toEqual([]);
+});
+
 if(!process.env.PLAYWRIGHT_BASE_URL)test("cursor chat and spotlight wait for the session's host to read signals and for a live session",async({page})=>{
   test.setTimeout(75_000);
   await login(page);
@@ -2252,6 +2309,7 @@ test("the published view and edit invites open the original drawing in another s
       await codeDialog.getByRole("button", {name: "Join", exact: true}).click();
     };
     let retiredCode = "";
+    expect(await bar.getByLabel("Access", {exact: true}).locator("option").allTextContents()).toEqual(["Can edit", "Can comment", "Can view"]);
     for (const [role, label] of [["edit", "Can edit"], ["view", "View only"], ["comment", "Can comment"]]) {
       await bar.getByLabel("Access", {exact: true}).selectOption(role);
       const code = await bar.getByLabel("Join code").innerText();

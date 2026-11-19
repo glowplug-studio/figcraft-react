@@ -71,6 +71,7 @@ export { textWordStarts } from "./engine/text-word-starts";
 export type { OnlineFileManagement, OnlineManagementAction, OnlineManagementResult, OnlineManagedLink, OnlineManagedShare, SessionDetails, OnlineTeamLibraries, TeamLibraryReply, OnlineFileInfo, OnlineFileStore, OnlineHostInformation, OnlineGuestSession, GuestSessionEnd, GuestConnectionStatus, OwnerShareSummary, OnlineOwnerSharing, OnlineInvitations, OnlineWorkspaceHost, OnlineFileDevice, OnlineFileRegistry, PendingOnlinePublication, RememberedOnlineFile } from "./backends/online-files";
 
 export { isSharedCredentials, type DeviceOwnerSharing, type PendingSharingChange, type SharedCredential } from "./backends/browser/owner-sharing";
+export { isShared, missingShareLink, offeredShareAccess, shareAccessOrder } from "./engine/sharing/share-access";
 
 export type { TeamDirectory, TeamFile } from "./engine/sharing/team-directory";
 export {checkOperatorTransport} from "./engine/sharing/operator-transport";

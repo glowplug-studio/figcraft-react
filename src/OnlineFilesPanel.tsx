@@ -1,6 +1,7 @@
 import {teamWebLink, type TeamDirectory} from "./engine/sharing/team-directory";
 import { serverUtcDate } from "./engine/sharing/server-date";
 import { OwnerShareControls } from "./OwnerShareControls";
+import { isShared } from "./engine/sharing/share-access";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import type { OnlineRow, OnlineWorkspace } from "./engine/sharing/online-workspace";
 
@@ -195,7 +196,7 @@ export function OnlineFilesPanel({ online, opened }: { online: OnlineWorkspace; 
           for (const row of fresh) {
             if (row.state !== "online" || !active) continue;
             const sharing = await online.sharing.read(row.file);
-            if (active) updateShared(row.file, Boolean(sharing.codes.edit));
+            if (active) updateShared(row.file, isShared(sharing));
           }
         }
       } catch {

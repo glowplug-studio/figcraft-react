@@ -4,7 +4,8 @@ import {LivePeer} from "../../src/engine/sharing/live-peer";
 import {LivePeople} from "../../src/engine/sharing/live-people";
 import {createBrowserClient} from "@supabase/ssr";
 import {browserOnlineHost} from "../../examples/nextjs/lib/sharing/browser-online-host";
-import {Editor,EditorWorkspace,IndexedDbRecoveryStore,OnlineWorkspace,type IdentityAdapter} from "@glowplug-studio/figcraft-react";
+import {Editor,EditorWorkspace,IndexedDbRecoveryStore,OnlineWorkspace,type IdentityAdapter,type OnlineGuestSession,type OnlineOwnerSharing,type OwnerShareSummary} from "@glowplug-studio/figcraft-react";
+import {OwnerShareControls} from "../../src/OwnerShareControls";
 import {BrowserInvitations} from "../../examples/nextjs/lib/sharing/browser-invites";
 
 const unexpected=async()=>{throw new Error("An online directory command contacted the listing store");};
@@ -37,6 +38,33 @@ export function recordedEditor(principal:string,server:string) {
       }finally{workspace.setEditable(false);device.close();}
     },
   };
+}
+
+/** Mount the real Share controls over a provider-neutral share whose server hands out only `roles`.
+ * This checks the controls against an older or partial group; it is not the bundled host or a stored device record. */
+export function shareControls(roles:readonly OnlineGuestSession["access"][],codes=true,refusing?:OnlineGuestSession["access"]) {
+  type Access=OnlineGuestSession["access"];
+  const order:readonly Access[]=["edit","comment","view"];
+  let access:Access="edit",shared=true;
+  const selections:Access[]=[],copies:string[]=[],changes:boolean[]=[];
+  const summary=():OwnerShareSummary=>({
+    codes:shared && codes ? Object.fromEntries(roles.map(role=>[role,"CODE-"+role.toUpperCase()])) : {},
+    available:shared ? order.filter(role=>roles.includes(role)) : [],
+  });
+  const sharing:OnlineOwnerSharing={read:async()=>summary(),access:()=>access,
+    selectAccess(_file,next){
+      if(next===refusing || !roles.includes(next))throw new Error("This share cannot give that access");
+      selections.push(next);access=next;
+    },
+    change:async(_file,enabled)=>{changes.push(enabled);shared=enabled;return summary();},
+    copy:async(_file,role,format)=>{copies.push(format+":"+role);}};
+  const container=document.createElement("section");container.setAttribute("aria-label","Embedded share controls");
+  Object.assign(container.style,{position:"fixed",inset:"0",zIndex:"100000",background:"white",padding:"16px"});
+  document.body.append(container);
+  const root=createRoot(container);
+  root.render(createElement(OwnerShareControls,{sharing,file:"fixture-file"}));
+  return {selections:()=>[...selections],copies:()=>[...copies],changes:()=>[...changes],access:()=>access,
+    close:()=>{root.unmount();container.remove();}};
 }
 
 /** Exercise public commands with the same authorised provider and device store as the Next.js host. */

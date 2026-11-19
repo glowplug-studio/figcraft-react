@@ -133,6 +133,9 @@ export interface OnlineInvitations {
 
 export interface OwnerShareSummary {
   codes: Partial<Record<OnlineGuestSession["access"], string>>;
+  /** The roles this share has an actual link for. A link can exist without a join code, and an older share
+   * can lack the comment or view link. Adapters that omit it are taken to offer exactly the coded roles. */
+  available?: readonly OnlineGuestSession["access"][];
   pending?: "start" | "stop";
 }
 export interface OnlineOwnerSharing {

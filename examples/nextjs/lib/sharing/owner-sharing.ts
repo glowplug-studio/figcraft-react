@@ -1,10 +1,12 @@
 import {postOperatorRequest} from "./operator-request";
-import { isSharedCredentials, type DeviceOwnerSharing, type IndexedDbRecoveryStore, type OnlineGuestSession,
+import { isSharedCredentials, shareAccessOrder, type DeviceOwnerSharing, type IndexedDbRecoveryStore, type OnlineGuestSession,
   type OnlineOwnerSharing, type OwnerShareSummary, type SessionDetails, type PendingSharingChange } from "@glowplug-studio/figcraft-react";
 import { nativeInviteLink, parseInviteServer } from "@glowplug-studio/figcraft-react/sharing/invite";
 
 const summary = (row: DeviceOwnerSharing): OwnerShareSummary => ({
   codes: Object.fromEntries(row.links.map(link => [link.access, link.code])),
+  // The roles with an actual link, so the controls never offer one this group cannot give.
+  available: shareAccessOrder.filter(access => row.links.some(link => link.access === access)),
   ...(row.pending && {pending: row.pending.seed === null ? "stop" : "start"}),
 });
 

@@ -39,7 +39,9 @@ function deferred<T>() {
   const promise=new Promise<T>(done=>{resolve=done;});
   return {promise,resolve};
 }
-function publicationHost(){
+type Role="edit"|"comment"|"view";
+/** `roles`: the ways in the server hands out for a share; `codes`: whether each comes with a join code. */
+function publicationHost(roles:readonly Role[]=["edit","comment","view"],codes=true){
   const workspace=new EditorWorkspace(),device=new IndexedDbRecoveryStore({indexedDB:new IDBFactory()});
   const gate=deferred<void>(),grants=new Map<string,SessionDetails>();
   const server="https://share.example",unavailable=async()=>{throw new Error("Unexpected request");};
@@ -54,9 +56,15 @@ function publicationHost(){
       return {session:{connection,file,client:1,room:"1",access:"edit" as const},archive:new Blob()};
     })};
   const shareState:NonNullable<SessionDetails["share"]>={...native.afterStop.share,via:"online",access:"edit"};
-  const sharing:OnlineOwnerSharing={read:async()=>({codes:{}}),selectAccess(_file,access){shareState.access=access;},
+  const sharing:OnlineOwnerSharing={read:async()=>({codes:{}}),selectAccess:vi.fn((_file,access)=>{shareState.access=access;}),
     change:vi.fn(async(file,on)=>{
       shareState.shared=on;
+      // A coherent group: every offered role has its own link; an absent role has neither link nor code.
+      for(const role of ["edit","comment","view"] as const){
+        const offered=on && roles.includes(role);
+        shareState[`${role}Link`]=offered ? "figcraft://join?server=wss://share.example:443/&file="+file+"&token="+role : null;
+        shareState[`${role}Code`]=offered && codes ? role.toUpperCase() : null;
+      }
       for(const value of grants.values())if(value.published?.file===file)value.share=shareState;
       return {codes:{}};
     }),copy:unavailable};
@@ -226,3 +234,74 @@ it("still requires an explicit collab.publish server when a default server is se
     expect(engine.execute("collab.peers").status).toBe("off");
   }finally{gate.resolve();device.close();}
 });
+
+// Exact text of the pinned native `bad("collab.share", NO_COMMENT_LINK)`, written independently of the product source.
+const noLink="invalid parameters for `collab.share`: this share has no comment code (its server is older than comment links, or it was shared before them): stop sharing and share again";
+const refusal=(run:Promise<unknown>)=>run.then(()=>"accepted",(error:unknown)=>error instanceof Error ? error.message : String(error));
+
+it("refuses a role an active two-link share cannot give and keeps its selection, links and session",async()=>{
+  const {workspace,device,store,gate,host}=publicationHost(["edit","view"]),engine=workspace.activeEngine!;
+  try{
+    await engine.executeAsync("collab.share",{access:"view"});gate.resolve();
+    await vi.waitFor(()=>expect(engine.execute("collab.peers")).toMatchObject({status:"live",share:{access:"view",shared:true}}));
+    const before=engine.execute("collab.peers"),drawing=engine.getSnapshot().document;
+    expect(before.share).toMatchObject({editLink:expect.any(String),viewLink:expect.any(String),commentLink:null,commentCode:null,viewCode:"VIEW"});
+    const selected=vi.mocked(host.sharing.selectAccess!).mock.calls.length;
+    expect(await refusal(engine.executeAsync("collab.share",{access:"comment"}))).toBe(noLink);
+    expect(await refusal(engine.executeAsync("collab.share",{access:" Comment "}))).toBe(noLink);
+    expect(engine.execute("collab.peers")).toEqual(before);
+    expect(host.sharing.selectAccess).toHaveBeenCalledTimes(selected);
+    // Omitted access keeps the selection; it is not a request for edit.
+    expect(await engine.executeAsync("collab.share")).toEqual(before);
+    expect((await engine.executeAsync("collab.share",{access:"edit"})).share).toMatchObject({access:"edit",shared:true});
+    expect((await engine.executeAsync("collab.share",{access:"view"})).share).toMatchObject({access:"view",shared:true});
+    expect(store.publish).toHaveBeenCalledTimes(1);
+    expect(host.invitations.leave).not.toHaveBeenCalled();
+    expect(vi.mocked(host.sharing.change).mock.calls.every(([,enabled])=>enabled)).toBe(true);
+    expect(engine.getSnapshot().document).toBe(drawing);
+  }finally{gate.resolve();device.close();}
+});
+
+it("checks the link rather than its code: a missing view link refuses and a comment link without a code is selected",async()=>{
+  const {workspace,device,store,gate}=publicationHost(["edit","comment"],false),engine=workspace.activeEngine!;
+  try{
+    await engine.executeAsync("collab.share");gate.resolve();
+    await vi.waitFor(()=>expect(engine.execute("collab.peers")).toMatchObject({status:"live",share:{access:"edit",shared:true}}));
+    expect((await engine.executeAsync("collab.share",{access:"comment"})).share).toMatchObject({access:"comment",commentCode:null,commentLink:expect.any(String)});
+    const before=engine.execute("collab.peers");
+    expect(await refusal(engine.executeAsync("collab.share",{access:"view"}))).toBe(noLink);
+    expect(engine.execute("collab.peers")).toEqual(before);
+    expect(store.publish).toHaveBeenCalledTimes(1);
+  }finally{gate.resolve();device.close();}
+});
+
+it("selects among three links and validates the role after an unshared owner session shares again",async()=>{
+  const {workspace,device,store,gate,host}=publicationHost(),engine=workspace.activeEngine!;
+  try{
+    await engine.executeAsync("collab.share");gate.resolve();
+    await vi.waitFor(()=>expect(engine.execute("collab.peers")).toMatchObject({status:"live",share:{shared:true}}));
+    for(const access of ["comment","view","edit"] as const)
+      expect((await engine.executeAsync("collab.share",{access})).share).toMatchObject({access,shared:true,[`${access}Code`]:access.toUpperCase()});
+    expect(await engine.executeAsync("collab.stop")).toMatchObject({ended:false,shared:false});
+    expect(engine.execute("collab.peers").share).toMatchObject({shared:false,editLink:null,commentLink:null,viewLink:null});
+    // Not shared at the moment: sharing again gets the new group first, then the role is checked against it.
+    expect((await engine.executeAsync("collab.share",{access:"comment"})).share).toMatchObject({access:"comment",shared:true,commentLink:expect.any(String)});
+    expect(store.publish).toHaveBeenCalledTimes(1);
+    expect(host.invitations.leave).not.toHaveBeenCalled();
+  }finally{gate.resolve();device.close();}
+});
+
+it("a new share asked for a role its server does not hand out keeps that selection without a code, as native does",async()=>{
+  const {workspace,device,store,gate}=publicationHost(["edit","view"]),engine=workspace.activeEngine!;
+  try{
+    // Only an existing group is checked. A first share records the requested role before any link exists.
+    expect(await engine.executeAsync("collab.share",{access:"comment"})).toMatchObject({status:"connecting",share:{access:"comment",shared:false}});
+    gate.resolve();
+    await vi.waitFor(()=>expect(engine.execute("collab.peers")).toMatchObject({status:"live",share:{shared:true}}));
+    expect(engine.execute("collab.peers")).toMatchObject({code:null,share:{access:"comment",commentCode:null,commentLink:null,editCode:"EDIT",viewCode:"VIEW"}});
+    expect((await engine.executeAsync("collab.share",{access:"view"})).share).toMatchObject({access:"view"});
+    expect(await refusal(engine.executeAsync("collab.share",{access:"comment"}))).toBe(noLink);
+    expect(store.publish).toHaveBeenCalledTimes(1);
+  }finally{gate.resolve();device.close();}
+});
+
