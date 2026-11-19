@@ -37,6 +37,23 @@ describe("native SVG path reader examples", () => {
     expect(end[0]).toBe("C"); expect(end[5]).toBeCloseTo(40, 10); expect(end[6]).toBeCloseTo(20, 10);
     expect(() => parseSvgPath("M0 0 A1e308 1e308 0 1 1 10 10")).toThrow(/too large/);
   });
+  it("sizes numbers as native number_past does: compact arc flags are not part of the next number", () => {
+    // crates/geom/tests/svg_arc_flags.rs at bad07e44 (upstream #2299).
+    expect(parseSvgPath("M0 0A5 5 0 11999999999 0")).toEqual(parseSvgPath("M0 0A5 5 0 1 1 999999999 0"));
+    for (const d of ["M0 0A5 5 0 112000000000 0", "M0 0A5 5 0 1 1 2000000000 0"]) expect(() => parseSvgPath(d), d).toThrow(/too large/);
+    // Flags are the fourth and fifth of each seven numbers, also in a repeated and a relative arc.
+    expect(parseSvgPath("M0 0a5 5 0 01999999999 0 5 5 0 10-999999999 0")).toEqual(parseSvgPath("M0 0a5 5 0 0 1 999999999 0 5 5 0 1 0 -999999999 0"));
+    expect(parseSvgPath("M0 0A5 5 0 0,1999999999 0")).toEqual(parseSvgPath("M0 0A5 5 0 0 1 999999999 0"));
+    // A small arc whose endpoint is written with leading zeros reads past the limit only if the flags are miscounted.
+    expect(parseSvgPath("M0 10A10 10 0 11000000020 10z")).toEqual(parseSvgPath("M0 10A10 10 0 1 1 20 10z"));
+    // Only flag positions split: the same digits as a radius or after another command are one number.
+    for (const d of ["M0 0A11999999999 5 0 1 1 5 5", "M0 0L11999999999 0", "M0 0A5 5 11999999999 1 1 5 5"]) expect(() => parseSvgPath(d), d).toThrow(/too large/);
+    // The limit itself is allowed; signs and dots split numbers as the SVG grammar does.
+    expect(parseSvgPath("M0 0L1000000000 0")).toEqual([["M", 0, 0], ["L", 1e9, 0]]);
+    expect(() => parseSvgPath("M0 0L1000000001 0")).toThrow(/too large/);
+    expect(parseSvgPath("M.5.5L1e9-1e9")).toEqual([["M", .5, .5], ["L", 1e9, -1e9]]);
+    expect(() => parseSvgPath("M0 0L1e9-1.1e9")).toThrow(/too large/);
+  });
 });
 describe("cmd::path_network/vector_scale paired geometry", () => {
   it("keeps the unscaled box offset and scales one dimension proportionally", () => {

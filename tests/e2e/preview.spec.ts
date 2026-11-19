@@ -9551,7 +9551,8 @@ test("Copy as SVG and PNG writes the selected art through menus and the two-time
 test("open, drop and paste SVG as editable layers, undo and reopen the saved archive",async({page,context})=>{
   await login(page);
   await context.grantPermissions(["clipboard-read","clipboard-write"],{origin:new URL(page.url()).origin});
-  const svg='<svg xmlns="http://www.w3.org/2000/svg" width="40" height="20"><rect id="Editable shape" width="40" height="20" fill="red"/></svg>';
+  // The path's arc flags run into a zero-padded endpoint: valid compact SVG that a miscounted size check would drop.
+  const svg='<svg xmlns="http://www.w3.org/2000/svg" width="40" height="20"><rect id="Editable shape" width="40" height="20" fill="red"/><path id="Compact arc" d="M0 10A10 10 0 11000000020 10z" fill="blue"/></svg>';
   const picker=page.getByLabel("Open Figcraft file",{exact:true}),canvas=page.getByLabel("Design canvas",{exact:true});
   await picker.setInputFiles({name:"Badge.svg",buffer:Buffer.from(svg),mimeType:"image/svg+xml"});
   await expect(page.getByRole("heading",{name:"Badge",exact:true})).toBeVisible();
@@ -9564,6 +9565,7 @@ test("open, drop and paste SVG as editable layers, undo and reopen the saved arc
   const opened=await saved();
   expect(opened.document.nodes["2"]).toMatchObject({kind:"frame",clip:true,width:40,height:20});
   expect(opened.document.nodes["3"]).toMatchObject({kind:"rectangle",name:"Editable shape",parent:"2"});
+  expect(Object.values(opened.document.nodes).find(n=>n.name==="Compact arc")).toMatchObject({kind:"vector",parent:"2",width:20});
   const at=await canvasPoint(page,70,90);
   const data=await page.evaluateHandle(svg=>{
     const transfer=new DataTransfer();transfer.items.add(new File([svg],"Dropped.svg",{type:"image/svg+xml"}));return transfer;

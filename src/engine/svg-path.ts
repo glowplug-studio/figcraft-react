@@ -21,14 +21,48 @@ function svgArc(from: Point, to: Point, rx: number, ry: number, rotation: number
   if (![cx, cy, rx, ry, start, span].every(Number.isFinite)) return tooLarge();
   return ellipticalArcPath(cx, cy, rx, ry, start, span, rotation, .1).slice(1);
 }
+/** Native `MAX_SVG_COORD`: the largest coordinate, radius or other number path data may carry. */
+const maxSvgCoordinate = 1e9;
+/** Native `number_past`: whether a number in path data lies past ±`max`. Numbers split as the SVG grammar does
+ * (`1-2` and `.5.5` are two each, `1e-3` is one). In an arc the fourth and fifth of every seven numbers are flags:
+ * single `0`/`1` characters that may run into the next number unseparated. */
+function numberPast(data: string, max: number): boolean {
+  let current = "", dot = false, exponent = false, arc = false, index = 0;
+  // Rust's float parser rejects an empty or partial token; JavaScript would read "" as 0.
+  const big = (): boolean => {
+    const text = current; current = "";
+    if (!/^[+-]?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?$/.test(text)) return false;
+    const value = Number(text);
+    return Number.isNaN(value) || Math.abs(value) > max;
+  };
+  for (const c of data) {
+    if (!current && arc && (index % 7 === 3 || index % 7 === 4) && (c === "0" || c === "1")) {
+      index++; dot = exponent = false;
+      continue;
+    }
+    const digit = c >= "0" && c <= "9";
+    const continues = digit || (c === "." ? !dot && !exponent
+      : c === "e" || c === "E" ? !exponent && /\d/.test(current)
+      : (c === "+" || c === "-") && /[eE]$/.test(current));
+    if (continues) {
+      dot ||= c === "."; exponent ||= c === "e" || c === "E";
+      current += c;
+      continue;
+    }
+    if (/\d/.test(current)) index++;
+    if (big()) return true;
+    if (/^[A-Za-z]$/.test(c)) { arc = c === "A" || c === "a"; index = 0; }
+    dot = c === "."; exponent = false;
+    if (c === "+" || c === "-" || c === ".") current = c;
+  }
+  return big();
+}
 /** Independent reader of the native Kurbo0.13.1 command/lexer behaviour, including its best-effort trailing-byte termination. */
 export function parseSvgPath(data: string): readonly PathCommand[];
 export function parseSvgPath(data: string, preserveQuadratics: true, syntax?:"svg"): readonly CurveElement[];
 export function parseSvgPath(data: string, preserveQuadratics: false, syntax:"svg"): readonly PathCommand[];
 export function parseSvgPath(data: string, preserveQuadratics = false, syntax:"kurbo"|"svg"="kurbo"): readonly CurveElement[] {
-  for (const token of data.matchAll(/[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?/g)) {
-    if (Math.abs(Number(token[0]))>1e9) return tooLarge();
-  }
+  if (numberPast(data, maxSvgCoordinate)) return tooLarge();
   let at = 0, last = "", pen: Point = { x: 0, y: 0 }, first = pen, control: Point | undefined, implicitMove: Point | undefined;
   const path: CurveElement[] = [];
   const whitespace = () => { while (at < data.length && /[ \t\n\f\r]/.test(data[at])) at++; };
