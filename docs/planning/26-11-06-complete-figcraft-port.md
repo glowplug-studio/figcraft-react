@@ -5,17 +5,17 @@
 | Field | Current value |
 |---|---|
 | Overall status | Active. The user resumed the run on 19 November with a new coordinating agent. Full port unfinished. [Resume handover](26-11-07-full-port-resume.md#continue-from-here). |
-| Active slice | Row 1 of the [upstream delta queue](26-11-15-upstream-delta.md) under the [row 1 plan](26-11-19-svg-arc-flags.md): items 1–7 verified; item 8, point positions in vector edit mode, was found in the same upstream range and is next. |
-| Active phase | Delta row 1 item 7, [vector loops, Flatten and mirror modes](26-11-20-vector-bridged-loops.md), completed Phase 7 at 239a20a. Next: Phase 1/2 for item 8. |
+| Active slice | Row 1 of the [upstream delta queue](26-11-15-upstream-delta.md) is complete: eight items under the [row 1 plan](26-11-19-svg-arc-flags.md). Row 2, selection and canvas behaviour, is next and needs its own row plan. |
+| Active phase | Delta row 1 item 8, [point positions in vector edit mode](26-11-20-vector-point-position.md), completed Phase 7 at d51ac59. Next: Phase 1 for delta row 2. |
 | Upstream baseline | Reference checkout bad07e44. [New upstream delta queue](26-11-15-upstream-delta.md) must be reconciled before release; prior evidence retains its original pins. Paste event text and scrollable short-window menus queued alongside the two prior UI changes. First-frame tab and page restoration and native test font readiness queued for rows 4 and 19. Home sidebar Preferences, Cmd/Ctrl+comma and Escape queued in row 19. Styles reference a2e87433. Components reference 79c36346. Global supported baseline 8eb0b876. |
-| Branch and last verified commit | prompt/full-figcraft-port, verified product 239a20a; all 386 browser cases passed in one run. |
+| Branch and last verified commit | prompt/full-figcraft-port, verified product d51ac59; all 387 browser cases passed in one run. |
 | Completed slices | Rectangle/host-auth, bounded native persistence/recovery, supported-model pages, affine rectangle geometry/selection and solid appearance, plus nested group hierarchy, Frame containers, movement/transform gestures, rounded corners, ellipse/arc/ring and Polygon/Star editing verified locally; Line/Arrow and uniform solid strokes also verified; per-side Rectangle/Frame strokes, variable-width profiles and procedural brushes verified; vector networks, solid region/stroke rendering and Flatten/Reverse also verified; foundation commit `154f5a7`. Gradient, image, pattern, blend and mask releases now have local property matrices. [Blend evidence](../reports/26-11-09-blend-modes-parity.html). Auto layout and constraints passed the local release gate. [Release evidence](../reports/26-11-09-auto-layout.md). [Local components, instances, variant properties, slots and Assets](../reports/26-11-09-components-instances.md) passed the 0.51.0 gate. |
 | Remaining slices | Continue incomplete roadmap rows and the dependency-ordered [upstream delta queue](26-11-15-upstream-delta.md), excluding the user-deferred plugin and widget family. See each slice matrix for outstanding integrations. |
-| Tests last passed | 5,099 pure, strict types, both builds; 386 Chromium passed in 942 seconds, no skips/retries/flakes/errors or changed baselines; 32 provider integrations passed in 13.39 seconds. Twelve fixture counts zero. [Report](../reports/26-11-20-vector-bridged-loops.md). |
+| Tests last passed | 5,116 pure, strict types, both builds; 387 Chromium passed in 940 seconds, no skips/retries/flakes/errors or changed baselines; 32 provider integrations passed in 13.08 seconds. Twelve fixture counts zero. [Report](../reports/26-11-20-vector-point-position.md). |
 | Files currently in progress | No product source in progress. The tracker stays local unless the user commits it. |
 | Blockers | None. Upstream synchronisation is on hold by the user’s decision (289 commits ahead at b45255bb); verification uses the local Supabase stack. |
-| Exact next action | Follow the handover: plan and port native point positions in vector edit mode (upstream 6ac20c7d), then delta rows 2–8 and all remaining roadmap slices. |
-| Last updated | 2026-11-20 06:32 ICT |
+| Exact next action | Follow the handover: write the delta row 2 plan from the whole upstream range, then port its items one by one, then delta rows 3–8 and all remaining roadmap slices. |
+| Last updated | 2026-11-20 06:56 ICT |
 
 ## Scope and continuation
 
