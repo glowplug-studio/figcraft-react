@@ -3,7 +3,7 @@ import { componentOverrides, inspectedPropertyValues, wireComponentProperties } 
 import { inspectedGridCell } from "./grid-placement";
 import { layerSizing, sizeLimitKeys } from "./auto-layout";
 import { inspectText } from "./inspect-text";
-import { rotationDegrees } from "./affine";
+import { rotationDegrees, roundTo } from "./affine";
 import { toCssHex } from "./colour";
 import { isFrameLike, defaultConstraints, isLeaf, nodeTypeName, layerTransform, pageColour, rectanglePaints, type Document, type DocumentNode } from "./document";
 import { frameRelative } from "./hierarchy";
@@ -41,7 +41,7 @@ function requestedFields(params: Record<string, unknown>): Set<string> | undefin
   return new Set(params.fields);
 }
 
-const round = (v: number) => Math.sign(v) * Math.round(Math.abs(v) * 100) / 100;
+const round = (v: number) => roundTo(v, 2);
 
 function inspectPaint(paint: Paint) {
   if (paint.type !== "solid") {

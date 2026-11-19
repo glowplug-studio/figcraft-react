@@ -72,6 +72,18 @@ export function fromPositionRotation(x: number, y: number, degrees: number): Aff
   return matrix(cosine, sine, -sine, cosine, x, y);
 }
 
+/** Native `round_to`: a value at `digits` decimals for display. Halves round away from zero, the result is never
+ * negative zero, and a finite value stays finite when the scale or the scaled value would overflow. */
+export function roundTo(value: number, digits: number): number {
+  const factor = 10 ** digits;
+  if (Number.isFinite(value) && !Number.isFinite(factor)) return value;
+  const scaled = value * factor;
+  // Too large to have a fractional part at this scale: already whole.
+  if (Number.isFinite(value) && !Number.isFinite(scaled)) return value;
+  const rounded = Math.sign(scaled) * Math.round(Math.abs(scaled)) / factor;
+  return rounded === 0 ? 0 : rounded;
+}
+
 export function rotationDegrees(transform: Affine): number {
   const [a, b] = checked(transform);
   let degrees = -Math.atan2(b, a) * 180 / Math.PI;

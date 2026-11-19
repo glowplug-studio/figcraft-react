@@ -1007,6 +1007,24 @@ if (!process.env.PLAYWRIGHT_BASE_URL) for(const diverged of [false,true]) test(d
   }
 });
 
+if(!process.env.PLAYWRIGHT_BASE_URL)test("node.get reports a tiny negative offset as zero through the public command bridge",async({page})=>{
+  await login(page);
+  await loadEmbeddedOnlineEditor(page);
+  const app=await page.evaluateHandle(async({principal,server,key})=>{
+    const fixture=(window as unknown as {FigcraftDirectory:typeof import("../fixtures/browser-online-directory")}).FigcraftDirectory;
+    return fixture.publicationEditor(principal,server,key);
+  },{principal:userId!,server:backend!.url,key:backend!.key});
+  try{
+    // Native round_to never returns negative zero; the receipt crosses the bridge with its sign checked in the page.
+    const got=await app.evaluate(async client=>{
+      const created=await client.command("shape.rectangle",{x:-0.001,y:0.004,width:10.006,height:10}) as {id:string};
+      const node=await client.command("node.get",{id:created.id,fields:["x","y","width","height"]}) as Record<string,number>;
+      return {...node,negativeZero:Object.is(node.x,-0)};
+    });
+    expect(got).toMatchObject({x:0,y:0,width:10.01,height:10,negativeZero:false});
+  }finally{await app.evaluate(client=>client.close());await app.dispose();}
+});
+
 if(!process.env.PLAYWRIGHT_BASE_URL)test("Share controls offer only the roles a share has links for and keep the role when a selection is refused",async({page})=>{
   await login(page);
   await loadEmbeddedOnlineEditor(page);
