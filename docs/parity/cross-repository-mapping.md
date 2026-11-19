@@ -636,3 +636,8 @@ Native `sharing/live/events.rs::{signal_blocker,live_chat,live_spotlight,reset_f
 ## Sharing roles a share cannot give — 19 November 2026
 
 Native `sharing/live/host.rs::{share,NO_COMMENT_LINK}` and `sharing/live/types.rs::{Shared::of,SharedLink.code}` at `bad07e44` map to `OnlineWorkspace.publishCommand` and `share-access.ts::{missingShareLink,offeredShareAccess,isShared}` at `b252585`. Native `ui-egui/live.rs::access_choice` maps to the filtered selector in `OwnerShareControls`. The check sits only at the command, as in native; the adapter setter is unchanged so a first share keeps a requested role its server does not hand out. `OwnerShareSummary.available` carries link availability separately from codes. The bundled device reader and start receipts stay at exactly three grants. Independent command and adapter contracts and a mounted-fixture Chromium workflow pass; two-link evidence is provider-neutral. [Property matrix](../reports/26-11-19-missing-share-grant-parity.html) · [Report](../reports/26-11-19-missing-share-grant.md).
+
+## Delta row 1: SVG number sizing and display rounding — 19 November 2026
+
+Native `crates/geom/src/lib.rs::{svg_path,number_past,MAX_SVG_COORD}` at `bad07e44` (upstream `832e790c`) maps to `svg-path.ts::{parseSvgPath,numberPast,maxSvgCoordinate}` at `55ad7e6`. Native `crates/geom/src/transform.rs::round_to` (upstream `c47de279`) maps to `affine.ts::roundTo` at `c56be59`, and `automation/inspect.rs::round` to `inspect.ts::round`. `cmd/props.rs::describe`, the other `round_to` caller, has no ported consumer. Restated native tests, boundary fixtures and two Chromium workflows pass. [Property matrix](../reports/26-11-19-delta-geometry-numbers-parity.html) · [Report](../reports/26-11-19-delta-geometry-numbers.md).
+

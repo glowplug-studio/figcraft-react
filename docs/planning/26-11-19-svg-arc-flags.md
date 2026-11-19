@@ -2,12 +2,12 @@
 
 ## Execution checkpoint
 
-- Phase: Phase 4 for item 1 (SVG compact arc flags). The failing fixture is written; the source change has not been verified.
-- Native reference: `bad07e4433240cad046589129c084bd2fc36f097` (`bad07e44`). React starting revision: `b252585` on `prompt/full-figcraft-port`.
+- Phase: items 1 and 2 complete through Phase 7 on 19 November 2026 at `55ad7e6` and `c56be59`: [report](../reports/26-11-19-delta-geometry-numbers.md), [matrix](../reports/26-11-19-delta-geometry-numbers-parity.html). Item 3 is at Phase 1.
+- Native reference: `bad07e4433240cad046589129c084bd2fc36f097` (`bad07e44`). React revision: `c56be59` on `prompt/full-figcraft-port`.
 - Source queue: row 1 of the [upstream delta queue](26-11-15-upstream-delta.md), range `7bf098d7..bad07e44`.
-- Files in progress: `tests/parity/svg-path.test.ts` (fixture “sizes numbers as native number_past does: compact arc flags are not part of the next number”), `src/engine/svg-path.ts`.
-- Next action: replace the regular-expression size scan at the top of `parseSvgPath` with a direct port of native `number_past`, run `npx vitest run tests/parity/svg-path.test.ts`, then the full pure suite, strict types and the SVG import browser cases.
-- Blockers: none.
+- Files in progress: none.
+- Next action: item 3, four-anchor ellipses. Write a dated plan first. Evidence already read: native `crates/geom/src/lib.rs::ellipse` builds a whole ellipse, and each ring contour, as four cubics from 3 o'clock through the bottom, left and top extremes with handle factor 0.5522847498307934 and closes the contour (`b33da8a7`, `4118be89`); sliced ellipses keep the tolerance-subdivided arc. React `src/engine/ellipse.ts::ellipsePath` still builds the earlier major-axis arc without a close. The change reaches rendering, hit-testing, stroke geometry, Flatten, and the SVG, PDF, Android XML and Fig exports through `shape-path.ts`, `stroke-geometry.ts`, `export-svg.ts` and `interchange/fig/export-geometry.ts`. Start by adding the three native tests (`a_whole_ellipse_is_four_cubics_through_the_extremes`, `a_whole_ring_is_four_cubics_per_contour`, `a_sliced_ellipse_still_builds_its_arc`) to `tests/parity/ellipse.test.ts`, apply the change, and run the pure suite to list which recorded native fixtures disagree. Those fixtures were observed at earlier pins; each disagreement needs a native observation at `bad07e44` before its expectation changes. The earlier oracle method is a disposable Cargo project run in the `rust:latest` Docker image against the read-only submodule (see `tests/fixtures/native-public-diff-wire.provenance.md`); its Cargo caches are gone, so the first build must fetch crates.
+- Blockers: none. The oracle build is CPU-heavy; do not run it during a browser gate.
 
 ## Row 1 items in order
 
@@ -15,9 +15,9 @@ Each item is a separate bounded slice with its own failing fixture, verification
 
 | Order | Upstream change | Native evidence under `original/figcraft/` | React owner to confirm | Status |
 |---|---|---|---|---|
-| 1 | Compact SVG arc flags are not part of the next number in the size check (`832e790c`, #2299) | `crates/geom/src/lib.rs::number_past`, `crates/geom/tests/svg_arc_flags.rs` | `src/engine/svg-path.ts::parseSvgPath` size scan | Fixture written; active |
-| 2 | `round_to` keeps huge finite values finite (`c47de279`, #2309) | `crates/geom/src/transform.rs::round_to`, `crates/geom/src/tests.rs::round_to_keeps_huge_finite_values_finite`; callers `engine/src/cmd/props.rs` (rotation) and `engine/src/automation/inspect.rs::round` | No `round_to` counterpart was found by name. Locate the React rotation and inspection rounding before deciding whether this is a change or an unported consumer | Not started |
-| 3 | An unsliced ellipse edits as four anchors, not six; the four-cubic contour is closed (`b33da8a7`, `4118be89`, #2080) | Ellipse tests in `crates/geom` and the engine ellipse edit path | `src/engine/ellipse.ts` and vector conversion | Not started |
+| 1 | Compact SVG arc flags are not part of the next number in the size check (`832e790c`, #2299) | `crates/geom/src/lib.rs::number_past`, `crates/geom/tests/svg_arc_flags.rs` | `src/engine/svg-path.ts::parseSvgPath` size scan | Verified at `55ad7e6` |
+| 2 | `round_to` keeps huge finite values finite (`c47de279`, #2309) | `crates/geom/src/transform.rs::round_to`, `crates/geom/src/tests.rs::round_to_keeps_huge_finite_values_finite`; callers `engine/src/cmd/props.rs` (rotation) and `engine/src/automation/inspect.rs::round` | `src/engine/affine.ts::roundTo`, used by `src/engine/inspect.ts` for `node.get` | Verified at `c56be59`; the `describe` rotation has no ported consumer |
+| 3 | An unsliced ellipse edits as four anchors, not six; the four-cubic contour is closed (`b33da8a7`, `4118be89`, #2080) | Ellipse tests in `crates/geom` and the engine ellipse edit path | `src/engine/ellipse.ts::ellipsePath` and its render, stroke and export consumers | Next; evidence read |
 | 4 | A Pencil stroke stays where it was drawn, without spikes (`0aba3f76`, `61389cdd`, #1741) | Simplification tests by deviation at several accuracies | `src/engine` Pencil fitting and simplify modules | Not started |
 | 5 | Round the sharp corners of a closed path; each contour's size sets its weld tolerance (`c48d844d`, `4c91f908`, #2222) | `crates/pathops/src/round_tests.rs`, `crates/render/src/boolean_radius_tests.rs` | Boolean group corner radius rendering | Not started |
 | 6 | Path operations budget the closed-faces input, share the dash allowance and index point incidence (`554ad0ea`, #2249) | `crates/pathops` | Path operation limits | Not started |
