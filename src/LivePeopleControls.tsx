@@ -28,7 +28,9 @@ export function LivePeopleControls({room,engine,menuGroup,notify}:{room:LivePeop
           await engine.executeAsync("collab.removePerson",{client:peer.id});
         }catch(error){notify(error instanceof Error?error.message:"Could not remove the participant");}
       }}>Remove {peer.name} from session</button>}</Fragment>)}
-    <button type="button" aria-pressed={room.spotlighting} onClick={()=>engine.execute("collab.spotlight")}>
+    <button type="button" aria-pressed={room.spotlighting} onClick={()=>{
+      try{engine.execute("collab.spotlight");}catch(error){notify(error instanceof Error?error.message:"Could not change the spotlight");}
+    }}>
       {room.spotlighting?"Stop spotlight":"Spotlight me"}</button>
     <button type="button" onClick={()=>engine.execute("collab.cursorChat")}>Cursor chat</button>
   </div></details>;
@@ -162,7 +164,9 @@ export function LivePeopleOverlay({room,engine,canvas}:{room:LivePeople;engine:E
       if(Number.isFinite(delay))wake=setTimeout(queue,Math.ceil(delay));
     }
     redraw.current=queue;
-    const unlisten=[room.subscribe(queue),engine.subscribeCanvas(queue),engine.subscribeView(()=>{updatePointer();queue();}),room.onChat(editChat)];
+    const unlisten=[room.subscribe(queue),engine.subscribeCanvas(queue),engine.subscribeView(()=>{updatePointer();queue();}),room.onChat(editChat),
+      // The box belongs to a live session: it closes when the session starts reconnecting.
+      room.subscribe(()=>{if(!room.signals)setChatAt(null);})];
     const resize=new ResizeObserver(queue);resize.observe(surface);
     const abort=new AbortController(),options={signal:abort.signal,capture:true};
     surface.addEventListener("pointermove",pointer,options);surface.addEventListener("pointerleave",leave,options);
@@ -187,8 +191,9 @@ export function LivePeopleOverlay({room,engine,canvas}:{room:LivePeople;engine:E
       : presenter && presenter!==following && <div className="figcraft-spotlight-banner">{presenter.name} is spotlighting
         <button type="button" onClick={()=>engine.execute("collab.follow",{client:presenter.client})}>Follow</button></div>}
     {chatAt && <input ref={input} className="figcraft-cursor-chat" aria-label="Cursor chat" defaultValue={room.cursorChat}
-      style={{left:chatAt.x,top:chatAt.y}} onChange={e=>{engine.execute("collab.cursorChat",{text:e.target.value});e.target.value=room.cursorChat;
-        localTyped.current=performance.now();expireChat();}}
+      style={{left:chatAt.x,top:chatAt.y}} onChange={e=>{
+        try{engine.execute("collab.cursorChat",{text:e.target.value});}catch{setChatAt(null);return;}
+        e.target.value=room.cursorChat;localTyped.current=performance.now();expireChat();}}
       onKeyDown={e=>{if(e.key==="Escape"||e.key==="Enter"){e.preventDefault();e.stopPropagation();if(e.key==="Escape")engine.execute("collab.cursorChat",{text:""});setChatAt(null);canvas.current?.focus();}}}
       onBlur={()=>setChatAt(null)}/>}</>;
 }

@@ -79,9 +79,12 @@ it("fits the peer viewport locally and stops following on pan or when the spotli
   }finally{stop();}
 });
 
-it("hands a spotlight between presenters, keeps the banner after unfollow and clears the departed presenter",()=>{
-  vi.useFakeTimers();const {room,receive,stop}=session();
+it("hands a spotlight between presenters, keeps the banner after unfollow and clears the departed presenter",async()=>{
+  vi.useFakeTimers();const {room,receive,ready,stop}=session();
   try {
+    // A spotlight starts only once the host reads signals and has confirmed who this client is.
+    expect(()=>room.setSpotlight(true)).toThrow("need a live session");
+    ready();await vi.advanceTimersByTimeAsync(1);
     room.setSpotlight(true);
     receive(message({spotlight:true}));
     expect([room.spotlighting,room.presenter,room.following]).toEqual([false,2,2]);
@@ -113,16 +116,19 @@ it("follows a different page locally while a later shared edit and the native ar
   expect(editor.getSnapshot().canUndo).toBe(false);
 });
 
-it("runs the native pointer, cursor chat, follow and spotlight commands through the editor",()=>{
+it("runs the native pointer, cursor chat, follow and spotlight commands through the editor",async()=>{
   vi.useFakeTimers();const editor=new EditorEngine();
   expect(editor.execute("collab.cursorChat")).toEqual({open:false,chat:""});
   expect(()=>editor.execute("collab.cursorChat",{text:"hi"})).toThrow();
   expect(editor.execute("collab.cursor",{x:2,y:5})).toEqual({cursor:null});
-  const {receive,room,stop}=session(editor);
+  const {receive,room,ready,stop}=session(editor);
   try{
+    // The pointer needs no signal support; chat and spotlight wait for the host (presence-readiness contracts).
     expect(editor.execute("collab.cursor",{x:2,y:5})).toEqual({cursor:[2,5]});
     expect(()=>editor.execute("collab.cursor",{x:3})).toThrow();
     const open=vi.fn();room.onChat(open);
+    expect(editor.execute("collab.cursorChat")).toEqual({open:false,chat:""});expect(open).not.toHaveBeenCalled();
+    ready();await vi.advanceTimersByTimeAsync(1);
     expect(editor.execute("collab.cursorChat")).toEqual({open:true,chat:""});expect(open).toHaveBeenCalledOnce();
     expect(editor.execute("collab.cursorChat",{text:"hi\nthere"})).toEqual({chat:"hi there"});
     expect(()=>editor.execute("collab.follow",{client:2})).toThrow();

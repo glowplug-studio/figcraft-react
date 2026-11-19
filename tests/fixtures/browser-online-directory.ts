@@ -1,6 +1,7 @@
 import {createElement} from "react";
 import {createRoot,type Root} from "react-dom/client";
 import {LivePeer} from "../../src/engine/sharing/live-peer";
+import {LivePeople} from "../../src/engine/sharing/live-people";
 import {createBrowserClient} from "@supabase/ssr";
 import {browserOnlineHost} from "../../examples/nextjs/lib/sharing/browser-online-host";
 import {Editor,EditorWorkspace,IndexedDbRecoveryStore,OnlineWorkspace,type IdentityAdapter} from "@glowplug-studio/figcraft-react";
@@ -50,6 +51,7 @@ export async function publicationEditor(principal:string,server:string,key:strin
     await workspace.open(new File([bytes],"joined.figcraft"),session);
   },(connection,error)=>workspace.joining(connection,error));
   let mounted:Root|undefined,container:HTMLElement|undefined,stopLive:(()=>void)|undefined;
+  let room:LivePeople|undefined,stopPeople:(()=>void)|undefined,releasePeople:(()=>void)|undefined,welcomePeople:(()=>void)|undefined;
   return {
     command:(name:string,params:Record<string,unknown>={})=>workspace.activeEngine!.executeAsync(name,params),
     state:()=>{
@@ -93,10 +95,34 @@ export async function publicationEditor(principal:string,server:string,key:strin
       });
       stopLive=()=>{stopWatch();stopPeer();};
     },
+    // Wire the real presence transport as WorkspaceEditor does. `hold` withholds the provider's own
+    // subscribed callback, which stands in for a host that does not (yet) read signals.
+    startPeople:(hold:boolean)=>{
+      if(room)throw new Error("The command fixture already has a presence room");
+      const engine=workspace.activeEngine!,guest=workspace.getSnapshot().find(tab=>tab.active)?.guest;
+      const transport=guest&&host.invitations.live(guest.connection),people=transport?.people,client=transport?.identity?.client??guest?.client;
+      if(!people || !client)throw new Error("The command fixture has no joined presence transport");
+      let released=!hold,pending:(()=>void)|undefined;
+      room=new LivePeople({capture:cursor=>engine.capturePresence(cursor),name:()=>engine.commentName,
+        subscribe:changed=>engine.subscribe(changed),follow:other=>engine.followViewport(other.presence.viewport)},{
+        get welcome(){return people.welcome;},send:sample=>people.send(sample),
+        listen:(receive,ready)=>people.listen(receive,()=>{if(released)ready();else pending=ready;}),
+      },client);
+      // The package build and this source import declare the same class separately; only its private fields differ nominally.
+      engine.setPeople(room as unknown as Parameters<typeof engine.setPeople>[0]);room.setActive(true);
+      const leave=room.start();
+      stopPeople=()=>{leave();engine.setPeople(undefined);};
+      releasePeople=()=>{released=true;pending?.();pending=undefined;};
+      welcomePeople=()=>room!.welcome(people.welcome);
+    },
+    releasePeople:()=>releasePeople!(),
+    reconnectPeople:()=>room!.reconnect(),
+    welcomePeople:()=>welcomePeople!(),
+    presence:()=>({signals:room!.signals,chat:room!.cursorChat,spotlighting:room!.spotlighting}),
     peers:()=>workspace.activeEngine!.execute("collab.peers"),
     editable:()=>workspace.activeEngine!.getSnapshot().editable,
     close:async()=>{
-      stopLive?.();mounted?.unmount();container?.remove();
+      stopPeople?.();stopLive?.();mounted?.unmount();container?.remove();
       try{for(const tab of workspace.getSnapshot())if(tab.guest)await host.invitations.leave(tab.guest.connection);}
       finally{unsub();host.invitations.dispose();workspace.setEditable(false);device.close();}
     },

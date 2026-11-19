@@ -10,6 +10,9 @@ interface PeopleEditor {
   follow(peer:LivePeerMessage):void;
 }
 type ListEntry={message:LivePeerMessage;heard:number};
+const needsLive="cursor chat and spotlight need a live session";
+const olderHost="the session's host runs an older version without cursor chat and spotlight";
+const disabled=(command:string,why:string)=>new Error("command `"+command+"` is not available right now: "+why);
 
 /** One ephemeral session per physical connection. Delivery, drawing edits and undo are independent. */
 export class LivePeople {
@@ -41,7 +44,14 @@ export class LivePeople {
   private listen:NonNullable<LiveTransport["people"]>["listen"];
   get confirmedName(){return this.identity?.name;}
   get confirmedColour(){return this.identity?.colour;}
-  get signals(){return this.signalReady && this.identity!==undefined;}
+  /** Why cursor chat or a spotlight cannot go out now (native `signal_blocker`). A room is live
+   * between an authoritative identity and the next reconnect or stop; the provider's subscribed
+   * callback stands in for the native host's own READY signal. */
+  get signalBlocker():string|undefined {
+    if(!this.alive || this.suspended || this.identity===undefined)return needsLive;
+    return this.signalReady?undefined:olderHost;
+  }
+  get signals(){return this.signalBlocker===undefined;}
   get colour(){return this.ownColour;}
   private followed?:number;
   private chat="";
@@ -59,7 +69,12 @@ export class LivePeople {
   rosterKey=()=>this.rosterVersion;
   private chatListeners=new Set<()=>void>();
   onChat(f:()=>void){this.chatListeners.add(f);return ()=>{this.chatListeners.delete(f);};}
-  openChat(){this.chatListeners.forEach(f=>f());}
+  /** Ask the host UI for the chat box; false (and no request) while chat cannot go out. */
+  openChat(){
+    if(this.signalBlocker)return false;
+    this.chatListeners.forEach(f=>f());
+    return true;
+  }
   refreshName(){this.changed();}
   typingHint(node:string) {
     const names=this.getSnapshot().filter(p=>p.presence.editingText?.node===node).map(p=>p.name);
@@ -78,12 +93,24 @@ export class LivePeople {
     if(peer)this.editor.follow(peer);
     this.publish();
   }
+  /** Native `live_spotlight`: the same state succeeds before readiness is checked, and stopping never needs it. */
   setSpotlight(on:boolean){
     if(on===this.spotlight)return;
+    const why=on?this.signalBlocker:undefined;
+    if(why)throw disabled("collab.spotlight",why);
     if(on){this.followed=undefined;this.presenterId=undefined;}
     this.spotlight=on;this.changed();this.publish();
   }
-  setChat(value:string){const signal=cleanPresenceSignal({kind:"chat",text:value});if(signal){this.chat=signal.text;this.changed();}}
+  /** Native `live_chat`: returns the text as sent. Empty over empty succeeds anywhere; anything else,
+   * including repeating the current text, needs a session whose host reads signals. */
+  setChat(value:string){
+    const text=cleanPresenceSignal({kind:"chat",text:value})?.text??"";
+    if(!text && !this.chat)return "";
+    const why=this.signalBlocker;
+    if(why)throw disabled("collab.cursorChat",why);
+    if(text!==this.chat){this.chat=text;this.changed();}
+    return text;
+  }
   setActive(on:boolean){if(this.active===on)return;this.active=on;this.cursor=null;this.changed();}
   point(p:Point|null){this.cursor=p;this.changed();}
   private publish(rosterChanged=true){
@@ -194,6 +221,8 @@ export class LivePeople {
     return ()=>{
       this.alive=false;clearTimeout(this.timer);clearInterval(this.heartbeat);unwatch();unlisten();
       if(this.sequence)void this.sendSample({...this.sample(),sequence:++this.sequence,left:true}).catch(()=>{});
+      // Leaving forgets it all: a retained reference cannot keep or reannounce chat or a spotlight.
+      this.signalReady=false;this.chat="";this.spotlight=false;
       this.entries.clear();this.followed=undefined;this.presenterId=undefined;this.publish();
     };
   }
@@ -254,23 +283,21 @@ export function executePeople(room:LivePeople|undefined,command:string,params:Re
     room?.setFollow(id);
     return {follow:room?.following??null};
   }
+  // Native `get` reads a null parameter as an omitted one.
   if(command==="collab.cursorChat"){
-    if(params.text===undefined){
-      room?.openChat();
-      return {open:!!room,chat:room?.cursorChat??""};
-    }
-    if(typeof params.text!=="string")throw new Error("Chat text must be a string");
-    const chat=cleanPresenceSignal({kind:"chat",text:params.text})?.text??"";
-    if(!room && chat)throw new Error("Join a live session to use cursor chat");
-    room?.setChat(chat);
-    return {chat};
+    const text=params.text??undefined;
+    if(text===undefined)return {open:room?.openChat()??false,chat:room?.cursorChat??""};
+    if(typeof text!=="string")throw new Error("invalid parameters for `collab.cursorChat`: `text` must be a string (empty closes the chat)");
+    if(room)return {chat:room.setChat(text)};
+    if(cleanPresenceSignal({kind:"chat",text})?.text)throw disabled(command,needsLive);
+    return {chat:""};
   }
   if(command==="collab.spotlight"){
-    const on=params.on===undefined?!room?.spotlighting:params.on;
-    if(typeof on!=="boolean")throw new Error("Spotlight must be true or false");
-    if(!room && on)throw new Error("Join a live session to spotlight");
-    room?.setSpotlight(on);
-    return {spotlighting:on};
+    const on=params.on??!(room?.spotlighting??false);
+    if(typeof on!=="boolean")throw new Error("invalid parameters for `collab.spotlight`: `on` must be true or false");
+    if(room)room.setSpotlight(on);
+    else if(on)throw disabled(command,needsLive);
+    return {spotlighting:room?.spotlighting??false};
   }
   throw new Error("Unknown live presence command");
 }

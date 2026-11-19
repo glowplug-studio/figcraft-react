@@ -1007,6 +1007,85 @@ if (!process.env.PLAYWRIGHT_BASE_URL) for(const diverged of [false,true]) test(d
   }
 });
 
+if(!process.env.PLAYWRIGHT_BASE_URL)test("cursor chat and spotlight wait for the session's host to read signals and for a live session",async({page})=>{
+  test.setTimeout(75_000);
+  await login(page);
+  await loadEmbeddedOnlineEditor(page);
+  const app=await page.evaluateHandle(async({principal,server,key})=>{
+    const fixture=(window as unknown as {FigcraftDirectory:typeof import("../fixtures/browser-online-directory")}).FigcraftDirectory;
+    return fixture.publicationEditor(principal,server,key);
+  },{principal:userId!,server:backend!.url,key:backend!.key});
+  const refused=(command:string,why:string)=>"command `"+command+"` is not available right now: "+why;
+  const needsLive="cursor chat and spotlight need a live session",olderHost="the session's host runs an older version without cursor chat and spotlight";
+  const run=(name:string,params:Record<string,unknown>={})=>app.evaluate((client,[name,params])=>
+    client.command(name,params).then(result=>result as unknown,(error:Error)=>error.message),[name,params] as const);
+  const errors:string[]=[];page.on("pageerror",error=>errors.push(error.message));
+  let file:string|undefined;
+  try{
+    await app.evaluate(client=>client.mount());
+    const editor=page.getByRole("region",{name:"Embedded public command editor",exact:true});
+    const canvas=editor.getByLabel("Design canvas",{exact:true}),box=editor.getByRole("textbox",{name:"Cursor chat",exact:true});
+    await expect(canvas).toBeVisible();
+    // Outside a session.
+    expect(await run("collab.cursorChat")).toEqual({open:false,chat:""});
+    expect(await run("collab.cursorChat",{text:"hi"})).toBe(refused("collab.cursorChat",needsLive));
+    expect(await run("collab.spotlight",{on:true})).toBe(refused("collab.spotlight",needsLive));
+    expect(await run("collab.spotlight",{on:false})).toEqual({spotlighting:false});
+    const published=page.waitForResponse(response=>new URL(response.url()).pathname==="/api/online-files" && response.ok());
+    await app.evaluate(client=>client.command("collab.share",{name:"Presence readiness drawing"}));
+    file=(await (await published).json()).id;
+    await expect.poll(()=>app.evaluate(client=>client.peers().status)).toBe("live");
+    await app.evaluate(client=>client.startLive());
+    // Live, with the provider's subscribed callback withheld: the host does not read signals yet.
+    const first=page.waitForResponse(response=>new URL(response.url()).pathname==="/api/online-files/presence" && response.ok());
+    await app.evaluate(client=>client.startPeople(true));await first;
+    await expect(editor.locator(".figcraft-people-overlay")).toBeAttached();
+    const before=await app.evaluate(client=>({state:client.state(),presence:client.presence()}));
+    expect(before.presence).toEqual({signals:false,chat:"",spotlighting:false});
+    expect(await run("collab.cursorChat")).toEqual({open:false,chat:""});
+    await canvas.focus();await page.keyboard.press("/");
+    await expect(box).toHaveCount(0);
+    expect(await run("collab.cursorChat",{text:"hi"})).toBe(refused("collab.cursorChat",olderHost));
+    expect(await run("collab.spotlight")).toBe(refused("collab.spotlight",olderHost));
+    expect(await run("collab.cursorChat",{text:5})).toBe("invalid parameters for `collab.cursorChat`: `text` must be a string (empty closes the chat)");
+    expect(await run("collab.spotlight",{on:"yes"})).toBe("invalid parameters for `collab.spotlight`: `on` must be true or false");
+    expect(await run("collab.cursorChat",{text:" "})).toEqual({chat:""});
+    expect(await app.evaluate(client=>({state:client.state(),presence:client.presence()}))).toEqual(before);
+    expect((await app.evaluate(client=>client.peers())).signals).toBe(false);
+    // The host reads signals: ordinary chat and spotlight.
+    await app.evaluate(client=>client.releasePeople());
+    await expect.poll(()=>app.evaluate(client=>client.presence().signals)).toBe(true);
+    expect((await app.evaluate(client=>client.peers())).signals).toBe(true);
+    await canvas.focus();await page.keyboard.press("/");
+    await expect(box).toBeFocused();
+    const chatted=page.waitForResponse(response=>new URL(response.url()).pathname==="/api/online-files/presence"
+      && response.request().postDataJSON()?.sample?.chat==="Look here" && response.ok());
+    await box.fill("Look here");await chatted;
+    const spotlit=page.waitForResponse(response=>new URL(response.url()).pathname==="/api/online-files/presence"
+      && response.request().postDataJSON()?.sample?.spotlight===true && response.ok());
+    expect(await run("collab.spotlight")).toEqual({spotlighting:true});await spotlit;
+    await expect(editor.locator(".figcraft-spotlight-banner")).toContainText("everyone follows your view");
+    // Reconnecting: the box closes, chat is forgotten, your spotlight intent stays and nothing new goes out.
+    await app.evaluate(client=>client.reconnectPeople());
+    await expect(box).toHaveCount(0);
+    expect(await app.evaluate(client=>client.presence())).toEqual({signals:false,chat:"",spotlighting:true});
+    expect(await run("collab.cursorChat")).toEqual({open:false,chat:""});
+    expect(await run("collab.cursorChat",{text:"new"})).toBe(refused("collab.cursorChat",needsLive));
+    expect(await run("collab.spotlight",{on:true})).toEqual({spotlighting:true});
+    // Welcomed again before the provider resubscribes: your spotlight is announced, the reason becomes the older host and stopping still works.
+    const resumed=page.waitForResponse(response=>new URL(response.url()).pathname==="/api/online-files/presence"
+      && response.request().postDataJSON()?.sample?.spotlight===true && response.request().postDataJSON()?.sample?.hello===true && response.ok());
+    await app.evaluate(client=>client.welcomePeople());await resumed;
+    expect(await run("collab.cursorChat",{text:"new"})).toBe(refused("collab.cursorChat",olderHost));
+    expect(await run("collab.spotlight",{on:false})).toEqual({spotlighting:false});
+    await expect(editor.locator(".figcraft-spotlight-banner")).toHaveCount(0);
+    expect(errors).toEqual([]);
+  }finally{
+    await app.evaluate(client=>client.close());await app.dispose();
+    if(file)await removeOnlineFixture(page,file);
+  }
+});
+
 if(!process.env.PLAYWRIGHT_BASE_URL)test("public diff commands preserve the mounted editor, saved baseline and read-only state",async({page})=>{
   test.setTimeout(75_000);
   await login(page);
@@ -2253,6 +2332,17 @@ test("the published view and edit invites open the original drawing in another s
     const firstGrant = await initialJoin;
     await expect(viewerBar.getByText(/View only/)).toBeVisible();
     await expect.poll(() => validations.get(firstGrant) ?? 0, {timeout: 15000}).toBeGreaterThanOrEqual(2);
+    // Cursor chat follows the real connection: available once subscribed, closed while reconnecting, back afterwards.
+    const viewerCanvas = viewer.getByLabel("Design canvas", {exact: true});
+    const viewerChat = viewer.getByRole("textbox", {name: "Cursor chat", exact: true});
+    const openChat = () => expect(async () => {
+      await viewerCanvas.focus();
+      await viewer.keyboard.press("/");
+      await expect(viewerChat).toBeFocused({timeout: 1000});
+    }).toPass({timeout: 15_000});
+    await openChat();
+    await viewerChat.press("Escape");
+    await expect(viewerChat).toHaveCount(0);
     // Suppress just this tab's contact with the host. Its sibling keeps its
     // real heartbeat, despite both pages sharing one authenticated login.
     const heartbeatUrl = "**/rest/v1/rpc/online_connection_active";
@@ -2260,6 +2350,9 @@ test("the published view and edit invites open the original drawing in another s
     await viewer.route(heartbeatUrl, route => route.abort("connectionreset"));
     await viewer.route(redeemUrl, route => route.abort("connectionreset"));
     await expect(viewerBar.getByText(/reconnecting \(attempt/)).toBeVisible({timeout: 55_000});
+    await viewerCanvas.focus();
+    await viewer.keyboard.press("/");
+    await expect(viewerChat).toHaveCount(0);
     await expect(toolbar.getByText(/Can edit/)).toBeVisible();
     await expect(viewer.getByRole("button", {name: "Create rectangle", exact: true})).toBeDisabled();
     const recoveredJoin = joinedTab();
@@ -2273,6 +2366,8 @@ test("the published view and edit invites open the original drawing in another s
     // Exercise revocation of an established subscription: the first check
     // opens the private channel and the second confirms the grant on subscribe.
     await expect.poll(() => validations.get(recoveredGrant) ?? 0, {timeout: 10_000}).toBeGreaterThanOrEqual(2);
+    await openChat();
+    await viewerChat.press("Escape");
     await expect(viewerBar.getByRole("heading", {name: "Original invite drawing"})).toBeVisible();
     if (backend) {
       const abandoned = await backend.admin.from("online_file_connections").select("id").eq("id", vanishedId);
