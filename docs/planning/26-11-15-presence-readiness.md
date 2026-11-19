@@ -2,13 +2,12 @@
 
 ## Execution checkpoint
 
-- Phase: read-only source audit and implementation planning. Only this plan was written; no product/test edits, builds, native execution or hosted calls were made for this audit.
-- Native reference: `bad07e4433240cad046589129c084bd2fc36f097` (`bad07e44`).
-- React starting HEAD observed: `86a862a82711260b49b98639ed3522ce8e21ebf0`, branch `prompt/full-figcraft-port`. Public-diff source/tests/planning are changing concurrently; this is not a verified revision for this follow-up.
-- Prerequisite: finish the coordinator's public-diff checkpoint. Renew current branch/dirty state, repository instructions and local Graphify/native-pin checks before implementation. Preserve the in-progress public-diff work.
-- Next action: implement and run a provider-neutral public-dispatch fixture for a started room with an authoritative identity but no subscribed/ready callback, reproducing blocked chat opening, non-empty chat and spotlight start. Then add the minimal core readiness boundary and reconnect/no-op fixtures below.
-- Independent subsequent action: reproduce missing comment grant in an already-live owner session using a retained two-grant browser device record. Do not treat new three-grant group creation as proof of that legacy branch.
-- Blockers: none established by this read-only audit. Final implementation allocation, exact test names/results and verified revision remain the coordinator's responsibility.
+- Phase: complete through Phase 7 on 19 November 2026. Implementation `f88246b` on `prompt/full-figcraft-port`; native reference `bad07e4433240cad046589129c084bd2fc36f097`.
+- Result: [report](../reports/26-11-19-presence-readiness.md) and [property matrix](../reports/26-11-19-presence-readiness-parity.html). Product change confined to `src/engine/sharing/live-people.ts` and `src/LivePeopleControls.tsx`; no provider, schema or transport-contract change.
+- Fixtures as landed: `tests/contracts/presence-readiness.test.ts` (eight cases), two corrected cases in `tests/parity/live-presence.test.ts`, the `startPeople`/`releasePeople`/`reconnectPeople`/`welcomePeople`/`presence` hooks in `tests/fixtures/browser-online-directory.ts`, the Chromium case “cursor chat and spotlight wait for the session's host to read signals and for a live session”, and cursor-chat assertions across a real network reconnect in “the published view and edit invites open the original drawing in another signed-in browser”.
+- Coordinator decisions: a room without an authoritative identity gives the live-session reason (native `Status::Live` arrives with the welcome); stopping the room clears chat and spotlight as native leaving does; the retained-non-empty-chat-while-blocked ordering below has no reachable state and is verified by source review only.
+- Next action: none for this slice. Continue with [missing-comment-grant compatibility](26-11-15-missing-comment-grant.md).
+- The sections below are the pre-implementation analysis, kept as written.
 
 ## Source mapping
 

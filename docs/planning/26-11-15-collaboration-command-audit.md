@@ -25,8 +25,8 @@ Paths below are relative to the repository root. Native sharing paths begin `ori
 | `collab.peers`, `live/join.rs:265` | Editor session inspector → `LiveSessions` summary; `live-session-summary.test.ts` compares all fields against nine native lifecycle receipts, handles and text editing. | Incoming hostile-peer bounds are already queued separately. |
 | `collab.cursor`, `live/join.rs:156` | Editor → `executePeople` → `LivePeople.point`; `tests/parity/live-presence.test.ts:116–134` covers paired coordinates, hide and no room. | No additional gap established. |
 | `collab.follow`, `live/join.rs:90` | Same route → peer lookup/setFollow; `live-presence.test.ts` checks missing peers, follow/unfollow and page/view behaviour. | No additional gap established beyond the separately queued incoming bounds. |
-| `collab.cursorChat`, `live/join.rs:169` | Same route → openChat/setChat; native sanitation fixtures and command calls in `live-presence.test.ts`. | Missing live/feature-ready branch guard below. |
-| `collab.spotlight`, `live/join.rs:182` | Same route → setSpotlight; `live-presence.test.ts` checks toggle, follow cancellation and presenter handoff. | Missing live/feature-ready branch guard below. |
+| `collab.cursorChat`, `live/join.rs:169` | Same route → openChat/setChat; native sanitation fixtures and command calls in `live-presence.test.ts`. | Readiness guard verified at `f88246b`: [report](../reports/26-11-19-presence-readiness.md). |
+| `collab.spotlight`, `live/join.rs:182` | Same route → setSpotlight; `live-presence.test.ts` checks toggle, follow cancellation and presenter handoff. | Readiness guard verified at `f88246b`: [report](../reports/26-11-19-presence-readiness.md). |
 | `collab.files`, `online.rs:456` | Async editor → `OnlineWorkspace.execute`; `tests/contracts/online-workspace.test.ts:326–412,537–549` checks native directory fixtures, explicit refresh/cached results, multi-server records, privacy, sessions and errors. | No additional gap established. |
 | `collab.forgetFile`, `online.rs:543` | Same route → `forgetRecord`; directory tests check ambiguity, atomic local forgetting and retained remote state. | No additional gap established. |
 | `collab.openFile`, `online.rs:475` | Same route → `openRecorded`/`beginRecorded`; `online-workspace.test.ts:473–535,551` compares native duplicate/switched-tab receipts, cancellation, failed welcome and target errors. | No additional gap established. |
@@ -74,3 +74,5 @@ The chosen host currently issues exactly three grants on new sharing groups, so 
 ## Current continuation
 
 Public diff is verified at `1253f41`. On user resumption, execute [presence readiness](26-11-15-presence-readiness.md), followed by [missing-comment-grant compatibility](26-11-15-missing-comment-grant.md). The latter corrects the original assumption above: the bundled device reader currently rejects a retained two-grant record. Actual persisted compatibility and provider-neutral mocked input require distinct evidence. No automatic grant replacement or provider-specific authorisation expansion is permitted.
+
+**19 November.** Presence readiness is verified at `f88246b` ([report](../reports/26-11-19-presence-readiness.md)). The remaining item from this audit is [missing-comment-grant compatibility](26-11-15-missing-comment-grant.md).
