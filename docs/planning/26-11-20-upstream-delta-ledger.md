@@ -5,7 +5,7 @@
 - Phase: planning record, written 20 November 2026 at React `f5114ec` on `prompt/full-figcraft-port`.
 - Native range: `7bf098d75d187416633d9ebcceb9eb83fbb10df8` → `bad07e4433240cad046589129c084bd2fc36f097`, 254 commits excluding merges.
 - Purpose: the [delta queue](26-11-15-upstream-delta.md) groups this range into eight rows by theme. Row 1 turned out to hold a change that no row named (point positions in vector edit mode). This ledger assigns every commit to an item, so that nothing in the range is left to be found by accident.
-- Status: 14 items verified, 49 open, the rest outside the browser port or without product behaviour.
+- Status: 15 items verified, 48 open, the rest outside the browser port or without product behaviour.
 - Next action: work the open items in order, each as its own bounded slice under its row's plan. Row 2 is planned in [the row 2 plan](26-11-20-delta-row-2-selection-canvas.md).
 - Blockers: none.
 
@@ -27,7 +27,7 @@ Items marked as outside the browser port are not dismissed: the final audit revi
 | 1.6 | Path operation budgets | Verified at 4445294 | `554ad0ea` |
 | 1.7 | Vector loops through a bridge, Flatten, mirror modes | Verified at 239a20a | `8e6c342f`, `a75d8bf0`, `35d46208`, `153fa08d`, `06ffeca8`, `641cc415`, `eeb1f404`, `b8e67b87`, `2c83448d` |
 | 1.8 | Point positions in vector edit mode | Verified at d51ac59 | `6ac20c7d`, `8edcc02a`, `dc841f85`, `767ebb67`, `62e7e3a4`, `194a4a13` |
-| 2.1 | Copy, cut and paste in vector edit mode act on the selected points and segments (#1875, #2105) | Open | `0fec344f`, `87ce9612`, `ad701088` |
+| 2.1 | Copy, cut and paste in vector edit mode act on the selected points and segments (#1875, #2105) | Verified at 6aebd59 | `0fec344f`, `87ce9612`, `ad701088` |
 | 2.2 | Locked layers: no nudge, a locked parent's children stay locked, Select layer lists and picks them (#1560) | Verified at 056c09b; the Layers panel padlock waits for roadmap row 19 | `24cf7032`, `6cb015d4`, `39e3496f`, `87f7b7d9` |
 | 2.3 | Marquee selection follows the measured rules | Open | `cb526214`, `604c7846` |
 | 2.4 | Polygons and stars get a Count handle on the canvas | Open | `89d8b50e`, `d773ab29` |
