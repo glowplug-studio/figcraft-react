@@ -3425,6 +3425,25 @@ test("a locked layer is skipped by clicks and arrows, listed by Select layer wit
   await page.keyboard.press("ControlOrMeta+Shift+l"); await page.keyboard.press("ArrowRight"); await geometry(page, [121, 120, 100, 100]);
 });
 
+test("the Rotation field shows and sets a layer's rotation on the page", async ({ page }) => {
+  await login(page);
+  await createNamedRectangle(page, "One", 0, 600, 50, 50);
+  await createNamedRectangle(page, "Two", 100, 600, 50, 50);
+  const canvas = page.getByLabel("Design canvas", { exact: true }), layers = page.getByRole("region", { name: "Layers" });
+  await canvas.focus(); await page.keyboard.press("ControlOrMeta+a");
+  await layers.getByRole("button", { name: "Group", exact: true }).click();
+  const rotation = page.getByLabel("Rotation", { exact: true }), apply = page.getByRole("button", { name: "Apply geometry", exact: true });
+  await rotation.fill("10"); await apply.click(); await expect(rotation).toHaveValue("10");
+  // A layer in the turned group reads its angle on the page, not its own 0 (upstream d0379dc7).
+  await layers.getByRole("button", { name: "One", exact: true }).click(); await expect(rotation).toHaveValue("10");
+  await rotation.fill("7"); await apply.click(); await expect(rotation).toHaveValue("7");
+  // Its sibling and the group keep theirs.
+  await layers.getByRole("button", { name: "Two", exact: true }).click(); await expect(rotation).toHaveValue("10");
+  await layers.getByRole("button", { name: "Group 1", exact: true }).click(); await expect(rotation).toHaveValue("10");
+  await canvas.focus(); await page.keyboard.press("ControlOrMeta+z");
+  await layers.getByRole("button", { name: "One", exact: true }).click(); await expect(rotation).toHaveValue("10");
+});
+
 test("rotated frame child uses parent-space nudges and page-space numeric movement", async ({ page }) => {
   await login(page);
   const creation = page.getByRole("group", { name: "Create layer", exact: true });

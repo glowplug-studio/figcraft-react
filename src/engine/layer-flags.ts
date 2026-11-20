@@ -10,7 +10,8 @@ export const layerFlagSpecs = Object.freeze({
 export type LayerFlagCommand = keyof typeof layerFlagSpecs;
 
 /** Native `cmd/edit/select.rs::toggle`: show or hide, or lock or unlock, the targets together. Without an explicit
- * value: if any is visible all are hidden, and if any is unlocked all are locked. A child of a locked layer counts
+ * value: Show/Hide hides the targets only when every one is visible and shows them all otherwise, and Lock/Unlock
+ * unlocks them only when every one is locked and locks them all otherwise. A child of a locked layer counts
  * as locked, and Lock/Unlock leaves its own flag alone, as its padlock does, so that the flag still holds once the
  * parent is unlocked; an explicit `locked` sets it anyway. Locking clears the selection. */
 export function toggleLayerFlag(command: LayerFlagCommand, document: Document, selection: readonly NodeId[], params: Record<string, unknown>):

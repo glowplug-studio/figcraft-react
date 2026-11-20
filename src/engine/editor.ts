@@ -975,9 +975,13 @@ export class EditorEngine {
       }
       // An earlier edit can reflow a selected descendant. Read old values from the original
       // selection, then apply them in selection order to each successive document.
-      for (const [id,next] of edits) {
+      // The Rotation field holds the rotation on the page, which depends on the parents': a selected parent is
+      // turned before the layers in it.
+      const depth = (id: NodeId) => { let n = 0; for (let parent = document.nodes[id]?.parent; parent; parent = document.nodes[parent]?.parent) n++; return n; };
+      const property = key === "rotation" ? "absoluteRotation" : key;
+      for (const [id,next] of key === "rotation" ? [...edits].sort((a,b) => depth(a[0]) - depth(b[0])) : edits) {
         try {
-          owner.document = setRectangleProperties(owner.document,selection,{id,props:{[key]:next}},origin);
+          owner.document = setRectangleProperties(owner.document,selection,{id,props:{[property]:next}},origin);
         } catch (error) {
           errors.push(error instanceof Error ? error.message : "Could not edit the geometry");
         }

@@ -25,7 +25,7 @@ import { isStrokeKey, setStrokeProperties } from "./stroke";
 import { isArcKey, setArc } from "./ellipse";
 import { isLeaf, withLayerSize } from "./document";
 import { isCornerKey, setCorners, zeroCorners } from "./corners";
-import { identity, inverse, multiply, setRotationAboutCenter, transformBounds, transformPoint, withTranslation } from "./affine";
+import { identity, inverse, multiply, setRotationAboutCenter, transformBounds, transformPoint, withTranslation, type Affine } from "./affine";
 import { defaultConstraints, nodeTypeName, rectanglePaints, rectangleTransform, withRectanglePaints, withRectangleTransform, type Document, type DocumentNode, type NodeId, type LayerNode } from "./document";
 import { HierarchyDraft, frameRelative, rootIds, worldTransform } from "./hierarchy";
 import { parseNodeId, parseNumber, parseString } from "./parameters";
@@ -37,7 +37,7 @@ import { localOrigin, sameIds, validateChangedGeometry } from "./rotation";
 import { moveWorld } from "./arrange";
 import type { Point } from "./geometry";
 
-const geometryKeys = new Set(["x", "y", "width", "height", "w", "h", "rotation"]);
+const geometryKeys = new Set(["x", "y", "width", "height", "w", "h", "rotation", "absoluteRotation"]);
 const styleSlots = new Map<string, StyleSlot>([
   ["effectStyle","effect"], ["fillStyle","fill"], ["gridStyle","grid"], ["strokeStyle","stroke"], ["textStyle","text"],
 ]);
@@ -116,6 +116,7 @@ export function writeProperties(draft: HierarchyDraft, document: Document, selec
   const childKeys = keys.filter(key => childLayoutKeys.has(key));
   const unsupported = keys.filter(key => !supportsLayerProperty(key));
   if (unsupported.length) throw new Error(`node.set unsupported properties: ${unsupported.join(", ")}`);
+  if ("rotation" in props && "absoluteRotation" in props) throw new Error("Give one of `rotation` and `absoluteRotation`");
   if (!textCommand && typeof props.fontStyle === "string") {
     const families = typeof props.fontFamily === "string" ? [props.fontFamily] : ids.flatMap(id => {
       const node = document.nodes[id];
@@ -146,7 +147,7 @@ export function writeProperties(draft: HierarchyDraft, document: Document, selec
     const size = (long: string, short: string) => Object.hasOwn(props, long) ? parseNumber(props[long], long) : Object.hasOwn(props, short) ? parseNumber(props[short], long) : undefined;
     return pathNetwork(props.path, size("width", "w"), size("height", "h"));
   })() : undefined;
-  const pivot = origin && "rotation" in props && !("x" in props) && !("y" in props) && sameIds(requestedIds, selection) ? origin : undefined;
+  const pivot = origin && ("rotation" in props || "absoluteRotation" in props) && !("x" in props) && !("y" in props) && sameIds(requestedIds, selection) ? origin : undefined;
   const pinned = pivot ? rootIds(document, ids).map(id => ({ id, point: localOrigin(document, id, pivot) })) : [];
 
   // Parse before changing any node, so one invalid value refuses the entire selection.
@@ -186,7 +187,10 @@ export function writeProperties(draft: HierarchyDraft, document: Document, selec
   }
   if ("fills" in props) paints = readPaints(props.fills, true);
   if ("constraints" in props) readConstraints(props.constraints);
-  for (const id of ids) {
+  // A page angle depends on the parents': a selected parent is turned before the layers in it.
+  const depth = (id: NodeId) => { let n = 0; for (let parent = document.nodes[id]?.parent; parent; parent = document.nodes[parent]?.parent) n++; return n; };
+  const ordered = "absoluteRotation" in props ? [...ids].sort((a, b) => depth(a) - depth(b)) : ids;
+  for (const id of ordered) {
     let node = draft.nodes[id];
     if (paints && node?.kind==="text") {node=takeCharacterFills(node);draft.set(node);}
     if (textCommand && node?.kind !== "text") throw new Error("Expected a text layer");
@@ -266,6 +270,15 @@ export function writeProperties(draft: HierarchyDraft, document: Document, selec
     }
     let transform = rectangleTransform(node);
     if ("rotation" in values) transform = setRotationAboutCenter(transform, width, height, values.rotation);
+    if ("absoluteRotation" in values) {
+      // The rotation on the page: the layer's own angle plus its parents', about the layer's centre.
+      let local: Affine | undefined;
+      try {
+        const parent = worldTransform(draft.document, node.parent);
+        local = multiply(inverse(parent), setRotationAboutCenter(multiply(parent, transform), width, height, values.absoluteRotation));
+      } catch { /* A degenerate parent can't be inverted. */ }
+      transform = local?.every(Number.isFinite) ? local : setRotationAboutCenter(transform, width, height, values.absoluteRotation);
+    }
     if ("x" in values || "y" in values) {
       const space = isGroupLike(draft.nodes[node.parent]) ? frameRelative(draft.document, node.parent) : identity;
       const relative = multiply(space, transform);

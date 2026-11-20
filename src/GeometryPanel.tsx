@@ -28,7 +28,7 @@ export function GeometryPanel({document, selection, enabled, ...host}: LayoutFie
       const value = layers.every(layer => shownGeometry(document,layer,key) === first) ? first : undefined;
       return <LayoutNumber {...host} key={key} variableField={key==="width" || key==="height" ? key : undefined} label={labels[key]} value={value} placeholder="Mixed"
         min={key === "width" || key === "height" ? 0 : undefined} suffix={key === "rotation" ? "°" : undefined}
-        params={n => ({ids:selection,props:{[key]:n}})} onMixedRelative={edit => {
+        params={n => ({ids:selection,props:{[key === "rotation" ? "absoluteRotation" : key]:n}})} onMixedRelative={edit => {
           try { host.onError(host.engine.editMixedGeometry(key,edit).join("\n")); }
           catch (error) { host.onError(error instanceof Error ? error.message : "Could not edit the geometry"); }
         }}/>;
