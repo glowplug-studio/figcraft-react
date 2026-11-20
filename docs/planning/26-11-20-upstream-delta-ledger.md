@@ -5,7 +5,7 @@
 - Phase: planning record, written 20 November 2026 at React `f5114ec` on `prompt/full-figcraft-port`.
 - Native range: `7bf098d75d187416633d9ebcceb9eb83fbb10df8` → `bad07e4433240cad046589129c084bd2fc36f097`, 254 commits excluding merges.
 - Purpose: the [delta queue](26-11-15-upstream-delta.md) groups this range into eight rows by theme. Row 1 turned out to hold a change that no row named (point positions in vector edit mode). This ledger assigns every commit to an item, so that nothing in the range is left to be found by accident.
-- Status: 15 items verified, 48 open, the rest outside the browser port or without product behaviour.
+- Status: 16 items verified, 47 open, the rest outside the browser port or without product behaviour.
 - Next action: work the open items in order, each as its own bounded slice under its row's plan. Row 2 is planned in [the row 2 plan](26-11-20-delta-row-2-selection-canvas.md).
 - Blockers: none.
 
@@ -29,7 +29,7 @@ Items marked as outside the browser port are not dismissed: the final audit revi
 | 1.8 | Point positions in vector edit mode | Verified at d51ac59 | `6ac20c7d`, `8edcc02a`, `dc841f85`, `767ebb67`, `62e7e3a4`, `194a4a13` |
 | 2.1 | Copy, cut and paste in vector edit mode act on the selected points and segments (#1875, #2105) | Verified at 6aebd59 | `0fec344f`, `87ce9612`, `ad701088` |
 | 2.2 | Locked layers: no nudge, a locked parent's children stay locked, Select layer lists and picks them (#1560) | Verified at 056c09b; the Layers panel padlock waits for roadmap row 19 | `24cf7032`, `6cb015d4`, `39e3496f`, `87f7b7d9` |
-| 2.3 | Marquee selection follows the measured rules | Open | `cb526214`, `604c7846` |
+| 2.3 | Marquee selection follows the measured rules | Verified at f66ead9 | `cb526214`, `604c7846` |
 | 2.4 | Polygons and stars get a Count handle on the canvas | Open | `89d8b50e`, `d773ab29` |
 | 2.5 | Tidy up keeps order and sizes, evens and rounds gaps, handles overlapping rows and grids | Verified at 5e0c6b3 | `cfd6bf52`, `d3f7ae90`, `a7a9e627`, `1a68ded5`, `fc900783` |
 | 2.6 | Tab while renaming moves only the rename and wraps (#2311) | Open | `2408d0aa`, `d3688b9e` |
