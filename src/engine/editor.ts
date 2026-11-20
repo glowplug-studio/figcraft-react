@@ -89,6 +89,7 @@ import { requiredTargets } from "./arrange";
 import { captureLayers, pasteLayers, layerClipboardSpecs, type CopiedLayers } from "./layer-clipboard";
 import { executeStructure, structureSpecs } from "./structure";
 import { executeVector, isVectorJoin, vectorSpecs } from "./vector-commands";
+import { copyVectorSelection, cutVectorSelection, pasteIntoVector, vectorEditSelection } from "./vector-clipboard";
 import { executeVectorEdit, vectorEditSpecs, type VectorEditCommand } from "./vector-edit-commands";
 import { clampVectorEdit, vectorNetwork, type VectorEditState } from "./vector-edit";
 import { boundsOf, defaultViewport, executeView, fitPage, fitView, maximumZoom, minimumZoom, viewOrigin, viewSpecs, type Viewport } from "./viewport";
@@ -1850,6 +1851,21 @@ export class EditorEngine {
     }
     if (command === "edit.copy" || command === "edit.cut") {
       const before = this.#snapshot;
+      // In vector edit mode with points or segments selected, Copy and Cut take just those (upstream #1875). Naming
+      // layers by `ids` or `id` acts on the layers.
+      const picked = this.#vectorEdit && !Object.hasOwn(p, "ids") && !Object.hasOwn(p, "id") ? vectorEditSelection(before.document, this.#vectorEdit) : undefined;
+      if (picked?.any && this.#vectorEdit) {
+        if (command === "edit.copy") {
+          const copied = copyVectorSelection(before.document, picked, this.#documentIdentity, this.#nextId);
+          this.#clipboard.layers = copied.clip;
+          this.#publish({});
+          return copied.result;
+        }
+        const cut = cutVectorSelection(before.document, this.#vectorEdit, picked, this.#documentIdentity, this.#nextId);
+        this.#commitEdit({ document: cut.document, selection: before.selection }, { record: true, vectorEdit: cut.state });
+        this.#clipboard.layers = cut.clip;
+        return cut.result;
+      }
       const clip = captureLayers(before.document, before.selection, p, this.#documentIdentity, command === "edit.cut");
       if (command === "edit.cut") {
         const next = executeStructure("edit.delete", before.document, before.selection, this.#nextId, { ids: clip.roots });
@@ -1863,6 +1879,12 @@ export class EditorEngine {
     }
     if (command === "edit.paste" || command === "edit.pasteOver" || command === "edit.pasteReplace") {
       const before = this.#snapshot;
+      // While editing a vector, the copied layers join its network (upstream #1875); `parent` asks for layers.
+      if (command === "edit.paste" && this.#vectorEdit && parseNodeId(p.parent) === undefined) {
+        const joined = pasteIntoVector(before.document, this.#vectorEdit, this.#clipboard.layers, p);
+        this.#commitEdit({ document: joined.document, selection: before.selection }, { record: true, vectorEdit: joined.state });
+        return joined.result;
+      }
       const next = pasteLayers(command, before.document, before.selection, this.#nextId, p, this.#clipboard.layers, this.#documentIdentity, this.#view);
       this.#commitEdit({ document: next.document, selection: next.selection }, { nextId: next.nextId, libraryEdit: true });
       return next.result;

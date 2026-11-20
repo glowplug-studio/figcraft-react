@@ -4421,6 +4421,42 @@ test("vector point authoring supports captured drag, one undo, controls, native 
   await page.getByRole("button", { name: "Done editing", exact: true }).click(); await expect(panel).toHaveCount(0);
 });
 
+test("copy, cut and paste in vector edit mode act on the selected points", async ({ page, context }) => {
+  await login(page);
+  await context.grantPermissions(["clipboard-read", "clipboard-write"], { origin: new URL(page.url()).origin });
+  const creation = page.getByRole("group", { name: "Create layer", exact: true });
+  for (const [label, value] of [["X", 200], ["Y", 180], ["Width", 160], ["Height", 120]] as const) await creation.getByLabel(label, { exact: true }).fill(String(value));
+  await creation.getByRole("button", { name: "Create rectangle", exact: true }).click();
+  await page.getByRole("button", { name: "Edit vector", exact: true }).click();
+  const panel = page.getByRole("group", { name: "Vector points", exact: true }), canvas = page.getByLabel("Design canvas", { exact: true });
+  const layers = page.getByRole("region", { name: "Layers", exact: true });
+  // With nothing selected Ctrl/Cmd+X does nothing while editing: the layer and edit mode stay.
+  await canvas.focus(); await page.keyboard.press("ControlOrMeta+x");
+  await expect(panel).toBeVisible(); await expect(layers.getByRole("button", { name: "Rectangle", exact: true })).toHaveCount(1);
+  // Copy with one corner selected takes the two sides touching it (upstream 0fec344f), not the whole layer.
+  const corner = await canvasPoint(page, 200, 180);
+  await page.mouse.click(corner.x, corner.y); await expect(panel).toContainText("1 selected point");
+  await canvas.focus(); await page.keyboard.press("ControlOrMeta+c");
+  await expect.poll(() => page.evaluate(() => navigator.clipboard.readText())).toContain("<svg width=");
+  expect(await page.evaluate(() => navigator.clipboard.readText()), "the system clipboard holds the two copied sides, not the closed rectangle").not.toContain("Z");
+  // Paste while editing adds them to the same vector, selected, and makes no layer.
+  await page.keyboard.press("ControlOrMeta+v");
+  await expect(panel).toContainText("3 selected points");
+  await expect(page.getByText("1 layer", { exact: true })).toBeVisible();
+  await page.keyboard.press("ControlOrMeta+z");
+  await expect(panel).not.toContainText("3 selected points");
+  // Cut removes the corner's sides in the same layer and stays in edit mode.
+  await page.mouse.click(corner.x, corner.y); await expect(panel).toContainText("1 selected point");
+  await canvas.focus(); await page.keyboard.press("ControlOrMeta+x");
+  await expect(panel).toBeVisible(); await expect(panel).not.toContainText("1 selected point");
+  await expect(page.getByText("1 layer", { exact: true })).toBeVisible();
+  // Outside edit mode the cut sides paste as a new vector.
+  await page.getByRole("button", { name: "Done editing", exact: true }).click();
+  await canvas.focus(); await page.keyboard.press("ControlOrMeta+v");
+  await expect(page.getByText("2 layers", { exact: true })).toBeVisible();
+  await expect(layers.getByRole("button", { name: "Vector", exact: true })).toHaveCount(1);
+});
+
 test("several selected points show a shared X and Y or Mixed, and a typed value sets every point", async ({ page }) => {
   await login(page);
   const creation = page.getByRole("group", { name: "Create layer", exact: true });

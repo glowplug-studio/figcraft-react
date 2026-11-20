@@ -459,6 +459,10 @@ export function DocumentEditor({ identity, capabilities, engine: suppliedEngine,
   function copyLayers(command:"edit.copy"|"edit.cut",event?:ClipboardEvent,trusted=event?.isTrusted) {
     if (!canCopyLayers || command==="edit.cut" && !editable) return;
     if (event?.target instanceof Element && event.target.closest("input,textarea,select,dialog,[contenteditable]:not([contenteditable=false])")) return;
+    // While editing a vector, Ctrl/Cmd+X cuts the selected points and segments and keeps the layer; with none
+    // selected the key does nothing (upstream #1875).
+    const editing=engine.getVectorEdit();
+    if (command==="edit.cut" && event && editing && ![editing,...editing.others].some(part=>part.vertices.length || part.segments.length)) return;
     const selected=snapshot.selection.map(id=>snapshot.document.nodes[id]);
     const text=selected.every(node=>node.kind==="text") && selected.map(node=>node.text.characters).join("\n");
     if (!dispatch(command) || !trusted) return;

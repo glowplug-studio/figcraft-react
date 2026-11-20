@@ -128,6 +128,13 @@ function pagePair(value: unknown): Point | undefined {
   const x = optionalNumber(value[0]), y = optionalNumber(value[1]);
   return x === undefined || y === undefined ? undefined : { x, y };
 }
+/** Native `delete_selection` for one layer: the part's segments go, then its points with the segments touching them. */
+export function deleteVectorPart(net: VectorNetwork, part: Pick<VectorEditPart, "vertices" | "segments">, heal: boolean): VectorNetwork {
+  const segs = part.segments.filter(i => { const s = net.segments[i]; return s && !part.vertices.includes(s.a) && !part.vertices.includes(s.b); });
+  const points = part.vertices.flatMap(i => net.vertices[i] ? [net.vertices[i]] : []), removed = removeSegments(net, segs);
+  const now = points.flatMap(p => { const i = removed.vertices.findIndex(v => v.x === p.x && v.y === p.y); return i < 0 ? [] : [i]; });
+  return deleteVertices(removed, now, heal);
+}
 export interface VectorEditResult { nextId?: bigint; document: Document; selection: readonly NodeId[]; state: VectorEditState | undefined; recordHistory: boolean; result: Record<string, unknown> }
 export function executeVectorEdit(command: VectorEditCommand | VectorJoinCommand, document: Document, selection: readonly NodeId[], state: VectorEditState | undefined, p: Record<string, unknown>, nextId?: bigint): VectorEditResult {
   for (const key of Object.keys(p)) if (!isVectorJoin(command) && !allowed[command].includes(key)) throw new Error(`Unsupported ${command} parameter: ${key}`);
@@ -340,12 +347,7 @@ export function executeVectorEdit(command: VectorEditCommand | VectorJoinCommand
     case "vector.edit.delete": case "vector.deleteHeal": {
       const vertices = vectorIndices(p.vertices), segments = vectorIndices(p.segments);
       const parts = command === "vector.deleteHeal" ? pointSets(document, state, p, false) : vertices === undefined && segments === undefined ? vectorParts(state) : [{ id: state.id, vertices: vertices ?? [], segments: segments ?? [] }];
-      for (const part of parts) edit(part.id, net => {
-        const segs = part.segments.filter(i => { const s = net.segments[i]; return s && !part.vertices.includes(s.a) && !part.vertices.includes(s.b); });
-        const points = part.vertices.flatMap(i => net.vertices[i] ? [net.vertices[i]] : []), removed = removeSegments(net, segs);
-        const now = points.flatMap(p => { const i = removed.vertices.findIndex(v => v.x === p.x && v.y === p.y); return i < 0 ? [] : [i]; });
-        return deleteVertices(removed, now, command === "vector.deleteHeal");
-      });
+      for (const part of parts) edit(part.id, net => deleteVectorPart(net, part, command === "vector.deleteHeal"));
       result.state = freezeVectorEdit({ ...clearVectorSelection(state), anchor: undefined, penOut: undefined }); break;
     }
     case "vector.edit.cornerRadius": { const radius = Math.max(0, Math.min(1e6, parseNumber(p.radius, "radius"))); sets(true, (net, points) => pointProperty(net, points, "radius", radius)); break; }
