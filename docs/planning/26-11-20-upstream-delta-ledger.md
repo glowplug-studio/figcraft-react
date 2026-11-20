@@ -5,7 +5,7 @@
 - Phase: planning record, written 20 November 2026 at React `f5114ec` on `prompt/full-figcraft-port`.
 - Native range: `7bf098d75d187416633d9ebcceb9eb83fbb10df8` → `bad07e4433240cad046589129c084bd2fc36f097`, 254 commits excluding merges.
 - Purpose: the [delta queue](26-11-15-upstream-delta.md) groups this range into eight rows by theme. Row 1 turned out to hold a change that no row named (point positions in vector edit mode). This ledger assigns every commit to an item, so that nothing in the range is left to be found by accident.
-- Status: 10 items verified, 53 open, the rest outside the browser port or without product behaviour.
+- Status: 11 items verified, 52 open, the rest outside the browser port or without product behaviour.
 - Next action: work the open items in order, each as its own bounded slice under its row's plan. Row 2 is planned in [the row 2 plan](26-11-20-delta-row-2-selection-canvas.md).
 - Blockers: none.
 
@@ -33,7 +33,7 @@ Items marked as outside the browser port are not dismissed: the final audit revi
 | 2.4 | Polygons and stars get a Count handle on the canvas | Open | `89d8b50e`, `d773ab29` |
 | 2.5 | Tidy up keeps order and sizes, evens and rounds gaps, handles overlapping rows and grids | Verified at 5e0c6b3 | `cfd6bf52`, `d3f7ae90`, `a7a9e627`, `1a68ded5`, `fc900783` |
 | 2.6 | Tab while renaming moves only the rename and wraps (#2311) | Open | `2408d0aa`, `d3688b9e` |
-| 2.7 | Paste: over a selection just above the selected layer; in place, at the view's centre or in a selected frame; no stale layers after a property copy (#1494) | Open | `c74bcd0b`, `476daeab`, `ebd463fa`, `0ad70b95` |
+| 2.7 | Paste: over a selection just above the selected layer; in place, at the view's centre or in a selected frame | Verified at 893d8a5 | `c74bcd0b`, `476daeab`, `ebd463fa` |
 | 2.8 | Escape clears the selection instead of stepping out to the parent | Open | `a285fd29`, `92cf9849`, `bceb5476` |
 | 2.9 | Arrow keys pan 64 px, 320 with Shift | Open | `75f54e0a`, `d036eb2f`, `9f51517f` |
 | 2.10 | Zoom to selection leaves a 40 pt margin and clears the bottom toolbar | Open | `fceb6063`, `5d529269`, `53bf0a40` |
@@ -63,7 +63,7 @@ Items marked as outside the browser port are not dismissed: the final audit revi
 | 3.15 | A background blur or glass exported on its own keeps the content behind it (#2213) | Open | `020388cf`, `a1de7dcd` |
 | 3.16 | Export: colour profile notes; export settings take back what node.get returns (snake_case aliases) | Open | `297426c5`, `97f086e0`, `12ade9c7`, `016dba8c`, `3d4c798f`, `6c3ac0c5`, `3f39154a` |
 | 3.17 | Import and export bounds: SVG export embeds each image once; SVG import budgets attributes, filter chains and layers; Penpot raw SVG allowance; render cache hash | Open | `9032dc3e`, `64e91207`, `70ed6c16`, `4d3fe2aa`, `cf77dfda`, `2f8dd85f`, `81371f4a` |
-| 3.18 | Paint rows: a click highlights a fill, stroke or effect row; Cmd/Ctrl+C and V copy and paste it (#1494) | Open | `375a7b8a`, `33ac1d14`, `b640fbc1` |
+| 3.18 | Paint rows: a click highlights a fill, stroke or effect row; Cmd/Ctrl+C and V copy and paste it; a programmatic paste after a property copy pastes no stale layers (#1494) | Open | `375a7b8a`, `33ac1d14`, `b640fbc1`, `0ad70b95` |
 | 4.1 | Grid Fill tracks share the space and let a fixed child overflow | Open | `a28c03d9`, `92753a8f`, `daa6b5b2` |
 | 4.2 | A child dragged in auto layout passes a sibling when its leading edge reaches the sibling's middle (#2142) | Open | `cf567c3f`, `e415a3a0` |
 | 4.3 | Align is unavailable for a layer in an auto layout frame's flow | Open | `76965c78` |

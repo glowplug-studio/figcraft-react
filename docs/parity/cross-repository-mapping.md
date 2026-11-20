@@ -669,3 +669,7 @@ Native `crates/engine/src/canvas/vectoredit.rs::{AxisEdit,axis_edit}` and the `v
 
 Native `crates/engine/src/selection/tidy.rs::{can_tidy,tidy_moves,available,classify,overlapping,groups,one_per_cell,even_gap,raise_negative_gap,line_moves,unit_box,unit_gaps,grid_moves}` at `bad07e44` (upstream `cfd6bf52`, `d3f7ae90`, `a7a9e627`, `1a68ded5`) maps to `tidy.ts` at `5e0c6b3`. `crates/engine/src/cmd/arrange.rs::tidy` maps to the `arrange.tidy` case of `arrange.ts`, with `editor.ts` passing the view's Snap to pixel grid, and `ui-egui/src/panels/right.rs::tidy_available` to `ArrangePanel.tsx` through `tidy.ts::canTidy`. Forty-five command sequences were observed through a disposable oracle. [Property matrix](../reports/26-11-20-tidy-up-parity.html) · [Report](../reports/26-11-20-tidy-up.md) · [Provenance](../../tests/fixtures/native-tidy-up.provenance.md).
 
+## Delta row 2: paste placement and stacking — 20 November 2026
+
+Native `crates/engine/src/cmd/edit/clipboard.rs::paste_over` at `bad07e44` (upstream `c74bcd0b`) maps to `layer-clipboard.ts::pasteLayers` at `893d8a5`, which passes the selected layer's index plus one to `pasteInto`. The placement of plain Paste, tested upstream by `crates/engine/src/design_paste_tests.rs` (`476daeab`), maps to the unchanged `layer-clipboard.ts::placement`. Eleven command sequences were observed through a disposable oracle. [Property matrix](../reports/26-11-20-paste-placement-parity.html) · [Report](../reports/26-11-20-paste-placement.md) · [Provenance](../../tests/fixtures/native-paste-placement.provenance.md).
+
