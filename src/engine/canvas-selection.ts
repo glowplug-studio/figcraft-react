@@ -8,6 +8,7 @@ import { boundsOf } from "./viewport";
 import { selectionFrame } from "./rotation";
 import { slotName } from "./component-tree";
 import { targetForLeaf } from "./selection";
+import { marqueeDeep, marqueeSelect } from "./marquee";
 
 export const containsPoint = (r: Rectangle, p: Point): boolean => p.x >= r.x && p.y >= r.y && p.x <= r.x + r.width && p.y <= r.y + r.height;
 export const containsBox = (a: Rectangle, b: Rectangle): boolean => containsPoint(a, b) && containsPoint(a, { x: b.x + b.width, y: b.y + b.height });
@@ -89,27 +90,17 @@ export function dragParent(document: Document, point: Point, moving: readonly No
   }
   return hit ?? document.currentPage;
 }
+/** Native `marquee_within`: the top-level frame a marquee starts in. */
 export function marqueeWithin(document: Document, point: Point): NodeId | undefined {
   const frame = frameAt(document, point, []);
-  return frame && document.nodes[frame]?.parent === document.currentPage ? frame : undefined;
+  if (!frame || document.nodes[frame]?.parent !== document.currentPage) return undefined;
+  const bounds = boundsOf(document, [frame]);
+  return bounds && point.x >= bounds.x && point.x < bounds.x + bounds.width && point.y >= bounds.y && point.y < bounds.y + bounds.height ? frame : undefined;
 }
 export function marqueeSelection(document: Document, box: Rectangle, within: NodeId | undefined, deep: boolean, base: readonly NodeId[], toggle: boolean): readonly NodeId[] {
-  const hits: NodeId[] = [];
-  const walk = (parent: NodeId, depth: number): void => {
-    const node = document.nodes[parent];
-    if (!node || isLeaf(node) || hidesContents(node)) return;
-    for (const id of node.children) {
-      const child = document.nodes[id];
-      if (!child || child.kind === "page" || child.visible === false || child.locked) continue;
-      const bounds = boundsOf(document, [id]);
-      if (!bounds || !touches(box, bounds)) continue;
-      if (!deep && !within && isFrameLike(child) && !containsBox(box, bounds)) continue;
-      const count = hits.length;
-      if (deep && !isLeaf(child) && depth < 256) walk(id, depth + 1);
-      if (count === hits.length) hits.push(id);
-    }
-  };
-  walk(deep ? document.currentPage : within ?? document.currentPage, 0);
+  // Ctrl or Cmd: the nested layers the marquee touches. Otherwise the measured top-level rule (upstream cb526214).
+  const hits = deep ? marqueeDeep(document, box) : marqueeSelect(document, box, within);
+  // Shift toggles: what was selected and is touched again comes out.
   const selected = base.filter(id => !(toggle && hits.includes(id)));
   for (const id of hits) if (!base.includes(id) && !selected.includes(id)) selected.push(id);
   return Object.freeze(selected);

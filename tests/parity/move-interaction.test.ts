@@ -101,9 +101,11 @@ describe("native free-layout move and marquee", () => {
     drag(move, { x: 300, y: 300 }, { x: 300, y: 300 }); expect(e.getSnapshot().selection).toEqual([]);
     drag(move, { x: 50, y: 50 }, { x: 50, y: 50 }); expect(e.getSnapshot().selection).toEqual([]);
   });
-  it("plain marquee requires full Frame coverage; primary marquee enters nested contents", () => {
-    const { engine: e, move, frame, a, b, c, outside } = scene();
-    drag(move, { x: -10, y: 10 }, { x: 500, y: 70 }); expect(e.getSnapshot().selection).toEqual([outside]);
+  // Upstream cb526214: a partly covered frame gives the layers in it the marquee touches; it used to be skipped.
+  // This scene is the last session of tests/fixtures/native-marquee.json.
+  it("plain marquee opens a partly covered Frame and takes a covered one whole; primary marquee enters nested contents", () => {
+    const { engine: e, move, frame, group, a, b, c, outside } = scene();
+    drag(move, { x: -10, y: 10 }, { x: 500, y: 70 }); expect(e.getSnapshot().selection).toEqual([group, outside]);
     e.execute("select.none"); drag(move, { x: -10, y: 10 }, { x: 500, y: 70 }, ctrl); expect(new Set(e.getSnapshot().selection)).toEqual(new Set([a, b, outside]));
     e.execute("select.none"); drag(move, { x: -10, y: 10 }, { x: 100, y: 190 }, ctrl); expect(new Set(e.getSnapshot().selection)).toEqual(new Set([a, b, c]));
     e.execute("select.none"); drag(move, { x: -10, y: -10 }, { x: 310, y: 210 }); expect(e.getSnapshot().selection).toEqual([frame]);

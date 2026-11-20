@@ -3772,6 +3772,31 @@ test("canvas move previews cancel without root updates and release-only Alt copi
   await expect(page.getByRole("region", { name: "Layers" }).getByRole("button", { name: "Dragged", exact: true })).toHaveCount(3);
 });
 
+test("a marquee opens a partly covered frame and takes a covered one whole", async ({ page }) => {
+  await login(page);
+  const creation = page.getByRole("group", { name: "Create layer", exact: true }), layers = page.getByRole("region", { name: "Layers" });
+  for (const [label, value] of [["X", "200"], ["Y", "180"], ["Width", "300"], ["Height", "200"]]) await creation.getByLabel(label, { exact: true }).fill(value);
+  await creation.getByRole("button", { name: "Create frame", exact: true }).click();
+  await creation.getByLabel("Create in", { exact: true }).selectOption({ label: "Frame 1" });
+  await createNamedRectangle(page, "Inside", 20, 20, 60, 40);
+  const current = layers.locator('li[aria-current="true"]');
+  const marquee = async (from: [number, number], to: [number, number]) => {
+    const a = await canvasPoint(page, ...from), b = await canvasPoint(page, ...to);
+    await page.mouse.move(a.x, a.y); await page.mouse.down(); await page.mouse.move(b.x, b.y, { steps: 8 }); await page.mouse.up();
+  };
+  // From outside over a corner of the frame: the layer in it the marquee touches, not the frame (upstream cb526214).
+  await marquee([150, 130], [260, 240]);
+  await expect(current).toHaveCount(1); await expect(current).toContainText("Inside");
+  // Covering the frame selects the frame itself.
+  await marquee([150, 130], [540, 420]);
+  await expect(current).toHaveCount(1); await expect(current).toContainText("Frame 1");
+  // From the frame's empty area: the layers in it the marquee touches, never the frame.
+  await marquee([450, 340], [240, 210]);
+  await expect(current).toHaveCount(1); await expect(current).toContainText("Inside");
+  await marquee([450, 340], [560, 420]);
+  await expect(current).toHaveCount(0);
+});
+
 test("canvas marquee selects and toggles layers without root frame updates", async ({ page }) => {
   await login(page); await createNamedRectangle(page, "Marquee A", 200, 200, 50, 40); await createNamedRectangle(page, "Marquee B", 300, 200, 50, 40);
   const root = page.locator("[data-figcraft-editor]"), layers = page.getByRole("region", { name: "Layers" });
