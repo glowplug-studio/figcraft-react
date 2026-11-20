@@ -88,7 +88,10 @@ it("passes clicks through a masked-out group and lists only the visible hit stac
   expect(stack(75,75)).toEqual([[back,"RECTANGLE",0]]);
   expect(stack(25,25)).toEqual([[group,"GROUP",0],[content,"RECTANGLE",1],[mask,"RECTANGLE",1]]);
   e.execute("node.set",{id:mask,props:{locked:true,opacity:0,maskType:"luminance",fill:"black"}});
-  expect(hit(25,25)).toBe(content);expect(stack(25,25)).toEqual([[group,"GROUP",0],[content,"RECTANGLE",1]]);
+  // A click never reaches the locked mask, but Select layer lists it since upstream 6cb015d4, flagged as locked
+  // (observed in native-locked-layers.json, "a locked mask is listed under the pointer too").
+  expect(hit(25,25)).toBe(content);expect(stack(25,25)).toEqual([[group,"GROUP",0],[content,"RECTANGLE",1],[mask,"RECTANGLE",1]]);
+  expect(e.execute("select.layersAt",{x:25,y:25}).layers.map(n=>n.locked)).toEqual([false,false,true]);
   e.execute("node.set",{id:mask,props:{visible:false}});
   expect(hit(75,75)).toBe(content);
   expect(()=>e.execute("select.layersAt",{x:"left",y:0})).toThrow();

@@ -342,6 +342,9 @@ export function DocumentEditor({ identity, capabilities, engine: suppliedEngine,
     if ((event.metaKey || event.ctrlKey) && event.altKey && !event.shiftKey && event.code === "KeyO") {
       event.preventDefault(); dispatch("vector.outlineStroke"); return;
     }
+    if ((event.metaKey || event.ctrlKey) && event.shiftKey && !event.altKey && (event.code === "KeyL" || event.code === "KeyH") && engine.getSnapshot().selection.length) {
+      event.preventDefault(); dispatch(event.code === "KeyL" ? "object.toggleLock" : "object.toggleVisible"); return;
+    }
     if ((event.metaKey || event.ctrlKey) && event.shiftKey && !event.altKey && event.key.toLowerCase() === "k") {
       event.preventDefault(); imageInput.current?.click(); return;
     }
@@ -919,10 +922,13 @@ export function DocumentEditor({ identity, capabilities, engine: suppliedEngine,
         <div className="figcraft-canvas-area">
           <div ref={pasteMenu} popover="auto" role="group" aria-label="Canvas actions" onToggle={positionCanvasMenu}
             style={{position:"fixed",inset:"auto",margin:0,maxHeight:"95dvh",maxWidth:"95vw",overflow:"auto"}}>
-            {pointLayers.length>0 && <details onToggle={positionCanvasMenu}><summary>Select layer</summary>
+            {pointLayers.length>1 && <details onToggle={positionCanvasMenu}><summary>Select layer</summary>
               <div role="group" aria-label="Layers at point">{pointLayers.map(layer=><button key={layer.id}
                 style={{display:"block",paddingInlineStart:8+12*Math.min(8,layer.depth)}} aria-pressed={snapshot.selection.includes(String(layer.id))}
+                aria-description={layer.locked ? "locked" : undefined} data-locked={layer.locked || undefined}
                 onClick={()=>{pasteMenu.current?.hidePopover();dispatch("select.set",{ids:[layer.id]});canvas.current?.focus();}}>
+                {layer.locked && <svg aria-hidden="true" width="10" height="12" viewBox="0 0 10 12" style={{marginInlineEnd:4,verticalAlign:"-1px"}}>
+                  <path d="M2.5 5V3.5a2.5 2.5 0 0 1 5 0V5" fill="none" stroke="currentColor"/><rect x="1" y="5" width="8" height="6" rx="1" fill="currentColor"/></svg>}
                 {layer.name || layer.type.toLowerCase()}
               </button>)}</div>
             </details>}
@@ -931,6 +937,8 @@ export function DocumentEditor({ identity, capabilities, engine: suppliedEngine,
             {snapshot.selection.length > 0 && <>
               <button onClick={()=>{pasteMenu.current?.hidePopover();dispatch("layout.add");canvas.current?.focus();}}>Add auto layout</button>
               <button onClick={()=>{pasteMenu.current?.hidePopover();dispatch("layout.removeAll");canvas.current?.focus();}}>Remove all auto layout</button>
+              <button title="Shift+Ctrl/⌘+H" onClick={()=>{pasteMenu.current?.hidePopover();dispatch("object.toggleVisible");canvas.current?.focus();}}>Show/Hide</button>
+              <button title="Shift+Ctrl/⌘+L" onClick={()=>{pasteMenu.current?.hidePopover();dispatch("object.toggleLock");canvas.current?.focus();}}>Lock/Unlock</button>
             </>}
             <button onClick={()=>{pasteMenu.current?.hidePopover();canvas.current?.focus();void paste(undefined,pasteAt.current);}}>Paste here</button>
           </div>

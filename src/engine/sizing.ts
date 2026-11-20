@@ -1,4 +1,5 @@
 import { explicitAxis } from "./child-layout-properties";
+import { lockedIn } from "./canvas-selection";
 import { scaleLayoutProperties } from "./auto-layout";
 import { fixTextSize, refitResizedText, scaleTextData } from "./text-sizing";
 import { scaleEffect } from "./effects";
@@ -80,6 +81,8 @@ export function executeSizing(command: string, document: Document, selection: re
     for (const id of ids) {
       const node = draft.nodes[id];
       if (node.kind === "page") throw new Error("Cannot resize a page");
+      // A locked layer, or one in a locked layer, ignores the resize arrows.
+      if (lockedIn(document, id)) continue;
       resize(draft, id, dw ? node.width + dw : undefined, dh ? node.height + dh : undefined);
     }
   } else {

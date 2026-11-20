@@ -174,10 +174,10 @@ function covers(document:Document,node:LayerNode,parent:Affine,point:Point,depth
   });
 }
 
-interface PointLayer {id:number|string; name:string; type:string; depth:number}
+interface PointLayer {id:number|string; name:string; type:string; depth:number; locked:boolean}
 
 function queryPoint(document:Document,point:Point,tolerance:number,selection:readonly NodeId[],enterBooleans:boolean,stack?:PointLayer[],
-  pathHit?:(node:LeafNode,world:Affine)=>boolean) {
+  pathHit?:(node:LeafNode,world:Affine)=>boolean,reachLocked=false) {
   if (!Number.isFinite(point.x) || !Number.isFinite(point.y)) return;
   const coverage=new Map<NodeId,boolean>();
   function visitChildren(children:readonly NodeId[],parent:NodeId,world:Affine,depth:number,output?:PointLayer[]):NodeId|undefined {
@@ -187,7 +187,7 @@ function queryPoint(document:Document,point:Point,tolerance:number,selection:rea
     const firstOnTop = isFrameLike(container) && container.layout?.reverseZ;
     for (let step = 0; step < children.length; step++) {
       const node = document.nodes[children[firstOnTop ? step : children.length - 1 - step]];
-      if (!node || node.kind==="page" || node.parent!==parent || node.locked || node.visible===false) continue;
+      if (!node || node.kind==="page" || node.parent!==parent || node.locked && !reachLocked || node.visible===false) continue;
       try {
         const mask=masks?.get(node.id);
         if (mask) {
@@ -223,7 +223,7 @@ function queryPoint(document:Document,point:Point,tolerance:number,selection:rea
       if (!isLeaf(node) && !hidesContents(node)) leaf=visitChildren(node.children,node.id,world,depth+1,output);
       if (!leaf && hitsLayer(node,world,point,tolerance)) leaf=node.id;
     }
-    if (leaf && output) output.splice(at,0,{id:inspectedId(node.id),name:node.name,type:nodeTypeName(node),depth});
+    if (leaf && output) output.splice(at,0,{id:inspectedId(node.id),name:node.name,type:nodeTypeName(node),depth,locked:node.locked===true || ancestors(document,node.id).some(id=>{const above=document.nodes[id];return above && above.kind!=="page" && above.locked===true;})});
     return leaf;
   }
   const page=pageOf(document);
@@ -241,9 +241,11 @@ export function hitRectangle(document:Document,point:Point,deep=false,selection:
   return leaf && !deep ? targetForLeaf(document,leaf,selection) : leaf;
 }
 
-/** Select layer menu order: front-most siblings first, each parent before its descendants. */
+/** Select layer menu order: front-most siblings first, each parent before its descendants. Locked layers, and what a
+ * locked frame holds, are listed too, with `locked` set when the layer or an ancestor is locked; a click, hover or
+ * marquee never reaches them. */
 export function layersAt(document:Document,point:Point,tolerance:number,selection:readonly NodeId[]) {
   const layers:PointLayer[]=[];
-  queryPoint(document,point,tolerance,selection,false,layers);
+  queryPoint(document,point,tolerance,selection,false,layers,undefined,true);
   return {layers};
 }

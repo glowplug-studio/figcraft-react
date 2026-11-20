@@ -96,6 +96,7 @@ import { parseColourProfile } from "./colour-spaces";
 import { setDocumentProfile } from "./document-profile";
 import { inspectedId, parseBoolean, parseNodeId, parseNumber, parseString } from "./parameters";
 import { arrangeSpecs, executeArrange } from "./arrange";
+import { layerFlagSpecs, toggleLayerFlag, type LayerFlagCommand } from "./layer-flags";
 import { anchors, sizingSpecs, executeSizing } from "./sizing";
 import { executeRotation, localOrigin, movedOrigin, originBoxPoints, originSpecs, rotationSpecs, sameIds, snappedOrigin, validateChangedGeometry, type OriginSnapshot, type RotationOrigin } from "./rotation";
 import type { Point } from "./geometry";
@@ -153,6 +154,7 @@ export const commandSpecs = Object.freeze({
   ...fillSpecs,
   "paint.documentColors": {label:"Document colours",undo:false},
   ...arrangeSpecs,
+  ...layerFlagSpecs,
   ...sizingSpecs,
   "layout.setTrack": {label: "Set grid track size", undo: true},
   ...rotationSpecs,
@@ -1729,6 +1731,12 @@ export class EditorEngine {
       if (removed && this.#preview?.id === removed) this.exitVersionPreview();
       this.#publish({});
       return result;
+    }
+    if (Object.hasOwn(layerFlagSpecs, command)) {
+      const before = this.#snapshot, next = toggleLayerFlag(command as LayerFlagCommand, before.document, before.selection, p);
+      if (next.document !== before.document) this.#commitEdit({ document: next.document, selection: next.selection });
+      else if (next.selection !== before.selection) this.#publish({ selection: next.selection });
+      return next.result;
     }
     if (command === "object.setThumbnail") {
       const before = this.#snapshot, id = Array.isArray(p.ids) ? parseNodeId(p.ids[0]) : parseNodeId(p.id) ?? before.selection[0];

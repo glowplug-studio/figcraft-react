@@ -3396,6 +3396,35 @@ test("Paste over selection puts the copy just above the selected layer, at its p
   await expect(rows).toHaveText(["C", "B", "A"]);
 });
 
+test("a locked layer is skipped by clicks and arrows, listed by Select layer with a padlock, and unlocked from the keyboard", async ({ page }) => {
+  await login(page);
+  await createNamedRectangle(page, "Lower", 100, 100, 100, 100);
+  await createNamedRectangle(page, "Upper", 120, 120, 100, 100);
+  const canvas = page.getByLabel("Design canvas", { exact: true }), layers = page.getByRole("region", { name: "Layers" });
+  const row = (name: string) => layers.getByRole("button", { name, exact: true }).locator("..");
+  await resetCanvasOrigin(page);
+  // Lock/Unlock from the keyboard locks the selected layer and clears the selection (upstream #1560).
+  await layers.getByRole("button", { name: "Upper", exact: true }).click();
+  await canvas.focus(); await page.keyboard.press("ControlOrMeta+Shift+l");
+  await expect(row("Upper")).not.toHaveAttribute("aria-current", "true");
+  // A click where both overlap passes through the locked layer.
+  const both = await canvasPoint(page, 150, 150);
+  await page.mouse.click(both.x, both.y); await expect(row("Lower")).toHaveAttribute("aria-current", "true");
+  // Select layer lists the locked layer with a padlock, says so, and picks it.
+  await page.mouse.click(both.x, both.y, { button: "right" });
+  const menu = page.getByRole("group", { name: "Canvas actions", exact: true });
+  await menu.getByText("Select layer", { exact: true }).click();
+  const listed = menu.getByRole("group", { name: "Layers at point" }).getByRole("button");
+  await expect(listed).toHaveText(["Upper", "Lower"]);
+  await expect(listed.nth(0)).toHaveAttribute("aria-description", "locked"); await expect(listed.nth(0).locator("svg")).toHaveCount(1);
+  await expect(listed.nth(1)).not.toHaveAttribute("aria-description", "locked");
+  await listed.nth(0).click(); await expect(row("Upper")).toHaveAttribute("aria-current", "true");
+  await geometry(page, [120, 120, 100, 100]);
+  // The arrow keys leave a locked layer where it is; after unlocking they move it.
+  await canvas.focus(); await page.keyboard.press("ArrowRight"); await geometry(page, [120, 120, 100, 100]);
+  await page.keyboard.press("ControlOrMeta+Shift+l"); await page.keyboard.press("ArrowRight"); await geometry(page, [121, 120, 100, 100]);
+});
+
 test("rotated frame child uses parent-space nudges and page-space numeric movement", async ({ page }) => {
   await login(page);
   const creation = page.getByRole("group", { name: "Create layer", exact: true });
@@ -6404,9 +6433,10 @@ test("mask actions, mixed types, hit testing, native downloads and recovery in t
   await page.mouse.click(p.x,p.y); await expect(layer("Backing").locator("..")).toHaveAttribute("aria-current","true");
   await page.mouse.click(p.x,p.y,{button:"right"});
   const menu=page.getByRole("group",{name:"Canvas actions",exact:true});
-  await menu.getByText("Select layer",{exact:true}).click();
-  await expect(menu.getByRole("group",{name:"Layers at point"}).getByRole("button")).toHaveText(["Backing"]);
-  await menu.getByRole("button",{name:"Backing",exact:true}).click();
+  // Only the backing is under the pointer outside the mask, and Select layer needs more than one layer (upstream 6cb015d4).
+  await expect(menu.getByRole("button",{name:"Paste here",exact:true})).toBeVisible();
+  await expect(menu.getByText("Select layer",{exact:true})).toHaveCount(0);
+  await page.keyboard.press("Escape");
   const covered=await canvasPoint(page,150,150);
   await page.mouse.click(covered.x,covered.y,{button:"right"});
   await menu.getByText("Select layer",{exact:true}).click();

@@ -1,4 +1,5 @@
 import { flowingParent, nudgeFlow } from "./layout-navigation";
+import { lockedIn } from "./canvas-selection";
 import { inverse, multiply, transformBounds, type Affine } from "./affine";
 import { isLeaf, layerTransform, withLayerTransform, type Document, type NodeId } from "./document";
 import { HierarchyDraft, rootIds, worldTransform, zSorted } from "./hierarchy";
@@ -72,8 +73,11 @@ export function executeArrange(command: string, document: Document, selection: r
     const dx = command === "transform.moveTo" ? number("x", box.x) - box.x : number("dx", 0) * k;
     const dy = command === "transform.moveTo" ? number("y", box.y) - box.y : number("dy", 0) * k;
     if (command === "transform.nudge") {
-      for (const id of ids) if (!flowingParent(document,id)) moveWorld(draft,id,dx,dy,true);
-      nudgeFlow(draft,ids,dx,dy);
+      // A locked layer, or one in a locked layer, ignores the arrow keys.
+      const free = ids.filter(id => !lockedIn(document, id));
+      if (!free.length) return document;
+      for (const id of free) if (!flowingParent(document,id)) moveWorld(draft,id,dx,dy,true);
+      nudgeFlow(draft,free,dx,dy);
     } else for (const id of ids) moveWorld(draft,id,dx,dy);
   } else if (command.startsWith("align.")) {
     if (!canAlign(document, ids)) return document;
