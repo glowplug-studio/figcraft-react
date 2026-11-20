@@ -10,6 +10,13 @@ This project must remain an independent implementation. Product code, builds and
 
 This is a public open-source project. Committed files must not contain personal usernames, absolute development-machine paths, private service identifiers, tokens, credentials, private workspace names or assumptions unique to one contributor's environment. Use repository-relative paths, documented environment variables and public placeholders.
 
+## Scope of the current port run
+
+- **Skip plugins and widgets.** The user deferred the Figcraft plugin and widget system on 9 November 2026 and confirmed on 20 November 2026 that the current run skips it. This covers installation, permissions, plugin panels, the plugin runtime and widgets. Do not plan, implement, test or gate on any of it, and do not treat its absence as a parity gap or a publication blocker.
+- Keep what the deferral must not lose: upstream inventory entries for plugins and widgets, and opaque plugin data stored in documents, which the port carries through open and save unchanged.
+- An upstream change that only touches plugins or widgets is recorded as deferred and left alone. A change that also affects another feature is ported for that feature only.
+- Resume this family only when the user says so.
+
 ## Target platform
 
 This is a browser-based React port of a native desktop application, not a port of its desktop host shell. Preserve editing behaviour, document compatibility, meaningful application workflows and browser-relevant UI parity.
