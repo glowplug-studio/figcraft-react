@@ -1809,7 +1809,7 @@ export class EditorEngine {
       const before = this.#snapshot;
       const document = command === "layout.setTrack" ? setGridTrack(before.document, before.selection, p) : Object.hasOwn(rotationSpecs, command)
         ? executeRotation(command, before.document, before.selection, p, movedOrigin(before.document, before.selection, this.#origin), this.#vectorEdit)
-        : (Object.hasOwn(sizingSpecs, command) ? executeSizing : executeArrange)(command, before.document, before.selection, p);
+        : Object.hasOwn(sizingSpecs, command) ? executeSizing(command, before.document, before.selection, p) : executeArrange(command, before.document, before.selection, p, this.#view.snapPixel);
       if (document !== before.document) {
         this.#commitEdit({ document });
       }

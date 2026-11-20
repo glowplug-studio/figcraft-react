@@ -1,6 +1,7 @@
 import type { FormEvent } from "react";
 import { arrangeSpecs, canAlign } from "./engine/arrange";
 import type { Document, NodeId } from "./engine/document";
+import { canTidy } from "./engine/tidy";
 
 const alignments = ["align.left", "align.hcenter", "align.right", "align.top", "align.vcenter", "align.bottom"] as const;
 const stacking = ["arrange.front", "arrange.forward", "arrange.backward", "arrange.back"] as const;
@@ -9,6 +10,8 @@ export function ArrangePanel({ document, selection, editable, dispatch }: {
   document: Document; selection: readonly NodeId[]; editable: boolean; dispatch: (command: string, params?: unknown) => void;
 }) {
   const enabled = editable && selection.length > 0, align = enabled && canAlign(document, selection);
+  // Offered for three or more layers that form a row, a column or a grid, none in an auto layout flow.
+  const tidy = enabled && canTidy(document, selection);
   function move(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
@@ -33,7 +36,7 @@ export function ArrangePanel({ document, selection, editable, dispatch }: {
       <button type="submit" value="distribute.vertical">Distribute vertically</button>
       <button type="submit" value="arrange.packH">Pack horizontally</button>
       <button type="submit" value="arrange.packV">Pack vertically</button>
-      <button type="submit" value="arrange.tidy">Tidy up</button>
+      <button type="submit" value="arrange.tidy" disabled={!tidy}>Tidy up</button>
     </fieldset></form>
   </details>;
 }

@@ -3,6 +3,7 @@ import { inverse, multiply, transformBounds, type Affine } from "./affine";
 import { isLeaf, layerTransform, withLayerTransform, type Document, type NodeId } from "./document";
 import { HierarchyDraft, rootIds, worldTransform, zSorted } from "./hierarchy";
 import { parseBoolean, parseNodeId, parseNumber } from "./parameters";
+import { tidyMoves } from "./tidy";
 import { boundsOf } from "./viewport";
 
 export const arrangeSpecs = Object.freeze({
@@ -59,7 +60,7 @@ export function canAlign(document: Document, selection: readonly NodeId[]): bool
   return Boolean(node?.parent && document.nodes[node.parent]?.kind !== "page");
 }
 
-export function executeArrange(command: string, document: Document, selection: readonly NodeId[], params: Record<string, unknown>): Document {
+export function executeArrange(command: string, document: Document, selection: readonly NodeId[], params: Record<string, unknown>, snapPixel = true): Document {
   if (!Object.hasOwn(arrangeSpecs, command)) throw new Error(`Unsupported arrangement: ${command}`);
   const allowed = ["id", "ids", ...(command === "transform.move" ? ["dx", "dy"] : command === "transform.moveTo" ? ["x", "y"] : command === "transform.nudge" ? ["dx", "dy", "big"] : command.startsWith("distribute.") || command === "arrange.tidy" ? ["spacing"] : [])];
   for (const key of Object.keys(params)) if (!allowed.includes(key)) throw new Error(`Unsupported ${command} parameter: ${key}`);
@@ -98,23 +99,14 @@ export function executeArrange(command: string, document: Document, selection: r
       at += (horizontal ? box.width : box.height) + gap;
     }
   } else if (command === "arrange.tidy") {
-    if (ids.length < 2) return document;
-    const items = ids.map(id => ({ id, box: boundsOf(document, [id])! })).sort((a, b) => a.box.y - b.box.y);
-    const rows: (typeof items)[] = [];
-    for (const item of items) {
-      const row = rows.at(-1), middle = item.box.y + item.box.height / 2;
-      if (row?.some(({ box }) => middle > box.y && middle < box.y + box.height)) row.push(item);
-      else rows.push([item]);
-    }
-    const origin = boundsOf(document, ids)!;
-    const maxWidth = items.reduce((max, { box }) => Math.max(max, box.width), 0), maxHeight = items.reduce((max, { box }) => Math.max(max, box.height), 0);
-    const gap = optionalNumber(params.spacing) ?? Math.max(10, ...rows.filter(row => row.length > 1).map(row => {
-      const left = Math.min(...row.map(({ box }) => box.x)), right = Math.max(...row.map(({ box }) => box.x + box.width));
-      return (right - left - row.reduce((sum, { box }) => sum + box.width, 0)) / (row.length - 1);
-    }));
-    for (const [y, row] of rows.entries()) for (const [x, { id, box }] of row.sort((a, b) => a.box.x - b.box.x).entries()) {
-      moveWorld(draft, id, origin.x + x * (maxWidth + gap) - box.x, origin.y + y * (maxHeight + gap) - box.y);
-    }
+    // Native `tidy`: even the gaps of a row, a column or a grid, keeping the order and sizes (see `tidy.ts`).
+    // Nothing moves, and no undo step is added, when it is unavailable.
+    const spacing = optionalNumber(params.spacing);
+    if (spacing !== undefined && Math.abs(spacing) > 1_000_000) throw new Error("Spacing out of range");
+    const moves = tidyMoves(document, ids, spacing, snapPixel);
+    if (!moves.length) return document;
+    if (moves.some(m => !Number.isFinite(m.dx) || !Number.isFinite(m.dy))) throw new Error("Non-finite result");
+    for (const { id, dx, dy } of moves) moveWorld(draft, id, dx, dy);
   } else {
     const ordered = zSorted(document, ids), selected = new Set(ordered), parents = new Set(ordered.map(id => document.nodes[id].parent!));
     for (const parentId of parents) {

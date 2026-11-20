@@ -3347,6 +3347,36 @@ test("arrangement controls align, distribute, nudge and stack with native recove
   await page.screenshot({ path: "test-results/arrangement-mobile.png", fullPage: true });
 });
 
+test("Tidy up evens a row's gaps, keeps order, sizes and Y, and is offered only for a row, column or grid", async ({ page }) => {
+  await login(page);
+  // The row of crates/engine/src/tidy_tests.rs (upstream cfd6bf52): gaps 30, 40 and 30 become 30 each.
+  await createNamedRectangle(page, "A", 0, 0, 50, 30);
+  await createNamedRectangle(page, "B", 80, 10, 70, 50);
+  await createNamedRectangle(page, "C", 190, -5, 40, 40);
+  await createNamedRectangle(page, "D", 260, 8, 60, 20);
+  const canvas = page.getByLabel("Design canvas", { exact: true }), layers = page.getByRole("region", { name: "Layers" });
+  await page.getByText("Arrange", { exact: true }).click();
+  const arrange = page.locator(".figcraft-arrange"), tidy = arrange.getByRole("button", { name: "Tidy up", exact: true });
+  // One layer, then two: not offered.
+  await expect(tidy).toBeDisabled();
+  await layers.getByRole("button", { name: "A", exact: true }).click();
+  await layers.getByRole("button", { name: "B", exact: true }).click({ modifiers: ["Shift"] });
+  await expect(tidy).toBeDisabled();
+  await canvas.focus(); await page.keyboard.press("ControlOrMeta+a");
+  await expect(tidy).toBeEnabled(); await tidy.click();
+  await layers.getByRole("button", { name: "A", exact: true }).click(); await geometry(page, [0, 0, 50, 30]);
+  await layers.getByRole("button", { name: "B", exact: true }).click(); await geometry(page, [80, 10, 70, 50]);
+  await layers.getByRole("button", { name: "C", exact: true }).click(); await geometry(page, [180, -5, 40, 40]);
+  await layers.getByRole("button", { name: "D", exact: true }).click(); await geometry(page, [250, 8, 60, 20]);
+  await canvas.focus(); await page.keyboard.press("ControlOrMeta+z");
+  await layers.getByRole("button", { name: "D", exact: true }).click(); await geometry(page, [260, 8, 60, 20]);
+  await layers.getByRole("button", { name: "C", exact: true }).click(); await geometry(page, [190, -5, 40, 40]);
+  // Already even after a second run: nothing moves and nothing is added to undo.
+  await canvas.focus(); await page.keyboard.press("ControlOrMeta+a"); await tidy.click(); await tidy.click();
+  await canvas.focus(); await page.keyboard.press("ControlOrMeta+z");
+  await layers.getByRole("button", { name: "D", exact: true }).click(); await geometry(page, [260, 8, 60, 20]);
+});
+
 test("rotated frame child uses parent-space nudges and page-space numeric movement", async ({ page }) => {
   await login(page);
   const creation = page.getByRole("group", { name: "Create layer", exact: true });

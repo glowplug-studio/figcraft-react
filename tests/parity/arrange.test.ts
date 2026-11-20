@@ -84,12 +84,15 @@ describe("native movement and arrangement", () => {
     expect(box(engine, b)[axis === "horizontal" ? "x" : "y"]).toBe(20);
   });
 
-  it("tidies overlapping-centre rows using largest dimensions and inferred or explicit gap", () => {
+  it("leaves two in a row and one below alone: Tidy up takes a row, a column or a full grid", () => {
+    // Upstream cfd6bf52 replaced the grid of largest sizes this case used to expect. The same layout observed in
+    // native is unavailable, with or without a spacing (native-tidy-up.json, "two in a row and one below…").
     const engine = new EditorEngine(), a = rectangle(engine, 0, 0, 20, 20), b = rectangle(engine, 40, 4, 30, 10), c = rectangle(engine, 5, 100, 10, 40);
+    const before = engine.getSnapshot();
     engine.execute("arrange.tidy", { ids: [c, b, a] });
-    expect([a, b, c].map(id => [box(engine, id).x, box(engine, id).y])).toEqual([[0, 0], [50, 0], [0, 60]]);
-    engine.execute("edit.undo"); engine.execute("arrange.tidy", { ids: [c, b, a], spacing: "5px" });
-    expect([a, b, c].map(id => [box(engine, id).x, box(engine, id).y])).toEqual([[0, 0], [35, 0], [0, 45]]);
+    expect(engine.getSnapshot()).toBe(before);
+    engine.execute("arrange.tidy", { ids: [c, b, a], spacing: "5px" });
+    expect([a, b, c].map(id => [box(engine, id).x, box(engine, id).y])).toEqual([[0, 0], [40, 4], [5, 100]]);
   });
 
   it.each([
