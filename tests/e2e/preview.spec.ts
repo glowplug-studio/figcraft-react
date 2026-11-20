@@ -12,7 +12,7 @@ import { EditorEngine } from "../../src/engine/editor";
 import { freezeNetwork } from "../../src/engine/vector-network";
 import { transformPoint } from "../../src/engine/affine";
 import { worldTransform } from "../../src/engine/hierarchy";
-import { starPoints } from "../../src/engine/polygon";
+import { polygonPoints, starPoints } from "../../src/engine/polygon";
 import { strFromU8, strToU8, unzipSync, zipSync } from "fflate";
 
 test.describe.configure({ mode: "serial" });
@@ -4049,6 +4049,28 @@ async function createPointShape(page: Page, kind: "polygon" | "star", name: stri
   await creation.getByRole("button", { name: `Create ${kind}`, exact: true }).click();
   await page.getByLabel("Name", { exact: true }).fill(name); await page.getByRole("button", { name: "Apply layer", exact: true }).click();
 }
+
+test("the Count handle of a polygon and a star sets the point count from the pointer's angle", async ({ page }) => {
+  await login(page); await createPointShape(page, "polygon", "Count polygon");
+  const count = page.getByLabel("Point count", { exact: true });
+  // The handle is on the first point clockwise from the top (upstream 89d8b50e); the shape's centre is (300, 300).
+  const handle = async (points: number, star = false) => { const p = star ? starPoints(200, 200, points, .38)[2] : polygonPoints(200, 200, points)[1]; return canvasPoint(page, 200 + p.x, 200 + p.y); };
+  const towards = async (degrees: number, radius = 80) => { const a = degrees * Math.PI / 180; return canvasPoint(page, 300 + radius * Math.sin(a), 300 - radius * Math.cos(a)); };
+  const drag = async (from: { x: number; y: number }, to: { x: number; y: number }) => { await page.mouse.move(from.x, from.y); await page.mouse.down(); await page.mouse.move(to.x, to.y, { steps: 6 }); await page.mouse.up(); };
+  const start = Number(await count.inputValue());
+  // A quarter turn from the top is four points, an eighth is eight; the distance from the centre does not matter.
+  await drag(await handle(start), await towards(90)); await expect(count).toHaveValue("4");
+  await drag(await handle(4), await towards(45, 30)); await expect(count).toHaveValue("8");
+  // On the centre there is no direction: the most points.
+  await drag(await handle(8), await canvasPoint(page, 300, 300)); await expect(count).toHaveValue("60");
+  // One drag is one undo step.
+  await page.getByRole("button", { name: "Undo", exact: true }).click(); await expect(count).toHaveValue("8");
+  await createPointShape(page, "star", "Count star", 500);
+  const star = starPoints(200, 200, 5, .38)[2], from = await canvasPoint(page, 500 + star.x, 200 + star.y);
+  const a = 60 * Math.PI / 180, to = await canvasPoint(page, 600 + 80 * Math.sin(a), 300 - 80 * Math.cos(a));
+  await drag(from, to); await expect(count).toHaveValue("6");
+  await expect(page.getByLabel("Star ratio", { exact: true })).toHaveValue("38");
+});
 
 test("Star ratio and Polygon radius handles preview, cancel and undo without React frame updates", async ({ page }) => {
   await login(page); await createPointShape(page, "star", "Star handles");

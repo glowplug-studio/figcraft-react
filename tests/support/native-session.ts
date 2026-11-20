@@ -2,16 +2,26 @@ import { expect } from "vitest";
 import { EditorEngine } from "../../src/engine/editor";
 import { MoveInteraction, type MoveModifiers } from "../../src/engine/move-interaction";
 import { TransformInteraction } from "../../src/engine/transform-interaction";
+import { CornerInteraction, cornerHandles, cornerValue, type CornerHandle } from "../../src/engine/corner-handles";
+import type { LayerNode } from "../../src/engine/document";
 
 /** One step of a sequence recorded by the native `session` oracle: a command, or a pointer, key or query step. */
 export type SessionStep = readonly [string, Record<string, unknown>];
 export interface SessionCase { readonly name: string; readonly steps: readonly SessionStep[]; readonly receipts: readonly unknown[] }
 
+/** Native names a shape handle `{kind: "radius", corner}`, `{kind: "ratio"}` or `{kind: "count"}`. */
+const nativeHandle = (index: CornerHandle) => typeof index === "number" ? { kind: "radius", corner: index } : { kind: index };
+const nine = (value: number) => Math.round(value * 1e9) / 1e9 + 0;
+const shapeHandles = (engine: EditorEngine) => cornerHandles(engine.getRenderDocument(), engine.getRenderSelection(), engine.getView().zoom)
+  .map(h => ({ handle: nativeHandle(h.index), at: [nine(h.point.x), nine(h.point.y)] }));
+const rounded = (value: unknown): unknown => typeof value === "number" ? nine(value) : Array.isArray(value) ? value.map(rounded)
+  : value && typeof value === "object" ? Object.fromEntries(Object.entries(value).map(([k, v]) => [k, rounded(v)])) : value;
 const modifiers = (p: Record<string, unknown>): MoveModifiers => ({ shiftKey: p.shift === true, altKey: p.alt === true, ctrlKey: p.ctrl === true, metaKey: p.cmd === true });
 
 /** Replays a recorded native session against the port and compares what each step gave. Commands compare receipts
- * where `compare` names them; `@selection`, `@handle` and `@undoDepth` compare the port's own state. */
-export function replaySession(c: SessionCase, compare: (command: string) => boolean = command => command === "node.get"): EditorEngine {
+ * where `compare` names them (`nineDecimals`: numbers to nine decimals, for values a drag computes); `@selection`,
+ * `@handle`, `@undoDepth`, `@shapeHandles` and `@dragHandle` compare the port's own state. */
+export function replaySession(c: SessionCase, compare: (command: string) => boolean = command => command === "node.get", nineDecimals = false): EditorEngine {
   const engine = new EditorEngine(), fail = (message: string) => { throw new Error(message); };
   const move = new MoveInteraction(engine, fail);
   let depth: { native: number; document: unknown } | undefined;
@@ -29,11 +39,24 @@ export function replaySession(c: SessionCase, compare: (command: string) => bool
       const native = (expected as number[])[0], document = engine.getSnapshot().document;
       if (depth) expect(document === depth.document, `${why}: undo steps since the last reading`).toBe(native === depth.native);
       depth = { native, document };
+    } else if (name === "@shapeHandles") expect(shapeHandles(engine), why).toEqual(rounded(expected));
+    else if (name === "@dragHandle") {
+      // Press on the named shape handle where the port shows it, move, read what the readout would show, release.
+      const want = JSON.stringify(params.corner === undefined ? { kind: params.kind } : { kind: params.kind, corner: params.corner });
+      const held = shapeHandles(engine).find(h => JSON.stringify(h.handle) === want);
+      if (!held) throw new Error(`${why}: the port shows no such shape handle`);
+      const corner = new CornerInteraction(engine, fail), [x, y] = params.to as number[], id = engine.getSnapshot().selection[0];
+      expect(corner.down({ x: held.at[0], y: held.at[1] }), `${why}: the press lands on the handle`).toBe(true);
+      corner.move({ x, y }, params.alt === true);
+      const node = engine.getRenderDocument().nodes[id] as LayerNode, index = params.kind === "radius" ? Number(params.corner) : params.kind as CornerHandle;
+      const hint = { handle: JSON.parse(want), value: cornerValue(node, index), at: shapeHandles(engine).find(h => JSON.stringify(h.handle) === want)?.at };
+      corner.up();
+      expect({ from: held.at, hint }, why).toEqual(rounded(expected));
     } else if (name.startsWith("@")) throw new Error(`The port harness has no step ${name}`);
     else if (expected && typeof expected === "object" && "error" in expected) expect(() => engine.execute(name, params), why).toThrow();
     else {
       const actual = engine.execute(name, params);
-      if (compare(name)) expect(actual, why).toEqual(expected);
+      if (compare(name)) expect(nineDecimals ? rounded(actual) : actual, why).toEqual(nineDecimals ? rounded(expected) : expected);
     }
   });
   return engine;

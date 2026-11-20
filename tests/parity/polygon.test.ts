@@ -136,11 +136,12 @@ describe("native Polygon/Star command, file and hierarchy contracts", () => {
 describe("native Polygon/Star shape handles and drawing", () => {
   it("places the native Star ratio handle on its first inner vertex and projects the ratio", () => {
     const { id, doc } = fixture(); const handles = cornerHandles(doc(), [id], 1), expected = starPoints(200, 200, 5, .38)[1];
-    expect(handles.map(h => h.index)).toEqual([0, "ratio"]); expect(handles[1].point).toEqual(expected);
+    // Upstream 89d8b50e: the Count handle follows the radius and ratio handles (tests/fixtures/native-count-handle.json).
+    expect(handles.map(h => h.index)).toEqual([0, "ratio", "count"]); expect(handles[1].point).toEqual(expected);
     expect(cornerDrag(doc(), id, "ratio", starPoints(200, 200, 5, .5)[1], false)?.innerRadius).toBeCloseTo(.5);
     expect(cornerDrag(doc(), id, "ratio", { x: 100, y: 100 }, false)).toEqual({ innerRadius: .001 });
     expect(cornerDrag(doc(), id, 0, { x: 100, y: 30 }, true)?.cornerRadius).toBeGreaterThan(0);
-    const p = fixture("polygon"); expect(cornerHandles(p.doc(), [p.id], 1).map(h => h.index)).toEqual([0]);
+    const p = fixture("polygon"); expect(cornerHandles(p.doc(), [p.id], 1).map(h => h.index)).toEqual([0, "count"]);
   });
   it("uses transformed coordinates, hides small/locked handles and guards invalid pointers", () => {
     const { e, id, doc } = fixture(); e.execute("node.set", { props: { rotation: 30 } }); e.execute("object.flipH");

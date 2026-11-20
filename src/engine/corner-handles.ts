@@ -10,7 +10,25 @@ import { pageToScreen } from "./viewport";
 import { frameCorners, handleAt } from "./transform-handles";
 import { selectionFrame } from "./rotation";
 
-export type CornerHandle = number | "ratio";
+export type CornerHandle = number | "ratio" | "count";
+/** The fewest and most points the Count handle sets. Source: engine/canvas/shape_handles.rs. */
+const COUNT_MIN = 3, COUNT_MAX = 60;
+/** Native `count_point`: a polygon's vertex 1 or a star's outer point 1, the first clockwise from the top. */
+function countPoint(n: LayerNode): Point | undefined {
+  return n.kind === "polygon" ? polygonPoints(n.width, n.height, n.count)[1] : n.kind === "star" ? starPoints(n.width, n.height, n.count, n.innerRatio)[2] : undefined;
+}
+/** Native `count_at`: the count a pointer at local point `q` sets: round(360 / angle) for its clockwise angle from
+ * the top about the centre, on the unit circle the shape's box maps from. On the centre there is no direction, which
+ * reads as no angle: the most points. */
+function countAt(n: LayerNode, q: Point): number | undefined {
+  const rx = n.width / 2, ry = n.height / 2;
+  if (!(rx > 0) || !(ry > 0)) return undefined;
+  const x = q.x / rx - 1, y = q.y / ry - 1;
+  if (Math.hypot(x, y) < 1e-9) return COUNT_MAX;
+  const turn = Math.PI * 2, angle = ((Math.atan2(x, -y) % turn) + turn) % turn * 180 / Math.PI;
+  const count = Math.round(360 / Math.max(angle, 1e-9));
+  return Number.isFinite(count) ? Math.max(COUNT_MIN, Math.min(COUNT_MAX, count)) : undefined;
+}
 function corners(n: LayerNode) {
   const radii = n.corners?.radii ?? zeroCorners.radii;
   if (n.kind === "polygon" || n.kind === "star") {
@@ -36,6 +54,9 @@ export function cornerHandles(document: Document, ids: readonly NodeId[], zoom: 
     return { index, point: transformPoint(t, { x: c.at.x + c.into.x * distance, y: c.at.y + c.into.y * distance }) };
   });
   if (n.kind === "star") result.push({ index: "ratio", point: transformPoint(t, starPoints(n.width, n.height, n.count, n.innerRatio)[1]) });
+  // The Count handle sits on the point itself, not inset (upstream 89d8b50e).
+  const count = countPoint(n);
+  if (count) result.push({ index: "count", point: transformPoint(t, count) });
   return result;
 }
 export function cornerDrag(document: Document, id: NodeId, index: CornerHandle, point: Point, alt: boolean): Record<string, number> | undefined {
@@ -48,6 +69,11 @@ export function cornerDrag(document: Document, id: NodeId, index: CornerHandle, 
     const ratio = ((q.x / rx - 1) * ray.x + (q.y / ry - 1) * ray.y) / Math.max(1e-12, ray.x * ray.x + ray.y * ray.y);
     return Number.isFinite(ratio) ? { innerRadius: Math.max(.001, Math.min(1, ratio)) } : undefined;
   }
+  if (index === "count") {
+    if (!countPoint(n)) return;
+    const count = countAt(n, q);
+    return count === undefined ? undefined : { pointCount: count };
+  }
   const c = corners(n)[index]; if (!c) return;
   const independent = n.kind === "rectangle" || isFrameLike(n);
   const dx = index === 0 || index === 3 ? q.x : n.width - q.x, dy = index < 2 ? q.y : n.height - q.y;
@@ -57,6 +83,7 @@ export function cornerDrag(document: Document, id: NodeId, index: CornerHandle, 
 }
 export function cornerValue(node: LayerNode, index: CornerHandle): number | undefined {
   if (index === "ratio") return node.kind === "star" ? Math.round(node.innerRatio * 1000) / 10 : undefined;
+  if (index === "count") return node.kind === "polygon" || node.kind === "star" ? node.count : undefined;
   const c = corners(node)[index]; return c ? Math.round(Math.max(0, Math.min(c.max, c.radius)) * 10) / 10 : undefined;
 }
 /** Radius previews use node.set semantics, one history transaction and no root React updates. */
@@ -100,7 +127,7 @@ export class CornerInteraction {
       if (h.index === this.#gesture?.index) {
         const node = document.nodes[this.#gesture.id]; if (node.kind === "page") continue;
         const value = cornerValue(node, h.index); if (value === undefined) continue;
-        const label = h.index === "ratio" ? `Ratio ${value}%` : `Radius ${value}`; context.font = "600 11px sans-serif"; context.fillStyle = "#00875f"; context.beginPath(); context.roundRect(p.x + 12, p.y + 12, context.measureText(label).width + 8, 18, 3); context.fill(); context.fillStyle = "white"; context.textBaseline = "top"; context.fillText(label, p.x + 16, p.y + 14);
+        const label = h.index === "ratio" ? `Ratio ${value}%` : h.index === "count" ? `Count ${value}` : `Radius ${value}`; context.font = "600 11px sans-serif"; context.fillStyle = "#00875f"; context.beginPath(); context.roundRect(p.x + 12, p.y + 12, context.measureText(label).width + 8, 18, 3); context.fill(); context.fillStyle = "white"; context.textBaseline = "top"; context.fillText(label, p.x + 16, p.y + 14);
       }
     }
     context.restore();
