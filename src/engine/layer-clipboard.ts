@@ -125,7 +125,11 @@ export function pasteLayers(command: PasteCommand, doc: Document, selection: rea
     const first = selection[0], target = command === "edit.pasteOver"
       ? { parent: doc.nodes[first]?.parent ?? doc.currentPage, at: first ? boundsOf(doc, [first]) : undefined }
       : placement(doc, selection, clip, local, view, params);
-    const added = pasteInto(doc, target.parent, target.at, clip, local, nextId);
+    // Paste over a selection puts the copies just above the selected layer, in the copied order: in the Layers
+    // panel the row above it, in an auto layout frame the item after it.
+    const siblings = command === "edit.pasteOver" && first ? doc.nodes[target.parent] : undefined;
+    const above = siblings && "children" in siblings ? siblings.children.indexOf(first) + 1 : 0;
+    const added = pasteInto(doc, target.parent, target.at, clip, local, nextId, above > 0 ? above : undefined);
     document = added.document; nextId = added.nextId; ids.push(...added.ids);
   }
   return { document, nextId, selection: Object.freeze(ids), result: { ids: ids.map(inspectedId) } };

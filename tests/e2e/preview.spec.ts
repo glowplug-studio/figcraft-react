@@ -3377,6 +3377,25 @@ test("Tidy up evens a row's gaps, keeps order, sizes and Y, and is offered only 
   await layers.getByRole("button", { name: "D", exact: true }).click(); await geometry(page, [260, 8, 60, 20]);
 });
 
+test("Paste over selection puts the copy just above the selected layer, at its position", async ({ page }) => {
+  await login(page);
+  await createNamedRectangle(page, "A", 10, 10, 10, 10);
+  await createNamedRectangle(page, "B", 30, 10, 10, 10);
+  await createNamedRectangle(page, "C", 50, 10, 20, 30);
+  const canvas = page.getByLabel("Design canvas", { exact: true }), layers = page.getByRole("region", { name: "Layers" });
+  const rows = layers.locator('li[data-layer-id] > button:not([aria-label])');
+  await expect(rows).toHaveText(["C", "B", "A"]);
+  await layers.getByRole("button", { name: "C", exact: true }).click();
+  await canvas.focus(); await page.keyboard.press("ControlOrMeta+c");
+  await layers.getByRole("button", { name: "A", exact: true }).click();
+  await canvas.focus(); await page.keyboard.press("ControlOrMeta+Shift+v");
+  // Upstream c74bcd0b: the row above the selected layer, not the top of the list.
+  await expect(rows).toHaveText(["C", "B", "C", "A"]);
+  await geometry(page, [10, 10, 20, 30]);
+  await page.keyboard.press("ControlOrMeta+z");
+  await expect(rows).toHaveText(["C", "B", "A"]);
+});
+
 test("rotated frame child uses parent-space nudges and page-space numeric movement", async ({ page }) => {
   await login(page);
   const creation = page.getByRole("group", { name: "Create layer", exact: true });
