@@ -39,12 +39,14 @@ describe("corner commands, serialisation and hits", () => {
   it.each([[5, [5, 5, 5, 5]], [[2], [2, 2, 2, 2]], [[2, 4], [2, 4, 2, 4]], [[-1, 3, 4, 5], [0, 3, 4, 5]]])("expands native radius input %j", (value, result) => {
     expect(setCorners(zeroCorners, { cornerRadius: value }).radii).toEqual(result);
   });
-  it("sorts mixed keys and resets invalid smoothing while refusing malformed radii atomically", () => {
+  it("sorts mixed keys and refuses invalid smoothing and malformed radii atomically", () => {
     const { e, node } = fixture();
     e.execute("node.set", { props: { topLeftRadius: "12px", bottomLeftRadius: 99, cornerRadius: [5, 6], cornerSmoothing: .6 } });
     expect(node().corners).toEqual(corners([12, 6, 5, 6], .6));
     const before = e.getSnapshot(); expect(() => e.execute("node.set", { props: { name: "Bad", cornerRadius: [1, 2, 3] } })).toThrow(); expect(e.getSnapshot()).toBe(before);
-    e.execute("node.set", { props: { cornerSmoothing: {} } }); expect(node().corners?.smoothing).toBe(0);
+    // Upstream 04a6c76a (#2303): a smoothing that is not a number is refused; it used to reset to 0
+    // (tests/fixtures/native-command-refusals.json).
+    expect(() => e.execute("node.set", { props: { cornerSmoothing: { a: 1 } } })).toThrow(/cornerSmoothing must be a number/); expect(node().corners?.smoothing).toBe(.6);
   });
   it("retains stored radii during resize, scales them with Scale, and round-trips native files", async () => {
     const { e, node } = fixture(); e.execute("node.set", { props: { cornerRadius: [10, 20, 1000, 40], cornerSmoothing: .6 } });

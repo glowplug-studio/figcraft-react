@@ -110,11 +110,7 @@ export function editImagePreset(command: string, document: Document, selection: 
   if (p.filters != null) filters = withValues(readImageFilters({}), p.filters);
   else {
     const stroke = editsStrokes(p);
-    let index: number | undefined;
-    try {
-      const n = parseNumber(p.index);
-      if (n >= 0) index = Math.trunc(n);
-    } catch { /* Native preset capture treats an unparsable optional index as absent. */ }
+    const index = p.index == null ? undefined : parseIndex(p.index);
     for (const id of targets(selection, p, false)) {
       const node = document.nodes[id];
       if (!node || node.kind === "page") continue;

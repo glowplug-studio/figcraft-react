@@ -123,10 +123,7 @@ export function setStrokeProperties(node: DocumentNode, props: Record<string, un
         break;
       }
       case "miterAngle": stroke.miterLimit = miterLimitFor(parseNumber(value, key)); break;
-      case "miterLimit": {
-        let limit = 4; try { limit = parseNumber(value, key); } catch { /* Native malformed limit fallback. */ }
-        stroke.miterLimit = clamp(limit, 1, 100); break;
-      }
+      case "miterLimit": stroke.miterLimit = clamp(parseNumber(value, key), 1, 100); break;
       case "dashes": {
         if (value !== null && !Array.isArray(value)) throw new Error("dashes must be an array");
         stroke.dashes = Object.freeze(((value ?? []) as unknown[]).map(item => {

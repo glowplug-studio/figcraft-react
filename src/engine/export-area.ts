@@ -11,10 +11,11 @@ export type ExportSize = { by: "scale" | "width" | "height"; value: number };
 export function exportSize(input: unknown): ExportSize {
   let by: unknown = "scale", value: unknown = input;
   if (typeof input === "string") {
-    const match = /^@*([+\-]?(?:\d+(?:\.\d*)?|\.\d+)(?:e[+\-]?\d+)?)\s*([xwh]?)$/i.exec(input.trim());
-    value = match ? Number(match[1]) : 0;
-    const unit = match?.[2].toLowerCase();
-    by = unit === "w" ? "width" : unit === "h" ? "height" : "scale";
+    // doc/src/props.rs ExportSize::parse: a plain decimal only, with no sign, exponent, "inf" or "nan".
+    const text = input.trim().replace(/^@+/, "").replace(/[A-Z]/g, c => c.toLowerCase()), last = text.at(-1) ?? "";
+    const unit = /[a-z]/.test(last) ? last : "", digits = unit ? text.slice(0, -1).trim() : text;
+    value = /^(?:\d+\.?\d*|\.\d+)$/.test(digits) ? Number(digits) : 0;
+    by = unit === "w" ? "width" : unit === "h" ? "height" : unit === "x" || unit === "" ? "scale" : undefined;
   } else if (input && typeof input === "object" && !Array.isArray(input)) {
     ({ by, value } = input as Record<string, unknown>);
   }
@@ -23,6 +24,30 @@ export function exportSize(input: unknown): ExportSize {
     throw new Error("size: 2x, 512w or 512h (or {by: scale|width|height, value})");
   }
   return { by, value };
+}
+
+/** automation/params.rs::shown: the offending value, cut to forty characters. */
+function shown(value: unknown) {
+  const text = [...(JSON.stringify(value) ?? "null")];
+  return text.length > 40 ? text.slice(0, 40).join("") + "…" : text.join("");
+}
+/**
+ * cmd/file/export.rs::export_targets. Layers named by `ids` or `id` are checked as other commands check them, so
+ * a value that is not a layer is refused. Before, it was dropped and the whole page exported in its place. With
+ * no layer named the caller keeps its own default.
+ */
+export function checkExportTargets(doc: Document, p: Record<string, unknown>): void {
+  const ids = p.ids, single = p.id ?? undefined;
+  if (Array.isArray(ids)) {
+    if (!ids.length && single === undefined) return;
+    const bad = ids.findIndex(value => parseNodeId(value) === undefined);
+    if (bad >= 0) throw new Error(`ids: every entry must be a node id (got ${shown(ids[bad])})`);
+  } else if (ids != null) throw new Error(`ids must be an array (got ${shown(ids)})`);
+  else if (single === undefined) return;
+  else if (parseNodeId(single) === undefined) throw new Error(`id must be a node id (got ${shown(single)})`);
+  const named = (Array.isArray(ids) ? ids : [single]).map(value => parseNodeId(value)!);
+  if (!named.length) throw new Error("nothing is selected (pass ids)");
+  for (const id of named) if (!doc.nodes[id]) throw new Error(`no such node ${id}`);
 }
 
 function flag(p: Record<string, unknown>, key: string, fallback: boolean) {

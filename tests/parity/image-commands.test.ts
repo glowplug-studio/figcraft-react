@@ -41,7 +41,11 @@ describe("native image commands", () => {
 
   it("captures a selected paint, allows exact saved overrides, normalises names and restores deleted presets", async () => {
     const engine = new EditorEngine(), id = layer(engine,"a");
-    const warm = engine.execute("image.savePreset",{name:"  wa\u0000rm  ",ids:["bogus",id],index:1.5});
+    // Upstream 386c6c1d: a fractional or negative index is refused; it used to be cut to a whole number or
+    // ignored (tests/fixtures/native-command-refusals.json).
+    expect(() => engine.execute("image.savePreset",{name:"warm",ids:[id],index:1.5})).toThrow(/index out of range/);
+    expect(() => engine.execute("image.savePreset",{name:"warm",ids:[id],index:-1})).toThrow(/index out of range/);
+    const warm = engine.execute("image.savePreset",{name:"  wa\u0000rm  ",ids:["bogus",id],index:1});
     expect(warm).toMatchObject({name:"warm",filters:{contrast:.75}});
     const longName = "🖼".repeat(101);
     const long = engine.execute("image.savePreset",{name:longName,filters:{contrast:2}});

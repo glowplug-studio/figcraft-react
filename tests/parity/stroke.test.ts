@@ -54,7 +54,10 @@ describe("native uniform stroke contracts (doc/props.rs and cmd/props.rs)", () =
     expect(out.stroke).toMatchObject({ weight: 0, capStart: "triangleArrow", capEnd: "triangleArrow", miterLimit: 12, dashes: [3, 0, 5] });
     expect(expectSolid(out.strokes?.[0]).color.b).toBe(1); expect(expectSolid(out.strokes?.[0]).color.r).toBe(0); expect(rect.stroke).toBeUndefined();
     expect(setStrokeProperties(rect, { name: "ignored" })).toBe(rect);
-    expect(setStrokeProperties(out, { stroke: "NONE", dashes: null, dashCap: null, miterLimit: "invalid" })).toMatchObject({ strokes: [], stroke: { dashes: [], dashCap: null, miterLimit: 4 } });
+    expect(setStrokeProperties(out, { stroke: "NONE", dashes: null, dashCap: null })).toMatchObject({ strokes: [], stroke: { dashes: [], dashCap: null, miterLimit: 12 } });
+    // Upstream 04a6c76a (#2303): a limit that is not a number is refused; it used to fall back to 4
+    // (tests/fixtures/native-command-refusals.json).
+    expect(() => setStrokeProperties(out, { miterLimit: "abc" })).toThrow(/miterLimit must be a number/);
   });
   it("rejects invalid command values atomically, including booleans in dash arrays", () => {
     for (const props of [{ stroke: " none " }, { strokeWeight: NaN }, { dashes: [2, true] }, { dashCap: "triangleArrow" }, { miterAngle: "invalid" }]) {

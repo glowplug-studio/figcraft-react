@@ -76,5 +76,7 @@ it("keeps native filesystem recents empty for browser byte opens and downloads",
   expect(workspace.execute("file.openRecent")).toEqual({ files: [] });
   expect(workspace.execute("file.openRecent", { clear: true })).toEqual({ files: [] });
   expect(() => workspace.execute("file.openRecent", { index: 0 })).toThrow(/no such recent file/i);
+  // Upstream 0ff3a368, 82da8f51: native refuses a negative or fractional index. The browser keeps no recent files, so every index is refused.
+  for (const index of [-1, 1.5, "x"]) expect(() => workspace.execute("file.openRecent", { index })).toThrow(/no such recent file/i);
   expect(() => workspace.execute("file.revert")).toThrow(/never saved/i);
 });

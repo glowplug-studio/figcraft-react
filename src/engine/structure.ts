@@ -288,7 +288,7 @@ export function executeStructure(command: string, document: Document, selection:
     const parentId = parseNodeId(params.parent), parent = parentId === undefined ? undefined : draft.nodes[parentId];
     if (!parent || isLeaf(parent)) throw new Error("A container parent is required");
     const ids = zSorted(document, rootIds(document, targets));
-    const index = params.index === undefined ? undefined : Math.max(0, Math.trunc(parseNumber(params.index, "index")));
+    const index = params.index == null ? undefined : parseIndex(params.index);
     const above = index === undefined ? undefined : parent.children.filter(id => !ids.includes(id))[index];
     for (const id of ids) {
       const current = draft.nodes[parent.id];

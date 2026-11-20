@@ -3444,6 +3444,24 @@ test("the Rotation field shows and sets a layer's rotation on the page", async (
   await layers.getByRole("button", { name: "One", exact: true }).click(); await expect(rotation).toHaveValue("10");
 });
 
+test("the Export size field refuses a signed or exponent size and keeps the setting", async ({ page }) => {
+  await login(page);
+  await createNamedRectangle(page, "Chip", 10, 10, 16, 12);
+  const panel = page.getByRole("group", { name: "Layer export", exact: true });
+  await panel.getByRole("button", { name: "Add export setting" }).click();
+  const size = panel.getByLabel("Export size", { exact: true });
+  await expect(size).toHaveValue("1x");
+  // A size is a plain decimal with an optional unit (upstream 6222fce8): a sign or an exponent is refused.
+  for (const refused of ["+2x", "2e0x", "-1x"]) {
+    await size.fill(refused); await size.press("Enter");
+    await expect(page.getByRole("alert").filter({ hasText: "size: 2x, 512w or 512h" })).toBeVisible();
+    await expect(size).toHaveValue("1x");
+  }
+  await size.fill("@2x"); await size.press("Enter"); await expect(size).toHaveValue("2x");
+  await expect(page.getByRole("alert").filter({ hasText: "size: 2x, 512w or 512h" })).toHaveCount(0);
+  await size.fill("512w"); await size.press("Enter"); await expect(size).toHaveValue("512w");
+});
+
 test("rotated frame child uses parent-space nudges and page-space numeric movement", async ({ page }) => {
   await login(page);
   const creation = page.getByRole("group", { name: "Create layer", exact: true });

@@ -35,6 +35,7 @@ import { editVariableMetadata, metadataSpecs } from "./variable-metadata";
 import { editVariableValue, valueSpecs } from "./variable-values";
 import { collectionSpecs, editCollection } from "./variable-collections";
 import { emptyVariables, type Variables } from "./variables";
+import { checkExportTargets } from "./export-area";
 import { editExportSettings, exportSpecs } from "./export-settings";
 import { editLayoutGuides, gridSpecs } from "./layout-guides";
 import { editStyleLinks } from "./style-application";
@@ -2206,15 +2207,17 @@ export class EditorEngine {
       return result;
     }
     if (command === "file.exportLayers") {
-      const opening = this.#openSequence;
-      const { output, files, skipped } = await this.prepareLayerExports(parameters(input), false);
+      const opening = this.#openSequence, params = parameters(input);
+      checkExportTargets(this.#snapshot.document, params);
+      const { output, files, skipped } = await this.prepareLayerExports(params, false);
       const data = output ? base64Bytes(new Uint8Array(await output.arrayBuffer())) : undefined;
       this.#assertExportAccess(opening);
       return { files, skipped, ...(data !== undefined && { data }) };
     }
     if (command === "file.export" || command === "file.exportSvg" || command === "file.exportFramesPdf") {
       const opening = this.#openSequence, params = parameters(input);
-      const frames = command === "file.exportFramesPdf";
+      const frames = command === "file.exportFramesPdf", whole = parseString(params.format)?.toLowerCase().replace(/^\.+/, "");
+      if (command === "file.export" && whole !== "fig" && whole !== "penpot") checkExportTargets(this.#snapshot.document, params);
       const graphic = await this.exportGraphic(frames ? {...params,format:"pdf"} : command === "file.exportSvg" ? {...params,format:"svg"} : params, frames);
       const bytes = await graphic.blob.arrayBuffer();
       this.#assertExportAccess(opening);

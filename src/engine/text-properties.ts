@@ -161,7 +161,7 @@ function applyProperty(t: TextData, key: string, value: unknown, start: number, 
     case "textAutoResize": return {...t, autoResize:propertyEnum(value, ["widthAndHeight", "height", "none", "truncate"] as const)};
     case "wrapStyle": case "textWrap": return {...t, wrapStyle:propertyEnum(value, ["auto", "balance", "pretty"] as const)};
     case "leadingTrim": return {...t, leadingTrim:propertyEnum(value, ["none", "capHeight"] as const)};
-    case "paragraphSpacing": case "paragraphIndent": return {...t, [key]:Math.max(0, optionalNumber(value, 0))};
+    case "paragraphSpacing": case "paragraphIndent": return {...t, [key]:Math.max(0, parseNumber(value, key))};
     case "listSpacing": return {...t, listSpacing:clamp(optionalNumber(value, 0), 0, 10000)};
     case "maxLines": return {...t, maxLines:Math.trunc(clamp(optionalNumber(value, 0), 0, 10000))};
     case "hangingPunctuation": case "hangingList": return {...t, [key]:textBool(value, key)};

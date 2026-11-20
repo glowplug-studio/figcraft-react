@@ -12,7 +12,7 @@ export function setCorners(current: Corners, props: Record<string, unknown>): Co
   for (const key of Object.keys(props).filter(isCornerKey).sort()) {
     const value = props[key];
     if (key === "cornerSmoothing") {
-      try { smoothing = Math.max(0, Math.min(1, parseNumber(value))); } catch { smoothing = 0; }
+      smoothing = Math.max(0, Math.min(1, parseNumber(value, key)));
     } else if (key === "cornerRadius") {
       const values = (Array.isArray(value) ? value : [value]).map(v => Math.max(0, parseNumber(v, key)));
       if (values.length === 1) radii = Array(4).fill(values[0]);
