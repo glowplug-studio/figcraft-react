@@ -1,0 +1,49 @@
+# Upstream delta row 2: selection and canvas behaviour
+
+## Execution checkpoint
+
+- Phase: row planned on 20 November 2026; no item started. Each item is opened with its own dated plan at Phase 1.
+- Native reference: `bad07e4433240cad046589129c084bd2fc36f097` (`bad07e44`). React revision: `f5114ec` on `prompt/full-figcraft-port`.
+- Source queue: row 2 of the [upstream delta queue](26-11-15-upstream-delta.md), range `7bf098d7..bad07e44`, with its commits taken from the [commit ledger](26-11-20-upstream-delta-ledger.md).
+- Files in progress: none.
+- Native oracle: `$HOME/.cache/figcraft-oracle/project` with warm Cargo caches and eight executables; `replay` runs command sequences and `hits` and `pencil` show how to drive `Session::pointer`. Pointer and keyboard items need a new executable over `Session::pointer` and `Session::key` that records the selection and view after each event.
+- Next action: item 1, Tidy up. Write its dated plan. Read `crates/engine/src/selection/tidy.rs` and `cmd/arrange.rs` at the pin and the whole upstream range for both, restate `crates/engine/src/tidy_tests.rs` as failing fixtures against `src/engine/arrange.ts`, and observe the same layouts through `replay` (`shape.rectangle`, `arrange.tidy` or its native name, `node.get`).
+- Blockers: none. Oracle builds are CPU-heavy; do not run them during a browser gate.
+
+## Why the order
+
+Items that commands reach come first: they are observed through the existing `replay` executable and compared receipt for receipt. Pointer and keyboard items follow and share one new oracle executable. Interface-only items, which restate native panel tests without an oracle, come last.
+
+## Items in order
+
+Each item is a separate bounded slice with its own failing fixture, verification and record. Native evidence is under `original/figcraft/crates/`. The React owner is where the search found the behaviour; "none found" means the port has no counterpart yet.
+
+| Order | Ledger | Upstream change | Native evidence | React owner to confirm | Status |
+|---|---|---|---|---|---|
+| 1 | 2.5 | Tidy up keeps the order and sizes and evens the gaps; rounds the gap; tidies overlapping rows and grids along their longer axis; takes a row whose layers overlap in a chain and raises a negative gap (`cfd6bf52`, `d3f7ae90`, `a7a9e627`, `1a68ded5`) | `engine/src/selection/tidy.rs`, `engine/src/cmd/arrange.rs`; `engine/src/tidy_tests.rs`, `ui-egui/src/tidy_tests.rs` | `src/engine/arrange.ts`, `src/ArrangePanel.tsx` | Next |
+| 2 | 2.7 | Paste over a selection puts the copies just above the selected layer; paste lands in place, at the view's centre or in a selected frame's centre; a programmatic paste after a property copy pastes no stale layers (`c74bcd0b`, `476daeab`, `ebd463fa`, `0ad70b95`) | `engine/src/cmd/edit/clipboard.rs`; `engine/src/design_paste_tests.rs`, `engine/src/tests.rs` | Layer clipboard commands | Not started |
+| 3 | 2.2 | Locked layers: no nudge, a locked parent's children stay locked, Select layer lists locked layers and picks them (`24cf7032`, `6cb015d4`, `39e3496f`) | `doc/src/geometry.rs`, `engine/src/cmd/edit/select.rs`, `ui-egui/src/menus/select_layer.rs`; `engine/src/lock_behaviour_tests.rs`, `ui-egui/src/context_menu_tests.rs` | Hit testing and selection; context menu | Not started |
+| 4 | 2.15 | The Rotation field shows and sets the rotation on the page: `node.set absoluteRotation`, turning a selected parent before its child (`d0379dc7`, `cc367717`, `7e748d4a`) | `engine/src/cmd/props.rs`; `engine/src/transform_behaviour_tests.rs`, `engine/src/rotation_origin_tests.rs`, `ui-egui/src/field_tests.rs` | None found for `absoluteRotation` | Not started |
+| 5 | 2.19 | Commands refuse negative, fractional and invalid indices and ids, non-numeric `miterLimit`, `cornerSmoothing` and paragraph properties, and signs and exponents in export sizes (`04a6c76a`, `0ff3a368`, `82da8f51`, `10d97e27`, `6222fce8`, `db1bec08`, `386c6c1d`) | `engine/src/cmd/props.rs`, `engine/src/cmd/file/export.rs`; `engine/src/menu_gaps_tests.rs`, `engine/src/panels_behaviour_tests.rs`, `engine/src/shapes_behaviour_tests.rs` | `src/engine/parameters.ts` and each command's parsing | Not started |
+| 6 | 2.1 | Copy, cut and paste in vector edit mode act on the selected points and segments; lone points are refused (`0fec344f`, `87ce9612`, `ad701088`) | `engine/src/cmd/edit/vector_clipboard.rs`; `engine/src/cmd/edit/vector_clipboard_tests.rs`, `ui-egui/src/vector_keys_tests.rs` | None found | Not started |
+| 7 | 2.3 | Marquee selection follows the measured rules; a drag from inside a frame takes it whole when it takes another top-level frame (`cb526214`, `604c7846`) | `doc/src/geometry.rs`, `engine/src/canvas/tools/pointer.rs`; `engine/src/marquee_behaviour_tests.rs`, `engine/src/select_area_tests.rs`, `engine/src/selection_depth_tests.rs` | `src/engine/canvas-selection.ts`, `move-interaction.ts` | Not started |
+| 8 | 2.4 | Polygons and stars get a Count handle on the canvas; a pointer on the shape's centre gives the most points (`89d8b50e`, `d773ab29`) | `engine/src/canvas/shape_handles.rs`; `engine/src/shape_handles_tests.rs` | `src/engine/corner-handles.ts` has corner and ratio handles only | Not started |
+| 9 | 2.13 | Smart guides snap within 4.5 screen pixels (`a1980463`, `ebe0a8c2`) | `engine/src/canvas/snap.rs`; `engine/src/transform_behaviour_tests.rs`, `engine/src/measure_tests.rs` | Snapping threshold | Not started |
+| 10 | 2.14 | Shift while rotating lands on multiples of 15 degrees, also on the page rotation inside a rotated frame (`a1ac22f1`, `da81d55a`) | `engine/src/canvas/tools/handles.rs`, `drag.rs`; `engine/src/transform_behaviour_tests.rs` | `src/engine/transform-interaction.ts` | Not started |
+| 11 | 2.16 | Scale tool: K focuses the field, a drag pivots on the opposite handle, the origin starts at the centre (`f0d39197`, `92145e6f`, `68564374`, `197a390a`, `7a8d422d`) | `ui-egui/src/panels/scale_panel.rs`, `engine/src/canvas/tools/handles.rs`; `engine/src/scale_tool_tests.rs`, `ui-egui/src/field_tests.rs` | `src/ScalePanel.tsx` | Not started |
+| 12 | 2.8 | Escape clears the selection instead of stepping out to the parent (`a285fd29`, `92cf9849`) | `engine/src/canvas/tools/keys.rs`; `engine/src/selection_behaviour_tests.rs` | Canvas key handling | Not started |
+| 13 | 2.9 | The arrow keys pan 64 px, 320 with Shift (`75f54e0a`, `d036eb2f`, `9f51517f`) | `engine/src/cmd/view.rs`; `ui-egui/src/shortcut_keys_tests.rs` | `src/engine/viewport.ts`, `src/Editor.tsx` `view.pan` | Not started |
+| 14 | 2.10 | Zoom to selection leaves a 40 pt margin and clears the bottom toolbar (`fceb6063`, `5d529269`, `53bf0a40`) | `engine/src/view_state.rs`, `engine/src/cmd/view.rs`; `engine/src/view_behaviour_tests.rs` | `src/engine/viewport.ts`, `src/ViewControls.tsx` | Not started |
+| 15 | 2.11 | Preferences: Invert zoom direction reverses wheel zoom (`6fce958a`, `1ef0c16f`) | `ui-egui/src/canvas/input.rs`, `engine/src/prefs.rs`; `ui-egui/src/canvas/wheel_zoom_tests.rs` | None found | Not started |
+| 16 | 2.12 | A double-click on a layer's icon zooms to it, keeps the selection when a modifier is held and becomes the range anchor (`9a29a3cb`, `cf80dc1a`, `6785be8a`) | `ui-egui/src/panels/layers.rs`; `ui-egui/src/layers_behaviour_tests.rs` | `src/LayerList.tsx` | Not started |
+| 17 | 2.6 | Tab while renaming moves only the rename and wraps from the last layer (`2408d0aa`) | `ui-egui/src/panels/layers.rs`; `ui-egui/src/layers_rename_tests.rs` | `src/LayerList.tsx` | Not started |
+| 18 | 2.17 | The sidebars' width limits are 240 to 450 on the left and 240 to 500 on the right (`ad7a886e`, `1b7ce679`) | `ui-egui/src/state.rs`; `ui-egui/src/panel_width_tests.rs` | Host layout | Not started |
+| 19 | 2.18 | A submenu opens as soon as its row is hovered (`35ac3a92`, `c4302902`) | `ui-egui/src/menus/tree.rs`; `ui-egui/src/menu_aim_tests.rs` | Menus | Not started |
+
+## Evidence each item needs
+
+- A failing fixture first, restating the native tests the commits added or changed.
+- A native observation at the pin where commands, pointer events or keys reach the behaviour, with provenance beside the fixture. Where only the native panel shows it, the native test is restated and labelled source-derived.
+- A browser case for anything a user sees on the canvas or in a panel.
+- The full gate per item: pure suite, strict types, both builds, cumulative Chromium in one run, provider integrations once, twelve fixture counts at zero.
+- Records per item: plan, report, property matrix, provenance, mapping, this table and the ledger's status.
