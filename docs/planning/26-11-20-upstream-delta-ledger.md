@@ -5,7 +5,7 @@
 - Phase: planning record, written 20 November 2026 at React `f5114ec` on `prompt/full-figcraft-port`.
 - Native range: `7bf098d75d187416633d9ebcceb9eb83fbb10df8` → `bad07e4433240cad046589129c084bd2fc36f097`, 254 commits excluding merges.
 - Purpose: the [delta queue](26-11-15-upstream-delta.md) groups this range into eight rows by theme. Row 1 turned out to hold a change that no row named (point positions in vector edit mode). This ledger assigns every commit to an item, so that nothing in the range is left to be found by accident.
-- Status: 28 items verified, 35 open (four of them, 2.6, 2.12, 2.17 and 2.18, wait for the interface of roadmap row 19), the rest outside the browser port or without product behaviour.
+- Status: 29 items verified, 34 open (four of them, 2.6, 2.12, 2.17 and 2.18, wait for the interface of roadmap row 19), the rest outside the browser port or without product behaviour.
 - Next action: work the open items in order, each as its own bounded slice under its row's plan. Row 2 is closed apart from the four items waiting for row 19 ([row 2 plan](26-11-20-delta-row-2-selection-canvas.md)); row 3 is planned in [the row 3 plan](26-11-21-delta-row-3-files-text-paint.md).
 - Blockers: none.
 
@@ -46,7 +46,7 @@ Items marked as outside the browser port are not dismissed: the final audit revi
 | 2.17 | Sidebars' width limits (left 240 to 450, right 240 to 500) | Open; waits for roadmap row 19 ([deferred queue](26-11-07-full-port-resume.md#deferred-tests-and-reviews)) | `ad7a886e`, `1b7ce679` |
 | 2.18 | A submenu opens as soon as its row is hovered | Open; waits for roadmap row 19 ([deferred queue](26-11-07-full-port-resume.md#deferred-tests-and-reviews)) | `35ac3a92`, `c4302902` |
 | 2.19 | Command parameter refusals: negative, fractional and invalid indices and ids, non-numeric miterLimit, cornerSmoothing and paragraph props, signs and exponents in export sizes | Verified at 02cfbe5 | `04a6c76a`, `0ff3a368`, `82da8f51`, `10d97e27`, `6222fce8`, `db1bec08`, `386c6c1d` |
-| 3.1 | .fig export writes text on a path with exact curves (#2323) | Open | `88b63d1e`, `a243f0b8`, `193c3a35` |
+| 3.1 | .fig export writes text on a path with exact curves (#2323) | Verified at 5e0f123 | `88b63d1e`, `a243f0b8`, `193c3a35` |
 | 3.2 | Lists: .fig export of list spacing, hanging punctuation, lists and vertical trim; a numbered list's start on import; Enter and typed-number starts (#2305, #2273) | Open | `a4e33077`, `bb480bdf`, `4e9b414c`, `b190e675`, `7c3f9ce7`, `b8f05d19` |
 | 3.3 | .fig export writes image adjustments (#2297) | Verified at 616b51c | `b54df860`, `501df234` |
 | 3.4 | .fig export writes vector region paints (#2302) | Verified at 048e1cb | `f1e92749`, `98f94626` |
