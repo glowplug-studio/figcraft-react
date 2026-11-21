@@ -8,7 +8,7 @@ import { transformPoint } from "./affine";
 import { selectionFrame } from "./rotation";
 import { anchorPoint, frameCorners, handleAt, handleCursor, type ScaleAnchor } from "./transform-handles";
 import { resizeStart, type ResizeStart } from "./transform-preview";
-import { PointSnapCache, distanceLabel, type Guide } from "./snapping";
+import { OBJECT_SNAP_PX, PointSnapCache, distanceLabel, type Guide } from "./snapping";
 import { drawGuides } from "./measurements";
 import { pageToScreen } from "./viewport";
 import type { MoveModifiers } from "./move-interaction";
@@ -76,7 +76,7 @@ export class TransformInteraction {
       this.#guides = [];
       if (this.engine.getView().snapObjects !== false && !command) {
         // Native resize gathers against the current preview: refitted parent bounds may change.
-        const snapped = g.targets.get(this.engine.getRenderDocument()).snapPoint(point, 5 / this.engine.getView().zoom); point = snapped.point; this.#guides = snapped.guides;
+        const snapped = g.targets.get(this.engine.getRenderDocument()).snapPoint(point, OBJECT_SNAP_PX / this.engine.getView().zoom); point = snapped.point; this.#guides = snapped.guides;
       }
       this.#hint = this.engine.previewResize(g.resize, point, modifiers.shiftKey, modifiers.altKey, command, g.scale);
       g.moved = true;

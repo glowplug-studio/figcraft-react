@@ -51,13 +51,14 @@ for (const kind of ["rectangle", "ellipse", "polygon", "star", "arrow", "line"])
 
 it("tests the capture radius after rounding the pointer", () => {
   const e = new EditorEngine(), draw = new DrawInteraction(e, fail);
-  e.execute("shape.rectangle", { x: 100.25, y: 100, width: 10, height: 10 });
+  e.execute("shape.rectangle", { x: 100.75, y: 100, width: 10, height: 10 });
   e.execute("tool.rectangle"); draw.down(point(20, 20));
-  const end = point(95.3, 50.4);
+  const end = point(96.3, 50.4);
   draw.move(end, none);
-  // 95.3 lies within 5px of 100.25, but the rounded point (95) lies outside.
-  expect(boundsOf(e.getRenderDocument(), e.getRenderSelection())).toMatchObject({ width: 75, height: 30 });
+  // 96.3 lies within the 4.5px object snap distance of 100.75 (upstream a1980463; it was 5px), but the rounded
+  // point (96) lies outside.
+  expect(boundsOf(e.getRenderDocument(), e.getRenderSelection())).toMatchObject({ width: 76, height: 30 });
   draw.cancel(); e.execute("view.snapPixel", { on: false }); draw.down(point(20, 20)); draw.move(end, none);
-  expect(boundsOf(e.getRenderDocument(), e.getRenderSelection())).toMatchObject({ width: 80.25, height: 30.4 });
+  expect(boundsOf(e.getRenderDocument(), e.getRenderSelection())).toMatchObject({ width: 80.75, height: 30.4 });
   draw.cancel();
 });

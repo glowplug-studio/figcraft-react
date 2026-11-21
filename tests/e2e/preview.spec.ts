@@ -3834,6 +3834,22 @@ test("canvas drops enter and leave Frames while preserving world geometry", asyn
   await page.getByRole("button", { name: "Undo", exact: true }).click(); await expect(children.getByRole("button", { name: "Traveller", exact: true })).toBeVisible();
 });
 
+test("a moved layer snaps to a neighbour's edge at four screen pixels and not at five", async ({ page }) => {
+  await login(page); await createNamedRectangle(page, "Still", 200, 200, 100, 100); await createNamedRectangle(page, "Moved", 400, 400, 60, 40);
+  const zoom = await page.getByLabel("Design canvas", { exact: true }).evaluate((node: HTMLCanvasElement) => Number(node.dataset.viewZoom));
+  expect(zoom, "the case measures screen pixels at 100%").toBe(1);
+  const drag = async (from: [number, number], to: [number, number]) => {
+    const a = await canvasPoint(page, ...from), b = await canvasPoint(page, ...to);
+    await page.mouse.move(a.x, a.y); await page.mouse.down(); await page.mouse.move(b.x, b.y, { steps: 6 }); await page.mouse.up();
+  };
+  // Its left edge ends 5 pixels from the neighbour's right edge at 300: outside the 4.5 pixel snap distance
+  // (upstream a1980463; the distance was 5).
+  await drag([430, 420], [335, 420]); await geometry(page, [305, 400, 60, 40]);
+  // From the start again, one pixel nearer: it snaps.
+  await page.getByRole("button", { name: "Undo", exact: true }).click(); await geometry(page, [400, 400, 60, 40]);
+  await drag([430, 420], [334, 420]); await geometry(page, [300, 400, 60, 40]);
+});
+
 test("Alt-drag snaps equal gaps to its source and draws native measurement guides", async ({ page }) => {
   await login(page); await createNamedRectangle(page, "Gap A", 200, 200, 100, 100); await createNamedRectangle(page, "Gap B", 400, 200, 100, 100);
   const start = await canvasPoint(page, 450, 250), end = await canvasPoint(page, 648, 252);

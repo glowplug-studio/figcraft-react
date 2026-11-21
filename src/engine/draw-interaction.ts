@@ -2,7 +2,7 @@ import { isDrawTool, type DrawShapeKind } from "./document";
 import type { EditorEngine } from "./editor";
 import { drawnLine, drawnRectangle, pixelRound, type Point } from "./geometry";
 import { frameAt } from "./canvas-selection";
-import { SnapTargets, type Guide } from "./snapping";
+import { OBJECT_SNAP_PX, SnapTargets, type Guide } from "./snapping";
 import { drawGuides } from "./measurements";
 import type { MoveModifiers } from "./move-interaction";
 
@@ -27,7 +27,7 @@ export class DrawInteraction {
       const start = pixel ? { x: pixelRound(g.start.x), y: pixelRound(g.start.y) } : g.start;
       if (pixel) point = { x: pixelRound(point.x), y: pixelRound(point.y) };
       this.#guides = [];
-      if (view.snapObjects !== false && !modifiers.ctrlKey && !modifiers.metaKey) { const snap = g.targets.snapPoint(point, 5 / view.zoom); point = snap.point; this.#guides = snap.guides; }
+      if (view.snapObjects !== false && !modifiers.ctrlKey && !modifiers.metaKey) { const snap = g.targets.snapPoint(point, OBJECT_SNAP_PX / view.zoom); point = snap.point; this.#guides = snap.guides; }
       const draw = g.kind === "line" || g.kind === "arrow" ? drawnLine : drawnRectangle;
       this.engine.previewDraw(g.kind, draw(start, point, modifiers.shiftKey, modifiers.altKey, false), g.parent); g.moved = true;
     } catch (error) { this.#fail(error); }

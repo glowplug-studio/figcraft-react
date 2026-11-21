@@ -11,6 +11,11 @@ type Gap = readonly [number, number, number];
 const right = (b: Rectangle) => b.x + b.width, bottom = (b: Rectangle) => b.y + b.height;
 const shifted = (b: Rectangle, d: Point): Rectangle => ({ ...b, x: b.x + d.x, y: b.y + d.y });
 const linear = (m: Affine, p: Point): Point => ({ x: m[0] * p.x + m[2] * p.y, y: m[1] * p.x + m[3] * p.y });
+/** Object snap distance in screen pixels: a move, a resize, a drawn shape and a dragged vector point snap to another
+ * layer within it, and so does equal spacing in a move. Upstream measured it in the target application, where an
+ * edge snaps at a gap of 4.4 screen pixels and not at 4.6, at 100% and at 200% zoom. Source: SNAP_PX in
+ * engine/canvas/tools/handles.rs (upstream a1980463). */
+export const OBJECT_SNAP_PX = 4.5;
 export const distanceLabel = (distance: number): string => String(pixelRound(Math.abs(distance) * 100) / 100);
 /** Point snapping ignores moving bounds. Reuse only while every target and ancestor is unchanged. */
 export class PointSnapCache {

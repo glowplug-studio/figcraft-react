@@ -8,7 +8,7 @@ import { ancestorIds, containsPoint, enterTarget, lockedIn, marqueeSelection, ma
 import { hitRectangle, targetForLeaf } from "./selection";
 import { rootIds } from "./hierarchy";
 import { boundsOf, pageToScreen } from "./viewport";
-import { SnapTargets, type Guide } from "./snapping";
+import { OBJECT_SNAP_PX, SnapTargets, type Guide } from "./snapping";
 import { drawGuides, neighbourGuides } from "./measurements";
 import { originBoxPoints } from "./rotation";
 
@@ -83,7 +83,7 @@ export class MoveInteraction {
       if (this.engine.getView().snapPixel !== false) delta = gesture.targets.roundMove(delta);
       this.#guides = [];
       if (this.engine.getView().snapObjects !== false && !(modifiers.ctrlKey || modifiers.metaKey)) {
-        const snapped = gesture.targets.snapMove(delta, 5 / this.engine.getView().zoom);
+        const snapped = gesture.targets.snapMove(delta, OBJECT_SNAP_PX / this.engine.getView().zoom);
         delta = { x: delta.x + snapped.correction.x, y: delta.y + snapped.correction.y }; this.#guides = snapped.guides;
       }
       gesture.drop = this.engine.previewMove(gesture.ids, delta, gesture.duplicate, point);

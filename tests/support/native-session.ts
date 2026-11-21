@@ -2,6 +2,8 @@ import { expect } from "vitest";
 import { EditorEngine } from "../../src/engine/editor";
 import { MoveInteraction, type MoveModifiers } from "../../src/engine/move-interaction";
 import { TransformInteraction } from "../../src/engine/transform-interaction";
+import { DrawInteraction } from "../../src/engine/draw-interaction";
+import { VectorInteraction } from "../../src/engine/vector-interaction";
 import { CornerInteraction, cornerHandles, cornerValue, type CornerHandle } from "../../src/engine/corner-handles";
 import type { LayerNode } from "../../src/engine/document";
 
@@ -30,8 +32,15 @@ export function replaySession(c: SessionCase, compare: (command: string) => bool
     const point = { x: Number(params.x), y: Number(params.y) };
     if (name === "@click") { move.down(point, modifiers(params)); move.up(point, modifiers(params)); }
     else if (name === "@drag") {
-      const [x0, y0] = params.from as number[], [x1, y1] = params.to as number[];
-      move.down({ x: x0, y: y0 }, modifiers(params)); move.move({ x: x1, y: y1 }, modifiers(params)); move.up({ x: x1, y: y1 }, modifiers(params));
+      // The press goes to the first interaction that takes it, in the order the canvas offers it: vector points,
+      // shape handles, transform handles, the draw tool, then move and marquee.
+      const [x0, y0] = params.from as number[], [x1, y1] = params.to as number[], from = { x: x0, y: y0 }, to = { x: x1, y: y1 }, keys = modifiers(params);
+      const vectors = new VectorInteraction(engine, fail), corner = new CornerInteraction(engine, fail), transform = new TransformInteraction(engine, fail), draw = new DrawInteraction(engine, fail);
+      if (vectors.down(from, keys)) { vectors.move(to, keys); vectors.up(to); }
+      else if (corner.down(from)) { corner.move(to, keys.altKey); corner.up(); }
+      else if (transform.down(from)) { transform.move(to, keys); transform.up(); }
+      else if (draw.down(from)) { draw.move(to, keys); draw.up(to); }
+      else { move.down(from, keys); move.move(to, keys); move.up(to, keys); }
     } else if (name === "@selection") expect(engine.getSnapshot().selection.map(Number), why).toEqual(expected);
     else if (name === "@handle") expect(new TransformInteraction(engine, fail).hover(point) !== undefined, why).toBe(expected);
     else if (name === "@undoDepth") {

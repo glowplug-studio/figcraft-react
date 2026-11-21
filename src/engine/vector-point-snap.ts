@@ -3,7 +3,7 @@ import { cubicPoint } from "./cubic";
 import { isLeaf, type Document, type NodeId } from "./document";
 import { pixelRound, type Point } from "./geometry";
 import { worldTransform } from "./hierarchy";
-import { SnapTargets, type Guide } from "./snapping";
+import { OBJECT_SNAP_PX, SnapTargets, type Guide } from "./snapping";
 import { vectorNetwork, type VectorEditPart } from "./vector-edit";
 import { networkCubic } from "./vector-network";
 
@@ -109,7 +109,7 @@ export class VectorPointTargets {
     return false;
   }
   snap(points: readonly Point[], grab: Point | undefined, zoom: number, objects: boolean, pixel: boolean, lock?: boolean): { correction: Point; guides: Guide[] } {
-    const pts = points.slice(0, MAX_MOVING), threshold = 5 / Math.max(zoom, 1e-6);
+    const pts = points.slice(0, MAX_MOVING), threshold = OBJECT_SNAP_PX / Math.max(zoom, 1e-6);
     const x = objects ? this.#xs.best(pts, "x", threshold) : undefined, y = objects ? this.#ys.best(pts, "y", threshold) : undefined;
     const correction = { x: x ?? 0, y: y ?? 0 };
     if (pixel && grab && Number.isFinite(grab.x) && Number.isFinite(grab.y)) {
