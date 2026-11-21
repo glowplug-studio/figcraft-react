@@ -25,6 +25,17 @@ export interface OriginSnapshot { readonly editing: boolean; readonly moved: boo
 export const sameIds = (a: readonly NodeId[], b: readonly NodeId[]) => a.length === b.length && a.every((id, index) => id === b[index]);
 
 /** Own box for one layer, shared rotated axes for several, otherwise page bounds. */
+/** Native `shared_rotation_degrees`: the rotation `ids` share on the page (degrees, counter-clockwise positive), else
+ * 0. It is the rotation the Rotation field shows, also for a layer inside a rotated frame or group. Layers on the
+ * page's axes give 0, which is the same as 90, 180 and 270 for steps of 15 degrees; flipped layers count by their
+ * axis, not its direction. */
+export function sharedRotationDegrees(document: Document, ids: readonly NodeId[]): number {
+  const angles = ids.map(id => { const m = worldTransform(document, id); return Math.atan2(m[1], m[0]); });
+  const angle = angles[0], quarter = Math.PI / 2, eps = 1e-4;
+  if (angle === undefined || !Number.isFinite(angle) || Math.abs(angle - Math.round(angle / quarter) * quarter) < eps) return 0;
+  const same = (other: number) => { const difference = ((other - angle) % Math.PI + Math.PI) % Math.PI; return Math.min(difference, Math.PI - difference) < eps; };
+  return angles.slice(1).every(same) ? -angle * 180 / Math.PI : 0;
+}
 export function selectionFrame(document: Document, selection: readonly NodeId[]): { matrix: Affine; width: number; height: number } | undefined {
   const ids = rootIds(document, selection);
   if (!ids.length) return;

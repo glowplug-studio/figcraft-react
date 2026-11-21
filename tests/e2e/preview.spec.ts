@@ -3900,6 +3900,23 @@ test("rotation handles respect Shift steps and proportion locks survive recovery
   await expect(page.getByLabel("Constrain proportions", { exact: true })).toBeChecked(); await geometry(page, [200, 200, 200, 200]);
 });
 
+test("Shift while rotating lands on a multiple of 15 degrees from any starting rotation", async ({ page }) => {
+  await login(page); await createNamedRectangle(page, "Turned", 200, 200, 100, 100);
+  const rotation = page.getByLabel("Rotation", { exact: true });
+  await rotation.fill("7"); await page.getByRole("button", { name: "Apply geometry", exact: true }).click(); await expect(rotation).toHaveValue("7");
+  // The top-right corner of the turned square is 52 degrees above the horizontal from its centre (250, 250). A
+  // clockwise turn of 33 degrees gives -26, which Shift lands on -30 (upstream a1ac22f1); stepping the turn itself by
+  // 15 would have given -23.
+  const at = async (degrees: number, radius: number) => { const a = degrees * Math.PI / 180; return canvasPoint(page, 250 + Math.cos(a) * radius, 250 + Math.sin(a) * radius); };
+  const from = await at(-52, 50 * Math.SQRT2 + 12), to = await at(-52 + 33, 80);
+  await page.keyboard.down("Shift"); await page.mouse.move(from.x, from.y); await page.mouse.down(); await page.mouse.move(to.x, to.y, { steps: 8 }); await page.mouse.up(); await page.keyboard.up("Shift");
+  await expect.poll(async () => Number(await rotation.inputValue())).toBeCloseTo(-30, 6);
+  // Without Shift the turn is free: from -30 a further 20 degrees clockwise gives -50.
+  const again = await at(-45 + 30, 50 * Math.SQRT2 + 12), end = await at(-45 + 30 + 20, 80);
+  await page.mouse.move(again.x, again.y); await page.mouse.down(); await page.mouse.move(end.x, end.y, { steps: 8 }); await page.mouse.up();
+  await expect.poll(async () => Number(await rotation.inputValue())).toBeCloseTo(-50, 1);
+});
+
 test("Scale tool keyboard, anchors, dimension scrubs and mobile controls preserve one-step undo", async ({ page }) => {
   await login(page); await createNamedRectangle(page, "Scale me", 200, 200, 100, 50);
   const canvas = page.getByLabel("Design canvas", { exact: true }); await canvas.focus(); await page.keyboard.press("k"); await expect(page.getByRole("button", { name: "Scale", exact: true })).toHaveAttribute("aria-pressed", "true");

@@ -5,7 +5,7 @@ import { lockedIn } from "./canvas-selection";
 import type { Point } from "./geometry";
 import { pixelRound } from "./geometry";
 import { transformPoint } from "./affine";
-import { selectionFrame } from "./rotation";
+import { selectionFrame, sharedRotationDegrees } from "./rotation";
 import { anchorPoint, frameCorners, handleAt, handleCursor, type ScaleAnchor } from "./transform-handles";
 import { resizeStart, type ResizeStart } from "./transform-preview";
 import { OBJECT_SNAP_PX, PointSnapCache, distanceLabel, type Guide } from "./snapping";
@@ -13,7 +13,7 @@ import { drawGuides } from "./measurements";
 import { pageToScreen } from "./viewport";
 import type { MoveModifiers } from "./move-interaction";
 
-type Gesture = { start: Point; resize: ResizeStart; targets: PointSnapCache; scale?: ScaleAnchor; moved: boolean; pivot: Point; angle: number };
+type Gesture = { start: Point; resize: ResizeStart; targets: PointSnapCache; scale?: ScaleAnchor; moved: boolean; pivot: Point; angle: number; base: number };
 /** Native transform handles; all frame-frequency state stays in this controller. */
 export class TransformInteraction {
   #gesture?: Gesture;
@@ -56,7 +56,8 @@ export class TransformInteraction {
       const s = this.engine.getSnapshot(), resize = resizeStart(s.document, s.selection, handle); if (!resize) return false;
       const origin = this.engine.getRotationOrigin(), pivot = origin.moved && origin.point ? origin.point : transformPoint(frame.matrix, { x: frame.width / 2, y: frame.height / 2 });
       this.engine.beginInteraction();
-      this.#gesture = { start: point, resize, targets: new PointSnapCache(resize.ids), scale: s.tool === "scale" ? s.scaleAnchor : undefined, moved: false, pivot, angle: Math.atan2(point.y - pivot.y, point.x - pivot.x) };
+      this.#gesture = { start: point, resize, targets: new PointSnapCache(resize.ids), scale: s.tool === "scale" ? s.scaleAnchor : undefined, moved: false, pivot, angle: Math.atan2(point.y - pivot.y, point.x - pivot.x),
+        base: handle.kind === "rotate" ? sharedRotationDegrees(s.document, resize.ids) : 0 };
       return true;
     } catch (error) { this.#fail(error); return false; }
   }
@@ -67,7 +68,9 @@ export class TransformInteraction {
     try {
       if (g.resize.handle.kind === "rotate") {
         let angle = (Math.atan2(point.y - g.pivot.y, point.x - g.pivot.x) - g.angle) * 180 / Math.PI;
-        if (modifiers.shiftKey) angle = pixelRound(angle / 15) * 15;
+        // The rotation on the page is base - angle; Shift lands it on a multiple of 15 degrees, not on 15 degree
+        // steps from where the drag began (upstream a1ac22f1).
+        if (modifiers.shiftKey) angle = g.base - pixelRound((g.base - angle) / 15) * 15;
         this.engine.previewRotate(g.resize.ids, -angle, g.pivot); return;
       }
       if (!g.moved && Math.hypot(point.x - g.start.x, point.y - g.start.y) * this.engine.getView().zoom < 3) return;
