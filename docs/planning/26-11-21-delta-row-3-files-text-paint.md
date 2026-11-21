@@ -1,0 +1,52 @@
+# Upstream delta row 3: files, text and paint
+
+## Execution checkpoint
+
+- Phase: Phase 1 for the row, written 21 November 2026. No item is started. Item 1 is next.
+- Native reference: `bad07e4433240cad046589129c084bd2fc36f097` (`bad07e44`). React revision: `7648788` on `prompt/full-figcraft-port`.
+- Source queue: row 3 of the [upstream delta queue](26-11-15-upstream-delta.md), range `7bf098d7..bad07e44`, with its commits taken from the [commit ledger](26-11-20-upstream-delta-ledger.md).
+- Files in progress: none.
+- Native oracle: `$HOME/.cache/figcraft-oracle/project`. `replay` runs command sequences through the pinned engine, file commands included. The `.fig` items need a native export reopened natively, as [the earlier export fixtures](../../tests/parity/fig-export.test.ts) were made; whether `replay` can write and read files in a mounted scratch directory is the first thing item 1 settles.
+- Next action: open item 1, the prototype background in `.fig` export. Read the upstream range for `format/src/fig/export/layer.rs` and `proto_background_tests.rs`, restate the native tests as a failing case, record a native export and reopen, port, gate, record.
+- Blockers: none. Oracle builds are CPU-heavy; do not run them during a browser gate.
+
+## Why the order
+
+The `.fig` writer and reader items come first: each is compared by exporting a drawing, reopening it and comparing the document with native's own export and reopen. Items that engine commands reach follow and are observed through `replay`. Items that only the native panels or the renderer show come after and restate native tests. The last two have no counterpart in the port: when each is opened, decide whether the missing feature (the eyedropper, the Selection colors panel) is ported with it or the item joins the handover's deferred queue under the row that owns the feature.
+
+## Items in order
+
+Each item is a separate bounded slice with its own dated plan, failing fixture, verification and record. Native evidence is under `original/figcraft/crates/`. The React owner is where the search found the behaviour, under `src/` or `src/engine/`, and is confirmed when the item is opened.
+
+| Order | Ledger | Upstream change | Native evidence | React owner to confirm | Status |
+|---|---|---|---|---|---|
+| 1 | 3.5 | `.fig` export writes a page's prototype background (#2326; `fb9df220`) | `format/src/fig/export/layer.rs`; `format/src/fig/proto_background_tests.rs` | `interchange/fig/write-document.ts` | Next |
+| 2 | 3.3 | `.fig` export writes image adjustments (#2297; `b54df860`, `501df234`) | `format/src/fig/export/paint.rs`; `format/src/fig/image_filter_tests.rs` | `interchange/fig/export-paint.ts` | Not started |
+| 3 | 3.4 | `.fig` export writes vector region paints (#2302; `f1e92749`, `98f94626`) | `format/src/fig/export/shape.rs`; `format/src/fig/export_tests.rs`, `tail_tests.rs` | `interchange/fig/export-vector.ts` | Not started |
+| 4 | 3.8 | A vector point without a radius of its own takes the layer's on `.fig` import (#2114; `a6be897d`) | `format/src/fig/map/layer.rs`, `map.rs`; `format/src/fig/tail_tests.rs` | `interchange/fig/network.ts`, `scene.ts` | Not started |
+| 5 | 3.1 | `.fig` export writes text on a path with exact curves (#2323; `88b63d1e`, `a243f0b8`, `193c3a35`) | `format/src/fig/export/shape.rs`, `export/layer.rs`; `format/src/fig/text_path_tests.rs` | `interchange/fig/text-path.ts`, `export-text.ts` | Not started |
+| 6 | 3.2 | Lists: `.fig` export of list spacing, hanging punctuation, lists and vertical trim; a numbered list's start on import; Enter and typed-number starts (#2305, #2273; `a4e33077`, `bb480bdf`, `4e9b414c`, `b190e675`, `7c3f9ce7`, `b8f05d19`) | `doc/src/text.rs`, `engine/src/canvas/textedit.rs`, `format/src/fig/export/shape.rs`, `text/src/layout.rs`; `engine/src/text_tail_tests.rs`, `format/src/fig/text_paragraph_tests.rs`, `text_list_tests.rs`, `format/src/rest/tests.rs` | `interchange/fig/export-text.ts`, `text.ts`, `text-list-edit.ts`, `text-list-layout.ts` | Not started |
+| 7 | 3.9 | A wrap style per paragraph and in text styles, overriding the layer's (#1827, #2094; `136ca4cd`, `d14c637d`, `7e2752d5`, `071cc86b`, `654eb205`) | `doc/src/text.rs`, `engine/src/cmd/text.rs`, `cmd/props.rs`, `cmd/styles.rs`, `automation/inspect.rs`, `ui-egui/src/panels/typography.rs`; `engine/src/text_behaviour_tests.rs`, `styles_behaviour_tests.rs` | `text-data.ts`, `text-properties.ts`, `text-format-commands.ts`, `inspect-text.ts`, `TypographyPanel.tsx` | Not started |
+| 8 | 3.16 | Export: colour profile notes; export settings take back what `node.get` returns, snake_case aliases included (`297426c5`, `97f086e0`, `12ade9c7`, `016dba8c`, `3d4c798f`, `6c3ac0c5`, `3f39154a`) | `doc/src/props.rs`, `engine/src/cmd/file.rs`; `engine/src/export_behaviour_tests.rs` | `export-settings.ts`, `export-image-profile.ts`, `ExportPanel.tsx` | Not started |
+| 9 | 3.15 | A background blur or glass exported on its own keeps the content behind it (#2213; `020388cf`, `a1de7dcd`) | `render/src/lib.rs`, `engine/src/cmd/file/export.rs`; `engine/src/export_behaviour_tests.rs` | `export-layers.ts`, `export-effect-raster.ts` | Not started |
+| 10 | 3.17 | Import and export bounds: SVG export embeds each image once; SVG import budgets attributes, filter chains and layers; Penpot raw SVG allowance; render cache hash (`9032dc3e`, `64e91207`, `70ed6c16`, `4d3fe2aa`, `cf77dfda`, `2f8dd85f`, `81371f4a`) | `engine/src/cmd/file/load.rs`, `svg/src/import.rs`, `import/text.rs`, `import/fx.rs`, `svg/src/lib.rs`, `render/src/draw.rs`; `svg/src/import/hostile_tests.rs`, `fx_tests.rs`, `image_shadow_tests.rs` | `export-svg.ts`, `svg-import/`, `svg-effect-images.ts` | Not started |
+| 11 | 3.10 | A font loaded with `text.loadFont` wins over built-in and installed faces (#2092; `34c44e60`, `a375ac06`) | `text/src/fontdb.rs`; `text/src/fontdb_tests.rs` | `font-library.ts`, `editor.ts` `text.loadFont` | Not started |
+| 12 | 3.6 | Crop: chosen in the fill menu or colour picker enters crop mode and a drag crops (#2307, #2150; `bdf6ff92`, `8330ffb3`, `91a76c72`, `a54eafc0`) | `ui-egui/src/widgets/colorpicker.rs`, `canvas/handles.rs`, `canvas/input.rs`, `engine/src/error.rs`; `ui-egui/src/crop_image_tests.rs` | `image-crop-interaction.ts`, `ImagePaintControls.tsx`, `PaintPicker.tsx` | Not started |
+| 13 | 3.11 | The text caret takes the text's fill colour, with fallbacks (#2156, #2190, #2163; `2beec8b3`, `06d03a54`, `3cdc5f7e`, `6920ea63`, `e3701d85`) | `ui-egui/src/canvas/overlays.rs` and its tests | `text-caret.ts`, `canvas-text-input.ts` | Not started |
+| 14 | 3.14 | Page background: translucent pages over a themed checkerboard, the sidebar paint field (`481b6831`, `a45d932a`, `d9f52aab`, `67c232ea`) | `ui-egui/src/canvas/background.rs`, `panels/right.rs`; `ui-egui/src/field_tests.rs` | `pages.ts`, `PagePanel.tsx`, `canvas-colours.ts` | Not started |
+| 15 | 3.18 | Paint rows: a click highlights a fill, stroke or effect row; Cmd/Ctrl+C and V copy and paste it; a programmatic paste after a property copy pastes no stale layers (#1494; `375a7b8a`, `33ac1d14`, `b640fbc1`, `0ad70b95`) | `ui-egui/src/property_rows.rs`, `panels/right/paints.rs`, `effects.rs`, `menu.rs`, `menus/clipboard.rs`, `shortcuts.rs`; `ui-egui/src/property_rows_tests.rs` | `PaintActions.tsx` and the paint and effect panels | Not started |
+| 16 | 3.7 | Zoomed-out images draw from small copies that stay decoded (`c82986b2`, `503823f9`) | `render/src/images.rs`; `render/src/large_image_tests.rs` | `image-renderer.ts`, `image-resource.ts` | Not started |
+| 17 | 3.12 | The eyedropper picks a magnified image's pixel under the pointer (#2189; `30767bd2`, `0dac2311`) | `engine/src/canvas/tools/click.rs`; `engine/src/eyedropper_image_tests.rs` | None found: the search found no eyedropper in `src/` | Not started |
+| 18 | 3.13 | Selection colors shows for a layer with children from one colour (#2188, #2191; `dadd4dfc`, `21d05946`, `7e438913`, `c93d6c46`) | `ui-egui/src/panels/selection_colors.rs`; `ui-egui/src/selection_colors_tests.rs` | None found: the search found no Selection colors panel in `src/` | Not started |
+
+## Evidence each item needs
+
+- A failing fixture first, restating the native tests the commits added or changed.
+- A native observation at the pin where a file, a command, pointer events or keys reach the behaviour, with provenance beside the fixture. Where only the native panel or renderer shows it, the native test is restated and labelled source-derived.
+- A browser case for anything a user sees on the canvas or in a panel.
+- The full gate per item: pure suite, strict types, both builds, cumulative Chromium in one run, provider integrations once, twelve fixture counts at zero.
+- Records per item: plan, report, property matrix, provenance, mapping, this table and the ledger's status.
+
+## Not in this row
+
+Row 2's items 16 to 19 wait for roadmap row 19 ([row 2 plan](26-11-20-delta-row-2-selection-canvas.md)). Plugins and widgets are skipped for this run ([AGENTS.md](../../AGENTS.md)).

@@ -5,8 +5,8 @@
 - Phase: planning record, written 20 November 2026 at React `f5114ec` on `prompt/full-figcraft-port`.
 - Native range: `7bf098d75d187416633d9ebcceb9eb83fbb10df8` → `bad07e4433240cad046589129c084bd2fc36f097`, 254 commits excluding merges.
 - Purpose: the [delta queue](26-11-15-upstream-delta.md) groups this range into eight rows by theme. Row 1 turned out to hold a change that no row named (point positions in vector edit mode). This ledger assigns every commit to an item, so that nothing in the range is left to be found by accident.
-- Status: 24 items verified, 39 open, the rest outside the browser port or without product behaviour.
-- Next action: work the open items in order, each as its own bounded slice under its row's plan. Row 2 is planned in [the row 2 plan](26-11-20-delta-row-2-selection-canvas.md).
+- Status: 24 items verified, 39 open (four of them, 2.6, 2.12, 2.17 and 2.18, wait for the interface of roadmap row 19), the rest outside the browser port or without product behaviour.
+- Next action: work the open items in order, each as its own bounded slice under its row's plan. Row 2 is closed apart from the four items waiting for row 19 ([row 2 plan](26-11-20-delta-row-2-selection-canvas.md)); row 3 is planned in [the row 3 plan](26-11-21-delta-row-3-files-text-paint.md).
 - Blockers: none.
 
 ## How to read it
@@ -32,19 +32,19 @@ Items marked as outside the browser port are not dismissed: the final audit revi
 | 2.3 | Marquee selection follows the measured rules | Verified at f66ead9 | `cb526214`, `604c7846` |
 | 2.4 | Polygons and stars get a Count handle on the canvas | Verified at 4a89d45 | `89d8b50e`, `d773ab29` |
 | 2.5 | Tidy up keeps order and sizes, evens and rounds gaps, handles overlapping rows and grids | Verified at 5e0c6b3 | `cfd6bf52`, `d3f7ae90`, `a7a9e627`, `1a68ded5`, `fc900783` |
-| 2.6 | Tab while renaming moves only the rename and wraps (#2311) | Open | `2408d0aa`, `d3688b9e` |
+| 2.6 | Tab while renaming moves only the rename and wraps (#2311) | Open; waits for roadmap row 19 ([deferred queue](26-11-07-full-port-resume.md#deferred-tests-and-reviews)) | `2408d0aa`, `d3688b9e` |
 | 2.7 | Paste: over a selection just above the selected layer; in place, at the view's centre or in a selected frame | Verified at 893d8a5 | `c74bcd0b`, `476daeab`, `ebd463fa` |
 | 2.8 | Escape clears the selection instead of stepping out to the parent | Verified at 2cb640a | `a285fd29`, `92cf9849`, `bceb5476` |
 | 2.9 | Arrow keys pan 64 px, 320 with Shift | Verified at b374bfe | `75f54e0a`, `d036eb2f`, `9f51517f` |
 | 2.10 | Zoom to selection leaves a 40 pt margin and clears the bottom toolbar | Verified at bac8b73 | `fceb6063`, `5d529269`, `53bf0a40` |
 | 2.11 | Preferences: Invert zoom direction | Verified at 7648788 | `6fce958a`, `1ef0c16f`, `a69b27fd` |
-| 2.12 | Layer icon double-click zooms to the layer, keeps a modified selection and becomes the range anchor | Open | `9a29a3cb`, `cf80dc1a`, `6785be8a` |
+| 2.12 | Layer icon double-click zooms to the layer, keeps a modified selection and becomes the range anchor | Open; waits for roadmap row 19 ([deferred queue](26-11-07-full-port-resume.md#deferred-tests-and-reviews)) | `9a29a3cb`, `cf80dc1a`, `6785be8a` |
 | 2.13 | Smart guides snap within 4.5 screen pixels | Verified at a204eae | `a1980463`, `ebe0a8c2` |
 | 2.14 | Shift while rotating lands on multiples of 15 degrees, also inside a rotated frame | Verified at 2c776c2 | `a1ac22f1`, `da81d55a` |
 | 2.15 | Rotation field shows and sets the rotation on the page (node.set absoluteRotation) | Verified at 3a1c529 | `d0379dc7`, `cc367717`, `7e748d4a`, `accdfbae` |
 | 2.16 | Scale tool: K focuses the field, drags pivot on the opposite handle, origin starts at the centre (#2146, #2148) | Verified at 9ee41a2 | `f0d39197`, `92145e6f`, `68564374`, `197a390a`, `7a8d422d`, `4254a3f3` |
-| 2.17 | Sidebars' width limits (left 240 to 450, right 240 to 500) | Open | `ad7a886e`, `1b7ce679` |
-| 2.18 | A submenu opens as soon as its row is hovered | Open | `35ac3a92`, `c4302902` |
+| 2.17 | Sidebars' width limits (left 240 to 450, right 240 to 500) | Open; waits for roadmap row 19 ([deferred queue](26-11-07-full-port-resume.md#deferred-tests-and-reviews)) | `ad7a886e`, `1b7ce679` |
+| 2.18 | A submenu opens as soon as its row is hovered | Open; waits for roadmap row 19 ([deferred queue](26-11-07-full-port-resume.md#deferred-tests-and-reviews)) | `35ac3a92`, `c4302902` |
 | 2.19 | Command parameter refusals: negative, fractional and invalid indices and ids, non-numeric miterLimit, cornerSmoothing and paragraph props, signs and exponents in export sizes | Verified at 02cfbe5 | `04a6c76a`, `0ff3a368`, `82da8f51`, `10d97e27`, `6222fce8`, `db1bec08`, `386c6c1d` |
 | 3.1 | .fig export writes text on a path with exact curves (#2323) | Open | `88b63d1e`, `a243f0b8`, `193c3a35` |
 | 3.2 | Lists: .fig export of list spacing, hanging punctuation, lists and vertical trim; a numbered list's start on import; Enter and typed-number starts (#2305, #2273) | Open | `a4e33077`, `bb480bdf`, `4e9b414c`, `b190e675`, `7c3f9ce7`, `b8f05d19` |
