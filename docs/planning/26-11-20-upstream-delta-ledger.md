@@ -5,7 +5,7 @@
 - Phase: planning record, written 20 November 2026 at React `f5114ec` on `prompt/full-figcraft-port`.
 - Native range: `7bf098d75d187416633d9ebcceb9eb83fbb10df8` → `bad07e4433240cad046589129c084bd2fc36f097`, 254 commits excluding merges.
 - Purpose: the [delta queue](26-11-15-upstream-delta.md) groups this range into eight rows by theme. Row 1 turned out to hold a change that no row named (point positions in vector edit mode). This ledger assigns every commit to an item, so that nothing in the range is left to be found by accident.
-- Status: 20 items verified, 43 open, the rest outside the browser port or without product behaviour.
+- Status: 21 items verified, 42 open, the rest outside the browser port or without product behaviour.
 - Next action: work the open items in order, each as its own bounded slice under its row's plan. Row 2 is planned in [the row 2 plan](26-11-20-delta-row-2-selection-canvas.md).
 - Blockers: none.
 
@@ -34,7 +34,7 @@ Items marked as outside the browser port are not dismissed: the final audit revi
 | 2.5 | Tidy up keeps order and sizes, evens and rounds gaps, handles overlapping rows and grids | Verified at 5e0c6b3 | `cfd6bf52`, `d3f7ae90`, `a7a9e627`, `1a68ded5`, `fc900783` |
 | 2.6 | Tab while renaming moves only the rename and wraps (#2311) | Open | `2408d0aa`, `d3688b9e` |
 | 2.7 | Paste: over a selection just above the selected layer; in place, at the view's centre or in a selected frame | Verified at 893d8a5 | `c74bcd0b`, `476daeab`, `ebd463fa` |
-| 2.8 | Escape clears the selection instead of stepping out to the parent | Open | `a285fd29`, `92cf9849`, `bceb5476` |
+| 2.8 | Escape clears the selection instead of stepping out to the parent | Verified at 2cb640a | `a285fd29`, `92cf9849`, `bceb5476` |
 | 2.9 | Arrow keys pan 64 px, 320 with Shift | Open | `75f54e0a`, `d036eb2f`, `9f51517f` |
 | 2.10 | Zoom to selection leaves a 40 pt margin and clears the bottom toolbar | Open | `fceb6063`, `5d529269`, `53bf0a40` |
 | 2.11 | Preferences: Invert zoom direction | Open | `6fce958a`, `1ef0c16f`, `a69b27fd` |
