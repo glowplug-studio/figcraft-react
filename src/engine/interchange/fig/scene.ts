@@ -205,7 +205,8 @@ export async function figScene(msg:KiwiValue,name:string,checkCurrent:()=>void,l
       const mapped=await run(layer(c.id,identity,0));
       if (mapped) children.push(mapped);
     }
-    const page={id,type:"CANVAS",name:n.name,backgroundColor:n.backgroundColor && colour(n.backgroundColor),children};
+    const page={id,type:"CANVAS",name:n.name,backgroundColor:n.backgroundColor && colour(n.backgroundColor),
+      ...(n.prototypeBackgroundColor ? {prototypeBackgrounds:[colour(n.prototypeBackgroundColor)]} : {}),children};
     assets.bindings(page,n,warn);canvases.push(page);
   }
   if (!canvases.length) warn("the file has no pages");

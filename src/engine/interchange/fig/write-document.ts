@@ -1,5 +1,5 @@
 import {identity} from "../../affine";
-import {defaultConstraints,isFrameLike,isLeaf,layerBlend,layerTransform,pageColour,rectanglePaints,type Document,type LayerNode} from "../../document";
+import {defaultConstraints,defaultPrototypeBackground,isFrameLike,isLeaf,layerBlend,layerTransform,pageColour,rectanglePaints,type Document,type LayerNode} from "../../document";
 import {zeroCorners} from "../../corners";
 import {outlinedStroke} from "./outlined-stroke";
 import {writeInstance} from "./export-instance";
@@ -106,9 +106,14 @@ export async function writeFigDocument(doc:Document,checkCurrent:()=>void,thumbn
     let layer:KiwiObject;
     if (node.kind==="page") {
       if (node.guides?.length) warn("ruler guides were left out");
-      if (node.prototypeBackground) warn("prototype device settings were left out");
+      // Native export/layer.rs (upstream #2326): every page writes its prototype background, so another app shows the
+      // same colour and not its own default. It is written opaque: the import reads an alpha of 0 as no background and
+      // any other alpha as 1. The device settings native warns about are not in this port's page yet.
+      const prototype=node.prototypeBackground ?? defaultPrototypeBackground;
+      if (prototype.a<1) warn("a prototype background's opacity was left out");
       const background=pageColour(node);
-      layer={type:"CANVAS",name:node.name,...rootFields,backgroundColor:{...background},backgroundEnabled:true,backgroundOpacity:background.a};
+      layer={type:"CANVAS",name:node.name,...rootFields,backgroundColor:{...background},backgroundEnabled:true,backgroundOpacity:background.a,
+        prototypeBackgroundColor:{r:prototype.r,g:prototype.g,b:prototype.b,a:1}};
     } else {
       layer=await sharedLayer(node);
       if (node.kind==="instance") {

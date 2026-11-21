@@ -91,8 +91,10 @@ export async function importRestDocument(input:unknown,checkCurrent:()=>void=()=
 
   function addPage(n:JsonObject,fallback:string) {
     const id=String(next++);
+    // Native rest/proto.rs::page_settings: the first prototype background, read opaque; an alpha of 0 is no background.
+    const first=restColour(children(n.prototypeBackgrounds)[0]),prototype=first && first.a>0 ? first : undefined;
     base.nodes[id]=readNode(id,{type:"page",id:wireId(id),name:clipped(string(n.name) ?? fallback),width:0,height:0,
-      var_modes:variables.modes(n),background:restColour(n.backgroundColor) ?? "#f5f5f5"});
+      var_modes:variables.modes(n),background:restColour(n.backgroundColor) ?? "#f5f5f5",...(prototype && {prototype:{background:{...prototype,a:1}}})});
     prototypes.page(id,n);
     pages.push(id);
     childLists.set(id,[]);

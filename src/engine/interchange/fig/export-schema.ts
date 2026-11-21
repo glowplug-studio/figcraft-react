@@ -179,7 +179,7 @@ const declarations:readonly [string,number,string][]=[
     " derivedSymbolData:NodeChange[]=125 overriddenSymbolID:GUID=143" +
     " componentPropDefs:ComponentPropDef[]=266 componentPropRefs:ComponentPropRef[]=267" +
     " componentPropAssignments:ComponentPropAssignment[]=268 variantPropSpecs:VariantPropSpec[]=483" +
-    " parameterConsumptionMap:VariableDataMap=445 guidPath:GUIDPath=111"],
+    " parameterConsumptionMap:VariableDataMap=445 guidPath:GUIDPath=111 prototypeBackgroundColor:Color=141"],
   ["Blob",1,"bytes:byte[]=1"],
   ["Message",2,"type:MessageType=1 sessionID:uint=2 nodeChanges:NodeChange[]=4 blobs:Blob[]=6"],
 ];

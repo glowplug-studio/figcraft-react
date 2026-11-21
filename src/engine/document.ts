@@ -263,6 +263,8 @@ export function withRectanglePaints<T extends LayerNode>(node: T, paints: readon
   const fill = paints[0]?.type === "solid" ? toCssHex(paintColour(paints[0])).toLowerCase() : "transparent";
   return Object.freeze({ ...rest, fill, ...(simple ? {} : { fills: Object.freeze([...paints]) }) }) as T;
 }
+/** The prototype background of a page that sets none (native `PrototypeSettings::default`, #1E1E1E). */
+export const defaultPrototypeBackground: Colour = Object.freeze({ r: Math.fround(0x1e / 255), g: Math.fround(0x1e / 255), b: Math.fround(0x1e / 255), a: 1 });
 export function pageColour(page: PageNode): Colour {
   const value = page.backgroundColor ?? parseCssColour(page.background);
   if (!value) throw new Error("Invalid page background");

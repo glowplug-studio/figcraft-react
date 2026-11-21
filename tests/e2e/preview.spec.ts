@@ -10244,6 +10244,36 @@ test("export the whole signed-in drawing as Fig and reopen the download with its
   expect(saved.document).toEqual(expected);
 });
 
+test("a page's prototype background survives a signed-in Fig export and reopening the download",async({page})=>{
+  // Upstream #2326, observed natively (tests/fixtures/native-fig-prototype-background.provenance.md): the export writes
+  // the colour and the import reads it back.
+  await login(page);
+  const fixture=JSON.parse(await readFile(new URL("../fixtures/native-fig-prototype-background.json",import.meta.url),"utf8")) as
+    {cases:{name:string;source:string;reopened:string;reopenedSettings:{background:string}}[]};
+  const c=fixture.cases.find(c=>c.name==="a set background")!;
+  expect(c.reopenedSettings.background).toBe("#336699");
+  const expected=(await decodeFigcraft(Buffer.from(c.reopened,"base64"))).document;
+  const picker=page.getByLabel("Open Figcraft file",{exact:true}),tabs=page.getByRole("tab",{name:expected.name,exact:true});
+  // The drawing the editor starts with is named Untitled too, and tabs show once a second file is open.
+  await expect(page.getByRole("heading",{name:expected.name,exact:true})).toBeVisible();
+  await picker.setInputFiles({name:"Source.figcraft",mimeType:"application/octet-stream",buffer:Buffer.from(c.source,"base64")});
+  await expect(tabs).toHaveCount(2);
+  const bar=page.locator(".figcraft-document-bar");
+  await bar.getByText("File",{exact:true}).click();
+  await bar.getByRole("button",{name:"Export…",exact:true}).click();
+  const downloading=page.waitForEvent("download");
+  await page.getByRole("dialog",{name:"Export"}).getByRole("button",{name:".fig (experimental)",exact:true}).click();
+  const buffer=await readFile((await (await downloading).path())!);
+  await picker.setInputFiles({name:"Reopened.fig",mimeType:"application/octet-stream",buffer});
+  await expect(tabs).toHaveCount(3);
+  const saving=page.waitForEvent("download");
+  await page.getByRole("button",{name:"Save as",exact:true}).click();
+  const saved=(await decodeFigcraft(await readFile((await (await saving).path())!))).document;
+  expect(saved).toEqual(expected);
+  const shown=Object.values(saved.nodes).find(n=>n.kind==="page")!;
+  expect(shown.kind==="page" && shown.prototypeBackground).toMatchObject({r:Math.fround(0x33/255),g:Math.fround(0x66/255),b:Math.fround(0x99/255),a:1});
+});
+
 test("Sketch open, save, append and undo preserve native symbol overrides and embedded pixels",async({page})=>{
   await login(page);
   const corpus=unzipSync(await readFile(new URL("../fixtures/native-sketch-files.zip",import.meta.url)));
