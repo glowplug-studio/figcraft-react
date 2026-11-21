@@ -1,5 +1,6 @@
 import type { FontLibrary } from "./font-library";
 import type { ParaList } from "./text-data";
+import { listItemStartsCounting } from "./text-ranges";
 import { textSize, type TextStyle } from "./text-style";
 import type { StyledGlyph } from "./styled-glyphs";
 import type { ShapingFace } from "./shaping-face";
@@ -26,11 +27,12 @@ export class TextListLayout {
     const counts:{kind:ParaList["list"]; n:number}[]=[];
     let widest=0;
     const size=textSize(firstStyle), widths=new Map<string,number>();
-    this.markers=lists.map(p=>{
+    const starting=listItemStartsCounting(lists);
+    this.markers=lists.map((p,i)=>{
       if (p.list==="none") { counts.length=0; return ""; }
       const level=Math.min(8,p.indent);
       counts.length=level+1;
-      const last=counts[level], n=last?.kind===p.list ? last.n+1 : p.startOffset+1;
+      const last=counts[level], n=starting[i] || !last ? p.startOffset+1 : last.n+1;
       counts[level]={kind:p.list,n};
       if (p.list==="bulleted") return "•";
       const marker=numberLabel(n,level)+".";

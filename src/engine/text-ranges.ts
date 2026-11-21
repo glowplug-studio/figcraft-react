@@ -162,6 +162,36 @@ export function editParagraphLists(t: TextData, span: readonly [number,number], 
   }
   return Object.freeze({...t,paragraphs:Object.freeze(paragraphs)});
 }
+/**
+ * Native `list_item_starts_counting`: for each paragraph, whether it is an item where a list starts counting. Numbers
+ * count the items of one list at one level and restart after a plain paragraph, a shallower item or the other kind of
+ * list; the first item of such a run starts counting and takes its own start number. The layout numbers by this rule.
+ */
+export function listItemStartsCounting(lists: readonly ParaList[]): boolean[] {
+  const run: ParaList["list"][] = Array<ParaList["list"]>(9).fill("none");
+  return lists.map(p => {
+    if (p.list === "none") { run.fill("none"); return false; }
+    const level = Math.min(p.indent, run.length-1);
+    run.fill("none", level+1);
+    const starts = run[level] !== p.list;
+    run[level] = p.list;
+    return starts;
+  });
+}
+/** Native `keep_list_starts_where_counting_starts`: keep a start number only on the item where a numbered list starts
+ * counting. A file may carry the list's start on every line; once the list is split, the items after the split must
+ * restart at 1 and not at the old start. */
+export function keepListStartsWhereCountingStarts(paragraphs: readonly ParaList[]): readonly ParaList[] {
+  if (paragraphs.every(p => p.startOffset === 0)) return paragraphs;
+  const starts = listItemStartsCounting(paragraphs);
+  return paragraphs.map((p,i) => starts[i] || p.startOffset === 0 ? p : Object.freeze({...p,startOffset:0}));
+}
+/** Native `clear_list_starts`: paragraphs `a` to `b` have no start number of their own, as an item made by Enter has
+ * none. Nothing else changes: a plain paragraph keeps its level. */
+export function clearListStarts(t: TextData, a: number, b: number): TextData {
+  if (t.paragraphs.every(p => p.startOffset === 0)) return t;
+  return editParagraphLists(t,[a,b],p=>({...p,startOffset:0}),true);
+}
 export function commonParagraphList(t: TextData, start: number, end: number) {
   const [a,b] = paragraphSpan(t,start,end), first = paragraphList(t,a);
   for (let i=a+1;i<=b;i++) {

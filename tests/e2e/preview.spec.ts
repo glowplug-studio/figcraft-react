@@ -7059,6 +7059,53 @@ test("text shortcuts style a scalar selection and create, nest and exit native l
   await expect(page.getByText("0 layers",{exact:true})).toBeVisible();
 });
 
+test("a typed number starts a numbered list there, Enter copies no start, and the split list survives a Fig export",async ({page})=>{
+  // Upstream #2273 and its measured typing rules, observed natively (tests/fixtures/native-lists.provenance.md).
+  await login(page);
+  const canvas=page.getByLabel("Design canvas",{exact:true});
+  await canvas.focus(); await page.keyboard.press("t");
+  const point=await canvasPoint(page,180,130); await page.mouse.click(point.x,point.y);
+  const input=page.getByRole("textbox",{name:"Edit text layer"}); await expect(input).toBeFocused();
+  await page.keyboard.insertText("5."); await page.keyboard.press("Space");
+  await expect(input).toHaveValue("");
+  await page.keyboard.insertText("a"); await input.press("Enter"); await page.keyboard.insertText("b"); await input.press("Enter"); await page.keyboard.insertText("c");
+  const save=async()=>{
+    const download=page.waitForEvent("download"); await page.getByRole("button",{name:"Save as",exact:true}).click();
+    return (await decodeFigcraft(await readFile((await (await download).path())!))).document;
+  };
+  const lists=(d:Awaited<ReturnType<typeof save>>)=>{
+    const n=Object.values(d.nodes).find(n=>n.kind==="text");
+    return n?.kind==="text" ? {characters:n.text.characters,paragraphs:n.text.paragraphs.map(p=>[p.list,p.startOffset])} : undefined;
+  };
+  // The first item starts at 5; the items Enter made have no start of their own.
+  await input.press("Escape"); await expect(input).toHaveCount(0);
+  const typed=await save();
+  expect(lists(typed)).toEqual({characters:"a\nb\nc",paragraphs:[["numbered",4],["numbered",0],["numbered",0]]});
+  // Backspace at the start of "b" takes it out of the list, and "c" restarts at 1.
+  const layer=Object.values(typed.nodes).find(n=>n.kind==="text")!;
+  if (layer.kind!=="text") throw new Error("no text layer");
+  const inside=transformPoint(worldTransform(typed,layer.id),{x:layer.width-2,y:Math.min(5,layer.height/2)});
+  await canvas.focus(); await page.keyboard.press("t");
+  const hit=await canvasPoint(page,inside.x,inside.y); await page.mouse.click(hit.x,hit.y);
+  await expect(input).toBeFocused(); await expect(input).toHaveValue("a\nb\nc");
+  await input.evaluate((el:HTMLTextAreaElement)=>el.setSelectionRange(2,2));
+  await input.press("Backspace");
+  await input.press("Escape"); await expect(input).toHaveCount(0);
+  const split={characters:"a\nb\nc",paragraphs:[["numbered",4],["none",0],["numbered",0]]};
+  const saved=await save();
+  expect(lists(saved)).toEqual(split);
+  // The file writes a list's start on its lines; reading it keeps the start only where the list starts counting.
+  const bar=page.locator(".figcraft-document-bar");
+  await bar.getByText("File",{exact:true}).click();
+  await bar.getByRole("button",{name:"Export…",exact:true}).click();
+  const downloading=page.waitForEvent("download");
+  await page.getByRole("dialog",{name:"Export"}).getByRole("button",{name:".fig (experimental)",exact:true}).click();
+  const buffer=await readFile((await (await downloading).path())!);
+  await page.getByLabel("Open Figcraft file",{exact:true}).setInputFiles({name:"Reopened.fig",mimeType:"application/octet-stream",buffer});
+  await expect(page.getByRole("tab",{name:saved.name,exact:true})).toHaveCount(2);
+  expect(lists(await save())).toEqual(split);
+});
+
 test("create-link shortcuts retain the selected characters and Alt+Enter opens only web or mail links",async ({page,context})=>{
   await context.route("https://example.test/figcraft-link",route=>route.fulfill({contentType:"text/plain",body:"Figcraft link"}));
   await login(page);

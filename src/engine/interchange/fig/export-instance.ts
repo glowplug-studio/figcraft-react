@@ -13,7 +13,9 @@ const clears:KiwiObject={
   mask:false,rectangleCornerRadiiIndependent:false,borderStrokeWeightsIndependent:false,effects:[],dashPattern:[],layoutGrids:[],exportSettings:[],
   prototypeInteractions:[],fillGeometry:[],variableWidthPoints:[],cornerSmoothing:0,stackChildPrimaryGrow:0,stackMode:"NONE",stackChildAlignSelf:"AUTO",
   stackPositioning:"AUTO",minSize:{value:{x:0,y:0}},maxSize:{value:{x:Infinity,y:Infinity}},gridColumnSpan:0,gridRowSpan:0,maxLines:0,
-  scrollDirection:"NONE",scrollBehavior:"SCROLLS",parameterConsumptionMap:{entries:[]},textTruncation:"DISABLED",hyperlink:{url:""}
+  scrollDirection:"NONE",scrollBehavior:"SCROLLS",parameterConsumptionMap:{entries:[]},textTruncation:"DISABLED",hyperlink:{url:""},
+  // An instance's text back at the defaults must not take its main's value again (native export/common.rs, #2305).
+  listSpacing:0,leadingTrim:"NONE",hangingPunctuation:false,hangingList:false
 };
 for (const f of ["styleIdForFill","styleIdForStrokeFill","styleIdForEffect","styleIdForGrid","styleIdForText"]) clears[f]={guid:figGuid(0xffffffff,0xffffffff)};
 function difference(mine:KiwiObject,theirs:KiwiObject) {

@@ -7,13 +7,16 @@ import {writeFigDocument} from "../../src/engine/interchange/fig/write-document"
 import native from "../fixtures/native-rest-documents.json";
 import adjustments from "../fixtures/native-fig-image-adjustments.json";
 import textPaths from "../fixtures/native-fig-text-path-export.json";
+import lists from "../fixtures/native-lists.json";
 import type {Document} from "../../src/engine/document";
 
 const expected=unzipSync(readFileSync(new URL("../fixtures/native-fig-imports.zip",import.meta.url)));
 // Native's export left image adjustments out when the corpus was written and writes them at bad07e44 (upstream #2297).
 // The one drawing of the corpus that has them is compared with its export and reopening observed at that revision
 // (tests/fixtures/native-fig-image-adjustments.provenance.md).
-const repinned=new Map(adjustments.repinned.map(c=>[c.name,c]));
+// The same holds for list spacing, hanging punctuation, hanging lists and vertical trim (upstream #2305;
+// tests/fixtures/native-lists.provenance.md).
+const repinned=new Map([...adjustments.repinned,...lists.repinned].map(c=>[c.name,c]));
 it.each(native)("reopens browser-written Fig output against the native writer for $name",async input=>{
   const name=input.name.replaceAll(" ","-"),again=repinned.get(input.name);
   const source=await decodeFigcraft(Uint8Array.from(Buffer.from(input.archive,"base64")));

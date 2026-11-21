@@ -1,6 +1,6 @@
 import { newTextData, wireTextData, type ParaList, type StyleRun, type TextData } from "../../text-data";
 import { withLook } from "../../text-properties";
-import { editParagraphLists, normaliseRuns, paragraphSpan, scalarToUtf16 } from "../../text-ranges";
+import { editParagraphLists, keepListStartsWhereCountingStarts, normaliseRuns, paragraphSpan, scalarToUtf16 } from "../../text-ranges";
 import { defaultTextStyle, textItalic, textWeight, type TextStyle } from "../../text-style";
 import { restPaints, type ImportImages } from "./paint";
 import { children,clamp,clipped,entries,finite,numeric,object,restColour,string,type ImportWarnings,type JsonObject } from "./values";
@@ -77,10 +77,12 @@ export function textFields(n:JsonObject,images:ImportImages,warnings:ImportWarni
   let autoResize:TextData["autoResize"]=s.textAutoResize==="HEIGHT" ? "height" : s.textAutoResize==="WIDTH_AND_HEIGHT" ? "widthAndHeight" : s.textAutoResize==="TRUNCATE" ? "truncate" : "none";
   if (ending && (autoResize==="none" || !maxLines)) autoResize="truncate";
   const lines=chars.split("\n").length, types=children(n.lineTypes),dirs=children(n.lineDirections),indents=children(n.lineIndentations),starts=children(n.listStartOffsets);
-  const paragraphs:ParaList[]=Array.from({length:Math.min(lines,Math.max(types.length,dirs.length))},(_,i)=>({
+  // Only the item where a numbered list starts counting keeps its start: the other app writes the start on every line of
+  // the list, and a list split later must restart at 1 (native rest/text.rs, upstream #2273).
+  const paragraphs=keepListStartsWhereCountingStarts(Array.from({length:Math.min(lines,Math.max(types.length,dirs.length))},(_,i):ParaList=>({
     list:types[i]==="ORDERED" ? "numbered" : types[i]==="UNORDERED" ? "bulleted" : "none",
     direction:dirs[i]==="LTR" ? "ltr" : dirs[i]==="RTL" ? "rtl" : "auto",indent:Math.trunc(clamp(numeric(indents[i]) ?? 0,0,255)),
-    startOffset:Math.trunc(clamp(numeric(starts[i]) ?? 0,0,4294967295))}));
+    startOffset:Math.trunc(clamp(numeric(starts[i]) ?? 0,0,4294967295))})));
   const features=Object.fromEntries(entries(s.openTypeFlags).slice(0,64).flatMap(([k,v])=>/^[\x20-\x7e]{4}$/.test(k) ? [[k.toLowerCase(),v===true || finite(v) && v!==0]] : []));
   const data:TextData={...newTextData(chars),style,runs:normaliseRuns(runs,style,count),maxLines,autoResize,paragraphs,features,
     alignH:s.textAlignHorizontal==="JUSTIFIED" ? "justified" : s.textAlignHorizontal==="CENTER" ? "center" : s.textAlignHorizontal==="RIGHT" ? "right" : "left",

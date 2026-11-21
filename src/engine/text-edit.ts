@@ -5,7 +5,7 @@ import { pixelRound, type Point } from "./geometry";
 import { paintColour } from "./solid-paint";
 import { newTextData, normaliseTextLines } from "./text-data";
 import { autoSizeText, fitEditedText } from "./text-node-layout";
-import { editParagraphLists, paragraphList, paragraphSpan, replaceTextRange, scalarToUtf16, textLayerName } from "./text-ranges";
+import { editParagraphLists, paragraphList, paragraphSpan, replaceTextRange, scalarToUtf16, textLayerName, clearListStarts } from "./text-ranges";
 
 export type TextTarget = {id: string} | {parent: string; start: Point; end?: Point};
 
@@ -43,11 +43,21 @@ export function cleanInsertedText(insertion:string) {
 export function editTextRange(node: TextNode, start: number, end: number, insertion: string) {
   const value=cleanInsertedText(insertion);
   if (insertion && !value || !value && start === end) return node;
-  const text = replaceTextRange(node.text,start,end,value);
+  let text = replaceTextRange(node.text,start,end,value);
+  // Native insert_model (as measured upstream): an item made by Enter has no start of its own, so unlisting the item
+  // before it makes it restart at 1 and not at the copied start. Every paragraph after the first that the insertion
+  // made loses the start it was copied.
+  if (value.includes("\n")) {
+    const first = paragraphSpan(text,start,start)[0];
+    text = clearListStarts(text,first+1,first+value.split("\n").length-1);
+  }
   const previous = textLayerName(node.text.characters);
   const derived = node.name === previous || !previous && node.name === "Text";
   return fitEditedText(Object.freeze({...node,text,name:derived ? textLayerName(text.characters) : node.name}),node);
 }
+
+/** The largest number a typed `N. ` can start a numbered list at. */
+const MAX_TYPED_LIST_START = 9999;
 
 /** A space after a native list marker starts the list and consumes the marker. */
 export function typedListMarker(node:TextNode, start:number, end:number, insertion:string) {
@@ -56,13 +66,16 @@ export function typedListMarker(node:TextNode, start:number, end:number, inserti
   if (paragraphList(node.text,span[0]).list !== "none") return;
   const at = scalarToUtf16(node.text.characters,start);
   const line = at ? node.text.characters.lastIndexOf("\n",at-1)+1 : 0;
-  if (at-line > 2) return;
+  if (at-line > 5) return;
   const prefix = node.text.characters.slice(line,at);
-  const list = prefix==="-" || prefix==="*" ? "bulleted" : prefix==="1." || prefix==="1)" ? "numbered" : undefined;
+  // "- ", "* ", "<number>. " or "1) " starts a list. A typed "5. " starts the numbered list at 5 (there is no
+  // start-number field): digits only, 1 to 9999. "0. " and a bracket after a number other than 1 stay text.
+  const number = /^[0-9]+\.$/.test(prefix) ? Number(prefix.slice(0,-1)) : 0, numbered = number>=1 && number<=MAX_TYPED_LIST_START;
+  const list = prefix==="-" || prefix==="*" ? "bulleted" : numbered || prefix==="1)" ? "numbered" : undefined;
   if (!list) return;
   const caret = start-prefix.length;
   const replaced = editTextRange(node,caret,start,"");
-  const text = editParagraphLists(replaced.text,span,p=>({...p,list}));
+  const text = editParagraphLists(replaced.text,span,p=>({...p,list,startOffset:numbered ? number-1 : 0}));
   return {node:fitEditedText({...replaced,text},replaced), caret};
 }
 

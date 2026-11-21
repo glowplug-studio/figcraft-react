@@ -33,6 +33,7 @@ const declarations:readonly [string,number,string][]=[
   ["TextAlignVertical",0,"TOP=0 CENTER=1 BOTTOM=2"],
   ["TextAutoResize",0,"NONE=0 WIDTH_AND_HEIGHT=1 HEIGHT=2"],
   ["TextTruncation",0,"DISABLED=0 ENDING=1"],
+  ["LeadingTrim",0,"NONE=0 CAP_HEIGHT=1"],
   ["TextCase",0,"ORIGINAL=0 UPPER=1 LOWER=2 TITLE=3 SMALL_CAPS=4"],
   ["TextDecoration",0,"NONE=0 UNDERLINE=1 STRIKETHROUGH=2"],
   ["NumberUnits",0,"RAW=0 PIXELS=1 PERCENT=2"],
@@ -170,7 +171,8 @@ const declarations:readonly [string,number,string][]=[
     " lineHeight:Number=40 letterSpacing:Number=165 textCase:TextCase=34 textDecoration:TextDecoration=35" +
     " textAlignHorizontal:TextAlignHorizontal=32 textAlignVertical:TextAlignVertical=33" +
     " textAutoResize:TextAutoResize=46 textTruncation:TextTruncation=280 maxLines:int=351" +
-    " paragraphSpacing:float=23 paragraphIndent:float=22 hyperlink:Hyperlink=223 autoRename:bool=14" +
+    " paragraphSpacing:float=23 paragraphIndent:float=22 listSpacing:float=264 leadingTrim:LeadingTrim=322" +
+    " hangingPunctuation:bool=337 hangingList:bool=339 hyperlink:Hyperlink=223 autoRename:bool=14" +
     " fontVariantCommonLigatures:bool=127 fontVariantContextualLigatures:bool=128 fontVersion:string=202" +
     " textUserLayoutVersion:uint=203 textExplicitLayoutVersion:uint=396 textBidiVersion:uint=279" +
     " textTracking:float=27 textDecorationSkipInk:bool=412 emojiImageSet:EmojiImageSet=391 styleID:uint=49" +

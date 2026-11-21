@@ -57,9 +57,12 @@ export async function wireText(t:TextData,fills:readonly Paint[],paints:FigPaint
   if ([t.style,...t.runs.map(r=>r.style)].some(s=>Object.keys(s.variations).length || s.decorationLook &&
     (s.decorationLook.style!=="solid" || s.decorationLook.thickness.unit!=="auto" || s.decorationLook.offset.unit!=="auto" || s.decorationLook.color)))
     paints.warn("text decoration looks and variable font settings were left out");
-  if (t.listSpacing || t.hangingPunctuation || t.hangingList || t.leadingTrim!=="none" || Object.keys(t.features).length)
-    paints.warn("list spacing, hanging punctuation, leading trim and OpenType features were left out");
-  return {...fields(t.style),textData:data,textAlignHorizontal:t.alignH.toUpperCase(),textAlignVertical:t.alignV==="middle" ? "CENTER" : t.alignV.toUpperCase(),
+  if (Object.keys(t.features).length) paints.warn("OpenType features were left out");
+  // Native export/shape.rs (upstream #2305): written only off their defaults, as a text at the defaults carries none of
+  // these four in a file the other app saves.
+  const lists:KiwiObject={...(t.listSpacing!==0 && {listSpacing:t.listSpacing}),...(t.hangingPunctuation && {hangingPunctuation:true}),
+    ...(t.hangingList && {hangingList:true}),...(t.leadingTrim==="capHeight" && {leadingTrim:"CAP_HEIGHT"})};
+  return {...fields(t.style),...lists,textData:data,textAlignHorizontal:t.alignH.toUpperCase(),textAlignVertical:t.alignV==="middle" ? "CENTER" : t.alignV.toUpperCase(),
     textAutoResize:t.autoResize==="widthAndHeight" ? "WIDTH_AND_HEIGHT" : t.autoResize==="height" ? "HEIGHT" : "NONE",
     paragraphSpacing:t.paragraphSpacing,paragraphIndent:t.paragraphIndent,autoRename:false,fontVariantCommonLigatures:true,fontVariantContextualLigatures:true,fontVersion:"",
     textUserLayoutVersion:5,textExplicitLayoutVersion:1,textBidiVersion:1,textTracking:0,emojiImageSet:"APPLE",
