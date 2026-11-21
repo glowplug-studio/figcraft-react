@@ -57,7 +57,6 @@ export async function wireText(t:TextData,fills:readonly Paint[],paints:FigPaint
   if ([t.style,...t.runs.map(r=>r.style)].some(s=>Object.keys(s.variations).length || s.decorationLook &&
     (s.decorationLook.style!=="solid" || s.decorationLook.thickness.unit!=="auto" || s.decorationLook.offset.unit!=="auto" || s.decorationLook.color)))
     paints.warn("text decoration looks and variable font settings were left out");
-  if (t.path) paints.warn("text on a path was written as plain text");
   if (t.listSpacing || t.hangingPunctuation || t.hangingList || t.leadingTrim!=="none" || Object.keys(t.features).length)
     paints.warn("list spacing, hanging punctuation, leading trim and OpenType features were left out");
   return {...fields(t.style),textData:data,textAlignHorizontal:t.alignH.toUpperCase(),textAlignVertical:t.alignV==="middle" ? "CENTER" : t.alignV.toUpperCase(),

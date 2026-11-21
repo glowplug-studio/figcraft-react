@@ -10371,6 +10371,39 @@ test("sharp points of a rounded vector stay sharp through a signed-in Fig export
   expect(opened).toEqual((await decodeFigcraft(Buffer.from(crafted.opened,"base64"))).document);
 });
 
+test("text on a path stays on its path through a signed-in Fig export and reopening the download",async({page})=>{
+  // Upstream #2323, observed natively (tests/fixtures/native-fig-text-path-export.provenance.md).
+  await login(page);
+  const fixture=JSON.parse(await readFile(new URL("../fixtures/native-fig-text-path-export.json",import.meta.url),"utf8")) as
+    {cases:{name:string;source:string;reopened:string}[]};
+  const c=fixture.cases.find(c=>c.name==="a start a quarter along and flipped")!;
+  const expected=(await decodeFigcraft(Buffer.from(c.reopened,"base64"))).document;
+  const picker=page.getByLabel("Open Figcraft file",{exact:true}),tabs=page.getByRole("tab",{name:expected.name,exact:true});
+  // The drawing the editor starts with is named Untitled too, and tabs show once a second file is open.
+  await expect(page.getByRole("heading",{name:expected.name,exact:true})).toBeVisible();
+  await picker.setInputFiles({name:"Source.figcraft",mimeType:"application/octet-stream",buffer:Buffer.from(c.source,"base64")});
+  await expect(tabs).toHaveCount(2);
+  const bar=page.locator(".figcraft-document-bar");
+  await bar.getByText("File",{exact:true}).click();
+  await bar.getByRole("button",{name:"Export…",exact:true}).click();
+  const downloading=page.waitForEvent("download");
+  await page.getByRole("dialog",{name:"Export"}).getByRole("button",{name:".fig (experimental)",exact:true}).click();
+  const buffer=await readFile((await (await downloading).path())!);
+  await picker.setInputFiles({name:"Reopened.fig",mimeType:"application/octet-stream",buffer});
+  await expect(tabs).toHaveCount(3);
+  const saving=page.waitForEvent("download");
+  await page.getByRole("button",{name:"Save as",exact:true}).click();
+  const saved=(await decodeFigcraft(await readFile((await (await saving).path())!))).document;
+  const pathOf=(d:typeof saved)=>{const n=Object.values(d.nodes).find(n=>n.kind==="text");return n?.kind==="text" ? n.text.path : undefined;};
+  const mine=pathOf(saved),theirs=pathOf(expected);
+  expect(mine?.d).toBe("M0,75 C50,-25 150,-25 200,75");
+  expect(mine?.d).toBe(theirs?.d);
+  expect(mine?.flip).toBe(true);
+  // The start comes back through a 32-bit parameter and a measured length.
+  expect(mine!.start).toBeCloseTo(.25,6);
+  expect(mine!.start).toBeCloseTo(theirs!.start,6);
+});
+
 test("Sketch open, save, append and undo preserve native symbol overrides and embedded pixels",async({page})=>{
   await login(page);
   const corpus=unzipSync(await readFile(new URL("../fixtures/native-sketch-files.zip",import.meta.url)));

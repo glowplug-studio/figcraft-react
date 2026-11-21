@@ -6,7 +6,7 @@ const declarations:readonly [string,number,string][]=[
   ["NodePhase",0,"CREATED=0 REMOVED=1"],
   ["NodeType",0,"NONE=0 DOCUMENT=1 CANVAS=2 GROUP=3 FRAME=4 BOOLEAN_OPERATION=5 VECTOR=6 STAR=7 LINE=8 ELLIPSE=9" +
     " RECTANGLE=10 REGULAR_POLYGON=11 ROUNDED_RECTANGLE=12 TEXT=13 SLICE=14 SYMBOL=15 INSTANCE=16" +
-    " SECTION=25 VARIABLE=28 VARIABLE_SET=31"],
+    " SECTION=25 VARIABLE=28 VARIABLE_SET=31 TEXT_PATH=41"],
   ["BlendMode",0,"PASS_THROUGH=0 NORMAL=1 DARKEN=2 MULTIPLY=3 LINEAR_BURN=4 COLOR_BURN=5 LIGHTEN=6 SCREEN=7" +
     " LINEAR_DODGE=8 COLOR_DODGE=9 OVERLAY=10 SOFT_LIGHT=11 HARD_LIGHT=12 DIFFERENCE=13 EXCLUSION=14 HUE=15" +
     " SATURATION=16 COLOR=17 LUMINOSITY=18"],
@@ -96,6 +96,7 @@ const declarations:readonly [string,number,string][]=[
     " lines:TextLineData[]=12"],
   ["Path",2,"windingRule:WindingRule=1 commandsBlob:uint=2 styleID:uint=3"],
   ["VectorData",2,"vectorNetworkBlob:uint=1 normalizedSize:Vector=2 styleOverrideTable:NodeChange[]=3"],
+  ["TextPathStart",2,"tValue:float=1 forward:bool=2"],
   ["ArcData",2,"startingAngle:float=1 endingAngle:float=2 innerRadius:float=3"],
   ["OptionalVector",2,"value:Vector=1"],
   ["LayoutGrid",2,"type:LayoutGridType=1 axis:Axis=2 visible:bool=3 numSections:int=4 offset:float=5 sectionSize:float=6" +
@@ -180,7 +181,7 @@ const declarations:readonly [string,number,string][]=[
     " derivedSymbolData:NodeChange[]=125 overriddenSymbolID:GUID=143" +
     " componentPropDefs:ComponentPropDef[]=266 componentPropRefs:ComponentPropRef[]=267" +
     " componentPropAssignments:ComponentPropAssignment[]=268 variantPropSpecs:VariantPropSpec[]=483" +
-    " parameterConsumptionMap:VariableDataMap=445 guidPath:GUIDPath=111 prototypeBackgroundColor:Color=141"],
+    " parameterConsumptionMap:VariableDataMap=445 guidPath:GUIDPath=111 prototypeBackgroundColor:Color=141 textPathStart:TextPathStart=432"],
   ["Blob",1,"bytes:byte[]=1"],
   ["Message",2,"type:MessageType=1 sessionID:uint=2 nodeChanges:NodeChange[]=4 blobs:Blob[]=6"],
 ];

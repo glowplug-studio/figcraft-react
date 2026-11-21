@@ -10,6 +10,7 @@ import {FigPaintWriter,wireBlend,wireEffect,wireMatrix,wireStroke} from "./expor
 import {figGuid as guid,figPosition as position,FigLayoutWriter} from "./export-layout";
 import {writeVector} from "./export-vector";
 import {wireText} from "./export-text";
+import {textPathFields} from "./export-text-path";
 import {encodeFigCanvas} from "./encode-canvas";
 import type {KiwiObject} from "./kiwi";
 import {writeFigArchive} from "./write-archive";
@@ -19,12 +20,18 @@ const constraint={top:"MIN",bottom:"MAX",left:"MIN",right:"MAX",leftRight:"STRET
 const kinds={section:"SECTION",slice:"SLICE",rectangle:"ROUNDED_RECTANGLE",frame:"FRAME",group:"FRAME",booleanOp:"BOOLEAN_OPERATION",polygon:"REGULAR_POLYGON",
   star:"STAR",line:"LINE",ellipse:"ELLIPSE",vector:"VECTOR",text:"TEXT",component:"SYMBOL",componentSet:"FRAME",instance:"INSTANCE"} as const;
 
-async function writeLayer(node:LayerNode,paints:FigPaintWriter,blobs:FigBlobs):Promise<KiwiObject> {
+async function writeLayer(node:LayerNode,paints:FigPaintWriter,blobs:FigBlobs,main?:LayerNode):Promise<KiwiObject> {
   const c=node.constraints ?? defaultConstraints,out:KiwiObject={name:node.name,type:kinds[node.kind],visible:node.visible!==false,
     locked:node.locked===true,opacity:node.opacity ?? 1,blendMode:wireBlend(layerBlend(node)),size:{x:node.width,y:node.height},transform:wireMatrix(layerTransform(node)),
     fillPaints:await paints.list(node.kind==="text" && node.text.style.fills ? node.text.style.fills : rectanglePaints(node)),strokePaints:await paints.list(node.strokes ?? []),
     ...wireStroke(node,paints.warn),horizontalConstraint:constraint[c.horizontal],verticalConstraint:constraint[c.vertical]};
-  if (node.kind==="text") Object.assign(out,await wireText(node.text,rectanglePaints(node),paints));
+  if (node.kind==="text") {
+    Object.assign(out,await wireText(node.text,rectanglePaints(node),paints));
+    // Native export/layer.rs (upstream #2323): a text on a path is its own layer kind, written only when its path
+    // fields were built. It has no box to align in: it is written as top, which is how it draws.
+    const onPath=textPathFields(node,main,blobs);
+    if (onPath) Object.assign(out,onPath,{type:"TEXT_PATH",textAlignVertical:"TOP"});
+  }
   if (node.isMask) {out.mask=true;out.maskType=node.maskType==="vector" ? "OUTLINE" : node.maskType==="luminance" ? "LUMINANCE" : "ALPHA";}
   if (node.effects?.length) out.effects=node.effects.map(e=>wireEffect(e,paints.warn));
   if (node.kind==="componentSet") out.isStateGroup=true;
@@ -75,13 +82,15 @@ export async function writeFigDocument(doc:Document,checkCurrent:()=>void,thumbn
   }
   const properties=new FigComponentProperties(doc,ids,()=>++aux,warn);
   const assets=new FigAssetWriter(doc,ids.size+1,paints,()=>++aux);
-  const sharedLayer=async(node:LayerNode)=>{
+  const sharedLayer=async(node:LayerNode,nested=false)=>{
     const outline=outlinedStroke(doc,node);
     if (outline) {
       node=outline.vector;
       warn("strokes wider on one side of their path were written as filled outlines (the stroke itself is kept for FigCraft)");
     }
-    const layer=await writeLayer(node,paints,blobs);
+    // An instance's override row follows its main's layer: `main` is that layer.
+    const source=nested && node.source ? doc.nodes[node.source] : undefined;
+    const layer=await writeLayer(node,paints,blobs,source && source.kind!=="page" ? source : undefined);
     if (outline) layer.pluginData=[{pluginID:"figcraft",key:"stroke",value:outline.value}];
     layout.apply(layer,node,doc.nodes[node.parent]);
     assets.links(layer,node);
@@ -95,7 +104,7 @@ export async function writeFigDocument(doc:Document,checkCurrent:()=>void,thumbn
     return layer;
   };
   const nestedLayer=async(node:LayerNode)=>{
-    const {type,isStateGroup,symbolDescription,...fields}=await sharedLayer(node);
+    const {type,isStateGroup,symbolDescription,...fields}=await sharedLayer(node,true);
     return fields;
   };
   let lastYield=performance.now();
