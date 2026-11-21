@@ -3772,6 +3772,24 @@ test("canvas move previews cancel without root updates and release-only Alt copi
   await expect(page.getByRole("region", { name: "Layers" }).getByRole("button", { name: "Dragged", exact: true })).toHaveCount(3);
 });
 
+test("Escape returns to the Move tool first and then clears the selection, never selecting the parent", async ({ page }) => {
+  await login(page);
+  const creation = page.getByRole("group", { name: "Create layer", exact: true }), layers = page.getByRole("region", { name: "Layers" });
+  for (const [label, value] of [["X", "200"], ["Y", "180"], ["Width", "300"], ["Height", "200"]]) await creation.getByLabel(label, { exact: true }).fill(value);
+  await creation.getByRole("button", { name: "Create frame", exact: true }).click();
+  await creation.getByLabel("Create in", { exact: true }).selectOption({ label: "Frame 1" });
+  await createNamedRectangle(page, "Nested", 20, 20, 60, 40);
+  const current = layers.locator('li[aria-current="true"]'), canvas = page.getByLabel("Design canvas", { exact: true });
+  const move = page.getByRole("button", { name: "Move", exact: true });
+  await expect(current).toHaveCount(1); await expect(current).toContainText("Nested");
+  // With another tool chosen, Escape goes back to Move and keeps the selection.
+  await canvas.focus(); await page.keyboard.press("r"); await expect(page.getByRole("button", { name: "Rectangle", exact: true })).toHaveAttribute("aria-pressed", "true");
+  await page.keyboard.press("Escape"); await expect(move).toHaveAttribute("aria-pressed", "true");
+  await expect(current).toHaveCount(1); await expect(current).toContainText("Nested");
+  // One more Escape selects nothing: not the frame the layer is in (upstream a285fd29).
+  await page.keyboard.press("Escape"); await expect(current).toHaveCount(0);
+});
+
 test("a marquee opens a partly covered frame and takes a covered one whole", async ({ page }) => {
   await login(page);
   const creation = page.getByRole("group", { name: "Create layer", exact: true }), layers = page.getByRole("region", { name: "Layers" });

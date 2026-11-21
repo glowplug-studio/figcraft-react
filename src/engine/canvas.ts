@@ -918,7 +918,9 @@ export class CanvasController {
       event.preventDefault();
       if (event.code === "Space") this.#space = true; else this.#zoomHeld = true;
     }
-    if (event.key === "Escape") { event.preventDefault(); if (this.#vectors.active) event.stopPropagation(); this.cancel(); }
+    // An Escape that ends a gesture is used up: the editor must not also read it as the Escape that leaves the tool
+    // or clears the selection (native Session::escape returns after cancelling a gesture).
+    if (event.key === "Escape") { event.preventDefault(); if (this.#vectors.active || this.engine.interacting) event.stopPropagation(); this.cancel(); }
   };
   #keyUp = (event: KeyboardEvent): void => {
     if (event.code === "Space") this.#space = false;

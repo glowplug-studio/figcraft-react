@@ -22,7 +22,8 @@ const modifiers = (p: Record<string, unknown>): MoveModifiers => ({ shiftKey: p.
 
 /** Replays a recorded native session against the port and compares what each step gave. Commands compare receipts
  * where `compare` names them (`nineDecimals`: numbers to nine decimals, for values a drag computes); `@selection`,
- * `@handle`, `@undoDepth`, `@shapeHandles` and `@dragHandle` compare the port's own state. */
+ * `@handle`, `@undoDepth`, `@tool`, `@shapeHandles` and `@dragHandle` compare the port's own state; `@escape` is the
+ * Escape key through `EditorEngine.escape`. */
 export function replaySession(c: SessionCase, compare: (command: string) => boolean = command => command === "node.get", nineDecimals = false): EditorEngine {
   const engine = new EditorEngine(), fail = (message: string) => { throw new Error(message); };
   const move = new MoveInteraction(engine, fail);
@@ -48,7 +49,9 @@ export function replaySession(c: SessionCase, compare: (command: string) => bool
       const native = (expected as number[])[0], document = engine.getSnapshot().document;
       if (depth) expect(document === depth.document, `${why}: undo steps since the last reading`).toBe(native === depth.native);
       depth = { native, document };
-    } else if (name === "@shapeHandles") expect(shapeHandles(engine), why).toEqual(rounded(expected));
+    } else if (name === "@escape") engine.escape();
+    else if (name === "@tool") expect(engine.getSnapshot().tool, why).toBe(expected);
+    else if (name === "@shapeHandles") expect(shapeHandles(engine), why).toEqual(rounded(expected));
     else if (name === "@dragHandle") {
       // Press on the named shape handle where the port shows it, move, read what the readout would show, release.
       const want = JSON.stringify(params.corner === undefined ? { kind: params.kind } : { kind: params.kind, corner: params.corner });

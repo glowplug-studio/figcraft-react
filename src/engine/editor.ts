@@ -1240,6 +1240,20 @@ export class EditorEngine {
     const snapped = snappedOrigin(document, selection, point, zoom);
     this.execute("transform.setRotationOrigin", snapped ?? { reset: true });
   }
+  /**
+   * Keyboard Escape, in native's order (engine/canvas/tools/keys.rs::escape): finish the pen, cancel a gesture, end
+   * moving the rotation origin, leave vector editing, return to the Move tool, and only then clear the selection.
+   * Escape clears the selection whatever its nesting; it never selects the parent (upstream a285fd29, measured in
+   * the target application). Text editing and following a collaborator end through their own key handling.
+   */
+  escape(): void {
+    if (this.pen.open) { this.pen.finish("pen"); return; }
+    if (this.interacting) { this.cancelInteraction(); return; }
+    if (this.endOriginEdit()) return;
+    if (this.#vectorEdit) { this.execute(this.#vectorEdit.anchor !== undefined ? "vector.edit.penEnd" : "vector.edit.end"); return; }
+    if (this.#snapshot.tool !== "move") { this.execute("tool.move"); return; }
+    if (this.#snapshot.selection.length) this.execute("select.none");
+  }
   endOriginEdit(): boolean {
     if (!this.#originSnapshot.editing) return false;
     this.execute("transform.rotationOrigin", { on: false }); return true;

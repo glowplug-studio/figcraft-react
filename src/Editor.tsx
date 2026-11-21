@@ -404,7 +404,8 @@ export function DocumentEditor({ identity, capabilities, engine: suppliedEngine,
       if (["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(event.key)) {
         event.preventDefault(); dispatch(snapshot.selection.length ? "transform.nudge" : "view.pan", { dx: event.key === "ArrowRight" ? 1 : event.key === "ArrowLeft" ? -1 : 0, dy: event.key === "ArrowDown" ? 1 : event.key === "ArrowUp" ? -1 : 0, big: event.shiftKey }); return;
       }
-      if (event.key === "Escape") { event.preventDefault(); controller.current?.cancel(); engine.endOriginEdit(); return; }
+      // Escape ends a gesture first; then the engine's order: the rotation origin, the tool, the selection.
+      if (event.key === "Escape") { event.preventDefault(); if (engine.interacting) controller.current?.cancel(); else engine.escape(); return; }
     }
     if (!event.altKey && (event.metaKey || event.ctrlKey) && snapshot.selection.length && ["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(event.key)) {
       event.preventDefault(); dispatch("transform.nudgeSize", { dw: event.key === "ArrowRight" ? 1 : event.key === "ArrowLeft" ? -1 : 0, dh: event.key === "ArrowDown" ? 1 : event.key === "ArrowUp" ? -1 : 0, big: event.shiftKey }); return;
