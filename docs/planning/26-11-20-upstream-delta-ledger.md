@@ -5,7 +5,7 @@
 - Phase: planning record, written 20 November 2026 at React `f5114ec` on `prompt/full-figcraft-port`.
 - Native range: `7bf098d75d187416633d9ebcceb9eb83fbb10df8` → `bad07e4433240cad046589129c084bd2fc36f097`, 254 commits excluding merges.
 - Purpose: the [delta queue](26-11-15-upstream-delta.md) groups this range into eight rows by theme. Row 1 turned out to hold a change that no row named (point positions in vector edit mode). This ledger assigns every commit to an item, so that nothing in the range is left to be found by accident.
-- Status: 24 items verified, 39 open (four of them, 2.6, 2.12, 2.17 and 2.18, wait for the interface of roadmap row 19), the rest outside the browser port or without product behaviour.
+- Status: 25 items verified, 38 open (four of them, 2.6, 2.12, 2.17 and 2.18, wait for the interface of roadmap row 19), the rest outside the browser port or without product behaviour.
 - Next action: work the open items in order, each as its own bounded slice under its row's plan. Row 2 is closed apart from the four items waiting for row 19 ([row 2 plan](26-11-20-delta-row-2-selection-canvas.md)); row 3 is planned in [the row 3 plan](26-11-21-delta-row-3-files-text-paint.md).
 - Blockers: none.
 
@@ -50,7 +50,7 @@ Items marked as outside the browser port are not dismissed: the final audit revi
 | 3.2 | Lists: .fig export of list spacing, hanging punctuation, lists and vertical trim; a numbered list's start on import; Enter and typed-number starts (#2305, #2273) | Open | `a4e33077`, `bb480bdf`, `4e9b414c`, `b190e675`, `7c3f9ce7`, `b8f05d19` |
 | 3.3 | .fig export writes image adjustments (#2297) | Open | `b54df860`, `501df234` |
 | 3.4 | .fig export writes vector region paints (#2302) | Open | `f1e92749`, `98f94626` |
-| 3.5 | .fig export writes a page's prototype background (#2326) | Open | `fb9df220` |
+| 3.5 | .fig export writes a page's prototype background (#2326) | Verified at fc7d9a3 | `fb9df220` |
 | 3.6 | Crop: chosen in the fill menu or colour picker enters crop mode and a drag crops (#2307, #2150) | Open | `bdf6ff92`, `8330ffb3`, `91a76c72`, `a54eafc0` |
 | 3.7 | Zoomed-out images draw from small copies that stay decoded | Open | `c82986b2`, `503823f9` |
 | 3.8 | A vector point without a radius of its own takes the layer's on .fig import (#2114) | Open | `a6be897d` |

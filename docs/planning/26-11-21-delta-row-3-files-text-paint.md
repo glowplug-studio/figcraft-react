@@ -2,12 +2,12 @@
 
 ## Execution checkpoint
 
-- Phase: Phase 1 for the row, written 21 November 2026. No item is started. Item 1 is next.
-- Native reference: `bad07e4433240cad046589129c084bd2fc36f097` (`bad07e44`). React revision: `7648788` on `prompt/full-figcraft-port`.
+- Phase: item 1 complete through Phase 7 at `fc7d9a3` ([prototype background](../reports/26-11-21-fig-prototype-background.md)). Item 2 is next. Each item is opened with its own dated plan.
+- Native reference: `bad07e4433240cad046589129c084bd2fc36f097` (`bad07e44`). React revision: `fc7d9a3` on `prompt/full-figcraft-port`.
 - Source queue: row 3 of the [upstream delta queue](26-11-15-upstream-delta.md), range `7bf098d7..bad07e44`, with its commits taken from the [commit ledger](26-11-20-upstream-delta-ledger.md).
 - Files in progress: none.
-- Native oracle: `$HOME/.cache/figcraft-oracle/project`. `replay` runs command sequences through the pinned engine, file commands included. The `.fig` items need a native export reopened natively, as [the earlier export fixtures](../../tests/parity/fig-export.test.ts) were made; whether `replay` can write and read files in a mounted scratch directory is the first thing item 1 settles.
-- Next action: open item 1, the prototype background in `.fig` export. Read the upstream range for `format/src/fig/export/layer.rs` and `proto_background_tests.rs`, restate the native tests as a failing case, record a native export and reopen, port, gate, record.
+- Native oracle: `$HOME/.cache/figcraft-oracle/project`. `replay` runs command sequences through the pinned engine. Files travel as base64 in the receipts: `file.saveAs {data: true}` and `file.export {format: "fig"}` return the file, and a second run opens it with `file.open {data, name}`. So a `.fig` item is observed without changing the oracle: export natively, reopen natively, save, and compare the port's export reopened with that document.
+- Next action: open item 2, image adjustments in `.fig` export (ledger 3.3, upstream `b54df860`, `501df234`): the export writes an image paint's adjustments as the paint's `paintFilter` (schema `PaintFilterMessage`, `Paint.paintFilter=14`; `vibrance` for saturation, tint negated, values sanitised to -1..1, nothing written when all are zero) where the port's `src/engine/interchange/fig/export-paint.ts` warns that they were left out. Six native exports with their native reopening were observed on 21 November and wait in the oracle cache (`out-replay-imgadj.json`, `out-replay-imgadj2.json`); if the cache is gone, rebuild them from the commands in the item's provenance once written. Restate as a failing case, port, gate and record. Then the remaining items in order.
 - Blockers: none. Oracle builds are CPU-heavy; do not run them during a browser gate.
 
 ## Why the order
@@ -20,8 +20,8 @@ Each item is a separate bounded slice with its own dated plan, failing fixture, 
 
 | Order | Ledger | Upstream change | Native evidence | React owner to confirm | Status |
 |---|---|---|---|---|---|
-| 1 | 3.5 | `.fig` export writes a page's prototype background (#2326; `fb9df220`) | `format/src/fig/export/layer.rs`; `format/src/fig/proto_background_tests.rs` | `interchange/fig/write-document.ts` | Next |
-| 2 | 3.3 | `.fig` export writes image adjustments (#2297; `b54df860`, `501df234`) | `format/src/fig/export/paint.rs`; `format/src/fig/image_filter_tests.rs` | `interchange/fig/export-paint.ts` | Not started |
+| 1 | 3.5 | `.fig` export writes a page's prototype background (#2326; `fb9df220`) | `format/src/fig/export/layer.rs`; `format/src/fig/proto_background_tests.rs` | `interchange/fig/write-document.ts`, `export-schema.ts`, `scene.ts`, `interchange/rest/document.ts` ([plan](26-11-21-fig-prototype-background.md)) | Verified at `fc7d9a3` with native observations |
+| 2 | 3.3 | `.fig` export writes image adjustments (#2297; `b54df860`, `501df234`) | `format/src/fig/export/paint.rs`; `format/src/fig/image_filter_tests.rs` | `interchange/fig/export-paint.ts` | Next; native observations recorded |
 | 3 | 3.4 | `.fig` export writes vector region paints (#2302; `f1e92749`, `98f94626`) | `format/src/fig/export/shape.rs`; `format/src/fig/export_tests.rs`, `tail_tests.rs` | `interchange/fig/export-vector.ts` | Not started |
 | 4 | 3.8 | A vector point without a radius of its own takes the layer's on `.fig` import (#2114; `a6be897d`) | `format/src/fig/map/layer.rs`, `map.rs`; `format/src/fig/tail_tests.rs` | `interchange/fig/network.ts`, `scene.ts` | Not started |
 | 5 | 3.1 | `.fig` export writes text on a path with exact curves (#2323; `88b63d1e`, `a243f0b8`, `193c3a35`) | `format/src/fig/export/shape.rs`, `export/layer.rs`; `format/src/fig/text_path_tests.rs` | `interchange/fig/text-path.ts`, `export-text.ts` | Not started |
