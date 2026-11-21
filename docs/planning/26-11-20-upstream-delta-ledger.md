@@ -5,7 +5,7 @@
 - Phase: planning record, written 20 November 2026 at React `f5114ec` on `prompt/full-figcraft-port`.
 - Native range: `7bf098d75d187416633d9ebcceb9eb83fbb10df8` → `bad07e4433240cad046589129c084bd2fc36f097`, 254 commits excluding merges.
 - Purpose: the [delta queue](26-11-15-upstream-delta.md) groups this range into eight rows by theme. Row 1 turned out to hold a change that no row named (point positions in vector edit mode). This ledger assigns every commit to an item, so that nothing in the range is left to be found by accident.
-- Status: 18 items verified, 45 open, the rest outside the browser port or without product behaviour.
+- Status: 19 items verified, 44 open, the rest outside the browser port or without product behaviour.
 - Next action: work the open items in order, each as its own bounded slice under its row's plan. Row 2 is planned in [the row 2 plan](26-11-20-delta-row-2-selection-canvas.md).
 - Blockers: none.
 
@@ -40,7 +40,7 @@ Items marked as outside the browser port are not dismissed: the final audit revi
 | 2.11 | Preferences: Invert zoom direction | Open | `6fce958a`, `1ef0c16f`, `a69b27fd` |
 | 2.12 | Layer icon double-click zooms to the layer, keeps a modified selection and becomes the range anchor | Open | `9a29a3cb`, `cf80dc1a`, `6785be8a` |
 | 2.13 | Smart guides snap within 4.5 screen pixels | Verified at a204eae | `a1980463`, `ebe0a8c2` |
-| 2.14 | Shift while rotating lands on multiples of 15 degrees, also inside a rotated frame | Open | `a1ac22f1`, `da81d55a` |
+| 2.14 | Shift while rotating lands on multiples of 15 degrees, also inside a rotated frame | Verified at 2c776c2 | `a1ac22f1`, `da81d55a` |
 | 2.15 | Rotation field shows and sets the rotation on the page (node.set absoluteRotation) | Verified at 3a1c529 | `d0379dc7`, `cc367717`, `7e748d4a`, `accdfbae` |
 | 2.16 | Scale tool: K focuses the field, drags pivot on the opposite handle, origin starts at the centre (#2146, #2148) | Open | `f0d39197`, `92145e6f`, `68564374`, `197a390a`, `7a8d422d`, `4254a3f3` |
 | 2.17 | Sidebars' width limits (left 240 to 450, right 240 to 500) | Open | `ad7a886e`, `1b7ce679` |
