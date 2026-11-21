@@ -3772,6 +3772,25 @@ test("canvas move previews cancel without root updates and release-only Alt copi
   await expect(page.getByRole("region", { name: "Layers" }).getByRole("button", { name: "Dragged", exact: true })).toHaveCount(3);
 });
 
+test("with nothing selected the arrow keys pan 64 screen pixels, and 320 with Shift", async ({ page }) => {
+  await login(page);
+  const canvas = page.getByLabel("Design canvas", { exact: true });
+  const view = () => canvas.evaluate(async (node: HTMLCanvasElement) => {
+    await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
+    return { x: Number(node.dataset.viewOriginX), y: Number(node.dataset.viewOriginY), zoom: Number(node.dataset.viewZoom) };
+  });
+  await canvas.focus(); const start = await view();
+  // One press shows what is 64 screen pixels to the right (upstream 75f54e0a; it was 20).
+  await page.keyboard.press("ArrowRight");
+  await expect.poll(async () => Math.round(((await view()).x - start.x) * start.zoom)).toBe(64);
+  await page.keyboard.press("ArrowLeft");
+  await expect.poll(async () => Math.round(((await view()).x - start.x) * start.zoom)).toBe(0);
+  // Shift pans five steps: 320 (it was 200).
+  await page.keyboard.press("Shift+ArrowDown");
+  await expect.poll(async () => Math.round(((await view()).y - start.y) * start.zoom)).toBe(320);
+  expect(Math.round(((await view()).x - start.x) * start.zoom)).toBe(0);
+});
+
 test("Escape returns to the Move tool first and then clears the selection, never selecting the parent", async ({ page }) => {
   await login(page);
   const creation = page.getByRole("group", { name: "Create layer", exact: true }), layers = page.getByRole("region", { name: "Layers" });

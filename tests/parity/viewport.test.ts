@@ -36,8 +36,9 @@ describe("native viewport navigation", () => {
     expect(scrollView(view, 20, 80, true)).toMatchObject({ cx: -10, cy: -40 });
     expect(scrollView(view, NaN, 2)).toBe(view);
     const engine = new EditorEngine(); engine.execute("view.set", { cx: 0, cy: 0, zoom: 2 });
-    engine.execute("view.pan", { dx: 1, dy: -1 }); expect(engine.getView()).toMatchObject({ cx: 10, cy: -10 });
-    engine.execute("view.pan", { dx: 1000, big: true }); expect(engine.getView().cx).toBe(10010);
+    // Upstream 75f54e0a: 64 screen pixels a step and five steps with Shift (tests/fixtures/native-arrow-pan.json).
+    engine.execute("view.pan", { dx: 1, dy: -1 }); expect(engine.getView()).toMatchObject({ cx: 32, cy: -32 });
+    engine.execute("view.pan", { dx: 1000, big: true }); expect(engine.getView().cx).toBe(16032);
   });
 
   it("fits all content and selection, and traverses frames in reading order with wrap", () => {
@@ -81,7 +82,7 @@ describe("native viewport navigation", () => {
 
   it("accepts native lenient booleans for keyboard pan and zoom direction", () => {
     const engine = new EditorEngine(); engine.execute("view.set", { cx: 0, cy: 0 });
-    engine.execute("view.pan", { dx: 1, big: "YES" }); expect(engine.getView().cx).toBe(200);
+    engine.execute("view.pan", { dx: 1, big: "YES" }); expect(engine.getView().cx).toBe(320);
     engine.execute("view.zoomAt", { x: 0, y: 0, out: 1 }); expect(engine.getView().zoom).toBe(0.5);
     engine.execute("view.zoomAt", { x: 0, y: 0, out: "off" }); expect(engine.getView().zoom).toBe(1);
   });

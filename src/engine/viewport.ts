@@ -85,7 +85,9 @@ export function executeView(command: string, previous: Viewport, document: Docum
     result = { ...view };
   } else if (command === "view.get") result = { ...view };
   else if (command === "view.pan") {
-    const amount = parseBoolean(params.big) === true ? 200 : 20;
+    // 64 screen pixels a step, five steps with Shift: measured by upstream in the target application at 100%
+    // (PAN_STEP_PX and PAN_BIG_STEPS in engine/cmd/view.rs, upstream 75f54e0a; it was 20 and ten times).
+    const amount = parseBoolean(params.big) === true ? 320 : 64;
     const dx = Math.max(-100, Math.min(100, optionalNumber(params.dx) ?? 0)) * amount;
     const dy = Math.max(-100, Math.min(100, optionalNumber(params.dy) ?? 0)) * amount;
     view = scrollView(view, -dx, -dy); result = { cx: view.cx, cy: view.cy };
