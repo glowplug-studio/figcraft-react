@@ -712,3 +712,7 @@ Native `crates/engine/src/canvas/tools/handles.rs::scale_factor` at `bad07e44` (
 ## Delta row 2: Escape — 21 November 2026
 
 Native `crates/engine/src/canvas/tools/keys.rs::escape` at `bad07e44` (upstream `a285fd29`, `92cf9849`) maps to `editor.ts::EditorEngine.escape` at `2cb640a` for its branches from the pen to the selection: the pen, a gesture, the rotation origin (`end_origin_edit` to `endOriginEdit`), vector editing (`canvas/vectoredit.rs::escape` to `vector.edit.penEnd` or `vector.edit.end`), the Move tool and the cleared selection. The gesture branch also maps to the keydown listener of `canvas.ts`, which uses the key up when it cancels a drag. Following a collaborator and text editing end in `Editor.tsx::key` and `canvas-text-input.ts` before that; the placement crosshair and the focus view have no port counterpart. Verified by nine native sessions in `tests/fixtures/native-escape.json` and `tests/parity/escape.test.ts`. [Report](../reports/26-11-21-escape.md).
+
+## Delta row 2: the arrow-key pan — 21 November 2026
+
+Native `crates/engine/src/cmd/view.rs::{PAN_STEP_PX,PAN_BIG_STEPS,pan}` at `bad07e44` (upstream `75f54e0a`), 64 screen pixels a step and five steps with `big`, maps to the `view.pan` case of `viewport.ts::executeView` at `b374bfe`, which scrolls through `scrollView` as native's `ViewState::scroll` does. Verified by twelve native sequences in `tests/fixtures/native-arrow-pan.json` and `tests/parity/arrow-pan.test.ts`. [Report](../reports/26-11-21-arrow-pan.md).
