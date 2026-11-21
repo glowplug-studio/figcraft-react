@@ -5,7 +5,7 @@
 - Phase: planning record, written 20 November 2026 at React `f5114ec` on `prompt/full-figcraft-port`.
 - Native range: `7bf098d75d187416633d9ebcceb9eb83fbb10df8` → `bad07e4433240cad046589129c084bd2fc36f097`, 254 commits excluding merges.
 - Purpose: the [delta queue](26-11-15-upstream-delta.md) groups this range into eight rows by theme. Row 1 turned out to hold a change that no row named (point positions in vector edit mode). This ledger assigns every commit to an item, so that nothing in the range is left to be found by accident.
-- Status: 19 items verified, 44 open, the rest outside the browser port or without product behaviour.
+- Status: 20 items verified, 43 open, the rest outside the browser port or without product behaviour.
 - Next action: work the open items in order, each as its own bounded slice under its row's plan. Row 2 is planned in [the row 2 plan](26-11-20-delta-row-2-selection-canvas.md).
 - Blockers: none.
 
@@ -42,7 +42,7 @@ Items marked as outside the browser port are not dismissed: the final audit revi
 | 2.13 | Smart guides snap within 4.5 screen pixels | Verified at a204eae | `a1980463`, `ebe0a8c2` |
 | 2.14 | Shift while rotating lands on multiples of 15 degrees, also inside a rotated frame | Verified at 2c776c2 | `a1ac22f1`, `da81d55a` |
 | 2.15 | Rotation field shows and sets the rotation on the page (node.set absoluteRotation) | Verified at 3a1c529 | `d0379dc7`, `cc367717`, `7e748d4a`, `accdfbae` |
-| 2.16 | Scale tool: K focuses the field, drags pivot on the opposite handle, origin starts at the centre (#2146, #2148) | Open | `f0d39197`, `92145e6f`, `68564374`, `197a390a`, `7a8d422d`, `4254a3f3` |
+| 2.16 | Scale tool: K focuses the field, drags pivot on the opposite handle, origin starts at the centre (#2146, #2148) | Verified at 9ee41a2 | `f0d39197`, `92145e6f`, `68564374`, `197a390a`, `7a8d422d`, `4254a3f3` |
 | 2.17 | Sidebars' width limits (left 240 to 450, right 240 to 500) | Open | `ad7a886e`, `1b7ce679` |
 | 2.18 | A submenu opens as soon as its row is hovered | Open | `35ac3a92`, `c4302902` |
 | 2.19 | Command parameter refusals: negative, fractional and invalid indices and ids, non-numeric miterLimit, cornerSmoothing and paragraph props, signs and exponents in export sizes | Verified at 02cfbe5 | `04a6c76a`, `0ff3a368`, `82da8f51`, `10d97e27`, `6222fce8`, `db1bec08`, `386c6c1d` |
