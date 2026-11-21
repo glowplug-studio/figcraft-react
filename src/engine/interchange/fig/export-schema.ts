@@ -77,9 +77,10 @@ const declarations:readonly [string,number,string][]=[
   ["VariableID",2,"guid:GUID=1"],
   ["VariableSetID",2,"guid:GUID=1"],
   ["ColorStopVar",2,"color:Color=1 colorVar:VariableData=2 position:float=3"],
+  ["PaintFilterMessage",2,"tint:float=1 shadows:float=2 highlights:float=3 exposure:float=5 temperature:float=7 vibrance:float=8 contrast:float=9"],
   ["Paint",2,"type:PaintType=1 color:Color=2 opacity:float=3 visible:bool=4 blendMode:BlendMode=5" +
     " stops:ColorStop[]=6 transform:Matrix=7 image:Image=8 imageScaleMode:ImageScaleMode=10" +
-    " rotation:float=11 scale:float=12 colorVar:VariableData=21 stopsVar:ColorStopVar[]=23"],
+    " rotation:float=11 scale:float=12 paintFilter:PaintFilterMessage=14 colorVar:VariableData=21 stopsVar:ColorStopVar[]=23"],
   ["Effect",2,"type:EffectType=1 color:Color=2 offset:Vector=3 radius:float=4 visible:bool=5 blendMode:BlendMode=6" +
     " spread:float=7 showShadowBehindNode:bool=8 blurOpType:BlurOpType=19 startRadius:float=21" +
     " startOffset:Vector=20 endOffset:Vector=28 noiseType:NoiseType=26 noiseSize:Vector=22 density:float=25" +

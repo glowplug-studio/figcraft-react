@@ -66,10 +66,14 @@ const filterNames=["exposure","contrast","saturation","temperature","tint","high
 function imagePaint(p:JsonObject,images:ImportImages,warnings:ImportWarnings) {
   const raw=object(p.filters);
   if (p.filters!=null && (typeof p.filters!=="object" || Array.isArray(p.filters))) warnings.add("malformed image filters container was skipped");
+  let adjusted=false;
   for (const [key,value] of entries(raw)) {
     if (!finite(value)) warnings.add("malformed image filter `"+clipped(key)+"` was skipped");
-    else if (value!==0 && !filterNames.some(name=>name===key)) warnings.add("nonzero unsupported image filter `"+clipped(key)+"` was skipped");
+    else if (filterNames.some(name=>name===key)) adjusted||=value!==0;
+    else if (value!==0) warnings.add("nonzero unsupported image filter `"+clipped(key)+"` was skipped");
   }
+  // Native rest/props.rs: a .fig file's adjustments are drawn by this app's own filters, not the other app's.
+  if (adjusted && images.figWarnings) warnings.add("image filters use FigCraft's approximate renderer");
   const filter=(key:typeof filterNames[number])=>Math.fround(clamp(numeric(raw[key]) ?? 0,-1,1));
   const scaleMode=p.scaleMode==="FIT" ? "fit" : p.scaleMode==="TILE" ? "tile" : p.scaleMode==="STRETCH" ? "crop" : "fill";
   const crop=scaleMode==="crop" ? restTransform(p.imageTransform) : undefined;

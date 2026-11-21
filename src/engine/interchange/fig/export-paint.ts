@@ -69,7 +69,16 @@ export class FigPaintWriter {
           out.imageScaleMode=p.scale_mode==="crop" ? "STRETCH" : p.scale_mode.toUpperCase();
           out.rotation=((p.rotation%4+4)%4)*90;out.scale=p.scale;
           if (p.crop && p.scale_mode==="crop") out.transform=wireMatrix(p.crop);
-          if (Object.values(p.filters).some(x=>x!==0)) this.warn("image adjustments (exposure, contrast, …) were left out");
+          {
+            // Native export/paint.rs (upstream #2297): the adjustments go out as the paint's `paintFilter`, within the
+            // file's range (a document can hold a value outside -1..1 or not a number), and not at all when none is
+            // set. The file calls saturation vibrance, and its tint is positive towards magenta where ours is towards
+            // green; `0 -` keeps zero positive.
+            const f=p.filters,within=(v:number)=>Number.isFinite(v) ? Math.max(-1,Math.min(v,1)) : 0;
+            const x={exposure:within(f.exposure),contrast:within(f.contrast),vibrance:within(f.saturation),temperature:within(f.temperature),
+              tint:0-within(f.tint),highlights:within(f.highlights),shadows:within(f.shadows)};
+            if (Object.values(x).some(v=>v!==0)) out.paintFilter=x;
+          }
           break;
         case "pattern":this.warn("pattern fills were left out");continue;
       }

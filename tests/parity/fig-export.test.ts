@@ -5,15 +5,21 @@ import {decodeFigcraft} from "../../src/engine/file-format";
 import {loadDesignDocument} from "../../src/engine/interchange/load";
 import {writeFigDocument} from "../../src/engine/interchange/fig/write-document";
 import native from "../fixtures/native-rest-documents.json";
+import adjustments from "../fixtures/native-fig-image-adjustments.json";
 
 const expected=unzipSync(readFileSync(new URL("../fixtures/native-fig-imports.zip",import.meta.url)));
+// Native's export left image adjustments out when the corpus was written and writes them at bad07e44 (upstream #2297).
+// The one drawing of the corpus that has them is compared with its export and reopening observed at that revision
+// (tests/fixtures/native-fig-image-adjustments.provenance.md).
+const repinned=new Map(adjustments.repinned.map(c=>[c.name,c]));
 it.each(native)("reopens browser-written Fig output against the native writer for $name",async input=>{
-  const name=input.name.replaceAll(" ","-");
+  const name=input.name.replaceAll(" ","-"),again=repinned.get(input.name);
   const source=await decodeFigcraft(Uint8Array.from(Buffer.from(input.archive,"base64")));
   const file=await writeFigDocument(source.document,()=>{});
   const result=await loadDesignDocument(file.blob,undefined,()=>{},undefined,"supplied.fig");
-  const reference=await decodeFigcraft(expected[name+"-zip.figcraft"]);
-  expect(result.decoded.issues).toEqual(JSON.parse(new TextDecoder().decode(expected[name+"-zip.receipt.json"])).warnings);
+  const reference=await decodeFigcraft(again ? Uint8Array.from(Buffer.from(again.reopened,"base64")) : expected[name+"-zip.figcraft"]);
+  if (again) expect(file.warnings).toEqual(again.exportWarnings);
+  expect(result.decoded.issues).toEqual(again ? again.openWarnings : JSON.parse(new TextDecoder().decode(expected[name+"-zip.receipt.json"])).warnings);
   expect(result.decoded.document).toEqual(reference.document);
   expect(result.decoded.nextId).toBe(reference.nextId);
 });
