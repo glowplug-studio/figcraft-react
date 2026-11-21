@@ -181,6 +181,21 @@ export function DocumentEditor({ identity, capabilities, engine: suppliedEngine,
   useLayoutEffect(() => {
     if (root.current) root.current.dataset.commits = String(Number(root.current.dataset.commits ?? 0) + 1);
   });
+  // The strip of the canvas the floating bottom toolbar covers, for Zoom to selection (upstream fceb6063): measured
+  // whenever the toolbar or the canvas area changes size, and 0 when the toolbar does not lie over the canvas.
+  useEffect(() => {
+    const area = canvas.current?.closest(".figcraft-canvas-area");
+    if (!area || !canvas.current) return;
+    const measure = () => {
+      const bar = area.querySelector<HTMLElement>(".figcraft-toolbar"), box = canvas.current?.getBoundingClientRect();
+      const top = bar?.getBoundingClientRect().top;
+      engine.setBottomInset(box && top !== undefined && top < box.bottom ? box.bottom - Math.max(top, box.top) : 0);
+    };
+    measure();
+    const observer = new ResizeObserver(measure); observer.observe(area);
+    const bar = area.querySelector(".figcraft-toolbar"); if (bar) observer.observe(bar);
+    return () => observer.disconnect();
+  }, [engine, snapshot.tool, editingVector]);
   useEffect(() => {
     const update = () => {
       const current = identity.getSnapshot();

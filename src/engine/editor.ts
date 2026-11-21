@@ -1265,6 +1265,12 @@ export class EditorEngine {
     if(!this.#followingView && this.#people?.following!==undefined && (view.cx!==this.#view.cx || view.cy!==this.#view.cy || view.zoom!==this.#view.zoom))this.#people.setFollow();
     this.#view = Object.freeze({ ...view }); this.#viewListeners.forEach(listener => listener());
   }
+  /** The strip of the canvas the floating bottom toolbar covers, measured by the host: Zoom to selection fits above
+   * it. 0 when the toolbar is hidden or beside the canvas. */
+  setBottomInset(inset: number): void {
+    const value = Number.isFinite(inset) ? Math.max(0, Math.min(20000, inset)) : 0;
+    if (value !== (this.#view.bottomInset ?? 0)) this.updateView({ ...this.#view, bottomInset: value });
+  }
   resizeViewport(width: number, height: number): void {
     const next = { ...this.#view, vw: Math.max(1, width), vh: Math.max(1, height) };
     this.updateView(!this.#viewportAttached && !this.#viewConfigured ? fitPage(next, this.#snapshot.document) : next);

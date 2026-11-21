@@ -3772,6 +3772,23 @@ test("canvas move previews cancel without root updates and release-only Alt copi
   await expect(page.getByRole("region", { name: "Layers" }).getByRole("button", { name: "Dragged", exact: true })).toHaveCount(3);
 });
 
+test("Zoom to selection leaves 40 pixels around the selection, above the bottom toolbar", async ({ page }) => {
+  await login(page); await createNamedRectangle(page, "Tall", 200, 200, 100, 400);
+  const canvas = page.getByLabel("Design canvas", { exact: true });
+  await page.getByRole("button", { name: "Fit selection", exact: true }).click();
+  const box = (await canvas.boundingBox())!, bar = (await page.getByRole("toolbar", { name: "Tools", exact: true }).boundingBox())!;
+  expect(bar.y, "the toolbar floats over the canvas").toBeLessThan(box.y + box.height);
+  // A tall selection is limited by the height: 40 pixels below the canvas's top edge and 40 above the toolbar
+  // (upstream fceb6063), centred across the canvas.
+  await expect.poll(async () => Math.round((await canvasPoint(page, 200, 200)).y - box.y)).toBe(40);
+  const top = await canvasPoint(page, 200, 200), bottom = await canvasPoint(page, 300, 600);
+  expect(Math.abs(bar.y - bottom.y - 40)).toBeLessThan(1.5);
+  expect(Math.abs((top.x + bottom.x) / 2 - (box.x + box.width / 2))).toBeLessThan(1.5);
+  // Zoom to fit keeps its own margin and the whole canvas.
+  await page.getByRole("button", { name: "Fit page", exact: true }).click();
+  await expect.poll(async () => Math.round((await canvasPoint(page, 200, 200)).y - box.y)).toBeGreaterThan(40);
+});
+
 test("with nothing selected the arrow keys pan 64 screen pixels, and 320 with Shift", async ({ page }) => {
   await login(page);
   const canvas = page.getByLabel("Design canvas", { exact: true });

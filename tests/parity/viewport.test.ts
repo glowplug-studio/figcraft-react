@@ -47,7 +47,8 @@ describe("native viewport navigation", () => {
     const f3 = frame(0, 500, 100, 100), f2 = frame(600, 0, 200, 200), f1 = frame(0, 0, 400, 300);
     const rect = String(engine.execute("shape.rectangle", { x: 900, y: 0, width: 40, height: 40 }).id);
     engine.execute("view.zoomFit"); expect(engine.getView()).toMatchObject({ cx: 470, cy: 300, zoom: 1.12 });
-    engine.execute("view.zoomSelection"); expect(engine.getView()).toMatchObject({ cx: 920, cy: 20, zoom: 16.8 });
+    // Upstream fceb6063: Zoom to selection leaves a 40 point margin, (800 - 80) / 40 (tests/fixtures/native-zoom-selection.json).
+    engine.execute("view.zoomSelection"); expect(engine.getView()).toMatchObject({ cx: 920, cy: 20, zoom: 18 });
     engine.execute("select.none"); engine.execute("view.nextFrame"); expect(engine.getSnapshot().selection).toEqual([f1]);
     engine.execute("view.nextFrame"); expect(engine.getSnapshot().selection).toEqual([f2]);
     engine.execute("view.nextFrame"); expect(engine.getSnapshot().selection).toEqual([f3]);

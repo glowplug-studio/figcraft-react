@@ -14,7 +14,9 @@ export function* visibleTopFrames(document:Document,children:readonly NodeId[],d
   }
 }
 
-export interface Viewport { readonly cx: number; readonly cy: number; readonly zoom: number; readonly vw: number; readonly vh: number; readonly slices?: boolean; readonly layoutGrids?: boolean; readonly snapObjects?: boolean; readonly snapPixel?: boolean; readonly proofSrgb?: boolean }
+export interface Viewport { readonly cx: number; readonly cy: number; readonly zoom: number; readonly vw: number; readonly vh: number; readonly slices?: boolean; readonly layoutGrids?: boolean; readonly snapObjects?: boolean; readonly snapPixel?: boolean; readonly proofSrgb?: boolean;
+  /** Height of the strip of the canvas the floating bottom toolbar covers, for Zoom to selection. Set by the host and by `view.set`; 0 when the toolbar is hidden. Never saved or read back. */
+  readonly bottomInset?: number }
 export const defaultViewport: Viewport = Object.freeze({ cx: 0, cy: 0, zoom: 1, vw: 1200, vh: 800 });
 export const minimumZoom = 0.02, maximumZoom = 256;
 const steps = [0.02, 0.03, 0.06, 0.13, 0.25, 0.5, 1, 2, 4, 8, 16, 32, 64, 128, 256];
@@ -50,6 +52,21 @@ export function fitView(view: Viewport, box: Rectangle, maxZoom = maximumZoom): 
     ? Math.max(minimumZoom, Math.min(maxZoom, Math.max(50, view.vw - 128) / Math.max(1e-6, box.width), Math.max(50, view.vh - 128) / Math.max(1e-6, box.height))) : view.zoom;
   return Object.freeze({ ...view, zoom, cx: box.x + box.width / 2, cy: box.y + box.height / 2 });
 }
+/** Native `ViewState::fit_selection` (upstream fceb6063, measured in the target application): fit a page rectangle for
+ * Zoom to selection with a 40 point margin on all four sides of the area above the bottom toolbar, centred in that
+ * area. A canvas too small for 40 points keeps a quarter of its size on each side, so the selection still ends above
+ * the toolbar. A point is centred in that area at the zoom the view has; a rectangle that is not all finite numbers
+ * leaves the view as it is. */
+export function fitSelection(view: Viewport, box: Rectangle, maxZoom = maximumZoom): Viewport {
+  if (![box.x, box.y, box.width, box.height].every(Number.isFinite)) return view;
+  const raw = view.bottomInset ?? 0, inset = Number.isFinite(raw) ? Math.max(0, Math.min(Math.max(0, view.vh - 1), raw)) : 0;
+  const areaHeight = Math.max(1, view.vh - inset), cx = box.x + box.width / 2, centre = box.y + box.height / 2;
+  if (!(box.width > 0 || box.height > 0)) return Object.freeze({ ...view, cx, cy: centre + (view.vh - areaHeight) / 2 / Math.max(view.zoom, 1e-6) });
+  const mx = Math.max(0, Math.min(40, view.vw / 4)), my = Math.max(0, Math.min(40, areaHeight / 4));
+  const zoom = Math.max(minimumZoom, Math.min(maxZoom, Math.max(1, view.vw - mx * 2) / Math.max(1e-6, box.width), Math.max(1, areaHeight - my * 2) / Math.max(1e-6, box.height)));
+  // The rectangle's centre lands at the middle of the area; the page centre is half the covered strip below it.
+  return Object.freeze({ ...view, zoom, cx, cy: centre + (view.vh - areaHeight) / 2 / zoom });
+}
 export function boundsOf(document: Document, ids: readonly NodeId[]): Rectangle | undefined {
   let x = Infinity, y = Infinity, right = -Infinity, bottom = -Infinity;
   for (const id of ids) {
@@ -65,13 +82,15 @@ export function fitPage(view: Viewport, document: Document): Viewport {
   const bounds = boundsOf(document, pageOf(document).children);
   return bounds ? fitView(view, bounds, 1) : Object.freeze({ ...view, zoom: 1, cx: view.vw / 2 - 100, cy: view.vh / 2 - 100 });
 }
+/** The view as `view.get` and `view.set` give it: the bottom inset is the host's and is not read back. */
+function readView(view: Viewport): Record<string, unknown> { const { bottomInset: _inset, ...rest } = view; return rest; }
 function optionalNumber(value: unknown): number | undefined { try { return parseNumber(value); } catch { return undefined; } }
 function step(zoom: number, up: boolean): number { return up ? steps.find(value => value > zoom * 1.001) ?? maximumZoom : [...steps].reverse().find(value => value < zoom * 0.999) ?? minimumZoom; }
 
 export function executeView(command: string, previous: Viewport, document: Document, selection: readonly NodeId[], params: Record<string, unknown>) {
   if (!Object.hasOwn(viewSpecs, command)) throw new Error(`Unsupported view command: ${command}`);
   const toggle = command === "view.slices" || command === "view.layoutGrids" || command === "view.snapObjects" || command === "view.snapPixel" || command === "view.proofSrgb";
-  const allowed = toggle ? ["on"] : command === "view.set" ? ["zoom", "cx", "cy", "vw", "vh"] : command === "view.zoomAt" ? ["x", "y", "out", "width", "height"] : command === "view.pan" ? ["dx", "dy", "big"] : [];
+  const allowed = toggle ? ["on"] : command === "view.set" ? ["zoom", "cx", "cy", "vw", "vh", "bottomInset"] : command === "view.zoomAt" ? ["x", "y", "out", "width", "height"] : command === "view.pan" ? ["dx", "dy", "big"] : [];
   for (const key of Object.keys(params)) if (!allowed.includes(key)) throw new Error(`Unsupported ${command} parameter: ${key}`);
   let view = previous, current = document, selected = selection, result: Record<string, unknown> = {};
   if (toggle) {
@@ -81,9 +100,10 @@ export function executeView(command: string, previous: Viewport, document: Docum
   } else if (command === "view.set") {
     const values = Object.fromEntries(allowed.map(key => [key, optionalNumber(params[key])])) as Partial<Viewport>;
     view = Object.freeze({ ...view, cx: values.cx ?? view.cx, cy: values.cy ?? view.cy, zoom: Math.max(minimumZoom, Math.min(maximumZoom, values.zoom ?? view.zoom)),
-      vw: Math.max(10, Math.min(20000, values.vw ?? view.vw)), vh: Math.max(10, Math.min(20000, values.vh ?? view.vh)) });
-    result = { ...view };
-  } else if (command === "view.get") result = { ...view };
+      vw: Math.max(10, Math.min(20000, values.vw ?? view.vw)), vh: Math.max(10, Math.min(20000, values.vh ?? view.vh)),
+      ...(values.bottomInset === undefined ? {} : { bottomInset: Math.max(0, Math.min(20000, values.bottomInset)) }) });
+    result = readView(view);
+  } else if (command === "view.get") result = readView(view);
   else if (command === "view.pan") {
     // 64 screen pixels a step, five steps with Shift: measured by upstream in the target application at 100%
     // (PAN_STEP_PX and PAN_BIG_STEPS in engine/cmd/view.rs, upstream 75f54e0a; it was 20 and ten times).
@@ -99,7 +119,7 @@ export function executeView(command: string, previous: Viewport, document: Docum
     result = { zoom: view.zoom, cx: view.cx, cy: view.cy };
   } else if (command === "view.zoomFit" || command === "view.zoomSelection") {
     const box = boundsOf(document, command === "view.zoomFit" ? pageOf(document).children : selection);
-    if (box) view = fitView(view, box);
+    if (box) view = command === "view.zoomFit" ? fitView(view, box) : fitSelection(view, box);
     result = { zoom: view.zoom };
   } else if (command === "view.nextFrame" || command === "view.prevFrame") {
     const frames = pageOf(document).children.filter(id => isFrameLike(document.nodes[id])).map(id => ({ id, box: boundsOf(document, [id])! })).sort((a, b) => a.box.y - b.box.y || a.box.x - b.box.x);
