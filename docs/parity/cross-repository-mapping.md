@@ -716,3 +716,7 @@ Native `crates/engine/src/canvas/tools/keys.rs::escape` at `bad07e44` (upstream 
 ## Delta row 2: the arrow-key pan — 21 November 2026
 
 Native `crates/engine/src/cmd/view.rs::{PAN_STEP_PX,PAN_BIG_STEPS,pan}` at `bad07e44` (upstream `75f54e0a`), 64 screen pixels a step and five steps with `big`, maps to the `view.pan` case of `viewport.ts::executeView` at `b374bfe`, which scrolls through `scrollView` as native's `ViewState::scroll` does. Verified by twelve native sequences in `tests/fixtures/native-arrow-pan.json` and `tests/parity/arrow-pan.test.ts`. [Report](../reports/26-11-21-arrow-pan.md).
+
+## Delta row 2: Zoom to selection — 21 November 2026
+
+Native `crates/engine/src/view_state.rs::fit_selection` at `bad07e44` (upstream `fceb6063`, `5d529269`, `53bf0a40`) maps to `viewport.ts::fitSelection` at `bac8b73`, which `view.zoomSelection` now calls where it called `fitView`. The unsaved `bottom_inset` of `ViewState`, its `view.set bottomInset` parameter in `cmd/view.rs` and its absence from `view.get` map to `Viewport.bottomInset`, the `view.set` case and `readView` in `viewport.ts`. The strip that `crates/ui-egui/src/app.rs` takes from the toolbar pill every frame maps to `editor.ts::setBottomInset`, called from an effect in `Editor.tsx` that measures the toolbar over the canvas. Verified by eleven native sequences in `tests/fixtures/native-zoom-selection.json` and `tests/parity/zoom-selection.test.ts`. [Report](../reports/26-11-21-zoom-selection.md).
