@@ -131,6 +131,7 @@ export const commandSpecs = Object.freeze({
   "comment.prompt": {label:"Copy comments for AI",undo:false},
   "pref.publishServer":{label:"Server for online sharing",undo:false},
   "pref.userName": {label:"Your name",undo:false},
+  "pref.invertZoom": {label:"Invert zoom direction",undo:false},
   "tool.comment": {label:"Comment",undo:false},
   "view.comments": {label:"Comments",undo:false},
   "comment.open": {label:"Open comment",undo:false},
@@ -495,6 +496,9 @@ export class EditorEngine {
   #inspectSession?:()=>LiveSummary;
   #sessionAction?:SessionAction;
   #online?:()=>OnlineWorkspace|undefined;
+  /** Preferences ▸ Invert zoom direction: Ctrl or Cmd with the wheel zooms the other way (upstream 6fce958a). */
+  #invertZoom=false;
+  get invertZoom(){return this.#invertZoom;}
   #serverPreference=new OnlineServerPreference("");
   get serverPreference(){return this.#serverPreference;}
   setServerPreference(preference:OnlineServerPreference){
@@ -1579,6 +1583,14 @@ export class EditorEngine {
     }
     if(Object.hasOwn(peopleCommands,command))return executePeople(this.#people,command,parameters(input));
     if(command==="pref.publishServer")return {...this.serverPreference.execute(parameters(input))};
+    if (command==="pref.invertZoom") {
+      // Native cmd/view.rs::pref: `on` sets the preference and anything that is not a boolean toggles it.
+      const p=parameters(input), [unexpected]=Object.keys(p).filter(key=>key!=="on");
+      if (unexpected!==undefined) throw Error("invalid parameters for `"+command+"`: unknown parameter `"+unexpected+"` (it takes on)");
+      this.#invertZoom=parseBoolean(p.on) ?? !this.#invertZoom;
+      this.#publish({});
+      return {on:this.#invertZoom};
+    }
     if (command==="pref.userName") {
       const {name}=parameters(input);
       if (typeof name!=="string") throw new Error("Your name must be text");

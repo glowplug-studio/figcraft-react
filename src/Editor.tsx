@@ -1,6 +1,7 @@
 import {LivePeopleControls,LivePeopleOverlay} from "./LivePeopleControls";
 import {DisplayNameField,useDisplayName} from "./DisplayNameField";
 import {OnlineServerPreferenceField} from "./OnlineServerPreferenceField";
+import { InvertZoomPreference } from "./InvertZoomPreference";
 import {CommentOverlay} from "./CommentOverlay";
 import type {OnlineTeamLibraries} from "./backends/online-files";
 import { ImportReportPanel } from "./ImportReportPanel";
@@ -796,7 +797,7 @@ export function DocumentEditor({ identity, capabilities, engine: suppliedEngine,
     }}>
       <header className="figcraft-document-bar">{onHome && <button type="button" onClick={onHome}>Home</button>}<h1>{snapshot.document.name}</h1><span data-live-status={sessionLabel ? true : undefined}>{snapshot.dirty ? "Unsaved" : snapshot.hasSaved ? "Downloaded" : "Unmodified"} · {sessionLabel ?? "Local document"}</span>{shareMenu}{engine.people && <LivePeopleControls notify={setError} room={engine.people} engine={engine} menuGroup={menuGroup ?? localMenuGroup}/>}
         <details name={menuGroup ?? localMenuGroup} className="figcraft-bar-menu"><summary>File</summary><div className="figcraft-menu-items">{fileMenu}
-          <details><summary>Preferences</summary>{initialPrincipal.current && <DisplayNameField principal={initialPrincipal.current}/>}<OnlineServerPreferenceField preference={engine.serverPreference}/></details>
+          <details><summary>Preferences</summary>{initialPrincipal.current && <DisplayNameField principal={initialPrincipal.current}/>}<OnlineServerPreferenceField preference={engine.serverPreference}/><InvertZoomPreference engine={engine}/></details>
           <button type="button" disabled={!editable || busy || recoveryStatus==="loading"} onClick={event=>{
             event.currentTarget.closest("details")?.removeAttribute("open");importInput.current?.click();
           }}>Import…</button>

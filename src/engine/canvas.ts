@@ -32,7 +32,7 @@ import { EditorEngine } from "./editor";
 import { type Point, type Rectangle } from "./geometry";
 import { multiply, transformBounds, transformPoint, type Affine } from "./affine";
 import { pageForNode, subtreeIds, worldTransform } from "./hierarchy";
-import { boundsOf, pageToScreen, screenToPage, scrollView, viewOrigin, zoomAt, type Viewport } from "./viewport";
+import { boundsOf, pageToScreen, screenToPage, scrollView, viewOrigin, wheelView, zoomAt, type Viewport } from "./viewport";
 import { SmartHandles } from "./smart-handles";
 import { MoveInteraction } from "./move-interaction";
 import { TransformInteraction } from "./transform-interaction";
@@ -636,6 +636,8 @@ export class CanvasController {
   #dragOrigin = false;
   #space = false;
   #zoomHeld = false;
+  /** Whether a Control key is down: a wheel event with `ctrlKey` and no Control key is a trackpad pinch. */
+  #controlHeld = false;
   #pan?: { screen: Point; view: Viewport };
   #zoomStart?: Point;
   #zoomArea?: Rectangle;
@@ -667,6 +669,7 @@ export class CanvasController {
     canvas.addEventListener("lostpointercapture", this.#cancelEvent, options);
     canvas.addEventListener("keydown", this.#key, options);
     window.addEventListener("keyup", this.#keyUp, options);
+    window.addEventListener("keydown", this.#modifierDown, options);
     canvas.addEventListener("wheel", this.#wheel, { ...options, passive: false });
     window.addEventListener("blur", this.#blur, options);
     window.addEventListener("resize", this.#resize, options);
@@ -870,11 +873,8 @@ export class CanvasController {
   #wheel = (event: WheelEvent): void => {
     if (!this.engine.getSnapshot().editable) return;
     event.preventDefault();
-    const view = this.engine.getView(), unit = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? view.vh : 1;
-    const dx = event.deltaX * unit, dy = event.deltaY * unit;
-    this.engine.updateView(event.ctrlKey || event.metaKey
-      ? zoomAt(view, view.zoom * Math.exp(Math.max(-50, Math.min(50, -dy * 0.005))), screenToPage(view, this.#screenPoint(event)))
-      : scrollView(view, -dx, -dy, event.shiftKey));
+    const view = this.engine.getView();
+    this.engine.updateView(wheelView(view, event, screenToPage(view, this.#screenPoint(event)), this.engine.invertZoom, this.#controlHeld));
   };
   #onOrigin(point: Point): boolean {
     const origin = this.engine.getRotationOrigin();
@@ -894,7 +894,8 @@ export class CanvasController {
       else this.#moving.doubleClick(this.#point(event));
     } catch (error) { this.onError(error instanceof Error ? error.message : "Could not enter layer"); }
   };
-  #blur = (): void => { this.#space = false; this.#zoomHeld = false; this.cancel(); };
+  #blur = (): void => { this.#space = false; this.#zoomHeld = false; this.#controlHeld = false; this.cancel(); };
+  #modifierDown = (event: KeyboardEvent): void => { if (event.key === "Control") this.#controlHeld = true; };
   #cancelEvent = (event: PointerEvent): void => { if (this.#pointer === event.pointerId) this.cancel(); };
   #penFailure(error: unknown): void { this.cancel(); this.onError(error instanceof Error ? error.message : "Could not draw path"); }
   #key = (event: KeyboardEvent): void => {
@@ -925,6 +926,7 @@ export class CanvasController {
   #keyUp = (event: KeyboardEvent): void => {
     if (event.code === "Space") this.#space = false;
     if (event.key.toLowerCase() === "z") this.#zoomHeld = false;
+    if (event.key === "Control") this.#controlHeld = false;
   };
   formatText(props: Record<string,unknown>) { return this.#text.format(props); }
   finishText() { this.#text.finish(); }

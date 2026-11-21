@@ -47,6 +47,21 @@ export function scrollView(view: Viewport, dx: number, dy: number, shift = false
   if (shift && dx === 0) { dx = dy; dy = 0; }
   return Object.freeze({ ...view, cx: view.cx - dx / view.zoom, cy: view.cy - dy / view.zoom });
 }
+/** The parts of a wheel event the canvas reads. */
+export interface WheelInput { readonly deltaX: number; readonly deltaY: number; readonly deltaMode: number; readonly ctrlKey: boolean; readonly metaKey: boolean; readonly shiftKey: boolean }
+/**
+ * What a wheel event over page point `anchor` does to the view: Ctrl or Cmd with the wheel zooms about the pointer,
+ * anything else scrolls. With Preferences ▸ Invert zoom direction on, the wheel zooms the other way by the same
+ * factor (native ui-egui/src/canvas/input.rs, upstream 6fce958a); a trackpad pinch and scrolling are unchanged.
+ * A browser reports a pinch as a wheel event with `ctrlKey` set while no Control key is down, which is how
+ * `controlHeld` tells the two apart; Cmd is always a key.
+ */
+export function wheelView(view: Viewport, event: WheelInput, anchor: Point, invertZoom: boolean, controlHeld: boolean): Viewport {
+  const unit = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? view.vh : 1, dx = event.deltaX * unit, dy = event.deltaY * unit;
+  if (!event.ctrlKey && !event.metaKey) return scrollView(view, -dx, -dy, event.shiftKey);
+  const pinch = event.ctrlKey && !event.metaKey && !controlHeld, factor = Math.exp(Math.max(-50, Math.min(50, -dy * 0.005)));
+  return zoomAt(view, view.zoom * (invertZoom && !pinch ? 1 / factor : factor), anchor);
+}
 export function fitView(view: Viewport, box: Rectangle, maxZoom = maximumZoom): Viewport {
   const zoom = box.width > 0 || box.height > 0
     ? Math.max(minimumZoom, Math.min(maxZoom, Math.max(50, view.vw - 128) / Math.max(1e-6, box.width), Math.max(50, view.vh - 128) / Math.max(1e-6, box.height))) : view.zoom;

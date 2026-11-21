@@ -3772,6 +3772,30 @@ test("canvas move previews cancel without root updates and release-only Alt copi
   await expect(page.getByRole("region", { name: "Layers" }).getByRole("button", { name: "Dragged", exact: true })).toHaveCount(3);
 });
 
+test("Preferences: Invert zoom direction reverses Ctrl+wheel zoom, leaves a pinch alone and is remembered", async ({ page }) => {
+  await login(page); await createNamedRectangle(page, "Zoomed", 200, 200, 100, 100);
+  const canvas = page.getByLabel("Design canvas", { exact: true }), bar = page.locator(".figcraft-document-bar");
+  const zoom = () => canvas.evaluate(async (node: HTMLCanvasElement) => { await new Promise<void>(resolve => requestAnimationFrame(() => resolve())); return Number(node.dataset.viewZoom); });
+  const box = (await canvas.boundingBox())!, at = { x: box.x + box.width / 2, y: box.y + box.height / 3 };
+  const ctrlWheel = async (deltaY: number) => { await page.mouse.move(at.x, at.y); await page.keyboard.down("Control"); await page.mouse.wheel(0, deltaY); await page.keyboard.up("Control"); };
+  // A browser reports a trackpad pinch as a wheel event with ctrlKey set and no Control key down.
+  const pinch = (deltaY: number) => canvas.evaluate((node, d) => { const r = node.getBoundingClientRect(); node.dispatchEvent(new WheelEvent("wheel", { deltaY: d, ctrlKey: true, clientX: r.x + r.width / 2, clientY: r.y + r.height / 3, bubbles: true, cancelable: true })); }, deltaY);
+  const start = await zoom();
+  await ctrlWheel(-100); const zoomedIn = await zoom(); expect(zoomedIn).toBeGreaterThan(start);
+  const preference = async () => { await bar.getByText("File", { exact: true }).click(); await bar.getByText("Preferences", { exact: true }).click(); return bar.getByLabel("Invert zoom direction", { exact: true }); };
+  const box1 = await preference(); await expect(box1).not.toBeChecked(); await box1.check(); await page.keyboard.press("Escape"); await canvas.click({ position: { x: 5, y: 5 } });
+  // With the preference on the same turn of the wheel zooms out by the same factor (upstream 6fce958a).
+  await ctrlWheel(-100); await expect.poll(async () => Math.abs((await zoom()) - start)).toBeLessThan(1e-9);
+  // A pinch is unchanged: it still zooms in.
+  await pinch(-100); await expect.poll(zoom).toBeGreaterThan(start);
+  const afterPinch = await zoom();
+  // The preference is saved in the browser, and applies again after a reload.
+  await page.reload(); await expect(canvas).toBeVisible();
+  const box2 = await preference(); await expect(box2).toBeChecked(); await page.keyboard.press("Escape"); await canvas.click({ position: { x: 5, y: 5 } });
+  const reopened = await zoom(); await ctrlWheel(-100); await expect.poll(zoom).toBeLessThan(reopened);
+  expect(afterPinch).toBeGreaterThan(start);
+});
+
 test("Zoom to selection leaves 40 pixels around the selection, above the bottom toolbar", async ({ page }) => {
   await login(page); await createNamedRectangle(page, "Tall", 200, 200, 100, 400);
   const canvas = page.getByLabel("Design canvas", { exact: true });
