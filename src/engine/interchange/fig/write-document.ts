@@ -50,7 +50,7 @@ async function writeLayer(node:LayerNode,paints:FigPaintWriter,blobs:FigBlobs):P
     }
     if (corners.smoothing>0) out.cornerSmoothing=corners.smoothing;
   }
-  if (node.kind==="vector") writeVector(out,node,blobs);
+  if (node.kind==="vector") await writeVector(out,node,blobs,paints);
   shapeGeometry(out,node,blobs);
   return out;
 }
