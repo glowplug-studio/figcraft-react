@@ -108,8 +108,9 @@ describe("native new Pen path lifetime", () => {
   it("view settings preserve an open path, tool switches finish it and revocation cancels it", () => {
     const { e, click, node } = setup(); click(100, 100); click(200, 100); const id = node().id;
     e.execute("view.snapObjects", { on: false }); expect(e.pen.open).toBe(true); expect(e.interacting).toBe(true);
-    expect(e.execute("tool.scaleAnchor")).toEqual({ anchor: "tl" });
-    e.execute("tool.scaleAnchor", { anchor: "c" }); expect(e.pen.open).toBe(true); expect(e.interacting).toBe(true); expect(node().id).toBe(id);
+    // The origin starts at the centre (upstream f0d39197).
+    expect(e.execute("tool.scaleAnchor")).toEqual({ anchor: "c" });
+    e.execute("tool.scaleAnchor", { anchor: "tl" }); expect(e.pen.open).toBe(true); expect(e.interacting).toBe(true); expect(node().id).toBe(id);
     expect(() => e.execute("tool.scaleAnchor", { anchor: "invalid" })).toThrow(/anchor/); expect(e.pen.open).toBe(true); expect(e.getUndoDepth()).toBe(0);
     e.execute("tool.pen"); expect(e.pen.open).toBe(true); e.execute("tool.rectangle"); expect(e.pen.open).toBe(false); expect(e.getSnapshot().document.nodes[id]).toBeDefined(); expect(e.getUndoDepth()).toBe(1);
     e.execute("tool.pen"); click(300, 300); click(400, 300); e.setEditable(false); expect(e.pen.open).toBe(false); expect(Object.keys(e.getSnapshot().document.nodes)).toHaveLength(2);

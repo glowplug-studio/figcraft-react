@@ -12,8 +12,8 @@ export function scaleAbout(box: Rectangle, anchor: ScaleAnchor, factor: number):
   const p = anchorPoint(anchor, box.width, box.height);
   return { factor: Math.min(100, Math.max(.01, factor)), pivot: { x: box.x + p.x, y: box.y + p.y } };
 }
-export function ScalePanel({ engine, enabled, dispatch, onError }: {
-  engine: EditorEngine; enabled: boolean; dispatch: (command: string, params?: unknown) => void; onError: (message: string) => void;
+export function ScalePanel({ engine, enabled, dispatch, onError, onDone }: {
+  engine: EditorEngine; enabled: boolean; dispatch: (command: string, params?: unknown) => void; onError: (message: string) => void; onDone?: () => void;
 }) {
   const document = useSyncExternalStore(engine.subscribeCanvas, engine.getRenderDocument, engine.getRenderDocument), s = engine.getSnapshot();
   const box = boundsOf(document, s.selection), drag = useRef<{ pointer: number; x: number; last: number; amount: number; moved: boolean; side: number; box: Rectangle; anchor: ScaleAnchor } | null>(null);
@@ -22,6 +22,11 @@ export function ScalePanel({ engine, enabled, dispatch, onError }: {
     if (commit) engine.commitInteraction(); else engine.cancelInteraction();
   }
   useEffect(() => () => { if (drag.current) { drag.current = null; engine.cancelInteraction(); } }, [engine]);
+  // The factor field takes the keyboard, its text selected, when the section appears: the tool was chosen with a
+  // selection, or the panel came back. A selection that appears later is not the tool being chosen, so the field
+  // then leaves the keyboard with the canvas. Source: ui-egui/src/panels/scale_panel.rs (upstream 92145e6f, 7a8d422d).
+  const factorField = useRef<HTMLInputElement>(null);
+  useEffect(() => { const field = factorField.current; if (field && !field.disabled && !field.closest("fieldset:disabled")) { field.focus(); field.select(); } }, []);
   function move(event: PointerEvent<HTMLButtonElement>) {
     const d = drag.current; if (!d || event.pointerId !== d.pointer) return;
     if (!engine.interacting) { drag.current = null; return; }
@@ -46,7 +51,17 @@ export function ScalePanel({ engine, enabled, dispatch, onError }: {
       <button type="submit">Set scale {key}</button>
     </form>)}
     <form onSubmit={event => { event.preventDefault(); apply(Number(new FormData(event.currentTarget).get("factor"))); }}>
-      <label>Tool scale factor<input name="factor" type="number" step="any" defaultValue="1" required /></label><button type="submit">Apply scale factor</button>
+      <label>Tool scale factor<input ref={factorField} name="factor" type="number" step="any" defaultValue="1" required onKeyDown={event => {
+        // Enter applies the factor; plain Enter or Escape then ends the tool, back to Move with the selection kept.
+        // Ctrl+Enter and Alt+Enter are not the tool's exit.
+        if (event.key !== "Enter" && event.key !== "Escape") return;
+        const plain = !(event.ctrlKey || event.altKey || event.metaKey);
+        if (event.key === "Escape" && !plain) return;
+        event.preventDefault(); event.stopPropagation();
+        if (event.key === "Enter" && event.currentTarget.value !== "") apply(Number(event.currentTarget.value));
+        // The factor is relative to the layers as they are now: the field goes back to 1.
+        if (plain) { dispatch("tool.move"); onDone?.(); } else { event.currentTarget.value = "1"; event.currentTarget.select(); }
+      }} /></label><button type="submit">Apply scale factor</button>
     </form>
     <div role="group" aria-label="Scale anchor" style={{ display: "grid", gridTemplateColumns: "repeat(3, 32px)", gap: 2 }}>
       {anchors.map((anchor, i) => <button key={anchor} type="button" aria-label={`${names[i]} scale anchor`} aria-pressed={s.scaleAnchor === anchor} title={names[i]} onClick={() => dispatch("tool.scaleAnchor", { anchor })}>●</button>)}

@@ -44,17 +44,20 @@ describe("source-derived handle geometry", () => {
     resizedBox(edge(1), { x: 150, y: 999 }, 100, 50, true, false).forEach((v, i) => expect(v).toBeCloseTo([0, -12.5, 150, 62.5][i]));
     expect(resizedBox(corner(2), { x: 150, y: 75 }, 100, 50, false, true)).toEqual([-50, -25, 150, 75]);
   });
-  it("Scale factor follows native anchor, fallback, centre, flips and limits", () => {
-    expect(scaleFactor(corner(2), { x: 200, y: 60 }, 100, 50, "tl", false)).toEqual({ factor: 2, pivot: { x: 0, y: 0 } });
-    expect(scaleFactor(corner(1), { x: 150, y: -25 }, 100, 50, "tl", false)).toEqual({ factor: 1.5, pivot: { x: 0, y: 50 } });
-    expect(scaleFactor(edge(3), { x: -100, y: 0 }, 100, 50, "tl", false)).toEqual({ factor: 2, pivot: { x: 100, y: 25 } });
-    expect(scaleFactor(corner(2), { x: 150, y: 75 }, 100, 50, "c", false)).toEqual({ factor: 2, pivot: { x: 50, y: 25 } });
-    expect(scaleFactor(edge(2), { x: 0, y: 75 }, 100, 50, "tl", true)?.factor).toBe(2);
-    expect(scaleFactor(corner(2), { x: -100, y: -50 }, 100, 50, "tl", false)?.factor).toBe(-1);
-    expect(scaleFactor(corner(2), { x: 0, y: 0 }, 100, 50, "tl", false)?.factor).toBe(.01);
-    expect(scaleFactor(corner(2), { x: 1e8, y: 1e8 }, 100, 50, "tl", false)?.factor).toBe(1000);
-    expect(scaleFactor(corner(2), { x: 5, y: 5 }, 0, 0, "tl", false)).toBeUndefined();
-    expect(scaleFactor(corner(2), { x: NaN, y: 5 }, 100, 50, "tl", false)).toBeUndefined();
+  // Restates crates/engine/src/scale_tool_tests.rs::the_pivot_is_the_opposite_handle_or_the_centre_with_alt at
+  // bad07e44 (upstream f0d39197): the origin grid no longer decides a drag's pivot.
+  it("Scale factor pivots on the opposite handle, or the centre with Alt, with flips and limits", () => {
+    expect(scaleFactor(corner(2), { x: 200, y: 60 }, 100, 50, false)).toEqual({ factor: 2, pivot: { x: 0, y: 0 } });
+    expect(scaleFactor(corner(1), { x: 150, y: -25 }, 100, 50, false)).toEqual({ factor: 1.5, pivot: { x: 0, y: 50 } });
+    expect(scaleFactor(edge(1), { x: 50, y: 999 }, 100, 50, false)).toEqual({ factor: .5, pivot: { x: 0, y: 25 } });
+    expect(scaleFactor(edge(3), { x: -100, y: 0 }, 100, 50, false)).toEqual({ factor: 2, pivot: { x: 100, y: 25 } });
+    expect(scaleFactor(edge(2), { x: 0, y: 75 }, 100, 50, true)).toEqual({ factor: 2, pivot: { x: 50, y: 25 } });
+    expect(scaleFactor(corner(2), { x: -100, y: -50 }, 100, 50, false)?.factor).toBe(-1);
+    expect(scaleFactor(corner(2), { x: 0, y: 0 }, 100, 50, false)?.factor).toBe(.01);
+    expect(scaleFactor(corner(2), { x: 1e8, y: 1e8 }, 100, 50, false)?.factor).toBe(1000);
+    expect(scaleFactor(corner(1), { x: 300, y: 7 }, 100, 0, false)?.factor).toBe(3);
+    expect(scaleFactor(corner(2), { x: 5, y: 5 }, 0, 0, false)).toBeUndefined();
+    for (const bad of [NaN, Infinity]) expect(scaleFactor(corner(2), { x: bad, y: 0 }, 100, 50, false)).toBeUndefined();
   });
   it("numeric scale panel uses page bounds and its distinct100 limit", () => {
     const b = { x: 10, y: 20, width: 100, height: 50 };
@@ -112,10 +115,12 @@ describe("native resize, rotate and Scale gestures", () => {
     expect(t.scaleHint).toEqual({ factor: 1.5, pivot: { x: 0, y: 0 } }); t.up(); expect(t.scaleHint).toBeUndefined();
     expect(box(e, child)).toMatchObject({ x: 225, y: 90, width: 60, height: 45 }); expect(errors).toEqual([]);
   });
-  it("Scale centre anchors, Alt and crossed pivots match native fixtures", () => {
+  // Upstream f0d39197: a drag pivots on the opposite handle whatever the origin; the first two boxes are the session
+  // "Alt scales from the centre whatever the origin" of tests/fixtures/native-scale-tool.json.
+  it("Scale drags pivot on the opposite handle whatever the origin, Alt on the centre, and crossed pivots flip", () => {
     const { e, interaction: t } = fixture(), id = make(e); e.execute("tool.scale"); e.execute("tool.scaleAnchor", { anchor: " C " });
-    expect(e.execute("tool.scaleAnchor")).toEqual({ anchor: "c" }); drag(t, { x: 100, y: 50 }, { x: 150, y: 75 }); expect(box(e, id)).toEqual({ x: -50, y: -25, width: 200, height: 100 });
-    e.execute("tool.scaleAnchor", { anchor: "tl" }); drag(t, { x: 150, y: 75 }, { x: 125, y: 62.5 }, { ...ctrl, altKey: true }); expect(box(e, id)).toEqual({ x: -25, y: -12.5, width: 150, height: 75 });
+    expect(e.execute("tool.scaleAnchor")).toEqual({ anchor: "c" }); drag(t, { x: 100, y: 50 }, { x: 150, y: 75 }); expect(box(e, id)).toEqual({ x: 0, y: 0, width: 150, height: 75 });
+    e.execute("tool.scaleAnchor", { anchor: "tl" }); drag(t, { x: 150, y: 75 }, { x: 125, y: 62.5 }, { ...ctrl, altKey: true }); { const b = box(e, id); expect([b.x, b.y, b.width, b.height].map(v => Math.round(v * 1e9) / 1e9)).toEqual([25, 12.5, 100, 50]); }
     e.execute("edit.undo"); e.execute("edit.undo"); drag(t, { x: 100, y: 50 }, { x: -100, y: -50 }); expect(box(e, id)).toEqual({ x: -100, y: -50, width: 100, height: 50 });
     expect(() => e.execute("tool.scaleAnchor", { anchor: "invalid" })).toThrow();
   });

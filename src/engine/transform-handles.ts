@@ -70,11 +70,13 @@ export function resizedBox(h: Handle, q: Point, w: number, height: number, keep:
   }
   return [x0, y0, x1, y1];
 }
-export function scaleFactor(h: Handle, q: Point, w: number, height: number, anchor: ScaleAnchor, centre: boolean): { factor: number; pivot: Point } | undefined {
+/** Native `scale_factor`: the factor a Scale tool drag of handle `h` to `q` sets, and its pivot. The pivot is the
+ * opposite handle's point, or the centre with Alt; the origin grid never decides it (upstream f0d39197, measured in
+ * the target application). Corners follow the axis that moved the most; a negative factor flips. */
+export function scaleFactor(h: Handle, q: Point, w: number, height: number, centre: boolean): { factor: number; pivot: Point } | undefined {
   if (![q.x, q.y, w, height].every(Number.isFinite) || h.kind === "rotate") return;
-  const point = handlePoint(h, w, height), a = anchorPoint(anchor, w, height), [sx, sy] = sides(h);
-  const onSide = sx !== undefined && Math.abs(a.x - point.x) < 1e-9 || sy !== undefined && Math.abs(a.y - point.y) < 1e-9;
-  const pivot = centre ? { x: w / 2, y: height / 2 } : onSide ? handlePoint({ ...h, index: (h.index + 2) % 4 }, w, height) : a;
+  const point = handlePoint(h, w, height), [sx, sy] = sides(h);
+  const pivot = centre ? { x: w / 2, y: height / 2 } : handlePoint({ ...h, index: (h.index + 2) % 4 }, w, height);
   const kx = sx !== undefined && Math.abs(point.x - pivot.x) > 1e-9 ? (q.x - pivot.x) / (point.x - pivot.x) : undefined;
   const ky = sy !== undefined && Math.abs(point.y - pivot.y) > 1e-9 ? (q.y - pivot.y) / (point.y - pivot.y) : undefined;
   const k = kx === undefined ? ky : ky === undefined || Math.abs(kx) > Math.abs(ky) ? kx : ky;

@@ -3933,6 +3933,29 @@ test("Scale tool keyboard, anchors, dimension scrubs and mobile controls preserv
   await expect(page.locator(".figcraft-recovery")).toHaveText("Recovery saved on this device"); await page.reload(); await page.locator(".figcraft-mobile-layers > summary").click(); await page.locator(".figcraft-mobile-layers").getByRole("button", { name: "Scale me", exact: true }).click(); await geometry(page, [200, 200, 100, 50]);
 });
 
+test("K, a factor and Enter scale the selection about its centre and return to Move", async ({ page }) => {
+  await login(page); await createNamedRectangle(page, "Twice", 200, 200, 100, 50);
+  const canvas = page.getByLabel("Design canvas", { exact: true }), factor = page.getByLabel("Tool scale factor", { exact: true });
+  const move = page.getByRole("button", { name: "Move", exact: true }), scale = page.getByRole("button", { name: "Scale", exact: true });
+  // K opens the tool with the factor field focused and its text selected, so K, 2, Enter scales by two (upstream
+  // 92145e6f); the origin starts at the centre (f0d39197), and Enter returns to Move with the selection kept.
+  await canvas.focus(); await page.keyboard.press("k"); await expect(factor).toBeFocused();
+  await page.keyboard.type("2"); await page.keyboard.press("Enter");
+  await expect(move).toHaveAttribute("aria-pressed", "true"); await geometry(page, [150, 175, 200, 100]); await expect(canvas).toBeFocused();
+  // Escape leaves the tool and changes nothing.
+  await page.keyboard.press("k"); await expect(factor).toBeFocused(); await page.keyboard.press("Escape");
+  await expect(move).toHaveAttribute("aria-pressed", "true"); await geometry(page, [150, 175, 200, 100]);
+  // Ctrl+Enter applies the factor and keeps the tool.
+  await page.keyboard.press("k"); await expect(factor).toBeFocused(); await page.keyboard.type("0.5"); await page.keyboard.press("Control+Enter");
+  await expect(scale).toHaveAttribute("aria-pressed", "true"); await geometry(page, [200, 200, 100, 50]); await expect(factor).toHaveValue("1");
+  await page.keyboard.press("Escape"); await expect(move).toHaveAttribute("aria-pressed", "true");
+  // With nothing selected the field is not there to take the keyboard, and a selection that appears later does not
+  // give it the keyboard either.
+  const empty = await canvasPoint(page, 600, 500), inside = await canvasPoint(page, 250, 225);
+  await page.mouse.click(empty.x, empty.y); await canvas.focus(); await page.keyboard.press("k"); await expect(scale).toHaveAttribute("aria-pressed", "true");
+  await page.mouse.click(inside.x, inside.y); await geometry(page, [200, 200, 100, 50]); await expect(factor).not.toBeFocused();
+});
+
 test("Frame handles distinguish constraints, primary preservation and uniform subtree scaling", async ({ page }) => {
   await login(page); const creation = page.getByRole("group", { name: "Create layer", exact: true });
   for (const [label, value] of [["X", "200"], ["Y", "200"], ["Width", "200"], ["Height", "100"]]) await creation.getByLabel(label, { exact: true }).fill(value);

@@ -676,7 +676,7 @@ export class EditorEngine {
   #pendingSaves = new Map<number, { document: Document; comparison:Document; branches: readonly FileBranch[]; versions: readonly FileVersion[] }>();
   #openSequence = 0;
   constructor(name?: string) {
-    this.#snapshot = Object.freeze({ document: newDocument(name), selection: Object.freeze([]), tool: "move", builderMode: "merge", scaleAnchor: "tl", canUndo: false, canRedo: false, editable: true, dirty: true, hasSaved: false });
+    this.#snapshot = Object.freeze({ document: newDocument(name), selection: Object.freeze([]), tool: "move", builderMode: "merge", scaleAnchor: "c", canUndo: false, canRedo: false, editable: true, dirty: true, hasSaved: false });
     this.#comparisonSaved = this.#snapshot.document;
   }
   static newTab(name?: string, clipboard: EditorClipboard = {}): EditorEngine {
@@ -1158,7 +1158,7 @@ export class EditorEngine {
       : executeStrokeList("stroke.set", document, selection, params);
     this.#notifyCanvas();
   }
-  previewResize(start: ResizeStart, point: Point, keep: boolean, centre: boolean, keepChildren: boolean, scale?: ScaleAnchor): ReturnType<typeof previewResize>["hint"] {
+  previewResize(start: ResizeStart, point: Point, keep: boolean, centre: boolean, keepChildren: boolean, scale = false): ReturnType<typeof previewResize>["hint"] {
     const interaction = this.#interaction; if (!interaction) throw new Error("No active interaction");
     const next = previewResize(interaction.base.document, start, point, keep, centre, keepChildren, scale);
     interaction.document = next.document; this.#notifyCanvas(); return next.hint;

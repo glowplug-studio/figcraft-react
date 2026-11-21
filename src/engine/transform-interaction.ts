@@ -13,7 +13,7 @@ import { drawGuides } from "./measurements";
 import { pageToScreen } from "./viewport";
 import type { MoveModifiers } from "./move-interaction";
 
-type Gesture = { start: Point; resize: ResizeStart; targets: PointSnapCache; scale?: ScaleAnchor; moved: boolean; pivot: Point; angle: number; base: number };
+type Gesture = { start: Point; resize: ResizeStart; targets: PointSnapCache; scale: boolean; moved: boolean; pivot: Point; angle: number; base: number };
 /** Native transform handles; all frame-frequency state stays in this controller. */
 export class TransformInteraction {
   #gesture?: Gesture;
@@ -56,7 +56,7 @@ export class TransformInteraction {
       const s = this.engine.getSnapshot(), resize = resizeStart(s.document, s.selection, handle); if (!resize) return false;
       const origin = this.engine.getRotationOrigin(), pivot = origin.moved && origin.point ? origin.point : transformPoint(frame.matrix, { x: frame.width / 2, y: frame.height / 2 });
       this.engine.beginInteraction();
-      this.#gesture = { start: point, resize, targets: new PointSnapCache(resize.ids), scale: s.tool === "scale" ? s.scaleAnchor : undefined, moved: false, pivot, angle: Math.atan2(point.y - pivot.y, point.x - pivot.x),
+      this.#gesture = { start: point, resize, targets: new PointSnapCache(resize.ids), scale: s.tool === "scale", moved: false, pivot, angle: Math.atan2(point.y - pivot.y, point.x - pivot.x),
         base: handle.kind === "rotate" ? sharedRotationDegrees(s.document, resize.ids) : 0 };
       return true;
     } catch (error) { this.#fail(error); return false; }

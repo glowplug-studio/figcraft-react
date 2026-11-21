@@ -11,14 +11,14 @@ import { drawnLine, type Point } from "./geometry";
 import { ancestors, HierarchyDraft, rootIds, worldTransform } from "./hierarchy";
 import { validateChangedGeometry, selectionFrame } from "./rotation";
 import { scaleSubtree } from "./sizing";
-import { nativeSign, resizedBox, scaleFactor, type Handle, type HandleFrame, type ScaleAnchor } from "./transform-handles";
+import { nativeSign, resizedBox, scaleFactor, type Handle, type HandleFrame } from "./transform-handles";
 
 export interface ResizeStart { readonly frame: HandleFrame; readonly ids: readonly NodeId[]; readonly handle: Handle }
 export function resizeStart(document: Document, selection: readonly NodeId[], handle: Handle): ResizeStart | undefined {
   const ids = rootIds(document, selection), frame = selectionFrame(document, ids);
   return frame ? { ids, frame, handle } : undefined;
 }
-export function previewResize(document: Document, start: ResizeStart, point: Point, keep: boolean, centre: boolean, keepChildren: boolean, scale?: ScaleAnchor): { document: Document; hint?: { factor: number; pivot: Point } } {
+export function previewResize(document: Document, start: ResizeStart, point: Point, keep: boolean, centre: boolean, keepChildren: boolean, scale = false): { document: Document; hint?: { factor: number; pivot: Point } } {
   const { frame, ids, handle } = start, inv = inverse(frame.matrix), q = transformPoint(inv, point), draft = new HierarchyDraft(document);
   if (![q.x, q.y].every(Number.isFinite)) throw new Error("Resize point must be finite");
   const setWorld = (id: NodeId, world: Affine) => {
@@ -31,7 +31,7 @@ export function previewResize(document: Document, start: ResizeStart, point: Poi
   };
   let hint: { factor: number; pivot: Point } | undefined;
   if (scale) {
-    const amount = scaleFactor(handle, q, frame.width, frame.height, scale, centre);
+    const amount = scaleFactor(handle, q, frame.width, frame.height, centre);
     if (!amount) return { document };
     const { factor: k, pivot } = amount, sign = nativeSign(k), about = multiply(frame.matrix, [1, 0, 0, 1, pivot.x * (1 - k), pivot.y * (1 - k)]);
     for (const id of ids) {
