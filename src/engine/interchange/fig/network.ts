@@ -20,8 +20,11 @@ export function vectorNetwork(n:KiwiObject,out:Record<string,unknown>,blobs:(Kiw
   const {regions}=net;
   const styles=net.vertices.map(v=>v.style),degree=new Uint32Array(net.vertices.length);
   let missingPoint=false,unknownJoin=false,specialJoin=false,missingSegment=false,styledSegment=false;
+  // Native map/layer.rs (upstream #2114): a point whose style sets no radius takes the layer's, as the other app draws
+  // it. A style that sets 0 keeps the point sharp.
+  const layerRadius=num(n.cornerRadius);
   const vertices=net.vertices.map(v=>{
-    const id=v.style,style=styleTable.get(id),r=num(style?.cornerRadius),j=join(style?.strokeJoin);
+    const id=v.style,style=styleTable.get(id),r=num(style?.cornerRadius) ?? layerRadius,j=join(style?.strokeJoin);
     if (id && !style) missingPoint=true;
     if (style?.strokeJoin!==undefined && !j) unknownJoin=true;
     if (j && style?.strokeJoin!==(n.strokeJoin ?? "MITER")) specialJoin=true;

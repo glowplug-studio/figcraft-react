@@ -29,9 +29,11 @@ export async function writeVector(out:KiwiObject,node:VectorNode,blobs:FigBlobs,
       if (id===undefined) {id=styles.length+1;indices.set(key,id);styles.push({styleID:id,...fields});}
       return id;
     };
+    const rounded=(node.corners?.radii[0] ?? 0)>0;
     for (const [i,v] of vertices.entries()) {
       const cap=v.cap ?? (caps ? i===first ? sp.capStart : i===last ? sp.capEnd : undefined : undefined);
-      const fields:KiwiObject={...(v.radius>0 && {cornerRadius:v.radius}),...(v.mirror && {handleMirroring:v.mirror==="angleAndLength" ? "ANGLE_AND_LENGTH" : v.mirror.toUpperCase()}),
+      // A point without a radius of its own is read with the layer's, so a sharp point on a rounded layer says so.
+      const fields:KiwiObject={...((v.radius>0 || rounded) && {cornerRadius:v.radius}),...(v.mirror && {handleMirroring:v.mirror==="angleAndLength" ? "ANGLE_AND_LENGTH" : v.mirror.toUpperCase()}),
         ...(cap && {strokeCap:wireCap(cap)}),...(v.join && {strokeJoin:v.join.toUpperCase()})};
       uint(Object.keys(fields).length ? styleOf(fields) : 0);float(v.x);float(v.y);
     }

@@ -10334,6 +10334,43 @@ test("a vector's region paints survive a signed-in Fig export and reopening the 
   expect(colours).toEqual([[1,0],[0,1]]);
 });
 
+test("sharp points of a rounded vector stay sharp through a signed-in Fig export, and points without a radius take the layer's on opening",async({page})=>{
+  // Upstream #2114, observed natively (tests/fixtures/native-fig-point-radius.provenance.md).
+  await login(page);
+  const fixture=JSON.parse(await readFile(new URL("../fixtures/native-fig-point-radius.json",import.meta.url),"utf8")) as
+    {cases:{name:string;source:string;reopened:string}[];crafted:{name:string;fig:string;opened:string}[]};
+  const c=fixture.cases.find(c=>c.name==="sharp points on a rounded vector")!,crafted=fixture.crafted[0];
+  const expected=(await decodeFigcraft(Buffer.from(c.reopened,"base64"))).document;
+  const picker=page.getByLabel("Open Figcraft file",{exact:true}),tabs=page.getByRole("tab",{name:expected.name,exact:true});
+  const save=async()=>{
+    const saving=page.waitForEvent("download");
+    await page.getByRole("button",{name:"Save as",exact:true}).click();
+    return (await decodeFigcraft(await readFile((await (await saving).path())!))).document;
+  };
+  const radii=(d:typeof expected)=>(Object.values(d.nodes).find(n=>n.kind==="vector") as VectorNode).network.vertices.map(v=>v.radius);
+  // The drawing the editor starts with is named Untitled too, and tabs show once a second file is open.
+  await expect(page.getByRole("heading",{name:expected.name,exact:true})).toBeVisible();
+  await picker.setInputFiles({name:"Source.figcraft",mimeType:"application/octet-stream",buffer:Buffer.from(c.source,"base64")});
+  await expect(tabs).toHaveCount(2);
+  const bar=page.locator(".figcraft-document-bar");
+  await bar.getByText("File",{exact:true}).click();
+  await bar.getByRole("button",{name:"Export…",exact:true}).click();
+  const downloading=page.waitForEvent("download");
+  await page.getByRole("dialog",{name:"Export"}).getByRole("button",{name:".fig (experimental)",exact:true}).click();
+  const buffer=await readFile((await (await downloading).path())!);
+  await picker.setInputFiles({name:"Reopened.fig",mimeType:"application/octet-stream",buffer});
+  await expect(tabs).toHaveCount(3);
+  const saved=await save();
+  expect(radii(saved)).toEqual([8,0,8,0]);
+  expect(saved).toEqual(expected);
+  // A file whose points have no radius of their own under a rounded layer: every point takes the layer's.
+  await picker.setInputFiles({name:"Crafted.fig",mimeType:"application/octet-stream",buffer:Buffer.from(crafted.fig,"base64")});
+  await expect(tabs).toHaveCount(4);
+  const opened=await save();
+  expect(radii(opened)).toEqual([8,8,8,8]);
+  expect(opened).toEqual((await decodeFigcraft(Buffer.from(crafted.opened,"base64"))).document);
+});
+
 test("Sketch open, save, append and undo preserve native symbol overrides and embedded pixels",async({page})=>{
   await login(page);
   const corpus=unzipSync(await readFile(new URL("../fixtures/native-sketch-files.zip",import.meta.url)));
