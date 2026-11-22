@@ -9,7 +9,7 @@ import { fontGeneration, subscribeFonts } from "./engine/font-generation";
 import { canSupplyTextPath } from "./engine/text-path-commands";
 import type { EditorEngine } from "./engine/editor";
 import { familyStyles, fontFamilies } from "./engine/text-node-layout";
-import { paragraphList, paragraphSpan, scalarCount, textSpans } from "./engine/text-ranges";
+import { commonWrapStyle, paragraphList, paragraphSpan, scalarCount, textSpans } from "./engine/text-ranges";
 import type { TextStyle } from "./engine/text-style";
 
 const common = <T,>(values: T[]) => values.every(v => v === values[0]) ? values[0] : undefined;
@@ -47,6 +47,14 @@ export function TypographyPanel({engine, editable, apply, onLeave, linkDialog, l
       {[...new Set([...options, ...values])].map(name => <option key={name} value={name}>{name}</option>)}
     </select></label>;
   }
+  // Per paragraph, as the text direction: while editing, the selected paragraphs; Mixed when they differ. The command
+  // sets those paragraphs while editing and the whole layer otherwise (native typography/fields.rs, upstream #1827).
+  const wraps = nodes.map(n => commonWrapStyle(n.text, live?.start ?? 0, live?.end ?? scalarCount(n.text.characters)));
+  const wrap = wraps.every(w => w !== undefined) ? common(wraps) : undefined;
+  const wrapSelect = <label>Text wrap<select aria-label="Text wrap" value={wrap ?? ""} onChange={e => run("text.wrapStyle", {ids, style:e.target.value})}>
+    {wrap === undefined && <option value="" disabled>Mixed</option>}
+    {["auto","balance","pretty"].map(name => <option key={name} value={name}>{name}</option>)}
+  </select></label>;
   const decoration=common(styles.map(s=>s.decoration));
   const underline=decoration==="underline";
   function decorationLength(key:"thickness"|"offset",label:string) {
@@ -133,7 +141,7 @@ export function TypographyPanel({engine, editable, apply, onLeave, linkDialog, l
         onChange={e=>apply(ids,{[key]:e.target.checked})} />{key==="hangingList" ? "Hanging list" : "Hanging punctuation"}</label>)}
       {field("listSpacing", "List spacing", nodes.map(n=>n.text.listSpacing))}
       {select("leadingTrim", "Leading trim", nodes.map(n=>n.text.leadingTrim), ["none","capHeight"])}
-      {select("wrapStyle", "Text wrap", nodes.map(n=>n.text.wrapStyle), ["auto","balance","pretty"])}
+      {wrapSelect}
       <label>Truncate text<select aria-label="Truncate text" value={truncating===undefined ? "" : truncating ? "on" : "off"} onChange={e=>{
         if (e.target.value==="on") apply(ids,{textAutoResize:"truncate"});
         else if (resizing==="height") { if (truncating) apply(ids,{maxLines:0}); }

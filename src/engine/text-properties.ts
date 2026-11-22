@@ -4,9 +4,9 @@ import { parseColour } from "./colour-css";
 import { parseNumber, parseString, propertyEnum } from "./parameters";
 import { readPaints } from "./solid-paint";
 import { validOpenTypeTag } from "./text-case";
-import { normaliseTextLines, type TextData } from "./text-data";
+import { normaliseTextLines, type TextData, type WrapStyle } from "./text-data";
 import { familyStyles } from "./text-node-layout";
-import { editParagraphLists, paragraphSpan, replaceTextRange, restyleRange, scalarCount } from "./text-ranges";
+import { editParagraphLists, paragraphSpan, replaceTextRange, restyleRange, scalarCount, setParaWrapStyles, setWrapStyle } from "./text-ranges";
 import { setFontStyle, styleWeight, textBool, textItalic, textRecord, textWeight, type TextStyle } from "./text-style";
 
 const weightNames = ["Thin", "Extra Light", "Light", "Regular", "Medium", "Semi Bold", "Bold", "Extra Bold", "Black"];
@@ -153,13 +153,23 @@ function styleEdit(key: string, value: unknown): (style: TextStyle) => TextStyle
   return s => ({...s, ...change});
 }
 
-function applyProperty(t: TextData, key: string, value: unknown, start: number, end: number): TextData {
+/** A wrap style from a command, refused as native refuses it. */
+export function wrapStyleValue(value: unknown): WrapStyle {
+  try { return propertyEnum(value, ["auto", "balance", "pretty"] as const); } catch { throw new Error("wrapStyle: auto|balance|pretty"); }
+}
+
+function applyProperty(t: TextData, key: string, value: unknown, start: number, end: number, ranged = false): TextData {
   switch (key) {
     case "text": case "characters": return replaceTextRange(t, 0, scalarCount(t.characters), normaliseTextLines(stringValue(value, key)));
     case "textAlign": case "textAlignHorizontal": return {...t, alignH:propertyEnum(value, ["left", "center", "right", "justified"] as const)};
     case "textAlignVertical": return {...t, alignV:propertyEnum(value, ["top", "middle", "bottom"] as const)};
     case "textAutoResize": return {...t, autoResize:propertyEnum(value, ["widthAndHeight", "height", "none", "truncate"] as const)};
-    case "wrapStyle": case "textWrap": return {...t, wrapStyle:propertyEnum(value, ["auto", "balance", "pretty"] as const)};
+    // Native cmd/props.rs (upstream #1827): with `start` or `end` the paragraphs those characters touch take the style
+    // as their own; without, the layer does and every paragraph follows it again.
+    case "wrapStyle": case "textWrap": {
+      const wrap = wrapStyleValue(value);
+      return ranged ? setParaWrapStyles(t, start, end, wrap) : setWrapStyle(t, wrap);
+    }
     case "leadingTrim": return {...t, leadingTrim:propertyEnum(value, ["none", "capHeight"] as const)};
     case "paragraphSpacing": case "paragraphIndent": return {...t, [key]:Math.max(0, parseNumber(value, key))};
     case "listSpacing": return {...t, listSpacing:clamp(optionalNumber(value, 0), 0, 10000)};
@@ -192,7 +202,7 @@ export function setTextProperties(node: TextNode, props: Record<string,unknown>,
     const count = scalarCount(text.characters);
     const start = Math.trunc(clamp(optionalNumber(props.start, 0), 0, count));
     const end = Math.trunc(clamp(optionalNumber(props.end, count), 0, count));
-    text = Object.freeze(applyProperty(text, key, props[key], start, end));
+    text = Object.freeze(applyProperty(text, key, props[key], start, end, props.start !== undefined || props.end !== undefined));
     if (key === "maxLines" && text.maxLines > 0) node = clearTextHeightLimit(node);
     if (explicit && (key === "text" || key === "characters")) overridden = true;
   }

@@ -2,7 +2,7 @@ import { toCssHex } from "./colour";
 import { pixelRound } from "./geometry";
 import { appearanceValue } from "./native-values";
 import type { TextData } from "./text-data";
-import { scalarToUtf16, textSpans } from "./text-ranges";
+import { paraWrapStyles, scalarToUtf16, textSpans } from "./text-ranges";
 import { wireTextStyle, type TextStyle } from "./text-style";
 
 /** Native trim_num rounds to hundredths and formats large values without exponential notation. */
@@ -54,7 +54,10 @@ export function inspectText(text: TextData, outline: boolean, wants: (key: strin
   if (text.hangingPunctuation) put("hangingPunctuation",true);
   if (text.hangingList) put("hangingList",true);
   if (text.leadingTrim!=="none") put("leadingTrim",text.leadingTrim);
-  if (text.wrapStyle!=="auto") put("wrapStyle",text.wrapStyle);
+  // The paragraphs' effective wrap styles: one for the layer when they agree, else each one's (native inspect.rs).
+  const wraps=paraWrapStyles(text);
+  if (wraps[0]!=="auto" && wraps.every(w=>w===wraps[0])) put("wrapStyle",wraps[0]);
+  else if (wraps.some(w=>w!=="auto")) put("lineWrapStyles",wraps);
   if (text.runs.length && wants("styledRuns")) put("styledRuns",text.runs.map(r=>({start:r.start,end:r.end,style:appearanceValue(wireTextStyle(r.style))})));
   if (wants("textStyleRanges") && (style.styleId!==undefined || text.runs.some(r=>r.style.styleId!==undefined))) {
     const linked=textSpans(text).filter(r=>r.style.styleId!==undefined).map(r=>[r.start,r.end,r.style.styleId]);

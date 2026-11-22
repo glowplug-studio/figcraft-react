@@ -2,8 +2,13 @@ import { expect, it } from "vitest";
 import { EditorEngine } from "../../src/engine/editor";
 import type { TextNode } from "../../src/engine/document";
 import reference from "../fixtures/native-text-format-commands.json";
+import wrapStyles from "../fixtures/native-wrap-style-paragraphs.json";
 
-it.each(reference)("matches native formatting sequence $index",async ({commands,expected,result})=>{
+// A wrap style set while editing is the selected paragraphs' own since upstream #1827. The one sequence that does so
+// is compared with its node.get observed at bad07e44 (tests/fixtures/native-wrap-style-paragraphs.provenance.md).
+const repinned=new Map(wrapStyles.repinned.formatCommands.map(c=>[c.index,c.expected as unknown]));
+
+it.each(reference)("matches native formatting sequence $index",async ({index,commands,expected,result})=>{
   const engine=new EditorEngine();
   const {id}=await engine.executeAsync("text.create",{text:"A🙂bc\nქართული",x:0,y:0});
   let output:unknown, active:ReturnType<EditorEngine["beginTextEdit"]>|undefined, anchor=0;
@@ -20,7 +25,7 @@ it.each(reference)("matches native formatting sequence $index",async ({commands,
     } catch { output={error:true}; break; }
   }
   expect(output).toEqual(result);
-  expect(engine.execute("node.get",{id})).toEqual(expected);
+  expect(engine.execute("node.get",{id})).toEqual(repinned.get(index) ?? expected);
   active?.finish();
 });
 

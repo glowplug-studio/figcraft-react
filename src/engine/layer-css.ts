@@ -7,6 +7,7 @@ import { sortedStops, type Gradient } from "./gradient";
 import { trimNumber } from "./inspect-text";
 import { defaultStroke } from "./stroke";
 import type { TextData } from "./text-data";
+import { paraWrapStyles } from "./text-ranges";
 import { textItalic, textWeight, type TextStyle } from "./text-style";
 import { variableCssNames } from "./variable-css-names";
 import type { Variables } from "./variables";
@@ -81,7 +82,9 @@ function textCss(text: TextData, put: Put, tok: Token) {
   const spacing = style.letterSpacing;
   if (spacing.value) put("letter-spacing", spacing.unit === "percent" ? trimNumber(spacing.value / 100) + "em" : tok(["letterSpacing"], px(spacing.value)));
   if (text.alignH !== "left") put("text-align", text.alignH === "justified" ? "justify" : text.alignH);
-  if (text.wrapStyle !== "auto") put("text-wrap", text.wrapStyle);
+  // CSS has one `text-wrap` per element: written when every paragraph has the same one.
+  const wraps = paraWrapStyles(text);
+  if (wraps[0] !== "auto" && wraps.every(w => w === wraps[0])) put("text-wrap", wraps[0]);
   const direction = text.paragraphs[0]?.direction;
   if (direction && direction !== "auto" && text.paragraphs.every(p => p.direction === direction)) {
     put("direction", direction);

@@ -4,8 +4,8 @@ import { parseNumber, propertyEnum } from "./parameters";
 import { readGrids, readParagraph, type SharedStyle, type StyleSlot } from "./shared-styles";
 import { readPaints } from "./solid-paint";
 import { nodeFills, type ActiveStyleRange } from "./style-application";
-import { featureValues, textLength, textSpacing } from "./text-properties";
-import { commonParagraphList, textStyleAt } from "./text-ranges";
+import { featureValues, textLength, textSpacing, wrapStyleValue } from "./text-properties";
+import { commonParagraphList, commonWrapStyle, paraWrapStyles, textStyleAt } from "./text-ranges";
 import { readTextStyle, textRecord, type TextStyle } from "./text-style";
 
 type StripMetadata<T> = T extends SharedStyle ? Omit<T, "id"|"name"|"description"|"bound"> : never;
@@ -36,8 +36,12 @@ export function nodeDefinition(slot: StyleSlot, node: DocumentNode, live?: Activ
     case "text": {
       if (node.kind !== "text") return undefined;
       const t = node.text;
+      // The wrap style the paragraphs share, else the layer's: the edited paragraphs while editing (native
+      // cmd/styles.rs), every paragraph by index otherwise (`paragraph_style`, an empty last one included).
+      const wraps = paraWrapStyles(t);
+      const wrap = live ? commonWrapStyle(t, live.start, live.end) ?? t.wrapStyle : wraps.every(w => w === wraps[0]) ? wraps[0] : t.wrapStyle;
       const paragraph = readParagraph({paragraph_spacing:t.paragraphSpacing, paragraph_indent:t.paragraphIndent, features:t.features,
-        list:(live && commonParagraphList(t, live.start, live.end)?.list) ?? t.list});
+        list:(live && commonParagraphList(t, live.start, live.end)?.list) ?? t.list, wrap_style:wrap});
       return {type:"text", style:asDefinition(live ? textStyleAt(t,live.start) : t.style), ...(paragraph && {paragraph})};
     }
   }
@@ -54,6 +58,7 @@ export function explicitDefinition(slot: StyleSlot, input: unknown): Definition 
     const snake = key.replace(/[A-Z]/g, letter => "_" + letter.toLowerCase());
     if (snake === "paragraph_indent" || snake === "paragraph_spacing") paraFields[snake] = Math.max(0,Math.min(10000,parseNumber(raw)));
     else if (key === "listStyle" || key === "list") paraFields.list = propertyEnum(raw, ["none","bulleted","numbered"]);
+    else if (key === "wrapStyle" || key === "textWrap" || key === "wrap_style") paraFields.wrap_style = wrapStyleValue(raw);
     else if (["features","openTypeFeatures","fontFeatures","textFeatures"].includes(key)) paraFields.features = featureValues(raw);
     else if (snake === "line_height") typeFields[snake] = textLength(raw);
     else if (snake === "letter_spacing") typeFields[snake] = textSpacing(raw);

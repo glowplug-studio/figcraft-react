@@ -42,6 +42,8 @@ export interface ParagraphStyle {
   readonly paragraph_spacing?: number;
   readonly paragraph_indent?: number;
   readonly list?: ListStyle;
+  /** The wrap style the text style sets (absent: auto). */
+  readonly wrap_style?: "balance" | "pretty";
   readonly features?: Readonly<Record<string, boolean>>;
 }
 
@@ -107,14 +109,15 @@ export function readLayerStyles(node: Record<string, unknown>): LayerStyles {
 export function readParagraph(value: unknown): ParagraphStyle | undefined {
   if (value === undefined) return undefined;
   const v = textRecord(value, "style paragraph");
-  checkFields(v, ["paragraph_spacing", "paragraph_indent", "list", "features"], "style paragraph");
+  checkFields(v, ["paragraph_spacing", "paragraph_indent", "list", "wrap_style", "features"], "style paragraph");
   const spacing = v.paragraph_spacing === undefined ? 0 : number(v.paragraph_spacing, "paragraph spacing");
   const indent = v.paragraph_indent === undefined ? 0 : number(v.paragraph_indent, "paragraph indent");
   const list = v.list === undefined ? "none" : textEnum(v.list, ["none", "bulleted", "numbered"], "paragraph list");
+  const wrap = v.wrap_style === undefined ? "auto" : textEnum(v.wrap_style, ["auto", "balance", "pretty"], "paragraph wrap style");
   const features = readMap(v.features, "paragraph features", textBool);
-  if (!spacing && !indent && list === "none" && !features) return undefined;
+  if (!spacing && !indent && list === "none" && wrap === "auto" && !features) return undefined;
   return Object.freeze({ ...(spacing !== 0 && { paragraph_spacing: spacing }), ...(indent !== 0 && { paragraph_indent: indent }),
-    ...(list !== "none" && { list }), ...(features && { features }) });
+    ...(list !== "none" && { list }), ...(wrap !== "auto" && { wrap_style: wrap }), ...(features && { features }) });
 }
 
 export function readSharedStyles(value: unknown): readonly SharedStyle[] {

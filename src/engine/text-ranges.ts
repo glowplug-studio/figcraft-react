@@ -1,5 +1,5 @@
 import { isLosslessNumber } from "lossless-json";
-import type { ParaList, StyleRun, TextData } from "./text-data";
+import type { ParaList, StyleRun, TextData, WrapStyle } from "./text-data";
 import { textString, wireTextStyle, type TextStyle } from "./text-style";
 
 /** Native layer names use the first non-blank line prefix, capped at 64 Unicode scalars. */
@@ -157,10 +157,38 @@ export function editParagraphLists(t: TextData, span: readonly [number,number], 
       startOffset:p.list==="numbered" ? p.startOffset : 0});
   });
   const list = paragraphs[0].list;
-  if (paragraphs.every(p=>p.list===list && p.indent===0 && p.startOffset===0 && p.direction==="auto")) {
+  if (paragraphs.every(p=>p.list===list && p.indent===0 && p.startOffset===0 && p.direction==="auto" && p.wrap===undefined)) {
     return Object.freeze({...t,list,paragraphs:Object.freeze([])});
   }
   return Object.freeze({...t,paragraphs:Object.freeze(paragraphs)});
+}
+/** Native `para_wrap_style`: paragraph `i`'s wrap style, its own or else the layer's. */
+export function paraWrapStyle(t: TextData, i: number): WrapStyle {
+  return t.paragraphs[i]?.wrap ?? t.wrapStyle;
+}
+/** Every paragraph's effective wrap style, an empty one after a final newline included. */
+export function paraWrapStyles(t: TextData): WrapStyle[] {
+  return Array.from({length:newlines(t.characters)+1},(_,i)=>paraWrapStyle(t,i));
+}
+const withWrap = (p: ParaList, wrap: WrapStyle | undefined): ParaList => {
+  const {wrap:_own, ...rest} = p;
+  return wrap === undefined ? rest : {...rest, wrap};
+};
+/** Native `set_wrap_style`, the layer level: every paragraph takes `wrapStyle`, and their own overrides go. */
+export function setWrapStyle(t: TextData, wrapStyle: WrapStyle): TextData {
+  return editParagraphLists(Object.freeze({...t,wrapStyle}),[0,newlines(t.characters)],p=>withWrap(p,undefined));
+}
+/** Native `set_para_wrap_styles`, the paragraph level: the paragraphs that scalars `start..end` touch take `wrapStyle`;
+ * one equal to the layer's is no override. */
+export function setParaWrapStyles(t: TextData, start: number, end: number, wrapStyle: WrapStyle): TextData {
+  return editParagraphLists(t,paragraphSpan(t,start,end),p=>withWrap(p,wrapStyle===t.wrapStyle ? undefined : wrapStyle));
+}
+/** Native `common_wrap_style`: the effective wrap style the paragraphs that scalars `start..end` touch share, or none
+ * when they differ. */
+export function commonWrapStyle(t: TextData, start: number, end: number): WrapStyle | undefined {
+  const [a,b] = paragraphSpan(t,start,end), first = paraWrapStyle(t,a);
+  for (let i=a+1;i<=b;i++) if (paraWrapStyle(t,i) !== first) return undefined;
+  return first;
 }
 /**
  * Native `list_item_starts_counting`: for each paragraph, whether it is an item where a list starts counting. Numbers

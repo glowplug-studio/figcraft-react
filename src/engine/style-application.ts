@@ -10,7 +10,7 @@ import { withStyleRef, type SharedStyle, type StyleSlot } from "./shared-styles"
 import { samePaints } from "./solid-paint";
 import type { TextData } from "./text-data";
 import { fitEditedText } from "./text-node-layout";
-import { commonParagraphList, editParagraphLists, normaliseRuns, paragraphSpan, restyleRange, sameTextData, scalarCount, textSpans } from "./text-ranges";
+import { commonParagraphList, commonWrapStyle, editParagraphLists, normaliseRuns, paragraphSpan, restyleRange, sameTextData, scalarCount, setParaWrapStyles, setWrapStyle, textSpans } from "./text-ranges";
 import type { TextStyle } from "./text-style";
 
 type TextDefinition = Extract<SharedStyle, {type:"text"}>;
@@ -44,13 +44,18 @@ function showsTypography(style: TextStyle, def: TextStyle) {
 function showsParagraph(text: TextData, definition: TextDefinition, start: number, end: number) {
   const p = definition.paragraph;
   return text.paragraphSpacing === (p?.paragraph_spacing ?? 0) && text.paragraphIndent === (p?.paragraph_indent ?? 0) &&
-    sameComponentValue(text.features, p?.features ?? noFeatures) && commonParagraphList(text, start, end)?.list === (p?.list ?? "none");
+    sameComponentValue(text.features, p?.features ?? noFeatures) && commonParagraphList(text, start, end)?.list === (p?.list ?? "none") &&
+    commonWrapStyle(text, start, end) === (p?.wrap_style ?? "auto");
 }
 
 function applyParagraph(text: TextData, definition: TextDefinition, range?: Range) {
   const p = definition.paragraph;
   const span: Range = range ? paragraphSpan(text, ...range) : [0, text.characters.split("\n").length - 1];
-  return Object.freeze({...editParagraphLists(text, span, value => ({...value, list:p?.list ?? "none"})),
+  const listed = editParagraphLists(text, span, value => ({...value, list:p?.list ?? "none"}));
+  // Native `take_paragraph_style`: the whole layer takes the style's wrap style at the layer level; a range's
+  // paragraphs take it as their own (`take_paragraph_style_in`).
+  const wrap = p?.wrap_style ?? "auto", wrapped = range ? setParaWrapStyles(listed, range[0], range[1], wrap) : setWrapStyle(listed, wrap);
+  return Object.freeze({...wrapped,
     paragraphSpacing:p?.paragraph_spacing ?? 0, paragraphIndent:p?.paragraph_indent ?? 0, features:p?.features ?? noFeatures});
 }
 

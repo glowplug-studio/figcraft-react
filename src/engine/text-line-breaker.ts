@@ -1,4 +1,5 @@
 import type { TextData } from "./text-data";
+import { paraWrapStyle } from "./text-ranges";
 import type { StyledGlyph } from "./styled-glyphs";
 import type { TextGraphemes } from "./text-graphemes";
 import { breakBetween, isWrapSpace, safeEmergencyBreak } from "./text-wrap-boundaries";
@@ -116,15 +117,20 @@ export class TextLineBreaker {
     }
     let lines=this.#greedy(()=>w)!;
     const paragraphs=lines[lines.length-1].paragraph+1;
-    if (w===undefined || this.text.wrapStyle==="auto" || this.items.length*paragraphs>2_000_000) return lines;
+    // Each paragraph breaks by its own wrap style, else the layer's (native layout.rs, upstream #1827).
+    const styleOf=(p:number)=>paraWrapStyle(this.text,p);
+    if (w===undefined || this.items.length*paragraphs>2_000_000) return lines;
+    let any=false;
+    for (let p=0;p<paragraphs && !any;p++) any=styleOf(p)!=="auto";
+    if (!any) return lines;
     const plan=new Map<number,(li:number)=>number>();
     for (let p=0;p<paragraphs;p++) {
       const of=(all:readonly TextLineRange[])=>all.filter(l=>l.paragraph===p);
-      const para=of(lines), n=para.length;
-      if (n<2) continue;
+      const para=of(lines), n=para.length, wrapStyle=styleOf(p);
+      if (n<2 || wrapStyle==="auto") continue;
       const base=this.#emergencies(para);
       const trial=(widthOf:(line:number)=>number)=>this.#greedy((q,li)=>q===p ? widthOf(li) : plan.get(q)?.(li) ?? w)!;
-      if (this.text.wrapStyle==="balance") {
+      if (wrapStyle==="balance") {
         let lo=0, hi=w;
         while (hi-lo>0.5) {
           const mid=lo+(hi-lo)/2;

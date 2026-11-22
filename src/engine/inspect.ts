@@ -19,7 +19,7 @@ characters childCount children clip codeLinks componentProperties componentPrope
 cornerRadius cornerSmoothing dashes description devChanged devNote devResources devStatus effects exports
 fills flows fontFamily fontSize fontStyle fontVariations gridCell grids hangingList hangingPunctuation
 height id innerRadius interactions isMask layout leadingTrim letterSpacing lineDirections lineHeight
-lineIndentations lineTypes listSpacing listStartOffsets listStyle locked mainComponent mainComponentName
+lineIndentations lineTypes lineWrapStyles listSpacing listStartOffsets listStyle locked mainComponent mainComponentName
 maskType maxHeight maxLines maxWidth measurements minHeight minWidth miterAngle name opacity
 operandOperation overrides pluginData pointCount rotation sectionContentsHidden segments sizing slot
 strokeAlign strokeJoin strokeSides strokeWeight strokes styledRuns styles textAlign textAutoResize

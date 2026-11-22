@@ -7106,6 +7106,39 @@ test("a typed number starts a numbered list there, Enter copies no start, and th
   expect(lists(await save())).toEqual(split);
 });
 
+test("Text wrap sets the edited paragraph while editing and the whole layer otherwise",async ({page})=>{
+  // Upstream #1827, observed natively (tests/fixtures/native-wrap-style-paragraphs.provenance.md).
+  await login(page);
+  const canvas=page.getByLabel("Design canvas",{exact:true});
+  await canvas.focus(); await page.keyboard.press("t");
+  const point=await canvasPoint(page,180,130); await page.mouse.click(point.x,point.y);
+  const input=page.getByRole("textbox",{name:"Edit text layer"}); await expect(input).toBeFocused();
+  await page.keyboard.insertText("one"); await input.press("Enter"); await page.keyboard.insertText("two");
+  const panel=page.getByRole("group",{name:"Typography"});
+  await panel.getByText("More typography options",{exact:true}).click();
+  const wrap=panel.getByLabel("Text wrap",{exact:true});
+  const save=async()=>{
+    const download=page.waitForEvent("download"); await page.getByRole("button",{name:"Save as",exact:true}).click();
+    const d=(await decodeFigcraft(await readFile((await (await download).path())!))).document;
+    const n=Object.values(d.nodes).find(n=>n.kind==="text");
+    if (n?.kind!=="text") throw new Error("no text layer");
+    return {layer:n.text.wrapStyle,paragraphs:n.text.paragraphs.map(p=>p.wrap ?? null)};
+  };
+  // The caret is in the second paragraph: that paragraph alone takes the style.
+  await expect(wrap).toHaveValue("auto");
+  await wrap.selectOption("balance");
+  await expect(wrap).toHaveValue("balance");
+  await input.evaluate((el:HTMLTextAreaElement)=>{el.focus();el.setSelectionRange(0,0);});
+  await expect(wrap).toHaveValue("auto");
+  await input.press("Escape"); await expect(input).toHaveCount(0);
+  expect(await save()).toEqual({layer:"auto",paragraphs:[null,"balance"]});
+  // Not editing, the control reads Mixed and sets the layer: every paragraph follows it again.
+  await expect(wrap).toHaveValue("");
+  await wrap.selectOption("pretty");
+  await expect(wrap).toHaveValue("pretty");
+  expect(await save()).toEqual({layer:"pretty",paragraphs:[]});
+});
+
 test("create-link shortcuts retain the selected characters and Alt+Enter opens only web or mail links",async ({page,context})=>{
   await context.route("https://example.test/figcraft-link",route=>route.fulfill({contentType:"text/plain",body:"Figcraft link"}));
   await login(page);

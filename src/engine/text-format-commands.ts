@@ -8,8 +8,8 @@ import type { TextData } from "./text-data";
 import { textPathOffset } from "./text-path-commands";
 import { listKey } from "./text-list-edit";
 import { fitEditedText } from "./text-node-layout";
-import { featureValues, variationValues, styledName, weightName } from "./text-properties";
-import { commonParagraphList, editParagraphLists, paragraphSpan, restyleRange, sameTextData, scalarCount, textSpans, textStyleAt } from "./text-ranges";
+import { featureValues, variationValues, styledName, weightName, wrapStyleValue } from "./text-properties";
+import { commonParagraphList, editParagraphLists, paragraphSpan, restyleRange, sameTextData, scalarCount, setParaWrapStyles, setWrapStyle, textSpans, textStyleAt } from "./text-ranges";
 import { lineHeightPx, setFontStyle, textItalic, textWeight, type TextStyle } from "./text-style";
 import { stepFontWeight } from "./text-weight-step";
 
@@ -44,7 +44,7 @@ function styleChange(edit:(s:TextStyle)=>TextStyle): Change {
   return (t,a,b) => restyleRange(t,a===b ? 0 : a,a===b ? scalarCount(t.characters) : b,s => Object.freeze(edit(s)));
 }
 
-function formatChange(action:Action, p:Params, all:All, allListed:(l:"numbered"|"bulleted")=>boolean): Change {
+function formatChange(action:Action, p:Params, all:All, allListed:(l:"numbered"|"bulleted")=>boolean, editing:boolean): Change {
   switch (action) {
     case "pathOptions": {
       const start = textPathOffset(p.start), flip = parseBoolean(p.flip);
@@ -114,8 +114,10 @@ function formatChange(action:Action, p:Params, all:All, allListed:(l:"numbered"|
       return t=>({...t,maxLines,autoResize:maxLines>0 && t.autoResize==="none" ? "truncate" : t.autoResize});
     }
     case "wrapStyle": {
-      const wrapStyle = propertyEnum(p.style,["auto","balance","pretty"] as const);
-      return t=>({...t,wrapStyle});
+      // Native cmd/text.rs (upstream #1827): while editing, the selected paragraphs (the paragraph level); else the
+      // whole layer, every paragraph with its override included.
+      const wrap = wrapStyleValue(p.style);
+      return editing ? (t,a,b) => setParaWrapStyles(t,a,b,wrap) : t => setWrapStyle(t,wrap);
     }
     case "setFeatures": {
       const features = featureValues(p.features), apply = tagEdit(p.features,features,parseBoolean(p.replace) === true);
@@ -174,7 +176,7 @@ export function executeTextFormat(command:TextFormatCommand, doc:Document, selec
     const n=doc.nodes[id];
     return n.kind==="text" && commonParagraphList(n.text,range?.start ?? 0,range?.end ?? scalarCount(n.text.characters))?.list===list;
   });
-  const change=formatChange(action,params,all,allListed), edits=new Map<NodeId,TextData>();
+  const change=formatChange(action,params,all,allListed,range!==undefined), edits=new Map<NodeId,TextData>();
   for (const id of targets) {
     const text=edits.get(id) ?? (doc.nodes[id] as TextNode).text;
     edits.set(id,Object.freeze(change(text,range?.start ?? 0,range?.end ?? scalarCount(text.characters))));

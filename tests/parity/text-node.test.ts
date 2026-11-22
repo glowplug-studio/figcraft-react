@@ -140,7 +140,11 @@ it("formats only text targets, and a failed mixed selection leaves each layer un
   expect(engine.getSnapshot()).toBe(before);
 });
 
-// Full Session::execute results at a4251ca8 using the same five packaged faces.
+// Full Session::execute results at a4251ca8 using the same five packaged faces. A wrap style set with a range is the
+// touched paragraphs' own since upstream #1827: the one case that does so is compared with its node.get observed at
+// bad07e44 (tests/fixtures/native-wrap-style-paragraphs.provenance.md).
+const wrapRepinned = new Map((JSON.parse(readFileSync(new URL("../fixtures/native-wrap-style-paragraphs.json",import.meta.url),"utf8")) as
+  {repinned:{typography:{case:number; node:Record<string,unknown>}[]}}).repinned.typography.map(c => [c.case, c.node]));
 it.each(JSON.parse(readFileSync(new URL("../fixtures/native-typography.json",import.meta.url),"utf8")) as {
   case:number; commands:Record<string,unknown>[]; result:Record<string,unknown>; node:Record<string,unknown>
 }[])("matches the Rust typography session for case $case", async entry => {
@@ -152,7 +156,7 @@ it.each(JSON.parse(readFileSync(new URL("../fixtures/native-typography.json",imp
     catch { result = {error:true}; break; }
   }
   expect(result).toEqual(entry.result);
-  expect(engine.execute("node.get",{id})).toEqual(entry.node);
+  expect(engine.execute("node.get",{id})).toEqual(wrapRepinned.get(entry.case) ?? entry.node);
 });
 
 it("opens the Rust session's explicit hug sizing and releases both axes when the box becomes fixed", async () => {

@@ -3,8 +3,11 @@ import { defaultTextStyle, readTextStyle, textBool, textEnum, textNumber, textRe
 
 export interface StyleRun { readonly start: number; readonly end: number; readonly style: TextStyle }
 export type ListStyle = "none" | "bulleted" | "numbered";
+export type WrapStyle = "auto" | "balance" | "pretty";
 export interface ParaList {
   readonly list: ListStyle; readonly indent: number; readonly startOffset: number; readonly direction: "auto" | "ltr" | "rtl";
+  /** The paragraph's own wrap style; absent, it follows the layer's `wrapStyle` (native `ParaList::wrap`). */
+  readonly wrap?: WrapStyle;
 }
 export interface TextData {
   readonly characters: string;
@@ -16,7 +19,7 @@ export interface TextData {
   readonly paragraphSpacing: number; readonly paragraphIndent: number;
   readonly list: ListStyle; readonly paragraphs: readonly ParaList[]; readonly listSpacing: number;
   readonly hangingPunctuation: boolean; readonly hangingList: boolean; readonly leadingTrim: "none" | "capHeight";
-  readonly maxLines: number; readonly wrapStyle: "auto" | "balance" | "pretty";
+  readonly maxLines: number; readonly wrapStyle: WrapStyle;
   readonly features: Readonly<Record<string,boolean>>;
   readonly path?: Readonly<{d:string; start:number; flip:boolean}>;
   readonly savedBreaks?: Readonly<{starts:readonly number[];width:number;forText:string}>;
@@ -49,7 +52,8 @@ function paragraph(value: unknown): ParaList {
   const p = textRecord(value,"paragraph");
   return Object.freeze({list:p.list===undefined?"none":list(p.list),indent:p.indent===undefined?0:uint(p.indent,"indent",255),
     startOffset:p.start_offset===undefined?0:uint(p.start_offset,"start offset"),
-    direction:p.direction===undefined?"auto":textEnum(p.direction,["auto","ltr","rtl"],"direction")});
+    direction:p.direction===undefined?"auto":textEnum(p.direction,["auto","ltr","rtl"],"direction"),
+    ...(p.wrap!=null && {wrap:textEnum(p.wrap,["auto","balance","pretty"],"paragraph wrap style")})});
 }
 function textPath(value: unknown) {
   const p = textRecord(value,"path");
@@ -95,7 +99,7 @@ export function wireTextData(t: TextData) {
     ...(t.alignV!=="top" && {align_v:t.alignV}),...(t.paragraphSpacing && {paragraph_spacing:t.paragraphSpacing}),
     ...(t.paragraphIndent && {paragraph_indent:t.paragraphIndent}),...(t.list!=="none" && {list:t.list}),
     ...(t.paragraphs.length && {paragraphs:t.paragraphs.map(p=>({list:p.list,indent:p.indent,
-      ...(p.startOffset && {start_offset:p.startOffset}),...(p.direction!=="auto" && {direction:p.direction})}))}),
+      ...(p.startOffset && {start_offset:p.startOffset}),...(p.direction!=="auto" && {direction:p.direction}),...(p.wrap && {wrap:p.wrap})}))}),
     ...(t.listSpacing && {list_spacing:t.listSpacing}),...(t.hangingPunctuation && {hanging_punctuation:true}),
     ...(t.hangingList && {hanging_list:true}),...(t.leadingTrim!=="none" && {leading_trim:t.leadingTrim}),
     ...(t.maxLines && {max_lines:t.maxLines}),...(t.wrapStyle!=="auto" && {wrap_style:t.wrapStyle}),
