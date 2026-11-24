@@ -6,7 +6,7 @@
 - Native reference: `bad07e4433240cad046589129c084bd2fc36f097` (`bad07e44`). React starting revision: `4c69d65` on `prompt/full-figcraft-port`.
 - Upstream commits: `9032dc3e` (#2250), `64e91207` (#2252), `70ed6c16`, `4d3fe2aa`, `cf77dfda`, `2f8dd85f`, `81371f4a` (#2254). Ledger item 3.17.
 - Files changed: `src/engine/export-svg.ts`, `svg-import/xml.ts`, `svg-import/filter.ts`, `interchange/penpot/raw-svg.ts`; tests `tests/parity/svg-image-export.test.ts`, `tests/parity/svg-import-attributes.test.ts` (new), three cases in `tests/e2e/raster-export.spec.ts` with helpers in `tests/fixtures/raster-export.ts`, `svg-import-limits.ts` and `svg-attribute-documents.ts` (new); four fixtures with provenance.
-- Next action: collect the gate, then providers, cleanup, graph, report and records.
+- Next action: none; the item is recorded. Row 3 continues in its row plan.
 - Blockers: none.
 
 ## Native contract
