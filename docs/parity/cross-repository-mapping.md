@@ -792,3 +792,7 @@ Native `crates/render/src/images.rs::{DISPLAY_SIDES, display_side, shown}` at `b
 ## Delta row 3: the eyedropper — 24 November 2026
 
 Native `crates/engine/src/cmd/view.rs` `edit.pickColor` at `bad07e44` maps to `edit.pickColor` and the `eyedropper` tool of `editor.ts` at `679e2d6`; `crates/engine/src/canvas/tools/click.rs::eyedrop` (upstream `30767bd2`, #2189), which renders with `figcraft_render::render_view` and magnified image pixels, to `eyedropper.ts::sampleCanvasColour`, `editor.ts::{pickColour, pickedColour}` and the press in `canvas.ts`. Verified by `tests/e2e/eyedropper.spec.ts` restating native `eyedropper_image_tests`, `tests/parity/eyedropper.test.ts` and a browser case in `tests/e2e/preview.spec.ts`. [Report](../reports/26-11-24-eyedropper.md).
+
+## Delta row 4: grid Fill tracks — 24 November 2026
+
+Native `crates/layout/src/lib.rs::grid_geometry` at `bad07e44` (upstream `a28c03d9`), which lets a fixed-size or hug-size child alone in a Fill track of a fixed axis ask nothing of it, maps to `grid-layout.ts::gridGeometry` (`inFill`) at `addee52`; `resolve_tracks` maps to the unchanged `resolveAxis`. Verified by eight native grids in `tests/fixtures/native-grid-fill-tracks.json`, `tests/parity/grid-fill-tracks.test.ts`, the re-pinned `native-layout-rules.json` and `native-flow-layout.json`, and a browser case in `tests/e2e/preview.spec.ts`. [Report](../reports/26-11-24-grid-fill-tracks.md).
