@@ -2,12 +2,12 @@
 
 ## Execution checkpoint
 
-- Phase: items 1 to 1 complete through Phase 7 at `addee52` ([grid Fill tracks](../reports/26-11-24-grid-fill-tracks.md)). Item 2 is next. Each item is opened with its own dated plan.
+- Phase: items 1 to 2 complete through Phase 7 at `addee52` and `c053caa` ([grid Fill tracks](../reports/26-11-24-grid-fill-tracks.md), [layout snap bounds](../reports/26-11-24-grid-snap-bounds.md)). Item 3 is next. Each item is opened with its own dated plan.
 - Native reference: `bad07e4433240cad046589129c084bd2fc36f097` (`bad07e44`). React revision: the row 3 records commit on `prompt/full-figcraft-port`.
 - Source queue: row 4 of the [upstream delta queue](26-11-15-upstream-delta.md), range `7bf098d7..bad07e44`, with its commits taken from the [commit ledger](26-11-20-upstream-delta-ledger.md).
 - Files in progress: none.
 - Native oracle: `$HOME/.cache/figcraft-oracle/project`; `replay` runs command sequences through the pinned engine. Layout results (frame and child sizes after `node.set`) and command refusals are observed through it.
-- Next action: open item 2, layout snap bounds (ledger 4.4, upstream `9d486259`, `1935c3ea`): the snap lines a frame's grids give together are bounded at 200,000, and a grid that would pass the budget is left out whole (`crates/layout/src/lib.rs::grid_snap_lines_in`, `MAX_SNAP_LINES`; port `snapping.ts::SnapTargets`). Restate native `depth_tests::snap_lines_are_bounded_across_a_frames_grids`, port, gate and record.
+- Next action: open item 3, Align unavailable in an auto layout flow (ledger 4.3, upstream `76965c78`): one selected layer that takes part in its auto layout frame's flow (not absolute) has no align target, so Align is off with the tip "A layer in an auto layout frame is placed by its frame" and the align commands leave the layout alone; an absolute child still aligns to its frame and several layers are unchanged (`crates/engine/src/cmd/arrange.rs::{align_target, align_blocked_by_auto_layout}`, `ui-egui/src/panels/right.rs`; port `arrange.ts::canAlign`, `ArrangePanel.tsx`). Observe through `replay`, port, gate and record.
 - Blockers: none. Oracle builds are CPU-heavy; do not run them during a browser gate.
 
 ## Why the order
@@ -17,8 +17,8 @@ Items the layout engine decides come first, since `replay` observes them directl
 | Item | Ledger | Upstream behaviour | Native files and tests | React files | Status |
 |---|---|---|---|---|---|
 | 1 | 4.1 | Grid Fill tracks share the space and let a fixed child overflow (`a28c03d9`, `92753a8f`, `daa6b5b2`) | `layout/src/lib.rs`; `layout/src/behaviour_tests.rs` | `grid-layout.ts`, `grid-placement.ts` | Verified at `addee52` with native observations ([plan](26-11-24-grid-fill-tracks.md)) |
-| 2 | 4.4 | Layout bounds: a grid that would pass the snap budget is left out; the snap lines a frame's grids make are bounded (`9d486259`, `1935c3ea`) | `layout/src/lib.rs`; `layout/src/depth_tests.rs` | `layout-guides.ts`, the snapping in `arrange.ts` | Next; upstream commits read |
-| 3 | 4.3 | Align is unavailable for a layer in an auto layout frame's flow (`76965c78`) | `engine/src/cmd/arrange.rs`, `ui-egui/src/panels/right.rs`; `engine/src/al_behaviour_tests.rs`, `ui-egui/src/canvas/selection_cache_tests.rs` | `arrange.ts`, `ArrangePanel.tsx` | Not started |
+| 2 | 4.4 | Layout bounds: a grid that would pass the snap budget is left out; the snap lines a frame's grids make are bounded (`9d486259`, `1935c3ea`) | `layout/src/lib.rs`; `layout/src/depth_tests.rs` | `layout-guides.ts`, the snapping in `arrange.ts` | Verified at `c053caa` with native observations ([plan](26-11-24-grid-snap-bounds.md)) |
+| 3 | 4.3 | Align is unavailable for a layer in an auto layout frame's flow (`76965c78`) | `engine/src/cmd/arrange.rs`, `ui-egui/src/panels/right.rs`; `engine/src/al_behaviour_tests.rs`, `ui-egui/src/canvas/selection_cache_tests.rs` | `arrange.ts`, `ArrangePanel.tsx` | Next; upstream commits read |
 | 4 | 4.2 | A child dragged in auto layout passes a sibling when its leading edge reaches the sibling's middle (#2142; `cf567c3f`, `e415a3a0`) | `engine/src/canvas/drop.rs`, `canvas/tools/drag.rs`; `engine/src/al_drag_tests.rs` | `layout-drop.ts` | Not started |
 
 ## Acceptance per item

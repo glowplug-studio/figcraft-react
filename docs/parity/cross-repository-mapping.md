@@ -796,3 +796,7 @@ Native `crates/engine/src/cmd/view.rs` `edit.pickColor` at `bad07e44` maps to `e
 ## Delta row 4: grid Fill tracks — 24 November 2026
 
 Native `crates/layout/src/lib.rs::grid_geometry` at `bad07e44` (upstream `a28c03d9`), which lets a fixed-size or hug-size child alone in a Fill track of a fixed axis ask nothing of it, maps to `grid-layout.ts::gridGeometry` (`inFill`) at `addee52`; `resolve_tracks` maps to the unchanged `resolveAxis`. Verified by eight native grids in `tests/fixtures/native-grid-fill-tracks.json`, `tests/parity/grid-fill-tracks.test.ts`, the re-pinned `native-layout-rules.json` and `native-flow-layout.json`, and a browser case in `tests/e2e/preview.spec.ts`. [Report](../reports/26-11-24-grid-fill-tracks.md).
+
+## Delta row 4: layout snap bounds — 24 November 2026
+
+Native `crates/layout/src/lib.rs::grid_snap_lines_in` with `MAX_SNAP_LINES` at `bad07e44` (upstream `1935c3ea`, `9d486259`) maps to the grid budget of `snapping.ts::SnapTargets` and `maxGridSnapLines` at `c053caa`; `grid_lines` maps to `layout-guides.ts::guideRects`. Verified by `tests/parity/grid-snap-bounds.test.ts`, restating native `depth_tests::snap_lines_are_bounded_across_a_frames_grids`. [Report](../reports/26-11-24-grid-snap-bounds.md).

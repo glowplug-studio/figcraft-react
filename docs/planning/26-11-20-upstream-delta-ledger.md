@@ -5,7 +5,7 @@
 - Phase: planning record, written 20 November 2026 at React `f5114ec` on `prompt/full-figcraft-port`.
 - Native range: `7bf098d75d187416633d9ebcceb9eb83fbb10df8` → `bad07e4433240cad046589129c084bd2fc36f097`, 254 commits excluding merges.
 - Purpose: the [delta queue](26-11-15-upstream-delta.md) groups this range into eight rows by theme. Row 1 turned out to hold a change that no row named (point positions in vector edit mode). This ledger assigns every commit to an item, so that nothing in the range is left to be found by accident.
-- Status: 42 items verified, 21 open (four of them, 2.6, 2.12, 2.17 and 2.18, wait for the interface of roadmap row 19), the rest outside the browser port or without product behaviour.
+- Status: 43 items verified, 20 open (four of them, 2.6, 2.12, 2.17 and 2.18, wait for the interface of roadmap row 19), the rest outside the browser port or without product behaviour.
 - Next action: work the open items in order, each as its own bounded slice under its row's plan. Row 2 is closed apart from the four items waiting for row 19 ([row 2 plan](26-11-20-delta-row-2-selection-canvas.md)); row 3 is planned in [the row 3 plan](26-11-21-delta-row-3-files-text-paint.md).
 - Blockers: none.
 
@@ -67,7 +67,7 @@ Items marked as outside the browser port are not dismissed: the final audit revi
 | 4.1 | Grid Fill tracks share the space and let a fixed child overflow | Verified at addee52 | `a28c03d9`, `92753a8f`, `daa6b5b2` |
 | 4.2 | A child dragged in auto layout passes a sibling when its leading edge reaches the sibling's middle (#2142) | Open | `cf567c3f`, `e415a3a0` |
 | 4.3 | Align is unavailable for a layer in an auto layout frame's flow | Open | `76965c78` |
-| 4.4 | Layout bounds: a grid past the snap budget is left out; snap lines from grids are bounded | Open | `9d486259`, `1935c3ea` |
+| 4.4 | Layout bounds: a grid past the snap budget is left out; snap lines from grids are bounded | Verified at c053caa | `9d486259`, `1935c3ea` |
 | 5.1 | Inherited slot properties resolve by their defining component | Open | `a6d9b74d`, `a66946d1`, `2067a0b5` |
 | 5.2 | An instance lists the properties its variant uses (#2022) | Open | `14670b99` |
 | 5.3 | A connection dropped on a sibling variant creates Change to; grouped sets take none (#2158, #2161) | Open | `5c500252`, `36cd59da`, `499717d6` |
