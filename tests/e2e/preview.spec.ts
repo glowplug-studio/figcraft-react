@@ -7066,6 +7066,54 @@ test("the Text tool types on canvas, drags a fixed box and commits each edit as 
   await page.keyboard.press("Escape"); await expect(page.getByText("2 layers",{exact:true})).toBeVisible();
 });
 
+test("the text caret takes the text's solid fill colour, else black or white against what is behind the text, as native does",async ({page})=>{
+  const e=new EditorEngine();
+  const make=async (name:string,x:number,y:number,parent?:string)=>{
+    const id=String((await e.executeAsync("text.create",{text:"Caret ",name,x,y,...(parent && {parent})})).id);
+    e.execute("node.set",{id,props:{fontSize:40}});
+    return id;
+  };
+  const gradient={type:"gradient",kind:"linear",stops:[{position:0,color:"#FF0000"},{position:1,color:"#0000FF"}]};
+  const red=await make("Red text",40,40);
+  e.execute("node.set",{id:red,props:{fill:"#FF0000"}});
+  const light=await make("Gradient on page",40,140);
+  e.execute("fill.set",{ids:[light],index:0,paint:gradient});
+  const frame=String((e.execute("frame.create",{x:20,y:240,width:400,height:120}) as {id:string}).id);
+  e.execute("node.set",{id:frame,props:{fill:"#222222",name:"Dark frame"}});
+  const dark=await make("Gradient in frame",20,20,frame);
+  e.execute("fill.set",{ids:[dark],index:0,paint:gradient});
+  await login(page);
+  await page.getByLabel("Open Figcraft file",{exact:true}).setInputFiles({name:"caret.figcraft",mimeType:"application/octet-stream",buffer:Buffer.from(await encodeFigcraft(e.getSnapshot().document))});
+  await resetCanvasOrigin(page);
+  const input=page.getByRole("textbox",{name:"Edit text layer"}), canvas=page.getByLabel("Design canvas",{exact:true});
+  // The pixels of a strip from the end of the text's box, past its trailing space, beyond its glyphs.
+  const strip=(x:number,y:number)=>canvas.evaluate((node:HTMLCanvasElement,p)=>{
+    const scale=window.devicePixelRatio || 1, zoom=Number(node.dataset.viewZoom);
+    const sx=Math.round((p.x-Number(node.dataset.viewOriginX))*zoom*scale), sy=Math.round((p.y-Number(node.dataset.viewOriginY))*zoom*scale);
+    const data=node.getContext("2d")!.getImageData(sx-4,sy,Math.round(48*scale),1).data;
+    return Array.from({length:data.length/4},(_,i)=>Array.from(data.slice(i*4,i*4+4)));
+  },{x,y});
+  for (const [id,expected] of [[red,[255,0,0,255]],[light,[0,0,0,255]],[dark,[255,255,255,255]]] as const) {
+    const node=e.getSnapshot().document.nodes[id] as import("../../src/engine/document").TextNode;
+    const origin=id===dark ? {x:20+node.x,y:240+node.y} : {x:node.x,y:node.y};
+    const end={x:origin.x+node.width,y:origin.y+node.height/2}, before=await strip(end.x,end.y);
+    const start=await canvasPoint(page,origin.x+8,origin.y+node.height/2);
+    await page.mouse.dblclick(start.x,start.y); await expect(input).toBeFocused();
+    await page.keyboard.press("End");
+    await expect.poll(async()=>{
+      const after=await strip(end.x,end.y);
+      // The 1-pixel caret is antialiased and colour-managed: a changed pixel is the background blended towards the caret colour.
+      return after.flatMap((px,i)=>{
+        const bg=before[i].slice(0,3), rgb=px.slice(0,3), spread=expected.slice(0,3).map((v,c)=>v-bg[c]);
+        if (rgb.every((v,c)=>Math.abs(v-bg[c])<=2)) return [];
+        const t=spread.reduce((a,d,c)=>a+d*(rgb[c]-bg[c]),0)/spread.reduce((a,d)=>a+d*d,0);
+        return [t>=.4 && rgb.every((v,c)=>Math.abs(bg[c]+t*spread[c]-v)<=16)];
+      });
+    }).toContain(true);
+    await page.keyboard.press("Escape"); await page.keyboard.press("Escape"); await expect(input).toHaveCount(0);
+  }
+});
+
 test("native Chromium IME pre-edit paints temporary glyphs and commits once on the canvas",async ({page})=>{
   await login(page);
   const canvas=page.getByLabel("Design canvas",{exact:true});

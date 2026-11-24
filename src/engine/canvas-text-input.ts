@@ -1,3 +1,5 @@
+import { caretFallback, caretFill } from "./caret-colour";
+import { renderColour } from "./colour";
 import { textPathAt } from "./text-path-commands";
 import { textKeyMotion } from "./text-key-motion";
 import { textShortcut } from "./text-shortcuts";
@@ -408,9 +410,11 @@ export class CanvasTextInput {
       context.fillStyle=canvasAccent(doc);
       for (const box of textSelectionRects(layout,shown.start,shown.end)) context.fillRect(box.x,box.y+box.height-1/view.zoom,box.width,1/view.zoom);
     } else for (const box of textSelectionRects(layout,a,b)) context.fillRect(box.x,box.y,box.width,box.height);
-    const caret=textCaret(layout,shown?.cursor ?? (input.selectionDirection==="backward"?a:b)), line=layout.lines[caret.line];
+    const at=shown?.cursor ?? (input.selectionDirection==="backward"?a:b), caret=textCaret(layout,at), line=layout.lines[caret.line];
     if (a===b || shown) {
-      context.fillStyle=canvasAccent(doc); context.fillRect(caret.x,line?.top ?? 0,1/view.zoom,line?.height ?? node.height);
+      // Native overlays.rs: the caret takes the text's solid fill colour, else black or white against what is behind the text (#2156, #2190).
+      const fill=caretFill(node,at);
+      context.fillStyle=fill ? renderColour(fill) : caretFallback(doc,node.id); context.fillRect(caret.x,line?.top ?? 0,1/view.zoom,line?.height ?? node.height);
     }
     context.restore();
     const pos=pageToScreen(view,transformPoint(matrix,{x:caret.x,y:(line?.top ?? 0)+dy})), rect=this.canvas.getBoundingClientRect();
