@@ -3071,6 +3071,32 @@ test("a click on a fill, stroke or effect row highlights it and Cmd/Ctrl+C and V
   await expect(page.getByText("3 layers",{exact:true})).toBeVisible();
 });
 
+test("Pick color with I samples the canvas under the pointer into the selection and returns to Move, as native does",async ({page})=>{
+  const e=new EditorEngine();
+  const rect=(name:string,x:number,fill:string)=>{
+    const id=String((e.execute("shape.rectangle",{x,y:100,width:80,height:80}) as {id:string}).id);
+    e.execute("node.set",{id,props:{fill,name}});
+    return id;
+  };
+  rect("Source",100,"#3D444D"); const target=rect("Target",300,"#00FF00");
+  await login(page);
+  await page.getByLabel("Open Figcraft file",{exact:true}).setInputFiles({name:"pick.figcraft",mimeType:"application/octet-stream",buffer:Buffer.from(await encodeFigcraft(e.getSnapshot().document))});
+  await page.getByRole("region",{name:"Layers",exact:true}).getByRole("button",{name:"Target"}).click();
+  const canvas=page.getByLabel("Design canvas",{exact:true});
+  await canvas.focus(); await page.keyboard.press("i");
+  const at=await canvasPoint(page,140,140);
+  await page.mouse.click(at.x,at.y);
+  await expect(page.getByText("Picked #3D444D")).toBeVisible();
+  const pending=page.waitForEvent("download");
+  await canvas.focus(); await page.keyboard.press("ControlOrMeta+s");
+  const node=(await decodeFigcraft(await readFile((await (await pending).path())!))).document.nodes[target] as RectangleNode;
+  const paint=rectanglePaints(node)[0];
+  expect(paint.type==="solid" && [paint.color.r,paint.color.g,paint.color.b].map(v=>Math.round(v*255))).toEqual([0x3d,0x44,0x4d]);
+  // The Move tool is back: a click on the source selects it rather than picking again.
+  await page.mouse.click(at.x,at.y);
+  await expect(page.getByRole("region",{name:"Appearance"}).getByLabel("Name",{exact:true})).toHaveValue("Source");
+});
+
 test("transparent page redraw and hidden or locked layers bypass pointer and select all", async ({ page }) => {
   await login(page);
   const appearance = page.getByRole("region", { name: "Appearance" });

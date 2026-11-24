@@ -225,7 +225,7 @@ export function DocumentEditor({ identity, capabilities, engine: suppliedEngine,
   }, [engine, recoveryStore, workspace]);
   useEffect(() => {
     if (!canvas.current || recoveryStatus === "loading") return;
-    const instance = new CanvasController(canvas.current, engine, setError);
+    const instance = new CanvasController(canvas.current, engine, setError, setCopyNotice);
     controller.current = instance;
     return () => { controller.current = null; instance.dispose(); };
   }, [engine, recoveryStatus === "loading"]);
@@ -402,6 +402,8 @@ export function DocumentEditor({ identity, capabilities, engine: suppliedEngine,
       if (event.key.toLowerCase() === "l") command = event.shiftKey ? "tool.arrow" : "tool.line";
       if (event.key.toLowerCase() === "t") command = "tool.text";
       if (event.key.toLowerCase() === "r") command = "tool.rectangle";
+      // Native keymap.rs: I picks a colour (Edit ▸ Pick color); Ctrl+C on the Mac as well.
+      if (event.key.toLowerCase() === "i" && !event.shiftKey) command = "edit.pickColor";
       if (event.shiftKey && event.key.toLowerCase() === "m") command = "tool.shapeBuilder";
       if (event.key.toLowerCase() === "p") command = event.shiftKey ? "tool.pencil" : "tool.pen";
       if (event.target instanceof HTMLTextAreaElement && event.target.hasAttribute("data-figcraft-text-input") &&
@@ -842,6 +844,7 @@ export function DocumentEditor({ identity, capabilities, engine: suppliedEngine,
             ["Paste to replace", "edit.pasteReplace", editable && engine.hasCopiedLayers() && !!snapshot.selection.length],
             ["Copy properties", "edit.copyProperties", canCopyLayers],
             ["Paste properties", "edit.pasteProperties", editable && engine.hasCopiedProperties() && !!snapshot.selection.length],
+            ["Pick color", "edit.pickColor", editable],
           ] as const).map(([label, command, enabled]) =>
             <button key={command} type="button" disabled={busy || !enabled} onClick={event => {
               event.currentTarget.closest("details")?.removeAttribute("open");

@@ -71,7 +71,7 @@ import { creationCharacters, createLayer } from "./creation";
 import { pastePaint, type CopiedPaint } from "./paint-clipboard";
 import { copyPaint, fillSpecs, selectedRegionFills, writeFill } from "./fill-commands";
 import { paintColour, readPaint, type Paint } from "./solid-paint";
-import { toCssHex } from "./colour";
+import { toCssHex, withAlpha, type Colour } from "./colour";
 import { executeStrokeList, strokeSpecs } from "./stroke-commands";
 import { newDocument, sameContent, withLayerTransform, type Document, type DrawShapeKind, type TextNode, type NodeId } from "./document";
 import { MAX_IMAGE_BYTES } from "./image-resource";
@@ -135,6 +135,7 @@ export const commandSpecs = Object.freeze({
   "pref.userName": {label:"Your name",undo:false},
   "pref.invertZoom": {label:"Invert zoom direction",undo:false},
   "tool.comment": {label:"Comment",undo:false},
+  "edit.pickColor": { label: "Pick color", undo: false },
   "view.comments": {label:"Comments",undo:false},
   "comment.open": {label:"Open comment",undo:false},
   "comment.next": {label:"Next comment",undo:false},
@@ -295,7 +296,7 @@ export interface EditorSnapshot {
   readonly selection: readonly NodeId[];
   readonly openComment?: string;
   readonly showComments?: boolean;
-  readonly tool: "comment" | "move" | DrawShapeKind | "scale" | "text" | "textOnPath" | "pen" | "pencil" | "shapeBuilder";
+  readonly tool: "comment" | "move" | DrawShapeKind | "scale" | "text" | "textOnPath" | "pen" | "pencil" | "shapeBuilder" | "eyedropper";
   readonly builderMode: "merge" | "remove";
   readonly scaleAnchor: ScaleAnchor;
   readonly canUndo: boolean;
@@ -409,6 +410,19 @@ export class EditorEngine {
   hasCopiedEffect = (): boolean => !!this.#clipboard.effect;
   hasCopiedFill = (): boolean => this.#clipboard.paint?.list === "fill";
   hasCopiedStroke = (): boolean => this.#clipboard.paint?.list === "stroke";
+  #pickOnly = false;
+  #picked?: Colour;
+  /** The colour the eyedropper sampled for a colour picker (`edit.pickColor` with `apply: false`), until it is taken. */
+  pickedColour(): Colour | undefined { return this.#picked; }
+  /** Native `eyedrop`: the sampled colour fills the selected layers (or is kept for a picker), and the Move tool comes back. */
+  pickColour(colour: Colour): { message: string } {
+    const hex = toCssHex(withAlpha(colour, 1));
+    if (this.#snapshot.tool !== "eyedropper") throw new Error("The eyedropper isn't the current tool");
+    if (this.#pickOnly) this.#picked = withAlpha(colour, 1);
+    else if (this.#snapshot.selection.length) this.execute("node.set", { ids: this.#snapshot.selection, props: { fill: hex } });
+    this.#publish({ tool: "move" });
+    return { message: "Picked " + hex };
+  }
   #propertyCopy?: { kind: PropertyKind; layers: EditorClipboard["layers"]; mirror?: string };
   /** The highlighted row, while it belongs to the selection (native `property_rows::current`). */
   propertyRow(): PropertyRow | undefined {
@@ -2227,6 +2241,17 @@ export class EditorEngine {
       this.#pendingSaves.clear();
       this.#publish({});
       return { saved: true };
+    }
+    if (command === "edit.pickColor") {
+      // Native cmd/view.rs edit.pickColor: the eyedropper; `apply: false` (the colour picker) only samples, into pickedColour().
+      const [unexpected] = Object.keys(p).filter(key => key !== "apply");
+      if (unexpected !== undefined) throw new Error("edit.pickColor takes apply, not " + unexpected);
+      this.#pickOnly = parseBoolean(p.apply) === false;
+      this.#picked = undefined;
+      const end = this.#vectorEdit ? executeVectorEdit("vector.edit.end", this.#snapshot.document, this.#snapshot.selection, this.#vectorEdit, {}) : undefined;
+      if (end) this.#vectorEdit = undefined;
+      this.#publish({ ...(end ? { document: end.document, selection: end.selection } : {}), tool: "eyedropper" });
+      return {};
     }
     if (command.startsWith("file.") || command === "image.place" || command === "image.replace") throw new Error(`${command} requires executeAsync`);
     if (command === "text.create" || command === "vector.create" || command === "shape.line" || command === "shape.arrow" || command === "shape.polygon" || command === "shape.star" || command === "shape.ellipse" || command === "shape.rectangle" || command === "frame.create" || command === "node.create") return this.#create(command, p);

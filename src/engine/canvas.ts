@@ -27,6 +27,7 @@ import { CornerInteraction } from "./corner-handles";
 import { tracePath, type PathCommand } from "./corners";
 import { shapePath, hasShapePath } from "./shape-path";
 import { canvasAccent } from "./canvas-colours";
+import { sampleCanvasColour } from "./eyedropper";
 import { pageOf, pageColour, rectanglePaints, rectangleTransform, type Document, type LayerNode, type PageNode } from "./document";
 import { convertColourPixels } from "./colour-spaces";
 import { renderColour } from "./colour";
@@ -674,7 +675,7 @@ export class CanvasController {
   #width = 0;
   #height = 0;
   #dpr = 1;
-  constructor(private canvas: HTMLCanvasElement, private engine: EditorEngine, private onError: (message: string) => void) {
+  constructor(private canvas: HTMLCanvasElement, private engine: EditorEngine, private onError: (message: string) => void, private onNotice: (message: string) => void = () => {}) {
     this.#smart = new SmartHandles(engine, onError);
     this.#moving = new MoveInteraction(engine, onError);
     this.#transforming = new TransformInteraction(engine, onError);
@@ -730,6 +731,16 @@ export class CanvasController {
     }
     if (event.button !== 0) return;
     this.canvas.focus();
+    if (this.engine.getSnapshot().tool === "eyedropper") {
+      // Native `eyedrop`: a press samples the pixel under the pointer as the canvas draws it.
+      event.preventDefault();
+      const document = this.engine.getRenderDocument();
+      void sampleCanvasColour(document, this.engine.getView(), this.#point(event), this.canvas.ownerDocument).then(colour => {
+        if (this.engine.getSnapshot().tool !== "eyedropper" || this.engine.getRenderDocument() !== document) return;
+        this.onNotice(this.engine.pickColour(colour).message);
+      }).catch(error => this.onError(error instanceof Error ? error.message : "Could not pick the colour"));
+      return;
+    }
     try {
       const crop=this.#crop.down(this.#screenPoint(event));
       if (crop===true || crop==="layer" && this.#transforming.down(this.#point(event))) {
