@@ -1,0 +1,458 @@
+{
+  "nativeRevision": "bad07e4433240cad046589129c084bd2fc36f097",
+  "baseDocument": {
+    "format": "figcraft",
+    "version": 1,
+    "imageIndex": [],
+    "name": "Untitled",
+    "pages": [
+      1
+    ],
+    "nodes": {
+      "1": {
+        "id": 1,
+        "name": "Page 1",
+        "type": "page",
+        "background": {
+          "r": 0.9607843,
+          "g": 0.9607843,
+          "b": 0.9607843,
+          "a": 1.0
+        },
+        "flows": [],
+        "prototype": {
+          "device": "None",
+          "background": {
+            "r": 0.11764706,
+            "g": 0.11764706,
+            "b": 0.11764706,
+            "a": 1.0
+          },
+          "rotation": "portrait"
+        },
+        "children": [
+          2
+        ],
+        "width": 0.0,
+        "height": 0.0
+      },
+      "2": {
+        "id": 2,
+        "name": "Rectangle",
+        "type": "rectangle",
+        "parent": 1,
+        "blend": "normal",
+        "width": 10.0,
+        "height": 10.0,
+        "fills": [
+          {
+            "type": "solid",
+            "color": {
+              "r": 0.8509804,
+              "g": 0.8509804,
+              "b": 0.8509804,
+              "a": 1.0
+            },
+            "opacity": 1.0,
+            "visible": true,
+            "blend": "normal"
+          }
+        ]
+      }
+    },
+    "next_id": 3,
+    "styles": [],
+    "variables": {
+      "collections": [],
+      "variables": []
+    },
+    "current_page": 1,
+    "document_colors": [],
+    "comments": []
+  },
+  "cases": [
+    {
+      "name": "archive contents_only",
+      "settings": [
+        {
+          "contents_only": false
+        }
+      ],
+      "exports": [
+        {
+          "contentsOnly": false,
+          "format": "png",
+          "size": {
+            "by": "scale",
+            "value": 1.0
+          },
+          "suffix": ""
+        }
+      ]
+    },
+    {
+      "name": "archive include_bounding_box",
+      "settings": [
+        {
+          "include_bounding_box": true
+        }
+      ],
+      "exports": [
+        {
+          "format": "png",
+          "includeBoundingBox": true,
+          "size": {
+            "by": "scale",
+            "value": 1.0
+          },
+          "suffix": ""
+        }
+      ]
+    },
+    {
+      "name": "archive svg_outline_text",
+      "settings": [
+        {
+          "svg_outline_text": false
+        }
+      ],
+      "exports": [
+        {
+          "format": "png",
+          "size": {
+            "by": "scale",
+            "value": 1.0
+          },
+          "suffix": "",
+          "svgOutlineText": false
+        }
+      ]
+    },
+    {
+      "name": "archive svg_id_attribute",
+      "settings": [
+        {
+          "svg_id_attribute": true
+        }
+      ],
+      "exports": [
+        {
+          "format": "png",
+          "size": {
+            "by": "scale",
+            "value": 1.0
+          },
+          "suffix": "",
+          "svgIdAttribute": true
+        }
+      ]
+    },
+    {
+      "name": "archive svg_simplify_stroke",
+      "settings": [
+        {
+          "svg_simplify_stroke": false
+        }
+      ],
+      "exports": [
+        {
+          "format": "png",
+          "size": {
+            "by": "scale",
+            "value": 1.0
+          },
+          "suffix": "",
+          "svgSimplifyStroke": false
+        }
+      ]
+    },
+    {
+      "name": "archive vd_compat",
+      "settings": [
+        {
+          "vd_compat": "exact"
+        }
+      ],
+      "exports": [
+        {
+          "format": "png",
+          "size": {
+            "by": "scale",
+            "value": 1.0
+          },
+          "suffix": "",
+          "vdCompat": "exact"
+        }
+      ]
+    },
+    {
+      "name": "archive color_profile",
+      "settings": [
+        {
+          "color_profile": "displayP3"
+        }
+      ],
+      "exports": [
+        {
+          "colorProfile": "displayP3",
+          "format": "png",
+          "size": {
+            "by": "scale",
+            "value": 1.0
+          },
+          "suffix": ""
+        }
+      ]
+    },
+    {
+      "name": "archive print crop_marks",
+      "settings": [
+        {
+          "print": {
+            "crop_marks": true
+          }
+        }
+      ],
+      "exports": [
+        {
+          "format": "png",
+          "print": {
+            "bleed": 0.0,
+            "bleedMarks": false,
+            "cmyk": false,
+            "cropMarks": true
+          },
+          "size": {
+            "by": "scale",
+            "value": 1.0
+          },
+          "suffix": ""
+        }
+      ]
+    },
+    {
+      "name": "archive print bleed_marks",
+      "settings": [
+        {
+          "print": {
+            "bleed_marks": true
+          }
+        }
+      ],
+      "exports": [
+        {
+          "format": "png",
+          "print": {
+            "bleed": 0.0,
+            "bleedMarks": true,
+            "cmyk": false,
+            "cropMarks": false
+          },
+          "size": {
+            "by": "scale",
+            "value": 1.0
+          },
+          "suffix": ""
+        }
+      ]
+    },
+    {
+      "name": "all archive aliases",
+      "settings": [
+        {
+          "contents_only": false,
+          "include_bounding_box": true,
+          "svg_outline_text": false,
+          "svg_id_attribute": true,
+          "svg_simplify_stroke": false,
+          "vd_compat": "exact",
+          "color_profile": "displayP3",
+          "print": {
+            "crop_marks": true,
+            "bleed_marks": true
+          }
+        }
+      ],
+      "exports": [
+        {
+          "colorProfile": "displayP3",
+          "contentsOnly": false,
+          "format": "png",
+          "includeBoundingBox": true,
+          "print": {
+            "bleed": 0.0,
+            "bleedMarks": true,
+            "cmyk": false,
+            "cropMarks": true
+          },
+          "size": {
+            "by": "scale",
+            "value": 1.0
+          },
+          "suffix": "",
+          "svgIdAttribute": true,
+          "svgOutlineText": false,
+          "svgSimplifyStroke": false,
+          "vdCompat": "exact"
+        }
+      ]
+    },
+    {
+      "name": "canonical control",
+      "settings": [
+        {
+          "contentsOnly": false,
+          "includeBoundingBox": true,
+          "svgOutlineText": false,
+          "svgIdAttribute": true,
+          "svgSimplifyStroke": false,
+          "vdCompat": "exact",
+          "colorProfile": "displayP3",
+          "print": {
+            "cropMarks": true,
+            "bleedMarks": true
+          }
+        }
+      ],
+      "exports": [
+        {
+          "colorProfile": "displayP3",
+          "contentsOnly": false,
+          "format": "png",
+          "includeBoundingBox": true,
+          "print": {
+            "bleed": 0.0,
+            "bleedMarks": true,
+            "cmyk": false,
+            "cropMarks": true
+          },
+          "size": {
+            "by": "scale",
+            "value": 1.0
+          },
+          "suffix": "",
+          "svgIdAttribute": true,
+          "svgOutlineText": false,
+          "svgSimplifyStroke": false,
+          "vdCompat": "exact"
+        }
+      ]
+    },
+    {
+      "name": "unknown spellings ignored",
+      "settings": [
+        {
+          "ContentsOnly": false,
+          "crop_marks": true,
+          "print": {
+            "CropMarks": true
+          }
+        }
+      ],
+      "exports": [
+        {
+          "format": "png",
+          "size": {
+            "by": "scale",
+            "value": 1.0
+          },
+          "suffix": ""
+        }
+      ]
+    },
+    {
+      "name": "duplicate archive contentsOnly",
+      "settings": [
+        {
+          "contents_only": false,
+          "contentsOnly": false
+        }
+      ],
+      "error": "not a valid FigCraft file: duplicate field `contentsOnly` at line 1 column 653"
+    },
+    {
+      "name": "duplicate archive includeBoundingBox",
+      "settings": [
+        {
+          "include_bounding_box": true,
+          "includeBoundingBox": true
+        }
+      ],
+      "error": "not a valid FigCraft file: duplicate field `includeBoundingBox` at line 1 column 665"
+    },
+    {
+      "name": "duplicate archive svgOutlineText",
+      "settings": [
+        {
+          "svg_outline_text": false,
+          "svgOutlineText": false
+        }
+      ],
+      "error": "not a valid FigCraft file: duplicate field `svgOutlineText` at line 1 column 658"
+    },
+    {
+      "name": "duplicate archive svgIdAttribute",
+      "settings": [
+        {
+          "svg_id_attribute": true,
+          "svgIdAttribute": true
+        }
+      ],
+      "error": "not a valid FigCraft file: duplicate field `svgIdAttribute` at line 1 column 657"
+    },
+    {
+      "name": "duplicate archive svgSimplifyStroke",
+      "settings": [
+        {
+          "svg_simplify_stroke": false,
+          "svgSimplifyStroke": false
+        }
+      ],
+      "error": "not a valid FigCraft file: duplicate field `svgSimplifyStroke` at line 1 column 664"
+    },
+    {
+      "name": "duplicate archive vdCompat",
+      "settings": [
+        {
+          "vd_compat": "exact",
+          "vdCompat": "exact"
+        }
+      ],
+      "error": "not a valid FigCraft file: duplicate field `vdCompat` at line 1 column 647"
+    },
+    {
+      "name": "duplicate archive colorProfile",
+      "settings": [
+        {
+          "color_profile": "displayP3",
+          "colorProfile": "displayP3"
+        }
+      ],
+      "error": "not a valid FigCraft file: duplicate field `colorProfile` at line 1 column 659"
+    },
+    {
+      "name": "duplicate archive print cropMarks",
+      "settings": [
+        {
+          "print": {
+            "crop_marks": true,
+            "cropMarks": true
+          }
+        }
+      ],
+      "error": "not a valid FigCraft file: duplicate field `cropMarks` at line 1 column 655"
+    },
+    {
+      "name": "duplicate archive print bleedMarks",
+      "settings": [
+        {
+          "print": {
+            "bleed_marks": true,
+            "bleedMarks": true
+          }
+        }
+      ],
+      "error": "not a valid FigCraft file: duplicate field `bleedMarks` at line 1 column 657"
+    }
+  ]
+}

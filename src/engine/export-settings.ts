@@ -126,17 +126,26 @@ export function batchExportOptions(p: Record<string, unknown>) {
 // Native node.set applies snake() to every key, nested ones included, before deserialising the export records, and the
 // records take the snake_case spellings of their two-word fields as aliases (upstream 6c3ac0c5). So node.set takes back
 // what node.get returns, either spelling works, and where both are given the snake_case one wins: keys are visited in
-// sorted order, in which it comes later. Unknown keys are ignored. Archive reads go directly through serde and retain
-// all saved options.
+// sorted order, in which it comes later. Unknown keys are ignored. Archive reads
+// also accept aliases, but serde rejects duplicate spellings of the same field.
 const settingAliases: Readonly<Record<string, string>> = { contents_only: "contentsOnly", include_bounding_box: "includeBoundingBox",
   svg_outline_text: "svgOutlineText", svg_id_attribute: "svgIdAttribute", svg_simplify_stroke: "svgSimplifyStroke", vd_compat: "vdCompat",
   color_profile: "colorProfile" };
 const printAliases: Readonly<Record<string, string>> = { crop_marks: "cropMarks", bleed_marks: "bleedMarks" };
 function propertyKeys(obj: Record<string, unknown>, aliases: Readonly<Record<string, string>>) {
-  const out: Record<string, unknown> = {};
+  const out: Record<string, unknown> = Object.create(null);
   for (const key of Object.keys(obj).sort()) {
     const snake = key.replace(/[A-Z]/g, letter => "_" + letter.toLowerCase());
-    out[aliases[snake] ?? snake] = obj[key];
+    out[Object.hasOwn(aliases,snake) ? aliases[snake] : snake] = obj[key];
+  }
+  return out;
+}
+function archiveKeys(obj:Record<string,unknown>,aliases:Readonly<Record<string,string>>) {
+  const out:Record<string,unknown>=Object.create(null);
+  for(const key of Object.keys(obj)){
+    const field=Object.hasOwn(aliases,key)?aliases[key]:key;
+    if(Object.hasOwn(out,field))throw new Error("exports: duplicate field `"+field+"`");
+    out[field]=obj[key];
   }
   return out;
 }
@@ -144,8 +153,9 @@ export function readExportSettings(input: unknown, property = false): readonly E
   if (!Array.isArray(input)) throw new Error("exports: expected a sequence");
   return Object.freeze(input.map(raw => {
     if (!record(raw)) throw new Error("exports: invalid export setting");
-    const p = property ? propertyKeys(raw, settingAliases) : raw;
-    if (property && record(p.print)) p.print = propertyKeys(p.print, printAliases);
+    const keys=property?propertyKeys:archiveKeys;
+    const p = keys(raw, settingAliases);
+    if (record(p.print)) p.print = keys(p.print, printAliases);
     return parseSetting(defaultSetting(), p, true);
   }));
 }

@@ -64,6 +64,10 @@ function nativeNetwork(value: unknown): ReturnType<typeof readVectorNetwork> {
   try { return readVectorNetwork(appearanceValue(value)); }
   catch (error) { return fail(error instanceof Error ? error.message : "Invalid vector network"); }
 }
+function nativeExportSettings(value: unknown) {
+  try { return readExportSettings(appearanceValue(value)); }
+  catch (error) { return fail(error instanceof Error ? error.message : "Invalid export settings"); }
+}
 function object(value: unknown, path: string): ObjectValue {
   if (!value || typeof value !== "object" || Array.isArray(value) || isLosslessNumber(value)) fail(`${path} must be an object`);
   return value as ObjectValue;
@@ -147,7 +151,7 @@ export function readNode(key: string, value: unknown): DocumentNode {
     return Object.freeze({vertical: guide.vertical, offset: number(guide.offset, "guide offset")});
   });
   const thumbnailFlag = metadata["figcraft.thumbnail"];
-  const exports = n.exports === undefined ? undefined : readExportSettings(appearanceValue(n.exports));
+  const exports = n.exports === undefined ? undefined : nativeExportSettings(n.exports);
   const interactions = n.interactions===undefined ? [] : readInteractions(n.interactions);
   const links = { ...(guides.length && {guides: Object.freeze(guides)}), ...(sourceMetadata && {sourceMetadata}), ...(interactions.length && {interactions}), ...(exports?.length && { exports }), ...(thumbnailFlag !== undefined && { thumbnailFlag: text(thumbnailFlag, "thumbnail flag") }), ...(boundVariables && {boundVariables}), ...(variableModes && {variableModes}), ...readComponentLinks(n), ...readLayerStyles(n) };
   if (n.is_mask !== undefined && typeof n.is_mask !== "boolean") fail("is_mask must be boolean");
