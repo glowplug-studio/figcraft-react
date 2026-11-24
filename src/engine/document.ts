@@ -1,3 +1,4 @@
+import type { PrototypeDevice } from "./prototype-settings";
 import type { PrototypeFlow, PrototypeInteraction } from "./prototype-data";
 import type { LayerVariableModes } from "./variable-modes";
 import type { ExportSetting } from "./export-settings";
@@ -67,6 +68,8 @@ export interface PageNode extends NativeLayerRecords, MaskProperties, ComponentL
   readonly background: string;
   readonly backgroundColor?: Colour;
   readonly prototypeBackground?: Colour;
+  /** Native page `prototype` device settings other than the background; absent when all default. */
+  readonly prototypeDevice?: PrototypeDevice;
   readonly flows?: readonly PrototypeFlow[];
 }
 export interface Constraints {

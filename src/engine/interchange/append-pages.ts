@@ -67,7 +67,7 @@ export function appendPages(doc:Document,other:Document,nextId:bigint,client=0) 
   for (const id of other.pages) {
     const p=other.nodes[id] as PageNode, target=ids.get(id)!;
     nodes[target]={id:target,kind:"page",name:p.name,parent:null,children:p.children.map(ch=>ids.get(ch)!),background:p.background,
-      ...(p.flows?.length && {flows:remapFlows(p.flows,id=>ids.get(id))}),...(p.backgroundColor && {backgroundColor:p.backgroundColor}),...(p.prototypeBackground && {prototypeBackground:p.prototypeBackground})};
+      ...(p.flows?.length && {flows:remapFlows(p.flows,id=>ids.get(id))}),...(p.backgroundColor && {backgroundColor:p.backgroundColor}),...(p.prototypeBackground && {prototypeBackground:p.prototypeBackground}),...(p.prototypeDevice && {prototypeDevice:p.prototypeDevice})};
     for (const root of p.children) copyTree(root,target);
   }
   if (targetStore && (cached.length || fresh.length)) {

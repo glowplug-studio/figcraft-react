@@ -1,5 +1,7 @@
 import {readComments,wireComment} from "./comments";
 import { readFlows, readInteractions, wireFlows, wireInteractions } from "./prototype-data";
+import { customDefault, defaultPrototypeDevice, samePrototypeDevice, type PrototypeDevice } from "./prototype-settings";
+import { textBool, textEnum, textString } from "./text-style";
 import { readExportSettings } from "./export-settings";
 import { clippedText, readVersionTime, validVersionId, versionByteLimit, versionIndexLimit, versionLimit, type FileVersion } from "./file-versions";
 import {readLibraryStore,readImportedRecords,readLibraryLinks,wireLibraryLinks,keepLibraryAssets,libraryImageKeys,readLibraryManifest,wireLibraryManifest,type PublishedLibrary} from "./published-library";
@@ -22,7 +24,7 @@ import { archivedImage, validImageKey, type ImageResource } from "./image-resour
 import { BlobReader, BlobWriter, ZipWriter, ERR_INVALID_CRC32, ERR_INVALID_UNCOMPRESSED_SIZE, Reader, ZipReader, type Entry, type FileEntry } from "@zip.js/zip.js/lib/zip-core-native.js";
 import { isLosslessNumber, parse, stringify } from "lossless-json";
 import { readConstraints } from "./constraints";
-import { layerTransform, withLayerTransform, rectanglePaints, withRectanglePaints, pageColour, withPageColour, type Document, type DocumentNode } from "./document";
+import { layerTransform, withLayerTransform, rectanglePaints, withRectanglePaints, pageColour, withPageColour, defaultPrototypeBackground, type Document, type DocumentNode, type PageNode } from "./document";
 import { parseColour } from "./colour-css";
 import type { Colour } from "./colour";
 import { readPaints } from "./solid-paint";
@@ -92,6 +94,12 @@ function defaultValue(value: unknown, expected: unknown, path: string): void {
   } else if (expected && typeof expected === "object") {
     fields(object(value, path), [], expected as ObjectValue, path);
   } else if (value !== expected) fail(`${path} is not supported yet`);
+}
+/** Native `PrototypeSettings` as written: device, background, rotation, then what is not default. */
+function wirePrototype(node: PageNode) {
+  const d = node.prototypeDevice ?? defaultPrototypeDevice;
+  return { device: d.device, background: node.prototypeBackground ?? defaultPrototypeBackground, rotation: d.rotation, ...(d.color && { color: d.color }),
+    ...((d.customSize[0] !== customDefault[0] || d.customSize[1] !== customDefault[1]) && { custom_size: [...d.customSize] }), ...(d.responsive && { responsive: true }) };
 }
 function fields(value: ObjectValue, supported: string[], defaults: ObjectValue, path: string): void {
   for (const [key, entry] of Object.entries(value)) {
@@ -174,16 +182,26 @@ export function readNode(key: string, value: unknown): DocumentNode {
     const fills = readPaints(appearanceValue(n.fills ?? []));
     const strokes = readPaints(appearanceValue(n.strokes ?? []));
     const flows = n.flows===undefined ? [] : readFlows(n.flows);
-    let prototypeBackground: Colour | undefined;
+    let prototypeBackground: Colour | undefined, prototypeDevice: PrototypeDevice | undefined;
     if (n.prototype !== undefined) {
       const prototype = object(n.prototype, "prototype");
-      fields(prototype, ["background"], { device: "None", rotation: "portrait", color: "", custom_size: [1280, 720], customSize: [1280, 720], responsive: false }, "prototype");
+      fields(prototype, ["background","device","rotation","color","custom_size","customSize","responsive"], {}, "prototype");
+      const size = prototype.custom_size ?? prototype.customSize;
+      if (size !== undefined && (!Array.isArray(size) || size.length !== 2)) fail("prototype custom size must hold a width and a height");
+      const device: PrototypeDevice = {
+        device: prototype.device === undefined ? "None" : textString(prototype.device, "prototype device"),
+        rotation: prototype.rotation === undefined ? "portrait" : textEnum(prototype.rotation, ["portrait","landscape"] as const, "prototype rotation"),
+        color: prototype.color === undefined ? "" : textString(prototype.color, "prototype colour"),
+        customSize: size === undefined ? customDefault : [number(size[0], "custom width"), number(size[1], "custom height")],
+        responsive: prototype.responsive === undefined ? false : textBool(prototype.responsive, "prototype responsive"),
+      };
+      if (!samePrototypeDevice(device, defaultPrototypeDevice)) prototypeDevice = Object.freeze(device);
       if (prototype.background !== undefined) {
         const background = nativeColour(prototype.background, "prototype background"), expected = nativeColour("#1e1e1e", "prototype default");
         if (Object.keys(expected).some(key => background[key as keyof Colour] !== expected[key as keyof Colour])) prototypeBackground = background;
       }
     }
-    return withPageColour({ ...links, ...(flows.length && {flows}), ...(n.blend && n.blend !== "passThrough" && {blend:n.blend}), ...(opacity !== 1 && {opacity}), ...(!isDefaultStroke(stroke) && {stroke}), ...(fills.length && {fills}), ...(strokes.length && {strokes}), ...mask, ...(effects?.length && { effects }), ...(prototypeBackground && {prototypeBackground}), id: key, kind, name, parent: null, children: Object.freeze(children), background: "#f5f5f5" }, nativeColour(n.background ?? "#f5f5f5", "page background"));
+    return withPageColour({ ...links, ...(flows.length && {flows}), ...(n.blend && n.blend !== "passThrough" && {blend:n.blend}), ...(opacity !== 1 && {opacity}), ...(!isDefaultStroke(stroke) && {stroke}), ...(fills.length && {fills}), ...(strokes.length && {strokes}), ...mask, ...(effects?.length && { effects }), ...(prototypeBackground && {prototypeBackground}), ...(prototypeDevice && {prototypeDevice}), id: key, kind, name, parent: null, children: Object.freeze(children), background: "#f5f5f5" }, nativeColour(n.background ?? "#f5f5f5", "page background"));
   } else {
     if (isLeafKind(kind) && children.length) fail("leaf children are not supported");
     if (n.blend !== undefined && !isBlendMode(n.blend)) fail(`${kind} blend is not supported yet`);
@@ -691,7 +709,7 @@ export function wireNode(key: string, node: DocumentNode) {
   const metadata = {...node.sourceMetadata, ...(node.thumbnailFlag !== undefined && {"figcraft.thumbnail": node.thumbnailFlag})};
   const common = { ...(node.guides?.length && {guides: node.guides}), ...(Object.keys(metadata).length && {plugin_data: metadata}), ...(node.interactions?.length && {interactions:wireInteractions(node.interactions)}), ...(node.exports?.length && { exports: node.exports }), ...(node.boundVariables && {bound:node.boundVariables}), ...(node.variableModes && {var_modes:node.variableModes}), ...(node.styles && { styles: node.styles }), ...(node.grids?.length && { grids: node.grids }), ...wireComponentLinks(node), ...(node.effects?.length && { effects: node.effects.map(wireEffect) }), ...(node.isMask && {is_mask:true}), ...(node.maskType && node.maskType !== "alpha" && {mask_type:node.maskType}), id: numericId, name: node.name, type: node.kind, ...(node.kind === "section" && {contents_hidden:node.contentsHidden}), ...(node.kind === "booleanOp" ? { op: node.op } : {}), ...(node.kind === "ellipse" ? { start: node.start, sweep: node.sweep, inner: node.inner } : node.kind === "star" ? { count: node.count, inner_ratio: node.innerRatio } : node.kind === "polygon" ? { count: node.count } : node.kind === "vector" ? { network: wireVectorNetwork(node.network, wirePaints) } : node.kind === "text" ? wireTextData(node.text) : {}) };
   if (node.kind === "page") {
-    return { ...common, ...(node.flows?.length && {flows:wireFlows(node.flows)}), ...(node.blend && node.blend !== "passThrough" && {blend:node.blend}), ...(node.opacity !== undefined && node.opacity !== 1 && {opacity:node.opacity}), ...(node.stroke && !isDefaultStroke(node.stroke) && {stroke:wireStroke(node.stroke)}), ...(node.fills?.length && {fills:wirePaints(node.fills)}), ...(node.strokes?.length && {strokes:wirePaints(node.strokes)}), width: 0, height: 0, children: node.children.map(wireId), background: pageColour(node), ...(node.prototypeBackground && { prototype: { device: "None", rotation: "portrait", background: node.prototypeBackground } }) };
+    return { ...common, ...(node.flows?.length && {flows:wireFlows(node.flows)}), ...(node.blend && node.blend !== "passThrough" && {blend:node.blend}), ...(node.opacity !== undefined && node.opacity !== 1 && {opacity:node.opacity}), ...(node.stroke && !isDefaultStroke(node.stroke) && {stroke:wireStroke(node.stroke)}), ...(node.fills?.length && {fills:wirePaints(node.fills)}), ...(node.strokes?.length && {strokes:wirePaints(node.strokes)}), width: 0, height: 0, children: node.children.map(wireId), background: pageColour(node), ...((node.prototypeBackground || node.prototypeDevice) && { prototype: wirePrototype(node) }) };
   } else {
     return { ...common, child_layout: wireChildLayout(node.childLayout, layerSizing(node)), ...(node.boolOp ? { bool_op: node.boolOp } : {}), parent: wireId(node.parent), ...(!isLeaf(node) ? { children: node.children.map(wireId) } : {}), transform: layerTransform(node), width: node.width, height: node.height, ...(node.stroke ? { stroke: wireStroke(node.stroke) } : {}), ...(node.strokes ? { strokes: wirePaints(node.strokes) } : {}),
       ...(node.corners ? { corners: node.corners } : {}), ...(node.constraints ? { constraints: node.constraints } : {}), ...(node.constrainProportions ? { constrain_proportions: true } : {}), ...(node.clip && {clip:true}), ...(isFrameLike(node) ? { ...wireFrameKind(node), clip: node.clip, ...(node.layout && {layout: wireAutoLayout(node.layout)}) } : {}), blend: layerBlend(node), visible: node.visible ?? true, locked: node.locked ?? false, opacity: node.opacity ?? 1, fills: wirePaints(rectanglePaints(node)) };

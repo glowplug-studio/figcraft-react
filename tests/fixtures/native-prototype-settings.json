@@ -1,0 +1,518 @@
+{
+ "revision": "bad07e4433240cad046589129c084bd2fc36f097",
+ "steps": [
+  {
+   "command": "proto.settings",
+   "params": {},
+   "receipt": {
+    "background": "#1E1E1E",
+    "color": null,
+    "customSize": {
+     "height": 720.0,
+     "width": 1280.0
+    },
+    "device": "None",
+    "ok": true,
+    "responsive": false,
+    "rotation": "portrait",
+    "screen": null
+   }
+  },
+  {
+   "command": "proto.settings",
+   "params": {
+    "device": "iphone 16"
+   },
+   "receipt": {
+    "background": "#1E1E1E",
+    "color": "Black",
+    "customSize": {
+     "height": 720.0,
+     "width": 1280.0
+    },
+    "device": "iPhone 16",
+    "ok": true,
+    "responsive": false,
+    "rotation": "portrait",
+    "screen": {
+     "height": 852.0,
+     "width": 393.0
+    }
+   }
+  },
+  {
+   "command": "proto.settings",
+   "params": {
+    "color": "pink"
+   },
+   "receipt": {
+    "background": "#1E1E1E",
+    "color": "Pink",
+    "customSize": {
+     "height": 720.0,
+     "width": 1280.0
+    },
+    "device": "iPhone 16",
+    "ok": true,
+    "responsive": false,
+    "rotation": "portrait",
+    "screen": {
+     "height": 852.0,
+     "width": 393.0
+    }
+   }
+  },
+  {
+   "command": "proto.settings",
+   "params": {
+    "device": "iPhone 14"
+   },
+   "receipt": {
+    "background": "#1E1E1E",
+    "color": "Black",
+    "customSize": {
+     "height": 720.0,
+     "width": 1280.0
+    },
+    "device": "iPhone 14",
+    "ok": true,
+    "responsive": false,
+    "rotation": "portrait",
+    "screen": {
+     "height": 844.0,
+     "width": 390.0
+    }
+   }
+  },
+  {
+   "command": "proto.settings",
+   "params": {
+    "device": "iPhone 16",
+    "color": "teal",
+    "rotation": "landscape"
+   },
+   "receipt": {
+    "background": "#1E1E1E",
+    "color": "Teal",
+    "customSize": {
+     "height": 720.0,
+     "width": 1280.0
+    },
+    "device": "iPhone 16",
+    "ok": true,
+    "responsive": false,
+    "rotation": "landscape",
+    "screen": {
+     "height": 393.0,
+     "width": 852.0
+    }
+   }
+  },
+  {
+   "command": "proto.settings",
+   "params": {
+    "rotation": 90
+   },
+   "receipt": {
+    "background": "#1E1E1E",
+    "color": "Teal",
+    "customSize": {
+     "height": 720.0,
+     "width": 1280.0
+    },
+    "device": "iPhone 16",
+    "ok": true,
+    "responsive": false,
+    "rotation": "landscape",
+    "screen": {
+     "height": 393.0,
+     "width": 852.0
+    }
+   }
+  },
+  {
+   "command": "proto.settings",
+   "params": {
+    "rotation": 0
+   },
+   "receipt": {
+    "background": "#1E1E1E",
+    "color": "Teal",
+    "customSize": {
+     "height": 720.0,
+     "width": 1280.0
+    },
+    "device": "iPhone 16",
+    "ok": true,
+    "responsive": false,
+    "rotation": "portrait",
+    "screen": {
+     "height": 852.0,
+     "width": 393.0
+    }
+   }
+  },
+  {
+   "command": "proto.settings",
+   "params": {
+    "rotation": "sideways"
+   },
+   "error": "invalid parameters for `proto.settings`: rotation: portrait|landscape"
+  },
+  {
+   "command": "proto.settings",
+   "params": {
+    "device": "Pager"
+   },
+   "error": "invalid parameters for `proto.settings`: unknown device \"Pager\": device is one of None|Custom size|iPhone 17|iPhone 17 Pro|iPhone 17 Pro Max|iPhone Air|iPhone 16|iPhone 16 Pro|iPhone 16 Pro Max|iPhone 16 Plus|iPhone 15 Pro|iPhone 15 Pro Max|iPhone 15 Plus|iPhone 14 Pro|iPhone 14 Pro Max|iPhone 14|Android Compact|Android Medium|iPad mini|MacBook Air|Desktop"
+  },
+  {
+   "command": "proto.settings",
+   "params": {
+    "color": "Gold"
+   },
+   "error": "invalid parameters for `proto.settings`: color: Black|White|Pink|Teal|Blue"
+  },
+  {
+   "command": "proto.settings",
+   "params": {
+    "device": "  desktop "
+   },
+   "receipt": {
+    "background": "#1E1E1E",
+    "color": "Silver",
+    "customSize": {
+     "height": 720.0,
+     "width": 1280.0
+    },
+    "device": "Desktop",
+    "ok": true,
+    "responsive": false,
+    "rotation": "portrait",
+    "screen": {
+     "height": 1024.0,
+     "width": 1440.0
+    }
+   }
+  },
+  {
+   "command": "proto.settings",
+   "params": {
+    "rotation": "landscape"
+   },
+   "receipt": {
+    "background": "#1E1E1E",
+    "color": "Silver",
+    "customSize": {
+     "height": 720.0,
+     "width": 1280.0
+    },
+    "device": "Desktop",
+    "ok": true,
+    "responsive": false,
+    "rotation": "landscape",
+    "screen": {
+     "height": 1024.0,
+     "width": 1440.0
+    }
+   }
+  },
+  {
+   "command": "proto.settings",
+   "params": {
+    "width": 800
+   },
+   "receipt": {
+    "background": "#1E1E1E",
+    "color": null,
+    "customSize": {
+     "height": 720.0,
+     "width": 800.0
+    },
+    "device": "Custom size",
+    "ok": true,
+    "responsive": false,
+    "rotation": "landscape",
+    "screen": {
+     "height": 720.0,
+     "width": 800.0
+    }
+   }
+  },
+  {
+   "command": "proto.settings",
+   "params": {
+    "height": 12345.6
+   },
+   "receipt": {
+    "background": "#1E1E1E",
+    "color": null,
+    "customSize": {
+     "height": 10000.0,
+     "width": 800.0
+    },
+    "device": "Custom size",
+    "ok": true,
+    "responsive": false,
+    "rotation": "landscape",
+    "screen": {
+     "height": 10000.0,
+     "width": 800.0
+    }
+   }
+  },
+  {
+   "command": "proto.settings",
+   "params": {
+    "width": 0
+   },
+   "error": "invalid parameters for `proto.settings`: width: 1\u201310000 points"
+  },
+  {
+   "command": "proto.settings",
+   "params": {
+    "width": "wide"
+   },
+   "error": "invalid parameters for `proto.settings`: width: 1\u201310000 points"
+  },
+  {
+   "command": "proto.settings",
+   "params": {
+    "color": "black"
+   },
+   "error": "invalid parameters for `proto.settings`: this device has no colours"
+  },
+  {
+   "command": "proto.settings",
+   "params": {
+    "color": ""
+   },
+   "receipt": {
+    "background": "#1E1E1E",
+    "color": null,
+    "customSize": {
+     "height": 10000.0,
+     "width": 800.0
+    },
+    "device": "Custom size",
+    "ok": true,
+    "responsive": false,
+    "rotation": "landscape",
+    "screen": {
+     "height": 10000.0,
+     "width": 800.0
+    }
+   }
+  },
+  {
+   "command": "proto.settings",
+   "params": {
+    "responsive": true
+   },
+   "receipt": {
+    "background": "#1E1E1E",
+    "color": null,
+    "customSize": {
+     "height": 10000.0,
+     "width": 800.0
+    },
+    "device": "Custom size",
+    "ok": true,
+    "responsive": true,
+    "rotation": "landscape",
+    "screen": {
+     "height": 10000.0,
+     "width": 800.0
+    }
+   }
+  },
+  {
+   "command": "proto.settings",
+   "params": {
+    "responsive": "yes"
+   },
+   "error": "invalid parameters for `proto.settings`: responsive: true|false"
+  },
+  {
+   "command": "proto.settings",
+   "params": {
+    "background": "#336699"
+   },
+   "receipt": {
+    "background": "#336699",
+    "color": null,
+    "customSize": {
+     "height": 10000.0,
+     "width": 800.0
+    },
+    "device": "Custom size",
+    "ok": true,
+    "responsive": true,
+    "rotation": "landscape",
+    "screen": {
+     "height": 10000.0,
+     "width": 800.0
+    }
+   }
+  },
+  {
+   "command": "proto.settings",
+   "params": {
+    "background": "#33669980"
+   },
+   "receipt": {
+    "background": "#336699",
+    "color": null,
+    "customSize": {
+     "height": 10000.0,
+     "width": 800.0
+    },
+    "device": "Custom size",
+    "ok": true,
+    "responsive": true,
+    "rotation": "landscape",
+    "screen": {
+     "height": 10000.0,
+     "width": 800.0
+    }
+   }
+  },
+  {
+   "command": "proto.settings",
+   "params": {
+    "device": "None"
+   },
+   "receipt": {
+    "background": "#336699",
+    "color": null,
+    "customSize": {
+     "height": 10000.0,
+     "width": 800.0
+    },
+    "device": "None",
+    "ok": true,
+    "responsive": true,
+    "rotation": "landscape",
+    "screen": null
+   }
+  },
+  {
+   "command": "proto.settings",
+   "params": {
+    "device": "Custom size",
+    "width": 300.4,
+    "height": "500"
+   },
+   "error": "invalid parameters for `proto.settings`: height: 1\u201310000 points"
+  },
+  {
+   "command": "proto.settings",
+   "params": {
+    "device": "MacBook Air",
+    "color": "dark BLUE"
+   },
+   "receipt": {
+    "background": "#336699",
+    "color": "Dark blue",
+    "customSize": {
+     "height": 10000.0,
+     "width": 800.0
+    },
+    "device": "MacBook Air",
+    "ok": true,
+    "responsive": true,
+    "rotation": "landscape",
+    "screen": {
+     "height": 832.0,
+     "width": 1280.0
+    }
+   }
+  },
+  {
+   "command": "proto.settings",
+   "params": {
+    "color": 5
+   },
+   "error": "invalid parameters for `proto.settings`: color: one of the device's colour names"
+  },
+  {
+   "command": "proto.settings",
+   "params": {
+    "device": 5
+   },
+   "error": "invalid parameters for `proto.settings`: unknown device 5: device is one of None|Custom size|iPhone 17|iPhone 17 Pro|iPhone 17 Pro Max|iPhone Air|iPhone 16|iPhone 16 Pro|iPhone 16 Pro Max|iPhone 16 Plus|iPhone 15 Pro|iPhone 15 Pro Max|iPhone 15 Plus|iPhone 14 Pro|iPhone 14 Pro Max|iPhone 14|Android Compact|Android Medium|iPad mini|MacBook Air|Desktop"
+  },
+  {
+   "command": "file.saveAs",
+   "params": {
+    "data": true
+   },
+   "saved": {
+    "prototype": {
+     "device": "MacBook Air",
+     "background": {
+      "r": 0.2,
+      "g": 0.4,
+      "b": 0.6,
+      "a": 0.5019608
+     },
+     "rotation": "landscape",
+     "color": "Dark blue",
+     "custom_size": [
+      800.0,
+      10000.0
+     ],
+     "responsive": true
+    }
+   }
+  },
+  {
+   "command": "proto.settings",
+   "params": {
+    "device": "Android Compact",
+    "rotation": "landscape",
+    "responsive": false,
+    "color": "green"
+   },
+   "receipt": {
+    "background": "#336699",
+    "color": "Green",
+    "customSize": {
+     "height": 10000.0,
+     "width": 800.0
+    },
+    "device": "Android Compact",
+    "ok": true,
+    "responsive": false,
+    "rotation": "landscape",
+    "screen": {
+     "height": 412.0,
+     "width": 917.0
+    }
+   }
+  },
+  {
+   "command": "file.saveAs",
+   "params": {
+    "data": true
+   },
+   "saved": {
+    "prototype": {
+     "device": "Android Compact",
+     "background": {
+      "r": 0.2,
+      "g": 0.4,
+      "b": 0.6,
+      "a": 0.5019608
+     },
+     "rotation": "landscape",
+     "color": "Green",
+     "custom_size": [
+      800.0,
+      10000.0
+     ]
+    }
+   }
+  }
+ ]
+}

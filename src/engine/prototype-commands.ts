@@ -4,6 +4,10 @@ import { inspectedId, parseBoolean, parseNodeId, parseNumber } from "./parameter
 import { readPrototype, type PrototypeAction, type PrototypeExpression, type PrototypeFlow, type PrototypeInteraction } from "./prototype-data";
 import { checkCondition, checkValue, collectionById, collectionNamed, displayExpression, evaluateExpression, expressionType, findMode, parseExpression, variableById, variableNamed } from "./prototype-expressions";
 import { layerModes } from "./variable-modes";
+import { parseColour } from "./colour-css";
+import { defaultPrototypeBackground } from "./document";
+import { customDevice, customSide, defaultPrototypeDevice, deviceModel, devices, knownDevice, parseRotation, settingsJson, type PrototypeDevice } from "./prototype-settings";
+import { rustFloat } from "./prototype-expressions";
 import { emptyVariables, resolveVariable, type Variable, type VariableValue, type Variables } from "./variables";
 
 /** Source: upstream engine/cmd/proto.rs (interactions and flows). */
@@ -16,6 +20,7 @@ export const prototypeSpecs = Object.freeze({
   "proto.flow.rename": { label: "Rename flow", undo: true },
   "proto.flow.remove": { label: "Remove flow", undo: true },
   "proto.evaluate": { label: "Evaluate prototype expression", undo: false },
+  "proto.settings": { label: "Prototype settings", undo: true },
   "proto.action.add": { label: "Add prototype action", undo: true },
   "proto.action.set": { label: "Edit prototype action", undo: true },
   "proto.action.remove": { label: "Remove prototype action", undo: true },
@@ -323,6 +328,7 @@ export function executePrototype(command: PrototypeCommand, document: Document, 
     if (!v) throw bad(command, "it gives no value here (a division by zero, or a number too large)");
     return { document, result: { value: v, type, text: displayExpression(e, vars) } };
   }
+  if (command === "proto.settings") return prototypeSettings(document, p);
   if (command.startsWith("proto.action.") || command.startsWith("proto.conditional.")) return editActions(command, document, selection, vars, p);
   if (command === "proto.interaction.add" || command === "proto.interaction.set") p = withExpressions(command, vars, p);
   if (command === "proto.interaction.add") {
@@ -562,4 +568,68 @@ function editActions(command: PrototypeCommand, document: Document, selection: r
   }
   if (!out) throw bad(command, "no interaction " + k);
   return { document: Object.freeze({ ...document, nodes: Object.freeze({ ...document.nodes, ...changes }) }), result: out };
+}
+
+const sameDevice = (a: PrototypeDevice, b: PrototypeDevice) =>
+  a.device === b.device && a.rotation === b.rotation && a.color === b.color && a.customSize[0] === b.customSize[0] && a.customSize[1] === b.customSize[1] && a.responsive === b.responsive;
+/** Native `proto.settings`: everything checked before anything changes; answers the settings after the call. */
+function prototypeSettings(document: Document, p: Record<string, unknown>): PrototypeExecution {
+  const command = "proto.settings";
+  const page = document.nodes[document.currentPage] as PageNode;
+  const given = (key: string) => p[key] !== undefined && p[key] !== null;
+  const background = given("background") ? parseColour(p.background) : undefined;
+  let device: string | undefined;
+  if (given("device")) {
+    device = typeof p.device === "string" ? knownDevice(p.device) : undefined;
+    if (!device) {
+      const shownValue = Array.from(JSON.stringify(p.device) ?? String(p.device)).slice(0, 60).join("");
+      throw bad(command, `unknown device ${shownValue}: device is one of ${["None", customDevice, ...devices.map(d => d.name)].join("|")}`);
+    }
+  }
+  let rotation: PrototypeDevice["rotation"] | undefined;
+  if (given("rotation")) {
+    const v = p.rotation;
+    rotation = typeof v === "string" ? parseRotation(v) : typeof v === "number" ? parseRotation(rustFloat(v)) : undefined;
+    if (!rotation) throw bad(command, "rotation: portrait|landscape");
+  }
+  const side = (key: string) => {
+    if (!given(key)) return undefined;
+    const v = typeof p[key] === "number" ? customSide(p[key] as number) : undefined;
+    if (v === undefined) throw bad(command, key + ": 1–10000 points");
+    return v;
+  };
+  const w = side("width"), h = side("height");
+  let responsive: boolean | undefined;
+  if (given("responsive")) {
+    if (typeof p.responsive !== "boolean") throw bad(command, "responsive: true|false");
+    responsive = p.responsive;
+  }
+  let colour: string | undefined;
+  if (given("color")) {
+    if (typeof p.color !== "string") throw bad(command, "color: one of the device's colour names");
+    colour = p.color.trim();
+  }
+  const current = page.prototypeDevice ?? defaultPrototypeDevice;
+  let next: PrototypeDevice = { ...current };
+  if (device) next = { ...next, device };
+  if (rotation) next = { ...next, rotation };
+  // A width or height is the custom size's: it picks "Custom size".
+  if (w !== undefined || h !== undefined) next = { ...next, customSize: [w ?? next.customSize[0], h ?? next.customSize[1]], device: customDevice };
+  if (responsive !== undefined) next = { ...next, responsive };
+  const colours = deviceModel(next)?.colors ?? [];
+  if (colour === "") next = { ...next, color: "" };
+  else if (colour !== undefined) {
+    const found = colours.find(x => x.name.toLowerCase() === colour!.toLowerCase());
+    if (!found) throw bad(command, colours.length ? "color: " + colours.map(x => x.name).join("|") : "this device has no colours");
+    next = { ...next, color: found.name };
+  } else if (!colours.some(x => x.name === next.color)) next = { ...next, color: "" };
+  const nextBackground = background ?? page.prototypeBackground ?? defaultPrototypeBackground;
+  const answer = settingsJson(next, nextBackground);
+  const deviceChanged = !sameDevice(next, current);
+  const backgroundChanged = background !== undefined && JSON.stringify(background) !== JSON.stringify(page.prototypeBackground ?? defaultPrototypeBackground);
+  if (!deviceChanged && !backgroundChanged) return { document, result: answer };
+  const { prototypeDevice: _d, prototypeBackground: _b, ...rest } = page;
+  const isDefaultBackground = JSON.stringify(nextBackground) === JSON.stringify(defaultPrototypeBackground);
+  const updated = Object.freeze({ ...rest, ...(!isDefaultBackground && { prototypeBackground: nextBackground }), ...(!sameDevice(next, defaultPrototypeDevice) && { prototypeDevice: Object.freeze(next) }) }) as PageNode;
+  return { document: Object.freeze({ ...document, nodes: Object.freeze({ ...document.nodes, [page.id]: updated }) }), result: answer };
 }
