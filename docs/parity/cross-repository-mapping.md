@@ -776,3 +776,7 @@ Native `crates/ui-egui/src/widgets/colorpicker.rs::{crop_on_canvas, image_contro
 ## Delta row 3: the caret colour — 24 November 2026
 
 Native `crates/ui-egui/src/canvas/overlays.rs::caret_fill` at `bad07e44` (upstream `2beec8b3`, #2156) maps to `caret-colour.ts::caretFill` at `0e82958`; `overlays.rs::caret_fallback` with `crates/color/src/lib.rs::Color::is_dark` (`06d03a54`, `3cdc5f7e`, `6920ea63`, `e3701d85`; #2190, #2163) to `caret-colour.ts::caretFallback`; the caret stroke of `overlays.rs::text_edit_overlay` to `canvas-text-input.ts::draw`. Verified by `tests/parity/caret-colour.test.ts`, restating native `caret_tests`, and a browser case in `tests/e2e/preview.spec.ts`. [Report](../reports/26-11-24-caret-colour.md).
+
+## Delta row 3: page background — 24 November 2026
+
+Native `crates/ui-egui/src/canvas/background.rs::{paint, grid_texture}` at `bad07e44` (upstream `481b6831`, `67c232ea`) maps to `page-background-field.ts::{transparencyGrid, canvasBackdrop}` at `d578735`, the Design canvas's background in `Editor.tsx`, behind the unchanged render; `crates/ui-egui/src/panels/right.rs::page_section` (`a45d932a`) to `page-background-field.ts::{pageHex, pageOpacity, typedPageColour}` and the page form of `AppearancePanel.tsx`. Verified by `tests/parity/page-background-field.test.ts` and a browser case in `tests/e2e/preview.spec.ts`. [Report](../reports/26-11-24-page-background.md).
