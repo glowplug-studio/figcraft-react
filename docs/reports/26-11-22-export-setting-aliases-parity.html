@@ -1,0 +1,344 @@
+<!doctype html>
+<html lang="en-GB"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Delta row 3, item 8 — export settings and the colour profile note — parity evidence</title><style>
+:root{color-scheme:light}*{box-sizing:border-box}body{margin:0;background:#f5f3ef;color:#242824;font:15px/1.55 system-ui,sans-serif}main{max-width:1700px;margin:auto;padding:36px 28px}h1{font-size:32px;line-height:1.15}h2{font-size:21px;margin-top:32px}a{color:#006d51}code{font-size:.9em;overflow-wrap:anywhere}.notice{padding:16px;border:2px solid #916520;background:#fff5df}.scroll{overflow:auto;background:white;border:1px solid #b8beb8}table{border-collapse:collapse;min-width:1850px;width:100%;font-size:13px}caption{text-align:left;font-weight:700;padding:14px}th,td{padding:12px;vertical-align:top;border:1px solid #c7ccc7;min-width:135px}thead th{background:#183f34;color:white;text-align:left}tbody th{text-align:left;background:#f0f4f0}ol{padding-left:19px;margin:0}td a{display:block;margin-bottom:8px}.partial{font-weight:700;color:#795200}.untested{font-weight:700;color:#6c3d63}@media print{body{background:white;font-size:10pt}main{padding:0;max-width:none}.scroll{overflow:visible;border:0}table{min-width:0;font-size:6.8pt}th,td{min-width:0;padding:5px}thead{display:table-header-group}tr{break-inside:avoid}a{color:inherit;text-decoration:underline}@page{size:A3 landscape;margin:10mm}}
+</style></head>
+<body><main><h1>Delta row 3, item 8 — export settings and the colour profile note</h1>
+<p>22 November 2026 · Reviewed 24 November 2026 · Native <code>bad07e4433240cad046589129c084bd2fc36f097</code> · Branch <code>prompt/full-figcraft-port-pending</code> · React <code>d984c1a</code> · Archive correction based on <code>906fee8</code>.</p>
+<p class="notice"><strong>Draft pending the cumulative verification gate.</strong> Focused command and archive checks pass. The cumulative gate remains open.</p>
+<p><a href="26-11-22-export-setting-aliases.md">Companion report</a> · <a href="../planning/26-11-22-export-setting-aliases.md">Plan and source mapping</a> · <a href="../planning/26-11-07-full-port-resume.md">Local prerequisites and handover</a></p>
+<h2>Environment and evidence checkpoint</h2>
+<p>Pinned native replay ran in the Rust Docker image with the source mounted read-only. Local Vitest covers eight command alias sequences, an existing eight-test export settings suite, and 21 archive observations. Of the archive inputs, 12 are accepted and nine are refused. Before the correction, 19 cases failed and two controls passed.</p>
+<p>The full Vitest suite passed all 5,498 checks in 67.76 seconds with two workers. Strict library, test and host types and both production builds passed. The two focused Chromium workflows passed in 9.1 seconds. The cumulative 410-case Chromium run is in progress with one worker and zero retries. Real local provider, fixture cleanup and graph results are pending. The slice has no schema or hosted changes.</p>
+<p>The first cumulative attempt finished with 279 passes, one failure and 130 unrun cases in 821.345 seconds, with no retries or flakes. The only failure was the old colour-profile screenshot. Its expected, actual and difference images were inspected against pinned upstream; only the longer native note and consequent dialog height/button positions changed. That single baseline was updated without changing assertion tolerances. All three focused workflows then passed in 7.9 seconds. The second full run is now in progress.</p>
+<h2>Reading and reproducing the matrix</h2>
+<p>High requires passing automated parity and browser verification for the property. Medium records one passing independent verification method. Low records inspection or a result still awaiting verification. The numbered actions are reproduction instructions.</p>
+<div class="scroll" role="region" aria-label="Feature property evidence table" tabindex="0"><table>
+<caption>Property-level parity and reproducible checks — 27 passed</caption><thead><tr><th scope="col">Feature / sub-feature</th><th scope="col">Expected upstream behaviour</th><th scope="col">React implementation / target</th><th scope="col">Automated method / identifier</th><th scope="col">Expected and actual result</th><th scope="col">Status</th><th scope="col">Evidence</th><th scope="col">Manual prerequisites and numbered actions</th><th scope="col">Human-observable result</th><th scope="col">Confidence</th><th scope="col">Remaining gap / limitation</th></tr></thead><tbody>
+<tr><th scope="row">Reuse node.get settings</th>
+<td>node.set accepts the settings returned by node.get, including nested print values.</td>
+<td>export-settings.ts::readExportSettings; propertyKeys</td>
+<td>node.set takes back what node.get returns</td>
+<td>The fixture round trip restores the complete setting after clearing it.</td>
+<td><strong class="">Passed</strong></td>
+<td><a href="../../tests/parity/export-setting-aliases.test.ts">Parity spec</a><a href="../../tests/fixtures/native-export-setting-aliases.json">Native fixture</a><a href="../../tests/fixtures/native-export-setting-aliases.provenance.md">Native provenance</a></td>
+<td><ol><li>Install repository dependencies.</li><li>Run npx vitest run tests/parity/export-setting-aliases.test.ts.</li><li>Inspect the node.set takes back what node.get returns assertions.</li></ol></td>
+<td>The final node.get returns the original settings.</td>
+<td>Medium</td>
+<td>No dedicated browser check for this property.</td>
+</tr>
+<tr><th scope="row">Snake_case command setting</th>
+<td>The snake_case form is accepted at the top level and within print.</td>
+<td>export-settings.ts::propertyKeys</td>
+<td>node.set takes the snake_case spellings; one snake_case key at a time; the print settings’ snake_case keys</td>
+<td>The combined setting and each individually exercised option match the native receipts.</td>
+<td><strong class="">Passed</strong></td>
+<td><a href="../../tests/parity/export-setting-aliases.test.ts">Parity spec</a><a href="../../tests/fixtures/native-export-setting-aliases.json">Native fixture</a><a href="../../tests/fixtures/native-export-setting-aliases.provenance.md">Native provenance</a></td>
+<td><ol><li>Install repository dependencies.</li><li>Run npx vitest run tests/parity/export-setting-aliases.test.ts.</li><li>Inspect the node.set takes the snake_case spellings; one snake_case key at a time; the print settings’ snake_case keys assertions.</li></ol></td>
+<td>The returned setting contains the options submitted in snake_case.</td>
+<td>Medium</td>
+<td>No dedicated browser check for this property.</td>
+</tr>
+<tr><th scope="row">Command duplicate spellings</th>
+<td>The snake_case value wins at the top level and inside print regardless of input key order.</td>
+<td>export-settings.ts::propertyKeys</td>
+<td>both spellings of one key; both spellings, the snake_case one first</td>
+<td>The conflicting settings match the native receipts in both orders.</td>
+<td><strong class="">Passed</strong></td>
+<td><a href="../../tests/parity/export-setting-aliases.test.ts">Parity spec</a><a href="../../tests/fixtures/native-export-setting-aliases.json">Native fixture</a><a href="../../tests/fixtures/native-export-setting-aliases.provenance.md">Native provenance</a></td>
+<td><ol><li>Install repository dependencies.</li><li>Run npx vitest run tests/parity/export-setting-aliases.test.ts.</li><li>Inspect the both spellings of one key; both spellings, the snake_case one first assertions.</li></ol></td>
+<td>The returned setting reflects the snake_case value.</td>
+<td>Medium</td>
+<td>No dedicated browser check for this property.</td>
+</tr>
+<tr><th scope="row">Unknown and misplaced command keys</th>
+<td>node.set ignores unknown keys, leading capitals and print options placed at the top level.</td>
+<td>export-settings.ts::propertyKeys; parseSetting</td>
+<td>an unknown key and the flat print keys; both spellings, the snake_case one first</td>
+<td>Unsupported input spellings produce the same settings as native.</td>
+<td><strong class="">Passed</strong></td>
+<td><a href="../../tests/parity/export-setting-aliases.test.ts">Parity spec</a><a href="../../tests/fixtures/native-export-setting-aliases.json">Native fixture</a><a href="../../tests/fixtures/native-export-setting-aliases.provenance.md">Native provenance</a></td>
+<td><ol><li>Install repository dependencies.</li><li>Run npx vitest run tests/parity/export-setting-aliases.test.ts.</li><li>Inspect the an unknown key and the flat print keys; both spellings, the snake_case one first assertions.</li></ol></td>
+<td>The unsupported keys leave the setting’s values unchanged.</td>
+<td>Medium</td>
+<td>No dedicated browser check for this property.</td>
+</tr>
+<tr><th scope="row">export.add aliases</th>
+<td>export.add reads its camelCase input options and ignores snake_case spellings.</td>
+<td>export-settings.ts::parseSetting</td>
+<td>export.add with snake_case keys</td>
+<td>The export.add result matches the native receipt.</td>
+<td><strong class="">Passed</strong></td>
+<td><a href="../../tests/parity/export-setting-aliases.test.ts">Parity spec</a><a href="../../tests/fixtures/native-export-setting-aliases.json">Native fixture</a><a href="../../tests/fixtures/native-export-setting-aliases.provenance.md">Native provenance</a></td>
+<td><ol><li>Install repository dependencies.</li><li>Run npx vitest run tests/parity/export-setting-aliases.test.ts.</li><li>Inspect the export.add with snake_case keys assertions.</li></ol></td>
+<td>Options supplied only with snake_case spellings retain their defaults.</td>
+<td>Medium</td>
+<td>No dedicated browser check for this property.</td>
+</tr>
+<tr><th scope="row">Existing raw property case</th>
+<td>The repinned raw property case preserves colour profile, bounding box and crop marks in command results and saved settings.</td>
+<td>export-settings.ts::readExportSettings; file-format.ts</td>
+<td>raw property defaults and options</td>
+<td>The focused existing suite passes with the native results recorded at bad07e44.</td>
+<td><strong class="">Passed</strong></td>
+<td><a href="../../tests/parity/export-settings.test.ts">Existing parity spec</a><a href="../../tests/fixtures/native-export-setting-aliases.provenance.md">Repinned provenance</a></td>
+<td><ol><li>Install repository dependencies.</li><li>Run npx vitest run tests/parity/export-settings.test.ts.</li><li>Inspect the raw property defaults and options assertions.</li></ol></td>
+<td>The three configured fields are present in the saved setting.</td>
+<td>Medium</td>
+<td>No dedicated browser check for this property.</td>
+</tr>
+<tr><th scope="row">Archive input for contentsOnly</th>
+<td>A native document accepts contents_only as an alias for contentsOnly.</td>
+<td>export-settings.ts::archiveKeys; file-format.ts::nativeExportSettings</td>
+<td>preserves native archive export aliases: archive contents_only</td>
+<td>React reads the native field value. The value matches again after canonical save and reopen.</td>
+<td><strong class="">Passed</strong></td>
+<td><a href="../../tests/parity/export-setting-archive-aliases.test.ts">Parity spec</a><a href="../../tests/fixtures/native-export-setting-archive-aliases.json">Native fixture</a><a href="../../tests/fixtures/native-export-setting-archive-aliases.provenance.md">Native provenance</a><a href="../../original/figcraft/crates/doc/src/props.rs">Native exported option definitions</a><a href="../../src/engine/file-format.ts">React file reader</a></td>
+<td><ol><li>Install repository dependencies.</li><li>Run npx vitest run tests/parity/export-setting-archive-aliases.test.ts.</li><li>Inspect the preserves native archive export aliases: archive contents_only assertions.</li></ol></td>
+<td>The setting’s contentsOnly value is retained.</td>
+<td>Medium</td>
+<td>The fixture exercises the file-open entry point and canonical archive reopening.</td>
+</tr>
+<tr><th scope="row">Archive duplicate for contentsOnly</th>
+<td>A native document refuses a setting containing both contents_only and contentsOnly.</td>
+<td>export-settings.ts::archiveKeys; file-format.ts::nativeExportSettings</td>
+<td>preserves native archive export aliases: duplicate archive contentsOnly</td>
+<td>The open reports a duplicate field and leaves the exact prior snapshot intact.</td>
+<td><strong class="">Passed</strong></td>
+<td><a href="../../tests/parity/export-setting-archive-aliases.test.ts">Parity spec</a><a href="../../tests/fixtures/native-export-setting-archive-aliases.json">Native fixture</a><a href="../../tests/fixtures/native-export-setting-archive-aliases.provenance.md">Native provenance</a><a href="../../original/figcraft/crates/doc/src/props.rs">Native exported option definitions</a><a href="../../src/engine/file-format.ts">React file reader</a></td>
+<td><ol><li>Install repository dependencies.</li><li>Run npx vitest run tests/parity/export-setting-archive-aliases.test.ts.</li><li>Inspect the preserves native archive export aliases: duplicate archive contentsOnly assertions.</li></ol></td>
+<td>Opening the invalid file fails and the active document stays as it was.</td>
+<td>Medium</td>
+<td>Native line and column positions are outside the browser error contract.</td>
+</tr>
+<tr><th scope="row">Archive input for includeBoundingBox</th>
+<td>A native document accepts include_bounding_box as an alias for includeBoundingBox.</td>
+<td>export-settings.ts::archiveKeys; file-format.ts::nativeExportSettings</td>
+<td>preserves native archive export aliases: archive include_bounding_box</td>
+<td>React reads the native field value. The value matches again after canonical save and reopen.</td>
+<td><strong class="">Passed</strong></td>
+<td><a href="../../tests/parity/export-setting-archive-aliases.test.ts">Parity spec</a><a href="../../tests/fixtures/native-export-setting-archive-aliases.json">Native fixture</a><a href="../../tests/fixtures/native-export-setting-archive-aliases.provenance.md">Native provenance</a><a href="../../original/figcraft/crates/doc/src/props.rs">Native exported option definitions</a><a href="../../src/engine/file-format.ts">React file reader</a></td>
+<td><ol><li>Install repository dependencies.</li><li>Run npx vitest run tests/parity/export-setting-archive-aliases.test.ts.</li><li>Inspect the preserves native archive export aliases: archive include_bounding_box assertions.</li></ol></td>
+<td>The setting’s includeBoundingBox value is retained.</td>
+<td>Medium</td>
+<td>The fixture exercises the file-open entry point and canonical archive reopening.</td>
+</tr>
+<tr><th scope="row">Archive duplicate for includeBoundingBox</th>
+<td>A native document refuses a setting containing both include_bounding_box and includeBoundingBox.</td>
+<td>export-settings.ts::archiveKeys; file-format.ts::nativeExportSettings</td>
+<td>preserves native archive export aliases: duplicate archive includeBoundingBox</td>
+<td>The open reports a duplicate field and leaves the exact prior snapshot intact.</td>
+<td><strong class="">Passed</strong></td>
+<td><a href="../../tests/parity/export-setting-archive-aliases.test.ts">Parity spec</a><a href="../../tests/fixtures/native-export-setting-archive-aliases.json">Native fixture</a><a href="../../tests/fixtures/native-export-setting-archive-aliases.provenance.md">Native provenance</a><a href="../../original/figcraft/crates/doc/src/props.rs">Native exported option definitions</a><a href="../../src/engine/file-format.ts">React file reader</a></td>
+<td><ol><li>Install repository dependencies.</li><li>Run npx vitest run tests/parity/export-setting-archive-aliases.test.ts.</li><li>Inspect the preserves native archive export aliases: duplicate archive includeBoundingBox assertions.</li></ol></td>
+<td>Opening the invalid file fails and the active document stays as it was.</td>
+<td>Medium</td>
+<td>Native line and column positions are outside the browser error contract.</td>
+</tr>
+<tr><th scope="row">Archive input for svgOutlineText</th>
+<td>A native document accepts svg_outline_text as an alias for svgOutlineText.</td>
+<td>export-settings.ts::archiveKeys; file-format.ts::nativeExportSettings</td>
+<td>preserves native archive export aliases: archive svg_outline_text</td>
+<td>React reads the native field value. The value matches again after canonical save and reopen.</td>
+<td><strong class="">Passed</strong></td>
+<td><a href="../../tests/parity/export-setting-archive-aliases.test.ts">Parity spec</a><a href="../../tests/fixtures/native-export-setting-archive-aliases.json">Native fixture</a><a href="../../tests/fixtures/native-export-setting-archive-aliases.provenance.md">Native provenance</a><a href="../../original/figcraft/crates/doc/src/props.rs">Native exported option definitions</a><a href="../../src/engine/file-format.ts">React file reader</a></td>
+<td><ol><li>Install repository dependencies.</li><li>Run npx vitest run tests/parity/export-setting-archive-aliases.test.ts.</li><li>Inspect the preserves native archive export aliases: archive svg_outline_text assertions.</li></ol></td>
+<td>The setting’s svgOutlineText value is retained.</td>
+<td>Medium</td>
+<td>The fixture exercises the file-open entry point and canonical archive reopening.</td>
+</tr>
+<tr><th scope="row">Archive duplicate for svgOutlineText</th>
+<td>A native document refuses a setting containing both svg_outline_text and svgOutlineText.</td>
+<td>export-settings.ts::archiveKeys; file-format.ts::nativeExportSettings</td>
+<td>preserves native archive export aliases: duplicate archive svgOutlineText</td>
+<td>The open reports a duplicate field and leaves the exact prior snapshot intact.</td>
+<td><strong class="">Passed</strong></td>
+<td><a href="../../tests/parity/export-setting-archive-aliases.test.ts">Parity spec</a><a href="../../tests/fixtures/native-export-setting-archive-aliases.json">Native fixture</a><a href="../../tests/fixtures/native-export-setting-archive-aliases.provenance.md">Native provenance</a><a href="../../original/figcraft/crates/doc/src/props.rs">Native exported option definitions</a><a href="../../src/engine/file-format.ts">React file reader</a></td>
+<td><ol><li>Install repository dependencies.</li><li>Run npx vitest run tests/parity/export-setting-archive-aliases.test.ts.</li><li>Inspect the preserves native archive export aliases: duplicate archive svgOutlineText assertions.</li></ol></td>
+<td>Opening the invalid file fails and the active document stays as it was.</td>
+<td>Medium</td>
+<td>Native line and column positions are outside the browser error contract.</td>
+</tr>
+<tr><th scope="row">Archive input for svgIdAttribute</th>
+<td>A native document accepts svg_id_attribute as an alias for svgIdAttribute.</td>
+<td>export-settings.ts::archiveKeys; file-format.ts::nativeExportSettings</td>
+<td>preserves native archive export aliases: archive svg_id_attribute</td>
+<td>React reads the native field value. The value matches again after canonical save and reopen.</td>
+<td><strong class="">Passed</strong></td>
+<td><a href="../../tests/parity/export-setting-archive-aliases.test.ts">Parity spec</a><a href="../../tests/fixtures/native-export-setting-archive-aliases.json">Native fixture</a><a href="../../tests/fixtures/native-export-setting-archive-aliases.provenance.md">Native provenance</a><a href="../../original/figcraft/crates/doc/src/props.rs">Native exported option definitions</a><a href="../../src/engine/file-format.ts">React file reader</a></td>
+<td><ol><li>Install repository dependencies.</li><li>Run npx vitest run tests/parity/export-setting-archive-aliases.test.ts.</li><li>Inspect the preserves native archive export aliases: archive svg_id_attribute assertions.</li></ol></td>
+<td>The setting’s svgIdAttribute value is retained.</td>
+<td>Medium</td>
+<td>The fixture exercises the file-open entry point and canonical archive reopening.</td>
+</tr>
+<tr><th scope="row">Archive duplicate for svgIdAttribute</th>
+<td>A native document refuses a setting containing both svg_id_attribute and svgIdAttribute.</td>
+<td>export-settings.ts::archiveKeys; file-format.ts::nativeExportSettings</td>
+<td>preserves native archive export aliases: duplicate archive svgIdAttribute</td>
+<td>The open reports a duplicate field and leaves the exact prior snapshot intact.</td>
+<td><strong class="">Passed</strong></td>
+<td><a href="../../tests/parity/export-setting-archive-aliases.test.ts">Parity spec</a><a href="../../tests/fixtures/native-export-setting-archive-aliases.json">Native fixture</a><a href="../../tests/fixtures/native-export-setting-archive-aliases.provenance.md">Native provenance</a><a href="../../original/figcraft/crates/doc/src/props.rs">Native exported option definitions</a><a href="../../src/engine/file-format.ts">React file reader</a></td>
+<td><ol><li>Install repository dependencies.</li><li>Run npx vitest run tests/parity/export-setting-archive-aliases.test.ts.</li><li>Inspect the preserves native archive export aliases: duplicate archive svgIdAttribute assertions.</li></ol></td>
+<td>Opening the invalid file fails and the active document stays as it was.</td>
+<td>Medium</td>
+<td>Native line and column positions are outside the browser error contract.</td>
+</tr>
+<tr><th scope="row">Archive input for svgSimplifyStroke</th>
+<td>A native document accepts svg_simplify_stroke as an alias for svgSimplifyStroke.</td>
+<td>export-settings.ts::archiveKeys; file-format.ts::nativeExportSettings</td>
+<td>preserves native archive export aliases: archive svg_simplify_stroke</td>
+<td>React reads the native field value. The value matches again after canonical save and reopen.</td>
+<td><strong class="">Passed</strong></td>
+<td><a href="../../tests/parity/export-setting-archive-aliases.test.ts">Parity spec</a><a href="../../tests/fixtures/native-export-setting-archive-aliases.json">Native fixture</a><a href="../../tests/fixtures/native-export-setting-archive-aliases.provenance.md">Native provenance</a><a href="../../original/figcraft/crates/doc/src/props.rs">Native exported option definitions</a><a href="../../src/engine/file-format.ts">React file reader</a></td>
+<td><ol><li>Install repository dependencies.</li><li>Run npx vitest run tests/parity/export-setting-archive-aliases.test.ts.</li><li>Inspect the preserves native archive export aliases: archive svg_simplify_stroke assertions.</li></ol></td>
+<td>The setting’s svgSimplifyStroke value is retained.</td>
+<td>Medium</td>
+<td>The fixture exercises the file-open entry point and canonical archive reopening.</td>
+</tr>
+<tr><th scope="row">Archive duplicate for svgSimplifyStroke</th>
+<td>A native document refuses a setting containing both svg_simplify_stroke and svgSimplifyStroke.</td>
+<td>export-settings.ts::archiveKeys; file-format.ts::nativeExportSettings</td>
+<td>preserves native archive export aliases: duplicate archive svgSimplifyStroke</td>
+<td>The open reports a duplicate field and leaves the exact prior snapshot intact.</td>
+<td><strong class="">Passed</strong></td>
+<td><a href="../../tests/parity/export-setting-archive-aliases.test.ts">Parity spec</a><a href="../../tests/fixtures/native-export-setting-archive-aliases.json">Native fixture</a><a href="../../tests/fixtures/native-export-setting-archive-aliases.provenance.md">Native provenance</a><a href="../../original/figcraft/crates/doc/src/props.rs">Native exported option definitions</a><a href="../../src/engine/file-format.ts">React file reader</a></td>
+<td><ol><li>Install repository dependencies.</li><li>Run npx vitest run tests/parity/export-setting-archive-aliases.test.ts.</li><li>Inspect the preserves native archive export aliases: duplicate archive svgSimplifyStroke assertions.</li></ol></td>
+<td>Opening the invalid file fails and the active document stays as it was.</td>
+<td>Medium</td>
+<td>Native line and column positions are outside the browser error contract.</td>
+</tr>
+<tr><th scope="row">Archive input for vdCompat</th>
+<td>A native document accepts vd_compat as an alias for vdCompat.</td>
+<td>export-settings.ts::archiveKeys; file-format.ts::nativeExportSettings</td>
+<td>preserves native archive export aliases: archive vd_compat</td>
+<td>React reads the native field value. The value matches again after canonical save and reopen.</td>
+<td><strong class="">Passed</strong></td>
+<td><a href="../../tests/parity/export-setting-archive-aliases.test.ts">Parity spec</a><a href="../../tests/fixtures/native-export-setting-archive-aliases.json">Native fixture</a><a href="../../tests/fixtures/native-export-setting-archive-aliases.provenance.md">Native provenance</a><a href="../../original/figcraft/crates/doc/src/props.rs">Native exported option definitions</a><a href="../../src/engine/file-format.ts">React file reader</a></td>
+<td><ol><li>Install repository dependencies.</li><li>Run npx vitest run tests/parity/export-setting-archive-aliases.test.ts.</li><li>Inspect the preserves native archive export aliases: archive vd_compat assertions.</li></ol></td>
+<td>The setting’s vdCompat value is retained.</td>
+<td>Medium</td>
+<td>The fixture exercises the file-open entry point and canonical archive reopening.</td>
+</tr>
+<tr><th scope="row">Archive duplicate for vdCompat</th>
+<td>A native document refuses a setting containing both vd_compat and vdCompat.</td>
+<td>export-settings.ts::archiveKeys; file-format.ts::nativeExportSettings</td>
+<td>preserves native archive export aliases: duplicate archive vdCompat</td>
+<td>The open reports a duplicate field and leaves the exact prior snapshot intact.</td>
+<td><strong class="">Passed</strong></td>
+<td><a href="../../tests/parity/export-setting-archive-aliases.test.ts">Parity spec</a><a href="../../tests/fixtures/native-export-setting-archive-aliases.json">Native fixture</a><a href="../../tests/fixtures/native-export-setting-archive-aliases.provenance.md">Native provenance</a><a href="../../original/figcraft/crates/doc/src/props.rs">Native exported option definitions</a><a href="../../src/engine/file-format.ts">React file reader</a></td>
+<td><ol><li>Install repository dependencies.</li><li>Run npx vitest run tests/parity/export-setting-archive-aliases.test.ts.</li><li>Inspect the preserves native archive export aliases: duplicate archive vdCompat assertions.</li></ol></td>
+<td>Opening the invalid file fails and the active document stays as it was.</td>
+<td>Medium</td>
+<td>Native line and column positions are outside the browser error contract.</td>
+</tr>
+<tr><th scope="row">Archive input for colorProfile</th>
+<td>A native document accepts color_profile as an alias for colorProfile.</td>
+<td>export-settings.ts::archiveKeys; file-format.ts::nativeExportSettings</td>
+<td>preserves native archive export aliases: archive color_profile</td>
+<td>React reads the native field value. The value matches again after canonical save and reopen.</td>
+<td><strong class="">Passed</strong></td>
+<td><a href="../../tests/parity/export-setting-archive-aliases.test.ts">Parity spec</a><a href="../../tests/fixtures/native-export-setting-archive-aliases.json">Native fixture</a><a href="../../tests/fixtures/native-export-setting-archive-aliases.provenance.md">Native provenance</a><a href="../../original/figcraft/crates/doc/src/props.rs">Native exported option definitions</a><a href="../../src/engine/file-format.ts">React file reader</a></td>
+<td><ol><li>Install repository dependencies.</li><li>Run npx vitest run tests/parity/export-setting-archive-aliases.test.ts.</li><li>Inspect the preserves native archive export aliases: archive color_profile assertions.</li></ol></td>
+<td>The setting’s colorProfile value is retained.</td>
+<td>Medium</td>
+<td>The fixture exercises the file-open entry point and canonical archive reopening.</td>
+</tr>
+<tr><th scope="row">Archive duplicate for colorProfile</th>
+<td>A native document refuses a setting containing both color_profile and colorProfile.</td>
+<td>export-settings.ts::archiveKeys; file-format.ts::nativeExportSettings</td>
+<td>preserves native archive export aliases: duplicate archive colorProfile</td>
+<td>The open reports a duplicate field and leaves the exact prior snapshot intact.</td>
+<td><strong class="">Passed</strong></td>
+<td><a href="../../tests/parity/export-setting-archive-aliases.test.ts">Parity spec</a><a href="../../tests/fixtures/native-export-setting-archive-aliases.json">Native fixture</a><a href="../../tests/fixtures/native-export-setting-archive-aliases.provenance.md">Native provenance</a><a href="../../original/figcraft/crates/doc/src/props.rs">Native exported option definitions</a><a href="../../src/engine/file-format.ts">React file reader</a></td>
+<td><ol><li>Install repository dependencies.</li><li>Run npx vitest run tests/parity/export-setting-archive-aliases.test.ts.</li><li>Inspect the preserves native archive export aliases: duplicate archive colorProfile assertions.</li></ol></td>
+<td>Opening the invalid file fails and the active document stays as it was.</td>
+<td>Medium</td>
+<td>Native line and column positions are outside the browser error contract.</td>
+</tr>
+<tr><th scope="row">Archive input for print cropMarks</th>
+<td>A native document accepts print crop_marks as an alias for print cropMarks.</td>
+<td>export-settings.ts::archiveKeys; file-format.ts::nativeExportSettings</td>
+<td>preserves native archive export aliases: archive print crop_marks</td>
+<td>React reads the native field value. The value matches again after canonical save and reopen.</td>
+<td><strong class="">Passed</strong></td>
+<td><a href="../../tests/parity/export-setting-archive-aliases.test.ts">Parity spec</a><a href="../../tests/fixtures/native-export-setting-archive-aliases.json">Native fixture</a><a href="../../tests/fixtures/native-export-setting-archive-aliases.provenance.md">Native provenance</a><a href="../../original/figcraft/crates/doc/src/props.rs">Native exported option definitions</a><a href="../../src/engine/file-format.ts">React file reader</a></td>
+<td><ol><li>Install repository dependencies.</li><li>Run npx vitest run tests/parity/export-setting-archive-aliases.test.ts.</li><li>Inspect the preserves native archive export aliases: archive print crop_marks assertions.</li></ol></td>
+<td>The setting’s print cropMarks value is retained.</td>
+<td>Medium</td>
+<td>The fixture exercises the file-open entry point and canonical archive reopening.</td>
+</tr>
+<tr><th scope="row">Archive duplicate for print cropMarks</th>
+<td>A native document refuses a setting containing both print crop_marks and print cropMarks.</td>
+<td>export-settings.ts::archiveKeys; file-format.ts::nativeExportSettings</td>
+<td>preserves native archive export aliases: duplicate archive print cropMarks</td>
+<td>The open reports a duplicate field and leaves the exact prior snapshot intact.</td>
+<td><strong class="">Passed</strong></td>
+<td><a href="../../tests/parity/export-setting-archive-aliases.test.ts">Parity spec</a><a href="../../tests/fixtures/native-export-setting-archive-aliases.json">Native fixture</a><a href="../../tests/fixtures/native-export-setting-archive-aliases.provenance.md">Native provenance</a><a href="../../original/figcraft/crates/doc/src/props.rs">Native exported option definitions</a><a href="../../src/engine/file-format.ts">React file reader</a></td>
+<td><ol><li>Install repository dependencies.</li><li>Run npx vitest run tests/parity/export-setting-archive-aliases.test.ts.</li><li>Inspect the preserves native archive export aliases: duplicate archive print cropMarks assertions.</li></ol></td>
+<td>Opening the invalid file fails and the active document stays as it was.</td>
+<td>Medium</td>
+<td>Native line and column positions are outside the browser error contract.</td>
+</tr>
+<tr><th scope="row">Archive input for print bleedMarks</th>
+<td>A native document accepts print bleed_marks as an alias for print bleedMarks.</td>
+<td>export-settings.ts::archiveKeys; file-format.ts::nativeExportSettings</td>
+<td>preserves native archive export aliases: archive print bleed_marks</td>
+<td>React reads the native field value. The value matches again after canonical save and reopen.</td>
+<td><strong class="">Passed</strong></td>
+<td><a href="../../tests/parity/export-setting-archive-aliases.test.ts">Parity spec</a><a href="../../tests/fixtures/native-export-setting-archive-aliases.json">Native fixture</a><a href="../../tests/fixtures/native-export-setting-archive-aliases.provenance.md">Native provenance</a><a href="../../original/figcraft/crates/doc/src/props.rs">Native exported option definitions</a><a href="../../src/engine/file-format.ts">React file reader</a></td>
+<td><ol><li>Install repository dependencies.</li><li>Run npx vitest run tests/parity/export-setting-archive-aliases.test.ts.</li><li>Inspect the preserves native archive export aliases: archive print bleed_marks assertions.</li></ol></td>
+<td>The setting’s print bleedMarks value is retained.</td>
+<td>Medium</td>
+<td>The fixture exercises the file-open entry point and canonical archive reopening.</td>
+</tr>
+<tr><th scope="row">Archive duplicate for print bleedMarks</th>
+<td>A native document refuses a setting containing both print bleed_marks and print bleedMarks.</td>
+<td>export-settings.ts::archiveKeys; file-format.ts::nativeExportSettings</td>
+<td>preserves native archive export aliases: duplicate archive print bleedMarks</td>
+<td>The open reports a duplicate field and leaves the exact prior snapshot intact.</td>
+<td><strong class="">Passed</strong></td>
+<td><a href="../../tests/parity/export-setting-archive-aliases.test.ts">Parity spec</a><a href="../../tests/fixtures/native-export-setting-archive-aliases.json">Native fixture</a><a href="../../tests/fixtures/native-export-setting-archive-aliases.provenance.md">Native provenance</a><a href="../../original/figcraft/crates/doc/src/props.rs">Native exported option definitions</a><a href="../../src/engine/file-format.ts">React file reader</a></td>
+<td><ol><li>Install repository dependencies.</li><li>Run npx vitest run tests/parity/export-setting-archive-aliases.test.ts.</li><li>Inspect the preserves native archive export aliases: duplicate archive print bleedMarks assertions.</li></ol></td>
+<td>Opening the invalid file fails and the active document stays as it was.</td>
+<td>Medium</td>
+<td>Native line and column positions are outside the browser error contract.</td>
+</tr>
+<tr><th scope="row">Combined aliases and canonical archive</th>
+<td>A settings object can use all accepted aliases together or use the canonical spellings.</td>
+<td>export-settings.ts::archiveKeys; file-format.ts::nativeExportSettings</td>
+<td>all archive aliases; canonical control</td>
+<td>Both inputs match native and the settings survive save and reopen.</td>
+<td><strong class="">Passed</strong></td>
+<td><a href="../../tests/parity/export-setting-archive-aliases.test.ts">Parity spec</a><a href="../../tests/fixtures/native-export-setting-archive-aliases.json">Native fixture</a><a href="../../tests/fixtures/native-export-setting-archive-aliases.provenance.md">Native provenance</a><a href="../../original/figcraft/crates/doc/src/props.rs">Native exported option definitions</a><a href="../../src/engine/file-format.ts">React file reader</a></td>
+<td><ol><li>Install repository dependencies.</li><li>Run npx vitest run tests/parity/export-setting-archive-aliases.test.ts.</li><li>Inspect the all archive aliases; canonical control assertions.</li></ol></td>
+<td>Both accepted spellings produce the same configured export values.</td>
+<td>Medium</td>
+<td>The native inputs are JSON documents. React reopens its canonical .figcraft output.</td>
+</tr>
+<tr><th scope="row">Unknown archive spellings</th>
+<td>File deserialisation ignores unknown spellings and considers only declared aliases.</td>
+<td>export-settings.ts::archiveKeys; file-format.ts::nativeExportSettings</td>
+<td>unknown spellings ignored</td>
+<td>The unknown-spelling control produces the same default values as native and survives reopening.</td>
+<td><strong class="">Passed</strong></td>
+<td><a href="../../tests/parity/export-setting-archive-aliases.test.ts">Parity spec</a><a href="../../tests/fixtures/native-export-setting-archive-aliases.json">Native fixture</a><a href="../../tests/fixtures/native-export-setting-archive-aliases.provenance.md">Native provenance</a><a href="../../original/figcraft/crates/doc/src/props.rs">Native exported option definitions</a><a href="../../src/engine/file-format.ts">React file reader</a></td>
+<td><ol><li>Install repository dependencies.</li><li>Run npx vitest run tests/parity/export-setting-archive-aliases.test.ts.</li><li>Inspect the unknown spellings ignored assertions.</li></ol></td>
+<td>Opening the file retains the recognised settings.</td>
+<td>Medium</td>
+<td>The case covers the spellings in the native fixture.</td>
+</tr>
+<tr><th scope="row">Display P3 note</th>
+<td>The Color profile dialog names PNG, JPG and WebP exports that use the file’s profile.</td>
+<td>ColourProfileDialog.tsx</td>
+<td>Chromium: the Color profile note says which exports are tagged Display P3</td>
+<td>The focused browser case passed. The default note excludes the Display P3 wording, which appears on selecting Display P3.</td>
+<td><strong class="">Passed</strong></td>
+<td><a href="../../tests/e2e/preview.spec.ts">Browser spec</a><a href="../../original/figcraft/crates/ui-egui/src/dialogs/color_profile.rs">Native dialog</a></td>
+<td><ol><li>Open the authenticated local preview with its account fixtures.</li><li>Open File → Color profile.</li><li>Select Display P3 and read the note.</li></ol></td>
+<td>The note says that the canvas previews in sRGB and PNG, JPG and WebP exports that use the file’s profile are tagged Display P3.</td>
+<td>Medium</td>
+<td>Native wording comes from source inspection.</td>
+</tr>
+</tbody></table></div>
+<p>Open this report from the checkout to follow the evidence links. The page uses local HTML and CSS.</p>
+</main></body></html>

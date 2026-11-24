@@ -1,0 +1,236 @@
+<!doctype html>
+<html lang="en-GB"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Delta row 3, item 7 — a wrap style per paragraph and in text styles — parity evidence</title><style>
+:root{color-scheme:light}*{box-sizing:border-box}body{margin:0;background:#f5f3ef;color:#242824;font:15px/1.55 system-ui,sans-serif}main{max-width:1700px;margin:auto;padding:36px 28px}h1{font-size:32px;line-height:1.15}h2{font-size:21px;margin-top:32px}a{color:#006d51}code{font-size:.9em;overflow-wrap:anywhere}.notice{padding:16px;border:2px solid #916520;background:#fff5df}.scroll{overflow:auto;background:white;border:1px solid #b8beb8}table{border-collapse:collapse;min-width:1850px;width:100%;font-size:13px}caption{text-align:left;font-weight:700;padding:14px}th,td{padding:12px;vertical-align:top;border:1px solid #c7ccc7;min-width:135px}thead th{background:#183f34;color:white;text-align:left}tbody th{text-align:left;background:#f0f4f0}ol{padding-left:19px;margin:0}td a{display:block;margin-bottom:8px}.partial{font-weight:700;color:#795200}.untested{font-weight:700;color:#6c3d63}@media print{body{background:white;font-size:10pt}main{padding:0;max-width:none}.scroll{overflow:visible;border:0}table{min-width:0;font-size:6.8pt}th,td{min-width:0;padding:5px}thead{display:table-header-group}tr{break-inside:avoid}a{color:inherit;text-decoration:underline}@page{size:A3 landscape;margin:10mm}}
+</style></head>
+<body><main><h1>Delta row 3, item 7 — a wrap style per paragraph and in text styles</h1>
+<p>22 November 2026 · Reviewed 24 November 2026 · Native <code>bad07e4433240cad046589129c084bd2fc36f097</code> · Branch <code>prompt/full-figcraft-port-pending</code> · React <code>f1038dd</code> · Review based on <code>906fee8</code>.</p>
+<p class="notice"><strong>Draft pending the cumulative verification gate.</strong> The review added three native style-creation regressions. They pass against the existing implementation.</p>
+<p><a href="26-11-22-wrap-style-paragraphs.md">Companion report</a> · <a href="../planning/26-11-22-wrap-style-paragraphs.md">Plan and source mapping</a> · <a href="../planning/26-11-07-full-port-resume.md">Local prerequisites and handover</a></p>
+<h2>Environment and evidence checkpoint</h2>
+<p>Pinned native replay ran in the Rust Docker image with the source mounted read-only. Local Vitest evidence covers seven command sequences, two native files, seven layout states and six CSS states. Two legacy expectations were independently re-observed. The focused review passed all three creation cases.</p>
+<p>The full Vitest suite passed all 5,498 checks in 67.76 seconds with two workers. Strict library, test and host types and both production builds passed. The two focused Chromium workflows passed in 9.1 seconds. The cumulative 410-case Chromium run is in progress with one worker and zero retries. Real local provider, fixture cleanup and graph results are pending. The slice has no schema or hosted changes.</p>
+<p>The first cumulative attempt finished with 279 passes, one failure and 130 unrun cases in 821.345 seconds, with no retries or flakes. The only failure was the old colour-profile screenshot. Its expected, actual and difference images were inspected against pinned upstream; only the longer native note and consequent dialog height/button positions changed. That single baseline was updated without changing assertion tolerances. All three focused workflows then passed in 7.9 seconds. The second full run is now in progress.</p>
+<h2>Reading and reproducing the matrix</h2>
+<p>High requires passing automated parity and browser verification for the property. Medium records one passing independent verification method. Low records inspection or a result still awaiting verification. The numbered actions are reproduction instructions.</p>
+<div class="scroll" role="region" aria-label="Feature property evidence table" tabindex="0"><table>
+<caption>Property-level parity and reproducible checks — 17 passed, 1 partial</caption><thead><tr><th scope="col">Feature / sub-feature</th><th scope="col">Expected upstream behaviour</th><th scope="col">React implementation / target</th><th scope="col">Automated method / identifier</th><th scope="col">Expected and actual result</th><th scope="col">Status</th><th scope="col">Evidence</th><th scope="col">Manual prerequisites and numbered actions</th><th scope="col">Human-observable result</th><th scope="col">Confidence</th><th scope="col">Remaining gap / limitation</th></tr></thead><tbody>
+<tr><th scope="row">Range command and its alias</th>
+<td>node.set wrapStyle and textWrap apply to all touched paragraphs. start or end may be supplied alone.</td>
+<td>text-properties.ts; text-ranges.ts</td>
+<td>a range across paragraphs and the textWrap spelling</td>
+<td>The ranged reads match the native fixture, including open-ended ranges.</td>
+<td><strong class="">Passed</strong></td>
+<td><a href="../../tests/parity/wrap-style-paragraphs.test.ts">Parity spec</a><a href="../../tests/fixtures/native-wrap-style-paragraphs.json">Native fixture</a><a href="../../tests/fixtures/native-wrap-style-paragraphs.provenance.md">Native provenance</a></td>
+<td><ol><li>Install repository dependencies.</li><li>Run npx vitest run tests/parity/wrap-style-paragraphs.test.ts.</li><li>Inspect the a range across paragraphs and the textWrap spelling assertions.</li></ol></td>
+<td>Only the paragraphs touched by the character range change.</td>
+<td>Medium</td>
+<td>Browser evidence for this property is pending or has no dedicated case.</td>
+</tr>
+<tr><th scope="row">Layer command, override reset and undo</th>
+<td>A layer-level change clears paragraph overrides. Undo restores them.</td>
+<td>text-format-commands.ts; text-ranges.ts</td>
+<td>a paragraph’s own wrap style and the layer level</td>
+<td>A balance layer setting replaces the mixed list; undo restores auto, balance and pretty.</td>
+<td><strong class="">Passed</strong></td>
+<td><a href="../../tests/parity/wrap-style-paragraphs.test.ts">Parity spec</a><a href="../../tests/fixtures/native-wrap-style-paragraphs.json">Native fixture</a><a href="../../tests/fixtures/native-wrap-style-paragraphs.provenance.md">Native provenance</a></td>
+<td><ol><li>Install repository dependencies.</li><li>Run npx vitest run tests/parity/wrap-style-paragraphs.test.ts.</li><li>Inspect the a paragraph’s own wrap style and the layer level assertions.</li></ol></td>
+<td>Undo brings back each paragraph’s earlier wrap.</td>
+<td>Medium</td>
+<td>Browser evidence for this property is pending or has no dedicated case.</td>
+</tr>
+<tr><th scope="row">Removing a redundant override</th>
+<td>A paragraph set to the layer’s value inherits it. Auto can override a balanced layer.</td>
+<td>text-ranges.ts</td>
+<td>a style equal to the layer’s is no override</td>
+<td>The state folds from mixed auto and balance back to uniform balance in the fixture.</td>
+<td><strong class="">Passed</strong></td>
+<td><a href="../../tests/parity/wrap-style-paragraphs.test.ts">Parity spec</a><a href="../../tests/fixtures/native-wrap-style-paragraphs.json">Native fixture</a><a href="../../tests/fixtures/native-wrap-style-paragraphs.provenance.md">Native provenance</a></td>
+<td><ol><li>Install repository dependencies.</li><li>Run npx vitest run tests/parity/wrap-style-paragraphs.test.ts.</li><li>Inspect the a style equal to the layer’s is no override assertions.</li></ol></td>
+<td>Setting the paragraph back to balance removes its separate setting.</td>
+<td>Medium</td>
+<td>Browser evidence for this property is pending or has no dedicated case.</td>
+</tr>
+<tr><th scope="row">Trailing empty paragraph and read shape</th>
+<td>The paragraph after a final newline is counted. Uniform non-auto yields wrapStyle, mixed yields lineWrapStyles, and uniform auto yields neither.</td>
+<td>text-ranges.ts; inspect-text.ts</td>
+<td>a trailing empty paragraph</td>
+<td>Every selected read matches the native receipt.</td>
+<td><strong class="">Passed</strong></td>
+<td><a href="../../tests/parity/wrap-style-paragraphs.test.ts">Parity spec</a><a href="../../tests/fixtures/native-wrap-style-paragraphs.json">Native fixture</a><a href="../../tests/fixtures/native-wrap-style-paragraphs.provenance.md">Native provenance</a></td>
+<td><ol><li>Install repository dependencies.</li><li>Run npx vitest run tests/parity/wrap-style-paragraphs.test.ts.</li><li>Inspect the a trailing empty paragraph assertions.</li></ol></td>
+<td>The empty paragraph can take its own setting.</td>
+<td>Medium</td>
+<td>Browser evidence for this property is pending or has no dedicated case.</td>
+</tr>
+<tr><th scope="row">Edit command, Enter and validation</th>
+<td>While editing, text.wrapStyle applies to the selection. Enter retains the paragraph’s wrap. Invalid values are refused.</td>
+<td>text-format-commands.ts; text-edit.ts</td>
+<td>the edited paragraphs while editing</td>
+<td>The caret paragraph and inserted paragraph match native. An invalid value is refused and the document stays unchanged.</td>
+<td><strong class="">Passed</strong></td>
+<td><a href="../../tests/parity/wrap-style-paragraphs.test.ts">Parity spec</a><a href="../../tests/fixtures/native-wrap-style-paragraphs.json">Native fixture</a><a href="../../tests/fixtures/native-wrap-style-paragraphs.provenance.md">Native provenance</a></td>
+<td><ol><li>Install repository dependencies.</li><li>Run npx vitest run tests/parity/wrap-style-paragraphs.test.ts.</li><li>Inspect the the edited paragraphs while editing assertions.</li></ol></td>
+<td>A new paragraph carries the selected wrap; a bad command changes no text.</td>
+<td>Medium</td>
+<td>Browser evidence for this property is pending or has no dedicated case.</td>
+</tr>
+<tr><th scope="row">Style definitions from text</th>
+<td>A style created from a text layer takes its common wrap, or the layer wrap when the paragraphs differ.</td>
+<td>style-definitions.ts; shared-styles.ts</td>
+<td>a style from a layer whose paragraphs differ</td>
+<td>The fixture matches all three states, including the mixed auto and pretty fallbacks.</td>
+<td><strong class="">Passed</strong></td>
+<td><a href="../../tests/parity/wrap-style-paragraphs.test.ts">Parity spec</a><a href="../../tests/fixtures/native-wrap-style-paragraphs.json">Native fixture</a><a href="../../tests/fixtures/native-wrap-style-paragraphs.provenance.md">Native provenance</a></td>
+<td><ol><li>Install repository dependencies.</li><li>Run npx vitest run tests/parity/wrap-style-paragraphs.test.ts.</li><li>Inspect the a style from a layer whose paragraphs differ assertions.</li></ol></td>
+<td>A style made from uniformly balanced text carries balance.</td>
+<td>Medium</td>
+<td>Browser evidence for this property is pending or has no dedicated case.</td>
+</tr>
+<tr><th scope="row">Explicit style definition and validation</th>
+<td>A supplied wrap value is stored on the style; invalid string and numeric wraps are refused.</td>
+<td>style-definitions.ts; shared-styles.ts</td>
+<td>text styles carry the wrap style</td>
+<td>The explicit valid style and both refused inputs match the native observations.</td>
+<td><strong class="">Passed</strong></td>
+<td><a href="../../tests/parity/wrap-style-paragraphs.test.ts">Parity spec</a><a href="../../tests/fixtures/native-wrap-style-paragraphs.json">Native fixture</a><a href="../../tests/fixtures/native-wrap-style-paragraphs.provenance.md">Native provenance</a></td>
+<td><ol><li>Install repository dependencies.</li><li>Run npx vitest run tests/parity/wrap-style-paragraphs.test.ts.</li><li>Inspect the text styles carry the wrap style assertions.</li></ol></td>
+<td>The valid style is available for application.</td>
+<td>Medium</td>
+<td>Browser evidence for this property is pending or has no dedicated case.</td>
+</tr>
+<tr><th scope="row">Style application to layer and range</th>
+<td>Applying a style updates the whole layer or the paragraphs touched by the range.</td>
+<td>style-application.ts</td>
+<td>text styles carry the wrap style</td>
+<td>Layer-level and range-level application produce the recorded wrap values.</td>
+<td><strong class="">Passed</strong></td>
+<td><a href="../../tests/parity/wrap-style-paragraphs.test.ts">Parity spec</a><a href="../../tests/fixtures/native-wrap-style-paragraphs.json">Native fixture</a><a href="../../tests/fixtures/native-wrap-style-paragraphs.provenance.md">Native provenance</a></td>
+<td><ol><li>Install repository dependencies.</li><li>Run npx vitest run tests/parity/wrap-style-paragraphs.test.ts.</li><li>Inspect the text styles carry the wrap style assertions.</li></ol></td>
+<td>The range application changes the relevant paragraph.</td>
+<td>Medium</td>
+<td>Browser evidence for this property is pending or has no dedicated case.</td>
+</tr>
+<tr><th scope="row">Linked styles and redefinition</th>
+<td>A linked text follows a style redefinition and unlinks when its wrap is changed away from the style.</td>
+<td>style-application.ts</td>
+<td>text styles carry the wrap style</td>
+<td>The linked and unlinked states match the native observations.</td>
+<td><strong class="">Passed</strong></td>
+<td><a href="../../tests/parity/wrap-style-paragraphs.test.ts">Parity spec</a><a href="../../tests/fixtures/native-wrap-style-paragraphs.json">Native fixture</a><a href="../../tests/fixtures/native-wrap-style-paragraphs.provenance.md">Native provenance</a></td>
+<td><ol><li>Install repository dependencies.</li><li>Run npx vitest run tests/parity/wrap-style-paragraphs.test.ts.</li><li>Inspect the text styles carry the wrap style assertions.</li></ol></td>
+<td>A linked text changes with its definition until its wrap is edited directly.</td>
+<td>Medium</td>
+<td>Browser evidence for this property is pending or has no dedicated case.</td>
+</tr>
+<tr><th scope="row">New style from mixed wraps on an auto layer</th>
+<td>The created style uses auto and propagates that fallback to the touched paragraphs in the same transaction.</td>
+<td>style-commands.ts; style-definitions.ts; style-application.ts</td>
+<td>a mixed selection takes the auto fallback and links to its new style</td>
+<td>The style.create receipt, style.list and node.get match the independent native output.</td>
+<td><strong class="">Passed</strong></td>
+<td><a href="../../tests/parity/wrap-style-creation.test.ts">Parity spec</a><a href="../../tests/fixtures/native-wrap-style-creation.json">Native fixture</a><a href="../../tests/fixtures/native-wrap-style-creation.provenance.md">Native provenance</a></td>
+<td><ol><li>Install repository dependencies.</li><li>Run npx vitest run tests/parity/wrap-style-creation.test.ts.</li><li>Inspect the a mixed selection takes the auto fallback and links to its new style assertions.</li></ol></td>
+<td>The touched paragraphs use auto and the selected characters link to the new style.</td>
+<td>Medium</td>
+<td>Pure regression evidence. The review changed no wrap implementation.</td>
+</tr>
+<tr><th scope="row">New style from mixed wraps on a pretty layer</th>
+<td>The created style uses pretty and propagates that fallback to the touched paragraphs in the same transaction.</td>
+<td>style-commands.ts; style-definitions.ts; style-application.ts</td>
+<td>a mixed selection takes the layer wrap and links to its new style</td>
+<td>The style.create receipt, style.list and node.get match the independent native output.</td>
+<td><strong class="">Passed</strong></td>
+<td><a href="../../tests/parity/wrap-style-creation.test.ts">Parity spec</a><a href="../../tests/fixtures/native-wrap-style-creation.json">Native fixture</a><a href="../../tests/fixtures/native-wrap-style-creation.provenance.md">Native provenance</a></td>
+<td><ol><li>Install repository dependencies.</li><li>Run npx vitest run tests/parity/wrap-style-creation.test.ts.</li><li>Inspect the a mixed selection takes the layer wrap and links to its new style assertions.</li></ol></td>
+<td>The touched paragraphs use pretty and the selected characters link to the new style.</td>
+<td>Medium</td>
+<td>Pure regression evidence. The review changed no wrap implementation.</td>
+</tr>
+<tr><th scope="row">New style within one balanced paragraph</th>
+<td>The style takes balance and links only the selected characters.</td>
+<td>style-commands.ts; style-definitions.ts; style-application.ts</td>
+<td>a uniform selection links the chosen characters only</td>
+<td>The style.create receipt, style.list and node.get match the independent native output.</td>
+<td><strong class="">Passed</strong></td>
+<td><a href="../../tests/parity/wrap-style-creation.test.ts">Parity spec</a><a href="../../tests/fixtures/native-wrap-style-creation.json">Native fixture</a><a href="../../tests/fixtures/native-wrap-style-creation.provenance.md">Native provenance</a></td>
+<td><ol><li>Install repository dependencies.</li><li>Run npx vitest run tests/parity/wrap-style-creation.test.ts.</li><li>Inspect the a uniform selection links the chosen characters only assertions.</li></ol></td>
+<td>The new style carries balance and the link covers precisely the selection.</td>
+<td>Medium</td>
+<td>Pure regression evidence. The review changed no wrap implementation.</td>
+</tr>
+<tr><th scope="row">Reading native .figcraft files</th>
+<td>A native file preserves per-paragraph wraps and accepts wrap_style in a text-style definition.</td>
+<td>file-format.ts; text-data.ts; shared-styles.ts</td>
+<td>reads the file native saved for: …</td>
+<td>Both native saves open to the same text data built by the corresponding sequences.</td>
+<td><strong class="">Passed</strong></td>
+<td><a href="../../tests/parity/wrap-style-paragraphs.test.ts">Parity spec</a><a href="../../tests/fixtures/native-wrap-style-paragraphs.json">Native fixture</a><a href="../../tests/fixtures/native-wrap-style-paragraphs.provenance.md">Native provenance</a></td>
+<td><ol><li>Install repository dependencies.</li><li>Run npx vitest run tests/parity/wrap-style-paragraphs.test.ts.</li><li>Inspect the reads the file native saved for: … assertions.</li></ol></td>
+<td>Opening each file keeps its paragraph and style wrap data.</td>
+<td>Medium</td>
+<td>The fixture compares text data from two native saves.</td>
+</tr>
+<tr><th scope="row">Paragraph line breaking</th>
+<td>Each paragraph breaks according to its resolved wrap.</td>
+<td>text-line-breaker.ts; text-flow.ts</td>
+<td>each paragraph wraps by its own style</td>
+<td>The second-line character offsets match in all seven native states at width 130 with Inter Regular.</td>
+<td><strong class="">Passed</strong></td>
+<td><a href="../../tests/parity/wrap-style-paragraphs.test.ts">Parity spec</a><a href="../../tests/fixtures/native-wrap-style-paragraphs.json">Native fixture</a><a href="../../tests/fixtures/native-wrap-style-paragraphs.provenance.md">Native provenance</a></td>
+<td><ol><li>Install repository dependencies.</li><li>Run npx vitest run tests/parity/wrap-style-paragraphs.test.ts.</li><li>Inspect the each paragraph wraps by its own style assertions.</li></ol></td>
+<td>Comparing the fixture’s offsets shows that individual paragraphs break at different points.</td>
+<td>Medium</td>
+<td>The fixture compares second-line starts. Glyph positioning has no comparison.</td>
+</tr>
+<tr><th scope="row">CSS text-wrap</th>
+<td>Write text-wrap for a uniform non-auto style. Omit it for mixed wraps and auto.</td>
+<td>layer-css.ts</td>
+<td>writes text-wrap in CSS only when the paragraphs agree</td>
+<td>CSS lines match the native inspect.code output in all six states.</td>
+<td><strong class="">Passed</strong></td>
+<td><a href="../../tests/parity/wrap-style-paragraphs.test.ts">Parity spec</a><a href="../../tests/fixtures/native-wrap-style-paragraphs.json">Native fixture</a><a href="../../tests/fixtures/native-wrap-style-paragraphs.provenance.md">Native provenance</a></td>
+<td><ol><li>Install repository dependencies.</li><li>Run npx vitest run tests/parity/wrap-style-paragraphs.test.ts.</li><li>Inspect the writes text-wrap in CSS only when the paragraphs agree assertions.</li></ol></td>
+<td>The CSS includes text-wrap only for uniform balance or pretty.</td>
+<td>Medium</td>
+<td>Native Dev Mode is outside this command comparison.</td>
+</tr>
+<tr><th scope="row">Older command fixtures at the native pin</th>
+<td>Ranged wrap commands report per-paragraph values in both older sequences.</td>
+<td>text-properties.ts; text-format-commands.ts; inspect-text.ts</td>
+<td>Text-format case 129 and typography case 223</td>
+<td>Both pass against the re-observed lineWrapStyles, including list metadata in the typography sequence.</td>
+<td><strong class="">Passed</strong></td>
+<td><a href="../../tests/parity/text-format-commands.test.ts">Command parity spec</a><a href="../../tests/parity/text-node.test.ts">Typography parity spec</a><a href="../../tests/fixtures/native-wrap-style-paragraphs.provenance.md">Repinned provenance</a></td>
+<td><ol><li>Install repository dependencies.</li><li>Run npx vitest run tests/parity/text-format-commands.test.ts tests/parity/text-node.test.ts.</li><li>Inspect cases 129 and 223.</li></ol></td>
+<td>Reading each resulting layer returns the wraps of its two paragraphs.</td>
+<td>Medium</td>
+<td>The older fixture files retain their earlier observations.</td>
+</tr>
+<tr><th scope="row">Typography control and browser save</th>
+<td>Text wrap edits the caret’s paragraph during editing and the layer otherwise. Native leaves all choices inactive when the layer’s paragraphs differ.</td>
+<td>TypographyPanel.tsx; text-format-commands.ts</td>
+<td>Chromium: Text wrap sets the edited paragraph while editing and the whole layer otherwise</td>
+<td>The focused browser case passed both checks in downloaded .figcraft files. The edit command also matches the native parity fixture.</td>
+<td><strong class="">Passed</strong></td>
+<td><a href="../../tests/e2e/preview.spec.ts">Browser spec</a><a href="../planning/26-11-07-full-port-resume.md">Local prerequisites</a></td>
+<td><ol><li>Open the authenticated local preview with its account fixtures.</li><li>Create a text layer with one paragraph reading “one” and a second reading “two”.</li><li>With the caret in “two”, choose Balance in Typography → More typography options → Text wrap.</li><li>Move to “one”, check Auto, exit editing and check Mixed. Choose Pretty and save again.</li></ol></td>
+<td>The saved first state has only the second paragraph balanced. The final save has a pretty layer and no paragraph overrides.</td>
+<td>High</td>
+<td>The React dropdown labels the native inactive state Mixed. The browser case covers one edit and subsequent layer change.</td>
+</tr>
+<tr><th scope="row">Read-only wrap in the style editor</th>
+<td>Native displays a read-only text wrap row in the style editor.</td>
+<td>React style editor, tracked under the interface row</td>
+<td>Source inspection</td>
+<td>Native displays the row. The React style editor has no paragraph fields.</td>
+<td><strong class="partial">Partial</strong></td>
+<td><a href="../../original/figcraft/crates/ui-egui/src/widgets/style_picker.rs">Native style details</a><a href="26-11-22-wrap-style-paragraphs.md">Companion report</a></td>
+<td><ol><li>Use the native and React editors with a text style containing balance.</li><li>Open the style editor in each and check its properties.</li></ol></td>
+<td>The native style shows its wrap. The React style editor has no wrap row.</td>
+<td>Low</td>
+<td>Tracked with the interface work.</td>
+</tr>
+</tbody></table></div>
+<p>Open this report from the checkout to follow the evidence links. The page uses local HTML and CSS.</p>
+</main></body></html>

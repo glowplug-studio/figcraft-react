@@ -1,8 +1,8 @@
 # Upstream delta row 3, item 7: a wrap style per paragraph and in text styles
 
-> **Draft.** The implementation is committed at `f1038dd` on the local branch `prompt/full-figcraft-port-pending`. The cumulative browser gate has not passed yet, so the tokens in capitals below (`IMPLEMENTATION_COMMIT` and the result tokens in the final verification table) are placeholders, and the bold pass statement and the results that depend on the gate are expectations, not results. The property matrix link resolves only once the matrix is generated after the gate. Fill them and remove this note when the gate passes; see the [handover](../planning/26-11-07-full-port-resume.md#continue-from-here).
+> **Draft pending the cumulative verification gate.** See the [handover](../planning/26-11-07-full-port-resume.md#continue-from-here).
 
-22 November 2026 · Branch `prompt/full-figcraft-port`. Native reference `bad07e4433240cad046589129c084bd2fc36f097`. Implementation `IMPLEMENTATION_COMMIT`. **This bounded item passes. Eleven items of row 3, the other delta rows and the full port remain unfinished.**
+22 November 2026 · Reviewed 24 November 2026 · Branch `prompt/full-figcraft-port-pending` · Native reference `bad07e4433240cad046589129c084bd2fc36f097` · React implementation `f1038dd` · Review based on `906fee8`.
 
 ## Implemented boundary
 
@@ -24,8 +24,11 @@ Upstream #1827 (`136ca4cd`, with `d14c637d`, `7e2752d5`, `071cc86b`, `654eb205`)
 | The same file, `layout` | Where each paragraph's second line starts in seven states of one text | All seven match |
 | The same file, `css` | The `text-wrap` lines of native's CSS in six states of one text | All six match |
 | The same file, `repinned` | Two older sequences run again at the pin | Both match |
+| [native-wrap-style-creation.json](../../tests/fixtures/native-wrap-style-creation.json) | Three selections tested through `style.create`, `style.list` and `node.get` | All three match the independent native observations. The review added regression coverage with no wrap implementation change |
 
 [Provenance and reproduction](../../tests/fixtures/native-wrap-style-paragraphs.provenance.md).
+
+Creating a text style across paragraphs with mixed wraps uses the layer's wrap in the style definition. The native normalisation pass applies the newly linked style to the touched paragraphs in the same transaction, for both `auto` and `pretty` layer values. A selection within a balanced paragraph uses `balance` and links only the selected characters. [Style creation provenance](../../tests/fixtures/native-wrap-style-creation.provenance.md).
 
 ## Earlier expectations changed
 
@@ -47,31 +50,37 @@ Two older native records set a wrap style on a range and were made before this u
 | `crates/engine/src/automation/inspect.rs` | `inspect-text.ts`, `inspect.ts` |
 | `crates/engine/src/dev/codegen/css.rs` | `layer-css.ts` |
 | `crates/doc/src/text.rs::{paragraph_style, take_paragraph_style, take_paragraph_style_in, shows_paragraph_style_in}`; `crates/engine/src/cmd/styles.rs` | `shared-styles.ts::readParagraph`; `style-definitions.ts::{nodeDefinition, explicitDefinition}`; `style-application.ts::{applyParagraph, showsParagraph}` |
+| `crates/engine/src/cmd/styles.rs::create`; `crates/engine/src/derived.rs::normalize` | `style-commands.ts`; `style-definitions.ts`; `style-application.ts` |
 | `crates/text/src/layout.rs` | `text-line-breaker.ts::wrap` |
 | `crates/ui-egui/src/panels/typography/fields.rs` | `TypographyPanel.tsx` |
 
-[Property matrix](26-11-22-wrap-style-paragraphs-parity.html) · [Plan](../planning/26-11-22-wrap-style-paragraphs.md) · [Wrap style parity](../../tests/parity/wrap-style-paragraphs.test.ts) · [Browser](../../tests/e2e/preview.spec.ts).
+[Property matrix](26-11-22-wrap-style-paragraphs-parity.html) · [Plan](../planning/26-11-22-wrap-style-paragraphs.md) · [Wrap style parity](../../tests/parity/wrap-style-paragraphs.test.ts) · [Style creation parity](../../tests/parity/wrap-style-creation.test.ts) · [Browser](../../tests/e2e/preview.spec.ts).
 
 ## Final verification
 
 | Gate | Result |
 |---|---|
-| Implementation | `IMPLEMENTATION_COMMIT`, native reference `bad07e44` |
+| Implementation | `f1038dd`, native reference `bad07e44`. Review working tree based on `906fee8` |
 | Failing fixtures first | All seven sequences and both saved files failed before the change |
 | Older expectations | Two, described above, changed on native observations at the pin |
-| Full pure suite | PURE_COUNT passed with four workers |
-| Strict types / production builds | Passed |
-| Cumulative Chromium | FULL_BROWSER_RESULT |
-| Real local provider integrations | PROVIDER_RESULT |
-| Fixture cleanup | CLEANUP_RESULT |
-| Schema / hosted | No change; no hosted call |
-| Local graph | GRAPH_RESULT |
+| Focused review | All three native style creation regressions pass |
+| Full pure suite | 5,498 passed in 67.76 seconds with two workers |
+| Strict types / production builds | Library, test and host types passed. Both production builds passed |
+| Focused Chromium | Both item workflows passed in 9.1 seconds |
+| Cumulative Chromium | First attempt: 279 passed, one outdated screenshot failed, 130 did not run. Fresh gate pending |
+| Real local provider integrations / fixture cleanup | Pending |
+| Schema / hosted | No change or hosted call |
+| Local graph | Pending |
+
+## Browser baseline review
+
+First cumulative attempt: 279 passed, one failed, 130 did not run; 821.345 seconds, zero retries/flakes. The sole failure was the colour-profile dialog screenshot still expecting the old shorter note. Expected/actual/diff were visually reviewed against the pinned native text. Only that baseline was updated (longer note and consequent dialog/button positions); no assertion tolerance or product behaviour changed. A fresh full run is required.
 
 ## Reproduction
 
 ```sh
-npx vitest run tests/parity/wrap-style-paragraphs.test.ts tests/parity/text-format-commands.test.ts tests/parity/text-node.test.ts
-npx vitest run --maxWorkers=4
+npx vitest run tests/parity/wrap-style-paragraphs.test.ts tests/parity/wrap-style-creation.test.ts tests/parity/text-format-commands.test.ts tests/parity/text-node.test.ts
+npx vitest run --exclude 'tests/integration/**' --maxWorkers=2
 npm run typecheck
 npm run preview:build
 ```

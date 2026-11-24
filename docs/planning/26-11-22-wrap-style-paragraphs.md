@@ -2,11 +2,13 @@
 
 ## Execution checkpoint
 
+- Coordinator review, 24 November: 5,498 pure tests pass, strict library/test/host types and both production builds pass, and the two focused Chromium workflows pass. The cumulative 410-case browser gate has not yet passed (the second attempt's session was lost); provider/cleanup/final graph verification are still pending. The new archive aliases and wrap creation fixtures are documented below.
+
 - Phase: Phase 6 on 22 November 2026: implemented and committed at `f1038dd` on the local branch `prompt/full-figcraft-port-pending`. The focused and full pure suites, strict types, both builds and the new browser case pass. The cumulative browser gate has not passed: two runs failed on timeouts in unrelated cases while the machine was short of memory (see the handover's pending note).
 - Native reference: `bad07e4433240cad046589129c084bd2fc36f097` (`bad07e44`). React starting revision: `a99608c` on `prompt/full-figcraft-port`.
 - Upstream commits: `136ca4cd` (#1827), `d14c637d` and `7e2752d5` (#2094 review), `071cc86b`, `654eb205`. Ledger item 3.9.
 - Files changed: `src/engine/text-data.ts`, `text-ranges.ts`, `text-properties.ts`, `text-format-commands.ts`, `inspect-text.ts`, `inspect.ts`, `layer-css.ts`, `text-line-breaker.ts`, `shared-styles.ts`, `style-definitions.ts`, `style-application.ts`, `src/TypographyPanel.tsx`; tests `tests/parity/wrap-style-paragraphs.test.ts` (new), `tests/parity/text-format-commands.test.ts`, `tests/parity/text-node.test.ts`, `tests/e2e/preview.spec.ts`; fixture `native-wrap-style-paragraphs.json` and its provenance.
-- Next action: run the cumulative browser gate once when the machine is quiet, then the provider integrations, the graph refresh, the report and the records, and fast-forward the port branch.
+- Next action: run the cumulative browser gate once, then the provider integrations, the graph refresh, the report and the records, and fast-forward the port branch.
 - Blockers: none.
 
 ## Native contract
@@ -53,3 +55,7 @@ The layer level only: one `wrapStyle` for the text, set by `node.set` and `text.
 - A signed-in browser workflow sets the edited paragraph's style while editing and the layer's otherwise.
 - Full pure suite, strict types, both builds, cumulative browser gate, provider integrations, zero fixture counts.
 - Records: report, property matrix, provenance, cross-repository mapping, the row 3 plan and the ledger.
+
+## Review on 24 November 2026
+
+The pinned native replay and three focused React cases agree on creating a text style while editing. A mixed selection takes the layer wrap as its style definition, then the new style propagates in the same native transaction and sets that wrap on the touched paragraphs. A selection contained in one balanced paragraph keeps that wrap and links only the selected characters. The review initially inferred from `cmd/styles.rs::create` that a mixed selection kept its overrides. The complete command also runs `derived.rs::normalize`, which propagates the new style and replaces them. The product code matches the observed result. See the [replay provenance](../../tests/fixtures/native-wrap-style-creation.provenance.md) and `npm test -- tests/parity/wrap-style-creation.test.ts --maxWorkers=1`.

@@ -2,12 +2,14 @@
 
 ## Execution checkpoint
 
+- Coordinator review, 24 November: 5,498 pure tests pass, strict library/test/host types and both production builds pass, and the two focused Chromium workflows pass. The cumulative 410-case browser gate has not yet passed (the second attempt's session was lost); provider/cleanup/final graph verification are still pending. The new archive aliases and wrap creation fixtures are documented below.
+
 - Phase: Phase 6, committed at `d984c1a` on the local branch `prompt/full-figcraft-port-pending` on 24 November 2026. The focused tests, the full pure suite (5,474) and strict library and test types pass. Not yet run: both production builds, the new browser case, the cumulative browser gate, the provider integrations, the cleanup counts and the graph refresh.
 - Native reference: `bad07e4433240cad046589129c084bd2fc36f097` (`bad07e44`). React starting revision: `8fedff6` on `prompt/full-figcraft-port-pending`.
 - Upstream commits: `6c3ac0c5`, `3f39154a` (export settings); `016dba8c`, `3d4c798f` (the note); `297426c5`, `97f086e0`, `12ade9c7` (descriptions and documents only). Ledger item 3.16.
 - Files changed: `src/engine/export-settings.ts`, `src/ColourProfileDialog.tsx`; tests `tests/parity/export-setting-aliases.test.ts` (new), `tests/parity/export-settings.test.ts`, `tests/e2e/preview.spec.ts`; fixture `native-export-setting-aliases.json` and its provenance.
 - Next action: the handover's current action: one cumulative browser gate for items 7 and 8, then the records.
-- Blockers: none in the product. The machine's memory pressure made earlier gates time out; run the gate when it is quiet.
+- Blockers: none in the product. Machine load is diagnostic only under the user's 24 November instruction; verification proceeds without a load threshold.
 
 ## Native contract
 
@@ -39,3 +41,9 @@
 - A signed-in browser case shows the note.
 - Full pure suite, strict types, both builds, cumulative browser gate, provider integrations, zero fixture counts.
 - Records: report, property matrix, provenance, cross-repository mapping, the row 3 plan and the ledger.
+
+## Coordinator review correction — 24 November
+
+Review at pending-branch `906fee8` found a second entry point covered by the same native aliases: file deserialisation. `file-format.ts` calls `readExportSettings` without property mode, so snake_case aliases inside a native document were silently ignored. Native `ExportSetting` and `PrintSettings` derive Serde aliases for all deserialisation, not just `node.set`. Verify with independently observed file-open receipts before correcting the archive reader.
+
+Keep the two contracts distinct: `node.set` first snake-cases/sorts keys and resolves duplicate spellings by the existing command transformation; an archive accepts either spelling but native Serde refuses both spellings of the same field. Unknown archive fields remain ignored, and command-only names are not introduced into the archive format. Add immutable native input/receipt fixtures and file-open plus open/save/reopen assertions; retain the eight command sequences unchanged. No provider/schema change is required. The 410-case gate remains pending until both items and this correction pass.
