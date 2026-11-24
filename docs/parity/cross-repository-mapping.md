@@ -828,3 +828,7 @@ Native `crates/engine/src/cmd/variables.rs` `variable.duplicate` lookup at `bad0
 ## Delta row 5: the component button's menu — 24 November 2026
 
 Native `crates/engine/src/cmd/component/variants.rs::{create_set, create_set_refusal, can_create_set, wrap_in_set}` at `bad07e44` (upstream `524ad8b1`, `253e0c3d`, `dda27030`; #2088, #2095) maps to `component.createSet`, `createSetRefusal` and `canCreateSet` in `structure.ts` with `variant-authoring.ts::wrapVariantSet` at `ba52a26`; the component button's menu of `crates/ui-egui/src/panels/right.rs` (`f5a52ea5`) to the Create component set button of `LayerPanel.tsx`. Verified by nine native scenes in `tests/fixtures/native-component-create-set.json`, `tests/parity/component-create-set.test.ts` and a browser case in `tests/e2e/preview.spec.ts`. [Report](../reports/26-11-24-component-create-set.md).
+
+## Delta row 6: library link relative paths — 24 November 2026
+
+Native `crates/doc/src/library.rs` `LibraryLink::relative` at `bad07e44` (upstream `7b34dbab`, #2132) maps to `LibraryLink.relative`, `readLibraryLinks` and `wireLibraryLinks` in `published-library.ts` at `a89c897`, which carry it through open and save as native does for a document with no path; `crates/engine/src/assets/library.rs::{relate_links, resolve_links}` need a document path and have no browser counterpart. Verified by `tests/fixtures/native-library-link-relative.json`, `tests/parity/library-link-relative.test.ts` and a browser case in `tests/e2e/preview.spec.ts`. [Report](../reports/26-11-24-library-link-relative.md).
