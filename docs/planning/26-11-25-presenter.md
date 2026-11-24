@@ -2,11 +2,11 @@
 
 ## Execution checkpoint
 
-- Phase: implemented; the gate is running.
+- Phase: complete through Phase 7 on 25 November 2026 at `a793eaa`: [report](../reports/26-11-25-presenter.md), [matrix](../reports/26-11-25-presenter-parity.html).
 - Native reference: `bad07e4433240cad046589129c084bd2fc36f097` (`bad07e44`). React starting revision: `5c165c1` on `prompt/full-figcraft-port`.
 - Row plan: [roadmap row 15](26-11-24-roadmap-row-15-prototyping.md).
 - Files changed: `src/Presenter.tsx` (new: the full-window presenter and the preview pane); `src/engine/prototype-screen.ts` (new: `presentedScreen`, `hotspotAt`, `outsideTopOverlay`, `keyTarget`); `src/engine/prototype-overlays.ts` (new: `anchorOffset`, `overlayRect`, `anchoredOverlayRect`); `src/engine/editor.ts` (`closePrototypePlayer`); `src/Editor.tsx` (opens the presenter from the request); tests `tests/parity/prototype-overlays.test.ts` and one case in `tests/e2e/preview.spec.ts`.
-- Next action: record the item.
+- Next action: none; the item is recorded.
 - Blockers: none.
 
 ## Native contract

@@ -880,3 +880,7 @@ Native `crates/ui-egui/src/panels/proto_panel.rs` (`editor_popover`, `trigger_ro
 ## Roadmap row 15: canvas connections — 25 November 2026
 
 Native `crates/ui-egui/src/canvas/proto_canvas.rs` (`curve_between`, `bezier_distance`, `noodles`, `frame_at`, `variant_of`, `target_at`, `draw`, `input`, `handles`) at `bad07e44` maps to `prototype-connections.ts` and `PrototypeConnections.tsx` at `04531a3`, closing delta ledger item 5.3. Verified by restated native tests in `tests/parity/prototype-connections.test.ts` and a browser case in `tests/e2e/preview.spec.ts`. [Report](../reports/26-11-25-canvas-connections.md).
+
+## Roadmap row 15: the prototype presenter — 25 November 2026
+
+Native `crates/ui-egui/src/present.rs`, `present/{player,layout,input,draw}.rs`, `present/transition.rs::overlay_rect`, `present.rs::anchored_overlay_rect` and `crates/doc/src/proto.rs::OverlayAnchor::offset` at `bad07e44` map to `Presenter.tsx`, `prototype-screen.ts` and `prototype-overlays.ts` at `a793eaa`. Verified by restated native tests in `tests/parity/prototype-overlays.test.ts` and a browser case in `tests/e2e/preview.spec.ts`. [Report](../reports/26-11-25-presenter.md).
