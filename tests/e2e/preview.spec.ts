@@ -11280,3 +11280,54 @@ test("connections drag from a layer's handle on the canvas: onto a frame they na
   expect(saved.nodes[home].interactions.map((i:{actions:unknown})=>i.actions)).toEqual([[{type:"navigate",dest:Number(details)}]]);
   expect(saved.nodes[def].interactions.map((i:{trigger:unknown;transition:unknown;actions:unknown})=>[i.trigger,i.transition,i.actions])).toEqual([[{type:"onClick"},{type:"instant"},[{type:"changeTo",dest:Number(hover)}]]]);
 });
+
+test("the presenter plays a flow: a click navigates, a key goes back, an overlay opens and closes on a click outside, Restart and Escape",async ({page})=>{
+  const engine=new EditorEngine();
+  const id=(v:unknown)=>String((v as {id:string}).id);
+  const home=id(engine.execute("frame.create",{name:"Home",x:0,y:0,width:200,height:300}));
+  const details=id(engine.execute("frame.create",{name:"Details",x:300,y:0,width:200,height:300}));
+  const sheet=id(engine.execute("frame.create",{name:"Sheet",x:600,y:0,width:100,height:60}));
+  const go=id(engine.execute("shape.rectangle",{name:"Go",x:20,y:20,width:60,height:30,parent:home}));
+  const open=id(engine.execute("shape.rectangle",{name:"Open",x:20,y:100,width:60,height:30,parent:home}));
+  engine.execute("proto.interaction.add",{id:Number(go),dest:Number(details)});
+  engine.execute("proto.interaction.add",{id:Number(details),trigger:{type:"keyPress",key:"K"},action:{type:"back"}});
+  engine.execute("proto.interaction.add",{id:Number(open),action:{type:"openOverlay",dest:Number(sheet),position:"bottomCenter"}});
+  engine.execute("proto.flow.add",{start:Number(home),name:"Main"});
+  await login(page);
+  await page.getByLabel("Open Figcraft file",{exact:true}).setInputFiles({name:"present.figcraft",mimeType:"application/octet-stream",buffer:Buffer.from(await engine.nativeSnapshot())});
+  await page.getByRole("group",{name:"Properties",exact:true}).getByRole("button",{name:"Prototype",exact:true}).click();
+  await page.getByRole("region",{name:"Prototype",exact:true}).getByRole("button",{name:"Present Main",exact:true}).click();
+  const presenter=page.getByRole("dialog",{name:"Prototype presentation",exact:true});
+  const frameName=presenter.getByLabel("Presented frame",{exact:true}),screen=presenter.getByLabel("Prototype screen",{exact:true});
+  await expect(frameName).toHaveText("Home");
+  await expect(presenter).toContainText("Main /");
+  // The frame is drawn (white) over the prototype background (#1E1E1E) around it.
+  const pixel=(dx:number)=>screen.evaluate((c:HTMLCanvasElement,dx)=>{const ctx=c.getContext("2d")!,r=c.width/c.clientWidth;return Array.from(ctx.getImageData(Math.round((c.clientWidth/2+dx)*r),Math.round(c.clientHeight/2*r),1,1).data);},dx);
+  await expect.poll(()=>pixel(0)).toEqual([255,255,255,255]);
+  expect(await pixel(150)).toEqual([30,30,30,255]);
+  // The frame shows at 100%, centred: a page point maps to the canvas centre plus its distance from the frame's centre.
+  const at=async(x:number,y:number,cx=100,cy=150)=>{const b=(await screen.boundingBox())!;return {x:b.x+b.width/2+(x-cx),y:b.y+b.height/2+(y-cy)};};
+  let p=await at(50,35); await page.mouse.click(p.x,p.y);
+  await expect(frameName).toHaveText("Details");
+  await page.keyboard.press("k");
+  await expect(frameName).toHaveText("Home");
+  p=await at(50,115); await page.mouse.click(p.x,p.y);
+  await expect(screen).toHaveAttribute("data-overlays","1");
+  // A click on the overlay itself keeps it; one outside closes it.
+  p=await at(100,270); await page.mouse.click(p.x,p.y);
+  await expect(screen).toHaveAttribute("data-overlays","1");
+  p=await at(10,10); await page.mouse.click(p.x,p.y);
+  await expect(screen).toHaveAttribute("data-overlays","0");
+  p=await at(50,35); await page.mouse.click(p.x,p.y);
+  await expect(frameName).toHaveText("Details");
+  await presenter.getByRole("button",{name:"Restart",exact:true}).click();
+  await expect(frameName).toHaveText("Home");
+  await page.keyboard.press("Escape");
+  await expect(presenter).toHaveCount(0);
+  // The preview pane opens from the prototype settings at the first flow, and closes.
+  await page.getByRole("region",{name:"Prototype",exact:true}).getByRole("button",{name:"Open prototype preview",exact:true}).click();
+  const pane=page.getByRole("dialog",{name:"Prototype preview",exact:true});
+  await expect(pane.getByLabel("Presented frame",{exact:true})).toHaveText("Home");
+  await pane.getByRole("button",{name:"Close preview",exact:true}).click();
+  await expect(pane).toHaveCount(0);
+});

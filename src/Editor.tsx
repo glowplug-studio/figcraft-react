@@ -58,6 +58,7 @@ import { RecoveryController } from "./engine/recovery";
 import { AssetsPanel, componentDragType } from "./AssetsPanel";
 import { PagePanel } from "./PagePanel";
 import { PrototypePanel } from "./PrototypePanel";
+import { Presenter } from "./Presenter";
 import { PrototypeConnections, type OpenInteraction } from "./PrototypeConnections";
 import { EffectsPanel } from "./EffectsPanel";
 import { LayoutGuidesPanel } from "./LayoutGuidesPanel";
@@ -1022,6 +1023,7 @@ export function DocumentEditor({ identity, capabilities, engine: suppliedEngine,
           {signedIn && engine.people && <LivePeopleOverlay room={engine.people} engine={engine} canvas={canvas}/>}
           {signedIn && (snapshot.tool==="comment" || snapshot.showComments!==false && !!snapshot.document.comments?.length || snapshot.openComment) && <CommentOverlay
             engine={engine} snapshot={snapshot} canvas={canvas} write={!busy && !snapshot.previewVersionId && (editable || capabilities.includes("document.comment"))} dispatch={dispatch}/>}
+          {snapshot.prototypePlayer && <Presenter key={snapshot.prototypePlayer.mode} engine={engine} snapshot={snapshot} mode={snapshot.prototypePlayer.mode} start={snapshot.prototypePlayer.start} />}
           {panelTab==="prototype" && !editingVector && <PrototypeConnections engine={engine} snapshot={snapshot} editable={editable && !busy} dispatch={dispatch} open={openInteraction} setOpen={setOpenInteraction} />}
           <ViewControls engine={engine} editable={editable && !busy} dispatch={dispatch} />
           <p id="canvas-instructions" className="figcraft-instructions">R: rectangle · O: ellipse · Space/middle drag: pan · Z: zoom · Ctrl/⌘ wheel: zoom · Escape: cancel</p>

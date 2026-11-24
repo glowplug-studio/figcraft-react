@@ -1188,6 +1188,8 @@ export class EditorEngine {
   }
   closeMissingFonts() { if (this.#snapshot.missingFonts) this.#publish({missingFonts:undefined}); }
   closeLibraryPanel() { if (this.#snapshot.libraryPanel) this.#publish({libraryPanel:undefined}); }
+  /** Close the presenter or the preview pane (the presenter's Close, Escape, or Close preview). */
+  closePrototypePlayer() { if (this.#snapshot.prototypePlayer) this.#publish({prototypePlayer:undefined}); }
   closeProfileDialog() { if (this.#snapshot.profileDialog) this.#publish({ profileDialog: false }); }
   finishCrop() { if (this.#snapshot.crop) this.#publish({crop:undefined}); }
   /** A menu may outlive its gesture after selection changes or edit access is revoked. */
