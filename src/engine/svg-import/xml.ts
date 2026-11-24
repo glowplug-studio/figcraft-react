@@ -44,10 +44,17 @@ export function looksLikeSvg(text:string) {
   return false;
 }
 
+/** The most attributes one element may have, and the most the attribute checks may cost over a whole document: the
+ * sum of each element's attribute count squared, a DTD counting as one element as entities can hold elements. Native
+ * svg/src/import.rs `MAX_ATTRIBUTES` and `MAX_ATTRIBUTE_WORK` (upstream 4d3fe2aa, 70ed6c16). */
+export const maxSvgAttributes=4096, maxSvgAttributeWork=2**28;
+
+/** Native `scan`: before parsing, refuse an element with too many attributes (counted as quoted values) or too much
+ * attribute work over the whole file, then elements nested too deep, in that order. */
 export function checkSvgNesting(text:string) {
-  let at=0, depth=0;
-  const fail=()=>{throw new Error("SVG import failed: elements nested more than 512 deep");};
-  while ((at=text.indexOf("<",at))>=0) {
+  let at=0, depth=0, deepest=0, widest=0, work=0;
+  const wide=()=>widest>maxSvgAttributes || work>maxSvgAttributeWork;
+  scan: while ((at=text.indexOf("<",at))>=0) {
     const close=text.startsWith("<!--",at) ? "-->" : text.startsWith("<![CDATA[",at) ? "]]>" : text.startsWith("<?",at) ? "?>" : "";
     if (close) {
       const end=text.indexOf(close,at+2);
@@ -55,21 +62,38 @@ export function checkSvgNesting(text:string) {
       at=end+close.length; continue;
     }
     if (text.startsWith("<!",at)) {
-      at=declarationEnd(text,at,true);
-      if (at<0) break;
-      continue;
+      const next=declarationEnd(text,at,true);
+      if (text.startsWith("<!DOCTYPE",at)) {
+        // To the `]>` closing its internal subset, or the first `>` when it has none, as native counts it.
+        const open=text.indexOf("[",at), gt=text.indexOf(">",at);
+        const found=open>=0 && open<gt ? text.indexOf("]>",at) : gt;
+        const end=found<0 ? text.length : found+(open>=0 && open<gt ? 2 : 1);
+        let quotes=0;
+        for (let i=at;i<end;i++) if (text[i]==='"' || text[i]==="'") quotes++;
+        widest=Math.max(widest,quotes>>1); work+=(quotes>>1)*(quotes>>1);
+        if (wide()) break scan;
+      }
+      if (next<0) break;
+      at=next; continue;
     }
-    let end=at+1, quote="";
+    const closing=text[at+1]==="/";
+    let end=at+1, quote="", attributes=0;
     for (;end<text.length;end++) {
       const c=text[end];
       if (quote) { if (c===quote) quote=""; }
-      else if (c==="'" || c==='"') quote=c;
+      else if (c==="'" || c==='"') { quote=c; attributes++; }
       else if (c===">") break;
     }
-    if (text[at+1]==="/") depth=Math.max(0,depth-1);
-    else if (text[end-1]!=="/" && ++depth>maxSvgNesting) fail();
+    if (closing) depth=Math.max(0,depth-1);
+    else {
+      widest=Math.max(widest,attributes); work+=attributes*attributes;
+      if (wide()) break;
+      if (text[end-1]!=="/") deepest=Math.max(deepest,++depth);
+    }
     at=end+1;
   }
+  if (wide()) throw new Error("SVG import failed: an element has more than "+maxSvgAttributes+" attributes");
+  if (deepest>maxSvgNesting) throw new Error("SVG import failed: elements nested more than 512 deep");
 }
 
 const gzip=(data:Uint8Array)=>data[0]===31 && data[1]===139;

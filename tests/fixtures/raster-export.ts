@@ -58,7 +58,7 @@ export async function importSvgFixture(name:string,svg:string,profile="srgb") {
 
 }
 
-export { svgImportLimits,svgImportRace,largeSvgImport } from "./svg-import-limits";
+export { svgImportLimits,svgImportRace,largeSvgImport,svgAttributeImports,svgFilterImports } from "./svg-import-limits";
 
 
 async function importPixels(engine:EditorEngine,id:unknown) {
@@ -207,4 +207,32 @@ export async function cancelPenpotExport(data:string) {
     const err=await saving.then(()=>"",e=>String(e));
     return {err,sameDocument:before===engine.getSnapshot().document};
   } finally {clearTimeout(timer);}
+}
+
+/** Builds the Penpot file of native-penpot-svg-allowance.json from its raw SVG recipe, opens it and summarises what the
+ * native observation recorded: warnings, layers, nodes, the next id and each placeholder's status and children. */
+export async function penpotSvgAllowance(svgs: readonly (readonly [string, number])[]) {
+  const {zipSync, strToU8} = await import("fflate");
+  const page = "files/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa/pages/bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb";
+  const ids = svgs.map((_, i) => "cccccccc-cccc-cccc-cccc-" + String(i).padStart(12, "0"));
+  const rects = (n: number) => '<svg xmlns="http://www.w3.org/2000/svg" width="40" height="25">' + '<rect width="1" height="1"/>'.repeat(n) + "</svg>";
+  const files: Record<string, Uint8Array> = {
+    "manifest.json": strToU8(JSON.stringify({files: [{id: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", name: "Allowance"}], type: "penpot/export-files", version: 1})),
+    [page + ".json"]: strToU8(JSON.stringify({id: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb", index: 0, name: "Canvas"})),
+    [page + "/00000000-0000-0000-0000-000000000000.json"]: strToU8(JSON.stringify({id: "00000000-0000-0000-0000-000000000000", shapes: ids, type: "frame"})),
+  };
+  svgs.forEach(([name, count], i) => {
+    files[page + "/" + ids[i] + ".json"] = strToU8(JSON.stringify({height: 25, id: ids[i], name, svgAttrs: {raw: rects(count)}, type: "svg-raw", width: 40, x: i * 50, y: 0}));
+  });
+  const engine = new EditorEngine();
+  const opened = await engine.openFile(new File([zipSync(files)], "Allowance.penpot")) as {warnings: unknown};
+  // As native's saved document gives them.
+  const saved = await engine.executeAsync("file.saveAs", {data: true}) as {data: string};
+  const {decodeFigcraft} = await import("../../src/engine/file-format");
+  const {document, nextId} = await decodeFigcraft(Uint8Array.from(atob(saved.data), c => c.charCodeAt(0)));
+  const nodes = Object.values(document.nodes);
+  const placeholders = nodes.filter(n => n.kind !== "page" && n.sourceMetadata?.["penpot.svgRawStatus"] !== undefined)
+    .sort((a, b) => Number(a.id) - Number(b.id))
+    .map(n => ({name: n.name, status: n.sourceMetadata!["penpot.svgRawStatus"], children: "children" in n ? n.children.length : 0}));
+  return {warnings: opened.warnings, layers: nodes.filter(n => n.kind !== "page").length, nodes: nodes.length, nextId: Number(nextId), placeholders};
 }

@@ -55,6 +55,9 @@ function markup(shape:JsonObject,width:number,height:number,archive:PenpotArchiv
   return xml.slice(0,xml.indexOf(">")).includes("xmlns=") ? xml : xml.replace("<svg",'<svg xmlns="http://www.w3.org/2000/svg"');
 }
 type Warn=(message:string)=>void;
+/** The most layers all of a file's raw SVG placeholders may expand to together (native engine/src/cmd/file/load.rs
+ * `MAX_PENPOT_SVG_LAYERS`, upstream 2f8dd85f and cf77dfda). */
+export const maxPenpotSvgLayers=100_000;
 export class RawSvgLayers {
   private retained=0;
   constructor(private archive:PenpotArchive) {}
@@ -66,11 +69,14 @@ export class RawSvgLayers {
     if (bytes>8*1024*1024-this.retained) {warn("SVG layer '"+name+"' exceeds the 8 MiB raw SVG import budget; kept as frame");return;}
     this.retained+=bytes;meta["penpot.svgRawXml"]=xml;meta["penpot.svgRawStatus"]="pending";
   }
-  async expand(nodes:Record<string,DocumentNode>,next:number,resources:Record<string,ImageResource>,warn:Warn) {
-    let expanded=0;
+  async expand(nodes:Record<string,DocumentNode>,next:number,resources:Record<string,ImageResource>,warn:Warn,allowance=maxPenpotSvgLayers) {
+    let expanded=0,room=allowance;
+    const over=(name:string)=>warn("Penpot SVG '"+name+"': not converted, the file's SVG layers are over the limit; the original markup is preserved");
     for (const n of Object.values(nodes)) {
       const meta=n.sourceMetadata,xml=meta?.["penpot.svgRawXml"];
       if (meta?.["penpot.svgRawStatus"]!=="pending" || !xml || n.kind!=="frame") continue;
+      // One allowance for all of a file's placeholders: once it is used up, the rest keep their markup.
+      if (room===0) {over(n.name);nodes[n.id]={...n,sourceMetadata:{...meta,"penpot.svgRawStatus":"not-expanded"}};continue;}
       if (n.children.length) {warn("Penpot SVG '"+n.name+"': has separate child layers; the original tree was preserved to prevent duplicate rendering");continue;}
       let status="not-expanded";
       try {
@@ -90,6 +96,14 @@ export class RawSvgLayers {
             const layer=local.kind==="text" ? {...local,textSizing:undefined} : local;
             additions[item.id]=readNode(item.id,wireNode(item.id,layer));
           }
+          // Charged once the empty ones are gone; one that doesn't fit is left out, as native takes it out again.
+          const added=Object.keys(additions).length;
+          if (added>room) {
+            over(n.name);
+            nodes[n.id]={...nodes[n.id],sourceMetadata:{...meta,"penpot.svgRawStatus":status}};
+            continue;
+          }
+          room-=added;
           Object.assign(nodes,additions);
           Object.assign(resources,imported.document.images);
           for (const issue of imported.warnings) warn("Penpot SVG '"+n.name+"': "+issue);

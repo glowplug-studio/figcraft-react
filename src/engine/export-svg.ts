@@ -101,6 +101,8 @@ function dashedPieces(path:Path,dashes:readonly number[]) {
 
 class SvgWriter {
   readonly defs: string[] = [];
+  /** The `<image>` written to `defs` for each image key, which the paints of that image share. */
+  private readonly images = new Map<string, string>();
   private used = new Set<string>();
   private suffix = new Map<string,number>();
   private serial = 0;
@@ -141,19 +143,27 @@ class SvgWriter {
     if (p.type === "image") {
       const resource = this.doc.images?.[p.image];
       if (!resource?.width || !resource.height) return;
-      let blob = resource.bytes;
-      if (!["image/png","image/jpeg","image/webp","image/gif"].includes(blob.type)) {
-        const { decodeImageBitmap } = await import("./image-decode");
-        const bitmap = await decodeImageBitmap(resource);
-        try {
-          const canvas = new OffscreenCanvas(bitmap.width,bitmap.height);
-          canvas.getContext("2d")!.drawImage(bitmap,0,0);
-          blob = await canvas.convertToBlob({type:"image/png"});
-        } finally { bitmap.close(); }
+      // Native svg/src/lib.rs (upstream #2250): each image's bytes go in once per file, as an `<image>` in `defs` that
+      // every paint of it uses through its own `<pattern>`. The pattern's id is taken first, as native takes it.
+      const id = this.id("pattern"), scale = p.scale_mode === "tile" ? 1 : 4;
+      let image = this.images.get(p.image);
+      if (image === undefined) {
+        let blob = resource.bytes;
+        if (!["image/png","image/jpeg","image/webp","image/gif"].includes(blob.type)) {
+          const { decodeImageBitmap } = await import("./image-decode");
+          const bitmap = await decodeImageBitmap(resource);
+          try {
+            const canvas = new OffscreenCanvas(bitmap.width,bitmap.height);
+            canvas.getContext("2d")!.drawImage(bitmap,0,0);
+            blob = await canvas.convertToBlob({type:"image/png"});
+          } finally { bitmap.close(); }
+        }
+        image = this.id("image");
+        this.images.set(p.image, image);
+        this.defs.push('<image'+attr("id",image)+attr("width",String(resource.width))+attr("height",String(resource.height))+attr("href","data:"+blob.type+";base64,"+base64Bytes(new Uint8Array(await blob.arrayBuffer())))+'/>');
       }
-      const id = this.id("pattern"), image = this.id("image"), scale = p.scale_mode === "tile" ? 1 : 4;
       const transform = imageTransform(p,resource.width,resource.height,w,h);
-      this.defs.push('<pattern'+attr("id",id)+' patternUnits="userSpaceOnUse"'+attr("width",num(resource.width*scale))+attr("height",num(resource.height*scale))+attr("patternTransform",svgMatrix(transform))+'><image'+attr("id",image)+attr("width",String(resource.width))+attr("height",String(resource.height))+attr("href","data:"+blob.type+";base64,"+base64Bytes(new Uint8Array(await blob.arrayBuffer())))+'/></pattern>');
+      this.defs.push('<pattern'+attr("id",id)+' patternUnits="userSpaceOnUse"'+attr("width",num(resource.width*scale))+attr("height",num(resource.height*scale))+attr("patternTransform",svgMatrix(transform))+'><use'+attr("href","#"+image)+'/></pattern>');
       return refAttr("fill",id) + alpha(p.opacity) + style;
     }
     const source = this.doc.nodes[p.source];

@@ -12,6 +12,9 @@ import svgImages from "../fixtures/native-svg-effect-images.json" with { type: "
 import jobCases from "../fixtures/native-export-jobs.json" with { type: "json" };
 import codecs from "../fixtures/native-raster-codecs.json" with { type: "json" };
 import backdrops from "../fixtures/native-backdrop-export.json" with { type: "json" };
+import attributeCases from "../fixtures/native-svg-import-attributes.json" with { type: "json" };
+import filterStacks from "../fixtures/native-svg-import-filter-stack.json" with { type: "json" };
+import penpotAllowance from "../fixtures/native-penpot-svg-allowance.json" with { type: "json" };
 import { embeddedIcc } from "../../src/engine/icc-container";
 import { iccDescription } from "../../src/engine/image-profile";
 import { jpegHeader } from "../../src/engine/jpeg-header";
@@ -328,6 +331,24 @@ test("SVGZ, hostile XML, embedded SVG budgets and superseded file imports preser
   expect(result.race).toEqual({reason:"Open was cancelled because the document or identity changed",name:"New",unchanged:true});
 });
 
+// Upstream 4d3fe2aa and 70ed6c16, observed natively (tests/fixtures/native-svg-import-attributes.provenance.md): an SVG
+// whose element has more than 4,096 attributes, or whose attributes cost too much over the whole file, is refused.
+test("SVG import refuses too many attributes on one element or in all, as native does",async({page})=>{
+  await loadExporter(page);
+  const results=await page.evaluate(cases=>(window as unknown as {FigcraftRaster:typeof import("../fixtures/raster-export")}).FigcraftRaster.svgAttributeImports(cases as never),
+    attributeCases.cases.map(c=>({name:c.name,recipe:c.recipe})));
+  expect(results).toEqual(attributeCases.cases.map(c=>"error" in c ? {name:c.name,error:c.error,unchanged:true} : {name:c.name,imported:true}));
+});
+
+// Upstream 64e91207, observed natively (tests/fixtures/native-svg-import-filter-stack.provenance.md): a filter whose
+// layer stack would pass 64 layers is not mapped to effects; the layer is drawn without it, with native's warning.
+test("SVG import caps a filter's layer stack at 64, as native does",async({page})=>{
+  await loadExporter(page);
+  const results=await page.evaluate(cases=>(window as unknown as {FigcraftRaster:typeof import("../fixtures/raster-export")}).FigcraftRaster.svgFilterImports(cases),
+    filterStacks.cases.map(c=>({name:c.name,svg:c.svg,rectangle:c.rectangle})));
+  expect(results).toEqual(filterStacks.cases.map(c=>({name:c.name,warnings:c.warnings,effects:c.effects})));
+});
+
 test("the upstream SVG corpus retains its pixels over two editable round trips",async({page})=>{
   const {readFile}=await import("node:fs/promises");
   const scenes:{name:string;svg:string}[]=JSON.parse(await readFile(new URL("../fixtures/native-svg-import.json",import.meta.url),"utf8"));
@@ -498,6 +519,17 @@ test("opening 5,000 Sketch layers yields to input and releases the JSON worker",
   expect(second).toMatchObject({replaced:true,name:"Replacement"});
   expect(second.rejected).toMatch(/cancelled/i);
   await expect.poll(()=>workers.size).toBe(0);
+});
+
+// Upstream 2f8dd85f and cf77dfda, observed natively (tests/fixtures/native-penpot-svg-allowance.provenance.md): a Penpot
+// file's raw SVG placeholders share one allowance of 100,000 layers; one that does not fit keeps its markup.
+test("a Penpot file's raw SVGs share one 100,000-layer allowance, as native opens them",async({page})=>{
+  test.setTimeout(240_000);
+  await loadExporter(page);
+  for (const c of penpotAllowance.cases) {
+    const result=await page.evaluate(svgs=>(window as unknown as {FigcraftRaster:typeof import("../fixtures/raster-export")}).FigcraftRaster.penpotSvgAllowance(svgs as never),c.svgs);
+    expect(result,c.name).toEqual({warnings:c.warnings,layers:c.layers,nodes:c.nodes,nextId:c.nextId,placeholders:c.placeholders});
+  }
 });
 
 test("Penpot raw SVG expands to editable layers matching native open and save",async({page})=>{

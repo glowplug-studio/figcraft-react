@@ -18,8 +18,11 @@ const alpha:Shadow={kind:"shadow",dx:0,dy:0,sigma:0,spread:0,color:black,knockou
 const plain=(s:Shadow)=>s.dx===0 && s.dy===0 && s.sigma===0 && s.spread===0 && !s.inner && !s.inverted && !s.knockout && !s.cast &&
   !s.color.r && !s.color.g && !s.color.b && s.color.a===1;
 const tint=(s:Shadow,c:Colour):Shadow=>({...s,color:withAlpha(c,c.a*s.color.a)});
+/** The most layers a filter's stack may hold. Results that name earlier results can double a stack at each of up to
+ * 64 primitives; real shadow chains hold a handful (native svg/src/import/fx.rs `MAX_STACK`, upstream 64e91207). */
+const maxStack=64;
 function combine(a:Stack|undefined,b:Stack|undefined):Stack|undefined {
-  if (a && b && a.length+b.length<=1024) return [...a,...b];
+  if (a && b && a.length+b.length<=maxStack) return [...a,...b];
 }
 
 function primitive(el:Element,get:(key:string|null)=>Stack|undefined,style:SvgStyle):Stack|undefined {

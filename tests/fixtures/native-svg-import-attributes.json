@@ -1,0 +1,10 @@
+{"nativeRevision": "bad07e4433240cad046589129c084bd2fc36f097", "note": "Each case: an SVG imported natively with file.import {data, name: 'a.svg'}; recipe rebuilds the document (see the provenance), bytes is its UTF-8 length, and the result is either imported or native's error.", "cases": [
+{"name":"4096 attributes on one element","recipe":{"kind":"element","count":4096,"repeat":1},"bytes":39966,"imported":true},
+{"name":"4097 attributes on one element","recipe":{"kind":"element","count":4097,"repeat":1},"bytes":39976,"error":"SVG import failed: an element has more than 4096 attributes"},
+{"name":"4097 attributes on the root","recipe":{"kind":"root","count":4095},"bytes":39937,"error":"SVG import failed: an element has more than 4096 attributes"},
+{"name":"10 elements of 4000 attributes","recipe":{"kind":"element","count":4000,"repeat":10},"bytes":389052,"imported":true},
+{"name":"40 elements of 4000 attributes","recipe":{"kind":"element","count":4000,"repeat":40},"bytes":1555872,"error":"SVG import failed: an element has more than 4096 attributes"},
+{"name":"an entity holding 5000 attributes","recipe":{"kind":"entity","count":5000},"bytes":49025,"error":"SVG import failed: an element has more than 4096 attributes"},
+{"name":"a namespace entity","recipe":{"kind":"text","svg":"<?xml version='1.0'?><!DOCTYPE svg [<!ENTITY ns 'http://www.w3.org/2000/svg'>]><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"10\" height=\"10\"><rect width=\"4\" height=\"4\"/></svg>"},"bytes":176,"imported":true},
+{"name":"many small elements","recipe":{"kind":"small","repeat":10000},"bytes":160112,"imported":true}
+]}

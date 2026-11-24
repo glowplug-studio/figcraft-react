@@ -1,4 +1,5 @@
 import { EditorEngine } from "../../src/engine/editor";
+import { attributeDocument, type AttributeRecipe } from "./svg-attribute-documents";
 
 const wrap=(body:string)=>'<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100">'+body+'</svg>';
 const rect='<rect width="10" height="10"/>';
@@ -57,4 +58,36 @@ export async function largeSvgImport() {
     const result=await engine.openFile(file);
     return {layers:result.summary.layers,ticks,time:Math.round(performance.now()-start)};
   } finally {clearInterval(ticker);}
+}
+
+/** Each native attribute-limit case imported as native imported it, with file.import: its result or refusal, and
+ * whether a refusal left the document and the undo history untouched. */
+export async function svgAttributeImports(cases: readonly {name: string; recipe: AttributeRecipe}[]) {
+  const out: {name: string; imported?: boolean; error?: string; unchanged?: boolean}[] = [];
+  for (const c of cases) {
+    const engine = new EditorEngine(), before = engine.getSnapshot(), history = engine.getUndoDepth();
+    const bytes = new TextEncoder().encode(attributeDocument(c.recipe));
+    let text = "";
+    for (let i = 0; i < bytes.length; i += 0x8000) text += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+    try {
+      await engine.executeAsync("file.import", {data: btoa(text), name: "a.svg"});
+      out.push({name: c.name, imported: true});
+    } catch (e) {
+      out.push({name: c.name, error: (e as Error).message, unchanged: engine.getSnapshot().document === before.document && engine.getUndoDepth() === history});
+    }
+  }
+  return out;
+}
+
+/** Each native filter-stack case imported with file.import: the receipt's warnings and the rectangle's effects as
+ * node.get returns them. */
+export async function svgFilterImports(cases: readonly {name: string; svg: string; rectangle: number}[]) {
+  const out: {name: string; warnings: unknown; effects: unknown}[] = [];
+  for (const c of cases) {
+    const engine = new EditorEngine();
+    const result = await engine.executeAsync("file.import", {data: btoa(c.svg), name: "f.svg"}) as {warnings?: unknown};
+    const rect = engine.execute("node.get", {id: c.rectangle}) as {effects?: unknown[]} | null;
+    out.push({name: c.name, warnings: result.warnings ?? [], effects: rect?.effects ?? []});
+  }
+  return out;
 }
