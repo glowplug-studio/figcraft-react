@@ -54,7 +54,9 @@ export function prepareAutoLayoutSlot(doc: Document, frame: FrameLikeNode, exclu
     high: items.reduce((max, item) => Math.max(max, item.box.y + item.box.height), -Infinity),
   })) : undefined;
 
-  return (point: Point): { index: number; line?: Guide } => {
+  /** `dragged`: layers dragged within this frame (native `auto_layout_slot_within`, cf567c3f, e415a3a0): the low and high edges along
+   * the flow of the box they would fill (their start bounds moved by the unsnapped drag) and the drag's sign along the flow. */
+  return (point: Point, dragged?: { lo: number; hi: number; delta: number }): { index: number; line?: Guide } => {
     if (!boxes.length) return { index: kids.length };
     const x = vertical ? point.y : point.x, y = vertical ? point.x : point.y;
     let candidates = boxes, lo = 0, hi = 0;
@@ -68,7 +70,12 @@ export function prepareAutoLayoutSlot(doc: Document, frame: FrameLikeNode, exclu
         }
       }
     }
-    const before = candidates.find(item => x < item.box.x + item.box.width / 2);
+    // Measured in Figma: within its own row or column a dragged child passes a sibling when its leading edge reaches the sibling's
+    // middle; forward by the high edge, backward (or not along the flow) by the low one. Wrapping layouts keep the pointer rule.
+    const middle = (item: FlowBox) => item.box.x + item.box.width / 2;
+    const before = dragged && !rows
+      ? candidates.find(item => dragged.delta > 0 ? middle(item) > dragged.hi : middle(item) >= dragged.lo)
+      : candidates.find(item => x < middle(item));
     const item = before ?? candidates.at(-1)!;
     const at = before ? item.box.x - 2 : item.box.x + item.box.width + 2;
     const index = item.index + (before ? 0 : 1);

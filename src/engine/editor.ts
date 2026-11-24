@@ -968,7 +968,7 @@ export class EditorEngine {
     this.#notifyCanvas();
   }
   /** Absolute move preview always derives from the captured source and allocator. */
-  previewMove(ids: readonly NodeId[], delta: Point, duplicate: boolean, point: Point): MoveDrop {
+  previewMove(ids: readonly NodeId[], delta: Point, duplicate: boolean, point: Point, raw: Point = delta): MoveDrop {
     const interaction = this.#interaction;
     if (!interaction) throw new Error("No active interaction");
     if (!Number.isFinite(delta.x) || !Number.isFinite(delta.y)) throw new Error("Move delta must be finite");
@@ -985,7 +985,7 @@ export class EditorEngine {
       nextId = copy.result.nextId;
     } else draft = new HierarchyDraft(interaction.base.document);
     const cache = duplicate ? undefined : (interaction.moveSlot ??= {});
-    const {document, drop} = placeMove(draft, duplicated?.copies ?? ids, delta, point, cache);
+    const {document, drop} = placeMove(draft, duplicated?.copies ?? ids, delta, point, cache, raw);
     interaction.document = document;
     interaction.selection = duplicated?.copies ?? interaction.base.selection;
     interaction.nextId = nextId;

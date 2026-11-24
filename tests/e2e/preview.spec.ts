@@ -3134,6 +3134,39 @@ test("Align is off with a tip for a layer its auto layout frame places, and on f
   await expect(page.getByText("A layer in an auto layout frame is placed by its frame",{exact:true})).toHaveCount(0);
 });
 
+test("a child dragged in auto layout passes a sibling when its leading edge reaches the sibling's middle, as native does",async ({page})=>{
+  const e=new EditorEngine();
+  const f=String((e.execute("frame.create",{x:100,y:100,width:300,height:300}) as {id:string}).id);
+  const kids=["A","B","C"].map(name=>{
+    const id=String((e.execute("shape.rectangle",{x:0,y:0,width:60,height:60,parent:f}) as {id:string}).id);
+    e.execute("node.set",{id,props:{name}}); return id;
+  });
+  e.execute("layout.add",{ids:[f]});
+  e.execute("node.set",{id:f,props:{layoutMode:"horizontal",gap:20,padding:0,sizingH:"fixed",sizingV:"fixed"}});
+  e.execute("select.none");
+  await login(page);
+  await page.getByLabel("Open Figcraft file",{exact:true}).setInputFiles({name:"reorder.figcraft",mimeType:"application/octet-stream",buffer:Buffer.from(await encodeFigcraft(e.getSnapshot().document))});
+  await resetCanvasOrigin(page);
+  const canvas=page.getByLabel("Design canvas",{exact:true});
+  const order=async ()=>{
+    const pending=page.waitForEvent("download");
+    await canvas.focus(); await page.keyboard.press("ControlOrMeta+s");
+    const doc=(await decodeFigcraft(await readFile((await (await pending).path())!))).document;
+    return (doc.nodes[f] as {children:readonly string[]}).children.map(id=>kids.indexOf(id));
+  };
+  async function drag(by:number) {
+    // A is grabbed 30 from its left edge at (130, 130): its leading edge is then at 160 + by.
+    const a=await canvasPoint(page,130,130), b=await canvasPoint(page,130+by,130);
+    await page.mouse.move(a.x,a.y); await page.mouse.down();
+    await page.mouse.move(b.x,b.y,{steps:6}); await page.mouse.up();
+  }
+  // 49 leaves the leading edge (209) short of B's middle (210); 50 reaches it.
+  await drag(49);
+  expect(await order()).toEqual([0,1,2]);
+  await drag(50);
+  expect(await order()).toEqual([1,0,2]);
+});
+
 test("transparent page redraw and hidden or locked layers bypass pointer and select all", async ({ page }) => {
   await login(page);
   const appearance = page.getByRole("region", { name: "Appearance" });

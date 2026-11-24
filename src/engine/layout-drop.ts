@@ -39,7 +39,7 @@ export interface MoveSlotCache {
 }
 
 /** The drag preview and its insertion indicator both use the original gesture geometry. */
-export function placeMove(draft: HierarchyDraft, moving: readonly NodeId[], delta: Point, point: Point, cache?: MoveSlotCache) {
+export function placeMove(draft: HierarchyDraft, moving: readonly NodeId[], delta: Point, point: Point, cache?: MoveSlotCache, raw: Point = delta) {
   const doc = draft.document, home = doc.nodes[moving[0]].parent!;
   const flow = !isGroupLike(doc.nodes[home]) && moving.every(id => {
     const node = doc.nodes[id];
@@ -59,7 +59,14 @@ export function placeMove(draft: HierarchyDraft, moving: readonly NodeId[], delt
         prepared = { frame, moving, locate: prepareAutoLayoutSlot(doc, frame, excluded) };
         if (cache) cache.current = prepared;
       }
-      slot = prepared.locate(point);
+      // Within the frame they came from, the slot follows the leading edge of the box they would fill (native drag.rs, cf567c3f).
+      const start = target === home && moving.every(id => doc.nodes[id].parent === target) ? boundsOf(doc, moving) : undefined;
+      const vertical = layout.mode === "vertical";
+      slot = prepared.locate(point, start && {
+        lo: vertical ? start.y + raw.y : start.x + raw.x,
+        hi: vertical ? start.y + start.height + raw.y : start.x + start.width + raw.x,
+        delta: vertical ? raw.y : raw.x,
+      });
     }
     for (const id of moving) if (draft.nodes[id].parent !== target) draft.reparent(id, target);
     if (cell) {

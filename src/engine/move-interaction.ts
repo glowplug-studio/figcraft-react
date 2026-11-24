@@ -80,13 +80,15 @@ export class MoveInteraction {
       let delta = { x: point.x - gesture.start.x, y: point.y - gesture.start.y };
       if (!gesture.moved && Math.hypot(delta.x, delta.y) * this.engine.getView().zoom < 3) return;
       if (modifiers.shiftKey) { if (Math.abs(delta.x) > Math.abs(delta.y)) delta.y = 0; else delta.x = 0; }
+      // The pointer's own drag, before snapping: a reorder in auto layout follows it (native drag.rs `raw`).
+      const raw = delta;
       if (this.engine.getView().snapPixel !== false) delta = gesture.targets.roundMove(delta);
       this.#guides = [];
       if (this.engine.getView().snapObjects !== false && !(modifiers.ctrlKey || modifiers.metaKey)) {
         const snapped = gesture.targets.snapMove(delta, OBJECT_SNAP_PX / this.engine.getView().zoom);
         delta = { x: delta.x + snapped.correction.x, y: delta.y + snapped.correction.y }; this.#guides = snapped.guides;
       }
-      gesture.drop = this.engine.previewMove(gesture.ids, delta, gesture.duplicate, point);
+      gesture.drop = this.engine.previewMove(gesture.ids, delta, gesture.duplicate, point, raw);
       if (gesture.drop.inFlow) this.#guides = [];
       else if (gesture.duplicate) this.#guides = neighbourGuides(this.engine.getRenderDocument(), this.engine.getRenderSelection());
       gesture.moved = true;
