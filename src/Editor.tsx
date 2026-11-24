@@ -52,6 +52,7 @@ import { EditorEngine } from "./engine/editor";
 import { availableBuilderArrangement } from "./engine/shape-builder";
 import { pageColour, pageOf } from "./engine/document";
 import { canvasBackdrop } from "./engine/page-background-field";
+import { releasePropertyRow } from "./PropertyRow";
 import type { RecoveryStore } from "./backends/recovery";
 import { RecoveryController } from "./engine/recovery";
 import { AssetsPanel, componentDragType } from "./AssetsPanel";
@@ -422,7 +423,7 @@ export function DocumentEditor({ identity, capabilities, engine: suppliedEngine,
         event.preventDefault(); dispatch(snapshot.selection.length ? "transform.nudge" : "view.pan", { dx: event.key === "ArrowRight" ? 1 : event.key === "ArrowLeft" ? -1 : 0, dy: event.key === "ArrowDown" ? 1 : event.key === "ArrowUp" ? -1 : 0, big: event.shiftKey }); return;
       }
       // Escape ends a gesture first; then the engine's order: the rotation origin, the tool, the selection.
-      if (event.key === "Escape") { event.preventDefault(); if (engine.interacting) controller.current?.cancel(); else engine.escape(); return; }
+      if (event.key === "Escape") { event.preventDefault(); if (engine.interacting) controller.current?.cancel(); else if (!engine.clearPropertyRow()) engine.escape(); return; }
     }
     if (!event.altKey && (event.metaKey || event.ctrlKey) && snapshot.selection.length && ["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(event.key)) {
       event.preventDefault(); dispatch("transform.nudgeSize", { dw: event.key === "ArrowRight" ? 1 : event.key === "ArrowLeft" ? -1 : 0, dh: event.key === "ArrowDown" ? 1 : event.key === "ArrowUp" ? -1 : 0, big: event.shiftKey }); return;
@@ -481,6 +482,18 @@ export function DocumentEditor({ identity, capabilities, engine: suppliedEngine,
     // selected the key does nothing (upstream #1875).
     const editing=engine.getVectorEdit();
     if (command==="edit.cut" && event && editing && ![editing,...editing.others].some(part=>part.vertices.length || part.segments.length)) return;
+    // Native property_rows.rs: with a fill, stroke or effect row highlighted, Cmd/Ctrl+C copies that property instead of the layers;
+    // a solid goes to the system clipboard as its hex code, anything else as the kind's marker.
+    if (command==="edit.copy" && engine.propertyRow()) {
+      let copied: {text?: string} | undefined;
+      try { copied=engine.copyPropertyRow(!!trusted); } catch (e) { setError(e instanceof Error ? e.message : "Copy failed"); return; }
+      const text=copied?.text;
+      if (text===undefined) return;
+      if (event) { event.preventDefault(); event.clipboardData.setData("text/plain",text); return; }
+      void writeClipboard("text/plain",async()=>new Blob([text],{type:"text/plain"}))
+        .catch(()=>setError("Copied in Figcraft. The browser could not write the system clipboard."));
+      return;
+    }
     const selected=snapshot.selection.map(id=>snapshot.document.nodes[id]);
     const text=selected.every(node=>node.kind==="text") && selected.map(node=>node.text.characters).join("\n");
     if (!dispatch(command) || !trusted) return;
@@ -591,6 +604,8 @@ export function DocumentEditor({ identity, capabilities, engine: suppliedEngine,
             return;
           }
         }
+        // A paint or effect copied from its row pastes while the clipboard still holds what that copy put there.
+        if (text && engine.pasteProperty(text)) return;
         if (text && engine.ownsLayerClipboardText(text)) { pasteText(text, point); return; }
         if (looksLikeSvg(text)) file=new File([text],"Pasted SVG.svg",{type:"image/svg+xml"});
         file??=transfer?.image;
@@ -964,7 +979,7 @@ export function DocumentEditor({ identity, capabilities, engine: suppliedEngine,
             </>}
             <button onClick={()=>{pasteMenu.current?.hidePopover();canvas.current?.focus();void paste(undefined,pasteAt.current);}}>Paste here</button>
           </div>
-          <canvas ref={canvas} onDragOver={e=>{
+          <canvas ref={canvas} onPointerDownCapture={()=>releasePropertyRow(engine,null)} onDragOver={e=>{
             const asset = draggedAsset.current;
             if (!asset || !editable || busy || !e.dataTransfer.types.includes(componentDragType)) return;
             e.preventDefault(); e.dataTransfer.dropEffect = "copy";
@@ -1040,7 +1055,7 @@ export function DocumentEditor({ identity, capabilities, engine: suppliedEngine,
             <button disabled={!signedIn || busy || !(editable || capabilities.includes("document.comment"))} className="figcraft-comment-tool" aria-label="Comment" aria-pressed={false} title="Comment · C" onClick={()=>{dispatch("tool.comment");canvas.current?.focus();}}><svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16"><path d="M3.88 9.41 A5 5 0 1 1 6.65 12.14 L2.5 13.5 Z" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/></svg></button>
           </div>}
         </div>
-        <aside className="figcraft-properties" aria-label="Design"><div style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}><h2>Design</h2>
+        <aside className="figcraft-properties" aria-label="Design" onPointerDownCapture={event=>releasePropertyRow(engine,event.target)}><div style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}><h2>Design</h2>
           {!editingVector && snapshot.selection.length > 0 && <BooleanMenu document={snapshot.document} selection={snapshot.selection} editable={editable && !busy} dispatch={dispatch} />}</div>
           <VectorPanel engine={engine} editable={editable && !busy} dispatch={dispatch} />
           <div hidden={editingVector}>

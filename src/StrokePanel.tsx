@@ -2,6 +2,7 @@ import { LayerVariablePicker, type InspectorDispatch } from "./StyleVariablePick
 import { usePaintActions } from "./PaintActions";
 import { PaintPicker } from "./PaintPicker";
 import type { EditorEngine } from "./engine/editor";
+import { propertyRowProps } from "./PropertyRow";
 import { useMemo, useState } from "react";
 import { isFrameLike, type LayerNode } from "./engine/document";
 import { parseCssColour } from "./engine/colour-css";
@@ -56,7 +57,7 @@ function StrokeControls({ engine, nodes, editable, dispatch }: Props) {
   }}><label>{label}<input name={key} type="number" required min={min} max={max} step="any" defaultValue={brush[key] * factor} /></label><button type="submit">Apply {label.toLowerCase()}</button></form>;
   return <fieldset className="figcraft-stroke" disabled={!editable} aria-label="Stroke"><legend tabIndex={0} onContextMenu={event => openMenu(event)} onKeyDown={event => openMenu(event)}>Stroke</legend>
     {error && <p role="alert">{error}</p>}
-    {stack === undefined ? <p>Mixed strokes</p> : <ol>{[...stack].map((paint, index) => ({ paint, index })).reverse().map(({ paint, index }, row) => <li key={index} tabIndex={0} onContextMenu={event => openMenu(event,index)} onKeyDown={event => openMenu(event,index)}>
+    {stack === undefined ? <p>Mixed strokes</p> : <ol>{[...stack].map((paint, index) => ({ paint, index })).reverse().map(({ paint, index }, row) => <li key={index} tabIndex={0} {...propertyRowProps(engine, "stroke", index)} onContextMenu={event => openMenu(event,index)} onKeyDown={event => openMenu(event,index)}>
       <form key={JSON.stringify(paint)} onSubmit={event => {
         event.preventDefault(); const data = new FormData(event.currentTarget), colour = String(data.get("colour")), opacity = Number(data.get("opacity"));
         const update: Record<string, unknown> = { ids, index };

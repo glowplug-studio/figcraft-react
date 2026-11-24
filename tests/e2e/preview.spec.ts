@@ -3008,6 +3008,69 @@ test("a translucent page draws over the themed checkerboard and the page row kee
   await expect(opacity).toHaveValue("100");
 });
 
+test("a click on a fill, stroke or effect row highlights it and Cmd/Ctrl+C and V copy and paste that property, as native does",async ({page})=>{
+  const e=new EditorEngine();
+  const rect=(name:string,x:number,fill:string)=>{
+    const id=String((e.execute("shape.rectangle",{x,y:100,width:80,height:80}) as {id:string}).id);
+    e.execute("node.set",{id,props:{fill,name}});
+    return id;
+  };
+  const red=rect("Red square",100,"#FF0000"), b=rect("Green square",300,"#00FF00");
+  e.execute("effect.add",{ids:[red],type:"layerBlur"});
+  await login(page);
+  await page.context().grantPermissions(["clipboard-read","clipboard-write"],{origin:new URL(page.url()).origin});
+  await page.getByLabel("Open Figcraft file",{exact:true}).setInputFiles({name:"rows.figcraft",mimeType:"application/octet-stream",buffer:Buffer.from(await encodeFigcraft(e.getSnapshot().document))});
+  const layers=page.getByRole("region",{name:"Layers",exact:true}), canvas=page.getByLabel("Design canvas",{exact:true});
+  const row=(kind:string,index:number)=>page.locator(`[data-property-row="${kind}:${index}"]`);
+  // A click on the row's own background, beside its controls.
+  const highlight=(kind:string,index:number)=>row(kind,index).evaluate((li:HTMLElement)=>li.click());
+  const fills=async (id:string)=>{
+    const pending=page.waitForEvent("download");
+    await canvas.focus(); await page.keyboard.press("ControlOrMeta+s");
+    const node=(await decodeFigcraft(await readFile((await (await pending).path())!))).document.nodes[id] as RectangleNode;
+    return rectanglePaints(node).map(p=>p.type==="solid" ? p.color : p.type);
+  };
+  await layers.getByRole("button",{name:"Red square"}).click();
+  await highlight("fill",0);
+  await expect(row("fill",0)).toHaveAttribute("aria-current","true");
+  // Escape lets the highlight go and keeps the selection.
+  await canvas.focus(); await page.keyboard.press("Escape");
+  await expect(row("fill",0)).not.toHaveAttribute("aria-current","true");
+  await expect(page.getByRole("region",{name:"Selected rectangle"})).toHaveCount(1);
+  await highlight("fill",0);
+  await canvas.focus(); await page.keyboard.press("ControlOrMeta+c");
+  await expect.poll(()=>page.evaluate(()=>navigator.clipboard.readText())).toBe("#FF0000");
+  // Another layer selected, the paste puts the fill on top of its own and makes no layer.
+  await layers.getByRole("button",{name:"Green square"}).click();
+  await expect(row("fill",0)).not.toHaveAttribute("aria-current","true");
+  await canvas.focus(); await page.keyboard.press("ControlOrMeta+v");
+  await expect.poll(()=>fills(b)).toHaveLength(2);
+  expect((await fills(b)).map(c=>typeof c==="string" ? c : [c.r,c.g,c.b])).toEqual([[0,1,0],[1,0,0]]);
+  await expect(page.getByText("2 layers",{exact:true})).toBeVisible();
+  // With B's fill highlighted the paste replaces it.
+  await page.keyboard.press("ControlOrMeta+z");
+  await highlight("fill",0);
+  await canvas.focus(); await page.keyboard.press("ControlOrMeta+v");
+  await expect.poll(async()=>(await fills(b)).map(c=>typeof c==="string" ? c : [c.r,c.g,c.b])).toEqual([[1,0,0]]);
+  // An effect row copies a marker; the paste puts the blur on B, and a press elsewhere in the panel lets the highlight go.
+  await layers.getByRole("button",{name:"Red square"}).click();
+  await highlight("effect",0);
+  await canvas.focus(); await page.keyboard.press("ControlOrMeta+c");
+  await expect.poll(()=>page.evaluate(()=>navigator.clipboard.readText())).toBe("figcraft://clipboard/effect");
+  await page.getByRole("region",{name:"Appearance"}).getByRole("heading",{name:"Appearance"}).click();
+  await expect(row("effect",0)).not.toHaveAttribute("aria-current","true");
+  await layers.getByRole("button",{name:"Green square"}).click();
+  await canvas.focus(); await page.keyboard.press("ControlOrMeta+v");
+  await expect(page.getByRole("region",{name:"Effects"}).getByRole("listitem")).toHaveCount(1);
+  await expect(page.getByText("2 layers",{exact:true})).toBeVisible();
+  // Without a highlighted row the keyboard copies the layer again.
+  await layers.getByRole("button",{name:"Red square"}).click();
+  await canvas.focus(); await page.keyboard.press("ControlOrMeta+c");
+  await expect.poll(()=>page.evaluate(()=>navigator.clipboard.readText())).not.toBe("figcraft://clipboard/effect");
+  await page.keyboard.press("ControlOrMeta+v");
+  await expect(page.getByText("3 layers",{exact:true})).toBeVisible();
+});
+
 test("transparent page redraw and hidden or locked layers bypass pointer and select all", async ({ page }) => {
   await login(page);
   const appearance = page.getByRole("region", { name: "Appearance" });

@@ -1,6 +1,7 @@
 import { LayerVariablePicker, type InspectorDispatch } from "./StyleVariablePicker";
 import { BlendMenu } from "./BlendMenu";
 import { PaintPicker } from "./PaintPicker";
+import { propertyRowProps } from "./PropertyRow";
 import { usePaintActions } from "./PaintActions";
 import { useState, useSyncExternalStore, type FormEvent } from "react";
 import { parseCssColour } from "./engine/colour-css";
@@ -112,7 +113,7 @@ function AppearanceControls({ engine, page, selected, editable, dispatch, expand
       </form>
       {selected.kind !== "group" && <fieldset disabled={!editable}><legend tabIndex={0} onContextMenu={event => openMenu(event)} onKeyDown={event => openMenu(event)}>Fills</legend>
         {mixed && <p>Click + to replace mixed content</p>}
-        <ol>{paints.map((paint, index) => ({ paint, index })).reverse().map(({ paint, index }, row) => <li key={`${selected.id}:${index}`} tabIndex={0} onContextMenu={event => openMenu(event, index)} onKeyDown={event => openMenu(event, index)}>
+        <ol>{paints.map((paint, index) => ({ paint, index })).reverse().map(({ paint, index }, row) => <li key={`${selected.id}:${index}`} tabIndex={0} {...(regionPaints === undefined && propertyRowProps(engine, "fill", index))} onContextMenu={event => openMenu(event, index)} onKeyDown={event => openMenu(event, index)}>
           <form key={`paint:${selected.id}:${index}:${JSON.stringify(paint)}`} onSubmit={event => {
             event.preventDefault();
             const form = event.currentTarget;

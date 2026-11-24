@@ -1,4 +1,5 @@
 import { LayerVariablePicker, type InspectorDispatch } from "./StyleVariablePicker";
+import { propertyRowProps } from "./PropertyRow";
 import { useRef } from "react";
 import { EffectSettings } from "./EffectSettings";
 import { usePaintActions } from "./PaintActions";
@@ -30,7 +31,7 @@ export function EffectsPanel({engine, editable, dispatch}: {engine: EditorEngine
       const index = stack.length - 1 - row;
       const change = (effect: Effect) => dispatch("effect.set", {ids, index, effect:wireEffect(effect)});
       const open = !!openEffects?.includes(index);
-      return <li key={index} aria-label={'Effect ' + (row + 1)}
+      return <li key={index} aria-label={'Effect ' + (row + 1)} {...propertyRowProps(engine, "effect", index)}
         onContextMenu={event => openMenu(event,index)} onKeyDown={event => openMenu(event,index)}
         onDragOver={event => { if (editable && drag.current?.selection === ids) event.preventDefault(); }}
         onDrop={event => {
@@ -38,7 +39,7 @@ export function EffectsPanel({engine, editable, dispatch}: {engine: EditorEngine
           const source = drag.current; drag.current = undefined;
           if (editable && source?.selection === ids) move(source.index,index);
         }}>
-        <div draggable={editable} onDragStart={event => {
+        <div data-property-grip="" draggable={editable} onDragStart={event => {
           drag.current = {index, selection:ids}; event.dataTransfer.setData("text/plain", effectLabels[e.type]); event.dataTransfer.effectAllowed = "move";
         }} onDragEnd={()=>{drag.current = undefined;}}>
           <button type="button" aria-label={'Effect ' + (row + 1) + ' settings'} aria-expanded={open}

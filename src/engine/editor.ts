@@ -70,7 +70,8 @@ import { fitEditedText, importFontBytes, prepareText, prepareDocumentText, query
 import { creationCharacters, createLayer } from "./creation";
 import { pastePaint, type CopiedPaint } from "./paint-clipboard";
 import { copyPaint, fillSpecs, selectedRegionFills, writeFill } from "./fill-commands";
-import { readPaint, type Paint } from "./solid-paint";
+import { paintColour, readPaint, type Paint } from "./solid-paint";
+import { toCssHex } from "./colour";
 import { executeStrokeList, strokeSpecs } from "./stroke-commands";
 import { newDocument, sameContent, withLayerTransform, type Document, type DrawShapeKind, type TextNode, type NodeId } from "./document";
 import { MAX_IMAGE_BYTES } from "./image-resource";
@@ -105,6 +106,7 @@ import type { Point } from "./geometry";
 import { executeSmartSelection, smartSpecs } from "./smart-selection";
 import { placeMove, type MoveDrop, type MoveSlotCache } from "./layout-drop";
 import { copyLayers, duplicateSelection, executeDuplicate, type Duplicated } from "./duplicate";
+import { followIndex, propertyCopyCommand, propertyListLength, propertyMarker, propertyPasteCommand, type PropertyKind, type PropertyRow } from "./property-rows";
 import { ancestorIds } from "./canvas-selection";
 import { previewResize, type ResizeStart } from "./transform-preview";
 import type { ScaleAnchor } from "./transform-handles";
@@ -286,6 +288,8 @@ export interface EditorSnapshot {
   readonly missingFonts?: readonly MissingFont[];
   readonly paintPicker?: PaintPicker;
   readonly openEffects?: readonly number[];
+  /** Native property_rows.rs: the fill, stroke or effect row highlighted in the Design panel for the selection. */
+  readonly propertyRow?: PropertyRow;
   readonly crop?: CropTarget;
   readonly document: Document;
   readonly selection: readonly NodeId[];
@@ -405,6 +409,64 @@ export class EditorEngine {
   hasCopiedEffect = (): boolean => !!this.#clipboard.effect;
   hasCopiedFill = (): boolean => this.#clipboard.paint?.list === "fill";
   hasCopiedStroke = (): boolean => this.#clipboard.paint?.list === "stroke";
+  #propertyCopy?: { kind: PropertyKind; layers: EditorClipboard["layers"]; mirror?: string };
+  /** The highlighted row, while it belongs to the selection (native `property_rows::current`). */
+  propertyRow(): PropertyRow | undefined {
+    const row = this.#snapshot.propertyRow;
+    return row && sameIds(row.ids, this.#snapshot.selection) ? row : undefined;
+  }
+  /** A click on row `index` of the `kind` list: it is the highlighted row for the selection now. */
+  highlightPropertyRow(kind: PropertyKind, index: number) {
+    const ids = this.#snapshot.selection;
+    if (!ids.length || !(index < (propertyListLength(this.#snapshot.document, ids[0], kind) ?? 0))) return;
+    this.#publish({ propertyRow: Object.freeze({ kind, index, ids }) });
+  }
+  /** Escape, or a press on the canvas or elsewhere in the Design panel: the highlight goes. `true` when one was highlighted. */
+  clearPropertyRow(): boolean {
+    const had = !!this.propertyRow();
+    if (this.#snapshot.propertyRow) this.#publish({ propertyRow: undefined });
+    return had;
+  }
+  #onPropertyClipboard(kind: PropertyKind) {
+    return kind === "effect" ? !!this.#clipboard.effect : this.#clipboard.paint?.list === kind;
+  }
+  /** Cmd/Ctrl+C with a highlighted row (native `copy_highlighted`): copy its paint or effect instead of the layers. Returns what the
+   * system clipboard gets, a solid's hex code or the kind's marker, or `undefined` with no highlighted row. A programmatic copy
+   * (`trusted` false) writes nothing there and keeps no mirror. */
+  copyPropertyRow(trusted: boolean): { text?: string } | undefined {
+    const row = this.propertyRow();
+    if (!row) return;
+    return this.copyProperty(row.kind, row.index, row.ids, trusted);
+  }
+  /** Copy paint or effect `index` of the `kind` list of `ids` (a highlighted row, or the row's menu) as the last thing copied. */
+  copyProperty(kind: PropertyKind, index: number, ids: readonly NodeId[], trusted: boolean): { text?: string } {
+    this.execute(propertyCopyCommand(kind), { ids, index });
+    let text: string | undefined;
+    if (trusted) {
+      const paint = kind === "effect" ? undefined : this.#clipboard.paint?.paint;
+      text = paint?.type === "solid" ? toCssHex(paintColour(paint)) : propertyMarker(kind);
+    }
+    this.#propertyCopy = { kind, layers: this.#clipboard.layers, mirror: text };
+    return { text };
+  }
+  /** Cmd/Ctrl+V (native `property_rows::paste`): when a property copied from its row is the last thing copied, paste it onto the
+   * selected layers, in place of their highlighted row of that kind or else on top, and return `true`. A user's paste passes the
+   * system clipboard's `text`, which must still be this copy's mirror; a programmatic paste passes none. `false` leaves the paste
+   * to the copied layers or the text. */
+  pasteProperty(text?: string): boolean {
+    const copy = this.#propertyCopy;
+    if (!copy) return false;
+    const sameLayers = copy.layers === this.#clipboard.layers, ours = text === undefined || (copy.mirror !== undefined && copy.mirror === text);
+    if (!(sameLayers && ours && this.#onPropertyClipboard(copy.kind))) {
+      // The engine's copy of it is gone (another kind was copied since): nothing to paste, rather than the layers copied before it.
+      return sameLayers && ours;
+    }
+    const ids = this.#snapshot.selection;
+    if (!ids.length) return true;
+    const row = this.propertyRow();
+    this.execute(propertyPasteCommand(copy.kind), { ids, ...(row?.kind === copy.kind && { index: row.index }) });
+    return true;
+  }
   #vectorListeners = new Set<() => void>();
   #viewportAttached = false;
   #viewConfigured = false;
@@ -1482,7 +1544,7 @@ export class EditorEngine {
     const document = patch.document ?? this.#snapshot.document;
     if(!this.#followingView && this.#people?.following!==undefined && document.currentPage!==this.#snapshot.document.currentPage)this.#people.setFollow();
     if (document !== this.#snapshot.document) this.#preparedEdit = undefined;
-    if (patch.editable === false || patch.selection && !sameIds(patch.selection, this.#snapshot.selection)) patch = { ...patch, paintPicker: undefined, openEffects: undefined };
+    if (patch.editable === false || patch.selection && !sameIds(patch.selection, this.#snapshot.selection)) patch = { ...patch, paintPicker: undefined, openEffects: undefined, propertyRow: undefined };
     this.#snapshot = Object.freeze({ ...this.#snapshot, ...patch, canUndo: this.#liveHistory?.canUndo ?? this.#undo.length > 0, canRedo: this.#liveHistory?.canRedo ?? this.#redo.length > 0, dirty: !sameContent(this.#preview?.document ?? document, this.#saved) || this.#history.records !== this.#savedVersions || this.#branches !== this.#savedBranches, hasSaved: this.#downloaded });
     if (this.#lastDuplicate && !duplicateSelection(this.#lastDuplicate, this.#snapshot.selection)) this.#lastDuplicate = undefined;
     if (this.#vectorEdit) this.#vectorEdit = pageForNode(document, this.#vectorEdit.id) === document.currentPage ? clampVectorEdit(document, this.#vectorEdit) : undefined;
@@ -1490,6 +1552,9 @@ export class EditorEngine {
       this.#snapshot = Object.freeze({...this.#snapshot,crop:undefined});
     }
     if (this.#textRange && !this.#textRange.active()) this.#textRange = undefined;
+    // A highlighted row whose paint or effect an undo took away goes (native: a row not drawn lets it go).
+    const row = this.#snapshot.propertyRow;
+    if (row && !(row.index < (propertyListLength(this.#snapshot.document, row.ids[0], row.kind) ?? 0))) this.#snapshot = Object.freeze({...this.#snapshot,propertyRow:undefined});
     this.#vectorListeners.forEach(listener => listener());
     this.#refreshOrigin();
     this.#canvasListeners.forEach(listener => listener());
@@ -1566,6 +1631,17 @@ export class EditorEngine {
   execute(command: "page.list", input?: unknown): ReturnType<typeof listPages>;
   execute(command: string, input?: unknown): Record<string, unknown>;
   execute(command: string, input: unknown = {}): Record<string, unknown> | Variables | ReturnType<typeof listStyles> | ReturnType<typeof listComponents> | ReturnType<typeof listPages> | typeof framePresets | ReturnType<typeof versionDetails>[] | ReturnType<typeof queryFonts> | null {
+    const row = this.#snapshot.propertyRow, result = this.#executeCommand(command, input);
+    // Native `follow`: the highlight follows its paint or effect when rows of its list are reordered or one is removed.
+    // The command's own publish may already have dropped the row (its index past the shorter list), so it is re-placed here.
+    if (row && sameIds(row.ids, this.#snapshot.selection) && (command === row.kind + ".move" || command === row.kind + ".remove")) {
+      const p = parameters(input), moved = command.endsWith(".move");
+      const index = followIndex(row.index, Number(moved ? p.from : p.index), moved ? Number(p.to) : undefined);
+      this.#publish({ propertyRow: index === undefined ? undefined : Object.freeze({ ...row, index }) });
+    }
+    return result;
+  }
+  #executeCommand(command: string, input: unknown = {}): Record<string, unknown> | Variables | ReturnType<typeof listStyles> | ReturnType<typeof listComponents> | ReturnType<typeof listPages> | typeof framePresets | ReturnType<typeof versionDetails>[] | ReturnType<typeof queryFonts> | null {
     if (!Object.hasOwn(commandSpecs, command)) throw new Error(`Unsupported command: ${command}`);
     if(Object.hasOwn(onlineCommands,command))throw new Error(command+" requires executeAsync");
     if(command==="collab.diff" || command==="collab.removePerson" || command==="collab.stop" || command==="collab.serverInfo")throw new Error(command+" requires executeAsync");
