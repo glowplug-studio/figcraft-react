@@ -808,3 +808,7 @@ Native `crates/engine/src/cmd/arrange.rs::{align_target, in_auto_layout_flow, al
 ## Delta row 4: the auto layout drag reorder — 24 November 2026
 
 Native `crates/engine/src/canvas/drop.rs::{auto_layout_slot_within, slot_in}` at `bad07e44` (upstream `cf567c3f`, `e415a3a0`, #2142) maps to the `dragged` edges of `layout-navigation.ts::prepareAutoLayoutSlot` at `ab5c190`; the `within` and `raw` drag of `crates/engine/src/canvas/tools/drag.rs` to `layout-drop.ts::placeMove`, `editor.ts::previewMove` and `move-interaction.ts`. Verified by `tests/parity/auto-layout-drag-reorder.test.ts`, restating native `al_drag_tests`, and a browser case in `tests/e2e/preview.spec.ts`. [Report](../reports/26-11-24-auto-layout-drag-reorder.md).
+
+## Delta row 5: inherited slot properties — 24 November 2026
+
+Native `crates/engine/src/assets/components/sync.rs::{copy_layers, apply_enclosing_props}` at `bad07e44` (upstream `a6d9b74d`, `a66946d1`, `2067a0b5`) maps to the `InstanceScope` scopes of `component-sync.ts` and `component-bindings.ts::boundCopy` at `4f762c3`; `components.rs::owning_component` maps to `component-tree.ts::owningMainComponent`. Verified by four native scenes in `tests/fixtures/native-slot-inherited-properties.json`, `tests/parity/slot-inherited-properties.test.ts` and a browser case in `tests/e2e/preview.spec.ts`. [Report](../reports/26-11-24-slot-inherited-properties.md).

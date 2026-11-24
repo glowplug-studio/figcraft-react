@@ -2,12 +2,12 @@
 
 ## Execution checkpoint
 
-- Phase: Phase 1 on 24 November 2026: the row's upstream commits are listed and its items ordered; item 1 is next. Each item is opened with its own dated plan, which reads the whole commit range for the files it touches.
+- Phase: items 1 to 1 complete through Phase 7 at `4f762c3` ([inherited slot properties](../reports/26-11-24-slot-inherited-properties.md)). Item 2 is next. Each item is opened with its own dated plan.
 - Native reference: `bad07e4433240cad046589129c084bd2fc36f097` (`bad07e44`). React revision: the row 4 records commit on `prompt/full-figcraft-port`.
 - Source queue: row 5 of the [upstream delta queue](26-11-15-upstream-delta.md), range `7bf098d7..bad07e44`, with its commits taken from the [commit ledger](26-11-20-upstream-delta-ledger.md).
 - Files in progress: none.
 - Native oracle: `$HOME/.cache/figcraft-oracle/project`; `replay` runs command sequences through the pinned engine and observes component, variable and style commands and their receipts.
-- Next action: open item 1, inherited slot properties (ledger 5.1, upstream `a6d9b74d`, `a66946d1`, `2067a0b5`): an instance's inherited slot property resolves by the component that defines it (`crates/engine/src/assets/components/sync.rs`; port `component-properties.ts` and the component sync). Observe through `replay`, restate native `slot_tests` as failing cases, port, gate and record.
+- Next action: open item 2, the properties an instance lists (ledger 5.2, upstream `14670b99`, #2022): an instance lists only the boolean, text and instance swap properties a layer of its component reads (a nested instance counts, its layers and slot content are not entered), slots always; sets, components and variants still list every definition (`crates/engine/src/assets/components.rs::instance_prop_list`, `cmd/component/props.rs::describe_props`; port `component-variants.ts::describeComponentProperties`, `InstancePanel.tsx`). Observe through `replay`, port, gate and record.
 - Blockers: none. Oracle builds are CPU-heavy; do not run them during a browser gate.
 
 ## Why the order
@@ -16,8 +16,8 @@ Items that engine commands decide come first, since `replay` observes them: slot
 
 | Item | Ledger | Upstream behaviour | Native files and tests | React files | Status |
 |---|---|---|---|---|---|
-| 1 | 5.1 | Inherited slot properties resolve by their defining component (`a6d9b74d`, `a66946d1`, `2067a0b5`) | `engine/src/assets/components/sync.rs`; `engine/src/slot_tests.rs` | `component-properties.ts`, component sync | Next |
-| 2 | 5.2 | An instance lists the properties its variant uses; long property names stay on one line (#2022; `14670b99`) | `engine/src/assets/components.rs`, `cmd/component/props.rs`, `format/src/fig/prop_value_tests.rs`; `prop_order_tests.rs` | component properties, `InstancePanel.tsx` | Not started |
+| 1 | 5.1 | Inherited slot properties resolve by their defining component (`a6d9b74d`, `a66946d1`, `2067a0b5`) | `engine/src/assets/components/sync.rs`; `engine/src/slot_tests.rs` | `component-properties.ts`, component sync | Verified at `4f762c3` with native observations ([plan](26-11-24-slot-inherited-properties.md)) |
+| 2 | 5.2 | An instance lists the properties its variant uses; long property names stay on one line (#2022; `14670b99`) | `engine/src/assets/components.rs`, `cmd/component/props.rs`, `format/src/fig/prop_value_tests.rs`; `prop_order_tests.rs` | component properties, `InstancePanel.tsx` | Next; native observed |
 | 3 | 5.6 | Text styles: bind a number variable to the weight (#2174; `ccb33e0b`, `281918e2`) | `engine/src/assets/style_vars.rs`, `token_roles.rs`, `cmd/styles.rs`; `style_vars_tests.rs` | style variables, `SharedStylesPanel.tsx` | Not started |
 | 4 | 5.5 | Variables: bulk Edit variables, Duplicate group, duplicate by exact id, slash rename with rollback, page modes with nothing selected (#2082, #2084, #2353, #2215; nine commits) | `engine/src/cmd/variables.rs`, `ui-egui/src/dialogs/variables_panel.rs`; `variables_editor_tests.rs`, `variables_select_tests.rs`, `a11y_tests.rs` | variable commands, the variables panel | Not started |
 | 5 | 5.4 | Create multiple components and Create component set in the component button's menu, with refusals (#2088, #2095; `f5a52ea5`, `524ad8b1`, `253e0c3d`, `dda27030`) | `ui-egui/src/panels/right.rs`; `components_behaviour_tests.rs`, `create_multiple_menu_tests.rs` | `ComponentPanel.tsx` | Not started |
