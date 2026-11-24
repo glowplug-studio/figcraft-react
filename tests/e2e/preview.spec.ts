@@ -7389,6 +7389,33 @@ test("loading a browser font file resolves a missing family and saves its refitt
   if (node.kind==="text") { expect(node.width).toBeGreaterThan(1); expect(node.width).toBeLessThan(999); }
 });
 
+test("a font file loaded in the browser wins over the built-in face of its family and style, the latest load first, as native does",async ({page})=>{
+  const {retitledFont}=await import("../support/renamedFont");
+  const native=(await import("../fixtures/native-loaded-font-priority.json",{with:{type:"json"}})).default;
+  const widths=native.cases[0].steps.filter(s=>s.command==="node.get").map(s=>(s.receipt as {width:number}).width);
+  const e=new EditorEngine(), id=String((await e.executeAsync("text.create",{text:"Wide wording here",name:"Priority",x:20,y:30})).id);
+  await login(page);
+  await page.getByLabel("Open Figcraft file",{exact:true}).setInputFiles({name:"priority.figcraft",mimeType:"application/octet-stream",buffer:Buffer.from(await encodeFigcraft(e.getSnapshot().document))});
+  await page.getByRole("region",{name:"Layers",exact:true}).getByRole("button",{name:"Priority"}).click();
+  const panel=page.getByRole("group",{name:"Typography",exact:true});
+  await panel.getByText("More typography options",{exact:true}).click();
+  const input=panel.getByLabel("Load font file",{exact:true});
+  const savedWidth=async ()=>{
+    const download=page.waitForEvent("download");
+    await page.getByRole("button",{name:"Save as",exact:true}).click();
+    const node=(await decodeFigcraft(await readFile((await (await download).path())!))).document.nodes[id];
+    return node.kind==="text" ? node.width : undefined;
+  };
+  const before=await savedWidth();
+  const fonts:[string,Parameters<typeof retitledFont>[0]][]=[["bold.ttf","Bold"],["semibold.ttf","SemiBold"],["bold-again.ttf","Bold"]];
+  for (const [index,[name,source]] of fonts.entries()) {
+    await input.setInputFiles({name,mimeType:"font/ttf",buffer:await retitledFont(source,"Inter","Regular")});
+    await expect.poll(savedWidth).toBe(widths[index]);
+  }
+  expect(before).not.toBe(widths[0]);
+  await expect(panel.getByLabel("Font style",{exact:true}).locator("option")).toHaveText(["Regular","Italic","SemiBold","Bold"]);
+});
+
 test("variable font axes preview on drag, cancel, commit once and survive native download",async ({page})=>{
   const engine=new EditorEngine(), id=String((await engine.executeAsync("text.create",{name:"Variable sample",text:"ქართული ტექსტი",x:110,y:80})).id);
   engine.execute("node.set",{id,props:{fontFamily:"Noto Sans Georgian",fontSize:34}});

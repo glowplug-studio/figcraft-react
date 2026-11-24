@@ -1,0 +1,202 @@
+{
+ "nativeRevision": "bad07e4433240cad046589129c084bd2fc36f097",
+ "note": "Each case: commands run natively in a new document with replay. A text.loadFont step's font is [packaged Inter source style, family, style]: that file with its name table rebuilt for the family and style (tests/support/renamedFont.ts retitledFont, byte for byte the files loaded natively). node.get keeps width, height, fontFamily and fontStyle. The native build has no embedded fonts, so Inter there is only the loaded faces; the port's built-in Inter Regular must lose to them the same way.",
+ "cases": [
+  {
+   "name": "builtin",
+   "steps": [
+    {
+     "command": "text.create",
+     "params": {
+      "text": "Wide wording here",
+      "name": "T",
+      "x": 0,
+      "y": 0
+     },
+     "receipt": {
+      "id": 2
+     }
+    },
+    {
+     "command": "text.loadFont",
+     "params": {
+      "font": [
+       "Bold",
+       "Inter",
+       "Regular"
+      ]
+     },
+     "receipt": {
+      "families": [
+       "Inter"
+      ],
+      "refitted": [
+       2
+      ]
+     }
+    },
+    {
+     "command": "node.get",
+     "params": {
+      "id": 2
+     },
+     "receipt": {
+      "width": 111,
+      "height": 15,
+      "fontFamily": "Inter",
+      "fontStyle": "Regular"
+     }
+    },
+    {
+     "command": "text.loadFont",
+     "params": {
+      "font": [
+       "SemiBold",
+       "Inter",
+       "Regular"
+      ]
+     },
+     "receipt": {
+      "families": [
+       "Inter"
+      ],
+      "refitted": [
+       2
+      ]
+     }
+    },
+    {
+     "command": "node.get",
+     "params": {
+      "id": 2
+     },
+     "receipt": {
+      "width": 110,
+      "height": 15,
+      "fontFamily": "Inter",
+      "fontStyle": "Regular"
+     }
+    },
+    {
+     "command": "text.loadFont",
+     "params": {
+      "font": [
+       "Bold",
+       "Inter",
+       "Regular"
+      ]
+     },
+     "receipt": {
+      "families": [
+       "Inter"
+      ],
+      "refitted": []
+     }
+    },
+    {
+     "command": "node.get",
+     "params": {
+      "id": 2
+     },
+     "receipt": {
+      "width": 110,
+      "height": 15,
+      "fontFamily": "Inter",
+      "fontStyle": "Regular"
+     }
+    },
+    {
+     "command": "text.fonts",
+     "params": {
+      "family": "Inter"
+     },
+     "receipt": [
+      "Regular"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "proof",
+   "steps": [
+    {
+     "command": "text.loadFont",
+     "params": {
+      "font": [
+       "Regular",
+       "Proof",
+       "Regular"
+      ]
+     },
+     "receipt": {
+      "families": [
+       "Proof"
+      ],
+      "refitted": []
+     }
+    },
+    {
+     "command": "text.loadFont",
+     "params": {
+      "font": [
+       "Bold",
+       "Proof",
+       "Regular"
+      ]
+     },
+     "receipt": {
+      "families": [
+       "Proof"
+      ],
+      "refitted": []
+     }
+    },
+    {
+     "command": "text.create",
+     "params": {
+      "text": "Wide wording here",
+      "name": "T",
+      "x": 0,
+      "y": 0
+     },
+     "receipt": {
+      "id": 2
+     }
+    },
+    {
+     "command": "node.set",
+     "params": {
+      "id": 2,
+      "props": {
+       "fontFamily": "Proof"
+      }
+     },
+     "receipt": {
+      "ok": true
+     }
+    },
+    {
+     "command": "node.get",
+     "params": {
+      "id": 2
+     },
+     "receipt": {
+      "width": 111,
+      "height": 15,
+      "fontFamily": "Proof",
+      "fontStyle": "Regular"
+     }
+    },
+    {
+     "command": "text.fonts",
+     "params": {
+      "family": "Proof"
+     },
+     "receipt": [
+      "Regular"
+     ]
+    }
+   ]
+  }
+ ]
+}

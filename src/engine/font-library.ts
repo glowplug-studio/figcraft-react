@@ -36,6 +36,9 @@ function pendingDistance(want:string,have:string) {
 /** Loaded faces and the names of browser fonts awaiting their first use. */
 export class FontLibrary {
   readonly #families = new Map<string,ShapingFace[]>();
+  /** Faces loaded with text.loadFont, in load order; a family with one is searched latest load first. */
+  readonly #loaded = new Map<ShapingFace,number>();
+  readonly #ranked = new Map<string,readonly ShapingFace[]>();
   readonly #names=new Map<string,string>();
   readonly #pending=new Map<string,LocalFontName[]>();
   readonly #offered=new Map<number,LocalFontName>();
@@ -52,8 +55,18 @@ export class FontLibrary {
     if (group) group.push(face);
     else this.#families.set(key,[face]);
     this.#name(key,face.family);
+    const faces=this.#families.get(key)!;
+    // Native sorts by load, latest first; faces never loaded keep the order they were added in.
+    if (faces.some(f=>this.#loaded.has(f))) this.#ranked.set(key,[...faces].sort((a,b)=>(this.#loaded.get(b) ?? 0)-(this.#loaded.get(a) ?? 0)));
     this.#fallbacks.clear();
     this.#emoji=undefined;
+  }
+
+  /** A face loaded explicitly (text.loadFont): it wins over the other faces of its family and style, and earlier loads. */
+  addLoaded(face: ShapingFace) {
+    if (this.#loaded.has(face)) return;
+    this.#loaded.set(face,this.#loaded.size+1);
+    this.add(face);
   }
 
   #name(key:string,name:string) {
@@ -225,7 +238,7 @@ export class FontLibrary {
   }
 
   find(family: string,style: string, source:"family"|"fallback"|"emoji"="family") {
-    const [key,requested] = this.#resolve(family,style), faces = this.#families.get(key);
+    const [key,requested] = this.#resolve(family,style), faces = this.#ranked.get(key) ?? this.#families.get(key);
     if (!faces) { this.#requestNearest(key,requested,source==="fallback"); return undefined; }
     const normal = normaliseFontStyle(requested);
     const exact = faces.find(face=>normaliseFontStyle(face.style) === normal) ?? faces.find(face=>hasStyle(face,normal));

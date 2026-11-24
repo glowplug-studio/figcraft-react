@@ -88,7 +88,7 @@ export async function importFontBytes(bytes:Uint8Array<ArrayBuffer>, checkCurren
   if (!faces.length) throw new Error("Not a font file");
   const families:string[]=[];
   for (const face of faces) {
-    fonts!.add(face);
+    fonts!.addLoaded(face);
     if (families.at(-1)!==face.family) families.push(face.family);
   }
   importedFonts.set(digest,Object.freeze(families));
