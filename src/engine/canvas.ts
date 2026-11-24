@@ -13,6 +13,8 @@ import { CanvasTextInput } from "./canvas-text-input";
 import { paintText } from "./text-painter";
 import { beginGlassFrame } from "./glass-shape";
 import { backdropParent } from "./backdrop-stack";
+import { beneathDocument } from "./backdrop-document";
+import { backdropPadding, hasBackdrop } from "./backdrop-renderer";
 import { effectMargin, effectReach, usesPixelLayer, drawLayerEffects } from "./layer-effects-renderer";
 import type { ShadowLayer } from "./shadow-renderer";
 import { compositeSurface } from "./blend-composite";
@@ -515,7 +517,8 @@ export async function renderPatternTile(doc:Document,source:LayerNode,cell:Patte
 
 /** File previews include the page colour. Asset previews use the same paint pipeline on transparency. */
 export async function renderAreaPixels(canvas: HTMLCanvasElement, doc: Document, bound: Rectangle, scale: number,
-  roots: readonly string[] | undefined, signal?: AbortSignal, rounding = 0, background?: PageNode, profile: ColourProfile = "srgb", flatten = false, depth=0) {
+  roots: readonly string[] | undefined, signal?: AbortSignal, rounding = 0, background?: PageNode, profile: ColourProfile = "srgb", flatten = false, depth=0,
+  under?: { canvas: HTMLCanvasElement; pad: number }) {
   if (!documentTextReady(doc)) await prepareDocumentText(doc);
   if (signal?.aborted) return false;
   canvas.width = Math.max(1, Math.ceil(scale * bound.width - rounding));
@@ -529,14 +532,18 @@ export async function renderAreaPixels(canvas: HTMLCanvasElement, doc: Document,
   ctx.scale(scale, scale);
   ctx.translate(-bound.x, -bound.y);
   beginGlassFrame();
-  let steps: PaintSteps;
-  if (roots) steps = drawExportLayers(ctx, doc, roots, scale, depth);
-  else {
-    const page = doc.nodes[doc.pages[0]];
-    if (page.kind !== "page") return false;
-    steps = drawChildren(ctx, doc, page.children, 0, 0, scale);
-  }
-  if (!await paintExportSteps(doc,steps,signal)) return false;
+  // A backdrop effect reads what lies under this transparent surface from the seed, offset by its padding.
+  const detach = under ? backdropParent(ctx, under.canvas.getContext("2d")!, under.pad, under.pad, 1, "normal") : undefined;
+  try {
+    let steps: PaintSteps;
+    if (roots) steps = drawExportLayers(ctx, doc, roots, scale, depth);
+    else {
+      const page = doc.nodes[doc.pages[0]];
+      if (page.kind !== "page") return false;
+      steps = drawChildren(ctx, doc, page.children, 0, 0, scale);
+    }
+    if (!await paintExportSteps(doc,steps,signal)) return false;
+  } finally { detach?.(); }
   if (flatten) {
     ctx.save(); ctx.resetTransform(); ctx.globalCompositeOperation = "destination-over";
     ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, canvas.width, canvas.height); ctx.restore();
@@ -567,9 +574,14 @@ export async function renderAssetThumbnail(canvas: HTMLCanvasElement, doc: Docum
 
 export async function renderRasterExport(doc: Document, selection: readonly string[], params: Record<string, unknown>, format: "png" | "jpg" | "webp", savedSize?: import("./export-area").ExportSize, drawn?: readonly string[]) {
   const plan = rasterExportPlan(doc, selection, params, savedSize);
-  const scratch = globalThis.document.createElement("canvas");
+  const scratch = globalThis.document.createElement("canvas"), seed = globalThis.document.createElement("canvas");
   try {
-    const rendered = await renderAreaPixels(scratch, doc, plan.area, plan.scale, drawn ?? plan.drawn, undefined, 1e-6, undefined, plan.profile, format === "jpg");
+    // Native cmd/file.rs::export_file and render_area_over (upstream #2213): layers exported on their own still read the
+    // page beneath them for a background blur or glass. The seed is the page under the first drawn layer, padded by
+    // the furthest those effects reach and clipped to the export area; only the drawn layers are painted on top. A
+    // "contents only" off export already draws the page, and Copy as PNG (an explicit `drawn`) renders the area alone.
+    const under = !drawn && plan.contentsOnly ? await exportBackdrop(seed, doc, plan) : undefined;
+    const rendered = await renderAreaPixels(scratch, doc, plan.area, plan.scale, drawn ?? plan.drawn, undefined, 1e-6, undefined, plan.profile, format === "jpg", 0, under);
     if (!rendered) throw new Error("Could not render the export area");
     const mime = format === "jpg" ? "image/jpeg" : "image/" + format;
     const blob = format === "jpg"
@@ -579,7 +591,24 @@ export async function renderRasterExport(doc: Document, selection: readonly stri
     if (format === "png") return (await import("./export-png")).tagExportPng(blob, plan.profile);
     const { tagExportJpeg, tagExportWebp } = await import("./export-image-profile");
     return format === "jpg" ? tagExportJpeg(blob, plan.profile) : tagExportWebp(blob, plan.profile);
-  } finally { scratch.width = scratch.height = 0; }
+  } finally { scratch.width = scratch.height = seed.width = seed.height = 0; }
+}
+
+/** The seed a raster export's backdrop effects read, or nothing when no drawn layer has one. */
+async function exportBackdrop(seed: HTMLCanvasElement, doc: Document, plan: ReturnType<typeof rasterExportPlan>) {
+  const first = plan.drawn[0];
+  if (first === undefined || !plan.pageLayers.length) return undefined;
+  let pad = 0;
+  for (const root of plan.drawn) for (const id of subtreeIds(doc, root)) {
+    const node = doc.nodes[id];
+    if (node && node.kind !== "page" && node.visible !== false && hasBackdrop(node)) pad = Math.max(pad, backdropPadding(node, plan.scale));
+  }
+  if (!pad) return undefined;
+  const p = pad / plan.scale, area = { x: plan.area.x - p, y: plan.area.y - p, width: plan.area.width + 2 * p, height: plan.area.height + 2 * p };
+  // In the document's colour space: the export converts once, when it encodes.
+  if (!await renderAreaPixels(seed, beneathDocument(doc, plan.pageLayers, first), area, plan.scale, plan.pageLayers, undefined, 1e-6,
+    undefined, doc.colourProfile ?? "srgb")) return undefined;
+  return { canvas: seed, pad };
 }
 
 export async function renderFileThumbnail(doc: Document): Promise<Blob | undefined> {

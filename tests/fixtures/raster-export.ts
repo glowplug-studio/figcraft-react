@@ -9,6 +9,18 @@ export async function replay(commands: readonly (readonly unknown[])[]) {
   return String(result.data);
 }
 
+/** Copy as PNG: the raster export of the selected layers' area, through the clipboard path. */
+export async function replayClipboard(commands: readonly (readonly unknown[])[], ids: readonly number[]) {
+  const engine = new EditorEngine();
+  for (const [command, params] of commands) engine.execute(String(command), params);
+  engine.execute("select.set", {ids});
+  const { blob } = await engine.exportRaster({format: "png"}, true);
+  const bytes = new Uint8Array(await blob.arrayBuffer());
+  let text = "";
+  for (const byte of bytes) text += String.fromCharCode(byte);
+  return btoa(text);
+}
+
 export async function replayBatch(commands: readonly (readonly unknown[])[]) {
   const engine = new EditorEngine();
   for (const [command, params] of commands.slice(0,-1)) engine.execute(String(command),params);

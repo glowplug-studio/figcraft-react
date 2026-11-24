@@ -11,6 +11,7 @@ import svgDashes from "../fixtures/native-svg-dash-export.json" with { type: "js
 import svgImages from "../fixtures/native-svg-effect-images.json" with { type: "json" };
 import jobCases from "../fixtures/native-export-jobs.json" with { type: "json" };
 import codecs from "../fixtures/native-raster-codecs.json" with { type: "json" };
+import backdrops from "../fixtures/native-backdrop-export.json" with { type: "json" };
 import { embeddedIcc } from "../../src/engine/icc-container";
 import { iccDescription } from "../../src/engine/image-profile";
 import { jpegHeader } from "../../src/engine/jpeg-header";
@@ -60,6 +61,49 @@ test("PNG export matches independently rendered native pixels, size and colour t
     if (entry.name === "p3 tag") expect(chunks).toEqual(expect.arrayContaining(["cICP", "iCCP"]));
     else expect(chunks).toContain("sRGB");
   }
+});
+
+// Upstream #2213 (020388cf, a1de7dcd), observed natively at bad07e44 (tests/fixtures/native-backdrop-export.provenance.md):
+// a background blur or glass exported on its own reads the page beneath it; only the exported layers are drawn.
+test("a background blur or glass exported on its own keeps the content behind it, as native exports it", async ({ page }) => {
+  await loadExporter(page);
+    const run = async (commands: unknown[]) => PNG.sync.read(Buffer.from(await page.evaluate(c => (window as unknown as { FigcraftRaster: { replay: typeof replay } }).FigcraftRaster.replay(c as never), commands), "base64"));
+  // Premultiplied comparison, as the PNG test above: within 2 units of the native rasteriser per channel.
+  const near = (actual: { width: number; height: number; data: Buffer }, native: { width: number; height: number; data: Buffer }, name: string) => {
+    expect([actual.width, actual.height], name).toEqual([native.width, native.height]);
+    let worst = 0;
+    for (let i = 0; i < actual.data.length; i += 4) {
+      const alpha = actual.data[i + 3], nativeAlpha = native.data[i + 3];
+      worst = Math.max(worst, Math.abs(alpha - nativeAlpha));
+      for (let c = 0; c < 3; c++) worst = Math.max(worst, Math.abs((actual.data[i + c] * alpha - native.data[i + c] * nativeAlpha) / 255));
+    }
+    expect(worst, name).toBeLessThanOrEqual(2);
+  };
+  const pixel = (img: { width: number; data: Buffer }, x: number, y: number) => Array.from(img.data.subarray((y * img.width + x) * 4, (y * img.width + x) * 4 + 4));
+  for (const c of backdrops.cases) {
+    const alone = await run([...c.scene, ["file.export", c.alone]]), whole = await run([...c.scene, ["file.export", c.page]]);
+    near(alone, PNG.sync.read(Buffer.from(c.alonePng, "base64")), c.name + " (alone)");
+    near(whole, PNG.sync.read(Buffer.from(c.pagePng, "base64")), c.name + " (contents only off)");
+    // The native tests' own assertions, on the port's output.
+    if (c.name.startsWith("a background blur layer")) expect(pixel(alone, 60, 40)).toEqual(pixel(whole, 60, 40));
+    if (c.name.startsWith("a glass layer")) { expect(pixel(alone, 30, 40)).toEqual(pixel(whole, 30, 40)); expect(pixel(alone, 60, 40)).toEqual(pixel(whole, 60, 40)); }
+    if (c.name.startsWith("a blur export is opaque")) {
+      const left = pixel(alone, 10, 40);
+      expect(left[3]).toBe(255); expect(left[0]).toBeGreaterThan(150); expect(left[2]).toBeLessThan(60); expect(pixel(alone, 110, 40)[3]).toBe(0);
+    }
+    if (c.name.startsWith("a layer without backdrop effects")) expect(alone.data.every((v, i) => i % 4 !== 3 || v === 0)).toBe(true);
+    if (c.name.startsWith("a blurred pane inside a frame")) { expect(pixel(alone, 60, 40)).toEqual(pixel(whole, 60, 40)); expect(pixel(alone, 100, 40)[3]).toBe(255); }
+  }
+  // A saved export setting goes through the same render: each file.exportLayers job equals file.export of the layer.
+  const blur = backdrops.cases[0];
+  const job = await page.evaluate(c => (window as unknown as { FigcraftRaster: { replayBatch: typeof import("../fixtures/raster-export").replayBatch } }).FigcraftRaster.replayBatch([...c.scene, ["export.add", { ids: [3], setting: {} }], ["file.exportLayers", { ids: [3] }]] as never), blur);
+  const record = (job.files as { data: string }[])[0];
+  near(PNG.sync.read(Buffer.from(record.data, "base64")), PNG.sync.read(Buffer.from(blur.alonePng, "base64")), "saved setting");
+  // Copy as PNG renders the selected area alone, as native copy_png does through render_area: a fill-less blurred pane
+  // with nothing of its own copies clear.
+  const copied = PNG.sync.read(Buffer.from(await page.evaluate(c => (window as unknown as { FigcraftRaster: { replayClipboard: typeof import("../fixtures/raster-export").replayClipboard } }).FigcraftRaster.replayClipboard(c.scene as never, [3]), blur), "base64"));
+  expect([copied.width, copied.height]).toEqual([120, 80]);
+  expect(copied.data.every((v, i) => i % 4 !== 3 || v === 0)).toBe(true);
 });
 
 test("lossless WebP and baseline JPEG retain native profiles, alpha and full chroma", async ({ page }) => {

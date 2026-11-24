@@ -95,7 +95,7 @@ export function exportRegion(doc: Document, selection: readonly string[], p: Rec
   }
   if (!area || !layers.length) throw new Error("nothing to export");
 
-  return { area, drawn };
+  return { area, drawn, pageLayers: parentPage.children, contentsOnly };
 }
 
 export function rasterExportPlan(doc: Document, selection: readonly string[], p: Record<string, unknown>, savedSize?: ExportSize) {
@@ -104,7 +104,7 @@ export function rasterExportPlan(doc: Document, selection: readonly string[], p:
   const quality = p.quality === undefined ? 90 : typeof p.quality === "boolean" ? NaN : parseNumber(p.quality, "quality");
   if (!Number.isInteger(quality) || quality < 1 || quality > 100) throw new Error("quality: a whole number from 1 to 100 (JPG)");
   const size = savedSize ?? (p.size == null ? undefined : exportSize(p.size));
-  const { area, drawn } = exportRegion(doc, selection, p);
+  const { area, drawn, pageLayers, contentsOnly } = exportRegion(doc, selection, p);
   let scale: number;
   if (!size) scale = Math.max(0.01, Math.min(64, p.scale == null ? 1 : parseNumber(p.scale)));
   else if (size.by === "scale") scale = size.value;
@@ -115,5 +115,5 @@ export function rasterExportPlan(doc: Document, selection: readonly string[], p:
   if (size) scale = Number.isFinite(scale) && scale > 0 ? Math.min(scale,64) : 1;
   const width = Math.max(1, Math.ceil(area.width * scale - 1e-6)), height = Math.max(1, Math.ceil(area.height * scale - 1e-6));
   if (width > 16384 || height > 16384 || !Object.values(area).every(Number.isFinite)) throw new Error("render failed (empty or too large)");
-  return { area, drawn, scale, width, height, profile: profile as ColourProfile, quality };
+  return { area, drawn, pageLayers, contentsOnly, scale, width, height, profile: profile as ColourProfile, quality };
 }

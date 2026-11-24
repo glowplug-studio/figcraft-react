@@ -2,7 +2,8 @@ import { multiply, transformBounds, type Affine } from "./affine";
 import { hasBackdrop, renderBackdrop, backdropPadding } from "./backdrop-renderer";
 import { maskOutline } from "./boolean-result";
 import { renderAreaPixels } from "./canvas";
-import { isFrameLike,isLeaf,type Document,type DocumentNode,type LayerNode } from "./document";
+import { beneathDocument } from "./backdrop-document";
+import { isFrameLike,type Document,type LayerNode } from "./document";
 import type { Rectangle } from "./geometry";
 import { worldTransform } from "./hierarchy";
 import { intersect } from "./render-bounds";
@@ -24,32 +25,6 @@ export function isolatedEffectDocument(doc:Document,node:LayerNode,plain:boolean
   return {...doc,nodes};
 }
 
-function beneath(doc:Document, roots:readonly string[], id:string):Document {
-  const nodes:Record<string,DocumentNode>={...doc.nodes};
-  function hide(key:string) {
-    const n=nodes[key];
-    if (n && n.kind!=="page") nodes[key]={...n,visible:false};
-  }
-  hide(id);
-  let current=id;
-  for (let depth=0;depth<=256;depth++) {
-    const root=roots.indexOf(current);
-    if (root>=0) { for (let i=root+1;i<roots.length;i++) hide(roots[i]); break; }
-    const parentId=nodes[current]?.parent;
-    if (!parentId) break;
-    const p=nodes[parentId];
-    if (!p || isLeaf(p)) break;
-    const siblings=p.children, index=siblings.indexOf(current);
-    if (index>=0) {
-      if (isFrameLike(p) && p.layout?.reverseZ) { for (let i=0;i<index;i++) hide(siblings[i]); }
-      else for (let i=index+1;i<siblings.length;i++) hide(siblings[i]);
-    }
-    nodes[parentId]={...p,strokes:[]};
-    current=parentId;
-  }
-  return {...doc,nodes};
-}
-
 export async function backdropPixels<T>(doc:Document,node:LayerNode,roots:readonly string[],consume:(canvas:HTMLCanvasElement,v:EffectView)=>Promise<T>,keep?:Rectangle) {
   if (!hasBackdrop(node)) return;
   const outline=isFrameLike(node) ? shapePath(node) : maskOutline(doc,node,0)?.path;
@@ -63,7 +38,7 @@ export async function backdropPixels<T>(doc:Document,node:LayerNode,roots:readon
   const canvas=document.createElement("canvas");
   let rendered:CanvasRenderingContext2D|undefined;
   try {
-    await renderAreaPixels(canvas,beneath(doc,roots,node.id),area,v.scale,roots,undefined,1e-6);
+    await renderAreaPixels(canvas,beneathDocument(doc,roots,node.id),area,v.scale,roots,undefined,1e-6);
     const ctx=canvas.getContext("2d")!;
     if (keep) {
       const pixel=(a:number,b:number)=>Math.ceil((a-b)*v.scale-.5);
