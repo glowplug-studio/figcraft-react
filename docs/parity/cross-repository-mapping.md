@@ -816,3 +816,7 @@ Native `crates/engine/src/assets/components/sync.rs::{copy_layers, apply_enclosi
 ## Delta row 5: the properties an instance lists — 24 November 2026
 
 Native `crates/engine/src/assets/components.rs::instance_prop_list` at `bad07e44` (upstream `14670b99`, #2022) maps to `component-variants.ts::instancePropertyNames` at `dad7613`; `crates/engine/src/cmd/component/props.rs::describe_props` to `describeComponentProperties`; native's Properties panel to `InstancePanel.tsx`. Verified by two native scenes in `tests/fixtures/native-instance-properties.json`, `tests/parity/instance-properties.test.ts` and a browser case in `tests/e2e/preview.spec.ts`. [Report](../reports/26-11-24-instance-properties.md).
+
+## Delta row 5: a text style's weight bound to a variable — 24 November 2026
+
+Native `crates/engine/src/assets/style_vars.rs::{field_type, set_text_field}` at `bad07e44` (upstream `ccb33e0b`, `281918e2`, #2174) maps to `style-definitions.ts::styleBindingType` and `style-variables.ts::textWithVariable` at `ae4ceba`; `cmd/styles.rs::bind_style` to `style.bind` in `style-commands.ts`; `assets/token_roles.rs` to `variable-css-names.ts::numberRoles`; native's style weight picker to `StyleTypography.tsx` and `StyleVariablePicker.tsx`. Verified by three native scenes in `tests/fixtures/native-text-style-weight-variable.json`, `tests/parity/text-style-weight-variable.test.ts` and a browser case in `tests/e2e/preview.spec.ts`. [Report](../reports/26-11-24-text-style-weight-variable.md).
