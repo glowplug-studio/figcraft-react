@@ -1,6 +1,6 @@
-import type { ComponentSetNode, Document, InstanceNode, NodeId } from "./document";
+import { isLeaf, type ComponentSetNode, type Document, type InstanceNode, type NodeId } from "./document";
 import { defaultInstanceValues } from "./component-bindings";
-import { type ComponentProperty, type InstanceValue, inspectedPropertyValues, orderedComponentPropertyNames } from "./component-properties";
+import { componentOverrides, type ComponentProperty, type InstanceValue, inspectedPropertyValues, orderedComponentPropertyNames } from "./component-properties";
 import { defaultMain, componentSlots } from "./component-tree";
 import { ancestors } from "./hierarchy";
 import { wireId } from "./native-values";
@@ -131,6 +131,23 @@ function conflictGroups(doc: Document, set: ComponentSetNode) {
   }).map(group=>group.ids);
 }
 
+/** Native components.rs `instance_prop_list` (14670b99, #2022): the property names an instance of `component` lists, those no layer
+ * of the component reads left out (slots stay). A set's variants share its definitions, so another variant's text or a leftover of
+ * a deleted variant shows on the set but not on this variant's instances. Walks as native's `slots_of` does: a nested instance
+ * counts, its own layers and the content put into slots are not entered. */
+export function instancePropertyNames(doc: Document, component: NodeId): ReadonlySet<string> {
+  const used = new Set<string>(), stack = [component];
+  for (let seen = 0; stack.length && seen < 1_000_000; seen++) {
+    const id = stack.pop()!, node = doc.nodes[id];
+    if (!node || node.kind === "page") continue;
+    for (const key of Object.values(node.propRefs ?? {})) used.add(key);
+    if (id === component || (node.kind !== "instance" && !componentOverrides(node).includes("slot"))) {
+      if (!isLeaf(node)) stack.push(...[...node.children].reverse());
+    }
+  }
+  return used;
+}
+
 export function describeComponentProperties(doc: Document, id: NodeId) {
   const node = doc.nodes[id];
   if (!node) return null;
@@ -149,7 +166,8 @@ export function describeComponentProperties(doc: Document, id: NodeId) {
     }
   }
   if (main?.kind === "component") {
-    const names = orderedComponentPropertyNames(main.props,main.propOrder);
+    const used = instance && instancePropertyNames(doc,main.id);
+    const names = orderedComponentPropertyNames(main.props,main.propOrder).filter(k=>!used || main.props[k].type === "slot" || used.has(k));
     const slots = names.some(k=>main.props[k].type === "slot") ? componentSlots(doc,instance?.id ?? set?.id ?? main.id) : [];
     for (const name of names) {
       const def = main.props[name], prop: Record<string,unknown> = {name,...def};

@@ -1,0 +1,499 @@
+{
+ "nativeRevision": "bad07e4433240cad046589129c084bd2fc36f097",
+ "note": "Each case: commands run natively in a new document. component.properties keeps each listed property's name, type and value (value on an instance only); null for the rest.",
+ "cases": [
+  {
+   "name": "an instance lists only the properties its variant uses",
+   "steps": [
+    {
+     "command": "frame.create",
+     "params": {
+      "x": 0,
+      "y": 0,
+      "width": 120,
+      "height": 40,
+      "name": "Type=Flag, State=Default"
+     },
+     "receipt": null
+    },
+    {
+     "command": "text.create",
+     "params": {
+      "text": "Label",
+      "x": 4,
+      "y": 4,
+      "parent": 2,
+      "name": "Label"
+     },
+     "receipt": null
+    },
+    {
+     "command": "component.create",
+     "params": {
+      "ids": [
+       2
+      ]
+     },
+     "receipt": null
+    },
+    {
+     "command": "frame.create",
+     "params": {
+      "x": 0,
+      "y": 60,
+      "width": 120,
+      "height": 40,
+      "name": "Type=Flag, State=Selected"
+     },
+     "receipt": null
+    },
+    {
+     "command": "text.create",
+     "params": {
+      "text": "Label",
+      "x": 4,
+      "y": 4,
+      "parent": 4,
+      "name": "Label"
+     },
+     "receipt": null
+    },
+    {
+     "command": "component.create",
+     "params": {
+      "ids": [
+       4
+      ]
+     },
+     "receipt": null
+    },
+    {
+     "command": "component.combineVariants",
+     "params": {
+      "ids": [
+       2,
+       4
+      ]
+     },
+     "receipt": null
+    },
+    {
+     "command": "component.addProperty",
+     "params": {
+      "id": 6,
+      "name": "Default label",
+      "type": "text",
+      "layer": 3
+     },
+     "receipt": null
+    },
+    {
+     "command": "component.addProperty",
+     "params": {
+      "id": 6,
+      "name": "Selected label",
+      "type": "text",
+      "layer": 5
+     },
+     "receipt": null
+    },
+    {
+     "command": "component.addProperty",
+     "params": {
+      "id": 6,
+      "name": "Gone label",
+      "type": "text"
+     },
+     "receipt": null
+    },
+    {
+     "command": "component.properties",
+     "params": {
+      "id": 6
+     },
+     "receipt": [
+      {
+       "name": "Type",
+       "type": "variant"
+      },
+      {
+       "name": "State",
+       "type": "variant"
+      },
+      {
+       "name": "Default label",
+       "type": "text"
+      },
+      {
+       "name": "Selected label",
+       "type": "text"
+      },
+      {
+       "name": "Gone label",
+       "type": "text"
+      }
+     ]
+    },
+    {
+     "command": "instance.create",
+     "params": {
+      "component": 2,
+      "x": 400,
+      "y": 0
+     },
+     "receipt": null
+    },
+    {
+     "command": "component.properties",
+     "params": {
+      "id": 7
+     },
+     "receipt": [
+      {
+       "name": "Type",
+       "type": "variant",
+       "value": "Flag"
+      },
+      {
+       "name": "State",
+       "type": "variant",
+       "value": "Default"
+      },
+      {
+       "name": "Default label",
+       "type": "text",
+       "value": "Label"
+      }
+     ]
+    },
+    {
+     "command": "instance.setProperties",
+     "params": {
+      "ids": [
+       7
+      ],
+      "properties": {
+       "State": "Selected"
+      }
+     },
+     "receipt": null
+    },
+    {
+     "command": "component.properties",
+     "params": {
+      "id": 7
+     },
+     "receipt": [
+      {
+       "name": "Type",
+       "type": "variant",
+       "value": "Flag"
+      },
+      {
+       "name": "State",
+       "type": "variant",
+       "value": "Selected"
+      },
+      {
+       "name": "Selected label",
+       "type": "text",
+       "value": "Label"
+      }
+     ]
+    },
+    {
+     "command": "component.properties",
+     "params": {
+      "id": 2
+     },
+     "receipt": [
+      {
+       "name": "Type",
+       "type": "variant"
+      },
+      {
+       "name": "State",
+       "type": "variant"
+      },
+      {
+       "name": "Default label",
+       "type": "text"
+      },
+      {
+       "name": "Selected label",
+       "type": "text"
+      },
+      {
+       "name": "Gone label",
+       "type": "text"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "name": "unused and deleted properties leave an instance's list",
+   "steps": [
+    {
+     "command": "frame.create",
+     "params": {
+      "x": 0,
+      "y": 0,
+      "width": 200,
+      "height": 100,
+      "name": "Card"
+     },
+     "receipt": null
+    },
+    {
+     "command": "text.create",
+     "params": {
+      "text": "Title",
+      "x": 4,
+      "y": 4,
+      "parent": 2,
+      "name": "Title"
+     },
+     "receipt": null
+    },
+    {
+     "command": "frame.create",
+     "params": {
+      "x": 4,
+      "y": 30,
+      "width": 100,
+      "height": 60,
+      "parent": 2,
+      "name": "Body"
+     },
+     "receipt": null
+    },
+    {
+     "command": "shape.ellipse",
+     "params": {
+      "x": 150,
+      "y": 4,
+      "width": 10,
+      "height": 10,
+      "parent": 2,
+      "name": "Dot"
+     },
+     "receipt": null
+    },
+    {
+     "command": "frame.create",
+     "params": {
+      "x": 0,
+      "y": 300,
+      "width": 20,
+      "height": 20,
+      "name": "Icon"
+     },
+     "receipt": null
+    },
+    {
+     "command": "component.create",
+     "params": {
+      "ids": [
+       6
+      ]
+     },
+     "receipt": null
+    },
+    {
+     "command": "instance.create",
+     "params": {
+      "component": 6,
+      "x": 120,
+      "y": 30,
+      "parent": 2
+     },
+     "receipt": null
+    },
+    {
+     "command": "component.create",
+     "params": {
+      "ids": [
+       2
+      ]
+     },
+     "receipt": null
+    },
+    {
+     "command": "component.makeSlot",
+     "params": {
+      "id": 4
+     },
+     "receipt": null
+    },
+    {
+     "command": "component.addProperty",
+     "params": {
+      "id": 2,
+      "name": "Heading",
+      "type": "text",
+      "layer": 3
+     },
+     "receipt": null
+    },
+    {
+     "command": "component.addProperty",
+     "params": {
+      "id": 2,
+      "name": "Show dot",
+      "type": "boolean",
+      "layer": 5
+     },
+     "receipt": null
+    },
+    {
+     "command": "component.addProperty",
+     "params": {
+      "id": 2,
+      "name": "Glyph",
+      "type": "instanceSwap",
+      "layer": 7
+     },
+     "receipt": null
+    },
+    {
+     "command": "component.addProperty",
+     "params": {
+      "id": 2,
+      "name": "Unused",
+      "type": "boolean"
+     },
+     "receipt": null
+    },
+    {
+     "command": "instance.create",
+     "params": {
+      "component": 2,
+      "x": 400,
+      "y": 0
+     },
+     "receipt": null
+    },
+    {
+     "command": "component.properties",
+     "params": {
+      "id": 2
+     },
+     "receipt": [
+      {
+       "name": "Body",
+       "type": "slot"
+      },
+      {
+       "name": "Heading",
+       "type": "text"
+      },
+      {
+       "name": "Show dot",
+       "type": "boolean"
+      },
+      {
+       "name": "Glyph",
+       "type": "instanceSwap"
+      },
+      {
+       "name": "Unused",
+       "type": "boolean"
+      }
+     ]
+    },
+    {
+     "command": "component.properties",
+     "params": {
+      "id": 8
+     },
+     "receipt": [
+      {
+       "name": "Body",
+       "type": "slot",
+       "value": {
+        "edited": false,
+        "layer": 10,
+        "layers": 0
+       }
+      },
+      {
+       "name": "Heading",
+       "type": "text",
+       "value": "Title"
+      },
+      {
+       "name": "Show dot",
+       "type": "boolean",
+       "value": true
+      },
+      {
+       "name": "Glyph",
+       "type": "instanceSwap",
+       "value": 6
+      }
+     ]
+    },
+    {
+     "command": "component.deleteProperty",
+     "params": {
+      "id": 2,
+      "name": "Heading"
+     },
+     "receipt": null
+    },
+    {
+     "command": "component.properties",
+     "params": {
+      "id": 2
+     },
+     "receipt": [
+      {
+       "name": "Body",
+       "type": "slot"
+      },
+      {
+       "name": "Show dot",
+       "type": "boolean"
+      },
+      {
+       "name": "Glyph",
+       "type": "instanceSwap"
+      },
+      {
+       "name": "Unused",
+       "type": "boolean"
+      }
+     ]
+    },
+    {
+     "command": "component.properties",
+     "params": {
+      "id": 8
+     },
+     "receipt": [
+      {
+       "name": "Body",
+       "type": "slot",
+       "value": {
+        "edited": false,
+        "layer": 10,
+        "layers": 0
+       }
+      },
+      {
+       "name": "Show dot",
+       "type": "boolean",
+       "value": true
+      },
+      {
+       "name": "Glyph",
+       "type": "instanceSwap",
+       "value": 6
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}

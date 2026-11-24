@@ -4,6 +4,7 @@ import { useMemo, type ReactNode } from "react";
 import type { Document, FrameNode, InstanceNode, NodeId } from "./engine/document";
 import { isOverrideGroup } from "./engine/component-groups";
 import { componentOverrides, orderedComponentPropertyNames } from "./engine/component-properties";
+import { instancePropertyNames } from "./engine/component-variants";
 import { canExposeInstance, componentSlots, exposedCopies, localComponentChoices, owningInstance, propertyNodeId, slotDefinition } from "./engine/component-tree";
 import { ancestors } from "./engine/hierarchy";
 
@@ -38,7 +39,9 @@ function PropertyControls({document,node,components,dispatch}: Pick<InstancePane
   const current = variantProperties(main.name);
   const change = (name:string,value:unknown) => dispatch("instance.setProperties",{id:node.id,properties:{[name]:value}});
   const options = (ids:readonly NodeId[]) => ids.map(id=><option key={id} value={id}>{document.nodes[id].name}</option>);
-  const names = orderedComponentPropertyNames(main.props,main.propOrder);
+  // Native: the Properties panel lists what the instance's own variant reads (instance_prop_list, #2022).
+  const used = instancePropertyNames(document,main.id);
+  const names = orderedComponentPropertyNames(main.props,main.propOrder).filter(name=>main.props[name].type === "slot" || used.has(name));
   const slots = names.some(name=>main.props[name].type === "slot") ? componentSlots(document,node.id) : [];
   const bind = (name:string, type:"string"|"boolean", label:string, control:ReactNode) =>
     <LayerVariablePicker key={name} doc={document} ids={[node.id]} field={"componentProperties/"+name} label={label} type={type} run={dispatch}>{control}</LayerVariablePicker>;

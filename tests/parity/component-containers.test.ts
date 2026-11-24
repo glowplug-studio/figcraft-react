@@ -362,12 +362,13 @@ it("drops differing variant paint overrides, preserves text overrides and matche
 it("applies typed values to bound layers and describes native slots without changing history",async () => {
   const e=await open(capture("typed"));
   const before=e.getSnapshot(), depth=e.getUndoDepth();
+  // Re-observed natively at bad07e44 (upstream 14670b99, #2022): the instance leaves out the Icon swap no layer of its component reads.
   expect(e.execute("component.properties",{id:7})).toEqual({component:2,set:null,conflicts:[],properties:[
     {name:"Shown",type:"boolean",default:true,value:true},
     {name:"Caption",type:"text",default:"",value:""},
-    {name:"Icon",type:"instanceSwap",default:5,value:5,preferred:[]},
     {name:"Body",type:"slot",preferred:[5],value:{layer:10,edited:false,layers:0}},
   ]});
+  expect((e.execute("component.properties",{id:2}) as {properties:{name:string}[]}).properties.map(p=>p.name)).toEqual(["Shown","Caption","Icon","Body"]);
   expect(e.getSnapshot()).toBe(before);
   expect(e.getUndoDepth()).toBe(depth);
   e.execute("instance.setProperties",{id:7,properties:{Shown:"false",Caption:42,Icon:"1:5"}});

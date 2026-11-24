@@ -3204,6 +3204,35 @@ test("an instance created in the editor binds slot content by its defining compo
   for (const node of labels) expect(node.visible,node.id).not.toBe(false);
 });
 
+test("an instance's Properties list only what its own variant's layers read, as native does",async ({page})=>{
+  const {prepareText}=await import("../../src/engine/text-node-layout");
+  await prepareText("Label");
+  const e=new EditorEngine(), id=(r:unknown)=>Number((r as {id:string}).id), variants:number[]=[], texts:number[]=[];
+  for (const [k,name] of ["Type=Flag, State=Default","Type=Flag, State=Selected"].entries()) {
+    const f=id(e.execute("frame.create",{x:0,y:k*60,width:120,height:40,name}));
+    texts.push(id(e.execute("text.create",{text:"Label",x:4,y:4,parent:f,name:"Label"})));
+    variants.push(id(e.execute("component.create",{ids:[f]})));
+  }
+  const set=id(e.execute("component.combineVariants",{ids:variants}));
+  e.execute("component.addProperty",{id:set,name:"Default label",type:"text",layer:texts[0]});
+  e.execute("component.addProperty",{id:set,name:"Selected label",type:"text",layer:texts[1]});
+  e.execute("component.addProperty",{id:set,name:"Gone label",type:"text"});
+  const inst=id(e.execute("instance.create",{component:variants[0],x:400,y:0}));
+  e.execute("node.set",{id:inst,props:{name:"Placed chip"}});
+  await login(page);
+  await page.getByLabel("Open Figcraft file",{exact:true}).setInputFiles({name:"variants.figcraft",mimeType:"application/octet-stream",buffer:Buffer.from(await encodeFigcraft(e.getSnapshot().document))});
+  await page.getByRole("region",{name:"Layers",exact:true}).getByRole("button",{name:"Placed chip",exact:true}).click();
+  const label=(name:string)=>page.getByRole("textbox",{name,exact:true});
+  await expect(label("Default label")).toBeVisible();
+  await expect(label("Selected label")).toHaveCount(0);
+  await expect(label("Gone label")).toHaveCount(0);
+  // The other variant reads its own text property instead.
+  await page.getByLabel("Variant State",{exact:true}).selectOption("Selected");
+  await expect(label("Selected label")).toBeVisible();
+  await expect(label("Default label")).toHaveCount(0);
+  await expect(label("Gone label")).toHaveCount(0);
+});
+
 test("transparent page redraw and hidden or locked layers bypass pointer and select all", async ({ page }) => {
   await login(page);
   const appearance = page.getByRole("region", { name: "Appearance" });
@@ -8723,13 +8752,13 @@ test("main property bindings, defaults and descriptions edit linked instances an
   const instance=page.getByRole("group",{name:"Instance",exact:true});
   await expect(instance.getByText("Dashboard card",{exact:true})).toBeVisible();
   await instance.getByLabel("Show marker",{exact:true}).uncheck();
-  await instance.getByLabel("Caption",{exact:true}).fill("Hello");
-  await instance.getByLabel("Caption",{exact:true}).press("Enter");
+  // Native lists on an instance only the properties a layer of its component reads (14670b99, #2022): the new Caption is bound to
+  // no layer, so the main keeps it and the instance doesn't show it.
+  await expect(instance.getByLabel("Caption",{exact:true})).toHaveCount(0);
   await expect(page.locator(".figcraft-recovery")).toHaveText("Recovery saved on this device");
   await page.reload();
   await select(4,"Card");
   await expect(instance.getByLabel("Show marker",{exact:true})).not.toBeChecked();
-  await expect(instance.getByLabel("Caption",{exact:true})).toHaveValue("Hello");
   const saving=page.waitForEvent("download");
   await page.getByRole("button",{name:"Save as",exact:true}).click();
   const {document}=await decodeFigcraft(await readFile((await (await saving).path())!));
@@ -9381,19 +9410,20 @@ test("scoped layer fields bind, change and detach across geometry, text, layout,
   await bind("Font size","Spacing","Size");
   await bind("Text content","Copy number","Alpha");
   await select("Button instance");
-  await bind("Shown","Enabled","Spacing");
-  await bind("Caption","Action","Copy number");
+  // Native lists on an instance only the properties a layer of its component reads (14670b99, #2022): this Button binds Shown and
+  // Caption to no layer, so its instance offers neither to bind (re-observed natively: component.properties of node 6 is empty).
+  await expect(button("Bind variable to Shown")).toHaveCount(0);
+  await expect(button("Bind variable to Caption")).toHaveCount(0);
   await expect(page.locator(".figcraft-recovery")).toHaveText("Recovery saved on this device");
   await page.reload();
   await select("Button instance");
-  await expect(button("Detach variable from Caption")).toHaveText("Action");
   const downloading=page.waitForEvent("download");
   await button("Save as").click();
   const {document}=await decodeFigcraft(await readFile((await (await downloading).path())!));
   expect(document.nodes[2]).toMatchObject({width:6.5,opacity:Math.fround(0.4),effects:[{radius:18}],boundVariables:{width:"VariableID:6",visible:"VariableID:5"}});
   expect(document.nodes[3]).toMatchObject({layout:{gap:6.5},grids:[{size:6.5}]});
   expect(document.nodes[4]).toMatchObject({text:{characters:"23",style:{fontSize:6.5}}});
-  expect(document.nodes[6]).toMatchObject({props:{Caption:"Continue",Shown:true}});
+  expect(document.nodes[6]).toMatchObject({props:{Caption:"Sample",Shown:false}});
 });
 
 test("a narrow multi-selection inspector restores keyboard focus and binds every selected width", async ({page})=>{
