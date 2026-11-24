@@ -836,3 +836,15 @@ Native `crates/doc/src/library.rs` `LibraryLink::relative` at `bad07e44` (upstre
 ## Roadmap row 15: prototype interaction and flow commands — 24 November 2026
 
 Native `crates/engine/src/cmd/proto.rs` (`proto.interaction.{add,set,remove,clear}`, `proto.flow.{add,rename,remove}`, `settle`, `duration`, `delay`, `check_dests`), `automation/params.rs::req_targets` and `doc/src/lib.rs::top_level_frame` at `bad07e44` map to `executePrototype` and `topLevelFrame` in `prototype-commands.ts` at `dc432fb`; native's colour reader for an overlay background maps to `prototype-data.ts` `overlayBackground`. Verified by `tests/fixtures/native-prototype-interactions.json` and `tests/parity/prototype-interactions.test.ts`; no interface reaches the commands yet. [Report](../reports/26-11-24-prototype-interactions.md).
+
+## Roadmap row 15: prototype expressions — 24 November 2026
+
+Native `crates/doc/src/proto_expr_parse.rs` (`Expr::parse`, `type_of`, `check_condition`, `check_value`), `proto_expr.rs` (`eval`, `display`) and `crates/engine/src/cmd/proto_actions.rs::{with_expressions, evaluate}` at `bad07e44` map to `prototype-expressions.ts` and `prototype-commands.ts` (`canonicalExpression`, `proto.evaluate`) at `abe7345`. Verified by `tests/fixtures/native-prototype-expressions.json` and `tests/parity/prototype-expressions.test.ts`. [Report](../reports/26-11-24-prototype-expressions.md).
+
+## Roadmap row 15: prototype action and conditional-block commands — 24 November 2026
+
+Native `crates/engine/src/cmd/proto_actions.rs` (`add`, `set`, `remove`, `move_action`, `edit`, `list_mut`, `path_param`, `check_action`, `add_block`, `set_condition`, `remove_block`, `default_condition`) at `bad07e44` maps to `editActions`, `editList`, `pathParam`, `checkAction`, `conditionParam` and `defaultCondition` in `prototype-commands.ts` at `10f91d4`. Verified by `tests/fixtures/native-prototype-actions.json` and `tests/parity/prototype-actions.test.ts`. [Report](../reports/26-11-24-prototype-actions.md).
+
+## Roadmap row 15: prototype settings — 24 November 2026
+
+Native `crates/doc/src/proto.rs` (`PrototypeSettings`, `Device`, `DeviceColor`, `DeviceRotation`) and `crates/engine/src/cmd/proto.rs::{settings, settings_json, known_device}` at `bad07e44` map to `prototype-settings.ts`, `PageNode.prototypeDevice`, `file-format.ts` `wirePrototype` and `prototype-commands.ts` `prototypeSettings` at `7ba48f9`. Verified by `tests/fixtures/native-prototype-settings.json` and `tests/parity/prototype-settings.test.ts`. [Report](../reports/26-11-24-prototype-settings.md).

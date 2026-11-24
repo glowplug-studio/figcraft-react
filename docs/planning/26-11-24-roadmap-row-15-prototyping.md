@@ -2,11 +2,11 @@
 
 ## Execution checkpoint
 
-- Phase: items 1 to 1 complete through Phase 7 at `dc432fb` ([interaction and flow commands](../reports/26-11-24-prototype-interactions.md)). Item 2 is next. Each item is opened with its own dated plan.
+- Phase: items 1 to 4 complete through Phase 7 at `dc432fb`, `abe7345`, `10f91d4` and `7ba48f9` ([interaction and flow commands](../reports/26-11-24-prototype-interactions.md), [prototype expressions](../reports/26-11-24-prototype-expressions.md), [action and conditional-block commands](../reports/26-11-24-prototype-actions.md), [prototype settings](../reports/26-11-24-prototype-settings.md)). Item 5 is next. Each item is opened with its own dated plan.
 - Native reference: `bad07e4433240cad046589129c084bd2fc36f097` (`bad07e44`). React starting revision: `d2ce2b7` on `prompt/full-figcraft-port`.
 - Source: row 15 of the [master plan](26-11-06-complete-figcraft-port.md) and the `proto.*` commands of the [command inventory](../parity/full-port-command-inventory.json).
 - Native oracle: `$HOME/.cache/figcraft-oracle/project`; `replay` runs command sequences through the pinned engine. It observes every engine command of this row. The presenter and the canvas connections are interface, restated from native interface tests.
-- Next action: Item 2, prototype expressions: port `doc/src/proto_expr.rs` and `proto_expr_parse.rs` (parse, type check, evaluate, display), `cmd/proto_actions.rs::with_expressions` for `proto.interaction.add` and `set`, and `proto.evaluate`; native observations of 68 expressions and the expression-carrying commands are taken.
+- Next action: Item 5, player requests and preferences: `proto.present`, `proto.preview`, `proto.closePreview`, `proto.presentOptions`, `proto.linkNotice`, and native's refusal of unknown parameters on every proto command (items 1 to 4 lack it); native observations are taken.
 - Blockers: none.
 
 ## What the port has
@@ -27,10 +27,10 @@ Engine commands come first, since `replay` observes them, from the simplest data
 | Item | Behaviour | Native files and tests | React files | Status |
 |---|---|---|---|---|
 | 1 | Interaction and flow commands: add, edit, remove and clear interactions; add, rename and remove flows | `cmd/proto.rs` and its tests | `prototype-commands.ts`, `prototype-data.ts`, `editor.ts` | Verified at `dc432fb` with native observations ([plan](26-11-24-prototype-interactions.md)) |
-| 2 | Expression text (`count + 1`, `count >= 3`) parsed into stored trees with names resolved to ids; `proto.evaluate` | `doc/src/proto_expr*.rs`, `cmd/proto_actions.rs::with_expressions`; `proto_expr_*tests.rs` | expression parser, `prototype-commands.ts` | In progress |
-| 3 | Action and conditional-block commands: `proto.action.*`, `proto.conditional.*` | `cmd/proto_actions.rs` and its tests | `prototype-commands.ts` | Planned |
-| 4 | Prototype settings: device list, colours, rotation, custom size, responsive; stored and read | `doc/src/proto.rs::PrototypeSettings`, `cmd/proto.rs::settings` | the page model, file format, `prototype-commands.ts` | Planned |
-| 5 | Player requests and preferences: `proto.present`, `proto.preview`, `proto.closePreview`, `proto.presentOptions`, `proto.linkNotice` | `cmd/proto.rs::open_player`, preferences | `prototype-commands.ts`, editor requests | Planned |
+| 2 | Expression text (`count + 1`, `count >= 3`) parsed into stored trees with names resolved to ids; `proto.evaluate` | `doc/src/proto_expr*.rs`, `cmd/proto_actions.rs::with_expressions`; `proto_expr_*tests.rs` | expression parser, `prototype-commands.ts` | Verified at `abe7345` with native observations ([plan](26-11-24-prototype-expressions.md)) |
+| 3 | Action and conditional-block commands: `proto.action.*`, `proto.conditional.*` | `cmd/proto_actions.rs` and its tests | `prototype-commands.ts` | Verified at `10f91d4` with native observations ([plan](26-11-24-prototype-actions.md)) |
+| 4 | Prototype settings: device list, colours, rotation, custom size, responsive; stored and read | `doc/src/proto.rs::PrototypeSettings`, `cmd/proto.rs::settings` | the page model, file format, `prototype-commands.ts` | Verified at `7ba48f9` with native observations ([plan](26-11-24-prototype-settings.md)) |
+| 5 | Player requests and preferences: `proto.present`, `proto.preview`, `proto.closePreview`, `proto.presentOptions`, `proto.linkNotice` | `cmd/proto.rs::open_player`, preferences | `prototype-commands.ts`, editor requests | In progress |
 | 6 | The player's state machine: navigation, back, overlays (positions, anchors, swap, close), scroll to, variables and modes, conditional actions, delays, responsive frames | `engine/src/proto_run.rs`, `ui-egui/src/present/{player,navigate,actions,scroll}.rs`; `present/*tests.rs`, `proto_*_tests.rs` | a pure player module | Planned |
 | 7 | The prototype tab: flows, interactions and their editor; Overflow and scroll position | `ui-egui` right panel prototype tab; `proto_editor_tests.rs`, `proto_reorder_tests.rs` | a prototype panel | Planned |
 | 8 | Canvas connections: drawn arrows, dragging a connection to a destination, Change to on a sibling variant (delta item 5.3) | `ui-egui/src/canvas/proto_canvas.rs`; `proto_variant_connect_tests.rs` | canvas overlay | Planned |

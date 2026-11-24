@@ -2,11 +2,11 @@
 
 ## Execution checkpoint
 
-- Phase: implemented; the gate is running.
+- Phase: complete through Phase 7 on 24 November 2026 at `abe7345`: [report](../reports/26-11-24-prototype-expressions.md), [matrix](../reports/26-11-24-prototype-expressions-parity.html), [provenance](../../tests/fixtures/native-prototype-expressions.provenance.md).
 - Native reference: `bad07e4433240cad046589129c084bd2fc36f097` (`bad07e44`). React starting revision: `62dbbe4` on `prompt/full-figcraft-port`.
 - Row plan: [roadmap row 15](26-11-24-roadmap-row-15-prototyping.md).
 - Files changed: `src/engine/prototype-expressions.ts` (new: `parseExpression`, `expressionType`, `checkCondition`, `checkValue`, `evaluateExpression`, `displayExpression`, native's variable, collection and mode lookups); `src/engine/prototype-commands.ts` (`proto.evaluate`, `canonicalExpression`, expression text and names in `proto.interaction.add` and `set`); `src/engine/prototype-data.ts` (`readPrototype.expression`); test `tests/parity/prototype-expressions.test.ts`; fixture `tests/fixtures/native-prototype-expressions.json` with provenance.
-- Next action: record the item.
+- Next action: none; the item is recorded.
 - Blockers: none.
 
 ## Native contract
