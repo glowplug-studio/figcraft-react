@@ -1,0 +1,1116 @@
+{
+ "revision": "bad07e4433240cad046589129c084bd2fc36f097",
+ "steps": [
+  {
+   "command": "variable.createCollection",
+   "params": {
+    "name": "Theme",
+    "modes": [
+     "Light",
+     "Dark"
+    ]
+   },
+   "receipt": {
+    "id": "VariableCollectionId:1"
+   }
+  },
+  {
+   "command": "variable.create",
+   "params": {
+    "collection": "Theme",
+    "name": "count",
+    "type": "number",
+    "value": 2
+   },
+   "receipt": {
+    "id": "VariableID:1"
+   }
+  },
+  {
+   "command": "variable.create",
+   "params": {
+    "collection": "Theme",
+    "name": "done",
+    "type": "boolean",
+    "value": false
+   },
+   "receipt": {
+    "id": "VariableID:2"
+   }
+  },
+  {
+   "command": "node.create",
+   "params": {
+    "type": "frame",
+    "x": 0,
+    "y": 0,
+    "width": 100,
+    "height": 100
+   },
+   "receipt": {
+    "id": 2
+   }
+  },
+  {
+   "command": "node.create",
+   "params": {
+    "type": "frame",
+    "x": 200,
+    "y": 0,
+    "width": 100,
+    "height": 100
+   },
+   "receipt": {
+    "id": 3
+   }
+  },
+  {
+   "command": "proto.interaction.add",
+   "params": {
+    "id": 2,
+    "dest": 3
+   },
+   "receipt": {
+    "index": 0
+   }
+  },
+  {
+   "command": "proto.action.add",
+   "params": {
+    "id": 2,
+    "index": 0,
+    "action": {
+     "type": "back"
+    }
+   },
+   "receipt": {
+    "path": [
+     1
+    ]
+   }
+  },
+  {
+   "command": "proto.action.add",
+   "params": {
+    "id": 2,
+    "index": 0,
+    "path": [
+     0
+    ],
+    "action": {
+     "type": "closeOverlay"
+    }
+   },
+   "receipt": {
+    "path": [
+     0
+    ]
+   }
+  },
+  {
+   "command": "proto.action.add",
+   "params": {
+    "id": 2,
+    "index": 0,
+    "path": [
+     9
+    ],
+    "action": {
+     "type": "back"
+    }
+   },
+   "error": "invalid parameters for `proto.action.add`: index 9 is past the end (3 actions)"
+  },
+  {
+   "command": "proto.action.add",
+   "params": {
+    "id": 2,
+    "index": 0,
+    "path": [
+     0,
+     0
+    ],
+    "action": {
+     "type": "back"
+    }
+   },
+   "error": "invalid parameters for `proto.action.add`: `path` must be [action] or [action, block, action, \u2026]"
+  },
+  {
+   "command": "proto.action.add",
+   "params": {
+    "id": 2,
+    "index": 0,
+    "path": [
+     0.5
+    ],
+    "action": {
+     "type": "back"
+    }
+   },
+   "error": "invalid parameters for `proto.action.add`: `path` holds whole numbers \u2265 0"
+  },
+  {
+   "command": "proto.action.add",
+   "params": {
+    "id": 2,
+    "index": 0,
+    "path": "0",
+    "action": {
+     "type": "back"
+    }
+   },
+   "error": "invalid parameters for `proto.action.add`: `path` must be a list of indexes"
+  },
+  {
+   "command": "proto.action.add",
+   "params": {
+    "id": 2,
+    "index": 0,
+    "path": [
+     0,
+     0,
+     0
+    ],
+    "action": {
+     "type": "back"
+    }
+   },
+   "error": "invalid parameters for `proto.action.add`: no action there: `path` must lead through conditional actions and their blocks"
+  },
+  {
+   "command": "proto.action.add",
+   "params": {
+    "id": 2,
+    "index": 0
+   },
+   "error": "invalid parameters for `proto.action.add`: `action` required"
+  },
+  {
+   "command": "proto.action.add",
+   "params": {
+    "id": 2,
+    "index": 3,
+    "action": {
+     "type": "back"
+    }
+   },
+   "error": "invalid parameters for `proto.action.add`: no interaction 3"
+  },
+  {
+   "command": "proto.action.add",
+   "params": {
+    "id": 2,
+    "index": 0,
+    "action": {
+     "type": "navigate",
+     "dest": 999
+    }
+   },
+   "error": "invalid parameters for `proto.action.add`: destination 999 doesn't exist"
+  },
+  {
+   "command": "proto.action.add",
+   "params": {
+    "id": 2,
+    "index": 0,
+    "action": {
+     "type": "setVariable",
+     "variable": "ghost",
+     "value": 1
+    }
+   },
+   "error": "invalid parameters for `proto.action.add`: no variable `ghost`"
+  },
+  {
+   "command": "proto.action.add",
+   "params": {
+    "id": 2,
+    "index": 0,
+    "action": {
+     "type": "setVariable",
+     "variable": "count",
+     "expression": "count + 1"
+    }
+   },
+   "receipt": {
+    "path": [
+     3
+    ]
+   }
+  },
+  {
+   "command": "proto.action.add",
+   "params": {
+    "id": 2,
+    "index": 0,
+    "path": [
+     1
+    ],
+    "action": {
+     "type": "conditional",
+     "blocks": [
+      {
+       "expression": "count >= 3",
+       "actions": [
+        {
+         "type": "navigate",
+         "dest": 3
+        }
+       ]
+      }
+     ]
+    }
+   },
+   "receipt": {
+    "path": [
+     1
+    ]
+   }
+  },
+  {
+   "command": "proto.action.add",
+   "params": {
+    "id": 2,
+    "index": 0,
+    "path": [
+     1,
+     0,
+     1
+    ],
+    "action": {
+     "type": "back"
+    }
+   },
+   "receipt": {
+    "path": [
+     1,
+     0,
+     1
+    ]
+   }
+  },
+  {
+   "command": "proto.action.add",
+   "params": {
+    "id": 2,
+    "index": 0,
+    "path": [
+     1,
+     0,
+     5
+    ],
+    "action": {
+     "type": "back"
+    }
+   },
+   "error": "invalid parameters for `proto.action.add`: index 5 is past the end (2 actions)"
+  },
+  {
+   "command": "proto.action.add",
+   "params": {
+    "id": 2,
+    "index": 0,
+    "path": [
+     1,
+     1,
+     0
+    ],
+    "action": {
+     "type": "back"
+    }
+   },
+   "error": "invalid parameters for `proto.action.add`: no action there: `path` must lead through conditional actions and their blocks"
+  },
+  {
+   "command": "proto.conditional.addBlock",
+   "params": {
+    "id": 2,
+    "index": 0,
+    "path": [
+     1
+    ]
+   },
+   "receipt": {
+    "block": 1
+   }
+  },
+  {
+   "command": "proto.conditional.addBlock",
+   "params": {
+    "id": 2,
+    "index": 0,
+    "path": [
+     1
+    ],
+    "else": true
+   },
+   "receipt": {
+    "block": 2
+   }
+  },
+  {
+   "command": "proto.conditional.addBlock",
+   "params": {
+    "id": 2,
+    "index": 0,
+    "path": [
+     1
+    ],
+    "else": true
+   },
+   "error": "invalid parameters for `proto.conditional.addBlock`: it already has an else"
+  },
+  {
+   "command": "proto.conditional.addBlock",
+   "params": {
+    "id": 2,
+    "index": 0,
+    "path": [
+     1
+    ],
+    "expression": "done"
+   },
+   "receipt": {
+    "block": 2
+   }
+  },
+  {
+   "command": "proto.conditional.addBlock",
+   "params": {
+    "id": 2,
+    "index": 0,
+    "path": [
+     1
+    ],
+    "else": true,
+    "expression": "done"
+   },
+   "error": "invalid parameters for `proto.conditional.addBlock`: an else block has no condition"
+  },
+  {
+   "command": "proto.conditional.addBlock",
+   "params": {
+    "id": 2,
+    "index": 0,
+    "path": [
+     1
+    ],
+    "else": "maybe"
+   },
+   "error": "invalid parameters for `proto.conditional.addBlock`: `else` must be true or false"
+  },
+  {
+   "command": "proto.conditional.addBlock",
+   "params": {
+    "id": 2,
+    "index": 0,
+    "path": [
+     0
+    ]
+   },
+   "error": "invalid parameters for `proto.conditional.addBlock`: that action isn't a conditional"
+  },
+  {
+   "command": "proto.conditional.addBlock",
+   "params": {
+    "id": 2,
+    "index": 0,
+    "path": [
+     1
+    ],
+    "expression": "count"
+   },
+   "error": "invalid parameters for `proto.conditional.addBlock`: A condition must be true or false, not a number"
+  },
+  {
+   "command": "proto.conditional.setCondition",
+   "params": {
+    "id": 2,
+    "index": 0,
+    "path": [
+     1
+    ],
+    "block": 1,
+    "expression": "count == 9"
+   },
+   "receipt": {
+    "ok": true
+   }
+  },
+  {
+   "command": "proto.conditional.setCondition",
+   "params": {
+    "id": 2,
+    "index": 0,
+    "path": [
+     1
+    ],
+    "block": 7,
+    "expression": "done"
+   },
+   "error": "invalid parameters for `proto.conditional.setCondition`: no block 7"
+  },
+  {
+   "command": "proto.conditional.setCondition",
+   "params": {
+    "id": 2,
+    "index": 0,
+    "path": [
+     1
+    ],
+    "block": 0
+   },
+   "error": "invalid parameters for `proto.conditional.setCondition`: `expression` or `condition` required"
+  },
+  {
+   "command": "proto.conditional.setCondition",
+   "params": {
+    "id": 2,
+    "index": 0,
+    "path": [
+     1
+    ],
+    "block": 0,
+    "condition": {
+     "value": {
+      "type": "alias",
+      "value": "done"
+     }
+    }
+   },
+   "receipt": {
+    "ok": true
+   }
+  },
+  {
+   "command": "proto.action.set",
+   "params": {
+    "id": 2,
+    "index": 0,
+    "path": [
+     0
+    ],
+    "action": {
+     "type": "openUrl",
+     "url": "https://example.invalid"
+    }
+   },
+   "receipt": {
+    "path": [
+     0
+    ]
+   }
+  },
+  {
+   "command": "proto.action.set",
+   "params": {
+    "id": 2,
+    "index": 0,
+    "path": [
+     9
+    ],
+    "action": {
+     "type": "back"
+    }
+   },
+   "error": "invalid parameters for `proto.action.set`: no action there: `path` must lead through conditional actions and their blocks"
+  },
+  {
+   "command": "proto.action.set",
+   "params": {
+    "id": 2,
+    "index": 0,
+    "action": {
+     "type": "back"
+    }
+   },
+   "error": "invalid parameters for `proto.action.set`: `path` required"
+  },
+  {
+   "command": "proto.action.move",
+   "params": {
+    "id": 2,
+    "index": 0,
+    "path": [
+     0
+    ],
+    "to": 2
+   },
+   "receipt": {
+    "path": [
+     2
+    ]
+   }
+  },
+  {
+   "command": "proto.action.move",
+   "params": {
+    "id": 2,
+    "index": 0,
+    "path": [
+     0
+    ],
+    "to": 9
+   },
+   "error": "invalid parameters for `proto.action.move`: the list has 5 actions"
+  },
+  {
+   "command": "proto.action.move",
+   "params": {
+    "id": 2,
+    "index": 0,
+    "path": [
+     1,
+     0,
+     0
+    ],
+    "to": 1
+   },
+   "error": "invalid parameters for `proto.action.move`: no action there: `path` must lead through conditional actions and their blocks"
+  },
+  {
+   "command": "proto.action.remove",
+   "params": {
+    "id": 2,
+    "index": 0,
+    "path": [
+     1,
+     0,
+     0
+    ]
+   },
+   "error": "invalid parameters for `proto.action.remove`: no action there: `path` must lead through conditional actions and their blocks"
+  },
+  {
+   "command": "proto.action.remove",
+   "params": {
+    "id": 2,
+    "index": 0,
+    "path": [
+     1,
+     0,
+     9
+    ]
+   },
+   "error": "invalid parameters for `proto.action.remove`: no action there: `path` must lead through conditional actions and their blocks"
+  },
+  {
+   "command": "file.saveAs",
+   "params": {
+    "data": true
+   },
+   "saved": {
+    "interactions": [
+     {
+      "trigger": {
+       "type": "onClick"
+      },
+      "actions": [
+       {
+        "type": "conditional",
+        "blocks": [
+         {
+          "condition": {
+           "value": {
+            "type": "alias",
+            "value": "VariableID:2"
+           }
+          },
+          "actions": [
+           {
+            "type": "navigate",
+            "dest": 3
+           },
+           {
+            "type": "back"
+           }
+          ]
+         },
+         {
+          "condition": {
+           "op": {
+            "op": "equals",
+            "args": [
+             {
+              "value": {
+               "type": "alias",
+               "value": "VariableID:1"
+              }
+             },
+             {
+              "value": {
+               "type": "number",
+               "value": 9.0
+              }
+             }
+            ]
+           }
+          },
+          "actions": []
+         },
+         {
+          "condition": {
+           "value": {
+            "type": "alias",
+            "value": "VariableID:2"
+           }
+          },
+          "actions": []
+         },
+         {
+          "actions": []
+         }
+        ]
+       },
+       {
+        "type": "navigate",
+        "dest": 3
+       },
+       {
+        "type": "openUrl",
+        "url": "https://example.invalid"
+       },
+       {
+        "type": "back"
+       },
+       {
+        "type": "setVariable",
+        "variable": "VariableID:1",
+        "value": null,
+        "expr": {
+         "op": {
+          "op": "add",
+          "args": [
+           {
+            "value": {
+             "type": "alias",
+             "value": "VariableID:1"
+            }
+           },
+           {
+            "value": {
+             "type": "number",
+             "value": 1.0
+            }
+           }
+          ]
+         }
+        }
+       }
+      ],
+      "transition": {
+       "type": "instant"
+      },
+      "duration_ms": 300,
+      "easing": "easeOut"
+     }
+    ]
+   }
+  },
+  {
+   "command": "proto.conditional.removeBlock",
+   "params": {
+    "id": 2,
+    "index": 0,
+    "path": [
+     0
+    ],
+    "block": 1
+   },
+   "receipt": {
+    "removedAction": false
+   }
+  },
+  {
+   "command": "proto.conditional.removeBlock",
+   "params": {
+    "id": 2,
+    "index": 0,
+    "path": [
+     0
+    ],
+    "block": 9
+   },
+   "error": "invalid parameters for `proto.conditional.removeBlock`: no block 9"
+  },
+  {
+   "command": "proto.conditional.removeBlock",
+   "params": {
+    "id": 2,
+    "index": 0,
+    "path": [
+     0
+    ],
+    "block": 0
+   },
+   "receipt": {
+    "removedAction": false
+   }
+  },
+  {
+   "command": "file.saveAs",
+   "params": {
+    "data": true
+   },
+   "saved": {
+    "interactions": [
+     {
+      "trigger": {
+       "type": "onClick"
+      },
+      "actions": [
+       {
+        "type": "conditional",
+        "blocks": [
+         {
+          "condition": {
+           "value": {
+            "type": "alias",
+            "value": "VariableID:2"
+           }
+          },
+          "actions": []
+         },
+         {
+          "actions": []
+         }
+        ]
+       },
+       {
+        "type": "navigate",
+        "dest": 3
+       },
+       {
+        "type": "openUrl",
+        "url": "https://example.invalid"
+       },
+       {
+        "type": "back"
+       },
+       {
+        "type": "setVariable",
+        "variable": "VariableID:1",
+        "value": null,
+        "expr": {
+         "op": {
+          "op": "add",
+          "args": [
+           {
+            "value": {
+             "type": "alias",
+             "value": "VariableID:1"
+            }
+           },
+           {
+            "value": {
+             "type": "number",
+             "value": 1.0
+            }
+           }
+          ]
+         }
+        }
+       }
+      ],
+      "transition": {
+       "type": "instant"
+      },
+      "duration_ms": 300,
+      "easing": "easeOut"
+     }
+    ]
+   }
+  },
+  {
+   "command": "proto.action.remove",
+   "params": {
+    "id": 2,
+    "index": 0,
+    "path": [
+     0
+    ]
+   },
+   "receipt": {
+    "ok": true
+   }
+  },
+  {
+   "command": "proto.action.remove",
+   "params": {
+    "id": 2,
+    "index": 0,
+    "path": [
+     0
+    ]
+   },
+   "receipt": {
+    "ok": true
+   }
+  },
+  {
+   "command": "proto.action.remove",
+   "params": {
+    "id": 2,
+    "index": 0,
+    "path": [
+     0
+    ]
+   },
+   "receipt": {
+    "ok": true
+   }
+  },
+  {
+   "command": "proto.action.remove",
+   "params": {
+    "id": 2,
+    "index": 0,
+    "path": [
+     0
+    ]
+   },
+   "receipt": {
+    "ok": true
+   }
+  },
+  {
+   "command": "proto.action.remove",
+   "params": {
+    "id": 2,
+    "index": 0,
+    "path": [
+     0
+    ]
+   },
+   "error": "invalid parameters for `proto.action.remove`: an interaction needs an action: remove the interaction instead"
+  },
+  {
+   "command": "proto.action.add",
+   "params": {
+    "id": 2,
+    "index": 0,
+    "action": {
+     "type": "conditional",
+     "blocks": [
+      {
+       "actions": []
+      }
+     ]
+    }
+   },
+   "receipt": {
+    "path": [
+     1
+    ]
+   }
+  },
+  {
+   "command": "proto.conditional.removeBlock",
+   "params": {
+    "id": 2,
+    "index": 0,
+    "path": [
+     1
+    ],
+    "block": 0
+   },
+   "receipt": {
+    "removedAction": true
+   }
+  },
+  {
+   "command": "proto.action.add",
+   "params": {
+    "id": 2,
+    "index": 0,
+    "action": {
+     "type": "conditional",
+     "blocks": [
+      {
+       "condition": {
+        "value": {
+         "type": "boolean",
+         "value": true
+        }
+       },
+       "actions": []
+      },
+      {
+       "actions": []
+      }
+     ]
+    }
+   },
+   "receipt": {
+    "path": [
+     1
+    ]
+   }
+  },
+  {
+   "command": "proto.conditional.removeBlock",
+   "params": {
+    "id": 2,
+    "index": 0,
+    "path": [
+     1
+    ],
+    "block": 0
+   },
+   "receipt": {
+    "removedAction": true
+   }
+  },
+  {
+   "command": "proto.action.add",
+   "params": {
+    "ids": [
+     2,
+     3
+    ],
+    "index": 0,
+    "action": {
+     "type": "back"
+    }
+   },
+   "receipt": {
+    "path": [
+     1
+    ]
+   }
+  },
+  {
+   "command": "proto.action.add",
+   "params": {
+    "id": 3,
+    "index": 0,
+    "action": {
+     "type": "back"
+    }
+   },
+   "error": "invalid parameters for `proto.action.add`: no interaction 0"
+  },
+  {
+   "command": "variable.createCollection",
+   "params": {
+    "name": "Empty"
+   },
+   "receipt": {
+    "id": "VariableCollectionId:2"
+   }
+  },
+  {
+   "command": "proto.action.add",
+   "params": {
+    "id": 2,
+    "index": 0,
+    "action": {
+     "type": "conditional",
+     "blocks": [
+      {
+       "actions": []
+      }
+     ]
+    }
+   },
+   "receipt": {
+    "path": [
+     2
+    ]
+   }
+  },
+  {
+   "command": "proto.conditional.addBlock",
+   "params": {
+    "id": 2,
+    "index": 0,
+    "path": [
+     2
+    ]
+   },
+   "receipt": {
+    "block": 0
+   }
+  },
+  {
+   "command": "file.saveAs",
+   "params": {
+    "data": true
+   },
+   "saved": {
+    "interactions": [
+     {
+      "trigger": {
+       "type": "onClick"
+      },
+      "actions": [
+       {
+        "type": "setVariable",
+        "variable": "VariableID:1",
+        "value": null,
+        "expr": {
+         "op": {
+          "op": "add",
+          "args": [
+           {
+            "value": {
+             "type": "alias",
+             "value": "VariableID:1"
+            }
+           },
+           {
+            "value": {
+             "type": "number",
+             "value": 1.0
+            }
+           }
+          ]
+         }
+        }
+       },
+       {
+        "type": "back"
+       },
+       {
+        "type": "conditional",
+        "blocks": [
+         {
+          "condition": {
+           "op": {
+            "op": "equals",
+            "args": [
+             {
+              "value": {
+               "type": "alias",
+               "value": "VariableID:2"
+              }
+             },
+             {
+              "value": {
+               "type": "boolean",
+               "value": false
+              }
+             }
+            ]
+           }
+          },
+          "actions": []
+         },
+         {
+          "actions": []
+         }
+        ]
+       }
+      ],
+      "transition": {
+       "type": "instant"
+      },
+      "duration_ms": 300,
+      "easing": "easeOut"
+     }
+    ]
+   }
+  }
+ ]
+}

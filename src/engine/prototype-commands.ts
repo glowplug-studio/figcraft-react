@@ -1,10 +1,10 @@
 import { LosslessNumber } from "lossless-json";
 import { isFrameLike, type Document, type DocumentNode, type NodeId, type PageNode } from "./document";
-import { inspectedId, parseNodeId, parseNumber } from "./parameters";
+import { inspectedId, parseBoolean, parseNodeId, parseNumber } from "./parameters";
 import { readPrototype, type PrototypeAction, type PrototypeExpression, type PrototypeFlow, type PrototypeInteraction } from "./prototype-data";
 import { checkCondition, checkValue, collectionById, collectionNamed, displayExpression, evaluateExpression, expressionType, findMode, parseExpression, variableById, variableNamed } from "./prototype-expressions";
 import { layerModes } from "./variable-modes";
-import { emptyVariables, type Variables } from "./variables";
+import { emptyVariables, resolveVariable, type Variable, type VariableValue, type Variables } from "./variables";
 
 /** Source: upstream engine/cmd/proto.rs (interactions and flows). */
 export const prototypeSpecs = Object.freeze({
@@ -16,6 +16,13 @@ export const prototypeSpecs = Object.freeze({
   "proto.flow.rename": { label: "Rename flow", undo: true },
   "proto.flow.remove": { label: "Remove flow", undo: true },
   "proto.evaluate": { label: "Evaluate prototype expression", undo: false },
+  "proto.action.add": { label: "Add prototype action", undo: true },
+  "proto.action.set": { label: "Edit prototype action", undo: true },
+  "proto.action.remove": { label: "Remove prototype action", undo: true },
+  "proto.action.move": { label: "Reorder prototype action", undo: true },
+  "proto.conditional.addBlock": { label: "Add else if / else", undo: true },
+  "proto.conditional.setCondition": { label: "Edit condition", undo: true },
+  "proto.conditional.removeBlock": { label: "Remove if / else if / else", undo: true },
 });
 export type PrototypeCommand = keyof typeof prototypeSpecs;
 export interface PrototypeExecution { readonly document: Document; readonly result: Record<string, unknown> }
@@ -117,10 +124,10 @@ function targets(command: string, document: Document, selection: readonly NodeId
   for (const id of ids) if (!Object.hasOwn(document.nodes, id)) throw new Error("no such node " + id);
   return ids;
 }
-function index(command: string, p: Record<string, unknown>) {
-  if (p.index === undefined || p.index === null) throw bad(command, "`index` required");
-  const k = lenientNumber(p.index);
-  if (k === undefined || !(k >= 0 && k < 1e9) || !Number.isInteger(k)) throw bad(command, "`index` must be a whole number in 0..1e9");
+function index(command: string, p: Record<string, unknown>, key = "index") {
+  if (p[key] === undefined || p[key] === null) throw bad(command, "`" + key + "` required");
+  const k = lenientNumber(p[key]);
+  if (k === undefined || !(k >= 0 && k < 1e9) || !Number.isInteger(k)) throw bad(command, "`" + key + "` must be a whole number in 0..1e9");
   return k;
 }
 function withInteractions(node: DocumentNode, list: readonly PrototypeInteraction[]): DocumentNode {
@@ -221,6 +228,81 @@ function withExpressions(command: string, vars: Variables, p: Record<string, unk
   return resolveExpressions(command, vars, canonicalInputs(command, vars, p, 0), 0) as Record<string, unknown>;
 }
 
+/** Native `MAX_ACTIONS` and `MAX_BLOCKS`. */
+export const maxActions = 200, maxBlocks = 50;
+type Block = { readonly condition?: PrototypeExpression; readonly actions: readonly PrototypeAction[] };
+const noList = (command: string) => bad(command, "no action there: `path` must lead through conditional actions and their blocks");
+/** Native `path_param`: whole numbers, an odd count, no deeper than actions nest. */
+function pathParam(command: string, p: Record<string, unknown>, key: string): number[] | undefined {
+  const v = p[key];
+  if (v === undefined) return undefined;
+  if (!Array.isArray(v)) throw bad(command, "`" + key + "` must be a list of indexes");
+  if (v.length % 2 === 0 || v.length > 2 * maxActionDepth + 1) throw bad(command, "`" + key + "` must be [action] or [action, block, action, …]");
+  return v.map(x => {
+    const n = lenientNumber(x);
+    if (n === undefined || !(n >= 0 && n < 1e6) || !Number.isInteger(n)) throw bad(command, "`" + key + "` holds whole numbers ≥ 0");
+    return n;
+  });
+}
+function requiredPath(command: string, p: Record<string, unknown>) {
+  const path = pathParam(command, p, "path");
+  if (!path) throw bad(command, "`path` required");
+  return path;
+}
+/** The list `path` points into, rebuilt by `edit` (returning the new list), or undefined when the path leads nowhere. */
+function editList(actions: readonly PrototypeAction[], path: readonly number[], edit: (list: PrototypeAction[], at: number) => PrototypeAction[]): PrototypeAction[] | undefined {
+  if (path.length === 1) return edit([...actions], path[0]);
+  const [a, b, ...rest] = path;
+  const target = actions[a];
+  if (target?.type !== "conditional") return undefined;
+  const block = target.blocks[b];
+  if (!block) return undefined;
+  const inner = editList(block.actions, rest, edit);
+  if (!inner) return undefined;
+  const blocks = target.blocks.map((x, i) => i === b ? { ...x, actions: inner } : x);
+  return actions.map((x, i) => i === a ? { ...target, blocks } : x);
+}
+/** Native `start_value` and `default_condition`: the first boolean variable (else the first) equal to its value. */
+function startValue(vars: Variables, v: Variable): VariableValue {
+  const value = resolveVariable(vars, v.id);
+  if (value && value.type === v.resolvedType) return value;
+  switch (v.resolvedType) {
+    case "number": return { type: "number", value: 0 };
+    case "string": return { type: "string", value: "" };
+    case "boolean": return { type: "boolean", value: true };
+    case "color": return { type: "color", value: { r: 0, g: 0, b: 0, a: 1 } };
+  }
+}
+function defaultCondition(vars: Variables): PrototypeExpression {
+  const v = vars.variables.find(x => x.resolvedType === "boolean") ?? vars.variables[0];
+  return v ? { op: { op: "equals", args: [{ value: { type: "alias", value: v.id } }, { value: startValue(vars, v) }] } } : { value: { type: "boolean", value: true } };
+}
+/** Native `check_action`: a set variable names a variable its expression fits; conditions give true or false. */
+function checkAction(command: string, vars: Variables, a: PrototypeAction) {
+  walk([a], x => {
+    if (x.type === "setVariable") {
+      const v = variableById(vars, x.variable);
+      if (!v) throw bad(command, "no variable `" + x.variable + "`");
+      if (x.expr) try { checkValue(x.expr, vars, v.resolvedType); } catch (error) { throw bad(command, message(error)); }
+    } else if (x.type === "conditional") {
+      if (x.blocks.length > maxBlocks) throw bad(command, `at most ${maxBlocks} blocks`);
+      for (const b of x.blocks) if (b.condition) try { checkCondition(b.condition, vars); } catch (error) { throw bad(command, message(error)); }
+    }
+  });
+}
+/** Native `condition_param`: `expression` text or `condition` JSON, checked. */
+function conditionParam(command: string, vars: Variables, p: Record<string, unknown>): PrototypeExpression | undefined {
+  let e: PrototypeExpression;
+  if (typeof p.expression === "string") {
+    const text = p.expression;
+    try { e = parseExpression(text, vars); } catch (error) { throw bad(command, "`" + text + "`: " + message(error)); }
+  } else if (p.condition !== undefined) {
+    try { e = canonicalExpression(vars, readPrototype.expression(lossless(p.condition))); } catch (error) { throw bad(command, "`condition`: " + message(error)); }
+  } else return undefined;
+  try { checkCondition(e, vars); } catch (error) { throw bad(command, message(error)); }
+  return e;
+}
+
 export function executePrototype(command: PrototypeCommand, document: Document, selection: readonly NodeId[], p: Record<string, unknown>): PrototypeExecution {
   const setNodes = (changes: Record<NodeId, DocumentNode>): Document =>
     Object.freeze({ ...document, nodes: Object.freeze({ ...document.nodes, ...changes }) });
@@ -241,6 +323,7 @@ export function executePrototype(command: PrototypeCommand, document: Document, 
     if (!v) throw bad(command, "it gives no value here (a division by zero, or a number too large)");
     return { document, result: { value: v, type, text: displayExpression(e, vars) } };
   }
+  if (command.startsWith("proto.action.") || command.startsWith("proto.conditional.")) return editActions(command, document, selection, vars, p);
   if (command === "proto.interaction.add" || command === "proto.interaction.set") p = withExpressions(command, vars, p);
   if (command === "proto.interaction.add") {
     const destId = parseNodeId(p.dest);
@@ -350,4 +433,133 @@ export function executePrototype(command: PrototypeCommand, document: Document, 
   if (start === undefined) throw bad(command, "`start` required");
   const kept = flows.filter(f => f.start !== start);
   return { document: kept.length === flows.length ? document : withFlows(kept), result: { ok: true } };
+}
+
+/** Native cmd/proto_actions.rs: one action, or a conditional's blocks, edited by `path` in interaction `index` of each target. */
+function editActions(command: PrototypeCommand, document: Document, selection: readonly NodeId[], vars: Variables, p: Record<string, unknown>): PrototypeExecution {
+  const actionParam = () => {
+    const q = withExpressions(command, vars, p);
+    const a = parse(command, q, "action", readPrototype.action);
+    if (!a) throw bad(command, "`action` required");
+    checkAction(command, vars, a);
+    checkDests(command, document, [a]);
+    return a;
+  };
+  let edit: (actions: readonly PrototypeAction[]) => { actions: PrototypeAction[]; result: Record<string, unknown> };
+  if (command === "proto.action.add") {
+    const path = pathParam(command, p, "path"), action = actionParam();
+    edit = actions => {
+      const at = path ?? [actions.length];
+      const next = editList(actions, at, (list, i) => {
+        if (i > list.length) throw bad(command, `index ${i} is past the end (${list.length} actions)`);
+        if (list.length >= maxActions) throw bad(command, `at most ${maxActions} actions in a list`);
+        list.splice(i, 0, action);
+        return list;
+      });
+      if (!next) throw noList(command);
+      return { actions: next, result: { path: at } };
+    };
+  } else if (command === "proto.action.set") {
+    const path = requiredPath(command, p), action = actionParam();
+    edit = actions => {
+      const next = editList(actions, path, (list, i) => { if (i >= list.length) throw noList(command); list[i] = action; return list; });
+      if (!next) throw noList(command);
+      return { actions: next, result: { path } };
+    };
+  } else if (command === "proto.action.remove") {
+    const path = requiredPath(command, p);
+    edit = actions => {
+      const next = editList(actions, path, (list, i) => { if (i >= list.length) throw noList(command); list.splice(i, 1); return list; });
+      if (!next) throw noList(command);
+      return { actions: next, result: { ok: true } };
+    };
+  } else if (command === "proto.action.move") {
+    const path = requiredPath(command, p), to = index(command, p, "to");
+    edit = actions => {
+      const next = editList(actions, path, (list, i) => {
+        if (i >= list.length || to >= list.length) throw bad(command, `the list has ${list.length} actions`);
+        const [a] = list.splice(i, 1);
+        list.splice(to, 0, a);
+        return list;
+      });
+      if (!next) throw noList(command);
+      return { actions: next, result: { path: [...path.slice(0, -1), to] } };
+    };
+  } else {
+    const path = requiredPath(command, p);
+    const blocks = (actions: readonly PrototypeAction[], change: (blocks: Block[]) => Block[]) => editList(actions, path, (list, i) => {
+      const target = list[i];
+      if (!target) throw noList(command);
+      if (target.type !== "conditional") throw bad(command, "that action isn't a conditional");
+      list[i] = { ...target, blocks: change([...target.blocks]) };
+      return list;
+    });
+    if (command === "proto.conditional.addBlock") {
+      const cond = conditionParam(command, vars, p);
+      let isElse = false;
+      if (p.else !== undefined) {
+        const b = parseBoolean(p.else);
+        if (b === undefined) throw bad(command, "`else` must be true or false");
+        isElse = b;
+      }
+      if (isElse && cond) throw bad(command, "an else block has no condition");
+      const fallback = defaultCondition(vars);
+      edit = actions => {
+        let at = 0;
+        const next = blocks(actions, list => {
+          if (list.length >= maxBlocks) throw bad(command, `at most ${maxBlocks} blocks`);
+          const hasElse = list.length > 0 && !list[list.length - 1].condition;
+          if (isElse && hasElse) throw bad(command, "it already has an else");
+          at = !isElse && hasElse ? list.length - 1 : list.length;
+          list.splice(at, 0, isElse ? { actions: [] } : { condition: cond ?? fallback, actions: [] });
+          return list;
+        });
+        if (!next) throw noList(command);
+        return { actions: next, result: { block: at } };
+      };
+    } else if (command === "proto.conditional.setCondition") {
+      const block = index(command, p, "block");
+      const cond = conditionParam(command, vars, p);
+      if (!cond) throw bad(command, "`expression` or `condition` required");
+      edit = actions => {
+        const next = blocks(actions, list => {
+          if (!list[block]) throw bad(command, `no block ${block}`);
+          list[block] = { ...list[block], condition: cond };
+          return list;
+        });
+        if (!next) throw noList(command);
+        return { actions: next, result: { ok: true } };
+      };
+    } else {
+      const block = index(command, p, "block");
+      edit = actions => {
+        let gone = false;
+        let next = blocks(actions, list => {
+          if (block >= list.length) throw bad(command, `no block ${block}`);
+          list.splice(block, 1);
+          // Without an "if" first there's nothing to decide: the conditional goes.
+          gone = !list[0]?.condition;
+          return list;
+        });
+        if (!next) throw noList(command);
+        if (gone) next = editList(next, path, (list, i) => { list.splice(i, 1); return list; }) ?? next;
+        return { actions: next, result: { removedAction: gone } };
+      };
+    }
+  }
+  // Native `edit`: interaction `index` of each target; all or nothing.
+  const k = index(command, p);
+  let out: Record<string, unknown> | undefined;
+  const changes: Record<NodeId, DocumentNode> = {};
+  for (const id of targets(command, document, selection, p)) {
+    const node = changes[id] ?? document.nodes[id], list = node.interactions ?? [];
+    const it = list[k];
+    if (!it) continue;
+    const r = edit(it.actions);
+    if (!r.actions.length) throw bad(command, "an interaction needs an action: remove the interaction instead");
+    changes[id] = withInteractions(node, list.map((x, i) => i === k ? { ...x, actions: Object.freeze(r.actions) } : x));
+    out = r.result;
+  }
+  if (!out) throw bad(command, "no interaction " + k);
+  return { document: Object.freeze({ ...document, nodes: Object.freeze({ ...document.nodes, ...changes }) }), result: out };
 }
