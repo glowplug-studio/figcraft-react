@@ -1,7 +1,10 @@
 import { LosslessNumber } from "lossless-json";
 import { isFrameLike, type Document, type DocumentNode, type NodeId, type PageNode } from "./document";
 import { inspectedId, parseNodeId, parseNumber } from "./parameters";
-import { readPrototype, type PrototypeAction, type PrototypeFlow, type PrototypeInteraction } from "./prototype-data";
+import { readPrototype, type PrototypeAction, type PrototypeExpression, type PrototypeFlow, type PrototypeInteraction } from "./prototype-data";
+import { checkCondition, checkValue, collectionById, collectionNamed, displayExpression, evaluateExpression, expressionType, findMode, parseExpression, variableById, variableNamed } from "./prototype-expressions";
+import { layerModes } from "./variable-modes";
+import { emptyVariables, type Variables } from "./variables";
 
 /** Source: upstream engine/cmd/proto.rs (interactions and flows). */
 export const prototypeSpecs = Object.freeze({
@@ -12,6 +15,7 @@ export const prototypeSpecs = Object.freeze({
   "proto.flow.add": { label: "Add flow starting point", undo: true },
   "proto.flow.rename": { label: "Rename flow", undo: true },
   "proto.flow.remove": { label: "Remove flow", undo: true },
+  "proto.evaluate": { label: "Evaluate prototype expression", undo: false },
 });
 export type PrototypeCommand = keyof typeof prototypeSpecs;
 export interface PrototypeExecution { readonly document: Document; readonly result: Record<string, unknown> }
@@ -138,9 +142,106 @@ export function topLevelFrame(document: Document, id: NodeId): NodeId | undefine
   return node && node.kind !== "page" && isFrameLike(node) ? top : undefined;
 }
 
+/** Native `canonical_expr`: variables, collections and modes an expression names by name, stored by id. */
+export function canonicalExpression(vars: Variables, e: PrototypeExpression, depth = 0): PrototypeExpression {
+  if ("value" in e) {
+    if (e.value.type !== "alias") return e;
+    const v = variableNamed(vars, e.value.value);
+    return v ? { value: { type: "alias", value: v.id } } : e;
+  }
+  if ("mode" in e) {
+    const c = collectionNamed(vars, e.mode.collection);
+    return c ? { mode: { collection: c.id } } : e;
+  }
+  if ("inMode" in e) {
+    const v = variableNamed(vars, e.inMode.variable);
+    if (!v) return e;
+    const c = collectionById(vars, v.collection), m = c && findMode(c, e.inMode.mode);
+    return { inMode: { variable: v.id, mode: m ? m.id : e.inMode.mode } };
+  }
+  return depth < 32 ? { op: { op: e.op.op, args: e.op.args.map(a => canonicalExpression(vars, a, depth + 1)) } } : e;
+}
+const maxActionDepth = 16;
+type Json = Record<string, unknown>;
+const isObject = (v: unknown): v is Json => !!v && typeof v === "object" && !Array.isArray(v);
+const message = (error: unknown) => error instanceof Error ? error.message : String(error);
+function canonicalInputs(command: string, vars: Variables, v: unknown, depth: number): unknown {
+  if (depth > 4 * maxActionDepth) throw bad(command, "actions are nested too deeply");
+  if (Array.isArray(v)) return v.map(x => canonicalInputs(command, vars, x, depth + 1));
+  if (!isObject(v)) return v;
+  const o: Json = { ...v };
+  // Only command input accepts names: action targets settle before text expressions are read.
+  if (o.type === "setVariable" && typeof o.variable === "string") {
+    const found = variableNamed(vars, o.variable);
+    if (found) o.variable = found.id;
+  } else if (o.type === "setVariableMode" && typeof o.collection === "string") {
+    const c = collectionNamed(vars, o.collection);
+    if (c) {
+      const m = typeof o.mode === "string" ? findMode(c, o.mode) : undefined;
+      if (m) o.mode = m.id;
+      o.collection = c.id;
+    }
+  }
+  if (typeof o.expression !== "string") for (const key of ["expr", "condition"]) {
+    if (o[key] === undefined || o[key] === null) continue;
+    let e: PrototypeExpression;
+    try { e = readPrototype.expression(lossless(o[key])); } catch (error) { throw bad(command, key + ": " + message(error)); }
+    o[key] = canonicalExpression(vars, e);
+  }
+  for (const key of ["action", "actions", "interaction", "blocks"]) if (o[key] !== undefined) o[key] = canonicalInputs(command, vars, o[key], depth + 1);
+  return o;
+}
+function resolveExpressions(command: string, vars: Variables, v: unknown, depth: number): unknown {
+  if (depth > 4 * maxActionDepth) throw bad(command, "actions are nested too deeply");
+  if (Array.isArray(v)) return v.map(x => resolveExpressions(command, vars, x, depth + 1));
+  if (!isObject(v)) return v;
+  let o: Json = { ...v };
+  if (typeof o.expression === "string") {
+    const text = o.expression;
+    let e: PrototypeExpression;
+    try { e = parseExpression(text, vars); } catch (error) { throw bad(command, "`" + text + "`: " + message(error)); }
+    if (o.type === "setVariable") {
+      const target = typeof o.variable === "string" ? variableById(vars, o.variable) : undefined;
+      if (!target) throw bad(command, "setVariable: no such `variable`");
+      try { checkValue(e, vars, target.resolvedType); } catch (error) { throw bad(command, message(error)); }
+      o.expr = e;
+      if (!Object.hasOwn(o, "value")) o.value = null;
+    } else {
+      try { checkCondition(e, vars); } catch (error) { throw bad(command, message(error)); }
+      o.condition = e;
+    }
+    const { expression: _text, ...rest } = o;
+    o = rest;
+  }
+  for (const [key, x] of Object.entries(o)) if (key !== "expr" && key !== "condition") o[key] = resolveExpressions(command, vars, x, depth + 1);
+  return o;
+}
+/** Native `with_expressions`: names stored as ids, and every `expression` text read and checked. */
+function withExpressions(command: string, vars: Variables, p: Record<string, unknown>): Record<string, unknown> {
+  return resolveExpressions(command, vars, canonicalInputs(command, vars, p, 0), 0) as Record<string, unknown>;
+}
+
 export function executePrototype(command: PrototypeCommand, document: Document, selection: readonly NodeId[], p: Record<string, unknown>): PrototypeExecution {
   const setNodes = (changes: Record<NodeId, DocumentNode>): Document =>
     Object.freeze({ ...document, nodes: Object.freeze({ ...document.nodes, ...changes }) });
+  const vars = document.variables ?? emptyVariables;
+  if (command === "proto.evaluate") {
+    let e: PrototypeExpression;
+    if (typeof p.expression === "string") {
+      const text = p.expression;
+      try { e = parseExpression(text, vars); } catch (error) { throw bad(command, "`" + text + "`: " + message(error)); }
+    } else if (p.expr !== undefined) {
+      try { e = canonicalExpression(vars, readPrototype.expression(lossless(p.expr))); } catch (error) { throw bad(command, "`expr`: " + message(error)); }
+    } else throw bad(command, "`expression` (text) or `expr` (expression JSON) required");
+    let type;
+    try { type = expressionType(e, vars); } catch (error) { throw bad(command, message(error)); }
+    const at = parseNodeId(p.id);
+    if (at !== undefined && !Object.hasOwn(document.nodes, at)) throw bad(command, "no layer " + at);
+    const v = evaluateExpression(e, vars, at === undefined ? {} : layerModes(document, at));
+    if (!v) throw bad(command, "it gives no value here (a division by zero, or a number too large)");
+    return { document, result: { value: v, type, text: displayExpression(e, vars) } };
+  }
+  if (command === "proto.interaction.add" || command === "proto.interaction.set") p = withExpressions(command, vars, p);
   if (command === "proto.interaction.add") {
     const destId = parseNodeId(p.dest);
     let it: PrototypeInteraction;

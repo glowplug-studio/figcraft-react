@@ -1,0 +1,1472 @@
+{
+ "revision": "bad07e4433240cad046589129c084bd2fc36f097",
+ "steps": [
+  {
+   "command": "variable.createCollection",
+   "params": {
+    "name": "Theme",
+    "modes": [
+     "Light",
+     "Dark"
+    ]
+   },
+   "receipt": {
+    "id": "VariableCollectionId:1"
+   }
+  },
+  {
+   "command": "variable.create",
+   "params": {
+    "collection": "Theme",
+    "name": "count",
+    "type": "number",
+    "value": 2
+   },
+   "receipt": {
+    "id": "VariableID:1"
+   }
+  },
+  {
+   "command": "variable.create",
+   "params": {
+    "collection": "Theme",
+    "name": "done",
+    "type": "boolean",
+    "value": false
+   },
+   "receipt": {
+    "id": "VariableID:2"
+   }
+  },
+  {
+   "command": "variable.create",
+   "params": {
+    "collection": "Theme",
+    "name": "name",
+    "type": "string",
+    "value": "Ann"
+   },
+   "receipt": {
+    "id": "VariableID:3"
+   }
+  },
+  {
+   "command": "variable.create",
+   "params": {
+    "collection": "Theme",
+    "name": "accent",
+    "type": "color",
+    "values": {
+     "Light": "#FF0000",
+     "Dark": "#0000FF"
+    }
+   },
+   "receipt": {
+    "id": "VariableID:4"
+   }
+  },
+  {
+   "command": "variable.create",
+   "params": {
+    "collection": "Theme",
+    "name": "count total",
+    "type": "number",
+    "value": 5
+   },
+   "receipt": {
+    "id": "VariableID:5"
+   }
+  },
+  {
+   "command": "variable.create",
+   "params": {
+    "collection": "Theme",
+    "name": "not done",
+    "type": "boolean",
+    "value": true
+   },
+   "receipt": {
+    "id": "VariableID:6"
+   }
+  },
+  {
+   "command": "variable.create",
+   "params": {
+    "collection": "Theme",
+    "name": "2x",
+    "type": "number",
+    "value": 7
+   },
+   "receipt": {
+    "id": "VariableID:7"
+   }
+  },
+  {
+   "command": "proto.evaluate",
+   "params": {
+    "expression": "count + 1"
+   },
+   "receipt": {
+    "text": "count + 1",
+    "type": "number",
+    "value": {
+     "type": "number",
+     "value": 3.0
+    }
+   }
+  },
+  {
+   "command": "proto.evaluate",
+   "params": {
+    "expression": "count total * 2"
+   },
+   "receipt": {
+    "text": "count total * 2",
+    "type": "number",
+    "value": {
+     "type": "number",
+     "value": 10.0
+    }
+   }
+  },
+  {
+   "command": "proto.evaluate",
+   "params": {
+    "expression": "count total"
+   },
+   "receipt": {
+    "text": "count total",
+    "type": "number",
+    "value": {
+     "type": "number",
+     "value": 5.0
+    }
+   }
+  },
+  {
+   "command": "proto.evaluate",
+   "params": {
+    "expression": "count >= 3"
+   },
+   "receipt": {
+    "text": "count >= 3",
+    "type": "boolean",
+    "value": {
+     "type": "boolean",
+     "value": false
+    }
+   }
+  },
+  {
+   "command": "proto.evaluate",
+   "params": {
+    "expression": "not done"
+   },
+   "receipt": {
+    "text": "not done",
+    "type": "boolean",
+    "value": {
+     "type": "boolean",
+     "value": true
+    }
+   }
+  },
+  {
+   "command": "proto.evaluate",
+   "params": {
+    "expression": "not (done)"
+   },
+   "receipt": {
+    "text": "not (done)",
+    "type": "boolean",
+    "value": {
+     "type": "boolean",
+     "value": true
+    }
+   }
+  },
+  {
+   "command": "proto.evaluate",
+   "params": {
+    "expression": "!done"
+   },
+   "receipt": {
+    "text": "not (done)",
+    "type": "boolean",
+    "value": {
+     "type": "boolean",
+     "value": true
+    }
+   }
+  },
+  {
+   "command": "proto.evaluate",
+   "params": {
+    "expression": "done == false"
+   },
+   "receipt": {
+    "text": "done == false",
+    "type": "boolean",
+    "value": {
+     "type": "boolean",
+     "value": true
+    }
+   }
+  },
+  {
+   "command": "proto.evaluate",
+   "params": {
+    "expression": "\"Hi \" + name"
+   },
+   "receipt": {
+    "text": "\"Hi \" + name",
+    "type": "string",
+    "value": {
+     "type": "string",
+     "value": "Hi Ann"
+    }
+   }
+  },
+  {
+   "command": "proto.evaluate",
+   "params": {
+    "expression": "'x' + 1.234 + true"
+   },
+   "receipt": {
+    "text": "\"x\" + 1.234 + true",
+    "type": "string",
+    "value": {
+     "type": "string",
+     "value": "x1.23true"
+    }
+   }
+  },
+  {
+   "command": "proto.evaluate",
+   "params": {
+    "expression": "accent[Dark]"
+   },
+   "receipt": {
+    "text": "accent[Dark]",
+    "type": "color",
+    "value": {
+     "type": "color",
+     "value": {
+      "a": 1.0,
+      "b": 1.0,
+      "g": 0.0,
+      "r": 0.0
+     }
+    }
+   }
+  },
+  {
+   "command": "proto.evaluate",
+   "params": {
+    "expression": "accent"
+   },
+   "receipt": {
+    "text": "accent",
+    "type": "color",
+    "value": {
+     "type": "color",
+     "value": {
+      "a": 1.0,
+      "b": 0.0,
+      "g": 0.0,
+      "r": 1.0
+     }
+    }
+   }
+  },
+  {
+   "command": "proto.evaluate",
+   "params": {
+    "expression": "mode(Theme)"
+   },
+   "receipt": {
+    "text": "mode(Theme)",
+    "type": "string",
+    "value": {
+     "type": "string",
+     "value": "Light"
+    }
+   }
+  },
+  {
+   "command": "proto.evaluate",
+   "params": {
+    "expression": "mode(Theme) == 'Dark'"
+   },
+   "receipt": {
+    "text": "mode(Theme) == \"Dark\"",
+    "type": "boolean",
+    "value": {
+     "type": "boolean",
+     "value": false
+    }
+   }
+  },
+  {
+   "command": "proto.evaluate",
+   "params": {
+    "expression": "{count total} - 1 - 1"
+   },
+   "receipt": {
+    "text": "count total - 1 - 1",
+    "type": "number",
+    "value": {
+     "type": "number",
+     "value": 3.0
+    }
+   }
+  },
+  {
+   "command": "proto.evaluate",
+   "params": {
+    "expression": "1 + 2 - 3"
+   },
+   "receipt": {
+    "text": "(1 + 2) - 3",
+    "type": "number",
+    "value": {
+     "type": "number",
+     "value": 0.0
+    }
+   }
+  },
+  {
+   "command": "proto.evaluate",
+   "params": {
+    "expression": "2 * 3 / 4"
+   },
+   "receipt": {
+    "text": "(2 * 3) / 4",
+    "type": "number",
+    "value": {
+     "type": "number",
+     "value": 1.5
+    }
+   }
+  },
+  {
+   "command": "proto.evaluate",
+   "params": {
+    "expression": "-count"
+   },
+   "receipt": {
+    "text": "-count",
+    "type": "number",
+    "value": {
+     "type": "number",
+     "value": -2.0
+    }
+   }
+  },
+  {
+   "command": "proto.evaluate",
+   "params": {
+    "expression": "- 3"
+   },
+   "receipt": {
+    "text": "-3",
+    "type": "number",
+    "value": {
+     "type": "number",
+     "value": -3.0
+    }
+   }
+  },
+  {
+   "command": "proto.evaluate",
+   "params": {
+    "expression": "-(1)"
+   },
+   "receipt": {
+    "text": "-1",
+    "type": "number",
+    "value": {
+     "type": "number",
+     "value": -1.0
+    }
+   }
+  },
+  {
+   "command": "proto.evaluate",
+   "params": {
+    "expression": "1e3 + .5"
+   },
+   "receipt": {
+    "text": "1000 + 0.5",
+    "type": "number",
+    "value": {
+     "type": "number",
+     "value": 1000.5
+    }
+   }
+  },
+  {
+   "command": "proto.evaluate",
+   "params": {
+    "expression": "1 / 0"
+   },
+   "error": "invalid parameters for `proto.evaluate`: it gives no value here (a division by zero, or a number too large)"
+  },
+  {
+   "command": "proto.evaluate",
+   "params": {
+    "expression": "{2x} + 1"
+   },
+   "receipt": {
+    "text": "{2x} + 1",
+    "type": "number",
+    "value": {
+     "type": "number",
+     "value": 8.0
+    }
+   }
+  },
+  {
+   "command": "proto.evaluate",
+   "params": {
+    "expression": "2x"
+   },
+   "error": "invalid parameters for `proto.evaluate`: `2x`: Add an operator before `x`"
+  },
+  {
+   "command": "proto.evaluate",
+   "params": {
+    "expression": "count == 2 == 2"
+   },
+   "receipt": {
+    "text": "count == 2 == 2",
+    "type": "boolean",
+    "value": {
+     "type": "boolean",
+     "value": true
+    }
+   }
+  },
+  {
+   "command": "proto.evaluate",
+   "params": {
+    "expression": "1 < 2 < 3"
+   },
+   "error": "invalid parameters for `proto.evaluate`: `1 < 2 < 3`: Compare two values at a time: join comparisons with `and` or `or`"
+  },
+  {
+   "command": "proto.evaluate",
+   "params": {
+    "expression": "count +"
+   },
+   "error": "invalid parameters for `proto.evaluate`: `count +`: Something is missing at the end"
+  },
+  {
+   "command": "proto.evaluate",
+   "params": {
+    "expression": "(count"
+   },
+   "error": "invalid parameters for `proto.evaluate`: `(count`: Add a closing )"
+  },
+  {
+   "command": "proto.evaluate",
+   "params": {
+    "expression": "count)"
+   },
+   "error": "invalid parameters for `proto.evaluate`: `count)`: Unexpected ): there's no ( to close"
+  },
+  {
+   "command": "proto.evaluate",
+   "params": {
+    "expression": "foo + 1"
+   },
+   "error": "invalid parameters for `proto.evaluate`: `foo + 1`: No variable `foo`"
+  },
+  {
+   "command": "proto.evaluate",
+   "params": {
+    "expression": "#FFF"
+   },
+   "receipt": {
+    "text": "#FFFFFF",
+    "type": "color",
+    "value": {
+     "type": "color",
+     "value": {
+      "a": 1.0,
+      "b": 1.0,
+      "g": 1.0,
+      "r": 1.0
+     }
+    }
+   }
+  },
+  {
+   "command": "proto.evaluate",
+   "params": {
+    "expression": "#12345"
+   },
+   "error": "invalid parameters for `proto.evaluate`: `#12345`: `#12345` isn't a colour (use #RRGGBB)"
+  },
+  {
+   "command": "proto.evaluate",
+   "params": {
+    "expression": "\"open"
+   },
+   "error": "invalid parameters for `proto.evaluate`: `\"open`: Close the text with \""
+  },
+  {
+   "command": "proto.evaluate",
+   "params": {
+    "expression": "1.2.3"
+   },
+   "error": "invalid parameters for `proto.evaluate`: `1.2.3`: `1.2.3` isn't a number"
+  },
+  {
+   "command": "proto.evaluate",
+   "params": {
+    "expression": "  "
+   },
+   "error": "invalid parameters for `proto.evaluate`: `  `: Type an expression"
+  },
+  {
+   "command": "proto.evaluate",
+   "params": {
+    "expression": "mode(Nope)"
+   },
+   "error": "invalid parameters for `proto.evaluate`: `mode(Nope)`: No variable collection `Nope`"
+  },
+  {
+   "command": "proto.evaluate",
+   "params": {
+    "expression": "accent[Nope]"
+   },
+   "error": "invalid parameters for `proto.evaluate`: `accent[Nope]`: Theme has no mode `Nope`"
+  },
+  {
+   "command": "proto.evaluate",
+   "params": {
+    "expression": "{nope}"
+   },
+   "error": "invalid parameters for `proto.evaluate`: `{nope}`: No variable `nope`"
+  },
+  {
+   "command": "proto.evaluate",
+   "params": {
+    "expression": "count and done"
+   },
+   "error": "invalid parameters for `proto.evaluate`: `and` needs true or false on both sides"
+  },
+  {
+   "command": "proto.evaluate",
+   "params": {
+    "expression": "count + name"
+   },
+   "receipt": {
+    "text": "count + name",
+    "type": "string",
+    "value": {
+     "type": "string",
+     "value": "2Ann"
+    }
+   }
+  },
+  {
+   "command": "proto.evaluate",
+   "params": {
+    "expression": "accent + 'x'"
+   },
+   "error": "invalid parameters for `proto.evaluate`: Colours can't be joined to text"
+  },
+  {
+   "command": "proto.evaluate",
+   "params": {
+    "expression": "done or 1"
+   },
+   "error": "invalid parameters for `proto.evaluate`: `or` needs true or false on both sides"
+  },
+  {
+   "command": "proto.evaluate",
+   "params": {
+    "expression": "10000000000000000000000 + 0"
+   },
+   "receipt": {
+    "text": "10000000000000000000000 + 0",
+    "type": "number",
+    "value": {
+     "type": "number",
+     "value": 1e+22
+    }
+   }
+  },
+  {
+   "command": "proto.evaluate",
+   "params": {
+    "expression": "0.1 + 0.2"
+   },
+   "receipt": {
+    "text": "0.1 + 0.2",
+    "type": "number",
+    "value": {
+     "type": "number",
+     "value": 0.30000000000000004
+    }
+   }
+  },
+  {
+   "command": "proto.evaluate",
+   "params": {
+    "expression": "'b' > 'a'"
+   },
+   "receipt": {
+    "text": "\"b\" > \"a\"",
+    "type": "boolean",
+    "value": {
+     "type": "boolean",
+     "value": true
+    }
+   }
+  },
+  {
+   "command": "proto.evaluate",
+   "params": {
+    "expression": "TRUE"
+   },
+   "receipt": {
+    "text": "true",
+    "type": "boolean",
+    "value": {
+     "type": "boolean",
+     "value": true
+    }
+   }
+  },
+  {
+   "command": "proto.evaluate",
+   "params": {
+    "expression": "Not done"
+   },
+   "receipt": {
+    "text": "not (done)",
+    "type": "boolean",
+    "value": {
+     "type": "boolean",
+     "value": true
+    }
+   }
+  },
+  {
+   "command": "proto.evaluate",
+   "params": {
+    "expression": "accent == #ff0000"
+   },
+   "receipt": {
+    "text": "accent == #FF0000",
+    "type": "boolean",
+    "value": {
+     "type": "boolean",
+     "value": true
+    }
+   }
+  },
+  {
+   "command": "proto.evaluate",
+   "params": {
+    "expression": "accent[Light] == #F00"
+   },
+   "receipt": {
+    "text": "accent[Light] == #FF0000",
+    "type": "boolean",
+    "value": {
+     "type": "boolean",
+     "value": true
+    }
+   }
+  },
+  {
+   "command": "proto.evaluate",
+   "params": {
+    "expression": "name + name"
+   },
+   "receipt": {
+    "text": "name + name",
+    "type": "string",
+    "value": {
+     "type": "string",
+     "value": "AnnAnn"
+    }
+   }
+  },
+  {
+   "command": "proto.evaluate",
+   "params": {
+    "expression": "'\u00e9' < 'z'"
+   },
+   "receipt": {
+    "text": "\"\u00e9\" < \"z\"",
+    "type": "boolean",
+    "value": {
+     "type": "boolean",
+     "value": false
+    }
+   }
+  },
+  {
+   "command": "proto.evaluate",
+   "params": {
+    "expression": "count = 2"
+   },
+   "receipt": {
+    "text": "count == 2",
+    "type": "boolean",
+    "value": {
+     "type": "boolean",
+     "value": true
+    }
+   }
+  },
+  {
+   "command": "proto.evaluate",
+   "params": {
+    "expression": "done && true || false"
+   },
+   "receipt": {
+    "text": "(done and true) or false",
+    "type": "boolean",
+    "value": {
+     "type": "boolean",
+     "value": false
+    }
+   }
+  },
+  {
+   "command": "proto.evaluate",
+   "params": {
+    "expression": "accent[\"Dark\"]"
+   },
+   "receipt": {
+    "text": "accent[Dark]",
+    "type": "color",
+    "value": {
+     "type": "color",
+     "value": {
+      "a": 1.0,
+      "b": 1.0,
+      "g": 0.0,
+      "r": 0.0
+     }
+    }
+   }
+  },
+  {
+   "command": "proto.evaluate",
+   "params": {
+    "expression": "mode( {Theme} )"
+   },
+   "receipt": {
+    "text": "mode(Theme)",
+    "type": "string",
+    "value": {
+     "type": "string",
+     "value": "Light"
+    }
+   }
+  },
+  {
+   "command": "proto.evaluate",
+   "params": {
+    "expression": "1 = 1 != 2"
+   },
+   "error": "invalid parameters for `proto.evaluate`: `1 = 1 != 2`: Compare two values at a time: join comparisons with `and` or `or`"
+  },
+  {
+   "command": "proto.evaluate",
+   "params": {
+    "expr": {
+     "op": {
+      "op": "add",
+      "args": [
+       {
+        "value": {
+         "type": "alias",
+         "value": "count"
+        }
+       },
+       {
+        "value": {
+         "type": "number",
+         "value": 1
+        }
+       }
+      ]
+     }
+    }
+   },
+   "receipt": {
+    "text": "count + 1",
+    "type": "number",
+    "value": {
+     "type": "number",
+     "value": 3.0
+    }
+   }
+  },
+  {
+   "command": "proto.evaluate",
+   "params": {
+    "expr": {
+     "mode": {
+      "collection": "Theme"
+     }
+    }
+   },
+   "receipt": {
+    "text": "mode(Theme)",
+    "type": "string",
+    "value": {
+     "type": "string",
+     "value": "Light"
+    }
+   }
+  },
+  {
+   "command": "proto.evaluate",
+   "params": {
+    "expr": {
+     "inMode": {
+      "variable": "accent",
+      "mode": "Dark"
+     }
+    }
+   },
+   "receipt": {
+    "text": "accent[Dark]",
+    "type": "color",
+    "value": {
+     "type": "color",
+     "value": {
+      "a": 1.0,
+      "b": 1.0,
+      "g": 0.0,
+      "r": 0.0
+     }
+    }
+   }
+  },
+  {
+   "command": "proto.evaluate",
+   "params": {},
+   "error": "invalid parameters for `proto.evaluate`: `expression` (text) or `expr` (expression JSON) required"
+  },
+  {
+   "command": "proto.evaluate",
+   "params": {
+    "expression": "count",
+    "id": 999
+   },
+   "error": "invalid parameters for `proto.evaluate`: no layer 999"
+  },
+  {
+   "command": "node.create",
+   "params": {
+    "type": "frame",
+    "x": 0,
+    "y": 0,
+    "width": 100,
+    "height": 100
+   },
+   "receipt": {
+    "id": 2
+   }
+  },
+  {
+   "command": "node.create",
+   "params": {
+    "type": "frame",
+    "x": 200,
+    "y": 0,
+    "width": 100,
+    "height": 100
+   },
+   "receipt": {
+    "id": 3
+   }
+  },
+  {
+   "command": "variable.setMode",
+   "params": {
+    "ids": [
+     2
+    ],
+    "collection": "Theme",
+    "mode": "Dark"
+   },
+   "receipt": {
+    "ok": true
+   }
+  },
+  {
+   "command": "proto.evaluate",
+   "params": {
+    "expression": "mode(Theme)",
+    "id": 2
+   },
+   "receipt": {
+    "text": "mode(Theme)",
+    "type": "string",
+    "value": {
+     "type": "string",
+     "value": "Dark"
+    }
+   }
+  },
+  {
+   "command": "proto.evaluate",
+   "params": {
+    "expression": "accent",
+    "id": 2
+   },
+   "receipt": {
+    "text": "accent",
+    "type": "color",
+    "value": {
+     "type": "color",
+     "value": {
+      "a": 1.0,
+      "b": 1.0,
+      "g": 0.0,
+      "r": 0.0
+     }
+    }
+   }
+  },
+  {
+   "command": "proto.interaction.add",
+   "params": {
+    "id": 2,
+    "action": {
+     "type": "setVariable",
+     "variable": "count",
+     "expression": "count + 1"
+    }
+   },
+   "receipt": {
+    "index": 0
+   }
+  },
+  {
+   "command": "proto.interaction.add",
+   "params": {
+    "id": 2,
+    "action": {
+     "type": "setVariable",
+     "variable": "count",
+     "value": 9
+    }
+   },
+   "receipt": {
+    "index": 1
+   }
+  },
+  {
+   "command": "proto.interaction.add",
+   "params": {
+    "id": 2,
+    "action": {
+     "type": "setVariable",
+     "variable": "name",
+     "expression": "count * 2"
+    }
+   },
+   "receipt": {
+    "index": 2
+   }
+  },
+  {
+   "command": "proto.interaction.add",
+   "params": {
+    "id": 2,
+    "action": {
+     "type": "setVariable",
+     "variable": "count",
+     "expression": "done"
+    }
+   },
+   "error": "invalid parameters for `proto.interaction.add`: This gives true or false, but the variable holds a number"
+  },
+  {
+   "command": "proto.interaction.add",
+   "params": {
+    "id": 2,
+    "action": {
+     "type": "setVariable",
+     "variable": "ghost",
+     "expression": "1"
+    }
+   },
+   "error": "invalid parameters for `proto.interaction.add`: setVariable: no such `variable`"
+  },
+  {
+   "command": "proto.interaction.add",
+   "params": {
+    "id": 2,
+    "action": {
+     "type": "setVariable",
+     "variable": "count",
+     "expression": "1 +"
+    }
+   },
+   "error": "invalid parameters for `proto.interaction.add`: `1 +`: Something is missing at the end"
+  },
+  {
+   "command": "proto.interaction.add",
+   "params": {
+    "id": 2,
+    "action": {
+     "type": "setVariableMode",
+     "collection": "Theme",
+     "mode": "Dark"
+    }
+   },
+   "receipt": {
+    "index": 3
+   }
+  },
+  {
+   "command": "proto.interaction.add",
+   "params": {
+    "id": 2,
+    "action": {
+     "type": "setVariableMode",
+     "collection": "Nope",
+     "mode": "Dark"
+    }
+   },
+   "receipt": {
+    "index": 4
+   }
+  },
+  {
+   "command": "proto.interaction.add",
+   "params": {
+    "id": 2,
+    "action": {
+     "type": "conditional",
+     "blocks": [
+      {
+       "expression": "count >= 3",
+       "actions": [
+        {
+         "type": "navigate",
+         "dest": 3
+        }
+       ]
+      },
+      {
+       "actions": [
+        {
+         "type": "back"
+        }
+       ]
+      }
+     ]
+    }
+   },
+   "receipt": {
+    "index": 5
+   }
+  },
+  {
+   "command": "proto.interaction.add",
+   "params": {
+    "id": 2,
+    "action": {
+     "type": "conditional",
+     "blocks": [
+      {
+       "expression": "count",
+       "actions": []
+      }
+     ]
+    }
+   },
+   "error": "invalid parameters for `proto.interaction.add`: A condition must be true or false, not a number"
+  },
+  {
+   "command": "proto.interaction.add",
+   "params": {
+    "id": 2,
+    "action": {
+     "type": "conditional",
+     "blocks": [
+      {
+       "condition": {
+        "op": {
+         "op": "equals",
+         "args": [
+          {
+           "value": {
+            "type": "alias",
+            "value": "done"
+           }
+          },
+          {
+           "value": {
+            "type": "boolean",
+            "value": true
+           }
+          }
+         ]
+        }
+       },
+       "actions": []
+      }
+     ]
+    }
+   },
+   "receipt": {
+    "index": 6
+   }
+  },
+  {
+   "command": "proto.interaction.add",
+   "params": {
+    "id": 2,
+    "actions": [
+     {
+      "type": "setVariable",
+      "variable": "count",
+      "value": 0,
+      "expr": {
+       "op": {
+        "op": "add",
+        "args": [
+         {
+          "value": {
+           "type": "alias",
+           "value": "count total"
+          }
+         },
+         {
+          "value": {
+           "type": "number",
+           "value": 1
+          }
+         }
+        ]
+       }
+      }
+     }
+    ]
+   },
+   "receipt": {
+    "index": 7
+   }
+  },
+  {
+   "command": "proto.interaction.add",
+   "params": {
+    "id": 2,
+    "action": {
+     "type": "setVariable",
+     "variable": "count",
+     "expression": "count",
+     "expr": {
+      "value": {
+       "type": "number",
+       "value": 4
+      }
+     },
+     "value": 1
+    }
+   },
+   "receipt": {
+    "index": 8
+   }
+  },
+  {
+   "command": "proto.interaction.set",
+   "params": {
+    "id": 2,
+    "index": 0,
+    "action": {
+     "type": "setVariable",
+     "variable": "done",
+     "expression": "not done"
+    }
+   },
+   "receipt": {
+    "ok": true
+   }
+  },
+  {
+   "command": "file.saveAs",
+   "params": {
+    "data": true
+   },
+   "saved": {
+    "interactions": [
+     {
+      "trigger": {
+       "type": "onClick"
+      },
+      "actions": [
+       {
+        "type": "setVariable",
+        "variable": "VariableID:2",
+        "value": null,
+        "expr": {
+         "value": {
+          "type": "alias",
+          "value": "VariableID:6"
+         }
+        }
+       }
+      ],
+      "transition": {
+       "type": "instant"
+      },
+      "duration_ms": 300,
+      "easing": "easeOut"
+     },
+     {
+      "trigger": {
+       "type": "onClick"
+      },
+      "actions": [
+       {
+        "type": "setVariable",
+        "variable": "VariableID:1",
+        "value": 9
+       }
+      ],
+      "transition": {
+       "type": "instant"
+      },
+      "duration_ms": 300,
+      "easing": "easeOut"
+     },
+     {
+      "trigger": {
+       "type": "onClick"
+      },
+      "actions": [
+       {
+        "type": "setVariable",
+        "variable": "VariableID:3",
+        "value": null,
+        "expr": {
+         "op": {
+          "op": "multiply",
+          "args": [
+           {
+            "value": {
+             "type": "alias",
+             "value": "VariableID:1"
+            }
+           },
+           {
+            "value": {
+             "type": "number",
+             "value": 2.0
+            }
+           }
+          ]
+         }
+        }
+       }
+      ],
+      "transition": {
+       "type": "instant"
+      },
+      "duration_ms": 300,
+      "easing": "easeOut"
+     },
+     {
+      "trigger": {
+       "type": "onClick"
+      },
+      "actions": [
+       {
+        "type": "setVariableMode",
+        "collection": "VariableCollectionId:1",
+        "mode": "VariableCollectionId:1/mode2"
+       }
+      ],
+      "transition": {
+       "type": "instant"
+      },
+      "duration_ms": 300,
+      "easing": "easeOut"
+     },
+     {
+      "trigger": {
+       "type": "onClick"
+      },
+      "actions": [
+       {
+        "type": "setVariableMode",
+        "collection": "Nope",
+        "mode": "Dark"
+       }
+      ],
+      "transition": {
+       "type": "instant"
+      },
+      "duration_ms": 300,
+      "easing": "easeOut"
+     },
+     {
+      "trigger": {
+       "type": "onClick"
+      },
+      "actions": [
+       {
+        "type": "conditional",
+        "blocks": [
+         {
+          "condition": {
+           "op": {
+            "op": "greaterOrEqual",
+            "args": [
+             {
+              "value": {
+               "type": "alias",
+               "value": "VariableID:1"
+              }
+             },
+             {
+              "value": {
+               "type": "number",
+               "value": 3.0
+              }
+             }
+            ]
+           }
+          },
+          "actions": [
+           {
+            "type": "navigate",
+            "dest": 3
+           }
+          ]
+         },
+         {
+          "actions": [
+           {
+            "type": "back"
+           }
+          ]
+         }
+        ]
+       }
+      ],
+      "transition": {
+       "type": "instant"
+      },
+      "duration_ms": 300,
+      "easing": "easeOut"
+     },
+     {
+      "trigger": {
+       "type": "onClick"
+      },
+      "actions": [
+       {
+        "type": "conditional",
+        "blocks": [
+         {
+          "condition": {
+           "op": {
+            "op": "equals",
+            "args": [
+             {
+              "value": {
+               "type": "alias",
+               "value": "VariableID:2"
+              }
+             },
+             {
+              "value": {
+               "type": "boolean",
+               "value": true
+              }
+             }
+            ]
+           }
+          },
+          "actions": []
+         }
+        ]
+       }
+      ],
+      "transition": {
+       "type": "instant"
+      },
+      "duration_ms": 300,
+      "easing": "easeOut"
+     },
+     {
+      "trigger": {
+       "type": "onClick"
+      },
+      "actions": [
+       {
+        "type": "setVariable",
+        "variable": "VariableID:1",
+        "value": 0,
+        "expr": {
+         "op": {
+          "op": "add",
+          "args": [
+           {
+            "value": {
+             "type": "alias",
+             "value": "VariableID:5"
+            }
+           },
+           {
+            "value": {
+             "type": "number",
+             "value": 1.0
+            }
+           }
+          ]
+         }
+        }
+       }
+      ],
+      "transition": {
+       "type": "instant"
+      },
+      "duration_ms": 300,
+      "easing": "easeOut"
+     },
+     {
+      "trigger": {
+       "type": "onClick"
+      },
+      "actions": [
+       {
+        "type": "setVariable",
+        "variable": "VariableID:1",
+        "value": 1,
+        "expr": {
+         "value": {
+          "type": "alias",
+          "value": "VariableID:1"
+         }
+        }
+       }
+      ],
+      "transition": {
+       "type": "instant"
+      },
+      "duration_ms": 300,
+      "easing": "easeOut"
+     }
+    ]
+   }
+  }
+ ]
+}

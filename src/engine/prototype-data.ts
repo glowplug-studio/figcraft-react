@@ -138,7 +138,7 @@ export function readInteractions(raw:unknown) {
   return list(raw,interaction);
 }
 /** Single readers for command parameters (node IDs as lossless numbers, as in files). */
-export const readPrototype = Object.freeze({trigger,transition,easing,action:(raw:unknown)=>action(raw),actions:(raw:unknown)=>list(raw,a=>action(a)),interaction});
+export const readPrototype = Object.freeze({trigger,transition,easing,action:(raw:unknown)=>action(raw),actions:(raw:unknown)=>list(raw,a=>action(a)),interaction,expression:(raw:unknown)=>expression(raw)});
 function wireAction(a:PrototypeAction):unknown {
   if ("dest" in a) return {...a,dest:wireId(a.dest)};
   if (a.type==="conditional") return {...a,blocks:a.blocks.map(b=>({...b,actions:b.actions.map(wireAction)}))};
