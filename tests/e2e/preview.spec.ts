@@ -6023,6 +6023,78 @@ test("image crop preserves visible pixels on layer resize, dims the outside and 
   await expect(page.getByRole("button",{name:"Crop fill 1 image",exact:true})).toBeHidden();
 });
 
+test("Crop chosen in the paint picker enters crop mode for one layer's image fill and a drag then moves the picture, as native does",async ({page})=>{
+  const {placementCrop}=await import("../../src/engine/image-placement");
+  await login(page);
+  const canvas=page.getByLabel("Design canvas",{exact:true}), image=new URL("../fixtures/images/six-pixels.png",import.meta.url).pathname;
+  const picker=page.getByRole("group",{name:"fill 1 paint picker",exact:true}), mode=picker.getByLabel("Image mode");
+  async function imageFill(name:string,x:number) {
+    await createNamedRectangle(page,name,x,100,200,100);
+    await page.getByRole("button",{name:"Edit fill 1 paint",exact:true}).click();
+    await picker.getByLabel("Paint type").selectOption("image");
+    await picker.getByLabel("Choose image").setInputFiles(image);
+    await expect(mode).toBeVisible();
+  }
+  async function saved() {
+    const pending=page.waitForEvent("download");
+    await canvas.focus(); await page.keyboard.press("ControlOrMeta+s");
+    return (await decodeFigcraft(await readFile((await (await pending).path())!))).document.nodes;
+  }
+  const fill=(node:unknown)=>{
+    const paint=rectanglePaints(node as RectangleNode)[0];
+    if (paint.type!=="image") throw Error("Expected an image fill");
+    return paint;
+  };
+  async function drag(x:number,y:number,toX:number,toY:number) {
+    const a=await canvasPoint(page,x,y), b=await canvasPoint(page,toX,toY);
+    await page.mouse.move(a.x,a.y); await page.mouse.down();
+    await page.mouse.move(b.x,b.y,{steps:4}); await page.mouse.up();
+  }
+  // Two layers' fills at once have no crop mode: Crop only sets the mode and the picker stays.
+  await imageFill("Picker crop",100);
+  await picker.getByRole("button",{name:"Close paint picker"}).click();
+  await imageFill("Second image",400);
+  await picker.getByRole("button",{name:"Close paint picker"}).click();
+  const layers=page.getByRole("region",{name:"Layers",exact:true});
+  await layers.getByRole("button",{name:"Second image"}).click();
+  await layers.getByRole("button",{name:"Picker crop"}).click({modifiers:["Shift"]});
+  await page.getByRole("button",{name:"Edit fill 1 paint",exact:true}).click();
+  await mode.selectOption("crop");
+  await expect(picker).toBeVisible();
+  const both=await saved();
+  expect(fill(both["2"]).scale_mode).toBe("crop"); expect(fill(both["3"]).scale_mode).toBe("crop");
+  await picker.getByRole("button",{name:"Close paint picker"}).click();
+  await layers.getByRole("button",{name:"Picker crop"}).click();
+  await page.getByRole("button",{name:"Edit fill 1 paint",exact:true}).click();
+  // Fit is only a mode: the picker stays open.
+  await mode.selectOption("fit");
+  await expect(picker).toBeVisible();
+  expect(fill((await saved())["2"])).toMatchObject({scale_mode:"fit"});
+  // Crop is Crop image: the picker closes and the picture keeps its place.
+  await mode.selectOption("crop");
+  await expect(picker).toBeHidden();
+  const placed=fill((await saved())["2"]);
+  expect(placed.scale_mode).toBe("crop");
+  expect(placed.crop).toEqual(placementCrop({...placed,scale_mode:"fit"},3,2,200,100));
+  // Crop mode holds the canvas: the bottom right corner dragged in crops the layer to 150 by 75.
+  await drag(300,200,250,175);
+  const cropped=(await saved())["2"] as RectangleNode, after=fill(cropped).crop!;
+  expect(cropped).toMatchObject({x:100,y:100,width:150,height:75});
+  expect(after[0]).toBeCloseTo(placed.crop![0]*.75); expect(after[3]).toBeCloseTo(placed.crop![3]*.75);
+  expect(after[4]).toBeCloseTo(placed.crop![4]); expect(after[5]).toBeCloseTo(placed.crop![5]);
+  await page.keyboard.press("Enter");
+  // The picker reopened on the Crop fill holds its crop: a drag on the image moves the picture, not the layer.
+  await page.getByRole("button",{name:"Edit fill 1 paint",exact:true}).click();
+  await expect(mode).toHaveValue("crop");
+  await drag(170,130,200,140);
+  const moved=(await saved())["2"] as RectangleNode;
+  expect(moved).toMatchObject({x:100,y:100,width:150,height:75});
+  expect(fill(moved).crop).not.toEqual(after);
+  expect(fill(moved).scale_mode).toBe("crop");
+  await expect(picker).toBeVisible();
+  expect(await page.locator("main [role=alert]").allInnerTexts()).toEqual([]);
+});
+
 test("the editor holds an animated GIF on frame one at idle and refuses unsafe progressive JPEG placement atomically",async({page})=>{
   await login(page);
   const open=page.getByLabel("Open Figcraft file",{exact:true});

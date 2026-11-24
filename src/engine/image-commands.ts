@@ -139,6 +139,16 @@ export function topImageFill(node:LayerNode) {
 }
 
 /** A native command operates on the layer's own fill. Region handles follow the open picker separately. */
+/** The layer and fill index Crop image takes when Crop is chosen in the paint picker (native `crop_on_canvas`, #2150): one layer's
+ * image fill as the Fill section shows it, a text's shared character fills included. Strokes, several layers at once, styles and the
+ * regions selected in vector edit mode have no crop mode, so for them Crop only sets the paint's mode. */
+export function pickerCropTarget(document:Document, selection:readonly NodeId[], picker:{list:"fill"|"stroke";index:number;styleId?:string}, region:boolean):CropTarget|undefined {
+  if (picker.list!=="fill" || picker.styleId!==undefined || region || selection.length!==1) return;
+  const node=document.nodes[selection[0]];
+  if (!node || node.kind==="page") return;
+  return characterFills(node)?.[picker.index]?.type==="image" ? Object.freeze({id:node.id,index:picker.index}) : undefined;
+}
+
 export function startImageCrop(document:Document, selection:readonly NodeId[], p:Params) {
   const ids = targets(selection,p,true);
   if (ids.length !== 1) throw new Error("Select one layer to crop its image");

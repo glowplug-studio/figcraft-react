@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import type { EditorEngine, PaintPicker } from "./engine/editor";
 import { decodeVariant } from "./engine/image-renderer";
 import type { ColourProfile } from "./engine/colour-spaces";
-import { findImagePreset } from "./engine/image-commands";
+import { findImagePreset, pickerCropTarget } from "./engine/image-commands";
 import { readImageFilters, listImagePresets, type ImageFilters } from "./engine/image-filters";
 import type { ImageResource } from "./engine/image-resource";
 import type { ImagePaint } from "./engine/solid-paint";
@@ -44,6 +44,7 @@ export function ImagePaintControls({engine,picker,paint,region,change,hover,uplo
   const resource = paint && snapshot.document.images?.[paint.image];
   const profile = resource?.profileName ?? "Unknown — treated as sRGB";
   const {builtIn, saved} = listImagePresets(snapshot.document.imagePresets);
+  const cropOnCanvas = pickerCropTarget(snapshot.document,snapshot.selection,picker,region);
   const identity = !shown || Object.values(shown.filters).every(n=>n===0);
   const same = (filters:ImageFilters) => shown && controls.every(label => {
     const key = label.toLowerCase() as keyof ImageFilters;
@@ -77,7 +78,13 @@ export function ImagePaintControls({engine,picker,paint,region,change,hover,uplo
     }}/>
     {error && <p role="alert">{error}</p>}
     {shown && <>
-      <div style={{display:"flex",alignItems:"center",gap:6,flexWrap:"wrap"}}><label>Image mode<select value={shown.scale_mode} onChange={e=>change({...shown,scale_mode:e.currentTarget.value as ImagePaint["scale_mode"]})}>
+      <div style={{display:"flex",alignItems:"center",gap:6,flexWrap:"wrap"}}><label>Image mode<select value={shown.scale_mode} onChange={e=>{
+        const mode=e.currentTarget.value as ImagePaint["scale_mode"];
+        // Crop for one layer's own image fill is Crop image (#2150): the picture keeps its place and crop mode takes the canvas,
+        // closing the picker. Strokes, several layers, region fills and styles have no crop mode: Crop only sets the mode.
+        if (mode==="crop" && cropOnCanvas) run(()=>{engine.execute("image.crop",{ids:[cropOnCanvas.id],index:cropOnCanvas.index});});
+        else change({...shown,scale_mode:mode});
+      }}>
         {(["fill","fit","crop","tile"] as const).map(mode=><option key={mode} value={mode}>{mode[0].toUpperCase()+mode.slice(1)}</option>)}
       </select></label>
       <button type="button" onClick={()=>change({...shown,rotation:(shown.rotation+1)%4})}>Rotate 90°</button></div>
