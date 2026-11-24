@@ -58,7 +58,7 @@ Items marked as outside the browser port are not dismissed: the final audit revi
 | 3.10 | A font loaded with text.loadFont wins over built-in and installed faces (#2092) | Verified at 9b9fbf2 | `34c44e60`, `a375ac06` |
 | 3.11 | The text caret takes the text's fill colour, with fallbacks (#2156, #2190, #2163) | Verified at 0e82958 | `2beec8b3`, `06d03a54`, `3cdc5f7e`, `6920ea63`, `e3701d85` |
 | 3.12 | The eyedropper picks a magnified image's pixel under the pointer (#2189) | Verified at 679e2d6 | `30767bd2`, `0dac2311` |
-| 3.13 | Selection colors shows for a layer with children from one colour (#2188, #2191) | Open | `dadd4dfc`, `21d05946`, `7e438913`, `c93d6c46` |
+| 3.13 | Selection colors shows for a layer with children from one colour (#2188, #2191) | Open; waits for the Selection colors slice ([deferred queue](26-11-07-full-port-resume.md#deferred-tests-and-reviews)) | `dadd4dfc`, `21d05946`, `7e438913`, `c93d6c46` |
 | 3.14 | Page background: translucent pages over a themed checkerboard, the sidebar paint field | Verified at d578735 | `481b6831`, `a45d932a`, `d9f52aab`, `67c232ea` |
 | 3.15 | A background blur or glass exported on its own keeps the content behind it (#2213) | Verified at e183f76 | `020388cf`, `a1de7dcd` |
 | 3.16 | Export: colour profile notes; export settings take back what node.get returns (snake_case aliases) | Verified at 4ac4ac7 | `297426c5`, `97f086e0`, `12ade9c7`, `016dba8c`, `3d4c798f`, `6c3ac0c5`, `3f39154a` |
