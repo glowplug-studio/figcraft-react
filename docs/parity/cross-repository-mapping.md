@@ -812,3 +812,7 @@ Native `crates/engine/src/canvas/drop.rs::{auto_layout_slot_within, slot_in}` at
 ## Delta row 5: inherited slot properties — 24 November 2026
 
 Native `crates/engine/src/assets/components/sync.rs::{copy_layers, apply_enclosing_props}` at `bad07e44` (upstream `a6d9b74d`, `a66946d1`, `2067a0b5`) maps to the `InstanceScope` scopes of `component-sync.ts` and `component-bindings.ts::boundCopy` at `4f762c3`; `components.rs::owning_component` maps to `component-tree.ts::owningMainComponent`. Verified by four native scenes in `tests/fixtures/native-slot-inherited-properties.json`, `tests/parity/slot-inherited-properties.test.ts` and a browser case in `tests/e2e/preview.spec.ts`. [Report](../reports/26-11-24-slot-inherited-properties.md).
+
+## Delta row 5: the properties an instance lists — 24 November 2026
+
+Native `crates/engine/src/assets/components.rs::instance_prop_list` at `bad07e44` (upstream `14670b99`, #2022) maps to `component-variants.ts::instancePropertyNames` at `dad7613`; `crates/engine/src/cmd/component/props.rs::describe_props` to `describeComponentProperties`; native's Properties panel to `InstancePanel.tsx`. Verified by two native scenes in `tests/fixtures/native-instance-properties.json`, `tests/parity/instance-properties.test.ts` and a browser case in `tests/e2e/preview.spec.ts`. [Report](../reports/26-11-24-instance-properties.md).
