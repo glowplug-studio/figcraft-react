@@ -11156,11 +11156,11 @@ test("the Prototype tab adds and names flows, sets the device, adds and removes 
   const interactions=panel.getByRole("region",{name:"Interactions"});
   await interactions.getByRole("button",{name:"Add interaction"}).click();
   await interactions.getByRole("button",{name:"Add interaction"}).click();
-  await expect(interactions.getByRole("listitem")).toHaveCount(2);
-  await expect(interactions.getByRole("listitem").first()).toContainText("On click");
-  await expect(interactions.getByRole("listitem").first()).toContainText("Navigate to Details");
+  await expect(interactions.locator("li.figcraft-interaction")).toHaveCount(2);
+  await expect(interactions.locator("li.figcraft-interaction").first()).toContainText("On click");
+  await expect(interactions.locator("li.figcraft-interaction").first()).toContainText("Navigate to Details");
   await interactions.getByRole("button",{name:"Remove interaction 2"}).click();
-  await expect(interactions.getByRole("listitem")).toHaveCount(1);
+  await expect(interactions.locator("li.figcraft-interaction")).toHaveCount(1);
   await panel.getByLabel("Scroll position",{exact:true}).selectOption("fixed");
   // A top-level frame: its flow and its overflow.
   await layers.getByRole("button",{name:"Home",exact:true}).click();
@@ -11177,4 +11177,59 @@ test("the Prototype tab adds and names flows, sets the device, adds and removes 
   expect(saved.nodes[button].interactions).toEqual([{trigger:{type:"onClick"},actions:[{type:"navigate",dest:Number(details)}],transition:{type:"instant"},duration_ms:300,easing:"easeOut"}]);
   expect(saved.nodes[button].scroll_position).toBe("fixed");
   expect(saved.nodes[home].overflow).toBe("vertical");
+});
+
+test("the interaction editor sets a trigger, builds an if / else with a typed condition, sets a variable by expression and animates, as native's editor does",async ({page})=>{
+  const engine=new EditorEngine();
+  const home=String((engine.execute("frame.create",{name:"Home",x:0,y:0,width:200,height:400}) as {id:string}).id);
+  const details=String((engine.execute("frame.create",{name:"Details",x:300,y:0,width:200,height:400}) as {id:string}).id);
+  const button=String((engine.execute("shape.rectangle",{name:"Button",x:20,y:20,width:80,height:30,parent:home}) as {id:string}).id);
+  engine.execute("variable.createCollection",{name:"Theme",modes:["Light"]});
+  engine.execute("variable.create",{collection:"Theme",name:"count",type:"number",value:0});
+  const count=engine.getSnapshot().document.variables!.variables[0].id;
+  await login(page);
+  await page.getByLabel("Open Figcraft file",{exact:true}).setInputFiles({name:"editor.figcraft",mimeType:"application/octet-stream",buffer:Buffer.from(await engine.nativeSnapshot())});
+  await page.getByRole("group",{name:"Properties",exact:true}).getByRole("button",{name:"Prototype",exact:true}).click();
+  const panel=page.getByRole("region",{name:"Prototype",exact:true});
+  await page.getByRole("region",{name:"Layers",exact:true}).getByRole("button",{name:"Button",exact:true}).click();
+  await panel.getByRole("button",{name:"Add interaction"}).click();
+  const editor=panel.getByRole("region",{name:"Interaction",exact:true});
+  await expect(editor.getByLabel("Action",{exact:true})).toHaveValue("Navigate to");
+  // The trigger: after a delay, set to 500 ms.
+  await editor.getByLabel("Trigger",{exact:true}).selectOption("afterDelay");
+  const delay=editor.getByLabel("Delay",{exact:true});
+  await expect(delay).toHaveValue("800");
+  await delay.fill("500"); await delay.press("Enter");
+  // The action becomes a conditional: if count >= 3 navigate, else go back.
+  await editor.getByLabel("Action",{exact:true}).selectOption("Conditional");
+  const condition=editor.getByLabel("Condition 1",{exact:true});
+  await condition.fill("count >= 3"); await condition.press("Enter");
+  await editor.getByLabel("Add action to block 1",{exact:true}).selectOption("Navigate to");
+  await editor.getByRole("button",{name:"Else",exact:true}).click();
+  await editor.getByLabel("Add action to block 2",{exact:true}).selectOption("Back");
+  // A second action sets count to count + 1; a bad expression is refused with native's message.
+  await editor.getByLabel("Add action",{exact:true}).selectOption("Set variable");
+  await editor.getByRole("button",{name:"Expression",exact:true}).click();
+  const expression=editor.getByLabel("Expression",{exact:true});
+  await expression.fill("count +"); await expression.press("Enter");
+  await expect(editor.getByRole("alert")).toHaveText("Something is missing at the end");
+  await expression.fill("count + 1"); await expression.press("Enter");
+  await expect(editor.getByRole("alert")).toHaveCount(0);
+  // The animation: push upwards with a gentle spring.
+  await editor.getByLabel("Animation",{exact:true}).selectOption("push");
+  await editor.getByLabel("Direction",{exact:true}).selectOption("top");
+  await editor.getByLabel("Easing",{exact:true}).selectOption("gentle");
+  await expect(panel.locator("li.figcraft-interaction")).toContainText("After delay 500ms");
+  const pending=page.waitForEvent("download");
+  await page.getByRole("button",{name:"Save as",exact:true}).click();
+  const {unzipSync,strFromU8}=await import("fflate");
+  const saved=JSON.parse(strFromU8(unzipSync(new Uint8Array(await readFile((await (await pending).path())!)))["document.json"]));
+  const it=saved.nodes[button].interactions[0];
+  expect(it.trigger).toEqual({type:"afterDelay",ms:500});
+  expect(it.transition).toEqual({type:"push",direction:"top"});
+  expect(it.easing).toBe("gentle");
+  expect(it.actions[0]).toEqual({type:"conditional",blocks:[
+    {condition:{op:{op:"greaterOrEqual",args:[{value:{type:"alias",value:count}},{value:{type:"number",value:3}}]}},actions:[{type:"navigate",dest:Number(details)}]},
+    {actions:[{type:"back"}]}]});
+  expect(it.actions[1]).toEqual({type:"setVariable",variable:count,value:0,expr:{op:{op:"add",args:[{value:{type:"alias",value:count}},{value:{type:"number",value:1}}]}}});
 });

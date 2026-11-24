@@ -4,6 +4,7 @@ import { defaultPrototypeBackground, isFrameLike, type Document, type DocumentNo
 import { topFrames, topLevelFrame } from "./engine/prototype-commands";
 import { customDevice, defaultPrototypeDevice, deviceColour, deviceModel, devices } from "./engine/prototype-settings";
 import { interactionSummary, interactionTargets, newInteractionAction, triggerSummary } from "./engine/prototype-summaries";
+import { InteractionEditor } from "./InteractionEditor";
 
 export interface PrototypePanelProps {
   document: Document;
@@ -28,7 +29,7 @@ export function PrototypePanel({ document, selection, editable, dispatch }: Prot
   return <>
     {topLevelFrame(document, first) === first && <FlowSection key={first} document={document} page={page} frame={first} editable={editable} dispatch={dispatch} />}
     {mixed ? <MixedInteractions document={document} page={page} selection={selection} editable={editable} dispatch={dispatch} />
-      : <Interactions document={document} page={page} selection={selection} node={node} editable={editable} dispatch={dispatch} />}
+      : <Interactions key={first} document={document} page={page} selection={selection} node={node} editable={editable} dispatch={dispatch} />}
     <ScrollSection document={document} selection={selection} node={node} editable={editable} dispatch={dispatch} />
   </>;
 }
@@ -137,14 +138,20 @@ const wireAction = (a: ReturnType<typeof newInteractionAction>) => "dest" in a ?
 function Interactions({ document, page, selection, node, editable, dispatch }: Common & { document: Document; page: PageNode; selection: readonly NodeId[]; node: DocumentNode }) {
   const list = node.interactions ?? [];
   const ids = interactionTargets(document, selection, node.id).map(wire);
+  // Native `open_editor`: the interaction whose editor shows (a new one opens on Add).
+  const [open, setOpen] = useState<number | null>(null);
+  const shown = open !== null && open < list.length ? open : null;
   return <section aria-label="Interactions">
     <h3>Interactions <button type="button" disabled={!editable} aria-label="Add interaction"
-      onClick={() => dispatch("proto.interaction.add", { ids, trigger: { type: "onClick" }, action: wireAction(newInteractionAction(document, page.id, node.id)) })}>+</button></h3>
+      onClick={() => { dispatch("proto.interaction.add", { ids, trigger: { type: "onClick" }, action: wireAction(newInteractionAction(document, page.id, node.id)) }); setOpen(list.length); }}>+</button></h3>
     <ul>{list.map((it, i) => <li key={i} className="figcraft-interaction">
-      <span className="figcraft-interaction-trigger">{triggerSummary(it.trigger)}</span>
-      <span className="figcraft-interaction-actions">{interactionSummary(document, it)}</span>
-      <button type="button" disabled={!editable} aria-label={`Remove interaction ${i + 1}`} title="Remove interaction" onClick={() => dispatch("proto.interaction.remove", { ids, index: i })}>−</button>
+      <button type="button" aria-pressed={shown === i} aria-label={`Edit interaction ${i + 1}: ${triggerSummary(it.trigger)}, ${interactionSummary(document, it)}`} onClick={() => setOpen(shown === i ? null : i)}>
+        <span className="figcraft-interaction-trigger">{triggerSummary(it.trigger)}</span>
+        <span className="figcraft-interaction-actions">{interactionSummary(document, it)}</span>
+      </button>
+      <button type="button" disabled={!editable} aria-label={`Remove interaction ${i + 1}`} title="Remove interaction" onClick={() => { setOpen(null); dispatch("proto.interaction.remove", { ids, index: i }); }}>−</button>
     </li>)}</ul>
+    {shown !== null && <InteractionEditor key={shown} document={document} node={node.id} index={shown} interaction={list[shown]} ids={ids} editable={editable} dispatch={dispatch} close={() => setOpen(null)} />}
   </section>;
 }
 

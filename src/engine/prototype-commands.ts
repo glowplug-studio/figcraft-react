@@ -313,7 +313,7 @@ function editList(actions: readonly PrototypeAction[], path: readonly number[], 
   return actions.map((x, i) => i === a ? { ...target, blocks } : x);
 }
 /** Native `start_value` and `default_condition`: the first boolean variable (else the first) equal to its value. */
-function startValue(vars: Variables, v: Variable): VariableValue {
+export function startValue(vars: Variables, v: Variable): VariableValue {
   const value = resolveVariable(vars, v.id);
   if (value && value.type === v.resolvedType) return value;
   switch (v.resolvedType) {
@@ -323,7 +323,7 @@ function startValue(vars: Variables, v: Variable): VariableValue {
     case "color": return { type: "color", value: { r: 0, g: 0, b: 0, a: 1 } };
   }
 }
-function defaultCondition(vars: Variables): PrototypeExpression {
+export function defaultCondition(vars: Variables): PrototypeExpression {
   const v = vars.variables.find(x => x.resolvedType === "boolean") ?? vars.variables[0];
   return v ? { op: { op: "equals", args: [{ value: { type: "alias", value: v.id } }, { value: startValue(vars, v) }] } } : { value: { type: "boolean", value: true } };
 }
