@@ -5,7 +5,7 @@
 - Phase: planning record, written 20 November 2026 at React `f5114ec` on `prompt/full-figcraft-port`.
 - Native range: `7bf098d75d187416633d9ebcceb9eb83fbb10df8` → `bad07e4433240cad046589129c084bd2fc36f097`, 254 commits excluding merges.
 - Purpose: the [delta queue](26-11-15-upstream-delta.md) groups this range into eight rows by theme. Row 1 turned out to hold a change that no row named (point positions in vector edit mode). This ledger assigns every commit to an item, so that nothing in the range is left to be found by accident.
-- Status: 32 items verified, 31 open (four of them, 2.6, 2.12, 2.17 and 2.18, wait for the interface of roadmap row 19), the rest outside the browser port or without product behaviour.
+- Status: 33 items verified, 30 open (four of them, 2.6, 2.12, 2.17 and 2.18, wait for the interface of roadmap row 19), the rest outside the browser port or without product behaviour.
 - Next action: work the open items in order, each as its own bounded slice under its row's plan. Row 2 is closed apart from the four items waiting for row 19 ([row 2 plan](26-11-20-delta-row-2-selection-canvas.md)); row 3 is planned in [the row 3 plan](26-11-21-delta-row-3-files-text-paint.md).
 - Blockers: none.
 
@@ -60,7 +60,7 @@ Items marked as outside the browser port are not dismissed: the final audit revi
 | 3.12 | The eyedropper picks a magnified image's pixel under the pointer (#2189) | Open | `30767bd2`, `0dac2311` |
 | 3.13 | Selection colors shows for a layer with children from one colour (#2188, #2191) | Open | `dadd4dfc`, `21d05946`, `7e438913`, `c93d6c46` |
 | 3.14 | Page background: translucent pages over a themed checkerboard, the sidebar paint field | Open | `481b6831`, `a45d932a`, `d9f52aab`, `67c232ea` |
-| 3.15 | A background blur or glass exported on its own keeps the content behind it (#2213) | Open | `020388cf`, `a1de7dcd` |
+| 3.15 | A background blur or glass exported on its own keeps the content behind it (#2213) | Verified at e183f76 | `020388cf`, `a1de7dcd` |
 | 3.16 | Export: colour profile notes; export settings take back what node.get returns (snake_case aliases) | Verified at 4ac4ac7 | `297426c5`, `97f086e0`, `12ade9c7`, `016dba8c`, `3d4c798f`, `6c3ac0c5`, `3f39154a` |
 | 3.17 | Import and export bounds: SVG export embeds each image once; SVG import budgets attributes, filter chains and layers; Penpot raw SVG allowance; render cache hash | Open | `9032dc3e`, `64e91207`, `70ed6c16`, `4d3fe2aa`, `cf77dfda`, `2f8dd85f`, `81371f4a` |
 | 3.18 | Paint rows: a click highlights a fill, stroke or effect row; Cmd/Ctrl+C and V copy and paste it; a programmatic paste after a property copy pastes no stale layers (#1494) | Open | `375a7b8a`, `33ac1d14`, `b640fbc1`, `0ad70b95` |

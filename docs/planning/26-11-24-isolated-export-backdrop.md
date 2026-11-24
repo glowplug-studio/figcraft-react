@@ -5,7 +5,7 @@
 - Preliminary source review for [delta row 3, item 9](26-11-21-delta-row-3-files-text-paint.md), [ledger 3.15](26-11-20-upstream-delta-ledger.md). Wait for the cumulative gate for items 7 and 8 and record native runtime observations before implementation.
 - Native reference `bad07e4433240cad046589129c084bd2fc36f097`, with changes `020388cf1f9cde2a2f8ab2361abbc3003ca7106b` and `a1de7dcd2683d18f90ecfcd92fc2c31ae4c7afa2`. React source read at `906fee8` on `prompt/full-figcraft-port-pending`. Last verified cumulative browser gate was at `a99608c`, as recorded in the [handover](26-11-07-full-port-resume.md).
 - Source and tests remain untouched. No build, test or native observation ran. Used existing local Graphify indexes to locate the Rust and TypeScript symbols and checked their definitions in source. Index metadata records `ea403f6` and the pinned native revision. The React graph file is newer than its revision metadata, so use it as a symbol lookup during the current gate.
-- Native cases observed on 24 November (below); design settled (below). Implementation follows the items 7 and 8 gate.
+- Phase: complete through Phase 7 on 24 November 2026 at `e183f76`: [report](../reports/26-11-24-isolated-export-backdrop.md), [matrix](../reports/26-11-24-isolated-export-backdrop-parity.html), [provenance](../../tests/fixtures/native-backdrop-export.provenance.md).
 
 ## Native source contract
 
