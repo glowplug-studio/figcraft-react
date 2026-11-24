@@ -5,7 +5,7 @@
 - Phase: planning record, written 20 November 2026 at React `f5114ec` on `prompt/full-figcraft-port`.
 - Native range: `7bf098d75d187416633d9ebcceb9eb83fbb10df8` → `bad07e4433240cad046589129c084bd2fc36f097`, 254 commits excluding merges.
 - Purpose: the [delta queue](26-11-15-upstream-delta.md) groups this range into eight rows by theme. Row 1 turned out to hold a change that no row named (point positions in vector edit mode). This ledger assigns every commit to an item, so that nothing in the range is left to be found by accident.
-- Status: 48 items verified, 15 open (four of them, 2.6, 2.12, 2.17 and 2.18, wait for the interface of roadmap row 19), the rest outside the browser port or without product behaviour.
+- Status: 49 items verified, 14 open (four of them, 2.6, 2.12, 2.17 and 2.18, wait for the interface of roadmap row 19), the rest outside the browser port or without product behaviour.
 - Next action: work the open items in order, each as its own bounded slice under its row's plan. Row 2 is closed apart from the four items waiting for row 19 ([row 2 plan](26-11-20-delta-row-2-selection-canvas.md)); row 3 is planned in [the row 3 plan](26-11-21-delta-row-3-files-text-paint.md).
 - Blockers: none.
 
@@ -72,7 +72,7 @@ Items marked as outside the browser port are not dismissed: the final audit revi
 | 5.2 | An instance lists the properties its variant uses (#2022) | Verified at dad7613 | `14670b99` |
 | 5.3 | A connection dropped on a sibling variant creates Change to; grouped sets take none (#2158, #2161) | Open | `5c500252`, `36cd59da`, `499717d6` |
 | 5.4 | Create multiple components and Create component set in the component button's menu, with refusals (#2088, #2095) | Open | `f5a52ea5`, `524ad8b1`, `253e0c3d`, `dda27030` |
-| 5.5 | Variables: bulk Edit variables, Duplicate group, duplicate by exact id, slash rename nests with rollback, page modes with nothing selected (#2082, #2084, #2353, #2215) | Open | `a20415e1`, `9c3949fc`, `8a78214b`, `4313a60f`, `815cbf9f`, `7644de9f`, `70aeeee9`, `92d0ffdc`, `a60cb1a6` |
+| 5.5 | Variables: bulk Edit variables, Duplicate group, duplicate by exact id, slash rename nests with rollback, page modes with nothing selected (#2082, #2084, #2353, #2215) | Verified at 5e27442 for duplicate by id and page modes; bulk edit, Duplicate group and group rename wait for the variables panel's groups ([deferred queue](26-11-07-full-port-resume.md#deferred-tests-and-reviews)) | `a20415e1`, `9c3949fc`, `8a78214b`, `4313a60f`, `815cbf9f`, `7644de9f`, `70aeeee9`, `92d0ffdc`, `a60cb1a6` |
 | 5.6 | Text styles: bind a number variable to the weight (#2174) | Verified at ae4ceba | `ccb33e0b`, `281918e2` |
 | 5.7 | Import cost: layer paths per main worked out once; codeConnect.import indexes components by name | Open | `a8e34e75`, `6e9582c0` |
 | 6.1 | Library links keep working when the project folder is moved or cloned (#2132) | Open | `7b34dbab` |
