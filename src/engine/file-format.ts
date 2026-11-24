@@ -126,6 +126,12 @@ const nodeDefaults = {
   annotations: [], code_links: [], dev_resources: [], measurements: [], board: null,
 };
 
+/** Native `Overflow` and `ScrollPosition`, kept only when not the default. */
+function scrolling(n: ObjectValue) {
+  const overflow = n.overflow === undefined ? "none" : textEnum(n.overflow, ["none", "horizontal", "vertical", "both"] as const, "overflow");
+  const position = n.scroll_position === undefined ? "scrolls" : textEnum(n.scroll_position, ["scrolls", "fixed", "sticky"] as const, "scroll position");
+  return { ...(overflow !== "none" && { overflow }), ...(position !== "scrolls" && { scrollPosition: position }) };
+}
 function nativeColour(value: unknown, path: string): Colour {
   const result = parseColour(appearanceValue(value));
   if (!result) fail(`${path}: invalid colour`);
@@ -142,7 +148,7 @@ export function readNode(key: string, value: unknown): DocumentNode {
   if (!isDocumentNodeKind(kind)) fail(`node type ${String(kind)} is not supported yet`);
   const componentFields = kind === "component" ? ["description", "props", "prop_order"]
     : kind === "componentSet" ? ["description"] : kind === "instance" ? ["component", "props"] : [];
-  fields(n, [...componentFields, "guides", "interactions", "plugin_data", "bound", "var_modes", "styles", "grids", "exports", "overrides", "source", "prop_refs", "exposed", "id", "name", "type", "parent", "children", "transform", "width", "height", "fills", "blend", "effects", "is_mask", "mask_type", ...(kind === "page" ? ["background", "flows", "prototype", "strokes", "stroke", "opacity"] : ["clip", "bool_op", "child_layout", ...(kind === "section" ? ["contents_hidden"] : kind === "booleanOp" ? ["op"] : kind === "ellipse" ? ["start", "sweep", "inner"] : kind === "star" ? ["count", "inner_ratio"] : kind === "polygon" ? ["count"] : kind === "vector" ? ["network"] : kind === "text" ? textFields : []), "stroke", "strokes", "visible", "locked", "opacity", "corners", "constraints", "constrain_proportions", ...(isFrameLikeKind(kind) ? ["layout"] : [])])], nodeDefaults, `node ${key}`);
+  fields(n, [...componentFields, "guides", "interactions", "plugin_data", "bound", "var_modes", "styles", "grids", "exports", "overrides", "source", "prop_refs", "exposed", "id", "name", "type", "parent", "children", "transform", "width", "height", "fills", "blend", "effects", "is_mask", "mask_type", ...(kind === "page" ? ["background", "flows", "prototype", "strokes", "stroke", "opacity"] : ["clip", "bool_op", "child_layout", "overflow", "scroll_position", ...(kind === "section" ? ["contents_hidden"] : kind === "booleanOp" ? ["op"] : kind === "ellipse" ? ["start", "sweep", "inner"] : kind === "star" ? ["count", "inner_ratio"] : kind === "polygon" ? ["count"] : kind === "vector" ? ["network"] : kind === "text" ? textFields : []), "stroke", "strokes", "visible", "locked", "opacity", "corners", "constraints", "constrain_proportions", ...(isFrameLikeKind(kind) ? ["layout"] : [])])], nodeDefaults, `node ${key}`);
   const modes=n.var_modes===undefined ? [] : Object.entries(object(n.var_modes,"layer variable modes"));
   const variableModes=modes.length ? Object.freeze(Object.fromEntries(modes.map(([k,v])=>[k,text(v,"variable mode ID")]))) : undefined;
   const bindings=Object.entries(n.bound===undefined ? {} : object(n.bound,"layer variable bindings"));
@@ -236,7 +242,7 @@ export function readNode(key: string, value: unknown): DocumentNode {
     if (kind === "section" && n.contents_hidden !== undefined && typeof n.contents_hidden !== "boolean") fail("section contents_hidden must be boolean");
     const op = kind === "booleanOp" ? (isBooleanOperation(n.op) ? n.op : fail("invalid boolean group operation")) : undefined;
     const layer = { ...links, ...(n.clip === true && {clip:true}), ...(n.child_layout !== undefined && readChildLayout(n.child_layout, kind === "text")), ...(isBooleanOperation(n.bool_op) ? { boolOp: n.bool_op } : {}), id: key, kind, name, ...strokeData, ...(corners ? { corners } : {}), parent: id(n.parent, `${kind} parent`), x: transform[4]!, y: transform[5]!, width, height, fill: "transparent", ...(constraints.horizontal !== "left" || constraints.vertical !== "top" ? { constraints } : {}),
-      ...mask, ...(effects?.length && { effects }), ...(n.constrain_proportions === true ? { constrainProportions: true } : {}), ...(n.visible === false ? { visible: false } : {}), ...(n.locked === true ? { locked: true } : {}), ...(opacity !== 1 ? { opacity } : {}),
+      ...mask, ...(effects?.length && { effects }), ...(n.constrain_proportions === true ? { constrainProportions: true } : {}), ...scrolling(n), ...(n.visible === false ? { visible: false } : {}), ...(n.locked === true ? { locked: true } : {}), ...(opacity !== 1 ? { opacity } : {}),
       ...((n.blend ?? "passThrough") !== (!isLeafKind(kind) ? "passThrough" : "normal") ? { blend: (n.blend ?? "passThrough") as BlendMode } : {}) };
     let count = 0;
     if (kind === "polygon" || kind === "star") {
@@ -712,7 +718,7 @@ export function wireNode(key: string, node: DocumentNode) {
     return { ...common, ...(node.flows?.length && {flows:wireFlows(node.flows)}), ...(node.blend && node.blend !== "passThrough" && {blend:node.blend}), ...(node.opacity !== undefined && node.opacity !== 1 && {opacity:node.opacity}), ...(node.stroke && !isDefaultStroke(node.stroke) && {stroke:wireStroke(node.stroke)}), ...(node.fills?.length && {fills:wirePaints(node.fills)}), ...(node.strokes?.length && {strokes:wirePaints(node.strokes)}), width: 0, height: 0, children: node.children.map(wireId), background: pageColour(node), ...((node.prototypeBackground || node.prototypeDevice) && { prototype: wirePrototype(node) }) };
   } else {
     return { ...common, child_layout: wireChildLayout(node.childLayout, layerSizing(node)), ...(node.boolOp ? { bool_op: node.boolOp } : {}), parent: wireId(node.parent), ...(!isLeaf(node) ? { children: node.children.map(wireId) } : {}), transform: layerTransform(node), width: node.width, height: node.height, ...(node.stroke ? { stroke: wireStroke(node.stroke) } : {}), ...(node.strokes ? { strokes: wirePaints(node.strokes) } : {}),
-      ...(node.corners ? { corners: node.corners } : {}), ...(node.constraints ? { constraints: node.constraints } : {}), ...(node.constrainProportions ? { constrain_proportions: true } : {}), ...(node.clip && {clip:true}), ...(isFrameLike(node) ? { ...wireFrameKind(node), clip: node.clip, ...(node.layout && {layout: wireAutoLayout(node.layout)}) } : {}), blend: layerBlend(node), visible: node.visible ?? true, locked: node.locked ?? false, opacity: node.opacity ?? 1, fills: wirePaints(rectanglePaints(node)) };
+      ...(node.corners ? { corners: node.corners } : {}), ...(node.constraints ? { constraints: node.constraints } : {}), ...(node.constrainProportions ? { constrain_proportions: true } : {}), ...(node.overflow && { overflow: node.overflow }), ...(node.scrollPosition && { scroll_position: node.scrollPosition }), ...(node.clip && {clip:true}), ...(isFrameLike(node) ? { ...wireFrameKind(node), clip: node.clip, ...(node.layout && {layout: wireAutoLayout(node.layout)}) } : {}), blend: layerBlend(node), visible: node.visible ?? true, locked: node.locked ?? false, opacity: node.opacity ?? 1, fills: wirePaints(rectanglePaints(node)) };
   }
 }
 

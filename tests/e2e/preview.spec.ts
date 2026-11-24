@@ -11117,3 +11117,15 @@ test("signed-in Penpot download reopens as an editable document with native text
   const actual=await decodeFigcraft(await readFile((await (await saving).path())!));
   expect(actual.document).toEqual(expected);
 });
+
+test("a native file with a frame's overflow and a layer's scroll position opens and saves them in the browser",async ({page})=>{
+  const native=(await import("../fixtures/native-layer-scrolling.json",{with:{type:"json"}})).default;
+  await login(page);
+  await page.getByLabel("Open Figcraft file",{exact:true}).setInputFiles({name:"scrolling.figcraft",mimeType:"application/json",buffer:Buffer.from(JSON.stringify(native.document))});
+  await expect(page.getByRole("heading",{name:"Scrolling",exact:true})).toBeVisible();
+  const pending=page.waitForEvent("download");
+  await page.getByRole("button",{name:"Save as",exact:true}).click();
+  const {unzipSync,strFromU8}=await import("fflate");
+  const saved=JSON.parse(strFromU8(unzipSync(new Uint8Array(await readFile((await (await pending).path())!)))["document.json"]));
+  expect([saved.nodes["2"].overflow,saved.nodes["3"].overflow,saved.nodes["3"].scroll_position]).toEqual([native.document.nodes["2"].overflow,native.document.nodes["3"].overflow,native.document.nodes["3"].scroll_position]);
+});

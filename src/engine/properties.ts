@@ -28,7 +28,7 @@ import { isCornerKey, setCorners, zeroCorners } from "./corners";
 import { identity, inverse, multiply, setRotationAboutCenter, transformBounds, transformPoint, withTranslation, type Affine } from "./affine";
 import { defaultConstraints, nodeTypeName, rectanglePaints, rectangleTransform, withRectanglePaints, withRectangleTransform, type Document, type DocumentNode, type NodeId, type LayerNode } from "./document";
 import { HierarchyDraft, frameRelative, rootIds, worldTransform } from "./hierarchy";
-import { parseNodeId, parseNumber, parseString } from "./parameters";
+import { parseNodeId, parseNumber, parseString, propertyEnum } from "./parameters";
 import { parseColour } from "./colour-css";
 import { samePaints, readPaints, solidPaint, type Paint } from "./solid-paint";
 
@@ -41,7 +41,7 @@ const geometryKeys = new Set(["x", "y", "width", "height", "w", "h", "rotation",
 const styleSlots = new Map<string, StyleSlot>([
   ["effectStyle","effect"], ["fillStyle","fill"], ["gridStyle","grid"], ["strokeStyle","stroke"], ["textStyle","text"],
 ]);
-const appearanceKeys = new Set([...styleSlots.keys(), "boundVariables", "variableModes", "grids", "layoutGrids", "exports", "exportSettings", "sectionContentsHidden", "description", "effects", "isMask", "maskType", "booleanOperation", "operandOperation", "name", "visible", "locked", "opacity", "blend", "blendMode", "fill", "fills", "clip", "constraints", "constrainProportions"]);
+const appearanceKeys = new Set([...styleSlots.keys(), "boundVariables", "variableModes", "grids", "layoutGrids", "exports", "exportSettings", "sectionContentsHidden", "description", "effects", "isMask", "maskType", "booleanOperation", "operandOperation", "name", "visible", "locked", "opacity", "blend", "blendMode", "fill", "fills", "clip", "constraints", "constrainProportions", "overflow", "scrollPosition"]);
 
 export function supportsLayerProperty(key:string) {
   return geometryKeys.has(key) || appearanceKeys.has(key) || childLayoutKeys.has(key) || frameTuning.has(key) ||
@@ -160,6 +160,14 @@ export function writeProperties(draft: HierarchyDraft, document: Document, selec
     if (key in props && typeof props[key] !== "boolean") throw new Error(`${key} must be a boolean`);
   }
   const effects = Object.hasOwn(props, "effects") ? readEffects(props.effects, "properties") : undefined;
+  // Native `overflow` and `scrollPosition` (enum names in any case), checked before anything changes.
+  const scrollEnum = <T extends string>(key: string, values: readonly T[]) => {
+    if (!(key in props)) return undefined;
+    try { return propertyEnum(props[key], values); }
+    catch { throw new Error("invalid parameters for `node.set`: " + key + ": " + values.join("|")); }
+  };
+  const overflow = scrollEnum("overflow", ["none", "horizontal", "vertical", "both"] as const);
+  const scrollPosition = scrollEnum("scrollPosition", ["scrolls", "fixed", "sticky"] as const);
   const maskType = typeof props.maskType === "string" ? props.maskType.toLowerCase() : undefined;
   if ("maskType" in props && !isMaskType(maskType)) throw new Error("maskType must be alpha, vector or luminance");
   const mask = <T extends DocumentNode>(node:T) => withMaskProperties(node,props.isMask as boolean | undefined,isMaskType(maskType) ? maskType : undefined);
@@ -319,6 +327,14 @@ export function writeProperties(draft: HierarchyDraft, document: Document, selec
     if (updated.kind === "vector" && "cornerRadius" in props) updated = Object.freeze({ ...updated, network: freezeNetwork({ ...updated.network, vertices: updated.network.vertices.map(v => ({ ...v, radius: corners.radii[0] })) }) });
     if (constraintsChanged) updated = Object.freeze({ ...updated, constraints });
     if ("clip" in props && isFrameLike(updated)) updated = Object.freeze({ ...updated, clip: props.clip as boolean });
+    if (overflow !== undefined && overflow !== (node.overflow ?? "none")) {
+      const { overflow: _o, ...rest } = updated;
+      updated = Object.freeze({ ...rest, ...(overflow !== "none" && { overflow }) }) as typeof updated;
+    }
+    if (scrollPosition !== undefined && scrollPosition !== (node.scrollPosition ?? "scrolls")) {
+      const { scrollPosition: _s, ...rest } = updated;
+      updated = Object.freeze({ ...rest, ...(scrollPosition !== "scrolls" && { scrollPosition }) }) as typeof updated;
+    }
     if (name !== undefined && name !== node.name) updated = Object.freeze({ ...updated, name });
     if ("visible" in props && props.visible !== (node.visible ?? true)) updated = Object.freeze({ ...updated, visible: props.visible as boolean });
     if ("locked" in props && props.locked !== (node.locked ?? false)) updated = Object.freeze({ ...updated, locked: props.locked as boolean });
@@ -329,7 +345,8 @@ export function writeProperties(draft: HierarchyDraft, document: Document, selec
     if (sectionChanged || wrappers.size || updated.boundVariables!==node.boundVariables || updated.variableModes!==node.variableModes || links.length || grids || exports || "description" in props || textKeys.length || updated.effects !== node.effects || updated.isMask !== node.isMask || updated.maskType !== node.maskType || changeBlend || arcNode !== node || updated.kind === "vector" && "cornerRadius" in props || cornersChanged || "constrainProportions" in props && props.constrainProportions !== (node.constrainProportions ?? false) || constraintsChanged || "clip" in props && isFrameLike(node) && props.clip !== node.clip || width !== node.width || height !== node.height || transform.some((value, index) => value !== rectangleTransform(node)[index])
       || name !== undefined && name !== node.name || "visible" in props && props.visible !== (node.visible ?? true)
       || "locked" in props && props.locked !== (node.locked ?? false) || opacity !== undefined && opacity !== (node.opacity ?? 1)
-      || paints && !samePaints(rectanglePaints(node), paints)) {
+      || paints && !samePaints(rectanglePaints(node), paints)
+      || updated.overflow !== node.overflow || updated.scrollPosition !== node.scrollPosition) {
       draft.set(updated);
     }
   }

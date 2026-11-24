@@ -79,6 +79,10 @@ export interface Constraints {
 export const defaultConstraints: Constraints = Object.freeze({ horizontal: "left", vertical: "top" });
 export interface LayerProperties extends NativeLayerRecords, MaskProperties, ComponentLinks, LayerStyles, LayerVariableModes {
   readonly interactions?: readonly PrototypeInteraction[];
+  /** Native `overflow`: the axes a frame's content scrolls in a prototype (absent: none). */
+  readonly overflow?: "horizontal" | "vertical" | "both";
+  /** Native `scroll_position`: a layer that stays put or sticks while its frame scrolls (absent: scrolls). */
+  readonly scrollPosition?: "fixed" | "sticky";
   readonly thumbnailFlag?: string;
   readonly exports?: readonly ExportSetting[];
   readonly childLayout?: ChildLayout;
