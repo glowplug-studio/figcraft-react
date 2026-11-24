@@ -1,0 +1,1948 @@
+{
+ "nativeRevision": "bad07e4433240cad046589129c084bd2fc36f097",
+ "note": "Each case: commands run natively in a new document (layer ids as native allocates them). node.get keeps the id, characters (text), visible (true when native omits it) and, for an instance, its componentProperties; component.properties keeps each property's name and value; null for the rest.",
+ "cases": [
+  {
+   "name": "text stays local in default content",
+   "steps": [
+    {
+     "command": "frame.create",
+     "params": {
+      "width": 100,
+      "height": 40,
+      "name": "Content"
+     },
+     "receipt": null
+    },
+    {
+     "command": "text.create",
+     "params": {
+      "text": "Default",
+      "parent": 2,
+      "props": {
+       "name": "Label"
+      }
+     },
+     "receipt": null
+    },
+    {
+     "command": "component.create",
+     "params": {
+      "ids": [
+       2
+      ]
+     },
+     "receipt": null
+    },
+    {
+     "command": "component.addProperty",
+     "params": {
+      "id": 2,
+      "name": "Text",
+      "type": "text",
+      "default": "Default",
+      "layer": 3
+     },
+     "receipt": null
+    },
+    {
+     "command": "frame.create",
+     "params": {
+      "width": 200,
+      "height": 100,
+      "name": "Base"
+     },
+     "receipt": null
+    },
+    {
+     "command": "frame.create",
+     "params": {
+      "width": 180,
+      "height": 80,
+      "name": "Body",
+      "parent": 4
+     },
+     "receipt": null
+    },
+    {
+     "command": "instance.create",
+     "params": {
+      "component": 2,
+      "parent": 5
+     },
+     "receipt": null
+    },
+    {
+     "command": "component.create",
+     "params": {
+      "ids": [
+       4
+      ]
+     },
+     "receipt": null
+    },
+    {
+     "command": "component.makeSlot",
+     "params": {
+      "id": 5
+     },
+     "receipt": null
+    },
+    {
+     "command": "frame.create",
+     "params": {
+      "width": 300,
+      "height": 200,
+      "name": "Composition"
+     },
+     "receipt": null
+    },
+    {
+     "command": "instance.create",
+     "params": {
+      "component": 4,
+      "parent": 8
+     },
+     "receipt": null
+    },
+    {
+     "command": "component.create",
+     "params": {
+      "ids": [
+       8
+      ]
+     },
+     "receipt": null
+    },
+    {
+     "command": "instance.create",
+     "params": {
+      "component": 8,
+      "x": 400
+     },
+     "receipt": null
+    },
+    {
+     "command": "instance.create",
+     "params": {
+      "component": 8,
+      "x": 800
+     },
+     "receipt": null
+    },
+    {
+     "command": "instance.setProperties",
+     "params": {
+      "ids": [
+       16
+      ],
+      "properties": {
+       "Text": "Custom"
+      }
+     },
+     "receipt": null
+    },
+    {
+     "command": "node.get",
+     "params": {
+      "id": 17
+     },
+     "receipt": {
+      "id": 17,
+      "characters": "Custom",
+      "visible": true
+     }
+    },
+    {
+     "command": "component.properties",
+     "params": {
+      "id": 16
+     },
+     "receipt": [
+      [
+       "Text",
+       "Custom"
+      ]
+     ]
+    },
+    {
+     "command": "node.get",
+     "params": {
+      "id": 16
+     },
+     "receipt": {
+      "id": 16,
+      "visible": true,
+      "props": {
+       "Text": "Custom"
+      }
+     }
+    },
+    {
+     "command": "node.get",
+     "params": {
+      "id": 22
+     },
+     "receipt": {
+      "id": 22,
+      "characters": "Default",
+      "visible": true
+     }
+    },
+    {
+     "command": "component.properties",
+     "params": {
+      "id": 21
+     },
+     "receipt": [
+      [
+       "Text",
+       "Default"
+      ]
+     ]
+    },
+    {
+     "command": "node.get",
+     "params": {
+      "id": 21
+     },
+     "receipt": {
+      "id": 21,
+      "visible": true,
+      "props": {
+       "Text": "Default"
+      }
+     }
+    },
+    {
+     "command": "node.get",
+     "params": {
+      "id": 12
+     },
+     "receipt": {
+      "id": 12,
+      "characters": "Default",
+      "visible": true
+     }
+    },
+    {
+     "command": "component.properties",
+     "params": {
+      "id": 11
+     },
+     "receipt": [
+      [
+       "Text",
+       "Default"
+      ]
+     ]
+    },
+    {
+     "command": "node.get",
+     "params": {
+      "id": 11
+     },
+     "receipt": {
+      "id": 11,
+      "visible": true,
+      "props": {
+       "Text": "Default"
+      }
+     }
+    },
+    {
+     "command": "instance.setProperties",
+     "params": {
+      "ids": [
+       11
+      ],
+      "properties": {
+       "Text": "Main value"
+      }
+     },
+     "receipt": null
+    },
+    {
+     "command": "node.get",
+     "params": {
+      "id": 17
+     },
+     "receipt": {
+      "id": 17,
+      "characters": "Custom",
+      "visible": true
+     }
+    },
+    {
+     "command": "component.properties",
+     "params": {
+      "id": 16
+     },
+     "receipt": [
+      [
+       "Text",
+       "Custom"
+      ]
+     ]
+    },
+    {
+     "command": "node.get",
+     "params": {
+      "id": 16
+     },
+     "receipt": {
+      "id": 16,
+      "visible": true,
+      "props": {
+       "Text": "Custom"
+      }
+     }
+    },
+    {
+     "command": "node.get",
+     "params": {
+      "id": 22
+     },
+     "receipt": {
+      "id": 22,
+      "characters": "Main value",
+      "visible": true
+     }
+    },
+    {
+     "command": "component.properties",
+     "params": {
+      "id": 21
+     },
+     "receipt": [
+      [
+       "Text",
+       "Main value"
+      ]
+     ]
+    },
+    {
+     "command": "node.get",
+     "params": {
+      "id": 21
+     },
+     "receipt": {
+      "id": 21,
+      "visible": true,
+      "props": {
+       "Text": "Main value"
+      }
+     }
+    },
+    {
+     "command": "node.get",
+     "params": {
+      "id": 12
+     },
+     "receipt": {
+      "id": 12,
+      "characters": "Main value",
+      "visible": true
+     }
+    },
+    {
+     "command": "component.properties",
+     "params": {
+      "id": 11
+     },
+     "receipt": [
+      [
+       "Text",
+       "Main value"
+      ]
+     ]
+    },
+    {
+     "command": "node.get",
+     "params": {
+      "id": 11
+     },
+     "receipt": {
+      "id": 11,
+      "visible": true,
+      "props": {
+       "Text": "Main value"
+      }
+     }
+    },
+    {
+     "command": "component.editProperty",
+     "params": {
+      "id": 2,
+      "name": "Text",
+      "default": "New default"
+     },
+     "receipt": null
+    },
+    {
+     "command": "node.get",
+     "params": {
+      "id": 17
+     },
+     "receipt": {
+      "id": 17,
+      "characters": "Custom",
+      "visible": true
+     }
+    },
+    {
+     "command": "component.properties",
+     "params": {
+      "id": 16
+     },
+     "receipt": [
+      [
+       "Text",
+       "Custom"
+      ]
+     ]
+    },
+    {
+     "command": "node.get",
+     "params": {
+      "id": 16
+     },
+     "receipt": {
+      "id": 16,
+      "visible": true,
+      "props": {
+       "Text": "Custom"
+      }
+     }
+    },
+    {
+     "command": "node.get",
+     "params": {
+      "id": 22
+     },
+     "receipt": {
+      "id": 22,
+      "characters": "Main value",
+      "visible": true
+     }
+    },
+    {
+     "command": "component.properties",
+     "params": {
+      "id": 21
+     },
+     "receipt": [
+      [
+       "Text",
+       "Main value"
+      ]
+     ]
+    },
+    {
+     "command": "node.get",
+     "params": {
+      "id": 21
+     },
+     "receipt": {
+      "id": 21,
+      "visible": true,
+      "props": {
+       "Text": "Main value"
+      }
+     }
+    },
+    {
+     "command": "node.get",
+     "params": {
+      "id": 12
+     },
+     "receipt": {
+      "id": 12,
+      "characters": "Main value",
+      "visible": true
+     }
+    },
+    {
+     "command": "component.properties",
+     "params": {
+      "id": 11
+     },
+     "receipt": [
+      [
+       "Text",
+       "Main value"
+      ]
+     ]
+    },
+    {
+     "command": "node.get",
+     "params": {
+      "id": 11
+     },
+     "receipt": {
+      "id": 11,
+      "visible": true,
+      "props": {
+       "Text": "Main value"
+      }
+     }
+    }
+   ]
+  },
+  {
+   "name": "text stays local in own content",
+   "steps": [
+    {
+     "command": "frame.create",
+     "params": {
+      "width": 100,
+      "height": 40,
+      "name": "Content"
+     },
+     "receipt": null
+    },
+    {
+     "command": "text.create",
+     "params": {
+      "text": "Default",
+      "parent": 2,
+      "props": {
+       "name": "Label"
+      }
+     },
+     "receipt": null
+    },
+    {
+     "command": "component.create",
+     "params": {
+      "ids": [
+       2
+      ]
+     },
+     "receipt": null
+    },
+    {
+     "command": "component.addProperty",
+     "params": {
+      "id": 2,
+      "name": "Text",
+      "type": "text",
+      "default": "Default",
+      "layer": 3
+     },
+     "receipt": null
+    },
+    {
+     "command": "frame.create",
+     "params": {
+      "width": 200,
+      "height": 100,
+      "name": "Base"
+     },
+     "receipt": null
+    },
+    {
+     "command": "frame.create",
+     "params": {
+      "width": 180,
+      "height": 80,
+      "name": "Body",
+      "parent": 4
+     },
+     "receipt": null
+    },
+    {
+     "command": "component.create",
+     "params": {
+      "ids": [
+       4
+      ]
+     },
+     "receipt": null
+    },
+    {
+     "command": "component.makeSlot",
+     "params": {
+      "id": 5
+     },
+     "receipt": null
+    },
+    {
+     "command": "frame.create",
+     "params": {
+      "width": 300,
+      "height": 200,
+      "name": "Composition"
+     },
+     "receipt": null
+    },
+    {
+     "command": "instance.create",
+     "params": {
+      "component": 4,
+      "parent": 6
+     },
+     "receipt": null
+    },
+    {
+     "command": "component.create",
+     "params": {
+      "ids": [
+       6
+      ]
+     },
+     "receipt": null
+    },
+    {
+     "command": "instance.slotInsert",
+     "params": {
+      "id": 7,
+      "slot": "Body",
+      "component": 2
+     },
+     "receipt": null
+    },
+    {
+     "command": "instance.create",
+     "params": {
+      "component": 6,
+      "x": 400
+     },
+     "receipt": null
+    },
+    {
+     "command": "instance.create",
+     "params": {
+      "component": 6,
+      "x": 800
+     },
+     "receipt": null
+    },
+    {
+     "command": "instance.setProperties",
+     "params": {
+      "ids": [
+       14
+      ],
+      "properties": {
+       "Text": "Custom"
+      }
+     },
+     "receipt": null
+    },
+    {
+     "command": "node.get",
+     "params": {
+      "id": 15
+     },
+     "receipt": {
+      "id": 15,
+      "characters": "Custom",
+      "visible": true
+     }
+    },
+    {
+     "command": "component.properties",
+     "params": {
+      "id": 14
+     },
+     "receipt": [
+      [
+       "Text",
+       "Custom"
+      ]
+     ]
+    },
+    {
+     "command": "node.get",
+     "params": {
+      "id": 14
+     },
+     "receipt": {
+      "id": 14,
+      "visible": true,
+      "props": {
+       "Text": "Custom"
+      }
+     }
+    },
+    {
+     "command": "node.get",
+     "params": {
+      "id": 20
+     },
+     "receipt": {
+      "id": 20,
+      "characters": "Default",
+      "visible": true
+     }
+    },
+    {
+     "command": "component.properties",
+     "params": {
+      "id": 19
+     },
+     "receipt": [
+      [
+       "Text",
+       "Default"
+      ]
+     ]
+    },
+    {
+     "command": "node.get",
+     "params": {
+      "id": 19
+     },
+     "receipt": {
+      "id": 19,
+      "visible": true,
+      "props": {
+       "Text": "Default"
+      }
+     }
+    },
+    {
+     "command": "node.get",
+     "params": {
+      "id": 10
+     },
+     "receipt": {
+      "id": 10,
+      "characters": "Default",
+      "visible": true
+     }
+    },
+    {
+     "command": "component.properties",
+     "params": {
+      "id": 9
+     },
+     "receipt": [
+      [
+       "Text",
+       "Default"
+      ]
+     ]
+    },
+    {
+     "command": "node.get",
+     "params": {
+      "id": 9
+     },
+     "receipt": {
+      "id": 9,
+      "visible": true,
+      "props": {
+       "Text": "Default"
+      }
+     }
+    },
+    {
+     "command": "instance.setProperties",
+     "params": {
+      "ids": [
+       9
+      ],
+      "properties": {
+       "Text": "Main value"
+      }
+     },
+     "receipt": null
+    },
+    {
+     "command": "node.get",
+     "params": {
+      "id": 15
+     },
+     "receipt": {
+      "id": 15,
+      "characters": "Custom",
+      "visible": true
+     }
+    },
+    {
+     "command": "component.properties",
+     "params": {
+      "id": 14
+     },
+     "receipt": [
+      [
+       "Text",
+       "Custom"
+      ]
+     ]
+    },
+    {
+     "command": "node.get",
+     "params": {
+      "id": 14
+     },
+     "receipt": {
+      "id": 14,
+      "visible": true,
+      "props": {
+       "Text": "Custom"
+      }
+     }
+    },
+    {
+     "command": "node.get",
+     "params": {
+      "id": 20
+     },
+     "receipt": {
+      "id": 20,
+      "characters": "Main value",
+      "visible": true
+     }
+    },
+    {
+     "command": "component.properties",
+     "params": {
+      "id": 19
+     },
+     "receipt": [
+      [
+       "Text",
+       "Main value"
+      ]
+     ]
+    },
+    {
+     "command": "node.get",
+     "params": {
+      "id": 19
+     },
+     "receipt": {
+      "id": 19,
+      "visible": true,
+      "props": {
+       "Text": "Main value"
+      }
+     }
+    },
+    {
+     "command": "node.get",
+     "params": {
+      "id": 10
+     },
+     "receipt": {
+      "id": 10,
+      "characters": "Main value",
+      "visible": true
+     }
+    },
+    {
+     "command": "component.properties",
+     "params": {
+      "id": 9
+     },
+     "receipt": [
+      [
+       "Text",
+       "Main value"
+      ]
+     ]
+    },
+    {
+     "command": "node.get",
+     "params": {
+      "id": 9
+     },
+     "receipt": {
+      "id": 9,
+      "visible": true,
+      "props": {
+       "Text": "Main value"
+      }
+     }
+    },
+    {
+     "command": "component.editProperty",
+     "params": {
+      "id": 2,
+      "name": "Text",
+      "default": "New default"
+     },
+     "receipt": null
+    },
+    {
+     "command": "node.get",
+     "params": {
+      "id": 15
+     },
+     "receipt": {
+      "id": 15,
+      "characters": "Custom",
+      "visible": true
+     }
+    },
+    {
+     "command": "component.properties",
+     "params": {
+      "id": 14
+     },
+     "receipt": [
+      [
+       "Text",
+       "Custom"
+      ]
+     ]
+    },
+    {
+     "command": "node.get",
+     "params": {
+      "id": 14
+     },
+     "receipt": {
+      "id": 14,
+      "visible": true,
+      "props": {
+       "Text": "Custom"
+      }
+     }
+    },
+    {
+     "command": "node.get",
+     "params": {
+      "id": 20
+     },
+     "receipt": {
+      "id": 20,
+      "characters": "Main value",
+      "visible": true
+     }
+    },
+    {
+     "command": "component.properties",
+     "params": {
+      "id": 19
+     },
+     "receipt": [
+      [
+       "Text",
+       "Main value"
+      ]
+     ]
+    },
+    {
+     "command": "node.get",
+     "params": {
+      "id": 19
+     },
+     "receipt": {
+      "id": 19,
+      "visible": true,
+      "props": {
+       "Text": "Main value"
+      }
+     }
+    },
+    {
+     "command": "node.get",
+     "params": {
+      "id": 10
+     },
+     "receipt": {
+      "id": 10,
+      "characters": "Main value",
+      "visible": true
+     }
+    },
+    {
+     "command": "component.properties",
+     "params": {
+      "id": 9
+     },
+     "receipt": [
+      [
+       "Text",
+       "Main value"
+      ]
+     ]
+    },
+    {
+     "command": "node.get",
+     "params": {
+      "id": 9
+     },
+     "receipt": {
+      "id": 9,
+      "visible": true,
+      "props": {
+       "Text": "Main value"
+      }
+     }
+    }
+   ]
+  },
+  {
+   "name": "text does not read an unbound base property",
+   "steps": [
+    {
+     "command": "frame.create",
+     "params": {
+      "width": 100,
+      "height": 40,
+      "name": "Content"
+     },
+     "receipt": null
+    },
+    {
+     "command": "text.create",
+     "params": {
+      "text": "Default",
+      "parent": 2,
+      "props": {
+       "name": "Label"
+      }
+     },
+     "receipt": null
+    },
+    {
+     "command": "component.create",
+     "params": {
+      "ids": [
+       2
+      ]
+     },
+     "receipt": null
+    },
+    {
+     "command": "component.addProperty",
+     "params": {
+      "id": 2,
+      "name": "Text",
+      "type": "text",
+      "default": "Default",
+      "layer": 3
+     },
+     "receipt": null
+    },
+    {
+     "command": "frame.create",
+     "params": {
+      "width": 200,
+      "height": 100,
+      "name": "Base"
+     },
+     "receipt": null
+    },
+    {
+     "command": "frame.create",
+     "params": {
+      "width": 180,
+      "height": 80,
+      "name": "Body",
+      "parent": 4
+     },
+     "receipt": null
+    },
+    {
+     "command": "component.create",
+     "params": {
+      "ids": [
+       4
+      ]
+     },
+     "receipt": null
+    },
+    {
+     "command": "component.makeSlot",
+     "params": {
+      "id": 5
+     },
+     "receipt": null
+    },
+    {
+     "command": "frame.create",
+     "params": {
+      "width": 300,
+      "height": 200,
+      "name": "Composition"
+     },
+     "receipt": null
+    },
+    {
+     "command": "instance.create",
+     "params": {
+      "component": 4,
+      "parent": 6
+     },
+     "receipt": null
+    },
+    {
+     "command": "component.create",
+     "params": {
+      "ids": [
+       6
+      ]
+     },
+     "receipt": null
+    },
+    {
+     "command": "instance.slotInsert",
+     "params": {
+      "id": 7,
+      "slot": "Body",
+      "component": 2
+     },
+     "receipt": null
+    },
+    {
+     "command": "component.addProperty",
+     "params": {
+      "id": 4,
+      "name": "Text",
+      "type": "text",
+      "default": "Wrong owner"
+     },
+     "receipt": null
+    },
+    {
+     "command": "instance.create",
+     "params": {
+      "component": 6,
+      "x": 400
+     },
+     "receipt": null
+    },
+    {
+     "command": "node.get",
+     "params": {
+      "id": 12
+     },
+     "receipt": {
+      "id": 12,
+      "visible": true,
+      "props": {
+       "Text": "Wrong owner"
+      }
+     }
+    },
+    {
+     "command": "node.get",
+     "params": {
+      "id": 15
+     },
+     "receipt": {
+      "id": 15,
+      "characters": "Default",
+      "visible": true
+     }
+    },
+    {
+     "command": "component.properties",
+     "params": {
+      "id": 14
+     },
+     "receipt": [
+      [
+       "Text",
+       "Default"
+      ]
+     ]
+    },
+    {
+     "command": "node.get",
+     "params": {
+      "id": 14
+     },
+     "receipt": {
+      "id": 14,
+      "visible": true,
+      "props": {
+       "Text": "Default"
+      }
+     }
+    },
+    {
+     "command": "instance.setProperties",
+     "params": {
+      "ids": [
+       14
+      ],
+      "properties": {
+       "Text": "Custom"
+      }
+     },
+     "receipt": null
+    },
+    {
+     "command": "node.get",
+     "params": {
+      "id": 15
+     },
+     "receipt": {
+      "id": 15,
+      "characters": "Custom",
+      "visible": true
+     }
+    },
+    {
+     "command": "component.properties",
+     "params": {
+      "id": 14
+     },
+     "receipt": [
+      [
+       "Text",
+       "Custom"
+      ]
+     ]
+    },
+    {
+     "command": "node.get",
+     "params": {
+      "id": 14
+     },
+     "receipt": {
+      "id": 14,
+      "visible": true,
+      "props": {
+       "Text": "Custom"
+      }
+     }
+    },
+    {
+     "command": "node.get",
+     "params": {
+      "id": 12
+     },
+     "receipt": {
+      "id": 12,
+      "visible": true,
+      "props": {
+       "Text": "Wrong owner"
+      }
+     }
+    },
+    {
+     "command": "node.get",
+     "params": {
+      "id": 10
+     },
+     "receipt": {
+      "id": 10,
+      "characters": "Default",
+      "visible": true
+     }
+    },
+    {
+     "command": "component.properties",
+     "params": {
+      "id": 9
+     },
+     "receipt": [
+      [
+       "Text",
+       "Default"
+      ]
+     ]
+    },
+    {
+     "command": "node.get",
+     "params": {
+      "id": 9
+     },
+     "receipt": {
+      "id": 9,
+      "visible": true,
+      "props": {
+       "Text": "Default"
+      }
+     }
+    }
+   ]
+  },
+  {
+   "name": "boolean stays local in inherited own content",
+   "steps": [
+    {
+     "command": "frame.create",
+     "params": {
+      "width": 100,
+      "height": 40,
+      "name": "Content"
+     },
+     "receipt": null
+    },
+    {
+     "command": "text.create",
+     "params": {
+      "text": "Default",
+      "parent": 2,
+      "props": {
+       "name": "Label"
+      }
+     },
+     "receipt": null
+    },
+    {
+     "command": "component.create",
+     "params": {
+      "ids": [
+       2
+      ]
+     },
+     "receipt": null
+    },
+    {
+     "command": "component.addProperty",
+     "params": {
+      "id": 2,
+      "name": "Text",
+      "type": "text",
+      "default": "Default",
+      "layer": 3
+     },
+     "receipt": null
+    },
+    {
+     "command": "frame.create",
+     "params": {
+      "width": 200,
+      "height": 100,
+      "name": "Base"
+     },
+     "receipt": null
+    },
+    {
+     "command": "frame.create",
+     "params": {
+      "width": 180,
+      "height": 80,
+      "name": "Body",
+      "parent": 4
+     },
+     "receipt": null
+    },
+    {
+     "command": "component.create",
+     "params": {
+      "ids": [
+       4
+      ]
+     },
+     "receipt": null
+    },
+    {
+     "command": "component.makeSlot",
+     "params": {
+      "id": 5
+     },
+     "receipt": null
+    },
+    {
+     "command": "frame.create",
+     "params": {
+      "width": 300,
+      "height": 200,
+      "name": "Composition"
+     },
+     "receipt": null
+    },
+    {
+     "command": "instance.create",
+     "params": {
+      "component": 4,
+      "parent": 6
+     },
+     "receipt": null
+    },
+    {
+     "command": "component.create",
+     "params": {
+      "ids": [
+       6
+      ]
+     },
+     "receipt": null
+    },
+    {
+     "command": "instance.slotInsert",
+     "params": {
+      "id": 7,
+      "slot": "Body",
+      "component": 2
+     },
+     "receipt": null
+    },
+    {
+     "command": "component.addProperty",
+     "params": {
+      "id": 2,
+      "name": "Visible",
+      "type": "boolean",
+      "default": true,
+      "layer": 3
+     },
+     "receipt": null
+    },
+    {
+     "command": "component.addProperty",
+     "params": {
+      "id": 4,
+      "name": "Visible",
+      "type": "boolean",
+      "default": false
+     },
+     "receipt": null
+    },
+    {
+     "command": "frame.create",
+     "params": {
+      "width": 300,
+      "height": 200,
+      "name": "Outer composition"
+     },
+     "receipt": null
+    },
+    {
+     "command": "instance.create",
+     "params": {
+      "component": 6,
+      "parent": 11
+     },
+     "receipt": null
+    },
+    {
+     "command": "component.create",
+     "params": {
+      "ids": [
+       11
+      ]
+     },
+     "receipt": null
+    },
+    {
+     "command": "instance.create",
+     "params": {
+      "component": 11,
+      "x": 400
+     },
+     "receipt": null
+    },
+    {
+     "command": "instance.create",
+     "params": {
+      "component": 11,
+      "x": 800
+     },
+     "receipt": null
+    },
+    {
+     "command": "node.get",
+     "params": {
+      "id": 19
+     },
+     "receipt": {
+      "id": 19,
+      "visible": true,
+      "props": {
+       "Visible": false
+      }
+     }
+    },
+    {
+     "command": "node.get",
+     "params": {
+      "id": 22
+     },
+     "receipt": {
+      "id": 22,
+      "characters": "Default",
+      "visible": true
+     }
+    },
+    {
+     "command": "component.properties",
+     "params": {
+      "id": 21
+     },
+     "receipt": [
+      [
+       "Text",
+       "Default"
+      ],
+      [
+       "Visible",
+       true
+      ]
+     ]
+    },
+    {
+     "command": "node.get",
+     "params": {
+      "id": 21
+     },
+     "receipt": {
+      "id": 21,
+      "visible": true,
+      "props": {
+       "Text": "Default",
+       "Visible": true
+      }
+     }
+    },
+    {
+     "command": "node.get",
+     "params": {
+      "id": 28
+     },
+     "receipt": {
+      "id": 28,
+      "characters": "Default",
+      "visible": true
+     }
+    },
+    {
+     "command": "component.properties",
+     "params": {
+      "id": 27
+     },
+     "receipt": [
+      [
+       "Text",
+       "Default"
+      ],
+      [
+       "Visible",
+       true
+      ]
+     ]
+    },
+    {
+     "command": "node.get",
+     "params": {
+      "id": 27
+     },
+     "receipt": {
+      "id": 27,
+      "visible": true,
+      "props": {
+       "Text": "Default",
+       "Visible": true
+      }
+     }
+    },
+    {
+     "command": "instance.setProperties",
+     "params": {
+      "ids": [
+       21
+      ],
+      "properties": {
+       "Visible": false
+      }
+     },
+     "receipt": null
+    },
+    {
+     "command": "node.get",
+     "params": {
+      "id": 22
+     },
+     "receipt": {
+      "id": 22,
+      "characters": "Default",
+      "visible": false
+     }
+    },
+    {
+     "command": "component.properties",
+     "params": {
+      "id": 21
+     },
+     "receipt": [
+      [
+       "Text",
+       "Default"
+      ],
+      [
+       "Visible",
+       false
+      ]
+     ]
+    },
+    {
+     "command": "node.get",
+     "params": {
+      "id": 21
+     },
+     "receipt": {
+      "id": 21,
+      "visible": true,
+      "props": {
+       "Text": "Default",
+       "Visible": false
+      }
+     }
+    },
+    {
+     "command": "node.get",
+     "params": {
+      "id": 28
+     },
+     "receipt": {
+      "id": 28,
+      "characters": "Default",
+      "visible": true
+     }
+    },
+    {
+     "command": "component.properties",
+     "params": {
+      "id": 27
+     },
+     "receipt": [
+      [
+       "Text",
+       "Default"
+      ],
+      [
+       "Visible",
+       true
+      ]
+     ]
+    },
+    {
+     "command": "node.get",
+     "params": {
+      "id": 27
+     },
+     "receipt": {
+      "id": 27,
+      "visible": true,
+      "props": {
+       "Text": "Default",
+       "Visible": true
+      }
+     }
+    },
+    {
+     "command": "node.get",
+     "params": {
+      "id": 16
+     },
+     "receipt": {
+      "id": 16,
+      "characters": "Default",
+      "visible": true
+     }
+    },
+    {
+     "command": "component.properties",
+     "params": {
+      "id": 15
+     },
+     "receipt": [
+      [
+       "Text",
+       "Default"
+      ],
+      [
+       "Visible",
+       true
+      ]
+     ]
+    },
+    {
+     "command": "node.get",
+     "params": {
+      "id": 15
+     },
+     "receipt": {
+      "id": 15,
+      "visible": true,
+      "props": {
+       "Text": "Default",
+       "Visible": true
+      }
+     }
+    },
+    {
+     "command": "node.get",
+     "params": {
+      "id": 10
+     },
+     "receipt": {
+      "id": 10,
+      "characters": "Default",
+      "visible": true
+     }
+    },
+    {
+     "command": "component.properties",
+     "params": {
+      "id": 9
+     },
+     "receipt": [
+      [
+       "Text",
+       "Default"
+      ],
+      [
+       "Visible",
+       true
+      ]
+     ]
+    },
+    {
+     "command": "node.get",
+     "params": {
+      "id": 9
+     },
+     "receipt": {
+      "id": 9,
+      "visible": true,
+      "props": {
+       "Text": "Default",
+       "Visible": true
+      }
+     }
+    },
+    {
+     "command": "instance.setProperties",
+     "params": {
+      "ids": [
+       9
+      ],
+      "properties": {
+       "Visible": false
+      }
+     },
+     "receipt": null
+    },
+    {
+     "command": "node.get",
+     "params": {
+      "id": 22
+     },
+     "receipt": {
+      "id": 22,
+      "characters": "Default",
+      "visible": false
+     }
+    },
+    {
+     "command": "component.properties",
+     "params": {
+      "id": 21
+     },
+     "receipt": [
+      [
+       "Text",
+       "Default"
+      ],
+      [
+       "Visible",
+       false
+      ]
+     ]
+    },
+    {
+     "command": "node.get",
+     "params": {
+      "id": 21
+     },
+     "receipt": {
+      "id": 21,
+      "visible": true,
+      "props": {
+       "Text": "Default",
+       "Visible": false
+      }
+     }
+    },
+    {
+     "command": "node.get",
+     "params": {
+      "id": 28
+     },
+     "receipt": {
+      "id": 28,
+      "characters": "Default",
+      "visible": false
+     }
+    },
+    {
+     "command": "component.properties",
+     "params": {
+      "id": 27
+     },
+     "receipt": [
+      [
+       "Text",
+       "Default"
+      ],
+      [
+       "Visible",
+       false
+      ]
+     ]
+    },
+    {
+     "command": "node.get",
+     "params": {
+      "id": 27
+     },
+     "receipt": {
+      "id": 27,
+      "visible": true,
+      "props": {
+       "Text": "Default",
+       "Visible": false
+      }
+     }
+    },
+    {
+     "command": "instance.setProperties",
+     "params": {
+      "ids": [
+       27
+      ],
+      "properties": {
+       "Visible": true
+      }
+     },
+     "receipt": null
+    },
+    {
+     "command": "node.set",
+     "params": {
+      "id": 2,
+      "props": {
+       "fill": "#abcdef"
+      }
+     },
+     "receipt": null
+    },
+    {
+     "command": "node.get",
+     "params": {
+      "id": 22
+     },
+     "receipt": {
+      "id": 22,
+      "characters": "Default",
+      "visible": false
+     }
+    },
+    {
+     "command": "component.properties",
+     "params": {
+      "id": 21
+     },
+     "receipt": [
+      [
+       "Text",
+       "Default"
+      ],
+      [
+       "Visible",
+       false
+      ]
+     ]
+    },
+    {
+     "command": "node.get",
+     "params": {
+      "id": 21
+     },
+     "receipt": {
+      "id": 21,
+      "visible": true,
+      "props": {
+       "Text": "Default",
+       "Visible": false
+      }
+     }
+    },
+    {
+     "command": "node.get",
+     "params": {
+      "id": 28
+     },
+     "receipt": {
+      "id": 28,
+      "characters": "Default",
+      "visible": true
+     }
+    },
+    {
+     "command": "component.properties",
+     "params": {
+      "id": 27
+     },
+     "receipt": [
+      [
+       "Text",
+       "Default"
+      ],
+      [
+       "Visible",
+       true
+      ]
+     ]
+    },
+    {
+     "command": "node.get",
+     "params": {
+      "id": 27
+     },
+     "receipt": {
+      "id": 27,
+      "visible": true,
+      "props": {
+       "Text": "Default",
+       "Visible": true
+      }
+     }
+    },
+    {
+     "command": "node.get",
+     "params": {
+      "id": 10
+     },
+     "receipt": {
+      "id": 10,
+      "characters": "Default",
+      "visible": false
+     }
+    },
+    {
+     "command": "component.properties",
+     "params": {
+      "id": 9
+     },
+     "receipt": [
+      [
+       "Text",
+       "Default"
+      ],
+      [
+       "Visible",
+       false
+      ]
+     ]
+    },
+    {
+     "command": "node.get",
+     "params": {
+      "id": 9
+     },
+     "receipt": {
+      "id": 9,
+      "visible": true,
+      "props": {
+       "Text": "Default",
+       "Visible": false
+      }
+     }
+    }
+   ]
+  }
+ ]
+}

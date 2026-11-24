@@ -1,12 +1,14 @@
 import { type Document, type InstanceNode, type LayerNode, type NodeId, isLeaf } from "./document";
 import { componentOverrides, type ComponentProperties, type InstanceValue } from "./component-properties";
-import { propertyNodeId } from "./component-tree";
+import { owningMainComponent, propertyNodeId } from "./component-tree";
 import { wireId } from "./native-values";
 import { normaliseTextLines } from "./text-data";
 import { autoSizeText } from "./text-node-layout";
 import { replaceTextRange, scalarCount } from "./text-ranges";
 
 type Values = InstanceNode["props"];
+/** An enclosing instance's component and the property values it gives, outermost first. */
+export interface InstanceScope { readonly component: NodeId; readonly props: Values }
 
 export function defaultInstanceValues(definitions: ComponentProperties): Values {
   const entries: [string, InstanceValue][] = [];
@@ -33,7 +35,7 @@ function applyBinding(document: Document, layer: LayerNode, field: string, value
   return layer;
 }
 
-export function boundCopy(document: Document, original: LayerNode, id: NodeId, values: readonly Values[]): LayerNode {
+export function boundCopy(document: Document, original: LayerNode, id: NodeId, values: readonly InstanceScope[]): LayerNode {
   const {overrides, propRefs, ...rest} = original;
   let copy: LayerNode = {...rest, id, source:original.id};
   if (copy.kind === "text" && copy.charactersOverridden) {
@@ -50,10 +52,18 @@ export function boundCopy(document: Document, original: LayerNode, id: NodeId, v
     source = layer.source;
   }
   for (let i = chain.length - 1; i >= 0; i--) {
-    for (const [field, key] of Object.entries(chain[i].propRefs ?? {})) {
+    const refs = Object.entries(chain[i].propRefs ?? {});
+    if (!refs.length) continue;
+    // Native sync.rs apply_enclosing_props (a6d9b74d, a66946d1): a binding takes the values of the innermost enclosing instance of
+    // the component that defines it, not the instance at its position in the chain: slot content skips a hop through its slot's
+    // component, and a homonym on a wrapping component is not read.
+    const owner = owningMainComponent(document, chain[i].id)?.id;
+    const props = owner === undefined ? undefined : [...values].reverse().find(scope => scope.component === owner)?.props;
+    if (!props) continue;
+    for (const [field, key] of refs) {
       const group = field === "mainComponent" ? "component" : field;
       if (i > 0 && componentOverrides(original).includes(group)) continue;
-      if (Object.hasOwn(values[i], key)) copy = applyBinding(document, copy, field, values[i][key]);
+      if (Object.hasOwn(props, key)) copy = applyBinding(document, copy, field, props[key]);
     }
   }
   return copy;

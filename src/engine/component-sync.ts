@@ -4,7 +4,7 @@ import { type ComponentNode, type Document, type InstanceNode, isLeaf, type Laye
 import { ancestors, HierarchyDraft, subtreeIds } from "./hierarchy";
 import { componentOverrides } from "./component-properties";
 import { copyComponentGroup, differentComponentGroups, isComponentGroup, withOverrideSet } from "./component-groups";
-import { boundCopy, defaultInstanceValues } from "./component-bindings";
+import { boundCopy, defaultInstanceValues, type InstanceScope } from "./component-bindings";
 import { defaultInstanceName, owningInstance, slotName } from "./component-tree";
 import { resizeChildren } from "./constraints";
 import { layerSizing, sizeLimitKeys } from "./auto-layout";
@@ -138,7 +138,7 @@ export function rebuildInstance(draft: HierarchyDraft, id: NodeId, nextId: bigin
   const root = {...refreshRoot(doc,main,placed), children:children(main.children)};
   const defaults = defaultInstanceValues(main.props);
   const effective = Object.fromEntries(Object.entries(defaults).map(([k,v]) => [k,Object.hasOwn(placed.props,k) ? placed.props[k] : v]));
-  const scopes = new Map<NodeId, readonly InstanceNode["props"][]>([[id,[effective]]]);
+  const scopes = new Map<NodeId, readonly InstanceScope[]>([[id,[{component:main.id, props:effective}]]]);
   const nodes: LayerNode[] = [], nested: NodeId[] = [], remeasure: NodeId[] = [];
   for (const source of sourceIds) {
     const copyId = map.get(source), original = doc.nodes[source];
@@ -161,7 +161,7 @@ export function rebuildInstance(draft: HierarchyDraft, id: NodeId, nextId: bigin
       }
     }
     if (copy.kind === "instance") {
-      scopes.set(copyId,[...values,copy.props]);
+      scopes.set(copyId,[...values,{component:copy.component, props:copy.props}]);
       if (original.kind === "instance" && copy.component !== original.component) nested.push(copyId);
     } else scopes.set(copyId,values);
     if (copy.kind === "text" && original.kind === "text" && copy.text !== original.text) remeasure.push(copyId);

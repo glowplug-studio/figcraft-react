@@ -3167,6 +3167,43 @@ test("a child dragged in auto layout passes a sibling when its leading edge reac
   expect(await order()).toEqual([1,0,2]);
 });
 
+test("an instance created in the editor binds slot content by its defining component, not a wrapping component's homonym, as native does",async ({page})=>{
+  const {prepareText}=await import("../../src/engine/text-node-layout");
+  await prepareText("Default");
+  const e=new EditorEngine(), id=(r:unknown)=>String((r as {id:string}).id);
+  let frame=id(e.execute("frame.create",{width:100,height:40,name:"Content"}));
+  const label=id(e.execute("text.create",{text:"Default",parent:Number(frame),props:{name:"Label"}}));
+  const content=id(e.execute("component.create",{ids:[Number(frame)]}));
+  e.execute("component.addProperty",{id:Number(content),name:"Visible",type:"boolean",default:true,layer:Number(label)});
+  frame=id(e.execute("frame.create",{width:200,height:100,name:"Base"}));
+  const body=id(e.execute("frame.create",{width:180,height:80,name:"Body",parent:Number(frame)}));
+  const base=id(e.execute("component.create",{ids:[Number(frame)]}));
+  e.execute("component.makeSlot",{id:Number(body)});
+  // The wrapping Base has a Visible property of its own, false by default.
+  e.execute("component.addProperty",{id:Number(base),name:"Visible",type:"boolean",default:false});
+  frame=id(e.execute("frame.create",{width:300,height:200,name:"Composition"}));
+  const nestedBase=id(e.execute("instance.create",{component:Number(base),parent:Number(frame)}));
+  const composition=id(e.execute("component.create",{ids:[Number(frame)]}));
+  e.execute("instance.slotInsert",{id:Number(nestedBase),slot:"Body",component:Number(content)});
+  // Inherited own content: the Composition wrapped once more, and placed.
+  frame=id(e.execute("frame.create",{width:300,height:200,name:"Outer"}));
+  e.execute("instance.create",{component:Number(composition),parent:Number(frame)});
+  e.execute("component.create",{ids:[Number(frame)]});
+  await login(page);
+  await page.getByLabel("Open Figcraft file",{exact:true}).setInputFiles({name:"slots.figcraft",mimeType:"application/octet-stream",buffer:Buffer.from(await encodeFigcraft(e.getSnapshot().document))});
+  // An instance of the Outer main created in the editor copies the whole chain: Outer, Composition, Base, then the slot's Content.
+  await page.getByRole("region",{name:"Layers",exact:true}).getByRole("button",{name:"Outer",exact:true}).first().click();
+  await page.getByRole("button",{name:"Create instance",exact:true}).click();
+  await expect(page.getByRole("region",{name:"Layers",exact:true}).getByRole("button",{name:"Outer",exact:true})).toHaveCount(2);
+  const pending=page.waitForEvent("download");
+  await page.getByLabel("Design canvas",{exact:true}).focus(); await page.keyboard.press("ControlOrMeta+s");
+  const doc=(await decodeFigcraft(await readFile((await (await pending).path())!))).document;
+  const labels=Object.values(doc.nodes).flatMap(n=>n.kind==="text" && n.name==="Label" ? [n] : []);
+  expect(labels.length).toBeGreaterThan(1);
+  // Every Label, the slot copy's included, keeps the Content's own Visible (true); before, the copy read the Base's false.
+  for (const node of labels) expect(node.visible,node.id).not.toBe(false);
+});
+
 test("transparent page redraw and hidden or locked layers bypass pointer and select all", async ({ page }) => {
   await login(page);
   const appearance = page.getByRole("region", { name: "Appearance" });
