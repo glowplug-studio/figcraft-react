@@ -25,11 +25,13 @@ export function VariableModesPanel({document,selection,enabled,run}:{
     const name=document.libraryLinks?.find(l=>l.id===r.library)?.name ?? r.library;
     collections.push({c,local:c.id,library:undefined,name:name+" / "+c.name});
   }
-  if (!collections?.length || !selection.length || !selection.every(id=>isFrameLike(document.nodes[id]))) return null;
-  const inherited=layerModes(document,selection[0],true);
+  // Native a60cb1a6 (#2215): with nothing selected the page's own modes show, as Figma's Page section does.
+  const targets=selection.length ? selection : [document.currentPage];
+  if (!collections?.length || selection.length && !selection.every(id=>isFrameLike(document.nodes[id]))) return null;
+  const inherited=selection.length ? layerModes(document,selection[0],true) : {};
   return <fieldset disabled={!enabled}><legend>Variable modes</legend>
     {collections.map(({c,local,library,name})=>{
-      const own=selection.map(id=>{
+      const own=targets.map(id=>{
         const modes=document.nodes[id].variableModes;
         return modes && local && Object.hasOwn(modes,local) ? modes[local] : undefined;
       });
@@ -38,8 +40,8 @@ export function VariableModesPanel({document,selection,enabled,run}:{
       const chosen=own[0]===undefined ? "auto" : String(c.modes.findIndex(m=>m.id===own[0]));
       return <label key={JSON.stringify([library,c.id])}>{name}<select value={mixed ? "mixed" : chosen} onChange={e=>{
         const key=e.currentTarget.value;
-        if (library && key!=="auto") run("library.setVariableMode",{ids:selection,library,collection:imported.find(r=>r.local===local)?.key ?? c.id,mode:c.modes[Number(key)].id});
-        else if (local) run("variable.setMode",{ids:selection,collection:local,mode:key==="auto" ? null : c.modes[Number(key)].id});
+        if (library && key!=="auto") run("library.setVariableMode",{ids:targets,library,collection:imported.find(r=>r.local===local)?.key ?? c.id,mode:c.modes[Number(key)].id});
+        else if (local) run("variable.setMode",{ids:targets,collection:local,mode:key==="auto" ? null : c.modes[Number(key)].id});
       }}>
         {mixed && <option disabled value="mixed">Mixed</option>}
         {!mixed && chosen==="-1" && <option disabled value="-1"></option>}

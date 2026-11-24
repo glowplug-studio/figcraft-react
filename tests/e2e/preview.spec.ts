@@ -9298,6 +9298,32 @@ test("a text style's weight takes a number variable that picks the face and the 
   expect(node.kind==="text" && [node.text.style.fontStyle,node.text.style.variations.wght]).toEqual(["Bold",700]);
 });
 
+test("with nothing selected the Design panel shows the page's variable modes, one undo step per pick, as native does",async ({page})=>{
+  const e=new EditorEngine();
+  e.execute("variable.createCollection",{name:"Theme",modes:["Light","Dark"]});
+  e.execute("variable.createCollection",{name:"Single",modes:["Only"]});
+  await login(page);
+  await page.getByLabel("Open Figcraft file",{exact:true}).setInputFiles({name:"page-modes.figcraft",mimeType:"application/octet-stream",buffer:Buffer.from(await encodeFigcraft(e.getSnapshot().document))});
+  const modes=page.getByRole("group",{name:"Variable modes",exact:true});
+  const theme=modes.getByRole("combobox",{name:"Theme",exact:true});
+  await expect(theme).toHaveValue("auto");
+  await expect(theme.locator("option:checked")).toHaveText("Auto (Light)");
+  // A collection with one mode has no row.
+  await expect(modes.getByRole("combobox",{name:"Single",exact:true})).toHaveCount(0);
+  await theme.selectOption({label:"Dark"});
+  await expect(theme).toHaveValue("1");
+  const save=async ()=>{
+    const pending=page.waitForEvent("download");
+    await page.getByLabel("Design canvas",{exact:true}).focus(); await page.keyboard.press("ControlOrMeta+s");
+    const doc=(await decodeFigcraft(await readFile((await (await pending).path())!))).document;
+    return doc.nodes[doc.currentPage].variableModes;
+  };
+  const collection=e.getSnapshot().document.variables!.collections[0];
+  expect(await save()).toEqual({[collection.id]:collection.modes[1].id});
+  await page.getByRole("button",{name:"Undo",exact:true}).click();
+  await expect(theme).toHaveValue("auto");
+});
+
 test("shared style variable pickers filter by scope and retain per-layer mode colours after download",async({page})=>{
   await login(page);
   await page.getByLabel("Open Figcraft file",{exact:true}).setInputFiles(new URL("../fixtures/native-style-mode-consumers.json",import.meta.url).pathname);

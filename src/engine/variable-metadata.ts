@@ -73,7 +73,7 @@ export function editVariableMetadata(data:Variables,command:string,p:Record<stri
     variables=forget(data,gone);result={deletedVariables:gone.size};
   } else {
     const key=parseString(p.variable);
-    const v=key===undefined ? undefined : command==="variable.duplicate" ? variables.find(v=>v.id===key || v.name===key)
+    const v=key===undefined ? undefined : command==="variable.duplicate" ? variables.find(v=>v.id===key) ?? variables.find(v=>v.name===key)
       : variableIndex(data).variables.get(key) ?? variables.find(v=>v.name===key);
     if (!v) throw new Error("No such variable");
     const i=variables.indexOf(v);

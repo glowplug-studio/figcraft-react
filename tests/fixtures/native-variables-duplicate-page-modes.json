@@ -1,0 +1,110 @@
+{
+ "nativeRevision": "bad07e4433240cad046589129c084bd2fc36f097",
+ "note": "duplicate: the commands, the id variable.duplicate returned and the variable names variable.list gave after it. pageModes: the commands (without the final save) and the page's variableModes in the file native saved after them (file.saveAs with data).",
+ "duplicate": {
+  "commands": [
+   [
+    "variable.createCollection",
+    {
+     "name": "Tokens",
+     "modes": [
+      "Light",
+      "Dark"
+     ]
+    }
+   ],
+   [
+    "variable.create",
+    {
+     "collection": "Tokens",
+     "name": "space/sm",
+     "type": "number",
+     "value": 8
+    }
+   ],
+   [
+    "variable.create",
+    {
+     "collection": "Tokens",
+     "name": "space/md",
+     "type": "number",
+     "value": 16
+    }
+   ],
+   [
+    "variable.create",
+    {
+     "collection": "Tokens",
+     "name": "brand",
+     "type": "color",
+     "value": "#0D99FF"
+    }
+   ],
+   [
+    "variable.update",
+    {
+     "variable": "space/sm",
+     "name": "VariableID:3"
+    }
+   ],
+   [
+    "variable.duplicate",
+    {
+     "variable": "VariableID:3"
+    }
+   ],
+   [
+    "variable.list",
+    {}
+   ]
+  ],
+  "duplicated": "VariableID:4",
+  "names": [
+   "VariableID:3",
+   "space/md",
+   "brand",
+   "brand copy"
+  ]
+ },
+ "pageModes": {
+  "commands": [
+   [
+    "variable.createCollection",
+    {
+     "name": "Theme",
+     "modes": [
+      "Light",
+      "Dark"
+     ]
+    }
+   ],
+   [
+    "select.set",
+    {
+     "ids": []
+    }
+   ],
+   [
+    "variable.list",
+    {}
+   ],
+   [
+    "variable.setMode",
+    {
+     "ids": [],
+     "collection": "Theme",
+     "mode": "Dark"
+    }
+   ],
+   [
+    "node.get",
+    {
+     "id": 1
+    }
+   ]
+  ],
+  "variableModes": {
+   "VariableCollectionId:1": "VariableCollectionId:1/mode2"
+  }
+ }
+}
