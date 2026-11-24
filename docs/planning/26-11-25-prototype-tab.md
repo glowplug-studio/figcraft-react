@@ -2,11 +2,11 @@
 
 ## Execution checkpoint
 
-- Phase: implemented; the gate is running.
+- Phase: complete through Phase 7 on 25 November 2026 at `81c6c58`: [report](../reports/26-11-25-prototype-tab.md), [matrix](../reports/26-11-25-prototype-tab-parity.html).
 - Native reference: `bad07e4433240cad046589129c084bd2fc36f097` (`bad07e44`). React starting revision: `6e4ae95` on `prompt/full-figcraft-port`.
 - Row plan: [roadmap row 15](26-11-24-roadmap-row-15-prototyping.md).
 - Files changed: `src/PrototypePanel.tsx` (new); `src/engine/prototype-summaries.ts` (new: `triggerSummary`, `actionLabel`, `actionSummary`, `interactionSummary`, `sectionsIn`, `navigationTargets`, `newInteractionAction`, `interactionTargets`); `src/Editor.tsx` (Design and Prototype tabs); tests `tests/unit/prototype-summaries.test.ts` and one case in `tests/e2e/preview.spec.ts`.
-- Next action: record the item.
+- Next action: none; the item is recorded.
 - Blockers: none.
 
 ## Native contract (`ui-egui/src/panels/proto_panel.rs::prototype`)

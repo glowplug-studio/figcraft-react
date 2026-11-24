@@ -868,3 +868,7 @@ Native `crates/doc/src/node.rs` (`Overflow`, `ScrollPosition`) and the `overflow
 ## Roadmap row 15: the prototype player's state — 25 November 2026
 
 Native `crates/ui-egui/src/present.rs`, `present/{navigate,actions,scroll}.rs` at `bad07e44` map to `PrototypePlayer` in `prototype-player.ts` and to `prototype-scroll.ts` at `425309f`. Verified by restated native tests in `tests/parity/prototype-player-state.test.ts`. [Report](../reports/26-11-25-prototype-player-state.md).
+
+## Roadmap row 15: the prototype tab — 25 November 2026
+
+Native `crates/ui-egui/src/panels/proto_panel.rs` (the tab's sections, `trigger_summary`, `action_summary`, `action_of`, `targets_for`, `nav_targets`) at `bad07e44` maps to `PrototypePanel.tsx`, `prototype-summaries.ts` and the Design and Prototype switch in `Editor.tsx` at `81c6c58`. Verified by `tests/unit/prototype-summaries.test.ts` and a browser case in `tests/e2e/preview.spec.ts`. [Report](../reports/26-11-25-prototype-tab.md).
