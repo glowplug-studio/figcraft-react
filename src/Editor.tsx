@@ -50,7 +50,8 @@ import type { Point } from "./engine/geometry";
 import { CanvasController } from "./engine/canvas";
 import { EditorEngine } from "./engine/editor";
 import { availableBuilderArrangement } from "./engine/shape-builder";
-import { pageOf } from "./engine/document";
+import { pageColour, pageOf } from "./engine/document";
+import { canvasBackdrop } from "./engine/page-background-field";
 import type { RecoveryStore } from "./backends/recovery";
 import { RecoveryController } from "./engine/recovery";
 import { AssetsPanel, componentDragType } from "./AssetsPanel";
@@ -994,7 +995,7 @@ export function DocumentEditor({ identity, capabilities, engine: suppliedEngine,
             menu.showPopover();
             positionCanvasMenu();
             menu.querySelector<HTMLElement>("summary,button")?.focus();
-          }} aria-label="Design canvas" tabIndex={0} aria-describedby="canvas-instructions" />
+          }} aria-label="Design canvas" style={{background:canvasBackdrop(pageColour(pageOf(snapshot.document)))}} tabIndex={0} aria-describedby="canvas-instructions" />
           {signedIn && engine.people && <LivePeopleOverlay room={engine.people} engine={engine} canvas={canvas}/>}
           {signedIn && (snapshot.tool==="comment" || snapshot.showComments!==false && !!snapshot.document.comments?.length || snapshot.openComment) && <CommentOverlay
             engine={engine} snapshot={snapshot} canvas={canvas} write={!busy && !snapshot.previewVersionId && (editable || capabilities.includes("document.comment"))} dispatch={dispatch}/>}

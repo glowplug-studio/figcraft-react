@@ -1,5 +1,6 @@
 import { expectSolid } from "../fixtures/expect-solid";
 import { createHash, randomUUID } from "node:crypto";
+import { createRequire } from "node:module";
 import { join } from "node:path";
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { chromium, expect, test, type Browser, type Page } from "@playwright/test";
@@ -2875,7 +2876,7 @@ test("last-page deletion and divider rename fail without losing the page", async
 test("CSS fill alpha, invalid input, undo and recovery retain the visible colour", async ({ page }) => {
   await login(page);
   const appearance = page.getByRole("region", { name: "Appearance" });
-  await appearance.getByLabel("Background CSS colour").fill("white");
+  await appearance.getByLabel("Background colour").fill("white");
   await appearance.getByRole("button", { name: "Apply background" }).click();
   await page.getByRole("button", { name: "Create rectangle", exact: true }).click();
   await appearance.getByLabel("Fill 1 CSS colour").fill("rgba(255, 0, 0, 0.5)");
@@ -2946,7 +2947,7 @@ test("native paint colour and opacity edits retain independent metadata", async 
 test("fill stack order, visibility and node opacity composite once", async ({ page }) => {
   await login(page);
   const appearance = page.getByRole("region", { name: "Appearance" });
-  await appearance.getByLabel("Background CSS colour").fill("white");
+  await appearance.getByLabel("Background colour").fill("white");
   await appearance.getByRole("button", { name: "Apply background" }).click();
   await page.getByRole("button", { name: "Create rectangle", exact: true }).click();
   await appearance.getByLabel("Fill 1 CSS colour").fill("red");
@@ -2968,10 +2969,49 @@ test("fill stack order, visibility and node opacity composite once", async ({ pa
   await expectCanvasPixel(page, 80, 80, [191, 191, 255, 255]);
 });
 
+test("a translucent page draws over the themed checkerboard and the page row keeps its opacity when a colour is typed, as native does",async ({page})=>{
+  await login(page);
+  const appearance=page.getByRole("region",{name:"Appearance"}), colour=appearance.getByLabel("Background colour"), opacity=appearance.getByLabel("Background opacity");
+  const apply=()=>appearance.getByRole("button",{name:"Apply background"}).click();
+  const canvas=page.getByLabel("Design canvas",{exact:true});
+  const {PNG}=createRequire(import.meta.url)("playwright-core/lib/utilsBundle") as {PNG:{sync:{read(input:Buffer):{width:number;data:Buffer}}}};
+  // What the screen shows at CSS pixel (x,y) from the canvas's top left, where the 8-point squares are anchored (400 is a whole
+  // number of squares, clear of the canvas's own overlays): the page's pixels composited over the checkerboard behind them.
+  const pixel=async (x:number,y:number)=>{
+    const box=(await canvas.boundingBox())!, shot=PNG.sync.read(await page.screenshot({clip:{x:box.x+x,y:box.y+y,width:1,height:1}}));
+    return Array.from(shot.data.subarray(0,4));
+  };
+  // The canvas's own pixels keep the page colour and its alpha, applied once.
+  const own=(x:number,y:number)=>canvas.evaluate((node:HTMLCanvasElement,p)=>{
+    const scale=window.devicePixelRatio || 1;
+    return Array.from(node.getContext("2d")!.getImageData(Math.floor(p.x*scale),Math.floor(p.y*scale),1,1).data);
+  },{x,y});
+  const near=(a:number[],b:number[])=>a.every((v,i)=>Math.abs(v-b[i])<=3);
+  await expect(colour).toHaveValue("F5F5F5"); await expect(opacity).toHaveValue("100");
+  await colour.fill("#FF000080"); await apply();
+  await expect(colour).toHaveValue("FF0000"); await expect(opacity).toHaveValue("50.2");
+  // Half-opaque red over the white and the #F5F5F5 squares, the page alpha applied once and the canvas opaque.
+  await expect.poll(async()=>near(await own(404,404),[255,0,0,128])).toBe(true);
+  await expect.poll(async()=>near(await pixel(404,404),[255,127,127,255]) && near(await pixel(412,404),[250,122,122,255]) && near(await pixel(404,412),[250,122,122,255]) && near(await pixel(412,412),[255,127,127,255])).toBe(true);
+  // A typed six-digit colour or a name keeps the page's opacity.
+  await colour.fill("00FF00"); await apply();
+  await expect(colour).toHaveValue("00FF00"); await expect(opacity).toHaveValue("50.2");
+  await colour.fill("blue"); await apply();
+  await expect(colour).toHaveValue("0000FF"); await expect(opacity).toHaveValue("50.2");
+  // Eight digits ask for their own opacity; the opacity field sets it as a fraction.
+  await colour.fill("0000FFFF"); await apply();
+  await expect(opacity).toHaveValue("100");
+  await expect.poll(async()=>near(await pixel(404,404),[0,0,255,255]) && near(await pixel(412,404),[0,0,255,255])).toBe(true);
+  await opacity.fill("25.5"); await apply();
+  await expect(colour).toHaveValue("0000FF"); await expect(opacity).toHaveValue("25.5");
+  await page.getByRole("button",{name:"Undo",exact:true}).click();
+  await expect(opacity).toHaveValue("100");
+});
+
 test("transparent page redraw and hidden or locked layers bypass pointer and select all", async ({ page }) => {
   await login(page);
   const appearance = page.getByRole("region", { name: "Appearance" });
-  await appearance.getByLabel("Background CSS colour").fill("rgba(0, 0, 0, 0)");
+  await appearance.getByLabel("Background colour").fill("rgba(0, 0, 0, 0)");
   await appearance.getByRole("button", { name: "Apply background" }).click();
   await expectCanvasPixel(page, 5, 5, [0, 0, 0, 0]);
   await page.getByRole("button", { name: "Create rectangle", exact: true }).click();
@@ -2993,9 +3033,9 @@ test("transparent page redraw and hidden or locked layers bypass pointer and sel
   await canvas.focus(); await page.keyboard.press("ControlOrMeta+a");
   await expect(page.getByRole("region", { name: "Selected rectangle" })).toHaveCount(0);
   await expectCanvasPixel(page, 5, 5, [0, 0, 0, 0]);
-  await appearance.getByLabel("Background CSS colour").fill("white");
+  await appearance.getByLabel("Background colour").fill("white");
   await appearance.getByRole("button", { name: "Apply background" }).click();
-  await appearance.getByLabel("Background CSS colour").fill("rgba(0, 0, 0, 0)");
+  await appearance.getByLabel("Background colour").fill("rgba(0, 0, 0, 0)");
   await appearance.getByRole("button", { name: "Apply background" }).click();
   await expectCanvasPixel(page, 5, 5, [0, 0, 0, 0]);
 });

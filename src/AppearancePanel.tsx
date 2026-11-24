@@ -5,6 +5,7 @@ import { usePaintActions } from "./PaintActions";
 import { useState, useSyncExternalStore, type FormEvent } from "react";
 import { parseCssColour } from "./engine/colour-css";
 import { renderColour, withAlpha } from "./engine/colour";
+import { pageHex, pageOpacity, typedPageColour } from "./engine/page-background-field";
 import { layerBlend, maskTypes, pageColour, type PageNode, type LayerNode } from "./engine/document";
 import { paintColour, samePaints, solidPaint, type Paint } from "./engine/solid-paint";
 
@@ -54,10 +55,16 @@ function AppearanceControls({ engine, page, selected, editable, dispatch, expand
   };
   function background(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const input = event.currentTarget.elements.namedItem("background") as HTMLInputElement;
-    if (input.value === renderColour(pageColour(page))) return;
-    const value = parseInput(input.value);
-    if (value) dispatch("page.setBackground", { id: page.id, color: value });
+    const form = event.currentTarget, current = pageColour(page);
+    const typed = (form.elements.namedItem("background") as HTMLInputElement).value.trim();
+    const percent = (form.elements.namedItem("backgroundOpacity") as HTMLInputElement).valueAsNumber;
+    let next = current;
+    if (typed.toUpperCase() !== pageHex(current)) {
+      if (!parseInput(typed)) return;
+      next = typedPageColour(typed, current)!;
+    } else setAlert("");
+    if (Number.isFinite(percent) && percent !== pageOpacity(current)) next = withAlpha(next, Math.min(1, Math.max(0, percent / 100)));
+    if (next !== current) dispatch("page.setBackground", { id: page.id, color: next });
   }
   function details(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -84,7 +91,8 @@ function AppearanceControls({ engine, page, selected, editable, dispatch, expand
     {alert && <p role="alert">{alert}</p>}
     <form key={`background:${page.id}:${JSON.stringify(pageColour(page))}`} onSubmit={background}>
       <fieldset disabled={!editable}><legend>Page</legend>
-        <label>Background CSS colour<input name="background" type="text" defaultValue={renderColour(pageColour(page))} required /></label>
+        <label>Background colour<input name="background" type="text" defaultValue={pageHex(pageColour(page))} required /></label>
+        <label>Background opacity<input name="backgroundOpacity" type="number" min="0" max="100" step="any" defaultValue={pageOpacity(pageColour(page))} required />%</label>
         <button type="submit">Apply background</button>
       </fieldset>
     </form>
