@@ -5,17 +5,17 @@
 | Field | Current value |
 |---|---|
 | Overall status | Active. The user resumed the run on 19 November with a new coordinating agent. Full port unfinished. [Resume handover](26-11-07-full-port-resume.md#continue-from-here). |
-| Active slice | Delta row 3 item 15, paint row copy and paste. |
-| Active phase | [Delta row 3](26-11-21-delta-row-3-files-text-paint.md) items 1 to 14 are verified; item 14, [page background](26-11-24-page-background.md), at d578735. Item 15, paint row copy and paste, is next. |
+| Active slice | Delta row 3 item 16, zoomed-out image copies. |
+| Active phase | [Delta row 3](26-11-21-delta-row-3-files-text-paint.md) items 1 to 15 are verified; item 15, [paint row copy and paste](26-11-24-property-rows.md), at c0c2a9d. Item 16, zoomed-out image copies, is next. |
 | Upstream baseline | Reference checkout bad07e44. [New upstream delta queue](26-11-15-upstream-delta.md) must be reconciled before release; prior evidence retains its original pins. Paste event text and scrollable short-window menus queued alongside the two prior UI changes. First-frame tab and page restoration and native test font readiness queued for rows 4 and 19. Home sidebar Preferences, Cmd/Ctrl+comma and Escape queued in row 19. Styles reference a2e87433. Components reference 79c36346. Global supported baseline 8eb0b876. |
-| Branch and last verified commit | prompt/full-figcraft-port, verified product d578735; all 418 browser cases passed in one run. |
+| Branch and last verified commit | prompt/full-figcraft-port, verified product c0c2a9d; all 419 browser cases passed in one run. |
 | Completed slices | Rectangle/host-auth, bounded native persistence/recovery, supported-model pages, affine rectangle geometry/selection and solid appearance, plus nested group hierarchy, Frame containers, movement/transform gestures, rounded corners, ellipse/arc/ring and Polygon/Star editing verified locally; Line/Arrow and uniform solid strokes also verified; per-side Rectangle/Frame strokes, variable-width profiles and procedural brushes verified; vector networks, solid region/stroke rendering and Flatten/Reverse also verified; foundation commit `154f5a7`. Gradient, image, pattern, blend and mask releases now have local property matrices. [Blend evidence](../reports/26-11-09-blend-modes-parity.html). Auto layout and constraints passed the local release gate. [Release evidence](../reports/26-11-09-auto-layout.md). [Local components, instances, variant properties, slots and Assets](../reports/26-11-09-components-instances.md) passed the 0.51.0 gate. |
 | Remaining slices | Continue incomplete roadmap rows and the dependency-ordered [upstream delta queue](26-11-15-upstream-delta.md), excluding the user-deferred plugin and widget family. See each slice matrix for outstanding integrations. |
-| Tests last passed | 5,526 pure, strict types, both builds; 418 Chromium passed in 17.1 minutes, no skips/retries/flakes/errors or changed baselines; 32 provider integrations passed in 13.95 seconds. Twelve fixture counts zero. [Report](../reports/26-11-24-page-background.md). |
+| Tests last passed | 5,536 pure, strict types, both builds; 419 Chromium passed in 16.7 minutes, no skips/retries/flakes/errors or changed baselines; 32 provider integrations passed in 13.85 seconds. Twelve fixture counts zero. [Report](../reports/26-11-24-property-rows.md). |
 | Files currently in progress | None. The tracker stays local unless the user commits it. |
 | Blockers | None. Upstream synchronisation is on hold by the user’s decision (289 commits ahead at b45255bb); verification uses the local Supabase stack. |
-| Exact next action | Follow the [handover's current action](26-11-07-full-port-resume.md#continue-from-here): open row 3 item 15, then items 16 to 18, the ledger's open items for rows 4 to 8 and the remaining roadmap slices. Upstream stays ignored, verification uses local Supabase, plugins and widgets are skipped, and machine load is advisory. The user asked for the plan to be carried to completion unattended, apart from publication. |
-| Last updated | 2026-11-24 15:48 ICT |
+| Exact next action | Follow the [handover's current action](26-11-07-full-port-resume.md#continue-from-here): open row 3 item 16, then items 17 to 18, the ledger's open items for rows 4 to 8 and the remaining roadmap slices. Upstream stays ignored, verification uses local Supabase, plugins and widgets are skipped, and machine load is advisory. The user asked for the plan to be carried to completion unattended, apart from publication. |
+| Last updated | 2026-11-24 16:11 ICT |
 
 ## Scope and continuation
 

@@ -780,3 +780,7 @@ Native `crates/ui-egui/src/canvas/overlays.rs::caret_fill` at `bad07e44` (upstre
 ## Delta row 3: page background — 24 November 2026
 
 Native `crates/ui-egui/src/canvas/background.rs::{paint, grid_texture}` at `bad07e44` (upstream `481b6831`, `67c232ea`) maps to `page-background-field.ts::{transparencyGrid, canvasBackdrop}` at `d578735`, the Design canvas's background in `Editor.tsx`, behind the unchanged render; `crates/ui-egui/src/panels/right.rs::page_section` (`a45d932a`) to `page-background-field.ts::{pageHex, pageOpacity, typedPageColour}` and the page form of `AppearancePanel.tsx`. Verified by `tests/parity/page-background-field.test.ts` and a browser case in `tests/e2e/preview.spec.ts`. [Report](../reports/26-11-24-page-background.md).
+
+## Delta row 3: paint row copy and paste — 24 November 2026
+
+Native `crates/ui-egui/src/property_rows.rs::{Highlight, current, click, escape, follow, reconcile}` at `bad07e44` (upstream `375a7b8a`, #1494) maps to `editor.ts::{propertyRow, highlightPropertyRow, clearPropertyRow}` with the `execute` follow, `property-rows.ts::followIndex` and `PropertyRow.tsx` at `c0c2a9d`; `property_rows.rs::{copy_highlighted, copy, paste}` (`33ac1d14`, `0ad70b95`) to `editor.ts::{copyPropertyRow, copyProperty, pasteProperty}` and the copy and paste of `Editor.tsx`. Verified by `tests/parity/property-rows.test.ts`, restating native `property_rows_tests`, and a browser case in `tests/e2e/preview.spec.ts`. [Report](../reports/26-11-24-property-rows.md).
