@@ -804,3 +804,7 @@ Native `crates/layout/src/lib.rs::grid_snap_lines_in` with `MAX_SNAP_LINES` at `
 ## Delta row 4: Align unavailable in an auto layout flow — 24 November 2026
 
 Native `crates/engine/src/cmd/arrange.rs::{align_target, in_auto_layout_flow, align_blocked_by_auto_layout, can_align}` at `bad07e44` (upstream `76965c78`) maps to `arrange.ts::{canAlign, inAutoLayoutFlow, alignBlockedByAutoLayout}` at `1ab10c7`; the Align tip of `crates/ui-egui/src/panels/right.rs` maps to `ArrangePanel.tsx`. Verified by nine native scenes in `tests/fixtures/native-align-auto-layout.json`, `tests/parity/align-auto-layout.test.ts` and a browser case in `tests/e2e/preview.spec.ts`. [Report](../reports/26-11-24-align-auto-layout.md).
+
+## Delta row 4: the auto layout drag reorder — 24 November 2026
+
+Native `crates/engine/src/canvas/drop.rs::{auto_layout_slot_within, slot_in}` at `bad07e44` (upstream `cf567c3f`, `e415a3a0`, #2142) maps to the `dragged` edges of `layout-navigation.ts::prepareAutoLayoutSlot` at `ab5c190`; the `within` and `raw` drag of `crates/engine/src/canvas/tools/drag.rs` to `layout-drop.ts::placeMove`, `editor.ts::previewMove` and `move-interaction.ts`. Verified by `tests/parity/auto-layout-drag-reorder.test.ts`, restating native `al_drag_tests`, and a browser case in `tests/e2e/preview.spec.ts`. [Report](../reports/26-11-24-auto-layout-drag-reorder.md).
