@@ -784,3 +784,7 @@ Native `crates/ui-egui/src/canvas/background.rs::{paint, grid_texture}` at `bad0
 ## Delta row 3: paint row copy and paste — 24 November 2026
 
 Native `crates/ui-egui/src/property_rows.rs::{Highlight, current, click, escape, follow, reconcile}` at `bad07e44` (upstream `375a7b8a`, #1494) maps to `editor.ts::{propertyRow, highlightPropertyRow, clearPropertyRow}` with the `execute` follow, `property-rows.ts::followIndex` and `PropertyRow.tsx` at `c0c2a9d`; `property_rows.rs::{copy_highlighted, copy, paste}` (`33ac1d14`, `0ad70b95`) to `editor.ts::{copyPropertyRow, copyProperty, pasteProperty}` and the copy and paste of `Editor.tsx`. Verified by `tests/parity/property-rows.test.ts`, restating native `property_rows_tests`, and a browser case in `tests/e2e/preview.spec.ts`. [Report](../reports/26-11-24-property-rows.md).
+
+## Delta row 3: zoomed-out image copies — 24 November 2026
+
+Native `crates/render/src/images.rs::{DISPLAY_SIDES, display_side, shown}` at `bad07e44` (upstream `c82986b2`) maps to `image-renderer.ts::{displaySides, displaySide}` and the canvas display mode of `CanvasImages` at `dbef659`; `images.rs::get` to `canvas.ts::paintExportSteps`, whose images draw from the image itself. Verified by `tests/parity/image-display-side.test.ts` and the large-image case of `tests/e2e/image-rendering.spec.ts`, restating native `large_image_tests`. [Report](../reports/26-11-24-image-display-side.md).
