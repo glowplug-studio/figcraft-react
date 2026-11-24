@@ -32,11 +32,13 @@ export function StyleTypography({value,change,binding,isBound}:{value:TextStyle;
       save(offered.length && !offered.includes(value.fontStyle) ? setFontStyle(next,offered.find(n=>n.toLowerCase()==="regular") ?? offered[0]) : next);
     }}/>}
     {binding("fontFamily","Style font family")}
-    {!isBound("fontStyle") && <label>Font style<select aria-label="Style font style" value={value.fontStyle}
+    {!isBound("fontStyle") && !isBound("fontWeight") && <label>Font style<select aria-label="Style font style" value={value.fontStyle}
       onChange={e=>save(setFontStyle(value,e.target.value))}>
       {[...new Set([value.fontStyle,...styles])].map(name=><option key={name}>{name}</option>)}
     </select></label>}
     {binding("fontStyle","Style font style")}
+    {/* Native #2174: the weight takes a number variable too, which picks the nearest face and the wght axis. */}
+    {binding("fontWeight","Style font weight")}
     {!isBound("fontSize") && <TypographyField label="Style font size" value={String(value.fontSize)} apply={s=>{
       const n=fieldValue(parseFieldEdit(s,true),value.fontSize);
       if (n !== undefined) save({...value,fontSize:Math.min(5000,Math.max(1,n))});

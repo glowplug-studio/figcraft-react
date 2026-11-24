@@ -73,7 +73,7 @@ export function explicitDefinition(slot: StyleSlot, input: unknown): Definition 
 export function styleBindingType(style: SharedStyle, key: string): "color" | "number" | "string" | undefined {
   if (style.type === "text") {
     if (key === "fontFamily" || key === "fontStyle") return "string";
-    if (["fontSize","lineHeight","letterSpacing"].includes(key)) return "number";
+    if (["fontSize","lineHeight","letterSpacing","fontWeight"].includes(key)) return "number";
     return;
   }
   const canonical = ["fill", "fills", "fills/0"].includes(key) ? "fills/0/color" : key;

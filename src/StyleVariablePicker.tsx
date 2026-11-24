@@ -12,7 +12,7 @@ import type { Run } from "./StyleEditor";
 
 export type InspectorDispatch = (command:string, params?:unknown) => ReturnType<Run>;
 
-const textScopes:Record<string,string>={fontSize:"FONT_SIZE",fontFamily:"FONT_FAMILY",fontStyle:"FONT_STYLE",lineHeight:"LINE_HEIGHT",letterSpacing:"LETTER_SPACING"};
+const textScopes:Record<string,string>={fontSize:"FONT_SIZE",fontFamily:"FONT_FAMILY",fontStyle:"FONT_STYLE",fontWeight:"FONT_WEIGHT",lineHeight:"LINE_HEIGHT",letterSpacing:"LETTER_SPACING"};
 
 export function StyleVariablePicker({style,field,label,data,run}:{style:SharedStyle;field:string;label:string;data?:Variables;run:Run}) {
   const type=styleBindingType(style,field);

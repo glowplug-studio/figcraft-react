@@ -24,6 +24,8 @@ export function numberRoles(doc:Document,data:Variables) {
       if (role && !roles.has(id)) roles.set(id,role);
     }
   }
+  // Native token_roles.rs (ccb33e0b): a number bound to a text style's weight is unitless.
+  for (const style of doc.styles ?? []) if (style.bound?.fontWeight && !roles.has(style.bound.fontWeight)) roles.set(style.bound.fontWeight,"unitless");
   for (const v of data.variables) {
     if (roles.has(v.id) || v.resolvedType!=="number") continue;
     const role=v.scopes?.map(s=>scopes.get(s)).find(r=>r!==undefined);

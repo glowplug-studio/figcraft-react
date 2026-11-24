@@ -1,0 +1,471 @@
+{
+ "nativeRevision": "bad07e4433240cad046589129c084bd2fc36f097",
+ "note": "Each case: commands run natively in a new document. node.get keeps the text's fontStyle and its wght variation (null when none); style.bind whether it was refused; style.list each style's bound map; variable.export the CSS lines naming the weight; null for the rest.",
+ "cases": [
+  {
+   "name": "a number weight picks the face and the wght axis; a face name replaces it",
+   "steps": [
+    {
+     "command": "variable.createCollection",
+     "params": {
+      "name": "Theme",
+      "modes": [
+       "Light",
+       "Dark"
+      ]
+     },
+     "receipt": null
+    },
+    {
+     "command": "variable.create",
+     "params": {
+      "collection": "Theme",
+      "name": "bg",
+      "type": "color",
+      "values": {
+       "Light": "#FFFFFF",
+       "Dark": "#000000"
+      }
+     },
+     "receipt": null
+    },
+    {
+     "command": "variable.create",
+     "params": {
+      "collection": "Theme",
+      "name": "size",
+      "type": "number",
+      "values": {
+       "Light": 16,
+       "Dark": 20
+      }
+     },
+     "receipt": null
+    },
+    {
+     "command": "frame.create",
+     "params": {
+      "x": 0,
+      "y": 0,
+      "width": 100,
+      "height": 100
+     },
+     "receipt": null
+    },
+    {
+     "command": "frame.create",
+     "params": {
+      "x": 200,
+      "y": 0,
+      "width": 100,
+      "height": 100
+     },
+     "receipt": null
+    },
+    {
+     "command": "variable.setMode",
+     "params": {
+      "ids": [
+       3
+      ],
+      "collection": "Theme",
+      "mode": "Dark"
+     },
+     "receipt": null
+    },
+    {
+     "command": "text.create",
+     "params": {
+      "text": "Hello",
+      "x": 0,
+      "y": 60,
+      "parent": 2
+     },
+     "receipt": null
+    },
+    {
+     "command": "text.create",
+     "params": {
+      "text": "Hello",
+      "x": 0,
+      "y": 60,
+      "parent": 3
+     },
+     "receipt": null
+    },
+    {
+     "command": "style.create",
+     "params": {
+      "type": "text",
+      "name": "Body",
+      "from": 4
+     },
+     "receipt": null
+    },
+    {
+     "command": "style.apply",
+     "params": {
+      "ids": [
+       4,
+       5
+      ],
+      "style": "S:1"
+     },
+     "receipt": null
+    },
+    {
+     "command": "variable.create",
+     "params": {
+      "collection": "Theme",
+      "name": "weight",
+      "type": "number",
+      "values": {
+       "Light": 700,
+       "Dark": 400
+      }
+     },
+     "receipt": null
+    },
+    {
+     "command": "style.bind",
+     "params": {
+      "style": "S:1",
+      "field": "fontWeight",
+      "variable": "weight"
+     },
+     "receipt": {
+      "refused": false
+     }
+    },
+    {
+     "command": "node.get",
+     "params": {
+      "id": 4
+     },
+     "receipt": {
+      "fontStyle": "Bold",
+      "wght": 700.0
+     }
+    },
+    {
+     "command": "node.get",
+     "params": {
+      "id": 5
+     },
+     "receipt": {
+      "fontStyle": "Regular",
+      "wght": 400.0
+     }
+    },
+    {
+     "command": "variable.set",
+     "params": {
+      "variable": "weight",
+      "mode": "Dark",
+      "value": 650
+     },
+     "receipt": null
+    },
+    {
+     "command": "node.get",
+     "params": {
+      "id": 5
+     },
+     "receipt": {
+      "fontStyle": "Bold",
+      "wght": 650.0
+     }
+    },
+    {
+     "command": "style.bind",
+     "params": {
+      "style": "S:1",
+      "field": "fontWeight",
+      "variable": "bg"
+     },
+     "receipt": {
+      "refused": true
+     }
+    },
+    {
+     "command": "variable.createCollection",
+     "params": {
+      "name": "Names",
+      "modes": [
+       "Only"
+      ]
+     },
+     "receipt": null
+    },
+    {
+     "command": "variable.create",
+     "params": {
+      "collection": "Names",
+      "name": "face",
+      "type": "string",
+      "values": {
+       "Only": "Light"
+      }
+     },
+     "receipt": null
+    },
+    {
+     "command": "style.bind",
+     "params": {
+      "style": "S:1",
+      "field": "fontStyle",
+      "variable": "face"
+     },
+     "receipt": {
+      "refused": false
+     }
+    },
+    {
+     "command": "node.get",
+     "params": {
+      "id": 4
+     },
+     "receipt": {
+      "fontStyle": "Light",
+      "wght": null
+     }
+    },
+    {
+     "command": "style.list",
+     "params": {},
+     "receipt": [
+      {
+       "fontStyle": "VariableID:4"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "name": "junk weight values clamp to the lightest and heaviest face",
+   "steps": [
+    {
+     "command": "variable.createCollection",
+     "params": {
+      "name": "Theme",
+      "modes": [
+       "Light",
+       "Dark"
+      ]
+     },
+     "receipt": null
+    },
+    {
+     "command": "variable.create",
+     "params": {
+      "collection": "Theme",
+      "name": "bg",
+      "type": "color",
+      "values": {
+       "Light": "#FFFFFF",
+       "Dark": "#000000"
+      }
+     },
+     "receipt": null
+    },
+    {
+     "command": "variable.create",
+     "params": {
+      "collection": "Theme",
+      "name": "size",
+      "type": "number",
+      "values": {
+       "Light": 16,
+       "Dark": 20
+      }
+     },
+     "receipt": null
+    },
+    {
+     "command": "frame.create",
+     "params": {
+      "x": 0,
+      "y": 0,
+      "width": 100,
+      "height": 100
+     },
+     "receipt": null
+    },
+    {
+     "command": "frame.create",
+     "params": {
+      "x": 200,
+      "y": 0,
+      "width": 100,
+      "height": 100
+     },
+     "receipt": null
+    },
+    {
+     "command": "variable.setMode",
+     "params": {
+      "ids": [
+       3
+      ],
+      "collection": "Theme",
+      "mode": "Dark"
+     },
+     "receipt": null
+    },
+    {
+     "command": "text.create",
+     "params": {
+      "text": "Hello",
+      "x": 0,
+      "y": 60,
+      "parent": 2
+     },
+     "receipt": null
+    },
+    {
+     "command": "text.create",
+     "params": {
+      "text": "Hello",
+      "x": 0,
+      "y": 60,
+      "parent": 3
+     },
+     "receipt": null
+    },
+    {
+     "command": "style.create",
+     "params": {
+      "type": "text",
+      "name": "Body",
+      "from": 4
+     },
+     "receipt": null
+    },
+    {
+     "command": "style.apply",
+     "params": {
+      "ids": [
+       4,
+       5
+      ],
+      "style": "S:1"
+     },
+     "receipt": null
+    },
+    {
+     "command": "variable.create",
+     "params": {
+      "collection": "Theme",
+      "name": "weight",
+      "type": "number",
+      "values": {
+       "Light": -50,
+       "Dark": 5000
+      }
+     },
+     "receipt": null
+    },
+    {
+     "command": "style.bind",
+     "params": {
+      "style": "S:1",
+      "field": "fontWeight",
+      "variable": "weight"
+     },
+     "receipt": {
+      "refused": false
+     }
+    },
+    {
+     "command": "node.get",
+     "params": {
+      "id": 4
+     },
+     "receipt": {
+      "fontStyle": "Thin",
+      "wght": 1.0
+     }
+    },
+    {
+     "command": "variable.set",
+     "params": {
+      "variable": "weight",
+      "mode": "Light",
+      "value": 5000
+     },
+     "receipt": null
+    },
+    {
+     "command": "node.get",
+     "params": {
+      "id": 4
+     },
+     "receipt": {
+      "fontStyle": "Black",
+      "wght": 1000.0
+     }
+    }
+   ]
+  },
+  {
+   "name": "the CSS export keeps a style weight bare",
+   "steps": [
+    {
+     "command": "variable.createCollection",
+     "params": {
+      "name": "Brand"
+     },
+     "receipt": null
+    },
+    {
+     "command": "variable.create",
+     "params": {
+      "collection": "Brand",
+      "name": "weight",
+      "type": "number",
+      "value": 700
+     },
+     "receipt": null
+    },
+    {
+     "command": "text.create",
+     "params": {
+      "text": "Hi",
+      "x": 0,
+      "y": 0
+     },
+     "receipt": null
+    },
+    {
+     "command": "style.create",
+     "params": {
+      "type": "text",
+      "name": "Body",
+      "from": 2
+     },
+     "receipt": null
+    },
+    {
+     "command": "style.bind",
+     "params": {
+      "style": "S:1",
+      "field": "fontWeight",
+      "variable": "weight"
+     },
+     "receipt": {
+      "refused": false
+     }
+    },
+    {
+     "command": "variable.export",
+     "params": {
+      "format": "css"
+     },
+     "receipt": [
+      "--weight: 700;"
+     ]
+    }
+   ]
+  }
+ ]
+}

@@ -172,6 +172,9 @@ export function editStyleDefinition(document: Document, selection: readonly stri
       const was=Object.hasOwn(bound,key) ? bound[key] : undefined;
       if (variable) bound[key]=variable.id;
       else delete bound[key];
+      // A weight bound as a number and a bound face name set the same property: each replaces the other (native bind_style).
+      if (original.type==="text" && key==="fontWeight") delete bound.fontStyle;
+      if (original.type==="text" && key==="fontStyle") delete bound.fontWeight;
       let changed:SharedStyle={...base,...(Object.keys(bound).length>0 && {bound:Object.freeze(bound)})};
       const item=bindingItem(key);
       if (was!==variable?.id && changed.type==="paint" && item?.field==="color")

@@ -9271,6 +9271,33 @@ test("frame variable modes distinguish inherited main modes from mixed and expli
   expect(document.nodes[5].variableModes).toBeUndefined();
 });
 
+test("a text style's weight takes a number variable that picks the face and the wght axis, as native does",async ({page})=>{
+  const {prepareText}=await import("../../src/engine/text-node-layout");
+  await prepareText("Hello");
+  const e=new EditorEngine();
+  e.execute("variable.createCollection",{name:"Brand"});
+  e.execute("variable.create",{collection:"Brand",name:"weight",type:"number",value:700});
+  const t=Number((e.execute("text.create",{text:"Hello",x:40,y:40}) as {id:string}).id);
+  const style=String((e.execute("style.create",{type:"text",name:"Body",from:t}) as {id:string}).id);
+  e.execute("style.apply",{ids:[t],style});
+  await login(page);
+  await page.getByLabel("Open Figcraft file",{exact:true}).setInputFiles({name:"weight.figcraft",mimeType:"application/octet-stream",buffer:Buffer.from(await encodeFigcraft(e.getSnapshot().document))});
+  const catalogue=page.getByRole("group",{name:"Local styles",exact:true});
+  await catalogue.getByRole("button",{name:"Edit Body",exact:true}).click();
+  await catalogue.getByRole("button",{name:"Bind variable to Style font weight"}).click();
+  await catalogue.getByRole("group",{name:"Variables for Style font weight"}).getByRole("button",{name:"weight",exact:true}).click();
+  await expect(catalogue.getByRole("button",{name:"Detach variable from Style font weight"})).toHaveText("weight");
+  // A bound weight replaces the face menu.
+  await expect(catalogue.getByLabel("Style font style",{exact:true})).toHaveCount(0);
+  await catalogue.getByRole("button",{name:"Back",exact:true}).click();
+  const downloading=page.waitForEvent("download");
+  await page.getByRole("button",{name:"Save as",exact:true}).click();
+  const {document}=await decodeFigcraft(await readFile((await (await downloading).path())!));
+  expect(document.styles?.[0]).toMatchObject({bound:{fontWeight:"VariableID:1"}});
+  const node=document.nodes[String(t)];
+  expect(node.kind==="text" && [node.text.style.fontStyle,node.text.style.variations.wght]).toEqual(["Bold",700]);
+});
+
 test("shared style variable pickers filter by scope and retain per-layer mode colours after download",async({page})=>{
   await login(page);
   await page.getByLabel("Open Figcraft file",{exact:true}).setInputFiles(new URL("../fixtures/native-style-mode-consumers.json",import.meta.url).pathname);

@@ -7,7 +7,8 @@ import type { Effect } from "./effects";
 import type { LayoutGrid, SharedStyle } from "./shared-styles";
 import type { Paint } from "./solid-paint";
 import { compareScalarKeys } from "./text-breaks";
-import type { TextStyle } from "./text-style";
+import { setFontStyle, textItalic, type TextStyle } from "./text-style";
+import { styledName, weightName } from "./text-properties";
 import { layerModes } from "./variable-modes";
 import { resolveVariable, type Variables } from "./variables";
 
@@ -80,9 +81,17 @@ export function gridWithVariable(grids:readonly LayoutGrid[],i:number,field:stri
 }
 
 function textWithVariable(style:TextStyle,key:string,value:Value):TextStyle {
-  if (value.type==="string" && value.value.trim() && (key==="fontFamily" || key==="fontStyle")) return {...style,[key]:value.value};
+  if (value.type==="string" && value.value.trim() && key==="fontFamily") return {...style,fontFamily:value.value};
+  // Native set_font_style (281918e2): a face name clears the style axes, so a weight bound before leaves no stale `wght`.
+  if (value.type==="string" && value.value.trim() && key==="fontStyle") return setFontStyle(style,value.value);
   if (value.type!=="number") return style;
   const x=value.value;
+  if (key==="fontWeight" && Number.isFinite(x)) {
+    // Native style_vars.rs (ccb33e0b, #2174): the face nearest the number for a static family, and the `wght` axis for a
+    // variable font. Keys resolve in order, so a weight wins over a face name a file binds too.
+    const w=Math.min(1000,Math.max(1,x)), named=setFontStyle(style,styledName(weightName(Math.trunc(w)),textItalic(style)));
+    return {...named,variations:Object.freeze({...named.variations,wght:w})};
+  }
   if (key==="fontSize") return {...style,fontSize:Math.min(5000,Math.max(1,x))};
   if (key==="lineHeight") return {...style,lineHeight:{unit:"pixels",value:Math.min(100000,Math.max(0,x))}};
   if (key==="letterSpacing") return {...style,letterSpacing:{unit:"pixels",value:Math.min(10000,Math.max(-10000,x))}};
