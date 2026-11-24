@@ -832,3 +832,7 @@ Native `crates/engine/src/cmd/component/variants.rs::{create_set, create_set_ref
 ## Delta row 6: library link relative paths — 24 November 2026
 
 Native `crates/doc/src/library.rs` `LibraryLink::relative` at `bad07e44` (upstream `7b34dbab`, #2132) maps to `LibraryLink.relative`, `readLibraryLinks` and `wireLibraryLinks` in `published-library.ts` at `a89c897`, which carry it through open and save as native does for a document with no path; `crates/engine/src/assets/library.rs::{relate_links, resolve_links}` need a document path and have no browser counterpart. Verified by `tests/fixtures/native-library-link-relative.json`, `tests/parity/library-link-relative.test.ts` and a browser case in `tests/e2e/preview.spec.ts`. [Report](../reports/26-11-24-library-link-relative.md).
+
+## Roadmap row 15: prototype interaction and flow commands — 24 November 2026
+
+Native `crates/engine/src/cmd/proto.rs` (`proto.interaction.{add,set,remove,clear}`, `proto.flow.{add,rename,remove}`, `settle`, `duration`, `delay`, `check_dests`), `automation/params.rs::req_targets` and `doc/src/lib.rs::top_level_frame` at `bad07e44` map to `executePrototype` and `topLevelFrame` in `prototype-commands.ts` at `dc432fb`; native's colour reader for an overlay background maps to `prototype-data.ts` `overlayBackground`. Verified by `tests/fixtures/native-prototype-interactions.json` and `tests/parity/prototype-interactions.test.ts`; no interface reaches the commands yet. [Report](../reports/26-11-24-prototype-interactions.md).
