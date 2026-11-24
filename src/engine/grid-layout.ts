@@ -70,10 +70,15 @@ export function gridGeometry(document: Document, frame: FrameLikeNode) {
   const hugW = sizing.horizontal === "hug", hugH = sizing.vertical === "hug";
   const widths: AxisRequirements = {minimum: new Float64Array(grid.columns), spans: []};
   const heights: AxisRequirements = {minimum: new Float64Array(grid.rows), spans: []};
+  // Native grid_geometry (a28c03d9), measured in Figma: a Fill track of a fixed-size axis shares the space by its fraction and asks
+  // nothing of a fixed-size or hug-size child alone in it, which overflows into the next track. A Fill child still asks its minimum.
+  const inFill = (tracks: readonly GridTrack[], start: number, span: number) => span === 1 && (tracks[start]?.sizing ?? "fill") === "fill";
   for (const [id, cell] of grid.cells) {
     const node = document.nodes[id] as LayerNode, child = layerSizing(node), box = outerBox(node);
-    addRequirement(widths, cell.column, cell.columnSpan, child.horizontal === "fill" && !hugW ? node.childLayout?.minWidth ?? 0 : box.width);
-    addRequirement(heights, cell.row, cell.rowSpan, child.vertical === "fill" && !hugH ? node.childLayout?.minHeight ?? 0 : box.height);
+    addRequirement(widths, cell.column, cell.columnSpan, child.horizontal === "fill" && !hugW ? node.childLayout?.minWidth ?? 0
+      : !hugW && inFill(layout.columnTracks, cell.column, cell.columnSpan) ? 0 : box.width);
+    addRequirement(heights, cell.row, cell.rowSpan, child.vertical === "fill" && !hugH ? node.childLayout?.minHeight ?? 0
+      : !hugH && inFill(layout.rowTracks, cell.row, cell.rowSpan) ? 0 : box.height);
   }
   const x = resolveAxis(layout.columnTracks, grid.columns, Math.max(0, layout.gap), hugW, frame.width-left-right, left, widths);
   const y = resolveAxis(layout.rowTracks, grid.rows, Math.max(0, layout.crossGap), hugH, frame.height-top-bottom, top, heights);

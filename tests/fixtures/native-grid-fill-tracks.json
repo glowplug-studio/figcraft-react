@@ -1,0 +1,828 @@
+{
+ "nativeRevision": "bad07e4433240cad046589129c084bd2fc36f097",
+ "note": "Each case: the plain JSON document opened natively with file.open, its frame (id 2) widened by 1 and set back with node.set to run layout, then node.get of the frame and each child. frame keeps width and height; children keep id, x, y, width and height.",
+ "cases": [
+  {
+   "name": "a fixed child taller than its share keeps its row's share and overflows",
+   "document": {
+    "name": "Grid",
+    "next_id": 5,
+    "pages": [
+     1
+    ],
+    "current_page": 1,
+    "nodes": {
+     "1": {
+      "id": 1,
+      "type": "page",
+      "name": "Page",
+      "width": 0,
+      "height": 0,
+      "children": [
+       2
+      ]
+     },
+     "2": {
+      "id": 2,
+      "type": "frame",
+      "parent": 1,
+      "name": "Grid",
+      "width": 100,
+      "height": 100,
+      "children": [
+       3,
+       4
+      ],
+      "layout": {
+       "mode": "grid",
+       "padding": [
+        0,
+        0,
+        0,
+        0
+       ],
+       "gap": 0,
+       "cross_gap": 0,
+       "grid_columns": 1,
+       "grid_rows": 2,
+       "column_tracks": [
+        {
+         "sizing": "fill",
+         "value": 1
+        }
+       ],
+       "row_tracks": [
+        {
+         "sizing": "fill",
+         "value": 1
+        },
+        {
+         "sizing": "fill",
+         "value": 1
+        }
+       ]
+      }
+     },
+     "3": {
+      "id": 3,
+      "type": "rectangle",
+      "parent": 2,
+      "name": "K0",
+      "width": 20,
+      "height": 80
+     },
+     "4": {
+      "id": 4,
+      "type": "rectangle",
+      "parent": 2,
+      "name": "K1",
+      "width": 20,
+      "height": 20,
+      "child_layout": {
+       "sizing_h": "fixed",
+       "sizing_v": "fill"
+      }
+     }
+    }
+   },
+   "frame": {
+    "width": 100,
+    "height": 100
+   },
+   "children": [
+    {
+     "id": 3,
+     "x": 0,
+     "y": 0,
+     "width": 20,
+     "height": 80
+    },
+    {
+     "id": 4,
+     "x": 0,
+     "y": 50,
+     "width": 20,
+     "height": 50
+    }
+   ]
+  },
+  {
+   "name": "children bigger than every share keep their sizes",
+   "document": {
+    "name": "Grid",
+    "next_id": 5,
+    "pages": [
+     1
+    ],
+    "current_page": 1,
+    "nodes": {
+     "1": {
+      "id": 1,
+      "type": "page",
+      "name": "Page",
+      "width": 0,
+      "height": 0,
+      "children": [
+       2
+      ]
+     },
+     "2": {
+      "id": 2,
+      "type": "frame",
+      "parent": 1,
+      "name": "Grid",
+      "width": 100,
+      "height": 100,
+      "children": [
+       3,
+       4
+      ],
+      "layout": {
+       "mode": "grid",
+       "padding": [
+        0,
+        0,
+        0,
+        0
+       ],
+       "gap": 0,
+       "cross_gap": 0,
+       "grid_columns": 1,
+       "grid_rows": 2,
+       "column_tracks": [
+        {
+         "sizing": "fill",
+         "value": 1
+        }
+       ],
+       "row_tracks": [
+        {
+         "sizing": "fill",
+         "value": 1
+        },
+        {
+         "sizing": "fill",
+         "value": 1
+        }
+       ]
+      }
+     },
+     "3": {
+      "id": 3,
+      "type": "rectangle",
+      "parent": 2,
+      "name": "K0",
+      "width": 20,
+      "height": 80
+     },
+     "4": {
+      "id": 4,
+      "type": "rectangle",
+      "parent": 2,
+      "name": "K1",
+      "width": 20,
+      "height": 70
+     }
+    }
+   },
+   "frame": {
+    "width": 100,
+    "height": 100
+   },
+   "children": [
+    {
+     "id": 3,
+     "x": 0,
+     "y": 0,
+     "width": 20,
+     "height": 80
+    },
+    {
+     "id": 4,
+     "x": 0,
+     "y": 50,
+     "width": 20,
+     "height": 70
+    }
+   ]
+  },
+  {
+   "name": "a fixed child wider than its share overflows its column",
+   "document": {
+    "name": "Grid",
+    "next_id": 5,
+    "pages": [
+     1
+    ],
+    "current_page": 1,
+    "nodes": {
+     "1": {
+      "id": 1,
+      "type": "page",
+      "name": "Page",
+      "width": 0,
+      "height": 0,
+      "children": [
+       2
+      ]
+     },
+     "2": {
+      "id": 2,
+      "type": "frame",
+      "parent": 1,
+      "name": "Grid",
+      "width": 300,
+      "height": 20,
+      "children": [
+       3,
+       4
+      ],
+      "layout": {
+       "mode": "grid",
+       "padding": [
+        0,
+        0,
+        0,
+        0
+       ],
+       "gap": 0,
+       "cross_gap": 0,
+       "grid_columns": 2,
+       "grid_rows": 1,
+       "column_tracks": [
+        {
+         "sizing": "fill",
+         "value": 1
+        },
+        {
+         "sizing": "fill",
+         "value": 2
+        }
+       ],
+       "row_tracks": [
+        {
+         "sizing": "fill",
+         "value": 1
+        }
+       ]
+      }
+     },
+     "3": {
+      "id": 3,
+      "type": "rectangle",
+      "parent": 2,
+      "name": "K0",
+      "width": 150,
+      "height": 20
+     },
+     "4": {
+      "id": 4,
+      "type": "rectangle",
+      "parent": 2,
+      "name": "K1",
+      "width": 20,
+      "height": 20,
+      "child_layout": {
+       "sizing_h": "fill",
+       "sizing_v": "fixed"
+      }
+     }
+    }
+   },
+   "frame": {
+    "width": 300,
+    "height": 20
+   },
+   "children": [
+    {
+     "id": 3,
+     "x": 0,
+     "y": 0,
+     "width": 150,
+     "height": 20
+    },
+    {
+     "id": 4,
+     "x": 100,
+     "y": 0,
+     "width": 200,
+     "height": 20
+    }
+   ]
+  },
+  {
+   "name": "300 x 200, 1fr / 1fr, a 150-tall child does not widen its row",
+   "document": {
+    "name": "Grid",
+    "next_id": 5,
+    "pages": [
+     1
+    ],
+    "current_page": 1,
+    "nodes": {
+     "1": {
+      "id": 1,
+      "type": "page",
+      "name": "Page",
+      "width": 0,
+      "height": 0,
+      "children": [
+       2
+      ]
+     },
+     "2": {
+      "id": 2,
+      "type": "frame",
+      "parent": 1,
+      "name": "Grid",
+      "width": 300,
+      "height": 200,
+      "children": [
+       3,
+       4
+      ],
+      "layout": {
+       "mode": "grid",
+       "padding": [
+        0,
+        0,
+        0,
+        0
+       ],
+       "gap": 0,
+       "cross_gap": 0,
+       "grid_columns": 1,
+       "grid_rows": 2,
+       "column_tracks": [
+        {
+         "sizing": "fill",
+         "value": 1
+        }
+       ],
+       "row_tracks": [
+        {
+         "sizing": "fill",
+         "value": 1
+        },
+        {
+         "sizing": "fill",
+         "value": 1
+        }
+       ]
+      }
+     },
+     "3": {
+      "id": 3,
+      "type": "rectangle",
+      "parent": 2,
+      "name": "K0",
+      "width": 100,
+      "height": 150
+     },
+     "4": {
+      "id": 4,
+      "type": "rectangle",
+      "parent": 2,
+      "name": "K1",
+      "width": 100,
+      "height": 20
+     }
+    }
+   },
+   "frame": {
+    "width": 300,
+    "height": 200
+   },
+   "children": [
+    {
+     "id": 3,
+     "x": 0,
+     "y": 0,
+     "width": 100,
+     "height": 150
+    },
+    {
+     "id": 4,
+     "x": 0,
+     "y": 100,
+     "width": 100,
+     "height": 20
+    }
+   ]
+  },
+  {
+   "name": "the row gap comes off first",
+   "document": {
+    "name": "Grid",
+    "next_id": 5,
+    "pages": [
+     1
+    ],
+    "current_page": 1,
+    "nodes": {
+     "1": {
+      "id": 1,
+      "type": "page",
+      "name": "Page",
+      "width": 0,
+      "height": 0,
+      "children": [
+       2
+      ]
+     },
+     "2": {
+      "id": 2,
+      "type": "frame",
+      "parent": 1,
+      "name": "Grid",
+      "width": 300,
+      "height": 200,
+      "children": [
+       3,
+       4
+      ],
+      "layout": {
+       "mode": "grid",
+       "padding": [
+        0,
+        0,
+        0,
+        0
+       ],
+       "gap": 0,
+       "cross_gap": 10,
+       "grid_columns": 1,
+       "grid_rows": 2,
+       "column_tracks": [
+        {
+         "sizing": "fill",
+         "value": 1
+        }
+       ],
+       "row_tracks": [
+        {
+         "sizing": "fill",
+         "value": 1
+        },
+        {
+         "sizing": "fill",
+         "value": 1
+        }
+       ]
+      }
+     },
+     "3": {
+      "id": 3,
+      "type": "rectangle",
+      "parent": 2,
+      "name": "K0",
+      "width": 100,
+      "height": 150
+     },
+     "4": {
+      "id": 4,
+      "type": "rectangle",
+      "parent": 2,
+      "name": "K1",
+      "width": 100,
+      "height": 20
+     }
+    }
+   },
+   "frame": {
+    "width": 300,
+    "height": 200
+   },
+   "children": [
+    {
+     "id": 3,
+     "x": 0,
+     "y": 0,
+     "width": 100,
+     "height": 150
+    },
+    {
+     "id": 4,
+     "x": 0,
+     "y": 105,
+     "width": 100,
+     "height": 20
+    }
+   ]
+  },
+  {
+   "name": "with the frame on Hug the rows size to content",
+   "document": {
+    "name": "Grid",
+    "next_id": 5,
+    "pages": [
+     1
+    ],
+    "current_page": 1,
+    "nodes": {
+     "1": {
+      "id": 1,
+      "type": "page",
+      "name": "Page",
+      "width": 0,
+      "height": 0,
+      "children": [
+       2
+      ]
+     },
+     "2": {
+      "id": 2,
+      "type": "frame",
+      "parent": 1,
+      "name": "Grid",
+      "width": 300,
+      "height": 200,
+      "children": [
+       3,
+       4
+      ],
+      "child_layout": {
+       "sizing_h": "fixed",
+       "sizing_v": "hug"
+      },
+      "layout": {
+       "mode": "grid",
+       "padding": [
+        0,
+        0,
+        0,
+        0
+       ],
+       "gap": 0,
+       "cross_gap": 0,
+       "grid_columns": 1,
+       "grid_rows": 2,
+       "column_tracks": [
+        {
+         "sizing": "fill",
+         "value": 1
+        }
+       ],
+       "row_tracks": [
+        {
+         "sizing": "fill",
+         "value": 1
+        },
+        {
+         "sizing": "fill",
+         "value": 1
+        }
+       ]
+      }
+     },
+     "3": {
+      "id": 3,
+      "type": "rectangle",
+      "parent": 2,
+      "name": "K0",
+      "width": 100,
+      "height": 150
+     },
+     "4": {
+      "id": 4,
+      "type": "rectangle",
+      "parent": 2,
+      "name": "K1",
+      "width": 100,
+      "height": 20
+     }
+    }
+   },
+   "frame": {
+    "width": 300,
+    "height": 170
+   },
+   "children": [
+    {
+     "id": 3,
+     "x": 0,
+     "y": 0,
+     "width": 100,
+     "height": 150
+    },
+    {
+     "id": 4,
+     "x": 0,
+     "y": 150,
+     "width": 100,
+     "height": 20
+    }
+   ]
+  },
+  {
+   "name": "a Fill child's minimum still sizes its fr track",
+   "document": {
+    "name": "Grid",
+    "next_id": 5,
+    "pages": [
+     1
+    ],
+    "current_page": 1,
+    "nodes": {
+     "1": {
+      "id": 1,
+      "type": "page",
+      "name": "Page",
+      "width": 0,
+      "height": 0,
+      "children": [
+       2
+      ]
+     },
+     "2": {
+      "id": 2,
+      "type": "frame",
+      "parent": 1,
+      "name": "Grid",
+      "width": 100,
+      "height": 100,
+      "children": [
+       3,
+       4
+      ],
+      "layout": {
+       "mode": "grid",
+       "padding": [
+        0,
+        0,
+        0,
+        0
+       ],
+       "gap": 0,
+       "cross_gap": 0,
+       "grid_columns": 1,
+       "grid_rows": 2,
+       "column_tracks": [
+        {
+         "sizing": "fill",
+         "value": 1
+        }
+       ],
+       "row_tracks": [
+        {
+         "sizing": "fill",
+         "value": 1
+        },
+        {
+         "sizing": "fill",
+         "value": 1
+        }
+       ]
+      }
+     },
+     "3": {
+      "id": 3,
+      "type": "rectangle",
+      "parent": 2,
+      "name": "K0",
+      "width": 20,
+      "height": 20,
+      "child_layout": {
+       "sizing_h": "fixed",
+       "sizing_v": "fill",
+       "min_w": 0,
+       "min_h": 80
+      }
+     },
+     "4": {
+      "id": 4,
+      "type": "rectangle",
+      "parent": 2,
+      "name": "K1",
+      "width": 20,
+      "height": 20,
+      "child_layout": {
+       "sizing_h": "fixed",
+       "sizing_v": "fill"
+      }
+     }
+    }
+   },
+   "frame": {
+    "width": 100,
+    "height": 100
+   },
+   "children": [
+    {
+     "id": 3,
+     "x": 0,
+     "y": 0,
+     "width": 20,
+     "height": 80
+    },
+    {
+     "id": 4,
+     "x": 0,
+     "y": 80,
+     "width": 20,
+     "height": 20
+    }
+   ]
+  },
+  {
+   "name": "a hug track keeps its content",
+   "document": {
+    "name": "Grid",
+    "next_id": 5,
+    "pages": [
+     1
+    ],
+    "current_page": 1,
+    "nodes": {
+     "1": {
+      "id": 1,
+      "type": "page",
+      "name": "Page",
+      "width": 0,
+      "height": 0,
+      "children": [
+       2
+      ]
+     },
+     "2": {
+      "id": 2,
+      "type": "frame",
+      "parent": 1,
+      "name": "Grid",
+      "width": 300,
+      "height": 200,
+      "children": [
+       3,
+       4
+      ],
+      "layout": {
+       "mode": "grid",
+       "padding": [
+        0,
+        0,
+        0,
+        0
+       ],
+       "gap": 0,
+       "cross_gap": 0,
+       "grid_columns": 1,
+       "grid_rows": 2,
+       "column_tracks": [
+        {
+         "sizing": "fill",
+         "value": 1
+        }
+       ],
+       "row_tracks": [
+        {
+         "sizing": "hug",
+         "value": 0
+        },
+        {
+         "sizing": "fill",
+         "value": 1
+        }
+       ]
+      }
+     },
+     "3": {
+      "id": 3,
+      "type": "rectangle",
+      "parent": 2,
+      "name": "K0",
+      "width": 100,
+      "height": 150
+     },
+     "4": {
+      "id": 4,
+      "type": "rectangle",
+      "parent": 2,
+      "name": "K1",
+      "width": 100,
+      "height": 20
+     }
+    }
+   },
+   "frame": {
+    "width": 300,
+    "height": 200
+   },
+   "children": [
+    {
+     "id": 3,
+     "x": 0,
+     "y": 0,
+     "width": 100,
+     "height": 150
+    },
+    {
+     "id": 4,
+     "x": 0,
+     "y": 150,
+     "width": 100,
+     "height": 20
+    }
+   ]
+  }
+ ]
+}

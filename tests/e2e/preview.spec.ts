@@ -3097,6 +3097,24 @@ test("Pick color with I samples the canvas under the pointer into the selection 
   await expect(page.getByRole("region",{name:"Appearance"}).getByLabel("Name",{exact:true})).toHaveValue("Source");
 });
 
+test("grid Fill tracks share a fixed frame's space and let a fixed child overflow, as native lays them out",async ({page})=>{
+  const native=(await import("../fixtures/native-grid-fill-tracks.json",{with:{type:"json"}})).default;
+  const scene=native.cases.find(c=>c.name==="the row gap comes off first")!;
+  await login(page);
+  await page.getByLabel("Open Figcraft file",{exact:true}).setInputFiles({name:"grid.figcraft",mimeType:"application/json",buffer:Buffer.from(JSON.stringify(scene.document))});
+  await page.getByRole("region",{name:"Layers",exact:true}).getByRole("button",{name:"Grid",exact:true}).click();
+  // A width edit through the Design panel lays the grid out: rows 95 / 95 after the gap, the 150-tall child overflowing.
+  for (const width of ["301","300"]) {
+    await page.getByLabel("Edit Width",{exact:true}).fill(width);
+    await page.getByRole("button",{name:"Apply geometry",exact:true}).click();
+  }
+  await expect(page.getByLabel("Edit Width",{exact:true})).toHaveValue("300");
+  const pending=page.waitForEvent("download");
+  await page.getByLabel("Design canvas",{exact:true}).focus(); await page.keyboard.press("ControlOrMeta+s");
+  const doc=(await decodeFigcraft(await readFile((await (await pending).path())!))).document;
+  for (const child of scene.children) expect(doc.nodes[String(child.id)]).toMatchObject({x:child.x,y:child.y,width:child.width,height:child.height});
+});
+
 test("transparent page redraw and hidden or locked layers bypass pointer and select all", async ({ page }) => {
   await login(page);
   const appearance = page.getByRole("region", { name: "Appearance" });
