@@ -1,0 +1,74 @@
+{
+ "nativeRevision": "bad07e4433240cad046589129c084bd2fc36f097",
+ "note": "document: the file opened natively with file.open (data, no path). list: library.list's id, name, path, seenVersion and server for each link. saved: the libraries.enabled native wrote with file.saveAs (data, no path).",
+ "document": {
+  "format": "figcraft",
+  "version": 1,
+  "name": "Linked",
+  "next_id": 2,
+  "pages": [
+   1
+  ],
+  "current_page": 1,
+  "nodes": {
+   "1": {
+    "id": 1,
+    "type": "page",
+    "name": "Page",
+    "width": 0,
+    "height": 0,
+    "children": []
+   }
+  },
+  "libraries": {
+   "enabled": [
+    {
+     "id": "lib-a",
+     "name": "Brand",
+     "path": "/projects/old/brand.figcraft",
+     "version": 3,
+     "relative": "brand.figcraft"
+    },
+    {
+     "id": "lib-b",
+     "name": "Team",
+     "path": "wss://example.invalid/library",
+     "version": 1,
+     "relative": "stale.figcraft"
+    }
+   ]
+  }
+ },
+ "list": [
+  {
+   "id": "lib-a",
+   "name": "Brand",
+   "path": "/projects/old/brand.figcraft",
+   "seenVersion": 3,
+   "server": false
+  },
+  {
+   "id": "lib-b",
+   "name": "Team",
+   "path": "wss://example.invalid/library",
+   "seenVersion": 1,
+   "server": true
+  }
+ ],
+ "saved": [
+  {
+   "id": "lib-a",
+   "name": "Brand",
+   "path": "/projects/old/brand.figcraft",
+   "relative": "brand.figcraft",
+   "version": 3
+  },
+  {
+   "id": "lib-b",
+   "name": "Team",
+   "path": "wss://example.invalid/library",
+   "relative": "stale.figcraft",
+   "version": 1
+  }
+ ]
+}

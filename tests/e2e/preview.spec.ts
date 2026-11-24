@@ -9352,6 +9352,19 @@ test("Create component set wraps the selected layers as variants named left to r
   expect(Object.values((await saved()).nodes).some(n=>n.kind==="componentSet")).toBe(false);
 });
 
+test("a library link keeps its relative path through opening and saving in the browser, as native does without a file path",async ({page})=>{
+  const native=(await import("../fixtures/native-library-link-relative.json",{with:{type:"json"}})).default;
+  await login(page);
+  await page.getByLabel("Open Figcraft file",{exact:true}).setInputFiles({name:"linked.figcraft",mimeType:"application/json",buffer:Buffer.from(JSON.stringify(native.document))});
+  await expect(page.getByRole("heading",{name:"Linked",exact:true})).toBeVisible();
+  const pending=page.waitForEvent("download");
+  await page.getByRole("button",{name:"Save as",exact:true}).click();
+  const {unzipSync,strFromU8}=await import("fflate");
+  const saved=JSON.parse(strFromU8(unzipSync(new Uint8Array(await readFile((await (await pending).path())!)))["document.json"]));
+  expect(saved.libraries.enabled.map((l:{relative?:string})=>l.relative)).toEqual(native.saved.map(l=>l.relative));
+  expect(saved.libraries.enabled[0]).toEqual(native.saved[0]);
+});
+
 test("shared style variable pickers filter by scope and retain per-layer mode colours after download",async({page})=>{
   await login(page);
   await page.getByLabel("Open Figcraft file",{exact:true}).setInputFiles(new URL("../fixtures/native-style-mode-consumers.json",import.meta.url).pathname);

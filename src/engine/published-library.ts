@@ -32,6 +32,10 @@ export interface LibraryLink {
   readonly name:string;
   readonly path:string;
   readonly version:string;
+  /** Native library.rs `relative` (7b34dbab, #2132): where the library file is from the folder of the document that links it,
+   * '/'-separated. Native writes it on save from a document's path and follows it on open; a document with no path, the
+   * browser's only kind, carries it unchanged. */
+  readonly relative?:string;
 }
 export function readLibraryLinks(value:unknown, imported:Map<string,string>) {
   return entries(value,r=>{
@@ -45,7 +49,8 @@ export function readLibraryLinks(value:unknown, imported:Map<string,string>) {
       path="team-library:"+bytesToHex(sha256(new TextEncoder().encode(invite)));
       imported.set(path,invite);
     }
-    return {id:string(r.id),name:string(r.name),path,version:uint(r.version)};
+    const relative=r.relative==null ? "" : string(r.relative);
+    return {id:string(r.id),name:string(r.name),path,version:uint(r.version),...(relative && {relative})};
   });
 }
 export interface ImportedRecord {readonly library:string;readonly key:string;readonly local:string;readonly version:string}
@@ -76,7 +81,7 @@ export function wireLibraryLinks(links:readonly LibraryLink[],records?:ImportedR
   const counts=(list:readonly ComponentCount[])=>list.map(r=>({...r,key:wireId(r.key),count:wireId(String(r.count))}));
   const components=(store?.components ?? []).map(r=>({...r,key:wireId(r.key),root:wireId(r.root),version:wireId(r.version),
     ids:Object.fromEntries(Object.entries(r.ids).map(([key,local])=>[key,wireId(local)]))}));
-  return {...(store?.inserted.length && {inserted:counts(store.inserted)}),...(store?.detached.length && {detached:counts(store.detached)}),enabled:links.map(l=>({...l,version:wireId(l.version)})),store:store?.root ? wireId(store.root) : null,components,styles:wire(records?.styles ?? []),...(records?.collections.length && {collections:wire(records.collections)}),...(records?.variables.length && {variables:wire(records.variables)})};
+  return {...(store?.inserted.length && {inserted:counts(store.inserted)}),...(store?.detached.length && {detached:counts(store.detached)}),enabled:links.map(l=>({id:l.id,name:l.name,path:l.path,...(l.relative && {relative:l.relative}),version:wireId(l.version)})),store:store?.root ? wireId(store.root) : null,components,styles:wire(records?.styles ?? []),...(records?.collections.length && {collections:wire(records.collections)}),...(records?.variables.length && {variables:wire(records.variables)})};
 }
 export interface PublishedLibrary {
   readonly manifest:LibraryManifest;
