@@ -872,3 +872,7 @@ Native `crates/ui-egui/src/present.rs`, `present/{navigate,actions,scroll}.rs` a
 ## Roadmap row 15: the prototype tab — 25 November 2026
 
 Native `crates/ui-egui/src/panels/proto_panel.rs` (the tab's sections, `trigger_summary`, `action_summary`, `action_of`, `targets_for`, `nav_targets`) at `bad07e44` maps to `PrototypePanel.tsx`, `prototype-summaries.ts` and the Design and Prototype switch in `Editor.tsx` at `81c6c58`. Verified by `tests/unit/prototype-summaries.test.ts` and a browser case in `tests/e2e/preview.spec.ts`. [Report](../reports/26-11-25-prototype-tab.md).
+
+## Roadmap row 15: the interaction editor — 25 November 2026
+
+Native `crates/ui-egui/src/panels/proto_panel.rs` (`editor_popover`, `trigger_rows`, `action_fields`, `animation_rows`, `custom_easing_fields`, `action_of`) and `proto_editor.rs` (`action_list`, `conditional_blocks`, `set_variable_fields`, `expr_field`) at `bad07e44` map to `InteractionEditor.tsx` and `prototype-summaries.ts` at `a6e97bc`. Verified by a browser case in `tests/e2e/preview.spec.ts`. [Report](../reports/26-11-25-interaction-editor.md).

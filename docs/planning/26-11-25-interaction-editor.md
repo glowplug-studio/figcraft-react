@@ -2,11 +2,11 @@
 
 ## Execution checkpoint
 
-- Phase: implemented; the gate is running.
+- Phase: complete through Phase 7 on 25 November 2026 at `a6e97bc`: [report](../reports/26-11-25-interaction-editor.md), [matrix](../reports/26-11-25-interaction-editor-parity.html).
 - Native reference: `bad07e4433240cad046589129c084bd2fc36f097` (`bad07e44`). React starting revision: `6e8e385` on `prompt/full-figcraft-port`.
 - Row plan: [roadmap row 15](26-11-24-roadmap-row-15-prototyping.md).
 - Files changed: `src/InteractionEditor.tsx` (new); `src/PrototypePanel.tsx` (an interaction opens its editor; a new one opens on Add); `src/engine/prototype-summaries.ts` (`actionKinds`, `actionOf`, `variantsFor`, `valueJson`, `wireAction`, `animates`, `unavailableAction`); `src/engine/prototype-commands.ts` (`startValue`, `defaultCondition` exported); one case in `tests/e2e/preview.spec.ts`, and the item 8a case scoped to the interactions list.
-- Next action: record the item.
+- Next action: none; the item is recorded.
 - Blockers: none.
 
 ## Native contract
