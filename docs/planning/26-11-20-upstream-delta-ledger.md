@@ -70,11 +70,11 @@ Items marked as outside the browser port are not dismissed: the final audit revi
 | 4.4 | Layout bounds: a grid past the snap budget is left out; snap lines from grids are bounded | Verified at c053caa | `9d486259`, `1935c3ea` |
 | 5.1 | Inherited slot properties resolve by their defining component | Verified at 4f762c3 | `a6d9b74d`, `a66946d1`, `2067a0b5` |
 | 5.2 | An instance lists the properties its variant uses (#2022) | Verified at dad7613 | `14670b99` |
-| 5.3 | A connection dropped on a sibling variant creates Change to; grouped sets take none (#2158, #2161) | Open | `5c500252`, `36cd59da`, `499717d6` |
+| 5.3 | A connection dropped on a sibling variant creates Change to; grouped sets take none (#2158, #2161) | Open; waits for the prototype canvas (roadmap row 15, [deferred queue](26-11-07-full-port-resume.md#deferred-tests-and-reviews)) | `5c500252`, `36cd59da`, `499717d6` |
 | 5.4 | Create multiple components and Create component set in the component button's menu, with refusals (#2088, #2095) | Verified at ba52a26 | `f5a52ea5`, `524ad8b1`, `253e0c3d`, `dda27030` |
 | 5.5 | Variables: bulk Edit variables, Duplicate group, duplicate by exact id, slash rename nests with rollback, page modes with nothing selected (#2082, #2084, #2353, #2215) | Verified at 5e27442 for duplicate by id and page modes; bulk edit, Duplicate group and group rename wait for the variables panel's groups ([deferred queue](26-11-07-full-port-resume.md#deferred-tests-and-reviews)) | `a20415e1`, `9c3949fc`, `8a78214b`, `4313a60f`, `815cbf9f`, `7644de9f`, `70aeeee9`, `92d0ffdc`, `a60cb1a6` |
 | 5.6 | Text styles: bind a number variable to the weight (#2174) | Verified at ae4ceba | `ccb33e0b`, `281918e2` |
-| 5.7 | Import cost: layer paths per main worked out once; codeConnect.import indexes components by name | Open | `a8e34e75`, `6e9582c0` |
+| 5.7 | Import cost: layer paths per main worked out once; codeConnect.import indexes components by name | Performance only, no port counterpart (`a8e34e75`); Code Connect waits for Dev Mode (roadmap row 17, [deferred queue](26-11-07-full-port-resume.md#deferred-tests-and-reviews)) | `a8e34e75`, `6e9582c0` |
 | 6.1 | Library links keep working when the project folder is moved or cloned (#2132) | Open | `7b34dbab` |
 | 7.1 | Incoming peer names and colours are bounded | Verified at 6818860 | `a40c76ab`, `2cfd2a35` |
 | 8.1 | Boards: mind maps, sticky text size and growth, board tables (#2226, #2157, #2172) | Open (roadmap row 16 unported) | `20f02bb7`, `e0e57dd4`, `57b885f8`, `1ee3087b`, `ff3e4e60`, `bb6d1c35`, `1ac46ba0` |
