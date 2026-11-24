@@ -1,4 +1,5 @@
 import { owningInstance } from "./component-tree";
+import { wrapVariantSet } from "./variant-authoring";
 import { boundsOf } from "./viewport";
 import { newSection, takesSections, type SectionNode } from "./document";
 import { frameTuning } from "./layout-properties";
@@ -16,6 +17,7 @@ import { inspectedId, parseBoolean, parseIndex, parseNodeId, parseNumber, parseS
 export const structureSpecs = Object.freeze({
   "component.create": { label: "Create component", undo: true },
   "component.createMultiple": { label: "Create multiple components", undo: true },
+  "component.createSet": { label: "Create component set", undo: true },
   "layout.add": { label: "Add auto layout", undo: true },
   "layout.remove": { label: "Remove auto layout", undo: true },
   "layout.removeAll": { label: "Remove all auto layout", undo: true },
@@ -48,6 +50,19 @@ function clearOperand(draft: HierarchyDraft, id: NodeId) {
   }
 }
 const maximumId = 18446744073709551615n;
+/** Native variants.rs `create_set_refusal`: why `ids` (distinct) can't become a new component set, or undefined. */
+export function createSetRefusal(document: Document, ids: readonly NodeId[]): string | undefined {
+  if (ids.some(id => owningInstance(document, id, false))) return "Layers inside an instance can't become components";
+  if (ids.some(id => { const kind = document.nodes[id]?.kind; return kind === "instance" || kind === "component" || kind === "componentSet"; }))
+    return "Select layers that aren't components, component sets or instances";
+  if (rootIds(document, ids).length !== ids.length) return "A layer can't be in a set with one inside it";
+}
+/** Native `can_create_set`: Create component set is on offer. */
+export const canCreateSet = (document: Document, ids: readonly NodeId[]) => {
+  const unique = [...new Set(ids)];
+  return unique.length > 0 && unique.every(id => document.nodes[id]) && !createSetRefusal(document, unique);
+};
+
 export function nextLayerName(document: Document, base: string): string {
   const taken = new Set<bigint>();
   let max = 0n;
@@ -88,7 +103,7 @@ export function executeStructure(command: string, document: Document, selection:
   const operation = isBooleanOperation(suffix) ? suffix : undefined;
   const mask = command === "object.mask", releaseMask = command === "object.releaseMask";
   const layoutCommand = command.startsWith("layout.");
-  const createComponent = command === "component.create" || command === "component.createMultiple";
+  const createComponent = command === "component.create" || command === "component.createMultiple" || command === "component.createSet";
   const strictTargets = command==="section.toggleContents" || command==="object.wrapInSection" || command==="object.convertToSection" || createComponent || !!operation || mask || releaseMask || layoutCommand;
   const sectionWrap = command === "object.wrapInSection";
   const wraps = sectionWrap || mask || command === "object.group" || command === "object.frameSelection" || operation !== undefined;
@@ -221,8 +236,31 @@ export function executeStructure(command: string, document: Document, selection:
         ...(node.kind === "group" && {blend:"passThrough"}) });
       return id;
     };
-    selected = command === "component.createMultiple" ? targets.map(id => make([id])) : [make(targets)];
-    result = command === "component.createMultiple" ? {ids:selected} : {id:selected[0]};
+    if (command === "component.createSet") {
+      // Native variants.rs create_set (524ad8b1, 253e0c3d, dda27030; #2088, #2095), measured in Figma: each layer becomes a
+      // component and all are wrapped in place in a component set, 20 px around. Variants are "Property 1=<name>" left to right,
+      // a prop=value name kept; layers that all share a name give a set of that name with "Property 1=Default" variants.
+      const unique = [...new Set(targets)], refusal = createSetRefusal(document, unique);
+      if (refusal) throw new Error(refusal);
+      const made = rootIds(document, unique).map(id => make([id]));
+      const placed = made.map(id => ({id, box:boundsOf(draft.document,[id])})).sort((a,b) => (a.box?.x ?? 0)-(b.box?.x ?? 0) || (a.box?.y ?? 0)-(b.box?.y ?? 0));
+      const names = placed.map(({id}) => draft.nodes[id].name);
+      const same = names.every(name => name === names[0]) && !!names[0] && !names[0].includes("=");
+      const setName = same ? names[0] : nextLayerName(draft.document,"Component");
+      for (const [i,{id}] of placed.entries()) {
+        const node = draft.nodes[id];
+        if (same) draft.set({...node,name:"Property 1=Default"});
+        else if (!names[i].includes("=")) draft.set({...node,name:"Property 1="+names[i]});
+      }
+      const wrapped = wrapVariantSet(draft, zSorted(draft.document, made), allocator);
+      allocator = wrapped.nextId;
+      draft.set({...draft.nodes[wrapped.id], name:setName});
+      selected = Object.freeze([wrapped.id]);
+      result = {id:wrapped.id};
+    } else {
+      selected = command === "component.createMultiple" ? targets.map(id => make([id])) : [make(targets)];
+      result = command === "component.createMultiple" ? {ids:selected} : {id:selected[0]};
+    }
   } else if (layoutCommand) {
     const edit = editLayoutStructure(command,draft,targets,params.direction,ids => {
       const id = wrapLayers(ids,true), frame = draft.nodes[id] as FrameNode;

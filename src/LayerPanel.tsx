@@ -1,4 +1,5 @@
 import { canAddVariant, combineRefusal } from "./engine/variant-authoring";
+import { canCreateSet } from "./engine/structure";
 import { LayerList } from "./LayerList";
 import { isGroupLike, isLeaf } from "./engine/document";
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
@@ -96,6 +97,9 @@ export function LayerPanel({ document, selection, editable, dispatch }: LayerPan
         <button type="button" disabled={!editable} onClick={()=>dispatch("component.addVariant")}>Add variant</button>}
       <button type="button" disabled={!editable || !selection.length} onClick={() => dispatch("component.create")}>Create component</button>
       <button type="button" disabled={!editable || !selection.length} onClick={() => dispatch("component.createMultiple")}>Create multiple components</button>
+      {/* Native #2088, #2095: offered only where it works. */}
+      {selection.length>0 && canCreateSet(document,selection) &&
+        <button type="button" disabled={!editable} onClick={() => dispatch("component.createSet")}>Create component set</button>}
       <button type="button" disabled={!editable || !selection.length} onClick={()=>dispatch("object.wrapInSection")}>Wrap in new section</button>
       {selection.some(id=>document.nodes[id]?.kind==="section") &&
         <button type="button" disabled={!editable} onClick={()=>dispatch("section.toggleContents")}>Hide/Show section contents</button>}

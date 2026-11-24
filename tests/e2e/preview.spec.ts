@@ -9324,6 +9324,34 @@ test("with nothing selected the Design panel shows the page's variable modes, on
   await expect(theme).toHaveValue("auto");
 });
 
+test("Create component set wraps the selected layers as variants named left to right, offered only where it works, as native does",async ({page})=>{
+  const e=new EditorEngine();
+  for (const [i,name] of ["Primary","Secondary","Ghost"].entries()) {
+    const id=String((e.execute("frame.create",{x:150*i,y:20,width:100,height:60}) as {id:string}).id);
+    e.execute("node.set",{id,props:{name}});
+  }
+  await login(page);
+  await page.getByLabel("Open Figcraft file",{exact:true}).setInputFiles({name:"set.figcraft",mimeType:"application/octet-stream",buffer:Buffer.from(await encodeFigcraft(e.getSnapshot().document))});
+  const layers=page.getByRole("region",{name:"Layers",exact:true}), create=page.getByRole("button",{name:"Create component set",exact:true});
+  await layers.getByRole("button",{name:"Primary",exact:true}).click();
+  await layers.getByRole("button",{name:"Ghost",exact:true}).click({modifiers:["Shift"]});
+  await layers.getByRole("button",{name:"Secondary",exact:true}).click({modifiers:["Shift"]});
+  await create.click();
+  const saved=async ()=>{
+    const pending=page.waitForEvent("download");
+    await page.getByLabel("Design canvas",{exact:true}).focus(); await page.keyboard.press("ControlOrMeta+s");
+    return (await decodeFigcraft(await readFile((await (await pending).path())!))).document;
+  };
+  const doc=await saved(), set=Object.values(doc.nodes).find(n=>n.kind==="componentSet")!;
+  expect(set).toMatchObject({name:"Component 1",x:-20,y:0,width:440,height:100});
+  expect(set.kind==="componentSet" && set.children.map(id=>doc.nodes[id].name)).toEqual(["Property 1=Primary","Property 1=Secondary","Property 1=Ghost"]);
+  // A variant of the set is a component: Create component set is not offered for it.
+  await layers.getByRole("button",{name:"Property 1=Primary",exact:true}).click();
+  await expect(create).toHaveCount(0);
+  await page.getByRole("button",{name:"Undo",exact:true}).click();
+  expect(Object.values((await saved()).nodes).some(n=>n.kind==="componentSet")).toBe(false);
+});
+
 test("shared style variable pickers filter by scope and retain per-layer mode colours after download",async({page})=>{
   await login(page);
   await page.getByLabel("Open Figcraft file",{exact:true}).setInputFiles(new URL("../fixtures/native-style-mode-consumers.json",import.meta.url).pathname);
