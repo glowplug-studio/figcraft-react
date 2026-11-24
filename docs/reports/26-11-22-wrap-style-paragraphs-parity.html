@@ -4,12 +4,12 @@
 :root{color-scheme:light}*{box-sizing:border-box}body{margin:0;background:#f5f3ef;color:#242824;font:15px/1.55 system-ui,sans-serif}main{max-width:1700px;margin:auto;padding:36px 28px}h1{font-size:32px;line-height:1.15}h2{font-size:21px;margin-top:32px}a{color:#006d51}code{font-size:.9em;overflow-wrap:anywhere}.notice{padding:16px;border:2px solid #916520;background:#fff5df}.scroll{overflow:auto;background:white;border:1px solid #b8beb8}table{border-collapse:collapse;min-width:1850px;width:100%;font-size:13px}caption{text-align:left;font-weight:700;padding:14px}th,td{padding:12px;vertical-align:top;border:1px solid #c7ccc7;min-width:135px}thead th{background:#183f34;color:white;text-align:left}tbody th{text-align:left;background:#f0f4f0}ol{padding-left:19px;margin:0}td a{display:block;margin-bottom:8px}.partial{font-weight:700;color:#795200}.untested{font-weight:700;color:#6c3d63}@media print{body{background:white;font-size:10pt}main{padding:0;max-width:none}.scroll{overflow:visible;border:0}table{min-width:0;font-size:6.8pt}th,td{min-width:0;padding:5px}thead{display:table-header-group}tr{break-inside:avoid}a{color:inherit;text-decoration:underline}@page{size:A3 landscape;margin:10mm}}
 </style></head>
 <body><main><h1>Delta row 3, item 7 — a wrap style per paragraph and in text styles</h1>
-<p>22 November 2026 · Reviewed 24 November 2026 · Native <code>bad07e4433240cad046589129c084bd2fc36f097</code> · Branch <code>prompt/full-figcraft-port-pending</code> · React <code>f1038dd</code> · Review based on <code>906fee8</code>.</p>
-<p class="notice"><strong>Draft pending the cumulative verification gate.</strong> The review added three native style-creation regressions. They pass against the existing implementation.</p>
+<p>22 November 2026 · Reviewed 24 November 2026 · Native <code>bad07e4433240cad046589129c084bd2fc36f097</code> · Branch <code>prompt/full-figcraft-port</code> · React <code>f1038dd</code> · Review based on <code>906fee8</code>.</p>
+<p class="notice"><strong>Verified at 4ac4ac7: all 410 cumulative Chromium cases passed in one run.</strong> The review added three native style-creation regressions. They pass against the existing implementation.</p>
 <p><a href="26-11-22-wrap-style-paragraphs.md">Companion report</a> · <a href="../planning/26-11-22-wrap-style-paragraphs.md">Plan and source mapping</a> · <a href="../planning/26-11-07-full-port-resume.md">Local prerequisites and handover</a></p>
 <h2>Environment and evidence checkpoint</h2>
 <p>Pinned native replay ran in the Rust Docker image with the source mounted read-only. Local Vitest evidence covers seven command sequences, two native files, seven layout states and six CSS states. Two legacy expectations were independently re-observed. The focused review passed all three creation cases.</p>
-<p>The full Vitest suite passed all 5,498 checks in 67.76 seconds with two workers. Strict library, test and host types and both production builds passed. The two focused Chromium workflows passed in 9.1 seconds. The cumulative 410-case Chromium run is in progress with one worker and zero retries. Real local provider, fixture cleanup and graph results are pending. The slice has no schema or hosted changes.</p>
+<p>The full Vitest suite passed all 5,498 checks in 67.76 seconds with two workers. Strict library, test and host types and both production builds passed. The two focused Chromium workflows passed in 9.1 seconds. All 410 cumulative Chromium cases then passed in one 16.6-minute run with zero skips, retries, flakes or suite errors; 32 real local provider integrations passed once in 14.10 seconds; all twelve fixture counts are zero; the local graph was refreshed. The slice has no schema or hosted changes.</p>
 <p>The first cumulative attempt finished with 279 passes, one failure and 130 unrun cases in 821.345 seconds, with no retries or flakes. The only failure was the old colour-profile screenshot. Its expected, actual and difference images were inspected against pinned upstream; only the longer native note and consequent dialog height/button positions changed. That single baseline was updated without changing assertion tolerances. All three focused workflows then passed in 7.9 seconds. The second full run is now in progress.</p>
 <h2>Reading and reproducing the matrix</h2>
 <p>High requires passing automated parity and browser verification for the property. Medium records one passing independent verification method. Low records inspection or a result still awaiting verification. The numbered actions are reproduction instructions.</p>
@@ -25,7 +25,7 @@
 <td><ol><li>Install repository dependencies.</li><li>Run npx vitest run tests/parity/wrap-style-paragraphs.test.ts.</li><li>Inspect the a range across paragraphs and the textWrap spelling assertions.</li></ol></td>
 <td>Only the paragraphs touched by the character range change.</td>
 <td>Medium</td>
-<td>Browser evidence for this property is pending or has no dedicated case.</td>
+<td>No dedicated browser case for this property; the cumulative browser gate passed.</td>
 </tr>
 <tr><th scope="row">Layer command, override reset and undo</th>
 <td>A layer-level change clears paragraph overrides. Undo restores them.</td>
@@ -37,7 +37,7 @@
 <td><ol><li>Install repository dependencies.</li><li>Run npx vitest run tests/parity/wrap-style-paragraphs.test.ts.</li><li>Inspect the a paragraph’s own wrap style and the layer level assertions.</li></ol></td>
 <td>Undo brings back each paragraph’s earlier wrap.</td>
 <td>Medium</td>
-<td>Browser evidence for this property is pending or has no dedicated case.</td>
+<td>No dedicated browser case for this property; the cumulative browser gate passed.</td>
 </tr>
 <tr><th scope="row">Removing a redundant override</th>
 <td>A paragraph set to the layer’s value inherits it. Auto can override a balanced layer.</td>
@@ -49,7 +49,7 @@
 <td><ol><li>Install repository dependencies.</li><li>Run npx vitest run tests/parity/wrap-style-paragraphs.test.ts.</li><li>Inspect the a style equal to the layer’s is no override assertions.</li></ol></td>
 <td>Setting the paragraph back to balance removes its separate setting.</td>
 <td>Medium</td>
-<td>Browser evidence for this property is pending or has no dedicated case.</td>
+<td>No dedicated browser case for this property; the cumulative browser gate passed.</td>
 </tr>
 <tr><th scope="row">Trailing empty paragraph and read shape</th>
 <td>The paragraph after a final newline is counted. Uniform non-auto yields wrapStyle, mixed yields lineWrapStyles, and uniform auto yields neither.</td>
@@ -61,7 +61,7 @@
 <td><ol><li>Install repository dependencies.</li><li>Run npx vitest run tests/parity/wrap-style-paragraphs.test.ts.</li><li>Inspect the a trailing empty paragraph assertions.</li></ol></td>
 <td>The empty paragraph can take its own setting.</td>
 <td>Medium</td>
-<td>Browser evidence for this property is pending or has no dedicated case.</td>
+<td>No dedicated browser case for this property; the cumulative browser gate passed.</td>
 </tr>
 <tr><th scope="row">Edit command, Enter and validation</th>
 <td>While editing, text.wrapStyle applies to the selection. Enter retains the paragraph’s wrap. Invalid values are refused.</td>
@@ -73,7 +73,7 @@
 <td><ol><li>Install repository dependencies.</li><li>Run npx vitest run tests/parity/wrap-style-paragraphs.test.ts.</li><li>Inspect the the edited paragraphs while editing assertions.</li></ol></td>
 <td>A new paragraph carries the selected wrap; a bad command changes no text.</td>
 <td>Medium</td>
-<td>Browser evidence for this property is pending or has no dedicated case.</td>
+<td>No dedicated browser case for this property; the cumulative browser gate passed.</td>
 </tr>
 <tr><th scope="row">Style definitions from text</th>
 <td>A style created from a text layer takes its common wrap, or the layer wrap when the paragraphs differ.</td>
@@ -85,7 +85,7 @@
 <td><ol><li>Install repository dependencies.</li><li>Run npx vitest run tests/parity/wrap-style-paragraphs.test.ts.</li><li>Inspect the a style from a layer whose paragraphs differ assertions.</li></ol></td>
 <td>A style made from uniformly balanced text carries balance.</td>
 <td>Medium</td>
-<td>Browser evidence for this property is pending or has no dedicated case.</td>
+<td>No dedicated browser case for this property; the cumulative browser gate passed.</td>
 </tr>
 <tr><th scope="row">Explicit style definition and validation</th>
 <td>A supplied wrap value is stored on the style; invalid string and numeric wraps are refused.</td>
@@ -97,7 +97,7 @@
 <td><ol><li>Install repository dependencies.</li><li>Run npx vitest run tests/parity/wrap-style-paragraphs.test.ts.</li><li>Inspect the text styles carry the wrap style assertions.</li></ol></td>
 <td>The valid style is available for application.</td>
 <td>Medium</td>
-<td>Browser evidence for this property is pending or has no dedicated case.</td>
+<td>No dedicated browser case for this property; the cumulative browser gate passed.</td>
 </tr>
 <tr><th scope="row">Style application to layer and range</th>
 <td>Applying a style updates the whole layer or the paragraphs touched by the range.</td>
@@ -109,7 +109,7 @@
 <td><ol><li>Install repository dependencies.</li><li>Run npx vitest run tests/parity/wrap-style-paragraphs.test.ts.</li><li>Inspect the text styles carry the wrap style assertions.</li></ol></td>
 <td>The range application changes the relevant paragraph.</td>
 <td>Medium</td>
-<td>Browser evidence for this property is pending or has no dedicated case.</td>
+<td>No dedicated browser case for this property; the cumulative browser gate passed.</td>
 </tr>
 <tr><th scope="row">Linked styles and redefinition</th>
 <td>A linked text follows a style redefinition and unlinks when its wrap is changed away from the style.</td>
@@ -121,7 +121,7 @@
 <td><ol><li>Install repository dependencies.</li><li>Run npx vitest run tests/parity/wrap-style-paragraphs.test.ts.</li><li>Inspect the text styles carry the wrap style assertions.</li></ol></td>
 <td>A linked text changes with its definition until its wrap is edited directly.</td>
 <td>Medium</td>
-<td>Browser evidence for this property is pending or has no dedicated case.</td>
+<td>No dedicated browser case for this property; the cumulative browser gate passed.</td>
 </tr>
 <tr><th scope="row">New style from mixed wraps on an auto layer</th>
 <td>The created style uses auto and propagates that fallback to the touched paragraphs in the same transaction.</td>

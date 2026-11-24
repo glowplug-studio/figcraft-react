@@ -1,8 +1,7 @@
 # Upstream delta row 3, item 8: export settings read and written back, and the colour profile note
 
-> **Draft pending the cumulative verification gate.** See the [handover](../planning/26-11-07-full-port-resume.md#continue-from-here).
 
-22 November 2026 · Reviewed 24 November 2026 · Branch `prompt/full-figcraft-port-pending` · Native reference `bad07e4433240cad046589129c084bd2fc36f097` · React command and dialog implementation `d984c1a` · Archive correction in the review working tree based on `906fee8`.
+22 November 2026 · Reviewed 24 November 2026 · Branch `prompt/full-figcraft-port` · Verified product `4ac4ac7` · Native reference `bad07e4433240cad046589129c084bd2fc36f097` · React command and dialog implementation `d984c1a` · Archive correction in the review working tree based on `906fee8`.
 
 ## Implemented boundary
 
@@ -53,14 +52,14 @@ One sequence of `native-export-settings.json`, "raw property defaults and option
 | Full pure suite | 5,498 passed in 67.76 seconds with two workers |
 | Strict types / production builds | Library, test and host types passed. Both production builds passed |
 | Focused Chromium | Both item workflows passed in 9.1 seconds |
-| Cumulative Chromium | First attempt: 279 passed, one outdated screenshot failed, 130 did not run. Fresh gate pending |
-| Real local provider integrations / fixture cleanup | Pending |
+| Cumulative Chromium | All 410 cumulative Chromium cases passed in one 16.6-minute run on 24 November at `4814637` (product `4ac4ac7`) with zero skips, retries, flakes or suite errors. The first attempt during the review (279 passed, one outdated screenshot, 130 not run) is described below |
+| Real local provider integrations / fixture cleanup | 32 passed in 14.10 seconds, run once after the browser gate; all twelve fixture counts zero |
 | Schema / hosted | No change or hosted call |
-| Local graph | Pending |
+| Local graph | React 8,824 nodes/37,667 edges at `4814637`; native 28,939/92,127 at `bad07e44`; combined 37,763/128,611. `paraWrapStyle`, `setParaWrapStyles`, `commonWrapStyle`, `readExportSettings`, `archiveKeys` and `set_para_wrap_styles` verified. |
 
 ## Browser baseline review
 
-First cumulative attempt: 279 passed, one failed, 130 did not run; 821.345 seconds, zero retries/flakes. The sole failure was the colour-profile dialog screenshot still expecting the old shorter note. Expected/actual/diff were visually reviewed against the pinned native text. Only that baseline was updated (longer note and consequent dialog/button positions); no assertion tolerance or product behaviour changed. A fresh full run is required.
+First cumulative attempt: 279 passed, one failed, 130 did not run; 821.345 seconds, zero retries/flakes. The sole failure was the colour-profile dialog screenshot still expecting the old shorter note. Expected/actual/diff were visually reviewed against the pinned native text. Only that baseline was updated (longer note and consequent dialog/button positions); no assertion tolerance or product behaviour changed. The fresh full run then passed (above).
 
 ## Reproduction
 
