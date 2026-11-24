@@ -5,7 +5,7 @@
 - Phase: planning record, written 20 November 2026 at React `f5114ec` on `prompt/full-figcraft-port`.
 - Native range: `7bf098d75d187416633d9ebcceb9eb83fbb10df8` → `bad07e4433240cad046589129c084bd2fc36f097`, 254 commits excluding merges.
 - Purpose: the [delta queue](26-11-15-upstream-delta.md) groups this range into eight rows by theme. Row 1 turned out to hold a change that no row named (point positions in vector edit mode). This ledger assigns every commit to an item, so that nothing in the range is left to be found by accident.
-- Status: 40 items verified, 23 open (four of them, 2.6, 2.12, 2.17 and 2.18, wait for the interface of roadmap row 19), the rest outside the browser port or without product behaviour.
+- Status: 41 items verified, 22 open (four of them, 2.6, 2.12, 2.17 and 2.18, wait for the interface of roadmap row 19), the rest outside the browser port or without product behaviour.
 - Next action: work the open items in order, each as its own bounded slice under its row's plan. Row 2 is closed apart from the four items waiting for row 19 ([row 2 plan](26-11-20-delta-row-2-selection-canvas.md)); row 3 is planned in [the row 3 plan](26-11-21-delta-row-3-files-text-paint.md).
 - Blockers: none.
 
@@ -57,7 +57,7 @@ Items marked as outside the browser port are not dismissed: the final audit revi
 | 3.9 | A wrap style per paragraph and in text styles, overriding the layer's (#1827, #2094) | Verified at f1038dd | `136ca4cd`, `d14c637d`, `7e2752d5`, `071cc86b`, `654eb205` |
 | 3.10 | A font loaded with text.loadFont wins over built-in and installed faces (#2092) | Verified at 9b9fbf2 | `34c44e60`, `a375ac06` |
 | 3.11 | The text caret takes the text's fill colour, with fallbacks (#2156, #2190, #2163) | Verified at 0e82958 | `2beec8b3`, `06d03a54`, `3cdc5f7e`, `6920ea63`, `e3701d85` |
-| 3.12 | The eyedropper picks a magnified image's pixel under the pointer (#2189) | Open | `30767bd2`, `0dac2311` |
+| 3.12 | The eyedropper picks a magnified image's pixel under the pointer (#2189) | Verified at 679e2d6 | `30767bd2`, `0dac2311` |
 | 3.13 | Selection colors shows for a layer with children from one colour (#2188, #2191) | Open | `dadd4dfc`, `21d05946`, `7e438913`, `c93d6c46` |
 | 3.14 | Page background: translucent pages over a themed checkerboard, the sidebar paint field | Verified at d578735 | `481b6831`, `a45d932a`, `d9f52aab`, `67c232ea` |
 | 3.15 | A background blur or glass exported on its own keeps the content behind it (#2213) | Verified at e183f76 | `020388cf`, `a1de7dcd` |

@@ -788,3 +788,7 @@ Native `crates/ui-egui/src/property_rows.rs::{Highlight, current, click, escape,
 ## Delta row 3: zoomed-out image copies — 24 November 2026
 
 Native `crates/render/src/images.rs::{DISPLAY_SIDES, display_side, shown}` at `bad07e44` (upstream `c82986b2`) maps to `image-renderer.ts::{displaySides, displaySide}` and the canvas display mode of `CanvasImages` at `dbef659`; `images.rs::get` to `canvas.ts::paintExportSteps`, whose images draw from the image itself. Verified by `tests/parity/image-display-side.test.ts` and the large-image case of `tests/e2e/image-rendering.spec.ts`, restating native `large_image_tests`. [Report](../reports/26-11-24-image-display-side.md).
+
+## Delta row 3: the eyedropper — 24 November 2026
+
+Native `crates/engine/src/cmd/view.rs` `edit.pickColor` at `bad07e44` maps to `edit.pickColor` and the `eyedropper` tool of `editor.ts` at `679e2d6`; `crates/engine/src/canvas/tools/click.rs::eyedrop` (upstream `30767bd2`, #2189), which renders with `figcraft_render::render_view` and magnified image pixels, to `eyedropper.ts::sampleCanvasColour`, `editor.ts::{pickColour, pickedColour}` and the press in `canvas.ts`. Verified by `tests/e2e/eyedropper.spec.ts` restating native `eyedropper_image_tests`, `tests/parity/eyedropper.test.ts` and a browser case in `tests/e2e/preview.spec.ts`. [Report](../reports/26-11-24-eyedropper.md).
