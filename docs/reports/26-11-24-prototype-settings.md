@@ -16,8 +16,8 @@ Provenance: [prototype settings](../../tests/fixtures/native-prototype-settings.
 
 ## Recorded differences
 
-- **No browser case.** The prototype tab's device picker (item 7) takes it, in the deferred queue.
-- **Device artwork.** The presenter draws devices in item 9.
+- **No browser case.** The prototype tab's device picker (item 8) takes it, in the deferred queue.
+- **Device artwork.** The presenter draws devices in item 10.
 
 ## Native mapping
 
@@ -53,4 +53,4 @@ npm run preview:build
 
 ## Remaining gaps
 
-- Row 15 items 5 to 9.
+- Row 15 items 5 to 10.

@@ -17,7 +17,7 @@ Provenance: [prototype interaction and flow commands](../../tests/fixtures/nativ
 ## Recorded differences
 
 - **Expressions.** Expression text (`count + 1`) and variables, collections and modes named by name are read by item 2; until then such text is refused and names are kept as given.
-- **No browser case.** Nothing in the interface reaches these commands yet; the prototype tab (item 7) takes the browser case.
+- **No browser case.** Nothing in the interface reaches these commands yet; the prototype tab (item 8) takes the browser case.
 
 ## Native mapping
 
@@ -56,4 +56,4 @@ npm run preview:build
 
 ## Remaining gaps
 
-- Row 15 items 2 to 9: expressions, action and conditional commands, prototype settings, player requests, the player's state machine, the prototype tab, canvas connections and the presenter.
+- Row 15 items 2 to 10: expressions, action and conditional commands, prototype settings, player requests, the player's state machine, the prototype tab, canvas connections and the presenter.

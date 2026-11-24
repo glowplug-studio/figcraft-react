@@ -848,3 +848,15 @@ Native `crates/engine/src/cmd/proto_actions.rs` (`add`, `set`, `remove`, `move_a
 ## Roadmap row 15: prototype settings — 24 November 2026
 
 Native `crates/doc/src/proto.rs` (`PrototypeSettings`, `Device`, `DeviceColor`, `DeviceRotation`) and `crates/engine/src/cmd/proto.rs::{settings, settings_json, known_device}` at `bad07e44` map to `prototype-settings.ts`, `PageNode.prototypeDevice`, `file-format.ts` `wirePrototype` and `prototype-commands.ts` `prototypeSettings` at `7ba48f9`. Verified by `tests/fixtures/native-prototype-settings.json` and `tests/parity/prototype-settings.test.ts`. [Report](../reports/26-11-24-prototype-settings.md).
+
+## Roadmap row 15: prototype player requests and unknown parameters — 24 November 2026
+
+Native `crates/engine/src/cmd/proto.rs` (`open_player`, `proto.presentOptions`, `proto.linkNotice`), `crates/doc/src/lib.rs::frames_in` and `crates/engine/src/cmd.rs::refuse_unknown_params` at `bad07e44` map to `playerStart`, `topFrames` and `refuseUnknown` in `prototype-commands.ts` and the editor snapshot's `prototypePlayer`, `presentOptions` and `linkNoticeSkipped` at `60b9ae9`. Verified by `tests/fixtures/native-prototype-player.json` and `tests/parity/prototype-player.test.ts`. [Report](../reports/26-11-24-prototype-player-requests.md).
+
+## Roadmap row 15: the prototype runtime — 24 November 2026
+
+Native `crates/engine/src/proto_run.rs` and the instance-root rules of `crates/engine/src/assets/components/{instances.rs, patch.rs}` at `bad07e44` map to `prototype-runtime.ts`, `component-instances.ts` `rootInstance` and `component-sync.ts` `refreshRoot` at `5603b72`. Verified by restated native tests and `tests/fixtures/native-instance-interactions.json` in `tests/parity/prototype-runtime.test.ts`. [Report](../reports/26-11-24-prototype-runtime.md).
+
+## Roadmap row 15: prototype model rules — 24 November 2026
+
+Native `crates/doc/src/proto.rs` (`Easing`, `Spring`, `cubic_bezier`, `Transition::{reversed, accepts_drag}`, `Trigger::fires_on_key`, `KeyMods`, `key_alias`, `GAMEPAD_BUTTONS`, `uses_gamepad`) at `bad07e44` maps to `prototype-model.ts` at `17083a6`. Verified by restated native tests in `tests/parity/prototype-model.test.ts`. [Report](../reports/26-11-24-prototype-model.md).

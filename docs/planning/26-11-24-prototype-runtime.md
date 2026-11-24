@@ -2,11 +2,11 @@
 
 ## Execution checkpoint
 
-- Phase: implemented; the gate is running.
+- Phase: complete through Phase 7 on 24 November 2026 at `5603b72`: [report](../reports/26-11-24-prototype-runtime.md), [matrix](../reports/26-11-24-prototype-runtime-parity.html), [provenance](../../tests/fixtures/native-instance-interactions.provenance.md).
 - Native reference: `bad07e4433240cad046589129c084bd2fc36f097` (`bad07e44`). React starting revision: `60b9ae9` on `prompt/full-figcraft-port`.
 - Row plan: [roadmap row 15](26-11-24-roadmap-row-15-prototyping.md).
 - Files changed: `src/engine/prototype-runtime.ts` (new: `literal`, `setVariable`, `setMode`, `setModeById`, `branch`, `navigateTarget`, `rememberSections`, `playInteractions`, `changeToTarget`, `hotspots`); `src/engine/component-instances.ts` and `src/engine/component-sync.ts` (an instance root's interactions are its own); test `tests/parity/prototype-runtime.test.ts`; fixture `tests/fixtures/native-instance-interactions.json` with provenance.
-- Next action: record the item.
+- Next action: none; the item is recorded.
 - Blockers: none.
 
 ## Native contract (`engine/src/proto_run.rs`)

@@ -34,5 +34,5 @@
 ## Acceptance
 
 - The three native sequences match command by command, with the stored interactions and flows after each save; undo restores a removal. The test failed before (no such commands).
-- No browser case: nothing in the interface reaches these commands yet. The prototype tab (item 7) takes it.
+- No browser case: nothing in the interface reaches these commands yet. The prototype tab (item 8) takes it.
 - Full pure suite, strict types, both builds, cumulative browser gate, provider integrations, zero fixture counts.

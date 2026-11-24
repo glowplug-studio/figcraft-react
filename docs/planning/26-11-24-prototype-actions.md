@@ -26,5 +26,5 @@
 ## Acceptance
 
 - 62 native steps match: receipts, 27 errors and the stored actions at three saves. The test failed before.
-- No browser case: the interaction editor (item 7) takes it, in the deferred queue.
+- No browser case: the interaction editor (item 8) takes it, in the deferred queue.
 - Full pure suite, strict types, both builds, cumulative browser gate, provider integrations once, zero fixture counts.

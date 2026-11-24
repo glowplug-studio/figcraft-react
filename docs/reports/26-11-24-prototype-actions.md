@@ -16,7 +16,7 @@ Provenance: [prototype action and conditional-block commands](../../tests/fixtur
 
 ## Recorded differences
 
-- **No browser case.** The interaction editor (item 7) takes it, in the deferred queue with items 1 and 2.
+- **No browser case.** The interaction editor (item 8) takes it, in the deferred queue with items 1 and 2.
 
 ## Native mapping
 
@@ -52,4 +52,4 @@ npm run preview:build
 
 ## Remaining gaps
 
-- Row 15 items 4 to 9.
+- Row 15 items 4 to 10.

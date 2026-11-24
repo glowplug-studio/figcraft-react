@@ -28,5 +28,5 @@ The port kept a page's prototype background and refused any file whose page set 
 ## Acceptance
 
 - 30 native steps match: every answer and refusal, and the page's saved `prototype` twice; both saves open again with the same settings. The test failed before.
-- No browser case: the prototype tab's device picker (item 7) takes it, in the deferred queue.
+- No browser case: the prototype tab's device picker (item 8) takes it, in the deferred queue.
 - Full pure suite, strict types, both builds, cumulative browser gate, provider integrations once, zero fixture counts.

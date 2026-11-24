@@ -16,7 +16,7 @@ Provenance: [prototype expressions](../../tests/fixtures/native-prototype-expres
 
 ## Recorded differences
 
-- **No browser case.** The interaction editor (item 7) types expressions; its browser case is in the deferred queue with item 1's.
+- **No browser case.** The interaction editor (item 8) types expressions; its browser case is in the deferred queue with item 1's.
 
 ## Native mapping
 
@@ -53,4 +53,4 @@ npm run preview:build
 
 ## Remaining gaps
 
-- Row 15 items 3 to 9.
+- Row 15 items 3 to 10.

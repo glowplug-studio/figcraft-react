@@ -2,11 +2,11 @@
 
 ## Execution checkpoint
 
-- Phase: implemented; the gate is running.
+- Phase: complete through Phase 7 on 24 November 2026 at `60b9ae9`: [report](../reports/26-11-24-prototype-player-requests.md), [matrix](../reports/26-11-24-prototype-player-requests-parity.html), [provenance](../../tests/fixtures/native-prototype-player.provenance.md).
 - Native reference: `bad07e4433240cad046589129c084bd2fc36f097` (`bad07e44`). React starting revision: `7cd0082` on `prompt/full-figcraft-port`.
 - Row plan: [roadmap row 15](26-11-24-roadmap-row-15-prototyping.md).
 - Files changed: `src/engine/prototype-commands.ts` (`proto.present`, `proto.preview`, `proto.closePreview`, `proto.presentOptions`, `proto.linkNotice`, `topFrames`, the unknown-parameter refusal for every proto command); `src/engine/editor.ts` (snapshot fields `prototypePlayer`, `presentOptions`, `linkNoticeSkipped`); test `tests/parity/prototype-player.test.ts`; fixture `tests/fixtures/native-prototype-player.json` with provenance.
-- Next action: record the item.
+- Next action: none; the item is recorded.
 - Blockers: none.
 
 ## Native contract
@@ -25,5 +25,5 @@
 ## Acceptance
 
 - Three native sequences match: player starts and refusals, options and the preference, and every command's unknown-parameter refusal. A unit case checks the editor's snapshot. The tests failed before.
-- No browser case: the presenter (item 9) opens from these requests and takes it, in the deferred queue.
+- No browser case: the presenter (item 10) opens from these requests and takes it, in the deferred queue.
 - Full pure suite, strict types, both builds, cumulative browser gate, provider integrations once, zero fixture counts.

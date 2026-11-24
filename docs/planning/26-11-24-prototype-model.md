@@ -2,11 +2,11 @@
 
 ## Execution checkpoint
 
-- Phase: implemented; the gate is running.
+- Phase: complete through Phase 7 on 24 November 2026 at `17083a6`: [report](../reports/26-11-24-prototype-model.md), [matrix](../reports/26-11-24-prototype-model-parity.html).
 - Native reference: `bad07e4433240cad046589129c084bd2fc36f097` (`bad07e44`). React starting revision: `5603b72` on `prompt/full-figcraft-port`.
 - Row plan: [roadmap row 15](26-11-24-roadmap-row-15-prototyping.md).
 - Files changed: `src/engine/prototype-model.ts` (new: `evalEasing`, `easingSeconds`, `easingSpring`, `acceptsDrag`, `reversedTransition`, `splitKey`, `keyCombo`, `keyAlias`, `firesOnKey`, `gamepadButtons`, `usesGamepad`, `triggerLabel`); test `tests/parity/prototype-model.test.ts`.
-- Next action: record the item.
+- Next action: none; the item is recorded.
 - Blockers: none.
 
 ## Native contract (`doc/src/proto.rs`)
