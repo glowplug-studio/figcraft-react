@@ -876,3 +876,7 @@ Native `crates/ui-egui/src/panels/proto_panel.rs` (the tab's sections, `trigger_
 ## Roadmap row 15: the interaction editor — 25 November 2026
 
 Native `crates/ui-egui/src/panels/proto_panel.rs` (`editor_popover`, `trigger_rows`, `action_fields`, `animation_rows`, `custom_easing_fields`, `action_of`) and `proto_editor.rs` (`action_list`, `conditional_blocks`, `set_variable_fields`, `expr_field`) at `bad07e44` map to `InteractionEditor.tsx` and `prototype-summaries.ts` at `a6e97bc`. Verified by a browser case in `tests/e2e/preview.spec.ts`. [Report](../reports/26-11-25-interaction-editor.md).
+
+## Roadmap row 15: canvas connections — 25 November 2026
+
+Native `crates/ui-egui/src/canvas/proto_canvas.rs` (`curve_between`, `bezier_distance`, `noodles`, `frame_at`, `variant_of`, `target_at`, `draw`, `input`, `handles`) at `bad07e44` maps to `prototype-connections.ts` and `PrototypeConnections.tsx` at `04531a3`, closing delta ledger item 5.3. Verified by restated native tests in `tests/parity/prototype-connections.test.ts` and a browser case in `tests/e2e/preview.spec.ts`. [Report](../reports/26-11-25-canvas-connections.md).
