@@ -482,7 +482,7 @@ function* drawExportLayers(ctx: CanvasRenderingContext2D, doc: Document, ids: re
 }
 
 async function paintExportSteps(doc:Document,steps:PaintSteps,signal?:AbortSignal) {
-  const images = new CanvasImages();
+  const images = new CanvasImages(undefined, false);
   try {
     if (doc.images) images.begin(doc.images, () => {}, doc.colourProfile);
     for (const args of steps) {

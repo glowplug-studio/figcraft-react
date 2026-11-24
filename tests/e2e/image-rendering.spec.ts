@@ -32,7 +32,8 @@ test("two large images reuse preview copies and retain individual texels at doub
   await loadImages(page);
   const result=await page.evaluate(()=>(window as unknown as {FigcraftImages:{largeImagePaints:typeof largeImagePaints}}).FigcraftImages.largeImagePaints(document.querySelector("canvas")!));
   await test.info().attach("large-image-paints",{body:JSON.stringify(result),contentType:"application/json"});
-  expect(result.small).toEqual([[4096,5],[4096,5]]);
+  // Native large_image_tests at bad07e44 (c82986b2): at 25% each shows 1500 px long, drawn from 2048 px copies.
+  expect(result.small).toEqual([[2048,3],[2048,3]]);
   expect(result.warm).toBe(2);
   expect(result.sizes.slice(2)).toEqual([[6000,8],[6000,8]]);
   expect(result.mismatches).toEqual([0,0]);

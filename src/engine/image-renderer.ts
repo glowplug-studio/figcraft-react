@@ -8,6 +8,11 @@ import type { RegionPaintSpace } from "./vector-network";
 import { convertColourPixels, type ColourProfile } from "./colour-spaces";
 
 const MAX_SIDE = 16_384;
+/** Native images.rs `DISPLAY_SIDES` (c82986b2): the sides of the copies the canvas draws an image from while it shows smaller than its
+ * pixels, so a zoomed-out page of photos keeps them decoded within the budget. */
+export const displaySides = Object.freeze([256, 512, 1024, 2048, 4096, 8192]);
+/** Native `display_side`: the smallest copy side that holds `shown` device pixels and is smaller than the image, else the image's own. */
+export const displaySide = (long: number, shown: number) => displaySides.find(side => side >= shown && side < long) ?? MAX_SIDE;
 const PIXEL_BYTES = 512 * 1024 * 1024;
 const MAX_CACHED_IMAGES = 256;
 
@@ -152,7 +157,9 @@ export class CanvasImages {
   #ghostWaiting?: Promise<void>;
   #filterKeys = new WeakMap<ImageFilters, string>();
 
-  constructor(byteBudget = PIXEL_BYTES) { this.#budget = byteBudget; }
+  readonly #display: boolean;
+  /** `display`: the canvas, which draws images shown smaller than their pixels from scaled copies (native `shown`). */
+  constructor(byteBudget = PIXEL_BYTES, display = true) { this.#budget = byteBudget; this.#display = display; }
 
   begin(resources: Readonly<Record<string, ImageResource>>, redraw: () => void, profile: ColourProfile = "srgb") {
     this.#profile = profile;
@@ -191,7 +198,8 @@ export class CanvasImages {
     let determinant = (frame.a*frame.d-frame.b*frame.c) * (transform[0]*transform[3]-transform[1]*transform[2]);
     if (space) determinant *= space.transform[0]*space.transform[3]-space.transform[1]*space.transform[2];
     const shown = long * Math.sqrt(Math.abs(determinant));
-    const side = maxSide ?? (paint.scale_mode === "tile" ? MAX_SIDE : shown <= 4096 ? 4096 : shown <= 8192 ? 8192 : MAX_SIDE);
+    // Exports and every render but the canvas draw from the image itself (native `get`); the canvas from its smallest holding copy.
+    const side = maxSide ?? (paint.scale_mode === "tile" || !this.#display ? MAX_SIDE : displaySide(long, shown));
     const ratio = Math.min(1, side/long);
     const rw = Math.max(1, Math.round(resource.width*ratio)), rh = Math.max(1, Math.round(resource.height*ratio));
     let filterKey = this.#filterKeys.get(paint.filters);
