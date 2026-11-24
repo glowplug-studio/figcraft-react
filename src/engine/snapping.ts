@@ -33,6 +33,9 @@ function spans(b: Rectangle): [Span[], Span[]] {
   return [[b.x, b.x + b.width / 2, right(b)].map(x => [x, b.y, bottom(b)]), [b.y, b.y + b.height / 2, bottom(b)].map(y => [y, b.x, right(b)])];
 }
 /** Captured once per gesture; source corresponds to native canvas/snap::Targets. */
+/** Native `MAX_SNAP_LINES`: the most snap coordinates a frame's grids give together (a few dozen grids' worth of lines). */
+export const maxGridSnapLines = 200_000;
+
 export class SnapTargets {
   readonly xs: Span[] = [];
   readonly ys: Span[] = [];
@@ -62,9 +65,15 @@ export class SnapTargets {
       this.xs.push(...xs); this.ys.push(...ys);
       if (parent.grids?.length && showsGuides(world)) {
         const matrix = multiply(this.toSpace,world);
+        let lines = 0;
         for (const grid of parent.grids) {
           if (!grid.visible) continue;
-          for (const [x0,y0,x1,y1] of guideRects(grid,parent.width,parent.height)) {
+          // Native grid_snap_lines_in (1935c3ea, 9d486259): the snap lines a frame's grids give together stay within a budget,
+          // and a grid that would pass it is left out whole, with the grids after it.
+          const rects = [...guideRects(grid,parent.width,parent.height)];
+          if (lines + 2 * rects.length > maxGridSnapLines) break;
+          const before = this.xs.length + this.ys.length;
+          for (const [x0,y0,x1,y1] of rects) {
             const a = transformPoint(matrix,{x:x0,y:y0}), b = transformPoint(matrix,{x:x1,y:y1});
             if (grid.kind === "columns" || grid.kind === "grid" && Math.abs(x0-x1)<1e-9) {
               this.xs.push([a.x,bounds.y,bottom(bounds)]);
@@ -74,6 +83,7 @@ export class SnapTargets {
               if (grid.kind === "rows") this.ys.push([b.y,bounds.x,right(bounds)]);
             }
           }
+          lines += this.xs.length + this.ys.length - before;
         }
       }
     }
