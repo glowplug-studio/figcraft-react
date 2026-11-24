@@ -860,3 +860,11 @@ Native `crates/engine/src/proto_run.rs` and the instance-root rules of `crates/e
 ## Roadmap row 15: prototype model rules — 24 November 2026
 
 Native `crates/doc/src/proto.rs` (`Easing`, `Spring`, `cubic_bezier`, `Transition::{reversed, accepts_drag}`, `Trigger::fires_on_key`, `KeyMods`, `key_alias`, `GAMEPAD_BUTTONS`, `uses_gamepad`) at `bad07e44` maps to `prototype-model.ts` at `17083a6`. Verified by restated native tests in `tests/parity/prototype-model.test.ts`. [Report](../reports/26-11-24-prototype-model.md).
+
+## Roadmap row 15: a layer's overflow and scroll position — 24 November 2026
+
+Native `crates/doc/src/node.rs` (`Overflow`, `ScrollPosition`) and the `overflow` and `scrollPosition` props of `node.set` at `bad07e44` map to `LayerProperties.overflow` and `scrollPosition` in `document.ts`, `properties.ts` and `file-format.ts` at `e28d7c0`. Verified by `tests/fixtures/native-layer-scrolling.json`, `tests/parity/layer-scrolling.test.ts` and a browser case in `tests/e2e/preview.spec.ts`. [Report](../reports/26-11-24-layer-scrolling.md).
+
+## Roadmap row 15: the prototype player's state — 25 November 2026
+
+Native `crates/ui-egui/src/present.rs`, `present/{navigate,actions,scroll}.rs` at `bad07e44` map to `PrototypePlayer` in `prototype-player.ts` and to `prototype-scroll.ts` at `425309f`. Verified by restated native tests in `tests/parity/prototype-player-state.test.ts`. [Report](../reports/26-11-25-prototype-player-state.md).

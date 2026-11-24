@@ -2,11 +2,11 @@
 
 ## Execution checkpoint
 
-- Phase: implemented; the gate is running.
+- Phase: complete through Phase 7 on 25 November 2026 at `425309f`: [report](../reports/26-11-25-prototype-player-state.md), [matrix](../reports/26-11-25-prototype-player-state-parity.html).
 - Native reference: `bad07e4433240cad046589129c084bd2fc36f097` (`bad07e44`). React starting revision: `e28d7c0` on `prompt/full-figcraft-port`.
 - Row plan: [roadmap row 15](26-11-24-roadmap-row-15-prototyping.md).
 - Files changed: `src/engine/prototype-scroll.ts` (new: `pageDevice`, `viewport`, `scrollRangeIn`, `scrollRange`, `clampScroll`, `fitViewport`, `applyScroll`, `raiseFixed`, `scrollToLayer`); `src/engine/prototype-player.ts` (new: `PrototypePlayer`); test `tests/parity/prototype-player-state.test.ts`.
-- Next action: record the item.
+- Next action: none; the item is recorded.
 - Blockers: none.
 
 ## Native contract
