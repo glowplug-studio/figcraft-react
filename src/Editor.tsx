@@ -58,6 +58,7 @@ import { RecoveryController } from "./engine/recovery";
 import { AssetsPanel, componentDragType } from "./AssetsPanel";
 import { PagePanel } from "./PagePanel";
 import { PrototypePanel } from "./PrototypePanel";
+import { PrototypeConnections, type OpenInteraction } from "./PrototypeConnections";
 import { EffectsPanel } from "./EffectsPanel";
 import { LayoutGuidesPanel } from "./LayoutGuidesPanel";
 import { VariableModesPanel } from "./VariableModesPanel";
@@ -124,6 +125,7 @@ export function DocumentEditor({ identity, capabilities, engine: suppliedEngine,
   const [copyNotice, setCopyNotice] = useState("");
   // Native right panel: the Design and Prototype tabs.
   const [panelTab, setPanelTab] = useState<"design" | "prototype">("design");
+  const [openInteraction, setOpenInteraction] = useState<OpenInteraction | null>(null);
   useEffect(() => {
     if (!copyNotice) return;
     const timer = window.setTimeout(() => setCopyNotice(""), 2500);
@@ -1020,6 +1022,7 @@ export function DocumentEditor({ identity, capabilities, engine: suppliedEngine,
           {signedIn && engine.people && <LivePeopleOverlay room={engine.people} engine={engine} canvas={canvas}/>}
           {signedIn && (snapshot.tool==="comment" || snapshot.showComments!==false && !!snapshot.document.comments?.length || snapshot.openComment) && <CommentOverlay
             engine={engine} snapshot={snapshot} canvas={canvas} write={!busy && !snapshot.previewVersionId && (editable || capabilities.includes("document.comment"))} dispatch={dispatch}/>}
+          {panelTab==="prototype" && !editingVector && <PrototypeConnections engine={engine} snapshot={snapshot} editable={editable && !busy} dispatch={dispatch} open={openInteraction} setOpen={setOpenInteraction} />}
           <ViewControls engine={engine} editable={editable && !busy} dispatch={dispatch} />
           <p id="canvas-instructions" className="figcraft-instructions">R: rectangle · O: ellipse · Space/middle drag: pan · Z: zoom · Ctrl/⌘ wheel: zoom · Escape: cancel</p>
           {snapshot.tool==="comment" ? <div className="figcraft-toolbar" role="toolbar" aria-label="Comment tools"><button onClick={()=>dispatch("tool.move")}>Done</button></div>
@@ -1067,7 +1070,7 @@ export function DocumentEditor({ identity, capabilities, engine: suppliedEngine,
             <button type="button" aria-pressed={panelTab==="design"} onClick={()=>setPanelTab("design")}>Design</button>
             <button type="button" aria-pressed={panelTab==="prototype"} onClick={()=>setPanelTab("prototype")}>Prototype</button>
           </div>
-          {panelTab==="prototype" && <div role="region" aria-label="Prototype"><PrototypePanel document={snapshot.document} selection={snapshot.selection} editable={editable && !busy} dispatch={dispatch} /></div>}
+          {panelTab==="prototype" && <div role="region" aria-label="Prototype"><PrototypePanel document={snapshot.document} selection={snapshot.selection} editable={editable && !busy} dispatch={dispatch} open={openInteraction} setOpen={setOpenInteraction} /></div>}
           <div hidden={panelTab!=="design"}>
           <VectorPanel engine={engine} editable={editable && !busy} dispatch={dispatch} />
           <div hidden={editingVector}>

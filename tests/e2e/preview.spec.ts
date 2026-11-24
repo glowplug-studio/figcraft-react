@@ -11233,3 +11233,50 @@ test("the interaction editor sets a trigger, builds an if / else with a typed co
     {actions:[{type:"back"}]}]});
   expect(it.actions[1]).toEqual({type:"setVariable",variable:count,value:0,expr:{op:{op:"add",args:[{value:{type:"alias",value:count}},{value:{type:"number",value:1}}]}}});
 });
+
+test("connections drag from a layer's handle on the canvas: onto a frame they navigate, onto a sibling variant they change to it, and a click opens their editor",async ({page})=>{
+  const engine=new EditorEngine();
+  const id=(v:unknown)=>String((v as {id:string}).id);
+  const home=id(engine.execute("frame.create",{name:"Home",x:0,y:0,width:200,height:300}));
+  const details=id(engine.execute("frame.create",{name:"Details",x:300,y:0,width:200,height:300}));
+  const variant=(name:string,x:number)=>id(engine.execute("component.create",{ids:[Number(id(engine.execute("frame.create",{name,x,y:400,width:100,height:80})))]}));
+  const def=variant("Property 1=Default",0),hover=variant("Property 1=Hover",300);
+  engine.execute("component.combineVariants",{ids:[Number(def),Number(hover)]});
+  await login(page);
+  await page.getByLabel("Open Figcraft file",{exact:true}).setInputFiles({name:"connections.figcraft",mimeType:"application/octet-stream",buffer:Buffer.from(await engine.nativeSnapshot())});
+  await resetCanvasOrigin(page);
+  await page.getByRole("group",{name:"Properties",exact:true}).getByRole("button",{name:"Prototype",exact:true}).click();
+  const panel=page.getByRole("region",{name:"Prototype",exact:true}),layers=page.getByRole("region",{name:"Layers",exact:true});
+  const connections=page.getByRole("group",{name:"Prototype connections",exact:true});
+  const dragHandle=async(name:string,to:{x:number;y:number})=>{
+    const box=(await connections.getByRole("button",{name:`Connect ${name}`,exact:true}).boundingBox())!;
+    await page.mouse.move(box.x+box.width/2,box.y+box.height/2); await page.mouse.down();
+    await page.mouse.move((box.x+to.x)/2,(box.y+to.y)/2,{steps:3}); await page.mouse.move(to.x,to.y,{steps:3}); await page.mouse.up();
+  };
+  // Home's handle dropped on Details: a click navigating there, its editor open.
+  await layers.getByRole("button",{name:"Home",exact:true}).click();
+  await dragHandle("Home",await canvasPoint(page,400,150));
+  await expect(panel.locator("li.figcraft-interaction")).toHaveCount(1);
+  await expect(panel.locator("li.figcraft-interaction")).toContainText("Navigate to Details");
+  await expect(panel.getByRole("region",{name:"Interaction",exact:true})).toBeVisible();
+  await expect(connections.getByRole("button",{name:"Connection from Home to Details",exact:true})).toHaveCount(1);
+  // A variant's handle dropped on its sibling: Change to; on its own variant: nothing.
+  await layers.getByRole("button",{name:"Property 1=Default",exact:true}).click();
+  await dragHandle("Property 1=Default",await canvasPoint(page,50,440));
+  await expect(panel.locator("li.figcraft-interaction")).toHaveCount(0);
+  await dragHandle("Property 1=Default",await canvasPoint(page,350,440));
+  await expect(panel.locator("li.figcraft-interaction")).toContainText("Change to Property 1=Hover");
+  // Clicking Home's connection selects Home and opens its editor.
+  await layers.getByRole("button",{name:"Details",exact:true}).click();
+  await expect(panel.getByRole("region",{name:"Interaction",exact:true})).toHaveCount(0);
+  const curve=await canvasPoint(page,250,150);
+  await page.mouse.click(curve.x,curve.y);
+  await expect(panel.getByRole("region",{name:"Interaction",exact:true})).toBeVisible();
+  await expect(panel.locator("li.figcraft-interaction")).toContainText("Navigate to Details");
+  const pending=page.waitForEvent("download");
+  await page.getByRole("button",{name:"Save as",exact:true}).click();
+  const {unzipSync,strFromU8}=await import("fflate");
+  const saved=JSON.parse(strFromU8(unzipSync(new Uint8Array(await readFile((await (await pending).path())!)))["document.json"]));
+  expect(saved.nodes[home].interactions.map((i:{actions:unknown})=>i.actions)).toEqual([[{type:"navigate",dest:Number(details)}]]);
+  expect(saved.nodes[def].interactions.map((i:{trigger:unknown;transition:unknown;actions:unknown})=>[i.trigger,i.transition,i.actions])).toEqual([[{type:"onClick"},{type:"instant"},[{type:"changeTo",dest:Number(hover)}]]]);
+});

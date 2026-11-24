@@ -11,13 +11,16 @@ export interface PrototypePanelProps {
   selection: readonly NodeId[];
   editable: boolean;
   dispatch: (command: string, params?: unknown) => void;
+  /** Native `open_editor`: the interaction whose editor shows, shared with the canvas's connections. */
+  open: { readonly node: NodeId; readonly index: number } | null;
+  setOpen: (open: { readonly node: NodeId; readonly index: number } | null) => void;
 }
 
 const wire = (id: NodeId) => Number(id);
 const hex = (c: { r: number; g: number; b: number; a: number }) => toCssHex({ ...c, a: 1 });
 
 /** Source: upstream ui-egui/src/panels/proto_panel.rs: the Prototype tab (flows, settings, interactions, scroll behaviour). */
-export function PrototypePanel({ document, selection, editable, dispatch }: PrototypePanelProps) {
+export function PrototypePanel({ document, selection, editable, dispatch, open, setOpen }: PrototypePanelProps) {
   const page = document.nodes[document.currentPage] as PageNode;
   if (!selection.length) return <>
     <FlowsOverview document={document} page={page} editable={editable} dispatch={dispatch} />
@@ -29,7 +32,7 @@ export function PrototypePanel({ document, selection, editable, dispatch }: Prot
   return <>
     {topLevelFrame(document, first) === first && <FlowSection key={first} document={document} page={page} frame={first} editable={editable} dispatch={dispatch} />}
     {mixed ? <MixedInteractions document={document} page={page} selection={selection} editable={editable} dispatch={dispatch} />
-      : <Interactions key={first} document={document} page={page} selection={selection} node={node} editable={editable} dispatch={dispatch} />}
+      : <Interactions document={document} page={page} selection={selection} node={node} editable={editable} dispatch={dispatch} open={open?.node === first ? open.index : null} setOpen={i => setOpen(i === null ? null : { node: first, index: i })} />}
     <ScrollSection document={document} selection={selection} node={node} editable={editable} dispatch={dispatch} />
   </>;
 }
@@ -135,11 +138,10 @@ function MixedInteractions({ document, page, selection, editable, dispatch }: Co
 }
 const wireAction = (a: ReturnType<typeof newInteractionAction>) => "dest" in a ? { ...a, dest: wire(a.dest) } : a;
 
-function Interactions({ document, page, selection, node, editable, dispatch }: Common & { document: Document; page: PageNode; selection: readonly NodeId[]; node: DocumentNode }) {
+function Interactions({ document, page, selection, node, editable, dispatch, open, setOpen }: Common & { document: Document; page: PageNode; selection: readonly NodeId[]; node: DocumentNode;
+  open: number | null; setOpen: (index: number | null) => void }) {
   const list = node.interactions ?? [];
   const ids = interactionTargets(document, selection, node.id).map(wire);
-  // Native `open_editor`: the interaction whose editor shows (a new one opens on Add).
-  const [open, setOpen] = useState<number | null>(null);
   const shown = open !== null && open < list.length ? open : null;
   return <section aria-label="Interactions">
     <h3>Interactions <button type="button" disabled={!editable} aria-label="Add interaction"
