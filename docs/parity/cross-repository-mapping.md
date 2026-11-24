@@ -772,3 +772,7 @@ Native `crates/text/src/fontdb.rs::{add_loaded, Face::loaded}` at `bad07e44` (up
 ## Delta row 3: Crop chosen in the paint picker — 24 November 2026
 
 Native `crates/ui-egui/src/widgets/colorpicker.rs::{crop_on_canvas, image_controls}` at `bad07e44` (upstream `8330ffb3`, `91a76c72`, `a54eafc0`, #2150) maps to `image-commands.ts::pickerCropTarget` and the image mode select of `ImagePaintControls.tsx` at `286bea3`, which runs `image.crop`; `crates/ui-egui/src/canvas/handles.rs::crop_dragging` (`bdf6ff92`, #2307) to the unchanged outside-press rule of `PaintPicker.tsx` and `image-crop-interaction.ts`; `crates/engine/src/error.rs::NoGesture` has no counterpart, previews being guarded by `engine.interacting`. Verified by `tests/parity/picker-crop.test.ts` and a browser case in `tests/e2e/preview.spec.ts`, restating native `crop_image_tests.rs`. [Report](../reports/26-11-24-picker-crop.md).
+
+## Delta row 3: the caret colour — 24 November 2026
+
+Native `crates/ui-egui/src/canvas/overlays.rs::caret_fill` at `bad07e44` (upstream `2beec8b3`, #2156) maps to `caret-colour.ts::caretFill` at `0e82958`; `overlays.rs::caret_fallback` with `crates/color/src/lib.rs::Color::is_dark` (`06d03a54`, `3cdc5f7e`, `6920ea63`, `e3701d85`; #2190, #2163) to `caret-colour.ts::caretFallback`; the caret stroke of `overlays.rs::text_edit_overlay` to `canvas-text-input.ts::draw`. Verified by `tests/parity/caret-colour.test.ts`, restating native `caret_tests`, and a browser case in `tests/e2e/preview.spec.ts`. [Report](../reports/26-11-24-caret-colour.md).
