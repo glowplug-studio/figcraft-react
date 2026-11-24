@@ -11129,3 +11129,52 @@ test("a native file with a frame's overflow and a layer's scroll position opens 
   const saved=JSON.parse(strFromU8(unzipSync(new Uint8Array(await readFile((await (await pending).path())!)))["document.json"]));
   expect([saved.nodes["2"].overflow,saved.nodes["3"].overflow,saved.nodes["3"].scroll_position]).toEqual([native.document.nodes["2"].overflow,native.document.nodes["3"].overflow,native.document.nodes["3"].scroll_position]);
 });
+
+test("the Prototype tab adds and names flows, sets the device, adds and removes interactions and sets scroll behaviour, as native's panel does",async ({page})=>{
+  const engine=new EditorEngine();
+  const home=String((engine.execute("frame.create",{name:"Home",x:0,y:0,width:200,height:400}) as {id:string}).id);
+  const details=String((engine.execute("frame.create",{name:"Details",x:300,y:0,width:200,height:400}) as {id:string}).id);
+  const button=String((engine.execute("shape.rectangle",{name:"Button",x:20,y:20,width:80,height:30,parent:home}) as {id:string}).id);
+  await login(page);
+  await page.getByLabel("Open Figcraft file",{exact:true}).setInputFiles({name:"prototype.figcraft",mimeType:"application/octet-stream",buffer:Buffer.from(await engine.nativeSnapshot())});
+  await page.getByRole("group",{name:"Properties",exact:true}).getByRole("button",{name:"Prototype",exact:true}).click();
+  const panel=page.getByRole("region",{name:"Prototype",exact:true});
+  // Nothing selected: flows and the page's prototype settings.
+  await panel.getByRole("region",{name:"Flow starting points"}).getByRole("button",{name:"Add starting point"}).click();
+  const flowName=panel.getByLabel("Flow name",{exact:true});
+  await expect(flowName).toHaveValue("Flow 1");
+  await flowName.fill("Checkout"); await flowName.press("Enter");
+  await panel.getByLabel("Device",{exact:true}).selectOption("iPhone 16");
+  await panel.getByLabel("Device color",{exact:true}).selectOption("Pink");
+  await panel.getByRole("button",{name:"Rotate to landscape"}).click();
+  await panel.getByLabel("Responsive").check();
+  const background=panel.getByLabel("Prototype background",{exact:true});
+  await background.fill("336699"); await background.press("Enter");
+  // A layer: its interactions, the default a click navigating to another frame, and its scroll behaviour.
+  const layers=page.getByRole("region",{name:"Layers",exact:true});
+  await layers.getByRole("button",{name:"Button",exact:true}).click();
+  const interactions=panel.getByRole("region",{name:"Interactions"});
+  await interactions.getByRole("button",{name:"Add interaction"}).click();
+  await interactions.getByRole("button",{name:"Add interaction"}).click();
+  await expect(interactions.getByRole("listitem")).toHaveCount(2);
+  await expect(interactions.getByRole("listitem").first()).toContainText("On click");
+  await expect(interactions.getByRole("listitem").first()).toContainText("Navigate to Details");
+  await interactions.getByRole("button",{name:"Remove interaction 2"}).click();
+  await expect(interactions.getByRole("listitem")).toHaveCount(1);
+  await panel.getByLabel("Scroll position",{exact:true}).selectOption("fixed");
+  // A top-level frame: its flow and its overflow.
+  await layers.getByRole("button",{name:"Home",exact:true}).click();
+  await expect(panel.getByLabel("Flow name",{exact:true})).toHaveValue("Checkout");
+  await panel.getByLabel("Overflow",{exact:true}).selectOption("vertical");
+  const pending=page.waitForEvent("download");
+  await page.getByRole("button",{name:"Save as",exact:true}).click();
+  const {unzipSync,strFromU8}=await import("fflate");
+  const saved=JSON.parse(strFromU8(unzipSync(new Uint8Array(await readFile((await (await pending).path())!)))["document.json"]));
+  const pageNode=saved.nodes[String(saved.current_page)];
+  expect(pageNode.flows).toEqual([{name:"Checkout",start:Number(home),description:""}]);
+  expect(pageNode.prototype).toMatchObject({device:"iPhone 16",color:"Pink",rotation:"landscape",responsive:true});
+  expect(["r","g","b"].map(k=>Math.fround(pageNode.prototype.background[k]))).toEqual([0.2,0.4,0.6].map(Math.fround));
+  expect(saved.nodes[button].interactions).toEqual([{trigger:{type:"onClick"},actions:[{type:"navigate",dest:Number(details)}],transition:{type:"instant"},duration_ms:300,easing:"easeOut"}]);
+  expect(saved.nodes[button].scroll_position).toBe("fixed");
+  expect(saved.nodes[home].overflow).toBe("vertical");
+});

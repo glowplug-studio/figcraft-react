@@ -57,6 +57,7 @@ import type { RecoveryStore } from "./backends/recovery";
 import { RecoveryController } from "./engine/recovery";
 import { AssetsPanel, componentDragType } from "./AssetsPanel";
 import { PagePanel } from "./PagePanel";
+import { PrototypePanel } from "./PrototypePanel";
 import { EffectsPanel } from "./EffectsPanel";
 import { LayoutGuidesPanel } from "./LayoutGuidesPanel";
 import { VariableModesPanel } from "./VariableModesPanel";
@@ -121,6 +122,8 @@ export function DocumentEditor({ identity, capabilities, engine: suppliedEngine,
   const editingVector = useSyncExternalStore(engine.subscribeVectorEdit, () => Boolean(engine.getVectorEdit()), () => Boolean(engine.getVectorEdit()));
   const [signedIn, setSignedIn] = useState(() => identity.getSnapshot().status === "authenticated");
   const [copyNotice, setCopyNotice] = useState("");
+  // Native right panel: the Design and Prototype tabs.
+  const [panelTab, setPanelTab] = useState<"design" | "prototype">("design");
   useEffect(() => {
     if (!copyNotice) return;
     const timer = window.setTimeout(() => setCopyNotice(""), 2500);
@@ -1060,6 +1063,12 @@ export function DocumentEditor({ identity, capabilities, engine: suppliedEngine,
         </div>
         <aside className="figcraft-properties" aria-label="Design" onPointerDownCapture={event=>releasePropertyRow(engine,event.target)}><div style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}><h2>Design</h2>
           {!editingVector && snapshot.selection.length > 0 && <BooleanMenu document={snapshot.document} selection={snapshot.selection} editable={editable && !busy} dispatch={dispatch} />}</div>
+          <div role="group" aria-label="Properties" className="figcraft-property-tabs">
+            <button type="button" aria-pressed={panelTab==="design"} onClick={()=>setPanelTab("design")}>Design</button>
+            <button type="button" aria-pressed={panelTab==="prototype"} onClick={()=>setPanelTab("prototype")}>Prototype</button>
+          </div>
+          {panelTab==="prototype" && <div role="region" aria-label="Prototype"><PrototypePanel document={snapshot.document} selection={snapshot.selection} editable={editable && !busy} dispatch={dispatch} /></div>}
+          <div hidden={panelTab!=="design"}>
           <VectorPanel engine={engine} editable={editable && !busy} dispatch={dispatch} />
           <div hidden={editingVector}>
           <form key={page.id} onSubmit={create}><fieldset disabled={!editable}><legend>Create layer</legend>
@@ -1130,6 +1139,7 @@ export function DocumentEditor({ identity, capabilities, engine: suppliedEngine,
           {!editingVector && !snapshot.selection.length && <fieldset><legend>Export</legend><button type="button" disabled={!signedIn || busy} onClick={()=>void exportDrawing("png",1,"page")}>Export page as PNG</button></fieldset>}
           {!editingVector && <ExportPanel key={"ExportPanel:"+snapshot.selection.join(",")} doc={snapshot.document} ids={snapshot.selection} enabled={editable && !busy}
             run={dispatch} download={()=>void exportLayers()}/>}
+          </div>
         </aside>
       </div>
     </div></LibraryVariablesContext.Provider>;
