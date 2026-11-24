@@ -768,3 +768,7 @@ Native `crates/svg/src/lib.rs` image paints at `bad07e44` (upstream `9032dc3e`) 
 ## Delta row 3: loaded font priority — 24 November 2026
 
 Native `crates/text/src/fontdb.rs::{add_loaded, Face::loaded}` at `bad07e44` (upstream `34c44e60`, `a375ac06`, #2092) maps to `font-library.ts::FontLibrary.addLoaded` at `9b9fbf2`; `fontdb.rs::best`'s latest-load-first order to `FontLibrary.find` over its ranked faces; `fontdb.rs::load_font_bytes` to `text-node-layout.ts::importFontBytes`. Verified by two native scenes in `tests/fixtures/native-loaded-font-priority.json`, `tests/parity/loaded-font-priority.test.ts` and a browser case in `tests/e2e/preview.spec.ts`. [Report](../reports/26-11-24-loaded-font-priority.md).
+
+## Delta row 3: Crop chosen in the paint picker — 24 November 2026
+
+Native `crates/ui-egui/src/widgets/colorpicker.rs::{crop_on_canvas, image_controls}` at `bad07e44` (upstream `8330ffb3`, `91a76c72`, `a54eafc0`, #2150) maps to `image-commands.ts::pickerCropTarget` and the image mode select of `ImagePaintControls.tsx` at `286bea3`, which runs `image.crop`; `crates/ui-egui/src/canvas/handles.rs::crop_dragging` (`bdf6ff92`, #2307) to the unchanged outside-press rule of `PaintPicker.tsx` and `image-crop-interaction.ts`; `crates/engine/src/error.rs::NoGesture` has no counterpart, previews being guarded by `engine.interacting`. Verified by `tests/parity/picker-crop.test.ts` and a browser case in `tests/e2e/preview.spec.ts`, restating native `crop_image_tests.rs`. [Report](../reports/26-11-24-picker-crop.md).
