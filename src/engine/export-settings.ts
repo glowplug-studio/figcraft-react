@@ -123,17 +123,29 @@ export function batchExportOptions(p: Record<string, unknown>) {
   return params;
 }
 
-// Native node.set applies snake() before deserialising camel-case export records.
-// Archive reads go directly through serde and retain all saved options.
+// Native node.set applies snake() to every key, nested ones included, before deserialising the export records, and the
+// records take the snake_case spellings of their two-word fields as aliases (upstream 6c3ac0c5). So node.set takes back
+// what node.get returns, either spelling works, and where both are given the snake_case one wins: keys are visited in
+// sorted order, in which it comes later. Unknown keys are ignored. Archive reads go directly through serde and retain
+// all saved options.
+const settingAliases: Readonly<Record<string, string>> = { contents_only: "contentsOnly", include_bounding_box: "includeBoundingBox",
+  svg_outline_text: "svgOutlineText", svg_id_attribute: "svgIdAttribute", svg_simplify_stroke: "svgSimplifyStroke", vd_compat: "vdCompat",
+  color_profile: "colorProfile" };
+const printAliases: Readonly<Record<string, string>> = { crop_marks: "cropMarks", bleed_marks: "bleedMarks" };
+function propertyKeys(obj: Record<string, unknown>, aliases: Readonly<Record<string, string>>) {
+  const out: Record<string, unknown> = {};
+  for (const key of Object.keys(obj).sort()) {
+    const snake = key.replace(/[A-Z]/g, letter => "_" + letter.toLowerCase());
+    out[aliases[snake] ?? snake] = obj[key];
+  }
+  return out;
+}
 export function readExportSettings(input: unknown, property = false): readonly ExportSetting[] {
   if (!Array.isArray(input)) throw new Error("exports: expected a sequence");
-  function propertyKeys(obj: Record<string,unknown>) {
-    return Object.fromEntries(Object.entries(obj).filter(([key]) => !/[A-Z]/.test(key)));
-  }
   return Object.freeze(input.map(raw => {
     if (!record(raw)) throw new Error("exports: invalid export setting");
-    const p = property ? propertyKeys(raw) : raw;
-    if (property && record(p.print)) p.print = propertyKeys(p.print);
+    const p = property ? propertyKeys(raw, settingAliases) : raw;
+    if (property && record(p.print)) p.print = propertyKeys(p.print, printAliases);
     return parseSetting(defaultSetting(), p, true);
   }));
 }

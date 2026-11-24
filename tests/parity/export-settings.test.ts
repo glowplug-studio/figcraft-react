@@ -1,7 +1,14 @@
 import { expect, it } from "vitest";
 import { EditorEngine } from "../../src/engine/editor";
 import { encodeFigcraft, decodeFigcraft } from "../../src/engine/file-format";
-import cases from "../fixtures/native-export-settings.json";
+import recorded from "../fixtures/native-export-settings.json";
+import aliases from "../fixtures/native-export-setting-aliases.json";
+
+// node.set takes the camelCase keys of an export setting since upstream 6c3ac0c5, where the fixture's native revision
+// dropped them. The one sequence that sets them is compared with its receipts and saved settings observed at bad07e44
+// (tests/fixtures/native-export-setting-aliases.provenance.md).
+const repinned = new Map(aliases.repinned.map(c => [c.name, c]));
+const cases = recorded.map(entry => ({ ...entry, ...(repinned.get(entry.name) && { results: repinned.get(entry.name)!.results, wire: repinned.get(entry.name)!.wire }) }));
 
 it.each(cases)("preserves native export settings, errors and archive fields for $name", async entry => {
   const engine = new EditorEngine();

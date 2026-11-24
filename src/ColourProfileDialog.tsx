@@ -20,7 +20,7 @@ export function ColourProfileDialog({ current, close, apply }: Props) {
     </label>)}
     {chosen === current ? <p>Choose another profile to change it.</p> : <>
       <p>Keep appearance converts every color value to {labels[chosen]} so colors look the same. Keep values leaves the numbers as they are, so colors shift.</p>
-      {chosen === "displayP3" && <p>The canvas previews colors in sRGB.</p>}
+      {chosen === "displayP3" && <p>The canvas previews colors in sRGB; PNG, JPG and WebP exports that use the file's profile are tagged Display P3.</p>}
       <button onClick={() => apply(chosen, true)}>Keep appearance</button>
       <button onClick={() => apply(chosen, false)}>Keep values</button>
     </>}

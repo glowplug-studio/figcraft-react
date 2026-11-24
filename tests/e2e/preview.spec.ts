@@ -6215,6 +6215,19 @@ test("working-space image filters use direct ICC and PNG gamma conversion and re
   await expectCanvasPixel(page,20,30,[101,101,101,255]);
 });
 
+test("the Color profile note says which exports are tagged Display P3", async ({page}) => {
+  // Native ui-egui/src/dialogs/color_profile.rs at bad07e44 (upstream 016dba8c): an export setting set to sRGB still
+  // writes sRGB files in a Display P3 document, so the note names the exports that use the file's profile.
+  await login(page);
+  await page.getByText("File",{exact:true}).click();
+  await page.getByRole("button",{name:"Color profile",exact:true}).click();
+  const dialog = page.getByRole("dialog",{name:"Color profile"});
+  await expect(dialog).not.toContainText("tagged Display P3");
+  await dialog.getByRole("radio",{name:"Display P3",exact:true}).check();
+  await expect(dialog.getByText("The canvas previews colors in sRGB; PNG, JPG and WebP exports that use the file's profile are tagged Display P3.",{exact:true})).toBeVisible();
+  await dialog.getByRole("button",{name:"Close",exact:true}).click();
+});
+
 test("P3 gamut warning and soft proof identify clipped colours and clear on a fresh file", async ({page}) => {
   await login(page);
   const doc = JSON.parse(await readFile(new URL("../fixtures/native-rectangle.json", import.meta.url),"utf8"));
