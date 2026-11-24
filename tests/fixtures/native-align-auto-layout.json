@@ -1,0 +1,1095 @@
+{
+ "nativeRevision": "bad07e4433240cad046589129c084bd2fc36f097",
+ "note": "Each case: commands run natively in a new document. node.get keeps the layer id, x, y, width and height, or for the frame (id 2) its layout mode, mainAlign and crossAlign; a refused command keeps its error; null for the rest. Frame 2 is 200 x 100 with a horizontal auto layout, no padding and a gap of 10; rectangles 3 and 4 are 20 x 20.",
+ "cases": [
+  {
+   "name": "flow child align.left",
+   "commands": [
+    [
+     "frame.create",
+     {
+      "x": 0,
+      "y": 0,
+      "width": 200,
+      "height": 100
+     }
+    ],
+    [
+     "shape.rectangle",
+     {
+      "parent": 2,
+      "x": 0,
+      "y": 0,
+      "width": 20,
+      "height": 20
+     }
+    ],
+    [
+     "shape.rectangle",
+     {
+      "parent": 2,
+      "x": 0,
+      "y": 0,
+      "width": 20,
+      "height": 20
+     }
+    ],
+    [
+     "node.set",
+     {
+      "id": 2,
+      "props": {
+       "layout": "horizontal",
+       "padding": 0,
+       "gap": 10
+      }
+     }
+    ],
+    [
+     "node.get",
+     {
+      "id": 3
+     }
+    ],
+    [
+     "node.get",
+     {
+      "id": 4
+     }
+    ],
+    [
+     "align.left",
+     {
+      "ids": [
+       4
+      ]
+     }
+    ],
+    [
+     "node.get",
+     {
+      "id": 3
+     }
+    ],
+    [
+     "node.get",
+     {
+      "id": 4
+     }
+    ],
+    [
+     "node.get",
+     {
+      "id": 2
+     }
+    ]
+   ],
+   "receipts": [
+    null,
+    null,
+    null,
+    null,
+    {
+     "id": 3,
+     "x": 0,
+     "y": 0,
+     "width": 20,
+     "height": 20
+    },
+    {
+     "id": 4,
+     "x": 30,
+     "y": 0,
+     "width": 20,
+     "height": 20
+    },
+    null,
+    {
+     "id": 3,
+     "x": 0,
+     "y": 0,
+     "width": 20,
+     "height": 20
+    },
+    {
+     "id": 4,
+     "x": 30,
+     "y": 0,
+     "width": 20,
+     "height": 20
+    },
+    {
+     "layout": {
+      "mode": "horizontal",
+      "mainAlign": "min",
+      "crossAlign": "min"
+     }
+    }
+   ]
+  },
+  {
+   "name": "flow child align.hcenter",
+   "commands": [
+    [
+     "frame.create",
+     {
+      "x": 0,
+      "y": 0,
+      "width": 200,
+      "height": 100
+     }
+    ],
+    [
+     "shape.rectangle",
+     {
+      "parent": 2,
+      "x": 0,
+      "y": 0,
+      "width": 20,
+      "height": 20
+     }
+    ],
+    [
+     "shape.rectangle",
+     {
+      "parent": 2,
+      "x": 0,
+      "y": 0,
+      "width": 20,
+      "height": 20
+     }
+    ],
+    [
+     "node.set",
+     {
+      "id": 2,
+      "props": {
+       "layout": "horizontal",
+       "padding": 0,
+       "gap": 10
+      }
+     }
+    ],
+    [
+     "node.get",
+     {
+      "id": 3
+     }
+    ],
+    [
+     "node.get",
+     {
+      "id": 4
+     }
+    ],
+    [
+     "align.hcenter",
+     {
+      "ids": [
+       4
+      ]
+     }
+    ],
+    [
+     "node.get",
+     {
+      "id": 3
+     }
+    ],
+    [
+     "node.get",
+     {
+      "id": 4
+     }
+    ],
+    [
+     "node.get",
+     {
+      "id": 2
+     }
+    ]
+   ],
+   "receipts": [
+    null,
+    null,
+    null,
+    null,
+    {
+     "id": 3,
+     "x": 0,
+     "y": 0,
+     "width": 20,
+     "height": 20
+    },
+    {
+     "id": 4,
+     "x": 30,
+     "y": 0,
+     "width": 20,
+     "height": 20
+    },
+    null,
+    {
+     "id": 3,
+     "x": 0,
+     "y": 0,
+     "width": 20,
+     "height": 20
+    },
+    {
+     "id": 4,
+     "x": 30,
+     "y": 0,
+     "width": 20,
+     "height": 20
+    },
+    {
+     "layout": {
+      "mode": "horizontal",
+      "mainAlign": "min",
+      "crossAlign": "min"
+     }
+    }
+   ]
+  },
+  {
+   "name": "flow child align.right",
+   "commands": [
+    [
+     "frame.create",
+     {
+      "x": 0,
+      "y": 0,
+      "width": 200,
+      "height": 100
+     }
+    ],
+    [
+     "shape.rectangle",
+     {
+      "parent": 2,
+      "x": 0,
+      "y": 0,
+      "width": 20,
+      "height": 20
+     }
+    ],
+    [
+     "shape.rectangle",
+     {
+      "parent": 2,
+      "x": 0,
+      "y": 0,
+      "width": 20,
+      "height": 20
+     }
+    ],
+    [
+     "node.set",
+     {
+      "id": 2,
+      "props": {
+       "layout": "horizontal",
+       "padding": 0,
+       "gap": 10
+      }
+     }
+    ],
+    [
+     "node.get",
+     {
+      "id": 3
+     }
+    ],
+    [
+     "node.get",
+     {
+      "id": 4
+     }
+    ],
+    [
+     "align.right",
+     {
+      "ids": [
+       4
+      ]
+     }
+    ],
+    [
+     "node.get",
+     {
+      "id": 3
+     }
+    ],
+    [
+     "node.get",
+     {
+      "id": 4
+     }
+    ],
+    [
+     "node.get",
+     {
+      "id": 2
+     }
+    ]
+   ],
+   "receipts": [
+    null,
+    null,
+    null,
+    null,
+    {
+     "id": 3,
+     "x": 0,
+     "y": 0,
+     "width": 20,
+     "height": 20
+    },
+    {
+     "id": 4,
+     "x": 30,
+     "y": 0,
+     "width": 20,
+     "height": 20
+    },
+    null,
+    {
+     "id": 3,
+     "x": 0,
+     "y": 0,
+     "width": 20,
+     "height": 20
+    },
+    {
+     "id": 4,
+     "x": 30,
+     "y": 0,
+     "width": 20,
+     "height": 20
+    },
+    {
+     "layout": {
+      "mode": "horizontal",
+      "mainAlign": "min",
+      "crossAlign": "min"
+     }
+    }
+   ]
+  },
+  {
+   "name": "flow child align.top",
+   "commands": [
+    [
+     "frame.create",
+     {
+      "x": 0,
+      "y": 0,
+      "width": 200,
+      "height": 100
+     }
+    ],
+    [
+     "shape.rectangle",
+     {
+      "parent": 2,
+      "x": 0,
+      "y": 0,
+      "width": 20,
+      "height": 20
+     }
+    ],
+    [
+     "shape.rectangle",
+     {
+      "parent": 2,
+      "x": 0,
+      "y": 0,
+      "width": 20,
+      "height": 20
+     }
+    ],
+    [
+     "node.set",
+     {
+      "id": 2,
+      "props": {
+       "layout": "horizontal",
+       "padding": 0,
+       "gap": 10
+      }
+     }
+    ],
+    [
+     "node.get",
+     {
+      "id": 3
+     }
+    ],
+    [
+     "node.get",
+     {
+      "id": 4
+     }
+    ],
+    [
+     "align.top",
+     {
+      "ids": [
+       4
+      ]
+     }
+    ],
+    [
+     "node.get",
+     {
+      "id": 3
+     }
+    ],
+    [
+     "node.get",
+     {
+      "id": 4
+     }
+    ],
+    [
+     "node.get",
+     {
+      "id": 2
+     }
+    ]
+   ],
+   "receipts": [
+    null,
+    null,
+    null,
+    null,
+    {
+     "id": 3,
+     "x": 0,
+     "y": 0,
+     "width": 20,
+     "height": 20
+    },
+    {
+     "id": 4,
+     "x": 30,
+     "y": 0,
+     "width": 20,
+     "height": 20
+    },
+    null,
+    {
+     "id": 3,
+     "x": 0,
+     "y": 0,
+     "width": 20,
+     "height": 20
+    },
+    {
+     "id": 4,
+     "x": 30,
+     "y": 0,
+     "width": 20,
+     "height": 20
+    },
+    {
+     "layout": {
+      "mode": "horizontal",
+      "mainAlign": "min",
+      "crossAlign": "min"
+     }
+    }
+   ]
+  },
+  {
+   "name": "flow child align.vcenter",
+   "commands": [
+    [
+     "frame.create",
+     {
+      "x": 0,
+      "y": 0,
+      "width": 200,
+      "height": 100
+     }
+    ],
+    [
+     "shape.rectangle",
+     {
+      "parent": 2,
+      "x": 0,
+      "y": 0,
+      "width": 20,
+      "height": 20
+     }
+    ],
+    [
+     "shape.rectangle",
+     {
+      "parent": 2,
+      "x": 0,
+      "y": 0,
+      "width": 20,
+      "height": 20
+     }
+    ],
+    [
+     "node.set",
+     {
+      "id": 2,
+      "props": {
+       "layout": "horizontal",
+       "padding": 0,
+       "gap": 10
+      }
+     }
+    ],
+    [
+     "node.get",
+     {
+      "id": 3
+     }
+    ],
+    [
+     "node.get",
+     {
+      "id": 4
+     }
+    ],
+    [
+     "align.vcenter",
+     {
+      "ids": [
+       4
+      ]
+     }
+    ],
+    [
+     "node.get",
+     {
+      "id": 3
+     }
+    ],
+    [
+     "node.get",
+     {
+      "id": 4
+     }
+    ],
+    [
+     "node.get",
+     {
+      "id": 2
+     }
+    ]
+   ],
+   "receipts": [
+    null,
+    null,
+    null,
+    null,
+    {
+     "id": 3,
+     "x": 0,
+     "y": 0,
+     "width": 20,
+     "height": 20
+    },
+    {
+     "id": 4,
+     "x": 30,
+     "y": 0,
+     "width": 20,
+     "height": 20
+    },
+    null,
+    {
+     "id": 3,
+     "x": 0,
+     "y": 0,
+     "width": 20,
+     "height": 20
+    },
+    {
+     "id": 4,
+     "x": 30,
+     "y": 0,
+     "width": 20,
+     "height": 20
+    },
+    {
+     "layout": {
+      "mode": "horizontal",
+      "mainAlign": "min",
+      "crossAlign": "min"
+     }
+    }
+   ]
+  },
+  {
+   "name": "flow child align.bottom",
+   "commands": [
+    [
+     "frame.create",
+     {
+      "x": 0,
+      "y": 0,
+      "width": 200,
+      "height": 100
+     }
+    ],
+    [
+     "shape.rectangle",
+     {
+      "parent": 2,
+      "x": 0,
+      "y": 0,
+      "width": 20,
+      "height": 20
+     }
+    ],
+    [
+     "shape.rectangle",
+     {
+      "parent": 2,
+      "x": 0,
+      "y": 0,
+      "width": 20,
+      "height": 20
+     }
+    ],
+    [
+     "node.set",
+     {
+      "id": 2,
+      "props": {
+       "layout": "horizontal",
+       "padding": 0,
+       "gap": 10
+      }
+     }
+    ],
+    [
+     "node.get",
+     {
+      "id": 3
+     }
+    ],
+    [
+     "node.get",
+     {
+      "id": 4
+     }
+    ],
+    [
+     "align.bottom",
+     {
+      "ids": [
+       4
+      ]
+     }
+    ],
+    [
+     "node.get",
+     {
+      "id": 3
+     }
+    ],
+    [
+     "node.get",
+     {
+      "id": 4
+     }
+    ],
+    [
+     "node.get",
+     {
+      "id": 2
+     }
+    ]
+   ],
+   "receipts": [
+    null,
+    null,
+    null,
+    null,
+    {
+     "id": 3,
+     "x": 0,
+     "y": 0,
+     "width": 20,
+     "height": 20
+    },
+    {
+     "id": 4,
+     "x": 30,
+     "y": 0,
+     "width": 20,
+     "height": 20
+    },
+    null,
+    {
+     "id": 3,
+     "x": 0,
+     "y": 0,
+     "width": 20,
+     "height": 20
+    },
+    {
+     "id": 4,
+     "x": 30,
+     "y": 0,
+     "width": 20,
+     "height": 20
+    },
+    {
+     "layout": {
+      "mode": "horizontal",
+      "mainAlign": "min",
+      "crossAlign": "min"
+     }
+    }
+   ]
+  },
+  {
+   "name": "absolute child align.right",
+   "commands": [
+    [
+     "frame.create",
+     {
+      "x": 0,
+      "y": 0,
+      "width": 200,
+      "height": 100
+     }
+    ],
+    [
+     "shape.rectangle",
+     {
+      "parent": 2,
+      "x": 0,
+      "y": 0,
+      "width": 20,
+      "height": 20
+     }
+    ],
+    [
+     "shape.rectangle",
+     {
+      "parent": 2,
+      "x": 0,
+      "y": 0,
+      "width": 20,
+      "height": 20
+     }
+    ],
+    [
+     "node.set",
+     {
+      "id": 2,
+      "props": {
+       "layout": "horizontal",
+       "padding": 0,
+       "gap": 10
+      }
+     }
+    ],
+    [
+     "node.set",
+     {
+      "id": 3,
+      "props": {
+       "absolute": true
+      }
+     }
+    ],
+    [
+     "node.get",
+     {
+      "id": 3
+     }
+    ],
+    [
+     "align.right",
+     {
+      "ids": [
+       3
+      ]
+     }
+    ],
+    [
+     "node.get",
+     {
+      "id": 3
+     }
+    ],
+    [
+     "node.get",
+     {
+      "id": 2
+     }
+    ]
+   ],
+   "receipts": [
+    null,
+    null,
+    null,
+    null,
+    null,
+    {
+     "id": 3,
+     "x": 0,
+     "y": 0,
+     "width": 20,
+     "height": 20
+    },
+    null,
+    {
+     "id": 3,
+     "x": 180,
+     "y": 0,
+     "width": 20,
+     "height": 20
+    },
+    {
+     "layout": {
+      "mode": "horizontal",
+      "mainAlign": "min",
+      "crossAlign": "min"
+     }
+    }
+   ]
+  },
+  {
+   "name": "two flow children align.top",
+   "commands": [
+    [
+     "frame.create",
+     {
+      "x": 0,
+      "y": 0,
+      "width": 200,
+      "height": 100
+     }
+    ],
+    [
+     "shape.rectangle",
+     {
+      "parent": 2,
+      "x": 0,
+      "y": 0,
+      "width": 20,
+      "height": 20
+     }
+    ],
+    [
+     "shape.rectangle",
+     {
+      "parent": 2,
+      "x": 0,
+      "y": 0,
+      "width": 20,
+      "height": 20
+     }
+    ],
+    [
+     "node.set",
+     {
+      "id": 2,
+      "props": {
+       "layout": "horizontal",
+       "padding": 0,
+       "gap": 10
+      }
+     }
+    ],
+    [
+     "node.get",
+     {
+      "id": 3
+     }
+    ],
+    [
+     "node.get",
+     {
+      "id": 4
+     }
+    ],
+    [
+     "align.top",
+     {
+      "ids": [
+       3,
+       4
+      ]
+     }
+    ],
+    [
+     "node.get",
+     {
+      "id": 3
+     }
+    ],
+    [
+     "node.get",
+     {
+      "id": 4
+     }
+    ],
+    [
+     "node.get",
+     {
+      "id": 2
+     }
+    ]
+   ],
+   "receipts": [
+    null,
+    null,
+    null,
+    null,
+    {
+     "id": 3,
+     "x": 0,
+     "y": 0,
+     "width": 20,
+     "height": 20
+    },
+    {
+     "id": 4,
+     "x": 30,
+     "y": 0,
+     "width": 20,
+     "height": 20
+    },
+    null,
+    {
+     "id": 3,
+     "x": 0,
+     "y": 0,
+     "width": 20,
+     "height": 20
+    },
+    {
+     "id": 4,
+     "x": 30,
+     "y": 0,
+     "width": 20,
+     "height": 20
+    },
+    {
+     "layout": {
+      "mode": "horizontal",
+      "mainAlign": "min",
+      "crossAlign": "min"
+     }
+    }
+   ]
+  },
+  {
+   "name": "flow child selected, align.left without ids",
+   "commands": [
+    [
+     "frame.create",
+     {
+      "x": 0,
+      "y": 0,
+      "width": 200,
+      "height": 100
+     }
+    ],
+    [
+     "shape.rectangle",
+     {
+      "parent": 2,
+      "x": 0,
+      "y": 0,
+      "width": 20,
+      "height": 20
+     }
+    ],
+    [
+     "shape.rectangle",
+     {
+      "parent": 2,
+      "x": 0,
+      "y": 0,
+      "width": 20,
+      "height": 20
+     }
+    ],
+    [
+     "node.set",
+     {
+      "id": 2,
+      "props": {
+       "layout": "horizontal",
+       "padding": 0,
+       "gap": 10
+      }
+     }
+    ],
+    [
+     "select.set",
+     {
+      "ids": [
+       4
+      ]
+     }
+    ],
+    [
+     "align.left",
+     {}
+    ],
+    [
+     "node.get",
+     {
+      "id": 3
+     }
+    ],
+    [
+     "node.get",
+     {
+      "id": 4
+     }
+    ],
+    [
+     "node.get",
+     {
+      "id": 2
+     }
+    ]
+   ],
+   "receipts": [
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    {
+     "id": 3,
+     "x": 0,
+     "y": 0,
+     "width": 20,
+     "height": 20
+    },
+    {
+     "id": 4,
+     "x": 30,
+     "y": 0,
+     "width": 20,
+     "height": 20
+    },
+    {
+     "layout": {
+      "mode": "horizontal",
+      "mainAlign": "min",
+      "crossAlign": "min"
+     }
+    }
+   ]
+  }
+ ]
+}

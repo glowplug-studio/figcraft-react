@@ -54,11 +54,26 @@ export function moveWorld(draft: HierarchyDraft, id: NodeId, dx: number, dy: num
   draft.set(withLayerTransform(node, matrix));
 }
 
+/** Native arrange.rs `in_auto_layout_flow`: the layer sits in an auto layout frame and takes part in its flow (not absolute). */
+function inAutoLayoutFlow(document: Document, id: NodeId): boolean {
+  const node = document.nodes[id];
+  if (!node || node.kind === "page" || node.childLayout?.absolute) return false;
+  const parent = document.nodes[node.parent];
+  return !!parent && parent.kind !== "page" && "layout" in parent && !!parent.layout;
+}
+
+/** Native `align_blocked_by_auto_layout` (76965c78, measured in Figma): one selected layer that its auto layout frame places has
+ * no align target, so Align is off and its commands leave the layout alone. */
+export function alignBlockedByAutoLayout(document: Document, selection: readonly NodeId[]): boolean {
+  const ids = rootIds(document, selection);
+  return ids.length === 1 && inAutoLayoutFlow(document, ids[0]);
+}
+
 export function canAlign(document: Document, selection: readonly NodeId[]): boolean {
   const ids = rootIds(document, selection);
   if (ids.length > 1) return true;
   const node = document.nodes[ids[0]];
-  return Boolean(node?.parent && document.nodes[node.parent]?.kind !== "page");
+  return Boolean(node?.parent && document.nodes[node.parent]?.kind !== "page") && !inAutoLayoutFlow(document, ids[0]);
 }
 
 export function executeArrange(command: string, document: Document, selection: readonly NodeId[], params: Record<string, unknown>, snapPixel = true): Document {

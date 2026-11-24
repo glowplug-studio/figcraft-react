@@ -3115,6 +3115,25 @@ test("grid Fill tracks share a fixed frame's space and let a fixed child overflo
   for (const child of scene.children) expect(doc.nodes[String(child.id)]).toMatchObject({x:child.x,y:child.y,width:child.width,height:child.height});
 });
 
+test("Align is off with a tip for a layer its auto layout frame places, and on for two layers of the flow, as native does",async ({page})=>{
+  const e=new EditorEngine();
+  e.execute("frame.create",{x:0,y:0,width:200,height:100});
+  e.execute("shape.rectangle",{parent:2,x:0,y:0,width:20,height:20}); e.execute("shape.rectangle",{parent:2,x:0,y:0,width:20,height:20});
+  e.execute("node.set",{id:2,props:{layout:"horizontal",padding:0,gap:10}});
+  e.execute("node.set",{id:3,props:{name:"Placed"}}); e.execute("node.set",{id:4,props:{name:"Second"}});
+  await login(page);
+  await page.getByLabel("Open Figcraft file",{exact:true}).setInputFiles({name:"align.figcraft",mimeType:"application/octet-stream",buffer:Buffer.from(await encodeFigcraft(e.getSnapshot().document))});
+  const layers=page.getByRole("region",{name:"Layers",exact:true}), alignment=page.getByRole("group",{name:"Alignment",exact:true});
+  await layers.getByRole("button",{name:"Second"}).click();
+  await page.locator("details.figcraft-arrange > summary").click();
+  for (const label of ["Align left","Align right","Align top","Align bottom"]) await expect(alignment.getByRole("button",{name:label,exact:true})).toBeDisabled();
+  await expect(page.getByText("A layer in an auto layout frame is placed by its frame",{exact:true})).toBeVisible();
+  // Two layers of the flow align to each other as before; the tip goes.
+  await layers.getByRole("button",{name:"Placed"}).click({modifiers:["Shift"]});
+  await expect(alignment.getByRole("button",{name:"Align top",exact:true})).toBeEnabled();
+  await expect(page.getByText("A layer in an auto layout frame is placed by its frame",{exact:true})).toHaveCount(0);
+});
+
 test("transparent page redraw and hidden or locked layers bypass pointer and select all", async ({ page }) => {
   await login(page);
   const appearance = page.getByRole("region", { name: "Appearance" });
