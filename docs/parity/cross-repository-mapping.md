@@ -800,3 +800,7 @@ Native `crates/layout/src/lib.rs::grid_geometry` at `bad07e44` (upstream `a28c03
 ## Delta row 4: layout snap bounds — 24 November 2026
 
 Native `crates/layout/src/lib.rs::grid_snap_lines_in` with `MAX_SNAP_LINES` at `bad07e44` (upstream `1935c3ea`, `9d486259`) maps to the grid budget of `snapping.ts::SnapTargets` and `maxGridSnapLines` at `c053caa`; `grid_lines` maps to `layout-guides.ts::guideRects`. Verified by `tests/parity/grid-snap-bounds.test.ts`, restating native `depth_tests::snap_lines_are_bounded_across_a_frames_grids`. [Report](../reports/26-11-24-grid-snap-bounds.md).
+
+## Delta row 4: Align unavailable in an auto layout flow — 24 November 2026
+
+Native `crates/engine/src/cmd/arrange.rs::{align_target, in_auto_layout_flow, align_blocked_by_auto_layout, can_align}` at `bad07e44` (upstream `76965c78`) maps to `arrange.ts::{canAlign, inAutoLayoutFlow, alignBlockedByAutoLayout}` at `1ab10c7`; the Align tip of `crates/ui-egui/src/panels/right.rs` maps to `ArrangePanel.tsx`. Verified by nine native scenes in `tests/fixtures/native-align-auto-layout.json`, `tests/parity/align-auto-layout.test.ts` and a browser case in `tests/e2e/preview.spec.ts`. [Report](../reports/26-11-24-align-auto-layout.md).
