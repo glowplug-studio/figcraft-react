@@ -51,7 +51,8 @@ function variantOverrides(doc: Document, previous: LayerNode, next: LayerNode) {
 }
 
 function refreshRoot(doc: Document, main: ComponentNode, placed: InstanceNode): InstanceNode {
-  const {description, propOrder, ...template} = main;
+  // Native patch.rs: an instance root keeps its own interactions (the main's play on it in prototypes).
+  const {description, propOrder, interactions: _mainInteractions, ...template} = main;
   const nested = owningInstance(doc,placed.id,false);
   const source = placed.source ? doc.nodes[placed.source] : undefined;
   const sourceMain = source?.kind === "instance" ? doc.nodes[source.component] : undefined;
@@ -77,6 +78,7 @@ function refreshRoot(doc: Document, main: ComponentNode, placed: InstanceNode): 
     childLayout, sizing, variableModes:placed.variableModes, constraints:placed.constraints, propRefs:placed.propRefs,
     visible:placed.visible, locked:placed.locked, isMask:placed.isMask, exposed:placed.exposed,
     constrainProportions:placed.constrainProportions, boolOp:placed.boolOp,
+    ...(placed.interactions?.length && {interactions:placed.interactions}),
     overrides:own}, layerTransform(placed));
   let node: LayerNode = copyGroupBindings(placed,actual,"props");
   for (const group of own ?? []) {

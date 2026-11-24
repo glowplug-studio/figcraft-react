@@ -1,0 +1,161 @@
+{
+ "revision": "bad07e4433240cad046589129c084bd2fc36f097",
+ "steps": [
+  {
+   "command": "frame.create",
+   "params": {
+    "x": 0,
+    "y": 0,
+    "width": 100,
+    "height": 40
+   },
+   "receipt": {
+    "id": 2
+   }
+  },
+  {
+   "command": "component.create",
+   "params": {
+    "ids": [
+     2
+    ]
+   },
+   "receipt": {
+    "id": 2
+   }
+  },
+  {
+   "command": "frame.create",
+   "params": {
+    "x": 0,
+    "y": 200,
+    "width": 100,
+    "height": 40
+   },
+   "receipt": {
+    "id": 3
+   }
+  },
+  {
+   "command": "proto.interaction.add",
+   "params": {
+    "id": 2,
+    "dest": 3
+   },
+   "receipt": {
+    "index": 0
+   }
+  },
+  {
+   "command": "instance.create",
+   "params": {
+    "component": 2,
+    "x": 0,
+    "y": 400
+   },
+   "receipt": {
+    "id": 4
+   }
+  },
+  {
+   "command": "proto.interaction.add",
+   "params": {
+    "id": 4,
+    "trigger": {
+     "type": "onHover"
+    },
+    "action": {
+     "type": "back"
+    }
+   },
+   "receipt": {
+    "index": 0
+   }
+  },
+  {
+   "command": "proto.interaction.add",
+   "params": {
+    "id": 2,
+    "trigger": {
+     "type": "onPress"
+    },
+    "action": {
+     "type": "back"
+    }
+   },
+   "receipt": {
+    "index": 1
+   }
+  },
+  {
+   "command": "node.set",
+   "params": {
+    "id": 2,
+    "props": {
+     "name": "Renamed main"
+    }
+   },
+   "receipt": {
+    "ok": true
+   }
+  },
+  {
+   "command": "file.saveAs",
+   "params": {
+    "data": true
+   },
+   "saved": {
+    "2": [
+     {
+      "trigger": {
+       "type": "onClick"
+      },
+      "actions": [
+       {
+        "type": "navigate",
+        "dest": 3
+       }
+      ],
+      "transition": {
+       "type": "instant"
+      },
+      "duration_ms": 300,
+      "easing": "easeOut"
+     },
+     {
+      "trigger": {
+       "type": "onPress"
+      },
+      "actions": [
+       {
+        "type": "back"
+       }
+      ],
+      "transition": {
+       "type": "instant"
+      },
+      "duration_ms": 300,
+      "easing": "easeOut"
+     }
+    ],
+    "4": [
+     {
+      "trigger": {
+       "type": "onHover"
+      },
+      "actions": [
+       {
+        "type": "back"
+       }
+      ],
+      "transition": {
+       "type": "instant"
+      },
+      "duration_ms": 300,
+      "easing": "easeOut"
+     }
+    ]
+   }
+  }
+ ]
+}
