@@ -80,7 +80,7 @@ import { readFontInput } from "./font-source";
 import { base64Bytes } from "./recovery";
 import { type FileBranch, readVersionDocument, encodePublishedLibrary, decodePublishedLibrary, decodeFigcraft, encodeFigcraft, encodeFigcraftBlob, prepareArchive, MAX_UNPACKED_BYTES } from "./file-format";
 import { executePage, listPages, pageSpecs } from "./pages";
-import { executePrototype, prototypeSpecs, type PrototypeCommand } from "./prototype-commands";
+import { executePrototype, prototypeSpecs, type PresentOptions, type PrototypeCommand } from "./prototype-commands";
 import { executeSelection, layersAt, selectionSpecs } from "./selection";
 import { setRectangleProperties, setPageGeometryFields } from "./properties";
 import { HierarchyDraft, pageForNode, worldTransform, zSorted } from "./hierarchy";
@@ -288,6 +288,12 @@ export interface PaintPicker {
 export interface EditorSnapshot {
   readonly profileDialog?: boolean;
   readonly libraryPanel?: {readonly publish:boolean};
+  /** Native `proto.present` / `proto.preview`: the player the interface opens, from a top-level frame. */
+  readonly prototypePlayer?: {readonly mode:"present"|"preview";readonly start:NodeId};
+  /** Native `proto.presentOptions`, kept for later presentations (unset: native's defaults). */
+  readonly presentOptions?: Partial<PresentOptions>;
+  /** Native preference `link_notice_skipped` (`proto.linkNotice`). */
+  readonly linkNoticeSkipped?: boolean;
   readonly missingFonts?: readonly MissingFont[];
   readonly paintPicker?: PaintPicker;
   readonly openEffects?: readonly number[];
@@ -2224,6 +2230,12 @@ export class EditorEngine {
       const before = this.#snapshot;
       const next = executePrototype(command as PrototypeCommand, before.document, before.selection, p);
       if (next.document !== before.document) this.#commitEdit({ document: next.document });
+      const request = next.request;
+      if (request) this.#publish({
+        ...(request.player !== undefined && { prototypePlayer: request.player ?? (before.prototypePlayer?.mode === "present" ? before.prototypePlayer : undefined) }),
+        ...(request.presentOptions && { presentOptions: Object.freeze({ ...before.presentOptions, ...request.presentOptions }) }),
+        ...(request.linkNoticeSkipped !== undefined && { linkNoticeSkipped: request.linkNoticeSkipped }),
+      });
       return next.result;
     }
     if (Object.hasOwn(pageSpecs, command)) {

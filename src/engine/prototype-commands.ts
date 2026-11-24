@@ -4,6 +4,7 @@ import { inspectedId, parseBoolean, parseNodeId, parseNumber } from "./parameter
 import { readPrototype, type PrototypeAction, type PrototypeExpression, type PrototypeFlow, type PrototypeInteraction } from "./prototype-data";
 import { checkCondition, checkValue, collectionById, collectionNamed, displayExpression, evaluateExpression, expressionType, findMode, parseExpression, variableById, variableNamed } from "./prototype-expressions";
 import { layerModes } from "./variable-modes";
+import { boundsOf } from "./viewport";
 import { parseColour } from "./colour-css";
 import { defaultPrototypeBackground } from "./document";
 import { customDevice, customSide, defaultPrototypeDevice, deviceModel, devices, knownDevice, parseRotation, settingsJson, type PrototypeDevice } from "./prototype-settings";
@@ -21,6 +22,11 @@ export const prototypeSpecs = Object.freeze({
   "proto.flow.remove": { label: "Remove flow", undo: true },
   "proto.evaluate": { label: "Evaluate prototype expression", undo: false },
   "proto.settings": { label: "Prototype settings", undo: true },
+  "proto.present": { label: "Present", undo: false },
+  "proto.preview": { label: "Open prototype preview", undo: false },
+  "proto.closePreview": { label: "Close prototype preview", undo: false },
+  "proto.presentOptions": { label: "Presentation options", undo: false },
+  "proto.linkNotice": { label: "Notice before leaving for a link", undo: false },
   "proto.action.add": { label: "Add prototype action", undo: true },
   "proto.action.set": { label: "Edit prototype action", undo: true },
   "proto.action.remove": { label: "Remove prototype action", undo: true },
@@ -30,7 +36,16 @@ export const prototypeSpecs = Object.freeze({
   "proto.conditional.removeBlock": { label: "Remove if / else if / else", undo: true },
 });
 export type PrototypeCommand = keyof typeof prototypeSpecs;
-export interface PrototypeExecution { readonly document: Document; readonly result: Record<string, unknown> }
+/** What a player command asks of the interface (native `request_ui` and preferences). */
+export interface PlayerRequest {
+  readonly player?: { readonly mode: "present" | "preview"; readonly start: NodeId } | null;
+  readonly presentOptions?: Partial<PresentOptions>;
+  readonly linkNoticeSkipped?: boolean;
+}
+/** Native `proto.presentOptions`: how the presenter shows a prototype, kept for later presentations. */
+export interface PresentOptions { readonly scale: typeof presentScales[number]; readonly deviceFrame: boolean; readonly hotspotHints: boolean; readonly inspect: boolean; readonly hideUi: boolean }
+export const presentScales = ["fit", "fitWidth", "fill", "actual"] as const;
+export interface PrototypeExecution { readonly document: Document; readonly result: Record<string, unknown>; readonly request?: PlayerRequest }
 
 /** Native `MAX_DELAY_MS`: the longest a mouse trigger waits. */
 export const maxDelayMs = 600_000;
@@ -40,6 +55,36 @@ const transitionTypes = ["instant","dissolve","smartAnimate","moveIn","moveOut",
 const mouseTriggers = new Set(["mouseEnter","mouseLeave","mouseDown","mouseUp"]);
 
 const bad = (command: string, message: string) => new Error("invalid parameters for `" + command + "`: " + message);
+/** The parameters each command's native doc names (`id` and `ids` are always taken). */
+const takes: Record<PrototypeCommand, readonly string[]> = {
+  "proto.interaction.add": ["id","trigger","action","actions","dest","transition","durationMs","duration_ms","easing","delayMs","delay_ms"],
+  "proto.interaction.clear": ["ids"],
+  "proto.interaction.remove": ["id","index"],
+  "proto.interaction.set": ["id","index","interaction","trigger","action","actions","transition","durationMs","duration_ms","easing","delayMs","delay_ms"],
+  "proto.flow.add": ["start","name"],
+  "proto.flow.rename": ["start","name","description"],
+  "proto.flow.remove": ["start"],
+  "proto.evaluate": ["expression","expr","id"],
+  "proto.settings": ["device","background","rotation","color","width","height","responsive"],
+  "proto.present": ["start"],
+  "proto.preview": ["start"],
+  "proto.closePreview": [],
+  "proto.presentOptions": ["scale","deviceFrame","hotspotHints","inspect","hideUi"],
+  "proto.linkNotice": ["show"],
+  "proto.action.add": ["id","index","path","action"],
+  "proto.action.set": ["id","index","path","action"],
+  "proto.action.remove": ["id","index","path"],
+  "proto.action.move": ["id","index","path","to"],
+  "proto.conditional.addBlock": ["id","index","path","else","expression","condition"],
+  "proto.conditional.setCondition": ["id","index","path","block","expression","condition"],
+  "proto.conditional.removeBlock": ["id","index","path","block"],
+};
+/** Native `refuse_unknown_params`: a misspelt name is refused rather than ignored. */
+function refuseUnknown(command: PrototypeCommand, p: Record<string, unknown>) {
+  const names = takes[command];
+  const unknown = Object.keys(p).filter(k => k !== "id" && k !== "ids" && !names.includes(k)).map(k => "`" + k + "`");
+  if (unknown.length) throw bad(command, `unknown parameter${unknown.length === 1 ? "" : "s"} ${unknown.join(", ")} (it takes ${names.length ? names.join(", ") : "none"})`);
+}
 const shown = (value: unknown) => typeof value === "string" ? JSON.stringify(value) : JSON.stringify(value) ?? String(value);
 
 // Command values arrive as plain JSON; the document readers take node IDs as lossless numbers, as files hold them.
@@ -311,7 +356,31 @@ function conditionParam(command: string, vars: Variables, p: Record<string, unkn
 export function executePrototype(command: PrototypeCommand, document: Document, selection: readonly NodeId[], p: Record<string, unknown>): PrototypeExecution {
   const setNodes = (changes: Record<NodeId, DocumentNode>): Document =>
     Object.freeze({ ...document, nodes: Object.freeze({ ...document.nodes, ...changes }) });
+  refuseUnknown(command, p);
   const vars = document.variables ?? emptyVariables;
+  if (command === "proto.present" || command === "proto.preview") {
+    const start = playerStart(command, document, selection, p);
+    return { document, result: { start: inspectedId(start) }, request: { player: { mode: command === "proto.present" ? "present" : "preview", start } } };
+  }
+  if (command === "proto.closePreview") return { document, result: { ok: true }, request: { player: null } };
+  if (command === "proto.presentOptions") {
+    const options: { -readonly [K in keyof PresentOptions]?: PresentOptions[K] } = {};
+    if (p.scale !== undefined && p.scale !== null) {
+      if (typeof p.scale !== "string" || !(presentScales as readonly string[]).includes(p.scale)) throw bad(command, "scale: fit|fitWidth|fill|actual");
+      options.scale = p.scale as PresentOptions["scale"];
+    }
+    for (const key of ["deviceFrame", "hotspotHints", "inspect", "hideUi"] as const) {
+      if (p[key] === undefined || p[key] === null) continue;
+      if (typeof p[key] !== "boolean") throw bad(command, key + ": true|false");
+      options[key] = p[key] as boolean;
+    }
+    if (!Object.keys(options).length) throw bad(command, "nothing to set: scale, deviceFrame, hotspotHints, inspect or hideUi");
+    return { document, result: { ok: true }, request: { presentOptions: options } };
+  }
+  if (command === "proto.linkNotice") {
+    const show = p.show === undefined ? true : parseBoolean(p.show) ?? true;
+    return { document, result: { shown: show }, request: { linkNoticeSkipped: !show } };
+  }
   if (command === "proto.evaluate") {
     let e: PrototypeExpression;
     if (typeof p.expression === "string") {
@@ -632,4 +701,34 @@ function prototypeSettings(document: Document, p: Record<string, unknown>): Prot
   const isDefaultBackground = JSON.stringify(nextBackground) === JSON.stringify(defaultPrototypeBackground);
   const updated = Object.freeze({ ...rest, ...(!isDefaultBackground && { prototypeBackground: nextBackground }), ...(!sameDevice(next, defaultPrototypeDevice) && { prototypeDevice: Object.freeze(next) }) }) as PageNode;
   return { document: Object.freeze({ ...document, nodes: Object.freeze({ ...document.nodes, [page.id]: updated }) }), result: answer };
+}
+
+/** Native `frames_in`: a page's top-level frames (also inside sections) in reading order. */
+export function topFrames(document: Document, container: NodeId): NodeId[] {
+  const out: { id: NodeId; x: number; y: number }[] = [];
+  const walk = (id: NodeId, depth: number) => {
+    for (const c of (document.nodes[id] as { children?: readonly NodeId[] } | undefined)?.children ?? []) {
+      const node = document.nodes[c];
+      if (!node) continue;
+      if (node.kind !== "page" && isFrameLike(node)) {
+        const b = boundsOf(document, [c]);
+        if (b) out.push({ id: c, x: b.x, y: b.y });
+      } else if (node.kind === "section" && depth < 64) walk(c, depth + 1);
+    }
+  };
+  walk(container, 0);
+  return out.sort((a, b) => a.y - b.y || a.x - b.x).map(f => f.id);
+}
+/** Native `open_player`: `start`'s top-level frame, else the selection's, the page's first flow or its first frame. */
+function playerStart(command: string, document: Document, selection: readonly NodeId[], p: Record<string, unknown>): NodeId {
+  const given = parseNodeId(p.start);
+  if (given !== undefined) {
+    const top = topLevelFrame(document, given);
+    if (top === undefined) throw bad(command, "`start` isn't a frame or inside one");
+    return top;
+  }
+  const page = document.nodes[document.currentPage] as PageNode;
+  const start = (selection[0] !== undefined ? topLevelFrame(document, selection[0]) : undefined) ?? page.flows?.[0]?.start ?? topFrames(document, page.id)[0];
+  if (start === undefined) throw bad(command, "no frame to present");
+  return start;
 }
