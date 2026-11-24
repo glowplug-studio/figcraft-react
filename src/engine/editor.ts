@@ -80,6 +80,7 @@ import { readFontInput } from "./font-source";
 import { base64Bytes } from "./recovery";
 import { type FileBranch, readVersionDocument, encodePublishedLibrary, decodePublishedLibrary, decodeFigcraft, encodeFigcraft, encodeFigcraftBlob, prepareArchive, MAX_UNPACKED_BYTES } from "./file-format";
 import { executePage, listPages, pageSpecs } from "./pages";
+import { executePrototype, prototypeSpecs, type PrototypeCommand } from "./prototype-commands";
 import { executeSelection, layersAt, selectionSpecs } from "./selection";
 import { setRectangleProperties, setPageGeometryFields } from "./properties";
 import { HierarchyDraft, pageForNode, worldTransform, zSorted } from "./hierarchy";
@@ -167,6 +168,7 @@ export const commandSpecs = Object.freeze({
   ...originSpecs,
   ...smartSpecs,
   ...pageSpecs,
+  ...prototypeSpecs,
   ...viewSpecs,
   "frame.presets": { label: "List frame presets", undo: false },
   ...selectionSpecs,
@@ -2218,6 +2220,12 @@ export class EditorEngine {
     if (command === "style.list") return listStyles(this.getRenderDocument(), p.type);
     if (command === "component.list") return listComponents(this.#snapshot.document);
     if (command === "page.list") return listPages(this.#snapshot.document);
+    if (Object.hasOwn(prototypeSpecs, command)) {
+      const before = this.#snapshot;
+      const next = executePrototype(command as PrototypeCommand, before.document, before.selection, p);
+      if (next.document !== before.document) this.#commitEdit({ document: next.document });
+      return next.result;
+    }
     if (Object.hasOwn(pageSpecs, command)) {
       const before = this.#snapshot;
       const changed = executePage(command, before.document, before.selection, this.#nextId, p);

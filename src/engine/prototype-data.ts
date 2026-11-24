@@ -3,6 +3,7 @@ import { isLosslessNumber } from "lossless-json";
 import { fail, id, number, wireId } from "./native-values";
 import { textBool, textEnum, textRecord, textString } from "./text-style";
 import { readVariableValue, type VariableValue } from "./variables";
+import { parseColour } from "./colour-css";
 
 const directions = ["left","right","top","bottom"] as const;
 const plainTriggers = ["onClick","onHover","onPress","onDrag","mouseEnter","mouseLeave","mouseDown","mouseUp"] as const;
@@ -90,6 +91,15 @@ function actionValue(value:unknown):unknown {
   if (value===undefined) fail("setVariable requires a value");
   return value;
 }
+// Native ColorRepr: a colour object, 3 or 4 channels, or CSS text ("#00000040").
+function overlayBackground(raw:unknown):Colour {
+  if (typeof raw==="string" || Array.isArray(raw)) {
+    const c=parseColour(Array.isArray(raw) ? raw.map(v=>number(v,"overlay background")) : raw);
+    return c ?? fail("not a colour: "+String(raw));
+  }
+  const bg=textRecord(raw,"overlay background");
+  return {r:Math.fround(number(bg.r,"red")),g:Math.fround(number(bg.g,"green")),b:Math.fround(number(bg.b,"blue")),a:Math.fround(number(bg.a,"alpha"))};
+}
 function action(raw:unknown,depth=0):PrototypeAction {
   if (depth>128) fail("prototype action is too deeply nested");
   const a=textRecord(raw,"prototype action"), type=a.type;
@@ -104,10 +114,9 @@ function action(raw:unknown,depth=0):PrototypeAction {
     }
     case "openOverlay": {
       const anchor=textEnum(a.anchor ?? "screen",["screen","triggerInside","triggerOutside"],"overlay anchor");
-      const bg=a.background==null ? undefined : textRecord(a.background,"overlay background");
       return {type,dest:dest(),position:textEnum(a.position ?? "center",overlayPositions,"overlay position"),
         close_on_outside:textBool(a.close_on_outside ?? a.closeOnOutside ?? true,"close on outside"),
-        background:bg ? {r:Math.fround(number(bg.r,"red")),g:Math.fround(number(bg.g,"green")),b:Math.fround(number(bg.b,"blue")),a:Math.fround(number(bg.a,"alpha"))} : null,
+        background:a.background==null ? null : overlayBackground(a.background),
         ...(a.offset!=null && {offset:pair(a.offset)}),...(anchor!=="screen" && {anchor})};
     }
     case "openUrl":return {type,url:textString(a.url,"prototype URL"),...(!textBool(a.new_tab ?? a.newTab ?? a.openInNewTab ?? true,"new tab") && {new_tab:false})};
@@ -120,13 +129,16 @@ function action(raw:unknown,depth=0):PrototypeAction {
     default:return fail("unsupported prototype action "+String(type));
   }
 }
-export function readInteractions(raw:unknown) {
-  return list(raw,v=>{
-    const i=textRecord(v,"interaction"),delay=u32(i.delay_ms ?? i.delayMs ?? 0);
-    return {trigger:trigger(i.trigger ?? {type:"onClick"}),actions:list(i.actions,a=>action(a)),transition:transition(i.transition ?? {type:"instant"}),
-      easing:easing(i.easing ?? "easeOut"),duration_ms:u32(i.duration_ms ?? i.durationMs ?? 300),...(delay && {delay_ms:delay})};
-  });
+function interaction(v:unknown):PrototypeInteraction {
+  const i=textRecord(v,"interaction"),delay=u32(i.delay_ms ?? i.delayMs ?? 0);
+  return {trigger:trigger(i.trigger ?? {type:"onClick"}),actions:list(i.actions,a=>action(a)),transition:transition(i.transition ?? {type:"instant"}),
+    easing:easing(i.easing ?? "easeOut"),duration_ms:u32(i.duration_ms ?? i.durationMs ?? 300),...(delay && {delay_ms:delay})};
 }
+export function readInteractions(raw:unknown) {
+  return list(raw,interaction);
+}
+/** Single readers for command parameters (node IDs as lossless numbers, as in files). */
+export const readPrototype = Object.freeze({trigger,transition,easing,action:(raw:unknown)=>action(raw),actions:(raw:unknown)=>list(raw,a=>action(a)),interaction});
 function wireAction(a:PrototypeAction):unknown {
   if ("dest" in a) return {...a,dest:wireId(a.dest)};
   if (a.type==="conditional") return {...a,blocks:a.blocks.map(b=>({...b,actions:b.actions.map(wireAction)}))};
