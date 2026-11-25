@@ -4,10 +4,13 @@ import type { EditorEngine, EditorSnapshot } from "./engine/editor";
 import type { NodeId, PageNode } from "./engine/document";
 import { pageForNode } from "./engine/hierarchy";
 import { PrototypePlayer } from "./engine/prototype-player";
-import { hotspotAt, keyTarget, outsideTopOverlay, presentedScreen, type Screen } from "./engine/prototype-screen";
+import { frameScreen, hotspotAt, keyTarget, outsideTopOverlay, presentedScreen, type Screen } from "./engine/prototype-screen";
+import { smartInterpolate, transitionFrames } from "./engine/prototype-transitions";
+import { defaultPrototypeBackground } from "./engine/document";
+import { renderColour } from "./engine/colour";
 import type { Viewport } from "./engine/viewport";
 
-/** Source: upstream ui-egui/src/present.rs and present/{player,layout,input,draw}.rs: the full-window presenter and the preview pane, without transitions. */
+/** Source: upstream ui-egui/src/present.rs and present/{player,layout,input,draw}.rs: the full-window presenter and the preview pane. */
 interface Props { engine: EditorEngine; snapshot: EditorSnapshot; mode: "present" | "preview"; start: NodeId }
 
 const clickTriggers = new Set(["onClick", "mouseDown", "mouseUp", "onPress"]);
@@ -35,6 +38,8 @@ export function Presenter({ engine, snapshot, mode, start }: Props) {
       const s = presentedScreen(p);
       if (s) {
         let did = p.fireWaiting(s.root, now());
+        // A transition or a Scroll to playing draws every frame.
+        if (p.stepScrollAnimation(now()) || p.anim) did = true;
         const next = p.nextDelay(s.doc, s.root, now());
         if (next && next[1] <= 0) { p.delaysFired.add(next[0][0] + "/" + next[0][1]); did = p.fire(next[0][0], next[0][1], undefined, now()) || did; }
         if (did) redraw();
@@ -44,19 +49,67 @@ export function Presenter({ engine, snapshot, mode, start }: Props) {
     frame = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(frame);
   }, [p]);
-  // Draw the screen, scaled down to fit (never above 100%), centred: native Fit.
+  // Draw the screen, scaled down to fit (never above 100%), centred (native Fit). A transition composites the outgoing and incoming
+  // screens, each rendered off screen, moved and faded as native's `transition_frames` places them and clipped to the screen; smart
+  // animate draws the interpolated destination (native draw.rs).
+  const fromImage = useRef<{ key: object; canvas: HTMLCanvasElement } | null>(null);
+  const toImage = useRef<{ key: string; canvas: HTMLCanvasElement } | null>(null);
   useEffect(() => {
     const c = canvas.current;
     if (!c || !screen || !size.w || !size.h) return;
-    const dpr = globalThis.devicePixelRatio || 1;
-    c.width = Math.round(size.w * dpr); c.height = Math.round(size.h * dpr);
+    const dpr = globalThis.devicePixelRatio || 1, W = Math.round(size.w * dpr), H = Math.round(size.h * dpr);
+    if (c.width !== W) c.width = W;
+    if (c.height !== H) c.height = H;
     const ctx = c.getContext("2d")!;
-    const zoom = Math.min(1, size.w / Math.max(1, screen.frame.width), size.h / Math.max(1, screen.frame.height));
-    const v: Viewport = Object.freeze({ cx: screen.frame.x + screen.frame.width / 2, cy: screen.frame.y + screen.frame.height / 2, zoom, vw: size.w, vh: size.h });
+    const fit = (b: { x: number; y: number; width: number; height: number }): Viewport => Object.freeze({
+      cx: b.x + b.width / 2, cy: b.y + b.height / 2, zoom: Math.min(1, size.w / Math.max(1, b.width), size.h / Math.max(1, b.height)), vw: size.w, vh: size.h });
+    const v = fit(screen.frame);
     view.current = v;
+    const t = p.transitionProgress(now()), anim = t !== undefined ? p.anim : undefined;
+    const target = anim?.transition.type === "smartAnimate" ? smartInterpolate(anim.fromDoc, anim.fromFrame, screen.doc, p.current, t!) : screen.doc;
+    const offscreen = (doc: typeof target, view: Viewport, then: () => void) => {
+      const o = globalThis.document.createElement("canvas");
+      o.width = W; o.height = H;
+      const octx = o.getContext("2d")!;
+      const paint = () => { if (!live) return; octx.setTransform(dpr, 0, 0, dpr, 0, 0); void Promise.resolve(renderDocument(octx, doc, size.w, size.h, [], undefined, view, undefined, paint)).then(then); };
+      paint();
+      return o;
+    };
     let live = true;
-    const paint = () => { if (!live) return; ctx.setTransform(dpr, 0, 0, dpr, 0, 0); void renderDocument(ctx, screen.doc, size.w, size.h, [], undefined, v, undefined, paint); };
-    paint();
+    const page = screen.doc.nodes[screen.doc.currentPage] as PageNode;
+    const bg = renderColour(page.prototypeBackground ?? defaultPrototypeBackground);
+    const compose = () => {
+      if (!live) return;
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      if (!placement || !from) { ctx.clearRect(0, 0, W, H); ctx.drawImage(to, 0, 0); return; }
+      ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
+      const screenRect = { x: (size.w - screen.frame.width * v.zoom) / 2 * dpr, y: (size.h - screen.frame.height * v.zoom) / 2 * dpr, w: screen.frame.width * v.zoom * dpr, h: screen.frame.height * v.zoom * dpr };
+      const fs = from.frame, fz = Math.min(1, size.w / Math.max(1, fs.width), size.h / Math.max(1, fs.height));
+      const fromRect = { x: (size.w - fs.width * fz) / 2 * dpr, y: (size.h - fs.height * fz) / 2 * dpr, w: fs.width * fz * dpr, h: fs.height * fz * dpr };
+      ctx.save();
+      // Without a device a dissolve shows both frames whole; otherwise the screen clips.
+      if (anim!.transition.type !== "dissolve") { ctx.beginPath(); ctx.rect(screenRect.x, screenRect.y, screenRect.w, screenRect.h); ctx.clip(); }
+      // Each image's frame only (native draws the frames' textures, not the screen around them).
+      const drawFrom = () => { if (placement.fromAlpha > 0) { ctx.globalAlpha = placement.fromAlpha; ctx.drawImage(from!.canvas, fromRect.x, fromRect.y, fromRect.w, fromRect.h, fromRect.x + fromRect.w * placement.fromOff[0], fromRect.y + fromRect.h * placement.fromOff[1], fromRect.w, fromRect.h); } };
+      const drawTo = () => { ctx.globalAlpha = placement.toAlpha; ctx.drawImage(to, screenRect.x, screenRect.y, screenRect.w, screenRect.h, screenRect.x + screenRect.w * placement.toOff[0], screenRect.y + screenRect.h * placement.toOff[1], screenRect.w, screenRect.h); };
+      if (placement.fromOnTop) { drawTo(); drawFrom(); } else { drawFrom(); drawTo(); }
+      ctx.restore();
+    };
+    const placement = anim && anim.transition.type !== "smartAnimate" ? transitionFrames(anim.transition, t!) : undefined;
+    let from: { canvas: HTMLCanvasElement; frame: { width: number; height: number } } | undefined;
+    if (placement && anim) {
+      const fs = frameScreen(anim.fromDoc, anim.fromFrame);
+      if (fs) {
+        if (fromImage.current?.key !== anim) fromImage.current = { key: anim, canvas: offscreen(fs.doc, fit(fs.frame), compose) };
+        from = { canvas: fromImage.current.canvas, frame: fs.frame };
+      }
+    } else fromImage.current = null;
+    // The destination's image is kept while what shows is unchanged (smart animate draws a new one each frame).
+    const key = [p.rev, W, H, p.current, p.overlays.map(o => o.id + "@" + o.opened).join(",")].join("|");
+    const reuse = target === screen.doc && toImage.current?.key === key;
+    const to = reuse ? toImage.current!.canvas : offscreen(target, v, compose);
+    if (target === screen.doc && !reuse) toImage.current = { key, canvas: to };
+    if (reuse) compose();
     return () => { live = false; };
   });
   useEffect(() => {

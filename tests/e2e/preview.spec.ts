@@ -11331,3 +11331,36 @@ test("the presenter plays a flow: a click navigates, a key goes back, an overlay
   await pane.getByRole("button",{name:"Close preview",exact:true}).click();
   await expect(pane).toHaveCount(0);
 });
+
+test("the presenter plays a push transition: mid-way the outgoing frame and the incoming one each show on their side, clipped to the screen",async ({page})=>{
+  const engine=new EditorEngine();
+  const id=(v:unknown)=>String((v as {id:string}).id);
+  const home=id(engine.execute("frame.create",{name:"Home",x:0,y:0,width:200,height:300}));
+  const details=id(engine.execute("frame.create",{name:"Details",x:300,y:0,width:200,height:300}));
+  engine.execute("node.set",{id:Number(details),props:{fill:"#FF0000"}});
+  const go=id(engine.execute("shape.rectangle",{name:"Go",x:20,y:20,width:60,height:30,parent:home,props:{fill:"#00FF00"}}));
+  engine.execute("proto.interaction.add",{id:Number(go),dest:Number(details),transition:{type:"push",direction:"left"},durationMs:4000,easing:"linear"});
+  await login(page);
+  await page.getByLabel("Open Figcraft file",{exact:true}).setInputFiles({name:"push.figcraft",mimeType:"application/octet-stream",buffer:Buffer.from(await engine.nativeSnapshot())});
+  await page.getByRole("group",{name:"Properties",exact:true}).getByRole("button",{name:"Prototype",exact:true}).click();
+  await page.getByRole("region",{name:"Prototype",exact:true}).getByRole("button",{name:"Open prototype preview",exact:true}).click();
+  await page.getByRole("dialog",{name:"Prototype preview",exact:true}).getByRole("button",{name:"Present",exact:true}).click();
+  const presenter=page.getByRole("dialog",{name:"Prototype presentation",exact:true}),screen=presenter.getByLabel("Prototype screen",{exact:true});
+  await expect(presenter.getByLabel("Presented frame",{exact:true})).toHaveText("Home");
+  const pixel=(dx:number)=>screen.evaluate((c:HTMLCanvasElement,dx)=>{const r=c.width/c.clientWidth;return Array.from(c.getContext("2d")!.getImageData(Math.round((c.clientWidth/2+dx)*r),Math.round((c.clientHeight/2)*r),1,1).data);},dx);
+  await expect.poll(()=>pixel(50)).toEqual([255,255,255,255]);
+  // Right after the switch from the preview pane the presenter may still be laying out: click until it takes the click.
+  await expect(async()=>{
+    const b=(await screen.boundingBox())!;
+    await page.mouse.click(b.x+b.width/2-50,b.y+b.height/2-115);
+    await expect(presenter.getByLabel("Presented frame",{exact:true})).toHaveText("Details",{timeout:500});
+  }).toPass({timeout:5000});
+  await page.waitForTimeout(1500);
+  // About a third of the way: Home (white) slides out on the left, Details (red) comes in on the right.
+  expect(await pixel(-50)).toEqual([255,255,255,255]);
+  expect(await pixel(80)).toEqual([255,0,0,255]);
+  // Outside the screen the background stays (the frames are clipped to it).
+  expect(await pixel(150)).toEqual([30,30,30,255]);
+  // Then Details fills the screen.
+  await expect.poll(()=>pixel(-50),{timeout:6000}).toEqual([255,0,0,255]);
+});

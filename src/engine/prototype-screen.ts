@@ -84,3 +84,13 @@ export function keyTarget(screen: Screen, key: string, mods: KeyMods): { node: N
   }
   return undefined;
 }
+
+/** A document whose current page holds only `frame` of `doc` on the page's prototype background: the outgoing frame of a transition. */
+export function frameScreen(doc: Document, frame: NodeId): { doc: Document; frame: Box } | undefined {
+  const box = doc.nodes[frame] ? rectOf(doc, frame) : undefined, pageId = box ? pageForNode(doc, frame) : undefined;
+  if (!box || pageId === undefined) return undefined;
+  const page = doc.nodes[pageId] as PageNode;
+  const background = page.prototypeBackground ?? defaultPrototypeBackground;
+  const nodes = { ...doc.nodes, [pageId]: Object.freeze(withPageColour({ ...page, children: Object.freeze([frame]) }, background)) };
+  return { doc: Object.freeze({ ...doc, currentPage: pageId, nodes: Object.freeze(nodes) }), frame: box };
+}

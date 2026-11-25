@@ -3,7 +3,7 @@ import { type Document, type InstanceNode, type NodeId } from "./document";
 import { HierarchyDraft, subtreeIds } from "./hierarchy";
 import { rebuildInstance } from "./component-sync";
 import type { PrototypeAction, PrototypeEasing, PrototypeTransition, overlayPositions } from "./prototype-data";
-import { easingSeconds, reversedTransition, usesGamepad } from "./prototype-model";
+import { easingSeconds, evalEasing, reversedTransition, usesGamepad } from "./prototype-model";
 import { branch, changeToTarget, navigateTarget, playInteractions, rememberSections, setModeById, setVariable } from "./prototype-runtime";
 import { applyScroll, clampScroll, fitViewport, raiseFixed, scrollRangeIn, scrollToLayer, viewport } from "./prototype-scroll";
 import type { PresentOptions } from "./prototype-commands";
@@ -110,6 +110,24 @@ export class PrototypePlayer {
     if (vp) d = fitViewport(d, this.current, vp);
     this.#display = [this.rev, d];
     return d;
+  }
+  /** Native `player`'s Scroll to animation: each moving frame's offset at the eased progress; true while it moves. */
+  stepScrollAnimation(now: number): boolean {
+    const sa = this.scrollAnim;
+    if (!sa) return false;
+    const raw = Math.min(Math.max((now - sa.start) / Math.max(sa.dur, 1e-3), 0), 1), e = evalEasing(sa.easing, raw);
+    for (const [f, from, to] of sa.frames) this.scroll.set(f, [from[0] + (to[0] - from[0]) * e, from[1] + (to[1] - from[1]) * e]);
+    this.rev++;
+    if (raw >= 1) this.scrollAnim = undefined;
+    return true;
+  }
+  /** The eased progress of the transition playing (undefined when none plays or it has ended, which clears it). */
+  transitionProgress(now: number): number | undefined {
+    const a = this.anim;
+    if (!a) return undefined;
+    const raw = (now - a.start) / Math.max(a.dur, 1e-3);
+    if (raw >= 1) { this.anim = undefined; return undefined; }
+    return evalEasing(a.easing, Math.max(raw, 0));
   }
   /** Native `scroll_to`: scroll the presented frame, clamped to its range. */
   scrollTo(x: number, y: number) {
