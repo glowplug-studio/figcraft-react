@@ -2,11 +2,11 @@
 
 ## Execution checkpoint
 
-- Phase: implemented; the gate is running.
+- Phase: complete through Phase 7 on 25 November 2026 at `34c9421`: [report](../reports/26-11-25-presenter-chrome.md), [matrix](../reports/26-11-25-presenter-chrome-parity.html).
 - Native reference: `bad07e4433240cad046589129c084bd2fc36f097` (`bad07e44`). React starting revision: `c074057` on `prompt/full-figcraft-port`.
 - Row plan: [roadmap row 15](26-11-24-roadmap-row-15-prototyping.md). The row plan splits the presenter's chrome: Inspect, comments and controllers are item 10f.
 - Files changed: `src/engine/prototype-links.ts` (new: `LinkNotice`, `goesToWebsite`, `finishLinks`); `src/engine/prototype-player.ts` (`linkNotice`); `src/engine/prototype-input.ts` (no input while a notice shows, `finish`, `answerNotice`); `src/Presenter.tsx` (the top bar with the flow picker and options menu, Hide UI, the navigation bar with device and size pickers, the link notice, options carried over); tests `tests/parity/prototype-links.test.ts` and one case in `tests/e2e/preview.spec.ts`.
-- Next action: record the item.
+- Next action: none; the item is recorded. Item 10f follows in the row plan.
 - Blockers: none.
 
 ## Native contract (`ui-egui/src/present/{chrome,player}.rs`)

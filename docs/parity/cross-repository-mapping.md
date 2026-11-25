@@ -896,3 +896,15 @@ Native `crates/ui-egui/src/present/input.rs` (pointer, hover, drag and follow, k
 ## Roadmap row 15: presenter scrolling and the screen — 25 November 2026
 
 Native `crates/ui-egui/src/present/layout.rs` (`Place`, `bezel`, `body_outset`, `layout`), `present.rs::PresentScale`, `present/scroll.rs` (`fling_axis`, `rubber_band`, `scrollers_at`, `units_per_point`), the wheel, drag scrolling and Z of `present/input.rs`, `present/navigate.rs::respond_to`, `crates/engine/src/cmd/proto.rs::respond` and `present/device.rs` at `bad07e44` map to `prototype-layout.ts`, `prototype-scroll.ts`, `prototype-player.ts`, `prototype-input.ts`, `presenter-device.ts` and `Presenter.tsx` at `c074057`. Verified by restated native tests in `tests/parity/prototype-presenter-view.test.ts` and a browser case in `tests/e2e/preview.spec.ts`. [Report](../reports/26-11-25-presenter-screen.md).
+
+## Roadmap row 15: the presenter's chrome — 25 November 2026
+
+Native `crates/ui-egui/src/present/chrome.rs` (`show`, `navigation_bar`, `choose_device`, `finish`, `open_link`, `goes_to_a_website`, `link_notice`) and `present/player.rs` (`top_bar`, `options_menu`) at `bad07e44` map to `Presenter.tsx`, `prototype-links.ts` and `prototype-input.ts` (`finish`, `answerNotice`) at `34c9421`. Verified by restated native tests in `tests/parity/prototype-links.test.ts` and a browser case in `tests/e2e/preview.spec.ts`. [Report](../reports/26-11-25-presenter-chrome.md).
+
+## Roadmap row 15: inspecting, comments and controllers in the presenter — 25 November 2026
+
+Native `crates/ui-egui/src/present/chrome.rs` (`poll_pads`, `layer_at`, `inspect_panel`), `present/input.rs::fire_pads`, `present/player.rs` (`inspect_hover`, the bar's thumbnail) and `canvas/comments.rs::presenter` at `bad07e44` map to `prototype-input.ts` (`pads`), `prototype-screen.ts` (`layerAt`), `comment-query.ts` and `Presenter.tsx` at `792e207`. Verified by restated native tests in `tests/parity/prototype-gestures.test.ts`, `tests/unit/comment-frame.test.ts` and a browser case in `tests/e2e/preview.spec.ts`. The Inspect panel's property sections wait for roadmap row 17. [Report](../reports/26-11-25-presenter-extras.md).
+
+## Roadmap row 16: the board data model — 25 November 2026
+
+Native `crates/doc/src/board.rs` (`FileKind`, `BoardItem`, `BoardShape`, `Stamp`, `Routing`, `Side`, `End`, `ConnectorPath`, `Connector`, `BOARD_COLORS`, `BOARD_PAGE`, `remap`), `facilitation.rs` (`BoardTimer`, `Vote`, `VoteScope`, `Ballots`, `VoteRecord`), the `kind`, `timer`, `vote`, `votes` and `vote_history` of `lib.rs`, `node.rs`'s `board` and `crates/engine/src/cmd/file.rs::new_file` at `bad07e44` map to `board-data.ts`, `document.ts`, `file-format.ts`, `editor.ts`, `workspace.ts` and `WorkspaceEditor.tsx`. Verified against a native observation in `tests/parity/board-document.test.ts` and a browser case in `tests/e2e/preview.spec.ts`. [Report](../reports/26-11-25-board-data.md).

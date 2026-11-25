@@ -2,11 +2,11 @@
 
 ## Execution checkpoint
 
-- Phase: implemented; the gate is running.
+- Phase: complete through Phase 7 on 25 November 2026 at `792e207`: [report](../reports/26-11-25-presenter-extras.md), [matrix](../reports/26-11-25-presenter-extras-parity.html).
 - Native reference: `bad07e4433240cad046589129c084bd2fc36f097` (`bad07e44`). React starting revision: `34c9421` on `prompt/full-figcraft-port`.
 - Row plan: [roadmap row 15](26-11-24-roadmap-row-15-prototyping.md).
 - Files changed: `src/engine/prototype-input.ts` (`pads`, `padsHeld`); `src/engine/prototype-screen.ts` (`layerAt`); `src/engine/prototype-player.ts` (`inspected`); `src/engine/comment-query.ts` (a comment's frame no longer skips frames whose visibility is unset); `src/Presenter.tsx` (Inspect and Comments buttons, C and Shift+C, the Inspect outline and panel, comment pins and their thread with replies, controller polling, the bar's thumbnail of the frame); tests `tests/parity/prototype-gestures.test.ts` (two controller cases), `tests/unit/comment-frame.test.ts` and one case in `tests/e2e/preview.spec.ts`.
-- Next action: record the item.
+- Next action: none; the item is recorded. Row 15 is complete; roadmap row 16 follows.
 - Blockers: none.
 
 ## Native contract (`ui-egui/src/present/{chrome,player,input}.rs`, `canvas/comments.rs::presenter`)

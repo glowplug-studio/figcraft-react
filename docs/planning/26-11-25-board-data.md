@@ -2,11 +2,11 @@
 
 ## Execution checkpoint
 
-- Phase: implemented; the gate is running.
+- Phase: complete through Phase 7 on 25 November 2026 at `1bd2c6d`: [report](../reports/26-11-25-board-data.md), [matrix](../reports/26-11-25-board-data-parity.html), [provenance](../../tests/fixtures/native-board-document.provenance.md).
 - Native reference: `bad07e4433240cad046589129c084bd2fc36f097` (`bad07e44`). React starting revision: `792e207` on `prompt/full-figcraft-port`.
 - Row plan: [roadmap row 16](26-11-25-roadmap-row-16-boards.md).
 - Files changed: `src/engine/board-data.ts` (new: board items, shapes, stamps, connectors and their ends and paths, the board colours and page, the timer, votes, ballots and kept results, read and written as native's serde does; `remapBoardItem`); `src/engine/document.ts` (`Document` `kind`, `timer`, `vote`, `votes`, `voteHistory`; `LayerProperties.board`; `newDocument` for a board); `src/engine/file-format.ts` (reads and writes them; a native board no longer fails to open); `src/engine/editor.ts`, `src/engine/workspace.ts` (`file.newBoard`); `src/WorkspaceEditor.tsx` (New board); tests `tests/parity/board-document.test.ts`, fixture `tests/fixtures/native-board-document.json` with provenance, and one case in `tests/e2e/preview.spec.ts`.
-- Next action: record the item.
+- Next action: none; the item is recorded. Item 2 follows in the row plan.
 - Blockers: none.
 
 ## Native contract (`doc/src/board.rs`, `facilitation.rs`, `lib.rs`, `node.rs`; `engine/src/cmd/file.rs`)
