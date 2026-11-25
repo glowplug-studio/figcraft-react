@@ -11652,3 +11652,22 @@ test("a connector follows the shapes it joins when one is moved",async ({page})=
   await expectCanvasPixel(page,200,150,[0x3a,0x39,0x36,255]);
   await expectCanvasPixel(page,200,50,[0xf4,0xf3,0xf0,255]);
 });
+
+test("a reshaped connector and a joined shape draw where native puts them",async ({page})=>{
+  const engine=EditorEngine.newTab(undefined,{},"board");
+  const a=(await engine.executeAsync("board.shape",{x:0,y:0,width:100,height:100}) as {id:number}).id;
+  const b=(await engine.executeAsync("board.shape",{x:300,y:200,width:100,height:100}) as {id:number}).id;
+  const k=(await engine.executeAsync("board.connector",{from:a,to:b,style:"elbow",endCap:"none"}) as {id:number}).id;
+  await engine.executeAsync("board.reshape",{id:k,portion:1,x:250,y:170});
+  const next=await engine.executeAsync("board.addConnected",{id:a,side:"below"}) as {id:number;connector:number};
+  await engine.executeAsync("select.set",{ids:[]});
+  await login(page);
+  await page.getByLabel("Open Figcraft file",{exact:true}).setInputFiles({name:"reshape.figcraft",mimeType:"application/octet-stream",buffer:Buffer.from(await engine.nativeSnapshot())});
+  await expect(page.getByRole("region",{name:"Layers",exact:true}).getByRole("button",{name:"Connector",exact:true})).toHaveCount(2);
+  // The middle run moved to x 250; the joined shape below, 80 under the first, with its connector between.
+  await expectCanvasPixel(page,250,150,[0x3a,0x39,0x36,255]);
+  await expectCanvasPixel(page,200,150,[0xf4,0xf3,0xf0,255]);
+  await expectCanvasPixel(page,50,190,[0xff,0xe7,0x8a,255]);
+  await expectCanvasPixel(page,50,140,[0x3a,0x39,0x36,255]);
+  expect(next.connector).toBeGreaterThan(next.id);
+});

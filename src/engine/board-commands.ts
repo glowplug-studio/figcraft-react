@@ -17,7 +17,7 @@ import { networkFromPoints } from "./vector-network";
 import { pathBounds } from "./vector-path";
 import type { PathCommand } from "./corners";
 import type { Connector, End, Side } from "./board-data";
-import { routeAlong, type Pt, type RouteEnd } from "./board-route";
+import { attachedSides, reshaped, routeAlong, type Pt, type RouteEnd } from "./board-route";
 
 /** Source: upstream engine/src/boards/board.rs and board/{items,edit}.rs: stickies and shapes with text, their colours and styles. */
 export const boardSpecs = Object.freeze({
@@ -29,6 +29,8 @@ export const boardSpecs = Object.freeze({
   "board.connector": { label: "Connector", undo: true },
   "board.reattach": { label: "Reattach connector", undo: true },
   "board.label": { label: "Connector label", undo: true },
+  "board.reshape": { label: "Reshape connector", undo: true },
+  "board.addConnected": { label: "Add connected shape", undo: true },
 });
 export type BoardCommand = keyof typeof boardSpecs;
 const takes: Record<BoardCommand, readonly string[]> = {
@@ -40,6 +42,8 @@ const takes: Record<BoardCommand, readonly string[]> = {
   "board.connector": ["from", "to", "fromSide", "toSide", "fromAt", "toAt", "style", "startCap", "endCap", "label"],
   "board.reattach": ["id", "ids", "end", "target", "side", "at"],
   "board.label": ["id", "ids", "text"],
+  "board.reshape": ["id", "ids", "portion", "x", "y"],
+  "board.addConnected": ["id", "side", "at", "edit"],
 };
 
 /** Native `NEEDS_BOARD` and `NOT_ON_BOARDS`. */
@@ -345,6 +349,22 @@ function connectorOf(command: string, doc: Document, id: NodeId): [NodeId, Conne
   throw bad(command, "that isn't a connector");
 }
 
+/** Native `CONNECTED_GAP`: the room between an object and the next one `board.addConnected` makes. */
+export const connectedGap = 80;
+/** Native `connected_place`: where the next object goes on `side` of one (its top-left) and the sides the connector joins. */
+export function connectedPlace([x, y]: readonly [number, number], [w, h]: readonly [number, number], [nw, nh]: readonly [number, number], side: string): [[number, number], Side, Side] | undefined {
+  const cx = x + (w - nw) / 2, cy = y + (h - nh) / 2;
+  switch (side) {
+    case "right": return [[x + w + connectedGap, cy], "right", "left"];
+    case "left": return [[x - connectedGap - nw, cy], "left", "right"];
+    case "below": return [[cx, y + h + connectedGap], "bottom", "top"];
+    case "above": return [[cx, y - connectedGap - nh], "top", "bottom"];
+  }
+  return undefined;
+}
+/** Native `pinned`: an end with the side it leaves by named (a reshaped path holds only as long as its ends do). */
+const pinned = (end: End, side: Side | undefined): End => "node" in end && side ? { ...end, side } : end;
+
 export interface BoardResult { readonly document: Document; readonly selection: readonly NodeId[]; readonly nextId: bigint; readonly result: Record<string, unknown>; readonly tool?: BoardTool }
 /** Native `board.*` (this item's commands): `author` is the viewer's name (empty when unknown), `tool` the board tools' choices. */
 export function executeBoard(command: BoardCommand, doc: Document, selection: readonly NodeId[], nextId: bigint, p: Record<string, unknown>, author: string, tool: BoardTool): BoardResult {
@@ -388,7 +408,8 @@ export function executeBoard(command: BoardCommand, doc: Document, selection: re
       if (from === undefined) throw disabled(command, "select a sticky or a shape first");
       const n = doc.nodes[from] as DocumentNode & { board?: BoardItem; width: number; height: number; x: number; y: number };
       if (!n) throw new Error("no such node " + from);
-      if (n.board?.type === "shape") throw disabled(command, "the next shape joined to this one comes with connectors");
+      // A shape gets the next one joined to it, as the "+" beside it makes (#1597).
+      if (n.board?.type === "shape") return executeBoard("board.addConnected", doc, selection, nextId, p, author, tool);
       if (n.board?.type !== "sticky") throw bad(command, "that isn't a sticky or a shape");
       const fill = solidOf(n) ?? tool.sticky;
       const side = p.side === undefined || p.side === null ? "right" : String(p.side);
@@ -511,6 +532,52 @@ export function executeBoard(command: BoardCommand, doc: Document, selection: re
       ctx.draft.set({ ...ctx.draft.nodes[id], board: { type: "connector", ...next } } as DocumentNode);
       placeRoute(ctx.draft, id, pts, next.routing);
       return done(selection, { id: Number(id) });
+    }
+    case "board.reshape": {
+      const target = (p.id !== undefined && p.id !== null ? [parseNodeId(p.id) ?? ""] : targets(command, p, selection))[0];
+      if (target === undefined) throw bad(command, "select a connector");
+      const [id, c] = connectorOf(command, doc, target);
+      const num = (k: string) => { const v = p[k]; if (typeof v !== "number" || !Number.isFinite(v)) throw bad(command, "`" + k + "` is required"); return v; };
+      const portion = num("portion"), x = num("x"), y = num("y");
+      const refused = () => bad(command, "that connector has no such portion to move there");
+      if (!(portion >= 0 && Number.isInteger(portion) && portion < 1e6)) throw refused();
+      const ends = routeEnds(doc, c);
+      const path = ends && reshaped(ends[0], ends[1], c.routing, c.path, portion, { x, y });
+      if (!ends || !path) throw refused();
+      const [s0, s1] = attachedSides(ends[0], ends[1]);
+      const next: Connector = { from: pinned(c.from, s0), to: pinned(c.to, s1), routing: c.routing, path, ...(c.branch && { branch: true }) };
+      const pts = route(doc, next);
+      if (!pts) throw refused();
+      ctx.draft.set({ ...ctx.draft.nodes[id], board: { type: "connector", ...next } } as DocumentNode);
+      placeRoute(ctx.draft, id, pts, next.routing);
+      return done(selection, { id: Number(id) });
+    }
+    case "board.addConnected": {
+      const from = p.id !== undefined && p.id !== null ? parseNodeId(p.id) : selection[0] !== undefined ? ownerOfText(doc, selection[0]) ?? selection[0] : undefined;
+      if (from === undefined) throw disabled(command, "select a sticky or a shape first");
+      const n = doc.nodes[from] as Layer | undefined;
+      if (!n) throw new Error("no such node " + from);
+      const shape = n.board?.type === "shape" ? n.board.shape : undefined;
+      if (n.board?.type !== "sticky" && !shape) throw bad(command, "that isn't a sticky or a shape");
+      const side = p.side === undefined || p.side === null ? "right" : String(p.side);
+      const parent = n.parent!;
+      const next: [number, number] = shape ? [n.width, n.height] : [sticky, sticky];
+      const fill = (shape ? (n.children?.[0] !== undefined ? solidOf(doc.nodes[n.children[0]]) : undefined) : solidOf(n)) ?? tool.sticky;
+      const placed = connectedPlace([n.x, n.y], [n.width, n.height], next, side);
+      if (!placed) throw bad(command, "`side` is right, below, left or above, not `" + side + "`");
+      let [at, fromSide, toSide] = placed;
+      // Dropped somewhere by hand: the next one is centred on that point of the page; the connector arrives by the side facing it.
+      if (p.at !== undefined && p.at !== null) {
+        const a = p.at;
+        if (!Array.isArray(a) || a.length !== 2 || !a.every(v => typeof v === "number" && Number.isFinite(v))) throw bad(command, "`at` is [x, y] on the page, two finite numbers");
+        const pw = doc.nodes[parent]?.kind === "page" ? [1, 0, 0, 1, 0, 0] as Affine : worldTransform(doc, parent);
+        const local = transformPoint(inverse(pw), { x: a[0], y: a[1] });
+        if (!Number.isFinite(local.x) || !Number.isFinite(local.y)) throw bad(command, "`at` can't be placed in that parent");
+        at = [local.x - next[0] / 2, local.y - next[1] / 2]; toSide = "auto";
+      }
+      const [id, text] = shape ? makeShape(ctx, parent, at, next, shape, "", fill) : makeSticky(ctx, parent, at, "", fill, author, tool.stickySize);
+      const connector = makeConnector(ctx, doc.currentPage, { from: { node: from, side: fromSide }, to: { node: id, side: toSide }, routing: tool.routing }, defaultCaps);
+      return done([id], { id: Number(id), text: Number(text), connector: Number(connector) });
     }
     case "board.label": {
       const target = (p.id !== undefined && p.id !== null ? [parseNodeId(p.id) ?? ""] : targets(command, p, selection))[0];
