@@ -888,3 +888,7 @@ Native `crates/ui-egui/src/present.rs`, `present/{player,layout,input,draw}.rs`,
 ## Roadmap row 15: presenter transitions — 25 November 2026
 
 Native `crates/ui-egui/src/present/transition.rs` (`name_path`, `match_layers`, `lerp_transform`, `smart_interpolate`, `transition_frames`), `present/draw.rs` and the Scroll to animation of `present/player.rs` at `bad07e44` map to `prototype-transitions.ts`, `Presenter.tsx` and `prototype-player.ts` (`stepScrollAnimation`, `transitionProgress`) at `130a371`. Verified by restated native tests in `tests/parity/prototype-transitions.test.ts` and a browser case in `tests/e2e/preview.spec.ts`. [Report](../reports/26-11-25-presenter-transitions.md).
+
+## Roadmap row 15: presenter gestures and overlays in motion — 25 November 2026
+
+Native `crates/ui-egui/src/present/input.rs` (pointer, hover, drag and follow, keys, timers) and the overlays in motion and hotspot hints of `present/draw.rs` at `bad07e44` map to `prototype-input.ts` (`PresenterInput`), `prototype-screen.ts` (`overlayLayers`), `prototype-player.ts` (`pruneClosing`) and `Presenter.tsx` at `f1db0d3`. Verified by restated native tests in `tests/parity/prototype-gestures.test.ts`, unit tests in `tests/unit/prototype-input.test.ts` and a browser case in `tests/e2e/preview.spec.ts`. [Report](../reports/26-11-25-presenter-gestures.md).
