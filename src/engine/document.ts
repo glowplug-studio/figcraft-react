@@ -78,6 +78,8 @@ export interface Constraints {
 }
 export const defaultConstraints: Constraints = Object.freeze({ horizontal: "left", vertical: "top" });
 export interface LayerProperties extends NativeLayerRecords, MaskProperties, ComponentLinks, LayerStyles, LayerVariableModes {
+  /** On a board: what this object is for (native `Node::board`). */
+  readonly board?: import("./board-data").BoardItem;
   readonly interactions?: readonly PrototypeInteraction[];
   /** Native `overflow`: the axes a frame's content scrolls in a prototype (absent: none). */
   readonly overflow?: "horizontal" | "vertical" | "both";
@@ -192,6 +194,13 @@ export const isDrawTool = (kind: unknown): kind is DrawShapeKind => isLeafKind(k
 export const isLeaf = (node: DocumentNode): node is LeafNode => isLeafKind(node.kind);
 export const layerBlend = (node: LayerNode): BlendMode => node.blend ?? (isLeaf(node) ? "normal" : "passThrough");
 export interface Document {
+  /** Native `FileKind`: a board (unset: a design file). */
+  readonly kind?: "board";
+  /** A board's countdown, its running or ended vote, the vote's ballots, and ended votes' results (native `facilitation`). */
+  readonly timer?: import("./board-data").BoardTimer;
+  readonly vote?: import("./board-data").Vote;
+  readonly votes?: import("./board-data").Ballots;
+  readonly voteHistory?: readonly import("./board-data").VoteRecord[];
   readonly comments?:readonly import("./comments").CommentThread[];
   readonly libraryStore?: import("./library-store").LibraryStore;
   readonly libraryRecords?: import("./published-library").ImportedRecords;
@@ -210,11 +219,13 @@ export interface Document {
 }
 // Current page is navigation state. It is persisted, but does not dirty document content.
 export function sameContent(a: Document, b: Document | null): boolean {
-  return b !== null && a.comments===b.comments && a.libraryStore === b.libraryStore && a.libraryRecords === b.libraryRecords && a.libraryLinks === b.libraryLinks && a.published === b.published && a.name === b.name && a.pages === b.pages && a.styles === b.styles && a.variables === b.variables && a.nodes === b.nodes && (a.colourProfile ?? "srgb") === (b.colourProfile ?? "srgb") && a.documentColours === b.documentColours && a.images === b.images && a.imagePresets === b.imagePresets;
+  return b !== null && a.comments===b.comments && a.libraryStore === b.libraryStore && a.libraryRecords === b.libraryRecords && a.libraryLinks === b.libraryLinks && a.published === b.published && a.name === b.name && a.pages === b.pages && a.styles === b.styles && a.variables === b.variables && a.nodes === b.nodes && (a.colourProfile ?? "srgb") === (b.colourProfile ?? "srgb") && a.documentColours === b.documentColours && a.images === b.images && a.imagePresets === b.imagePresets
+    && a.kind === b.kind && a.timer === b.timer && a.vote === b.vote && a.votes === b.votes && a.voteHistory === b.voteHistory;
 }
-export function newDocument(name = "Untitled"): Document {
-  const page: PageNode = Object.freeze({ id: "1", kind: "page", name: "Page 1", parent: null, children: Object.freeze([]), background: "#f5f5f5" });
-  return Object.freeze({ name, pages: Object.freeze([page.id]), currentPage: page.id, nodes: Object.freeze({ [page.id]: page }) });
+/** Native `Document::new` (with `new_file`: a board starts on the light board page, whatever the theme). */
+export function newDocument(name?: string, kind: "design" | "board" = "design"): Document {
+  const page: PageNode = Object.freeze({ id: "1", kind: "page", name: "Page 1", parent: null, children: Object.freeze([]), background: kind === "board" ? "#f4f3f0" : "#f5f5f5" });
+  return Object.freeze({ name: name ?? (kind === "board" ? "Untitled board" : "Untitled"), ...(kind === "board" && { kind: "board" as const }), pages: Object.freeze([page.id]), currentPage: page.id, nodes: Object.freeze({ [page.id]: page }) });
 }
 export function pageOf(document: Document): PageNode {
   const page = document.nodes[document.currentPage];

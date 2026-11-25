@@ -763,12 +763,12 @@ export class EditorEngine {
   #saveSequence = 0;
   #pendingSaves = new Map<number, { document: Document; comparison:Document; branches: readonly FileBranch[]; versions: readonly FileVersion[] }>();
   #openSequence = 0;
-  constructor(name?: string) {
-    this.#snapshot = Object.freeze({ document: newDocument(name), selection: Object.freeze([]), tool: "move", builderMode: "merge", scaleAnchor: "c", canUndo: false, canRedo: false, editable: true, dirty: true, hasSaved: false });
+  constructor(name?: string, kind: "design" | "board" = "design") {
+    this.#snapshot = Object.freeze({ document: newDocument(name, kind), selection: Object.freeze([]), tool: "move", builderMode: "merge", scaleAnchor: "c", canUndo: false, canRedo: false, editable: true, dirty: true, hasSaved: false });
     this.#comparisonSaved = this.#snapshot.document;
   }
-  static newTab(name?: string, clipboard: EditorClipboard = {}): EditorEngine {
-    const engine = new EditorEngine(name);
+  static newTab(name?: string, clipboard: EditorClipboard = {}, kind: "design" | "board" = "design"): EditorEngine {
+    const engine = new EditorEngine(name, kind);
     engine.#clipboard = clipboard;
     engine.#saved = engine.#snapshot.document;
     engine.#publish({});

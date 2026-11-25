@@ -30,6 +30,7 @@ import type { Colour } from "./colour";
 import { readPaints } from "./solid-paint";
 import { isDefaultStroke, readStroke, wireStroke } from "./stroke";
 import { transformBounds, type Affine } from "./affine";
+import { readBallots, readBoardItem, readTimer, readVote, readVoteHistory, wireBoardDocument, wireBoardItem } from "./board-data";
 
 /** A deliberately bounded adapter for native format v1, not full archive parity.
  * Source: original/figcraft/crates/{format/src/lib.rs,doc/src/{lib,node,props}.rs}.
@@ -111,8 +112,7 @@ function fields(value: ObjectValue, supported: string[], defaults: ObjectValue, 
 const documentDefaults = {
   kind: "design",
   libraries: { enabled: [], store: null, components: [], styles: [], collections: [], variables: [], detached: [], inserted: [] },
-  annotation_categories: null, dev_snapshots: {}, timer: null,
-  vote: null, votes: {}, vote_history: [],
+  annotation_categories: null, dev_snapshots: {},
 };
 const nodeDefaults = {
   visible: true, locked: false, opacity: 1, strokes: [], effects: [],
@@ -123,7 +123,7 @@ const nodeDefaults = {
   overflow: "none", scroll_position: "scrolls",
   bound: {}, var_modes: {}, bool_op: null, constrain_proportions: false, source: null, exposed: false,
   dev_status: "none", dev_changed: false, dev_note: "", overrides: [], prop_refs: {}, plugin_data: {},
-  annotations: [], code_links: [], dev_resources: [], measurements: [], board: null,
+  annotations: [], code_links: [], dev_resources: [], measurements: [],
 };
 
 /** Native `Overflow` and `ScrollPosition`, kept only when not the default. */
@@ -148,7 +148,7 @@ export function readNode(key: string, value: unknown): DocumentNode {
   if (!isDocumentNodeKind(kind)) fail(`node type ${String(kind)} is not supported yet`);
   const componentFields = kind === "component" ? ["description", "props", "prop_order"]
     : kind === "componentSet" ? ["description"] : kind === "instance" ? ["component", "props"] : [];
-  fields(n, [...componentFields, "guides", "interactions", "plugin_data", "bound", "var_modes", "styles", "grids", "exports", "overrides", "source", "prop_refs", "exposed", "id", "name", "type", "parent", "children", "transform", "width", "height", "fills", "blend", "effects", "is_mask", "mask_type", ...(kind === "page" ? ["background", "flows", "prototype", "strokes", "stroke", "opacity"] : ["clip", "bool_op", "child_layout", "overflow", "scroll_position", ...(kind === "section" ? ["contents_hidden"] : kind === "booleanOp" ? ["op"] : kind === "ellipse" ? ["start", "sweep", "inner"] : kind === "star" ? ["count", "inner_ratio"] : kind === "polygon" ? ["count"] : kind === "vector" ? ["network"] : kind === "text" ? textFields : []), "stroke", "strokes", "visible", "locked", "opacity", "corners", "constraints", "constrain_proportions", ...(isFrameLikeKind(kind) ? ["layout"] : [])])], nodeDefaults, `node ${key}`);
+  fields(n, [...componentFields, "guides", "interactions", "plugin_data", "bound", "var_modes", "styles", "grids", "exports", "overrides", "source", "prop_refs", "exposed", "board", "id", "name", "type", "parent", "children", "transform", "width", "height", "fills", "blend", "effects", "is_mask", "mask_type", ...(kind === "page" ? ["background", "flows", "prototype", "strokes", "stroke", "opacity"] : ["clip", "bool_op", "child_layout", "overflow", "scroll_position", ...(kind === "section" ? ["contents_hidden"] : kind === "booleanOp" ? ["op"] : kind === "ellipse" ? ["start", "sweep", "inner"] : kind === "star" ? ["count", "inner_ratio"] : kind === "polygon" ? ["count"] : kind === "vector" ? ["network"] : kind === "text" ? textFields : []), "stroke", "strokes", "visible", "locked", "opacity", "corners", "constraints", "constrain_proportions", ...(isFrameLikeKind(kind) ? ["layout"] : [])])], nodeDefaults, `node ${key}`);
   const modes=n.var_modes===undefined ? [] : Object.entries(object(n.var_modes,"layer variable modes"));
   const variableModes=modes.length ? Object.freeze(Object.fromEntries(modes.map(([k,v])=>[k,text(v,"variable mode ID")]))) : undefined;
   const bindings=Object.entries(n.bound===undefined ? {} : object(n.bound,"layer variable bindings"));
@@ -167,7 +167,10 @@ export function readNode(key: string, value: unknown): DocumentNode {
   const thumbnailFlag = metadata["figcraft.thumbnail"];
   const exports = n.exports === undefined ? undefined : nativeExportSettings(n.exports);
   const interactions = n.interactions===undefined ? [] : readInteractions(n.interactions);
-  const links = { ...(guides.length && {guides: Object.freeze(guides)}), ...(sourceMetadata && {sourceMetadata}), ...(interactions.length && {interactions}), ...(exports?.length && { exports }), ...(thumbnailFlag !== undefined && { thumbnailFlag: text(thumbnailFlag, "thumbnail flag") }), ...(boundVariables && {boundVariables}), ...(variableModes && {variableModes}), ...readComponentLinks(n), ...readLayerStyles(n) };
+  // Native `Node::board`: what a board object is for (pages carry none).
+  const board = readBoardItem(n.board, `node ${key} board`);
+  if (board && kind === "page") fail("a page cannot be a board object");
+  const links = { ...(board && { board }), ...(guides.length && {guides: Object.freeze(guides)}), ...(sourceMetadata && {sourceMetadata}), ...(interactions.length && {interactions}), ...(exports?.length && { exports }), ...(thumbnailFlag !== undefined && { thumbnailFlag: text(thumbnailFlag, "thumbnail flag") }), ...(boundVariables && {boundVariables}), ...(variableModes && {variableModes}), ...readComponentLinks(n), ...readLayerStyles(n) };
   if (n.is_mask !== undefined && typeof n.is_mask !== "boolean") fail("is_mask must be boolean");
   if (n.mask_type !== undefined && !isMaskType(n.mask_type)) fail("mask_type must be alpha, vector or luminance");
   const effects = n.effects === undefined ? undefined : nativeEffects(n.effects);
@@ -303,7 +306,12 @@ export function readDocumentMetadata(root: ObjectValue) {
   });
   const variables = root.variables === undefined ? emptyVariables : readVariables(root.variables);
   const styles = root.styles === undefined ? undefined : readSharedStyles(root.styles);
-  const metadata = { ...(comments && {comments}), ...(libraryStore && {libraryStore}), ...(libraryRecords && {libraryRecords}), ...(libraryLinks.length && {libraryLinks}), ...(variables !== emptyVariables && {variables}), ...(styles?.length && { styles }), ...(profile === "displayP3" && {colourProfile: "displayP3" as const}), ...(palette.length > 0 && {documentColours: Object.freeze(palette)}), ...(presets.length ? { imagePresets: Object.freeze(presets) } : {}) };
+  // Native `FileKind`, the board's timer, vote, ballots and kept results.
+  const kind = root.kind === undefined ? "design" : text(root.kind, "kind");
+  if (kind !== "design" && kind !== "board") fail(`unknown file kind ${kind}`);
+  const timer = readTimer(root.timer), vote = readVote(root.vote), votes = readBallots(root.votes), voteHistory = readVoteHistory(root.vote_history);
+  const board = { ...(kind === "board" && { kind: "board" as const }), ...(timer && { timer }), ...(vote && { vote }), ...(Object.keys(votes).length && { votes }), ...(voteHistory.length && { voteHistory }) };
+  const metadata = { ...board, ...(comments && {comments}), ...(libraryStore && {libraryStore}), ...(libraryRecords && {libraryRecords}), ...(libraryLinks.length && {libraryLinks}), ...(variables !== emptyVariables && {variables}), ...(styles?.length && { styles }), ...(profile === "displayP3" && {colourProfile: "displayP3" as const}), ...(palette.length > 0 && {documentColours: Object.freeze(palette)}), ...(presets.length ? { imagePresets: Object.freeze(presets) } : {}) };
   return { metadata, teamLibraryInvites };
 }
 
@@ -312,7 +320,7 @@ function decodeDocument(raw: unknown, parsedNodes?: Record<string,DocumentNode>)
   if (root.version !== undefined && number(root.version, "version") > 1) fail("this file needs a newer Figcraft format reader");
   if (root.version !== undefined && number(root.version, "version") !== 1) fail("unsupported format version");
   if (root.format !== undefined && root.format !== "figcraft") fail("unrecognised format");
-  fields(root, ["comments", "libraries", "variables", "styles", "format", "version", "name", "pages", "nodes", "next_id", "current_page", "imageIndex", "image_presets", "document_colors", "color_profile"], documentDefaults, "document");
+  fields(root, ["comments", "libraries", "variables", "styles", "format", "version", "name", "pages", "nodes", "next_id", "current_page", "imageIndex", "image_presets", "document_colors", "color_profile", "kind", "timer", "vote", "votes", "vote_history"], documentDefaults, "document");
   const { metadata, teamLibraryInvites } = readDocumentMetadata(root);
   const pages = list(root.pages, "pages").map((entry) => id(entry, "page ID"));
   if (!pages.length || new Set(pages).size !== pages.length) fail("pages must be non-empty and unique");
@@ -713,7 +721,8 @@ export function wireNode(key: string, node: DocumentNode) {
   const numericId = wireId(key);
   if (node.id !== key) fail("node map key and ID differ");
   const metadata = {...node.sourceMetadata, ...(node.thumbnailFlag !== undefined && {"figcraft.thumbnail": node.thumbnailFlag})};
-  const common = { ...(node.guides?.length && {guides: node.guides}), ...(Object.keys(metadata).length && {plugin_data: metadata}), ...(node.interactions?.length && {interactions:wireInteractions(node.interactions)}), ...(node.exports?.length && { exports: node.exports }), ...(node.boundVariables && {bound:node.boundVariables}), ...(node.variableModes && {var_modes:node.variableModes}), ...(node.styles && { styles: node.styles }), ...(node.grids?.length && { grids: node.grids }), ...wireComponentLinks(node), ...(node.effects?.length && { effects: node.effects.map(wireEffect) }), ...(node.isMask && {is_mask:true}), ...(node.maskType && node.maskType !== "alpha" && {mask_type:node.maskType}), id: numericId, name: node.name, type: node.kind, ...(node.kind === "section" && {contents_hidden:node.contentsHidden}), ...(node.kind === "booleanOp" ? { op: node.op } : {}), ...(node.kind === "ellipse" ? { start: node.start, sweep: node.sweep, inner: node.inner } : node.kind === "star" ? { count: node.count, inner_ratio: node.innerRatio } : node.kind === "polygon" ? { count: node.count } : node.kind === "vector" ? { network: wireVectorNetwork(node.network, wirePaints) } : node.kind === "text" ? wireTextData(node.text) : {}) };
+  const boardItem = node.kind !== "page" ? (node as { board?: import("./board-data").BoardItem }).board : undefined;
+  const common = { ...(boardItem && { board: wireBoardItem(boardItem) }), ...(node.guides?.length && {guides: node.guides}), ...(Object.keys(metadata).length && {plugin_data: metadata}), ...(node.interactions?.length && {interactions:wireInteractions(node.interactions)}), ...(node.exports?.length && { exports: node.exports }), ...(node.boundVariables && {bound:node.boundVariables}), ...(node.variableModes && {var_modes:node.variableModes}), ...(node.styles && { styles: node.styles }), ...(node.grids?.length && { grids: node.grids }), ...wireComponentLinks(node), ...(node.effects?.length && { effects: node.effects.map(wireEffect) }), ...(node.isMask && {is_mask:true}), ...(node.maskType && node.maskType !== "alpha" && {mask_type:node.maskType}), id: numericId, name: node.name, type: node.kind, ...(node.kind === "section" && {contents_hidden:node.contentsHidden}), ...(node.kind === "booleanOp" ? { op: node.op } : {}), ...(node.kind === "ellipse" ? { start: node.start, sweep: node.sweep, inner: node.inner } : node.kind === "star" ? { count: node.count, inner_ratio: node.innerRatio } : node.kind === "polygon" ? { count: node.count } : node.kind === "vector" ? { network: wireVectorNetwork(node.network, wirePaints) } : node.kind === "text" ? wireTextData(node.text) : {}) };
   if (node.kind === "page") {
     return { ...common, ...(node.flows?.length && {flows:wireFlows(node.flows)}), ...(node.blend && node.blend !== "passThrough" && {blend:node.blend}), ...(node.opacity !== undefined && node.opacity !== 1 && {opacity:node.opacity}), ...(node.stroke && !isDefaultStroke(node.stroke) && {stroke:wireStroke(node.stroke)}), ...(node.fills?.length && {fills:wirePaints(node.fills)}), ...(node.strokes?.length && {strokes:wirePaints(node.strokes)}), width: 0, height: 0, children: node.children.map(wireId), background: pageColour(node), ...((node.prototypeBackground || node.prototypeDevice) && { prototype: wirePrototype(node) }) };
   } else {
@@ -750,7 +759,7 @@ export async function prepareArchive(document: Document, nextId?: string) {
     if (bytes.size > MAX_ARCHIVE_MEMBER) fail("image exceeds the 512 MiB native member limit");
     return { hash, width, height };
   });
-  const root = { format: "figcraft", version: 1, imageIndex, ...((document.libraryLinks?.length || document.libraryRecords || document.libraryStore) && {libraries:wireLibraryLinks(document.libraryLinks ?? [],document.libraryRecords,document.libraryStore)}), ...(document.imagePresets?.length ? { image_presets: document.imagePresets } : {}), name: document.name, pages: document.pages.map(wireId), next_id: wireId((supplied < minimum ? minimum : supplied).toString()), current_page: wireId(document.currentPage), styles: document.styles?.map(wireSharedStyle) ?? [], variables: document.variables ?? emptyVariables, document_colors: document.documentColours ?? [], ...(document.colourProfile === "displayP3" && {color_profile: document.colourProfile}), comments:(document.comments ?? []).map(wireComment) };
+  const root = { format: "figcraft", version: 1, imageIndex, ...wireBoardDocument(document), ...((document.libraryLinks?.length || document.libraryRecords || document.libraryStore) && {libraries:wireLibraryLinks(document.libraryLinks ?? [],document.libraryRecords,document.libraryStore)}), ...(document.imagePresets?.length ? { image_presets: document.imagePresets } : {}), name: document.name, pages: document.pages.map(wireId), next_id: wireId((supplied < minimum ? minimum : supplied).toString()), current_page: wireId(document.currentPage), styles: document.styles?.map(wireSharedStyle) ?? [], variables: document.variables ?? emptyVariables, document_colors: document.documentColours ?? [], ...(document.colourProfile === "displayP3" && {color_profile: document.colourProfile}), comments:(document.comments ?? []).map(wireComment) };
   // Validate relationships on the supplied domain graph after each individual wire record passed.
   decodeDocument({...root,nodes:document.nodes},document.nodes);
   const header = stringify(root)!;

@@ -242,6 +242,7 @@ export function WorkspaceEditor({ identity, capabilities, recoveryStore, onlineH
     {guest?.ended && invitations?.rejoin && <button type="button" onClick={event=>sessionCommand(event.currentTarget,"collab.reconnect")}>Reconnect</button>}
     {guest && <button type="button" onClick={event=>sessionCommand(event.currentTarget,"collab.leave")}>Leave session</button>}
     <button type="button" disabled={!enabled} onClick={() => workspace.execute("file.new")}>New file</button>
+    <button type="button" disabled={!enabled} onClick={() => workspace.execute("file.newBoard")}>New board</button>
     <button type="button" disabled title="Browser downloads have no writable file path">Revert to saved</button>
     <details><summary>Open recent</summary><button type="button" disabled>Clear recent</button></details>
     <button type="button" disabled={!enabled} onClick={() => workspace.execute("file.duplicate")}>Duplicate file</button>
@@ -295,6 +296,7 @@ export function WorkspaceEditor({ identity, capabilities, recoveryStore, onlineH
           workspace.execute("doc.switch", { index: tab.index }); setHome(undefined);
         }}>{tab.name}</button>)}
         <button onClick={() => { workspace.execute("file.new"); setHome(undefined); }}>New file</button>
+        <button onClick={() => { workspace.execute("file.newBoard"); setHome(undefined); }}>New board</button>
       </section>}
     </section> : active ? <DocumentEditor key={active.id} identity={identity} capabilities={tabCapabilities} engine={workspace.activeEngine}
       teamLibraries={onlineHost?.libraries} teamConnection={guest?.access==="edit" && !guest.ended ? guest.connection : undefined}
@@ -306,6 +308,7 @@ export function WorkspaceEditor({ identity, capabilities, recoveryStore, onlineH
       <section aria-label="File workspace"><h1>Files</h1>
         {online && <button disabled={!enabled} onClick={() => setHome("online")}>Online files</button>}
         <button disabled={!enabled} onClick={() => workspace.execute("file.new")}>New file</button>
+        <button disabled={!enabled} onClick={() => workspace.execute("file.newBoard")}>New board</button>
         <button disabled={!enabled} onClick={() => openInput.current?.click()}>Open file</button>
         <input hidden type="file" aria-label="Open Figcraft file" ref={openInput} onChange={async event => {
           const file = event.currentTarget.files?.[0]; event.currentTarget.value = "";

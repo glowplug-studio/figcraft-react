@@ -44,7 +44,7 @@ interface OpenTab {
 }
 
 type WorkspaceCommand = "doc.list" | "doc.switch" | "doc.nextTab" | "doc.previousTab"
-  | "file.new" | "file.openRecent" | "file.revert" | "file.moveTab" | "file.close" | "file.duplicate";
+  | "file.new" | "file.newBoard" | "file.openRecent" | "file.revert" | "file.moveTab" | "file.close" | "file.duplicate";
 
 type BranchCommand = "branch.list" | "branch.create" | "branch.open" | "branch.archive" | "branch.merge" | "branch.updateFromMain" | "branch.review";
 
@@ -660,6 +660,7 @@ export class EditorWorkspace {
       return { files: [] };
     }
     if (command === "file.new") return { ...this.#append(EditorEngine.newTab(parseString(params.name), this.#clipboard)), kind: "design" };
+    if (command === "file.newBoard") return { ...this.#append(EditorEngine.newTab(parseString(params.name), this.#clipboard, "board")), kind: "board" };
     const active = this.#active;
     const tabIndex = (key: string) => {
       const index = parseIndex(params[key], key);

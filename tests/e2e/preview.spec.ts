@@ -11594,3 +11594,24 @@ test("the presenter shows comments on the frame, inspects the layer under the po
   await page.evaluate(()=>(window as unknown as {pressA:()=>void}).pressA());
   await expect(presenter.getByLabel("Presented frame",{exact:true})).toHaveText("Next");
 });
+
+test("a native board opens with what its objects are for, saves them back, and New board makes a board",async ({page})=>{
+  const native=JSON.parse(await readFile(new URL("../fixtures/native-board-document.json",import.meta.url),"utf8")).document;
+  await login(page);
+  await page.getByLabel("Open Figcraft file",{exact:true}).setInputFiles({name:"retro.figcraft",mimeType:"application/octet-stream",buffer:Buffer.from(zipSync({"document.json":strToU8(JSON.stringify(native))}))});
+  const layers=page.getByRole("region",{name:"Layers",exact:true});
+  await expect(layers.getByRole("button",{name:"Sticky",exact:true})).toHaveCount(1);
+  await expect(layers.getByRole("button",{name:"Connector",exact:true})).toHaveCount(4);
+  const download=page.waitForEvent("download");
+  await page.getByRole("button",{name:"Save as",exact:true}).click();
+  const saved=(await decodeFigcraft(await readFile((await (await download).path())!))).document;
+  expect(saved.kind).toBe("board");
+  expect(saved.timer).toEqual({state:"paused",left:300000});
+  expect((saved.nodes["2"] as {board?:unknown}).board).toEqual({type:"sticky",author:"Ana"});
+  expect((saved.nodes["12"] as {board?:unknown}).board).toEqual({type:"stamp",stamp:"heart",on:"2"});
+  // New board: a board tab of its own, named as native names it.
+  const bar=page.locator(".figcraft-document-bar");
+  await bar.getByText("File",{exact:true}).click();
+  await bar.getByRole("button",{name:"New board",exact:true}).click();
+  await expect(page.getByRole("heading",{name:"Untitled board",exact:true})).toBeVisible();
+});
