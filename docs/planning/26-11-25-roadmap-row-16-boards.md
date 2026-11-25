@@ -2,11 +2,11 @@
 
 ## Execution checkpoint
 
-- Phase: item 1 complete through Phase 7 at `1bd2c6d` ([the board data model](../reports/26-11-25-board-data.md)). Item 2 is next. Each item is opened with its own dated plan.
+- Phase: items 1 to 3 complete through Phase 7 at `d722e71` and `9b457e5` ([stickies and shapes with text](../reports/26-11-25-board-shapes.md), [connectors](../reports/26-11-25-board-connectors.md)). Item 4 is next. Each item is opened with its own dated plan.
 - Native reference: `bad07e4433240cad046589129c084bd2fc36f097` (`bad07e44`). React starting revision: `792e207` on `prompt/full-figcraft-port`.
 - Source: row 16 of the [master plan](26-11-06-complete-figcraft-port.md) and the `board.*` commands of the [command inventory](../parity/full-port-command-inventory.json) (21 listed; native also has `board.mindMap` and `board.mindMapAdd`, and `file.newBoard`).
 - Native oracle: `$HOME/.cache/figcraft-oracle/project`; `replay` runs command sequences through the pinned engine and observes every engine command of this row.
-- Next action: Item 2, shapes and stickies (`doc/src/board.rs` `BoardShape`; `engine/src/boards/board/{items,edit}.rs`): the 23 outlines and their text insets, `board.shape`, `board.sticky`, `board.nextSticky`, `board.setColor`, `board.setStyle`, `board.label`.
+- Next action: Item 4, reshaping and joined shapes (`engine/src/boards/board/{reshape,items}.rs`): `board.reshape`, `board.addConnected`, `board.nextSticky` from a shape.
 - Blockers: none.
 
 ## What the port has
@@ -27,9 +27,9 @@ The data model comes first, since every command writes it and files carry it; th
 | Item | Behaviour | Native files and tests | React files | Status |
 |---|---|---|---|---|
 | 1 | The board data model read and written: file kind, board items on layers, timer and ballots; `file.newBoard` with the board page colour | `doc/src/board.rs`, `facilitation.rs`, `lib.rs`, `node.rs`; `cmd/file.rs` | `document.ts`, `file-format.ts`, a new `board-data.ts` | Verified at `1bd2c6d` with native observations ([plan](26-11-25-board-data.md)) |
-| 2 | Shapes and stickies: the 23 outlines and their text insets, `board.shape`, `board.sticky`, `board.nextSticky` (from a sticky), `board.setColor`, `board.setStyle`, a resized shape's text room, board commands refused on design files and prototyping refused on boards | `doc/src/board.rs` (`BoardShape`); `boards/board/{items,edit}.rs`; `board_shape_tests.rs`, `board_tests.rs` | new `board-commands.ts` | In progress |
-| 3 | Connectors: routing (straight, elbow, curved), sides and ends, labels and `board.label`, `board.connector`, `board.reattach`, re-routing when objects move, `setColor` and `setStyle` on connectors and ink | `doc/src/board_route.rs`; `boards/board/{connectors,derived}.rs`; `board_route_tests.rs`, `board_connector_tests.rs` | `board-route.ts`, `board-commands.ts` | Planned |
-| 4 | Reshaping and joined shapes: `board.reshape`, `board.addConnected`, `board.nextSticky` from a shape | `boards/board/reshape.rs`, `tools.rs`; `board_reshape_tests.rs`, `board_connected_tests.rs` | `board-commands.ts` | Planned |
+| 2 | Shapes and stickies: the 23 outlines and their text insets, `board.shape`, `board.sticky`, `board.nextSticky` (from a sticky), `board.setColor`, `board.setStyle`, a resized shape's text room, board commands refused on design files and prototyping refused on boards | `doc/src/board.rs` (`BoardShape`); `boards/board/{items,edit}.rs`; `board_shape_tests.rs`, `board_tests.rs` | new `board-commands.ts` | Verified at `d722e71` with native observations ([plan](26-11-25-board-shapes.md)) |
+| 3 | Connectors: routing (straight, elbow, curved), sides and ends, labels and `board.label`, `board.connector`, `board.reattach`, re-routing when objects move, `setColor` and `setStyle` on connectors and ink | `doc/src/board_route.rs`; `boards/board/{connectors,derived}.rs`; `board_route_tests.rs`, `board_connector_tests.rs` | `board-route.ts`, `board-commands.ts` | Verified at `9b457e5` with native observations ([plan](26-11-25-board-connectors.md)) |
+| 4 | Reshaping and joined shapes: `board.reshape`, `board.addConnected`, `board.nextSticky` from a shape | `boards/board/reshape.rs`, `tools.rs`; `board_reshape_tests.rs`, `board_connected_tests.rs` | `board-commands.ts` | In progress |
 | 5 | Stamps and ink: the six stamps on the objects they sit on, marker and highlighter strokes | `doc/src/board.rs` (`Stamp`); `boards/board/tools.rs`; `board_tools_tests.rs` | `board-commands.ts` | Planned |
 | 6 | Tables: `board.table`, `board.tableEdit`, pasting a table | `boards/board_table.rs`; `board_tables_tests.rs`, `board_table_paste_tests.rs` | `board-table.ts` | Planned |
 | 7 | Grids and templates: `board.grid`, `board.template`, `board.templates` | `boards/board_grid.rs`, `board_templates.rs`; `board_grid_tests.rs` | `board-commands.ts` | Planned |

@@ -2,11 +2,11 @@
 
 ## Execution checkpoint
 
-- Phase: implemented; the gate is running.
+- Phase: complete through Phase 7 on 25 November 2026 at `d722e71`: [report](../reports/26-11-25-board-shapes.md), [matrix](../reports/26-11-25-board-shapes-parity.html), [provenance](../../tests/fixtures/native-board-shapes.provenance.md).
 - Native reference: `bad07e4433240cad046589129c084bd2fc36f097` (`bad07e44`). React starting revision: `1bd2c6d` on `prompt/full-figcraft-port`.
 - Row plan: [roadmap row 16](26-11-25-roadmap-row-16-boards.md).
 - Files changed: `src/engine/board-shapes.ts` (new: the 23 outlines, their labels and text insets); `src/engine/board-commands.ts` (new: `board.sticky`, `board.shape`, `board.nextSticky` from a sticky, `board.setColor`, `board.setStyle`, the board tools' choices, board colours and their line shade, the refusals, `settleBoardText`); `src/engine/editor.ts` (dispatch, fonts prepared for board text, the text room settled after each edit, prototyping refused on boards); tests `tests/parity/board-shapes.test.ts`, fixture `tests/fixtures/native-board-shapes.json` with provenance, and one case in `tests/e2e/preview.spec.ts`.
-- Next action: record the item.
+- Next action: none; the item is recorded. Item 3 follows in the row plan.
 - Blockers: none.
 
 ## Native contract (`doc/src/board.rs` `BoardShape`; `engine/src/boards/board.rs`, `board/{items,edit,derived}.rs`)

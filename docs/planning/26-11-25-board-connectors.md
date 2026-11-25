@@ -2,11 +2,11 @@
 
 ## Execution checkpoint
 
-- Phase: implemented; the gate is running.
+- Phase: complete through Phase 7 on 25 November 2026 at `9b457e5`: [report](../reports/26-11-25-board-connectors.md), [matrix](../reports/26-11-25-board-connectors-parity.html), [provenance](../../tests/fixtures/native-board-connectors.provenance.md).
 - Native reference: `bad07e4433240cad046589129c084bd2fc36f097` (`bad07e44`). React starting revision: `d722e71` on `prompt/full-figcraft-port`.
 - Row plan: [roadmap row 16](26-11-25-roadmap-row-16-boards.md).
 - Files changed: `src/engine/board-route.ts` (new: native's `board_route` — route points straight, elbow and curved, the way round joined objects, the end gap, hand-placed ends, reshaped paths, path handles); `src/engine/board-commands.ts` (`board.connector`, `board.reattach`, `board.label`, a connector's route written into its line, labels at its middle, `settleBoardRoutes`); `src/engine/editor.ts` (routes settled after each edit, fonts prepared for labels); tests `tests/parity/board-connectors.test.ts`, fixture `tests/fixtures/native-board-connectors.json` with provenance, and one case in `tests/e2e/preview.spec.ts`.
-- Next action: record the item.
+- Next action: none; the item is recorded. Item 4 follows in the row plan.
 - Blockers: none.
 
 ## Native contract (`doc/src/board_route.rs`; `engine/src/boards/board/{connectors,derived,edit}.rs`)

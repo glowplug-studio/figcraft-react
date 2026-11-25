@@ -908,3 +908,11 @@ Native `crates/ui-egui/src/present/chrome.rs` (`poll_pads`, `layer_at`, `inspect
 ## Roadmap row 16: the board data model — 25 November 2026
 
 Native `crates/doc/src/board.rs` (`FileKind`, `BoardItem`, `BoardShape`, `Stamp`, `Routing`, `Side`, `End`, `ConnectorPath`, `Connector`, `BOARD_COLORS`, `BOARD_PAGE`, `remap`), `facilitation.rs` (`BoardTimer`, `Vote`, `VoteScope`, `Ballots`, `VoteRecord`), the `kind`, `timer`, `vote`, `votes` and `vote_history` of `lib.rs`, `node.rs`'s `board` and `crates/engine/src/cmd/file.rs::new_file` at `bad07e44` map to `board-data.ts`, `document.ts`, `file-format.ts`, `editor.ts`, `workspace.ts` and `WorkspaceEditor.tsx`. Verified against a native observation in `tests/parity/board-document.test.ts` and a browser case in `tests/e2e/preview.spec.ts`. [Report](../reports/26-11-25-board-data.md).
+
+## Roadmap row 16: stickies and shapes with text — 25 November 2026
+
+Native `crates/doc/src/board.rs::BoardShape` (`names`, `from_id`, `path`, `text_insets`), `crates/engine/src/boards/board/items.rs` (`add_text`, `make_sticky`, `sticky_cmd`, `make_shape`, `shape_cmd`, `shape_padding`, `next_sticky`, `text_of`, `owner_of_text`), `board/edit.rs` (`set_color`, `set_style`), `board.rs` (`color_param`, `line_shade`, `parent_of`, `require`, `refuse_on_board`, `BoardTool`) and `board/derived.rs::settle_text` at `bad07e44` map to `board-shapes.ts`, `board-commands.ts` and `editor.ts` at `d722e71`. Verified against native observations in `tests/parity/board-shapes.test.ts` and a browser case in `tests/e2e/preview.spec.ts`. [Report](../reports/26-11-25-board-shapes.md).
+
+## Roadmap row 16: connectors — 25 November 2026
+
+Native `crates/doc/src/board_route.rs`, `crates/engine/src/boards/board/connectors.rs` (`end_param`, `connector_cmd`, `make`, `connector_of`, `reattach`), `edit.rs` (`label_of`, `set_label`, `label_cmd`) and `derived.rs` (`settle_routes`, `detach_gone_ends`, `carry_free_ends`, `place_label`, `route_mid`, `place_route`, `route`) at `bad07e44` map to `board-route.ts`, `board-commands.ts` and `editor.ts` at `9b457e5`. Verified against a native observation and restated route tests in `tests/parity/board-connectors.test.ts` and a browser case in `tests/e2e/preview.spec.ts`. [Report](../reports/26-11-25-board-connectors.md).
