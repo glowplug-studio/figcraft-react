@@ -347,7 +347,7 @@ export function executeStructure(command: string, document: Document, selection:
       }
     }
     if (deleted.length) selected = [];
-    result = {deleted, hidden};
+    result = {deleted: deleted.map(inspectedId), hidden: hidden.map(inspectedId)};
   }
   draft.normaliseGroups();
   const updated = draft.finish();

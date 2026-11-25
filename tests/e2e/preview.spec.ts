@@ -11719,3 +11719,17 @@ test("a board template places its sections and stickies",async ({page})=>{
   await expectCanvasPixel(page,20,560,[0xea,0xf6,0xe1,255]);
   await expectCanvasPixel(page,290,320,[0xc2,0xe8,0xa6,255]);
 });
+
+test("a mind map lays its nodes out on branches",async ({page})=>{
+  const engine=EditorEngine.newTab(undefined,{},"board");
+  const map=await engine.executeAsync("board.mindMap",{x:0,y:0,children:["One","Two"]}) as {id:number;children:{id:number;connector:number}[]};
+  await engine.executeAsync("select.set",{ids:[]});
+  // The first branch's middle, on the page: its curve at t = ½ from the connector's place.
+  const d=engine.getSnapshot().document,k=d.nodes[String(map.children[0].connector)] as unknown as {x:number;y:number;network:{vertices:{x:number;y:number}[];segments:{a:number;b:number;ta:number[];tb:number[]}[]}};
+  const s=k.network.segments[0],a=k.network.vertices[s.a],b=k.network.vertices[s.b];
+  const mid={x:k.x+(a.x+3*(a.x+s.ta[0])+3*(b.x+s.tb[0])+b.x)/8,y:k.y+(a.y+3*(a.y+s.ta[1])+3*(b.y+s.tb[1])+b.y)/8};
+  await login(page);
+  await page.getByLabel("Open Figcraft file",{exact:true}).setInputFiles({name:"mind.figcraft",mimeType:"application/octet-stream",buffer:Buffer.from(await engine.nativeSnapshot())});
+  await expect(page.getByRole("region",{name:"Layers",exact:true}).getByRole("button",{name:"Mind map node",exact:true})).toHaveCount(3);
+  await expectCanvasPixel(page,mid.x,mid.y,[0x75,0x75,0x75,255]);
+});

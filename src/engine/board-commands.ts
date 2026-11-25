@@ -14,6 +14,8 @@ import { boundsOf } from "./viewport";
 import { parseSvgPath } from "./svg-path";
 import { createLayer } from "./creation";
 import { stamps as stampIds } from "./board-data";
+import { arriving, branchesOf, mapChildren, mapSide, mindGapX, mindGapY, mindLineHeight, mindMaxCoord, mindMaxStarters, mindMaxText, mindMinW, mindNodeSize,
+  mindNodeTracking, mindRootSize, mindRootText, mindRootTracking, mindStarters } from "./board-mindmap";
 import { buildTemplate, createOn, findTemplate, templates } from "./board-templates";
 import { editTable, makeTable, maxColumns, maxRows, tableAnswer, tableOf, type TableCtx } from "./board-table";
 import { inverse, multiply, transformPoint, type Affine } from "./affine";
@@ -41,6 +43,8 @@ export const boardSpecs = Object.freeze({
   "board.table": { label: "Table", undo: true },
   "board.tableEdit": { label: "Edit table", undo: true },
   "board.template": { label: "Board template", undo: true },
+  "board.mindMap": { label: "Mind map", undo: true },
+  "board.mindMapAdd": { label: "Add mind map node", undo: true },
 });
 export type BoardCommand = keyof typeof boardSpecs;
 const takes: Record<BoardCommand, readonly string[]> = {
@@ -59,6 +63,8 @@ const takes: Record<BoardCommand, readonly string[]> = {
   "board.table": ["rows", "columns", "cells", "x", "y"],
   "board.tableEdit": ["id", "action", "index"],
   "board.template": ["name", "x", "y"],
+  "board.mindMap": ["x", "y", "text", "children", "parent", "edit"],
+  "board.mindMapAdd": ["id", "relation", "text", "edit"],
 };
 
 /** Native `NEEDS_BOARD` and `NOT_ON_BOARDS`. */
@@ -409,6 +415,27 @@ export function stampTarget(doc: Document, page: NodeId, p: Pt, except?: NodeId)
 /** Native `MARKER` and `HIGHLIGHTER`: (weight, opacity). */
 const marker = [4, 1] as const, highlighterStroke = [20, Math.fround(0.45)] as const;
 
+/** Native `BRANCH` and `BRANCH_WEIGHT`. */
+const branchColour = rgb("#757575"), branchWeight = 4;
+/** Native `make_node`: a mind map node's frame hugging its one-line text. */
+function makeMindNode(ctx: Ctx, parent: NodeId, at: readonly [number, number], text: string, root: boolean): [NodeId, NodeId] {
+  const size = root ? mindRootSize : mindNodeSize, lineH = size * mindLineHeight / 100, id = alloc(ctx);
+  ctx.draft.insert({ id, kind: "frame", name: "Mind map node", parent, x: at[0], y: at[1], width: mindMinW, height: lineH, fill: "transparent", children: Object.freeze([]), clip: false,
+    layout: autoLayout({ mode: "horizontal", padding: [0, 0, 0, 0] }), sizing: Object.freeze({ horizontal: "hug", vertical: "hug" }),
+    childLayout: Object.freeze({ minWidth: mindMinW, minHeight: lineH }), board: Object.freeze({ type: "mindNode" }) } as unknown as FrameNode, parent);
+  const label = addText(ctx, id, text, size, ink, "left", 1), tn = ctx.draft.nodes[label] as TextNode;
+  ctx.draft.set({ ...tn, textSizing: { horizontal: "hug", vertical: "hug" }, text: { ...tn.text, autoResize: "widthAndHeight", style: { ...tn.text.style,
+    lineHeight: { unit: "percent", value: mindLineHeight }, letterSpacing: { unit: "percent", value: root ? mindRootTracking : mindNodeTracking }, fontStyle: root ? "Bold" : "Medium" } } } as DocumentNode);
+  return [id, label];
+}
+/** Native `branch`: the curved branch from `parent` to `child` (on its left side when `left`). */
+function makeBranch(ctx: Ctx, page: NodeId, parent: NodeId, child: NodeId, left: boolean): NodeId {
+  const line = makeConnector(ctx, page, { from: { node: parent, side: left ? "left" : "right" }, to: { node: child, side: left ? "right" : "left" }, routing: "curved", branch: true }, ["round", "round"]);
+  const n = ctx.draft.nodes[line] as Layer & { stroke: typeof defaultStroke };
+  ctx.draft.set({ ...n, strokes: Object.freeze([solidPaint(branchColour)]), stroke: { ...n.stroke, weight: branchWeight } } as DocumentNode);
+  return line;
+}
+
 export interface BoardResult { readonly document: Document; readonly selection: readonly NodeId[]; readonly nextId: bigint; readonly result: Record<string, unknown>; readonly tool?: BoardTool }
 /** Native `board.*` (this item's commands): `author` is the viewer's name (empty when unknown), `tool` the board tools' choices. */
 export function executeBoard(command: BoardCommand, doc: Document, selection: readonly NodeId[], nextId: bigint, p: Record<string, unknown>, author: string, tool: BoardTool, view: { readonly cx: number; readonly cy: number } = { cx: 0, cy: 0 }): BoardResult {
@@ -714,6 +741,59 @@ export function executeBoard(command: BoardCommand, doc: Document, selection: re
         create: q => createOn(state, q),
       });
       return { document: state.doc, selection: Object.freeze(made.map(String)), nextId: state.next, result: { ids: made, name: t.id } };
+    }
+    case "board.mindMap": {
+      const parent = parentOf(command, doc, p);
+      // The view's centre is on the page and `x`/`y` are in the parent: a map in a section or frame takes the centre in its coordinates.
+      const pw = doc.nodes[parent]?.kind === "page" ? [1, 0, 0, 1, 0, 0] as Affine : worldTransform(doc, parent), vc = transformPoint(inverse(pw), { x: view.cx, y: view.cy });
+      const coord = (k: string, d: number) => { const v = p[k] === undefined ? d : p[k]; if (typeof v !== "number" || !Number.isFinite(v) || Math.abs(v) > mindMaxCoord) throw bad(command, "`" + k + "` is a position within a billion of the origin"); return v; };
+      const x = coord("x", vc.x), y = coord("y", vc.y);
+      let texts: string[] = [...mindStarters];
+      if (p.children !== undefined) {
+        if (!Array.isArray(p.children) || p.children.length > mindMaxStarters) throw bad(command, "`children` is a list of at most " + mindMaxStarters + " texts");
+        texts = p.children.map(t => { if (typeof t !== "string") throw bad(command, "`children` holds texts"); return [...t].slice(0, mindMaxText).join(""); });
+      }
+      const rootText = typeof p.text === "string" ? [...p.text].slice(0, mindMaxText).join("") : mindRootText;
+      const [root, label] = makeMindNode(ctx, parent, [x, y], rootText, true);
+      // Anywhere below one another will do: the settling pass puts them right, in this order.
+      const step = mindNodeSize * mindLineHeight / 100 + mindGapY;
+      const children = texts.map((t, i) => {
+        const [k, text] = makeMindNode(ctx, parent, [x + mindMinW + mindGapX, y + i * step], t, false);
+        return { connector: Number(makeBranch(ctx, doc.currentPage, root, k, false)), id: Number(k), text: Number(text) };
+      });
+      return done([root], { children, id: Number(root), text: Number(label) });
+    }
+    case "board.mindMapAdd": {
+      const from = p.id !== undefined && p.id !== null ? parseNodeId(p.id) : selection[0] !== undefined ? ownerOfText(doc, selection[0]) ?? selection[0] : undefined;
+      if (from === undefined) throw disabled(command, "select a mind map node first");
+      const n = doc.nodes[from] as Layer | undefined;
+      if (!n) throw new Error("no such node " + from);
+      if (n.board?.type !== "mindNode") throw bad(command, "that isn't a mind map node");
+      const relation = p.relation === undefined || p.relation === null ? "child" : String(p.relation);
+      if (relation !== "child" && relation !== "sibling") throw bad(command, "`relation` is child or sibling, not `" + relation + "`");
+      const page = doc.currentPage, container = n.parent!;
+      if (pageForNode(doc, from) !== page) throw bad(command, "that node is on another page");
+      const bs = branchesOf(doc), at = boundsOf(doc, [from]);
+      if (!at) throw bad(command, "that node has no place");
+      const newH = mindNodeSize * mindLineHeight / 100;
+      let parent: NodeId, left: boolean, topLeft: Pt;
+      if (relation === "sibling") {
+        const a = arriving(bs, from);
+        if (!a) throw bad(command, "the first node has no siblings: add a child");
+        // Its middle lands between this node and the next sibling, so the order puts it right after.
+        parent = a.parent; left = a.left; topLeft = { x: at.x, y: at.y + at.height + mindGapY / 2 - newH / 2 };
+      } else {
+        left = mapSide(bs, from);
+        const kids = mapChildren(doc, bs, from, left), last = kids.length ? boundsOf(doc, [kids[kids.length - 1]]) : undefined;
+        const top = last ? last.y + last.height + mindGapY : at.y + at.height / 2 - newH / 2;
+        parent = from; topLeft = { x: left ? at.x - mindGapX - mindMinW : at.x + at.width + mindGapX, y: top };
+      }
+      const cw = doc.nodes[container]?.kind === "page" ? [1, 0, 0, 1, 0, 0] as Affine : worldTransform(doc, container), local = transformPoint(inverse(cw), topLeft);
+      if (!Number.isFinite(local.x) || !Number.isFinite(local.y)) throw bad(command, "the new node can't be placed there");
+      const text = typeof p.text === "string" ? [...p.text].slice(0, mindMaxText).join("") : "";
+      const [node, label] = makeMindNode(ctx, container, [local.x, local.y], text, false);
+      const line = makeBranch(ctx, page, parent, node, left);
+      return done([node], { connector: Number(line), id: Number(node), text: Number(label) });
     }
     case "board.label": {
       const target = (p.id !== undefined && p.id !== null ? [parseNodeId(p.id) ?? ""] : targets(command, p, selection))[0];

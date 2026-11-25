@@ -215,9 +215,9 @@ describe("component edit transactions", () => {
     expect(engine.getSnapshot().document.nodes["7"]).toMatchObject({source:"6",parent:"4"});
     engine.execute("node.reparent",{ids:[6],parent:2,index:0});
     expect(engine.getSnapshot().document.nodes["4"]).toMatchObject({children:["7","5"]});
-    expect(engine.execute("edit.delete",{id:5})).toEqual({deleted:[],hidden:["5"]});
+    expect(engine.execute("edit.delete",{id:5})).toEqual({deleted:[],hidden:[5]});
     expect(engine.getSnapshot().document.nodes["5"]).toMatchObject({visible:false,overrides:["visible"]});
-    expect(engine.execute("edit.delete",{id:3})).toEqual({deleted:["3"],hidden:[]});
+    expect(engine.execute("edit.delete",{id:3})).toEqual({deleted:[3],hidden:[]});
     expect(engine.getSnapshot().document.nodes["5"]).toBeUndefined();
     expect(engine.getSnapshot().document.nodes["4"]).toMatchObject({children:["7"]});
     engine.execute("edit.undo");
@@ -260,7 +260,7 @@ describe("component edit transactions", () => {
     engine.execute("node.set",{id:2,props:{name:"Changed main"}});
     expect(engine.getSnapshot().document.nodes["5"]).toMatchObject({source:"3",children:["7","8"]});
     expect(engine.getSnapshot().document.nodes["7"].name).toBe("Default");
-    expect(engine.execute("edit.delete",{id:7})).toEqual({deleted:["7"],hidden:[]});
+    expect(engine.execute("edit.delete",{id:7})).toEqual({deleted:[7],hidden:[]});
   });
 });
 
