@@ -5,17 +5,17 @@
 | Field | Current value |
 |---|---|
 | Overall status | Active. The user resumed the run on 19 November with a new coordinating agent. Full port unfinished. [Resume handover](26-11-07-full-port-resume.md#continue-from-here). |
-| Active slice | [Roadmap row 16](26-11-25-roadmap-row-16-boards.md) item 9, facilitation. |
-| Active phase | [Roadmap row 16](26-11-25-roadmap-row-16-boards.md) items 1 to 8 are verified; item 8, [mind maps](26-11-25-board-mindmap.md), at 53fc7b0. Item 9, facilitation, is next. |
+| Active slice | [Roadmap row 16](26-11-25-roadmap-row-16-boards.md) item 10, the board interface. |
+| Active phase | [Roadmap row 16](26-11-25-roadmap-row-16-boards.md) items 1 to 9 are verified; item 9, [facilitation](26-11-25-board-facilitation.md), at 51c09e0. Item 10, the board interface, is next. |
 | Upstream baseline | Reference checkout bad07e44. [New upstream delta queue](26-11-15-upstream-delta.md) must be reconciled before release; prior evidence retains its original pins. Paste event text and scrollable short-window menus queued alongside the two prior UI changes. First-frame tab and page restoration and native test font readiness queued for rows 4 and 19. Home sidebar Preferences, Cmd/Ctrl+comma and Escape queued in row 19. Styles reference a2e87433. Components reference 79c36346. Global supported baseline 8eb0b876. |
-| Branch and last verified commit | prompt/full-figcraft-port, verified product 53fc7b0; all 448 browser cases passed in one run. |
+| Branch and last verified commit | prompt/full-figcraft-port, verified product 51c09e0; all 449 browser cases passed in one run. |
 | Completed slices | Rectangle/host-auth, bounded native persistence/recovery, supported-model pages, affine rectangle geometry/selection and solid appearance, plus nested group hierarchy, Frame containers, movement/transform gestures, rounded corners, ellipse/arc/ring and Polygon/Star editing verified locally; Line/Arrow and uniform solid strokes also verified; per-side Rectangle/Frame strokes, variable-width profiles and procedural brushes verified; vector networks, solid region/stroke rendering and Flatten/Reverse also verified; foundation commit `154f5a7`. Gradient, image, pattern, blend and mask releases now have local property matrices. [Blend evidence](../reports/26-11-09-blend-modes-parity.html). Auto layout and constraints passed the local release gate. [Release evidence](../reports/26-11-09-auto-layout.md). [Local components, instances, variant properties, slots and Assets](../reports/26-11-09-components-instances.md) passed the 0.51.0 gate. |
 | Remaining slices | Continue incomplete roadmap rows and the dependency-ordered [upstream delta queue](26-11-15-upstream-delta.md), excluding the user-deferred plugin and widget family. See each slice matrix for outstanding integrations. |
-| Tests last passed | 5,724 pure, strict types, both builds; 448 Chromium passed in 16.9 minutes, no skips/retries/flakes/errors or changed baselines; 32 provider integrations passed in 13.24 seconds. Twelve fixture counts zero. [Report](../reports/26-11-25-board-mindmap.md). |
+| Tests last passed | 5,731 pure, strict types, both builds; 449 Chromium passed in 16.9 minutes, no skips/retries/flakes/errors or changed baselines; 32 provider integrations passed in 13.24 seconds. Twelve fixture counts zero. [Report](../reports/26-11-25-board-facilitation.md). |
 | Files currently in progress | None. The tracker stays local unless the user commits it. |
 | Blockers | None. Upstream synchronisation is on hold by the user’s decision (289 commits ahead at b45255bb); verification uses the local Supabase stack. |
-| Exact next action | Follow the [handover's current action](26-11-07-full-port-resume.md#continue-from-here): open roadmap row 16 item 9, then the remaining roadmap slices. Upstream stays ignored, verification uses local Supabase, plugins and widgets are skipped, and machine load is advisory. The user asked for the plan to be carried to completion unattended, apart from publication. |
-| Last updated | 2026-11-25 13:28 ICT |
+| Exact next action | Follow the [handover's current action](26-11-07-full-port-resume.md#continue-from-here): open roadmap row 16 item 10, then the remaining roadmap slices. Upstream stays ignored, verification uses local Supabase, plugins and widgets are skipped, and machine load is advisory. The user asked for the plan to be carried to completion unattended, apart from publication. |
+| Last updated | 2026-11-25 13:29 ICT |
 
 ## Scope and continuation
 

@@ -936,3 +936,7 @@ Native `crates/engine/src/boards/board_templates.rs` (`TEMPLATES`, `find`, `temp
 ## Roadmap row 16: mind maps — 25 November 2026
 
 Native `crates/doc/src/board_mindmap.rs` (`mind_layout`) and `crates/engine/src/boards/board/mindmap.rs` (`make_node`, `branch`, `branches`, `arriving`, `map_children`, `map_side`, `mind_map_cmd`, `mind_map_add`, `prune_branches`, `settle_mind_maps`) at `bad07e44` map to `board-mindmap.ts`, `board-commands.ts` and `editor.ts` at `53fc7b0`. Verified against native observations and restated layout tests in `tests/parity/board-mindmap.test.ts` and a browser case in `tests/e2e/preview.spec.ts`. [Report](../reports/26-11-25-board-mindmap.md).
+
+## Roadmap row 16: facilitation — 25 November 2026
+
+Native `crates/doc/src/facilitation.rs` (`BoardTimer`, `VoteScope`, `Vote::{counted, tally}`), `crates/engine/src/cmd/facilitate.rs` (`timer_after`, `vote_cmd`, `end_vote`, `delete_results`, `sessions`, `vote_json`, `ranked`, `keep`) and `crates/ui-egui/src/canvas/board_facilitate.rs::badges` at `bad07e44` map to `board-facilitate.ts`, `editor.ts` and `canvas.ts` at `51c09e0`. Verified against a native observation and restated tests in `tests/parity/board-facilitate.test.ts` and a browser case in `tests/e2e/preview.spec.ts`. [Report](../reports/26-11-25-board-facilitation.md).
