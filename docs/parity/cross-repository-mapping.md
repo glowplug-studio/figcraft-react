@@ -884,3 +884,7 @@ Native `crates/ui-egui/src/canvas/proto_canvas.rs` (`curve_between`, `bezier_dis
 ## Roadmap row 15: the prototype presenter — 25 November 2026
 
 Native `crates/ui-egui/src/present.rs`, `present/{player,layout,input,draw}.rs`, `present/transition.rs::overlay_rect`, `present.rs::anchored_overlay_rect` and `crates/doc/src/proto.rs::OverlayAnchor::offset` at `bad07e44` map to `Presenter.tsx`, `prototype-screen.ts` and `prototype-overlays.ts` at `a793eaa`. Verified by restated native tests in `tests/parity/prototype-overlays.test.ts` and a browser case in `tests/e2e/preview.spec.ts`. [Report](../reports/26-11-25-presenter.md).
+
+## Roadmap row 15: presenter transitions — 25 November 2026
+
+Native `crates/ui-egui/src/present/transition.rs` (`name_path`, `match_layers`, `lerp_transform`, `smart_interpolate`, `transition_frames`), `present/draw.rs` and the Scroll to animation of `present/player.rs` at `bad07e44` map to `prototype-transitions.ts`, `Presenter.tsx` and `prototype-player.ts` (`stepScrollAnimation`, `transitionProgress`) at `130a371`. Verified by restated native tests in `tests/parity/prototype-transitions.test.ts` and a browser case in `tests/e2e/preview.spec.ts`. [Report](../reports/26-11-25-presenter-transitions.md).

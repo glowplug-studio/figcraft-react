@@ -2,11 +2,11 @@
 
 ## Execution checkpoint
 
-- Phase: implemented; the gate is running.
+- Phase: complete through Phase 7 on 25 November 2026 at `130a371`: [report](../reports/26-11-25-presenter-transitions.md), [matrix](../reports/26-11-25-presenter-transitions-parity.html).
 - Native reference: `bad07e4433240cad046589129c084bd2fc36f097` (`bad07e44`). React starting revision: `770020d` on `prompt/full-figcraft-port`.
 - Row plan: [roadmap row 15](26-11-24-roadmap-row-15-prototyping.md).
 - Files changed: `src/engine/prototype-transitions.ts` (new: `namePath`, `matchLayers`, `lerpTransform`, `smartInterpolate`, `transitionFrames`); `src/engine/prototype-player.ts` (`stepScrollAnimation`, `transitionProgress`); `src/engine/prototype-screen.ts` (`frameScreen`); `src/Presenter.tsx` (transitions composited, smart animate, Scroll to animated); tests `tests/parity/prototype-transitions.test.ts` and one case in `tests/e2e/preview.spec.ts`.
-- Next action: record the item.
+- Next action: none; the item is recorded.
 - Blockers: none.
 
 ## Native contract (`ui-egui/src/present/{transition,draw}.rs`)
