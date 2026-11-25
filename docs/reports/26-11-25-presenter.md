@@ -36,6 +36,7 @@ Present and Preview now open native's presenter ([`Presenter.tsx`](../../src/Pre
 | Full pure suite | 5,637 passed with two workers |
 | Strict types / production builds | Passed |
 | Cumulative Chromium | Of 435 cumulative Chromium cases, 427 passed in one 21.1-minute run at `a793eaa`'s source; eight 10,000-node frame-budget cases (nested groups and frames, layout reorder and gap drag, move and Alt-copy previews, affine rectangles) failed while the load average fell from about 45 (the preceding builds) and macOS media analysis ran, the same family that fails under that load at code which passed every case at a normal load: environmental under the standing load rule. No baseline changed |
+| Normal-load confirmation | All 435 cumulative Chromium cases passed in one 16.6-minute run at `a793eaa` with zero skips, retries, flakes or suite errors, once the machine's load fell; the frame-budget cases of items 8a to 10a pass |
 | Real local provider integrations | 32 passed in 13.47 seconds, run once after the browser gate |
 | Fixture cleanup | All twelve counts zero |
 | Schema / hosted | No change; no hosted call |
