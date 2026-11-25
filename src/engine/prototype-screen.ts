@@ -3,7 +3,9 @@ import { multiply } from "./affine";
 import type { PrototypeInteraction } from "./prototype-data";
 import { firesOnKey, type KeyMods } from "./prototype-model";
 import { anchoredOverlayRect, type Box } from "./prototype-overlays";
-import type { PageRect, PrototypePlayer } from "./prototype-player";
+import type { OverlayState, PageRect, PrototypePlayer } from "./prototype-player";
+import type { Colour } from "./colour";
+import type { PrototypeEasing, PrototypeTransition } from "./prototype-data";
 import { hotspots } from "./prototype-runtime";
 import { solidPaint } from "./solid-paint";
 import { boundsOf } from "./viewport";
@@ -24,7 +26,7 @@ const rectOf = (doc: Document, id: NodeId): Box | undefined => boundsOf(doc, [id
 const pageRect = (b: Box): PageRect => ({ x0: b.x, y0: b.y, x1: b.x + b.width, y1: b.y + b.height });
 
 /** The presenter's screen: the player's display document reduced to the presented frame and its open overlays, placed as native places them. */
-export function presentedScreen(player: PrototypePlayer): Screen | undefined {
+export function presentedScreen(player: PrototypePlayer, withOverlays = true): Screen | undefined {
   const display = player.display();
   if (!display || !display.nodes[player.current]) return undefined;
   const frame = rectOf(display, player.current);
@@ -35,7 +37,7 @@ export function presentedScreen(player: PrototypePlayer): Screen | undefined {
   const children: NodeId[] = [player.current];
   const placed: PlacedOverlay[] = [];
   let spare = Object.keys(display.nodes).reduce((m, id) => { try { const n = BigInt(id); return n > m ? n : m; } catch { return m; } }, 0n) + 1n;
-  for (const o of player.overlays) {
+  for (const o of withOverlays ? player.overlays : []) {
     const node = display.nodes[o.id], own = node && rectOf(display, o.id);
     if (!node || !own || node.kind === "page") continue;
     const anchor = o.anchor && { x: o.anchor.x0, y: o.anchor.y0, width: o.anchor.x1 - o.anchor.x0, height: o.anchor.y1 - o.anchor.y0 };
@@ -93,4 +95,36 @@ export function frameScreen(doc: Document, frame: NodeId): { doc: Document; fram
   const background = page.prototypeBackground ?? defaultPrototypeBackground;
   const nodes = { ...doc.nodes, [pageId]: Object.freeze(withPageColour({ ...page, children: Object.freeze([frame]) }, background)) };
   return { doc: Object.freeze({ ...doc, currentPage: pageId, nodes: Object.freeze(nodes) }), frame: box };
+}
+
+/** An overlay as the presenter draws it while it opens or closes: alone on a page at its place, its background and progress. */
+export interface OverlayLayer { readonly doc: Document; readonly box: Box; readonly background: Colour | null; readonly raw: number; readonly transition: PrototypeTransition; readonly easing: PrototypeEasing }
+/** Native draw.rs: the overlays to draw, closing ones first (playing their opening backwards), each with its raw progress. */
+export function overlayLayers(player: PrototypePlayer, now: number): OverlayLayer[] {
+  const display = player.display();
+  const frame = display && display.nodes[player.current] ? rectOf(display, player.current) : undefined;
+  const pageId = frame ? pageForNode(display!, player.current) : undefined;
+  if (!display || !frame || pageId === undefined) return [];
+  const page = display.nodes[pageId] as PageNode;
+  const layer = (o: OverlayState, raw: number): OverlayLayer | undefined => {
+    const node = display.nodes[o.id], own = node && rectOf(display, o.id);
+    if (!node || !own || node.kind === "page") return undefined;
+    const anchor = o.anchor && { x: o.anchor.x0, y: o.anchor.y0, width: o.anchor.x1 - o.anchor.x0, height: o.anchor.y1 - o.anchor.y0 };
+    const box = anchoredOverlayRect(o.position, o.anchorTo, frame, [own.width, own.height], anchor, o.offset);
+    const shifted = withLayerTransform(node as never, multiply([1, 0, 0, 1, box.x - own.x, box.y - own.y], layerTransform(node as never))) as DocumentNode;
+    const nodes = { ...display.nodes, [o.id]: Object.freeze({ ...shifted, parent: pageId } as DocumentNode),
+      [pageId]: Object.freeze({ ...page, children: Object.freeze([o.id]) }) };
+    return { doc: Object.freeze({ ...display, currentPage: pageId, nodes: Object.freeze(nodes) }), box, background: o.background, raw, transition: o.transition, easing: o.easing };
+  };
+  const out: OverlayLayer[] = [];
+  for (const [at, o] of player.closing) {
+    if (now - at >= o.dur) continue;
+    const l = layer(o, 1 - Math.min(Math.max((now - at) / Math.max(o.dur, 1e-3), 0), 1));
+    if (l) out.push(l);
+  }
+  for (const o of player.overlays) {
+    const l = layer(o, o.dur > 0 ? Math.min(Math.max((now - o.opened) / o.dur, 0), 1) : 1);
+    if (l) out.push(l);
+  }
+  return out;
 }

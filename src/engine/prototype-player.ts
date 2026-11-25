@@ -185,6 +185,8 @@ export class PrototypePlayer {
     this.hovered = [];
     this.rev++;
   }
+  /** Native draw.rs: finished closing animations go. */
+  pruneClosing(now: number) { this.closing = this.closing.filter(([at, o]) => now - at < o.dur); }
   /** Native `close_overlay`: the top overlay closes, animating out with its opening transition reversed. */
   closeOverlay(now: number): boolean {
     const o = this.overlays.pop();

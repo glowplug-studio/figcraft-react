@@ -11364,3 +11364,67 @@ test("the presenter plays a push transition: mid-way the outgoing frame and the 
   // Then Details fills the screen.
   await expect.poll(()=>pixel(-50),{timeout:6000}).toEqual([255,0,0,255]);
 });
+
+test("the presenter takes the pointer and keys as native does: while hovering and pressing revert, mouse enter, arrows and R, an overlay moving in, hotspot hints",async ({page})=>{
+  const engine=new EditorEngine();
+  const id=(v:unknown)=>String((v as {id:string}).id);
+  const home=id(engine.execute("frame.create",{name:"Home",x:0,y:0,width:200,height:300}));
+  const details=id(engine.execute("frame.create",{name:"Details",x:300,y:0,width:200,height:300}));
+  const third=id(engine.execute("frame.create",{name:"Third",x:600,y:0,width:200,height:300}));
+  const sheet=id(engine.execute("frame.create",{name:"Sheet",x:900,y:0,width:100,height:60}));
+  engine.execute("node.set",{id:Number(sheet),props:{fill:"#FF0000"}});
+  const hover=id(engine.execute("shape.rectangle",{name:"Hover",x:20,y:20,width:60,height:30,parent:home,props:{fill:"#00FF00"}}));
+  const press=id(engine.execute("shape.rectangle",{name:"Press",x:120,y:20,width:60,height:30,parent:home,props:{fill:"#00FF00"}}));
+  const enter=id(engine.execute("shape.rectangle",{name:"Enter",x:20,y:100,width:60,height:30,parent:home,props:{fill:"#00FF00"}}));
+  const open=id(engine.execute("shape.rectangle",{name:"Open",x:120,y:100,width:60,height:30,parent:home,props:{fill:"#00FF00"}}));
+  engine.execute("proto.interaction.add",{id:Number(hover),trigger:{type:"onHover"},dest:Number(details)});
+  engine.execute("proto.interaction.add",{id:Number(press),trigger:{type:"onPress"},dest:Number(details)});
+  engine.execute("proto.interaction.add",{id:Number(enter),trigger:{type:"mouseEnter"},dest:Number(third)});
+  engine.execute("proto.interaction.add",{id:Number(open),action:{type:"openOverlay",dest:Number(sheet),position:"bottomCenter"},transition:{type:"moveIn",direction:"left"},durationMs:4000,easing:"linear"});
+  engine.execute("proto.flow.add",{start:Number(home),name:"Main"});
+  await login(page);
+  await page.getByLabel("Open Figcraft file",{exact:true}).setInputFiles({name:"input.figcraft",mimeType:"application/octet-stream",buffer:Buffer.from(await engine.nativeSnapshot())});
+  await page.getByRole("group",{name:"Properties",exact:true}).getByRole("button",{name:"Prototype",exact:true}).click();
+  await page.getByRole("region",{name:"Prototype",exact:true}).getByRole("button",{name:"Present Main",exact:true}).click();
+  const presenter=page.getByRole("dialog",{name:"Prototype presentation",exact:true});
+  const frameName=presenter.getByLabel("Presented frame",{exact:true}),screen=presenter.getByLabel("Prototype screen",{exact:true});
+  await expect(frameName).toHaveText("Home");
+  const pixel=(x:number,y:number)=>screen.evaluate((c:HTMLCanvasElement,[x,y])=>{const r=c.width/c.clientWidth;return Array.from(c.getContext("2d")!.getImageData(Math.round((c.clientWidth/2+x-100)*r),Math.round((c.clientHeight/2+y-150)*r),1,1).data);},[x,y]);
+  await expect.poll(()=>pixel(50,35)).toEqual([0,255,0,255]);
+  const at=async(x:number,y:number)=>{const b=(await screen.boundingBox())!;return {x:b.x+b.width/2+(x-100),y:b.y+b.height/2+(y-150)};};
+  let p=await at(100,250); await page.mouse.move(p.x,p.y);
+  // While hovering: Details shows while the pointer stays over Hover's place, and Home comes back when it leaves.
+  p=await at(50,35); await page.mouse.move(p.x,p.y);
+  await expect(frameName).toHaveText("Details");
+  p=await at(55,40); await page.mouse.move(p.x,p.y);
+  await expect(frameName).toHaveText("Details");
+  p=await at(100,250); await page.mouse.move(p.x,p.y);
+  await expect(frameName).toHaveText("Home");
+  // While pressing: Details shows while the button is down, Home again on release.
+  p=await at(150,35); await page.mouse.move(p.x,p.y); await page.mouse.down();
+  await expect(frameName).toHaveText("Details");
+  await page.mouse.up();
+  await expect(frameName).toHaveText("Home");
+  // Mouse enter navigates on entering, without a click.
+  p=await at(50,115); await page.mouse.move(p.x,p.y);
+  await expect(frameName).toHaveText("Third");
+  // R restarts; the arrows step through the page's top-level frames.
+  p=await at(100,250); await page.mouse.move(p.x,p.y);
+  await page.keyboard.press("r");
+  await expect(frameName).toHaveText("Home");
+  await page.keyboard.press("ArrowRight");
+  await expect(frameName).toHaveText("Details");
+  await page.keyboard.press("ArrowLeft");
+  await expect(frameName).toHaveText("Home");
+  // A click where nothing reacts flashes the hotspots: Hover's green is tinted with the accent for a moment.
+  p=await at(100,250); await page.mouse.click(p.x,p.y);
+  await expect.poll(async()=>(await pixel(50,35))[2],{timeout:400,intervals:[20]}).toBeGreaterThan(0);
+  await expect.poll(()=>pixel(50,35)).toEqual([0,255,0,255]);
+  // The overlay moves in from the right over four seconds: about a third of the way its left part has not arrived yet.
+  p=await at(150,115); await page.mouse.click(p.x,p.y);
+  await expect(screen).toHaveAttribute("data-overlays","1");
+  await page.waitForTimeout(1500);
+  expect(await pixel(60,270)).toEqual([255,255,255,255]);
+  expect(await pixel(145,270)).toEqual([255,0,0,255]);
+  await expect.poll(()=>pixel(60,270),{timeout:6000}).toEqual([255,0,0,255]);
+});
