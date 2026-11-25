@@ -211,3 +211,40 @@ describe("presenter gestures, as native's behaviour tests pin them", () => {
     expect([u.name, u.p.waiting.length], "restarted while waiting").toEqual(["A", 0]);
   });
 });
+
+// Restated from native ui-egui/src/present/tail_tests.rs at bad07e44 (controller_buttons_play_key_gamepad_triggers,
+// prototypes_without_gamepad_triggers_dont_poll): controller buttons as the system reports them, bit i for standard button i.
+describe("controller buttons, as native's tests pin them", () => {
+  const padsSetup = () => {
+    const e = new EditorEngine();
+    const a = id(e.execute("frame.create", { x: 0, y: 0, width: 300, height: 400, name: "A" }));
+    const b = id(e.execute("frame.create", { x: 400, y: 0, width: 300, height: 400, name: "B" }));
+    const onA = id(e.execute("shape.rectangle", { x: 10, y: 10, width: 30, height: 30, parent: Number(a) }));
+    const onB = id(e.execute("shape.rectangle", { x: 10, y: 10, width: 30, height: 30, parent: Number(b) }));
+    e.execute("proto.interaction.add", { id: Number(onA), trigger: { type: "keyPress", key: "Gamepad A" }, action: { type: "navigate", dest: Number(b) } });
+    e.execute("proto.interaction.add", { id: Number(onB), trigger: { type: "keyPress", key: "Gamepad B" }, action: { type: "back" } });
+    return present(e, a);
+  };
+  it("plays key triggers that name a controller button", () => {
+    const u = padsSetup();
+    expect(u.p.usesPads).toBe(true);
+    expect(u.name).toBe("A");
+    const steps: [number, string, string][] = [
+      [0b01, "B", "pressing the trigger's button anywhere on the screen plays it, like its key"],
+      [0b01, "B", "a button held down plays once, not again every frame"],
+      [0b11, "A", "another button while one is held: B's trigger goes back"],
+      [0b00, "A", "releasing does nothing (the trigger is a press)"],
+      [1 << 2, "A", "a button no trigger names does nothing"],
+      [0b01, "B", "pressed again after letting go: plays again"],
+    ];
+    for (const [bits, want, why] of steps) {
+      for (let i = 0; i < 2; i++) { u.frames(1); u.input.pads(u.screen, bits, u.time); }
+      expect(u.name, why).toBe(want);
+    }
+  });
+  it("leaves the controllers alone for a prototype without controller triggers", () => {
+    const e = new EditorEngine();
+    const a = id(e.execute("frame.create", { x: 0, y: 0, width: 300, height: 400, name: "A" }));
+    expect(present(e, a).p.usesPads).toBe(false);
+  });
+});

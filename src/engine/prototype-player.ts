@@ -76,6 +76,8 @@ export class PrototypePlayer {
   urls: OpenedLink[] = [];
   /** Native `link_notice`: the link waiting for the viewer to open it; the prototype takes no input meanwhile. */
   linkNotice?: import("./prototype-links").LinkNotice;
+  /** Native `inspected`: the layer Inspect shows, the last one under the pointer. */
+  inspected?: NodeId;
   rev = 0;
   usesPads = false;
   #start: NodeId;

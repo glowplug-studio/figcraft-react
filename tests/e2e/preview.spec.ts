@@ -11544,3 +11544,53 @@ test("the presenter's chrome: flows, the options menu and Hide UI, the navigatio
   await page.getByRole("region",{name:"Prototype",exact:true}).getByRole("button",{name:"Present Main",exact:true}).click();
   await expect(screen).toHaveAttribute("data-scale","fill");
 });
+
+test("the presenter shows comments on the frame, inspects the layer under the pointer, and plays controller buttons",async ({page})=>{
+  const engine=new EditorEngine();
+  const id=(v:unknown)=>String((v as {id:string}).id);
+  const home=id(engine.execute("frame.create",{name:"Home",x:0,y:0,width:200,height:300}));
+  const next=id(engine.execute("frame.create",{name:"Next",x:300,y:0,width:200,height:300}));
+  engine.execute("shape.rectangle",{name:"Card",x:20,y:20,width:60,height:30,parent:home});
+  engine.execute("proto.interaction.add",{id:Number(home),trigger:{type:"keyPress",key:"Gamepad A"},action:{type:"navigate",dest:Number(next)}});
+  engine.execute("comment.add",{x:150,y:200,text:"Looks good"});
+  engine.execute("proto.flow.add",{start:Number(home),name:"Main"});
+  await login(page);
+  await page.getByLabel("Open Figcraft file",{exact:true}).setInputFiles({name:"present-comments.figcraft",mimeType:"application/octet-stream",buffer:Buffer.from(await engine.nativeSnapshot())});
+  await page.getByRole("group",{name:"Properties",exact:true}).getByRole("button",{name:"Prototype",exact:true}).click();
+  await page.getByRole("region",{name:"Prototype",exact:true}).getByRole("button",{name:"Present Main",exact:true}).click();
+  const presenter=page.getByRole("dialog",{name:"Prototype presentation",exact:true}),screen=presenter.getByLabel("Prototype screen",{exact:true});
+  await expect(presenter.getByLabel("Presented frame",{exact:true})).toHaveText("Home");
+  // C shows the comments: a pin on the frame opens its thread, where a reply is added.
+  await page.keyboard.press("c");
+  const pin=presenter.getByRole("button",{name:/^Comment by /});
+  await expect(pin).toHaveCount(1);
+  const r=(await screen.getAttribute("data-screen"))!.split(",").map(Number),pinBox=(await pin.boundingBox())!,canvasBox=(await screen.boundingBox())!;
+  expect(Math.abs(pinBox.x-(canvasBox.x+r[0]+150))).toBeLessThan(2);
+  await pin.click();
+  const thread=presenter.getByRole("dialog",{name:"Comment thread"});
+  await expect(thread).toContainText("Looks good");
+  await thread.getByLabel("Reply").fill("Agreed");
+  await thread.getByLabel("Reply").press("Enter");
+  await expect(thread).toContainText("Agreed");
+  await presenter.getByRole("button",{name:"Comments",exact:true}).click();
+  await expect(pin).toHaveCount(0);
+  // Inspect: the layer under the pointer is named in the panel and outlined.
+  const before=await screen.getAttribute("data-screen");
+  await presenter.getByRole("button",{name:"Inspect",exact:true}).click();
+  const inspect=presenter.getByRole("complementary",{name:"Inspect"});
+  await expect(inspect).toContainText("Hover a layer to see its properties");
+  // The panel narrows the canvas: the frame is laid out again further left.
+  await expect.poll(()=>screen.getAttribute("data-screen")).not.toBe(before);
+  const r2=(await screen.getAttribute("data-screen"))!.split(",").map(Number),box=(await screen.boundingBox())!;
+  await page.mouse.move(box.x+r2[0]+50,box.y+r2[1]+35);
+  await expect(inspect.getByRole("heading")).toHaveText("Card");
+  const pixel=(x:number,y:number)=>screen.evaluate((c:HTMLCanvasElement,[x,y])=>{const k=c.width/c.clientWidth;return Array.from(c.getContext("2d")!.getImageData(Math.round(x*k),Math.round(y*k),1,1).data);},[x,y]);
+  await expect.poll(async()=>(await pixel(r2[0]+20-1,r2[1]+35))[2]).toBeGreaterThan(200);
+  await presenter.getByRole("button",{name:"Inspect",exact:true}).click();
+  await expect(inspect).toHaveCount(0);
+  // A controller's A button plays the trigger that names it.
+  await page.evaluate(()=>{let held=false;(window as unknown as {pressA:()=>void}).pressA=()=>{held=true;};
+    Object.defineProperty(navigator,"getGamepads",{configurable:true,value:()=>[{buttons:[{pressed:held,touched:held,value:held?1:0}]}]});});
+  await page.evaluate(()=>(window as unknown as {pressA:()=>void}).pressA());
+  await expect(presenter.getByLabel("Presented frame",{exact:true})).toHaveText("Next");
+});

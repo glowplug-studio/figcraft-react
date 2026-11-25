@@ -4,7 +4,9 @@ import type { EditorEngine, EditorSnapshot } from "./engine/editor";
 import type { NodeId, PageNode } from "./engine/document";
 import { pageForNode } from "./engine/hierarchy";
 import { PrototypePlayer } from "./engine/prototype-player";
-import { frameScreen, overlayLayers, presentedScreen, type Screen } from "./engine/prototype-screen";
+import { frameScreen, layerAt, overlayLayers, presentedScreen, type Screen } from "./engine/prototype-screen";
+import { ancestors } from "./engine/hierarchy";
+import { boundsOf } from "./engine/viewport";
 import { fullChrome, nextScale, pageBox, paneChrome, placePage, presentLayout, scaleLabel, scaleOptions, type Layout, type PresentScale } from "./engine/prototype-layout";
 import { goesToWebsite } from "./engine/prototype-links";
 import { topFrames, type PresentOptions } from "./engine/prototype-commands";
@@ -52,6 +54,7 @@ export function Presenter({ engine, snapshot, mode, start }: Props) {
   }, [snapshot.presentOptions, p]);
   // Native `layout`: laid out again for every frame drawn and every event, from the canvas's size.
   const chrome = mode === "present" ? fullChrome : paneChrome;
+  const pane = mode === "preview";
   const sizeRef = useRef(size);
   sizeRef.current = size;
   const layoutNow = (): [Layout | undefined, Box | undefined] => {
@@ -75,6 +78,10 @@ export function Presenter({ engine, snapshot, mode, start }: Props) {
   };
   const [menu, setMenu] = useState<"options" | "flows" | "device" | "scale" | undefined>();
   const [barsNotice, setBarsNotice] = useState(false);
+  // Native `PresentView::comments` (C or Shift+C, or the Comments button) and the thread open on the presented frame.
+  const [comments, setComments] = useState(false);
+  const [thread, setThread] = useState<string | undefined>();
+  const [reply, setReply] = useState("");
   // The note on how the bars come back goes after a few seconds.
   useEffect(() => { if (!barsNotice) return; const t = setTimeout(() => setBarsNotice(false), 3000); return () => clearTimeout(t); }, [barsNotice]);
   const [layout, screenBox] = layoutNow();
@@ -86,6 +93,12 @@ export function Presenter({ engine, snapshot, mode, start }: Props) {
       const s = screenNow();
       if (s) {
         let did = input.current!.tick(s, now());
+        // Native `poll_pads`: controllers are polled only while the prototype has controller triggers and the page has the focus.
+        if (p.usesPads && globalThis.document?.hasFocus()) {
+          let held = 0;
+          for (const pad of globalThis.navigator?.getGamepads?.() ?? []) pad?.buttons.forEach((b, i) => { if (b.pressed && i < 32) held |= 1 << i; });
+          if (input.current!.pads(s, held, now())) did = true;
+        }
         if (finish()) did = true;
         // A transition, a Scroll to, an overlay moving or hotspot hints fading draw every frame.
         if (p.stepScrollAnimation(now()) || p.anim) did = true;
@@ -166,6 +179,17 @@ export function Presenter({ engine, snapshot, mode, start }: Props) {
       }
       ctx.globalAlpha = 1;
     };
+    // Native `inspect_hover`: the inspected layer is outlined (the full-window presenter, Inspect on).
+    const drawInspect = () => {
+      const id = p.inspected;
+      if (pane || !p.view.inspect || id === undefined || !screen.doc.nodes[id] || !(id === screen.root || ancestors(screen.doc, id).includes(screen.root))) return;
+      const b = boundsOf(screen.doc, [id]);
+      if (!b) return;
+      const r = toCanvas(b);
+      ctx.save(); ctx.beginPath(); ctx.rect(clipRect.x, clipRect.y, clipRect.w, clipRect.h); ctx.clip();
+      ctx.strokeStyle = "#0d99ff"; ctx.lineWidth = 1.5 * dpr; ctx.strokeRect(r.x - 0.75 * dpr, r.y - 0.75 * dpr, r.w + 1.5 * dpr, r.h + 1.5 * dpr);
+      ctx.restore();
+    };
     const compose = () => {
       if (!live) return;
       ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -175,7 +199,7 @@ export function Presenter({ engine, snapshot, mode, start }: Props) {
         ctx.save(); ctx.beginPath(); ctx.rect(clipRect.x, clipRect.y, clipRect.w, clipRect.h); ctx.clip();
         ctx.drawImage(to, 0, 0);
         ctx.restore();
-        drawGlass(); drawOverlays(); drawFlash();
+        drawInspect(); drawGlass(); drawOverlays(); drawFlash();
         return;
       }
       const fs = from.frame, fz = layout.scale;
@@ -188,7 +212,7 @@ export function Presenter({ engine, snapshot, mode, start }: Props) {
       const drawTo = () => { ctx.globalAlpha = placement.toAlpha; ctx.drawImage(to, screenRect.x, screenRect.y, screenRect.w, screenRect.h, screenRect.x + screenRect.w * placement.toOff[0], screenRect.y + screenRect.h * placement.toOff[1], screenRect.w, screenRect.h); };
       if (placement.fromOnTop) { drawTo(); drawFrom(); } else { drawFrom(); drawTo(); }
       ctx.restore();
-      drawGlass(); drawOverlays(); drawFlash();
+      drawInspect(); drawGlass(); drawOverlays(); drawFlash();
     };
     const placement = anim && anim.transition.type !== "smartAnimate" ? transitionFrames(anim.transition, t!) : undefined;
     let from: { canvas: HTMLCanvasElement; frame: { width: number; height: number } } | undefined;
@@ -245,6 +269,10 @@ export function Presenter({ engine, snapshot, mode, start }: Props) {
       })) {
         finish(); e.preventDefault(); e.stopImmediatePropagation(); redraw(); return;
       }
+      // Keys the prototype left alone: C (or Shift+C) shows the comments.
+      if (mode === "present" && (e.key === "c" || e.key === "C") && !e.metaKey && !e.ctrlKey && !e.altKey) {
+        e.preventDefault(); e.stopImmediatePropagation(); setComments(on => !on); return;
+      }
       if (e.key === "Escape" && mode === "present") { e.preventDefault(); e.stopImmediatePropagation(); engine.closePrototypePlayer(); return; }
       // The full-window presenter owns the keyboard: the editor's shortcuts wait until it closes.
       if (mode === "present" && !e.metaKey && !e.ctrlKey) e.stopImmediatePropagation();
@@ -265,6 +293,7 @@ export function Presenter({ engine, snapshot, mode, start }: Props) {
     const at = pointOf(e), s = screenNow();
     if (!s || !at) return;
     const [pt, q] = at, i = input.current!;
+    if (!pane && p.view.inspect && !p.linkNotice) { const hit = layerAt(s, q); if (hit !== undefined && hit !== p.inspected) { p.inspected = hit; redraw(); } }
     if (what === "down") { e.currentTarget.setPointerCapture?.(e.pointerId); if (e.button !== 0) return; }
     const did = what === "down" ? i.down(s, q, now(), pt) : what === "up" ? i.up(s, q, now()) : i.move(s, q, (e.buttons & 1) === 1, now(), pt);
     if (finish() || did || what === "up") redraw();
@@ -291,7 +320,7 @@ export function Presenter({ engine, snapshot, mode, start }: Props) {
   const flows = useMemo(() => pageId !== undefined ? (doc!.nodes[pageId] as PageNode).flows ?? [] : [], [doc, pageId]);
   const flow = flows.find(f => f.start === p.start);
   const label = mode === "present" ? "Prototype presentation" : "Prototype preview";
-  const pane = mode === "preview", hidden = !pane && p.view.hideUi;
+  const hidden = !pane && p.view.hideUi;
   const settings = doc && doc.nodes[p.current] ? pageDevice(doc, p.current) : undefined;
   const device = settings && presentedDevice(settings), onDevice = !!device, responsive = !!settings?.responsive;
   const currentPage = doc && doc.nodes[p.current] ? pageForNode(doc, p.current) : undefined;
@@ -309,10 +338,34 @@ export function Presenter({ engine, snapshot, mode, start }: Props) {
   const mac = typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform);
   const hideKey = mac ? "⌘\\" : "Ctrl+\\";
   const notice = p.linkNotice;
+  /** Native `comments::presenter`: pins on the presented frame (the frame as designed mapped onto it as presented), and the open thread. */
+  function commentPins() {
+    const design = snapshot.document, fb = design.nodes[p.current] ? boundsOf(design, [p.current]) : undefined;
+    if (!fb || !layout) return null;
+    let list: { id: string; author: string; text: string; x: number; y: number; replies: { author: string; text: string }[] }[] = [];
+    try { list = (engine.execute("comment.list", { frame: Number(p.current), page: "all" }) as { comments: typeof list }).comments; } catch { list = []; }
+    const clip = layout.clip;
+    const pins = list.map(c => ({ c, at: [layout.place.origin[0] + (c.x - fb.x) * layout.scale, layout.place.origin[1] + (c.y - fb.y) * layout.scale] as const }))
+      .filter(({ at }) => at[0] >= clip.x0 && at[0] <= clip.x1 && at[1] >= clip.y0 && at[1] <= clip.y1);
+    const open = pins.find(x => x.c.id === thread);
+    return <>
+      {pins.map(({ c, at }) => <button key={c.id} type="button" aria-label={`Comment by ${c.author}`} aria-pressed={thread === c.id}
+        onClick={() => setThread(thread === c.id ? undefined : c.id)}
+        style={{ position: "absolute", left: at[0], top: at[1] - 28, width: 28, height: 28, borderRadius: "14px 14px 14px 2px", border: "2px solid white", background: "#0d99ff", color: "white", fontSize: 11, padding: 0 }}>
+        {c.author.slice(0, 1).toUpperCase()}</button>)}
+      {open && <div role="dialog" aria-label="Comment thread" style={{ position: "absolute", left: open.at[0] + 34, top: open.at[1] - 28, width: 260, zIndex: 65, background: "#2c2c2c", color: "white", border: "1px solid #444", borderRadius: 8, padding: 10, fontSize: 12 }}>
+        {[open.c, ...open.c.replies].map((m, i) => <p key={i} style={{ margin: "0 0 6px" }}><strong>{m.author}</strong> {m.text}</p>)}
+        <form onSubmit={e => { e.preventDefault(); if (!reply.trim()) return; engine.execute("comment.reply", { id: Number(open.c.id), text: reply.trim() }); setReply(""); }}>
+          <input aria-label="Reply" value={reply} onChange={e => setReply(e.target.value)} placeholder="Reply" style={{ width: "100%" }} />
+        </form>
+      </div>}
+    </>;
+  }
   return <section className={mode === "present" ? "figcraft-presenter" : "figcraft-preview-pane"} role="dialog" aria-label={label}
     style={mode === "present" ? { position: "fixed", inset: 0, zIndex: 50, display: "flex", flexDirection: "column", background: "#1e1e1e" }
       : { position: "absolute", right: 16, bottom: 48, width: 360, height: 480, zIndex: 20, display: "flex", flexDirection: "column", background: "#1e1e1e", border: "1px solid #444", borderRadius: 8 }}>
     {!hidden && <header style={{ position: "relative", display: "flex", gap: 8, alignItems: "center", padding: "6px 10px", background: "#2c2c2c", color: "white" }}>
+      {!pane && doc && <FrameThumb doc={doc} frame={p.current} />}
       {flows.length > 0 && <button type="button" className="figcraft-presenter-flow" aria-haspopup="menu" aria-expanded={menu === "flows"} title={flow?.description.trim() || "Flows"}
         onClick={() => setMenu(menu === "flows" ? undefined : "flows")}>{flow ? flow.name : "Flows"}</button>}
       {flows.length > 0 && <span aria-hidden="true">/</span>}
@@ -321,6 +374,8 @@ export function Presenter({ engine, snapshot, mode, start }: Props) {
         {flows.map(f => <div key={f.start}>{check(f.start === p.start, f.name, () => { p.restart(f.start, now()); setMenu(undefined); redraw(); })}
           {f.description.trim() && <p style={{ margin: "0 8px 4px 28px", opacity: 0.7, fontSize: 10.5 }}>{f.description.trim()}</p>}</div>)}
       </div>}
+      {!pane && <button type="button" aria-pressed={p.view.inspect} title="Inspect the layer under the pointer: size, colours, typography" onClick={() => setView({ inspect: !p.view.inspect })}>Inspect</button>}
+      {!pane && <button type="button" aria-pressed={comments} title="Show comments (Shift+C)" onClick={() => setComments(on => !on)}>Comments</button>}
       {!pane && <button type="button" aria-haspopup="menu" aria-expanded={menu === "options"} onClick={() => setMenu(menu === "options" ? undefined : "options")}>Options</button>}
       <button type="button" onClick={restart}>Restart</button>
       {pane && <button type="button" onClick={() => engine.execute("proto.present", { start: Number(p.start) })}>Present</button>}
@@ -337,12 +392,21 @@ export function Presenter({ engine, snapshot, mode, start }: Props) {
         {check(false, "Restart", restart, "R")}
       </div>}
     </header>}
+    <div style={{ flex: 1, display: "flex", minHeight: 0 }}>
+    <div style={{ position: "relative", flex: 1, minWidth: 0 }}>
     <canvas ref={canvas} aria-label="Prototype screen" data-overlays={p.overlays.length} data-scale={p.view.scale} data-zoom={p.zoom}
       data-device={layout?.device?.name ?? ""} data-screen={layout ? [layout.screen.x0, layout.screen.y0, layout.screen.x1, layout.screen.y1].join(",") : ""}
-      data-scroll={(p.scroll.get(p.current) ?? [0, 0]).join(",")} style={{ flex: 1, width: "100%", minHeight: 0, touchAction: "none" }}
+      data-scroll={(p.scroll.get(p.current) ?? [0, 0]).join(",")} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", touchAction: "none" }}
       onPointerDown={e => { setMenu(undefined); pointer(e, "down"); }} onPointerMove={e => pointer(e, "move")} onPointerUp={e => pointer(e, "up")}
       onPointerEnter={() => { over.current = true; }}
       onPointerLeave={() => { over.current = false; const s = screenNow(); if (s && input.current!.move(s, undefined, false, now())) redraw(); }} />
+    {!pane && comments && layout && commentPins()}
+    </div>
+    {!pane && p.view.inspect && <aside aria-label="Inspect" style={{ width: 280, background: "#2c2c2c", color: "white", borderLeft: "1px solid #444", padding: 12, fontSize: 12, overflowY: "auto" }}>
+      {p.inspected !== undefined && doc?.nodes[p.inspected] ? <h3 style={{ margin: 0, fontSize: 12 }}>{doc.nodes[p.inspected].name}</h3>
+        : <><h3 style={{ margin: 0, fontSize: 12 }}>Inspect</h3><p style={{ opacity: 0.7 }}>Hover a layer to see its properties</p></>}
+    </aside>}
+    </div>
     {!screen && <p role="status" style={{ color: "#aaa" }}>Select a frame to preview it</p>}
     {!pane && !hidden && doc && <nav aria-label="Prototype navigation" style={{ position: "absolute", left: "50%", bottom: 18, transform: "translateX(-50%)", display: "flex", gap: 6, alignItems: "center",
       background: "#2c2c2c", color: "white", border: "1px solid #444", borderRadius: 9, padding: "5px 8px", fontSize: 12 }}>
@@ -383,4 +447,22 @@ export function Presenter({ engine, snapshot, mode, start }: Props) {
       </div>
     </div>}
   </section>;
+}
+
+/** Native `bar_thumb`: a small picture of the presented frame beside its name in the full-window bar. */
+function FrameThumb({ doc, frame }: { doc: import("./engine/document").Document; frame: NodeId }) {
+  const ref = useRef<HTMLCanvasElement>(null);
+  useEffect(() => {
+    const c = ref.current, fs = frameScreen(doc, frame);
+    if (!c || !fs) return;
+    const dpr = globalThis.devicePixelRatio || 1, size = 28;
+    c.width = size * dpr; c.height = size * dpr;
+    const ctx = c.getContext("2d")!;
+    const zoom = 26 / Math.max(fs.frame.width, fs.frame.height, 1);
+    let live = true;
+    const paint = () => { if (!live) return; ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, size, size); void renderDocument(ctx, fs.doc, size, size, [], undefined, { cx: fs.frame.x + fs.frame.width / 2, cy: fs.frame.y + fs.frame.height / 2, zoom, vw: size, vh: size }, undefined, paint); };
+    paint();
+    return () => { live = false; };
+  }, [doc, frame]);
+  return <canvas ref={ref} aria-hidden="true" style={{ width: 28, height: 28, borderRadius: 4, background: "#383838", flex: "none" }} />;
 }

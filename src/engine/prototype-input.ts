@@ -1,7 +1,7 @@
 import type { NodeId } from "./document";
 import { topFrames } from "./prototype-commands";
 import type { PrototypeTrigger } from "./prototype-data";
-import { acceptsDrag, firesOnKey, transitionDirection, type KeyMods } from "./prototype-model";
+import { acceptsDrag, firesOnKey, gamepadButton, transitionDirection, type KeyMods } from "./prototype-model";
 import type { PageRect, PrototypePlayer } from "./prototype-player";
 import { hotspots } from "./prototype-runtime";
 import { clampScroll, coastMin, decayDrag, decayWheel, pageDevice, rubberBand, rubberPoints, unitsPerPoint, type Scroller } from "./prototype-scroll";
@@ -250,6 +250,24 @@ export class PresenterInput {
       const frames = page !== undefined ? topFrames(p.doc, page) : [], i = frames.indexOf(p.current);
       const next = i < 0 ? undefined : forward ? frames[i + 1] : frames[i - 1];
       if (next !== undefined) { p.go(next, { type: "instant" }, 0, "linear", now, true, false); return true; }
+    }
+    return false;
+  }
+  /** Native `pads_held`: the controller buttons held at the last poll (bit i: standard button i). */
+  padsHeld = 0;
+  /** Native `poll_pads` with `fire_pads`: controller buttons pressed since the last poll play the triggers that name them, each press once,
+   * in button order, as a key would; while a link notice shows they are dropped. True when one played. */
+  pads(screen: Screen, held: number, now: number): boolean {
+    const p = this.player, down = held & ~this.padsHeld;
+    this.padsHeld = held;
+    if (p.linkNotice || !down) return false;
+    for (let i = 0; i < 32; i++) {
+      const name = down & (1 << i) ? gamepadButton(i) : undefined;
+      if (!name) continue;
+      for (const id of subtreeIds(screen.doc, screen.root)) {
+        const k = (screen.doc.nodes[id].interactions ?? []).findIndex(it => firesOnKey(it.trigger, name, { ctrl: false, alt: false, shift: false, cmd: false }));
+        if (k >= 0) { if (p.fire(id, k, undefined, now)) return true; break; }
+      }
     }
     return false;
   }

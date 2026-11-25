@@ -56,7 +56,7 @@ function frameOf(doc:Document,c:CommentThread) {
   const p=commentPosition(doc,c);
   return [...page.children].reverse().find(id=>{
     const n=doc.nodes[id];
-    if(!n || !(isFrameLike(n)||n.kind==="section") || !n.visible) return false;
+    if(!n || !(isFrameLike(n)||n.kind==="section") || n.visible===false) return false;
     const b=boundsOf(doc,[id]);
     return b && p.x>=b.x && p.y>=b.y && p.x<=b.x+b.width && p.y<=b.y+b.height;
   })??null;

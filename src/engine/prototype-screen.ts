@@ -130,3 +130,17 @@ export function overlayLayers(player: PrototypePlayer, now: number, base?: Box):
   }
   return out;
 }
+
+/** Native `layer_at`: the top-most visible layer of `screen.root` (it included) under page point `q` (what Inspect outlines). */
+export function layerAt(screen: Screen, q: { x: number; y: number }): NodeId | undefined {
+  const hidden = new Set<NodeId>();
+  let hit: NodeId | undefined;
+  for (const id of subtreeIds(screen.doc, screen.root)) {
+    const n = screen.doc.nodes[id];
+    if (!n) continue;
+    if ((n as { visible?: boolean }).visible === false || (n.parent != null && hidden.has(n.parent))) { hidden.add(id); continue; }
+    const b = boundsOf(screen.doc, [id]);
+    if (b && q.x >= b.x && q.x <= b.x + b.width && q.y >= b.y && q.y <= b.y + b.height) hit = id;
+  }
+  return hit;
+}
