@@ -11300,7 +11300,7 @@ test("the presenter plays a flow: a click navigates, a key goes back, an overlay
   const presenter=page.getByRole("dialog",{name:"Prototype presentation",exact:true});
   const frameName=presenter.getByLabel("Presented frame",{exact:true}),screen=presenter.getByLabel("Prototype screen",{exact:true});
   await expect(frameName).toHaveText("Home");
-  await expect(presenter).toContainText("Main /");
+  await expect(presenter.getByRole("button",{name:"Main",exact:true})).toBeVisible();
   // The frame is drawn (white) over the prototype background (#1E1E1E) around it.
   const pixel=(dx:number)=>screen.evaluate((c:HTMLCanvasElement,dx)=>{const ctx=c.getContext("2d")!,r=c.width/c.clientWidth;return Array.from(ctx.getImageData(Math.round((c.clientWidth/2+dx)*r),Math.round(c.clientHeight/2*r),1,1).data);},dx);
   await expect.poll(()=>pixel(0)).toEqual([255,255,255,255]);
@@ -11468,4 +11468,79 @@ test("the presenter shows the device round its screen, scrolls with the wheel an
   await page.keyboard.press("z");
   await expect(screen).toHaveAttribute("data-scale","fill");
   expect(Number(await screen.getAttribute("data-zoom"))).toBeGreaterThan(fitZoom);
+});
+
+test("the presenter's chrome: flows, the options menu and Hide UI, the navigation bar with devices, and the notice before a link leaves",async ({page})=>{
+  const engine=new EditorEngine();
+  const id=(v:unknown)=>String((v as {id:string}).id);
+  const a=id(engine.execute("frame.create",{name:"Home",x:0,y:0,width:200,height:300}));
+  const b=id(engine.execute("frame.create",{name:"Second",x:300,y:0,width:200,height:300}));
+  engine.execute("frame.create",{name:"Third",x:600,y:0,width:200,height:300});
+  const link=id(engine.execute("shape.rectangle",{name:"Link",x:20,y:20,width:60,height:30,parent:a}));
+  engine.execute("proto.interaction.add",{id:Number(link),action:{type:"openUrl",url:"https://example.com/x"}});
+  engine.execute("proto.flow.add",{start:Number(a),name:"Main"});
+  engine.execute("proto.flow.rename",{start:Number(a),name:"Main",description:"The main flow"});
+  engine.execute("proto.flow.add",{start:Number(b),name:"Other"});
+  await login(page);
+  await page.getByLabel("Open Figcraft file",{exact:true}).setInputFiles({name:"chrome.figcraft",mimeType:"application/octet-stream",buffer:Buffer.from(await engine.nativeSnapshot())});
+  await page.getByRole("group",{name:"Properties",exact:true}).getByRole("button",{name:"Prototype",exact:true}).click();
+  await page.getByRole("region",{name:"Prototype",exact:true}).getByRole("button",{name:"Present Main",exact:true}).click();
+  const presenter=page.getByRole("dialog",{name:"Prototype presentation",exact:true}),screen=presenter.getByLabel("Prototype screen",{exact:true});
+  const frameName=presenter.getByLabel("Presented frame",{exact:true});
+  await expect(frameName).toHaveText("Home");
+  // The flow picker: its description on hover, the other flow in its menu.
+  const flowButton=presenter.getByRole("button",{name:"Main",exact:true});
+  await expect(flowButton).toHaveAttribute("title","The main flow");
+  await flowButton.click();
+  await presenter.getByRole("menu",{name:"Flows"}).getByRole("menuitemcheckbox",{name:"Other"}).click();
+  await expect(frameName).toHaveText("Second");
+  // The navigation bar steps through the page's frames.
+  const nav=presenter.getByRole("navigation",{name:"Prototype navigation"});
+  await expect(nav.getByLabel("Frame position")).toHaveText("2 / 3");
+  await nav.getByRole("button",{name:"Previous frame"}).click();
+  await expect(frameName).toHaveText("Home");
+  // The options menu sizes the prototype another way.
+  await presenter.getByRole("button",{name:"Options",exact:true}).click();
+  const options=presenter.getByRole("menu",{name:"Options"});
+  await expect(options.getByRole("menuitemcheckbox",{name:"Fit to window"})).toHaveAttribute("aria-checked","true");
+  await options.getByRole("menuitemcheckbox",{name:"Fill window"}).click();
+  await expect(screen).toHaveAttribute("data-scale","fill");
+  // Hide UI: the bars go, a note says how they come back, and the key brings them back.
+  await presenter.getByRole("button",{name:"Options",exact:true}).click();
+  await options.getByRole("menuitemcheckbox",{name:/^Hide UI/}).click();
+  await expect(presenter.getByRole("button",{name:"Restart",exact:true})).toHaveCount(0);
+  await expect(nav).toHaveCount(0);
+  await expect(presenter.getByRole("status")).toContainText("The bars are hidden.");
+  await page.keyboard.press("ControlOrMeta+Backslash");
+  await expect(presenter.getByRole("button",{name:"Restart",exact:true})).toBeVisible();
+  // A device chosen in the navigation bar: the frame plays on it.
+  await nav.getByRole("button",{name:"Device"}).click();
+  await nav.getByRole("menuitemcheckbox",{name:"iPhone 16  393×852"}).click();
+  await expect(screen).toHaveAttribute("data-device","iPhone 16");
+  await nav.getByRole("button",{name:"Device"}).click();
+  await nav.getByRole("menuitemcheckbox",{name:"No device"}).click();
+  await expect(screen).toHaveAttribute("data-device","");
+  // A link waits behind the notice: Cancel drops it; Open link opens it in a new tab.
+  await page.evaluate(()=>{(window as unknown as {opened:string[]}).opened=[];window.open=((u:string)=>{(window as unknown as {opened:string[]}).opened.push(u);return null;}) as typeof window.open;});
+  await presenter.getByRole("button",{name:"Options",exact:true}).click();
+  await options.getByRole("menuitemcheckbox",{name:"Fit to window"}).click();
+  const at=async(x:number,y:number)=>{const r=(await screen.getAttribute("data-screen"))!.split(",").map(Number),box=(await screen.boundingBox())!;return {x:box.x+r[0]+x,y:box.y+r[1]+y};};
+  let p=await at(50,35);await page.mouse.click(p.x,p.y);
+  const notice=presenter.getByRole("alertdialog",{name:"Leaving the prototype"});
+  await expect(notice).toContainText("This link opens a website outside the prototype:");
+  await expect(notice).toContainText("https://example.com/x");
+  await expect(notice.getByLabel("Don't show this again")).not.toBeChecked();
+  await notice.getByRole("button",{name:"Cancel"}).click();
+  await expect(notice).toHaveCount(0);
+  p=await at(50,35);await page.mouse.click(p.x,p.y);
+  await notice.getByRole("button",{name:"Open link"}).click();
+  await expect(notice).toHaveCount(0);
+  expect(await page.evaluate(()=>(window as unknown as {opened:string[]}).opened)).toEqual(["https://example.com/x"]);
+  // Escape closes the presenter; the options carry over to the next presentation.
+  await presenter.getByRole("button",{name:"Options",exact:true}).click();
+  await options.getByRole("menuitemcheckbox",{name:"Fill window"}).click();
+  await page.keyboard.press("Escape");
+  await expect(presenter).toHaveCount(0);
+  await page.getByRole("region",{name:"Prototype",exact:true}).getByRole("button",{name:"Present Main",exact:true}).click();
+  await expect(screen).toHaveAttribute("data-scale","fill");
 });

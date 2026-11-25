@@ -74,6 +74,8 @@ export class PrototypePlayer {
   dragScroll?: [Scroller, Pair];
   /** Links the last actions opened, for the presenter's link notice. */
   urls: OpenedLink[] = [];
+  /** Native `link_notice`: the link waiting for the viewer to open it; the prototype takes no input meanwhile. */
+  linkNotice?: import("./prototype-links").LinkNotice;
   rev = 0;
   usesPads = false;
   #start: NodeId;

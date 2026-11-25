@@ -5,7 +5,11 @@ import type { NodeId, PageNode } from "./engine/document";
 import { pageForNode } from "./engine/hierarchy";
 import { PrototypePlayer } from "./engine/prototype-player";
 import { frameScreen, overlayLayers, presentedScreen, type Screen } from "./engine/prototype-screen";
-import { cycleScale, fullChrome, pageBox, paneChrome, placePage, presentLayout, type Layout } from "./engine/prototype-layout";
+import { fullChrome, nextScale, pageBox, paneChrome, placePage, presentLayout, scaleLabel, scaleOptions, type Layout, type PresentScale } from "./engine/prototype-layout";
+import { goesToWebsite } from "./engine/prototype-links";
+import { topFrames, type PresentOptions } from "./engine/prototype-commands";
+import { customDevice, devices, presentedDevice } from "./engine/prototype-settings";
+import { pageDevice } from "./engine/prototype-scroll";
 import { drawDeviceBody, drawDeviceGlass } from "./presenter-device";
 import type { Box } from "./engine/prototype-overlays";
 import { PresenterInput } from "./engine/prototype-input";
@@ -32,7 +36,7 @@ export function Presenter({ engine, snapshot, mode, start }: Props) {
   const over = useRef(false);
   const p = player.current;
   const input = useRef<PresenterInput | null>(null);
-  if (!input.current) input.current = new PresenterInput(p);
+  if (!input.current) input.current = new PresenterInput(p, () => p.view.hotspotHints);
   const now = () => performance.now() / 1000;
   // The player follows the editor's document; a new start restarts it.
   useEffect(() => { if (p.start !== start) { p.sync(snapshot.document, now()); p.restart(start, now()); redraw(); } }, [start]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -41,8 +45,9 @@ export function Presenter({ engine, snapshot, mode, start }: Props) {
   useEffect(() => {
     const o = snapshot.presentOptions;
     if (!o) return;
+    const before = p.view.scale;
     p.view = { ...p.view, ...o };
-    if (o.scale) p.setScale(o.scale);
+    if (o.scale && o.scale !== before) p.setScale(o.scale);
     redraw();
   }, [snapshot.presentOptions, p]);
   // Native `layout`: laid out again for every frame drawn and every event, from the canvas's size.
@@ -56,6 +61,22 @@ export function Presenter({ engine, snapshot, mode, start }: Props) {
     return [l, l && pageBox(l.place, l.screen)];
   };
   const screenNow = (withOverlays = true): Screen | undefined => presentedScreen(p, withOverlays, layoutNow()[1]);
+  // Native `finish` and `open_link`: links wait behind the notice unless the viewer skipped it and fired them.
+  const skippedRef = useRef(false);
+  skippedRef.current = snapshot.linkNoticeSkipped === true;
+  const openLink = (url: string, newTab: boolean) => { if (newTab) globalThis.open(url, "_blank", "noopener,noreferrer"); else globalThis.location.assign(url); };
+  const finish = () => { const had = p.linkNotice; input.current!.finish(skippedRef.current, openLink); return p.linkNotice !== had; };
+  /** The full-window presenter's options change here (Z, the menus); they carry over to the next presentation. */
+  const setView = (next: Partial<PresentOptions>) => {
+    if (next.scale && next.scale !== p.view.scale) p.setScale(next.scale);
+    p.view = { ...p.view, ...next };
+    engine.execute("proto.presentOptions", { ...p.view });
+    redraw();
+  };
+  const [menu, setMenu] = useState<"options" | "flows" | "device" | "scale" | undefined>();
+  const [barsNotice, setBarsNotice] = useState(false);
+  // The note on how the bars come back goes after a few seconds.
+  useEffect(() => { if (!barsNotice) return; const t = setTimeout(() => setBarsNotice(false), 3000); return () => clearTimeout(t); }, [barsNotice]);
   const [layout, screenBox] = layoutNow();
   const screen: Screen | undefined = presentedScreen(p, true, screenBox);
   // Native `next_delay` and `fire_waiting`: after-delay interactions and mouse triggers waiting out their delay.
@@ -65,6 +86,7 @@ export function Presenter({ engine, snapshot, mode, start }: Props) {
       const s = screenNow();
       if (s) {
         let did = input.current!.tick(s, now());
+        if (finish()) did = true;
         // A transition, a Scroll to, an overlay moving or hotspot hints fading draw every frame.
         if (p.stepScrollAnimation(now()) || p.anim) did = true;
         // One frame past the hints so their last trace is cleared.
@@ -202,9 +224,26 @@ export function Presenter({ engine, snapshot, mode, start }: Props) {
     const onKey = (e: KeyboardEvent) => {
       if (mode === "preview" && !over.current) return;
       if (e.target instanceof HTMLElement && e.target.closest("input,select,textarea,[contenteditable=true]")) return;
+      // While a link notice shows the prototype and the presenter's keys wait; Escape cancels the notice.
+      if (p.linkNotice) {
+        if (e.key === "Escape") { e.preventDefault(); e.stopImmediatePropagation(); p.linkNotice = undefined; redraw(); }
+        else if (mode === "present" && !e.metaKey && !e.ctrlKey) e.stopImmediatePropagation();
+        return;
+      }
+      // Cmd/Ctrl+\ hides and shows the bars, as it hides and shows the editor's UI.
+      if (mode === "present" && e.key === "\\" && (e.metaKey || e.ctrlKey)) {
+        e.preventDefault(); e.stopImmediatePropagation();
+        setView({ hideUi: !p.view.hideUi }); setBarsNotice(p.view.hideUi);
+        return;
+      }
       const s = screenNow();
-      if (s && e.key !== "Escape" && input.current!.key(s, keyName(e), { ctrl: e.ctrlKey, alt: e.altKey, shift: e.shiftKey, cmd: e.metaKey }, now(), () => cycleScale(p, layoutNow()[0], chrome))) {
-        e.preventDefault(); e.stopImmediatePropagation(); redraw(); return;
+      if (s && e.key !== "Escape" && input.current!.key(s, keyName(e), { ctrl: e.ctrlKey, alt: e.altKey, shift: e.shiftKey, cmd: e.metaKey }, now(), () => {
+        const l = layoutNow()[0];
+        if (chrome.pane || (!l?.device && p.fit)) return false;
+        setView({ scale: nextScale(p.view.scale, !!l?.device) });
+        return true;
+      })) {
+        finish(); e.preventDefault(); e.stopImmediatePropagation(); redraw(); return;
       }
       if (e.key === "Escape" && mode === "present") { e.preventDefault(); e.stopImmediatePropagation(); engine.closePrototypePlayer(); return; }
       // The full-window presenter owns the keyboard: the editor's shortcuts wait until it closes.
@@ -228,7 +267,7 @@ export function Presenter({ engine, snapshot, mode, start }: Props) {
     const [pt, q] = at, i = input.current!;
     if (what === "down") { e.currentTarget.setPointerCapture?.(e.pointerId); if (e.button !== 0) return; }
     const did = what === "down" ? i.down(s, q, now(), pt) : what === "up" ? i.up(s, q, now()) : i.move(s, q, (e.buttons & 1) === 1, now(), pt);
-    if (did || what === "up") redraw();
+    if (finish() || did || what === "up") redraw();
   };
   // The wheel scrolls (native egui's wheel delta in points: content moves with it, the opposite of the DOM's delta).
   const lastWheel = useRef(0);
@@ -249,24 +288,99 @@ export function Presenter({ engine, snapshot, mode, start }: Props) {
   }, [p, mode]); // eslint-disable-line react-hooks/exhaustive-deps
   const doc = p.doc, name = doc?.nodes[p.current]?.name ?? "";
   const pageId = doc && doc.nodes[p.start] ? pageForNode(doc, p.start) : undefined;
-  const flow = useMemo(() => pageId !== undefined ? (doc!.nodes[pageId] as PageNode).flows?.find(f => f.start === p.start) : undefined, [doc, pageId, p.start]);
+  const flows = useMemo(() => pageId !== undefined ? (doc!.nodes[pageId] as PageNode).flows ?? [] : [], [doc, pageId]);
+  const flow = flows.find(f => f.start === p.start);
   const label = mode === "present" ? "Prototype presentation" : "Prototype preview";
+  const pane = mode === "preview", hidden = !pane && p.view.hideUi;
+  const settings = doc && doc.nodes[p.current] ? pageDevice(doc, p.current) : undefined;
+  const device = settings && presentedDevice(settings), onDevice = !!device, responsive = !!settings?.responsive;
+  const currentPage = doc && doc.nodes[p.current] ? pageForNode(doc, p.current) : undefined;
+  const frames = doc && currentPage !== undefined ? topFrames(doc, currentPage) : [];
+  const index = frames.indexOf(p.current), prev = index > 0 ? frames[index - 1] : undefined, next = index >= 0 ? frames[index + 1] : undefined;
+  const restart = () => { p.restart(p.start, now()); setMenu(undefined); redraw(); };
+  const chooseDevice = (name: string) => { engine.execute("proto.settings", { device: name, responsive: name !== "None" }); p.resetForDevice(); setMenu(undefined); redraw(); };
+  const setResponsive = (on: boolean) => { if (on !== responsive) engine.execute("proto.settings", { responsive: on }); setMenu(undefined); };
+  const pick = (scale: PresentScale) => { setView({ scale }); if (!onDevice && responsive) engine.execute("proto.settings", { responsive: false }); setMenu(undefined); };
+  const check = (on: boolean, text: string, act: () => void, shortcut?: string) =>
+    <button type="button" role="menuitemcheckbox" aria-checked={on} key={text} onClick={act}
+      style={{ display: "flex", gap: 8, width: "100%", textAlign: "left", background: "none", border: 0, color: "inherit", padding: "4px 8px", font: "inherit" }}>
+      <span style={{ width: 12 }}>{on ? "✓" : ""}</span><span style={{ flex: 1 }}>{text}</span>{shortcut && <span style={{ opacity: 0.6 }}>{shortcut}</span>}</button>;
+  const menuStyle: React.CSSProperties = { position: "absolute", zIndex: 60, background: "#2c2c2c", color: "white", border: "1px solid #444", borderRadius: 6, padding: 4, fontSize: 12 };
+  const mac = typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform);
+  const hideKey = mac ? "⌘\\" : "Ctrl+\\";
+  const notice = p.linkNotice;
   return <section className={mode === "present" ? "figcraft-presenter" : "figcraft-preview-pane"} role="dialog" aria-label={label}
     style={mode === "present" ? { position: "fixed", inset: 0, zIndex: 50, display: "flex", flexDirection: "column", background: "#1e1e1e" }
       : { position: "absolute", right: 16, bottom: 48, width: 360, height: 480, zIndex: 20, display: "flex", flexDirection: "column", background: "#1e1e1e", border: "1px solid #444", borderRadius: 8 }}>
-    <header style={{ display: "flex", gap: 8, alignItems: "center", padding: "6px 10px", background: "#2c2c2c", color: "white" }}>
-      {flow && <span className="figcraft-presenter-flow">{flow.name} /</span>}
+    {!hidden && <header style={{ position: "relative", display: "flex", gap: 8, alignItems: "center", padding: "6px 10px", background: "#2c2c2c", color: "white" }}>
+      {flows.length > 0 && <button type="button" className="figcraft-presenter-flow" aria-haspopup="menu" aria-expanded={menu === "flows"} title={flow?.description.trim() || "Flows"}
+        onClick={() => setMenu(menu === "flows" ? undefined : "flows")}>{flow ? flow.name : "Flows"}</button>}
+      {flows.length > 0 && <span aria-hidden="true">/</span>}
       <h2 style={{ fontSize: 12, margin: 0, flex: 1 }} aria-label="Presented frame">{name}</h2>
-      <button type="button" onClick={() => { p.restart(p.start, now()); redraw(); }}>Restart</button>
-      {mode === "preview" && <button type="button" onClick={() => engine.execute("proto.present", { start: Number(p.start) })}>Present</button>}
-      <button type="button" onClick={() => engine.closePrototypePlayer()}>{mode === "present" ? "Close" : "Close preview"}</button>
-    </header>
+      {menu === "flows" && <div role="menu" aria-label="Flows" style={{ ...menuStyle, left: 10, top: 36, width: 240 }}>
+        {flows.map(f => <div key={f.start}>{check(f.start === p.start, f.name, () => { p.restart(f.start, now()); setMenu(undefined); redraw(); })}
+          {f.description.trim() && <p style={{ margin: "0 8px 4px 28px", opacity: 0.7, fontSize: 10.5 }}>{f.description.trim()}</p>}</div>)}
+      </div>}
+      {!pane && <button type="button" aria-haspopup="menu" aria-expanded={menu === "options"} onClick={() => setMenu(menu === "options" ? undefined : "options")}>Options</button>}
+      <button type="button" onClick={restart}>Restart</button>
+      {pane && <button type="button" onClick={() => engine.execute("proto.present", { start: Number(p.start) })}>Present</button>}
+      <button type="button" onClick={() => engine.closePrototypePlayer()}>{pane ? "Close preview" : "Close"}</button>
+      {menu === "options" && <div role="menu" aria-label="Options" style={{ ...menuStyle, right: 10, top: 36, width: 240 }}>
+        {!onDevice && check(responsive, "Responsive", () => setResponsive(true))}
+        {scaleOptions(onDevice).map(sc => check(p.view.scale === sc && (onDevice || !responsive), scaleLabel(sc, onDevice), () => pick(sc)))}
+        {(onDevice || !responsive) && check(false, "Next size option", () => { setView({ scale: nextScale(p.view.scale, onDevice) }); setMenu(undefined); }, "Z")}
+        <hr />
+        {onDevice && <>{check(responsive, "Responsive", () => setResponsive(true))}{check(!responsive, "Fixed size", () => setResponsive(false))}<hr /></>}
+        {onDevice && device!.colors.length > 0 && check(p.view.deviceFrame, "Show device frame", () => { setView({ deviceFrame: !p.view.deviceFrame }); setMenu(undefined); })}
+        {check(p.view.hotspotHints, "Show hotspot hints", () => { setView({ hotspotHints: !p.view.hotspotHints }); setMenu(undefined); })}
+        {check(p.view.hideUi, "Hide UI", () => { setView({ hideUi: !p.view.hideUi }); setBarsNotice(p.view.hideUi); setMenu(undefined); }, hideKey)}
+        {check(false, "Restart", restart, "R")}
+      </div>}
+    </header>}
     <canvas ref={canvas} aria-label="Prototype screen" data-overlays={p.overlays.length} data-scale={p.view.scale} data-zoom={p.zoom}
       data-device={layout?.device?.name ?? ""} data-screen={layout ? [layout.screen.x0, layout.screen.y0, layout.screen.x1, layout.screen.y1].join(",") : ""}
-      data-scroll={(p.scroll.get(p.current) ?? [0, 0]).join(",")} style={{ flex: 1, width: "100%", minHeight: 0, touchAction: "none" }} 
-      onPointerDown={e => pointer(e, "down")} onPointerMove={e => pointer(e, "move")} onPointerUp={e => pointer(e, "up")}
+      data-scroll={(p.scroll.get(p.current) ?? [0, 0]).join(",")} style={{ flex: 1, width: "100%", minHeight: 0, touchAction: "none" }}
+      onPointerDown={e => { setMenu(undefined); pointer(e, "down"); }} onPointerMove={e => pointer(e, "move")} onPointerUp={e => pointer(e, "up")}
       onPointerEnter={() => { over.current = true; }}
       onPointerLeave={() => { over.current = false; const s = screenNow(); if (s && input.current!.move(s, undefined, false, now())) redraw(); }} />
     {!screen && <p role="status" style={{ color: "#aaa" }}>Select a frame to preview it</p>}
+    {!pane && !hidden && doc && <nav aria-label="Prototype navigation" style={{ position: "absolute", left: "50%", bottom: 18, transform: "translateX(-50%)", display: "flex", gap: 6, alignItems: "center",
+      background: "#2c2c2c", color: "white", border: "1px solid #444", borderRadius: 9, padding: "5px 8px", fontSize: 12 }}>
+      <button type="button" aria-label="Previous frame" title="Previous frame" disabled={prev === undefined} onClick={() => { if (prev !== undefined) { p.go(prev, { type: "instant" }, 0, "linear", now(), true, false); redraw(); } }}>‹</button>
+      <span aria-label="Frame position">{index + 1} / {frames.length}</span>
+      <button type="button" aria-label="Next frame" title="Next frame" disabled={next === undefined} onClick={() => { if (next !== undefined) { p.go(next, { type: "instant" }, 0, "linear", now(), true, false); redraw(); } }}>›</button>
+      <span aria-hidden="true">|</span>
+      <span style={{ position: "relative" }}>
+        <button type="button" aria-haspopup="menu" aria-expanded={menu === "device"} aria-label="Device" onClick={() => setMenu(menu === "device" ? undefined : "device")}>{!settings || settings.device === "None" || !settings.device ? "No device" : settings.device}</button>
+        {menu === "device" && <div role="menu" aria-label="Devices" style={{ ...menuStyle, bottom: 30, left: 0, width: 212, maxHeight: 410, overflowY: "auto" }}>
+          {check(!settings || settings.device === "None" || !settings.device, "No device", () => chooseDevice("None"))}
+          <hr />
+          {devices.map(d => check(settings?.device === d.name, `${d.name}  ${d.width}×${d.height}`, () => chooseDevice(d.name)))}
+          <hr />
+          {check(settings?.device === customDevice, "Custom size", () => chooseDevice(customDevice))}
+        </div>}
+      </span>
+      <span style={{ position: "relative" }}>
+        <button type="button" aria-haspopup="menu" aria-expanded={menu === "scale"} aria-label="Size" onClick={() => setMenu(menu === "scale" ? undefined : "scale")}>{scaleLabel(p.view.scale, onDevice)}</button>
+        {menu === "scale" && <div role="menu" aria-label="Sizes" style={{ ...menuStyle, bottom: 30, right: 0, width: 212 }}>
+          {scaleOptions(onDevice).map(sc => check(p.view.scale === sc, scaleLabel(sc, onDevice), () => { setView({ scale: sc }); setMenu(undefined); }))}
+        </div>}
+      </span>
+    </nav>}
+    {barsNotice && p.view.hideUi && <p role="status"
+      style={{ position: "absolute", left: "50%", bottom: 18, transform: "translateX(-50%)", background: "#2c2c2c", color: "white", padding: "6px 10px", borderRadius: 6, fontSize: 12 }}>
+      The bars are hidden. {hideKey} shows them again</p>}
+    {notice && <div role="alertdialog" aria-label="Leaving the prototype" style={{ position: "absolute", left: "50%", top: "40%", transform: "translate(-50%, -50%)", width: 340, zIndex: 70,
+      background: "#2c2c2c", color: "white", border: "1px solid #444", borderRadius: 8, padding: 16, fontSize: 12 }}>
+      <h3 style={{ margin: "0 0 8px", fontSize: 13 }}>Leaving the prototype</h3>
+      <p style={{ margin: 0 }}>{goesToWebsite(notice.url) ? "This link opens a website outside the prototype:" : "This link opens your mail app to write a message:"}</p>
+      <p style={{ margin: "4px 0 8px", opacity: 0.7, fontSize: 11, wordBreak: "break-all" }}>{notice.url}</p>
+      {notice.skip !== undefined && <label style={{ display: "flex", gap: 6, alignItems: "center" }}>
+        <input type="checkbox" checked={notice.skip} onChange={e => { p.linkNotice = { ...notice, skip: e.target.checked }; redraw(); }} />Don't show this again</label>}
+      <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+        <button type="button" onClick={() => { if (input.current!.answerNotice(true, openLink)) engine.execute("proto.linkNotice", { show: false }); redraw(); }}>Open link</button>
+        <button type="button" onClick={() => { input.current!.answerNotice(false, openLink); redraw(); }}>Cancel</button>
+      </div>
+    </div>}
   </section>;
 }

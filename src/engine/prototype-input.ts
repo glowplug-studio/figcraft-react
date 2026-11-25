@@ -6,6 +6,7 @@ import type { PageRect, PrototypePlayer } from "./prototype-player";
 import { hotspots } from "./prototype-runtime";
 import { clampScroll, coastMin, decayDrag, decayWheel, pageDevice, rubberBand, rubberPoints, unitsPerPoint, type Scroller } from "./prototype-scroll";
 import { presentedDevice } from "./prototype-settings";
+import { finishLinks } from "./prototype-links";
 import { boundsOf } from "./viewport";
 import { outsideTopOverlay, type Screen } from "./prototype-screen";
 import { pageForNode, subtreeIds } from "./hierarchy";
@@ -55,6 +56,7 @@ export class PresenterInput {
   /** Native `input` for a pointer at `q` (undefined: away from the screen): reverting states, enter and leave, while hovering. */
   move(screen: Screen, q: Point | undefined, down: boolean, now: number, pt?: Pair): boolean {
     const p = this.player;
+    if (p.linkNotice) return false;
     const at = pt ?? (q && [q.x * this.scale, q.y * this.scale] as const);
     if (at && down) { this.#trail.push([at[0], at[1], now]); this.#trail = this.#trail.filter(t => now - t[2] <= 0.1); }
     // A transition a drag started follows the pointer while it stays down.
@@ -152,6 +154,7 @@ export class PresenterInput {
   wheel(screen: Screen, q: Point, delta: Pair, dt: number, now: number): boolean {
     void now;
     const p = this.player, base = p.doc;
+    if (p.linkNotice) return false;
     if (!base || (delta[0] === 0 && delta[1] === 0)) return false;
     this.#wheeled = true;
     const targets: Scroller[] = this.#scrollersAt(screen, q);
@@ -180,6 +183,7 @@ export class PresenterInput {
   /** Native's press: a click outside the top overlay closes it; mouse down, then while pressing. */
   down(screen: Screen, q: Point, now: number, pt?: Pair): boolean {
     const p = this.player;
+    if (p.linkNotice) return false;
     this.press = q; this.dragged = false;
     this.#pressPt = pt ?? [q.x * this.scale, q.y * this.scale];
     this.#trail = [[this.#pressPt[0], this.#pressPt[1], now]];
@@ -201,6 +205,7 @@ export class PresenterInput {
   /** Native's release: a while-pressing state reverts; mouse up; a click when it did not drag, else hotspot hints. */
   up(screen: Screen, q: Point | undefined, now: number): boolean {
     const p = this.player;
+    if (p.linkNotice) return false;
     // Native `release_drag_scroll`: a drag that scrolled carries on at the pointer's speed (and springs back from past the ends).
     const ds = p.dragScroll;
     if (ds && p.doc) {
@@ -230,6 +235,8 @@ export class PresenterInput {
    * `sizes` is Z (the full-window presenter's size options). True when the key was used. */
   key(screen: Screen, name: string, mods: KeyMods, now: number, sizes?: () => boolean): boolean {
     const p = this.player;
+    // While a link notice shows the prototype takes no keys (Escape there cancels the notice).
+    if (p.linkNotice) return false;
     for (const id of subtreeIds(screen.doc, screen.root)) {
       const k = (screen.doc.nodes[id].interactions ?? []).findIndex(it => firesOnKey(it.trigger, name, mods));
       if (k >= 0) { if (p.fire(id, k, undefined, now)) return true; break; }
@@ -245,6 +252,18 @@ export class PresenterInput {
       if (next !== undefined) { p.go(next, { type: "instant" }, 0, "linear", now, true, false); return true; }
     }
     return false;
+  }
+  /** Native `finish`: the links the last input or timer opened (see `finishLinks`); a notice coming up ends a press under way. */
+  finish(skipped: boolean, open: (url: string, newTab: boolean) => void) {
+    if (finishLinks(this.player, skipped, open)) { this.press = undefined; this.dragged = false; this.#pressPt = undefined; this.player.dragScroll = undefined; }
+  }
+  /** Native `link_notice`'s answer: Open link opens it (and says whether "Don't show this again" was ticked); Cancel drops it. */
+  answerNotice(go: boolean, open: (url: string, newTab: boolean) => void): boolean {
+    const n = this.player.linkNotice;
+    this.player.linkNotice = undefined;
+    if (!n || !go) return false;
+    open(n.url, n.newTab);
+    return n.skip === true;
   }
   /** Native's timers: delayed mouse triggers due, then an after-delay interaction due (not while a transition plays). */
   tick(screen: Screen, now: number): boolean {
