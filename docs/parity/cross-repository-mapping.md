@@ -892,3 +892,7 @@ Native `crates/ui-egui/src/present/transition.rs` (`name_path`, `match_layers`, 
 ## Roadmap row 15: presenter gestures and overlays in motion — 25 November 2026
 
 Native `crates/ui-egui/src/present/input.rs` (pointer, hover, drag and follow, keys, timers) and the overlays in motion and hotspot hints of `present/draw.rs` at `bad07e44` map to `prototype-input.ts` (`PresenterInput`), `prototype-screen.ts` (`overlayLayers`), `prototype-player.ts` (`pruneClosing`) and `Presenter.tsx` at `f1db0d3`. Verified by restated native tests in `tests/parity/prototype-gestures.test.ts`, unit tests in `tests/unit/prototype-input.test.ts` and a browser case in `tests/e2e/preview.spec.ts`. [Report](../reports/26-11-25-presenter-gestures.md).
+
+## Roadmap row 15: presenter scrolling and the screen — 25 November 2026
+
+Native `crates/ui-egui/src/present/layout.rs` (`Place`, `bezel`, `body_outset`, `layout`), `present.rs::PresentScale`, `present/scroll.rs` (`fling_axis`, `rubber_band`, `scrollers_at`, `units_per_point`), the wheel, drag scrolling and Z of `present/input.rs`, `present/navigate.rs::respond_to`, `crates/engine/src/cmd/proto.rs::respond` and `present/device.rs` at `bad07e44` map to `prototype-layout.ts`, `prototype-scroll.ts`, `prototype-player.ts`, `prototype-input.ts`, `presenter-device.ts` and `Presenter.tsx` at `c074057`. Verified by restated native tests in `tests/parity/prototype-presenter-view.test.ts` and a browser case in `tests/e2e/preview.spec.ts`. [Report](../reports/26-11-25-presenter-screen.md).

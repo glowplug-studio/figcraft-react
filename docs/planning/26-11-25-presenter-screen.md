@@ -2,11 +2,11 @@
 
 ## Execution checkpoint
 
-- Phase: implemented; the gate is running.
+- Phase: complete through Phase 7 on 25 November 2026 at `c074057`: [report](../reports/26-11-25-presenter-screen.md), [matrix](../reports/26-11-25-presenter-screen-parity.html).
 - Native reference: `bad07e4433240cad046589129c084bd2fc36f097` (`bad07e44`). React starting revision: `143ff77` on `prompt/full-figcraft-port`.
 - Row plan: [roadmap row 15](26-11-24-roadmap-row-15-prototyping.md).
 - Files changed: `src/engine/prototype-layout.ts` (new: `presentLayout`, `Place`, `bezel`, scale options, `cycleScale`); `src/engine/prototype-scroll.ts` (`flingAxis`, `rubberBand`, `unitsPerPoint` and the motion constants); `src/engine/prototype-player.ts` (pan, zoom, flings, the wheel, drag scrolling, `setScale`, `resetForDevice`, `respondTo`, `respond`); `src/engine/prototype-input.ts` (wheel, drag scrolling, flings on release, a press catching a fling, the wheel's coast, Z); `src/engine/prototype-screen.ts` (overlays placed on the device's screen); `src/presenter-device.ts` (new: the device's body and glass drawn in code); `src/Presenter.tsx` (laid out by `presentLayout`, the device drawn, the wheel, the scale options); tests `tests/parity/prototype-presenter-view.test.ts` and one case in `tests/e2e/preview.spec.ts`.
-- Next action: record the item.
+- Next action: none; the item is recorded. Item 10e follows in the row plan.
 - Blockers: none.
 
 ## Native contract (`ui-egui/src/present/{layout,scroll,device,input}.rs`, `present.rs`)
