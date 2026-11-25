@@ -2,11 +2,11 @@
 
 ## Execution checkpoint
 
-- Phase: implemented; the gate is running.
+- Phase: complete through Phase 7 on 25 November 2026 at `6b0e410`: [report](../reports/26-11-25-board-tables.md), [matrix](../reports/26-11-25-board-tables-parity.html), [provenance](../../tests/fixtures/native-board-tables.provenance.md).
 - Native reference: `bad07e4433240cad046589129c084bd2fc36f097` (`bad07e44`). React starting revision: `3a72456` on `prompt/full-figcraft-port`.
 - Row plan: [roadmap row 16](26-11-25-roadmap-row-16-boards.md).
 - Files changed: `src/engine/board-table.ts` (new: `makeTable`, `editTable`, `tableAnswer`, `tableOf`, `spreadsheetCells`, `settleTables`); `src/engine/board-commands.ts` (`board.table`, `board.tableEdit`, the view's centre for a table placed without a position); `src/engine/editor.ts` (tables settled after each edit, fonts prepared for cell texts); tests `tests/parity/board-tables.test.ts`, fixture `tests/fixtures/native-board-tables.json` with provenance, and one case in `tests/e2e/preview.spec.ts`.
-- Next action: record the item.
+- Next action: none; the item is recorded. Item 7 follows in the row plan.
 - Blockers: none.
 
 ## Native contract (`engine/src/boards/board_table.rs`)

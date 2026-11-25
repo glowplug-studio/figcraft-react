@@ -2,11 +2,11 @@
 
 ## Execution checkpoint
 
-- Phase: implemented; the gate is running.
+- Phase: complete through Phase 7 on 25 November 2026 at `a4a4e53`: [report](../reports/26-11-25-board-templates.md), [matrix](../reports/26-11-25-board-templates-parity.html), [provenance](../../tests/fixtures/native-board-templates.provenance.md).
 - Native reference: `bad07e4433240cad046589129c084bd2fc36f097` (`bad07e44`). React starting revision: `6b0e410` on `prompt/full-figcraft-port`.
 - Row plan: [roadmap row 16](26-11-25-roadmap-row-16-boards.md).
 - Files changed: `src/engine/board-templates.ts` (new: the five templates, `templateList`, `findTemplate`, `buildTemplate`); `src/engine/board-grid.ts` (new: `BoardGrid`, `boardGridCommand`); `src/engine/board-commands.ts` (`board.template`, built by running the board commands in one step); `src/engine/editor.ts` (`board.templates`, `board.grid` kept with the session and published in the snapshot, fonts prepared for template text); tests `tests/parity/board-templates.test.ts`, fixture `tests/fixtures/native-board-templates.json` with provenance, and one case in `tests/e2e/preview.spec.ts`.
-- Next action: record the item.
+- Next action: none; the item is recorded. Item 8 follows in the row plan.
 - Blockers: none.
 
 ## Native contract (`engine/src/boards/board_grid.rs`, `board_templates.rs`)

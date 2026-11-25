@@ -916,3 +916,19 @@ Native `crates/doc/src/board.rs::BoardShape` (`names`, `from_id`, `path`, `text_
 ## Roadmap row 16: connectors — 25 November 2026
 
 Native `crates/doc/src/board_route.rs`, `crates/engine/src/boards/board/connectors.rs` (`end_param`, `connector_cmd`, `make`, `connector_of`, `reattach`), `edit.rs` (`label_of`, `set_label`, `label_cmd`) and `derived.rs` (`settle_routes`, `detach_gone_ends`, `carry_free_ends`, `place_label`, `route_mid`, `place_route`, `route`) at `bad07e44` map to `board-route.ts`, `board-commands.ts` and `editor.ts` at `9b457e5`. Verified against a native observation and restated route tests in `tests/parity/board-connectors.test.ts` and a browser case in `tests/e2e/preview.spec.ts`. [Report](../reports/26-11-25-board-connectors.md).
+
+## Roadmap row 16: reshaped connectors and joined shapes — 25 November 2026
+
+Native `crates/engine/src/boards/board/reshape.rs` (`pinned`, `moved`, `reshape`), `crates/doc/src/board_route.rs` (`reshaped`, `attached_sides`) and `crates/engine/src/boards/board/items.rs` (`connected_place`, `add_connected`, `drop_point`, `next_sticky`) at `bad07e44` map to `board-commands.ts` and `board-route.ts` at `1f3d73e`. Verified against a native observation and restated native tests in `tests/parity/board-reshape.test.ts` and a browser case in `tests/e2e/preview.spec.ts`. [Report](../reports/26-11-25-board-reshape.md).
+
+## Roadmap row 16: stamps and ink — 25 November 2026
+
+Native `crates/doc/src/board.rs` (`Stamp`, `STAMP_SIZE`), `crates/engine/src/boards/board/items.rs` (`stamp_cmd`, `ink_cmd`), `board.rs` (`MARKER`, `HIGHLIGHTER`) and `board/derived.rs` (`settle_stamps`, `stamp_target`, `carry`) at `bad07e44` map to `board-commands.ts` and `editor.ts` at `3a72456`. Verified against a native observation in `tests/parity/board-stamps.test.ts` and a browser case in `tests/e2e/preview.spec.ts`. [Report](../reports/26-11-25-board-stamps.md).
+
+## Roadmap row 16: tables — 25 November 2026
+
+Native `crates/engine/src/boards/board_table.rs` (`make_table`, `make_row`, `make_cell`, `restyle`, `answer`, `table_cmd`, `edit_cmd`, `table_of`, `settle_resize`, `spreadsheet_cells`) at `bad07e44` maps to `board-table.ts`, `board-commands.ts` and `editor.ts` at `6b0e410`. Verified against a native observation and restated rules in `tests/parity/board-tables.test.ts` and a browser case in `tests/e2e/preview.spec.ts`. [Report](../reports/26-11-25-board-tables.md).
+
+## Roadmap row 16: grids and templates — 25 November 2026
+
+Native `crates/engine/src/boards/board_templates.rs` (`TEMPLATES`, `find`, `template_cmd`, `Builder`, the five layouts) and `board_grid.rs` (`GridStyle`, `BoardGrid`, `sanitized`, `grid_cmd`) at `bad07e44` map to `board-templates.ts`, `board-grid.ts`, `board-commands.ts` and `editor.ts` at `a4a4e53`. Verified against native observations in `tests/parity/board-templates.test.ts` and a browser case in `tests/e2e/preview.spec.ts`. [Report](../reports/26-11-25-board-templates.md).
