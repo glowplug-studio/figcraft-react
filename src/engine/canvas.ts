@@ -56,6 +56,7 @@ import { vectorPaintRegions } from "./vector-presentation";
 import { VectorInteraction } from "./vector-interaction";
 import { drawVectorEdit } from "./vector-edit-overlay";
 import { drawPen } from "./pen-overlay";
+import { drawVoteBadges } from "./board-facilitate";
 import { ShapeBuilderInteraction } from "./shape-builder-interaction";
 import { pencilPointerPressure } from "./pencil-samples";
 
@@ -1021,6 +1022,7 @@ export class CanvasController {
       const builder = snapshot.tool === "shapeBuilder";
       const crop = this.engine.pickedCrop();
       drawDocumentFrame(context, this.#text.preeditDocument ?? this.engine.getRenderDocument(), this.#width, this.#height, vectorEdit || pen || builder || this.#text.active ? [] : this.engine.getRenderSelection(), undefined, view, vectorEdit?.id, () => this.invalidate(), crop ? images => this.#crop.draw(context, images) : undefined);
+      drawVoteBadges(context, this.engine.getRenderDocument(), view, this.engine.voter);
       if (!this.#text.active && !crop && !builder && !pen && !vectorEdit && !this.#moving.active && !this.#transforming.active && !this.#rounding.active && !this.#arcs.active && !this.#drawing.active) this.#smart.draw(context);
       if (!this.#text.active && !crop && !builder && !pen && !vectorEdit && !this.#moving.active && !this.#transforming.active && !this.#smart.active && !this.#drawing.active) { this.#rounding.draw(context); this.#arcs.draw(context); }
       if (!this.#text.active && !crop && !builder && !pen && !vectorEdit && !this.#moving.active && !this.#smart.active) this.#transforming.draw(context);

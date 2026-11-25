@@ -85,7 +85,8 @@ import { settleTables } from "./board-table";
 import { settleMindMaps } from "./board-mindmap";
 import { templateList, templateTexts } from "./board-templates";
 import { boardGridCommand, defaultBoardGrid, type BoardGrid } from "./board-grid";
-import { boardSpecs, defaultBoardTool, executeBoard, refuseOnBoard, settleBoardRoutes, settleBoardStamps, settleBoardText, type BoardCommand, type BoardTool } from "./board-commands";
+import { executeFacilitate, facilitateSpecs, keepFacilitation, type FacilitateCommand, type FacilitateContext } from "./board-facilitate";
+import { boardSpecs, defaultBoardTool, executeBoard, needsBoard, refuseOnBoard, settleBoardRoutes, settleBoardStamps, settleBoardText, type BoardCommand, type BoardTool } from "./board-commands";
 import { executeSelection, layersAt, selectionSpecs } from "./selection";
 import { setRectangleProperties, setPageGeometryFields } from "./properties";
 import { HierarchyDraft, pageForNode, worldTransform, zSorted } from "./hierarchy";
@@ -177,6 +178,7 @@ export const commandSpecs = Object.freeze({
   ...boardSpecs,
   "board.templates": { label: "List board templates", undo: false },
   "board.grid": { label: "Board grid", undo: false },
+  ...facilitateSpecs,
   ...viewSpecs,
   "frame.presets": { label: "List frame presets", undo: false },
   ...selectionSpecs,
@@ -506,6 +508,13 @@ export class EditorEngine {
   #commentRead = true;
   #commentAccess = true;
   #commentName = "You";
+  /** Native `voter` with no `voter` given: you as the live session knows you ("peer N"), else your name. */
+  get voter(): string { const live = this.#inspectSession?.(); return live?.status === "live" && live.me != null ? "peer " + live.me : this.#commentName; }
+  #facilitation(): FacilitateContext {
+    const live = this.#inspectSession?.(), on = live?.status === "live";
+    return { now: Date.now(), me: this.voter, author: this.#commentName === "You" ? (on ? live.name ?? "" : "") : this.#commentName, selection: this.#snapshot.selection,
+      peerName: client => !on ? undefined : client === live.me ? live.name ?? undefined : live.peers.find(peer => peer.id === client)?.name };
+  }
   /** Native `Session::tool.board`: the board tools' choices (the sticky colour and size, the shape, …). */
   #boardTool: BoardTool = defaultBoardTool;
   #boardGrid: BoardGrid = defaultBoardGrid;
@@ -1818,7 +1827,7 @@ export class EditorEngine {
       const entry = this.#redo.pop(); if (!entry) return { redone: false };
       this.#undo.push({ document: this.getRenderDocument(), selection: this.getRenderSelection() });
       if (this.#interaction) { this.#nextId = this.#interaction.nextId; this.cancelInteraction(); }
-      this.#lastDuplicate = undefined; this.#publish(entry); return { redone: true };
+      this.#lastDuplicate = undefined; this.#publish({ ...entry, document: keepFacilitation(this.getRenderDocument(), entry.document) }); return { redone: true };
     }
     if (command === "tool.pencilBrush") {
       if (Object.hasOwn(p, "preset")) this.#pencilBrush = parseBrush(p.preset === null ? null : p);
@@ -2245,6 +2254,14 @@ export class EditorEngine {
     // Native `board.templates` and `board.grid` (the board canvas's grid, kept with the preferences).
     if (command === "board.templates") return templateList() as unknown as Record<string, unknown>;
     if (command === "board.grid") { this.#boardGrid = boardGridCommand(this.#boardGrid, p); this.#publish({ boardGrid: this.#boardGrid }); return { ...this.#boardGrid }; }
+    // Native `board.timer`, `board.timerState`, `board.vote` and `board.voteResults`: shared with the document, never undo steps.
+    if (Object.hasOwn(facilitateSpecs, command)) {
+      const before = this.#snapshot;
+      if (before.document.kind !== "board") throw new Error("command `" + command + "` is not available right now: " + needsBoard);
+      const next = executeFacilitate(command as FacilitateCommand, before.document, p, this.#facilitation());
+      if (next.document !== before.document) this.#commitEdit({ document: next.document }, { record: false });
+      return next.result;
+    }
     if (Object.hasOwn(boardSpecs, command)) {
       const before = this.#snapshot;
       // Native `author`: the name from Preferences or the live session (none for the default name).
@@ -2317,7 +2334,7 @@ export class EditorEngine {
     if (entry) {
       this.#lastDuplicate = undefined;
       target.push({ document: this.#snapshot.document, selection: this.#snapshot.selection });
-      this.#publish({...entry,document:restoreLibraryOverrides(this.#snapshot.document,entry.document)});
+      this.#publish({...entry,document:keepFacilitation(this.#snapshot.document,restoreLibraryOverrides(this.#snapshot.document,entry.document))});
     }
     return { [undo ? "undone" : "redone"]: Boolean(entry) };
   }

@@ -11733,3 +11733,18 @@ test("a mind map lays its nodes out on branches",async ({page})=>{
   await expect(page.getByRole("region",{name:"Layers",exact:true}).getByRole("button",{name:"Mind map node",exact:true})).toHaveCount(3);
   await expectCanvasPixel(page,mid.x,mid.y,[0x75,0x75,0x75,255]);
 });
+
+test("an ended vote shows its badges at the objects' corners",async ({page})=>{
+  const engine=EditorEngine.newTab(undefined,{},"board");
+  const sticky=await engine.executeAsync("board.sticky",{x:0,y:0,text:"Ship it"}) as {id:number};
+  await engine.executeAsync("board.vote",{action:"start"});
+  await engine.executeAsync("board.vote",{action:"cast",id:sticky.id,voter:"Ada"});
+  await engine.executeAsync("board.vote",{action:"end"});
+  await engine.executeAsync("select.set",{ids:[]});
+  await login(page);
+  await page.getByLabel("Open Figcraft file",{exact:true}).setInputFiles({name:"vote.figcraft",mimeType:"application/octet-stream",buffer:Buffer.from(await engine.nativeSnapshot())});
+  await expect(page.getByRole("region",{name:"Layers",exact:true}).getByRole("button",{name:"Sticky",exact:true})).toHaveCount(1);
+  // The badge sits on the sticky's top-right corner (200, 0): seven screen pixels left of its middle is the brand fill.
+  const zoom=Number(await page.getByLabel("Design canvas",{exact:true}).getAttribute("data-view-zoom"));
+  await expectCanvasPixel(page,200-7/zoom,0,[0x02,0xda,0x96,255]);
+});

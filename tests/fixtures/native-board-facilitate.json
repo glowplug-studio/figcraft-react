@@ -1,0 +1,3173 @@
+{
+ "commands": [
+  [
+   "file.newBoard",
+   {}
+  ],
+  [
+   "board.sticky",
+   {
+    "x": 0,
+    "y": 0,
+    "text": "Ship it"
+   }
+  ],
+  [
+   "board.sticky",
+   {
+    "x": 300,
+    "y": 0,
+    "text": "Wait"
+   }
+  ],
+  [
+   "board.sticky",
+   {
+    "x": 600,
+    "y": 0,
+    "text": "Rethink\nlater, with a much longer second line"
+   }
+  ],
+  [
+   "board.shape",
+   {
+    "x": 0,
+    "y": 400
+   }
+  ],
+  [
+   "board.timerState",
+   {}
+  ],
+  [
+   "board.timer",
+   {
+    "action": "pause"
+   }
+  ],
+  [
+   "board.timer",
+   {
+    "action": "add"
+   }
+  ],
+  [
+   "board.timer",
+   {
+    "action": "start",
+    "minutes": 3
+   }
+  ],
+  [
+   "board.timer",
+   {
+    "action": "pause"
+   }
+  ],
+  [
+   "board.timer",
+   {
+    "action": "pause"
+   }
+  ],
+  [
+   "board.timer",
+   {
+    "action": "add"
+   }
+  ],
+  [
+   "board.timer",
+   {
+    "action": "resume"
+   }
+  ],
+  [
+   "board.timer",
+   {
+    "action": "resume"
+   }
+  ],
+  [
+   "board.timer",
+   {
+    "action": "start",
+    "minutes": 0
+   }
+  ],
+  [
+   "board.timer",
+   {
+    "action": "start",
+    "minutes": 1441
+   }
+  ],
+  [
+   "board.timer",
+   {
+    "action": "start",
+    "minutes": "x"
+   }
+  ],
+  [
+   "board.timer",
+   {
+    "action": "jump"
+   }
+  ],
+  [
+   "board.timer",
+   {
+    "action": 5
+   }
+  ],
+  [
+   "board.timer",
+   {}
+  ],
+  [
+   "board.timer",
+   {
+    "action": "stop"
+   }
+  ],
+  [
+   "board.timerState",
+   {}
+  ],
+  [
+   "board.voteResults",
+   {}
+  ],
+  [
+   "board.vote",
+   {
+    "action": "cast",
+    "id": 2
+   }
+  ],
+  [
+   "board.vote",
+   {
+    "action": "start",
+    "votes": 2,
+    "on": "stickies"
+   }
+  ],
+  [
+   "board.vote",
+   {
+    "action": "start"
+   }
+  ],
+  [
+   "board.vote",
+   {
+    "action": "cast",
+    "id": 2,
+    "voter": "Ada"
+   }
+  ],
+  [
+   "board.vote",
+   {
+    "action": "cast",
+    "id": 2,
+    "voter": "Ada"
+   }
+  ],
+  [
+   "board.vote",
+   {
+    "action": "cast",
+    "id": 4,
+    "voter": "Ada"
+   }
+  ],
+  [
+   "board.vote",
+   {
+    "action": "cast",
+    "id": 8,
+    "voter": "Bo"
+   }
+  ],
+  [
+   "board.vote",
+   {
+    "action": "cast",
+    "id": 99999,
+    "voter": "Bo"
+   }
+  ],
+  [
+   "board.vote",
+   {
+    "action": "cast",
+    "id": "x",
+    "voter": "Bo"
+   }
+  ],
+  [
+   "board.vote",
+   {
+    "action": "cast",
+    "id": 4,
+    "voter": "Bo"
+   }
+  ],
+  [
+   "board.vote",
+   {
+    "action": "cast",
+    "id": 6,
+    "voter": "Bo"
+   }
+  ],
+  [
+   "board.vote",
+   {
+    "action": "cast",
+    "id": 4,
+    "voter": "  Cy\u0007 "
+   }
+  ],
+  [
+   "board.vote",
+   {
+    "action": "cast",
+    "id": 6,
+    "voter": "Cy"
+   }
+  ],
+  [
+   "board.vote",
+   {
+    "action": "retract",
+    "id": 6,
+    "voter": "Cy"
+   }
+  ],
+  [
+   "board.vote",
+   {
+    "action": "retract",
+    "id": 6,
+    "voter": "Cy"
+   }
+  ],
+  [
+   "board.vote",
+   {
+    "action": "cast",
+    "id": 2,
+    "voter": "Cy"
+   }
+  ],
+  [
+   "board.voteResults",
+   {
+    "voter": "Bo"
+   }
+  ],
+  [
+   "board.voteResults",
+   {}
+  ],
+  [
+   "board.vote",
+   {
+    "action": "end"
+   }
+  ],
+  [
+   "board.vote",
+   {
+    "action": "end"
+   }
+  ],
+  [
+   "board.vote",
+   {
+    "action": "cast",
+    "id": 4,
+    "voter": "Dee"
+   }
+  ],
+  [
+   "board.voteResults",
+   {}
+  ],
+  [
+   "edit.delete",
+   {
+    "ids": [
+     2
+    ]
+   }
+  ],
+  [
+   "board.voteResults",
+   {}
+  ],
+  [
+   "board.vote",
+   {
+    "action": "clear"
+   }
+  ],
+  [
+   "board.voteResults",
+   {}
+  ],
+  [
+   "select.set",
+   {
+    "ids": [
+     4
+    ]
+   }
+  ],
+  [
+   "board.vote",
+   {
+    "action": "start",
+    "on": "selection"
+   }
+  ],
+  [
+   "board.vote",
+   {
+    "action": "cast",
+    "id": 6
+   }
+  ],
+  [
+   "board.vote",
+   {
+    "action": "cast",
+    "id": 4
+   }
+  ],
+  [
+   "board.vote",
+   {
+    "action": "end"
+   }
+  ],
+  [
+   "board.vote",
+   {
+    "action": "start",
+    "on": "all",
+    "votes": 1
+   }
+  ],
+  [
+   "board.vote",
+   {
+    "action": "cast",
+    "id": 8,
+    "voter": 7
+   }
+  ],
+  [
+   "board.vote",
+   {
+    "action": "end"
+   }
+  ],
+  [
+   "board.vote",
+   {
+    "action": "start",
+    "votes": 0
+   }
+  ],
+  [
+   "board.vote",
+   {
+    "action": "start",
+    "votes": 100
+   }
+  ],
+  [
+   "board.vote",
+   {
+    "action": "start",
+    "votes": 1.5
+   }
+  ],
+  [
+   "board.vote",
+   {
+    "action": "start",
+    "on": "pages"
+   }
+  ],
+  [
+   "board.vote",
+   {
+    "action": "start",
+    "on": "selection",
+    "ids": []
+   }
+  ],
+  [
+   "board.vote",
+   {
+    "action": "start",
+    "on": "selection",
+    "ids": [
+     "x"
+    ]
+   }
+  ],
+  [
+   "board.vote",
+   {
+    "action": "start",
+    "on": "selection",
+    "ids": [
+     1
+    ]
+   }
+  ],
+  [
+   "board.vote",
+   {
+    "action": "start",
+    "on": "selection",
+    "ids": 5
+   }
+  ],
+  [
+   "board.vote",
+   {
+    "action": "start",
+    "on": "selection",
+    "ids": [
+     424242
+    ]
+   }
+  ],
+  [
+   "board.vote",
+   {
+    "action": "start",
+    "on": [
+     1
+    ],
+    "votes": "2"
+   }
+  ],
+  [
+   "board.voteResults",
+   {}
+  ],
+  [
+   "board.vote",
+   {
+    "action": "end"
+   }
+  ],
+  [
+   "board.vote",
+   {
+    "action": "delete"
+   }
+  ],
+  [
+   "board.vote",
+   {
+    "action": "delete",
+    "index": -1
+   }
+  ],
+  [
+   "board.vote",
+   {
+    "action": "delete",
+    "index": "0"
+   }
+  ],
+  [
+   "board.vote",
+   {
+    "action": "delete",
+    "index": 9
+   }
+  ],
+  [
+   "board.vote",
+   {
+    "action": "delete",
+    "index": 2
+   }
+  ],
+  [
+   "board.voteResults",
+   {}
+  ],
+  [
+   "board.vote",
+   {
+    "action": "delete",
+    "index": 0
+   }
+  ],
+  [
+   "board.vote",
+   {
+    "action": "wave"
+   }
+  ],
+  [
+   "board.vote",
+   {
+    "action": "clear"
+   }
+  ],
+  [
+   "board.vote",
+   {
+    "action": "clear"
+   }
+  ],
+  [
+   "board.voteResults",
+   {}
+  ],
+  [
+   "file.saveAs",
+   {
+    "data": true
+   }
+  ]
+ ],
+ "results": [
+  {
+   "receipt": {
+    "index": 1,
+    "kind": "board"
+   }
+  },
+  {
+   "receipt": {
+    "id": 2,
+    "text": 3
+   }
+  },
+  {
+   "receipt": {
+    "id": 4,
+    "text": 5
+   }
+  },
+  {
+   "receipt": {
+    "id": 6,
+    "text": 7
+   }
+  },
+  {
+   "receipt": {
+    "id": 8,
+    "text": 10
+   }
+  },
+  {
+   "receipt": {
+    "ends": null,
+    "left": 0,
+    "state": "off",
+    "text": "0:00"
+   }
+  },
+  {
+   "error": "command `board.timer` is not available right now: the timer isn't running"
+  },
+  {
+   "error": "command `board.timer` is not available right now: there is no timer: start one"
+  },
+  {
+   "receipt": {
+    "ends": 1795585253231,
+    "left": 180000,
+    "state": "running",
+    "text": "3:00"
+   }
+  },
+  {
+   "receipt": {
+    "ends": null,
+    "left": 180000,
+    "state": "paused",
+    "text": "3:00"
+   }
+  },
+  {
+   "error": "command `board.timer` is not available right now: the timer isn't running"
+  },
+  {
+   "receipt": {
+    "ends": null,
+    "left": 240000,
+    "state": "paused",
+    "text": "4:00"
+   }
+  },
+  {
+   "receipt": {
+    "ends": 1795585313231,
+    "left": 240000,
+    "state": "running",
+    "text": "4:00"
+   }
+  },
+  {
+   "error": "command `board.timer` is not available right now: the timer isn't paused"
+  },
+  {
+   "error": "invalid parameters for `board.timer`: `minutes` must be from 1 second to 1440 minutes"
+  },
+  {
+   "error": "invalid parameters for `board.timer`: `minutes` must be from 1 second to 1440 minutes"
+  },
+  {
+   "error": "invalid parameters for `board.timer`: `minutes` must be a number"
+  },
+  {
+   "error": "invalid parameters for `board.timer`: unknown action `jump` (start|pause|resume|add|stop)"
+  },
+  {
+   "error": "invalid parameters for `board.timer`: unknown action `5` (start|pause|resume|add|stop)"
+  },
+  {
+   "error": "invalid parameters for `board.timer`: `action` must be a string"
+  },
+  {
+   "receipt": {
+    "ends": null,
+    "left": 0,
+    "state": "off",
+    "text": "0:00"
+   }
+  },
+  {
+   "receipt": {
+    "ends": null,
+    "left": 0,
+    "state": "off",
+    "text": "0:00"
+   }
+  },
+  {
+   "receipt": {
+    "sessions": [],
+    "state": "off"
+   }
+  },
+  {
+   "error": "command `board.vote` is not available right now: no vote is running"
+  },
+  {
+   "receipt": {
+    "by": "",
+    "left": 2,
+    "mine": [],
+    "on": "stickies",
+    "sessions": [],
+    "state": "running",
+    "voters": 0,
+    "votesPerPerson": 2
+   }
+  },
+  {
+   "error": "command `board.vote` is not available right now: a vote is already running: end it first"
+  },
+  {
+   "receipt": {
+    "by": "",
+    "left": 1,
+    "mine": [
+     {
+      "id": 2,
+      "votes": 1
+     }
+    ],
+    "on": "stickies",
+    "sessions": [],
+    "state": "running",
+    "voters": 1,
+    "votesPerPerson": 2
+   }
+  },
+  {
+   "receipt": {
+    "by": "",
+    "left": 0,
+    "mine": [
+     {
+      "id": 2,
+      "votes": 2
+     }
+    ],
+    "on": "stickies",
+    "sessions": [],
+    "state": "running",
+    "voters": 1,
+    "votesPerPerson": 2
+   }
+  },
+  {
+   "error": "command `board.vote` is not available right now: you have no votes left: remove one first"
+  },
+  {
+   "error": "command `board.vote` is not available right now: this vote isn't on that object"
+  },
+  {
+   "error": "no such node 99999"
+  },
+  {
+   "error": "invalid parameters for `board.vote`: `id` must be the object to vote on"
+  },
+  {
+   "receipt": {
+    "by": "",
+    "left": 1,
+    "mine": [
+     {
+      "id": 4,
+      "votes": 1
+     }
+    ],
+    "on": "stickies",
+    "sessions": [],
+    "state": "running",
+    "voters": 2,
+    "votesPerPerson": 2
+   }
+  },
+  {
+   "receipt": {
+    "by": "",
+    "left": 0,
+    "mine": [
+     {
+      "id": 4,
+      "votes": 1
+     },
+     {
+      "id": 6,
+      "votes": 1
+     }
+    ],
+    "on": "stickies",
+    "sessions": [],
+    "state": "running",
+    "voters": 2,
+    "votesPerPerson": 2
+   }
+  },
+  {
+   "receipt": {
+    "by": "",
+    "left": 1,
+    "mine": [
+     {
+      "id": 4,
+      "votes": 1
+     }
+    ],
+    "on": "stickies",
+    "sessions": [],
+    "state": "running",
+    "voters": 3,
+    "votesPerPerson": 2
+   }
+  },
+  {
+   "receipt": {
+    "by": "",
+    "left": 0,
+    "mine": [
+     {
+      "id": 4,
+      "votes": 1
+     },
+     {
+      "id": 6,
+      "votes": 1
+     }
+    ],
+    "on": "stickies",
+    "sessions": [],
+    "state": "running",
+    "voters": 3,
+    "votesPerPerson": 2
+   }
+  },
+  {
+   "receipt": {
+    "by": "",
+    "left": 1,
+    "mine": [
+     {
+      "id": 4,
+      "votes": 1
+     }
+    ],
+    "on": "stickies",
+    "sessions": [],
+    "state": "running",
+    "voters": 3,
+    "votesPerPerson": 2
+   }
+  },
+  {
+   "error": "command `board.vote` is not available right now: you have no vote on that object"
+  },
+  {
+   "receipt": {
+    "by": "",
+    "left": 0,
+    "mine": [
+     {
+      "id": 4,
+      "votes": 1
+     },
+     {
+      "id": 2,
+      "votes": 1
+     }
+    ],
+    "on": "stickies",
+    "sessions": [],
+    "state": "running",
+    "voters": 3,
+    "votesPerPerson": 2
+   }
+  },
+  {
+   "receipt": {
+    "by": "",
+    "left": 0,
+    "mine": [
+     {
+      "id": 4,
+      "votes": 1
+     },
+     {
+      "id": 6,
+      "votes": 1
+     }
+    ],
+    "on": "stickies",
+    "sessions": [],
+    "state": "running",
+    "voters": 3,
+    "votesPerPerson": 2
+   }
+  },
+  {
+   "receipt": {
+    "by": "",
+    "left": 2,
+    "mine": [],
+    "on": "stickies",
+    "sessions": [],
+    "state": "running",
+    "voters": 3,
+    "votesPerPerson": 2
+   }
+  },
+  {
+   "receipt": {
+    "by": "",
+    "left": 2,
+    "mine": [],
+    "on": "stickies",
+    "results": [
+     {
+      "id": 2,
+      "name": "Ship it",
+      "rank": 1,
+      "voters": [
+       {
+        "name": "Ada",
+        "voter": "Ada",
+        "votes": 2
+       },
+       {
+        "name": "Cy",
+        "voter": "Cy",
+        "votes": 1
+       }
+      ],
+      "votes": 3
+     },
+     {
+      "id": 4,
+      "name": "Wait",
+      "rank": 2,
+      "voters": [
+       {
+        "name": "Bo",
+        "voter": "Bo",
+        "votes": 1
+       },
+       {
+        "name": "Cy",
+        "voter": "Cy",
+        "votes": 1
+       }
+      ],
+      "votes": 2
+     },
+     {
+      "id": 6,
+      "name": "Rethink…",
+      "rank": 3,
+      "voters": [
+       {
+        "name": "Bo",
+        "voter": "Bo",
+        "votes": 1
+       }
+      ],
+      "votes": 1
+     }
+    ],
+    "sessions": [
+     {
+      "by": "",
+      "ended": 1795585073235,
+      "index": 0,
+      "on": "stickies",
+      "onBoard": true,
+      "results": [
+       {
+        "id": 2,
+        "name": "Ship it",
+        "rank": 1,
+        "voters": [
+         {
+          "name": "Ada",
+          "voter": "Ada",
+          "votes": 2
+         },
+         {
+          "name": "Cy",
+          "voter": "Cy",
+          "votes": 1
+         }
+        ],
+        "votes": 3
+       },
+       {
+        "id": 4,
+        "name": "Wait",
+        "rank": 2,
+        "voters": [
+         {
+          "name": "Bo",
+          "voter": "Bo",
+          "votes": 1
+         },
+         {
+          "name": "Cy",
+          "voter": "Cy",
+          "votes": 1
+         }
+        ],
+        "votes": 2
+       },
+       {
+        "id": 6,
+        "name": "Rethink…",
+        "rank": 3,
+        "voters": [
+         {
+          "name": "Bo",
+          "voter": "Bo",
+          "votes": 1
+         }
+        ],
+        "votes": 1
+       }
+      ],
+      "votesPerPerson": 2
+     }
+    ],
+    "state": "ended",
+    "voters": 3,
+    "votesPerPerson": 2
+   }
+  },
+  {
+   "error": "command `board.vote` is not available right now: no vote is running"
+  },
+  {
+   "error": "command `board.vote` is not available right now: no vote is running"
+  },
+  {
+   "receipt": {
+    "by": "",
+    "left": 2,
+    "mine": [],
+    "on": "stickies",
+    "results": [
+     {
+      "id": 2,
+      "name": "Ship it",
+      "rank": 1,
+      "voters": [
+       {
+        "name": "Ada",
+        "voter": "Ada",
+        "votes": 2
+       },
+       {
+        "name": "Cy",
+        "voter": "Cy",
+        "votes": 1
+       }
+      ],
+      "votes": 3
+     },
+     {
+      "id": 4,
+      "name": "Wait",
+      "rank": 2,
+      "voters": [
+       {
+        "name": "Bo",
+        "voter": "Bo",
+        "votes": 1
+       },
+       {
+        "name": "Cy",
+        "voter": "Cy",
+        "votes": 1
+       }
+      ],
+      "votes": 2
+     },
+     {
+      "id": 6,
+      "name": "Rethink…",
+      "rank": 3,
+      "voters": [
+       {
+        "name": "Bo",
+        "voter": "Bo",
+        "votes": 1
+       }
+      ],
+      "votes": 1
+     }
+    ],
+    "sessions": [
+     {
+      "by": "",
+      "ended": 1795585073235,
+      "index": 0,
+      "on": "stickies",
+      "onBoard": true,
+      "results": [
+       {
+        "id": 2,
+        "name": "Ship it",
+        "rank": 1,
+        "voters": [
+         {
+          "name": "Ada",
+          "voter": "Ada",
+          "votes": 2
+         },
+         {
+          "name": "Cy",
+          "voter": "Cy",
+          "votes": 1
+         }
+        ],
+        "votes": 3
+       },
+       {
+        "id": 4,
+        "name": "Wait",
+        "rank": 2,
+        "voters": [
+         {
+          "name": "Bo",
+          "voter": "Bo",
+          "votes": 1
+         },
+         {
+          "name": "Cy",
+          "voter": "Cy",
+          "votes": 1
+         }
+        ],
+        "votes": 2
+       },
+       {
+        "id": 6,
+        "name": "Rethink…",
+        "rank": 3,
+        "voters": [
+         {
+          "name": "Bo",
+          "voter": "Bo",
+          "votes": 1
+         }
+        ],
+        "votes": 1
+       }
+      ],
+      "votesPerPerson": 2
+     }
+    ],
+    "state": "ended",
+    "voters": 3,
+    "votesPerPerson": 2
+   }
+  },
+  {
+   "receipt": {
+    "deleted": [
+     2
+    ],
+    "hidden": []
+   }
+  },
+  {
+   "receipt": {
+    "by": "",
+    "left": 2,
+    "mine": [],
+    "on": "stickies",
+    "results": [
+     {
+      "id": 4,
+      "name": "Wait",
+      "rank": 1,
+      "voters": [
+       {
+        "name": "Bo",
+        "voter": "Bo",
+        "votes": 1
+       },
+       {
+        "name": "Cy",
+        "voter": "Cy",
+        "votes": 1
+       }
+      ],
+      "votes": 2
+     },
+     {
+      "id": 6,
+      "name": "Rethink…",
+      "rank": 2,
+      "voters": [
+       {
+        "name": "Bo",
+        "voter": "Bo",
+        "votes": 1
+       }
+      ],
+      "votes": 1
+     }
+    ],
+    "sessions": [
+     {
+      "by": "",
+      "ended": 1795585073235,
+      "index": 0,
+      "on": "stickies",
+      "onBoard": true,
+      "results": [
+       {
+        "id": 4,
+        "name": "Wait",
+        "rank": 1,
+        "voters": [
+         {
+          "name": "Bo",
+          "voter": "Bo",
+          "votes": 1
+         },
+         {
+          "name": "Cy",
+          "voter": "Cy",
+          "votes": 1
+         }
+        ],
+        "votes": 2
+       },
+       {
+        "id": 6,
+        "name": "Rethink…",
+        "rank": 2,
+        "voters": [
+         {
+          "name": "Bo",
+          "voter": "Bo",
+          "votes": 1
+         }
+        ],
+        "votes": 1
+       }
+      ],
+      "votesPerPerson": 2
+     }
+    ],
+    "state": "ended",
+    "voters": 2,
+    "votesPerPerson": 2
+   }
+  },
+  {
+   "receipt": {
+    "sessions": [
+     {
+      "by": "",
+      "ended": 1795585073235,
+      "index": 0,
+      "on": "stickies",
+      "onBoard": false,
+      "results": [
+       {
+        "id": 4,
+        "name": "Wait",
+        "rank": 1,
+        "voters": [
+         {
+          "name": "Bo",
+          "voter": "Bo",
+          "votes": 1
+         },
+         {
+          "name": "Cy",
+          "voter": "Cy",
+          "votes": 1
+         }
+        ],
+        "votes": 2
+       },
+       {
+        "id": 6,
+        "name": "Rethink…",
+        "rank": 2,
+        "voters": [
+         {
+          "name": "Bo",
+          "voter": "Bo",
+          "votes": 1
+         }
+        ],
+        "votes": 1
+       }
+      ],
+      "votesPerPerson": 2
+     }
+    ],
+    "state": "off"
+   }
+  },
+  {
+   "receipt": {
+    "sessions": [
+     {
+      "by": "",
+      "ended": 1795585073235,
+      "index": 0,
+      "on": "stickies",
+      "onBoard": false,
+      "results": [
+       {
+        "id": 4,
+        "name": "Wait",
+        "rank": 1,
+        "voters": [
+         {
+          "name": "Bo",
+          "voter": "Bo",
+          "votes": 1
+         },
+         {
+          "name": "Cy",
+          "voter": "Cy",
+          "votes": 1
+         }
+        ],
+        "votes": 2
+       },
+       {
+        "id": 6,
+        "name": "Rethink…",
+        "rank": 2,
+        "voters": [
+         {
+          "name": "Bo",
+          "voter": "Bo",
+          "votes": 1
+         }
+        ],
+        "votes": 1
+       }
+      ],
+      "votesPerPerson": 2
+     }
+    ],
+    "state": "off"
+   }
+  },
+  {
+   "receipt": {
+    "selection": [
+     4
+    ]
+   }
+  },
+  {
+   "receipt": {
+    "by": "",
+    "left": 3,
+    "mine": [],
+    "on": {
+     "selection": [
+      4
+     ]
+    },
+    "sessions": [
+     {
+      "by": "",
+      "ended": 1795585073235,
+      "index": 0,
+      "on": "stickies",
+      "onBoard": false,
+      "results": [
+       {
+        "id": 4,
+        "name": "Wait",
+        "rank": 1,
+        "voters": [
+         {
+          "name": "Bo",
+          "voter": "Bo",
+          "votes": 1
+         },
+         {
+          "name": "Cy",
+          "voter": "Cy",
+          "votes": 1
+         }
+        ],
+        "votes": 2
+       },
+       {
+        "id": 6,
+        "name": "Rethink…",
+        "rank": 2,
+        "voters": [
+         {
+          "name": "Bo",
+          "voter": "Bo",
+          "votes": 1
+         }
+        ],
+        "votes": 1
+       }
+      ],
+      "votesPerPerson": 2
+     }
+    ],
+    "state": "running",
+    "voters": 0,
+    "votesPerPerson": 3
+   }
+  },
+  {
+   "error": "command `board.vote` is not available right now: this vote isn't on that object"
+  },
+  {
+   "receipt": {
+    "by": "",
+    "left": 2,
+    "mine": [
+     {
+      "id": 4,
+      "votes": 1
+     }
+    ],
+    "on": {
+     "selection": [
+      4
+     ]
+    },
+    "sessions": [
+     {
+      "by": "",
+      "ended": 1795585073235,
+      "index": 0,
+      "on": "stickies",
+      "onBoard": false,
+      "results": [
+       {
+        "id": 4,
+        "name": "Wait",
+        "rank": 1,
+        "voters": [
+         {
+          "name": "Bo",
+          "voter": "Bo",
+          "votes": 1
+         },
+         {
+          "name": "Cy",
+          "voter": "Cy",
+          "votes": 1
+         }
+        ],
+        "votes": 2
+       },
+       {
+        "id": 6,
+        "name": "Rethink…",
+        "rank": 2,
+        "voters": [
+         {
+          "name": "Bo",
+          "voter": "Bo",
+          "votes": 1
+         }
+        ],
+        "votes": 1
+       }
+      ],
+      "votesPerPerson": 2
+     }
+    ],
+    "state": "running",
+    "voters": 1,
+    "votesPerPerson": 3
+   }
+  },
+  {
+   "receipt": {
+    "by": "",
+    "left": 2,
+    "mine": [
+     {
+      "id": 4,
+      "votes": 1
+     }
+    ],
+    "on": {
+     "selection": [
+      4
+     ]
+    },
+    "results": [
+     {
+      "id": 4,
+      "name": "Wait",
+      "rank": 1,
+      "voters": [
+       {
+        "name": "You",
+        "voter": "You",
+        "votes": 1
+       }
+      ],
+      "votes": 1
+     }
+    ],
+    "sessions": [
+     {
+      "by": "",
+      "ended": 1795585073238,
+      "index": 1,
+      "on": {
+       "selection": [
+        4
+       ]
+      },
+      "onBoard": true,
+      "results": [
+       {
+        "id": 4,
+        "name": "Wait",
+        "rank": 1,
+        "voters": [
+         {
+          "name": "You",
+          "voter": "You",
+          "votes": 1
+         }
+        ],
+        "votes": 1
+       }
+      ],
+      "votesPerPerson": 3
+     },
+     {
+      "by": "",
+      "ended": 1795585073235,
+      "index": 0,
+      "on": "stickies",
+      "onBoard": false,
+      "results": [
+       {
+        "id": 4,
+        "name": "Wait",
+        "rank": 1,
+        "voters": [
+         {
+          "name": "Bo",
+          "voter": "Bo",
+          "votes": 1
+         },
+         {
+          "name": "Cy",
+          "voter": "Cy",
+          "votes": 1
+         }
+        ],
+        "votes": 2
+       },
+       {
+        "id": 6,
+        "name": "Rethink…",
+        "rank": 2,
+        "voters": [
+         {
+          "name": "Bo",
+          "voter": "Bo",
+          "votes": 1
+         }
+        ],
+        "votes": 1
+       }
+      ],
+      "votesPerPerson": 2
+     }
+    ],
+    "state": "ended",
+    "voters": 1,
+    "votesPerPerson": 3
+   }
+  },
+  {
+   "receipt": {
+    "by": "",
+    "left": 1,
+    "mine": [],
+    "on": "all",
+    "sessions": [
+     {
+      "by": "",
+      "ended": 1795585073238,
+      "index": 1,
+      "on": {
+       "selection": [
+        4
+       ]
+      },
+      "onBoard": false,
+      "results": [
+       {
+        "id": 4,
+        "name": "Wait",
+        "rank": 1,
+        "voters": [
+         {
+          "name": "You",
+          "voter": "You",
+          "votes": 1
+         }
+        ],
+        "votes": 1
+       }
+      ],
+      "votesPerPerson": 3
+     },
+     {
+      "by": "",
+      "ended": 1795585073235,
+      "index": 0,
+      "on": "stickies",
+      "onBoard": false,
+      "results": [
+       {
+        "id": 4,
+        "name": "Wait",
+        "rank": 1,
+        "voters": [
+         {
+          "name": "Bo",
+          "voter": "Bo",
+          "votes": 1
+         },
+         {
+          "name": "Cy",
+          "voter": "Cy",
+          "votes": 1
+         }
+        ],
+        "votes": 2
+       },
+       {
+        "id": 6,
+        "name": "Rethink…",
+        "rank": 2,
+        "voters": [
+         {
+          "name": "Bo",
+          "voter": "Bo",
+          "votes": 1
+         }
+        ],
+        "votes": 1
+       }
+      ],
+      "votesPerPerson": 2
+     }
+    ],
+    "state": "running",
+    "voters": 0,
+    "votesPerPerson": 1
+   }
+  },
+  {
+   "receipt": {
+    "by": "",
+    "left": 0,
+    "mine": [
+     {
+      "id": 8,
+      "votes": 1
+     }
+    ],
+    "on": "all",
+    "sessions": [
+     {
+      "by": "",
+      "ended": 1795585073238,
+      "index": 1,
+      "on": {
+       "selection": [
+        4
+       ]
+      },
+      "onBoard": false,
+      "results": [
+       {
+        "id": 4,
+        "name": "Wait",
+        "rank": 1,
+        "voters": [
+         {
+          "name": "You",
+          "voter": "You",
+          "votes": 1
+         }
+        ],
+        "votes": 1
+       }
+      ],
+      "votesPerPerson": 3
+     },
+     {
+      "by": "",
+      "ended": 1795585073235,
+      "index": 0,
+      "on": "stickies",
+      "onBoard": false,
+      "results": [
+       {
+        "id": 4,
+        "name": "Wait",
+        "rank": 1,
+        "voters": [
+         {
+          "name": "Bo",
+          "voter": "Bo",
+          "votes": 1
+         },
+         {
+          "name": "Cy",
+          "voter": "Cy",
+          "votes": 1
+         }
+        ],
+        "votes": 2
+       },
+       {
+        "id": 6,
+        "name": "Rethink…",
+        "rank": 2,
+        "voters": [
+         {
+          "name": "Bo",
+          "voter": "Bo",
+          "votes": 1
+         }
+        ],
+        "votes": 1
+       }
+      ],
+      "votesPerPerson": 2
+     }
+    ],
+    "state": "running",
+    "voters": 1,
+    "votesPerPerson": 1
+   }
+  },
+  {
+   "receipt": {
+    "by": "",
+    "left": 1,
+    "mine": [],
+    "on": "all",
+    "results": [
+     {
+      "id": 8,
+      "name": "Rectangle",
+      "rank": 1,
+      "voters": [
+       {
+        "name": "7",
+        "voter": "7",
+        "votes": 1
+       }
+      ],
+      "votes": 1
+     }
+    ],
+    "sessions": [
+     {
+      "by": "",
+      "ended": 1795585073238,
+      "index": 2,
+      "on": "all",
+      "onBoard": true,
+      "results": [
+       {
+        "id": 8,
+        "name": "Rectangle",
+        "rank": 1,
+        "voters": [
+         {
+          "name": "7",
+          "voter": "7",
+          "votes": 1
+         }
+        ],
+        "votes": 1
+       }
+      ],
+      "votesPerPerson": 1
+     },
+     {
+      "by": "",
+      "ended": 1795585073238,
+      "index": 1,
+      "on": {
+       "selection": [
+        4
+       ]
+      },
+      "onBoard": false,
+      "results": [
+       {
+        "id": 4,
+        "name": "Wait",
+        "rank": 1,
+        "voters": [
+         {
+          "name": "You",
+          "voter": "You",
+          "votes": 1
+         }
+        ],
+        "votes": 1
+       }
+      ],
+      "votesPerPerson": 3
+     },
+     {
+      "by": "",
+      "ended": 1795585073235,
+      "index": 0,
+      "on": "stickies",
+      "onBoard": false,
+      "results": [
+       {
+        "id": 4,
+        "name": "Wait",
+        "rank": 1,
+        "voters": [
+         {
+          "name": "Bo",
+          "voter": "Bo",
+          "votes": 1
+         },
+         {
+          "name": "Cy",
+          "voter": "Cy",
+          "votes": 1
+         }
+        ],
+        "votes": 2
+       },
+       {
+        "id": 6,
+        "name": "Rethink…",
+        "rank": 2,
+        "voters": [
+         {
+          "name": "Bo",
+          "voter": "Bo",
+          "votes": 1
+         }
+        ],
+        "votes": 1
+       }
+      ],
+      "votesPerPerson": 2
+     }
+    ],
+    "state": "ended",
+    "voters": 1,
+    "votesPerPerson": 1
+   }
+  },
+  {
+   "error": "invalid parameters for `board.vote`: `votes` must be a whole number from 1 to 99"
+  },
+  {
+   "error": "invalid parameters for `board.vote`: `votes` must be a whole number from 1 to 99"
+  },
+  {
+   "error": "invalid parameters for `board.vote`: `votes` must be a whole number from 1 to 99"
+  },
+  {
+   "error": "invalid parameters for `board.vote`: unknown `on` `pages` (all|stickies|selection)"
+  },
+  {
+   "error": "command `board.vote` is not available right now: nothing is selected (pass `ids`)"
+  },
+  {
+   "error": "invalid parameters for `board.vote`: `ids`: every entry must be a node id (got \"x\")"
+  },
+  {
+   "error": "invalid parameters for `board.vote`: pick the objects to vote on (not pages)"
+  },
+  {
+   "error": "invalid parameters for `board.vote`: `ids` must be an array (got 5)"
+  },
+  {
+   "error": "no such node 424242"
+  },
+  {
+   "receipt": {
+    "by": "",
+    "left": 2,
+    "mine": [],
+    "on": "all",
+    "sessions": [
+     {
+      "by": "",
+      "ended": 1795585073238,
+      "index": 2,
+      "on": "all",
+      "onBoard": false,
+      "results": [
+       {
+        "id": 8,
+        "name": "Rectangle",
+        "rank": 1,
+        "voters": [
+         {
+          "name": "7",
+          "voter": "7",
+          "votes": 1
+         }
+        ],
+        "votes": 1
+       }
+      ],
+      "votesPerPerson": 1
+     },
+     {
+      "by": "",
+      "ended": 1795585073238,
+      "index": 1,
+      "on": {
+       "selection": [
+        4
+       ]
+      },
+      "onBoard": false,
+      "results": [
+       {
+        "id": 4,
+        "name": "Wait",
+        "rank": 1,
+        "voters": [
+         {
+          "name": "You",
+          "voter": "You",
+          "votes": 1
+         }
+        ],
+        "votes": 1
+       }
+      ],
+      "votesPerPerson": 3
+     },
+     {
+      "by": "",
+      "ended": 1795585073235,
+      "index": 0,
+      "on": "stickies",
+      "onBoard": false,
+      "results": [
+       {
+        "id": 4,
+        "name": "Wait",
+        "rank": 1,
+        "voters": [
+         {
+          "name": "Bo",
+          "voter": "Bo",
+          "votes": 1
+         },
+         {
+          "name": "Cy",
+          "voter": "Cy",
+          "votes": 1
+         }
+        ],
+        "votes": 2
+       },
+       {
+        "id": 6,
+        "name": "Rethink…",
+        "rank": 2,
+        "voters": [
+         {
+          "name": "Bo",
+          "voter": "Bo",
+          "votes": 1
+         }
+        ],
+        "votes": 1
+       }
+      ],
+      "votesPerPerson": 2
+     }
+    ],
+    "state": "running",
+    "voters": 0,
+    "votesPerPerson": 2
+   }
+  },
+  {
+   "receipt": {
+    "by": "",
+    "left": 2,
+    "mine": [],
+    "on": "all",
+    "sessions": [
+     {
+      "by": "",
+      "ended": 1795585073238,
+      "index": 2,
+      "on": "all",
+      "onBoard": false,
+      "results": [
+       {
+        "id": 8,
+        "name": "Rectangle",
+        "rank": 1,
+        "voters": [
+         {
+          "name": "7",
+          "voter": "7",
+          "votes": 1
+         }
+        ],
+        "votes": 1
+       }
+      ],
+      "votesPerPerson": 1
+     },
+     {
+      "by": "",
+      "ended": 1795585073238,
+      "index": 1,
+      "on": {
+       "selection": [
+        4
+       ]
+      },
+      "onBoard": false,
+      "results": [
+       {
+        "id": 4,
+        "name": "Wait",
+        "rank": 1,
+        "voters": [
+         {
+          "name": "You",
+          "voter": "You",
+          "votes": 1
+         }
+        ],
+        "votes": 1
+       }
+      ],
+      "votesPerPerson": 3
+     },
+     {
+      "by": "",
+      "ended": 1795585073235,
+      "index": 0,
+      "on": "stickies",
+      "onBoard": false,
+      "results": [
+       {
+        "id": 4,
+        "name": "Wait",
+        "rank": 1,
+        "voters": [
+         {
+          "name": "Bo",
+          "voter": "Bo",
+          "votes": 1
+         },
+         {
+          "name": "Cy",
+          "voter": "Cy",
+          "votes": 1
+         }
+        ],
+        "votes": 2
+       },
+       {
+        "id": 6,
+        "name": "Rethink…",
+        "rank": 2,
+        "voters": [
+         {
+          "name": "Bo",
+          "voter": "Bo",
+          "votes": 1
+         }
+        ],
+        "votes": 1
+       }
+      ],
+      "votesPerPerson": 2
+     }
+    ],
+    "state": "running",
+    "voters": 0,
+    "votesPerPerson": 2
+   }
+  },
+  {
+   "receipt": {
+    "by": "",
+    "left": 2,
+    "mine": [],
+    "on": "all",
+    "results": [],
+    "sessions": [
+     {
+      "by": "",
+      "ended": 1795585073239,
+      "index": 3,
+      "on": "all",
+      "onBoard": true,
+      "results": [],
+      "votesPerPerson": 2
+     },
+     {
+      "by": "",
+      "ended": 1795585073238,
+      "index": 2,
+      "on": "all",
+      "onBoard": false,
+      "results": [
+       {
+        "id": 8,
+        "name": "Rectangle",
+        "rank": 1,
+        "voters": [
+         {
+          "name": "7",
+          "voter": "7",
+          "votes": 1
+         }
+        ],
+        "votes": 1
+       }
+      ],
+      "votesPerPerson": 1
+     },
+     {
+      "by": "",
+      "ended": 1795585073238,
+      "index": 1,
+      "on": {
+       "selection": [
+        4
+       ]
+      },
+      "onBoard": false,
+      "results": [
+       {
+        "id": 4,
+        "name": "Wait",
+        "rank": 1,
+        "voters": [
+         {
+          "name": "You",
+          "voter": "You",
+          "votes": 1
+         }
+        ],
+        "votes": 1
+       }
+      ],
+      "votesPerPerson": 3
+     },
+     {
+      "by": "",
+      "ended": 1795585073235,
+      "index": 0,
+      "on": "stickies",
+      "onBoard": false,
+      "results": [
+       {
+        "id": 4,
+        "name": "Wait",
+        "rank": 1,
+        "voters": [
+         {
+          "name": "Bo",
+          "voter": "Bo",
+          "votes": 1
+         },
+         {
+          "name": "Cy",
+          "voter": "Cy",
+          "votes": 1
+         }
+        ],
+        "votes": 2
+       },
+       {
+        "id": 6,
+        "name": "Rethink…",
+        "rank": 2,
+        "voters": [
+         {
+          "name": "Bo",
+          "voter": "Bo",
+          "votes": 1
+         }
+        ],
+        "votes": 1
+       }
+      ],
+      "votesPerPerson": 2
+     }
+    ],
+    "state": "ended",
+    "voters": 0,
+    "votesPerPerson": 2
+   }
+  },
+  {
+   "error": "invalid parameters for `board.vote`: `index` is from 0 to 3"
+  },
+  {
+   "error": "invalid parameters for `board.vote`: `index` out of range"
+  },
+  {
+   "receipt": {
+    "by": "",
+    "left": 2,
+    "mine": [],
+    "on": "all",
+    "results": [],
+    "sessions": [
+     {
+      "by": "",
+      "ended": 1795585073239,
+      "index": 2,
+      "on": "all",
+      "onBoard": true,
+      "results": [],
+      "votesPerPerson": 2
+     },
+     {
+      "by": "",
+      "ended": 1795585073238,
+      "index": 1,
+      "on": "all",
+      "onBoard": false,
+      "results": [
+       {
+        "id": 8,
+        "name": "Rectangle",
+        "rank": 1,
+        "voters": [
+         {
+          "name": "7",
+          "voter": "7",
+          "votes": 1
+         }
+        ],
+        "votes": 1
+       }
+      ],
+      "votesPerPerson": 1
+     },
+     {
+      "by": "",
+      "ended": 1795585073238,
+      "index": 0,
+      "on": {
+       "selection": [
+        4
+       ]
+      },
+      "onBoard": false,
+      "results": [
+       {
+        "id": 4,
+        "name": "Wait",
+        "rank": 1,
+        "voters": [
+         {
+          "name": "You",
+          "voter": "You",
+          "votes": 1
+         }
+        ],
+        "votes": 1
+       }
+      ],
+      "votesPerPerson": 3
+     }
+    ],
+    "state": "ended",
+    "voters": 0,
+    "votesPerPerson": 2
+   }
+  },
+  {
+   "error": "invalid parameters for `board.vote`: `index` is from 0 to 2"
+  },
+  {
+   "receipt": {
+    "sessions": [
+     {
+      "by": "",
+      "ended": 1795585073238,
+      "index": 1,
+      "on": "all",
+      "onBoard": false,
+      "results": [
+       {
+        "id": 8,
+        "name": "Rectangle",
+        "rank": 1,
+        "voters": [
+         {
+          "name": "7",
+          "voter": "7",
+          "votes": 1
+         }
+        ],
+        "votes": 1
+       }
+      ],
+      "votesPerPerson": 1
+     },
+     {
+      "by": "",
+      "ended": 1795585073238,
+      "index": 0,
+      "on": {
+       "selection": [
+        4
+       ]
+      },
+      "onBoard": false,
+      "results": [
+       {
+        "id": 4,
+        "name": "Wait",
+        "rank": 1,
+        "voters": [
+         {
+          "name": "You",
+          "voter": "You",
+          "votes": 1
+         }
+        ],
+        "votes": 1
+       }
+      ],
+      "votesPerPerson": 3
+     }
+    ],
+    "state": "off"
+   }
+  },
+  {
+   "receipt": {
+    "sessions": [
+     {
+      "by": "",
+      "ended": 1795585073238,
+      "index": 1,
+      "on": "all",
+      "onBoard": false,
+      "results": [
+       {
+        "id": 8,
+        "name": "Rectangle",
+        "rank": 1,
+        "voters": [
+         {
+          "name": "7",
+          "voter": "7",
+          "votes": 1
+         }
+        ],
+        "votes": 1
+       }
+      ],
+      "votesPerPerson": 1
+     },
+     {
+      "by": "",
+      "ended": 1795585073238,
+      "index": 0,
+      "on": {
+       "selection": [
+        4
+       ]
+      },
+      "onBoard": false,
+      "results": [
+       {
+        "id": 4,
+        "name": "Wait",
+        "rank": 1,
+        "voters": [
+         {
+          "name": "You",
+          "voter": "You",
+          "votes": 1
+         }
+        ],
+        "votes": 1
+       }
+      ],
+      "votesPerPerson": 3
+     }
+    ],
+    "state": "off"
+   }
+  },
+  {
+   "receipt": {
+    "sessions": [
+     {
+      "by": "",
+      "ended": 1795585073238,
+      "index": 0,
+      "on": "all",
+      "onBoard": false,
+      "results": [
+       {
+        "id": 8,
+        "name": "Rectangle",
+        "rank": 1,
+        "voters": [
+         {
+          "name": "7",
+          "voter": "7",
+          "votes": 1
+         }
+        ],
+        "votes": 1
+       }
+      ],
+      "votesPerPerson": 1
+     }
+    ],
+    "state": "off"
+   }
+  },
+  {
+   "error": "invalid parameters for `board.vote`: unknown action `wave` (start|cast|retract|end|clear|delete)"
+  },
+  {
+   "receipt": {
+    "sessions": [
+     {
+      "by": "",
+      "ended": 1795585073238,
+      "index": 0,
+      "on": "all",
+      "onBoard": false,
+      "results": [
+       {
+        "id": 8,
+        "name": "Rectangle",
+        "rank": 1,
+        "voters": [
+         {
+          "name": "7",
+          "voter": "7",
+          "votes": 1
+         }
+        ],
+        "votes": 1
+       }
+      ],
+      "votesPerPerson": 1
+     }
+    ],
+    "state": "off"
+   }
+  },
+  {
+   "receipt": {
+    "sessions": [
+     {
+      "by": "",
+      "ended": 1795585073238,
+      "index": 0,
+      "on": "all",
+      "onBoard": false,
+      "results": [
+       {
+        "id": 8,
+        "name": "Rectangle",
+        "rank": 1,
+        "voters": [
+         {
+          "name": "7",
+          "voter": "7",
+          "votes": 1
+         }
+        ],
+        "votes": 1
+       }
+      ],
+      "votesPerPerson": 1
+     }
+    ],
+    "state": "off"
+   }
+  },
+  {
+   "receipt": {
+    "sessions": [
+     {
+      "by": "",
+      "ended": 1795585073238,
+      "index": 0,
+      "on": "all",
+      "onBoard": false,
+      "results": [
+       {
+        "id": 8,
+        "name": "Rectangle",
+        "rank": 1,
+        "voters": [
+         {
+          "name": "7",
+          "voter": "7",
+          "votes": 1
+         }
+        ],
+        "votes": 1
+       }
+      ],
+      "votesPerPerson": 1
+     }
+    ],
+    "state": "off"
+   }
+  },
+  {
+   "receipt": {
+    "bytes": 5086,
+    "name": "Untitled board.figcraft"
+   }
+  }
+ ],
+ "document": {
+  "format": "figcraft",
+  "version": 1,
+  "imageIndex": [],
+  "name": "Untitled board",
+  "kind": "board",
+  "pages": [
+   1
+  ],
+  "nodes": {
+   "1": {
+    "id": 1,
+    "name": "Page 1",
+    "type": "page",
+    "background": {
+     "r": 0.95686275,
+     "g": 0.9529412,
+     "b": 0.9411765,
+     "a": 1.0
+    },
+    "flows": [],
+    "prototype": {
+     "device": "None",
+     "background": {
+      "r": 0.11764706,
+      "g": 0.11764706,
+      "b": 0.11764706,
+      "a": 1.0
+     },
+     "rotation": "portrait"
+    },
+    "children": [
+     4,
+     6,
+     8
+    ],
+    "width": 0.0,
+    "height": 0.0
+   },
+   "4": {
+    "id": 4,
+    "name": "Sticky",
+    "type": "frame",
+    "parent": 1,
+    "children": [
+     5
+    ],
+    "transform": [
+     1.0,
+     0.0,
+     0.0,
+     1.0,
+     300.0,
+     0.0
+    ],
+    "width": 200.0,
+    "height": 200.0,
+    "fills": [
+     {
+      "type": "solid",
+      "color": {
+       "r": 1.0,
+       "g": 0.90588236,
+       "b": 0.5411765,
+       "a": 1.0
+      },
+      "opacity": 1.0,
+      "visible": true,
+      "blend": "normal"
+     }
+    ],
+    "effects": [
+     {
+      "type": "dropShadow",
+      "color": {
+       "r": 0.0,
+       "g": 0.0,
+       "b": 0.0,
+       "a": 0.16
+      },
+      "offset": [
+       0.0,
+       2.0
+      ],
+      "radius": 6.0,
+      "spread": 0.0,
+      "blend": "normal",
+      "show_behind": false,
+      "visible": true
+     }
+    ],
+    "corners": {
+     "radii": [
+      2.0,
+      2.0,
+      2.0,
+      2.0
+     ],
+     "smoothing": 0.0
+    },
+    "layout": {
+     "mode": "vertical",
+     "wrap": false,
+     "gap": 8.0,
+     "cross_gap": 10.0,
+     "padding": [
+      16.0,
+      16.0,
+      16.0,
+      16.0
+     ],
+     "main_align": "spaceBetween",
+     "cross_align": "min",
+     "content_align": "auto",
+     "grid_columns": 2,
+     "grid_rows": 2,
+     "column_tracks": [],
+     "row_tracks": [],
+     "strokes_included": true,
+     "reverse_z": false
+    },
+    "child_layout": {
+     "sizing_h": "fixed",
+     "sizing_v": "hug",
+     "absolute": false,
+     "min_w": null,
+     "max_w": null,
+     "min_h": 200.0,
+     "max_h": null,
+     "grid_column": null,
+     "grid_row": null,
+     "grid_column_span": 0,
+     "grid_row_span": 0
+    },
+    "board": {
+     "type": "sticky"
+    }
+   },
+   "5": {
+    "id": 5,
+    "name": "Wait",
+    "type": "text",
+    "characters": "Wait",
+    "style": {
+     "font_family": "Inter",
+     "font_style": "Regular",
+     "font_size": 16.0,
+     "line_height": {
+      "unit": "auto"
+     },
+     "letter_spacing": {
+      "unit": "percent",
+      "value": 0.0
+     },
+     "decoration": "none",
+     "case": "original",
+     "fills": null,
+     "link": null
+    },
+    "auto_resize": "height",
+    "parent": 4,
+    "blend": "normal",
+    "transform": [
+     1.0,
+     0.0,
+     0.0,
+     1.0,
+     16.0,
+     16.0
+    ],
+    "width": 168.0,
+    "height": 19.0,
+    "fills": [
+     {
+      "type": "solid",
+      "color": {
+       "r": 0.11764706,
+       "g": 0.11764706,
+       "b": 0.11764706,
+       "a": 1.0
+      },
+      "opacity": 1.0,
+      "visible": true,
+      "blend": "normal"
+     }
+    ],
+    "child_layout": {
+     "sizing_h": "fill",
+     "sizing_v": "hug",
+     "absolute": false,
+     "min_w": null,
+     "max_w": null,
+     "min_h": null,
+     "max_h": null,
+     "grid_column": null,
+     "grid_row": null,
+     "grid_column_span": 0,
+     "grid_row_span": 0
+    }
+   },
+   "6": {
+    "id": 6,
+    "name": "Sticky",
+    "type": "frame",
+    "parent": 1,
+    "children": [
+     7
+    ],
+    "transform": [
+     1.0,
+     0.0,
+     0.0,
+     1.0,
+     600.0,
+     0.0
+    ],
+    "width": 200.0,
+    "height": 200.0,
+    "fills": [
+     {
+      "type": "solid",
+      "color": {
+       "r": 1.0,
+       "g": 0.90588236,
+       "b": 0.5411765,
+       "a": 1.0
+      },
+      "opacity": 1.0,
+      "visible": true,
+      "blend": "normal"
+     }
+    ],
+    "effects": [
+     {
+      "type": "dropShadow",
+      "color": {
+       "r": 0.0,
+       "g": 0.0,
+       "b": 0.0,
+       "a": 0.16
+      },
+      "offset": [
+       0.0,
+       2.0
+      ],
+      "radius": 6.0,
+      "spread": 0.0,
+      "blend": "normal",
+      "show_behind": false,
+      "visible": true
+     }
+    ],
+    "corners": {
+     "radii": [
+      2.0,
+      2.0,
+      2.0,
+      2.0
+     ],
+     "smoothing": 0.0
+    },
+    "layout": {
+     "mode": "vertical",
+     "wrap": false,
+     "gap": 8.0,
+     "cross_gap": 10.0,
+     "padding": [
+      16.0,
+      16.0,
+      16.0,
+      16.0
+     ],
+     "main_align": "spaceBetween",
+     "cross_align": "min",
+     "content_align": "auto",
+     "grid_columns": 2,
+     "grid_rows": 2,
+     "column_tracks": [],
+     "row_tracks": [],
+     "strokes_included": true,
+     "reverse_z": false
+    },
+    "child_layout": {
+     "sizing_h": "fixed",
+     "sizing_v": "hug",
+     "absolute": false,
+     "min_w": null,
+     "max_w": null,
+     "min_h": 200.0,
+     "max_h": null,
+     "grid_column": null,
+     "grid_row": null,
+     "grid_column_span": 0,
+     "grid_row_span": 0
+    },
+    "board": {
+     "type": "sticky"
+    }
+   },
+   "7": {
+    "id": 7,
+    "name": "Rethink",
+    "type": "text",
+    "characters": "Rethink\nlater, with a much longer second line",
+    "style": {
+     "font_family": "Inter",
+     "font_style": "Regular",
+     "font_size": 16.0,
+     "line_height": {
+      "unit": "auto"
+     },
+     "letter_spacing": {
+      "unit": "percent",
+      "value": 0.0
+     },
+     "decoration": "none",
+     "case": "original",
+     "fills": null,
+     "link": null
+    },
+    "auto_resize": "height",
+    "parent": 6,
+    "blend": "normal",
+    "transform": [
+     1.0,
+     0.0,
+     0.0,
+     1.0,
+     16.0,
+     16.0
+    ],
+    "width": 168.0,
+    "height": 19.0,
+    "fills": [
+     {
+      "type": "solid",
+      "color": {
+       "r": 0.11764706,
+       "g": 0.11764706,
+       "b": 0.11764706,
+       "a": 1.0
+      },
+      "opacity": 1.0,
+      "visible": true,
+      "blend": "normal"
+     }
+    ],
+    "child_layout": {
+     "sizing_h": "fill",
+     "sizing_v": "hug",
+     "absolute": false,
+     "min_w": null,
+     "max_w": null,
+     "min_h": null,
+     "max_h": null,
+     "grid_column": null,
+     "grid_row": null,
+     "grid_column_span": 0,
+     "grid_row_span": 0
+    }
+   },
+   "8": {
+    "id": 8,
+    "name": "Rectangle",
+    "type": "frame",
+    "parent": 1,
+    "children": [
+     9,
+     10
+    ],
+    "transform": [
+     1.0,
+     0.0,
+     0.0,
+     1.0,
+     0.0,
+     400.0
+    ],
+    "width": 160.0,
+    "height": 160.0,
+    "layout": {
+     "mode": "vertical",
+     "wrap": false,
+     "gap": 10.0,
+     "cross_gap": 10.0,
+     "padding": [
+      12.8,
+      12.8,
+      12.8,
+      12.8
+     ],
+     "main_align": "center",
+     "cross_align": "center",
+     "content_align": "auto",
+     "grid_columns": 2,
+     "grid_rows": 2,
+     "column_tracks": [],
+     "row_tracks": [],
+     "strokes_included": true,
+     "reverse_z": false
+    },
+    "board": {
+     "type": "shape",
+     "shape": "rectangle"
+    }
+   },
+   "9": {
+    "id": 9,
+    "name": "Outline",
+    "type": "vector",
+    "network": {
+     "vertices": [
+      {
+       "x": 0.0,
+       "y": 0.0,
+       "radius": 0.0
+      },
+      {
+       "x": 160.0,
+       "y": 0.0,
+       "radius": 0.0
+      },
+      {
+       "x": 160.0,
+       "y": 160.0,
+       "radius": 0.0
+      },
+      {
+       "x": 0.0,
+       "y": 160.0,
+       "radius": 0.0
+      }
+     ],
+     "segments": [
+      {
+       "a": 0,
+       "b": 1,
+       "ta": [
+        0.0,
+        0.0
+       ],
+       "tb": [
+        0.0,
+        0.0
+       ]
+      },
+      {
+       "a": 1,
+       "b": 2,
+       "ta": [
+        0.0,
+        0.0
+       ],
+       "tb": [
+        0.0,
+        0.0
+       ]
+      },
+      {
+       "a": 2,
+       "b": 3,
+       "ta": [
+        0.0,
+        0.0
+       ],
+       "tb": [
+        0.0,
+        0.0
+       ]
+      },
+      {
+       "a": 3,
+       "b": 0,
+       "ta": [
+        0.0,
+        0.0
+       ],
+       "tb": [
+        0.0,
+        0.0
+       ]
+      }
+     ],
+     "regions": [
+      {
+       "loops": [
+        [
+         0,
+         1,
+         2,
+         3
+        ]
+       ],
+       "winding": "nonZero"
+      }
+     ]
+    },
+    "parent": 8,
+    "blend": "normal",
+    "width": 160.0,
+    "height": 160.0,
+    "fills": [
+     {
+      "type": "solid",
+      "color": {
+       "r": 1.0,
+       "g": 0.90588236,
+       "b": 0.5411765,
+       "a": 1.0
+      },
+      "opacity": 1.0,
+      "visible": true,
+      "blend": "normal"
+     }
+    ],
+    "strokes": [
+     {
+      "type": "solid",
+      "color": {
+       "r": 0.55,
+       "g": 0.49823532,
+       "b": 0.2976471,
+       "a": 1.0
+      },
+      "opacity": 1.0,
+      "visible": true,
+      "blend": "normal"
+     }
+    ],
+    "stroke": {
+     "weight": 1.5,
+     "align": "inside",
+     "sides": null,
+     "cap_start": "none",
+     "cap_end": "none",
+     "join": "miter",
+     "miter_limit": 4.0,
+     "dashes": []
+    },
+    "constraints": {
+     "horizontal": "scale",
+     "vertical": "scale"
+    },
+    "child_layout": {
+     "sizing_h": "fixed",
+     "sizing_v": "fixed",
+     "absolute": true,
+     "min_w": null,
+     "max_w": null,
+     "min_h": null,
+     "max_h": null,
+     "grid_column": null,
+     "grid_row": null,
+     "grid_column_span": 0,
+     "grid_row_span": 0
+    }
+   },
+   "10": {
+    "id": 10,
+    "name": "Text",
+    "type": "text",
+    "characters": "",
+    "style": {
+     "font_family": "Inter",
+     "font_style": "Regular",
+     "font_size": 16.0,
+     "line_height": {
+      "unit": "auto"
+     },
+     "letter_spacing": {
+      "unit": "percent",
+      "value": 0.0
+     },
+     "decoration": "none",
+     "case": "original",
+     "fills": null,
+     "link": null
+    },
+    "auto_resize": "height",
+    "align_h": "center",
+    "parent": 8,
+    "blend": "normal",
+    "transform": [
+     1.0,
+     0.0,
+     0.0,
+     1.0,
+     12.8,
+     70.49999999999999
+    ],
+    "width": 134.39999999999998,
+    "height": 19.0,
+    "fills": [
+     {
+      "type": "solid",
+      "color": {
+       "r": 0.11764706,
+       "g": 0.11764706,
+       "b": 0.11764706,
+       "a": 1.0
+      },
+      "opacity": 1.0,
+      "visible": true,
+      "blend": "normal"
+     }
+    ],
+    "child_layout": {
+     "sizing_h": "fill",
+     "sizing_v": "hug",
+     "absolute": false,
+     "min_w": null,
+     "max_w": null,
+     "min_h": null,
+     "max_h": null,
+     "grid_column": null,
+     "grid_row": null,
+     "grid_column_span": 0,
+     "grid_row_span": 0
+    }
+   }
+  },
+  "next_id": 11,
+  "styles": [],
+  "variables": {
+   "collections": [],
+   "variables": []
+  },
+  "current_page": 1,
+  "document_colors": [],
+  "comments": [],
+  "vote_history": [
+   {
+    "vote": {
+     "perPerson": 1,
+     "scope": {
+      "type": "all"
+     },
+     "ended": true
+    },
+    "ballots": {
+     "7": [
+      8
+     ]
+    },
+    "ended": 1795585073238
+   }
+  ]
+ }
+}
