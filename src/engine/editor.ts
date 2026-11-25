@@ -82,6 +82,8 @@ import { type FileBranch, readVersionDocument, encodePublishedLibrary, decodePub
 import { executePage, listPages, pageSpecs } from "./pages";
 import { executePrototype, prototypeSpecs, type PresentOptions, type PrototypeCommand } from "./prototype-commands";
 import { settleTables } from "./board-table";
+import { templateList, templateTexts } from "./board-templates";
+import { boardGridCommand, defaultBoardGrid, type BoardGrid } from "./board-grid";
 import { boardSpecs, defaultBoardTool, executeBoard, refuseOnBoard, settleBoardRoutes, settleBoardStamps, settleBoardText, type BoardCommand, type BoardTool } from "./board-commands";
 import { executeSelection, layersAt, selectionSpecs } from "./selection";
 import { setRectangleProperties, setPageGeometryFields } from "./properties";
@@ -172,6 +174,8 @@ export const commandSpecs = Object.freeze({
   ...pageSpecs,
   ...prototypeSpecs,
   ...boardSpecs,
+  "board.templates": { label: "List board templates", undo: false },
+  "board.grid": { label: "Board grid", undo: false },
   ...viewSpecs,
   "frame.presets": { label: "List frame presets", undo: false },
   ...selectionSpecs,
@@ -297,6 +301,8 @@ export interface EditorSnapshot {
   readonly presentOptions?: Partial<PresentOptions>;
   /** Native preference `link_notice_skipped` (`proto.linkNotice`). */
   readonly linkNoticeSkipped?: boolean;
+  /** Native preference `board_grid`: the board canvas's background grid (`board.grid`). */
+  readonly boardGrid?: import("./board-grid").BoardGrid;
   readonly missingFonts?: readonly MissingFont[];
   readonly paintPicker?: PaintPicker;
   readonly openEffects?: readonly number[];
@@ -501,6 +507,7 @@ export class EditorEngine {
   #commentName = "You";
   /** Native `Session::tool.board`: the board tools' choices (the sticky colour and size, the shape, …). */
   #boardTool: BoardTool = defaultBoardTool;
+  #boardGrid: BoardGrid = defaultBoardGrid;
   readonly #unrecordedLiveEdits = new WeakSet<Document>();
   recordsLiveEdit(document: Document) { return !this.#unrecordedLiveEdits.has(document); }
   setCommentAccess(writable: boolean, name = "You", readable = writable) {
@@ -2234,6 +2241,9 @@ export class EditorEngine {
     if (command === "component.list") return listComponents(this.#snapshot.document);
     if (command === "page.list") return listPages(this.#snapshot.document);
     refuseOnBoard(this.#snapshot.document, command);
+    // Native `board.templates` and `board.grid` (the board canvas's grid, kept with the preferences).
+    if (command === "board.templates") return templateList() as unknown as Record<string, unknown>;
+    if (command === "board.grid") { this.#boardGrid = boardGridCommand(this.#boardGrid, p); this.#publish({ boardGrid: this.#boardGrid }); return { ...this.#boardGrid }; }
     if (Object.hasOwn(boardSpecs, command)) {
       const before = this.#snapshot;
       // Native `author`: the name from Preferences or the live session (none for the default name).
@@ -2444,12 +2454,12 @@ export class EditorEngine {
       return {families:[...families],...this.#refitOpenText({},families)};
     }
     // Board objects carry text (a sticky's note and author, a shape's label): the fonts for it first.
-    if (command === "board.sticky" || command === "board.shape" || command === "board.nextSticky" || command === "board.setStyle" || command === "board.connector" || command === "board.label" || command === "board.table" || command === "board.tableEdit" || command === "board.addConnected") {
+    if (command === "board.sticky" || command === "board.shape" || command === "board.nextSticky" || command === "board.setStyle" || command === "board.connector" || command === "board.label" || command === "board.table" || command === "board.tableEdit" || command === "board.addConnected" || command === "board.template") {
       const p = parameters(input);
       if (!this.#snapshot.editable) throw new Error("Sign in to edit this document");
       const identity = this.#documentIdentity, opening = this.#openSequence;
       const cellTexts = Array.isArray(p.cells) ? p.cells.flat().filter((t): t is string => typeof t === "string").join("\n") : "";
-      await Promise.all([parseString(p.text) ?? "", parseString(p.label) ?? "", cellTexts, typeof p.author === "string" ? p.author : this.#commentName].map(value => prepareText(value)));
+      await Promise.all([parseString(p.text) ?? "", parseString(p.label) ?? "", cellTexts, command === "board.template" ? templateTexts : "", typeof p.author === "string" ? p.author : this.#commentName].map(value => prepareText(value)));
       if (identity !== this.#documentIdentity || opening !== this.#openSequence) throw new Error("The document changed during the board edit");
       return this.execute(command, p);
     }

@@ -14,6 +14,7 @@ import { boundsOf } from "./viewport";
 import { parseSvgPath } from "./svg-path";
 import { createLayer } from "./creation";
 import { stamps as stampIds } from "./board-data";
+import { buildTemplate, createOn, findTemplate, templates } from "./board-templates";
 import { editTable, makeTable, maxColumns, maxRows, tableAnswer, tableOf, type TableCtx } from "./board-table";
 import { inverse, multiply, transformPoint, type Affine } from "./affine";
 import { worldTransform, pageForNode } from "./hierarchy";
@@ -39,6 +40,7 @@ export const boardSpecs = Object.freeze({
   "board.ink": { label: "Marker stroke", undo: true },
   "board.table": { label: "Table", undo: true },
   "board.tableEdit": { label: "Edit table", undo: true },
+  "board.template": { label: "Board template", undo: true },
 });
 export type BoardCommand = keyof typeof boardSpecs;
 const takes: Record<BoardCommand, readonly string[]> = {
@@ -56,6 +58,7 @@ const takes: Record<BoardCommand, readonly string[]> = {
   "board.ink": ["path", "points", "highlighter", "color", "select"],
   "board.table": ["rows", "columns", "cells", "x", "y"],
   "board.tableEdit": ["id", "action", "index"],
+  "board.template": ["name", "x", "y"],
 };
 
 /** Native `NEEDS_BOARD` and `NOT_ON_BOARDS`. */
@@ -696,6 +699,21 @@ export function executeBoard(command: BoardCommand, doc: Document, selection: re
       }
       editTable(tctx, table, p.action, index, m => bad(command, m));
       return done([table], tableAnswer(ctx.draft.document, table));
+    }
+    case "board.template": {
+      const names = templates.map(t => t.id).join(", ");
+      if (typeof p.name !== "string") throw bad(command, "`name` is one of " + names);
+      const t = findTemplate(p.name);
+      if (!t) throw bad(command, "no template `" + p.name + "`: one of " + names);
+      const x = typeof p.x === "number" ? p.x : view.cx - t.size[0] / 2, y = typeof p.y === "number" ? p.y : view.cy - t.size[1] / 2;
+      if (!Number.isFinite(x) || !Number.isFinite(y)) throw bad(command, "`x` and `y` are finite numbers");
+      // Built by running the board commands on the document as it goes: one undo step.
+      const state = { doc, next: nextId };
+      const made = buildTemplate(t.id, doc.currentPage, [x, y], {
+        board: (c, q) => { const r = executeBoard(c as BoardCommand, state.doc, [], state.next, q, author, tool, view); state.doc = r.document; state.next = r.nextId; return r.result; },
+        create: q => createOn(state, q),
+      });
+      return { document: state.doc, selection: Object.freeze(made.map(String)), nextId: state.next, result: { ids: made, name: t.id } };
     }
     case "board.label": {
       const target = (p.id !== undefined && p.id !== null ? [parseNodeId(p.id) ?? ""] : targets(command, p, selection))[0];

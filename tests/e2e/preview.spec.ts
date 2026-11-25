@@ -11707,3 +11707,15 @@ test("a board table draws its header, its lines and its cells",async ({page})=>{
     return Array.from(node.getContext("2d")!.getImageData(Math.round((160-Number(node.dataset.viewOriginX))*z*k),Math.round((60-Number(node.dataset.viewOriginY))*z*k),1,1).data)[0];})).toBeLessThan(0xf6);
   await expectCanvasPixel(page,400,60,[0xff,0xff,0xff,255]);
 });
+
+test("a board template places its sections and stickies",async ({page})=>{
+  const engine=EditorEngine.newTab(undefined,{},"board");
+  await engine.executeAsync("board.template",{name:"retrospective",x:0,y:0});
+  await engine.executeAsync("select.set",{ids:[]});
+  await login(page);
+  await page.getByLabel("Open Figcraft file",{exact:true}).setInputFiles({name:"retro.figcraft",mimeType:"application/octet-stream",buffer:Buffer.from(await engine.nativeSnapshot())});
+  await expect(page.getByRole("region",{name:"Layers",exact:true}).getByRole("button",{name:"Went well",exact:true})).toHaveCount(1);
+  // The first section's green tint beside its sticky, and the sticky's green.
+  await expectCanvasPixel(page,20,560,[0xea,0xf6,0xe1,255]);
+  await expectCanvasPixel(page,290,320,[0xc2,0xe8,0xa6,255]);
+});
