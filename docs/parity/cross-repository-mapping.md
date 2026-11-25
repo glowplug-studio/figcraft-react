@@ -932,3 +932,7 @@ Native `crates/engine/src/boards/board_table.rs` (`make_table`, `make_row`, `mak
 ## Roadmap row 16: grids and templates — 25 November 2026
 
 Native `crates/engine/src/boards/board_templates.rs` (`TEMPLATES`, `find`, `template_cmd`, `Builder`, the five layouts) and `board_grid.rs` (`GridStyle`, `BoardGrid`, `sanitized`, `grid_cmd`) at `bad07e44` map to `board-templates.ts`, `board-grid.ts`, `board-commands.ts` and `editor.ts` at `a4a4e53`. Verified against native observations in `tests/parity/board-templates.test.ts` and a browser case in `tests/e2e/preview.spec.ts`. [Report](../reports/26-11-25-board-templates.md).
+
+## Roadmap row 16: mind maps — 25 November 2026
+
+Native `crates/doc/src/board_mindmap.rs` (`mind_layout`) and `crates/engine/src/boards/board/mindmap.rs` (`make_node`, `branch`, `branches`, `arriving`, `map_children`, `map_side`, `mind_map_cmd`, `mind_map_add`, `prune_branches`, `settle_mind_maps`) at `bad07e44` map to `board-mindmap.ts`, `board-commands.ts` and `editor.ts` at `53fc7b0`. Verified against native observations and restated layout tests in `tests/parity/board-mindmap.test.ts` and a browser case in `tests/e2e/preview.spec.ts`. [Report](../reports/26-11-25-board-mindmap.md).

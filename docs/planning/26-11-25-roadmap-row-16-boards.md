@@ -2,11 +2,11 @@
 
 ## Execution checkpoint
 
-- Phase: items 1 to 7 complete through Phase 7 at `d722e71`, `9b457e5`, `1f3d73e`, `3a72456`, `6b0e410` and `a4a4e53` ([stickies and shapes with text](../reports/26-11-25-board-shapes.md), [connectors](../reports/26-11-25-board-connectors.md), [reshaped connectors and joined shapes](../reports/26-11-25-board-reshape.md), [stamps and ink](../reports/26-11-25-board-stamps.md), [tables](../reports/26-11-25-board-tables.md), [grids and templates](../reports/26-11-25-board-templates.md)). Item 8 is next. Each item is opened with its own dated plan.
+- Phase: items 1 to 8 complete through Phase 7 at `d722e71`, `9b457e5`, `1f3d73e`, `3a72456`, `6b0e410`, `a4a4e53` and `53fc7b0` ([stickies and shapes with text](../reports/26-11-25-board-shapes.md), [connectors](../reports/26-11-25-board-connectors.md), [reshaped connectors and joined shapes](../reports/26-11-25-board-reshape.md), [stamps and ink](../reports/26-11-25-board-stamps.md), [tables](../reports/26-11-25-board-tables.md), [grids and templates](../reports/26-11-25-board-templates.md), [mind maps](../reports/26-11-25-board-mindmap.md)). Item 9 is next. Each item is opened with its own dated plan.
 - Native reference: `bad07e4433240cad046589129c084bd2fc36f097` (`bad07e44`). React starting revision: `792e207` on `prompt/full-figcraft-port`.
 - Source: row 16 of the [master plan](26-11-06-complete-figcraft-port.md) and the `board.*` commands of the [command inventory](../parity/full-port-command-inventory.json) (21 listed; native also has `board.mindMap` and `board.mindMapAdd`, and `file.newBoard`).
 - Native oracle: `$HOME/.cache/figcraft-oracle/project`; `replay` runs command sequences through the pinned engine and observes every engine command of this row.
-- Next action: Item 8, mind maps (`doc/src/board_mindmap.rs`; `engine/src/boards/board/mindmap.rs`): `board.mindMap`, `board.mindMapAdd` and their layout.
+- Next action: Item 9, facilitation (`engine/src/cmd/facilitate.rs`; `doc/src/facilitation.rs`): `board.timer`, `board.timerState`, `board.vote`, `board.voteResults` and vote badges.
 - Blockers: none.
 
 ## What the port has
@@ -33,8 +33,8 @@ The data model comes first, since every command writes it and files carry it; th
 | 5 | Stamps and ink: the six stamps on the objects they sit on, marker and highlighter strokes | `doc/src/board.rs` (`Stamp`); `boards/board/tools.rs`; `board_tools_tests.rs` | `board-commands.ts` | Verified at `3a72456` with native observations ([plan](26-11-25-board-stamps.md)) |
 | 6 | Tables: `board.table`, `board.tableEdit`, pasting a table | `boards/board_table.rs`; `board_tables_tests.rs`, `board_table_paste_tests.rs` | `board-table.ts` | Verified at `6b0e410` with native observations ([plan](26-11-25-board-tables.md)) |
 | 7 | Grids and templates: `board.grid`, `board.template`, `board.templates` | `boards/board_grid.rs`, `board_templates.rs`; `board_grid_tests.rs` | `board-commands.ts` | Verified at `a4a4e53` with native observations ([plan](26-11-25-board-templates.md)) |
-| 8 | Mind maps: `board.mindMap`, `board.mindMapAdd` and their layout | `doc/src/board_mindmap.rs`; `boards/board/mindmap.rs`; mind map tests | `board-mindmap.ts` | In progress |
-| 9 | Facilitation: the timer and voting, `board.timer`, `board.timerState`, `board.vote`, `board.voteResults` | `doc/src/facilitation.rs`; `cmd/facilitate.rs`; `facilitate_tests.rs` | `facilitation.ts` | Planned |
+| 8 | Mind maps: `board.mindMap`, `board.mindMapAdd` and their layout | `doc/src/board_mindmap.rs`; `boards/board/mindmap.rs`; mind map tests | `board-mindmap.ts` | Verified at `53fc7b0` with native observations ([plan](26-11-25-board-mindmap.md)) |
+| 9 | Facilitation: the timer and voting, `board.timer`, `board.timerState`, `board.vote`, `board.voteResults` | `doc/src/facilitation.rs`; `cmd/facilitate.rs`; `facilitate_tests.rs` | `facilitation.ts` | In progress |
 | 10 | The board interface: tools and picker, connecting by drag, lines, table paste, the facilitation bar, vote history and voters; split when opened | `ui-egui/src/board*`, vote and table UI tests | `src/Board*.tsx` | Planned |
 
 ## Verification

@@ -2,11 +2,11 @@
 
 ## Execution checkpoint
 
-- Phase: implemented and gated; recording follows the provider integrations.
+- Phase: complete through Phase 7 on 25 November 2026 at `53fc7b0`: [report](../reports/26-11-25-board-mindmap.md), [matrix](../reports/26-11-25-board-mindmap-parity.html), [provenance](../../tests/fixtures/native-board-mindmap.provenance.md).
 - Native reference: `bad07e4433240cad046589129c084bd2fc36f097` (`bad07e44`). React starting revision: `a4a4e53` on `prompt/full-figcraft-port`.
 - Row plan: [roadmap row 16](26-11-25-roadmap-row-16-boards.md).
 - Files changed: `src/engine/board-mindmap.ts` (new: `mindLayout`, branches and the tree, `settleMindMaps`); `src/engine/board-commands.ts` (`board.mindMap`, `board.mindMapAdd`, mind map nodes and branches); `src/engine/editor.ts` (maps settled after each edit, before connectors follow; fonts prepared); `src/engine/structure.ts` (`edit.delete` reports ids as numbers, as native does); tests `tests/parity/board-mindmap.test.ts`, `tests/parity/component-containers.test.ts` (the delete receipts), fixture `tests/fixtures/native-board-mindmap.json` with provenance, and one case in `tests/e2e/preview.spec.ts`.
-- Next action: record the item.
+- Next action: none; the item is recorded. Item 9 follows in the row plan.
 - Blockers: none.
 
 ## Native contract (`doc/src/board_mindmap.rs`; `engine/src/boards/board/mindmap.rs`)
