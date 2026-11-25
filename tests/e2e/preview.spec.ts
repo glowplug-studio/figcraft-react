@@ -11671,3 +11671,23 @@ test("a reshaped connector and a joined shape draw where native puts them",async
   await expectCanvasPixel(page,50,140,[0x3a,0x39,0x36,255]);
   expect(next.connector).toBeGreaterThan(next.id);
 });
+
+test("stamps sit on what they land on and ink draws on the board",async ({page})=>{
+  const engine=EditorEngine.newTab(undefined,{},"board");
+  await engine.executeAsync("board.sticky",{x:0,y:0,text:""});
+  await engine.executeAsync("board.stamp",{x:180,y:180,stamp:"heart"});
+  await engine.executeAsync("board.ink",{points:[[0,300],[200,300]],color:"#2266DD"});
+  await engine.executeAsync("select.set",{ids:[]});
+  await login(page);
+  await page.getByLabel("Open Figcraft file",{exact:true}).setInputFiles({name:"stamps.figcraft",mimeType:"application/octet-stream",buffer:Buffer.from(await engine.nativeSnapshot())});
+  const layers=page.getByRole("region",{name:"Layers",exact:true});
+  await expect(layers.getByRole("button",{name:"Heart",exact:true})).toHaveCount(1);
+  // The heart's red badge just inside its rim, the ink's blue along its stroke.
+  await expectCanvasPixel(page,180,163,[0xe5,0x48,0x5f,255]);
+  await expectCanvasPixel(page,100,300,[0x22,0x66,0xdd,255]);
+  // The sticky moved down by 100: the stamp on it comes along.
+  await layers.getByRole("button",{name:"Sticky",exact:true}).click();
+  const y=page.getByLabel("Edit Y",{exact:true});
+  await y.fill("100");await y.press("Enter");
+  await expectCanvasPixel(page,180,263,[0xe5,0x48,0x5f,255]);
+});

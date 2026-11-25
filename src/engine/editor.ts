@@ -81,7 +81,7 @@ import { base64Bytes } from "./recovery";
 import { type FileBranch, readVersionDocument, encodePublishedLibrary, decodePublishedLibrary, decodeFigcraft, encodeFigcraft, encodeFigcraftBlob, prepareArchive, MAX_UNPACKED_BYTES } from "./file-format";
 import { executePage, listPages, pageSpecs } from "./pages";
 import { executePrototype, prototypeSpecs, type PresentOptions, type PrototypeCommand } from "./prototype-commands";
-import { boardSpecs, defaultBoardTool, executeBoard, refuseOnBoard, settleBoardRoutes, settleBoardText, type BoardCommand, type BoardTool } from "./board-commands";
+import { boardSpecs, defaultBoardTool, executeBoard, refuseOnBoard, settleBoardRoutes, settleBoardStamps, settleBoardText, type BoardCommand, type BoardTool } from "./board-commands";
 import { executeSelection, layersAt, selectionSpecs } from "./selection";
 import { setRectangleProperties, setPageGeometryFields } from "./properties";
 import { HierarchyDraft, pageForNode, worldTransform, zSorted } from "./hierarchy";
@@ -1552,7 +1552,7 @@ export class EditorEngine {
     const before = this.#snapshot;
     const proposed=options.duplicated ? countLibraryInstances(patch.document,options.duplicated.copies,"inserted") : patch.document;
     const prepared = this.#prepareEdit(proposed, options.nextId ?? this.#nextId);
-    const nextId=prepared.nextId,document=settleBoardRoutes(settleBoardText(followCommentAnchors(prepared.document,before.document),before.document),before.document);
+    const nextId=prepared.nextId,document=settleBoardStamps(settleBoardRoutes(settleBoardText(followCommentAnchors(prepared.document,before.document),before.document),before.document),before.document);
     if (this.#idClient && nextId > ((BigInt(this.#idClient) + 1n) << 32n)) throw new Error(this.#branchTab ? "Branch identifiers are exhausted" : "Live client identifiers are exhausted");
     guardLibraryVariables(before.document,document);
     if (!options.libraryEdit) guardLibraryStore(before.document,document);

@@ -11,6 +11,9 @@ import { defaultStroke, type StrokeCap } from "./stroke";
 import type { AutoLayout } from "./auto-layout";
 import { parseNodeId } from "./parameters";
 import { boundsOf } from "./viewport";
+import { parseSvgPath } from "./svg-path";
+import { createLayer } from "./creation";
+import { stamps as stampIds } from "./board-data";
 import { inverse, multiply, transformPoint, type Affine } from "./affine";
 import { worldTransform, pageForNode } from "./hierarchy";
 import { networkFromPoints } from "./vector-network";
@@ -31,6 +34,8 @@ export const boardSpecs = Object.freeze({
   "board.label": { label: "Connector label", undo: true },
   "board.reshape": { label: "Reshape connector", undo: true },
   "board.addConnected": { label: "Add connected shape", undo: true },
+  "board.stamp": { label: "Stamp", undo: true },
+  "board.ink": { label: "Marker stroke", undo: true },
 });
 export type BoardCommand = keyof typeof boardSpecs;
 const takes: Record<BoardCommand, readonly string[]> = {
@@ -44,6 +49,8 @@ const takes: Record<BoardCommand, readonly string[]> = {
   "board.label": ["id", "ids", "text"],
   "board.reshape": ["id", "ids", "portion", "x", "y"],
   "board.addConnected": ["id", "side", "at", "edit"],
+  "board.stamp": ["x", "y", "stamp"],
+  "board.ink": ["path", "points", "highlighter", "color", "select"],
 };
 
 /** Native `NEEDS_BOARD` and `NOT_ON_BOARDS`. */
@@ -365,6 +372,35 @@ export function connectedPlace([x, y]: readonly [number, number], [w, h]: readon
 /** Native `pinned`: an end with the side it leaves by named (a reshaped path holds only as long as its ends do). */
 const pinned = (end: End, side: Side | undefined): End => "node" in end && side ? { ...end, side } : end;
 
+/** Native `STAMP_SIZE`, the stamps' labels, colours and marks (SVG path data on the badge's 40-unit box, filled or stroked). */
+export const stampSize = 40;
+const stampLabels: Record<Stamp, string> = { thumbsUp: "Thumbs up", heart: "Heart", plusOne: "Plus one", star: "Star", question: "Question", check: "Check" };
+const stampColours: Record<Stamp, string> = { thumbsUp: "#3B82E8", heart: "#E5485F", plusOne: "#2EA063", star: "#EE9B1A", question: "#845ED8", check: "#14968C" };
+const stampMarks: Record<Stamp, readonly (readonly [string, boolean])[]> = {
+  thumbsUp: [["M10.5 19 H15 V29 H10.5 Z", true], ["M16.5 19 L20.6 11.4 C21.6 9.8 24.6 10.6 24.2 13 L23.4 17 H28.2 C29.8 17 30.9 18.5 30.4 20 L28.4 27.3 C28 28.4 27.1 29 25.9 29 H16.5 Z", true]],
+  heart: [["M20 29.5 C12.5 24.5 9.5 20.6 10.4 16.4 C11.3 12.2 16.8 11.2 20 15.4 C23.2 11.2 28.7 12.2 29.6 16.4 C30.5 20.6 27.5 24.5 20 29.5 Z", true]],
+  plusOne: [["M10 20 H20 M15 15 V25", false], ["M24.5 15 L27.5 12.5 V27.5", false]],
+  star: [["M20 10.5 L22.8 16.7 L29.5 17.4 L24.5 21.9 L25.9 28.6 L20 25.2 L14.1 28.6 L15.5 21.9 L10.5 17.4 L17.2 16.7 Z", true]],
+  question: [["M15.6 16.2 C15.6 10.6 24.4 10.6 24.4 16 C24.4 19.6 20 19.9 20 23.6", false], ["M18.2 28 A1.8 1.8 0 1 0 21.8 28 A1.8 1.8 0 1 0 18.2 28 Z", true]],
+  check: [["M12.5 20.5 L18 26 L28 14.5", false]],
+};
+export const stampLabel = (s: Stamp) => stampLabels[s];
+export const stampColour = (s: Stamp) => rgb(stampColours[s]);
+/** Native `stamp_target`: the top-most layer of the page whose box holds `p`, other than stamps, connectors, labels, ink and `except`. */
+export function stampTarget(doc: Document, page: NodeId, p: Pt, except?: NodeId): NodeId | undefined {
+  const top = (doc.nodes[page] as Layer | undefined)?.children ?? [];
+  for (let i = top.length - 1; i >= 0; i--) {
+    const c = top[i], n = doc.nodes[c] as Layer | undefined;
+    if (c === except || !n || (n as { visible?: boolean }).visible === false) continue;
+    if (n.board && ["stamp", "connector", "label", "ink"].includes(n.board.type)) continue;
+    const b = boundsOf(doc, [c]);
+    if (b && p.x >= b.x && p.x <= b.x + b.width && p.y >= b.y && p.y <= b.y + b.height) return c;
+  }
+  return undefined;
+}
+/** Native `MARKER` and `HIGHLIGHTER`: (weight, opacity). */
+const marker = [4, 1] as const, highlighterStroke = [20, Math.fround(0.45)] as const;
+
 export interface BoardResult { readonly document: Document; readonly selection: readonly NodeId[]; readonly nextId: bigint; readonly result: Record<string, unknown>; readonly tool?: BoardTool }
 /** Native `board.*` (this item's commands): `author` is the viewer's name (empty when unknown), `tool` the board tools' choices. */
 export function executeBoard(command: BoardCommand, doc: Document, selection: readonly NodeId[], nextId: bigint, p: Record<string, unknown>, author: string, tool: BoardTool): BoardResult {
@@ -579,6 +615,44 @@ export function executeBoard(command: BoardCommand, doc: Document, selection: re
       const connector = makeConnector(ctx, doc.currentPage, { from: { node: from, side: fromSide }, to: { node: id, side: toSide }, routing: tool.routing }, defaultCaps);
       return done([id], { id: Number(id), text: Number(text), connector: Number(connector) });
     }
+    case "board.stamp": {
+      let stamp = tool.stamp;
+      if (p.stamp !== undefined && p.stamp !== null) {
+        const v = stampIds.find(x => x.toLowerCase() === String(p.stamp).toLowerCase());
+        if (!v) throw bad(command, "unknown stamp `" + String(p.stamp) + "` (thumbsUp|heart|plusOne|star|question|check)");
+        stamp = v;
+      }
+      const num = (k: string) => { const v = p[k]; if (typeof v !== "number" || !Number.isFinite(v)) throw bad(command, "`" + k + "` is required"); return v; };
+      const x = num("x"), y = num("y"), half = stampSize / 2, page = doc.currentPage;
+      // It sticks to the object it lands on (it moves with it).
+      const on = stampTarget(doc, page, { x, y });
+      const id = alloc(ctx);
+      ctx.draft.insert(withRectanglePaints({ id, kind: "frame", name: stampLabels[stamp], parent: page, x: x - half, y: y - half, width: stampSize, height: stampSize, fill: "#000000",
+        children: Object.freeze([]), corners: Object.freeze({ radii: Object.freeze([half, half, half, half]), smoothing: 0 }), effects: Object.freeze([softShadow()]), clip: false,
+        board: Object.freeze({ type: "stamp", stamp, ...(author && { author }), ...(on !== undefined && { on }) }) } as unknown as FrameNode, [solidPaint(stampColour(stamp))]), page);
+      for (const [d, filled] of stampMarks[stamp]) {
+        const mark = { id: alloc(ctx), kind: "vector", name: "Mark", parent: id, x: 0, y: 0, width: stampSize, height: stampSize, fill: "transparent", network: networkFromPath(parseSvgPath(d)),
+          // A new vector's stroke is centred (native `Node::new`), filled marks keep it and stroke nothing.
+          ...(filled ? { stroke: Object.freeze({ ...defaultStroke, align: "center" }) } : { strokes: Object.freeze([solidPaint(colour(1, 1, 1, 1))]), stroke: Object.freeze({ ...defaultStroke, weight: 3, capStart: "round", capEnd: "round", join: "round", align: "center" }) }) } as unknown as VectorNode;
+        ctx.draft.insert(filled ? withRectanglePaints(mark, [solidPaint(colour(1, 1, 1, 1))]) : mark, id);
+      }
+      return done([id], { id: Number(id) });
+    }
+    case "board.ink": {
+      const high = p.highlighter === true;
+      const fill = colourParam(command, p) ?? (high ? tool.highlighter : tool.marker);
+      const [weight, opacity] = high ? highlighterStroke : marker;
+      if (p.path === undefined && p.points === undefined) throw bad(command, "`path` or `points` is required");
+      const hex = "#" + [fill.r, fill.g, fill.b].map(v => Math.round(v * 255).toString(16).padStart(2, "0")).join("").toUpperCase();
+      const q: Record<string, unknown> = { type: "vector", parent: Number(doc.currentPage), closed: false, select: p.select !== false, name: high ? "Highlight" : "Ink",
+        props: { fills: [], strokes: [hex], strokeWeight: weight, strokeCap: "round", strokeJoin: "round", strokeAlign: "center" } };
+      if (p.path !== undefined) q.path = p.path;
+      if (p.points !== undefined) q.points = p.points;
+      const made = createLayer({ document: doc, selection }, nextId, "node.create", q, { cx: 0, cy: 0, zoom: 1, vw: 1, vh: 1 } as never);
+      const draft = new HierarchyDraft(made.document), n = draft.nodes[made.id] as Layer;
+      draft.set({ ...n, ...(opacity !== 1 && { opacity }), ...(high && { blend: "multiply" }), board: { type: "ink" } } as DocumentNode);
+      return { document: draft.finish(), selection: made.selection, nextId: made.nextId, result: { id: Number(made.id) } };
+    }
     case "board.label": {
       const target = (p.id !== undefined && p.id !== null ? [parseNodeId(p.id) ?? ""] : targets(command, p, selection))[0];
       if (target === undefined) throw bad(command, "select a connector");
@@ -588,6 +662,51 @@ export function executeBoard(command: BoardCommand, doc: Document, selection: re
       return done(selection, { id: Number(id), label: label === undefined ? null : Number(label) });
     }
   }
+}
+
+/** Native `settle_stamps`: a stamp moves with the object it sits on; one moved by itself sits on whatever is under its centre now; one whose
+ * object is gone (or on another page) sits on nothing and stays. */
+export function settleBoardStamps(doc: Document, before: Document): Document {
+  if (doc.kind !== "board" || doc.nodes === before.nodes) return doc;
+  const touched = new Set<NodeId>();
+  for (const id of Object.keys(doc.nodes)) if (doc.nodes[id] !== before.nodes[id]) touched.add(id);
+  for (const id of Object.keys(before.nodes)) if (!doc.nodes[id]) touched.add(id);
+  if (!touched.size) return doc;
+  const hit = (id: NodeId) => touched.has(id) || ancestors(doc, id).some(a => touched.has(a));
+  let draft: HierarchyDraft | undefined;
+  for (const n of Object.values(doc.nodes) as Layer[]) {
+    const b = n.board;
+    if (b?.type !== "stamp") continue;
+    const was = before.nodes[n.id] as Layer | undefined;
+    const movedItself = touched.has(n.id) && !!was && (was.x !== n.x || was.y !== n.y || was.transform !== n.transform);
+    const gone = b.on !== undefined && (!doc.nodes[b.on] || pageForNode(doc, b.on) !== pageForNode(doc, n.id));
+    let now = b.on;
+    if (movedItself) {
+      const page = pageForNode(doc, n.id), box = boundsOf(doc, [n.id]);
+      now = page !== undefined && box ? stampTarget(doc, page, { x: box.x + box.width / 2, y: box.y + box.height / 2 }, n.id) : undefined;
+    } else if (gone) now = undefined;
+    else if (b.on !== undefined && hit(b.on) && before.nodes[b.on] && !ancestors(doc, n.id).includes(b.on)) {
+      // Carried by its object's move (the stamp itself neither turns nor scales).
+      const c = boundsOf(doc, [n.id]), on = b.on;
+      if (c) {
+        const centre = { x: c.x + c.width / 2, y: c.y + c.height / 2 };
+        const there = transformPoint(worldTransform(doc, on), transformPoint(inverse(worldTransform(before, on)), centre));
+        const d = { x: there.x - centre.x, y: there.y - centre.y };
+        if (Number.isFinite(d.x) && Number.isFinite(d.y) && Math.hypot(d.x, d.y) > 1e-9) {
+          draft ??= new HierarchyDraft(doc);
+          const cur = draft.nodes[n.id] as Layer;
+          draft.set({ ...cur, x: cur.x + d.x, y: cur.y + d.y } as DocumentNode);
+        }
+      }
+    }
+    if (now !== b.on) {
+      draft ??= new HierarchyDraft(doc);
+      const cur = draft.nodes[n.id] as Layer, { on: _o, ...rest } = b;
+      void _o;
+      draft.set({ ...cur, board: { ...rest, ...(now !== undefined && { on: now }) } } as DocumentNode);
+    }
+  }
+  return draft ? draft.finish() : doc;
 }
 
 /** Native `settle_routes`: after layout, connectors run between their ends again (an end whose layer is gone stays where it was drawn, as
