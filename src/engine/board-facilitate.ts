@@ -3,7 +3,7 @@ import { ancestors, pageForNode } from "./hierarchy";
 import { boundsOf, pageToScreen, type Viewport } from "./viewport";
 import type { Ballots, BoardItem, BoardTimer, Vote, VoteRecord, VoteScope } from "./board-data";
 import { timerMaxMs, voteHistoryMax, votesMax } from "./board-data";
-import { textOf } from "./board-commands";
+import { needsBoard, refuseUnknown, textOf } from "./board-commands";
 import { parseNodeId, parseNumber, parseString } from "./parameters";
 
 /** Source: upstream engine/src/cmd/facilitate.rs and doc/src/facilitation.rs (#2226): a board's countdown and votes. Neither is an undo step. */
@@ -15,6 +15,8 @@ export const facilitateSpecs = Object.freeze({
   "board.voteResults": { label: "Voting results", undo: false },
 });
 export type FacilitateCommand = keyof typeof facilitateSpecs;
+/** The names each takes, from native's parameter docs. */
+const facilitateTakes: Record<FacilitateCommand, readonly string[]> = { "board.timer": ["action", "minutes"], "board.timerState": [], "board.vote": ["action", "votes", "on", "ids", "id", "index", "voter"], "board.voteResults": ["voter"] };
 type Layer = DocumentNode & { board?: BoardItem };
 const disabled = (cmd: string, why: string) => new Error("command `" + cmd + "` is not available right now: " + why);
 const bad = (cmd: string, why: string) => new Error("invalid parameters for `" + cmd + "`: " + why);
@@ -276,6 +278,8 @@ const apply = (doc: Document, f: Facilitation | undefined): Document => {
 
 /** Native `board.timer`, `board.timerState`, `board.vote` and `board.voteResults`. */
 export function executeFacilitate(command: FacilitateCommand, doc: Document, p: Record<string, unknown>, ctx: FacilitateContext): { document: Document; result: Record<string, unknown> } {
+  refuseUnknown(command, p, facilitateTakes[command]);
+  if (doc.kind !== "board") throw disabled(command, needsBoard);
   if (command === "board.timerState") return { document: doc, result: timerJson(doc.timer, ctx.now) };
   if (command === "board.voteResults") return { document: doc, result: voteJson(doc, voterOf(p, ctx.me), ctx) };
   if (command === "board.timer") {

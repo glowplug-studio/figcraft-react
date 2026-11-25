@@ -168,6 +168,8 @@ export class CanvasTextInput {
     if (!id) return false;
     e.preventDefault(); e.stopImmediatePropagation(); void this.#open({id},point,true); return true;
   }
+  /** Native board `edit_text`: type in text layer `id`, all of it selected. */
+  edit(id: string): void { void this.#open({id},{x:0,y:0},true); }
   async #open(target: Parameters<EditorEngine["beginTextEdit"]>[0], point: Point, selectAll=false, extend?: Point) {
     const version=++this.#generation, before=this.engine.getSnapshot();
     try {

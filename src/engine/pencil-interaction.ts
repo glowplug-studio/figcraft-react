@@ -6,6 +6,8 @@ import { pencilPressureProfile, shouldSamplePencil } from "./pencil-samples";
 import { pencilPath } from "./pencil-path";
 import { wireBrush } from "./brush";
 import { pageToScreen } from "./viewport";
+import { highlighterStroke, marker } from "./board-commands";
+import { cssColour } from "./colour";
 
 /** Samples and the unsmoothed preview stay outside document history and React reconciliation. */
 export class PencilInteraction {
@@ -13,7 +15,8 @@ export class PencilInteraction {
   constructor(private engine: EditorEngine) {}
   get active(): boolean { return this.#gesture !== undefined; }
   down(point: Point, pressure?: number): boolean {
-    if (!this.engine.getSnapshot().editable || this.engine.getSnapshot().tool !== "pencil") return false;
+    const tool = this.engine.getSnapshot().tool;
+    if (!this.engine.getSnapshot().editable || tool !== "pencil" && tool !== "marker" && tool !== "highlighter") return false;
     shouldSamplePencil(undefined, point, this.engine.getView().zoom);
     this.engine.beginInteraction(); this.#gesture = { points: [{ ...point }], pressure: [pressure] }; return true;
   }
@@ -30,6 +33,12 @@ export class PencilInteraction {
     try {
       this.move(point, pressure); const gesture = this.#gesture; this.#gesture = undefined; this.engine.cancelInteraction();
       if (!gesture || gesture.points.length < 2) return;
+      // Native `ink_finish`: a marker or highlighter stroke, on the page, the selection kept.
+      const tool = this.engine.getSnapshot().tool;
+      if (tool === "marker" || tool === "highlighter") {
+        const path = pencilPath(gesture.points, [1, 0, 0, 1, 0, 0]); if (!path) return;
+        this.engine.execute("board.ink", { path, highlighter: tool === "highlighter", select: false }); return;
+      }
       const document = this.engine.getSnapshot().document, parent = frameAt(document, gesture.points[0], []) ?? document.currentPage;
       const path = pencilPath(gesture.points, worldTransform(document, parent)); if (!path) return;
       const profile = pencilPressureProfile(gesture.points, gesture.pressure), brush = this.engine.getPencilBrush();
@@ -46,7 +55,9 @@ export class PencilInteraction {
   }
   draw(context: CanvasRenderingContext2D): void {
     const points = this.#gesture?.points; if (!points || points.length < 2) return;
-    const view = this.engine.getView(); context.save(); context.strokeStyle = "#000000"; context.lineWidth = Math.max(2 * view.zoom, 1); context.lineCap = "round"; context.lineJoin = "round";
+    const view = this.engine.getView(), tool = this.engine.getSnapshot().tool, board = this.engine.boardTool;
+    const [weight, opacity] = tool === "marker" ? marker : tool === "highlighter" ? highlighterStroke : [2, 1];
+    context.save(); context.globalAlpha = opacity; context.strokeStyle = tool === "marker" ? cssColour(board.marker) : tool === "highlighter" ? cssColour(board.highlighter) : "#000000"; context.lineWidth = Math.max(weight * view.zoom, 1); context.lineCap = "round"; context.lineJoin = "round";
     context.beginPath(); points.forEach((point, i) => { const p = pageToScreen(view, point); if (i) context.lineTo(p.x, p.y); else context.moveTo(p.x, p.y); }); context.stroke(); context.restore();
   }
 }

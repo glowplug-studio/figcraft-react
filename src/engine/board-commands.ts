@@ -413,7 +413,7 @@ export function stampTarget(doc: Document, page: NodeId, p: Pt, except?: NodeId)
   return undefined;
 }
 /** Native `MARKER` and `HIGHLIGHTER`: (weight, opacity). */
-const marker = [4, 1] as const, highlighterStroke = [20, Math.fround(0.45)] as const;
+export const marker = [4, 1] as const, highlighterStroke = [20, Math.fround(0.45)] as const;
 
 /** Native `BRANCH` and `BRANCH_WEIGHT`. */
 const branchColour = rgb("#757575"), branchWeight = 4;
@@ -436,11 +436,15 @@ function makeBranch(ctx: Ctx, page: NodeId, parent: NodeId, child: NodeId, left:
   return line;
 }
 
+/** Native unknown parameters (#1413): a name a command doesn't take is refused; `id` and `ids` are always taken. */
+export function refuseUnknown(command: string, p: Record<string, unknown>, names: readonly string[]): void {
+  const unknown = Object.keys(p).filter(k => !names.includes(k) && k !== "id" && k !== "ids");
+  if (unknown.length) throw bad(command, (unknown.length === 1 ? "unknown parameter `" + unknown[0] + "`" : "unknown parameters " + unknown.map(k => "`" + k + "`").join(", ")) + " (it takes " + (names.length ? names.join(", ") : "none") + ")");
+}
 export interface BoardResult { readonly document: Document; readonly selection: readonly NodeId[]; readonly nextId: bigint; readonly result: Record<string, unknown>; readonly tool?: BoardTool }
 /** Native `board.*` (this item's commands): `author` is the viewer's name (empty when unknown), `tool` the board tools' choices. */
 export function executeBoard(command: BoardCommand, doc: Document, selection: readonly NodeId[], nextId: bigint, p: Record<string, unknown>, author: string, tool: BoardTool, view: { readonly cx: number; readonly cy: number } = { cx: 0, cy: 0 }): BoardResult {
-  const unknown = Object.keys(p).filter(k => !takes[command].includes(k));
-  if (unknown.length) throw bad(command, (unknown.length === 1 ? "unknown parameter `" : "unknown parameters ") + (unknown.length === 1 ? unknown[0] + "`" : unknown.map(k => "`" + k + "`").join(", ")) + " (it takes " + takes[command].join(", ") + ")");
+  refuseUnknown(command, p, takes[command]);
   if (doc.kind !== "board") throw disabled(command, needsBoard);
   const ctx: Ctx = { draft: new HierarchyDraft(doc), next: nextId };
   const done = (sel: readonly NodeId[], result: Record<string, unknown>, nextTool?: BoardTool): BoardResult => ({ document: ctx.draft.finish(), selection: Object.freeze([...sel]), nextId: ctx.next, result, ...(nextTool && { tool: nextTool }) });
@@ -913,3 +917,39 @@ export function settleBoardText(doc: Document, before: Document): Document {
   return draft ? draft.finish() : doc;
 }
 void ancestors;
+
+/** Native board tool specs (`boards/board.rs`): the tool each chooses and what it remembers for the next press. */
+export const boardToolIds = Object.freeze({ "tool.sticky": "sticky", "tool.shape": "shape", "tool.connector": "connector", "tool.marker": "marker",
+  "tool.highlighter": "highlighter", "tool.eraser": "eraser", "tool.stamp": "stamp" } as const);
+export type BoardToolCommand = keyof typeof boardToolIds;
+export type BoardToolId = typeof boardToolIds[BoardToolCommand];
+const toolTakes: Record<BoardToolCommand, readonly string[]> = { "tool.sticky": ["color"], "tool.shape": ["shape"], "tool.connector": ["style"], "tool.marker": ["color"],
+  "tool.highlighter": ["color"], "tool.eraser": [], "tool.stamp": ["stamp"] };
+/** Native `tool.sticky {color?}`, `tool.shape {shape?}`, `tool.connector {style?}`, `tool.marker`/`tool.highlighter {color?}`, `tool.eraser`, `tool.stamp {stamp?}`. */
+export function boardToolCommand(command: BoardToolCommand, doc: Document, tool: BoardTool, p: Record<string, unknown>): BoardTool {
+  refuseUnknown(command, p, toolTakes[command]);
+  if (doc.kind !== "board") throw disabled(command, needsBoard);
+  const text = (v: unknown) => v === undefined || v === null ? undefined : typeof v === "string" || typeof v === "boolean" || typeof v === "number" && Number.isFinite(v) ? String(v) : undefined;
+  switch (command) {
+    case "tool.sticky": { const c = colourParam(command, p); return c ? { ...tool, sticky: c } : tool; }
+    case "tool.marker": { const c = colourParam(command, p); return c ? { ...tool, marker: c } : tool; }
+    case "tool.highlighter": { const c = colourParam(command, p); return c ? { ...tool, highlighter: c } : tool; }
+    case "tool.shape": { const v = text(p.shape); return v === undefined ? tool : { ...tool, shape: shapeParam(command, v) }; }
+    case "tool.connector": {
+      const v = text(p.style);
+      if (v === undefined) return tool;
+      if (v !== "straight" && v !== "elbow" && v !== "curved") throw bad(command, "`style` is straight, elbow or curved, not `" + v + "`");
+      return { ...tool, routing: v };
+    }
+    case "tool.stamp": {
+      const v = text(p.stamp);
+      if (v === undefined) return tool;
+      const s = stampIds.find(x => x.toLowerCase() === v.toLowerCase());
+      if (!s) throw bad(command, "unknown stamp `" + v + "` (thumbsUp|heart|plusOne|star|question|check)");
+      return { ...tool, stamp: s };
+    }
+    case "tool.eraser": return tool;
+  }
+}
+/** Native `STICKY` and `SHAPE`: a placed sticky's and shape's size, centred on the press. */
+export const stickySide = 200, shapeSide = 160;

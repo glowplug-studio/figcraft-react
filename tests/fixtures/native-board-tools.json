@@ -1,0 +1,409 @@
+{
+ "runs": [
+  {
+   "commands": [
+    [
+     "tool.sticky",
+     {}
+    ],
+    [
+     "file.newBoard",
+     {}
+    ],
+    [
+     "tool.sticky",
+     {}
+    ],
+    [
+     "tool.sticky",
+     {
+      "color": "blue"
+     }
+    ],
+    [
+     "tool.sticky",
+     {
+      "color": "nope"
+     }
+    ],
+    [
+     "tool.shape",
+     {
+      "shape": "roundedRectangle"
+     }
+    ],
+    [
+     "tool.shape",
+     {
+      "shape": "blob"
+     }
+    ],
+    [
+     "tool.shape",
+     {
+      "shape": 5
+     }
+    ],
+    [
+     "tool.connector",
+     {
+      "style": "curved"
+     }
+    ],
+    [
+     "tool.connector",
+     {
+      "style": "wavy"
+     }
+    ],
+    [
+     "tool.marker",
+     {
+      "color": "#336699"
+     }
+    ],
+    [
+     "tool.highlighter",
+     {
+      "color": "pink"
+     }
+    ],
+    [
+     "tool.eraser",
+     {}
+    ],
+    [
+     "tool.eraser",
+     {
+      "x": 1
+     }
+    ],
+    [
+     "tool.stamp",
+     {
+      "stamp": "question"
+     }
+    ],
+    [
+     "tool.stamp",
+     {
+      "stamp": "QUESTION"
+     }
+    ],
+    [
+     "tool.stamp",
+     {
+      "stamp": "skull"
+     }
+    ],
+    [
+     "tool.stamp",
+     {
+      "stamp": true
+     }
+    ],
+    [
+     "tool.move",
+     {}
+    ],
+    [
+     "board.sticky",
+     {
+      "x": 0,
+      "y": 0
+     }
+    ],
+    [
+     "board.shape",
+     {
+      "x": 300,
+      "y": 0
+     }
+    ],
+    [
+     "board.stamp",
+     {
+      "x": 600,
+      "y": 0
+     }
+    ]
+   ],
+   "results": [
+    {
+     "error": "command `tool.sticky` is not available right now: this is for boards: make one with File ▸ New board"
+    },
+    {
+     "receipt": {
+      "index": 1,
+      "kind": "board"
+     }
+    },
+    {
+     "receipt": {
+      "tool": "sticky"
+     }
+    },
+    {
+     "receipt": {
+      "tool": "sticky"
+     }
+    },
+    {
+     "error": "invalid parameters for `tool.sticky`: `color` is a board colour (yellow, blue…) or a colour such as #FFE78A"
+    },
+    {
+     "receipt": {
+      "tool": "shape"
+     }
+    },
+    {
+     "error": "invalid parameters for `tool.shape`: unknown shape `blob` (rectangle|roundedRectangle|ellipse|diamond|triangle|triangleDown|parallelogramRight|parallelogramLeft|trapezoid|pentagon|hexagon|octagon|star|plus|arrowLeft|arrowRight|chevron|speechBubble|database|document|predefinedProcess|manualInput|internalStorage)"
+    },
+    {
+     "error": "invalid parameters for `tool.shape`: unknown shape `5` (rectangle|roundedRectangle|ellipse|diamond|triangle|triangleDown|parallelogramRight|parallelogramLeft|trapezoid|pentagon|hexagon|octagon|star|plus|arrowLeft|arrowRight|chevron|speechBubble|database|document|predefinedProcess|manualInput|internalStorage)"
+    },
+    {
+     "receipt": {
+      "tool": "connector"
+     }
+    },
+    {
+     "error": "invalid parameters for `tool.connector`: `style` is straight, elbow or curved, not `wavy`"
+    },
+    {
+     "receipt": {
+      "tool": "marker"
+     }
+    },
+    {
+     "receipt": {
+      "tool": "highlighter"
+     }
+    },
+    {
+     "receipt": {
+      "tool": "eraser"
+     }
+    },
+    {
+     "error": "invalid parameters for `tool.eraser`: unknown parameter `x` (it takes none)"
+    },
+    {
+     "receipt": {
+      "tool": "stamp"
+     }
+    },
+    {
+     "receipt": {
+      "tool": "stamp"
+     }
+    },
+    {
+     "error": "invalid parameters for `tool.stamp`: unknown stamp `skull` (thumbsUp|heart|plusOne|star|question|check)"
+    },
+    {
+     "error": "invalid parameters for `tool.stamp`: unknown stamp `true` (thumbsUp|heart|plusOne|star|question|check)"
+    },
+    {
+     "receipt": {
+      "tool": "move"
+     }
+    },
+    {
+     "receipt": {
+      "id": 2,
+      "text": 3
+     }
+    },
+    {
+     "receipt": {
+      "id": 4,
+      "text": 6
+     }
+    },
+    {
+     "receipt": {
+      "id": 7
+     }
+    }
+   ]
+  },
+  {
+   "commands": [
+    [
+     "file.newBoard",
+     {}
+    ],
+    [
+     "tool.sticky",
+     {
+      "x": 1
+     }
+    ],
+    [
+     "tool.sticky",
+     {
+      "ids": []
+     }
+    ],
+    [
+     "tool.shape",
+     {
+      "colour": "red",
+      "y": 2
+     }
+    ],
+    [
+     "tool.connector",
+     {
+      "id": 3
+     }
+    ],
+    [
+     "tool.marker",
+     {
+      "size": 2
+     }
+    ],
+    [
+     "tool.highlighter",
+     {
+      "q": 1
+     }
+    ],
+    [
+     "tool.stamp",
+     {
+      "author": "x"
+     }
+    ],
+    [
+     "tool.eraser",
+     {
+      "ids": [
+       1
+      ]
+     }
+    ],
+    [
+     "board.timer",
+     {
+      "action": "stop",
+      "x": 1
+     }
+    ],
+    [
+     "board.timer",
+     {
+      "action": "stop",
+      "id": 1
+     }
+    ],
+    [
+     "board.timerState",
+     {
+      "x": 1
+     }
+    ],
+    [
+     "board.timerState",
+     {
+      "ids": []
+     }
+    ],
+    [
+     "board.vote",
+     {
+      "action": "clear",
+      "x": 1
+     }
+    ],
+    [
+     "board.voteResults",
+     {
+      "x": 1,
+      "y": 2
+     }
+    ],
+    [
+     "board.voteResults",
+     {
+      "id": 4
+     }
+    ]
+   ],
+   "results": [
+    {
+     "receipt": {
+      "index": 1,
+      "kind": "board"
+     }
+    },
+    {
+     "error": "invalid parameters for `tool.sticky`: unknown parameter `x` (it takes color)"
+    },
+    {
+     "receipt": {
+      "tool": "sticky"
+     }
+    },
+    {
+     "error": "invalid parameters for `tool.shape`: unknown parameters `colour`, `y` (it takes shape)"
+    },
+    {
+     "receipt": {
+      "tool": "connector"
+     }
+    },
+    {
+     "error": "invalid parameters for `tool.marker`: unknown parameter `size` (it takes color)"
+    },
+    {
+     "error": "invalid parameters for `tool.highlighter`: unknown parameter `q` (it takes color)"
+    },
+    {
+     "error": "invalid parameters for `tool.stamp`: unknown parameter `author` (it takes stamp)"
+    },
+    {
+     "receipt": {
+      "tool": "eraser"
+     }
+    },
+    {
+     "error": "invalid parameters for `board.timer`: unknown parameter `x` (it takes action, minutes)"
+    },
+    {
+     "receipt": {
+      "ends": null,
+      "left": 0,
+      "state": "off",
+      "text": "0:00"
+     }
+    },
+    {
+     "error": "invalid parameters for `board.timerState`: unknown parameter `x` (it takes none)"
+    },
+    {
+     "receipt": {
+      "ends": null,
+      "left": 0,
+      "state": "off",
+      "text": "0:00"
+     }
+    },
+    {
+     "error": "invalid parameters for `board.vote`: unknown parameter `x` (it takes action, votes, on, ids, id, index, voter)"
+    },
+    {
+     "error": "invalid parameters for `board.voteResults`: unknown parameters `x`, `y` (it takes voter)"
+    },
+    {
+     "receipt": {
+      "sessions": [],
+      "state": "off"
+     }
+    }
+   ]
+  }
+ ]
+}

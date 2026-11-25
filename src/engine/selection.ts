@@ -118,8 +118,15 @@ export function targetForLeaf(document: Document, leaf: NodeId, selection: reado
     target=1;
     while (target+1<chain.length && document.nodes[chain[target-1]].kind==="section" && board(chain[target])) target++;
   }
-  return chain[target] ?? leaf;
+  const level = chain[target] ?? leaf;
+  // Native `select_target`: a board object is picked whole (a sticky, not its text), unless a layer inside it is selected.
+  const upTo = chain.slice(0, chain.indexOf(level) + 1);
+  const inside = (outer: NodeId, id: NodeId) => { for (let at = document.nodes[id]?.parent ?? null; at !== null; at = document.nodes[at]?.parent ?? null) if (at === outer) return true; return false; };
+  const atom = upTo.find(c => boardAtoms.has((document.nodes[c] as { board?: { type: string } } | undefined)?.board?.type ?? "") && !selection.some(s => s !== c && inside(c, s)));
+  return atom ?? level;
 }
+/** Native `BoardItem::is_atom`: objects picked and moved whole. */
+const boardAtoms = new Set(["sticky", "shape", "label", "stamp", "table", "mindNode"]);
 
 type MaskedChildren = Map<NodeId, LayerNode>;
 const siblingMasks = fontGeometryCache<Document,Map<readonly NodeId[],MaskedChildren | null>>();

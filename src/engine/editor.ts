@@ -86,7 +86,7 @@ import { settleMindMaps } from "./board-mindmap";
 import { templateList, templateTexts } from "./board-templates";
 import { boardGridCommand, defaultBoardGrid, type BoardGrid } from "./board-grid";
 import { executeFacilitate, facilitateSpecs, keepFacilitation, type FacilitateCommand, type FacilitateContext } from "./board-facilitate";
-import { boardSpecs, defaultBoardTool, executeBoard, needsBoard, refuseOnBoard, settleBoardRoutes, settleBoardStamps, settleBoardText, type BoardCommand, type BoardTool } from "./board-commands";
+import { boardSpecs, boardToolCommand, boardToolIds, defaultBoardTool, executeBoard, needsBoard, refuseOnBoard, type BoardToolCommand, settleBoardRoutes, settleBoardStamps, settleBoardText, type BoardCommand, type BoardTool } from "./board-commands";
 import { executeSelection, layersAt, selectionSpecs } from "./selection";
 import { setRectangleProperties, setPageGeometryFields } from "./properties";
 import { HierarchyDraft, pageForNode, worldTransform, zSorted } from "./hierarchy";
@@ -120,6 +120,7 @@ import type { ScaleAnchor } from "./transform-handles";
 import { PenInteraction } from "./pen-interaction";
 import { buildPenPath, type PenAnchor } from "./pen-path";
 import { PencilInteraction } from "./pencil-interaction";
+import { BoardToolInteraction } from "./board-tool-interaction";
 import { parseBrush, wireBrush, type Brush } from "./brush";
 
 interface FileSource {file:Blob;folder?:import("./interchange/rest/companions").RestFolder; picker?:PaintPicker; paste?:boolean; centre?:boolean}
@@ -179,6 +180,8 @@ export const commandSpecs = Object.freeze({
   "board.templates": { label: "List board templates", undo: false },
   "board.grid": { label: "Board grid", undo: false },
   ...facilitateSpecs,
+  "tool.sticky": { label: "Sticky note", undo: false }, "tool.shape": { label: "Shapes", undo: false }, "tool.connector": { label: "Connector", undo: false },
+  "tool.marker": { label: "Marker", undo: false }, "tool.highlighter": { label: "Highlighter", undo: false }, "tool.eraser": { label: "Eraser", undo: false }, "tool.stamp": { label: "Stamp", undo: false },
   ...viewSpecs,
   "frame.presets": { label: "List frame presets", undo: false },
   ...selectionSpecs,
@@ -316,7 +319,7 @@ export interface EditorSnapshot {
   readonly selection: readonly NodeId[];
   readonly openComment?: string;
   readonly showComments?: boolean;
-  readonly tool: "comment" | "move" | DrawShapeKind | "scale" | "text" | "textOnPath" | "pen" | "pencil" | "shapeBuilder" | "eyedropper";
+  readonly tool: "comment" | "move" | DrawShapeKind | "scale" | "text" | "textOnPath" | "pen" | "pencil" | "shapeBuilder" | "eyedropper" | import("./board-commands").BoardToolId;
   readonly builderMode: "merge" | "remove";
   readonly scaleAnchor: ScaleAnchor;
   readonly canUndo: boolean;
@@ -365,6 +368,7 @@ export interface EditorClipboard { properties?: Record<string, unknown>; layers?
 export class EditorEngine {
   readonly pen = new PenInteraction(this);
   readonly pencil = new PencilInteraction(this);
+  readonly boardTools = new BoardToolInteraction(this);
   #pencilBrush?: Brush;
   getPencilBrush(): Brush | undefined { return this.#pencilBrush; }
   #snapshot: EditorSnapshot;
@@ -1059,6 +1063,18 @@ export class EditorEngine {
     interaction.document = validateChangedGeometry(draft); interaction.selection = created.selection; interaction.nextId = created.nextId; this.#notifyCanvas(); return created.id;
   }
   invalidateCanvas(): void { this.#notifyCanvas(); }
+  /** The board tools' choices (the next sticky's colour, the shape, the stamp, the routing, the inks). */
+  get boardTool(): BoardTool { return this.#boardTool; }
+  /** Native eraser preview: `ids` gone from the interaction's base, and from the selection. */
+  previewRemove(ids: readonly NodeId[]): void {
+    const interaction = this.#interaction;
+    if (!interaction) throw new Error("No interaction is active");
+    const draft = new HierarchyDraft(interaction.base.document);
+    for (const id of ids) if (draft.nodes[id]) draft.remove(id);
+    interaction.document = draft.finish();
+    interaction.selection = Object.freeze(interaction.base.selection.filter(id => !ids.includes(id)));
+    this.#notifyCanvas();
+  }
   previewProperties(id: NodeId, props: Record<string, unknown>): void {
     const interaction = this.#interaction; if (!interaction) throw new Error("No active interaction");
     interaction.document = setRectangleProperties(interaction.base.document, [id], { id, props }); this.#notifyCanvas();
@@ -1833,10 +1849,20 @@ export class EditorEngine {
       if (Object.hasOwn(p, "preset")) this.#pencilBrush = parseBrush(p.preset === null ? null : p);
       return { brush: this.#pencilBrush ? wireBrush(this.#pencilBrush) : null };
     }
+    // Native board tool specs: the tool, and what it places next (`tool.eraser` takes nothing).
+    if (Object.hasOwn(boardToolIds, command)) {
+      this.#boardTool = boardToolCommand(command as BoardToolCommand, this.#snapshot.document, this.#boardTool, p);
+      const id = boardToolIds[command as BoardToolCommand];
+      if (this.pen.open) this.pen.finish();
+      // A press places a sticky or a shape at once: have the fonts ready for its text.
+      if (id === "sticky" || id === "shape") void prepareText().catch(() => undefined);
+      this.#publish({ tool: id });
+      return { tool: id };
+    }
     if (command.startsWith("tool.") && command !== "tool.scaleAnchor" && Object.keys(p).length) throw new Error(`${command} takes no parameters`);
     if (this.pen.open && command.startsWith("tool.") && command !== "tool.pen" && command !== "tool.scaleAnchor") this.pen.finish();
     const preservePen = this.pen.open && command === "tool.pen" || (this.pen.open || this.pencil.active) && (command === "tool.scaleAnchor" || Object.hasOwn(viewSpecs, command));
-    if (preservePen && command === "tool.pen") { if (Object.keys(p).length) throw new Error("tool.pen takes no parameters"); return {}; }
+    if (preservePen && command === "tool.pen") { if (Object.keys(p).length) throw new Error("tool.pen takes no parameters"); return { tool: "pen" }; }
     const gesture = Object.hasOwn(smartSpecs, command) && command !== "arrange.roundToPixels" && parseBoolean(p.fromGesture) === true;
     const preserveText = (command === "file.markSaved" || command === "library.applyStyle" || command.startsWith("style.")) && this.currentTextEdit();
     if (!gesture && !preservePen && !preserveText) { const interacting = this.interacting; this.pencil.cancel(); if (this.pen.open) this.pen.cancel(); else this.cancelInteraction(); if (interacting && command === "edit.undo") return { undone: true }; }
@@ -2257,7 +2283,6 @@ export class EditorEngine {
     // Native `board.timer`, `board.timerState`, `board.vote` and `board.voteResults`: shared with the document, never undo steps.
     if (Object.hasOwn(facilitateSpecs, command)) {
       const before = this.#snapshot;
-      if (before.document.kind !== "board") throw new Error("command `" + command + "` is not available right now: " + needsBoard);
       const next = executeFacilitate(command as FacilitateCommand, before.document, p, this.#facilitation());
       if (next.document !== before.document) this.#commitEdit({ document: next.document }, { record: false });
       return next.result;
@@ -2324,7 +2349,7 @@ export class EditorEngine {
       const end = this.#vectorEdit && command !== "tool.move" && command !== "tool.scale" ? executeVectorEdit("vector.edit.end", this.#snapshot.document, this.#snapshot.selection, this.#vectorEdit, {}) : undefined;
       if (end) this.#vectorEdit = undefined;
       this.#publish({ ...(end ? { document: end.document, selection: end.selection } : {}), tool: command.slice(5) as EditorSnapshot["tool"] });
-      return {};
+      return { tool: command.slice(5) };
     }
     const undo = command === "edit.undo";
     if (this.#liveHistory) return { [undo ? "undone" : "redone"]:this.#liveHistory.travel(undo) };

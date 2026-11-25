@@ -707,7 +707,7 @@ export class CanvasController {
     this.#observer = new ResizeObserver(this.#resize);
     this.#observer.observe(canvas);
     this.#unsubscribe = engine.subscribe(() => {
-      if (!engine.pen.open && !engine.pencil.active) this.cancel();
+      if (!engine.pen.open && !engine.pencil.active && !engine.boardTools.active) this.cancel();
       this.invalidate();
     });
     this.#unsubscribeView = engine.subscribeView(() => this.invalidate());
@@ -753,6 +753,17 @@ export class CanvasController {
       if (this.engine.getSnapshot().paintPicker) this.engine.setPaintPicker();
       if (this.#builder.down(this.#point(event), event) || this.engine.pencil.down(this.#point(event), pencilPointerPressure(event))) {
         event.preventDefault(); this.#pointer = event.pointerId; this.canvas.setPointerCapture(event.pointerId); this.invalidate(); return;
+      }
+      // Native `board_down`: a press with a board tool places its object, or starts erasing.
+      if (this.engine.boardTools.handles()) {
+        if (this.#text.active) this.#text.finish();
+        const placed = this.engine.boardTools.down(this.#point(event));
+        if (placed) {
+          event.preventDefault();
+          if (placed.capture) { this.#pointer = event.pointerId; this.canvas.setPointerCapture(event.pointerId); }
+          if (placed.edit) this.#text.edit(placed.edit);
+          this.invalidate(); return;
+        }
       }
       if (this.engine.pen.down(this.#point(event), event)) {
         event.preventDefault(); this.#penPointer = true; this.#pointer = event.pointerId; this.canvas.setPointerCapture(event.pointerId); this.invalidate(); return;
@@ -801,7 +812,12 @@ export class CanvasController {
       this.#builder.move(this.#point(event), event.altKey);
       this.invalidate(); return;
     }
-    if (this.engine.getSnapshot().tool === "pencil" && (this.#pointer === null || this.engine.pencil.active)) {
+    if (event.pointerId === this.#pointer && this.engine.boardTools.active) {
+      try { this.engine.boardTools.move(this.#point(event)); } catch (error) { this.cancel(); this.onError(error instanceof Error ? error.message : "Could not erase"); }
+      this.invalidate(); return;
+    }
+    const pencilTool = this.engine.getSnapshot().tool;
+    if ((pencilTool === "pencil" || pencilTool === "marker" || pencilTool === "highlighter") && (this.#pointer === null || this.engine.pencil.active)) {
       try {
         this.canvas.style.cursor = "crosshair";
         if (this.#pointer === event.pointerId) {
@@ -881,6 +897,9 @@ export class CanvasController {
       try { this.#builder.up(this.#point(event),event); } catch (error) { this.onError(error instanceof Error ? error.message : "Shape Builder failed"); }
       this.cancel(); return;
     }
+    if (event.pointerId === this.#pointer && this.engine.boardTools.active) {
+      try { this.engine.boardTools.up(this.#point(event)); this.cancel(); } catch (error) { this.cancel(); this.onError(error instanceof Error ? error.message : "Could not erase"); } return;
+    }
     if (event.pointerId === this.#pointer && this.engine.pencil.active) {
       try { this.engine.pencil.up(this.#point(event), pencilPointerPressure(event)); this.cancel(); } catch (error) { this.#penFailure(error); } return;
     }
@@ -930,6 +949,8 @@ export class CanvasController {
       if (this.engine.pen.doubleClick(this.#point(event))) return;
       if (this.#vectors.doubleClick(this.#point(event))) return;
       if (this.#transforming.doubleClickEdge(this.#point(event), event)) return;
+      const boardText = this.engine.boardTools.doubleClick(this.#point(event));
+      if (boardText) { this.#text.edit(boardText); return; }
       if (this.#text.doubleClick(event)) return;
       if (this.#onOrigin(this.#point(event))) this.engine.execute("transform.setRotationOrigin", { reset: true });
       else this.#moving.doubleClick(this.#point(event));
@@ -978,6 +999,7 @@ export class CanvasController {
       this.#gradients.cancel(); this.#blurHandles.cancel(); this.#spacing.cancel();
       this.#builder.cancel();
       this.engine.pencil.cancel();
+      this.engine.boardTools.cancel();
       this.engine.pen.cancel();
       this.#vectors.cancel();
       this.#arcs.cancel();
@@ -1030,7 +1052,7 @@ export class CanvasController {
       this.#moving.draw(context); this.#drawing.draw(context);
       if (vectorEdit) drawVectorEdit(context, this.engine.getRenderDocument(), vectorEdit, view, this.#vectors.overlay);
       if (pen) drawPen(context, this.engine.getRenderDocument(), view, this.engine.pen.overlay);
-      this.engine.pencil.draw(context);
+      this.engine.pencil.draw(context); this.engine.boardTools.draw(context);
       if (builder) this.#builder.draw(context);
       this.#gradients.draw(context); this.#blurHandles.draw(context); this.#spacing.draw(context);
       const rotationOrigin = this.engine.getRotationOrigin();

@@ -11748,3 +11748,27 @@ test("an ended vote shows its badges at the objects' corners",async ({page})=>{
   const zoom=Number(await page.getByLabel("Design canvas",{exact:true}).getAttribute("data-view-zoom"));
   await expectCanvasPixel(page,200-7/zoom,0,[0x02,0xda,0x96,255]);
 });
+
+test("the board toolbar places a sticky that is typed in",async ({page})=>{
+  const engine=EditorEngine.newTab(undefined,{},"board");
+  await engine.executeAsync("board.sticky",{x:0,y:0,text:"Anchor"});
+  await engine.executeAsync("select.set",{ids:[]});
+  await login(page);
+  await page.getByLabel("Open Figcraft file",{exact:true}).setInputFiles({name:"tools.figcraft",mimeType:"application/octet-stream",buffer:Buffer.from(await engine.nativeSnapshot())});
+  const layers=page.getByRole("region",{name:"Layers",exact:true});
+  await expect(layers.getByRole("button",{name:"Sticky",exact:true})).toHaveCount(1);
+  const tools=page.getByRole("toolbar",{name:"Board tools",exact:true});
+  await tools.getByRole("button",{name:"Sticky note colors",exact:true}).click();
+  await page.getByRole("dialog",{name:"Sticky note colors",exact:true}).getByRole("button",{name:"Blue",exact:true}).click();
+  await expect(tools.getByRole("button",{name:"Sticky note",exact:true})).toHaveAttribute("aria-pressed","true");
+  const at=await canvasPoint(page,400,100);
+  await page.mouse.click(at.x,at.y);
+  await expect(page.getByLabel("Edit text layer",{exact:true})).toBeFocused();
+  await page.keyboard.type("Hello");
+  await page.keyboard.press("Escape");
+  await expect(layers.getByRole("button",{name:"Sticky",exact:true})).toHaveCount(2);
+  await expect(tools.getByRole("button",{name:"Move",exact:true})).toHaveAttribute("aria-pressed","true");
+  // The new sticky is blue, centred on the press (300 to 500 across).
+  await expectCanvasPixel(page,310,10,[0xac,0xd3,0xfa,255]);
+  await expect(layers.getByRole("button",{name:"Hello",exact:true})).toHaveCount(1);
+});

@@ -3,6 +3,7 @@ import {DisplayNameField,useDisplayName} from "./DisplayNameField";
 import {OnlineServerPreferenceField} from "./OnlineServerPreferenceField";
 import { InvertZoomPreference } from "./InvertZoomPreference";
 import {CommentOverlay} from "./CommentOverlay";
+import {BoardToolbar} from "./BoardToolbar";
 import type {OnlineTeamLibraries} from "./backends/online-files";
 import { ImportReportPanel } from "./ImportReportPanel";
 import { importNotice, readImportReport, type ImportReport } from "./engine/interchange/import-report";
@@ -412,6 +413,11 @@ export function DocumentEditor({ identity, capabilities, engine: suppliedEngine,
       if (event.key.toLowerCase() === "i" && !event.shiftKey) command = "edit.pickColor";
       if (event.shiftKey && event.key.toLowerCase() === "m") command = "tool.shapeBuilder";
       if (event.key.toLowerCase() === "p") command = event.shiftKey ? "tool.pencil" : "tool.pen";
+      // Native keymap.rs: the board tools, on boards only, on keys nothing else uses.
+      if (engine.getSnapshot().document.kind === "board" && !event.shiftKey) {
+        const key = ({ q: "tool.sticky", b: "tool.shape", x: "tool.connector", m: "tool.marker", u: "tool.highlighter", e: "tool.eraser", w: "tool.stamp" } as Record<string, string>)[event.key.toLowerCase()];
+        if (key) command = key;
+      }
       if (event.target instanceof HTMLTextAreaElement && event.target.hasAttribute("data-figcraft-text-input") &&
       !event.nativeEvent.isComposing && !event.altKey && (event.ctrlKey || event.metaKey)) {
       if (event.code==="KeyS" && !event.shiftKey) { event.preventDefault(); void save(); return; }
@@ -1032,7 +1038,9 @@ export function DocumentEditor({ identity, capabilities, engine: suppliedEngine,
             {(["merge", "remove"] as const).map(mode => <button key={mode} disabled={!editable || busy} aria-pressed={snapshot.builderMode === mode} onClick={() => { dispatch("shapeBuilder.mode", {mode}); canvas.current?.focus(); }}>{mode === "merge" ? "Merge regions" : "Remove regions"}</button>)}
             <span>{!availableBuilderArrangement(snapshot.document, snapshot.selection)?.regions.length ? "Select overlapping shapes" : snapshot.builderMode === "merge" ? "Click or drag to merge · Alt removes" : "Click or drag to remove · Alt merges"}</span>
             <button disabled={!editable || busy} onClick={() => { dispatch("tool.move"); canvas.current?.focus(); }}>Done</button>
-          </div> : editingVector ? <VectorToolbar engine={engine} editable={editable && !busy} dispatch={(command, params) => { dispatch(command, params); canvas.current?.focus(); }} /> : <div className="figcraft-toolbar" role="toolbar" aria-label="Tools">
+          </div> : snapshot.document.kind === "board" && !editingVector ? <BoardToolbar snapshot={snapshot} tool={engine.boardTool} editable={editable && !busy} canvas={canvas}
+            commenting={signedIn && !busy && (editable || capabilities.includes("document.comment"))} dispatch={dispatch} />
+          : editingVector ? <VectorToolbar engine={engine} editable={editable && !busy} dispatch={(command, params) => { dispatch(command, params); canvas.current?.focus(); }} /> : <div className="figcraft-toolbar" role="toolbar" aria-label="Tools">
             <button disabled={!editable} aria-pressed={snapshot.tool === "move"} onClick={() => { dispatch("tool.move"); canvas.current?.focus(); }}>Move</button>
             <button disabled={!editable} aria-pressed={snapshot.tool === "text" || snapshot.tool === "textOnPath"}
               aria-haspopup="dialog" title="Text · T · Text tool options" onClick={event=>{
