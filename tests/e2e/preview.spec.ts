@@ -11428,3 +11428,44 @@ test("the presenter takes the pointer and keys as native does: while hovering an
   expect(await pixel(145,270)).toEqual([255,0,0,255]);
   await expect.poll(()=>pixel(60,270),{timeout:6000}).toEqual([255,0,0,255]);
 });
+
+test("the presenter shows the device round its screen, scrolls with the wheel and a drag, and Z sizes it another way",async ({page})=>{
+  const engine=new EditorEngine();
+  const id=(v:unknown)=>String((v as {id:string}).id);
+  engine.execute("proto.settings",{device:"iPhone 16",color:"Pink"});
+  const a=id(engine.execute("frame.create",{name:"A",x:0,y:0,width:393,height:2000}));
+  engine.execute("node.set",{id:Number(a),props:{overflow:"vertical"}});
+  engine.execute("shape.rectangle",{name:"Card",x:20,y:100,width:200,height:100,parent:a,props:{fill:"#FF0000"}});
+  engine.execute("proto.flow.add",{start:Number(a),name:"Main"});
+  await login(page);
+  await page.getByLabel("Open Figcraft file",{exact:true}).setInputFiles({name:"device.figcraft",mimeType:"application/octet-stream",buffer:Buffer.from(await engine.nativeSnapshot())});
+  await page.getByRole("group",{name:"Properties",exact:true}).getByRole("button",{name:"Prototype",exact:true}).click();
+  await page.getByRole("region",{name:"Prototype",exact:true}).getByRole("button",{name:"Present Main",exact:true}).click();
+  const presenter=page.getByRole("dialog",{name:"Prototype presentation",exact:true}),screen=presenter.getByLabel("Prototype screen",{exact:true});
+  await expect(screen).toHaveAttribute("data-device","iPhone 16");
+  const rect=async()=>(await screen.getAttribute("data-screen"))!.split(",").map(Number);
+  const pixel=(x:number,y:number)=>screen.evaluate((c:HTMLCanvasElement,[x,y])=>{const r=c.width/c.clientWidth;return Array.from(c.getContext("2d")!.getImageData(Math.round(x*r),Math.round(y*r),1,1).data);},[x,y]);
+  const [x0,y0,x1,y1]=await rect(),w=x1-x0,b=Math.max(w*0.06,6),band=Math.min(Math.max(w*0.016,1.5),Math.max(b*0.5,1.5));
+  // The screen shows the frame (white, below the camera pill), black glass round it, and the Pink body at the outer edge.
+  await expect.poll(()=>pixel((x0+x1)/2,(y0+y1)/2)).toEqual([255,255,255,255]);
+  expect(await pixel(x0-(b-band)/2,(y0+y1)/2)).toEqual([22,22,24,255]);
+  expect(await pixel(x0-b+band/2,(y0+y1)/2)).toEqual([0xec,0xbf,0xcb,255]);
+  const scrollY=async()=>Number((await screen.getAttribute("data-scroll"))!.split(",")[1]);
+  const box=(await screen.boundingBox())!,mid={x:box.x+(x0+x1)/2,y:box.y+(y0+y1)/2};
+  // The wheel scrolls the frame's content, then a drag up scrolls it further.
+  await page.mouse.move(mid.x,mid.y);
+  await page.mouse.wheel(0,300);
+  await expect.poll(scrollY).toBeGreaterThan(0);
+  await expect.poll(async()=>{const a1=await scrollY();await page.waitForTimeout(300);return (await scrollY())-a1;}).toBe(0);
+  const before=await scrollY();
+  await page.mouse.move(mid.x,mid.y);await page.mouse.down();
+  for(let k=1;k<=5;k++){await page.mouse.move(mid.x,mid.y-20*k);await page.waitForTimeout(30);}
+  await page.waitForTimeout(150);
+  await page.mouse.up();
+  await expect.poll(scrollY).toBeGreaterThan(before+50);
+  // Z: the device fills the window instead of fitting it.
+  const fitZoom=Number(await screen.getAttribute("data-zoom"));
+  await page.keyboard.press("z");
+  await expect(screen).toHaveAttribute("data-scale","fill");
+  expect(Number(await screen.getAttribute("data-zoom"))).toBeGreaterThan(fitZoom);
+});

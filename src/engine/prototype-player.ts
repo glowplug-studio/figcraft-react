@@ -5,7 +5,9 @@ import { rebuildInstance } from "./component-sync";
 import type { PrototypeAction, PrototypeEasing, PrototypeTransition, overlayPositions } from "./prototype-data";
 import { easingSeconds, evalEasing, reversedTransition, usesGamepad } from "./prototype-model";
 import { branch, changeToTarget, navigateTarget, playInteractions, rememberSections, setModeById, setVariable } from "./prototype-runtime";
-import { applyScroll, clampScroll, fitViewport, raiseFixed, scrollRangeIn, scrollToLayer, viewport } from "./prototype-scroll";
+import { applyScroll, clampScroll, fitViewport, flingAxis, raiseFixed, scrollRangeIn, scrollToLayer, viewport, type Scroller } from "./prototype-scroll";
+import { isFrameLike } from "./document";
+import { setRectangleProperties } from "./properties";
 import type { PresentOptions } from "./prototype-commands";
 import { openableDocumentUrl } from "./text-link";
 
@@ -29,6 +31,16 @@ interface Snapshot { readonly current: NodeId; readonly doc: Document; readonly 
 /** A "while hovering / while pressing" state that reverts when the pointer leaves or lifts. */
 interface Temp { readonly rect: PageRect; readonly press: boolean; readonly snap: Snapshot; readonly transition: PrototypeTransition; readonly dur: number; readonly easing: PrototypeEasing }
 interface Waiting { readonly node: NodeId; readonly k: number; readonly rect?: PageRect; readonly root: NodeId; readonly due: number }
+/** Native `Fling`: a scroller carrying on after a drag or the wheel let go (units/s), springing back from past its ends with `bounce`. */
+export interface Fling { readonly target: Scroller; vel: Pair; readonly decay: number; readonly bounce: boolean; at: number }
+/** Native `cmd::proto::respond`: a responsive prototype's frame resized to a screen of `(w, h)`, its constraints and auto layout responding. */
+export function respond(doc: Document, frame: NodeId, [w, h]: Pair): Document {
+  const n = doc.nodes[frame];
+  if (!Number.isFinite(w) || !Number.isFinite(h) || !n || n.kind === "page" || !isFrameLike(n)) return doc;
+  const width = Math.min(Math.max(w, 1), 100_000), height = Math.min(Math.max(h, 1), 100_000);
+  if (Math.abs(n.width - width) < 1e-9 && Math.abs(n.height - height) < 1e-9) return doc;
+  try { return setRectangleProperties(doc, [frame], { width, height }); } catch { return doc; }
+}
 /** A link an action opened: whether the viewer's own input fired it, and whether it opens in a new tab. */
 export interface OpenedLink { readonly url: string; asked: boolean; readonly newTab: boolean }
 const defaultView: PresentOptions = Object.freeze({ scale: "fit", deviceFrame: true, hotspotHints: true, inspect: false, hideUi: false });
@@ -48,6 +60,18 @@ export class PrototypePlayer {
   scrollAnim?: ScrollAnimation;
   anim?: Animation;
   view: PresentOptions = defaultView;
+  /** Native `pan`: how far the whole view has panned (screen points), when what shows is bigger than the window. */
+  pan?: Pair;
+  /** Native `pan_range`, `zoom`: how far the view can pan, and the scale it shows at (both set by the layout). */
+  panRange: Pair = [0, 0];
+  zoom = 1;
+  /** Native `fit`: the screen a responsive prototype's frame is resized to. */
+  fit?: Pair;
+  fling?: Fling;
+  /** Native `wheel`: the wheel's smoothed speed while it scrolls `target`. */
+  wheel?: [Scroller, Pair];
+  /** Native `drag_scroll`: a drag scrolling `target` from its offset when the drag began. */
+  dragScroll?: [Scroller, Pair];
   /** Links the last actions opened, for the presenter's link notice. */
   urls: OpenedLink[] = [];
   rev = 0;
@@ -87,19 +111,60 @@ export class PrototypePlayer {
     this.overlays = this.overlays.filter(o => has(o.id));
     this.closing = this.closing.filter(([, o]) => has(o.id));
     this.#temp = undefined; this.anim = undefined; this.scrollAnim = undefined;
+    this.stopScrolling();
     for (const f of [...this.scroll.keys()]) if (!has(f)) this.scroll.delete(f);
     if (this.doc) for (const [f, s] of this.scroll) this.scroll.set(f, clampScroll(s, this.range(this.doc, f)));
     this.rev++;
   }
   /** Native `relayout`: instances play their variants' interactions and fixed layers draw on top. */
   relayout() {
-    this.doc = this.#design ? raiseFixed(playInteractions(this.#design)) : undefined;
+    const d = this.#design && this.fit ? respond(this.#design, this.current, this.fit) : this.#design;
+    this.doc = d ? raiseFixed(playInteractions(d)) : undefined;
     this.usesPads = !!this.doc && usesGamepad(this.doc);
     this.rev++;
   }
   /** Native `range`: how far `frame` scrolls; the presented frame on a device scrolls through its whole height. */
   range(doc: Document, frame: NodeId): Pair {
     return scrollRangeIn(doc, frame, frame === this.current ? viewport(doc, frame) : undefined);
+  }
+  /** Native `offset`: a frame's scroll, else the view's pan (centred across until panned). */
+  offset(t: Scroller): Pair { return t === "view" ? this.pan ?? [this.panRange[0] / 2, 0] : this.scroll.get(t) ?? [0, 0]; }
+  /** Native `limits`: how far `t` scrolls (`base`: the player's document without scroll offsets). */
+  limits(base: Document, t: Scroller): Pair { return t === "view" ? this.panRange : this.range(base, t); }
+  /** Native `set_offset`. */
+  setOffset(t: Scroller, v: Pair) {
+    if (!Number.isFinite(v[0]) || !Number.isFinite(v[1])) return;
+    if (t === "view") { this.pan = v; return; }
+    const cur = this.scroll.get(t);
+    if (!cur || cur[0] !== v[0] || cur[1] !== v[1]) { this.scroll.set(t, v); this.rev++; }
+  }
+  /** Native `step_fling`: move a fling on to `now`; true while it still moves. */
+  stepFling(now: number): boolean {
+    const f = this.fling;
+    this.fling = undefined;
+    if (!f || !this.doc) return false;
+    const r = this.limits(this.doc, f.target), x = this.offset(f.target);
+    const dt = Math.min(Math.max(now - f.at, 0), 0.25);
+    f.at = now;
+    const [nx, vx, doneX] = flingAxis(x[0], f.vel[0], r[0], dt, f.decay, f.bounce);
+    const [ny, vy, doneY] = flingAxis(x[1], f.vel[1], r[1], dt, f.decay, f.bounce);
+    this.setOffset(f.target, [nx, ny]);
+    f.vel = [vx, vy];
+    if (doneX && doneY) return false;
+    this.fling = f;
+    return true;
+  }
+  /** Native `stop_scrolling`. */
+  stopScrolling() { this.fling = undefined; this.wheel = undefined; this.dragScroll = undefined; }
+  /** Native `set_scale`: size the prototype another way; the view starts over at its top. */
+  setScale(scale: PresentOptions["scale"]) { this.view = { ...this.view, scale }; this.pan = undefined; this.stopScrolling(); }
+  /** Native `reset_for_device`: a new device starts at its top, without the old screen's scroll or drag. */
+  resetForDevice() { this.pan = undefined; this.scroll.clear(); this.scrollAnim = undefined; this.stopScrolling(); this.rev++; }
+  /** Native `respond_to`: responsive prototypes resize the presented frame to a screen of `size` (undefined: frames keep their size). */
+  respondTo(size: Pair | undefined) {
+    if (this.fit?.[0] === size?.[0] && this.fit?.[1] === size?.[1]) return;
+    this.fit = size;
+    this.relayout();
   }
   /** Native `display`: the player's document with scroll offsets applied and the presented frame sized to the device's screen. */
   display(): Document | undefined {
@@ -134,6 +199,7 @@ export class PrototypePlayer {
     if (!this.doc || !Number.isFinite(x) || !Number.isFinite(y)) return;
     this.scroll.set(this.current, clampScroll([x, y], this.range(this.doc, this.current)));
     this.scrollAnim = undefined;
+    this.stopScrolling();
     this.rev++;
   }
   #snapshot(): Snapshot | undefined {

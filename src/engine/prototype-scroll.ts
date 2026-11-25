@@ -123,3 +123,59 @@ export function scrollToLayer(doc: Document, dest: NodeId, offset: readonly [num
   }
   return out;
 }
+
+/** Native scroll.rs constants: how quickly a fling after a drag slows down (1/s; it travels its speed / decay). */
+export const decayDrag = 2.5;
+/** How quickly the wheel's coast slows down (1/s). */
+export const decayWheel = 8;
+/** Stiffness of the spring that pulls an overscroll back (1/s, critically damped). */
+const spring = 16;
+/** A fling inside its range stops below this speed (units/s). */
+const flingStop = 6;
+/** The wheel coasts on when it was faster than this as it stopped (screen points/s). */
+export const coastMin = 40;
+/** How far a drag past the end can stretch the content at most (screen points). */
+export const rubberPoints = 240;
+
+/** Native `fling_axis`: one axis of a fling after `dt` seconds from offset `x` at speed `v` in a range `0..r`. Inside the range it slows
+ * down exponentially; past an end it stops there or, with `bounce`, a critically damped spring pulls it back. Solved exactly over short
+ * sub-steps, so the motion does not depend on the frame rate. The new offset and speed, and whether it has come to rest. */
+export function flingAxis(x: number, v: number, r: number, dt: number, decay: number, bounce: boolean): [number, number, boolean] {
+  if (!(Number.isFinite(x) && Number.isFinite(v) && Number.isFinite(r) && Number.isFinite(dt) && decay > 0) || r <= 0)
+    return [Number.isFinite(r) && Number.isFinite(x) ? Math.min(Math.max(x, 0), Math.max(r, 0)) : 0, 0, true];
+  const step = Math.min(Math.max(dt, 0), 1);
+  const steps = Math.min(Math.max(Math.ceil(step * 240), 1), 64), h = step / steps;
+  v = Math.min(Math.max(v, -1e6), 1e6);
+  const inside = (p: number) => p >= 0 && p <= r;
+  for (let i = 0; i < steps; i++) {
+    if (inside(x)) {
+      const e = Math.exp(-decay * h);
+      x += v * (1 - e) / decay;
+      v *= e;
+      if (!bounce && !inside(x)) { x = Math.min(Math.max(x, 0), r); v = 0; }
+    } else {
+      const end = Math.min(Math.max(x, 0), r), d = x - end, e = Math.exp(-spring * h), c = v + spring * d;
+      x = end + (d + c * h) * e;
+      v = (v - spring * c * h) * e;
+    }
+  }
+  if (!Number.isFinite(x) || !Number.isFinite(v)) return [0, 0, true];
+  const end = Math.min(Math.max(x, 0), r);
+  if (x === end && Math.abs(v) < flingStop) return [x, 0, true];
+  if (x !== end && Math.abs(x - end) < 0.5 && Math.abs(v) < flingStop * 4) return [end, 0, true];
+  return [x, v, false];
+}
+
+/** Native `rubber_band`: where a drag to offset `x` shows in a range `0..r`: past an end it stretches less the further it goes, never
+ * more than `limit` past. */
+export function rubberBand(x: number, r: number, limit: number): number {
+  if (!Number.isFinite(x) || !Number.isFinite(r) || r <= 0 || !Number.isFinite(limit) || limit <= 0)
+    return Number.isFinite(x) && Number.isFinite(r) ? Math.min(Math.max(x, 0), Math.max(r, 0)) : 0;
+  const band = (over: number) => limit * (1 - 1 / (over * 0.55 / limit + 1));
+  return x < 0 ? -band(-x) : x > r ? r + band(x - r) : x;
+}
+
+/** What scrolls: a frame by its id, or the whole view panning (native `Scroller::View`). */
+export type Scroller = NodeId | "view";
+/** Native `units_per_point`: screen points to the scroller's units (page units for frames, points for the view). */
+export const unitsPerPoint = (t: Scroller, scale: number) => t === "view" ? 1 : 1 / Math.max(scale, 1e-6);
