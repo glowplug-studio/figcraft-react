@@ -11615,3 +11615,19 @@ test("a native board opens with what its objects are for, saves them back, and N
   await bar.getByRole("button",{name:"New board",exact:true}).click();
   await expect(page.getByRole("heading",{name:"Untitled board",exact:true})).toBeVisible();
 });
+
+test("stickies and shapes with text made on a board draw as native draws them",async ({page})=>{
+  const engine=EditorEngine.newTab(undefined,{},"board");
+  await engine.executeAsync("board.sticky",{x:0,y:0,text:"Plan",color:"pink"});
+  const shape=await engine.executeAsync("board.shape",{shape:"diamond",x:300,y:0,width:200,height:200,text:"Go",color:"blue"}) as {id:number};
+  await login(page);
+  await page.getByLabel("Open Figcraft file",{exact:true}).setInputFiles({name:"board.figcraft",mimeType:"application/octet-stream",buffer:Buffer.from(await engine.nativeSnapshot())});
+  const layers=page.getByRole("region",{name:"Layers",exact:true});
+  await expect(layers.getByRole("button",{name:"Sticky",exact:true})).toHaveCount(1);
+  await expect(layers.getByRole("button",{name:"Diamond",exact:true})).toHaveCount(1);
+  // The sticky's pink near its corner, the diamond's blue above its text and the board page outside its outline's corner.
+  await expectCanvasPixel(page,190,10,[0xf7,0xb9,0xda,255]);
+  await expectCanvasPixel(page,400,40,[0xac,0xd3,0xfa,255]);
+  await expectCanvasPixel(page,305,5,[0xf4,0xf3,0xf0,255]);
+  expect(shape.id).toBeGreaterThan(0);
+});
