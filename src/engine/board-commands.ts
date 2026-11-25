@@ -14,6 +14,7 @@ import { boundsOf } from "./viewport";
 import { parseSvgPath } from "./svg-path";
 import { createLayer } from "./creation";
 import { stamps as stampIds } from "./board-data";
+import { editTable, makeTable, maxColumns, maxRows, tableAnswer, tableOf, type TableCtx } from "./board-table";
 import { inverse, multiply, transformPoint, type Affine } from "./affine";
 import { worldTransform, pageForNode } from "./hierarchy";
 import { networkFromPoints } from "./vector-network";
@@ -36,6 +37,8 @@ export const boardSpecs = Object.freeze({
   "board.addConnected": { label: "Add connected shape", undo: true },
   "board.stamp": { label: "Stamp", undo: true },
   "board.ink": { label: "Marker stroke", undo: true },
+  "board.table": { label: "Table", undo: true },
+  "board.tableEdit": { label: "Edit table", undo: true },
 });
 export type BoardCommand = keyof typeof boardSpecs;
 const takes: Record<BoardCommand, readonly string[]> = {
@@ -51,6 +54,8 @@ const takes: Record<BoardCommand, readonly string[]> = {
   "board.addConnected": ["id", "side", "at", "edit"],
   "board.stamp": ["x", "y", "stamp"],
   "board.ink": ["path", "points", "highlighter", "color", "select"],
+  "board.table": ["rows", "columns", "cells", "x", "y"],
+  "board.tableEdit": ["id", "action", "index"],
 };
 
 /** Native `NEEDS_BOARD` and `NOT_ON_BOARDS`. */
@@ -403,7 +408,7 @@ const marker = [4, 1] as const, highlighterStroke = [20, Math.fround(0.45)] as c
 
 export interface BoardResult { readonly document: Document; readonly selection: readonly NodeId[]; readonly nextId: bigint; readonly result: Record<string, unknown>; readonly tool?: BoardTool }
 /** Native `board.*` (this item's commands): `author` is the viewer's name (empty when unknown), `tool` the board tools' choices. */
-export function executeBoard(command: BoardCommand, doc: Document, selection: readonly NodeId[], nextId: bigint, p: Record<string, unknown>, author: string, tool: BoardTool): BoardResult {
+export function executeBoard(command: BoardCommand, doc: Document, selection: readonly NodeId[], nextId: bigint, p: Record<string, unknown>, author: string, tool: BoardTool, view: { readonly cx: number; readonly cy: number } = { cx: 0, cy: 0 }): BoardResult {
   const unknown = Object.keys(p).filter(k => !takes[command].includes(k));
   if (unknown.length) throw bad(command, (unknown.length === 1 ? "unknown parameter `" : "unknown parameters ") + (unknown.length === 1 ? unknown[0] + "`" : unknown.map(k => "`" + k + "`").join(", ")) + " (it takes " + takes[command].join(", ") + ")");
   if (doc.kind !== "board") throw disabled(command, needsBoard);
@@ -652,6 +657,45 @@ export function executeBoard(command: BoardCommand, doc: Document, selection: re
       const draft = new HierarchyDraft(made.document), n = draft.nodes[made.id] as Layer;
       draft.set({ ...n, ...(opacity !== 1 && { opacity }), ...(high && { blend: "multiply" }), board: { type: "ink" } } as DocumentNode);
       return { document: draft.finish(), selection: made.selection, nextId: made.nextId, result: { id: Number(made.id) } };
+    }
+    case "board.table": {
+      const tctx: TableCtx = { draft: ctx.draft, alloc: () => alloc(ctx), addText: (parent, text, size, align, width) => addText(ctx, parent, text, size, ink, align, width) };
+      let given: string[][] = [];
+      if (p.cells !== undefined && p.cells !== null) {
+        if (!Array.isArray(p.cells)) throw bad(command, "`cells` is a list of rows, each a list of texts");
+        given = p.cells.map(r => { if (!Array.isArray(r)) throw bad(command, "`cells` is a list of rows, each a list of texts"); return r.map(t => { if (typeof t !== "string") throw bad(command, "`cells` holds text"); return t; }); });
+      }
+      const widest = given.reduce((m, r) => Math.max(m, r.length), 0);
+      const count = (k: string, fallback: number, max: number) => {
+        const v = p[k];
+        if (v === undefined) return fallback;
+        if (typeof v !== "number" || !Number.isInteger(v) || v < 1 || v > max) throw bad(command, "`" + k + "` is a whole number from 1 to " + max);
+        return v;
+      };
+      const rows = count("rows", given.length || 3, maxRows), columns = count("columns", widest || 3, maxColumns);
+      if (given.length > rows || widest > columns) throw bad(command, "`cells` doesn't fit in " + rows + " × " + columns);
+      const texts = Array.from({ length: rows }, (_, r) => Array.from({ length: columns }, (_, c) => given[r]?.[c] ?? ""));
+      const w = 160 * columns, h = 40 * rows;
+      const x = typeof p.x === "number" ? p.x : view.cx - w / 2, y = typeof p.y === "number" ? p.y : view.cy - h / 2;
+      if (!Number.isFinite(x) || !Number.isFinite(y)) throw bad(command, "`x` and `y` are finite numbers");
+      const table = makeTable(tctx, doc.currentPage, [x, y], texts);
+      return done([table], tableAnswer(ctx.draft.document, table));
+    }
+    case "board.tableEdit": {
+      const tctx: TableCtx = { draft: ctx.draft, alloc: () => alloc(ctx), addText: (parent, text, size, align, width) => addText(ctx, parent, text, size, ink, align, width) };
+      const target = p.id !== undefined && p.id !== null ? parseNodeId(p.id) : selection[0];
+      if (target === undefined) throw disabled(command, "select a table");
+      if (!doc.nodes[target]) throw new Error("no such node " + target);
+      const table = tableOf(doc, target);
+      if (table === undefined) throw bad(command, "that isn't a table");
+      if (typeof p.action !== "string") throw bad(command, "`action` is required");
+      let index: number | undefined;
+      if (p.index !== undefined && p.index !== null) {
+        if (typeof p.index !== "number" || !Number.isInteger(p.index) || p.index < 0) throw bad(command, "`index` is a whole number from 0");
+        index = p.index;
+      }
+      editTable(tctx, table, p.action, index, m => bad(command, m));
+      return done([table], tableAnswer(ctx.draft.document, table));
     }
     case "board.label": {
       const target = (p.id !== undefined && p.id !== null ? [parseNodeId(p.id) ?? ""] : targets(command, p, selection))[0];

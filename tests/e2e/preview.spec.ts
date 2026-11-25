@@ -11691,3 +11691,19 @@ test("stamps sit on what they land on and ink draws on the board",async ({page})
   await y.fill("100");await y.press("Enter");
   await expectCanvasPixel(page,180,263,[0xe5,0x48,0x5f,255]);
 });
+
+test("a board table draws its header, its lines and its cells",async ({page})=>{
+  const engine=EditorEngine.newTab(undefined,{},"board");
+  await engine.executeAsync("board.table",{x:0,y:0,rows:2,columns:2});
+  await engine.executeAsync("board.tableEdit",{action:"addColumn"});
+  await engine.executeAsync("select.set",{ids:[]});
+  await login(page);
+  await page.getByLabel("Open Figcraft file",{exact:true}).setInputFiles({name:"table.figcraft",mimeType:"application/octet-stream",buffer:Buffer.from(await engine.nativeSnapshot())});
+  await expect(page.getByRole("region",{name:"Layers",exact:true}).getByRole("button",{name:"Table",exact:true})).toHaveCount(1);
+  // Three columns of 160: the tinted header row, a column line between the first two, and a white body row.
+  await expectCanvasPixel(page,80,8,[0xf1,0xef,0xeb,255]);
+  // (A 1-point line on a half-pixel boundary blends across two pixels: darker than the white cells beside it.)
+  await expect.poll(()=>page.getByLabel("Design canvas",{exact:true}).evaluate((node:HTMLCanvasElement)=>{const k=window.devicePixelRatio||1,z=Number(node.dataset.viewZoom);
+    return Array.from(node.getContext("2d")!.getImageData(Math.round((160-Number(node.dataset.viewOriginX))*z*k),Math.round((60-Number(node.dataset.viewOriginY))*z*k),1,1).data)[0];})).toBeLessThan(0xf6);
+  await expectCanvasPixel(page,400,60,[0xff,0xff,0xff,255]);
+});
