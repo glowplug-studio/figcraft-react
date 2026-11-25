@@ -10,6 +10,14 @@ import { solidPaint, type Paint } from "./solid-paint";
 import { defaultStroke, type StrokeCap } from "./stroke";
 import type { AutoLayout } from "./auto-layout";
 import { parseNodeId } from "./parameters";
+import { boundsOf } from "./viewport";
+import { inverse, multiply, transformPoint, type Affine } from "./affine";
+import { worldTransform, pageForNode } from "./hierarchy";
+import { networkFromPoints } from "./vector-network";
+import { pathBounds } from "./vector-path";
+import type { PathCommand } from "./corners";
+import type { Connector, End, Side } from "./board-data";
+import { routeAlong, type Pt, type RouteEnd } from "./board-route";
 
 /** Source: upstream engine/src/boards/board.rs and board/{items,edit}.rs: stickies and shapes with text, their colours and styles. */
 export const boardSpecs = Object.freeze({
@@ -18,6 +26,9 @@ export const boardSpecs = Object.freeze({
   "board.shape": { label: "Shape with text", undo: true },
   "board.setColor": { label: "Board color", undo: true },
   "board.setStyle": { label: "Board style", undo: true },
+  "board.connector": { label: "Connector", undo: true },
+  "board.reattach": { label: "Reattach connector", undo: true },
+  "board.label": { label: "Connector label", undo: true },
 });
 export type BoardCommand = keyof typeof boardSpecs;
 const takes: Record<BoardCommand, readonly string[]> = {
@@ -26,6 +37,9 @@ const takes: Record<BoardCommand, readonly string[]> = {
   "board.shape": ["shape", "x", "y", "width", "height", "text", "color", "parent"],
   "board.setColor": ["ids", "color"],
   "board.setStyle": ["ids", "shape", "fontSize", "style", "startCap", "endCap"],
+  "board.connector": ["from", "to", "fromSide", "toSide", "fromAt", "toAt", "style", "startCap", "endCap", "label"],
+  "board.reattach": ["id", "ids", "end", "target", "side", "at"],
+  "board.label": ["id", "ids", "text"],
 };
 
 /** Native `NEEDS_BOARD` and `NOT_ON_BOARDS`. */
@@ -160,6 +174,177 @@ const solidOf = (n: DocumentNode) => ((n as { fills?: readonly Paint[] }).fills 
   ?? (typeof (n as { fill?: string }).fill === "string" ? parseColour((n as { fill: string }).fill) : undefined);
 const caps = ["none", "round", "square", "lineArrow", "triangleArrow", "reversedTriangle", "circleFilled", "diamondFilled", "squareFilled", "circle", "diamond", "lineArrowReversed"];
 
+/** Native `LINE` and `LINE_WEIGHT`: connectors' colour and weight; native `CAPS`: a new connector's caps. */
+export const line = rgb("#3A3936"), lineWeight = 2;
+const defaultCaps: readonly [StrokeCap, StrokeCap] = ["none", "triangleArrow"];
+type Layer = DocumentNode & { board?: BoardItem; network?: import("./vector-network").VectorNetwork; width: number; height: number; transform?: Affine; x: number; y: number; children?: readonly NodeId[] };
+const worldBox = (doc: Document, id: NodeId) => { const b = boundsOf(doc, [id]); return b && { x0: b.x, y0: b.y, x1: b.x + b.width, y1: b.y + b.height }; };
+/** Native `route_ends`: a connector's ends as they are now. */
+function routeEnds(doc: Document, c: Connector): [RouteEnd, RouteEnd] | undefined {
+  const end = (e: End): RouteEnd | undefined => {
+    if (!("node" in e)) return { point: { x: e.x, y: e.y } };
+    const b = doc.nodes[e.node] ? worldBox(doc, e.node) : undefined;
+    if (!b) return undefined;
+    return e.at ? { box: b, side: e.side, on: { x: b.x0 + e.at[0] * (b.x1 - b.x0), y: b.y0 + e.at[1] * (b.y1 - b.y0) } } : { box: b, side: e.side };
+  };
+  const a = end(c.from), b = end(c.to);
+  return a && b ? [a, b] : undefined;
+}
+/** Native `route`: the page points connector `c` runs through. */
+export function route(doc: Document, c: Connector): Pt[] | undefined {
+  const ends = routeEnds(doc, c);
+  return ends && routeAlong(ends[0], ends[1], c.routing, c.path);
+}
+/** Native `route_path`: one curve for a curved connector, straight runs otherwise. */
+function routePath(pts: readonly Pt[], routing: Connector["routing"]): PathCommand[] {
+  if (routing === "curved" && pts.length === 4) return [["M", pts[0].x, pts[0].y], ["C", pts[1].x, pts[1].y, pts[2].x, pts[2].y, pts[3].x, pts[3].y]];
+  return pts.map((p, i): PathCommand => [i === 0 ? "M" : "L", p.x, p.y]);
+}
+const mapPath = (path: readonly PathCommand[], m: Affine): PathCommand[] => path.map((c): PathCommand => {
+  if (c[0] === "Z") return c;
+  const pts: number[] = [];
+  for (let i = 1; i < c.length; i += 2) { const q = transformPoint(m, { x: c[i] as number, y: c[i + 1] as number }); pts.push(q.x, q.y); }
+  return [c[0], ...pts] as unknown as PathCommand;
+});
+/** Native `place_route`: the route written into connector `id` (its box, place and path); untouched when it already runs there. */
+function placeRoute(draft: HierarchyDraft, id: NodeId, pts: readonly Pt[], routing: Connector["routing"]) {
+  const doc = draft.document, n = doc.nodes[id] as Layer | undefined;
+  if (!n) return;
+  const pw = n.parent != null && doc.nodes[n.parent]?.kind !== "page" ? worldTransform(doc, n.parent) : [1, 0, 0, 1, 0, 0] as Affine;
+  const local = mapPath(routePath(pts, routing), inverse(pw));
+  const b = pathBounds(local);
+  if (!b || ![b.x, b.y, b.width, b.height].every(Number.isFinite)) return;
+  const rel = mapPath(local, [1, 0, 0, 1, -b.x, -b.y]);
+  const network = routing === "curved" ? networkFromPath(rel) : networkFromPoints(rel.map(c => ({ x: c[1] as number, y: c[2] as number })), false);
+  const same = n.x === b.x && n.y === b.y && !n.transform && n.width === b.width && n.height === b.height && JSON.stringify(n.network) === JSON.stringify(network);
+  if (same) return;
+  const { transform: _t, ...rest } = n;
+  void _t;
+  draft.set({ ...rest, network, x: b.x, y: b.y, width: b.width, height: b.height } as DocumentNode);
+}
+/** Native `ends_now`: a connector's first and last points on the page as drawn now. */
+function endsNow(doc: Document, id: NodeId): [Pt, Pt] | undefined {
+  const n = doc.nodes[id] as Layer | undefined, v = n?.network?.vertices;
+  if (!n || !v?.length) return undefined;
+  const w = worldTransform(doc, id);
+  return [transformPoint(w, v[0]), transformPoint(w, v[v.length - 1])];
+}
+/** Native `route_mid`: the middle of connector `id`'s route by length, on the page (curves flattened finely). */
+function routeMid(doc: Document, id: NodeId): Pt | undefined {
+  const n = doc.nodes[id] as Layer | undefined, net = n?.network;
+  if (!n || !net || !net.vertices.length) return undefined;
+  const w = worldTransform(doc, id), pts: Pt[] = [];
+  const at = (i: number) => net.vertices[i];
+  net.segments.forEach((sg, k) => {
+    const a = at(sg.a), b = at(sg.b);
+    if (k === 0) pts.push(a);
+    if (sg.ta[0] === 0 && sg.ta[1] === 0 && sg.tb[0] === 0 && sg.tb[1] === 0) { pts.push(b); return; }
+    const c1 = { x: a.x + sg.ta[0], y: a.y + sg.ta[1] }, c2 = { x: b.x + sg.tb[0], y: b.y + sg.tb[1] };
+    for (let i = 1; i <= 256; i++) {
+      const t = i / 256, u = 1 - t;
+      pts.push({ x: u * u * u * a.x + 3 * u * u * t * c1.x + 3 * u * t * t * c2.x + t * t * t * b.x, y: u * u * u * a.y + 3 * u * u * t * c1.y + 3 * u * t * t * c2.y + t * t * t * b.y });
+    }
+  });
+  const page = pts.map(p => transformPoint(w, p));
+  const total = page.slice(1).reduce((s, q, i) => s + Math.hypot(q.x - page[i].x, q.y - page[i].y), 0);
+  let left = total / 2;
+  for (let i = 0; i + 1 < page.length; i++) {
+    const a = page[i], b = page[i + 1], l = Math.hypot(b.x - a.x, b.y - a.y);
+    if (l >= left && l > 0) return { x: a.x + (b.x - a.x) * left / l, y: a.y + (b.y - a.y) * left / l };
+    left -= l;
+  }
+  return page[0];
+}
+/** Native `label_of`: the label of connector `id`. */
+export function labelOf(doc: Document, id: NodeId): NodeId | undefined {
+  const parent = doc.nodes[id]?.parent, p = parent != null ? doc.nodes[parent] as Layer : undefined;
+  return p?.children?.find(c => { const b = (doc.nodes[c] as Layer | undefined)?.board; return b?.type === "label" && b.connector === id; });
+}
+/** Native `place_label`: a label at the middle of its connector; gone with it. */
+function placeLabel(draft: HierarchyDraft, label: NodeId, connector: NodeId) {
+  const doc = draft.document, mid = doc.nodes[connector] ? routeMid(doc, connector) : undefined;
+  if (!mid) { if (doc.nodes[label]) draft.remove(label); return; }
+  const n = doc.nodes[label] as Layer | undefined;
+  if (!n) return;
+  const pw = n.parent != null && doc.nodes[n.parent]?.kind !== "page" ? worldTransform(doc, n.parent) : [1, 0, 0, 1, 0, 0] as Affine;
+  const local = transformPoint(inverse(pw), mid), x = local.x - n.width / 2, y = local.y - n.height / 2;
+  if (n.x === x && n.y === y && !n.transform) return;
+  const { transform: _t, ...rest } = n;
+  void _t;
+  draft.set({ ...rest, x, y } as DocumentNode);
+}
+/** Native `set_label`: connector `id`'s label is `text` (empty removes it); the label's id. */
+function setLabel(ctx: Ctx, id: NodeId, text: string): NodeId | undefined {
+  const doc = ctx.draft.document, existing = labelOf(doc, id);
+  if (!text.trim()) { if (existing) ctx.draft.remove(existing); return undefined; }
+  if (existing) {
+    const t = textOf(doc, existing), tn = t !== undefined ? doc.nodes[t] as TextNode : undefined;
+    if (tn) ctx.draft.set({ ...tn, text: { ...tn.text, characters: normaliseTextLines(text), runs: [] } } as DocumentNode);
+    return existing;
+  }
+  const parent = doc.nodes[id].parent!, l = alloc(ctx);
+  ctx.draft.insert(withRectanglePaints({ id: l, kind: "frame", name: "Label", parent, x: 0, y: 0, width: 40, height: 24, fill: "#ffffff", children: Object.freeze([]),
+    corners: Object.freeze({ radii: Object.freeze([4, 4, 4, 4]), smoothing: 0 }), clip: false, layout: autoLayout({ mode: "horizontal", padding: [3, 6, 3, 6] }),
+    sizing: Object.freeze({ horizontal: "hug", vertical: "hug" }), board: Object.freeze({ type: "label", connector: id }) } as unknown as FrameNode, [solidPaint(colour(1, 1, 1, 1))]), parent);
+  const t = addText(ctx, l, text, 12, ink, "center", 40), tn = ctx.draft.nodes[t] as TextNode;
+  ctx.draft.set({ ...tn, text: { ...tn.text, autoResize: "widthAndHeight" }, textSizing: { horizontal: "hug", vertical: "hug" } } as DocumentNode);
+  return l;
+}
+const sides: readonly Side[] = ["auto", "top", "right", "bottom", "left"];
+/** Native `end_param`: a connector end from the params, a layer on this page or a point. */
+function endParam(command: string, doc: Document, p: Record<string, unknown>, [key, sideKey, atKey]: readonly [string, string, string]): End {
+  let side: Side = "auto";
+  if (p[sideKey] !== undefined && p[sideKey] !== null) {
+    const v = String(p[sideKey]).toLowerCase();
+    if (!sides.includes(v as Side)) throw bad(command, "`" + sideKey + "` is auto, top, right, bottom or left");
+    side = v as Side;
+  }
+  const v = p[key];
+  if (v === undefined || v === null) throw bad(command, "`" + key + "` is required");
+  if (typeof v === "object" && !Array.isArray(v) && "x" in v) {
+    const o = v as { x: unknown; y: unknown };
+    if (typeof o.x !== "number" || typeof o.y !== "number" || !Number.isFinite(o.x) || !Number.isFinite(o.y)) throw bad(command, "`" + key + "` needs finite x and y");
+    return { x: o.x, y: o.y };
+  }
+  const node = parseNodeId(v);
+  if (node === undefined) throw bad(command, "`" + key + "` is a layer id or {x, y}");
+  const n = doc.nodes[node] as Layer | undefined;
+  if (!n) throw new Error("no such node " + node);
+  if (n.kind === "page" || pageForNode(doc, node) !== doc.currentPage) throw bad(command, "`" + key + "` must be a layer on this page");
+  if (n.board?.type === "connector") throw bad(command, "`" + key + "` can't be another connector");
+  let at: [number, number] | undefined;
+  const a = p[atKey];
+  if (a !== undefined && a !== null) {
+    if (!Array.isArray(a) || a.length !== 2 || !a.every(x => typeof x === "number" && Number.isFinite(x))) throw bad(command, "`" + atKey + "` is [x, y], fractions of the layer's box");
+    at = [Math.min(Math.max(a[0], 0), 1), Math.min(Math.max(a[1], 0), 1)];
+  }
+  return { node, side, ...(at && { at }) };
+}
+/** Native `make`: connector `c` added to the page with its line, caps and route. */
+function makeConnector(ctx: Ctx, page: NodeId, c: Connector, caps: readonly [StrokeCap, StrokeCap]): NodeId {
+  const command = "board.connector", pts = route(ctx.draft.document, c);
+  if (!pts) throw bad(command, "the ends can't be placed");
+  if (pts.every((q, i) => i === 0 || (q.x === pts[i - 1].x && q.y === pts[i - 1].y))) throw bad(command, "the ends are in the same place");
+  const id = alloc(ctx);
+  ctx.draft.insert(Object.freeze({ id, kind: "vector", name: "Connector", parent: page, x: 0, y: 0, width: 0, height: 0, fill: "transparent", network: networkFromPoints([], false),
+    strokes: Object.freeze([solidPaint(line)]), stroke: Object.freeze({ ...defaultStroke, weight: lineWeight, align: "center", join: "round", capStart: caps[0], capEnd: caps[1] }),
+    board: Object.freeze({ type: "connector", ...c }) }) as unknown as VectorNode, page);
+  placeRoute(ctx.draft, id, pts, c.routing);
+  return id;
+}
+/** Native `connector_of`: the connector `id` names (a connector, or the label on one). */
+function connectorOf(command: string, doc: Document, id: NodeId): [NodeId, Connector] {
+  const n = doc.nodes[id] as Layer | undefined;
+  if (!n) throw new Error("no such node " + id);
+  const b = n.board;
+  if (b?.type === "connector") { const { type: _t, ...c } = b; void _t; return [id, c]; }
+  if (b?.type === "label") {
+    const k = doc.nodes[b.connector] as Layer | undefined;
+    if (k?.board?.type === "connector") { const { type: _t, ...c } = k.board; void _t; return [b.connector, c]; }
+  }
+  throw bad(command, "that isn't a connector");
+}
+
 export interface BoardResult { readonly document: Document; readonly selection: readonly NodeId[]; readonly nextId: bigint; readonly result: Record<string, unknown>; readonly tool?: BoardTool }
 /** Native `board.*` (this item's commands): `author` is the viewer's name (empty when unknown), `tool` the board tools' choices. */
 export function executeBoard(command: BoardCommand, doc: Document, selection: readonly NodeId[], nextId: bigint, p: Record<string, unknown>, author: string, tool: BoardTool): BoardResult {
@@ -288,7 +473,100 @@ export function executeBoard(command: BoardCommand, doc: Document, selection: re
       if (!changed.length) throw bad(command, "nothing selected takes these (stickies, shapes with text, connectors, labels)");
       return done(selection, { ids: changed.map(Number) }, stickySized && size !== undefined ? { ...tool, stickySize: size } : undefined);
     }
+    case "board.connector": {
+      const from = endParam(command, doc, p, ["from", "fromSide", "fromAt"]), to = endParam(command, doc, p, ["to", "toSide", "toAt"]);
+      if ("node" in from && "node" in to && from.node === to.node) throw bad(command, "connect two different layers");
+      let routing = tool.routing;
+      if (p.style !== undefined && p.style !== null) {
+        const st = String(p.style).toLowerCase();
+        if (st !== "straight" && st !== "elbow" && st !== "curved") throw bad(command, "`style` is straight, elbow or curved, not `" + String(p.style) + "`");
+        routing = st;
+      }
+      const cap = (k: string, fallback: StrokeCap): StrokeCap => {
+        const v = p[k];
+        if (v === undefined || v === null) return fallback;
+        if (typeof v !== "string" || !caps.includes(v)) throw bad(command, "`" + k + "`: unknown cap");
+        return v as StrokeCap;
+      };
+      const id = makeConnector(ctx, doc.currentPage, { from, to, routing }, [cap("startCap", defaultCaps[0]), cap("endCap", defaultCaps[1])]);
+      const text = typeof p.label === "string" ? p.label : "";
+      const label = text.trim() ? setLabel(ctx, id, text) : undefined;
+      return done([id], { id: Number(id), ...(label !== undefined && { label: Number(label) }) });
+    }
+    case "board.reattach": {
+      const target = (p.id !== undefined && p.id !== null ? [parseNodeId(p.id) ?? ""] : targets(command, p, selection))[0];
+      if (target === undefined) throw bad(command, "select a connector");
+      const [id, c] = connectorOf(command, doc, target);
+      const which = p.end === "from" ? "from" : p.end === "to" ? "to" : undefined;
+      if (!which) throw bad(command, "`end` is from or to");
+      const end = endParam(command, doc, p, ["target", "side", "at"]), other = which === "from" ? c.to : c.from;
+      if ("node" in end && "node" in other && end.node === other.node) throw bad(command, "connect two different layers");
+      // A path shaped by hand was for where the end was.
+      const { path: _path, ...rest } = c;
+      void _path;
+      const next: Connector = { ...rest, [which]: end };
+      const pts = route(doc, next);
+      if (!pts) throw bad(command, "the ends can't be placed");
+      if (pts.every((q, i) => i === 0 || (q.x === pts[i - 1].x && q.y === pts[i - 1].y))) throw bad(command, "the ends are in the same place");
+      ctx.draft.set({ ...ctx.draft.nodes[id], board: { type: "connector", ...next } } as DocumentNode);
+      placeRoute(ctx.draft, id, pts, next.routing);
+      return done(selection, { id: Number(id) });
+    }
+    case "board.label": {
+      const target = (p.id !== undefined && p.id !== null ? [parseNodeId(p.id) ?? ""] : targets(command, p, selection))[0];
+      if (target === undefined) throw bad(command, "select a connector");
+      const [id] = connectorOf(command, doc, target);
+      if (typeof p.text !== "string") throw bad(command, "`text` is required");
+      const label = setLabel(ctx, id, p.text);
+      return done(selection, { id: Number(id), label: label === undefined ? null : Number(label) });
+    }
   }
+}
+
+/** Native `settle_routes`: after layout, connectors run between their ends again (an end whose layer is gone stays where it was drawn, as
+ * a point), one moved on its own takes its free ends along, and labels sit at their middles. Only what an edit can have moved is looked at. */
+export function settleBoardRoutes(doc: Document, before: Document): Document {
+  if (doc.kind !== "board" || doc.nodes === before.nodes) return doc;
+  const touched = new Set<NodeId>();
+  for (const id of Object.keys(doc.nodes)) if (doc.nodes[id] !== before.nodes[id]) touched.add(id);
+  for (const id of Object.keys(before.nodes)) if (!doc.nodes[id]) touched.add(id);
+  if (!touched.size) return doc;
+  const hit = (id: NodeId) => touched.has(id) || (doc.nodes[id] ? ancestors(doc, id).some(a => touched.has(a)) : false);
+  const connectors: [NodeId, Connector][] = [], labels: [NodeId, NodeId][] = [];
+  for (const n of Object.values(doc.nodes) as Layer[]) {
+    const b = n.board;
+    if (b?.type === "connector") {
+      const ends = [b.from, b.to].flatMap(e => "node" in e ? [e.node] : []);
+      if (hit(n.id) || ends.some(e => !doc.nodes[e] || hit(e))) { const { type: _t, ...c } = b; void _t; connectors.push([n.id, c]); }
+    } else if (b?.type === "label") labels.push([n.id, b.connector]);
+  }
+  const draft = new HierarchyDraft(doc);
+  const rerouted = new Set(connectors.map(([id]) => id));
+  for (const [id, c0] of connectors) {
+    let c = c0, changed = false;
+    // Ends whose layer is gone (or on another page) stay where they are drawn, as points.
+    const page = pageForNode(doc, id), now = endsNow(doc, id);
+    const detach = (e: End, at: Pt | undefined): End => "node" in e && at && (!doc.nodes[e.node] || pageForNode(doc, e.node) !== page) ? (changed = true, { x: at.x, y: at.y }) : e;
+    c = { ...c, from: detach(c.from, now?.[0]), to: detach(c.to, now?.[1]) };
+    // Moved by itself (its place changed, not what it joins): its free ends move with it.
+    const b = before.nodes[id] as Layer | undefined, n = doc.nodes[id] as Layer;
+    if (b && touched.has(id) && (b.x !== n.x || b.y !== n.y || b.transform !== n.transform) && JSON.stringify(b.board) === JSON.stringify(n.board)) {
+      const pts = route(doc, c), box = pts && pathBounds(routePath(pts, c.routing));
+      const origin = transformPoint(worldTransform(doc, id), { x: 0, y: 0 });
+      if (box) {
+        const d = { x: origin.x - box.x, y: origin.y - box.y };
+        if (Math.hypot(d.x, d.y) > 1e-9) {
+          const carry = (e: End): End => "node" in e ? e : (changed = true, { x: e.x + d.x, y: e.y + d.y });
+          c = { ...c, from: carry(c.from), to: carry(c.to) };
+        }
+      }
+    }
+    if (changed) draft.set({ ...draft.nodes[id], board: { type: "connector", ...c } } as DocumentNode);
+    const pts = route(draft.document, c);
+    if (pts) placeRoute(draft, id, pts, c.routing);
+  }
+  for (const [label, connector] of labels) if (rerouted.has(connector) || touched.has(connector) || hit(label)) placeLabel(draft, label, connector);
+  return draft.finish();
 }
 
 /** Native `settle_text` (shapes): a resized shape with text keeps its text inside its outline's widest part. */

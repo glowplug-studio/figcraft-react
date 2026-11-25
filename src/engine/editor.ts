@@ -81,7 +81,7 @@ import { base64Bytes } from "./recovery";
 import { type FileBranch, readVersionDocument, encodePublishedLibrary, decodePublishedLibrary, decodeFigcraft, encodeFigcraft, encodeFigcraftBlob, prepareArchive, MAX_UNPACKED_BYTES } from "./file-format";
 import { executePage, listPages, pageSpecs } from "./pages";
 import { executePrototype, prototypeSpecs, type PresentOptions, type PrototypeCommand } from "./prototype-commands";
-import { boardSpecs, defaultBoardTool, executeBoard, refuseOnBoard, settleBoardText, type BoardCommand, type BoardTool } from "./board-commands";
+import { boardSpecs, defaultBoardTool, executeBoard, refuseOnBoard, settleBoardRoutes, settleBoardText, type BoardCommand, type BoardTool } from "./board-commands";
 import { executeSelection, layersAt, selectionSpecs } from "./selection";
 import { setRectangleProperties, setPageGeometryFields } from "./properties";
 import { HierarchyDraft, pageForNode, worldTransform, zSorted } from "./hierarchy";
@@ -1552,7 +1552,7 @@ export class EditorEngine {
     const before = this.#snapshot;
     const proposed=options.duplicated ? countLibraryInstances(patch.document,options.duplicated.copies,"inserted") : patch.document;
     const prepared = this.#prepareEdit(proposed, options.nextId ?? this.#nextId);
-    const nextId=prepared.nextId,document=settleBoardText(followCommentAnchors(prepared.document,before.document),before.document);
+    const nextId=prepared.nextId,document=settleBoardRoutes(settleBoardText(followCommentAnchors(prepared.document,before.document),before.document),before.document);
     if (this.#idClient && nextId > ((BigInt(this.#idClient) + 1n) << 32n)) throw new Error(this.#branchTab ? "Branch identifiers are exhausted" : "Live client identifiers are exhausted");
     guardLibraryVariables(before.document,document);
     if (!options.libraryEdit) guardLibraryStore(before.document,document);
@@ -2443,11 +2443,11 @@ export class EditorEngine {
       return {families:[...families],...this.#refitOpenText({},families)};
     }
     // Board objects carry text (a sticky's note and author, a shape's label): the fonts for it first.
-    if (command === "board.sticky" || command === "board.shape" || command === "board.nextSticky" || command === "board.setStyle") {
+    if (command === "board.sticky" || command === "board.shape" || command === "board.nextSticky" || command === "board.setStyle" || command === "board.connector" || command === "board.label") {
       const p = parameters(input);
       if (!this.#snapshot.editable) throw new Error("Sign in to edit this document");
       const identity = this.#documentIdentity, opening = this.#openSequence;
-      await Promise.all([parseString(p.text) ?? "", typeof p.author === "string" ? p.author : this.#commentName].map(value => prepareText(value)));
+      await Promise.all([parseString(p.text) ?? "", parseString(p.label) ?? "", typeof p.author === "string" ? p.author : this.#commentName].map(value => prepareText(value)));
       if (identity !== this.#documentIdentity || opening !== this.#openSequence) throw new Error("The document changed during the board edit");
       return this.execute(command, p);
     }

@@ -11631,3 +11631,24 @@ test("stickies and shapes with text made on a board draw as native draws them",a
   await expectCanvasPixel(page,305,5,[0xf4,0xf3,0xf0,255]);
   expect(shape.id).toBeGreaterThan(0);
 });
+
+test("a connector follows the shapes it joins when one is moved",async ({page})=>{
+  const engine=EditorEngine.newTab(undefined,{},"board");
+  const a=(await engine.executeAsync("board.shape",{x:0,y:0,width:100,height:100}) as {id:number}).id;
+  const b=(await engine.executeAsync("board.shape",{x:300,y:0,width:100,height:100}) as {id:number}).id;
+  await engine.executeAsync("board.connector",{from:a,to:b,style:"straight",endCap:"none"});
+  await engine.executeAsync("select.set",{ids:[]});
+  await login(page);
+  await page.getByLabel("Open Figcraft file",{exact:true}).setInputFiles({name:"connect.figcraft",mimeType:"application/octet-stream",buffer:Buffer.from(await engine.nativeSnapshot())});
+  const layers=page.getByRole("region",{name:"Layers",exact:true});
+  await expect(layers.getByRole("button",{name:"Connector",exact:true})).toHaveCount(1);
+  // The connector's line between the two shapes.
+  await expectCanvasPixel(page,200,50,[0x3a,0x39,0x36,255]);
+  // Move the second shape down by 200 (selected in the layer list, its Y typed: dragging a board object whole comes with the board tools):
+  // the connector runs to it there.
+  await layers.getByRole("button",{name:"Rectangle",exact:true}).first().click();
+  const y=page.getByLabel("Edit Y",{exact:true});
+  await y.fill("200");await y.press("Enter");
+  await expectCanvasPixel(page,200,150,[0x3a,0x39,0x36,255]);
+  await expectCanvasPixel(page,200,50,[0xf4,0xf3,0xf0,255]);
+});
